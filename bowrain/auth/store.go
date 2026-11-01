@@ -14,7 +14,8 @@ var (
 	ErrRefreshTokenInvalid = errors.New("refresh token invalid or expired")
 
 	// ErrRefreshTokenReuse is returned by RotateRefreshToken when a refresh token
-	// that was already rotated (consumed) is presented again — the signature of a
+	// that was already rotated (consumed) is presented again outside
+	// RefreshReuseGrace, or past RefreshReuseSiblingCap: the signature of a
 	// stolen, replayed token. The token's entire family has been revoked and the
 	// caller must clear the session and force re-authentication.
 	ErrRefreshTokenReuse = errors.New("refresh token reuse detected")
@@ -78,9 +79,11 @@ type AuthStore interface {
 	ValidateRefreshTokenByHash(ctx context.Context, tokenHash string) (userID string, err error)
 	// RotateRefreshToken atomically consumes the presented refresh token and
 	// mints its successor (newTokenHash) in the same family. It returns the
-	// owning user's ID on success. If the presented token was already consumed
-	// (a replayed, likely-stolen token) it revokes the entire family and returns
-	// ErrRefreshTokenReuse; if it is unknown or expired it returns
+	// owning user's ID on success. A token consumed less than RefreshReuseGrace
+	// ago gets a sibling successor instead, up to RefreshReuseSiblingCap. Any
+	// other presentation of a consumed token (a replayed, likely-stolen token)
+	// revokes the entire family and returns ErrRefreshTokenReuse; if the token
+	// is unknown or expired it returns
 	// ErrRefreshTokenInvalid. Prefer this over ValidateRefreshTokenByHash +
 	// StoreRefreshToken for the rotation path.
 	RotateRefreshToken(ctx context.Context, presentedHash, newTokenHash string, newExpiresAt time.Time) (userID string, err error)
