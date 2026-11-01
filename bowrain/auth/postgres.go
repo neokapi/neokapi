@@ -485,11 +485,29 @@ func (s *PostgresAuthStore) StoreRefreshToken(ctx context.Context, userID, token
 	return tokenID, nil
 }
 
+// RefreshReuseGrace is how long after a refresh token's rotation a second
+// presentation of the same token counts as a concurrent refresh, not reuse.
+// The CLI, the kapi-bowrain plugin and the desktop app share one sign-in, so
+// one refresh-token family; two of them can refresh the same token in the same
+// instant. Within the window RotateRefreshToken mints a sibling successor and
+// leaves the family intact. Outside it, the presentation is reuse and revokes
+// the family.
+const RefreshReuseGrace = 30 * time.Second
+
+// RefreshReuseSiblingCap bounds the successors a consumed token can have within
+// RefreshReuseGrace. RotateRefreshToken counts the family's tokens created at
+// or after the consumed token's consumed_at; when that count has reached the
+// cap, a further presentation is reuse and revokes the family.
+const RefreshReuseSiblingCap = 3
+
 // RotateRefreshToken atomically consumes the presented refresh token and mints
-// its successor in the same family. Reuse of an already-consumed token revokes
+// its successor in the same family. A consumed token presented again within
+// RefreshReuseGrace of its consumption gets a sibling successor, up to
+// RefreshReuseSiblingCap; any other presentation of a consumed token revokes
 // the whole family (see ErrRefreshTokenReuse). All work happens in one
-// serialized transaction with SELECT ... FOR UPDATE so concurrent rotations of
-// the same token cannot both succeed.
+// transaction with SELECT ... FOR UPDATE, so concurrent presentations of the
+// same token run one after the other, and each sees the rows the previous one
+// committed.
 func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHash, newTokenHash string, newExpiresAt time.Time) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -515,17 +533,22 @@ func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHas
 		return "", fmt.Errorf("lookup refresh token: %w", err)
 	}
 
-	// Reuse detection: a consumed token presented again means it was replayed
-	// (the legitimate client already rotated it). Revoke the entire family so a
-	// stolen token — and any successor derived from it — is invalidated.
+	// The database clock stamps consumed_at and created_at, so the grace
+	// comparison reads the same clock. clock_timestamp() is read after the row
+	// lock is held; NOW() is the transaction's start time, which for a waiting
+	// presentation is earlier than the consumed_at it waited for.
+	var dbNow time.Time
+	if err := tx.QueryRowContext(ctx, `SELECT clock_timestamp()`).Scan(&dbNow); err != nil {
+		return "", fmt.Errorf("read database clock: %w", err)
+	}
+
 	if consumedAt.Valid {
-		if _, derr := tx.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE family_id = $1`, familyID); derr != nil {
-			return "", fmt.Errorf("revoke reused token family: %w", derr)
-		}
-		if derr := tx.Commit(); derr != nil {
-			return "", fmt.Errorf("commit family revocation: %w", derr)
-		}
-		return "", ErrRefreshTokenReuse
+		return rotateConsumedRefreshToken(ctx, tx, consumedRefreshToken{
+			userID:     userID,
+			familyID:   familyID,
+			expiresAt:  expiresAt,
+			consumedAt: consumedAt.Time,
+		}, dbNow, newTokenHash, newExpiresAt)
 	}
 
 	// Expired: consume it and reject.
@@ -541,20 +564,80 @@ func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHas
 
 	// Mark the presented token consumed and insert its successor in the family.
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE refresh_tokens SET consumed_at = NOW() WHERE id = $1`, rowID); err != nil {
+		`UPDATE refresh_tokens SET consumed_at = $2 WHERE id = $1`, rowID, dbNow); err != nil {
 		return "", fmt.Errorf("mark refresh token consumed: %w", err)
 	}
-	newID := id.New()
-	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO refresh_tokens (id, user_id, token_hash, family_id, expires_at, created_at)
-		 VALUES ($1, $2, $3, $4, $5, NOW())`,
-		newID, userID, newTokenHash, familyID, newExpiresAt); err != nil {
-		return "", fmt.Errorf("insert rotated refresh token: %w", err)
+	if err := insertRefreshSuccessor(ctx, tx, userID, newTokenHash, familyID, newExpiresAt, dbNow); err != nil {
+		return "", err
 	}
 	if err := tx.Commit(); err != nil {
 		return "", fmt.Errorf("commit refresh token rotation: %w", err)
 	}
 	return userID, nil
+}
+
+// consumedRefreshToken is the locked row of a refresh token that was already
+// rotated, as RotateRefreshToken read it.
+type consumedRefreshToken struct {
+	userID     string
+	familyID   string
+	expiresAt  time.Time
+	consumedAt time.Time
+}
+
+// rotateConsumedRefreshToken handles a second presentation of a consumed token
+// inside RotateRefreshToken's transaction. Within RefreshReuseGrace and under
+// RefreshReuseSiblingCap it mints a sibling successor and returns the user id.
+// An expired token within the window is invalid and changes nothing. Any other
+// presentation is reuse: it deletes the family and returns
+// ErrRefreshTokenReuse.
+func rotateConsumedRefreshToken(ctx context.Context, tx *sql.Tx, tok consumedRefreshToken, dbNow time.Time, newTokenHash string, newExpiresAt time.Time) (string, error) {
+	withinGrace := dbNow.Sub(tok.consumedAt) <= RefreshReuseGrace
+	if withinGrace && time.Now().After(tok.expiresAt) {
+		return "", ErrRefreshTokenInvalid
+	}
+
+	if withinGrace {
+		var successors int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM refresh_tokens WHERE family_id = $1 AND created_at >= $2`,
+			tok.familyID, tok.consumedAt).Scan(&successors); err != nil {
+			return "", fmt.Errorf("count refresh token successors: %w", err)
+		}
+		if successors < RefreshReuseSiblingCap {
+			if err := insertRefreshSuccessor(ctx, tx, tok.userID, newTokenHash, tok.familyID, newExpiresAt, dbNow); err != nil {
+				return "", err
+			}
+			if err := tx.Commit(); err != nil {
+				return "", fmt.Errorf("commit refresh token grace rotation: %w", err)
+			}
+			slog.InfoContext(ctx, "refresh token presented again within the reuse grace window; sibling successor issued",
+				"family_id", tok.familyID, "successors", successors+1)
+			return tok.userID, nil
+		}
+	}
+
+	// Reuse: the legitimate client already rotated this token, so the
+	// presentation is a replay. Revoke the entire family so a stolen token, and
+	// any successor derived from it, is invalidated.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE family_id = $1`, tok.familyID); err != nil {
+		return "", fmt.Errorf("revoke reused token family: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit family revocation: %w", err)
+	}
+	return "", ErrRefreshTokenReuse
+}
+
+// insertRefreshSuccessor inserts a refresh token into an existing family.
+func insertRefreshSuccessor(ctx context.Context, tx *sql.Tx, userID, tokenHash, familyID string, expiresAt, createdAt time.Time) error {
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, family_id, expires_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		id.New(), userID, tokenHash, familyID, expiresAt, createdAt); err != nil {
+		return fmt.Errorf("insert rotated refresh token: %w", err)
+	}
+	return nil
 }
 
 func (s *PostgresAuthStore) ValidateRefreshTokenByHash(ctx context.Context, tokenHash string) (string, error) {
