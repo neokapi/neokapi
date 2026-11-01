@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"testing"
 	"time"
 
@@ -229,5 +230,67 @@ func TestRotateRefreshTokenReuseGrace(t *testing.T) {
 			_, err = s.RotateRefreshToken(ctx, hashToken("g5-s"+string(rune('0'+i))), hashToken("g5-next"+string(rune('0'+i))), future)
 			require.NoError(t, err)
 		}
+	})
+
+	// The row lock serializes concurrent presentations, so their outcomes are
+	// fixed by position, whichever goroutine wins each round. Each successor
+	// is stamped with the database clock read after the lock is held, so the
+	// cap count sees every successor committed before it.
+	concurrentPresentations := func(t *testing.T, prefix string, consumeFirst bool) (succeeded, reused, invalid int) {
+		t.Helper()
+		h0 := hashToken(prefix + "-0")
+		_, err := s.StoreRefreshToken(ctx, user.ID, h0, future)
+		require.NoError(t, err)
+		if consumeFirst {
+			_, err = s.RotateRefreshToken(ctx, h0, hashToken(prefix+"-first"), future)
+			require.NoError(t, err)
+		}
+
+		const n = RefreshReuseSiblingCap + 1
+		errs := make(chan error, n)
+		start := make(chan struct{})
+		for i := range n {
+			go func() {
+				<-start
+				_, err := s.RotateRefreshToken(ctx, h0, hashToken(prefix+"-c"+string(rune('0'+i))), future)
+				errs <- err
+			}()
+		}
+		close(start)
+		for range n {
+			err := <-errs
+			switch {
+			case err == nil:
+				succeeded++
+			case errors.Is(err, ErrRefreshTokenReuse):
+				reused++
+			case errors.Is(err, ErrRefreshTokenInvalid):
+				invalid++
+			default:
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}
+		return succeeded, reused, invalid
+	}
+
+	t.Run("concurrent presentations of a fresh token stop at the cap", func(t *testing.T) {
+		// The first presentation consumes the token inside the burst, so the
+		// cap count depends on the siblings' created_at falling at or after
+		// that consumed_at: cap rotations succeed, the next one is reuse.
+		succeeded, reused, invalid := concurrentPresentations(t, "g6", false)
+		assert.Equal(t, RefreshReuseSiblingCap, succeeded)
+		assert.Equal(t, 1, reused)
+		assert.Equal(t, 0, invalid)
+	})
+
+	t.Run("concurrent presentations of a consumed token stop at the cap", func(t *testing.T) {
+		// The first successor already counts toward the cap, so cap-1
+		// siblings succeed and the next presentation is reuse. Reuse deletes
+		// the family, so a presentation still waiting on the lock finds no
+		// row and is invalid.
+		succeeded, reused, invalid := concurrentPresentations(t, "g7", true)
+		assert.Equal(t, RefreshReuseSiblingCap-1, succeeded)
+		assert.Equal(t, 1, reused)
+		assert.Equal(t, 1, invalid)
 	})
 }

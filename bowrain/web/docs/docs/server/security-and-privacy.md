@@ -18,11 +18,11 @@ Bowrain authenticates through OpenID Connect (OIDC). After a successful sign-in,
 the server issues a short-lived JSON Web Token (JWT) for the session and a
 longer-lived refresh token. Refresh tokens rotate on every use, and the server
 stores only a SHA-256 hash of each one, never the token itself. Reuse of an
-already-rotated refresh token invalidates the entire session family, so a stolen
-refresh token is single-use and detectable. The CLI and the desktop app share
-one sign-in, so a token presented again within 30 seconds of its rotation counts
-as a concurrent refresh: the server issues a second successor, up to a small
-cap, and keeps the session.
+already-rotated refresh token revokes the entire session family. The exception
+is a token presented again within 30 seconds of its rotation: the server treats
+it as a concurrent refresh from one of the apps that share your sign-in, such as
+the CLI, its Bowrain plugin or a desktop app, and issues another successor, up
+to three successors in all.
 
 **Hosted Bowrain Cloud.** Sign-in is handled by a managed, hosted identity
 service. You do not run, configure, or patch an identity provider yourself.
