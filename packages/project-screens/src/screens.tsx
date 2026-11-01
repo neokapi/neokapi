@@ -11,7 +11,13 @@ import { MapView, type MapViewProps } from "./MapView";
 import { KeptRulesView } from "./KeptRulesView";
 import { ReaderView } from "./ReaderView";
 import type { ProjectScreensPort, ScreenNavigation } from "./port";
-import type { ReaderFile, ReaderFixFiled, ReaderProposal, ReaderRefusal } from "./types";
+import type {
+  ReaderFile,
+  ReaderFixFiled,
+  ReaderProposal,
+  ReaderRefusal,
+  ScreenMember,
+} from "./types";
 
 /** How long a typed form rests before what keeping it does is read. */
 const OTHER_DEBOUNCE_MS = 250;
@@ -173,13 +179,35 @@ export interface DecideScreenProps extends ScreenNavigation {
   /** The Map row to open on (`suggested:<id>`, `conflict:<id>`). */
   defaultSelected?: string;
   keyboard?: boolean;
+  /** Open with the list narrowed to the questions assigned to the reader. */
+  assignedToMe?: boolean;
 }
 
 /** Decide for one project, read through the port. */
-export function DecideScreen({ port, ...rest }: DecideScreenProps) {
+export function DecideScreen({ port, assignedToMe, ...rest }: DecideScreenProps) {
   const { data, error, reload } = usePortRead(port, "decide", () => port.decideView());
   const decide = port.decide?.bind(port);
   const decideConsequence = port.decideConsequence?.bind(port);
+  const assign = port.assign?.bind(port);
+
+  // The members a question can be assigned to, read once per port: null
+  // while the read is in flight, and "failed" when it did not answer.
+  const [members, setMembers] = useState<ScreenMember[] | null | "failed">(null);
+  useEffect(() => {
+    if (!port.assign || !port.members) {
+      setMembers([]);
+      return;
+    }
+    let current = true;
+    setMembers(null);
+    port.members().then(
+      (list) => current && setMembers(list),
+      () => current && setMembers("failed"),
+    );
+    return () => {
+      current = false;
+    };
+  }, [port]);
 
   // What keeping a typed form does, read once the person stops typing.
   const [typed, setTyped] = useState<{ id: string; form: string } | null>(null);
@@ -219,6 +247,17 @@ export function DecideScreen({ port, ...rest }: DecideScreenProps) {
         })
       }
       onOtherForm={(d, form) => setTyped({ id: d.id ?? "", form: form.trim() })}
+      members={Array.isArray(members) ? members : []}
+      membersLoading={members === null}
+      membersFailed={members === "failed"}
+      defaultAssignedToMe={assignedToMe}
+      onAssign={
+        assign &&
+        ((d, userId) => {
+          const id = d.id ?? d.options[0]?.id ?? "";
+          return assign(id, userId).finally(reload);
+        })
+      }
       otherConsequence={(d, form) =>
         consequence && consequence.id === d.id && consequence.form === form
           ? consequence.text

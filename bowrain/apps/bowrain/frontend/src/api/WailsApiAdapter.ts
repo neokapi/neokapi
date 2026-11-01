@@ -2083,6 +2083,10 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("the kept rules are not available in the desktop app");
   }
 
+  async getRuleAssignees(): Promise<never> {
+    throw new Error("assigning questions is not available in the desktop app");
+  }
+
   async runProjectChecks(): Promise<never> {
     throw new Error("project-wide checks are not available in the desktop app");
   }

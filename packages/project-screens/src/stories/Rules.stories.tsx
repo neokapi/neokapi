@@ -5,11 +5,14 @@ import { KeptRulesView } from "../KeptRulesView";
 import { DecideScreen } from "../screens";
 import type { ProjectScreensPort } from "../port";
 import {
+  ASSIGNED_VIEW,
+  DECIDE_MEMBERS,
   DECIDE_IDS,
   DECIDE_VIEW,
   EMPTY_DECIDE_VIEW,
   KEPT_RULES,
   LONG_VIEW,
+  MANY_KEPT_RULES,
   NAME_VIEW,
   WORD_VIEW,
   MAP_PENDING,
@@ -113,6 +116,35 @@ export const NothingToDecideDark: Story = {
 /** Forms, a quote and a path that run long. */
 export const LongContent: Story = { args: { view: LONG_VIEW } };
 
+/** A host that assigns questions: who holds each, the picker, and Assigned to me. */
+export const Assigned: Story = {
+  args: {
+    view: ASSIGNED_VIEW,
+    members: DECIDE_MEMBERS,
+    onAssign: fn(async () => undefined),
+    defaultSelected: `suggested:${DECIDE_IDS.business}`,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("combobox", { name: "Assigned to" })).toHaveTextContent(
+      "Mira Holt",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: /Assigned to me/ }));
+    await expect(canvasElement.querySelectorAll("[data-slot='decide-item']")).toHaveLength(1);
+  },
+};
+
+export const AssignedDark: Story = {
+  ...dark,
+  name: "Assigned (dark)",
+  args: { ...Assigned.args },
+};
+
+/** Opened on the questions assigned to the reader. */
+export const AssignedToMe: Story = {
+  args: { ...Assigned.args, defaultSelected: undefined, defaultAssignedToMe: true },
+};
+
 /** A port with the reads alone. */
 const READ_ONLY: ProjectScreensPort = {
   mapSummary: async () => MAP_PENDING,
@@ -149,4 +181,19 @@ export const KeptByEmpty: StoryObj<typeof KeptRulesView> = {
       <KeptRulesView rules={[]} />
     </div>
   ),
+};
+
+/** Kept by with more rules than fit one list: a heading per kind, each the newest first. */
+export const KeptByGrouped: StoryObj<typeof KeptRulesView> = {
+  render: () => (
+    <div className="p-6">
+      <KeptRulesView rules={MANY_KEPT_RULES} />
+    </div>
+  ),
+};
+
+export const KeptByGroupedDark: StoryObj<typeof KeptRulesView> = {
+  ...dark,
+  name: "Kept by, grouped (dark)",
+  render: KeptByGrouped.render,
 };

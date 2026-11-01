@@ -4,7 +4,8 @@ import { selectMultiLocales } from "./locale-helper";
 
 // A project opens on the Map. Its counts come from the server's Map route,
 // which the mock answers with the shared Map fixture (3 files, 42 blocks,
-// 7 rules, 4 findings); Rules reads Decide and the kept rules the same way.
+// 7 rules, 4 findings); Rules reads Decide, the kept rules and the members
+// who decide the same way.
 test.describe("Project Map", () => {
   test.beforeEach(async ({ page }) => {
     await setupLocalApp(page);
@@ -25,7 +26,10 @@ test.describe("Project Map", () => {
     await expect(page.getByTestId("subnav-map")).toBeVisible();
 
     await page.getByTestId("subnav-rules").click();
-    await expect(page.getByRole("listbox", { name: "Suggestions to decide" })).toBeVisible();
+    const questions = page.getByRole("listbox", { name: "Suggestions to decide" });
+    await expect(questions).toBeVisible();
+    // A member who decides sees who holds each question.
+    await expect(questions.locator("[data-slot='decide-columns']")).toContainText("Assigned to");
     await expect(page.getByRole("region", { name: "Kept by" })).toBeVisible();
 
     await assertNoUnhandledRoutes(page);

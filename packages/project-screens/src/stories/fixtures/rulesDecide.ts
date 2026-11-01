@@ -2,7 +2,7 @@
 // RulesDecideView answers with: a name written three ways, a word the files
 // avoid, two assistants disagreeing about one word, and a note.
 
-import type { RuleDecision, RulesDecideView } from "../../types";
+import type { RuleDecision, RulesDecideView, ScreenMember } from "../../types";
 
 export const DECIDE_IDS = {
   quickcast: "0njy7pfhjp00000000000000",
@@ -173,4 +173,25 @@ export const LONG_VIEW: RulesDecideView = {
       },
     },
   ],
+};
+
+/** The KapiMart team: the reader and two teammates. */
+export const DECIDE_MEMBERS: ScreenMember[] = [
+  { id: "u-ada", name: "Ada Lind", me: true },
+  { id: "u-mira", name: "Mira Holt" },
+  { id: "u-jon", name: "Jon Berg" },
+];
+
+/** KapiMart's questions with the name assigned to the reader and the word to a teammate. */
+export const ASSIGNED_VIEW: RulesDecideView = {
+  ...DECIDE_VIEW,
+  decisions: DECIDE_VIEW.decisions.map((d) => {
+    if (d.id === DECIDE_IDS.quickcast) {
+      return { ...d, assignee: { kind: "person", name: "Ada Lind" }, assignee_id: "u-ada" };
+    }
+    if (d.id === DECIDE_IDS.business) {
+      return { ...d, assignee: { kind: "person", name: "Mira Holt" }, assignee_id: "u-mira" };
+    }
+    return d;
+  }),
 };

@@ -13,6 +13,7 @@ import {
   type PermissionName,
   type ReaderFixResult,
 } from "@neokapi/ui";
+import { memberName } from "@neokapi/project-screens";
 import type {
   ContextActor,
   ProjectScreensPort,
@@ -158,6 +159,7 @@ export function restScreensPort(
       await api.assignSuggestion(ws, projectId, id, userId, stream);
       notify("decide");
     },
+    members: () => api.getRuleAssignees(ws, projectId, stream),
     async fixFinding(path, findingId) {
       const res = await api.fixFinding(ws, projectId, await names.resolve(path), findingId, stream);
       return {
@@ -218,6 +220,7 @@ export function permittedPort<P extends ProjectScreensPort>(
     delete out.decide;
     delete out.decideConsequence;
     delete out.assign;
+    delete out.members;
   }
   if (!can("review")) {
     delete out.fixFinding;
@@ -247,19 +250,15 @@ export function bowrainOpens(target: ScreenTarget): boolean {
  * change stream reports a change to the project: the stream invalidates the
  * project's queries, this one among them.
  */
-export function useProjectScreensPort(
-  scope: ScreensScope,
-  me: { name?: string } | null,
-): ProjectScreensPort {
+export function useProjectScreensPort(scope: ScreensScope): ProjectScreensPort {
   const api = useApi();
   const { ws, projectId, stream } = scope;
   const { nameOf } = useUserDisplayNames();
   const { can, data: permissions } = useCallerPermissions(projectId);
 
-  // The names a person is shown by: the server leaves the reader's own name
-  // out, and names another member by their id when it holds no name for them.
-  const names = useRef({ nameOf, me });
-  names.current = { nameOf, me };
+  // The member list names a person the server names by their id.
+  const names = useRef({ nameOf });
+  names.current = { nameOf };
 
   const rest = useMemo(
     () =>
@@ -267,11 +266,7 @@ export function useProjectScreensPort(
         api,
         { ws, projectId, stream },
         {
-          actorName: (actor) => {
-            if (actor.kind !== "person") return undefined;
-            if (!actor.name) return names.current.me?.name || undefined;
-            return names.current.nameOf(actor.name);
-          },
+          actorName: (actor) => memberName(actor, names.current.nameOf),
         },
       ),
     [api, ws, projectId, stream],

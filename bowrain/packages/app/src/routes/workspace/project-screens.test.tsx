@@ -3,17 +3,19 @@ import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ApiAdapter, JobState, PermissionName, ReaderFixResult } from "@neokapi/ui";
-import { READER_WITH_FIXES } from "@neokapi/project-screens/fixtures";
+import { memberName, type RulesDecideView } from "@neokapi/project-screens";
+import { DECIDE_IDS, DECIDE_VIEW, READER_WITH_FIXES } from "@neokapi/project-screens/fixtures";
 import { ProjectMapPage } from "./project-map";
 import { ProjectReaderPage } from "./project-reader";
 import { ProjectRulesPage } from "./project-rules";
-import { fixtureScreensPort } from "./project-screens-fixture-port";
+import { FERNWELL_MEMBERS, fixtureScreensPort } from "./project-screens-fixture-port";
 import {
   bowrainOpens,
   permittedPort,
   proposalsByFinding,
   restScreensPort,
 } from "./project-screens-port";
+import { rulesSearch } from "./review-inbox";
 
 /** What a member holding exactly `held` may do. */
 const holding =
@@ -134,6 +136,138 @@ describe("the Rules route", () => {
     expect(screen.queryByRole("button", { name: /^Keep/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Not a rule/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Later/ })).toBeNull();
+  });
+});
+
+describe("the Rules route's team queue", () => {
+  // The name is assigned to the reader, the word to a teammate.
+  const ASSIGNED: RulesDecideView = {
+    ...DECIDE_VIEW,
+    decisions: DECIDE_VIEW.decisions.map((d) => {
+      if (d.id === DECIDE_IDS.quickcast) {
+        return { ...d, assignee: { kind: "person", name: "Ada Lind" }, assignee_id: "u-ada" };
+      }
+      if (d.id === DECIDE_IDS.business) {
+        return { ...d, assignee: { kind: "person", name: "Mira Holt" }, assignee_id: "u-mira" };
+      }
+      return d;
+    }),
+  };
+  const assignees = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll("[data-slot='decide-assignee']")).map(
+      (el) => el.textContent,
+    );
+
+  it("shows who holds each question and assigns one to a member", async () => {
+    const assign = vi.fn(async () => {});
+    const { container } = render(
+      <ProjectRulesPage
+        port={permittedPort(
+          fixtureScreensPort({ decideView: async () => ASSIGNED, assign }),
+          MEMBER,
+        )}
+        navigate={vi.fn()}
+      />,
+    );
+    await screen.findByRole("listbox", { name: "Suggestions to decide" });
+    expect(assignees(container)).toEqual(["–", "Ada Lind", "Mira Holt", "–"]);
+    await userEvent.click(await screen.findByRole("combobox", { name: "Assigned to" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Mira Holt" }));
+    expect(assign).toHaveBeenCalledWith(DECIDE_IDS.store, "u-mira");
+  });
+
+  it("opens on the questions assigned to the member", async () => {
+    render(
+      <ProjectRulesPage
+        port={permittedPort(fixtureScreensPort({ decideView: async () => ASSIGNED }), MEMBER)}
+        assignedToMe
+        navigate={vi.fn()}
+      />,
+    );
+    const list = await screen.findByRole("listbox", { name: "Suggestions to decide" });
+    await waitFor(() =>
+      expect(
+        within(list)
+          .getAllByRole("option")
+          .map((o) => o.getAttribute("data-id")),
+      ).toEqual([DECIDE_IDS.quickcast]),
+    );
+    expect(screen.getByRole("button", { name: /Assigned to me/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("draws no assignment for a member who governs no rule", async () => {
+    const { container } = render(
+      <ProjectRulesPage
+        port={permittedPort(
+          fixtureScreensPort({ decideView: async () => ASSIGNED }),
+          holding("view_content", "review"),
+        )}
+        assignedToMe
+        navigate={vi.fn()}
+      />,
+    );
+    const list = await screen.findByRole("listbox", { name: "Suggestions to decide" });
+    expect(within(list).getAllByRole("option")).toHaveLength(4);
+    expect(assignees(container)).toEqual([]);
+    expect(screen.queryByRole("combobox", { name: "Assigned to" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Assigned to me/ })).toBeNull();
+  });
+
+  it("offers the members the server says decide in the project", async () => {
+    const members = [{ id: "u-ada", name: "Ada Lind", me: true }];
+    const getRuleAssignees = vi.fn(async () => members);
+    const port = restScreensPort({ getRuleAssignees } as unknown as ApiAdapter, {
+      ws: "acme",
+      projectId: "p1",
+      stream: "main",
+    });
+    await expect(port.members?.()).resolves.toEqual(members);
+    expect(getRuleAssignees).toHaveBeenCalledWith("acme", "p1", "main");
+  });
+
+  it("keeps the members from a member who assigns nothing", async () => {
+    const port = permittedPort(fixtureScreensPort(), holding("view_content"));
+    expect(port.members).toBeUndefined();
+    await expect(permittedPort(fixtureScreensPort(), MEMBER).members?.()).resolves.toEqual(
+      FERNWELL_MEMBERS,
+    );
+  });
+});
+
+describe("a person's name on the screens", () => {
+  const nameOf = (id: string) => (id === "u-mira" ? "Mira Holt" : id);
+
+  it("shows a person the server names by their id under their member name", () => {
+    expect(memberName({ kind: "person", name: "u-mira" }, nameOf)).toBe("Mira Holt");
+    expect(memberName({ kind: "person", name: "Ada Lind" }, nameOf)).toBe("Ada Lind");
+  });
+
+  it("shows a person with no name as a member, never as the reader", () => {
+    expect(memberName({ kind: "person" }, nameOf)).toBe("A member");
+  });
+
+  it("leaves an assistant or a tool to the screens", () => {
+    expect(memberName({ kind: "agent", name: "claude" }, nameOf)).toBeUndefined();
+    expect(memberName({ kind: "tool", name: "kapi" }, nameOf)).toBeUndefined();
+  });
+});
+
+describe("the review inbox's way to Rules", () => {
+  const rules = [
+    { projectId: "p1", projectName: "Fernwell", stream: "main", waiting: 4, assigned: 2 },
+    { projectId: "p2", projectName: "Kapimart", stream: "main", waiting: 3, assigned: 0 },
+  ];
+
+  it("opens on the questions assigned to the member where they hold any", () => {
+    expect(rulesSearch(rules, "p1")).toEqual({ assigned: "me" });
+  });
+
+  it("opens on every question where they hold none", () => {
+    expect(rulesSearch(rules, "p2")).toEqual({});
+    expect(rulesSearch(rules, "p3")).toEqual({});
   });
 });
 

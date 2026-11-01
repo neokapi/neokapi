@@ -10,6 +10,7 @@ import type { ChangeFinding, ChangeOp } from "@neokapi/contract-types";
 import { otherBranch, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 import {
   DECIDE_VIEW,
+  DECIDE_MEMBERS,
   KEPT_RULES,
   MAP_PENDING,
   READER_WITH_FIXES,
@@ -2164,6 +2165,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       assignee: userId ? { kind: "person", name: userId } : null,
     }),
     getKeptRules: async () => KEPT_RULES,
+    getRuleAssignees: async () => DECIDE_MEMBERS,
     runProjectChecks: async () => ({ job_id: "job-check-1" }),
     getJob: async (_ws, jobId) => ({ id: jobId, status: "completed", progress: 100 }),
     fixFinding: async () => ({ proposals: ["sp-fernwell-0001"], refused: [] }),

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -115,6 +116,161 @@ func seedDecideParity(t *testing.T, e *echo.Echo, cs platstore.ContentStore) str
 	return p.ID
 }
 
+// Only a person with no name is named after the segment's pusher: a named
+// person, an assistant, a tool, a payload with no actor, a null actor and an
+// actor with no kind are read as they were pushed.
+func TestNameUnnamedPerson(t *testing.T) {
+	name := func() string { return "member-a" }
+	for _, tc := range []struct {
+		name, payload, want string
+	}{
+		{"person with no name", `{"actor":{"kind":"person"},"target":"x"}`, `{"actor":{"kind":"person","name":"member-a"},"target":"x"}`},
+		{"named person", `{"actor":{"kind":"person","name":"ada"}}`, `{"actor":{"kind":"person","name":"ada"}}`},
+		{"assistant", `{"actor":{"kind":"agent"}}`, `{"actor":{"kind":"agent"}}`},
+		{"tool", `{"actor":{"kind":"tool"}}`, `{"actor":{"kind":"tool"}}`},
+		{"no actor", `{"target":"x"}`, `{"target":"x"}`},
+		{"null actor", `{"actor":null}`, `{"actor":null}`},
+		{"actor with no kind", `{"actor":{}}`, `{"actor":{}}`},
+		{"not an object", `[1]`, `[1]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.JSONEq(t, tc.want, string(nameUnnamedPerson([]byte(tc.payload), name)))
+		})
+	}
+}
+
+// One question holds one assignment: with each side of a disagreement
+// assigned to someone else, the view and the queue read the same one.
+func TestRulesDecide_ADisagreementHoldsOneAssignment_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	side := decisionOf(t, readDecideView(t, e, pid), "disagreement")
+	require.Len(t, side.Options, 2)
+
+	as, ok := platstore.ContextAssignments(cs)
+	require.True(t, ok)
+	at := time.Now().UTC()
+	require.NoError(t, as.AssignContextSuggestion(t.Context(), platstore.ContextAssignment{
+		ProjectID: pid, SuggestionID: side.Options[0].ID, Assignee: "member-b", AssignedBy: "member-b", AssignedAt: at,
+	}))
+	require.NoError(t, as.AssignContextSuggestion(t.Context(), platstore.ContextAssignment{
+		ProjectID: pid, SuggestionID: side.Options[1].ID, Assignee: "member-a", AssignedBy: "member-a", AssignedAt: at,
+	}))
+
+	mine := decisionOf(t, readDecideView(t, e, pid), "disagreement").AssigneeID == "member-a"
+	var queue contextQueue
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
+	assert.Equal(t, mine, queue.Projects[0].Assigned == 1, "the queue counts the question as the view reads it")
+
+	// An assignment through either side lands on the one the view reads.
+	var assigned ruleAssignment
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
+		ruleAssignRequest{ID: side.Options[1].ID, UserID: new("member-b")}, &assigned))
+	assert.Equal(t, "member-b", decisionOf(t, readDecideView(t, e, pid), "disagreement").AssigneeID)
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
+	assert.Equal(t, 0, queue.Projects[0].Assigned)
+}
+
+// An assignment held under a side other than the question's key, as one made
+// before the question gained an older side is, is shown and counted, and the
+// next assignment moves it to the key.
+func TestRulesDecide_AnAssignmentUnderAnotherSideIsRead_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	side := decisionOf(t, readDecideView(t, e, pid), "disagreement")
+	require.Len(t, side.Options, 2)
+	key := min(side.Options[0].ID, side.Options[1].ID)
+	other := max(side.Options[0].ID, side.Options[1].ID)
+
+	as, ok := platstore.ContextAssignments(cs)
+	require.True(t, ok)
+	require.NoError(t, as.AssignContextSuggestion(t.Context(), platstore.ContextAssignment{
+		ProjectID: pid, SuggestionID: other, Assignee: "member-a", AssignedBy: "member-a", AssignedAt: time.Now().UTC(),
+	}))
+
+	assert.Equal(t, "member-a", decisionOf(t, readDecideView(t, e, pid), "disagreement").AssigneeID)
+	var queue contextQueue
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
+	assert.Equal(t, 1, queue.Projects[0].Assigned)
+
+	var assigned ruleAssignment
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
+		ruleAssignRequest{ID: other, UserID: new("member-b")}, &assigned))
+	rows, err := as.ListContextAssignments(t.Context(), pid)
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "one question holds one assignment")
+	assert.Equal(t, key, rows[0].SuggestionID)
+	assert.Equal(t, "member-b", rows[0].Assignee)
+}
+
+// The members who decide are read only by a member who decides.
+func TestRulesDecide_AssigneesNeedAGoverningPermission_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	var members []ruleAssignee
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, pid, "/rules/main/assignees", nil, &members))
+
+	caller.perms = platauth.PermViewContent
+	var refusal ErrorResponse
+	require.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodGet, pid, "/rules/main/assignees", nil, &refusal))
+	assert.NotEmpty(t, refusal.Error)
+}
+
+// pushUnnamedKeep pushes, as the caller, a segment holding a keep of target
+// by a person with no name: what `kapi context sync` pushes for a keep the
+// command line recorded.
+func pushUnnamedKeep(t *testing.T, e *echo.Echo, pid, target string) workspace.Object {
+	t.Helper()
+	at := time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
+	op := workspace.Op{
+		ID:      workspace.NewOpID(at, ""),
+		Project: "prj_decideparityaaaaaaaa",
+		Kind:    "context.keep",
+		At:      at,
+		Payload: json.RawMessage(`{"actor":{"kind":"person"},"scope":{"level":"project","coordinates":{"brand":"acme","surface":"help"}},"target":"` + target + `"}`),
+	}
+	data, err := workspace.EncodeSegment([]workspace.Op{op})
+	require.NoError(t, err)
+	obj := workspace.Object{Name: workspace.SegmentName("laptop", op.ID), Data: data}
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	require.NoError(t, r.Put(t.Context(), obj))
+	return obj
+}
+
+// A keep the command line recorded with no name and a sync pushed reads as
+// the pushing member's, to every member who reads it, and the log still
+// holds it as it was pushed.
+func TestRulesDecide_ASyncedKeepIsThePushersKeep_SQLite(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs := decideSQLiteServer(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	const note = "0recs8gy9ymvarh1x960prt8"
+	obj := pushUnnamedKeep(t, e, pid, note)
+
+	caller.userID = "member-b"
+	var kept []screens.KeptRuleDTO
+	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, pid, "/rules/main/kept", nil, &kept))
+	var found *screens.KeptRuleDTO
+	for i := range kept {
+		if kept[i].Rule == "Help pages address a reader who is stuck." {
+			found = &kept[i]
+		}
+	}
+	require.NotNil(t, found, "the synced keep puts the note in force")
+	assert.Equal(t, screens.ContextActorDTO{Kind: "person", Name: "member-a"}, found.KeptBy)
+	for _, d := range readDecideView(t, e, pid).Decisions {
+		assert.NotEqual(t, note, d.ID, "a kept note waits for no decision")
+	}
+
+	// The same segment pushed again matches what the log holds.
+	caller.userID = "member-a"
+	r := &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	require.NoError(t, r.Put(t.Context(), obj))
+}
+
 // decideRoute requests one Decide route of the project and decodes the JSON
 // it answers with into out, returning the status.
 func decideRoute(t *testing.T, e *echo.Echo, method, pid, route string, body, out any) int {
@@ -169,6 +325,7 @@ func TestRulesDecide_TheDesktopsViewOfOneLedger_SQLite(t *testing.T) {
 	view := readDecideView(t, e, pid)
 	for i := range view.Decisions {
 		view.Decisions[i].Assignee = nil
+		view.Decisions[i].AssigneeID = ""
 	}
 	got, err := json.MarshalIndent(view, "", "  ")
 	require.NoError(t, err)
@@ -300,15 +457,20 @@ func TestRulesDecide_AssignAndQueue_SQLite(t *testing.T) {
 	var assigned ruleAssignment
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
 		ruleAssignRequest{ID: name.ID, UserID: new("member-b")}, &assigned))
-	assert.Equal(t, ruleAssignment{ID: name.ID, Assignee: &screens.ContextActorDTO{Kind: "person", Name: "member-b"}}, assigned)
+	assert.Equal(t, ruleAssignment{ID: name.ID, Assignee: &screens.ContextActorDTO{Kind: "person", Name: "member-b"}, AssigneeID: "member-b"}, assigned)
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
 		ruleAssignRequest{ID: side.Options[0].ID, UserID: new("member-a")}, &assigned))
 
 	view = readDecideView(t, e, pid)
 	assert.Equal(t, &screens.ContextActorDTO{Kind: "person", Name: "member-b"}, decisionOf(t, view, "name").Assignee)
-	assert.Equal(t, &screens.ContextActorDTO{Kind: "person"}, decisionOf(t, view, "disagreement").Assignee,
-		"a question assigned to the reader reads as theirs")
+	assert.Equal(t, &screens.ContextActorDTO{Kind: "person", Name: "member-a"}, decisionOf(t, view, "disagreement").Assignee,
+		"a question assigned to the reader names the reader")
 	assert.Nil(t, decisionOf(t, view, "note").Assignee)
+	// The member's id comes with the name, for a picker that shows who holds
+	// the question; the reader's own is among them.
+	assert.Equal(t, "member-b", decisionOf(t, view, "name").AssigneeID)
+	assert.Equal(t, "member-a", decisionOf(t, view, "disagreement").AssigneeID)
+	assert.Empty(t, decisionOf(t, view, "note").AssigneeID)
 
 	var queue contextQueue
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodGet, "", "context/queue", nil, &queue))
@@ -321,9 +483,11 @@ func TestRulesDecide_AssignAndQueue_SQLite(t *testing.T) {
 	assert.Equal(t, 1, queue.Projects[0].Assigned)
 
 	caller.userID = "member-a"
+	assigned = ruleAssignment{}
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/rules/main/assign",
 		ruleAssignRequest{ID: name.ID}, &assigned))
 	assert.Nil(t, assigned.Assignee)
+	assert.Empty(t, assigned.AssigneeID)
 	assert.Nil(t, decisionOf(t, readDecideView(t, e, pid), "name").Assignee, "assigning to no one removes it")
 
 	caller.perms = 0

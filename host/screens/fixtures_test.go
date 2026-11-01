@@ -240,7 +240,7 @@ func rulesDecideView() screens.RulesDecideViewDTO {
 				Options:     []screens.RuleOptionDTO{},
 				Consequence: "If you keep it: it is stated to writers and assistants where it applies. No check reads it. Applies to docs/release-notes.md.",
 				Applies:     "docs/release-notes.md", NoticedBy: nobody,
-				Assignee: &screens.ContextActorDTO{Kind: "person", Name: "Mira Holt"},
+				Assignee: &screens.ContextActorDTO{Kind: "person", Name: "Mira Holt"}, AssigneeID: "user-mira",
 			},
 		},
 		Rules:     7,

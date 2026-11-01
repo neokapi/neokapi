@@ -241,6 +241,18 @@ export interface RuleDecision {
   noticed_by: ContextActor;
   /** The member the question is assigned to, where the host assigns questions. */
   assignee?: ContextActor;
+  /** The assigned member's user id, for a picker among the members. */
+  assignee_id?: string;
+}
+
+/** A member a question can be assigned to. */
+export interface ScreenMember {
+  /** The user id an assignment names. */
+  id: string;
+  /** The name the member is shown by. */
+  name: string;
+  /** The member reading the screen. */
+  me?: boolean;
 }
 
 /** An answer to a Decide question: "drop" is Not a rule. */

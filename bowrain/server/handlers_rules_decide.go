@@ -45,6 +45,7 @@ func (s *Server) registerRulesDecideRoutes(g *echo.Group) {
 	g.GET("/:id/rules/:ref/decide/consequence", s.HandleRulesDecideConsequence)
 	g.POST("/:id/rules/:ref/decide", s.HandleDecideRule)
 	g.POST("/:id/rules/:ref/assign", s.HandleAssignRule)
+	g.GET("/:id/rules/:ref/assignees", s.HandleRuleAssignees)
 	g.GET("/:id/rules/:ref/kept", s.HandleKeptRules)
 	g.GET("/context/queue", s.HandleContextQueue)
 }
@@ -330,21 +331,113 @@ func (s *Server) assignees(ctx context.Context, projectID string) (map[string]pl
 	return out, nil
 }
 
-// assigneeOf is the member a question is assigned to, as the reader sees
-// them: the reader is a person with no name.
-func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned map[string]platstore.ContextAssignment, reader LedgerMember) *screens.ContextActorDTO {
-	for _, id := range questionIDs(d) {
-		a, ok := assigned[id]
-		if !ok {
+// questionKey is the id a question's assignment is held under: the
+// suggestion's own, or for a disagreement the smallest of its sides' ids,
+// which stays the same however the sides are ordered.
+func questionKey(d rulesview.Decision) string {
+	ids := questionIDs(d)
+	if len(ids) == 0 {
+		return ""
+	}
+	return slices.Min(ids)
+}
+
+// assignmentOf is the assignment a question holds: the one under
+// questionKey, or else one under another of its sides, in id order. A
+// question can hold one under another side when it was assigned before it
+// gained an older side; the next assignment moves it to questionKey.
+func assignmentOf(d rulesview.Decision, assigned map[string]platstore.ContextAssignment) (platstore.ContextAssignment, bool) {
+	if a, ok := assigned[questionKey(d)]; ok && a.Assignee != "" {
+		return a, true
+	}
+	for _, id := range slices.Sorted(slices.Values(questionIDs(d))) {
+		if a, ok := assigned[id]; ok && a.Assignee != "" {
+			return a, true
+		}
+	}
+	return platstore.ContextAssignment{}, false
+}
+
+// assigneeOf is the member a question is assigned to, by name, and the
+// member's user id, which tells a reader the questions that are theirs.
+func (s *Server) assigneeOf(ctx context.Context, d rulesview.Decision, assigned map[string]platstore.ContextAssignment) (*screens.ContextActorDTO, string) {
+	a, ok := assignmentOf(d, assigned)
+	if !ok {
+		return nil, ""
+	}
+	who := screens.ContextActorDTO{Kind: string(contextop.ActorPerson), Name: s.displayName(ctx, a.Assignee)}
+	return &who, a.Assignee
+}
+
+// ruleAssignee is one member a question can be assigned to.
+type ruleAssignee struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Me marks the member who asked.
+	Me bool `json:"me,omitempty"`
+}
+
+// errCannotDecide is the refusal of an assignee who holds no permission that
+// governs a rule in the project.
+const errCannotDecide = "That member cannot decide here"
+
+// projectDeciders lists the members of the project's workspace whose
+// permissions on the project, resolved as a request of theirs would be,
+// include one that governs a rule, by name. Without an auth store there are
+// no members to list, and ok is false.
+func (s *Server) projectDeciders(c echo.Context, proj *platstore.Project) (out []ruleAssignee, ok bool, err error) {
+	if s.AuthStore == nil {
+		return nil, false, nil
+	}
+	ctx := c.Request().Context()
+	plan, _ := c.Get("workspace_plan").(string)
+	me, _ := c.Get("user_id").(string)
+	members, err := s.AuthStore.ListMembers(ctx, proj.WorkspaceID)
+	if err != nil {
+		return nil, true, err
+	}
+	out = []ruleAssignee{}
+	for _, m := range members {
+		if m == nil || m.UserID == "" {
 			continue
 		}
-		who := screens.ContextActorDTO{Kind: string(contextop.ActorPerson)}
-		if a.Assignee != reader.UserID {
-			who.Name = s.displayName(ctx, a.Assignee)
+		access := s.resolveProjectAccess(ctx, accessRequest{
+			userID: m.UserID, projectID: proj.ID, workspaceID: proj.WorkspaceID, role: m.Role, plan: plan,
+		})
+		if access.permissions&governingPermissions == 0 {
+			continue
 		}
-		return &who
+		out = append(out, ruleAssignee{ID: m.UserID, Name: s.displayName(ctx, m.UserID), Me: m.UserID == me})
 	}
-	return nil
+	slices.SortStableFunc(out, func(a, b ruleAssignee) int { return strings.Compare(a.Name, b.Name) })
+	return out, true, nil
+}
+
+// HandleRuleAssignees answers GET /:ws/:id/rules/:ref/assignees with the
+// members a question of the project can be assigned to: those whose
+// permissions on it govern a rule. Only a member who governs a rule there
+// may read it, as only such a member assigns.
+func (s *Server) HandleRuleAssignees(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+	if perms, _ := c.Get("project_permissions").(platauth.Permission); perms&governingPermissions == 0 {
+		s.emitAuthzDenied(c, governingPermissions, "insufficient_permissions")
+		return deny(c, "insufficient project permissions")
+	}
+	ctx := c.Request().Context()
+	proj, err := s.ContentStore.GetProject(ctx, projectParam(c))
+	if err != nil || proj == nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: errNoProject.Error()})
+	}
+	out, _, err := s.projectDeciders(c, proj)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if out == nil {
+		out = []ruleAssignee{}
+	}
+	return c.JSON(http.StatusOK, out)
 }
 
 // decideError answers an error reading a Decide call's state.
@@ -383,7 +476,7 @@ func (s *Server) HandleRulesDecideView(c echo.Context) error {
 	out.Rules, out.Suggested, out.Narrowed = st.counts()
 	for _, d := range questions {
 		dto := screens.RuleDecisionFrom(d)
-		dto.Assignee = s.assigneeOf(ctx, d, assigned, st.member)
+		dto.Assignee, dto.AssigneeID = s.assigneeOf(ctx, d, assigned)
 		out.Decisions = append(out.Decisions, dto)
 	}
 	return c.JSON(http.StatusOK, out)
@@ -610,6 +703,8 @@ type ruleAssignRequest struct {
 type ruleAssignment struct {
 	ID       string                   `json:"id"`
 	Assignee *screens.ContextActorDTO `json:"assignee"`
+	// AssigneeID is the assigned member's user id.
+	AssigneeID string `json:"assignee_id,omitempty"`
 }
 
 // HandleAssignRule answers POST /:ws/:id/rules/:ref/assign: it assigns the
@@ -647,15 +742,21 @@ func (s *Server) HandleAssignRule(c echo.Context) error {
 	if req.UserID != nil {
 		assignee = *req.UserID
 	}
-	if assignee != "" && s.AuthStore != nil {
-		if m, merr := s.AuthStore.GetMembership(ctx, st.project.WorkspaceID, assignee); merr != nil || m == nil {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "the assignee is not a member of this workspace"})
+	if assignee != "" {
+		deciders, listed, derr := s.projectDeciders(c, st.project)
+		if derr != nil {
+			return serverErr(c, derr)
+		}
+		if listed && !slices.ContainsFunc(deciders, func(m ruleAssignee) bool { return m.ID == assignee }) {
+			return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: errCannotDecide})
 		}
 	}
-	// One question holds one assignment, under the id it was asked by:
-	// another side's assignment of the same disagreement goes.
+	// One question holds one assignment, under questionKey whichever side
+	// the request names: another side's assignment of the same disagreement
+	// goes.
+	key := questionKey(d)
 	for _, id := range questionIDs(d) {
-		if id == req.ID {
+		if id == key {
 			continue
 		}
 		if err := as.AssignContextSuggestion(ctx, platstore.ContextAssignment{ProjectID: st.project.ID, SuggestionID: id}); err != nil {
@@ -663,14 +764,14 @@ func (s *Server) HandleAssignRule(c echo.Context) error {
 		}
 	}
 	if err := as.AssignContextSuggestion(ctx, platstore.ContextAssignment{
-		ProjectID: st.project.ID, SuggestionID: req.ID, Assignee: assignee,
+		ProjectID: st.project.ID, SuggestionID: key, Assignee: assignee,
 		AssignedBy: st.member.UserID, AssignedAt: time.Now().UTC(),
 	}); err != nil {
 		return serverErr(c, err)
 	}
 	out := ruleAssignment{ID: req.ID}
 	if assignee != "" {
-		out.Assignee = s.assigneeOf(ctx, d, map[string]platstore.ContextAssignment{req.ID: {Assignee: assignee}}, st.member)
+		out.Assignee, out.AssigneeID = s.assigneeOf(ctx, d, map[string]platstore.ContextAssignment{key: {Assignee: assignee}})
 	}
 	return c.JSON(http.StatusOK, out)
 }
@@ -809,11 +910,8 @@ func (s *Server) HandleContextQueue(c echo.Context) error {
 			digest := rulesview.BuildDigest(records, workspace.ProjectKey(raw), time.Time{}, time.Now().UTC(), nil)
 			for _, d := range rulesview.Questions(digest, records) {
 				row.Waiting++
-				for _, id := range questionIDs(d) {
-					if a, ok := assigned[id]; ok && a.Assignee == userID {
-						row.Assigned++
-						break
-					}
+				if a, ok := assignmentOf(d, assigned); ok && a.Assignee == userID {
+					row.Assigned++
 				}
 			}
 		}

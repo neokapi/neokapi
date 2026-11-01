@@ -107,7 +107,8 @@
       "assignee": {
         "kind": "person",
         "name": "Mira Holt"
-      }
+      },
+      "assignee_id": "user-mira"
     }
   ],
   "rules": 7,

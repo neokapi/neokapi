@@ -5,6 +5,7 @@ import type {
   ReaderFile,
   RuleDecideResult,
   RulesDecideView,
+  ScreenMember,
 } from "@neokapi/project-screens";
 import type {
   User,
@@ -1571,6 +1572,12 @@ export interface ApiAdapter {
   ): Promise<SuggestionAssignment>;
   /** The rules in force, newest first, with who kept each (GET /:ws/:id/rules/:ref/kept). */
   getKeptRules(workspaceSlug: string, projectId: string, stream?: string): Promise<KeptRule[]>;
+  /** The members a question can be assigned to: those who decide here (GET /:ws/:id/rules/:ref/assignees). */
+  getRuleAssignees(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ScreenMember[]>;
   /** Start the checks over every item of the stream as a job (POST /:ws/:id/map/:ref/check). */
   runProjectChecks(
     workspaceSlug: string,

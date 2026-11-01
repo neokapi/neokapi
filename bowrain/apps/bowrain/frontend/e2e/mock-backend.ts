@@ -1535,6 +1535,16 @@ export async function injectMockBackend(page: Page) {
           (_p, body) => ({ id: body?.id, assignee: null }),
         ],
         ["GET", /^\/api\/v1\/[^/]+\/[^/]+\/rules\/[^/]+\/kept$/, () => screens.keptRules],
+        // The members who decide in the project, the signed-in user marked.
+        [
+          "GET",
+          /^\/api\/v1\/[^/]+\/[^/]+\/rules\/[^/]+\/assignees$/,
+          () => [
+            { id: "user-jon", name: "Jon Berg" },
+            { id: "user-1", name: "Dev User", me: true },
+            { id: "user-mira", name: "Mira Holt" },
+          ],
+        ],
         ["GET", /^\/api\/v1\/[^/]+\/context\/queue$/, () => ({ projects: [] })],
       ];
 

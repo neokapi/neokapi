@@ -29,6 +29,21 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   };
 }
 
+// A Radix picker captures the pointer and scrolls the picked item into view;
+// JSDOM implements neither. Each stand-in answers nothing, which reads as no
+// pointer captured.
+if (typeof Element !== "undefined") {
+  const proto = Element.prototype as unknown as Record<string, unknown>;
+  for (const name of [
+    "hasPointerCapture",
+    "setPointerCapture",
+    "releasePointerCapture",
+    "scrollIntoView",
+  ]) {
+    if (typeof proto[name] !== "function") proto[name] = () => undefined;
+  }
+}
+
 afterEach(() => {
   cleanup();
   localStorage.clear();

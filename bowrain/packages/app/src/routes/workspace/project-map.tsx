@@ -31,11 +31,11 @@ export function ProjectMapPage({ port, projectName, navigate }: ProjectMapPagePr
 
 export function ProjectMapRoute() {
   const { projectId = "", stream = "main" } = useParams({ strict: false });
-  const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
   const api = useApi();
   const scope = { ws, projectId, stream };
-  const port = useProjectScreensPort(scope, user);
+  const port = useProjectScreensPort(scope);
   const navigate = useScreenNavigate(scope);
   const { data: project } = useQuery(projectQueryOptions(api, ws, projectId, stream));
   const projectName = project?.name ?? projectId;

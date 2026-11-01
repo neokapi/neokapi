@@ -54,6 +54,9 @@ type RuleDecisionDTO struct {
 	// Assignee is the member the question is assigned to, on a surface that
 	// assigns questions to members.
 	Assignee *ContextActorDTO `json:"assignee,omitempty"`
+	// AssigneeID is the assigned member's user id, for a surface that picks
+	// among the workspace's members.
+	AssigneeID string `json:"assignee_id,omitempty"`
 }
 
 // RuleOptionDTO is one answer to a question.

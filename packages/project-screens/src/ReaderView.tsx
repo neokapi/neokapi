@@ -420,7 +420,7 @@ const DIGEST_KIND: Partial<Record<string, DigestKind>> = {
 };
 
 /** The word a Reader kind is named by. */
-function kindWord(kind: string): string {
+export function kindWord(kind: string): string {
   switch (kind) {
     case "name":
       return t("Name", "the kind of a finding or a rule");

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { DECIDE_IDS } from "@neokapi/project-screens/fixtures";
+import { ASSIGNED_VIEW, DECIDE_IDS } from "@neokapi/project-screens/fixtures";
 import { ProjectRulesPage } from "./project-rules";
 import { fixtureScreensPort } from "./project-screens-fixture-port";
 import { permittedPort } from "./project-screens-port";
@@ -27,4 +27,14 @@ export const OnARow: Story = { args: { row: `suggested:${DECIDE_IDS.quickcast}` 
 /** A member who governs no rule: Decide draws no answer. */
 export const WithoutPermission: Story = {
   args: { port: permittedPort(fixtureScreensPort(), (p) => p === "view_content") },
+};
+
+/** The team queue: who holds each question, the picker of the members, and Assigned to me. */
+export const Assigned: Story = {
+  args: { port: fixtureScreensPort({ decideView: async () => ASSIGNED_VIEW }) },
+};
+
+/** Opened from the review inbox on the questions assigned to the member. */
+export const AssignedToMe: Story = {
+  args: { ...Assigned.args, assignedToMe: true },
 };

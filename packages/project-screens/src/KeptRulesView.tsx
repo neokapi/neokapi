@@ -1,6 +1,7 @@
-// Kept by: the rules in force, each with who put it in force and when. A row
-// holds the rule's kind and the rule; its meta line names who kept it, the
-// day, and where it holds.
+// Kept by: the rules in force, each with who put it in force and when, the
+// newest first. A row holds the rule's kind and the rule; its meta line names
+// who kept it, the day, and where it holds. A list longer than GROUP_ABOVE
+// rows is split under a heading per kind.
 
 import { t } from "@neokapi/i18n-react/runtime";
 import {
@@ -11,8 +12,31 @@ import {
   When,
 } from "@neokapi/ui-primitives";
 import { NoticedBy } from "./NoticedBy";
-import { KindMark } from "./ReaderView";
+import { KindMark, kindWord } from "./ReaderView";
 import type { ContextActor, KeptRule } from "./types";
+
+/** A list holding more rules than this is split under a heading per kind. */
+export const GROUP_ABOVE = 12;
+
+/** The order the kinds' groups take. A kind not named here follows them. */
+const KIND_ORDER = ["name", "word", "tone", "keep", "note"];
+
+/** The rules, the newest first. A rule with no time sorts last. */
+function newestFirst(rules: readonly KeptRule[]): KeptRule[] {
+  const at = (r: KeptRule) => Date.parse(r.kept_at) || 0;
+  return [...rules].sort((a, b) => at(b) - at(a));
+}
+
+/** The rules under their kinds, in KIND_ORDER, each group the newest first. */
+function byKind(rules: readonly KeptRule[]): [string, KeptRule[]][] {
+  const groups = new Map<string, KeptRule[]>();
+  for (const r of rules) groups.set(r.kind, [...(groups.get(r.kind) ?? []), r]);
+  const rank = (k: string) => {
+    const i = KIND_ORDER.indexOf(k);
+    return i === -1 ? KIND_ORDER.length : i;
+  };
+  return [...groups].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+}
 
 export interface KeptRulesViewProps {
   /** The rules, null while the first read is in flight. */
@@ -39,14 +63,37 @@ export function KeptRulesView({ rules, error, nameOf }: KeptRulesViewProps) {
         <LoadingSpinner />
       ) : rules.length === 0 ? (
         <EmptyState title={t("No rule kept yet.")} />
+      ) : rules.length > GROUP_ABOVE ? (
+        byKind(newestFirst(rules)).map(([kind, group]) => (
+          <div key={kind} data-slot="kept-group" data-kind={kind} className="pt-2">
+            <h3 className="flex items-baseline justify-between text-[11px] font-semibold text-muted-foreground">
+              <span>{kindWord(kind)}</span>
+              <span className="tabular-nums">{group.length}</span>
+            </h3>
+            <KeptList rules={group} nameOf={nameOf} />
+          </div>
+        ))
       ) : (
-        <ul className="divide-y divide-border">
-          {rules.map((rule, i) => (
-            <KeptRuleRow key={`${rule.kind}:${rule.rule}:${i}`} rule={rule} nameOf={nameOf} />
-          ))}
-        </ul>
+        <KeptList rules={newestFirst(rules)} nameOf={nameOf} />
       )}
     </section>
+  );
+}
+
+/** The rows of one list of rules, in the order given. */
+function KeptList({
+  rules,
+  nameOf,
+}: {
+  rules: readonly KeptRule[];
+  nameOf?: (who: ContextActor) => string | undefined;
+}) {
+  return (
+    <ul className="divide-y divide-border">
+      {rules.map((rule, i) => (
+        <KeptRuleRow key={`${rule.kind}:${rule.rule}:${i}`} rule={rule} nameOf={nameOf} />
+      ))}
+    </ul>
   );
 }
 

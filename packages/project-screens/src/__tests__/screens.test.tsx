@@ -3,6 +3,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
 import { DecideScreen, KeptRulesScreen, MapScreen, ReaderScreen } from "../screens";
+import { GROUP_ABOVE } from "../KeptRulesView";
 import type { ProjectScreensPort } from "../port";
 import {
   DECIDE_IDS,
@@ -150,7 +151,7 @@ describe("the screens over a port that acts", () => {
 });
 
 describe("Kept by", () => {
-  it("lists each kept rule with who kept it", async () => {
+  it("lists each kept rule with who kept it, the newest first", async () => {
     render(<KeptRulesScreen port={readOnly({ keptRules: async () => KEPT_RULES })} />);
     const rows = await screen.findAllByRole("listitem");
     expect(rows).toHaveLength(KEPT_RULES.length);
@@ -161,6 +162,33 @@ describe("Kept by", () => {
     expect(by[1]).toMatch(/ada$/);
     expect(by[2]).toMatch(/kapi$/);
     expect(by[3]).toMatch(/claudes3$/);
+    expect(document.querySelector("[data-slot='kept-group']")).toBeNull();
+  });
+
+  it("draws the newest first whatever order the port answers in", async () => {
+    render(
+      <KeptRulesScreen port={readOnly({ keptRules: async () => [...KEPT_RULES].reverse() })} />,
+    );
+    const rows = await screen.findAllByRole("listitem");
+    expect(within(rows[0]).getByText(KEPT_RULES[0].rule)).toBeInTheDocument();
+    expect(within(rows[3]).getByText(KEPT_RULES[3].rule)).toBeInTheDocument();
+  });
+
+  it("splits a long list under a heading per kind, each the newest first", async () => {
+    const many = Array.from({ length: GROUP_ABOVE + 1 }, (_, i) => ({
+      ...KEPT_RULES[i % 2],
+      rule: `Rule ${i}`,
+      kept_at: new Date(Date.UTC(2026, 9, 1 + i)).toISOString(),
+    }));
+    render(<KeptRulesScreen port={readOnly({ keptRules: async () => many })} />);
+    await screen.findAllByRole("listitem");
+    const groups = Array.from(document.querySelectorAll<HTMLElement>("[data-slot='kept-group']"));
+    expect(groups.map((g) => g.dataset.kind)).toEqual(["name", "word"]);
+    expect(within(groups[0]).getByRole("heading").textContent).toBe("Name6");
+    const words = within(groups[1]).getAllByRole("listitem");
+    expect(words).toHaveLength(7);
+    expect(words[0].textContent).toContain("Rule 12");
+    expect(words[6].textContent).toContain("Rule 0");
   });
 
   it("draws nothing on a port with no keptRules", () => {
@@ -231,5 +259,100 @@ describe("the Reader on a host that files each fix as a proposal", () => {
     render(<ReaderScreen port={readOnly({ fixFile })} path="docs/billing.md" navigate={vi.fn()} />);
     await userEvent.click(await screen.findByRole("button", { name: "Fix 2 in this file" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: /in this file/ })).toBeNull());
+  });
+});
+
+describe("Decide on a port that assigns questions", () => {
+  const assignedView = {
+    ...DECIDE_VIEW,
+    decisions: DECIDE_VIEW.decisions.map((d) =>
+      d.id === DECIDE_IDS.quickcast
+        ? { ...d, assignee: { kind: "person" }, assignee_id: "u-me" }
+        : d,
+    ),
+  };
+  const members = [
+    { id: "u-me", name: "Ada Holt", me: true },
+    { id: "u-mira", name: "Mira Holt" },
+  ];
+
+  it("assigns through the port by the question's id and reads the questions again", async () => {
+    const assign = vi.fn(async () => {});
+    const decideView = vi.fn(async () => assignedView);
+    render(
+      <DecideScreen
+        port={readOnly({ decideView, assign, members: async () => members })}
+        keyboard={false}
+        navigate={vi.fn()}
+      />,
+    );
+    await screen.findAllByRole("option");
+    const picker = await screen.findByRole("combobox", { name: "Assigned to" });
+    await userEvent.click(picker);
+    await userEvent.click(await screen.findByRole("option", { name: "Mira Holt" }));
+    // The first question is the disagreement, assigned under its first side's id.
+    expect(assign).toHaveBeenCalledWith(DECIDE_IDS.store, "u-mira");
+    await waitFor(() => expect(decideView).toHaveBeenCalledTimes(2));
+  });
+
+  it("opens on the questions assigned to the reader once the members are read", async () => {
+    let answer: (list: typeof members) => void = () => {};
+    render(
+      <DecideScreen
+        port={readOnly({
+          decideView: async () => assignedView,
+          assign: async () => {},
+          members: () => new Promise((resolve) => (answer = resolve)),
+        })}
+        assignedToMe
+        keyboard={false}
+        navigate={vi.fn()}
+      />,
+    );
+    // Until the members are read, which questions are the reader's is not known.
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='decide-mine-loading']")).not.toBeNull(),
+    );
+    expect(screen.queryByText("Nothing assigned to you.")).toBeNull();
+    expect(screen.getByRole("button", { name: /Assigned to me/ })).toBeDisabled();
+    act(() => answer(members));
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
+    expect(screen.getAllByRole("option")[0].getAttribute("data-id")).toBe(DECIDE_IDS.quickcast);
+    expect(screen.getByRole("button", { name: /Assigned to me/ })).toBeEnabled();
+  });
+
+  it("shows every question, the filter off, when the members cannot be read", async () => {
+    render(
+      <DecideScreen
+        port={readOnly({
+          decideView: async () => assignedView,
+          assign: async () => {},
+          members: async () => {
+            throw new Error("members unavailable");
+          },
+        })}
+        assignedToMe
+        keyboard={false}
+        navigate={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(4));
+    const toggle = screen.getByRole("button", { name: /Assigned to me/ });
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("draws no assignment on a port with no assign", async () => {
+    render(
+      <DecideScreen
+        port={readOnly({ decideView: async () => assignedView })}
+        assignedToMe
+        keyboard={false}
+        navigate={vi.fn()}
+      />,
+    );
+    await screen.findAllByRole("option");
+    expect(document.querySelectorAll("[data-slot='decide-item']")).toHaveLength(4);
+    expect(screen.queryByRole("combobox")).toBeNull();
   });
 });

@@ -28,6 +28,18 @@ export function toolName(name?: string): string {
 }
 
 /**
+ * The name a person is shown by on a host where many members work: the name
+ * the host's member list holds for the id or handle the actor carries. A
+ * person with no name is "A member", never the reader. An assistant or a
+ * tool is left to NoticedBy.
+ */
+export function memberName(actor: Actor, nameOf: (id: string) => string): string | undefined {
+  if (actor.kind !== "person") return undefined;
+  if (!actor.name) return t("A member", "a person the host holds no name for");
+  return nameOf(actor.name);
+}
+
+/**
  * Who recorded an item: their mark, their name, and the session it came from.
  * nameOf gives the name a person is shown by; a person it names nothing for,
  * and with no name of their own, is "you".
