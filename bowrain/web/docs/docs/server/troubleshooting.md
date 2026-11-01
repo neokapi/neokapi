@@ -128,9 +128,9 @@ Access tokens are deliberately short-lived and the clients refresh them silently
 in the background, so a session that has been idle usually recovers on its own. If
 sign-in fails outright:
 
-- **Refresh-token reuse.** If a refresh token is presented twice, the whole
-  session family is invalidated as a theft-protection measure. Sign in again to
-  start a fresh session.
+- **Refresh-token reuse.** If a refresh token is presented again more than 30
+  seconds after its rotation, the whole session family is invalidated as a
+  theft-protection measure. Sign in again to start a fresh session.
 - **Self-hosted redirect mismatch.** A sign-in that returns to an error after the
   identity provider usually means the OIDC client's redirect URI or public URL
   does not match the address the browser used. Confirm `BOWRAIN_OIDC_PUBLIC_URL`
