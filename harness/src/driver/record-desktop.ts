@@ -1457,7 +1457,7 @@ function recordLiveNote(): void {
  * from there, settles the disagreement by picking a side and pressing `k`,
  * keeps a name in the form its files use and a word with `k`, reads the brief
  * an assistant gets for a file, watches a note recorded from outside the app
- * arrive on the Map, and ends on Share.
+ * arrive on the Map, and ends on Share and its Preview.
  *
  * Decide is a list of suggestions beside one question about the selected
  * one. The choose, keep and word beats select a row, read its question, and
@@ -1660,6 +1660,31 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await beatEls("share", ['[data-slot="share-panel"]'], async () => {
     await cursorTo('[data-slot="share-rung"][data-current]', 800);
     await page.waitForTimeout(2000);
+  });
+  await settle();
+
+  // Preview draws the project as a Bowrain project page draws it. The sample
+  // is connected to no server, so it reads this Mac. It opens on the Map tab;
+  // the Rules tab holds what still waits and Kept by, the rules kept above.
+  // The crop runs from the tabs to the Kept by list.
+  const sheet = '[data-slot="bowrain-preview"]';
+  const rulesTab = page.locator('[data-slot="bowrain-preview-tab-rules"]');
+  const kept = page.locator(`${sheet} [data-slot="kept-rules"]`);
+  await beatSpan("preview", async (mark) => {
+    await cue("preview", 0.6);
+    await humanClick(page, page.locator('[data-slot="share-preview-bowrain"]'));
+    await page.waitForSelector(`${sheet} [data-slot="map-counts"]`, { timeout: 30_000 });
+    await mark(page.locator('[data-slot="bowrain-preview-tab-map"]'));
+    await mark(page.locator(`${sheet} [data-slot="map-counts"]`));
+    await cue("rules", 6.4);
+    await humanClick(page, rulesTab);
+    await kept.locator('[data-slot="kept-rule"]').first().waitFor({ state: "visible", timeout: 20_000 });
+    await cue("kept", 9.2);
+    await kept.scrollIntoViewIfNeeded();
+    await moveTo(page, ...(await centreOf(kept.locator('[data-slot="kept-rule"]').first())));
+    await mark(rulesTab);
+    await mark(kept);
+    await page.waitForTimeout(1500);
   });
   await settle();
 }
@@ -2476,6 +2501,178 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
   });
 }
 
+/**
+ * The project Bowrain's Map, Reader and Rules read: one whose context holds
+ * suggestions nobody has decided, synced from a checkout through the bowrain
+ * context backend (`context: {backend: bowrain}` and `kapi context sync`),
+ * with at least one file a check reports a fixable finding in. seed-bowrain.ts
+ * does not build this project yet; the walk refuses to start without its id.
+ */
+const BOWRAIN_SCREENS_PROJECT_ID = process.env.BOWRAIN_SCREENS_PROJECT_ID || "";
+
+/**
+ * Bowrain web: a project opens on its Map, a whole-project check runs on the
+ * server, a fix from the Reader files a source proposal, and Rules holds the
+ * team queue, an assignment, a keep, and Kept by.
+ *
+ * Every act is a real API call by the signed-in owner, who holds review and
+ * the permissions that govern rules. Each beat waits for the server's answer
+ * and fails the take when it does not arrive, so no narration plays over a
+ * screen that contradicts it. The assign beat drives the assignee picker the
+ * team queue adds to Decide; it is reached by its label and role.
+ */
+async function bowrainProjectScreensWalk(c: WalkCtx): Promise<void> {
+  const { page, beatEls, beatSpan, cursorTo, cue } = c;
+  if (!BOWRAIN_SCREENS_PROJECT_ID) {
+    throw new Error(
+      "bowrain-web-project-screens: set BOWRAIN_SCREENS_PROJECT_ID to a project whose context holds undecided suggestions (sync it with context: {backend: bowrain} and kapi context sync)",
+    );
+  }
+  const map = ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'];
+  const waiting = '[data-slot="map-suggestions"] [data-slot="map-suggestion"]';
+  const restOn = async (item: Locator) => moveTo(page, ...(await centreOf(item)));
+  const settle = () => page.waitForTimeout(1000);
+
+  // The projects list opens a project on its Map.
+  await page.waitForSelector(`[data-testid="project-card-${BOWRAIN_SCREENS_PROJECT_ID}"]`, { timeout: 30_000 });
+  await page.waitForTimeout(800);
+  await beatEls("map", map, async () => {
+    await humanClick(page, page.getByTestId(`project-card-${BOWRAIN_SCREENS_PROJECT_ID}`));
+    await page.waitForSelector(waiting, { timeout: 30_000 });
+    await cue("row", 4.0);
+    await restOn(page.locator(waiting).first());
+    await cue("decide", 9.0);
+    await cursorTo('[data-slot="map-decide"]', 700);
+    await page.waitForTimeout(1000);
+  });
+  await settle();
+
+  // Run on everything starts the check as a job on the server; the button
+  // reads Checking until the job completes and the Map reads again.
+  const run = page.locator('[data-slot="map-run"]');
+  await beatEls("run", ['[data-slot="map-run"]', '[data-slot="map-counts"]'], async () => {
+    await cue("run", 0.6);
+    await humanClick(page, run);
+    await page.waitForFunction(
+      () => {
+        const b = document.querySelector('[data-slot="map-run"]');
+        return !!b && !b.textContent?.includes("Checking");
+      },
+      undefined,
+      { timeout: 120_000 },
+    );
+    await cue("findings", 7.0);
+    await cursorTo('[data-slot="map-counts"]', 700);
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // A file with findings opens in the Reader.
+  const withFindings = page
+    .locator('[data-slot="map-file"]')
+    .filter({ has: page.locator('[data-slot="map-file-findings"]') })
+    .first();
+  await withFindings.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  const fixable = page.locator('[data-slot="reader-finding"]').filter({ has: page.locator('[data-slot="reader-fix"]') }).first();
+  await beatSpan("reader", async (mark) => {
+    await humanClick(page, withFindings.locator('[data-slot="map-file-open"]'));
+    await page.waitForSelector('[data-slot="reader-blocks"]', { timeout: 30_000 });
+    await fixable.waitFor({ state: "visible", timeout: 20_000 });
+    await fixable.scrollIntoViewIfNeeded();
+    await cue("block", 3.6);
+    await restOn(fixable);
+    await mark(fixable);
+    await cue("margin", 6.8);
+    await cursorTo('[data-slot="reader-rules"]', 700);
+    await mark(page.locator('[data-slot="reader-rules"]'));
+    await page.waitForTimeout(1000);
+  });
+  await settle();
+
+  // Fix files a source proposal; its short id takes the button's place and
+  // opens the list of open proposals.
+  const findingId = await fixable.getAttribute("data-id");
+  const filed = page.locator(`[data-slot="reader-finding"][data-id="${findingId}"] [data-slot="reader-proposed"]`);
+  await beatSpan("fix", async (mark) => {
+    await cue("fix", 0.6);
+    await humanClick(page, fixable.locator('[data-slot="reader-fix"]'));
+    await filed.waitFor({ state: "visible", timeout: 20_000 }).catch(() => {
+      throw new Error("bowrain-web-project-screens: the fix filed no proposal within 20 s (no Proposed id under the finding)");
+    });
+    await mark(page.locator(`[data-slot="reader-finding"][data-id="${findingId}"]`));
+    await cue("list", 6.2);
+    await humanClick(page, filed);
+    await page.waitForSelector('[data-testid="source-proposal-item"]', { timeout: 20_000 });
+    await cursorTo('[data-testid="source-proposal-approve"]', 700);
+    await mark(page.getByTestId("source-proposals-dialog"));
+    await page.waitForTimeout(1500);
+  });
+  await page.keyboard.press("Escape");
+  await page.waitForSelector('[data-testid="source-proposals-dialog"]', { state: "detached", timeout: 10_000 });
+  await settle();
+
+  // Rules: the queue beside the question about the selected suggestion.
+  const list = '[data-slot="list-detail-list"]';
+  const question = page.locator('[data-slot="decide-question"]');
+  await beatEls("rules", [list, '[data-slot="decide-question"]'], async () => {
+    await humanClick(page, page.getByTestId("subnav-rules"));
+    await page.waitForSelector('[data-slot="decide-item"]', { timeout: 30_000 });
+    await page.waitForTimeout(1200);
+    await cue("question", 4.2);
+    await restOn(question);
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // The question goes to a teammate: the assignee picker lists the
+  // workspace's members, and the queue's Assigned to column names her.
+  const picker = page.getByRole("combobox", { name: "Assigned to" });
+  await beatSpan("assign", async (mark) => {
+    await mark(page.locator(list));
+    await cue("assigned", 0.6);
+    await humanClick(page, picker);
+    await page.waitForTimeout(600);
+    await cue(BOWRAIN_PEER_NAME.split(" ")[0] ?? "", 4.0);
+    await humanClick(page, page.getByRole("option", { name: BOWRAIN_PEER_NAME }));
+    await page
+      .locator('[data-slot="decide-item"]')
+      .filter({ hasText: BOWRAIN_PEER_NAME })
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 });
+    await mark(question);
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // Keep records the rule as the signed-in member; the row leaves the queue.
+  const selected = page.locator('[data-slot="decide-item"][aria-selected="true"]').first();
+  const keptRule = await selected.getAttribute("data-id");
+  await beatSpan("keep", async (mark) => {
+    await mark(selected);
+    await mark(question);
+    await cue("keep", 0.8);
+    await humanClick(page, page.locator('[data-slot="decide-keep"]'));
+    if (keptRule) {
+      await page
+        .locator(`[data-slot="decide-item"][data-id="${keptRule}"]`)
+        .waitFor({ state: "detached", timeout: 15_000 });
+    }
+    await page.waitForTimeout(1200);
+  });
+  await settle();
+
+  // Kept by: every rule in force, newest first, with who kept it.
+  const kept = page.locator('[data-slot="kept-rules"]');
+  await kept.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(800);
+  await beatEls("kept", ['[data-slot="kept-rules"]'], async () => {
+    await cue("top", 5.0);
+    await restOn(kept.locator('[data-slot="kept-rule"]').first());
+    await page.waitForTimeout(1500);
+  });
+}
+
 const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-explorer": explorerWalk,
   "kapi-desktop-projects": projectsWalk,
@@ -2489,6 +2686,7 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "bowrain-web-review": bowrainReviewWalk,
   "bowrain-web-collaboration": bowrainCollaborationWalk,
   "bowrain-web-correction-loop": bowrainCorrectionLoopWalk,
+  "bowrain-web-project-screens": bowrainProjectScreensWalk,
   "bowrain-desktop-dashboard": bowrainDesktopWalk,
   "bowrain-desktop-automations": bowrainDesktopAutomationsWalk,
 };

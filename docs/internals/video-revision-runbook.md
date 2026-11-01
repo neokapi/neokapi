@@ -101,6 +101,20 @@ the demo scripts were already clean, and their `beat`/step ids (`open-termbases`
 Storybook fixtures were swept in the same pass and are **not** recorded, so they
 carry no re-record debt.
 
+## Bowrain project screens and the desktop Preview (2026-10-31), scripts only
+
+A Bowrain project opens on its Map, and its sidebar adds Rules: the Map, the
+Reader and Rules (the team queue and Kept by) in the browser. On the desktop,
+Share's Preview reads the Bowrain server when the recipe names one and this
+Mac is signed in to it, and this Mac otherwise. The scripts below are
+authored; **nothing was captured, narrated or rendered**. The scripts are
+reviewed before any capture.
+
+| Asset | What changed | Re-record | Infra | Norwegian (nb) | Publish |
+| --- | --- | --- | --- | --- | --- |
+| `harness/demos/bowrain-web-project-screens` (NEW) | New walk `bowrainProjectScreensWalk`: the projects list opens a project on its Map; Run on everything; a file in the Reader; Fix files a source proposal and its id opens the proposals list; Rules with an assignment, a keep, and Kept by. | record-first-time | server stack (`make -C bowrain stack-up-web`), `make -C harness seed`, and `BOWRAIN_SCREENS_PROJECT_ID`: a project whose context holds undecided suggestions, synced with `context: {backend: bowrain}` and `kapi context sync`, with a file carrying a fixable finding. `seed-bowrain.ts` does not build that project yet. The `assign` beat needs the team queue's assignee picker. | none yet: the dogfood loop writes the sidecar once the narration is approved | `make harness-videos-staged` → `make publish-cdn-bowrain-videos` |
+| `harness/demos/kapi-desktop-context` | New `preview` beat after `share`: Preview opens on the Map tab, then the Rules tab with Kept by listing the rules kept earlier in the walk. Earlier beats unchanged. | re-capture (the walk gains a beat) + re-dub (one new narration line in the oneshot track) | none: the sample project, no server | n/a: no nb sidecar | `make harness-videos-staged` → `make publish-cdn-videos` |
+
 ## Known gaps / follow-ups
 
 - **Browser-only steps.** The wasm build mirrors the native command set

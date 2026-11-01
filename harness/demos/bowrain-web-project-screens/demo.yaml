@@ -1,0 +1,114 @@
+id: bowrain-web-project-screens
+title: One record of what your files do, for the whole team
+subtitle: A project's Map, Reader and Rules in the browser.
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-project-screens
+terminal: desktop
+target: web
+brand: bowrain
+needsAi: false
+# One continuous narration read: uniform voice across scenes.
+oneshot: true
+aspects:
+  - A project opens on its Map
+  - A check over every file, on the server
+  - A fix filed as a source proposal
+  - The team queue and who kept what
+
+# Recording needs the Docker stack, a seed run and BOWRAIN_SCREENS_PROJECT_ID.
+# That project's context holds undecided suggestions, synced with the bowrain
+# context backend, and one of its files has a fixable finding. The seed does
+# not build it yet, and the walk refuses to start without it.
+#
+# reader, fix, assign and keep carry no crop: the walk crops each to what it
+# marks (beatSpan in record-desktop.ts). assign drives the team queue's
+# assignee picker.
+outro:
+  line: Add context with backend bowrain to kapi.yaml.
+  pointer: kapi context sync
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      A project on Bowrain opens on its Map. Your team reads what assistants
+      noticed, checks every file on the server, and decides what holds, in
+      one place.
+
+  - id: map
+    kind: desktop
+    beat: map
+    caption: A project opens on its Map.
+    crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
+    text: >-
+      Opening a project lands on its Map. The counts read files, blocks, rules
+      and findings. Each row under What your files do is something an
+      assistant noticed and nobody has decided, and the Decide button counts
+      them.
+
+  - id: run
+    kind: desktop
+    beat: run
+    caption: Every file, checked on the server.
+    crop: { selector: ['[data-slot="map-run"]', '[data-slot="map-counts"]'] }
+    text: >-
+      Run on everything checks every file on the server as one job, which
+      takes the review permission. When the job finishes, the findings count
+      reads what the checks reported.
+
+  - id: reader
+    kind: desktop
+    beat: reader
+    caption: One file, its findings, and the rules at it.
+    text: >-
+      A file opens in the Reader. Each finding sits under the block it is in,
+      and the margin lists the rules that hold at this file.
+
+  - id: fix
+    kind: desktop
+    beat: fix
+    caption: A fix, filed as a source proposal.
+    text: >-
+      Fix files a source proposal and leaves the file as it is. Proposed
+      takes the button's place and opens the list of open proposals, where an approval applies the change and keeps every inline
+      code.
+
+  - id: rules
+    kind: desktop
+    beat: rules
+    caption: The team queue.
+    crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="decide-question"]'] }
+    text: >-
+      Rules is the team queue. Each suggestion waiting for a decision is a
+      row, beside the question about the one selected.
+
+  - id: assign
+    kind: desktop
+    beat: assign
+    caption: Assigned to a teammate.
+    text: >-
+      Assigned to names who answers it. The picker lists the workspace's
+      members, Maria takes this one, and the queue shows her name.
+
+  - id: keep
+    kind: desktop
+    beat: keep
+    caption: Kept, as you.
+    text: >-
+      Keep records the rule as you, in the project's context, and the row
+      leaves the queue.
+
+  - id: kept
+    kind: desktop
+    beat: kept
+    caption: Who kept each rule, newest first.
+    crop: { selector: '[data-slot="kept-rules"]' }
+    text: >-
+      Kept by lists every rule in force, with who kept it, the day, and where
+      it holds. The rule you kept is at the top.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Every checkout reads the same decisions on its next kapi context sync.

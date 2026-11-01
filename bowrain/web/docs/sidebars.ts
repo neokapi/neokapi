@@ -42,6 +42,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "server/web-overview",
         "server/getting-started",
+        "server/project-map",
         "server/walkthroughs",
       ],
     },

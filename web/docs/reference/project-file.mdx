@@ -932,6 +932,10 @@ A field that belongs to another backend is refused. Credentials never go here:
 a git backend uses the repository's own access, and an S3 backend the standard
 AWS environment, shared configuration and profile.
 
+A hosted server the recipe connects to can also keep the context. Its
+`backend` value takes no further field here; the server's documentation gives
+the recipe shape.
+
 ## Ship gates
 
 Ship gates decide when translated content is *shippable*: coverage thresholds
