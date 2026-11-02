@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -478,32 +477,32 @@ func (tb *SQLiteStore) Lookup(ctx context.Context, sourceText string, opts Looku
 // LookupAll finds all terms appearing in the given text. The locale/domain/
 // status/project/source filtering happens in SQL (queryTermsByLocale); the
 // position scan, validity-scope filter and project-priority de-duplication live
-// in the shared LookupAllTiered.
+// in the shared LookupAllTiered. Each match carries its whole concept.
 func (tb *SQLiteStore) LookupAll(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	if sourceText == "" {
 		return nil, nil
 	}
 	opts = ApplyLookupDefaults(opts)
-	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, opts, nil)
+	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, opts)
 	if err != nil {
 		return nil, err
 	}
 	matches := LookupAllTiered(sourceText, opts, terms)
-	if len(matches) == 0 {
-		return matches, nil
-	}
-	// The scan needs only the source locale. The target wording is read for
-	// the matched concepts alone, through the same query, so every filter the
-	// source terms pass applies to it too.
-	attach := terms
-	if !opts.TargetLocale.IsEmpty() && opts.TargetLocale != opts.SourceLocale {
-		target, err := tb.queryTermsByLocale(ctx, opts.TargetLocale, opts.Domains, opts.StatusFilter, opts, MatchedConceptIDs(matches))
+	// The scan reads source-locale rows only. The matched concepts are read
+	// whole, by the IDs the scan kept, so a match carries the concept's wording
+	// in the target locale and its properties, as the in-memory store's does.
+	ids := MatchedConceptIDs(matches)
+	concepts := make([]Concept, 0, len(ids))
+	for _, id := range ids {
+		c, ok, err := tb.GetConcept(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-		attach = append(slices.Clip(terms), target...)
+		if ok {
+			concepts = append(concepts, c)
+		}
 	}
-	AttachMatchTerms(matches, attach, opts)
+	HydrateMatchConcepts(matches, concepts)
 	return matches, nil
 }
 
@@ -1127,23 +1126,13 @@ func (tb *SQLiteStore) queryFuzzyFullScan(ctx context.Context, normalizedSource 
 	return scanTermCandidates(rows)
 }
 
-// queryTermsByLocale loads the terms of one locale with their concepts. A
-// non-empty conceptIDs limits the rows to those concepts; LookupAll passes the
-// matched concepts when it reads their target-locale terms.
-func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions, conceptIDs []string) ([]LocaleTerm, error) {
+func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]LocaleTerm, error) {
 	// This query is the terms half of every check. It names no stream, so it
 	// must exclude the shadow namespace: a shadow written for one branch would
 	// otherwise decide what the checks flag everywhere.
 	notShadow, shadowArg := NotShadowSQL("c.id", "?")
 	where := "t.locale = ? AND " + notShadow
 	args := []any{string(locale), shadowArg}
-
-	if len(conceptIDs) > 0 {
-		where += " AND c.id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(conceptIDs)), ",") + ")"
-		for _, id := range conceptIDs {
-			args = append(args, id)
-		}
-	}
 
 	if len(domains) > 0 {
 		placeholders := make([]string, len(domains))

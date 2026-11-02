@@ -238,8 +238,8 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 	spans := make([]model.Span, 0, len(matches))
 	for _, m := range matches {
 		props := map[string]string{"term": m.Term.Text}
-		// A match carries the concept's source-language terms; its French is
-		// read from the whole concept.
+		// The French is read from the concept the store holds, whatever shape
+		// the match's concept has.
 		concept := m.Concept
 		if full, ok, gerr := tb.GetConcept(ctx, concept.ID); gerr == nil && ok {
 			concept = full

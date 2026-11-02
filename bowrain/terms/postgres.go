@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -509,13 +508,13 @@ func (tb *PostgresStore) Lookup(ctx context.Context, sourceText string, opts fw.
 
 // LookupAll finds all terms appearing in the given text. The position scan,
 // validity-scope filter and (text, position) de-duplication live in the shared
-// fw.LookupAllTiered, which Postgres now inherits.
+// fw.LookupAllTiered. Each match carries its whole concept.
 func (tb *PostgresStore) LookupAll(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	if sourceText == "" {
 		return nil, nil
 	}
 	opts = fw.ApplyLookupDefaults(opts)
-	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, nil)
+	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -523,18 +522,15 @@ func (tb *PostgresStore) LookupAll(ctx context.Context, sourceText string, opts 
 	if len(matches) == 0 {
 		return matches, nil
 	}
-	// The scan needs only the source locale. The target wording is read for
-	// the matched concepts alone, through the same query, so the status filter
-	// and the shadow exclusion apply to it as they do to the source terms.
-	attach := terms
-	if !opts.TargetLocale.IsEmpty() && opts.TargetLocale != opts.SourceLocale {
-		target, err := tb.queryTermsByLocale(ctx, opts.TargetLocale, opts.Domains, opts.StatusFilter, fw.MatchedConceptIDs(matches))
-		if err != nil {
-			return nil, err
-		}
-		attach = append(slices.Clip(terms), target...)
+	// The scan reads source-locale rows only. The matched concepts are read
+	// whole, by the IDs the scan kept, so a match carries the concept's wording
+	// in the target locale and its properties. The status filter and the shadow
+	// exclusion have already decided which concepts match.
+	concepts, err := tb.scanConcepts(ctx, fw.MatchedConceptIDs(matches))
+	if err != nil {
+		return nil, err
 	}
-	fw.AttachMatchTerms(matches, attach, opts)
+	fw.HydrateMatchConcepts(matches, concepts)
 	return matches, nil
 }
 
@@ -1148,10 +1144,7 @@ func (tb *PostgresStore) queryFuzzyFullScan(ctx context.Context, normalizedSourc
 	return pgScanTermCandidates(rows)
 }
 
-// queryTermsByLocale loads the terms of one locale with their concepts. A
-// non-empty conceptIDs limits the rows to those concepts; LookupAll passes the
-// matched concepts when it reads their target-locale terms.
-func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, conceptIDs []string) ([]fw.LocaleTerm, error) {
+func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]fw.LocaleTerm, error) {
 	// This query is the terms half of every check. It names no stream, so it
 	// must exclude the shadow namespace: a shadow written for one branch would
 	// otherwise decide what the checks flag everywhere.
@@ -1159,16 +1152,6 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	where := "t.workspace_id = $1 AND t.locale = $2 AND " + notShadow
 	args := []any{tb.workspaceID, string(locale), shadowArg}
 	argN := 4
-
-	if len(conceptIDs) > 0 {
-		placeholders := make([]string, len(conceptIDs))
-		for i, id := range conceptIDs {
-			placeholders[i] = fmt.Sprintf("$%d", argN)
-			args = append(args, id)
-			argN++
-		}
-		where += " AND c.id IN (" + strings.Join(placeholders, ",") + ")"
-	}
 
 	if len(domains) > 0 {
 		placeholders := make([]string, len(domains))

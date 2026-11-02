@@ -366,8 +366,8 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 	spans := make([]model.Span, 0, len(matches))
 	for _, m := range matches {
 		props := map[string]string{"term": m.Term.Text}
-		// LookupAll's match carries only a partial concept (id/domain, no terms);
-		// load the full concept to resolve the preferred target translation.
+		// Read the concept from the store to resolve the preferred target
+		// translation, whatever shape the match's concept has.
 		domain := m.Concept.Domain
 		if full, ok, err := tb.GetConcept(ctx, m.Concept.ID); err == nil && ok {
 			if domain == "" {

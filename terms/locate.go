@@ -289,10 +289,10 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 }
 
 // wholeConcept is the concept a match denotes with its terms and properties.
-// The in-memory store hands back the whole concept with a match, and the
-// SQLite one a stub carrying the id, the definition and the flags but neither
-// the other terms nor the properties (see PreferredTerm), so a stub is read
-// from the store. A concept the store no longer holds stays the stub.
+// Each store's LookupAll hands back the whole concept with a match. A match
+// whose concept carries no terms, such as one a Terminology implementation
+// built from the ID alone, is read from the store. A concept the store no
+// longer holds stays as the match has it.
 func wholeConcept(ctx context.Context, store Terminology, c Concept) (Concept, error) {
 	if c.ID == "" || len(c.Terms) > 0 {
 		return c, nil
@@ -340,12 +340,11 @@ func LookupLocales(loc model.LocaleID) []model.LocaleID {
 // preferred term its concept carries in the same language, or the replacement
 // the term's own note names when the concept carries no preferred sibling.
 //
-// The match is consulted first and the store second, because a lookup can return
-// either shape: the in-memory store hands back the whole concept, while the
-// SQLite one selects a row per term and fills in a concept STUB carrying the id
-// and definition but none of its other terms. Reading only the match therefore
-// leaves every occurrence from a real project without the alternative — the one
-// part of a vocabulary finding that says what to do.
+// The match is consulted first and the store second. Each store's lookup
+// hands back the whole concept, but a Terminology implementation may return a
+// concept carrying only its ID, and reading only that match would leave the
+// occurrence without the alternative, the part of a vocabulary finding that
+// says what to do.
 //
 // The note is the last resort rather than the first, because a concept that
 // carries both words is the better record and the one `kapi apply` writes. It

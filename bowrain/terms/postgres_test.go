@@ -233,8 +233,9 @@ func TestPostgresTerms_IntegrationAddConceptWithStream(t *testing.T) {
 }
 
 // seedTargetTermsFixture loads a concept with source, target and third-locale
-// wording, a concept with source wording only, and a shadow copy of the first
-// concept carrying a target term of its own.
+// wording, a concept with source wording only, a concept whose source term is
+// forbidden, and a shadow copy of the first concept carrying a target term of
+// its own.
 func seedTargetTermsFixture(t *testing.T, tb terms.Terminology) {
 	t.Helper()
 	for _, c := range []terms.Concept{
@@ -246,6 +247,10 @@ func seedTargetTermsFixture(t *testing.T, tb terms.Terminology) {
 		}},
 		{ID: "c-dash", Domain: "ui", Terms: []terms.Term{
 			{Text: "dashboard", Locale: "en", Status: model.TermApproved},
+		}},
+		{ID: "c-crypto", Domain: "security", Terms: []terms.Term{
+			{Text: "crypto", Locale: "en", Status: model.TermForbidden},
+			{Text: "crypto", Locale: "fr", Status: model.TermForbidden},
 		}},
 		{ID: terms.ShadowIDPrefix + "c-enc", Domain: "security", Terms: []terms.Term{
 			{Text: "encryption", Locale: "en", Status: model.TermApproved},
@@ -280,9 +285,9 @@ func matchFor(t *testing.T, matches []terms.TermMatch, conceptID string) terms.T
 	return terms.TermMatch{}
 }
 
-// assertLookupAllTargetTerms checks that LookupAll gives each match its
-// concept's wording in the source and the target locale, under the status
-// filter and without the shadow namespace.
+// assertLookupAllTargetTerms checks that LookupAll gives each match its whole
+// concept, with the wording in the target locale, while the status filter and
+// the shadow exclusion still decide which concepts match.
 func assertLookupAllTargetTerms(t *testing.T, tb terms.Terminology) {
 	t.Helper()
 	const text = "Turn on encryption from the dashboard"
@@ -295,29 +300,29 @@ func assertLookupAllTargetTerms(t *testing.T, tb terms.Terminology) {
 		enc := matchFor(t, matches, "c-enc")
 		assert.Equal(t, "encryption", enc.Term.Text)
 		assert.Equal(t, model.LocaleID("en"), enc.Term.Locale)
+		assert.Equal(t, "security", enc.Concept.Domain)
 		assert.Equal(t, []string{"encryption"}, termsIn(enc.Concept, "en"))
 		assert.Equal(t, []string{"chiffrement", "cryptage"}, termsIn(enc.Concept, "fr"))
-		assert.Empty(t, termsIn(enc.Concept, "de"), "a third locale is not read")
+		assert.Equal(t, []string{"Verschlüsselung"}, termsIn(enc.Concept, "de"))
 
 		dash := matchFor(t, matches, "c-dash")
 		assert.Equal(t, []string{"dashboard"}, termsIn(dash.Concept, "en"))
 		assert.Empty(t, termsIn(dash.Concept, "fr"))
 	})
 
-	t.Run("status filter applies to the target terms", func(t *testing.T) {
-		matches, err := tb.LookupAll(t.Context(), text, terms.LookupOptions{
+	t.Run("no target locale still carries the whole concept", func(t *testing.T) {
+		matches, err := tb.LookupAll(t.Context(), text, terms.LookupOptions{SourceLocale: "en"})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"chiffrement", "cryptage"}, termsIn(matchFor(t, matches, "c-enc").Concept, "fr"))
+	})
+
+	t.Run("status filter decides which terms match", func(t *testing.T) {
+		matches, err := tb.LookupAll(t.Context(), "Avoid crypto in the dashboard", terms.LookupOptions{
 			SourceLocale: "en", TargetLocale: "fr", StatusFilter: []model.TermStatus{model.TermApproved},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, []string{"chiffrement"}, termsIn(matchFor(t, matches, "c-enc").Concept, "fr"))
-	})
-
-	t.Run("no target locale reads the source only", func(t *testing.T) {
-		matches, err := tb.LookupAll(t.Context(), text, terms.LookupOptions{SourceLocale: "en"})
-		require.NoError(t, err)
-		enc := matchFor(t, matches, "c-enc")
-		assert.Equal(t, []string{"encryption"}, termsIn(enc.Concept, "en"))
-		assert.Empty(t, termsIn(enc.Concept, "fr"))
+		require.Len(t, matches, 1, "the forbidden source term does not match")
+		assert.Equal(t, "c-dash", matches[0].Concept.ID)
 	})
 
 	t.Run("shadow concepts stay out", func(t *testing.T) {

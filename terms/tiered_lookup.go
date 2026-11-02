@@ -342,23 +342,25 @@ func MatchedConceptIDs(matches []TermMatch) []string {
 	return ids
 }
 
-// AttachMatchTerms sets each match's Concept.Terms to the terms in rows that
-// belong to that concept and fall inside opts.Scope. A SQL backend's LookupAll
-// loads its source-locale rows for the scan, then the target-locale rows of the
-// matched concepts, and passes both here, so a match carries the concept's
-// wording in the source and the target locale. Each match gets its own slice.
-func AttachMatchTerms(matches []TermMatch, rows []LocaleTerm, opts LookupOptions) {
-	if len(matches) == 0 {
-		return
-	}
-	byConcept := make(map[string][]Term)
-	for _, r := range rows {
-		if !MatchesScope(r.Term.Validity, opts.Scope) {
-			continue
-		}
-		byConcept[r.Concept.ID] = append(byConcept[r.Concept.ID], r.Term)
+// HydrateMatchConcepts replaces each match's concept with the whole concept of
+// the same ID from concepts: its properties and its terms in every locale. A SQL
+// backend's LookupAll scans source-locale rows, which carry only part of each
+// concept, then reads the matched concepts and passes them here. The match then
+// holds what the in-memory store's match holds, including the target-locale
+// wording a caller shows beside the source term. A match whose concept is
+// missing from concepts keeps the one it has. Each match gets its own Terms
+// slice.
+func HydrateMatchConcepts(matches []TermMatch, concepts []Concept) {
+	byID := make(map[string]Concept, len(concepts))
+	for _, c := range concepts {
+		byID[c.ID] = c
 	}
 	for i := range matches {
-		matches[i].Concept.Terms = slices.Clone(byConcept[matches[i].Concept.ID])
+		c, ok := byID[matches[i].Concept.ID]
+		if !ok {
+			continue
+		}
+		c.Terms = slices.Clone(c.Terms)
+		matches[i].Concept = c
 	}
 }
