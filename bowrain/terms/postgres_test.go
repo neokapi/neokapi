@@ -5,6 +5,7 @@ package terms_test
 import (
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 	"time"
 
@@ -229,4 +230,108 @@ func TestPostgresTerms_IntegrationAddConceptWithStream(t *testing.T) {
 	assert.Equal(t, 1, total)
 	assert.Len(t, concepts, 1)
 	assert.Equal(t, "c-ws", concepts[0].ID)
+}
+
+// seedTargetTermsFixture loads a concept with source, target and third-locale
+// wording, a concept with source wording only, and a shadow copy of the first
+// concept carrying a target term of its own.
+func seedTargetTermsFixture(t *testing.T, tb terms.Terminology) {
+	t.Helper()
+	for _, c := range []terms.Concept{
+		{ID: "c-enc", Domain: "security", Terms: []terms.Term{
+			{Text: "encryption", Locale: "en", Status: model.TermApproved},
+			{Text: "chiffrement", Locale: "fr", Status: model.TermApproved},
+			{Text: "cryptage", Locale: "fr", Status: model.TermForbidden},
+			{Text: "Verschlüsselung", Locale: "de", Status: model.TermApproved},
+		}},
+		{ID: "c-dash", Domain: "ui", Terms: []terms.Term{
+			{Text: "dashboard", Locale: "en", Status: model.TermApproved},
+		}},
+		{ID: terms.ShadowIDPrefix + "c-enc", Domain: "security", Terms: []terms.Term{
+			{Text: "encryption", Locale: "en", Status: model.TermApproved},
+			{Text: "codage", Locale: "fr", Status: model.TermApproved},
+		}},
+	} {
+		require.NoError(t, tb.AddConcept(t.Context(), c))
+	}
+}
+
+// termsIn returns the texts of a concept's terms in one locale, sorted.
+func termsIn(c terms.Concept, loc model.LocaleID) []string {
+	var out []string
+	for _, tm := range c.Terms {
+		if tm.Locale == loc {
+			out = append(out, tm.Text)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// matchFor returns the match of the named concept, failing when there is none.
+func matchFor(t *testing.T, matches []terms.TermMatch, conceptID string) terms.TermMatch {
+	t.Helper()
+	for _, m := range matches {
+		if m.Concept.ID == conceptID {
+			return m
+		}
+	}
+	require.Failf(t, "no match", "concept %s did not match", conceptID)
+	return terms.TermMatch{}
+}
+
+// assertLookupAllTargetTerms checks that LookupAll gives each match its
+// concept's wording in the source and the target locale, under the status
+// filter and without the shadow namespace.
+func assertLookupAllTargetTerms(t *testing.T, tb terms.Terminology) {
+	t.Helper()
+	const text = "Turn on encryption from the dashboard"
+
+	t.Run("target wording rides the match", func(t *testing.T) {
+		matches, err := tb.LookupAll(t.Context(), text, terms.LookupOptions{SourceLocale: "en", TargetLocale: "fr"})
+		require.NoError(t, err)
+		require.Len(t, matches, 2)
+
+		enc := matchFor(t, matches, "c-enc")
+		assert.Equal(t, "encryption", enc.Term.Text)
+		assert.Equal(t, model.LocaleID("en"), enc.Term.Locale)
+		assert.Equal(t, []string{"encryption"}, termsIn(enc.Concept, "en"))
+		assert.Equal(t, []string{"chiffrement", "cryptage"}, termsIn(enc.Concept, "fr"))
+		assert.Empty(t, termsIn(enc.Concept, "de"), "a third locale is not read")
+
+		dash := matchFor(t, matches, "c-dash")
+		assert.Equal(t, []string{"dashboard"}, termsIn(dash.Concept, "en"))
+		assert.Empty(t, termsIn(dash.Concept, "fr"))
+	})
+
+	t.Run("status filter applies to the target terms", func(t *testing.T) {
+		matches, err := tb.LookupAll(t.Context(), text, terms.LookupOptions{
+			SourceLocale: "en", TargetLocale: "fr", StatusFilter: []model.TermStatus{model.TermApproved},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"chiffrement"}, termsIn(matchFor(t, matches, "c-enc").Concept, "fr"))
+	})
+
+	t.Run("no target locale reads the source only", func(t *testing.T) {
+		matches, err := tb.LookupAll(t.Context(), text, terms.LookupOptions{SourceLocale: "en"})
+		require.NoError(t, err)
+		enc := matchFor(t, matches, "c-enc")
+		assert.Equal(t, []string{"encryption"}, termsIn(enc.Concept, "en"))
+		assert.Empty(t, termsIn(enc.Concept, "fr"))
+	})
+
+	t.Run("shadow concepts stay out", func(t *testing.T) {
+		matches, err := tb.LookupAll(t.Context(), text, terms.LookupOptions{SourceLocale: "en", TargetLocale: "fr"})
+		require.NoError(t, err)
+		for _, m := range matches {
+			assert.False(t, terms.IsShadowID(m.Concept.ID), "matched shadow concept %s", m.Concept.ID)
+			assert.NotContains(t, termsIn(m.Concept, "fr"), "codage")
+		}
+	})
+}
+
+func TestPostgresTerms_IntegrationLookupAllTargetTerms(t *testing.T) {
+	tb := openTestPostgresTerms(t)
+	seedTargetTermsFixture(t, tb)
+	assertLookupAllTargetTerms(t, tb)
 }

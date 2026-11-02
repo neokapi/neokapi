@@ -340,3 +340,12 @@ func TestTermsParity_ExpectedSets(t *testing.T) {
 		})
 	}
 }
+
+// TestTermsParity_LookupAllTargetTerms holds the framework SQLite store to the
+// assertions TestPostgresTerms_IntegrationLookupAllTargetTerms makes of
+// Postgres, so the server and a local project agree on what a match carries.
+func TestTermsParity_LookupAllTargetTerms(t *testing.T) {
+	sq := openParitySQLiteTB(t)
+	seedTargetTermsFixture(t, sq)
+	assertLookupAllTargetTerms(t, sq)
+}
