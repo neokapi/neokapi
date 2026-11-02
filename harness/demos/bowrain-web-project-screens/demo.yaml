@@ -16,10 +16,10 @@ aspects:
   - A fix filed as a source proposal
   - The team queue and who kept what
 
-# Recording needs the Docker stack, a seed run and BOWRAIN_SCREENS_PROJECT_ID.
-# That project's context holds undecided suggestions, synced with the bowrain
-# context backend, and one of its files has a fixable finding. The seed does
-# not build it yet, and the walk refuses to start without it.
+# Recording needs the Docker stack and a seed run, which writes
+# BOWRAIN_SCREENS_PROJECT_ID. That project's context holds undecided
+# suggestions, synced with the bowrain context backend, and one of its files
+# has a fixable finding. The walk refuses to start without the id.
 #
 # reader, fix, assign and keep carry no crop: the walk crops each to what it
 # marks (beatSpan in record-desktop.ts). assign drives the team queue's

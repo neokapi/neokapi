@@ -23,7 +23,17 @@
  * the record phase.
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { run } from "../src/lib/exec.ts";
+import { KAPI_BIN, REPO_ROOT, kapiIsolationEnv } from "../src/lib/paths.ts";
+import {
+  keptBySeed,
+  observationOf,
+  queueShortfall,
+  resetPoint,
+} from "../src/lib/screens-seed.ts";
+import type { DecideQuestion, LoggedOp, SeedIdentity, SeedNote } from "../src/lib/screens-seed.ts";
 import {
   describeReadiness,
   isRunnable,
@@ -163,6 +173,16 @@ async function jput<T>(p: string, body: unknown, token: string): Promise<T> {
   if (!r.ok) throw new Error(`PUT ${p} → ${r.status}: ${(await r.text()).slice(0, 300)}`);
   const text = await r.text();
   return (text ? JSON.parse(text) : {}) as T;
+}
+
+async function jpatch<T>(p: string, body: unknown, token: string): Promise<T> {
+  const r = await fetch(`${API}${p}`, {
+    method: "PATCH",
+    headers: authJSON(token),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`PATCH ${p} → ${r.status}: ${(await r.text()).slice(0, 300)}`);
+  return (await r.json()) as T;
 }
 
 /**
@@ -671,6 +691,392 @@ async function ensureRunnableProject(ws: string, pid: string, token: string): Pr
   console.log(`  · convergence: ${describeReadiness(est)}, so "Translate all now" starts a real run`);
 }
 
+// ── the project-screens walkthrough's project ───────────────────────────────
+
+/**
+ * The project the project-screens walk opens (record-desktop.ts
+ * bowrainProjectScreensWalk). A checkout connects it with
+ * `kapi share --via bowrain`, sends its files with `kapi push`, and keeps its
+ * context on the server through the bowrain context backend, so the Map and
+ * Rules read a ledger a checkout wrote.
+ *
+ * The recipe's id is fixed: the server keeps the id a connecting recipe sends
+ * and answers a second connect with the project it already holds, which is
+ * what makes the step idempotent.
+ */
+const SCREENS_PROJECT = {
+  id: "prj_harnessprojectscreens",
+  name: "Help Center",
+  source: "en",
+  targets: ["fr", "de"],
+};
+
+/**
+ * The agent session the seed's notes carry, and the person who keeps the
+ * kept rule: Bob, with his own sign-in, so Kept by names a teammate beside the
+ * rule the take keeps as the on-camera user. A screen shows the signed-in
+ * member's own name as "you".
+ */
+const SCREENS_IDENTITY: SeedIdentity = { session: "harness-seed", person: BOB.name };
+
+// account.md carries two blocks the "sign in, not log in" term rule finds, and
+// billing.md one: a take fixes one finding per theme in the first file with
+// findings, and the Map lists files by path.
+const SCREENS_FILES: Record<string, string> = {
+  "docs/account.md": `# Your account
+
+To log in, open the app and enter your email address. You receive a code by email.
+
+After you log in, the dashboard shows your projects.
+
+## Profile
+
+Your profile shows your name and the teams you belong to.
+`,
+  "docs/billing.md": `# Billing
+
+You can change your plan at any time from the billing page.
+
+## Invoices
+
+Each invoice lists the seats on your plan. You can download it as a PDF.
+
+## Payment methods
+
+Log in as an owner to add a card. Only owners can change payment methods.
+`,
+  "docs/getting-started.md": `# Getting started
+
+Welcome to the Acme Help Center. You can find answers to common questions here.
+
+## Your first project
+
+Create a project from the dashboard. You can invite teammates once it exists.
+`,
+};
+
+/** The suggestions the queue holds: two names or words and two notes, so each theme of a take keeps one. */
+const SCREENS_SUGGESTIONS: SeedNote[] = [
+  {
+    term: "Help Center",
+    insteadOf: "Help Centre",
+    seenIn: "docs/getting-started.md",
+    quote: "Welcome to the Acme Help Center.",
+  },
+  {
+    text: "the guides address the reader as you",
+    seenIn: "docs/getting-started.md",
+    quote: "You can find answers to common questions here.",
+  },
+  {
+    term: "teammates",
+    insteadOf: "team members",
+    seenIn: "docs/getting-started.md",
+    quote: "You can invite teammates once it exists.",
+  },
+  {
+    text: "headings use sentence case",
+    seenIn: "docs/getting-started.md",
+    quote: "Your first project",
+  },
+];
+
+/** The suggestion a person keeps, so Kept by lists a rule before the take keeps another. */
+const SCREENS_KEPT: SeedNote = {
+  term: "dashboard",
+  insteadOf: "home screen",
+  seenIn: "docs/account.md",
+  quote: "the dashboard shows your projects",
+};
+
+/**
+ * The workspace term behind the Reader's fixable finding. The checks at the
+ * source language read the workspace's terms store with the voice bound at the
+ * file's point, and a deprecated term whose note names a replacement is a
+ * finding Fix files a source proposal for.
+ */
+const SCREENS_CONCEPT = {
+  domain: "account",
+  definition: "Opening a session with an account and its credentials.",
+  terms: [
+    { text: "sign in", locale: "en", status: "approved" },
+    { text: "log in", locale: "en", status: "deprecated", note: "use: sign in" },
+  ],
+};
+
+/** Who a checkout command runs as: an assistant, or a person with their own sign-in. */
+type CheckoutActor = "agent" | "alice" | "bob";
+
+/** A scratch checkout of the screens project, outside the repository, and the kapi it runs. */
+interface Checkout {
+  dir: string;
+  kapi: (args: string[], actor?: CheckoutActor) => Promise<string>;
+  dispose: () => void;
+}
+
+/**
+ * Open a scratch checkout under the in-repo isolation contract, with a data
+ * root of its own: every run starts with no local context, and everything it
+ * reads comes from the server. The kapi-bowrain plugin is installed into the
+ * checkout's own plugin root, as the bowrain CLI demos install it.
+ *
+ * The coding-agent markers of the shell the seed runs in are removed, so the
+ * notes carry the seed's own session and a decision is a person's. A person
+ * is named through the version-control identity kapi names a person by
+ * (host/contextactor.go PersonName) and sends with their own sign-in. An
+ * assistant's command runs with Alice's sign-in, as an assistant in her
+ * checkout would.
+ */
+function openCheckout(tokens: { alice: string; bob: string }): Checkout {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "harness-screens-"));
+  const dir = path.join(root, "help-center");
+  fs.mkdirSync(dir, { recursive: true });
+  const plugin = path.join(REPO_ROOT, "bin", "kapi-bowrain");
+  if (!fs.existsSync(KAPI_BIN)) throw new Error(`kapi not found at ${KAPI_BIN}: run \`make build\` first`);
+  if (!fs.existsSync(plugin)) {
+    throw new Error(`kapi-bowrain not found at ${plugin}: run \`make build-bowrain-plugin\` first`);
+  }
+  const plugins = path.join(root, "plugins");
+  const pluginDir = path.join(plugins, "bowrain");
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.copyFileSync(
+    path.join(REPO_ROOT, "bowrain", "plugin", "cmd", "kapi-bowrain", "manifest.json"),
+    path.join(pluginDir, "manifest.json"),
+  );
+  fs.copyFileSync(plugin, path.join(pluginDir, "kapi-bowrain"));
+  fs.chmodSync(path.join(pluginDir, "kapi-bowrain"), 0o755);
+
+  // KAPI_PROJECT names a project ahead of discovery, so a shell that exports
+  // one (direnv, the dogfood recipe) would point every command at it.
+  const inherited = { ...process.env };
+  for (const marker of [
+    "CLAUDECODE",
+    "CLAUDE_CODE_SESSION_ID",
+    "CODEX_SESSION_ID",
+    "KAPI_AGENT_NAME",
+    "KAPI_AGENT_SESSION",
+    "KAPI_PROJECT",
+  ]) {
+    delete inherited[marker];
+  }
+  const base: NodeJS.ProcessEnv = {
+    ...inherited,
+    // Discovery stays off: every command names the checkout with -p.
+    ...kapiIsolationEnv(),
+    KAPI_DATA_DIR: path.join(root, "data"),
+    KAPI_CONFIG_DIR: path.join(root, "config"),
+    XDG_DATA_HOME: path.join(root, "xdg-data"),
+    XDG_CACHE_HOME: path.join(root, "cache"),
+    XDG_CONFIG_HOME: path.join(root, "xdg-config"),
+    BOWRAIN_CONFIG_DIR: path.join(root, "bowrain-config"),
+    KAPI_PLUGINS_DIR: plugins,
+    BOWRAIN_SERVER_URL: BASE,
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "user.name",
+  };
+  const kapi = async (args: string[], actor: CheckoutActor = "alice"): Promise<string> => {
+    const signedIn = {
+      BOWRAIN_AUTH_TOKEN: actor === "bob" ? tokens.bob : tokens.alice,
+      GIT_CONFIG_VALUE_0: actor === "bob" ? BOB.name : ALICE.name,
+    };
+    const env: NodeJS.ProcessEnv =
+      actor === "agent"
+        ? {
+            ...base,
+            ...signedIn,
+            KAPI_ACTOR: "agent",
+            KAPI_AGENT_NAME: "claude-code",
+            KAPI_AGENT_SESSION: SCREENS_IDENTITY.session,
+          }
+        : { ...base, ...signedIn, KAPI_ACTOR: "person" };
+    const r = await run(KAPI_BIN, [...args, "-p", dir], { cwd: dir, env, timeoutMs: 180_000 });
+    if (r.code !== 0) {
+      throw new Error(`kapi ${args.join(" ")} exited ${r.code}: ${r.combined.trim().slice(-600)}`);
+    }
+    return r.stdout;
+  };
+  return { dir, kapi, dispose: () => fs.rmSync(root, { recursive: true, force: true }) };
+}
+
+/** The recipe the checkout starts from; `kapi share --via bowrain` adds the `bowrain:` block. */
+function screensRecipe(): string {
+  return [
+    "version: v1",
+    `id: ${SCREENS_PROJECT.id}`,
+    `name: ${SCREENS_PROJECT.name}`,
+    "",
+    "defaults:",
+    `  source_language: ${SCREENS_PROJECT.source}`,
+    `  target_languages: [${SCREENS_PROJECT.targets.join(", ")}]`,
+    "",
+    "collections:",
+    "  - name: docs",
+    "    content:",
+    "      - path: docs/*.md",
+    "",
+  ].join("\n");
+}
+
+/** The note's arguments to `kapi context note`. */
+function noteArgs(n: SeedNote): string[] {
+  const where = ["--seen-in", n.seenIn, "--quote", n.quote];
+  if (n.term !== undefined) return ["context", "note", "--term", n.term, "--instead-of", n.insteadOf ?? "", ...where];
+  return ["context", "note", n.text ?? "", ...where];
+}
+
+async function contextLog(co: Checkout): Promise<LoggedOp[]> {
+  const out = JSON.parse(await co.kapi(["context", "log", "--json"])) as { operations?: LoggedOp[] };
+  return out.operations ?? [];
+}
+
+/**
+ * Bring the checkout's context to the state a take starts from, and share it:
+ * the decisions an earlier take made on the server set aside, every seed
+ * suggestion recorded once, and the kept rule kept once.
+ */
+async function settleScreensContext(co: Checkout): Promise<void> {
+  await co.kapi(["context", "sync"]);
+  let ops = await contextLog(co);
+
+  const point = resetPoint(ops, SCREENS_IDENTITY, SCREENS_KEPT);
+  if (point) {
+    await co.kapi(["context", "reset", "--before", point.id, "--note", "the seed sets the last take's decisions aside"]);
+    // Alice recorded the reset, so her sync sends it.
+    await co.kapi(["context", "sync"]);
+    console.log(`  · set aside the decisions recorded since ${point.short ?? point.id}`);
+  }
+
+  let recorded = 0;
+  for (const n of [...SCREENS_SUGGESTIONS, SCREENS_KEPT]) {
+    if (observationOf(ops, SCREENS_IDENTITY, n)) continue;
+    await co.kapi(noteArgs(n), "agent");
+    recorded++;
+  }
+  if (recorded > 0) ops = await contextLog(co);
+  console.log(`  · context: ${recorded} suggestion(s) recorded, ${SCREENS_SUGGESTIONS.length + 1 - recorded} already present`);
+
+  const keep = observationOf(ops, SCREENS_IDENTITY, SCREENS_KEPT);
+  if (!keep) throw new Error("screens project: the kept suggestion was not recorded");
+  if (keptBySeed(ops, SCREENS_IDENTITY, keep.id)) {
+    console.log(`  · "${SCREENS_KEPT.term}" already kept by ${SCREENS_IDENTITY.person}`);
+  } else {
+    // Alice's sync sends the notes; Bob's sends his keep.
+    await co.kapi(["context", "sync"]);
+    await co.kapi(["context", "review", "--keep", keep.id], "bob");
+    console.log(`  · kept "${SCREENS_KEPT.term}" as ${SCREENS_IDENTITY.person}`);
+  }
+  await co.kapi(["context", "sync"], "bob");
+}
+
+/**
+ * Build the project the project-screens walk records: connected and pushed
+ * from a checkout, with the voice and the workspace term that give its Reader
+ * a fixable finding, Bob as a member who governs rules there, and a context on
+ * the server whose queue holds undecided suggestions beside one kept rule.
+ *
+ * Every step is idempotent. A second run connects to the same project,
+ * pushes the same files, sets aside what the last take decided, clears its
+ * assignments, and rejects the source proposals its fixes filed, so each take
+ * starts from the same queue. A take's project-wide check leaves its tally,
+ * so after the first take the Map's findings count reads that check rather
+ * than "Not checked yet".
+ *
+ * That reset covers the whole project. The reset goes back to the first
+ * decision after the seed's own, so it also sets aside a rule a person kept
+ * here by hand. Clearing assignments and rejecting open proposals take in
+ * every question and proposal of the project, and a rejection is final. The
+ * harness owns this project, and nothing else is meant to be decided in it.
+ */
+async function ensureScreensProject(
+  ws: string,
+  aliceToken: string,
+  bobToken: string,
+  profileId: string,
+): Promise<string> {
+  const pid = SCREENS_PROJECT.id;
+  const co = openCheckout({ alice: aliceToken, bob: bobToken });
+  try {
+    for (const [rel, body] of Object.entries(SCREENS_FILES)) {
+      fs.mkdirSync(path.dirname(path.join(co.dir, rel)), { recursive: true });
+      fs.writeFileSync(path.join(co.dir, rel), body);
+    }
+    fs.writeFileSync(path.join(co.dir, "kapi.yaml"), screensRecipe());
+    await co.kapi(["share", "--via", "bowrain", BASE]);
+    const recipe = fs.readFileSync(path.join(co.dir, "kapi.yaml"), "utf8");
+    if (!recipe.includes(`/${ws}/${pid}`)) {
+      throw new Error(`screens project: kapi share connected another place than ${ws}/${pid}:\n${recipe}`);
+    }
+    fs.appendFileSync(path.join(co.dir, "kapi.yaml"), "context:\n  backend: bowrain\n");
+    console.log(`  · checkout connected to ${BASE}/${ws}/${pid}`);
+    await co.kapi(["push"]);
+    console.log(`  · pushed ${Object.keys(SCREENS_FILES).length} files`);
+
+    // The voice bound at the project's point: without one, the checks at the
+    // source language run nothing and the Reader has no finding.
+    const proj = await jget<{ properties?: Record<string, string> }>(`/${ws}/${pid}`, aliceToken);
+    if (proj.properties?.voice_profile_id !== profileId) {
+      await jpatch(`/${ws}/${pid}`, { properties: { voice_profile_id: profileId } }, aliceToken);
+    }
+    const concepts = listOf<Concept>(await jget(`/${ws}/concepts`, aliceToken), "concepts");
+    if (!concepts.some((c) => c.domain === SCREENS_CONCEPT.domain && c.definition === SCREENS_CONCEPT.definition)) {
+      await jpost(`/${ws}/concepts`, SCREENS_CONCEPT, aliceToken);
+      console.log(`  · created the "${SCREENS_CONCEPT.domain}" concept (sign in, not log in)`);
+    }
+
+    // Bob governs rules on the project, so the assignee picker lists the
+    // teammate the walk names (BOWRAIN_PEER_NAME).
+    const bobMe = await jget<{ id?: string; user?: { id?: string } }>("/auth/me", bobToken);
+    const bobId = bobMe.id || bobMe.user?.id;
+    if (!bobId) throw new Error("screens project: no user id for Bob");
+    const members = listOf<ProjectMember>(await jget(`/${ws}/${pid}/members`, aliceToken), "members");
+    if (!members.some((m) => (m.user_id || m.user?.id) === bobId)) {
+      const roles = listOf<Role>(await jget(`/${ws}/roles`, aliceToken), "roles");
+      const governs = roles.find(
+        (r) => (r.permission_names ?? []).includes("manage_terms") && (r.permission_names ?? []).includes("manage_voice"),
+      );
+      if (!governs) throw new Error("screens project: no role carries manage_terms and manage_voice");
+      await jpost(`/${ws}/${pid}/members`, { user_id: bobId, role_id: governs.id }, aliceToken);
+      console.log(`  · granted ${BOB.email} the ${governs.name} role on ${SCREENS_PROJECT.name}`);
+    }
+
+    await settleScreensContext(co);
+  } finally {
+    co.dispose();
+  }
+
+  // What the last take left on the server outside the context: its
+  // assignments and the source proposals its fixes filed.
+  const view = await jget<{ decisions?: DecideQuestion[] }>(`/${ws}/${pid}/rules/main/decide`, aliceToken);
+  for (const q of view.decisions ?? []) {
+    if (q.assignee_id) await jpost(`/${ws}/${pid}/rules/main/assign`, { id: q.id, user_id: null }, aliceToken);
+  }
+  const open = listOf<{ id: string }>(await jget(`/${ws}/${pid}/source-proposals`, aliceToken), "proposals");
+  for (const p of open) {
+    await jpost(`/${ws}/${pid}/source-proposals/${p.id}/decide`, { decision: "reject" }, aliceToken);
+  }
+  if (open.length > 0) console.log(`  · rejected ${open.length} open source proposal(s) from the last take`);
+
+  // What the walk waits for, read back from the routes it reads.
+  const questions = (await jget<{ decisions?: DecideQuestion[] }>(`/${ws}/${pid}/rules/main/decide`, aliceToken))
+    .decisions ?? [];
+  const kept = listOf<unknown>(await jget(`/${ws}/${pid}/rules/main/kept`, aliceToken), "rules");
+  const short = queueShortfall(questions, kept.length);
+  if (short) throw new Error(`screens project: ${short}`);
+  const reader = await jget<{ fixable?: number }>(
+    `/${ws}/${pid}/reader/main?item=${encodeURIComponent("docs/account.md")}`,
+    aliceToken,
+  );
+  if (!reader.fixable) throw new Error("screens project: docs/account.md has no fixable finding in the Reader");
+  const map = await jget<{ findings?: number | null }>(`/${ws}/${pid}/map/main`, aliceToken);
+  console.log(
+    `  · screens: ${questions.length} waiting (${questions.map((q) => q.kind).join(", ")}), ${kept.length} kept, ` +
+      `${reader.fixable} fixable in docs/account.md, findings ${map.findings == null ? "not checked yet" : map.findings}`,
+  );
+  return pid;
+}
+
 // ── demo content (proven; same as the two reference seeds) ───────────────────
 
 const ABOUT_US_HTML = `<!doctype html>
@@ -913,6 +1319,9 @@ async function main(): Promise<void> {
     console.log(`  · posted ${posted} corrections`);
   }
 
+  // Project 3: the project-screens walk's Map, Reader and Rules.
+  const screensId = await ensureScreensProject(ws, aliceToken, bobToken, profileId);
+
   const envPath = writeEnv({
     BOWRAIN_BACKEND_URL: BASE,
     BOWRAIN_SESSION_TOKEN: aliceToken,
@@ -928,6 +1337,7 @@ async function main(): Promise<void> {
     BOWRAIN_TERM_BLOCK_TEXT: (termAnchor.block.source ?? "").replace(/\s+/g, " ").trim(),
     BOWRAIN_TERM_TEXT: termAnchor.term,
     BOWRAIN_DEMO_PROFILE_ID: profileId,
+    BOWRAIN_SCREENS_PROJECT_ID: screensId,
   });
 
   console.log("\n✓ seed complete");
@@ -937,6 +1347,7 @@ async function main(): Promise<void> {
   console.log(`  term      : ${describeTermAnchor(termAnchor, COLLAB_LOCALE)}`);
   console.log(`  marketing : Marketing Site (${marketingId})`);
   console.log(`  brand     : Acme Voice (${profileId})`);
+  console.log(`  screens   : ${SCREENS_PROJECT.name} (${screensId})`);
   console.log(`  peer Bob  : joined=${joined}`);
   console.log(`  wrote     : ${envPath}`);
 }
