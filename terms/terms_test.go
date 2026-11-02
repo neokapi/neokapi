@@ -816,6 +816,33 @@ func TestTermEnforceTool_NoTarget(t *testing.T) {
 	assert.Empty(t, result.Properties["term-enforce-passed"])
 }
 
+// A concept whose target terms are all forbidden or deprecated holds no
+// translation to expect, so the block is not reported.
+func TestTermEnforceTool_NoAcceptableTargetTerm(t *testing.T) {
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
+		ID: "c-enc",
+		Terms: []terms.Term{
+			{Text: "encryption", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "cryptage", Locale: model.LocaleFrench, Status: model.TermForbidden},
+			{Text: "codage", Locale: model.LocaleFrench, Status: model.TermDeprecated},
+		},
+	}))
+
+	te := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	block := model.NewBlock("b1", "Turn on encryption")
+	block.SetTargetText(model.LocaleFrench, "Activez le chiffrement")
+	result := processBlock(t, te, block)
+
+	assert.Equal(t, "true", result.Properties["term-enforce-passed"])
+	assert.Equal(t, "0", result.Properties["term-enforce-violations"])
+	assert.Empty(t, result.Properties["term-enforce-errors"])
+}
+
 func TestTermEnforceTool_MultipleTerms(t *testing.T) {
 	tb := terms.NewInMemoryStore()
 	populateTB(t, tb)
