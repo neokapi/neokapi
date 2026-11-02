@@ -816,6 +816,26 @@ func TestTermEnforceTool_NoTarget(t *testing.T) {
 	assert.Empty(t, result.Properties["term-enforce-passed"])
 }
 
+func TestConcept_UsableTerms(t *testing.T) {
+	c := terms.Concept{Terms: []terms.Term{
+		{Text: "cryptage", Locale: "fr", Status: model.TermForbidden},
+		{Text: "codage", Locale: "fr", Status: model.TermDeprecated},
+		{Text: "chiffrement", Locale: "fr", Status: model.TermApproved},
+		{Text: "chiffrage", Locale: "fr", Status: model.TermPreferred},
+		{Text: "encryption", Locale: "en", Status: model.TermPreferred},
+	}}
+	texts := func(ts []terms.Term) []string {
+		var out []string
+		for _, tm := range ts {
+			out = append(out, tm.Text)
+		}
+		return out
+	}
+	assert.Equal(t, []string{"chiffrage", "chiffrement"}, texts(c.UsableTerms("fr")))
+	assert.Equal(t, []string{"chiffrage", "chiffrement"}, texts(c.UsableTerms("FR")), "the locale is compared in canonical form")
+	assert.Empty(t, c.UsableTerms("de"))
+}
+
 // A concept whose target terms are all forbidden or deprecated holds no
 // translation to expect, so the block is not reported.
 func TestTermEnforceTool_NoAcceptableTargetTerm(t *testing.T) {

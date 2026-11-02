@@ -164,6 +164,24 @@ func (c *Concept) TargetTerms(locale model.LocaleID) []Term {
 	return result
 }
 
+// UsableTerms returns the terms a translation into locale may use: every term
+// in that locale except the forbidden and deprecated ones, with the preferred
+// term first.
+func (c *Concept) UsableTerms(locale model.LocaleID) []Term {
+	var preferred, rest []Term
+	for _, t := range c.Terms {
+		if !sameLocale(t.Locale, locale) || t.Status == model.TermForbidden || t.Status == model.TermDeprecated {
+			continue
+		}
+		if t.Status == model.TermPreferred {
+			preferred = append(preferred, t)
+		} else {
+			rest = append(rest, t)
+		}
+	}
+	return append(preferred, rest...)
+}
+
 // PreferredTerm returns the preferred (or first approved) term for a locale.
 func (c *Concept) PreferredTerm(locale model.LocaleID) *Term {
 	var fallback *Term

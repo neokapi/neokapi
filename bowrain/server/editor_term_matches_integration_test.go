@@ -17,8 +17,8 @@ import (
 
 // TestEditorLookupTermsForBlock_TargetTerms drives the term-matches lookup
 // against the Postgres terms store the server opens for a workspace. A matched
-// concept with a fr term answers that term as target_terms; a matched concept
-// with none answers nil.
+// concept answers its usable fr terms as target_terms, the preferred one first;
+// a matched concept with none answers nil.
 func TestEditorLookupTermsForBlock_TargetTerms(t *testing.T) {
 	ctx := t.Context()
 	db := pgtest.NewTestDB(t)
@@ -41,7 +41,10 @@ func TestEditorLookupTermsForBlock_TargetTerms(t *testing.T) {
 	for _, c := range []terms.Concept{
 		{ID: "c-enc", Domain: "security", Terms: []terms.Term{
 			{Text: "encryption", Locale: "en", Status: model.TermApproved},
+			{Text: "cryptage", Locale: "fr", Status: model.TermForbidden},
+			{Text: "codage", Locale: "fr", Status: model.TermDeprecated},
 			{Text: "chiffrement", Locale: "fr", Status: model.TermApproved},
+			{Text: "chiffrage", Locale: "fr", Status: model.TermPreferred},
 		}},
 		{ID: "c-dash", Domain: "ui", Terms: []terms.Term{
 			{Text: "dashboard", Locale: "en", Status: model.TermApproved},
@@ -65,6 +68,7 @@ func TestEditorLookupTermsForBlock_TargetTerms(t *testing.T) {
 	for _, m := range got {
 		bySource[m.SourceTerm] = m
 	}
-	assert.Equal(t, []string{"chiffrement"}, bySource["encryption"].TargetTerms)
+	assert.Equal(t, []string{"chiffrage", "chiffrement"}, bySource["encryption"].TargetTerms,
+		"the preferred term first, and no forbidden or deprecated term")
 	assert.Nil(t, bySource["dashboard"].TargetTerms)
 }

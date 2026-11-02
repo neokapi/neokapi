@@ -1284,15 +1284,11 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, err
 	}
 
-	// Term rows are keyed by the canonical locale form, so compare in it.
-	tgtLoc := model.NormalizeLocale(model.LocaleID(targetLocale))
 	result := make([]BlockTermMatchResponse, 0, len(matches))
 	for _, m := range matches {
 		var targetTerms []string
-		for _, t := range m.Concept.Terms {
-			if t.Locale == tgtLoc {
-				targetTerms = append(targetTerms, t.Text)
-			}
+		for _, t := range m.Concept.UsableTerms(model.LocaleID(targetLocale)) {
+			targetTerms = append(targetTerms, t.Text)
 		}
 		result = append(result, BlockTermMatchResponse{
 			SourceTerm:  m.Term.Text,
