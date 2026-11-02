@@ -234,7 +234,7 @@ func TestPostgresTerms_IntegrationAddConceptWithStream(t *testing.T) {
 
 // seedTargetTermsFixture loads a concept with source, target and third-locale
 // wording, a concept with source wording only, a concept whose source term is
-// forbidden, and a shadow copy of the first concept carrying a target term of
+// forbidden, a competitor's name, and a shadow copy of the first concept carrying a target term of
 // its own.
 func seedTargetTermsFixture(t *testing.T, tb terms.Terminology) {
 	t.Helper()
@@ -247,6 +247,9 @@ func seedTargetTermsFixture(t *testing.T, tb terms.Terminology) {
 		}},
 		{ID: "c-dash", Domain: "ui", Terms: []terms.Term{
 			{Text: "dashboard", Locale: "en", Status: model.TermApproved},
+		}},
+		{ID: "c-rival", Domain: "market", Terms: []terms.Term{
+			{Text: "RivalCrypt", Locale: "en", Status: model.TermForbidden, CompetitorTerm: true},
 		}},
 		{ID: "c-crypto", Domain: "security", Terms: []terms.Term{
 			{Text: "crypto", Locale: "en", Status: model.TermForbidden},
@@ -323,6 +326,13 @@ func assertLookupAllTargetTerms(t *testing.T, tb terms.Terminology) {
 		require.NoError(t, err)
 		require.Len(t, matches, 1, "the forbidden source term does not match")
 		assert.Equal(t, "c-dash", matches[0].Concept.ID)
+	})
+
+	t.Run("the matched term keeps its competitor flag", func(t *testing.T) {
+		matches, err := tb.LookupAll(t.Context(), "Unlike RivalCrypt, we encrypt", terms.LookupOptions{SourceLocale: "en"})
+		require.NoError(t, err)
+		rival := matchFor(t, matches, "c-rival")
+		assert.True(t, rival.Term.CompetitorTerm)
 	})
 
 	t.Run("shadow concepts stay out", func(t *testing.T) {
