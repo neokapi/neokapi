@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -483,11 +484,27 @@ func (tb *SQLiteStore) LookupAll(ctx context.Context, sourceText string, opts Lo
 		return nil, nil
 	}
 	opts = ApplyLookupDefaults(opts)
-	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, opts)
+	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, opts, nil)
 	if err != nil {
 		return nil, err
 	}
-	return LookupAllTiered(sourceText, opts, terms), nil
+	matches := LookupAllTiered(sourceText, opts, terms)
+	if len(matches) == 0 {
+		return matches, nil
+	}
+	// The scan needs only the source locale. The target wording is read for
+	// the matched concepts alone, through the same query, so every filter the
+	// source terms pass applies to it too.
+	attach := terms
+	if !opts.TargetLocale.IsEmpty() && opts.TargetLocale != opts.SourceLocale {
+		target, err := tb.queryTermsByLocale(ctx, opts.TargetLocale, opts.Domains, opts.StatusFilter, opts, MatchedConceptIDs(matches))
+		if err != nil {
+			return nil, err
+		}
+		attach = append(slices.Clip(terms), target...)
+	}
+	AttachMatchTerms(matches, attach, opts)
+	return matches, nil
 }
 
 // Search performs a ranked full-text search across concepts and terms.
@@ -1110,13 +1127,23 @@ func (tb *SQLiteStore) queryFuzzyFullScan(ctx context.Context, normalizedSource 
 	return scanTermCandidates(rows)
 }
 
-func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]LocaleTerm, error) {
+// queryTermsByLocale loads the terms of one locale with their concepts. A
+// non-empty conceptIDs limits the rows to those concepts; LookupAll passes the
+// matched concepts when it reads their target-locale terms.
+func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions, conceptIDs []string) ([]LocaleTerm, error) {
 	// This query is the terms half of every check. It names no stream, so it
 	// must exclude the shadow namespace: a shadow written for one branch would
 	// otherwise decide what the checks flag everywhere.
 	notShadow, shadowArg := NotShadowSQL("c.id", "?")
 	where := "t.locale = ? AND " + notShadow
 	args := []any{string(locale), shadowArg}
+
+	if len(conceptIDs) > 0 {
+		where += " AND c.id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(conceptIDs)), ",") + ")"
+		for _, id := range conceptIDs {
+			args = append(args, id)
+		}
+	}
 
 	if len(domains) > 0 {
 		placeholders := make([]string, len(domains))
