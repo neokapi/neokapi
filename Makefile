@@ -2850,7 +2850,7 @@ harness-videos: ## Render + convert the docs demo videos (light + dark) → web/
 # needing the bowrain stack), then narrate, then package. Bring the stack up
 # once and re-render freely without re-recording. `harness-videos-staged` runs
 # the whole thing with the stack up only for seed+record. FORCE=1 redoes a phase.
-harness-seed: build build-bowrain-plugin ## Phase 0: seed bowrain (BowMart workspace + content) + mint record tokens → harness/.env
+harness-seed: build build-bowrain-plugin ## Phase 0: seed bowrain (BowMart workspace + content, the Help Center project-screens project) + mint record tokens → harness/.env
 	$(MAKE) -C harness seed
 
 harness-record: ## Phase 1: record all screencasts + artifacts (needs the bowrain stack up + harness-seed)

@@ -846,16 +846,23 @@ function openCheckout(tokens: { alice: string; bob: string }): Checkout {
   fs.copyFileSync(plugin, path.join(pluginDir, "kapi-bowrain"));
   fs.chmodSync(path.join(pluginDir, "kapi-bowrain"), 0o755);
 
+  // KAPI_PROJECT names a project ahead of discovery, so a shell that exports
+  // one (direnv, the dogfood recipe) would point every command at it.
   const inherited = { ...process.env };
-  for (const marker of ["CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CODEX_SESSION_ID", "KAPI_AGENT_NAME", "KAPI_AGENT_SESSION"]) {
+  for (const marker of [
+    "CLAUDECODE",
+    "CLAUDE_CODE_SESSION_ID",
+    "CODEX_SESSION_ID",
+    "KAPI_AGENT_NAME",
+    "KAPI_AGENT_SESSION",
+    "KAPI_PROJECT",
+  ]) {
     delete inherited[marker];
   }
   const base: NodeJS.ProcessEnv = {
     ...inherited,
+    // Discovery stays off: every command names the checkout with -p.
     ...kapiIsolationEnv(),
-    // The checkout is the project every command acts on, and it sits outside
-    // the repository, so discovery finds it and nothing else.
-    KAPI_NO_PROJECT: "",
     KAPI_DATA_DIR: path.join(root, "data"),
     KAPI_CONFIG_DIR: path.join(root, "config"),
     XDG_DATA_HOME: path.join(root, "xdg-data"),
@@ -884,7 +891,7 @@ function openCheckout(tokens: { alice: string; bob: string }): Checkout {
             KAPI_AGENT_SESSION: SCREENS_IDENTITY.session,
           }
         : { ...base, ...signedIn, KAPI_ACTOR: "person" };
-    const r = await run(KAPI_BIN, args, { cwd: dir, env, timeoutMs: 180_000 });
+    const r = await run(KAPI_BIN, [...args, "-p", dir], { cwd: dir, env, timeoutMs: 180_000 });
     if (r.code !== 0) {
       throw new Error(`kapi ${args.join(" ")} exited ${r.code}: ${r.combined.trim().slice(-600)}`);
     }
@@ -936,6 +943,8 @@ async function settleScreensContext(co: Checkout): Promise<void> {
   const point = resetPoint(ops, SCREENS_IDENTITY, SCREENS_KEPT);
   if (point) {
     await co.kapi(["context", "reset", "--before", point.id, "--note", "the seed sets the last take's decisions aside"]);
+    // Alice recorded the reset, so her sync sends it.
+    await co.kapi(["context", "sync"]);
     console.log(`  · set aside the decisions recorded since ${point.short ?? point.id}`);
   }
 
@@ -973,6 +982,12 @@ async function settleScreensContext(co: Checkout): Promise<void> {
  * starts from the same queue. A take's project-wide check leaves its tally,
  * so after the first take the Map's findings count reads that check rather
  * than "Not checked yet".
+ *
+ * That reset covers the whole project. The reset goes back to the first
+ * decision after the seed's own, so it also sets aside a rule a person kept
+ * here by hand. Clearing assignments and rejecting open proposals take in
+ * every question and proposal of the project, and a rejection is final. The
+ * harness owns this project, and nothing else is meant to be decided in it.
  */
 async function ensureScreensProject(
   ws: string,
@@ -1010,7 +1025,8 @@ async function ensureScreensProject(
       console.log(`  · created the "${SCREENS_CONCEPT.domain}" concept (sign in, not log in)`);
     }
 
-    // Bob governs rules on the project, so the assignee picker lists him.
+    // Bob governs rules on the project, so the assignee picker lists the
+    // teammate the walk names (BOWRAIN_PEER_NAME).
     const bobMe = await jget<{ id?: string; user?: { id?: string } }>("/auth/me", bobToken);
     const bobId = bobMe.id || bobMe.user?.id;
     if (!bobId) throw new Error("screens project: no user id for Bob");

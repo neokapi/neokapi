@@ -1812,6 +1812,13 @@ async function openVisualView(page: Page): Promise<void> {
   await page.waitForTimeout(1200);
 }
 
+/**
+ * The concept the governance walk opens, by its English name: the security
+ * concept seed-bowrain.ts CONCEPTS holds, with a word in three languages and
+ * an approved and a deprecated French term, so each word carries a status.
+ */
+const GOVERNANCE_CONCEPT = "encryption";
+
 /** Bowrain web: one concept's record, the memory that already answers for its
  *  wording, and the moment that wording reaches the editor.
  *
@@ -1837,8 +1844,13 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
 
   // One concept, selected in the list: the idea, and what the team calls it in
   // each language, each term with the status they agreed, in the pane beside it.
+  // The row is picked by its name, because the server lists concepts newest
+  // first and the seed adds others after this one.
+  const concept = page
+    .getByTestId("concept-row")
+    .filter({ has: page.getByText(GOVERNANCE_CONCEPT, { exact: true }) });
   await beatEls("concept", ['[data-testid="concept-header"]', '[data-slot="concept-languages"]'], async () => {
-    await humanClick(page, page.getByTestId("concept-row").first());
+    await humanClick(page, concept);
     await page.waitForSelector('[data-testid="concept-view"]', { timeout: 20_000 });
     await page.waitForTimeout(1600);
     await cursorTo('[data-testid="concept-header"]');

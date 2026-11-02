@@ -76,26 +76,37 @@ export function keptBySeed(ops: LoggedOp[], who: SeedIdentity, id: string): bool
  * The operation a reset goes back to before: the first decision recorded after
  * the seed's own operations that no reset has set aside yet, or undefined when
  * there is none. Those are the decisions a take made on the server. The seed's
- * own operations are its agent session's observations and the first keep of
- * the observation that records keptNote. The seed's resets are not counted,
- * so a reset made by an earlier seed stays in force.
+ * own operations are its agent session's observations and every keep its
+ * person made of the observation that records keptNote, so a keep the seed
+ * made again after something set the first aside is never reset. The seed's
+ * resets are not counted, so a reset made by an earlier seed stays in force.
  */
 export function resetPoint(ops: LoggedOp[], who: SeedIdentity, keptNote: SeedNote): LoggedOp | undefined {
   const observed = seedObservations(ops, who);
   if (observed.length === 0) return undefined;
   const keptId = observationOf(ops, who, keptNote)?.id;
-  const seedKeep = byTime(
-    ops.filter((op) => op.kind === "keep" && op.actor?.name === who.person && keptId !== undefined && op.target === keptId),
-  )[0];
-  const boundary = [...observed, ...(seedKeep ? [seedKeep] : [])].map((op) => op.at).sort().at(-1) ?? "";
+  const seedKeep = (op: LoggedOp) =>
+    op.kind === "keep" && op.actor?.name === who.person && keptId !== undefined && op.target === keptId;
+  const boundary = Math.max(...observed.map(instant));
   return byTime(
-    ops.filter((op) => op.at > boundary && op.kind !== "reset" && op.status !== "reset" && op !== seedKeep),
+    ops.filter(
+      (op) => instant(op) > boundary && op.kind !== "reset" && op.status !== "reset" && !seedKeep(op),
+    ),
   )[0];
+}
+
+/**
+ * The instant an operation was recorded. The log writes RFC 3339 with the
+ * fraction's trailing zeros dropped, so two stamps compare as instants, never
+ * as text.
+ */
+function instant(op: LoggedOp): number {
+  return Date.parse(op.at);
 }
 
 /** ops ordered by the instant each was recorded, oldest first. */
 function byTime(ops: LoggedOp[]): LoggedOp[] {
-  return [...ops].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  return [...ops].sort((a, b) => instant(a) - instant(b));
 }
 
 /** A question of the server's Decide view, to the fields the seed reads. */

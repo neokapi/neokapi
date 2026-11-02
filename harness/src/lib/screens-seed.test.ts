@@ -79,3 +79,33 @@ test("the queue carries a take with a name, a note and a kept rule", () => {
   assert.match(queueShortfall([two[0], { id: "t2", kind: "word" }], 1), /no note waiting/);
   assert.match(queueShortfall(two, 0), /Kept by starts empty/);
 });
+
+test("stamps in one second compare as instants, not as text", () => {
+  // "…37Z" is the whole second, and as text it sorts after "…37.4Z".
+  const sameSecond: LoggedOp[] = [
+    {
+      id: "o1",
+      kind: "observe",
+      actor: agent,
+      subject: { kind: "term", term: { term: "home screen", replacement: "dashboard" } },
+      at: "2026-11-02T20:10:37Z",
+      status: "established",
+    },
+    { id: "w1", kind: "keep", actor: webPerson, target: "x", at: "2026-11-02T20:10:37.4Z", status: "established" },
+  ];
+  assert.equal(resetPoint(sameSecond, who, kept)?.id, "w1");
+});
+
+test("every keep the seed made of its kept rule stays, even after something set one aside", () => {
+  const rekept: LoggedOp[] = [
+    ...seeded.map((op) => (op.id === "keep1" ? { ...op, status: "reset" } : op)),
+    { id: "r0", kind: "reset", actor: webPerson, at: "2026-11-02T20:15:00Z", status: "established" },
+    { id: "keep2", kind: "keep", actor: seedPerson, target: "k1", at: "2026-11-02T20:16:00Z", status: "established" },
+  ];
+  assert.equal(resetPoint(rekept, who, kept), undefined);
+  const taken: LoggedOp[] = [
+    ...rekept,
+    { id: "w1", kind: "keep", actor: webPerson, target: "t1", at: "2026-11-02T20:20:00Z", status: "established" },
+  ];
+  assert.equal(resetPoint(taken, who, kept)?.id, "w1");
+});
