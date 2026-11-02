@@ -2,40 +2,27 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-project-workflow
 #
-# Walks the .kapi *project* lifecycle (AD-026), led by the verb people run
-# day to day:
+# The project lifecycle (AD-026) in the order people run it: init, ls,
+# memory import, status, up, then the steps up automates: run, merge,
+# status, extract.
 #
-#   init → ls → memory import → status → up → (under the hood: run → merge →
-#   status → extract)
-#
-# `kapi up` is the porcelain: it treats the recipe as the desired state and
-# loops the project's flow across every target locale until each ship gate is
-# met or the remainder waits for review by a person. The closing beats run the plumbing
-# that loop automates — one flow pass (`run`), materializing files (`merge`),
-# and the bilingual handoff (`extract`).
-#
-# Offline contract: the recipe's memory-recycle flow leverages content memory
-# only (no LLM), and `memory import` loads the project's content memory, so
-# every runnable step works in the browser embed. `kapi up` itself is
-# not wired into the wasm build (kapi/cmd/kapi-wasm-cli); it is offline: false
-# and appears in the tape + narration only. The run → merge beats do the same
-# work in the embed, so both venues end on the same up-to-date grid.
+# `kapi up` runs the project's flow over every target language until each
+# ship gate is met or the rest waits for a person. The memory-recycle flow
+# reads content memory and calls no provider, so every runnable step works in
+# the browser embed. `kapi up` is native-only; run and merge do its work there.
 
 id: kapi-project-workflow
 scene: project-workflow
 mode: interactive
 
-# messages.json is the kit fixture (greeting / farewell / cart).
-# project.memory.json is the committed content-memory bundle — the native,
-# lossless serialization — carrying the matching French so the content memory
-# fills real targets offline. kapi.yaml
-# is the recipe `kapi init` scaffolds — here pre-written with the content
-# already declared (a target template is what makes coverage derivable) and a
-# memory-recycle flow as defaults.flow. The recipe flow takes a name of its own so
-# it reads apart from the porcelain verbs (kapi translate, kapi
-# pseudo-translate), which always run the built-in flows. (init is genuinely
-# runnable below — it is idempotent and reports the project is already
-# initialized.)
+# messages.json is the kit fixture (greeting, farewell, cart).
+# project.memory.json is the committed content-memory bundle with the matching
+# French, so content memory fills real targets offline. kapi.yaml is the recipe
+# `kapi init` scaffolds, pre-written here with the content declared (a target
+# template makes coverage derivable) and a memory-recycle flow as
+# defaults.flow. The flow has a name of its own so it reads apart from the
+# built-in verbs. init is runnable below: it is idempotent and reports that the
+# project is already initialized.
 seed:
   - messages.json
 files:
@@ -120,39 +107,39 @@ files:
 steps:
   - comment: A kapi project keeps config-as-code (languages, content, flows) in a committed recipe; .kapi/ beside it is a cache that version control ignores.
   - command: kapi init --name demo --source-locale en --target-locale fr
-    narration: init writes the recipe with a collection for each kind of content it recognises, an MCP entry and one short skill for coding agents. Run again on an existing project, it leaves the collections as they are.
+    narration: init writes the recipe with a collection for each kind of content it recognises, an MCP entry and one short skill for coding agents. Run it again on an existing project and it leaves the collections as they are.
     smoke: true
   - command: kapi ls
-    narration: ls lists the files the recipe's content tracks. Here one JSON catalog, mapped to a messages.{lang}.json target per locale.
+    narration: ls lists the files the recipe tracks. Here, one JSON catalog, mapped to a messages.{lang}.json target per language.
     smoke: true
   - comment: Seed the project content memory so the flow has matches to reuse.
   - command: kapi memory import project.memory.json
-    narration: memory import loads the committed bundle into the project's content memory for reuse by the flow.
+    narration: memory import loads the committed bundle into the project's content memory, so the flow can reuse it.
     smoke: true
   - command: kapi status
-    narration: status reports each locale's coverage. French has no translated content yet, which is pending work rather than a build failure.
+    narration: status reports each language's coverage. French has no translated content yet. That is pending work, not a build failure.
     smoke: true
   - comment: One verb brings the project up to date.
   - command: kapi up
-    narration: up runs the project's flow until each locale meets its ship gate or waits for review. Here content memory supplies all French translations in one pass, and up writes messages.fr.json.
-    # offline:false — `up` is not wired into the wasm build; the run → merge
+    narration: up runs the project's flow until each language meets its ship gate or waits for review. Here content memory supplies every French translation in one pass, and up writes messages.fr.json.
+    # offline:false: `up` is not wired into the wasm build; the run then merge
     # beats below do the same work in the embed.
     offline: false
   - comment: Under the hood, up loops plumbing you can run by hand.
   - command: kapi run memory-recycle -i messages.json
-    narration: run executes one pass of a named flow and stores the results for merge to write to files.
-    # smoke:false — consumes the content memory seeded by the prior memory import step; W7 would
-    # run it in isolation (no content memory) and leverage nothing.
+    narration: run executes one pass of a named flow and stores the results, for merge to write to files.
+    # smoke:false: consumes the content memory seeded by the prior memory import step; W7 would
+    # run it in isolation (no content memory) and reuse nothing.
     smoke: false
   - command: kapi merge
-    narration: merge writes each target file from the stored translations, here messages.fr.json. A file that already matches the store is left as it is, so after up it reports nothing written.
-    # smoke:false — consumes the overlays committed by the prior run step.
+    narration: merge writes each target file from the stored translations, here messages.fr.json. A file that already matches the store is left alone, so after up it reports nothing written.
+    # smoke:false: consumes the overlays committed by the prior run step.
     smoke: false
   - command: kapi status
     narration: French now has 100% translated coverage, derived from the current content.
-    # smoke:false — depends on the merge step above having written the target.
+    # smoke:false: depends on the merge step above having written the target.
     smoke: false
   - comment: extract and merge are also the interchange doors when a person translates.
   - command: kapi extract --target-lang fr
-    narration: extract emits a bilingual XLIFF per target locale, pre-filled from content memory. A translator edits that file, then merge applies the returned translations.
+    narration: extract writes a bilingual XLIFF per target language, pre-filled from content memory. A translator edits that file, and merge applies the returned translations.
     smoke: true

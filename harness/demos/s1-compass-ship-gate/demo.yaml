@@ -68,52 +68,50 @@ narration:
   - id: title
     kind: title
     text: >-
-      Who decides that a reader may see a language? Here the language picker is
-      the gate, and a review in the morning is why a language is offered in the
-      afternoon.
+      Here the language picker is the gate. A language appears on the site
+      when someone has reviewed it, and not before.
 
   - id: parked
     kind: terminal
     through: 5
     highlight: { text: ["waiting for review", withheld] }
-    caption: Dutch is drafted, kept, and not offered.
+    caption: Dutch is drafted and held back.
     text: >-
-      Dutch waits for review on a failing check. Its drafts are safe in the project store
-      and nothing about them is lost; what the gate withholds is delivery, until
-      somebody has looked at the block that failed.
+      Dutch waits for review because one check failed. Its drafts are safe in
+      the project store. What the gate holds back is delivery, until someone
+      has looked at the block that failed.
 
   - id: review
     kind: terminal
     through: 10
-    caption: Twenty decisions, on the record, and the loop drafts nothing.
+    caption: Twenty decisions on the record.
     text: >-
-      The queue names what each decision addresses, and this filter takes the
-      Dutch a person wrote and leaves what the stub drafted. Twenty
-      approvals land in the record as they are made. Running the loop again asks
-      the provider for nothing.
+      The queue says what each decision is about. This filter shows the Dutch
+      a person wrote and hides what the stub drafted. Twenty approvals go on
+      the record as you make them. Run the loop again, and it asks the
+      provider for nothing.
 
   - id: offered
     kind: terminal
     through: 19
     highlight: { text: [nl, nb] }
-    caption: Dutch offered as translated. Norwegian is approved.
+    caption: Dutch is offered as translated. Norwegian is approved.
     text: >-
-      Dutch is offered now, in the translated state, because not every block
-      in it is approved. Approve the rest of Norwegian and the same file
-      offers it as approved. Three languages, two states, and none of them
-      configured by hand.
+      Dutch is offered now, as translated, because not every block in it is
+      approved yet. Approve the rest of Norwegian, and the same file offers it
+      as approved. None of this was configured by hand.
 
   - id: picker
     kind: artifact
     artifact: picker
-    caption: What the gate cleared is what a reader can choose.
+    caption: What the gate cleared, a reader can choose.
     text: >-
-      And this is where it lands. The picker offers what the gate cleared, marks
-      what is translated but not yet established, and leaves out what is not
-      ready. One file passes between the loop and the site.
+      This is where it lands. The picker offers what the gate cleared, marks
+      what is translated but not yet approved, and leaves out what is not
+      ready. One file connects the loop and the site.
 
   - id: outro
     kind: outro
     text: >-
-      Have your build read the same file, and a language appears the moment a
+      Have your build read the same file. A language appears the moment a
       person decides it is ready.

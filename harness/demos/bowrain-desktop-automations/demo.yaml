@@ -30,20 +30,20 @@ narration:
     caption: What fires, and on what.
     hold: 15
     text: >-
-      The rules are a project's standing instructions: what fires, and on what.
-      Push content from a repository or a connector, and the server runs the
-      loop without anyone opening this screen or filing a request for it.
+      Automation rules are a project's standing instructions: what fires, and
+      on what. Push content from a repository or a connector, and the server
+      runs the loop. Nobody opens this screen or files a request.
 
   - id: run-now
     kind: desktop
     beat: run-now
-    caption: A pass, started by hand.
+    caption: A pass started by hand.
     hold: 15
     crop: { selector: '[data-testid="runs-list"]' }
     text: >-
-      Run now starts the next pass by hand. Choose the scope, and a real run
-      begins on the server, with the team's keys and the team's gates, and
-      appears at the top of the table straight away.
+      Run now starts the next pass by hand. Choose the scope, and a run begins
+      on the server with the team's keys and gates. It appears at the top of
+      the table straight away.
 
   - id: settled
     kind: desktop
@@ -53,19 +53,19 @@ narration:
     crop: { selector: '[data-testid="run-row"]' }
     highlight: { selector: '[data-testid="run-row"]' }
     text: >-
-      Each run catches the project up and then settles. The row says what every
-      language got out of the pass, and anything that needs a person waits for
-      review rather than shipping.
+      Each run brings the project up to date and then settles. The row says
+      what every language got out of the pass. Anything that needs a person
+      waits for review instead of shipping.
 
   - id: parked
     kind: desktop
     beat: parked
-    caption: Work waiting for review is already in review.
+    caption: Waiting for review means already in the queue.
     hold: 14
     text: >-
-      Work waiting for review is already in the review queue, for somebody who
-      holds the permission for that language, and the next run picks up where
-      this one stopped.
+      Work waiting for review is already in the review queue, for someone who
+      holds the permission for that language. The next run picks up where this
+      one stopped.
 
   - id: outro
     kind: outro

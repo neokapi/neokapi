@@ -34,18 +34,19 @@ narration:
   - id: title
     kind: title
     text: >-
-      An assistant working in a project notices how its files are written. The
-      desktop is where you read what it noticed and decide what holds.
+      While an assistant works in your project, it notices how your files are
+      written. On the desktop you read what it noticed and decide what becomes
+      a rule.
 
   - id: map
     kind: desktop
     beat: map
-    caption: What waits for you, on the Map.
+    caption: What is waiting for you.
     crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
     text: >-
       Try with KapiMart opens the sample on its Map. Each row under What your
-      files do is something an assistant noticed and nobody has decided yet,
-      and the Decide button counts them.
+      files do is something an assistant noticed that nobody has decided yet.
+      The Decide button shows how many are waiting.
 
   - id: decide
     kind: desktop
@@ -53,19 +54,19 @@ narration:
     caption: One question per suggestion.
     crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="decide-question"]'] }
     text: >-
-      The Decide button opens one question per suggestion, the disagreement
+      Click Decide. You get one question per suggestion, with the disagreement
       first. Its options are the two sides: codex says log in, claude-code
-      says sign in, and each side says what keeping it does.
+      says sign in, and each side says what keeping it would do.
 
   - id: keep
     kind: desktop
     beat: keep
-    caption: Keep a name in the form your files use.
+    caption: Keep the spelling your files use.
     text: >-
-      For the product name, the question is which form your files use. The
-      line above the actions says how many blocks a check then reports, and
-      where the rule applies. Pressing k keeps KapiMart, and the next question
-      is selected.
+      For the product name, the question is which spelling your files use. The
+      line above the buttons says how many blocks a check would flag, and
+      where the rule applies. Press k. That keeps KapiMart, and the next
+      question is selected for you.
 
   - id: word
     kind: desktop
@@ -73,48 +74,47 @@ narration:
     caption: A word, kept as a rule.
     text: >-
       claude-code also noticed that the store says cart, not basket. The
-      question is whether to keep it, with what a check reports once you do.
-      Pressing k keeps it.
+      question is whether to keep that, and what a check would flag once you
+      do. Press k to keep it.
 
   - id: choose
     kind: desktop
     beat: choose
-    caption: One side kept, the other set aside.
+    caption: Pick one side. The other is set aside.
     text: >-
       Now the disagreement. The sentence codex quoted says signing in, the
-      opposite of its own rule, and claude-code's side is a change a person
-      made in the error messages. You pick sign in and keep it, and log in is
-      set aside.
+      opposite of its own rule. claude-code's side is a change a person made
+      in the error messages. Pick sign in and keep it. Log in is set aside.
 
   - id: assistant
     kind: desktop
     beat: assistant
     caption: The brief for one file carries your rule.
     text: >-
-      Assistants shows what an assistant reads. For the store's interface
-      strings, the brief marks basket as discouraged and says cart instead,
-      the rule you kept a moment ago. It is the answer kapi context prints for
-      that file.
+      Assistants shows what an assistant reads before it writes. For the
+      store's interface strings, the brief marks basket as discouraged and
+      says to use cart, the rule you kept a moment ago. kapi context prints
+      the same answer for that file.
 
   - id: sessions
     kind: desktop
     beat: sessions
-    caption: Every operation a session recorded, with its status.
+    caption: What one session recorded.
     text: >-
-      Below the assistants, Sessions lists what each one recorded. Opening
-      claude-code's session shows every operation in it with its status: the
+      Below the assistants, Sessions lists what each one recorded. Open
+      claude-code's session to see every operation in it with its status. The
       name and the word you kept are in force. Reset to before this session
-      would take the whole session back.
+      takes the whole session back.
 
   - id: live
     kind: desktop
     beat: live
-    caption: A note from outside the app, arriving live.
+    caption: A note from a terminal arrives live.
     crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
     text: >-
-      Back on the Map, a note arrives from a terminal off screen, recorded as
-      claude-code: the docs say sandbox, not test mode. Within a second it is a
-      row of its own in the list, and the Decide button counts one more.
+      Back on the Map, a note arrives from a terminal off screen, recorded by
+      claude-code: the docs say sandbox, not test mode. Within a second it is
+      a row in the list, and Decide counts one more.
 
   - id: share
     kind: desktop
@@ -122,22 +122,22 @@ narration:
     caption: How far this context reaches.
     crop: { selector: '[data-slot="share-panel"]' }
     text: >-
-      Share says how far the project's context reaches. It is on this Mac,
-      where every clone and worktree of the project reads it. Sharing with your
-      team is not set up yet, and Bowrain is not connected.
+      Share shows how far your project's context reaches. Right now it is on
+      this Mac, where every clone and worktree of the project reads it.
+      Sharing with your team is not set up, and Bowrain is not connected.
 
   - id: preview
     kind: desktop
     beat: preview
-    caption: The project as a Bowrain project page shows it.
+    caption: The project as Bowrain would show it.
     text: >-
-      Preview draws the project as a Bowrain project page would. With no
-      server connected, it reads this Mac and says so. The Map tab is the page
-      a Bowrain project opens on. On the Rules tab, Kept by lists the rules you
-      kept a moment ago, each with who kept it and the day.
+      Click Preview to see the project the way a Bowrain project page shows
+      it. With no server connected, it reads this Mac and says so. The Map tab
+      is the page a Bowrain project opens on. On the Rules tab, Kept by lists
+      the rules you kept a moment ago, with who kept each and when.
 
   - id: outro
     kind: outro
     text: >-
-      Every suggestion advises from the moment an assistant records it. The
-      ones you keep become rules that checks enforce.
+      Every suggestion is advice until you keep it. Then it is a rule the
+      checks enforce.

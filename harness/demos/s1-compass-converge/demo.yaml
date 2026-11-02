@@ -57,54 +57,53 @@ narration:
   - id: title
     kind: title
     text: >-
-      A second language is one more axis on content that is already governed.
-      The loop recycles the wording a project has approved before, and asks
-      a provider only for the rest.
+      Adding a second language adds one more axis to content you already
+      govern. The loop reuses the wording your project approved before and
+      asks a provider only for the rest.
 
   - id: standing
     kind: terminal
     through: 7
     highlight: { text: ["false"] }
-    caption: Four blocks behind, and nothing offered yet.
+    caption: Four blocks behind. Nothing offered yet.
     text: >-
-      Both axes on one screen. The source gained a Tide window panel last week,
-      four blocks, and no language carries it. That is ordinary work rather
-      than a failure, and it is enough to hold every language behind the ship
+      Both axes on one screen. Last week the source gained a Tide window
+      panel, four blocks, and no language has it yet. That is ordinary work,
+      not a failure, and it is enough to hold every language behind the ship
       gate.
 
   - id: converge
     kind: terminal
     through: 9
-    caption: Recycled first, and only the remainder is drafted.
+    caption: Recycled first. Only the rest is drafted.
     text: >-
-      One verb converges. Thirty-seven of Norwegian's thirty-eight blocks come
-      back out of the project's own content memory, and only the remainder
-      reaches a provider, which here is the offline stub that marks everything
-      it writes.
+      One command converges. Thirty-seven of Norwegian's thirty-eight blocks
+      come back from the project's own content memory. Only the rest reaches a
+      provider, here the offline stub that marks everything it writes.
 
   - id: gated
     kind: terminal
     through: 13
     highlight: { text: [blocked, checks] }
-    caption: Two languages offered. Dutch waits for review on a failing check.
+    caption: Two languages offered. Dutch waits for review.
     text: >-
-      Norwegian and German clear the ship gate on translated work. Dutch waits for
-      review: one of its blocks fails the checks the project binds, and a locale holding a
-      failing block is held back until somebody looks. Its drafts are safe in the
-      store; what the gate withholds is delivery.
+      Norwegian and German clear the ship gate on translated work. Dutch waits
+      for review: one of its blocks fails a check the project binds, and a
+      language with a failing block is held back until someone looks. Its
+      drafts are safe in the store. Only delivery waits.
 
   - id: ship
     kind: artifact
     artifact: ship
-    caption: Two answers per language, and a note where no terms apply.
+    caption: Two answers per language.
     text: >-
       This file is the whole contract between the loop and the deployed site.
-      Per language, two answers: is it safe to offer at all, and is every
-      block in it approved or only translated. Dutch also notes that no
-      terms govern it.
+      For each language it answers two questions: is it safe to offer at all,
+      and is every block approved or only translated. For Dutch it also notes
+      that no terms apply.
 
   - id: outro
     kind: outro
     text: >-
-      Run the loop on a project that has approved wording already, and watch
-      how little of it reaches a provider at all.
+      Run the loop on a project that already has approved wording, and watch
+      how little of it reaches a provider.

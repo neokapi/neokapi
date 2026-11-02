@@ -1,5 +1,5 @@
 id: kapi-desktop-review
-title: Judged where it sits
+title: A translation, read where it sits
 subtitle: Five layers under one block, and a keystroke to decide.
 kind: use-case
 publishAs: kapi-desktop-review
@@ -21,81 +21,81 @@ narration:
   - id: title
     kind: title
     text: >-
-      A translation is judged where it sits: at its point, beside its
-      neighbours, against what was approved before.
+      Review shows you a translation where it sits: what applies there, what
+      is next to it, and what was approved before.
 
   - id: queue
     kind: desktop
     beat: queue
-    caption: One list, every language, two ways to narrow it.
+    caption: One list for every language.
     text: >-
-      Review is one queue. Every language is in the same list, with a count per
-      language and chips for what a check flagged.
+      Review is one list for every language. Each language has a count, and
+      chips show what a check flagged.
 
   - id: open-unit
     kind: desktop
     beat: open-unit
-    caption: Source, target, and the layers beneath them.
+    caption: Source, translation, and what shaped them.
     text: >-
-      Opening a block gives the source and the translation, with what shaped
-      them stacked underneath.
+      Open a block to see the source and the translation, with what shaped
+      them underneath.
 
   - id: point
     kind: desktop
     beat: point
-    caption: What governs here?
+    caption: What applies here.
     crop: { selector: '[data-slot="review-point"]' }
     text: >-
-      The first layer is the point this content sits at: its coordinates, the
-      voice governing there, and the term rules bound to it.
+      First, where this content sits: its coordinates, the voice profile that
+      applies there, and the term rules bound to it.
 
   - id: neighbourhood
     kind: desktop
     beat: neighbourhood
-    caption: What sits either side of it?
+    caption: What sits either side.
     crop: { selector: '[data-slot="review-neighbourhood"]' }
     text: >-
-      The second is the neighbourhood: the blocks either side of it, so a
-      sentence is read where a reader will meet it.
+      Second, the neighbours: the blocks before and after, so you read the
+      sentence where a reader will meet it.
 
   - id: history
     kind: desktop
     beat: history
-    caption: What was decided before?
+    caption: What was decided before.
     crop: { selector: '[data-slot="review-history"]' }
     text: >-
-      The third is what was decided before: the version approved last time,
-      beside the match memory offers now.
+      Third, the history: the version approved last time, next to the match
+      content memory offers now.
 
   - id: findings
     kind: desktop
     beat: findings
-    caption: What did the checks find, and where?
+    caption: What the checks found.
     crop: { selector: '[data-slot="review-findings"]' }
     highlight: { selector: '[data-slot="review-finding"]' }
     text: >-
-      The fourth is the checks. A finding is anchored in the run it names, so a
-      complaint about a placeholder points at the placeholder.
+      Fourth, the checks. Each finding points at the run it is about, so a
+      complaint about a placeholder points at that placeholder.
 
   - id: provenance
     kind: desktop
     beat: provenance
-    caption: Who decided, and when?
+    caption: Who decided, and when.
     crop: { selector: '[data-slot="review-provenance"]' }
     text: >-
-      The fifth is provenance: who wrote it, who decided it, and whether the
-      text has moved since. This one carries none.
+      Fifth, provenance: who wrote it, who decided it, and whether the text
+      has changed since. This block carries none.
 
   - id: decide
     kind: desktop
     beat: decide
     caption: One keystroke, then the clean ones together.
     text: >-
-      With that read, the decision is a keystroke bound to the text it judged,
-      and the blocks no check flagged go together.
+      When you have read it, one keystroke records your decision, bound to the
+      text you judged. The blocks no check flagged, you can approve together.
 
   - id: outro
     kind: outro
     text: >-
-      Every decision here is the record the command line reads and writes, so
-      the surface you work from is a preference.
+      Every decision you make here is the same record the command line reads
+      and writes.

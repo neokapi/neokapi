@@ -2,22 +2,14 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-up-loop
 #
-# The kapi-loop trust moment, end to end: preview the work (`up --plan`),
-# produce (`up` fills every target from the content memory, then holds the
-# locale back for review: the ship gate requires review, and review needs a person), read the worklist
-# (`status --review`), watch the gate block (`check --ship`, exit 3), record
-# the decision (`apply`), and watch the same gate clear (exit 0).
+# The kapi loop end to end: `up --plan`, `up`, `status --review`,
+# `check --ship` failing with exit code 3, `apply`, and the same check passing.
 #
-# mode: video — `kapi up` and `kapi check` are not wired into the wasm build
-# (kapi/cmd/kapi-wasm-cli), and the exit-code beats are the point of the
-# recording. The embed below is the focused offline subset: the project seeds
-# already produced (messages.fr.json committed), so `status --review`,
-# `apply`, and the closing `status` run live against the in-memory filesystem
-# — the same wait for review → decide → shippable arc, minus the native-only verbs.
-#
-# Fully offline in every venue: the recipe's memory-recycle flow leverages the content memory
-# only — no LLM, no network. The ship gate is translated: 100 + established: 100,
-# so production alone can never clear it: the human decision is the last mile.
+# mode: video. `kapi up` and `kapi check` are native-only, so the exit codes
+# are recorded. The embed runs `status --review`, `apply` and the closing
+# `status` against a project whose French is already produced. The
+# memory-recycle flow reads content memory and calls no provider. The ship
+# gate needs established: 100, so only a person's approval clears it.
 
 id: kapi-up-loop
 scene: up-loop
@@ -78,9 +70,9 @@ tape:
   fontSize: 16
 
 # Recording fixtures: the kit catalog, the committed content-memory bundle that
-# supplies the French, the
-# recipe with a translated+approved ship gate, and the reviewer's change-set.
-# The recording starts from an unproduced project — `kapi up` does the work.
+# supplies the French, the recipe with a translated and approved ship gate, and
+# the reviewer's change-set. The recording starts from an unproduced project;
+# `kapi up` does the work.
 seed:
   - messages.json
 files:
@@ -172,23 +164,23 @@ files:
 steps:
   - comment: The ship gate requires translated 100% and approved 100%. A machine can meet the first; only a person can meet the second.
   - command: kapi memory import project.memory.json
-    narration: Import the committed bundle into the project's content memory. The flow reuses these translations without calling a provider.
+    narration: Import the committed bundle into the project's content memory. The flow reuses these translations instead of calling a provider.
     offline: false
   - command: kapi up --plan
-    narration: --plan reports pending units, exact content-memory matches, remaining AI work and estimated tokens for each locale. It makes no provider calls or writes.
+    narration: "--plan reports what is pending per language: exact content-memory matches, the AI work left and an estimate of its tokens. It calls no provider and writes nothing."
     offline: false
   - command: kapi up
-    narration: up fills all French targets from content memory, and French waits for review, because only a person can approve. The command exits zero.
+    narration: up fills every French target from content memory. French then waits for review, because only a person can approve. The command exits zero.
     offline: false
   - command: kapi status --review
-    narration: List translated units awaiting approval, each with the source document, block and language a decision names.
-    # offline:true — runs live in the embed against the pre-produced project.
-    # smoke:false — needs the multi-file project seeded; W7 runs commands in
+    narration: List the translated blocks awaiting approval, each with the document, block and language a decision names.
+    # offline:true: runs live in the embed against the pre-produced project.
+    # smoke:false: needs the multi-file project seeded; W7 runs commands in
     # isolation (same policy as kapi-review-and-approve).
     offline: true
     smoke: false
   - command: kapi check --ship
-    narration: Approved coverage is 0%, so check --ship fails with exit code 3. A release pipeline can use this exit status to enforce the gate.
+    narration: Approved coverage is 0%, so check --ship fails with exit code 3. A release pipeline can use this exit code as the gate.
     offline: false
   - comment: A person reads the three translations and records the decisions.
   - command: kapi apply review.jsonl
@@ -196,9 +188,9 @@ steps:
     offline: true
     smoke: false
   - command: kapi check --ship
-    narration: The ship check now passes with exit code 0. The recorded approvals satisfy the review requirement without retranslating the content.
+    narration: The ship check now passes with exit code 0. The recorded approvals satisfy the review requirement, and nothing was retranslated.
     offline: false
   - command: kapi status
-    narration: French is shippable, with 100% translated and 100% approved coverage.
+    narration: "French is shippable: 100% translated and 100% approved."
     offline: true
     smoke: false

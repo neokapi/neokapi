@@ -1,5 +1,5 @@
 id: bowrain-web-project-screens
-title: One record of what your files do, for the whole team
+title: "Your project in the browser: Map, Reader and Rules"
 subtitle: A project's Map, Reader and Rules in the browser.
 tagline: the server-side platform companion to kapi
 kind: use-case
@@ -33,8 +33,7 @@ narration:
     kind: title
     text: >-
       A project on Bowrain opens on its Map. Your team reads what assistants
-      noticed, checks every file on the server, and decides what holds, in
-      one place.
+      noticed, checks every file on the server, and decides what holds.
 
   - id: map
     kind: desktop
@@ -42,10 +41,10 @@ narration:
     caption: A project opens on its Map.
     crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
     text: >-
-      Opening a project lands on its Map. The counts read files, blocks, rules
-      and findings. Each row under What your files do is something an
-      assistant noticed and nobody has decided, and the Decide button counts
-      them.
+      Open a project and you land on its Map. The counts are files, blocks,
+      rules and findings. Each row under What your files do is something an
+      assistant noticed that nobody has decided yet. The Decide button shows
+      how many are waiting.
 
   - id: run
     kind: desktop
@@ -53,26 +52,26 @@ narration:
     caption: Every file, checked on the server.
     crop: { selector: ['[data-slot="map-run"]', '[data-slot="map-counts"]'] }
     text: >-
-      Run on everything checks every file on the server as one job, which
-      takes the review permission. When the job finishes, the findings count
-      reads what the checks reported.
+      Run on everything checks every file on the server as one job. You need
+      the review permission for it. When the job finishes, the findings count
+      shows what the checks reported.
 
   - id: reader
     kind: desktop
     beat: reader
-    caption: One file, its findings, and the rules at it.
+    caption: One file, its findings, and the rules that apply.
     text: >-
-      A file opens in the Reader. Each finding sits under the block it is in,
-      and the margin lists the rules that hold at this file.
+      Open a file in the Reader. Each finding sits under the block it is in,
+      and the margin lists the rules that apply to this file.
 
   - id: fix
     kind: desktop
     beat: fix
-    caption: A fix, filed as a source proposal.
+    caption: A fix, filed as a proposal.
     text: >-
-      Fix files a source proposal and leaves the file as it is. Proposed
-      takes the button's place and opens the list of open proposals, where an approval applies the change and keeps every inline
-      code.
+      Click Fix to file a source proposal. The file stays as it is. The button
+      now reads Proposed and opens the list of open proposals, where an
+      approval applies the change and keeps every inline code.
 
   - id: rules
     kind: desktop
@@ -81,23 +80,23 @@ narration:
     crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="decide-question"]'] }
     text: >-
       Rules is the team queue. Each suggestion waiting for a decision is a
-      row, beside the question about the one selected.
+      row, with the question about the selected one beside it.
 
   - id: assign
     kind: desktop
     beat: assign
     caption: Assigned to a teammate.
     text: >-
-      Assigned to names who answers it. The picker lists the workspace's
-      members, Maria takes this one, and the queue shows her name.
+      Assigned to says who answers it. The picker lists the members who can
+      decide here. Maria takes this one, and the queue shows her name.
 
   - id: keep
     kind: desktop
     beat: keep
-    caption: Kept, as you.
+    caption: Kept, in your name.
     text: >-
-      Keep records the rule as you, in the project's context, and the row
-      leaves the queue.
+      Press Keep. The rule is recorded in your name, in the project's context,
+      and the row leaves the queue.
 
   - id: kept
     kind: desktop
@@ -106,7 +105,7 @@ narration:
     crop: { selector: '[data-slot="kept-rules"]' }
     text: >-
       Kept by lists every rule in force, with who kept it, the day, and where
-      it holds. The rule you kept is at the top.
+      it applies. The rule you just kept is at the top.
 
   - id: outro
     kind: outro

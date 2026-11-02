@@ -21,48 +21,47 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop puts a provider key in the operating system keychain, so the
-      recipe you commit never carries one. Settings is where the key is added,
-      and where plugins and appearance live too.
+      Kapi Desktop stores a provider key in your operating system keychain, so
+      the recipe you commit never contains one. Settings is where you add the
+      key, and where plugins and appearance live.
 
   - id: open-settings
     kind: desktop
     beat: open-settings
-    caption: Appearance, models, plugins and locales, in one place.
+    caption: Appearance, models, plugins and locales.
     text: >-
-      Settings gathers appearance, the AI models a project can translate with,
+      Settings has appearance, the AI models a project can translate with,
       plugins, and the languages the interface itself can run in.
 
   - id: general
     kind: desktop
     beat: general
-    caption: Follows the system, or pinned either way.
+    caption: Follow the system, or pin light or dark.
     text: >-
-      Appearance follows your system by default, or you can pin light or dark.
-      The interface can also run in a pseudo-language, which is how you test
-      that a screen survives longer words.
+      Appearance follows your system, or you pin light or dark. You can also
+      run the interface in a pseudo-language, to check that a screen survives
+      longer words.
 
   - id: credentials
     kind: desktop
     beat: credentials
-    caption: The key is typed here, and stored by the keychain.
+    caption: Type the key here. The keychain stores it.
     crop: { selector: '[role="dialog"]' }
     text: >-
-      AI Models lists the providers and the models under each. Adding
-      credentials asks for a name, a model and the key, and the key goes to the
-      operating system keychain. The recipe records which credential to use, and
-      never the secret itself.
+      AI Models lists the providers and their models. Add credentials with a
+      name, a model and the key. The key goes to the keychain, and the recipe
+      records only which credential to use.
 
   - id: plugins
     kind: desktop
     beat: plugins
     caption: Plugins add formats, connectors and tools.
     text: >-
-      Plugins extend what the project can read and run, adding formats,
-      connectors and tools beyond the built-in set.
+      Plugins extend what the project can read and run: formats, connectors
+      and tools beyond the built-in set.
 
   - id: outro
     kind: outro
     text: >-
-      Add a key once here and the command line in the same folder uses the same
-      one, because both read the same keychain.
+      Add a key once. The command line in the same folder uses the same key,
+      from the same keychain.

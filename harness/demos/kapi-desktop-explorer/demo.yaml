@@ -25,47 +25,47 @@ narration:
   - id: title
     kind: title
     text: >-
-      The words a project has agreed, and the wording it has already approved,
-      are decisions. Both belong to the project, and both answer a search.
+      The terms your project has agreed and the wording it has approved are
+      both decisions. Both belong to the project, and you can search both.
 
   - id: search-term
     kind: desktop
     beat: search-term
-    caption: One word typed, and the list narrows to it.
+    caption: Type a word, and the list narrows.
     text: >-
-      These are the concepts this project has agreed, in the first of its two
-      stores. Typing narrows the list as you go rather than on a keystroke, so
-      finding what the company calls something takes a word and a moment.
+      This is the terms store: the concepts your project has agreed. The list
+      narrows as you type, so finding what the company calls something takes a
+      word and a moment.
 
   - id: concept
     kind: desktop
     beat: concept
-    caption: Its approved terms, language by language.
+    caption: Approved terms, language by language.
     text: >-
-      A concept carries a definition and the approved term for it in every
-      language the project ships. A status badge marks the preferred wording,
-      and admitted marks a form that may stand beside it, as cart does here.
+      A concept has a definition and an approved term in every language the
+      project ships. A badge marks the preferred wording, and admitted marks a
+      form that may stand beside it, as cart does here.
 
   - id: search-tm
     kind: desktop
     beat: search-tm
-    caption: Every block that mentions checkout, in one query.
+    caption: Every block that mentions checkout.
     text: >-
-      Content memory works the same way, one section across. It holds every
-      translation this project has approved, and a search over it answers with
-      the blocks a word actually appears in.
+      Content memory works the same way, one section down. It holds every
+      translation this project has approved, and a search answers with the
+      blocks the word appears in.
 
   - id: inspect-tm
     kind: desktop
     beat: inspect-tm
     caption: The pair in full, and where it came from.
     text: >-
-      Selecting a pair shows the source and its translation in full, and the
-      other languages the entry holds. It also names the file the pair came
-      from and the key that uses it.
+      Select a pair to see the source and its translation in full, with the
+      other languages the entry holds, the file it came from and the key that
+      uses it.
 
   - id: outro
     kind: outro
     text: >-
-      Both stores answer the same questions from a terminal in the same folder,
-      because both belong to the project rather than to the app.
+      From a terminal in the same folder, both stores answer the same
+      questions.

@@ -87,7 +87,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-web-project-screens",
-    "title": "One record of what your files do, for the whole team"
+    "title": "Your project in the browser: Map, Reader and Rules"
   },
   {
     "id": "bowrain-web-review",
@@ -131,7 +131,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-review",
-    "title": "Judged where it sits"
+    "title": "A translation, read where it sits"
   },
   {
     "id": "s0-northsea-checks",

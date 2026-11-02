@@ -56,39 +56,39 @@ narration:
   - id: title
     kind: title
     text: >-
-      A translated documentation tree is build output. The loop writes it where
-      the site build already looks, git ignores it, and a language still waiting
-      for a person leaves no files at all.
+      A translated documentation tree is build output. The loop writes it
+      where your site build already looks, git ignores it, and a language
+      still waiting for a person leaves no files at all.
 
   - id: shape
     kind: terminal
     through: 4
     highlight: { text: [i18n] }
-    caption: Generated, ignored, and regenerated from a clone.
+    caption: Generated, ignored, regenerated from a clone.
     text: >-
       Four pages and a recipe. The target path is the tree the site already
-      reads translations from, and that tree is ignored by git: it is derived
-      from the source and the committed context, so a pull request never carries
-      a generated translation into review.
+      reads translations from, and git ignores it. It is derived from the
+      source and the committed context, so a pull request never carries a
+      generated translation into review.
 
   - id: converge
     kind: terminal
     through: 8
     highlight: { text: [nb, nl] }
-    caption: Norwegian ships. Dutch waits for review, and nothing failed.
+    caption: Norwegian ships. Dutch waits for review.
     text: >-
-      One verb converges both languages. Norwegian clears the ship gate on
-      translated work. Dutch waits for review, because the gate asks for half its blocks to
-      have been read by a person and none of them have.
+      One command converges both languages. Norwegian clears the ship gate on
+      translated work. Dutch waits for review, because its gate asks for half
+      its blocks to be read by a person, and none have been.
 
   - id: translated
     kind: artifact
     artifact: translated
-    caption: Title, sidebar label and body, all of it content.
+    caption: "Title, sidebar label and body: all content."
     text: >-
-      This is the file the loop wrote. Front matter travels with the prose,
-      because a title in a sidebar and a description in a search result are
-      things a reader reads, and the stub's own marks are on every block it
+      This is the file the loop wrote. The front matter travels with the
+      prose, because a title in a sidebar and a description in a search result
+      are things a reader reads. The stub's own marks are on every block it
       invented.
 
   - id: delivered
@@ -96,11 +96,11 @@ narration:
     through: 12
     caption: Only the language that cleared the gate is on disk.
     text: >-
-      And only Norwegian is on disk. Delivery follows the ship gate, so a language
-      held back by its gate has no files at all rather than files nobody has blessed.
+      Only Norwegian is on disk. Delivery follows the ship gate, so a language
+      held back has no files at all, rather than files nobody has approved.
 
   - id: outro
     kind: outro
     text: >-
       Add the generated tree to your ignore file and let the loop write it. A
-      clone regenerates the languages that are ready.
+      fresh clone regenerates the languages that are ready.

@@ -18,23 +18,23 @@ aspects:
 # (beatSpan in record-desktop.ts): the file's row and the Reader's header, the
 # block with the fixable finding, and the block whose finding is edited by hand.
 outro:
-  line: Open a file from the Map and fix what names its replacement.
+  line: Open a file from the Map and fix what has a replacement.
   pointer: kapi context web/en/faq.md
 
 narration:
   - id: title
     kind: title
     text: >-
-      Every content file in a project is listed on its Map. Opening one shows
-      its blocks, the rules that hold there, and what the checks found.
+      Every file in your project is on the Map. Open one to see its blocks,
+      the rules that apply to it, and what the checks found.
 
   - id: map
     kind: desktop
     beat: map
-    caption: Four counts, and one row per file.
+    caption: "The Map: four counts, then one row per file."
     text: >-
-      The sample opens on its Map. The counts at the top are its files, blocks,
-      rules and findings. Under Files, each row is one content file with its
+      The sample opens on its Map. At the top you see four counts: files,
+      blocks, rules and findings. Under Files, each row is one file, with its
       format, its blocks and its findings.
 
   - id: open
@@ -42,37 +42,36 @@ narration:
     beat: open
     caption: The FAQ, block by block.
     text: >-
-      Open on the FAQ shows it in the Reader. Its blocks run in file order at
-      reading width, and the line under the path counts the blocks and the
-      findings.
+      Click Open on the FAQ. The Reader shows the file block by block, in file
+      order. The line under the path counts its blocks and its findings.
 
   - id: margin
     kind: desktop
     beat: margin
-    caption: The rules that hold at this file.
+    caption: The rules that apply to this file.
     text: >-
-      Down the margin are the rules that hold at this file, in the order kapi
-      context prints them for the same path.
+      In the margin you see the rules that apply to this file. They are the
+      same rules kapi context prints for the same path.
 
   - id: fix
     kind: desktop
     beat: fix
-    caption: A finding with a replacement, fixed in one click.
+    caption: A finding with a fix.
     text: >-
-      A finding is marked on the words it is about, with its row under the
-      block. This rule names FAQ in place of the long form, so the row offers
-      Fix. One click writes the change into the file, and the finding is gone.
+      A finding is marked on the words it is about, with a row under the
+      block. This rule says to write FAQ instead of the long form, so the row
+      offers Fix. Click it: the file is changed and the finding is gone.
 
   - id: by-hand
     kind: desktop
     beat: by-hand
-    caption: No replacement named, so it is edited by hand.
+    caption: No fix offered, so you edit by hand.
     text: >-
-      The exclamation rule names no replacement, so its row says to edit by
-      hand: you change the wording in the file yourself.
+      The exclamation rule names no replacement, so its row says edit by hand.
+      You change the wording in the file yourself.
 
   - id: outro
     kind: outro
     text: >-
-      The Reader shows a file with what applies to it. kapi context prints the
-      same rules from a terminal in the same folder.
+      Open a file from the Map to see what applies to it. From a terminal,
+      kapi context prints the same rules for the same file.

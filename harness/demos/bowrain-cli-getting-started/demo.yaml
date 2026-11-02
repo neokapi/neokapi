@@ -42,43 +42,44 @@ narration:
   - id: title
     kind: title
     text: >-
-      Your content stays in your repository. kapi init connects it to a Bowrain
-      workspace, and the server adds the team, the shared memory and the gates.
+      Your content stays in your repository. kapi init connects it to a
+      Bowrain workspace, and the server adds the team, the shared memory and
+      the gates.
 
   - id: push
     kind: terminal
     through: 6
-    caption: Push moves the source, and translates nothing.
+    caption: Push moves the source and translates nothing.
     hold: 16
     text: >-
-      kapi init found the English catalog and declared it, with a place for each
-      language beside it. Then push. Push is pure transport: it moves the source
-      up the way git push does, and it translates nothing at all. Nothing has
-      left your repository except a copy of the English.
+      kapi init found the English catalog and declared it, with a place for
+      each language beside it. Then push. Push only moves the source up, the
+      way git push does. It translates nothing. Nothing has left your
+      repository except a copy of the English.
 
   - id: status
     kind: terminal
     through: 8
     highlight: { text: [content, governance] }
-    caption: Two axes, content and governance.
+    caption: Content and governance, two lines.
     hold: 19
     text: >-
-      kapi status reads the standing on two axes. The content line counts what
-      is waiting to move in each direction. The governance line says whether the
-      terms and decisions this project observed are still the ones the server
-      holds, which is the half that goes wrong quietly.
+      kapi status shows two lines. The content line counts what is waiting to
+      move in each direction. The governance line says whether the terms and
+      decisions this project saw are still the ones the server holds, which is
+      the part that goes wrong quietly.
 
   - id: up
     kind: terminal
     through: 10
     highlight: venue
-    caption: The venue first, then the work.
+    caption: Where it runs first, then the work.
     hold: 20
     text: >-
-      kapi up runs the loop, and it prints its venue first: server, because the
-      recipe declares one. The work happens on the Bowrain server with the
-      team's keys, shared memory and gates, in the order memory, then AI, then
-      checks, and the progress streams back into your terminal.
+      kapi up runs the loop, and first it prints where: server, because the
+      recipe names one. The work happens on the Bowrain server with the team's
+      keys, shared memory and gates: memory first, then AI, then checks.
+      Progress streams back into your terminal.
 
   - id: pulled
     kind: terminal
@@ -86,11 +87,11 @@ narration:
     caption: Back in the same file and format.
     hold: 14
     text: >-
-      The results come back into the files and the format you started with. Here
-      is the French catalog beside the English it came from, and whatever needs
-      a person waits for review.
+      The results come back into the files and the format you started with.
+      Here is the French catalog beside the English it came from. Whatever
+      needs a person waits for review.
 
   - id: outro
     kind: outro
     text: >-
-      In CI, the same two commands do the whole of it.
+      In CI, the same two commands do all of it.
