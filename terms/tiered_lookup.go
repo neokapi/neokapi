@@ -327,3 +327,38 @@ func dropCoveredMatches(matches []TermMatch) []TermMatch {
 	}
 	return kept
 }
+
+// MatchedConceptIDs returns the distinct concept IDs of a match set, in the
+// order the matches list them.
+func MatchedConceptIDs(matches []TermMatch) []string {
+	seen := make(map[string]bool, len(matches))
+	var ids []string
+	for _, m := range matches {
+		if !seen[m.Concept.ID] {
+			seen[m.Concept.ID] = true
+			ids = append(ids, m.Concept.ID)
+		}
+	}
+	return ids
+}
+
+// AttachMatchTerms sets each match's Concept.Terms to the terms in rows that
+// belong to that concept and fall inside opts.Scope. A SQL backend's LookupAll
+// loads its source-locale rows for the scan, then the target-locale rows of the
+// matched concepts, and passes both here, so a match carries the concept's
+// wording in the source and the target locale. Each match gets its own slice.
+func AttachMatchTerms(matches []TermMatch, rows []LocaleTerm, opts LookupOptions) {
+	if len(matches) == 0 {
+		return
+	}
+	byConcept := make(map[string][]Term)
+	for _, r := range rows {
+		if !MatchesScope(r.Term.Validity, opts.Scope) {
+			continue
+		}
+		byConcept[r.Concept.ID] = append(byConcept[r.Concept.ID], r.Term)
+	}
+	for i := range matches {
+		matches[i].Concept.Terms = slices.Clone(byConcept[matches[i].Concept.ID])
+	}
+}
