@@ -78,7 +78,7 @@ capture: ## Full pipeline (capture → render → publish) for DEMO=<id>
 	@test -n "$(DEMO)" || { echo "usage: make capture DEMO=<id>"; exit 1; }
 	$(RUN) $(DEMO) --force
 
-seed: ## Phase 0: seed bowrain content + mint record tokens → harness/.env (idempotent; needs the stack)
+seed: ## Phase 0: seed bowrain content + mint record tokens → harness/.env (idempotent; needs the stack, bin/kapi and bin/kapi-bowrain)
 	$(VPX) tsx scripts/seed-bowrain.ts
 
 record: ## Phase 1: capture all screencasts + artifacts (needs the bowrain stack; FORCE=1 to re-record)
