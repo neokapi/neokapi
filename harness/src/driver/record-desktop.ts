@@ -2506,7 +2506,7 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
  * suggestions nobody has decided, synced from a checkout through the bowrain
  * context backend (`context: {backend: bowrain}` and `kapi context sync`),
  * with at least one file a check reports a fixable finding in. seed-bowrain.ts
- * does not build this project yet; the walk refuses to start without its id.
+ * builds it (ensureScreensProject); the walk refuses to start without its id.
  */
 const BOWRAIN_SCREENS_PROJECT_ID = process.env.BOWRAIN_SCREENS_PROJECT_ID || "";
 

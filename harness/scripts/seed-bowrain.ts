@@ -711,8 +711,13 @@ const SCREENS_PROJECT = {
   targets: ["fr", "de"],
 };
 
-/** The agent session the seed's notes carry, and the person who keeps. */
-const SCREENS_IDENTITY: SeedIdentity = { session: "harness-seed", person: ALICE.name };
+/**
+ * The agent session the seed's notes carry, and the person who keeps the
+ * kept rule: Bob, with his own sign-in, so Kept by names a teammate beside the
+ * rule the take keeps as the on-camera user. A screen shows the signed-in
+ * member's own name as "you".
+ */
+const SCREENS_IDENTITY: SeedIdentity = { session: "harness-seed", person: BOB.name };
 
 // account.md carries two blocks the "sign in, not log in" term rule finds, and
 // billing.md one: a take fixes one finding per theme in the first file with
@@ -799,10 +804,13 @@ const SCREENS_CONCEPT = {
   ],
 };
 
+/** Who a checkout command runs as: an assistant, or a person with their own sign-in. */
+type CheckoutActor = "agent" | "alice" | "bob";
+
 /** A scratch checkout of the screens project, outside the repository, and the kapi it runs. */
 interface Checkout {
   dir: string;
-  kapi: (args: string[], actor?: "agent" | "person") => Promise<string>;
+  kapi: (args: string[], actor?: CheckoutActor) => Promise<string>;
   dispose: () => void;
 }
 
@@ -813,11 +821,13 @@ interface Checkout {
  * checkout's own plugin root, as the bowrain CLI demos install it.
  *
  * The coding-agent markers of the shell the seed runs in are removed, so the
- * notes carry the seed's own session and the keep is a person's. The person's
- * name is the on-camera user's, through the version-control identity kapi
- * names a person by (host/contextactor.go PersonName).
+ * notes carry the seed's own session and a decision is a person's. A person
+ * is named through the version-control identity kapi names a person by
+ * (host/contextactor.go PersonName) and sends with their own sign-in. An
+ * assistant's command runs with Alice's sign-in, as an assistant in her
+ * checkout would.
  */
-function openCheckout(token: string): Checkout {
+function openCheckout(tokens: { alice: string; bob: string }): Checkout {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "harness-screens-"));
   const dir = path.join(root, "help-center");
   fs.mkdirSync(dir, { recursive: true });
@@ -853,19 +863,27 @@ function openCheckout(token: string): Checkout {
     XDG_CONFIG_HOME: path.join(root, "xdg-config"),
     BOWRAIN_CONFIG_DIR: path.join(root, "bowrain-config"),
     KAPI_PLUGINS_DIR: plugins,
-    BOWRAIN_AUTH_TOKEN: token,
     BOWRAIN_SERVER_URL: BASE,
     GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: "user.name",
-    GIT_CONFIG_VALUE_0: SCREENS_IDENTITY.person,
   };
-  const kapi = async (args: string[], actor: "agent" | "person" = "person"): Promise<string> => {
+  const kapi = async (args: string[], actor: CheckoutActor = "alice"): Promise<string> => {
+    const signedIn = {
+      BOWRAIN_AUTH_TOKEN: actor === "bob" ? tokens.bob : tokens.alice,
+      GIT_CONFIG_VALUE_0: actor === "bob" ? BOB.name : ALICE.name,
+    };
     const env: NodeJS.ProcessEnv =
       actor === "agent"
-        ? { ...base, KAPI_ACTOR: "agent", KAPI_AGENT_NAME: "claude-code", KAPI_AGENT_SESSION: SCREENS_IDENTITY.session }
-        : { ...base, KAPI_ACTOR: "person" };
+        ? {
+            ...base,
+            ...signedIn,
+            KAPI_ACTOR: "agent",
+            KAPI_AGENT_NAME: "claude-code",
+            KAPI_AGENT_SESSION: SCREENS_IDENTITY.session,
+          }
+        : { ...base, ...signedIn, KAPI_ACTOR: "person" };
     const r = await run(KAPI_BIN, args, { cwd: dir, env, timeoutMs: 180_000 });
     if (r.code !== 0) {
       throw new Error(`kapi ${args.join(" ")} exited ${r.code}: ${r.combined.trim().slice(-600)}`);
@@ -935,10 +953,12 @@ async function settleScreensContext(co: Checkout): Promise<void> {
   if (keptBySeed(ops, SCREENS_IDENTITY, keep.id)) {
     console.log(`  · "${SCREENS_KEPT.term}" already kept by ${SCREENS_IDENTITY.person}`);
   } else {
-    await co.kapi(["context", "review", "--keep", keep.id]);
+    // Alice's sync sends the notes; Bob's sends his keep.
+    await co.kapi(["context", "sync"]);
+    await co.kapi(["context", "review", "--keep", keep.id], "bob");
     console.log(`  · kept "${SCREENS_KEPT.term}" as ${SCREENS_IDENTITY.person}`);
   }
-  await co.kapi(["context", "sync"]);
+  await co.kapi(["context", "sync"], "bob");
 }
 
 /**
@@ -961,7 +981,7 @@ async function ensureScreensProject(
   profileId: string,
 ): Promise<string> {
   const pid = SCREENS_PROJECT.id;
-  const co = openCheckout(aliceToken);
+  const co = openCheckout({ alice: aliceToken, bob: bobToken });
   try {
     for (const [rel, body] of Object.entries(SCREENS_FILES)) {
       fs.mkdirSync(path.dirname(path.join(co.dir, rel)), { recursive: true });
