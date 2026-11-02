@@ -327,3 +327,40 @@ func dropCoveredMatches(matches []TermMatch) []TermMatch {
 	}
 	return kept
 }
+
+// MatchedConceptIDs returns the distinct concept IDs of a match set, in the
+// order the matches list them.
+func MatchedConceptIDs(matches []TermMatch) []string {
+	seen := make(map[string]bool, len(matches))
+	var ids []string
+	for _, m := range matches {
+		if !seen[m.Concept.ID] {
+			seen[m.Concept.ID] = true
+			ids = append(ids, m.Concept.ID)
+		}
+	}
+	return ids
+}
+
+// HydrateMatchConcepts replaces each match's concept with the whole concept of
+// the same ID from concepts: its properties and its terms in every locale. A SQL
+// backend's LookupAll scans source-locale rows, which carry only part of each
+// concept, then reads the matched concepts and passes them here. The match then
+// holds what the in-memory store's match holds, including the target-locale
+// wording a caller shows beside the source term. A match whose concept is
+// missing from concepts keeps the one it has. Each match gets its own Terms
+// slice.
+func HydrateMatchConcepts(matches []TermMatch, concepts []Concept) {
+	byID := make(map[string]Concept, len(concepts))
+	for _, c := range concepts {
+		byID[c.ID] = c
+	}
+	for i := range matches {
+		c, ok := byID[matches[i].Concept.ID]
+		if !ok {
+			continue
+		}
+		c.Terms = slices.Clone(c.Terms)
+		matches[i].Concept = c
+	}
+}

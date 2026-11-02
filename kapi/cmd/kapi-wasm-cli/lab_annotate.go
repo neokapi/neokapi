@@ -238,13 +238,8 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 	spans := make([]model.Span, 0, len(matches))
 	for _, m := range matches {
 		props := map[string]string{"term": m.Term.Text}
-		// A match carries the concept's source-language terms; its French is
-		// read from the whole concept.
-		concept := m.Concept
-		if full, ok, gerr := tb.GetConcept(ctx, concept.ID); gerr == nil && ok {
-			concept = full
-		}
-		if tgt := concept.PreferredTerm(model.LocaleID("fr")); tgt != nil {
+		// The match carries its whole concept, French terms included.
+		if tgt := m.Concept.PreferredTerm(model.LocaleID("fr")); tgt != nil {
 			props["target"] = tgt.Text
 		}
 		if m.Concept.Domain != "" {

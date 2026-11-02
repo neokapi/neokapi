@@ -1027,12 +1027,9 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 
 	var result []BlockTermMatch
 	for _, m := range matches {
-		// Collect target terms for the requested locale
 		var targetTerms []string
-		for _, t := range m.Concept.Terms {
-			if t.Locale == model.LocaleID(targetLocale) {
-				targetTerms = append(targetTerms, t.Text)
-			}
+		for _, t := range m.Concept.UsableTerms(model.LocaleID(targetLocale)) {
+			targetTerms = append(targetTerms, t.Text)
 		}
 
 		result = append(result, BlockTermMatch{

@@ -340,3 +340,18 @@ func TestTermsParity_ExpectedSets(t *testing.T) {
 		})
 	}
 }
+
+// TestTermsParity_LookupAllTargetTerms holds the framework SQLite and in-memory
+// stores to the assertions TestPostgresTerms_IntegrationLookupAllTargetTerms
+// makes of Postgres, so every backend's match carries the same concept.
+func TestTermsParity_LookupAllTargetTerms(t *testing.T) {
+	for name, tb := range map[string]terms.Terminology{
+		"sqlite":    openParitySQLiteTB(t),
+		"in-memory": terms.NewInMemoryStore(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			seedTargetTermsFixture(t, tb)
+			assertLookupAllTargetTerms(t, tb)
+		})
+	}
+}

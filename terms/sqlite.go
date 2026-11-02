@@ -477,7 +477,7 @@ func (tb *SQLiteStore) Lookup(ctx context.Context, sourceText string, opts Looku
 // LookupAll finds all terms appearing in the given text. The locale/domain/
 // status/project/source filtering happens in SQL (queryTermsByLocale); the
 // position scan, validity-scope filter and project-priority de-duplication live
-// in the shared LookupAllTiered.
+// in the shared LookupAllTiered. Each match carries its whole concept.
 func (tb *SQLiteStore) LookupAll(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	if sourceText == "" {
 		return nil, nil
@@ -487,7 +487,23 @@ func (tb *SQLiteStore) LookupAll(ctx context.Context, sourceText string, opts Lo
 	if err != nil {
 		return nil, err
 	}
-	return LookupAllTiered(sourceText, opts, terms), nil
+	matches := LookupAllTiered(sourceText, opts, terms)
+	// The scan reads source-locale rows only. The matched concepts are read
+	// whole, by the IDs the scan kept, so a match carries the concept's wording
+	// in the target locale and its properties, as the in-memory store's does.
+	ids := MatchedConceptIDs(matches)
+	concepts := make([]Concept, 0, len(ids))
+	for _, id := range ids {
+		c, ok, err := tb.GetConcept(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			concepts = append(concepts, c)
+		}
+	}
+	HydrateMatchConcepts(matches, concepts)
+	return matches, nil
 }
 
 // Search performs a ranked full-text search across concepts and terms.

@@ -1287,10 +1287,8 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 	result := make([]BlockTermMatchResponse, 0, len(matches))
 	for _, m := range matches {
 		var targetTerms []string
-		for _, t := range m.Concept.Terms {
-			if t.Locale == model.LocaleID(targetLocale) {
-				targetTerms = append(targetTerms, t.Text)
-			}
+		for _, t := range m.Concept.UsableTerms(model.LocaleID(targetLocale)) {
+			targetTerms = append(targetTerms, t.Text)
 		}
 		result = append(result, BlockTermMatchResponse{
 			SourceTerm:  m.Term.Text,

@@ -366,21 +366,14 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 	spans := make([]model.Span, 0, len(matches))
 	for _, m := range matches {
 		props := map[string]string{"term": m.Term.Text}
-		// LookupAll's match carries only a partial concept (id/domain, no terms);
-		// load the full concept to resolve the preferred target translation.
-		domain := m.Concept.Domain
-		if full, ok, err := tb.GetConcept(ctx, m.Concept.ID); err == nil && ok {
-			if domain == "" {
-				domain = full.Domain
-			}
-			if !targetLoc.IsEmpty() {
-				if tgt := full.PreferredTerm(targetLoc); tgt != nil {
-					props["target"] = tgt.Text
-				}
+		// The match carries its whole concept, target-locale terms included.
+		if !targetLoc.IsEmpty() {
+			if tgt := m.Concept.PreferredTerm(targetLoc); tgt != nil {
+				props["target"] = tgt.Text
 			}
 		}
-		if domain != "" {
-			props["domain"] = domain
+		if m.Concept.Domain != "" {
+			props["domain"] = m.Concept.Domain
 		}
 		if search.SpelledAtEdge(m.Position.Start, m.Position.End) {
 			props["spelled"] = search.Text[m.Position.Start:m.Position.End]

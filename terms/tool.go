@@ -290,6 +290,15 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 		if len(targetTerms) == 0 {
 			continue // no target terms defined, skip
 		}
+		var acceptable []Term
+		for _, tt := range targetTerms {
+			if isAcceptableStatus(tt.Status, t.cfg.CheckStatuses) {
+				acceptable = append(acceptable, tt)
+			}
+		}
+		if replacement == nil && len(acceptable) == 0 {
+			continue // every target term is of a status the check does not accept
+		}
 
 		// Check if an acceptable target term appears in the translation: the
 		// replacement's preferred term when redirected, otherwise any of the
@@ -300,10 +309,7 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 			found = ContainsText(targetText, replacement.Text, t.cfg.CaseSensitive)
 			targetRefs = []model.TermRef{{Text: replacement.Text, Locale: replacement.Locale, Status: replacement.Status}}
 		} else {
-			for _, tt := range targetTerms {
-				if !isAcceptableStatus(tt.Status, t.cfg.CheckStatuses) {
-					continue
-				}
+			for _, tt := range acceptable {
 				if ContainsText(targetText, tt.Text, t.cfg.CaseSensitive) {
 					found = true
 					break
@@ -319,11 +325,9 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 					"source term %q (concept %s) is %s; expected replacement %q (concept %s) does not appear in target",
 					match.Term.Text, match.Concept.ID, match.Term.Status, replacement.Text, expected.ID))
 			} else {
-				var expectedTexts []string
-				for _, tt := range targetTerms {
-					if isAcceptableStatus(tt.Status, t.cfg.CheckStatuses) {
-						expectedTexts = append(expectedTexts, tt.Text)
-					}
+				expectedTexts := make([]string, 0, len(acceptable))
+				for _, tt := range acceptable {
+					expectedTexts = append(expectedTexts, tt.Text)
 				}
 				violations = append(violations, fmt.Sprintf(
 					"source term %q (concept %s) found but none of the expected translations [%s] appear in target",

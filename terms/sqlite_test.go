@@ -486,3 +486,36 @@ func TestTermDesignation_WithValidity(t *testing.T) {
 	assert.True(t, decoded.Validity.ValidTo.Equal(later))
 	assert.Equal(t, "US", decoded.Validity.Tags["region"])
 }
+
+// TestSQLiteTerms_LookupAllTargetTerms checks that a match carries its whole
+// concept: the terms in every locale and the concept's properties.
+func TestSQLiteTerms_LookupAllTargetTerms(t *testing.T) {
+	tb, err := terms.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	enc := terms.Concept{
+		ID: "c-enc", Domain: "security",
+		Terms: []terms.Term{
+			{Text: "encryption", Locale: "en", Status: model.TermApproved},
+			{Text: "chiffrement", Locale: "fr", Status: model.TermApproved},
+			{Text: "Verschlüsselung", Locale: "de", Status: model.TermApproved},
+		},
+		Properties: map[string]string{"team": "platform"},
+	}
+	require.NoError(t, tb.AddConcept(context.Background(), enc))
+
+	matches := mustLookupAll(t, tb, "Turn on encryption", terms.LookupOptions{SourceLocale: "en", TargetLocale: "fr"})
+	require.Len(t, matches, 1)
+	got := matches[0].Concept
+	assert.Equal(t, "platform", got.Properties["team"])
+	byLocale := map[model.LocaleID][]string{}
+	for _, tm := range got.Terms {
+		byLocale[tm.Locale] = append(byLocale[tm.Locale], tm.Text)
+	}
+	assert.Equal(t, map[model.LocaleID][]string{
+		"en": {"encryption"},
+		"fr": {"chiffrement"},
+		"de": {"Verschlüsselung"},
+	}, byLocale)
+}

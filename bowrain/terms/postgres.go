@@ -508,7 +508,7 @@ func (tb *PostgresStore) Lookup(ctx context.Context, sourceText string, opts fw.
 
 // LookupAll finds all terms appearing in the given text. The position scan,
 // validity-scope filter and (text, position) de-duplication live in the shared
-// fw.LookupAllTiered, which Postgres now inherits.
+// fw.LookupAllTiered. Each match carries its whole concept.
 func (tb *PostgresStore) LookupAll(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	if sourceText == "" {
 		return nil, nil
@@ -518,7 +518,20 @@ func (tb *PostgresStore) LookupAll(ctx context.Context, sourceText string, opts 
 	if err != nil {
 		return nil, err
 	}
-	return fw.LookupAllTiered(sourceText, opts, terms), nil
+	matches := fw.LookupAllTiered(sourceText, opts, terms)
+	if len(matches) == 0 {
+		return matches, nil
+	}
+	// The scan reads source-locale rows only. The matched concepts are read
+	// whole, by the IDs the scan kept, so a match carries the concept's wording
+	// in the target locale and its properties. The status filter and the shadow
+	// exclusion have already decided which concepts match.
+	concepts, err := tb.scanConcepts(ctx, fw.MatchedConceptIDs(matches))
+	if err != nil {
+		return nil, err
+	}
+	fw.HydrateMatchConcepts(matches, concepts)
+	return matches, nil
 }
 
 // Search performs a ranked full-text search across concepts and terms.
@@ -1161,7 +1174,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	}
 
 	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.domain, c.definition, c.do_not_translate, c.advisory, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
+		SELECT c.id, c.domain, c.definition, c.do_not_translate, c.advisory, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms
 		FROM tb_terms t JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s
 		ORDER BY c.id, t.text
@@ -1174,9 +1187,9 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	var results []fw.LocaleTerm
 	for rows.Next() {
 		var cID, domain, definition, text, loc, status, pos, gender, note, tags, forms string
-		var doNotTranslate, advisory bool
+		var doNotTranslate, advisory, competitor bool
 		var validFrom, validTo sql.NullTime
-		if err := rows.Scan(&cID, &domain, &definition, &doNotTranslate, &advisory, &text, &loc, &status, &pos, &gender, &note, &validFrom, &validTo, &tags, &forms); err != nil {
+		if err := rows.Scan(&cID, &domain, &definition, &doNotTranslate, &advisory, &text, &loc, &status, &pos, &gender, &note, &competitor, &validFrom, &validTo, &tags, &forms); err != nil {
 			continue
 		}
 		// A malformed forms column keeps the term, unexpanded: dropping the row
@@ -1185,14 +1198,15 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 		results = append(results, fw.LocaleTerm{
 			Concept: fw.Concept{ID: cID, Domain: domain, Definition: definition, DoNotTranslate: doNotTranslate, Advisory: advisory},
 			Term: fw.Term{
-				Text:         text,
-				Locale:       model.LocaleID(loc),
-				Status:       model.TermStatus(status),
-				PartOfSpeech: pos,
-				Gender:       gender,
-				Note:         note,
-				Validity:     pgValidityFromColumns(validFrom, validTo, tags),
-				Forms:        formList,
+				Text:           text,
+				Locale:         model.LocaleID(loc),
+				Status:         model.TermStatus(status),
+				PartOfSpeech:   pos,
+				Gender:         gender,
+				Note:           note,
+				CompetitorTerm: competitor,
+				Validity:       pgValidityFromColumns(validFrom, validTo, tags),
+				Forms:          formList,
 			},
 		})
 	}
