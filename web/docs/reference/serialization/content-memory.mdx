@@ -59,7 +59,7 @@ file's extension.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `schemaVersion` | string | `MAJOR.MINOR`. A reader rejects an unknown major and accepts unknown minors of a known major. |
-| `kind` | string | Always `kapi-memory`. Also the sniffing marker used to detect the format by content. |
+| `kind` | string | Always `kapi-memory`. Also the sniffing marker that identifies the format by content. |
 | `created` | string | RFC 3339. Optional. |
 | `generator` | object | `{id, version}`, the tool that produced the file. Optional. |
 | `entries` | array | The content-memory entries. Always present. |

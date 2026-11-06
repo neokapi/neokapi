@@ -86,7 +86,7 @@ by section. See [Prompts](/framework/prompts).
 [Content memory](/framework/content-memory) reaches the prompt in one bounded
 way. Fuzzy and exact matches are applied by `recycle`, a deterministic step that
 runs before translation and fills what it can; they are never offered to the
-model as examples. A block's own previously approved translation is different:
+model as examples. A block's own last approved translation is different:
 when a block has been edited since it was last translated, `translate` sends
 that prior version as reference under `reuse: prior` (the default), gated by the
 governing context, so the model revises that earlier version. `reuse: none`

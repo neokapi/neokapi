@@ -1,7 +1,7 @@
 ---
 sidebar_position: 10
 title: Content memory
-description: "Content memory is neokapi's store of previously settled content. It holds multilingual entries as Run sequences with inline markup, matches them in three tiers (plain, structural, and source-entity) so high-quality matches are returned first, and hands a block's previously approved translation to the translate step as governed reference."
+description: "Content memory is neokapi's store of already settled content. It holds multilingual entries as Run sequences with inline markup, matches them in three tiers (plain, structural, and source-entity) so high-quality matches are returned first, and hands a block's previously approved translation to the translate step as governed reference."
 keywords: [content memory, reuse, leverage, fuzzy matching, runs, inline markup, SQLite]
 ---
 
@@ -143,7 +143,7 @@ they are on the paths that run without a translate step.
 
 Recycle answers by *source text*: the same sentence, or one close to it, gets
 the same translation. The translate step asks a second question by *block*: what
-was the previously approved translation of this block, before its source was
+was the last approved translation of this block, before its source was
 edited? The answer goes into the prompt as reference, so the model redrafts
 from wording a person already accepted.
 

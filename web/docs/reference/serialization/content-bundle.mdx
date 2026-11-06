@@ -163,7 +163,7 @@ A `Document` is one source file's worth of extracted content.
 | `documentType` | string   | yes      | Source format discriminator. Both implementations define `"jsx"`.         |
 | `path`         | string   | yes      | Path of the source file the content was extracted from.                   |
 | `sourceHash`   | string   | no       | Content hash of the original source file. Omitted when empty.             |
-| `skeleton`     | Skeleton | no       | Reference to the opaque skeleton used to reconstruct the source on merge. |
+| `skeleton`     | Skeleton | no       | Reference to the opaque skeleton that reconstructs the source on merge. |
 | `blocks`       | Block[]  | yes      | The translatable blocks extracted from this document.                      |
 
 ### Skeleton
@@ -211,7 +211,7 @@ Provenance metadata describing where the block was extracted from.
 
 ### BlockPreviewHints
 
-Hints used to render a representative preview of a block.
+Hints for rendering a representative preview of a block.
 
 | Field          | Type                   | Description                                                                     |
 | -------------- | ---------------------- | ------------------------------------------------------------------------------- |

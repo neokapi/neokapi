@@ -260,7 +260,7 @@ kapi translate messages.json --target-lang fr --context neighbours
 
 A third piece of reference material comes from the content memory. When a block
 has been edited since it was last translated, `translate` sends the block's own
-previously approved translation alongside the new source (`reuse: prior`, the
+last approved translation alongside the new source (`reuse: prior`, the
 default), so the model revises a settled rendering.
 The prior version is offered only when the governing context (voice profile,
 term rules) is the one it was approved under; `reuse: none` turns it off.

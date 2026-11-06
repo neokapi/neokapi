@@ -52,7 +52,7 @@ make up the [content model](/framework/content-model).
 
 | Term | Definition | Covered in |
 | --- | --- | --- |
-| **Content memory** | A store of previously settled content: source segments paired with the targets produced for them, matched exactly or fuzzily to reuse past work. | [Content memory](/framework/content-memory) |
+| **Content memory** | A store of already settled content: source segments paired with the targets produced for them, matched exactly or fuzzily to reuse past work. | [Content memory](/framework/content-memory) |
 | **Terms store** | A store of approved terminology that keeps term renderings consistent. | [Terminology](/framework/terminology) |
 | **Voice profile** | The tone, style measures and pattern rules content is checked and produced against (`core/profile`). Word rules are terms. | [Voice](/framework/checks/voice) |
 | **Point** (coordinates) | Where a piece of content sits in a project's context space, on axes such as brand and product. A voice profile, a terms store and gates are bound at a point, and all content at that point follows them. | [Projects](/kapi/projects) |
