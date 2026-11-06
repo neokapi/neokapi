@@ -10,14 +10,15 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Your first project
 
+At the end of this page, one word is spelled one way across a folder of
+documents, and every edit is checked against that rule. The rule is kept once,
+and Kapi Desktop, your assistant and the CLI all enforce it.
+
 A project is a committed recipe (`kapi.yaml`) that says which files count as
 content, plus the wiring that lets the coding agents in your repository reach
-kapi. The desktop app, your assistant and the CLI all work on the same project.
-
-Your first project has one language. This page takes a folder from its first
-`kapi init` to a rule that `kapi check` enforces: open the folder, see what
-kapi finds, decide what becomes a rule, check and fix, put an assistant on it,
-and share the rules. Languages are a later step.
+kapi. Your first project has one language. You open the folder, see what kapi
+finds, decide what becomes a rule, check and fix the files, put an assistant on
+the project and share the rules. Languages are a later step.
 
 The examples come from `acme-docs`, a git repository with a `README.md` and
 five Markdown files under `docs/`. Two of its blocks use *e-mail* where the
@@ -152,16 +153,17 @@ Files
 Decide with `kapi rules`. See a file with `kapi look <path>`.
 ```
 
-A new project has no rules, so the first look files what kapi sees in the
-files as suggestions, with no model. Here the files write *email* five times
+A new project has no rules, so the first look records what kapi sees in the
+files as suggestions. It uses no model for this. Here the files write *email* five times
 and *e-mail* twice. The two findings are the uses of *e-mail*, reported against
 the suggestion and failing nothing. `kapi look docs/guide.md` prints that
-file's blocks with each finding marked under the words it is about.
+file's blocks with each finding marked under the words it is about. In Kapi
+Desktop, the project's **Map** shows the same view.
 
 ## 3. Decide what becomes a rule
 
 `kapi rules` asks about each suggestion, with the evidence and what keeping it
-does:
+does. In Kapi Desktop, **Decide** asks the same questions:
 
 ```text
 $ kapi rules
@@ -217,7 +219,7 @@ Error: quality gate failed
 The `Context:` line names the voice profile that applies and whether terms were
 loaded. `kapi check` with no path checks the whole project, and
 `kapi check --ship` enforces the release policy. Both exit `3` when a finding
-fails, which is what makes the check a CI step: see
+fails, so you can run the check as a CI step: see
 [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 ## 5. Fix
@@ -232,7 +234,8 @@ $ kapi fix
 kapi check: no failing findings
 ```
 
-Every byte outside the replaced words stays as it was. `kapi fix --dry-run`
+Every byte outside the replaced words stays as it was. In Kapi Desktop, **Fix**
+on a finding in the **Reader** applies the same replacement. `kapi fix --dry-run`
 prints the change each file would get and writes nothing. A finding about tone
 or style, or one over words that hold a link or a placeholder, has no automatic
 fix, and `kapi fix` lists it as needing a rewrite.

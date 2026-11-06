@@ -6,10 +6,14 @@ keywords: [kapi, claude, claude code, claude subscription, kapi connect, agent s
 
 # Use with Claude
 
-Run `kapi connect` in the project's folder to put Claude, or another assistant,
-on the project. The sections below say what it writes and why, then how to set
-the same up by hand. In the other direction, kapi can run Claude through your
-Claude Code sign-in; see [Let kapi run Claude](#let-kapi-run-claude).
+An assistant connected to a kapi project writes to the project's rules. It
+reads the terms and voice that apply to a file before it writes, checks each
+file it changes, and notes what it sees for a person to decide about. Connect
+one with **Connect** on the **Assistants** page in Kapi Desktop, or run
+`kapi connect` in the project's folder. Both write the same files.
+
+kapi can also run Claude itself, through your Claude Code sign-in; see
+[Let kapi run Claude](#let-kapi-run-claude).
 
 ## Connect an assistant
 
@@ -47,13 +51,13 @@ recipe gets the one `kapi init` writes. A second run keeps every file as it is.
 - `kapi connect --json` gives the assistants and the files as data.
 
 `kapi init` writes the same files when it creates a project, so a project made
-with `kapi init` is already connected to Claude Code. Running `kapi connect` is
-how a project created earlier gets the current wiring.
+with `kapi init` is already connected to Claude Code. Run `kapi connect` in a
+project an earlier kapi created to bring its wiring up to date.
 
-## What it wrote, and why
+## When the assistant reads the rules
 
-An assistant on a kapi project meets the rules at three points: as it starts,
-before it writes, and after it edits.
+An assistant on a kapi project meets the rules as it starts, before it writes
+and after it edits.
 
 **As it starts**, it reads the Writing rules section of `CLAUDE.md`, the file
 Claude Code reads, or of `AGENTS.md`, which most other agents read: the voice,
@@ -116,8 +120,8 @@ kapi init --agents none                 # write no agent configuration
 
 `kapi init --no-rules-files` leaves out the rules files.
 
-Everything it writes is inside the project, and the MCP entry holds a command
-and nothing else: no shell, no environment, no credential. An entry called
+Everything it writes is inside the project. The MCP entry holds a command
+only, with no shell, environment or credential. An entry called
 `kapi` that you wrote or changed is left exactly as it is. An entry exactly as
 kapi wrote it follows the recipe, so after you add target languages, running
 `kapi connect` again adds the translation tools. A skill directory an earlier
@@ -186,7 +190,7 @@ Your client launches `kapi mcp` as a stdio subprocess. Claude Code and Cursor re
 }
 ```
 
-`--project` names the project the server answers for, so it binds yours rather than whichever project sits above the directory your client started it in. The writing tools include `read_blocks`, `apply_edits` and `describe_format`, which read a file's blocks, write edits back with the file's structure and inline codes kept, and say what a format supports. For a project that declares target languages, `kapi connect` and `kapi init` add `"--tools", "writing,translation"` to the arguments, so the agent also gets the translation tools beside the writing ones.
+`--project` names the project the server answers for. Without it, the server binds whichever project sits above the directory your client started it in. The writing tools include `read_blocks`, `apply_edits` and `describe_format`, which read a file's blocks, write edits back with the file's structure and inline codes kept, and say what a format supports. For a project that declares target languages, `kapi connect` and `kapi init` add `"--tools", "writing,translation"` to the arguments, so the agent also gets the translation tools beside the writing ones.
 
 See [MCP server](/reference/mcp) for every client's configuration and the full tool list.
 
@@ -194,18 +198,18 @@ See [MCP server](/reference/mcp) for every client's configuration and the full t
 
 ### The hook decision protocol {#the-hook-decision-protocol}
 
-A kapi hook states its verdict as JSON on stdout and always exits `0`. The verdict travels on stdout rather than in the exit code: Claude Code reads a non-zero exit as a *broken hook*, so a denial carried that way would be downgraded to a hook error rather than enforced. `kapi check --ship` keeps its own gate exit code (`3`) when you run it yourself; the hook drives that gate without replacing it.
+A kapi hook states its verdict as JSON on stdout and always exits `0`. Claude Code reads a non-zero exit as a *broken hook*, so a denial sent as an exit code would count as a hook error and not be enforced. `kapi check --ship` keeps its own gate exit code (`3`) when you run it yourself; the hook drives that gate without replacing it.
 
 | What the hook found | On stdout | What happens |
 |---|---|---|
 | The edited file has a failing finding | `{"decision":"block","reason":"…"}` (PostToolUse) | The edit stands. Claude reads the `reason` beside the edit's result: one line per finding, the fix when the rule names one, and the `kapi check <file>` command to run. |
 | A gate fails / the file is a generated target | `{"decision":"block","reason":"…"}` (Stop) · `{"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"…"}}` (PreToolUse) | Claude keeps working, or the edit is refused. The `reason` names the findings, or the source and locale to change instead. |
 | Nothing to report (the file or the gates pass, the file is not generated or not read by the project, or there is no kapi project) | nothing | The operation proceeds. |
-| **The guard could not run at all** | `{"systemMessage":"…"}` plus the same warning on stderr, naming the hook | The operation proceeds: kapi hooks fail open, so a broken guard never blocks work. But the bypass is stated, because a guard that never ran must not look like a guard that passed. |
+| **The guard could not run at all** | `{"systemMessage":"…"}` plus the same warning on stderr, naming the hook | The operation proceeds: kapi hooks fail open, so a broken guard never blocks work. The notice states the bypass, so you can tell a guard that never ran from one that passed. |
 
 An unreadable, empty, or malformed hook payload; a session directory kapi cannot enter; a recipe that will not load because it needs a plugin you have not installed: each of those leaves the guard installed but inert. The notice says which hook, and what stopped it.
 
-The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and report the bypass.
+The JSON shapes are Claude Code's, and Claude Code versions its own hook schema. kapi adds no version of its own. The policy in the table stays fixed: a hook fails open and reports the bypass.
 
 ## Let kapi run Claude
 
@@ -221,7 +225,9 @@ kapi models setup     # detects the Claude Code CLI ("uses your Claude subscript
 | **An API key** (Anthropic, OpenAI, Gemini) | `kapi models setup` finds keys already in your environment, or stores one in the OS keychain, and verifies it with a test call. |
 | **Nothing, or offline** | A local model via [`kapi models ollama`](/kapi/recipes/choose-a-translation-provider), or Kapi Desktop's demo engine (illustrative output, no AI). |
 
-Setup verifies the choice with a small test call and writes the default provider to the global config, shared with Kapi Desktop, whose first-open **Connect your AI** card offers the same detected sign-in as a one-click button. `kapi models list` shows it under *Detected*, alongside Ollama models and any cloud keys. Subscription use is window-limited: a heavy run that exhausts your Claude usage window holds back the remainder and reports when it resumes ("Claude subscription limit reached; resumes ~7pm"); the next `kapi up` picks up exactly the blocks still pending. For uninterrupted or CI runs use an API key instead: subscription auth is bound to your personal sign-in and its usage window, so **CI should always use a key** (a provider env var, or `kapi credentials add`). See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+Setup verifies the choice with a small test call and writes the default provider to the global config, shared with Kapi Desktop, whose first-open **Connect your AI** card offers the same detected sign-in as a one-click button. `kapi models list` shows it under *Detected*, alongside Ollama models and any cloud keys.
+
+Subscription use is limited by your Claude usage window. A heavy run that uses up the window holds back the remainder and reports when it resumes ("Claude subscription limit reached; resumes ~7pm"). The next `kapi up` picks up exactly the blocks still pending. For uninterrupted runs, use an API key. Subscription auth is bound to your personal sign-in and its usage window, so **CI should always use a key** (a provider env var, or `kapi credentials add`). See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 ## Next
 

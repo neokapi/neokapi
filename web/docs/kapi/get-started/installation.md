@@ -13,8 +13,7 @@ neokapi ships two artifacts you can install independently:
   default and operates directly on your files;
 - **Kapi Desktop**, the visual companion app, which bundles the CLI.
 
-The two sections below cover each. If you only want the command line, you need
-the first section alone.
+If you only want the command line, the first section below is all you need.
 
 ## Install the Kapi CLI
 
@@ -96,8 +95,8 @@ kapi models setup
 Setup detects the AI options on your machine: the Claude Code CLI (uses your
 Claude subscription, no API key), a running Ollama server, and API keys already
 in your environment. It then verifies your pick with a small test call and saves
-it as the default, shared with Kapi Desktop. Usually that's one confirm, not a
-key paste. To store a key explicitly (or in CI, where a key is the right
+it as the default, shared with Kapi Desktop. Usually you confirm once and paste
+no key. To store a key explicitly (or in CI, where a key is the right
 choice), use `kapi credentials add <name> --provider <p> --api-key …`. Keys
 live in your OS keychain. See [Use with Claude](/kapi/get-started/use-with-claude)
 for the subscription option and
@@ -141,13 +140,12 @@ Direct downloads for **Kapi Desktop 1.3.0-rc10**:
 ## Beta channel
 
 The **beta channel** is a fast ring: it receives release candidates *and* every
-stable release, so a beta install is never behind stable and gets things
-sooner. It is an opt-in early-adopter ring, shipped as separate Homebrew
-packages.
+stable release, so a beta install is never behind stable and gets changes
+sooner. You opt in by installing separate Homebrew packages.
 
 Beta and stable install the same `kapi` binary (and the same app), so they are
-**mutually exclusive**: you switch channels rather than run both side by side.
-Trying to install one while the other is present is rejected by Homebrew.
+**mutually exclusive**: you switch from one channel to the other. Homebrew
+refuses to install one while the other is present.
 
 A fresh beta install is `brew install --cask neokapi/tap/kapi@beta`, or
 `brew install neokapi/tap/kapi-cli-beta` for the CLI alone; the steps below are
@@ -167,7 +165,7 @@ brew install --cask neokapi/tap/kapi@beta
 For the CLI only, skip the cask: `brew install neokapi/tap/kapi-cli-beta`.
 `kapi-pdfium` is a shared dependency with no beta variant, so leave it installed.
 
-A beta build is clearly marked: `kapi version` prints a `(beta)` badge, and the
+A beta build is marked: `kapi version` prints a `(beta)` badge, and the
 desktop window title reads **Kapi (Beta)**. For direct downloads, beta builds are
 the assets attached to the **Pre-release** entries on the
 [Releases](https://github.com/neokapi/neokapi/releases) page.
