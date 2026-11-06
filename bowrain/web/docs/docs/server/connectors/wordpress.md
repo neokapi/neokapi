@@ -28,7 +28,7 @@ endpoint.
 | Direction | Content |
 | --------- | ------- |
 | Fetch (in) | For each post: the title, the content body, and the excerpt (when the post has one). Content is read from the REST API's rendered fields and treated as HTML. |
-| Publish (out) | The title, content, and excerpt fields of a post that was previously fetched. |
+| Publish (out) | The title, content, and excerpt fields of a post the connector has fetched. |
 
 The connector reads posts only. Pages, custom post types, taxonomies, media,
 and custom fields are not included.

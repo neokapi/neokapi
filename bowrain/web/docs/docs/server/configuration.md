@@ -67,7 +67,7 @@ All Bowrain variables use the `BOWRAIN_` prefix; a few external integrations
 | `BOWRAIN_OIDC_CLIENT_ID` | _(empty)_ | OIDC OAuth client ID |
 | `BOWRAIN_OIDC_CLIENT_SECRET` | _(empty)_ | OIDC OAuth client secret |
 
-The Keycloak admin API (used to write back email changes initiated from the UI)
+The Keycloak admin API (which writes back email changes initiated from the UI)
 and the admin control plane are optional:
 
 | Variable | Description |
@@ -97,7 +97,7 @@ cookies are marked `Secure`.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `BOWRAIN_APP_PUBLIC_URL` | _(empty)_ | This application's browser-facing origin (for example `https://app.bowrain.cloud`). Used to build the CORS and WebSocket origin allowlists |
+| `BOWRAIN_APP_PUBLIC_URL` | _(empty)_ | This application's browser-facing origin (for example `https://app.bowrain.cloud`). The server builds the CORS and WebSocket origin allowlists from it |
 | `BOWRAIN_PUBLIC_SITE_URL` | _(empty)_ | Marketing landing origin, allowed one credentialed cross-origin read (`GET /api/v1/auth/whoami`) so the landing can render a signed-in link |
 | `BOWRAIN_FORCE_SECURE_COOKIES` | `true`, or `false` in development | Marks session cookies `Secure` regardless of the request scheme |
 | `BOWRAIN_ALLOW_INSECURE_DEV` | `false` | Marks the process a development instance. Also relaxes startup configuration checks and enables direct device approval |

@@ -13,7 +13,7 @@ Bowrain runs as a **server** your team connects to. Use the hosted service at
 
 Most routes into a workspace need **nothing installed**: content in a content
 platform, a design tool, or a repository connects server-side; see
-[Connectors](/server/connectors). This page covers the pieces you do install:
+[Connectors](/server/connectors). You install these pieces yourself:
 the desktop app, and the kapi CLI for the [developer
 route](/server/connectors/kapi).
 

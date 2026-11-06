@@ -7,7 +7,7 @@ title: plugins
 
 Manage plugins and bundles that add formats and tools. Plugins are a
 [neokapi engine](https://neokapi.github.io/) feature shared by every
-kapi installation; this page covers what a Bowrain user typically needs. For
+kapi installation. The sections below cover what a Bowrain user typically needs. For
 the full command surface and the plugin model, see the neokapi reference:
 
 - [`kapi plugin` command reference](https://neokapi.github.io/reference/commands/plugin)

@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting
 sidebar_position: 21
-description: Practical fixes for the problems that actually come up. Sync conflicts, exhausted AI credits, connector failures, the desktop offline queue, sign-in, and automation logs.
+description: Fixes for the problems that come up in normal use, from sync conflicts and exhausted AI credits to connector failures, the desktop offline queue, sign-in and automation logs.
 ---
 
 # Troubleshooting

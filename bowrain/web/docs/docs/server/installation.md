@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Installation
-description: Install Bowrain Server as several cooperating services (the server, worker, database, and job queue) rather than a single binary.
+description: Install Bowrain Server as several cooperating services, the server, worker, database and job queue, for local evaluation or from source.
 ---
 
 # Installing Bowrain Server

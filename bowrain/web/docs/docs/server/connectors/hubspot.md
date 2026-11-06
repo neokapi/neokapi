@@ -28,7 +28,7 @@ The connector works against HubSpot CMS site pages through the
 | Direction | Content |
 | --------- | ------- |
 | Fetch (in) | For each site page: the HTML title, and the meta description (when the page has one). |
-| Publish (out) | The HTML title and meta description of a previously fetched page. |
+| Publish (out) | The HTML title and meta description of a page the connector has fetched. |
 
 The connector reads the page title and meta description only. Page body
 content, modules, blog posts, emails, and landing pages are not included.
