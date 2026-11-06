@@ -45,8 +45,8 @@ kapi in one install.
 kapi plugin install okapi-bridge
 ```
 
-Once installed, the additional formats appear in `kapi formats`. Rather than
-quoting a fixed number, list what your installation provides:
+Once installed, the additional formats appear in `kapi formats`. To see what
+your installation provides:
 
 ```bash
 kapi formats

@@ -7,8 +7,9 @@ sidebar_position: 2
 
 Show where the project stands: per-scope coverage against the ship gates and,
 on a connected project, the server delta and the venue `kapi up` would run on.
-`kapi status` always exits `0`; a locale that is behind is pending work rather
-than an error.
+The same coverage and ship states appear on the project dashboard in the
+browser. `kapi status` always exits `0`, because a locale that is behind is
+pending work.
 
 ## Usage
 
@@ -23,16 +24,16 @@ kapi status [flags]
 One row per scope, a locale or a `locale/collection` pair, with the number of
 blocks, one column per rung of the target ladder (the share of blocks that have
 reached drafting, translation, review), a pipeline bar showing distance to the
-bar, and a **ship** column. Ship is a verdict rather than a percentage: it
-reads the ship state, `approved` (a person approved the content) or
-`translated` (translated with its checks green), when the scope clears its
-gate, `blocked: <rung>` naming the first unmet gate so it points at the work,
-or `not gated` when no gate matches the scope.
+bar, and a **ship** column. The ship column shows a verdict:
 
-Under the grid, two basis lines report what a percentage cannot: how many
-translations carry a decision made against content that has since changed, and how
-many have never been judged. A project that names no target language reports
-itself as monolingual rather than as empty.
+- `approved` (a person approved the content) or `translated` (translated with
+  its checks green) when the scope clears its gate;
+- `blocked: <rung>`, naming the first unmet gate, so it points at the work;
+- `not gated` when no gate matches the scope.
+
+Under the grid, two lines report how many translations carry a decision made
+against content that has since changed, and how many nobody has judged yet. A
+project that names no target language reports itself as monolingual.
 
 ### The server section
 
@@ -45,9 +46,9 @@ two more lines:
 - **terms**: when the workspace's governed terms were last snapshotted into the
   local terms store (concept and relation counts), or `never synced` when no
   concept pull has run; refresh with `kapi pull --concepts`.
-- **governance**: where this project's declared points, channels and voice
-  stand against the workspace's, so a divergence is visible before a push
-  raises it.
+- **governance**: how this project's declared points, channels and voice
+  compare with the workspace's, so you see a divergence before a push reports
+  it.
 
 ### The venue
 

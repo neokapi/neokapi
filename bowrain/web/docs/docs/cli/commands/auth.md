@@ -75,8 +75,8 @@ kapi auth logout
 
 Claim an anonymous project into your workspace. A project created with
 `kapi init --anonymous` or `--email` carries a claim token; once you are
-signed in, claiming it transfers the project into your personal workspace on
-the server, preserving its files and their results:
+signed in, claiming it moves the project into your personal workspace on the
+server, with its files and their results:
 
 ```bash
 kapi auth claim               # uses the claim token stored with the project
@@ -104,8 +104,8 @@ pairs it with `BOWRAIN_SERVER_URL` on a self-hosted server. See
 
 The login flow uses the [OAuth 2.0 Device Authorization Grant](https://www.rfc-editor.org/rfc/rfc8628)
 (RFC 8628), the same flow used by tools like `gh auth login` and `gcloud auth login`.
-This works in headless environments (SSH sessions, CI containers) where a browser
-redirect is not available.
+It works in headless environments, such as SSH sessions and CI containers,
+where a browser redirect is unavailable.
 
 1. CLI requests a device code from the server
 2. User opens the verification URL in any browser and enters the code
