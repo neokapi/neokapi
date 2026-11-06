@@ -10,9 +10,10 @@ import { ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
 # Review
 
 Review is the promote step of [catching content up](/the-loop). A run drafts
-and checks, and **holds back for review** what a machine cannot decide; a
-person promotes it here. Every decision is recorded against the workspace, feeds the
-[context graph](/server/context), and decides what a locale can ship as.
+and checks content, and **holds back for review** what a machine cannot
+decide. A person approves it here. Bowrain records every decision against the
+workspace and adds it to the [context graph](/server/context), and the
+decisions set what each locale can ship as.
 
 <ThemedVideo
   sources={{
@@ -24,24 +25,23 @@ person promotes it here. Every decision is recorded against the workspace, feeds
 
 ## The review session
 
-A project has one review surface: the **review session**. It is a dedicated
-page rather than a mode of the editor, and every entry point that says
-"review", whether a run's hand-off, a dashboard card, or a file's own review
-link, opens it.
+A project has one place for review: the **review session**. It is a page of
+its own, separate from the editor. Every link labelled "review" opens it: a
+run's hand-off, a dashboard card and a file's own review link.
 
-The session walks every pending block across the project's items and locales
-in one keyboard-first flow. Each step shows the source beside the draft, the
-checks that fired on it, the voice findings, and the terms in force at the
-block's point. A collection can be carried into the session from the project
-overview, so a reviewer who owns the help centre reviews only the help centre;
-item and locale filters narrow the queue further.
+The session lists every pending block across the project's items and locales,
+and you work through it from the keyboard. Each step shows the source beside
+the draft, the checks that fired on it, the voice findings and the terms in
+force at the block's point. You can open the session for one collection from
+the project overview, so a reviewer who owns the help centre sees only the help
+centre. Item and locale filters narrow the queue further.
 
 For each block:
 
 - **Approve** marks the target approved for that locale. It needs the `review`
   permission for that language, which the built-in **Reviewer** template
-  carries; a translator can edit and reject, but not approve. There is one
-  such rung: a workspace that wants two reviewers states it as a policy on how
+  carries. A translator can edit and reject, and cannot approve. There is one
+  approval rung. A workspace that wants two reviewers sets a policy for how
   many person signals approve a translation.
 - **Reject** sends it back to draft for another pass.
 - **Edit** fixes the draft in place. A fix is a correction made at a point, and
@@ -51,107 +51,105 @@ For each block:
 An assistant connected to the server's MCP endpoint can pre-review a
 translation: it gives the translation a score from 0 to 100 with its reasons.
 The queue row shows the score, and the block's checks show the score, the
-assistant's name and the reasons. A pre-review decides nothing, so the block
-stays in the queue for a person. It describes the wording the assistant read,
-and once someone changes the translation the session stops showing it.
+assistant's name and the reasons. The block stays in the queue for a person to
+decide. A pre-review applies to the wording the assistant read, so the session
+hides it once someone changes the translation.
 
 Review status is tracked **per locale**. A block's status is a property of each
 target, so approving the French target never changes the German one, and a
 reviewer scoped to French can approve only French.
 
 A decision applies to the wording you read. If someone changed the translation
-after you opened it, nothing is recorded: the session shows the translation as
-it now stands and asks whether to make the same decision on that version or
-leave it as it is. If the translation was removed, there is nothing left to
-decide on and the session only says so. A correction you save meets the same
-check, and the project's checks too: when they find a problem in your wording,
-the session lists it and asks whether to change the wording or save it anyway.
+after you opened it, Bowrain records nothing. The session shows the current
+translation and asks whether to make the same decision on it or leave it. If
+the translation was removed, the session tells you so. A correction you save
+gets the same check, and the project's checks run on it too. When they find a
+problem in your wording, the session lists it and asks whether to change the
+wording or save it anyway.
 
 ### Correct the context from the session
 
-Some of what a reviewer notices is about the rules rather than the draft. Three
-actions in the session act on the context instead of the block:
+Sometimes the problem is in the rules, not the draft. These actions in the
+session change the context instead of the block:
 
 - **Mark a source term.** Records that a word in the source is a term, with the
   status it should carry. Setting a governed status such as `forbidden` or
-  `preferred` opens a [change-set](/server/context#experiments-change-sets-and-pilots)
-  rather than applying directly, so someone other than the author approves it.
-- **Propose a source change.** A fix that belongs in the source, not in one
-  target, is routed to the source owner as a proposal. It invalidates every
-  locale of that block once accepted, and the proposal shows that reach before
-  anyone accepts it.
+  `preferred` opens a [change-set](/server/context#experiments-change-sets-and-pilots),
+  and someone other than the author approves it.
+- **Propose a source change.** A fix that belongs in the source goes to the
+  source owner as a proposal. Once accepted, it invalidates every locale of
+  that block, and the proposal shows how many before anyone accepts it.
 - **Suggest a voice rule.** A recurring fix becomes a candidate rule for the
   voice profile in force at the point, reviewed on the
   [Context hub's Voice section](/server/context-voice).
 
 ### Bulk approval
 
-A workspace with one reviewer and many drafts does not need to click through
-every block. **Approve everything passing** approves every pending block whose
-checks report no error-severity finding and whose voice score meets the
-profile's compliance bar. Blocks that fail a check or fall below the bar are
-left pending for a person. The same predicate decides a locale's ship state
-below, so what bulk approval accepts is exactly what was already shippable on
-machine review. The response names each bar that left a target pending,
-including the targets the caller wrote themselves in a workspace that blocks
-self-approval.
+**Approve everything passing** approves every pending block whose checks
+report no error-severity finding and whose voice score meets the profile's
+compliance bar. Blocks that fail a check or fall below the bar stay pending for
+a person. A locale's [ship state](#ship-states) uses the same test, so bulk
+approval accepts exactly what was already shippable on machine review. The
+response names each bar that left a target pending. In a workspace that blocks
+self-approval, that includes targets you wrote yourself.
 
 ### Machine authorship
 
-A draft a run produced carries no human author, because a run writes it with
-nobody acting. Separation of duties (see
+A draft a run produced has no human author. Separation of duties (see
 [Members and roles](/server/members-and-roles#governance-controls)) stops a
-person from approving a translation they wrote by hand, and leaves the one
-person in a small workspace free to approve what the machine wrote. It applies
-to every way of promoting a target: block by block, over a selection, through
-**Approve everything passing**, and to decisions pushed from a working copy.
+person from approving a translation they wrote by hand. The one person in a
+small workspace can still approve what a run wrote. The rule covers every way
+of approving a target: block by block, over a selection, through **Approve
+everything passing**, and decisions pushed from a working copy.
 
-A decision that arrives by [`kapi push`](/cli/commands/push) is held to the same
-review permission and the same separation-of-duties policy as one made here, and
-the push reports the approvals the workspace did not accept. The
-content lands either way, as a translation awaiting review.
+Decisions made in a working copy reach the workspace by
+[`kapi push`](/cli/commands/push). They need the same review permission and
+follow the same separation-of-duties policy as decisions made here. The push
+reports any approval the workspace did not accept, and the content arrives as
+a translation awaiting review.
 
-Taking an approved translation back is review-level work here, and it is by
-push as well. A push that lowers an approved target without changing its
-translation lands only from someone who holds review permission for that
-language; otherwise the translation stays approved and the push reports the
-demotion it did not apply. An edited translation drops to awaiting review on
-either route, because the decision judged the wording it was given.
+Withdrawing an approval needs review permission here and by push alike. A push
+that lowers an approved target without changing its translation applies only
+from someone with review permission for that language. Otherwise the
+translation stays approved, and the push reports the change it did not apply.
+An edited translation drops to awaiting review on either route, because the
+approval covered the earlier wording.
 
-A rejection that arrives by push applies only to the translation it names. When
-that translation has since been replaced here, the translation held here keeps
-its rung and its record, and the push reports the rejection it did not apply.
+A rejection that arrives by push applies only to the translation it names. If
+that translation was replaced here in the meantime, the current translation
+keeps its rung and its record, and the push reports the rejection it did not
+apply.
 
 ### What an approval leaves behind
 
-Two records, written for every approval whichever route made it:
+Bowrain writes two records for every approval, whatever route it came by:
 
-- **A decision**, in the project's ledger, naming who decided, when, the exact
-  translation they blessed and the source they blessed it for, inline codes
-  included. That record travels to a working copy on `kapi pull`, and it is
-  what promotes the wording into the workspace
-  [content memory](/server/translation-memory). When either changes afterwards,
-  a link or another inline code included, the approval stops applying, here and
-  on a working copy alike, until someone decides the block again.
+- **A decision**, in the project's ledger. It names who decided, when, the
+  exact translation they approved and the source it was approved for, inline
+  codes included. A working copy receives it on `kapi pull`, and the decision
+  adds the wording to the workspace
+  [content memory](/server/translation-memory). If the translation or the
+  source changes afterwards, even by one link or inline code, the approval
+  stops applying, here and in every working copy, until someone decides the
+  block again.
 - **An audit entry**, in the workspace [audit log](/server/security-and-privacy#the-audit-log), naming
   the actor, the block, the locale, and the rungs the target moved between. A
   rejection and a withdrawn approval are recorded the same way, each
   under its own name. **Approve everything passing** records the pass and its
-  counts per language, because the pass is what the person decided; which
-  blocks it took is in the ledger.
+  counts per language, because the person decided on the pass as a whole. The
+  ledger lists the blocks it approved.
 
-### The reviewer is summoned
+### Notifying reviewers
 
-When a run leaves work waiting for review, the reviewer is told: a review task opens, an email goes
-out, and the app shows a banner and a badge sized to what is actually pending.
-The summons names the count and the locales, not the whole project.
+When a run leaves work waiting for review, Bowrain opens a review task, sends
+an email, and shows a banner and a badge in the app with the pending count. The
+notice names the count and the locales.
 
-### Approval continues the loop
+### After the last approval
 
 Approving the last pending block of a locale closes its review task. When that
-empties the project's whole review queue, a completing run starts on its own
-and delivers the approved content, so review never ends in a dead end that
-needs another click.
+empties the project's review queue, a completing run starts on its own and
+delivers the approved content.
 
 <PhaseFlow
   nodes={[
@@ -165,12 +163,11 @@ needs another click.
 
 ## Source review: the first worklist
 
-Target review is the second gate. The loop settles the source **before** it
-translates ([the loop is source-first](/the-loop)), so a run has an upstream
-worklist: **source review**. When a run finds source that has not cleared the
-project's `translate_after` level, it holds the fan-out for that content and routes it to
-a person instead of paying to translate an unsettled source into every
-language.
+Target review is the second gate. A run settles the source **before** it
+translates ([source first](/the-loop)), so there is an earlier worklist:
+**source review**. When a run finds source below the project's
+`translate_after` level, it holds translation for that content and sends it to
+a person. You pay to translate the source once it is settled.
 
 When a run holds on source:
 
@@ -178,14 +175,14 @@ When a run holds on source:
   are blocked on source. In the **Runs** view this reads as *Source not ready*:
   *N blocks need settling or source review before translating*. The run still
   exits without error.
-- The loop opens a **source review** task for a member with source-edit
+- The run opens a **source review** task for a member with source-edit
   permission. It is the same task queue as translate, review and the fix-up
   tasks, and appears on the task board and in *My Tasks*.
 
-A source reviewer works the same content on the **source** side: terms, do-not-
-translate marks, placeholders, and context, before the fan-out. Clearing the
-task lifts the affected source to the gate; the next run translates the
-now-approved content, memory first. A project that wants raw fan-out sets
+A source reviewer works on the **source** side of the same content: terms,
+do-not-translate marks, placeholders and context, before translation. Clearing
+the task lifts the affected source to the gate, and the next run translates the
+approved content, memory first. To translate without a source hold, set
 `translate_after: none`. The level is the recipe's `defaults.translate_after`,
 which every push carries to the server; see
 [Settings a push carries](/cli/project-model#settings-a-push-carries).
@@ -193,14 +190,14 @@ which every push carries to the server; see
 ## The review inbox
 
 The workspace-level **Review inbox** rolls up every project awaiting review,
-most-pending first, each linking into its own session. It reads the same
-project-scoped standing the dashboard shows, so pooled review and review
-assigned to a person are both visible, not only what is assigned to you.
+most-pending first, each linking into its own session. It shows the same
+project standing as the dashboard, so you see pooled review and review assigned
+to anyone, as well as your own.
 
 ## Ship states
 
-Review decides what a locale can ship as. Bowrain derives one **ship state** per
-locale, per project and per collection, from what the work left behind:
+Approvals set what a locale can ship as. Bowrain derives one **ship state** per
+locale, per project and per collection, from the state of the work:
 
 | State | Meaning |
 | --- | --- |
@@ -208,7 +205,7 @@ locale, per project and per collection, from what the work left behind:
 | `translated` | Every block translated, no failing check, and a terminology result wherever terms govern, but not every target approved. AI-shippable. |
 | `pending` | Anything less: partial coverage, a failing check, a stale decision, a turned-down translation, a block terms govern with no terminology result, or nothing to ship yet. |
 
-The rule is the same everywhere it is read. A locale is `pending` when any
+The same rule applies on every screen and in every command. A locale is `pending` when any
 block is untranslated, has an error-severity finding, carries a decision made
 against content that has since changed, or holds a translation a reviewer
 turned down. A block in a locale terms govern with no terminology result, such
@@ -220,23 +217,24 @@ each push ([Settings a push carries](/cli/project-model#settings-a-push-carries)
 so a language they name is governed here as it is in `kapi check --ship`.
 
 Otherwise the locale is `translated` while some targets await a person, and
-`established` once a person has approved every target. Whether terms govern the
-locale at all is reported beside the state. A voice score does not change the state: a block
-under the voice profile's bar is held out of bulk approval instead.
+`established` once a person has approved every target. The dashboard reports
+beside the state whether terms govern the locale. A voice score leaves the
+state unchanged. A block under the voice profile's bar is held out of bulk
+approval.
 
 The state appears on the project dashboard, per collection, in the Runs view's
 per-locale summary, and in the workspace loop rollup. It is also published at
 the delivery edge: `GET /api/v1/projects/:id/ship.json` serves a per-locale
 manifest a site's language picker can read to hide locales that are not
 shippable and to badge those that ship `translated`. The entry for a locale
-no terms govern adds `"not_governed": ["terms"]`, and that field is how a build
-tells a locale no terms govern apart from a governed one.
-The same manifest is what `kapi status --ship --emit ship.json` writes at build
-time, so a site built from a checkout and a site reading the server agree.
+no terms govern adds `"not_governed": ["terms"]`. A build reads that field to
+tell a locale without terms from a governed one.
+`kapi status --ship --emit ship.json` writes the same manifest at build time,
+so a site built from a checkout and a site reading the server agree.
 
-Set the bar where the content sits. A legal notice waits for a person to approve it
-(`established`); a help article may ship on checks (`translated`). The project's
-`ship_gate` and per-scope `ship_gates` in the recipe carry that decision (see
+Set the bar to suit the content. A legal notice waits for a person to approve
+it (`established`). A help article may ship on checks (`translated`). The
+recipe's `ship_gate` and per-scope `ship_gates` hold that setting (see
 [Project model](/cli/project-model)).
 
 ## Review in place
@@ -258,22 +256,22 @@ collections:
 
 `preview` names a host and how to find a view in it. A `storybook` host
 publishes an index that maps components to stories, so an item resolves to the
-stories of the components its blocks name. The offer to review in place appears
-on the page a reviewer opens a file from; the reviewer's own translations are
-pushed into the running page as they review. A collection with no `preview`
-block offers no in-place reading. The block is declared per collection because
-a repository publishes one host per surface it ships.
+stories of the components its blocks name. The page a reviewer opens a file
+from offers review in place, and the reviewer's translations appear in the
+running page as they work. In-place review needs a `preview` block on the
+collection. You declare it per collection because a repository publishes one
+host per surface it ships.
 
 ## Checks in review
 
-Checks run in the loop, and their findings travel with the block into the
-session: each finding carries a severity, a type, and a message, and a block
-with an error-severity finding cannot be approved in bulk. A reviewer can re-run
-the checks over a file from the session after editing.
+Checks run during each run, and their findings appear with the block in the
+session. Each finding has a severity, a type and a message. Bulk approval skips
+a block with an error-severity finding. A reviewer can re-run the checks over a
+file from the session after editing.
 
 ## Voice review
 
-Block review and voice review are different decisions. Promoting or rejecting a
+Reviewing a voice rule is a separate decision from reviewing a block. Promoting or rejecting a
 candidate rule, or a rule change bundled into a change-set, happens on the
 [Context hub's Voice section](/server/context-voice), by someone other than the
 rule's author.
