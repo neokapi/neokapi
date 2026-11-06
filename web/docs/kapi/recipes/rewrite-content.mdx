@@ -12,7 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Edit content in any format, faithfully
 
-**Goal:** edit the text inside a file without touching its structure (a Word document, a JSON catalog, a Markdown guide, or any other format kapi reads). The result is the same file (same keys, same styles, same inline codes) with only the prose changed. You (or your assistant) do the rewriting; kapi parses the format, enforces a faithful round-trip, and writes the result back. kapi never sends content to a model to rewrite it, and no project, provider, or credential is needed.
+**Goal:** edit the text inside a file without touching its structure (a Word document, a JSON catalog, a Markdown guide, or any other format kapi reads). The result is the same file (same keys, same styles, same inline codes) with only the prose changed. You (or your assistant) do the rewriting; kapi parses the format, enforces a faithful round-trip, and writes the result back. kapi sends no content to a model for the rewrite, and you need no project, provider or credential.
 
 <PendingMedia
   kind="video"
@@ -26,11 +26,10 @@ import { PendingMedia } from "@neokapi/docs-shared";
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-The desktop shows the blocks and verifies the result; the write itself is the CLI's or an assistant's `apply`.
-
 1. **Read the blocks.** Open the file in your project: **Blocks** lists each text block as the engine reads it; **Preview** shows the rendered document with the source ↔ target toggle.
-2. **Edit translated text in Review.** For target-language blocks the edit surface is the [Review queue](/kapi/recipes/review-and-approve): edit, then approve; the write lands through the same faithful round-trip.
-3. **Run source rewrites through `apply`.** Drive the inspect → `apply` loop from the CLI tab or a [connected assistant](/kapi/get-started/use-with-claude); then reopen **Preview** to see that headings, styles, and inline codes survived, and click **Run on everything** on the project's **Map** to confirm the gate.
+2. **Edit a block in place.** In **Preview**, click a block and choose **Edit**. Formatting and placeholders stay as chips you type around, and saving writes the file through its format, leaving every other byte as it was.
+3. **Edit translated text in Review.** For target-language blocks you can also edit in the [Review queue](/kapi/recipes/review-and-approve), then approve; the write goes through the same round-trip.
+4. **Rewrite many blocks at once with `apply`.** Drive the inspect → `apply` loop from the CLI tab or a [connected assistant](/kapi/get-started/use-with-claude). Then reopen **Preview** to see that headings, styles and inline codes are intact, and click **Run on everything** on the project's **Map** to confirm the gate.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -91,7 +90,7 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 
 `apply` writes a change set only when every operation in it holds. When one is refused, nothing in the change set is written, the refused operation names why, and the others report `not_applied`:
 
-- **`stale`**: the block's revision is no longer the `if_match` you sent; it changed since you read it. The result carries the current revision and text to rebase on.
+- **`stale`**: the block's revision differs from the `if_match` you sent; it changed since you read it. The result carries the current revision and text to rebase on.
 - **`guard`**: an edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token, or flat text in place of a block holding a plural or select. Edit one branch of a plural with the `path` that `inspect` lists under `structures`.
 - **`not_found`**: the reference names no document or block, or a `find` matches nothing; the block may have been removed or renamed since you read it.
 - **`unsupported`**: the block takes no edit, such as a Markdown code block, which `inspect` lists with no `ops`.
@@ -100,7 +99,7 @@ A refusal exits with code `3`, distinct from an operational error: read the affe
 
 ## What "faithfully" means
 
-Only the extracted prose changes; everything outside it (`.docx` character styles and table borders, JSON keys and non-string values, Markdown headings and fences) is reproduced byte for byte. This is what makes editing binary office formats (`.docx`, `.pptx`) safe; `kapi formats` marks such formats `faithful` in its Edit column.
+Only the extracted prose changes; everything outside it (`.docx` character styles and table borders, JSON keys and non-string values, Markdown headings and fences) is reproduced byte for byte. So you can edit binary office formats (`.docx`, `.pptx`) safely; `kapi formats` marks such formats `faithful` in its Edit column.
 
 ## In a project
 

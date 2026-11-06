@@ -28,7 +28,9 @@ and leave the rest of it alone.
 
 ## Ask what applies here {#what-applies-here}
 
-Point `kapi context` at a file before you write it. The answer is a short brief:
+Before you write a file, ask what applies to it: run `kapi context <path>`,
+open the file in **Ask** in Kapi Desktop, or let an assistant call
+`context_read` over MCP. The answer is a short brief:
 the voice to write in, one list of the words to use and to avoid there, and
 what has been suggested but not yet decided. A person can read it, and an
 assistant reads the same text.
@@ -72,7 +74,7 @@ kapi context cmd/main.go --comments
 A rule held for one part of the project says nothing about the rest, so the
 answer for a file where it does not hold names the wording that stays as it
 is. A rename kept for the help pages leaves the API reference with the old
-name, and the answer for a file there says so plainly:
+name, and the answer for a file there says so:
 
 ```text
 Keep as it is in this file:
@@ -103,7 +105,7 @@ a path, and the same text is a resource: `context://docs/billing.md`, with
 ## Search what the project says about a word
 
 The other question takes a word or a phrase and asks everything the project
-keeps:
+keeps. In Kapi Desktop, search for the word in **Ask**; on the command line:
 
 ```bash
 kapi context search "sign-in"
@@ -409,9 +411,8 @@ governance: profile "acme-relaunch" expired 2026-12-01; governing with the proje
 `kapi context search` labels each dated product `active`, `upcoming` or
 `expired`, so a writer can see that guidance has an end date before it lapses.
 
-A single term can carry the same dates, which is how a vocabulary survives a
-rename: _recognise the old name until March_ is a different instruction from
-_never use it_.
+A single term can carry the same dates. During a rename, a dated term can say
+_recognise the old name until March_, where an undated one says _never use it_.
 
 ### One more axis: language {#one-more-axis-language}
 
@@ -423,8 +424,8 @@ terms of `acme/docs` are the terms its German documentation uses.
 A language adds an override inside the voice profile, next to the channel
 overrides: a `locales:` entry carries the formality, the point of view, the
 cultural notes and the examples for that language. Terms carry their
-renderings per language. What you write for one language governs every other,
-and [convergence](/kapi/convergence) keeps the languages in step.
+renderings per language. The guidance you write for the source governs every
+language, and [the kapi loop](/kapi/convergence) keeps the languages in step.
 
 ## Sharing context
 

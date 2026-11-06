@@ -25,7 +25,7 @@ Choose a built-in starter pack and adapt it to your requirements: `professional-
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
-The fastest ten minutes: the assistant drafts from signal you already have:
+The assistant drafts the profile from copy you already have:
 
 ```text
 Draft a voice profile for us. Base the tone on our README and landing page, forbid the usual filler ("leverage", "seamless", "cutting-edge"), and use "sign in" not "log in". Bind it in the recipe.
@@ -69,7 +69,7 @@ From then on `kapi voice edit` is how you change it: the profile opens in `$VISU
 
 Treat the profile like a test suite: every real off-voice finding that reaches review becomes a rule. The [keep-source-on-brand loop](/kapi/recipes/keep-source-on-brand) shows the change-set shape that fixes a draft and adds the rule in one apply; [Content governance for AI](/kapi/recipes/content-governance-for-ai) is the standing model the profile slots into.
 
-Two additions earn their place once the rules are real:
+Two additions help once you have real rules:
 
 - **Forms.** The check matches a term exactly, so a rule about `utilize` misses
   `utilizes` until the term lists the other shapes the word takes.

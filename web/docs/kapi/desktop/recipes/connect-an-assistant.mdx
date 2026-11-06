@@ -6,6 +6,8 @@ description: "Connect Claude Code, Cursor, VS Code, Codex or Claude Desktop to a
 keywords: [Kapi Desktop, assistant, connect, MCP, Claude Code, Cursor, VS Code, Codex, Claude Desktop, rules files, AGENTS.md, CLAUDE.md, kapi connect, sessions]
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # Connect an assistant
 
 **Goal:** put the assistant you write with on a project, so it follows the
@@ -19,6 +21,14 @@ Open the project's **Context** hub and choose **Assistants**. The title names
 the project, and the line under it says what connecting does: the assistant's
 edits are checked, it follows the rules the project keeps, and it leaves its
 suggestions on this page.
+
+<ThemedImage
+  alt="The Assistants page with a row per assistant, Claude Code connected, and a session listed under Sessions"
+  sources={{
+    light: "/img/desktop/light/assistants.png",
+    dark: "/img/desktop/dark/assistants.png",
+  }}
+/>
 
 **Assistants** has a row for each assistant: Claude Code, Cursor, VS Code,
 Codex, Agent skills, and Claude Desktop on macOS and Windows. Each row shows the
@@ -85,7 +95,7 @@ names it.
 
 The files sit in the project, and you commit them like any other file, so a
 teammate who opens the project gets the same entry. Each server entry holds a
-command and nothing else: no shell, no environment, no credential. An entry
+command only, with no shell, environment or credential. An entry
 called `kapi` that you wrote or changed yourself is left as it is.
 
 Claude Desktop reads one file for every project, outside them all:

@@ -19,7 +19,7 @@ import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-The `.kpz` workspace lifecycle is a CLI capability; Kapi Desktop does not drive a parcel directly. Where Desktop meets it: a project you work on visually can be snapshotted from the CLI (`kapi pack`) for a colleague, and the translated files a `merge` emits open and preview in Desktop like any others. For pausing and resuming *project* work visually, the project store already persists between sessions; reopen the project.
+You work a `.kpz` from the command line or through an assistant. Kapi Desktop opens and previews the translated files a `merge` writes, like any others, and shows a parcel's conflicts on the home. To give a colleague a snapshot of a project you work on in the app, run `kapi pack`. To pause and resume *project* work in the app, close and reopen the project; the project store keeps its state between sessions.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -28,7 +28,7 @@ Hand the parcel over like you would to a person:
 
 > Here's `work.kpz` from the vendor: finish the French pass, run the checks, and merge the files out.
 
-The assistant inspects it (`kapi info`), resumes the work in place, and merges when done. Because progress is derived from the content itself (the overlays present), resuming is idempotent: the assistant can't double-translate what's already done.
+The assistant inspects it (`kapi info`), resumes the work in place, and merges when done. kapi reads progress from the content itself (the overlays present), so resuming never translates a block twice.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -45,12 +45,12 @@ kapi pack work.kpz                                        # eject the cache → 
 kapi merge work.kpz -o locales/                           # emit the finished files
 ```
 
-What's happening underneath:
+What each step does:
 
 - **Extract** records a small recipe (target locales, output layout) so later steps need no flags. By default the `.kpz` carries identity + a round-trip skeleton, not raw bytes; `--with-source` embeds the originals for offline re-extraction.
 - **Transforms run against a working cache** keyed to the `.kpz`; the file itself changes only when you `pack` (or pass `--pack` on a transform). `info` reports `dirty` when the cache holds unpacked work. Re-running a transform reuses work already done, so AI steps never run twice.
 - **Merge replays** the stored translations onto the source and writes one file per source × locale; it never re-runs a tool or calls a provider. With no `-o` it uses the recipe's layout.
-- **Another machine** just receives the packed file: the first command rebuilds the cache from the `.kpz` alone.
+- **Another machine** needs only the packed file: the first command rebuilds the cache from the `.kpz` alone.
 - **Edit a source in the parcel** the way you edit a file: name it `work.kpz!<name>` to `kapi apply`, `kapi inspect`, or an agent's `read_blocks` and `apply_edits`. Each edit is checked against the revision you read, so a stale one is refused, and the next transform, `merge` and `pack` read the edited source. A packed parcel then carries that source's text. A source the parcel holds as a skeleton alone has no text to edit; extract it again with `--with-source`.
 - **A parcel replaced on disk** while you hold unpacked edits keeps your edits. Each edited source the new file carries in another version is a conflict: `kapi status` lists it with the command that settles it, Kapi Desktop shows it on the project's home and, for a parcel outside every project, on the app's home, and a read of the source reports it under `divergent`. Rebase it (`kapi resolve 'work.kpz!<name>' --rebase <write>`) to carry its changes onto your edits, blocks it added or removed included, then choose a wording for each block both versions changed. Or discard it (`--discard <write>`) to keep your edits as they stand.
 

@@ -5,6 +5,8 @@ description: "An assistant notes what the project's files do and what you change
 keywords: [kapi, context, rules, note, suggest, review, keep, drop, choose, widen, reset, suggestion, rule, contested, evidence, terms, content memory, agent, session]
 ---
 
+import { PhaseFlow } from "@neokapi/docs-shared";
+
 # Growing context
 
 A new project starts with no terms, voice profile or approved wording. Its
@@ -13,9 +15,21 @@ or the word you changed in its draft, and records it. Each note arrives as a
 **suggestion**. A suggestion advises from the moment it is recorded, and you
 decide about it when it suits you. A suggestion you keep becomes a **rule**.
 
+<PhaseFlow
+  nodes={[
+    { label: "note", sub: "an assistant or kapi records it", role: "io" },
+    { label: "suggestion", sub: "checks report it, none fails", role: "annotate", edge: "recorded" },
+    { label: "rule", sub: "a check fails on it", role: "qa", edge: "a person keeps it" },
+  ]}
+  caption="A note arrives as a suggestion that advises at once; it becomes a rule when a person keeps it."
+/>
+
+In Kapi Desktop you decide on the **Decide** page and go back to an earlier
+state from **Sessions**. On the command line, the commands are these:
+
 | Command | Does |
 | --- | --- |
-| `kapi context suggest` | file what kapi can see in the project's files as suggestions |
+| `kapi context suggest` | record what kapi can see in the project's files as suggestions |
 | `kapi rules` | decide about each suggestion, list the rules in force, narrow or drop one |
 | `kapi context review` | the same decisions, as an assistant records them, and applying a rule more widely |
 | `kapi context reset --before <when>` | go back to how the context stood at an earlier point |
@@ -67,7 +81,7 @@ kapi context note --withdraw 0n794e2gk7 --why "recorded the wrong way round"
 
 ## What kapi sees in the files {#what-kapi-sees-in-the-files}
 
-`kapi context suggest` reads the files the recipe declares and files what it
+`kapi context suggest` reads the files the recipe declares and records what it
 can see in them, with no AI model:
 
 | It sees | It suggests |
@@ -77,30 +91,30 @@ can see in them, with no AI model:
 | most blocks with a personal pronoun addressing the reader as you, and none saying we | a note that the files address the reader as you |
 
 ```bash
-kapi context suggest             # file the suggestions
+kapi context suggest             # record the suggestions
 kapi context suggest --dry-run   # print them and record nothing
 kapi context suggest --ai        # then ask the connected AI model as well
 ```
 
 Each suggestion is noticed by kapi, with the counts and a quote from the
 files, and waits for you in review like an assistant's note. You decide about
-each one. Running the command again files nothing new, and a suggestion you
+each one. Running the command again records nothing new, and a suggestion you
 dropped stays dropped.
 
 With `--ai`, kapi then asks the connected AI model about the same blocks,
-through `term-extract` and `voice-infer`, and files what the model proposes
-the same way. A term is filed when the files write it as the model wrote it in
+through `term-extract` and `voice-infer`, and records what the model proposes
+the same way. A term is recorded when the files write it as the model wrote it in
 two or more blocks; a term the files write in more than one way is left to the
 spelling suggestion in the table. A name with spellings to
 avoid, such as `Harbor Help`, becomes a term rule; a single word becomes a
 note naming the term. Each voice measure the model reads becomes a note that
 names it, such as `(sentence_length: short)`; in a project that binds a voice,
-no voice measures are filed. These suggestions are noticed by
+no voice measures are recorded. These suggestions are noticed by
 kapi with the model's name, and the line before them names the model, the
 blocks it read and the tokens the provider reported. The model reads a
 bounded sample of a large project. A project that declares redaction has it
 applied before the model reads anything. With no AI provider configured, or
-no key for the one configured, the command refuses before it files anything;
+no key for the one configured, the command refuses before it records anything;
 `kapi models setup` connects one. `--dry-run` with `--ai`
 still asks the model and records nothing. In Kapi Desktop, **Deeper look with
 AI** on the Map does the same.
@@ -405,9 +419,9 @@ same context, and appear in `kapi context log` beside the rest:
 ```
 
 A person's changes are in force at once. An assistant's term, content-memory
-and recipe changes are refused, whether it sends them through the MCP
-`apply_edits` tool or runs `kapi apply` from its shell, because writing a rule
-directly is a person's decision. The assistant records the rule with
+and recipe changes are refused, through the MCP `apply_edits` tool and through
+`kapi apply` from its shell alike, because writing a rule directly is a
+person's decision. The assistant records the rule with
 `kapi context note` instead, and you keep it. `kapi store import` also puts
 context in force directly, and records each file it read.
 

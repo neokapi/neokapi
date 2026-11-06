@@ -96,7 +96,7 @@ Deletion has different consequences for each location:
 
 ## Repairing non-canonical locale identifiers {#rows-filed-under-an-old-language-spelling}
 
-kapi stores and looks up locale identifiers in canonical form. Older rows may
+kapi stores and looks up locale identifiers in canonical form. Some rows may
 use an identifier such as `nb_NO` that does not match a lookup for `nb-NO`,
 leaving terms or approved wording absent from results. `kapi status` and
 `kapi up` report these rows when detected.
@@ -110,9 +110,9 @@ kapi files every row under the canonical identifier as it writes it, so
 `kapi store rebuild` writes the project's context rows again in canonical
 form.
 
-Rows in the checkout index are what kapi read out of your own files, so they are
-rebuilt rather than moved: delete `.kapi/work/store.db` and the next `kapi up`
-reads your files again.
+Rows in the checkout index are what kapi read out of your own files, so kapi
+rebuilds them from the files: delete `.kapi/work/store.db` and the next
+`kapi up` reads your files again.
 
 ## Rebuilding the context store from its history
 
@@ -173,8 +173,7 @@ checkout of the project reads it, and there is no second step.
 
 The decision holds for the exact wording of the translation and of the source
 it was approved against. Editing either drops the
-block below *reviewed*, a changed link as much as a changed word. An approval
-can't silently outlive the content it approved.
+block below *reviewed*, a changed link as much as a changed word.
 
 ```bash
 kapi status --review        # the worklist: blocks awaiting approval
@@ -191,12 +190,12 @@ The same model maps to a server-backed project: with the server plugin
 installed, it **pushes** its decisions to a remote (`kapi push`) and **pulls**
 them back (`kapi pull`), the same record with a different sink.
 
-## An empty subsystem is an absent store
+## A store with nothing in it
 
-Presence is table-level. A context store whose terms tables are empty behaves
-exactly as though there were no terms store at all: the terminology gate
-enforces nothing, `kapi up --plan` never creates state, and `kapi pack` carries
-only the parts that hold something. Only populated subsystems contribute context.
+kapi decides whether a store is present table by table. A context store whose
+terms tables are empty behaves exactly as though there were no terms store at
+all: the terminology gate enforces nothing, `kapi up --plan` never creates
+state, and `kapi pack` carries only the parts that hold something.
 
 The same model runs in the browser. The playground and the labs keep their
 files, the workspace and its history in the browser's storage for the
@@ -212,14 +211,14 @@ including the same one after a reset. A project's context can also be shared
 through a folder on your computer; see
 [Sharing context](/kapi/context-portability#from-the-browser).
 
-## What the store is *not*
+## The store, the content memory and your files
 
-- The **content memory** in it is a recycle corpus rather than a review record:
-  a `memory` operation through `kapi apply` adds leverage for future translation and
-  records no review. A review outcome is a decision. See
+- The **content memory** in the store is a recycle corpus. A `memory` operation
+  through `kapi apply` adds leverage for future translation and records no
+  review; a review outcome is a decision. See
   [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
-- It is **not** authoritative for your translations; the **files** are. The store
-  indexes what the files hold; the deliverable is the source of truth.
+- Your **files** are authoritative for your translations. The store indexes
+  what the files hold.
 
 ## See also
 

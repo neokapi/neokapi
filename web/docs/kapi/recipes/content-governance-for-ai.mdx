@@ -8,10 +8,11 @@ hide_table_of_contents: true
 
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
+import { PhaseFlow } from "@neokapi/docs-shared";
 
 # Content governance for AI
 
-**Goal:** configure writing rules and automated checks for AI-assisted content. Checks identify violations of supported rules; people review meaning and guidance that cannot be checked automatically. This recipe covers voice profiles, terms and checksets:
+**Goal:** configure writing rules and automated checks for AI-assisted content. Checks identify violations of supported rules; people review meaning and guidance that cannot be checked automatically. The rules come in three kinds:
 
 | Artifact | Encodes | Lives in | Enforced by |
 |---|---|---|---|
@@ -21,14 +22,25 @@ import TabItem from "@theme/TabItem";
 
 The first two live in your [workspace](/kapi/project-store), one set per project, shared by every checkout. [`kapi context sync`](/kapi/context-portability#sharing-context-through-a-backend) shares them with the rest of the team, and `kapi store export` backs them up.
 
-The rules run in **two directions** around the agent: stated *before* it writes (kapi writes the voice and the approved terms into the project's `AGENTS.md` and `CLAUDE.md`, which the agent loads without a tool call, so drafts start compliant) and gated *after* (`kapi check` scores the result, block by block, exit code and all). Style linters for prose stop at regex over plain text; kapi's checks are format-aware and block-anchored: they read the content inside `.docx`, JSON catalogs, and HTML, locate each finding to an addressable block an agent can fix, and extend across every target language.
+The rules reach the agent **before** it writes and **after**:
+
+<PhaseFlow
+  nodes={[
+    { label: "rules stated", sub: "AGENTS.md · CLAUDE.md", role: "annotate" },
+    { label: "agent writes", sub: "drafts start on the rules", role: "translate", edge: "loaded as it starts" },
+    { label: "kapi check", sub: "block by block, with an exit code", role: "qa", edge: "after each edit" },
+  ]}
+  caption="kapi writes the voice and the approved terms where the agent reads them, then checks what it wrote."
+/>
+
+The agent loads `AGENTS.md` and `CLAUDE.md` without a tool call. The checks read the content inside `.docx`, JSON catalogs and HTML, locate each finding to a block an agent can fix, and apply to every target language.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 1. **Bind the artifacts.** In **Project Settings**, bind the voice profile; the approved terms the recipe binds show under **Context → Terms**. From then on the project enforces both everywhere.
 2. **Watch the gates.** The **findings** count on the project's **Map** shows standing against the rules; the ship-gate cells fold the voice and terminology gates into each locale's release bar.
-3. **Review the exceptions.** Blocks that fail a rule surface findings-first in the [Review queue](/kapi/recipes/review-and-approve); the human reads what the rules flagged rather than the bulk.
+3. **Review the exceptions.** Blocks that fail a rule surface findings-first in the [Review queue](/kapi/recipes/review-and-approve); a person reads what the rules flagged, not every block.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">

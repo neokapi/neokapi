@@ -8,11 +8,11 @@ hide_table_of_contents: true
 
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
-import { PendingMedia } from "@neokapi/docs-shared";
+import { PendingMedia, ThemedImage } from "@neokapi/docs-shared";
 
 # Check content like tests
 
-**Goal:** verify content before it ships (over-long strings, forbidden phrases, voice drift, structural faults) with a repeatable gate: structured findings, a pass/fail, and an exit code. `kapi check` never modifies content; [`kapi fix`](#fix-what-kapi-can) applies the fixes it computed, and [`kapi apply`](/kapi/recipes/rewrite-content) lands the other edits. For the Report model and every check family, see [Checks](/framework/checks).
+**Goal:** verify content before it ships (over-long strings, forbidden phrases, voice drift, structural faults) with a repeatable gate: structured findings, a pass/fail, and an exit code. `kapi check` reads content and changes nothing; [`kapi fix`](#fix-what-kapi-can) applies the fixes it computed, and [`kapi apply`](/kapi/recipes/rewrite-content) lands the other edits. For the Report model and every check family, see [Checks](/framework/checks).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -21,7 +21,15 @@ Open your project. It opens on its **Map**, whose **findings** count reports wha
 
 1. **Run the checkset.** **Run on everything** on the Map runs the project's bound rules (hygiene, length, patterns, the word rules held as terms, and the voice's patterns when a profile is bound) over the tracked content.
 2. **Read the findings.** Click the **findings** count. Each finding names its rule, whether it fails or only reports, and the exact block; click through to see the flagged text in context.
-3. **Fix and re-run.** Edit the source, re-run, and watch the findings clear. The same gate result the CLI reports is what the panel shows.
+3. **Fix and re-run.** Edit the source and re-run; the fixed findings clear. The panel shows the same gate result as the CLI.
+
+<ThemedImage
+  alt="A file in the Reader with a finding marked on its words, the rule's wording under the block and Fix beside it"
+  sources={{
+    light: "/img/desktop/light/reader.png",
+    dark: "/img/desktop/dark/reader.png",
+  }}
+/>
 
 <PendingMedia kind="screenshot">
   The findings the Map's count opens: a list grouped by rule, failing findings first,
@@ -76,14 +84,14 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 
 **Evaluation metadata** identifies the context revision, checker and plugin
 versions, and analyzer coverage. `evaluation.context.stale` indicates that the
-stored content no longer matches the files on disk. This metadata is
-informational and does not change scores, verdicts or exit codes. Checks outside
+stored content differs from the files on disk. The metadata is for information
+only: scores, verdicts and exit codes ignore it. Checks outside
 a project omit `evaluation.context`. `kapi check --ship --json` carries the same
 object at the top level of its gate output, once for every gate it ran.
 
 Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 
-**Exit codes are the gate:** `0` pass, `3` at least one finding fails, `4` did not run, `1` operational error, so `kapi check` drops straight into CI. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. Whether a finding fails is set by the rule that raised it: an established term fails unless it is marked `advisory: true`, a voice pattern or a style measure fails only when it is marked `fails: true`, and a suggested rule reports (see [What fails](/framework/checks#what-fails)). The score is reported and never decides the exit code. `--no-fail` exits `0` when a finding fails, for report-only sweeps, and never turns a check that did not run into a pass.
+**Exit codes are the gate:** `0` pass, `3` at least one finding fails, `4` did not run, `1` operational error, so `kapi check` works as a CI step as it is. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. Whether a finding fails is set by the rule that raised it: an established term fails unless it is marked `advisory: true`, a voice pattern or a style measure fails only when it is marked `fails: true`, and a suggested rule reports (see [What fails](/framework/checks#what-fails)). The score is reported and never decides the exit code. `--no-fail` exits `0` when a finding fails, for report-only sweeps, and never turns a check that did not run into a pass.
 
 **Check only what changed:** `kapi check --diff-against HEAD` checks the content blocks your edits touched, each block whole, `--staged` checks what the next commit records, `--diff-range` checks the change between two commits, and `--diff-file` takes a diff you already have. See [Check changes in git](#check-changes-in-git). `--validate report|strict` folds reader structure/encoding findings into the same Report.
 
@@ -294,7 +302,7 @@ does not exist yet counts as good.
 
 ## In a project: the ship gate
 
-Inside a [kapi project](/kapi/get-started/first-project), `kapi check` with no file arguments checks the project's declared content with the recipe's bound rules. **`kapi check --ship`** is the project gate mode: it runs the bound quality gates (voice, terminology, rule-based checks, staleness) plus the ship/source coverage gates over the project's content, and exits non-zero when any gate is unmet. It is the pre-release bar. Ordinary builds never fail on target drift; `--ship` is the explicit enforcement point. See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+Inside a [kapi project](/kapi/get-started/first-project), `kapi check` with no file arguments checks the project's declared content with the recipe's bound rules. **`kapi check --ship`** is the project gate mode: it runs the bound quality gates (voice, terminology, rule-based checks, staleness) plus the ship/source coverage gates over the project's content, and exits non-zero when any gate is unmet. Run it before a release. Ordinary builds never fail on target drift; `--ship` is where you opt in to enforcement. See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 A target identical to its source fails the gate unless the project records that
 the unchanged wording is intentional. This evidence can be an approval bound to
@@ -302,7 +310,7 @@ that exact source–target pair or a terms entry with identical source and targe
 text. `kapi check --ship` and `kapi up` apply the same rule. Other checks still
 apply; an approved block with a missing placeholder fails.
 
-The **staleness** gate is the one that reads provenance rather than content. Every producer stamps the governing context it was given onto what it writes, so a target can be compared against the context in force at the point that governs its file. Move the voice profile or the terminology and the targets written under the old one fail the gate, naming what moved; `kapi up` reproduces them under the context now in force. Content that carries no stamp (written before the stamp existed, or by hand) is reported and never failed.
+The **staleness** gate reads provenance: the record of the context each target was written under. Every producer stamps the governing context it was given onto what it writes, so kapi can compare a target with the context in force at the point that governs its file. Change the voice profile or the terminology, and the targets written under the old one fail the gate, naming what changed; `kapi up` reproduces them under the current context. Content that carries no stamp, such as a target written by hand, is reported and never failed.
 
 The two are different bars: a bare `kapi check <files>` gates the *files you name* (a checkset over content: the test runner), while `--ship` gates the *project* against its [`ship_gates:`](/reference/project-file#ship-gates) coverage thresholds across every target language (the release bar).
 
@@ -368,8 +376,8 @@ generated files, and the code blocks and references inside a doc comment stay
 out of the prose, so a rule reads sentences and nothing else.
 
 kapi also compares each comment with what gofmt writes. A comment gofmt would
-rewrite is a `formatter.gofmt` finding, and it fails, so formatting work is
-caught before the commit rather than after it.
+rewrite is a `formatter.gofmt` finding, and it fails, so a formatting problem
+surfaces before the commit.
 
 Beside your file, each run gives the comment reader and gofmt a small Go file
 with a known fault. If either reports nothing on it, the check did not run and
@@ -582,8 +590,8 @@ own indentation, wraps a paragraph that is too wide, and writes a doc comment
 as gofmt does.
 
 kapi writes the edit only when the file still parses and gofmt agrees with it.
-It refuses the edit with a reason when the comment no longer has the revision
-you read, because someone changed it after you read it, when the text drops or
+It refuses the edit with a reason when the comment's revision differs from the
+one you read, because someone changed it since, when the text drops or
 adds a code block, reference or list item, or when the id names a directive, a
 generated file's comment or a `/* */` comment. A refused edit leaves the file
 untouched, and `kapi apply` exits `3`. A comment that only moved, because code

@@ -1,21 +1,24 @@
 ---
 sidebar_position: 1
 title: Kapi Desktop overview
-description: "Kapi Desktop is where you read what your projects write by and decide about what your assistants noticed. It also shows where each project's context lives and who else reads it."
+description: "Kapi Desktop shows the rules your projects keep, lets you decide about what your assistants noticed, and shows where each project's context lives and who else reads it."
 keywords: [Kapi, desktop app, context, map, decide, what's new, suggestion, keep, assistant, history, reset, share, sync, voice profile, terms, content memory, checks]
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # Kapi Desktop
 
-Kapi Desktop is the place you read what your projects write by. Your assistants
-record what they notice while they work, and the app is where you decide about
-it: keep what is right, change it, or drop it. It also shows where each
-project's context lives, on this Mac or shared with your team.
+Kapi Desktop shows the rules your projects keep: their terms, their voice and
+the decisions people made about them. Your assistants record what they notice
+while they work, and in the app you decide about it: keep what is right, change
+it, or drop it. A rule you keep holds in every file, for every assistant. The
+app also shows where each project's context lives, on this Mac or shared with
+your team.
 
-The app, the [kapi CLI](/kapi/cli) and the [MCP server](/reference/mcp) are
-peers. A desktop panel, a CLI verb and an MCP tool resolve through one host
-layer, so they answer the same question with the same data, and a conformance
-suite holds them to it.
+The app, the [kapi CLI](/kapi/cli) and the [MCP server](/reference/mcp) read
+and write the same project data, so a desktop panel, a command and an MCP tool
+give the same answer to the same question.
 
 ## What the app opens to
 
@@ -23,6 +26,14 @@ The app opens on **Your context**, captioned "What your projects write by, and
 what your assistants noticed." At the right of the title, a small chip names
 the workspace folder by its last segment; hover it for the full path. A
 workspace you can only read carries a **Read only** badge beside it.
+
+<ThemedImage
+  alt="Your context: counts across the workspace, What's new with a row per project, and the Projects list"
+  sources={{
+    light: "/img/desktop/light/context-home.png",
+    dark: "/img/desktop/dark/context-home.png",
+  }}
+/>
 
 Under the title, a row of counts: projects, rules in force, terms, suggestions
 advising, and what needs you. Rules are what you decided in review. Terms are
@@ -82,7 +93,7 @@ end of the page.
 3. "Come back. What it noticed appears under What's new; keep what is right."
    **How it works** opens this page.
 
-Dismiss Start here when you no longer need it; Settings brings it back. The
+Dismiss Start here once you are done with it; Settings brings it back. The
 **Connect your AI** card follows, for the model kapi itself runs with. Tools
 and flows that need no project are in the **Toolbox**, in the sidebar.
 
@@ -109,6 +120,15 @@ kapi last read the files, such as "Read 2 minutes ago". When kapi read fewer
 files than the project has, the line names how many it read. Then come four
 counts, each a link to what it counts:
 
+<ThemedImage
+  alt="A project's Map: the files, blocks, rules and findings counts, What your files do with the suggestions, and the Files list"
+  sources={{
+    light: "/img/desktop/light/map.png",
+    dark: "/img/desktop/dark/map.png",
+  }}
+/>
+
+
 - **files**, the content files the recipe's collections declare;
 - **blocks**, the blocks kapi read from those files, which open Ask;
 - **rules**, the rules in force: the terms, the voice profile's rules and the
@@ -127,11 +147,11 @@ suggestions alone. With nothing to decide, the list says "No suggestions yet."
 and offers **Connect an assistant**.
 
 **Deeper look with AI**, under the list, reads your files with the connected AI
-model and files what it proposes as suggestions: the terms the files use and
+model and records what it proposes as suggestions: the terms the files use and
 the voice they are written in, such as whom they address. While it runs, the
 button names the model. The new rows appear in the list when it ends, noticed
 by kapi with the model's name, and the line beside the button says how many
-it filed, or "Nothing more to suggest". With no model connected, the button
+it recorded, or "Nothing more to suggest". With no model connected, the button
 opens **Connect your AI**. In a folder without a `kapi.yaml`, the run writes
 the recipe first, as running a flow does. It is the desktop's
 [`kapi context suggest --ai`](/kapi/context-decisions#what-kapi-sees-in-the-files).
@@ -257,7 +277,7 @@ shows no rows and says the project needs a checkout here.
 **Sessions** lists the newest sessions recorded in the project, yours and the
 assistants', with their counts. Where the check on every edit ran, a row also
 counts the files the session edited, its checks, the findings left failing and
-the findings caught (those one check reported and the next no longer found), as
+the findings caught (those one check reported and the next did not find), as
 in `3 files · 4 checks · 2 caught`, and the page header totals what was caught.
 Selecting one opens it in [Sessions](#history-and-going-back).
 
@@ -285,7 +305,7 @@ counts where the check on every edit ran, and then one list by time: its
 operations (what the assistant noticed, what a person decided) and its latest
 check runs. A check run's row names the files it checked, or how many, and reads `clean` or
 the failing count with the rules, and marks `caught` beside a finding the next
-run no longer found. `kapi context log` prints the same record.
+run did not find. `kapi context log` prints the same record.
 
 An assistant's session has **Reset to before this session** above its
 operations. It goes back to how the context stood before that session started.
@@ -390,9 +410,8 @@ kapi reads.
 
 Checks are the tests for prose. **Run on everything** on the Map runs them, and
 the Map's findings count opens what they found. A finding names the rule that
-fired and where it applies, and clicking it opens Context there, with the rule
-in view. From
-there you change the wording or change the rule.
+fired and where it applies. Click it to open Context there, with the rule in
+view, and change the wording or the rule.
 
 ### Flows
 
