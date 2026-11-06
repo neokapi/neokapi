@@ -8,10 +8,9 @@ description: "A one-line definition of every core neokapi term (Part, Layer, Blo
 
 # Concepts
 
-The framework has a small, precise vocabulary. This page defines each term once,
-in one place, so the concept pages can link here from first use instead of
-re-explaining. Each entry gives a one-line definition, a quick analogy, and a
-link to where the idea is developed in full.
+Each core framework term has a one-line definition, an analogy, and a link to
+the page that covers it in full. The concept pages link here when they first use
+a term.
 
 ## The content model
 
@@ -26,10 +25,9 @@ make up the [content model](/framework/content-model).
   embedded content. Layers nest: HTML inside a JSON string becomes a child
   Layer with its own format. *Analogy:* a node in the document tree.
 
-- **Block**: a piece of translatable content: its Editions, each a flat
-  sequence of Runs, and any stand-off Overlays. *Analogy:* a paragraph or a
-  message. Segmentation is an **Overlay** (defined below) rather than a
-  separate segment type or a structural split.
+- **Block**: a unit of content: its Editions, each a flat sequence of Runs, and
+  any stand-off Overlays. *Analogy:* a paragraph or a message. Segments are an
+  **Overlay** (defined below) on the Block's Runs, and the Block stays whole.
 
 - **Run**: the inline unit inside a Block: a discriminated union of Text and
   inline codes (placeholders, paired open/close codes, sub-flows, plural and
@@ -40,8 +38,8 @@ make up the [content model](/framework/content-model).
 - **Edition**: one rendition of a Block's content, keyed by **EditionKey**
   (defined below): the edition the document is written in, and one per
   translation, tone or channel. A Block can carry many Editions at once, as
-  peers; which one the others derive from is the project's source language, or
-  the document's own when no project names one.
+  peers. The others derive from the Edition in the project's source language,
+  or in the document's own language outside a project.
 
 - **Overlay**: stand-off annotation anchored to a range of Run indices:
   segmentation, terms, entities, check findings, alignment. Overlays describe the
@@ -60,8 +58,8 @@ make up the [content model](/framework/content-model).
 - **Resource**: the payload a Part carries (a Block, Data, or Media). The Part
   is the envelope; the Resource is the content.
 
-- **Data**: non-translatable structure that must survive the round trip (keys,
-  attributes, layout) but is never translated.
+- **Data**: structure that is never translated but must survive the round trip,
+  such as keys, attributes and layout.
 
 - **Media**: binary content (an image, an audio or video clip) carried through
   the pipeline.
@@ -92,8 +90,8 @@ make up the [content model](/framework/content-model).
   goroutines connected by channels. See [Pipeline](/framework/pipeline).
 
 - **Round trip**: reading a document into the content model and writing it back
-  out so that untouched content is byte-for-byte identical. The fidelity
-  guarantee the whole engine is built around. See [Formats](/framework/formats).
+  out so that untouched content is byte-for-byte identical. Format tests check
+  this property for every format. See [Formats](/framework/formats).
 
 ## Knowledge stores
 
@@ -110,9 +108,9 @@ make up the [content model](/framework/content-model).
 ## Context
 
 - **Point** (coordinates): where a piece of content sits in a project's context
-  space, on axes such as brand, product and channel. A voice profile, a terms
-  store and gates are bound at a point, so content at the same point is governed
-  the same way. See [Projects](/kapi/projects).
+  space, on axes such as brand and product. A voice profile, a terms store and
+  gates are bound at a point, and all content at that point follows them. See
+  [Projects](/kapi/projects).
 
 ## Checks
 
@@ -120,13 +118,13 @@ make up the [content model](/framework/content-model).
   analogue of a unit test). See [Checks](/framework/checks).
 
 - **Finding**: a single issue a check reports, anchored to where it occurs and
-  saying whether it fails the check or only reports. Findings travel with the
+  marked as failing the check or as report-only. Findings travel with the
   content as overlays.
 
 :::note Project vocabulary
 The recipe (`kapi.yaml`) and its model are framework code (`core/project`), as
 are the context, gate and unit-state packages beside it; the verbs that drive a
-project (`up`, `status`, `apply`) are Kapi's. Ad-hoc vs. project modes,
+project (`up`, `status`, `apply`) are kapi commands. Ad-hoc and project modes,
 bindings, and the `.kpz`/`.kbf.json` formats are defined under
 [Projects](/kapi/projects).
 :::
