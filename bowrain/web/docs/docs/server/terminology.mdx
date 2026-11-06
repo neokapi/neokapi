@@ -9,19 +9,19 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 # Terms
 
 The terms explorer is the **Concepts** view of the [Context](/server/context)
-hub: concept-oriented term management for maintaining consistent vocabulary across
-locales. Each concept represents a single meaning with terms in multiple
-languages, lifecycle statuses, and domain classification.
+hub. You use it to keep vocabulary consistent across locales. Each concept is
+one meaning, with terms in several languages, a lifecycle status for each term,
+and a domain.
 
-Terms and content memory are kept on the server, shared across every project:
-one governed source of the team's approved wording.
+The server keeps terms and content memory for every project in the workspace,
+so the team has one approved record of its wording.
 
-A concept is more than its terms. In the Context hub each concept also carries typed
-**relations** to other concepts (what replaced it, what to use instead, which
-competitor it stands against), per-market validity, observations, comments, and a
-[story](/server/context#the-concept-story) of how it came to be. This page covers
-the everyday term-management surface; see [Context](/server/context) for the richer
-concept model with relations and governance around it.
+In the Context hub, each concept also carries typed **relations** to other
+concepts (what replaced it, what to use instead, which competitor it stands
+against), per-market validity, observations, comments and a
+[story](/server/context#the-concept-story) of its changes. The sections below
+cover everyday term management. [Context](/server/context) covers relations
+and governance.
 
 <ThemedVideo
   sources={{
@@ -35,9 +35,9 @@ concept model with relations and governance around it.
 ## Opening the Concepts page
 
 Click **Context** in the main sidebar, then **Concepts**. The **Terminology**
-button in a project's source view opens the same page, because the terms are the
-workspace's and every project shares them. A link to one concept, from Activity, the dashboard or
-a review, opens the list with that concept selected.
+button in a project's source view opens the same page, because every project
+shares the workspace's terms. A link to one concept, from Activity, the
+dashboard or a review, opens the list with that concept selected.
 
 ## The list
 
@@ -52,7 +52,7 @@ are written in.
   markets.
 - **Show more**, at the foot of the list, reads the next page.
 
-The server answers each search a page at a time, so a workspace with thousands
+The server returns each search a page at a time, so a workspace with thousands
 of concepts searches as quickly as one with ten. While the list has focus, the
 arrow keys, `j` and `k` move the selection.
 
@@ -61,14 +61,14 @@ Proposed concepts join the list once their change is approved.
 
 ## Term lifecycle statuses
 
-Each term carries a lifecycle status that communicates its approval level:
+Each term carries a lifecycle status that shows its approval level:
 
 | Status         | Meaning                                            |
 | -------------- | -------------------------------------------------- |
 | **Preferred**  | The recommended term; use this one                 |
 | **Approved**   | Accepted for use                                   |
 | **Admitted**   | Acceptable but not preferred                       |
-| **Deprecated** | Was once approved but should no longer be used     |
+| **Deprecated** | Retired; replace it with the term to write instead |
 | **Proposed**   | Under review, not yet approved                     |
 | **Forbidden**  | Must not be used                                   |
 
@@ -91,7 +91,7 @@ Select a concept to see it beside the list:
 
 ## Editing concepts
 
-The acts on the selected concept sit in the pane's toolbar:
+The actions for the selected concept are in the pane's toolbar:
 
 - **Approve** sets the term the concept is headed by from proposed to approved.
   It appears while that term is proposed.
@@ -131,10 +131,10 @@ To load terms from a spreadsheet or a TBX file, import them into a project with
 
 ## Deleting concepts
 
-Deleting a concept is a governed action. The delete travels through a
-[change-set](/server/context#experiments-change-sets-and-pilots) and removes the
-concept only once that change-set is approved and merged, so a concept other
-content still references cannot disappear unreviewed.
+Deleting a concept is a governed action. The delete goes into a
+[change-set](/server/context#experiments-change-sets-and-pilots), and the
+concept is removed when that change-set is approved and merged. A concept that
+other content references is therefore always reviewed before it goes.
 
 ## Terms in the editor
 
@@ -160,7 +160,7 @@ eXchange) standard:
 The framework owns this concept and term model; for its architecture, see the
 [framework terms reference](https://neokapi.github.io/framework/terminology).
 
-On the platform, the same concepts are the nodes of the [context graph](/server/context),
-with typed relations, per-market validity, observations, comments, and governed
-change-sets layered on top. When you are ready to model *how concepts relate*
-rather than just curate terms, start at [Context](/server/context).
+On the platform, the same concepts are the nodes of the
+[context graph](/server/context), with typed relations, per-market validity,
+observations, comments and governed change-sets. To model *how concepts
+relate*, start at [Context](/server/context).
