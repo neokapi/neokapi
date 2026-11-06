@@ -7,10 +7,10 @@ description: A step-by-step guide to your first login, creating a workspace, est
 
 # First login and first project
 
-This guide walks you through first login, workspace creation, establishing the
-context your content is written in, and a first project. The steps below use
-the browser; the [desktop app](/server/desktop-app) follows the same flow after
-its own [first sign-in](/server/desktop-app#first-sign-in).
+Sign in, create a workspace, set up the context your content is written in,
+and create a first project. The steps below use the browser. The
+[desktop app](/server/desktop-app) follows the same flow after its own
+[first sign-in](/server/desktop-app#first-sign-in).
 
 ## Prerequisites
 
@@ -31,8 +31,8 @@ active session.
 
 ## Personal workspace
 
-After your first login, a **personal workspace** is created for you. It is
-named after your display name and is ready to use immediately.
+Bowrain creates a **personal workspace** for you on your first login. It is
+named after your display name, and you can use it right away.
 
 ## Creating a team workspace
 
@@ -47,14 +47,13 @@ You are added as the workspace **owner** and switched to the new workspace.
 
 ## Establishing the context
 
-Before any content arrives, give the workspace something to govern it with.
-Open **Context** in the sidebar.
+Set up the context before you add content. Open **Context** in the sidebar.
 
 1. **Scan what you already publish.** A [context scan](/server/context-scan)
    reads pasted copy, public pages, uploaded documents or a public repository,
    and proposes the axes your content varies along, a voice profile draft, and
-   term candidates, each with the evidence behind it. Nothing it proposes is
-   enforced until you approve it.
+   term candidates, each with the evidence behind it. A proposal takes effect
+   only when you approve it.
 2. **Approve the axes.** An approved axis such as `brand` or `mode` becomes a
    coordinate the workspace's content can sit at. For a project connected from
    a checkout, the approval is delivered by `kapi pull` as an edit to
@@ -64,8 +63,8 @@ Open **Context** in the sidebar.
    Most workspaces call their default profile *brand*; a workspace with several
    audiences carries several profiles.
 
-A thin profile is enough to start. The rules you actually need surface as
-people correct real output, and every correction feeds the
+A short profile is enough to start. Further rules come from the corrections
+people make to real output, through the
 [learning loop](/server/context-voice).
 
 ## Creating a project
@@ -74,9 +73,9 @@ people correct real output, and every correction feeds the
 2. Enter the **Project name**
 3. Select the **Source language** (for example English)
 4. Optionally select **Target languages**. A project with none is source-only:
-   runs read it, check it against the context, and write nothing back. Add a
-   language later when you ship in one; it is one more coordinate, not a
-   second project.
+   runs read it, check it against the context, and write nothing back. You can
+   add a language later, when you ship in it. A language is one more
+   coordinate in the same project.
 5. Click **Create**
 
 The project opens on its [Map](/server/project-map).
@@ -97,12 +96,11 @@ the collection they sit in.
 
 ## Drafting and checking
 
-Content that arrived is caught up by a [run](/the-loop): start one from the
-project's **Runs** view with **Run now**, or let the project's push policy
-start one. A run checks the source against the context, drafts any target
-languages with AI steered by the voice and the terms in force at each point,
-checks what it produced, and holds back for review what a person has to
-decide.
+A [run](/the-loop) catches up new content. Start one from the project's
+**Runs** view with **Run now**, or let the project's push policy start one. A
+run checks the source against the context and drafts any target languages with
+AI, using the voice profile and terms in force at each point. It checks what it
+produced and holds back for review what a person has to decide.
 
 To work on one file, open it from the project view. The
 [editor](/server/translation-editor) shows the source, the target if there is
@@ -113,11 +111,12 @@ targets on demand; **Pseudo** generates pseudo-translations for layout testing.
 
 ## Reviewing
 
-What a run holds back lands in the project's [review session](/server/review).
+Items a run holds back appear in the project's [review session](/server/review).
 Approve, reject or edit each block, or approve everything that passes the
 checks and the voice bar in one action. Approving the last pending block starts
-the run that delivers. The per-locale [ship state](/server/review#ship-states)
-on the dashboard tells you what can go out today.
+the run that delivers the results. The per-locale
+[ship state](/server/review#ship-states) on the dashboard shows what can go out
+today.
 
 ## Publishing and exporting
 
@@ -138,13 +137,13 @@ Invite colleagues to your workspace:
    - **Viewer**: read-only access
 5. Click **Invite**
 
-This creates an invite link. Copy it and share it directly, or, if email is
-configured, the invite is also sent automatically. The invited person signs in
-or registers and is added to the workspace with the assigned role. Members are
-never metered, so invite everyone who might notice what a rule missed.
+This creates an invite link. Copy it and share it directly. If email is
+configured, Bowrain also sends the invite. The invited person signs in or
+registers and joins the workspace with the assigned role. Members are not
+metered, so you can invite everyone who reads the content.
 
-Pending invitations are listed in Settings, where you can see their usage and
-revoke the ones no longer needed. Per-project roles, bound to a language or a
+Settings lists pending invitations with their usage, and you can revoke any you
+don't need. Per-project roles, bound to a language or a
 point, are covered in [Members and roles](/server/members-and-roles).
 
 ## CLI connection

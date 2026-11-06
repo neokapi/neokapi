@@ -9,17 +9,16 @@ import { ThemedImage, ThemedVideo } from "@neokapi/docs-shared";
 # Overview
 
 Bowrain holds the context graph for every project in a workspace: the profiles,
-the terms, the content memory, and the decisions people make about them, served
-from one place, the Bowrain server. Everyone reaches the same workspace through
-two clients, a **browser** and a native **[desktop app](/server/desktop-app)**.
-They are equal real-time clients, so the hub, the review session, the editor,
-presence, and history are shared across both. Developers meet the same
-workspace through [server runs](/the-loop): what a run holds back arrives in review,
-and what gets approved here feeds the next run.
+the terms, the content memory and the decisions people make about them. The
+Bowrain server keeps all of it in one place. You reach the workspace through a
+**browser** or the native **[desktop app](/server/desktop-app)**. Both are
+real-time clients with the same hub, review session, editor, presence and
+history. Developers reach the same workspace through [server runs](/the-loop).
+Items a run holds back arrive in review, and your approvals feed the next run.
 
-This section describes the platform by what you do with it. Client-specific
-differences are noted inline; the [desktop app](/server/desktop-app) page
-covers what is different about the native client.
+Client-specific differences are noted inline. The
+[desktop app](/server/desktop-app) page covers what is different about the
+native client.
 
 ## A quick tour
 
@@ -27,12 +26,12 @@ These short tours run against a live workspace.
 
 ### The Context hub
 
-The hub opens on the points a workspace's content sits at, one profile card per
-point: which voice governs it, what vocabulary is in force, what the checks say,
-what is waiting in review, and who holds the point. Terms are concepts with
-relations, per-market validity and a story; a change that reaches far travels
-through a change-set whose blast radius is measured before anyone approves it.
-See [Context](/server/context).
+The hub opens on one profile card for each point where the workspace's content
+sits. A card shows the voice profile that applies, the terms in force, what the
+checks report, what is waiting in review, and who holds the point. Terms are
+concepts with relations, per-market validity and a history. A far-reaching
+change goes through a change-set, and Bowrain measures its blast radius before
+anyone approves it. See [Context](/server/context).
 
 <ThemedVideo
   sources={{
@@ -44,12 +43,12 @@ See [Context](/server/context).
 
 ### Review
 
-A run drafts and checks, and holds back for review what a machine cannot
-decide. The review
-session walks every pending block across items and locales with the source,
-the draft, the checks and the voice findings side by side; a reviewer approves,
-rejects, edits, or corrects the context itself. The last approval starts the
-run that delivers. See [Review](/server/review).
+A run drafts and checks content, and holds back for review what a machine
+cannot decide. The review session lists every pending block across items and
+locales, with the source, the draft, the checks and the voice findings side by
+side. A reviewer approves, rejects or edits each block, or corrects the context
+itself. The last approval starts the run that delivers the results. See
+[Review](/server/review).
 
 <ThemedVideo
   sources={{
@@ -60,11 +59,10 @@ run that delivers. See [Review](/server/review).
 
 ### Checks that learn from corrections
 
-Every correction a team makes is a signal. Bowrain aggregates the phrasings
-people keep fixing into candidate rules, shows the blast radius of each across
-real content before it lands, and on approval promotes it into an enforced
-check. A correction made once becomes a check that stops the mistake
-from recurring, shared across everyone and every AI tool. See
+Bowrain groups the phrasings people keep fixing into candidate rules. For each
+candidate it shows the blast radius across real content, and when a reviewer
+approves it, the candidate becomes an enforced check. The check applies to
+everyone in the workspace and to every connected AI tool. See
 [Voice and corrections](/server/context-voice).
 
 <ThemedVideo
@@ -76,10 +74,10 @@ from recurring, shared across everyone and every AI tool. See
 
 ### The editor
 
-Open a file and it becomes a side-by-side workbench: source and target, a live
-preview of the page, and beside each block the matches from the workspace
-content memory and the terms in force at its point. One editor serves the
-source and every target locale. See [The editor](/server/translation-editor).
+The editor shows a file's source and target side by side, with a live preview
+of the page. Beside each block are the matches from the workspace content
+memory and the terms in force at its point. You edit the source and every
+target locale in the same editor. See [The editor](/server/translation-editor).
 
 <ThemedVideo
   sources={{
@@ -91,10 +89,10 @@ source and every target locale. See [The editor](/server/translation-editor).
 
 ### Collaboration and streams
 
-A workspace is shared by a team. You invite teammates by email and give each a
-role, bound to a language or a point where that fits, and streams keep parallel
-work apart: like branches, a rebrand or a risky pass runs on its own stream,
-compared and merged back into the main line when it is ready. See
+You invite teammates to a workspace by email and give each one a role, bound to
+a language or a point where that fits. Streams keep parallel work apart. Like a
+branch, a stream holds a rebrand or a risky pass until you compare it and merge
+it back into the main line. See
 [Real-time collaboration](/server/collaboration).
 
 <ThemedVideo
@@ -232,7 +230,6 @@ See [Self-hosting](/server/self-hosting) for deployment instructions.
 
 The browser and the [desktop app](/server/desktop-app) share the same surfaces
 and connect to the same server and workspaces, so presence, sign-on, the hub,
-review, and the content memory are shared across them. The differences are
-about where you run, not what you can do: the desktop client adds offline
-editing and runs as a native app. See [The desktop app](/server/desktop-app)
-for the full comparison.
+review and the content memory are shared across them. The desktop client adds
+offline editing and runs as a native app. See
+[The desktop app](/server/desktop-app) for the full comparison.

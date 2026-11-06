@@ -8,16 +8,17 @@ description: A project opens on its Map. The Reader shows one file with its find
 # Map, Reader and Rules
 
 A project opens on its **Map**. The project's sidebar lists **Map** first, then
-**Overview**, **Rules** and the other sections. These are the screens kapi draws on the desktop,
-read from the server, so your team works from one record of what an assistant
-noticed and what a person decided.
+**Overview**, **Rules** and the other sections. Kapi Desktop shows the same
+screens, read from the server, so your team works from one record of what
+assistants noticed and what people decided.
 
-## How a project gets its context here
+## Keeping a checkout's context on Bowrain
 
 The Map and Rules read the project's context: the suggestions assistants
-recorded and the decisions people made about them. A project connected from a
-checkout keeps that context on Bowrain when its recipe names the `bowrain`
-backend:
+recorded and the decisions people made about them. When that context lives on
+the server, every checkout of the project reads the same decisions. A project
+connected from a checkout keeps its context on Bowrain when its recipe names
+the `bowrain` backend:
 
 ```yaml
 context:
@@ -59,7 +60,7 @@ and in the margin the rules that hold at that file.
 - **Approve & re-draft** in that list applies the change and keeps every
   inline code. Approving needs the `edit_source` permission; filing needs
   `review`.
-- **Edit by hand** marks a finding no fix answers.
+- **Edit by hand** marks a finding that no automatic fix resolves.
 - **Map** returns to the Map.
 
 ## Rules
