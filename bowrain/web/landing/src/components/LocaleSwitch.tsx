@@ -5,8 +5,8 @@ import { t } from "@neokapi/i18n-react/runtime";
 // Each label is written IN its own locale, which is the convention every
 // language menu follows: a reader looking for their language recognises it
 // written the way they write it, not translated into a language they do not
-// read. For the pseudo-locale that means the label is itself pseudo-mangled —
-// "Þšéüđö Éñĝļîšĥ" — so the entry demonstrates the transformation it selects
+// read. For the pseudo-locale that means the label is itself pseudo-mangled,
+// "Þšéüđö Éñĝļîšĥ", so the entry demonstrates the transformation it selects
 // before you click it. Labels are therefore NOT passed through t().
 export function LocaleSwitch() {
   const [open, setOpen] = useState(false);
@@ -59,7 +59,7 @@ export function LocaleSwitch() {
               href={l.href}
               role="menuitem"
               // lang tells a screen reader how to pronounce the label. qps is
-              // English text that has been mangled, so it stays "en" — claiming
+              // English text that has been mangled, so it stays "en". Claiming
               // otherwise would make a screen reader attempt a language that
               // does not exist.
               lang={l.code === "qps" ? "en" : l.code}
