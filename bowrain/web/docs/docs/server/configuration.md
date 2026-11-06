@@ -6,9 +6,9 @@ description: The complete reference for configuring bowrain-server and bowrain-w
 
 # Server configuration
 
-This page is the complete reference for configuring **bowrain-server** and
-**bowrain-worker**. For the overall service topology (PostgreSQL + job queue +
-worker + blob storage) and a production walkthrough, see
+Every setting for **bowrain-server** and **bowrain-worker**, as environment
+variables and command-line flags. For the service topology (PostgreSQL, job
+queue, worker and blob storage) and a production walkthrough, see
 [Self-Hosting](/server/self-hosting).
 
 ## Precedence
@@ -85,10 +85,9 @@ When your OIDC provider has a different internal hostname than the browser-facin
 URL (common in Docker), set `BOWRAIN_OIDC_ISSUER_URL` to the internal URL (for
 example `http://keycloak:8080/realms/bowrain`) and `BOWRAIN_OIDC_PUBLIC_URL` to
 the browser-facing URL (for example `http://localhost:8180/realms/bowrain`).
-Leave it unset when the two are the same: unset means "the browser reaches the
-provider at the issuer URL", which is what each redirect already assumes. It
-names the *identity provider's* address, not this application's; for the app's
-own origin, see `BOWRAIN_APP_PUBLIC_URL` below.
+Leave it unset when the two are the same, and the browser reaches the provider
+at the issuer URL. The variable names the *identity provider's* address. For
+the app's own origin, see `BOWRAIN_APP_PUBLIC_URL` below.
 :::
 
 ### Origins and cookies
@@ -112,8 +111,7 @@ origin. In development, any `localhost` origin is accepted as well.
 
 Set `BOWRAIN_APP_PUBLIC_URL` on any deployment where a browser reaches the API
 from a different origin than the one it was served from. If it is unset, no
-cross-origin caller is allowed, which is the safe answer: same-origin requests
-never consult CORS.
+cross-origin caller is allowed. Same-origin requests never consult CORS.
 
 Do not use `BOWRAIN_ALLOW_INSECURE_DEV` on anything reachable from the
 internet.
@@ -122,9 +120,9 @@ internet.
 :::tip Secure cookies behind a proxy
 Bowrain infers the request scheme from `X-Forwarded-Proto`, so behind a
 TLS-terminating proxy the `Secure` flag would otherwise depend on that header
-arriving. It is forced on by default outside development for exactly that
-reason. Development leaves it off, because browsers discard `Secure` cookies
-sent over plain HTTP.
+arriving. Outside development, the flag is on by default for that reason.
+Development leaves it off, because browsers discard `Secure` cookies sent over
+plain HTTP.
 :::
 
 ### Blob storage

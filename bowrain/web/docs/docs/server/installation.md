@@ -6,7 +6,7 @@ description: Install Bowrain Server as several cooperating services (the server,
 
 # Installing Bowrain Server
 
-A Bowrain deployment is several cooperating services, not a single binary:
+A Bowrain deployment runs as several cooperating services:
 
 - **bowrain-server**: the REST + gRPC API (one process; gRPC is multiplexed onto the HTTP port).
 - **bowrain-worker**: the async worker that ingests pushes and runs the drafting jobs a run enqueues against an upstream AI provider.
@@ -15,7 +15,7 @@ A Bowrain deployment is several cooperating services, not a single binary:
 - **bowrain-web**: the static web UI, served as its own container.
 - An **OIDC identity provider** (for example Keycloak) and an **SMTP** sender.
 
-This page covers local evaluation. For a production stack with TLS, backups, and a reverse proxy, see [Self-Hosting](/server/self-hosting), which is the canonical reference for the full architecture and the complete environment-variable set.
+The steps below set up a stack for local evaluation. For a production stack with TLS, backups and a reverse proxy, see [Self-Hosting](/server/self-hosting), which also holds the full architecture and the complete environment-variable set.
 
 ## One-command local stack
 
@@ -67,10 +67,10 @@ See [Self-Hosting](/server/self-hosting) for the full production walkthrough, in
 
 ## Building the binaries
 
-The server and worker are built from source. Neither is published as a
-download: the GitHub Releases for this repository carry the kapi CLI, the
-`kapi-bowrain` plugin and the Bowrain desktop app, and no server artifact.
-The compose stack above builds the server image locally for the same reason.
+You build the server and worker from source. The GitHub Releases for this
+repository carry the kapi CLI, the `kapi-bowrain` plugin and the Bowrain
+desktop app, and no server artifact, so the compose stack above also builds
+the server image locally.
 
 ```bash
 git clone https://github.com/neokapi/neokapi.git
