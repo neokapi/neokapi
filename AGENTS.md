@@ -3,7 +3,7 @@
 
 These rules hold for every file in this project. Follow them as you write; you do not need to ask kapi first. kapi writes this section from the project's context and replaces it when the context changes, so edit outside it.
 
-Voice: neokapi documentation. Academic, precise register for neokapi user-facing text: docs site, CLI help, UI copy, release notes. Explain what something is and what it does; let the facts stand without selling. Precise, plain, specific, formal register, neutral tone, no humor, active voice, short sentences, second person (you), contractions where natural. State capabilities plainly. Lead with the problem and the mechanism, not adjectives. Every claim must be checkable against the code or a generated artifact. One idea per sentence; short sentences over long ones. The reader is a developer or the person running the language work, not a prospect. Name the actor: give a file, command, recipe or component verbs for what it does (reads, selects, determines, reports), and keep wanting, believing and deciding for people.
+Voice: neokapi documentation. Academic, precise register for neokapi user-facing text: docs site, CLI help, UI copy, release notes. Explain what something is and what it does; let the facts stand without selling. Precise, plain, specific, formal register, neutral tone, no humor, active voice, short sentences, second person (you), contractions where natural. State capabilities plainly. Lead with the problem and the mechanism, not adjectives. Every claim must be checkable against the code or a generated artifact. One idea per sentence; short sentences over long ones. The reader is a developer or the person running the language work, not a prospect.
 
 Avoid:
 - Marketing superlatives and hype words (such as powerful, blazing, game-changing, cutting-edge, revolutionary, unleash)
@@ -41,8 +41,13 @@ Say this, not that:
 Code comments follow a voice of their own: run `kapi context <path> --comments` before you write one.
 
 Some folders have rules of their own, in the AGENTS.md and CLAUDE.md there. Read that file before you edit a file in one of them:
+- bowrain/apps/ctrl/i18n/: a voice of its own.
+- bowrain/apps/pulse/i18n/: a voice of its own.
+- bowrain/emails/i18n/: a voice of its own.
 - bowrain/mailer/subjects/: a voice of its own.
+- bowrain/packages/app/i18n/: a voice of its own.
 - bowrain/web/docs/: a voice of its own.
+- bowrain/web/landing/i18n/: a voice of its own.
 
 Before you finish, run `kapi check <file>` on each file you changed and fix what it reports. `kapi context <path>` gives the full answer for one file when you need more than this section.
 When the files keep to a name or a word this section does not list, record it with `kapi context note --term <used> --instead-of <avoided> --seen-in <file>`. A person decides what becomes a rule.
