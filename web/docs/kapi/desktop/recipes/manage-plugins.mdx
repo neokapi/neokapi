@@ -8,12 +8,10 @@ hide_table_of_contents: true
 
 # Install and manage plugins
 
-**For the concept**, see [Plugins](/contribute/plugins); this recipe walks the
-desktop plugin manager, the visual equivalent of `kapi plugin install`.
-
-**Goal:** add new formats and tools to a project, for example the **kapi-sat**
-segmenter for ML sentence segmentation or the **kapi-pdfium** PDF reader,
-without touching a terminal.
+**Goal:** add new formats and tools to a project from Kapi Desktop, for example
+the **kapi-sat** segmenter for ML sentence segmentation or the **kapi-pdfium**
+PDF reader. The plugin manager does what `kapi plugin install` does on the
+command line. For how plugins work, see [Plugins](/contribute/plugins).
 
 ## Steps
 
@@ -29,12 +27,11 @@ without touching a terminal.
    offers to install it there and then.
 4. **Keep current.** The manager flags updates; one click pulls the latest version.
 
-## Why the desktop
+## What the desktop adds
 
-Discovery and one-click install are the app's strength: you see what a plugin
-adds, install it with verification handled for you, and the new capabilities show
-up in the editor without re-reading docs. The underlying plugin model is identical
-to the CLI's: the same plugins, the same registry.
+You see what a plugin adds before you install it, the app verifies the download,
+and the new formats and tools appear in the editor at once. The plugins and the
+registry are the same ones the CLI uses.
 
 ## Next
 

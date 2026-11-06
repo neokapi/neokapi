@@ -12,12 +12,15 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 **Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails, so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Voice profile](/framework/checks/voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
 
-The video below walks the whole path on one repository, in one language. A
-drafted context graph (recipe, voice profile, terms) is reviewed and
-confirmed; `kapi check` runs as a gate over operator documentation,
-interface strings and a marketing page; the failures are corrected three ways in
-the source and once as a term decision the graph keeps, so the next check
-enforces what the last one passed. No server, no model, no second language.
+The video below shows the whole path on one repository, in one language, with
+no server, no model and no second language:
+
+1. A person reviews and confirms a drafted context graph: the recipe, a voice
+   profile and terms.
+2. `kapi check` runs as a gate over operator documentation, interface strings
+   and a marketing page.
+3. Three failures are corrected in the source. The fourth becomes a term
+   decision the graph keeps, so the next check enforces it.
 
 <ThemedVideo
   sources={{
@@ -26,7 +29,7 @@ enforces what the last one passed. No server, no model, no second language.
   }}
   maxWidth="900px"
   outdated="interface"
-  outdatedNote="The recording runs kapi check --strict, which is now plain kapi check, and grades findings as major or minor. kapi check now marks each finding FAILS or REPORTS."
+  outdatedNote="The recording runs kapi check --strict, which is plain kapi check in the current release, and grades findings as major or minor. The current kapi check marks each finding FAILS or REPORTS."
 />
 
 <Tabs groupId="surface" queryString>
@@ -45,7 +48,7 @@ Ask for the sweep:
 
 > Check `blog/` against our voice profile and fix anything off-brand.
 
-The assistant has the voice from the rules kapi writes into `CLAUDE.md` and `AGENTS.md`, so it rewrites on-voice rather than merely rule-compliant, and asks `kapi context <path>` for the full voice when a file needs more. It runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` (structure intact, no second model). When a term recurs, it can note it with `context_note`, which records a suggestion; keep it with `kapi context review`. It re-checks until the gate is green.
+The assistant has the voice from the rules kapi writes into `CLAUDE.md` and `AGENTS.md`, so its rewrites follow the voice as well as the rules, and it asks `kapi context <path>` for the full voice when a file needs more. It runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` (structure intact, no second model). When a term recurs, it can note it with `context_note`, which records a suggestion; keep it with `kapi context review`. It re-checks until the gate is green.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -79,14 +82,14 @@ An edit to a block that changed since you read it, or that would corrupt an inli
 ]}
 ```
 
-The `term` operation lands in the project's terms after the content, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead, or `"competitor":true` for a competitor's name. Run it yourself: an assistant's `term` operation is refused, and the change set with it, so the assistant sends its content edits alone and records the rule as a suggestion for you to keep instead.
+The `term` operation lands in the project's terms after the content, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead, or `"competitor":true` for a competitor's name. Run this change set yourself. An assistant's `term` operation is refused, and the change set with it, so an assistant sends its content edits alone and records the rule as a suggestion for you to keep.
 
 </TabItem>
 </Tabs>
 
 ## In a project
 
-Bind the profile once (`defaults.voice.profile`, naming the profile in the project's voice store) and every surface picks it up: the findings on the desktop Map, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
+Bind the profile once (`defaults.voice.profile`, naming the profile in the project's voice store) and every surface picks it up: the findings on the desktop Map, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When you translate, kapi also adds the bound voice to the translation prompt, so target-language output starts on-brand.
 
 ## Next
 

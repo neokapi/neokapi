@@ -49,24 +49,26 @@ rail, or press **Run all**.
 
 <KapiGuidedEmbed id="kapi-overview" />
 
-The explorer below shows the format engine round-trip: run a file through
-`pseudo-translate` and compare the source with the output: only the leaf text
-changes, while the surrounding skeleton (tags, keys, attributes) returns
-byte-for-byte. This is the same reader and writer the recipes drive.
+The explorer below shows the format engine round-trip. Run a file through
+`pseudo-translate` and compare the source with the output. Only the text
+changes; the tags, keys and attributes around it come back byte for byte. The
+guides use the same reader and writer.
 
 <ContentLab lessonIds={["roundtrip"]} defaultSampleId="page-html" />
 
 ## Ad-hoc or project?
 
-A **kapi project is the recommended working model** for any repository or
-content set you work on repeatedly: the content patterns, the voice, terms and
-coordinates that govern them, your flows and, if you translate, your languages
-in a committed recipe; git-style discovery from any subdirectory; and a store
-that accumulates content memory, terminology, and approvals across runs.
-[Create your first project](/kapi/get-started/first-project) walks the setup;
-[Projects](/kapi/projects) is the concept. kapi also runs **ad-hoc** (a command
-on the files you name, nothing saved), the quick path for one-offs, scripting,
-and a fine on-ramp. Guides note the project form where it differs.
+Use a **kapi project** for any repository or content set you work on more
+than once. Its committed recipe holds the content patterns, the voice, terms and
+coordinates that govern them, your flows and, if you translate, your languages.
+Every command finds the project from any subdirectory, as git does, and the
+project's store keeps content memory, terminology and approvals across runs.
+[Create your first project](/kapi/get-started/first-project) covers the setup,
+and [Projects](/kapi/projects) explains the concept.
+
+kapi also runs **ad-hoc**: a command on the files you name, with nothing saved.
+Use it for one-offs and scripts. The guides note the project form where it
+differs.
 
 ## Your writing
 
@@ -100,13 +102,13 @@ The gate in a project with one language: check content, keep terms and voice, an
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/content-governance-for-ai">
       <h3>Content governance for AI</h3>
-      <p>Voice profile + terms + checks as guardrails, so agent output arrives already compliant.</p>
+      <p>Voice profile, terms and checks as guardrails, so agent output passes your rules when it arrives.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/rewrite-content">
       <h3>Edit content</h3>
-      <p>Edit the text inside any file: you supply the edits, kapi writes them back through the faithful round-trip.</p>
+      <p>Edit the text inside any file: you supply the edits, and kapi writes them back with the file's structure kept.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
@@ -118,7 +120,7 @@ The gate in a project with one language: check content, keep terms and voice, an
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/bulk-rewrite-with-an-agent">
       <h3>Bulk rewrite with an agent</h3>
-      <p>Sweep one editorial change across a whole content set, structure guaranteed, completion proven.</p>
+      <p>Make one editorial change across a whole content set, with the structure kept and every file checked.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
@@ -185,7 +187,7 @@ What a target language adds: translation, review, and the gates per language.
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/pre-translate-from-memory">
       <h3>Reuse what you've translated</h3>
-      <p>Leverage existing content memory, fill the gaps, and pre-flag terminology: deterministic, no API key.</p>
+      <p>Reuse your content memory, fill the gaps, and flag terminology before translation, with no API key.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">

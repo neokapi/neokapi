@@ -11,7 +11,7 @@ import TabItem from "@theme/TabItem";
 
 # Bulk rewrite with an agent
 
-**Goal:** apply one editorial change everywhere (rename a product, retire a phrase, soften a tense) across files your editor can't even open (`.docx`, catalogs, HTML, Markdown), without risking structure. The division of labor: the agent decides what the new text says; kapi guarantees everything else: inline codes preserved, drift-guarded writes, and a check gate that proves the sweep is done. No second model is involved in the write.
+**Goal:** apply one editorial change everywhere (rename a product, retire a phrase, soften a tense) across files your editor can't even open (`.docx`, catalogs, HTML, Markdown), without risking structure. The agent decides what the new text says. kapi handles the rest: it keeps the inline codes, refuses a write to a block that changed since it was read, and runs the check that confirms the sweep is complete. No second model is involved in the write.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -33,11 +33,11 @@ State the change once, over the whole set:
 The assistant runs the loop at scale:
 
 1. `kapi inspect --jsonl` over the set: one record per block, with its reference (`ref`), its revision (`rev`), and the text (inline codes as `<x id="…"/>` placeholders).
-2. It rewrites only the blocks that mention the term, judgment calls included ("Acme Sync's engine" → "the Acme Flow engine"), which is why this is an agent job rather than a `sed` job.
+2. It rewrites only the blocks that mention the term, judgment calls included ("Acme Sync's engine" → "the Acme Flow engine"). Those calls need judgment, so an agent does them and `sed` cannot.
 3. `kapi apply` lands the change set. Each operation carries the revision it read, so a block someone changed since the read refuses the change set with its current text, and a concurrent edit can't be clobbered.
 4. `kapi check --forbid "Acme Sync"` proves completion: exit 0 means the sweep is done.
 
-Make the retired term a permanent [term](/kapi/recipes/keep-source-on-brand), and the old name can never quietly return. Recording a term is your decision, so the assistant suggests it and you keep it, or you add the `term` operation to the change set you apply.
+Make the retired name a permanent [term](/kapi/recipes/keep-source-on-brand), so a later use of it fails a check. Recording a term is your decision, so the assistant suggests it and you keep it, or you add the `term` operation to the change set you apply.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -53,7 +53,7 @@ kapi apply edits.json --in-place=.bak    # land it, keeping backups
 kapi check docs/**/*.md --forbid "Acme Sync"   # prove it's done
 ```
 
-For pure term substitution with zero judgment involved, `ksed -i 's/Acme Sync/Acme Flow/g'` or `kapi voice rewrite` does it deterministically: no agent, no model. The change set's shape and what refuses an edit are in [Edit content](/kapi/recipes/rewrite-content).
+For a plain substitution that needs no judgment, `ksed -i 's/Acme Sync/Acme Flow/g'` or `kapi voice rewrite` does it deterministically: no agent, no model. The change set's shape and what refuses an edit are in [Edit content](/kapi/recipes/rewrite-content).
 
 </TabItem>
 </Tabs>

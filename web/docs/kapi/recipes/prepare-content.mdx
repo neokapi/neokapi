@@ -12,7 +12,13 @@ import TabItem from "@theme/TabItem";
 
 # What gets translated
 
-**Goal:** decide what actually needs translating before anything goes out in another language. Three outcomes, one pass: sensitive material stays on your machine ([Redaction](/framework/redaction)), anything you've already translated comes back for free ([Content memory](/framework/content-memory)), and every language is held to the same bar as the source ([Checks](/framework/checks)). Each job runs ad-hoc on any file; a [kapi project](/kapi/get-started/first-project) makes the pass repeatable and lets reuse accumulate in a project-local content memory and terms store.
+**Goal:** decide what needs translating before anything goes out in another language. One pass gives you:
+
+- sensitive material that stays on your machine ([Redaction](/framework/redaction));
+- what you've already translated, reused at no cost ([Content memory](/framework/content-memory));
+- every language held to the same bar as the source ([Checks](/framework/checks)).
+
+Each job runs ad-hoc on any file. A [kapi project](/kapi/get-started/first-project) makes the pass repeatable, and its content memory and terms store grow with every run.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -75,7 +81,7 @@ kapi run prepare -i src/locales/en.json --target-lang fr
 
 ## In a project
 
-In a [kapi project](/kapi/get-started/first-project) the same pass runs against the recipe's declared content and locales: `kapi run prepare` with no file argument resolves the sources from the project, and the content memory and terms store it builds are the project's own. For the model behind this (each step a non-destructive overlay on one settled source) see [Content preparation](/framework/content-preparation).
+In a [kapi project](/kapi/get-started/first-project) the same pass runs against the recipe's declared content and locales: `kapi run prepare` with no file argument resolves the sources from the project, and the content memory and terms store it builds are the project's own. For the model behind this, in which each step adds to one settled source and changes none of it, see [Content preparation](/framework/content-preparation).
 
 ## Next
 
