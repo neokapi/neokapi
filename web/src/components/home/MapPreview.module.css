@@ -29,7 +29,6 @@
   background: var(--ifm-color-emphasis-300);
 }
 
-
 /* The Map is a full page; the hero shows its top: the counts, the actions and
    the first suggestions. The still is scaled down so the page's width fits the
    column, and a fade closes it. */
