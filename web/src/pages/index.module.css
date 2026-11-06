@@ -7,9 +7,8 @@
   overflow: hidden;
 }
 
-/* A soft radial wash + faint grid behind the hero for depth, tinted with the
-   site's primary accent. Sits behind the content; pointer-events:none so it
-   never intercepts the CTA. */
+/* A soft wash behind the hero, tinted with the site's primary accent. It sits
+   behind the content; pointer-events:none so it never intercepts the CTA. */
 .heroBanner::before {
   content: "";
   position: absolute;
@@ -18,7 +17,7 @@
   background:
     radial-gradient(
       60% 70% at 78% 18%,
-      color-mix(in srgb, var(--ifm-color-primary) 28%, transparent),
+      color-mix(in srgb, var(--ifm-color-primary) 22%, transparent),
       transparent 70%
     ),
     linear-gradient(
@@ -31,8 +30,8 @@
 .heroGrid {
   position: relative;
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: 2.5rem;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 3rem;
   align-items: center;
   text-align: left;
 }
@@ -42,13 +41,13 @@
 }
 
 .heroLogo {
-  width: 96px;
-  height: 96px;
+  width: 72px;
+  height: 72px;
   margin-bottom: 1rem;
 }
 
 .heroTitle {
-  font-size: 2.4rem;
+  font-size: 2.5rem;
   line-height: 1.12;
   margin-bottom: 1rem;
   text-wrap: balance;
@@ -57,7 +56,7 @@
 .heroSubtitle {
   font-size: 1.08rem;
   line-height: 1.6;
-  max-width: 38rem;
+  max-width: 36rem;
   margin-bottom: 1.5rem;
   color: var(--ifm-font-color-base);
   opacity: 0.92;
@@ -70,55 +69,30 @@
   gap: 0.75rem;
 }
 
-/* Primary "Try" CTA. Solid primary pill with a soft glow that intensifies on
-   hover; reads as the single most important action on the page. */
-.tryButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--ifm-color-primary);
-  color: #fff;
-  border: none;
-  font-weight: 700;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    background 0.15s ease;
-}
-
-.tryButton:hover {
-  background: var(--ifm-color-primary-dark);
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--ifm-color-primary) 55%, transparent);
-}
-
-.tryButton:focus-visible {
-  outline: 3px solid #fff;
-  outline-offset: 2px;
-}
-
 .heroHint {
   margin: 0.9rem 0 0;
-  font-size: 0.85rem;
-  opacity: 0.75;
+  font-size: 0.9rem;
 }
 
 .heroAside {
   min-width: 0;
 }
 
-.features {
-  display: flex;
-  align-items: center;
-  padding: 2rem 0;
-  width: 100%;
+/* ── Sections ─────────────────────────────────────────────────────────────── */
+
+.section {
+  padding: 3rem 0;
 }
 
-/* ── Tier cards + section heading ─────────────────────────────────────────── */
+.engine {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.sectionHead {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
 .sectionSubtitle {
   font-size: 1rem;
   color: var(--ifm-color-emphasis-700);
@@ -126,9 +100,9 @@
   margin: 0.5rem auto 0;
 }
 
-.tierEyebrow {
+.eyebrow {
   display: inline-block;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
   font-size: 0.7rem;
@@ -139,9 +113,44 @@
   background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
 }
 
-/* ── neokapi-i18n callout: a sibling React i18n library, not a "way to use the
-   engine" — visually distinct from the two engine tiers (React cyan accent). ── */
-.reactCallout {
+.card {
+  height: 100%;
+  padding: 0.5rem 0.75rem 1.25rem;
+}
+
+.cardTitle {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.cardText {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ifm-color-emphasis-800);
+  margin-bottom: 0.5rem;
+}
+
+.engineLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* ── Family callouts: two sibling products, one compact row ───────────────── */
+
+.familyRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.familyRow > * {
+  flex: 1 1 320px;
+}
+
+.familyCallout {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -154,19 +163,17 @@
   text-decoration: none;
   transition:
     border-color 0.15s ease,
-    transform 0.15s ease,
     box-shadow 0.15s ease;
 }
 
-.reactCallout:hover {
+.familyCallout:hover {
   border-color: #61dafb;
-  transform: translateY(-1px);
   box-shadow: 0 8px 24px color-mix(in srgb, #61dafb 28%, transparent);
   text-decoration: none;
   color: var(--ifm-font-color-base);
 }
 
-.reactCalloutBadge {
+.familyBadge {
   flex: 0 0 auto;
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
@@ -178,62 +185,44 @@
   background: color-mix(in srgb, #61dafb 22%, transparent);
 }
 
-.reactCalloutText {
+.familyText {
   flex: 1 1 auto;
   font-size: 0.92rem;
   line-height: 1.45;
 }
 
-.reactCalloutArrow {
+.familyArrow {
   flex: 0 0 auto;
   font-size: 1.25rem;
   color: #2aa3c7;
 }
 
-/* Two family callouts side by side (neokapi-i18n + CLI Tools), wrapping on narrow. */
-.familyRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-.familyRow > * {
-  flex: 1 1 320px;
-}
-
-/* CLI-tools variant of the family callout — seagreen accent vs React cyan. */
-.toolboxCallout {
+.toolsCallout {
   border-left-color: #2e8b57;
 }
-.toolboxCallout:hover {
+
+.toolsCallout:hover {
   border-color: #2e8b57;
   box-shadow: 0 8px 24px color-mix(in srgb, #2e8b57 28%, transparent);
 }
-.toolboxCallout .reactCalloutBadge {
+
+.toolsCallout .familyBadge {
   color: #1b6b41;
   background: color-mix(in srgb, #2e8b57 20%, transparent);
 }
-.toolboxCallout .reactCalloutArrow {
+
+.toolsCallout .familyArrow {
   color: #2e8b57;
 }
-.toolboxCallout code {
+
+.toolsCallout code {
   padding: 0.05rem 0.32rem;
   border-radius: 5px;
   font-size: 0.85em;
   background: color-mix(in srgb, #2e8b57 12%, transparent);
 }
 
-@media (max-width: 575px) {
-  .reactCallout {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  .reactCalloutArrow {
-    display: none;
-  }
-}
-
-/* ── Responsive: stack the "Try" CTA under the intro on narrow viewports ───── */
+/* ── Responsive ───────────────────────────────────────────────────────────── */
 
 @media (max-width: 996px) {
   .heroGrid {
@@ -251,7 +240,7 @@
     justify-content: center;
   }
 
-  .heroAside {
+  .card {
     text-align: center;
   }
 }
@@ -260,13 +249,14 @@
   .heroTitle {
     font-size: 1.9rem;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .tryButton {
-    transition: none;
+  .familyCallout {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
-  .tryButton:hover {
-    transform: none;
+
+  .familyArrow {
+    display: none;
   }
 }
