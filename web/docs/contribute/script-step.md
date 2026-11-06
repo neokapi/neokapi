@@ -7,7 +7,11 @@ keywords: [script step, JavaScript, ES5, goja, pipeline, custom processing, Part
 
 # JavaScript Script Step
 
-The script step lets you run custom JavaScript (ES5) on each Part flowing through the pipeline. It uses the [goja](https://github.com/dop251/goja) ES5 runtime -- a pure Go JavaScript engine with no CGo dependency.
+The `script` tool runs your ES5 JavaScript on each Part that passes through a
+flow. Use it to filter, route or edit Parts without writing a Go tool.
+
+The runtime is [goja](https://github.com/dop251/goja), a pure Go ES5 engine with
+no cgo dependency.
 
 ## How it works
 
@@ -39,7 +43,8 @@ part.block.targets["fr"][0].content.text; // French target's first run text
 
 ### emit(part)
 
-Emit a modified (or new) Part to the output channel. If you call `emit()`, the original Part is **not** forwarded automatically -- only what you emit reaches downstream tools.
+Emit a modified (or new) Part to the output channel. Once you call `emit()`, only what you emit reaches downstream tools, and the
+original Part is dropped.
 
 ```javascript
 // Modify a target translation and emit
@@ -55,7 +60,7 @@ back, because the source is read-only (see [Configuration reference](#configurat
 
 ### skip()
 
-Drop the current Part entirely. It will not reach downstream tools or the writer.
+Drop the current Part. Downstream tools and the writer never see it.
 
 ```javascript
 if (part.type === "block" && part.block.source[0].content.text === "") {
@@ -260,6 +265,12 @@ mode is inferred from whichever of `code`/`scriptFile` is set.
 ## Notes
 
 - The runtime is ES5 only (no `let`, `const`, arrow functions, or template literals). Use `var` for variable declarations.
-- Each tool instance gets its own goja runtime, so there is no shared state between parallel pipeline branches.
-- The script runs synchronously for each Part. Long-running scripts will block the pipeline.
+- Each tool instance gets its own goja runtime, so two script steps share no state.
+- The script runs synchronously for each Part. A long-running script blocks the flow.
 - Target text edits on block parts are read back. Source edits are read back only when `allowSourceMutation: true`; otherwise the source is read-only. Changes to other Part types are not persisted.
+
+## Related
+
+- [YAML Flow Authoring](/contribute/flow-authoring): placing the step in a flow.
+- [Tool Authoring with Parameter Schemas](/contribute/tool-authoring): writing the same logic as a Go tool.
+- [E-06: Execution trust](/contribute/architecture/engine/e-06-execution-trust): how kapi gates a script before it runs.
