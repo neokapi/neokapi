@@ -1,7 +1,7 @@
 ---
 sidebar_position: 9
 title: Pipeline
-description: The neokapi pipeline is the concurrent execution engine that runs flows — each tool stage runs in its own goroutine, connected by buffered channels of Parts, with context cancellation and error propagation via errgroup.
+description: The neokapi pipeline is the concurrent execution engine that runs flows: each tool stage runs in its own goroutine, connected by buffered channels of Parts, with context cancellation and error propagation via errgroup.
 keywords: [pipeline, goroutines, channels, concurrent, streaming, errgroup, execution engine]
 ---
 
@@ -10,11 +10,11 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Pipeline
 
-The **pipeline** is how neokapi runs a [flow](/framework/flows). Where a flow
-says _what_ tools to run in _what_ order, the pipeline is the concurrent
-machinery that actually runs them: a [format reader](/framework/formats), a chain
-of [tools](/framework/tools), and a format writer, each running in its own
-goroutine and connected by buffered channels of [Parts](/framework/content-model).
+The **pipeline** is how neokapi runs a [flow](/framework/flows). A flow names
+the tools and their order. The pipeline runs them concurrently: a
+[format reader](/framework/formats), a chain of [tools](/framework/tools), and a
+format writer, each in its own goroutine and connected by buffered channels of
+[Parts](/framework/content-model).
 
 <PipelineDiagram
   animated
@@ -48,17 +48,15 @@ runs the real `kapi` engine in your browser via WebAssembly.
 
 ## Streaming, not batching
 
-A pipeline does not load a document into memory, transform it, and write it out
-in three phases. Instead, the reader emits Parts as it parses, and those Parts
-flow downstream while the reader is still working. Each tool processes a Part as
+The reader emits Parts as it parses, and those Parts flow downstream while the
+reader is still working. Each tool processes a Part as
 soon as it arrives and forwards it, so the writer can begin emitting output
 before the reader has finished reading. Memory use stays bounded by the size of
 the channel buffers and the Parts in flight, not by the size of the document.
 
-This streaming model is why the [content model](/framework/content-model) is
-shaped the way it is: a `Part` is the indivisible unit that flows through, and a
-document is a stream of Parts (layer starts, blocks, data, layer ends) rather
-than a single tree.
+The [content model](/framework/content-model) follows from this: a `Part` is the
+indivisible unit that flows through, and a document is a stream of Parts (layer
+starts, blocks, data, layer ends).
 
 ## Channels and backpressure
 
@@ -66,9 +64,9 @@ Adjacent stages are connected by **buffered channels**, by default a buffer of
 64 Parts. The buffer decouples the stages so a fast reader does not have to wait
 on a slow tool for every single Part, but it is bounded: when the buffer fills,
 the upstream stage blocks on its send until the downstream stage catches up.
-That blocking _is_ the backpressure. A slow tool, say an AI translation step
-waiting on a network call, naturally throttles the reader feeding it, without any
-explicit rate limiting or queue management.
+That blocking is the backpressure. A slow tool, such as an AI translation step
+waiting on a network call, throttles the reader that feeds it, with no explicit
+rate limiting or queue management.
 
 Each tool runs `Process(ctx, in, out)` in its own goroutine. The executor wires
 stage `i`'s output channel to stage `i+1`'s input channel, launches a goroutine
@@ -83,9 +81,8 @@ The stages are coordinated by an `errgroup.Group`. If any tool's `Process`
 returns an error, the group cancels a shared context derived from the caller's
 context. Every stage selects on `ctx.Done()` in its channel operations, so
 cancellation propagates promptly to all goroutines: a stage blocked on a send or
-a receive wakes up and returns. The pipeline tears down cleanly rather than
-leaking goroutines on a partial failure, and the first error is reported to the
-caller.
+a receive wakes up and returns. On a partial failure the pipeline tears down
+with no leaked goroutines, and the caller receives the first error.
 
 Because cancellation flows from the caller's context, a pipeline is also
 cancellable from the outside. Closing a CLI run, a request timeout, and a desktop
@@ -93,8 +90,7 @@ cancellable from the outside. Closing a CLI run, a request timeout, and a deskto
 
 ## Layers of concurrency
 
-The single tool chain is only one of several independent concurrency layers, and
-they compose without interfering:
+The tool chain is one of three independent concurrency layers:
 
 | Layer                      | What runs concurrently                                          |
 | -------------------------- | --------------------------------------------------------------- |
@@ -127,19 +123,17 @@ With no options it runs sequentially, with a channel buffer of 64 and fail-fast
 on. `Execute` takes a built flow and a slice of items (each an input document, an
 output path, and a target locale) and runs the whole batch.
 
-For callers that want to feed Parts in and read results out directly, rather
-than reading and writing files, the executor can also expose the chain's input
-and output channels, wiring the same goroutine-per-tool pipeline but leaving the
-ends open for the caller to drive.
+A caller that feeds Parts in and reads results out directly, with no files, can
+ask the executor for the chain's input and output channels. The executor wires
+the same goroutine-per-tool pipeline and leaves the ends open for the caller.
 
 ## Observation
 
 Because the pipeline is a stream of Parts, work can be observed without
 disturbing it. The executor accepts **collectors** that are fed the output Parts
-of each document as it completes, which is how cross-document analysis (scoping
-reports, repetition analysis across a batch) accumulates results. Observation is
-a separate concurrency concern from the tool chain itself: a collector reads the
-finished stream and does not sit inside it.
+of each document as it completes. Cross-document analysis (scoping reports,
+repetition analysis across a batch) accumulates its results this way. A
+collector reads the finished stream from outside the tool chain.
 
 ## Related reading
 
