@@ -9,16 +9,12 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # The desktop app
 
-Everything in this section describes one product served from one place, the
-Bowrain server. You reach a workspace through two clients: a browser and a
-native **desktop app**. They are equal real-time clients of the same server, so
-presence, edits, reviews, terms, and content memory are shared live across
-both. The pages on workspaces, the hub, review, the editor, memory, terms, and
-connectors apply to both clients; this page covers only what is **different**
-about the desktop app.
+The Bowrain desktop app is a native client for the same workspace you open in
+the browser. It adds offline editing; everything else matches the browser.
 
-The native desktop client is a real-time working copy of the server, with the
-same dashboard, hub, editor, and reviews as the browser.
+The pages on workspaces, the hub, review, the editor, memory, terms and
+connectors apply to both clients. The sections below cover what is
+**different** about the desktop app.
 
 <ThemedVideo
   sources={{
@@ -29,39 +25,37 @@ same dashboard, hub, editor, and reviews as the browser.
 
 ## A working copy of the server
 
-The desktop app is a **working copy of the server, never a separate source of
-truth**. The authoritative content, content memory, terms, and project
-configuration live on the server; the desktop holds only:
+The desktop app is a **working copy of the server**. The server holds the
+content, content memory, terms and project configuration. The desktop app
+holds:
 
 - a **content cache**, so a project opens fast and stays readable offline, and
 - an **offline edit queue**, which holds your changes when the network drops and
   replays them to the server, in order, on reconnect.
 
-Neither is a source of truth. If the local cache is cleared, the desktop
-re-fetches everything from the server. Authoring local files and project
-configuration, the `kapi.yaml` recipe with its content, flows, plugins,
-languages, coordinates and voice binding, is
-[kapi's job](/getting-started/kapi-vs-bowrain), not the desktop app's.
+If the local cache is cleared, the desktop app fetches everything again from
+the server. To work on local files and project configuration, such as the
+`kapi.yaml` recipe, use [kapi](/getting-started/kapi-vs-bowrain).
 
 ## What the desktop adds: offline editing
 
-The browser client is always online. The desktop client keeps working when the
-network drops: on a flight, in a tunnel, or during server maintenance. Edits,
-reviews, and memory updates made offline queue locally and replay in order the
-moment you reconnect, then rejoin the live session. You do not have to think
-about sync; it happens on reconnect. Each queued edit names the version of the
-translation it was made against, so an edit to a translation a teammate changed
-while you were offline is not applied over theirs. It is listed as a change
-that was not sent instead, with its wording, and you make it again on the
-translation as it now stands (see
-[Troubleshooting](/server/troubleshooting#the-desktop-app-has-pending-or-failed-changes)). See
-[Real-time collaboration](/server/collaboration) for the shared presence and
+The browser client needs a connection. The desktop client keeps working when
+the network drops: on a flight, in a tunnel, or during server maintenance.
+Edits, reviews and memory updates made offline queue locally. When you
+reconnect, they replay in order and the app rejoins the live session.
+
+Each queued edit names the version of the translation it was made against. If
+a teammate changed that translation while you were offline, the app keeps
+their version and lists yours, with its wording, as a change that was not
+sent. You then make it again on the current translation (see
+[Troubleshooting](/server/troubleshooting#the-desktop-app-has-pending-or-failed-changes)).
+See [Real-time collaboration](/server/collaboration) for the presence and
 live-update model both clients use.
 
 ## Web and desktop, in sync
 
-Both clients connect to the same server and the same workspaces. Which you reach
-for is a matter of where you work, not what you can do.
+Both clients connect to the same server and the same workspaces. Choose by
+where you work.
 
 | | **Browser** | **Desktop app** |
 | --- | --- | --- |
@@ -89,10 +83,10 @@ carries the direct, version-pinned links for the current release.
 4. Pick a workspace, then open a project from its project list.
 
 Until you connect, the rail shows a single placeholder **Personal** workspace.
-The desktop does not author local-file projects there; creating and configuring
-projects is [kapi's job](/getting-started/kapi-vs-bowrain). Connect to a server
-to open real projects. Once connected, its workspaces, projects, and resources
-are **the server's**, the same ones the team works on in the browser. See
+To create and configure local-file projects, use
+[kapi](/getting-started/kapi-vs-bowrain). Connect to a server to open real
+projects. Once connected, the workspaces, projects and resources you see are
+**the server's**, the same ones the team works on in the browser. See
 [Workspaces & members](/server/workspaces) for the role and permission model,
 and [The editor](/server/translation-editor) for the editing surfaces both
 clients share.
@@ -103,9 +97,8 @@ Pulling content from a CMS, a git host, or a design tool is configured
 server-side through [connectors](/server/connectors); both clients edit the
 resulting project. The desktop app itself offers only **remote/CMS** connectors
 (WordPress, Figma, HubSpot). The local-filesystem connectors (file, git) are
-registered **server-side only**: sourcing content from a filesystem or a git
-checkout is a server-side concern, and a local codebase syncs in through kapi
-(`kapi push` / `kapi pull`).
+registered **server-side only**. A local codebase reaches the workspace through
+kapi (`kapi push` / `kapi pull`).
 
 ## File export
 
