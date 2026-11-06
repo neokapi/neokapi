@@ -3,43 +3,60 @@ title: The Bowrain GitHub App
 sidebar_label: The Bowrain GitHub App
 ---
 
+import { SwimlaneDiagram } from "@neokapi/docs-shared";
+
 # The Bowrain GitHub App
 
-A repository can run the kapi loop with no CI configuration at all. The
-`forge` connector connects a GitHub or GitLab repository server-side: every
-push to the tracked branch reaches the server through a webhook, the server
-re-ingests the changed source and starts a run under the project's on-push
-convergence policy, and the produced results come back as **one open
-pull/merge request** that every later delivery updates in place. On GitHub,
-the Bowrain GitHub App removes the last per-repository steps: no token and
-no webhook secret to manage. GitLab always uses a project access token.
+A repository can stay caught up with no CI configuration. The `forge`
+connector links a GitHub or GitLab repository to a workspace server-side, and
+the results arrive as **one open pull/merge request** that every later
+delivery updates in place.
+
+<SwimlaneDiagram
+  actors={[
+    { label: "Repository", sub: "tracked branch", role: "io" },
+    { label: "Bowrain server", sub: "on-push policy", role: "translate" },
+    { label: "Reviewer", sub: "review session", role: "qa" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "push webhook", detail: "verified secret" },
+    { from: 1, to: 1, label: "read changed source, run", detail: "holds what needs a person" },
+    { from: 1, to: 2, label: "work waiting for review" },
+    { from: 1, to: 0, label: "one PR/MR, updated in place", detail: "you review and merge" },
+  ]}
+  caption="A push reaches the server through a webhook, the server runs the project, and the results come back as one pull request."
+/>
+
+On GitHub, the Bowrain GitHub App removes the remaining per-repository steps:
+there is no token and no webhook secret to manage. GitLab always uses a
+project access token.
 
 ## When to choose it
 
-- Nobody owns the repository's CI: docs, marketing, and content
-  repositories that have no pipeline to extend.
-- You want zero configuration in the repository: no workflow
-  file, no component include, no CI secrets to rotate.
-- Choose [GitHub Actions](/cli/use-cases/github-actions) or
-  [GitLab CI](/cli/ci/gitlab) instead when the pipeline should own the job's
-  shape: custom triggers, a merge gate (`kapi check --ship`), or plan
-  comments on pull requests. The two compose: forge delivery can produce
-  while a thin CI job gates.
+- Nobody owns the repository's CI, as in docs, marketing and content
+  repositories with no pipeline to extend.
+- You want no configuration in the repository: no workflow file, no component
+  include and no CI secrets to rotate.
+
+Choose [GitHub Actions](/cli/use-cases/github-actions) or
+[GitLab CI](/cli/ci/gitlab) instead when you want to shape the job yourself:
+custom triggers, a merge gate (`kapi check --ship`), or plan comments on pull
+requests. You can combine them: forge delivery produces the results while a
+small CI job gates.
 
 ## How delivery behaves
 
 - Each project keeps **one open PR/MR**. A new run recreates the delivery
   branch (default `bowrain/translations`) from the tracked branch's tip,
-  force-pushes it, and updates the open request in place; no trail of stale
-  requests.
-- The connector **never pushes to the tracked branch**; the delivery branch
-  must differ from it, and delivery is always a request you review and merge.
+  force-pushes it, and updates the open request in place, so stale requests
+  never pile up.
+- The connector **never pushes to the tracked branch**. The delivery branch
+  must differ from it, and every delivery is a request you review and merge.
 - When the produced output equals the tracked branch, nothing is delivered.
-- Pushes to any branch other than the tracked one, including the delivery
-  branch itself, are ignored, so the connector's own deliveries never
-  re-trigger a run.
-- When a run leaves work waiting for review, the request says so; approvals travel
-  through the project's [review session](/server/review) and arrive in a later
+- The connector ignores pushes to any other branch, including the delivery
+  branch, so its own deliveries never start another run.
+- When a run leaves work waiting for review, the request says so. Approvals
+  made in the project's [review session](/server/review) arrive in a later
   delivery.
 
 ## Connect a repository
@@ -99,12 +116,12 @@ The server verifies the secret before acting, and only a verified push to the
 
   One app serves every workspace, so the server records which workspace each
   installation belongs to and serves the setup endpoints only to that
-  workspace. The record is made when the install is started from Bowrain
-  (the install link carries signed state that GitHub returns on the redirect)
-  and it is dropped as soon as GitHub reports the app uninstalled. An
-  installation started elsewhere (GitHub's own app page, the Marketplace)
-  arrives unattributed; open **Connect GitHub** from the workspace to attach
-  it, which is the same round trip with the state included.
+  workspace. The server makes the record when the install starts from
+  Bowrain, because the install link carries signed state that GitHub returns
+  on the redirect. It drops the record as soon as GitHub reports the app
+  uninstalled. An installation started elsewhere, such as GitHub's own app page
+  or the Marketplace, arrives without a workspace. Open **Connect GitHub** from
+  the workspace to attach it.
 
 ## Self-hosting: register the app
 
@@ -114,9 +131,9 @@ GitHub Apps → New):
 
 - **Webhook URL** `$SERVER/api/webhooks/github-app`, with a webhook secret,
   subscribed to **push**, **installation** and **installation repositories**.
-  The last two are what keep the installation records current; without
-  `installation` an uninstall goes unnoticed and the workspace keeps a claim
-  on an installation the app no longer has.
+  The last two keep the installation records current. Without
+  `installation`, the server misses an uninstall, and the workspace keeps a
+  claim on an installation the app has lost.
 - **Setup URL** `$SERVER/github/setup`, with *Redirect on update* enabled, so
   GitHub returns the installation (and the signed state that attributes it)
   after an install or a repository-access change.

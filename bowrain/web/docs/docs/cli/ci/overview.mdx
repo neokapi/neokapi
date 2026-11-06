@@ -8,22 +8,21 @@ import { LanesDiagram, KapiLink } from "@neokapi/docs-shared";
 
 # The loop in CI
 
-CI is where drift is made: every merge changes source content and leaves its
-translations, terms, and voice conformance behind. It is also the
-natural place to catch up. [The kapi loop](/the-loop) runs on every change or
-on a schedule; what a machine cannot decide **waits for review** in the team's
-review session on the server; and the ship gate protects releases without ever failing
-an ordinary build on target-language drift.
+Every merge changes source content, and its translations, terms and voice
+checks fall behind. CI can catch them up on every change or on a schedule with
+[the kapi loop](/the-loop). Items a machine cannot decide **wait for review**
+in the team's review session on the server, and the ship gate protects
+releases. An ordinary build passes while target languages are behind.
 
 On a project connected to a Bowrain server, a CI run of `kapi up` executes on
-the **server venue**: the job pushes the drift, the server runs the loop on
-the organization's AI keys, shared content memory, and terms, and
-the results come back to the working tree. The runner holds a server token
-and no provider keys.
+the **server venue**. The job pushes the drift, the server runs the loop with
+the organization's AI keys, shared content memory and terms, and the results
+come back to the working tree. The runner holds a server token and no
+provider keys.
 
-This page maps the surfaces and the contract they share. The step-by-step
-generic walkthroughs (scheduling, gating, cost reporting on GitHub and
-GitLab) live on the kapi site:
+The sections below list the CI surfaces and the exit codes they share. The kapi
+site has the step-by-step walkthroughs for scheduling, gating and cost
+reporting on GitHub and GitLab:
 <KapiLink to="/kapi/convergence-in-ci">The kapi loop in CI</KapiLink>.
 
 <LanesDiagram
@@ -64,8 +63,7 @@ GitLab) live on the kapi site:
 
 ## The contract
 
-Three commands divide the work, and their exit codes are the whole interface
-a pipeline needs:
+A pipeline needs three commands and their exit codes:
 
 | Command | Role | Exit behavior |
 |---|---|---|
@@ -73,10 +71,9 @@ a pipeline needs:
 | `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up, left work waiting for review, or went on after the event stream ended early; non-zero when the run broke or its outcome is unknown |
 | `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `4` a gate did not run, `1` operational error |
 
-Work waiting for review is pending, not an error. The gate is the explicit,
-opt-in enforcement point: wire it into merge-request pipelines and a quality
-regression cannot merge, while day-to-day drift flows through review instead
-of breaking builds.
+Work waiting for review exits `0`. Add the gate to merge-request pipelines and
+a quality regression cannot merge. Day-to-day drift goes to review, and builds
+keep passing.
 
 ## The surfaces
 
@@ -89,15 +86,15 @@ of breaking builds.
 
 ## Which to use when
 
-If you own the repository's CI and want control over triggers, delivery, and
-gating, use `kapi-action` on GitHub or `kapi-components` on GitLab; each job
-is an ordinary pipeline step you can shape. For minimal setup on GitHub, the
-reusable workflows give you the whole produce-and-deliver or gate job as a
-single `uses:` line. When nobody owns the repository's CI (a docs,
-marketing, or content repository) or you want zero configuration in the
-repository at all, connect it server-side with the
-[forge connector or the Bowrain GitHub App](/cli/ci/github-app): the server
-converges on every push and delivers a pull request back on its own.
+- **You own the repository's CI** and want control over triggers, delivery and
+  gating: use `kapi-action` on GitHub or `kapi-components` on GitLab. Each job
+  is an ordinary pipeline step you can shape.
+- **You want minimal setup on GitHub**: the reusable workflows give you the
+  whole produce-and-deliver or gate job as a single `uses:` line.
+- **Nobody owns the repository's CI**, as in a docs, marketing or content
+  repository, or you want no configuration in the repository: connect it
+  server-side with the [forge connector or the Bowrain GitHub App](/cli/ci/github-app).
+  The server catches up on every push and delivers a pull request back.
 
 ## Authenticating a runner
 
@@ -108,7 +105,7 @@ kapi auth login
 kapi auth token create --name "ci" --expire-days 90
 ```
 
-The token (`bwt_…`) is shown once; store it as a CI secret immediately. On
+The token (`bwt_…`) is shown once, so store it as a CI secret right away. On
 the runner, `BOWRAIN_AUTH_TOKEN` carries the credential, and the CLI checks
 it before any stored login:
 
@@ -117,10 +114,10 @@ BOWRAIN_AUTH_TOKEN=bwt_...
 BOWRAIN_SERVER_URL=https://bowrain.example.com   # self-hosted only
 ```
 
-`BOWRAIN_SERVER_URL` is only needed for a **self-hosted** server: the hosted
+You need `BOWRAIN_SERVER_URL` only for a **self-hosted** server. The hosted
 service (`https://app.bowrain.cloud`) is the built-in default, and project
 commands (`kapi up`, `push`, `pull`, `check`) read the server from the
-checked-out recipe's `bowrain:` block in any case. On GitHub Actions,
+checked-out recipe's `bowrain:` block. On GitHub Actions,
 `setup-kapi`'s `auth-token` and `server` inputs export exactly these two
 variables. On GitLab, set them as masked CI/CD variables. List and revoke
 tokens with `kapi auth token list` and `kapi auth token delete`.

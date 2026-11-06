@@ -5,15 +5,17 @@ sidebar_label: GitHub Actions
 
 # Use Case: kapi in GitHub Actions
 
-This guide shows how to use kapi (with the bowrain plugin) in GitHub Actions workflows for automated drafting, quality checks, and server sync.
+A GitHub Actions workflow can keep every language caught up on the server,
+commit the results back, and block a pull request that misses the ship gate.
+The workflows below run kapi with the bowrain plugin for drafting, quality
+checks and server sync.
 
 ## Overview
 
-The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner, with the bowrain plugin included by default. It handles platform detection, checksum verification, binary caching, and optional server authentication, so your workflow steps can focus on the content work.
+The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner, with the bowrain plugin included by default. It handles platform detection, checksum verification, binary caching and optional server authentication.
 
-This page is the deep GitHub Actions guide. For the map of every CI and
-delivery surface (GitLab CI, container runners, and the no-pipeline Bowrain
-GitHub App), start at [The loop in CI](/cli/ci/overview).
+For the other CI and delivery surfaces (GitLab CI, container runners, and the
+no-pipeline Bowrain GitHub App), start at [The loop in CI](/cli/ci/overview).
 
 ## Setup
 
@@ -97,7 +99,13 @@ jobs:
           git push
 ```
 
-With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull) and reports what the run left in the working tree. The action commits nothing; the last step above commits and pushes. A run that **caught up** (`converged`: every gated locale cleared its ship gate) leaves the produced results; a run that leaves work **waiting for review** (outcome `parked`: work a person has to decide) leaves what did catch up and annotates the languages waiting for review; a **failed** run exits non-zero, so the steps after it are skipped. It sets outputs you can use in subsequent steps:
+With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull) and reports what the run left in the working tree. The action commits nothing; the last step above commits and pushes.
+
+- A run that **caught up** (outcome `converged`: every gated locale cleared its ship gate) leaves the produced results.
+- A run that leaves work **waiting for review** (outcome `parked`) leaves what did catch up and annotates the languages waiting for review.
+- A **failed** run exits non-zero, so the steps after it are skipped.
+
+It sets outputs you can use in later steps:
 
 | Output              | Description                                                        |
 | ------------------- | ------------------------------------------------------------------ |
@@ -221,16 +229,15 @@ jobs:
         run: kapi check --ship
 ```
 
-Ordinary builds never fail on target-language drift; a locale that is behind
-is pending work, not an error. `check --ship` is the explicit, opt-in
-enforcement point.
+An ordinary build passes when a locale is behind. `check --ship` is the step
+you add to enforce the release bar.
 
 ## Example: Push source on Push to Main
 
-Send source changes to Bowrain Cloud when they land on `main`. Push is pure
-transport; with `bowrain.converge: on-push` the server catches the project up on its own clock.
-Use `kapi up` instead of `kapi push` if you want CI to watch the run and commit
-the results back:
+Send source changes to Bowrain Cloud when they land on `main`. Push only moves
+content. With `bowrain.converge: on-push`, the server then catches the project
+up on its own schedule. Use `kapi up` instead of `kapi push` if you want CI to
+watch the run and commit the results back:
 
 ```yaml
 name: Push source
@@ -371,7 +378,7 @@ kapi auth login                               # authenticate with Bowrain Cloud
 kapi auth token create --name "CI" --expire-days 90
 ```
 
-The token (`bwt_...`) is shown once; store it immediately as a GitHub Actions secret:
+The token (`bwt_...`) is shown once, so store it right away as a GitHub Actions secret:
 
 ```bash
 gh secret set BOWRAIN_AUTH_TOKEN --repo your-org/your-repo
