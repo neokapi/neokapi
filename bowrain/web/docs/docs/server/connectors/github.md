@@ -7,23 +7,23 @@ keywords: [github, gitlab, forge, connector, pull request, merge request, webhoo
 
 # GitHub / GitLab connector
 
-The `forge` connector is a code connector. It watches a repository branch, and
-when content changes it catches the repository up on the server and delivers the
-results as **one open pull/merge request** that every later delivery updates in
-place, never a direct push to the tracked branch.
+The `forge` connector keeps a repository's content caught up with nobody
+running a command. It watches a repository branch. When content changes, it
+catches the repository up on the server and delivers the results as **one open
+pull/merge request**, which every later delivery updates in place. The tracked
+branch changes only when you merge.
 
-This is the route for a team that wants a repository governed without anyone
-running a command. There is no pipeline in the repository, no CLI on anyone's
-machine, and no scheduled job. The alternative for a repository is the
-[kapi connector](/server/connectors/kapi), which puts the same work under a
-developer's own hand. Both can run side by side against one project.
+The repository needs no pipeline, nobody installs a CLI, and there is no
+scheduled job. To run the same work from a developer's machine, use the
+[kapi connector](/server/connectors/kapi). Both can run side by side against
+one project.
 
 :::note
 
-The forge connector is not offered in the web app's add-connector dialog for
-static-token setups. Create it through the workspace connectors API
-(**manage connectors** permission), or install the server's GitHub App and bind
-repositories from a project's Connectors page (below).
+For a static-token setup, create the connector through the workspace
+connectors API (**manage connectors** permission), because the web app's
+add-connector dialog leaves it out. With the server's GitHub App installed,
+you bind repositories from a project's Connectors page (below).
 
 :::
 
@@ -35,8 +35,8 @@ filename stem equal to the source language becomes the target language
 (`locales/en/app.json → locales/fr/app.json`); other layouts get the language
 suffixed to the stem.
 
-When a run leaves work waiting for review, the pull/merge request says so; approvals
-travel through the project's [review session](/server/review) and arrive in a
+When a run leaves work waiting for review, the pull/merge request says so.
+Approvals made in the project's [review session](/server/review) arrive in a
 later delivery.
 
 ## Setup with a token
@@ -70,9 +70,9 @@ Optional config: `forge` (`github` | `gitlab`; default inferred from the repo
 host, self-managed GitLab included), `delivery_branch` (default
 `bowrain/translations`), `pr_title`, `pr_labels`.
 
-Credentials are sealed at rest like every connector secret. Pushes to branches
-other than the tracked one, including the delivery branch itself, are ignored,
-so the connector's own deliveries never re-trigger a run.
+Credentials are encrypted at rest like every connector secret. The connector
+ignores pushes to other branches, including the delivery branch, so its own
+deliveries never start another run.
 
 ## GitHub App mode (no tokens, no per-repo webhooks)
 
@@ -108,15 +108,16 @@ GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
 GITHUB_API_URL=https://<host>/api/v3   # GitHub Enterprise Server only; omit for github.com
 ```
 
-Installing the app on a repository is then the only per-repo step. GitHub
-redirects to the server's setup page (set the app's **Setup URL** to
-`$SERVER/github/setup`), which lists the installation's repositories and binds
-each to a project with one selection: no curl, no tokens. The setup page is a
-complete on-ramp: a visitor who arrives without a Bowrain account signs in or
-creates one (the installation is preserved through login), gets a workspace if
-they have none, and can create a project from the repository inline. The same
-binding is available from a project's Connectors page ("GitHub"), and the
-workspace connectors API remains the automation path.
+The only per-repository step is then to install the app on the repository.
+GitHub redirects to the server's setup page (set the app's **Setup URL** to
+`$SERVER/github/setup`). The page lists the installation's repositories, and
+one selection binds each to a project, with no curl and no tokens.
+
+A visitor who arrives at the setup page without a Bowrain account signs in or
+creates one, and the installation is kept through login. They get a workspace
+if they have none, and can create a project from the repository on the same
+page. A project's Connectors page ("GitHub") offers the same binding, and the
+workspace connectors API covers automation.
 
 Static tokens keep working alongside app mode. GitLab always uses a project
 access token.
