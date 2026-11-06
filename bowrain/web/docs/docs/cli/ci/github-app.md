@@ -105,7 +105,7 @@ The server verifies the secret before acting, and only a verified push to the
 - **Token mode** (default): the connector carries a forge API token with
   pull/merge-request write access: a GitHub fine-grained PAT with contents
   and pull-requests write, or a GitLab project access token with api scope.
-  Credentials are sealed at rest like every connector secret.
+  Credentials are encrypted at rest like every connector secret.
 - **App mode** (`"auth": "app"`, GitHub only): the connector carries no
   token and no webhook secret. GitHub routes every installed repository's
   pushes to one app endpoint, `POST $SERVER/api/webhooks/github-app`, and the

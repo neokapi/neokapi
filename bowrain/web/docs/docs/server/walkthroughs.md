@@ -93,7 +93,7 @@ Reuse approved wording to keep drafts consistent and reduce effort.
 ### What you learned
 
 - Adding entries to the content memory
-- Bulk reuse from memory across an entire file
+- Recycle from memory across an entire file
 - Understanding match scores and match types
 - Applying memory suggestions from the context panel
 
