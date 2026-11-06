@@ -57,7 +57,8 @@ in env.
 | bowrain web framed videos (`/video/bowrain-web/bowrain-web-*`) | `server/web-overview.mdx` | harness demos `bowrain-web-{editor,governance,review,correction-loop,collaboration}` (need a server) | `bowrain/web/docs/static/video/bowrain-web/` |
 | bowrain desktop framed videos (`/video/bowrain-desktop/bowrain-desktop-*`) | `server/desktop-app.mdx` | harness demos `bowrain-desktop-{dashboard,automations}` | `bowrain/web/docs/static/video/bowrain-desktop/` |
 | bowrain walkthrough scenes (`bowrain/web/docs/scenes/<id>/0N-*.webm`) | bowrain walkthroughs | committed recordings; no recorder is checked in, so a change means re-recording by hand and committing the file | `bowrain/web/docs/scenes/<id>/` |
-| bowrain web screenshots (`/img/web-app/{light,dark}/*.png`) | `server/web-overview.mdx`, `walkthroughs/bowrain-automation.mdx` | no producer is checked in: capture by hand from a seeded stack (`harness/scripts/theme-shots.mjs` shows the pattern, but it writes palette candidates to `harness/theme-shots/`, not the gallery) | `bowrain/web/docs/static/img/web-app/` |
+| bowrain web screenshots (`/img/web-app/{light,dark}/*.png`) | `server/web-overview.mdx`, `walkthroughs/bowrain-automation.mdx` | `make docs-screenshots` (`harness/scripts/shoot-docs-screens.ts bowrain`, from the seeded stack) | `bowrain/web/docs/static/img/web-app/` |
+| Kapi Desktop screenshots (`/img/desktop/{light,dark}/*.png`) | `kapi/desktop/` pages | `make docs-screenshots` (`harness/scripts/shoot-docs-screens.ts desktop`, from the Kapi Storybook build) | `web/static/img/desktop/` |
 | bowrain desktop screenshots (`/img/bowrain/{light,dark}/*.png`) | `server/desktop-app.mdx` | same: no producer is checked in | `bowrain/web/docs/static/img/bowrain/` |
 
 ## 1. kapi docs
@@ -152,14 +153,17 @@ cd ..
 
 ### 2b. bowrain walkthrough scenes and screenshots
 
+`make docs-screenshots` writes the Bowrain web app screenshots from the seeded
+stack to `bowrain/web/docs/static/img/web-app/` and the Kapi Desktop
+screenshots from the Kapi Storybook to `web/static/img/desktop/`, in light and
+dark, and `make publish-cdn-bowrain-images` and `make publish-cdn-images`
+publish them.
+
 The walkthrough scenes under `bowrain/web/docs/scenes/<id>/` are committed
-`.webm` files and the screenshot galleries under
-`bowrain/web/docs/static/img/{web-app,bowrain}/{light,dark}/` are gitignored
-CDN assets; neither has a recorder checked in. Re-record a scene or capture a
-gallery by hand against the seeded stack (a Playwright script in the shape of
-`harness/scripts/theme-shots.mjs`, which plants the session cookie and captures
-the real app in light and dark), keep the file names the pages reference, and
-commit the scene files.
+`.webm` files, and the gallery under `bowrain/web/docs/static/img/bowrain/` is
+a gitignored CDN asset; neither has a recorder checked in. Re-record a scene
+or capture that gallery by hand against the seeded stack, keep the file names
+the pages reference, and commit the scene files.
 
 ### 2c. publish + deploy
 

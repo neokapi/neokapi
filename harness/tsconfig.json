@@ -13,5 +13,5 @@
     "noEmit": true,
     "types": ["node", "react", "react-dom"]
   },
-  "include": ["src", "remotion.config.ts"]
+  "include": ["src", "remotion.config.ts", "scripts/shoot-docs-screens.ts"]
 }

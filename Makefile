@@ -2872,6 +2872,15 @@ harness-videos-staged: ## Full fresh pass: stack up → seed → record, then na
 	$(MAKE) harness-narrate FORCE=1
 	$(MAKE) harness-package FORCE=1
 
+# Docs screenshots, light and dark, from the real screens: the Bowrain web app
+# on the seeded local stack and Kapi Desktop screens from the Kapi Storybook
+# build. Bring the stack up and seed it first (`make -C bowrain stack-up-web`,
+# `make harness-seed`). The files are gitignored CDN assets; publish them with
+# `make publish-cdn-images publish-cdn-bowrain-images`.
+docs-screenshots: kapi-storybook-build ## Shoot the docs screenshots (Bowrain web + Kapi Desktop, light + dark) → static/img
+	cd harness && vpx tsx scripts/shoot-docs-screens.ts desktop ../web/static/img/desktop
+	cd harness && vpx tsx scripts/shoot-docs-screens.ts bowrain ../bowrain/web/docs/static/img/web-app
+
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
 # okapi-bridge plugin dir feeding the reference dataset.
@@ -3367,7 +3376,7 @@ help: ## Show this help
         face-parity face-parity-update \
         bench bench-build bench-run bench-run-full bench-stress fetch-okapi-testdata \
         logo harness-deps harness-check harness-videos \
-        harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
+        harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged docs-screenshots \
         publish-cdn-wasm publish-cdn-vision-models publish-cdn-videos publish-cdn-bowrain-videos \
         publish-cdn-images publish-cdn-bowrain-images publish-cdn-all \
         fetch-corpus publish-corpus corpus-sweep \
