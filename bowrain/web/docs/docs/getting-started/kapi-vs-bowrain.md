@@ -11,12 +11,12 @@ keywords: [kapi, bowrain, context graph, reach, connectors, governed review, ope
 Every project carries a [content context](/getting-started/the-context-graph):
 the coordinates that fix voice, terms and rules for a particular audience,
 surface, market and moment. Both products resolve that context and apply it to
-real files. They differ in how far it reaches.
+real files. They differ in how many projects share it.
 
 > **kapi holds the context graph for one project. Bowrain holds the same graph
 > across projects.**
 
-## Reach, not capability
+## What each product does
 
 [kapi](https://neokapi.github.io/) is an Apache-2.0 content toolchain. It reads and
 writes local files, resolves project context, runs checks, drafts text and
@@ -35,10 +35,10 @@ voice profiles, terms and content memory. Bowrain also provides:
 
 ## From one machine to a workspace
 
-Kapi Desktop shows how far a project's context reaches, as three rungs in a
-project's **Share** section. The context is the same on every rung: rules,
-terms, voice profiles, content memory, and what assistants noticed. What
-changes is who reads it and where it is decided.
+Kapi Desktop shows how far a project's context reaches as three rungs in the
+project's **Share** section. Every rung holds the same context: rules, terms,
+voice profiles, content memory and what assistants noticed. The rungs differ in
+who reads the context and where people decide it.
 
 - **On this Mac.** kapi keeps the context in a workspace on your machine. Every
   clone and worktree of the project there reads it, and nobody else does.
@@ -52,9 +52,8 @@ changes is who reads it and where it is decided.
   in its recipe and the kapi-bowrain plugin, and Kapi Desktop then names the
   server and the project there.
 
-A shared place gives every machine the same context. A workspace gives the
-team one place to decide it, and adds what a shared place has no means to
-hold:
+A shared place gives every machine the same context. A workspace also gives
+the team one place to decide it, and adds what a shared place cannot hold:
 
 - **Roles.** Who may review, approve and change the context is set per member.
   See [Members and roles](/server/members-and-roles).
@@ -71,32 +70,30 @@ hold:
 
 ## kapi in two roles
 
-- **The engine underneath.** The same format handling, checks, and flow
-  execution run inside Bowrain's server, which is why the platform behaves
-  identically whether content arrived from a content platform or from a
-  repository.
+- **The engine underneath.** Bowrain's server runs the same format handling,
+  checks and flows. Content from a content platform and content from a
+  repository get the same treatment.
 - **One connector into the platform.** With the bowrain plugin installed, kapi
-  connects a developer's checkout to a workspace, the developer and CI route
-  described in [the kapi connector](/server/connectors/kapi). It sits alongside
-  the content-platform, design, and repository connectors rather than in front
-  of them.
+  connects a developer's checkout to a workspace. This is the developer and CI
+  route described in [the kapi connector](/server/connectors/kapi), one
+  connector beside the content-platform, design and repository connectors.
 
 ## Where each one writes
 
 **kapi owns the local files and the project configuration.** The `kapi.yaml`
 recipe, with its content collections, flows, plugins, languages, coordinates,
-voice binding and `bowrain:` block, is authored and versioned in the repository
-with everything else. Bowrain never writes it on its own: when a person approves
-an axis a [context scan](/server/context-scan) proposed, the approval arrives as
-a `kapi pull` that edits `defaults.coordinates` in your working tree, for you to
-review and commit like any other change.
+voice binding and `bowrain:` block, lives in the repository and is versioned
+with everything else. Bowrain changes it only through you. When a person
+approves an axis that a [context scan](/server/context-scan) proposed, the next
+`kapi pull` edits `defaults.coordinates` in your working tree, and you review
+and commit the change like any other.
 
 **The Bowrain desktop app caches server data for local use.**
 The Bowrain desktop app is a working copy of the server: a content cache, an
-offline edit queue, and memory and terms mirrors. It does not author local
-files or source projects from a filesystem; sourcing from a filesystem or a git
-checkout happens *server-side* through [connectors](/server/connectors), on the
-host the server runs on.
+offline edit queue, and mirrors of the memory and terms. It reads and writes
+server data only. To source content from a filesystem or a git checkout, use a
+[connector](/server/connectors), which runs *server-side* on the host the
+server runs on.
 
 ## At a glance
 
@@ -111,7 +108,7 @@ host the server runs on.
 | Automation | Local recipe rules | Server-side, event-driven |
 | Cost | Free, open source | Hosted plans / self-host |
 
-## Which one to reach for
+## Which one to use
 
 Use kapi to process local project files from a terminal, the desktop app, CI or
 an AI assistant over [MCP](/cli/mcp).

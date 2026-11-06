@@ -54,18 +54,21 @@ approved wording.
 
 ### The axes a recipe declares
 
-In a project the five questions are answered by named **axes**. Two are
-structural and come from the recipe's shape: `product` is the profile a
-collection belongs to and `channel` is the surface it ships on, both derived
-from a collection's `channel:` key. The rest are declared: `brand` (a workspace
-has brands, a brand has products, a product ships channels) and `mode` (what
-kind of document sits at a point, in the Diátaxis sense: tutorial, how-to,
-reference, explanation) are the named ones, and a project adds any other axis
-its content varies along under `defaults.coordinates`. A language is an axis
-too. Validity sits on the rule rather than on the point: a rule can start and
-stop on a date. See the [project model](/cli/project-model) for the recipe keys.
+A project answers the five questions with named **axes**. Two come from the
+recipe's structure: `product` is the profile a collection belongs to, and
+`channel` is the surface it ships on. Both are derived from a collection's
+`channel:` key.
 
-## Declared where cheapest, inherited from there
+You declare the rest. Two have names: `brand` (a workspace has brands, a brand
+has products, a product ships channels) and `mode`, the kind of document at a
+point in the Diátaxis sense: tutorial, how-to, reference, explanation. Any
+other axis your content varies along goes under `defaults.coordinates`. A
+language is an axis too.
+
+Validity is set on a rule, not on a point: a rule can start and stop on a
+date. See the [project model](/cli/project-model) for the recipe keys.
+
+## Where to declare coordinates
 
 Declare shared coordinates at project level. Collections inherit them and can
 override individual axes.
@@ -93,7 +96,7 @@ For example, support replies may recognise a retired name during a transition
 period. A validity window limits that exception without requiring a later edit
 to remove it.
 
-## Starting from nothing
+## Build a first context from existing content
 
 A **context scan** reads existing content, such as a repository, published site
 or style guide, and proposes axes, a voice profile and terms for review. You can
@@ -103,14 +106,14 @@ See [Context scan](/server/context-scan) for scan inputs and outputs, and
 [Voice and corrections](/server/context-voice) for maintaining guidance through
 reviewed corrections.
 
-## Agreed rather than assumed
+## Approving governed changes
 
 Governed changes require a **change-set**, a named draft of proposed edits. You
 can preview its effect on stored content and pilot it on selected content streams
 before merging it. Ordinary edits, such as definition changes, apply directly.
 
-Corrections provide evidence for new rules. A reviewer decides which candidates
-to promote. See [the Context hub](/server/context) for the approval process and
+Corrections are evidence for new rules, and a reviewer decides which
+candidates to promote. See [the Context hub](/server/context) for the approval process and
 [Voice and corrections](/server/context-voice) for candidate rules.
 
 ## One graph, two scopes
