@@ -55,6 +55,20 @@ const channelVersion = (
   process.env.DOCS_CHANNEL_VERSION ||
   git(["describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"])
 ).replace(/^v/, "");
+// After a GA release, main's nearest tag is that GA tag, so the next channel
+// describes the following minor until its first release candidate is tagged.
+// A prerelease tag names the channel version as it is.
+const describedVersion = channelVersion;
+const channelIsPrerelease = /-/.test(describedVersion);
+const nextMinor = (v: string): string => {
+  const m = /^(\d+)\.(\d+)\.\d+$/.exec(v);
+  return m ? `${m[1]}.${Number(m[2]) + 1}.0` : v;
+};
+const channelVersionShown =
+  channel === "next" && describedVersion && !channelIsPrerelease
+    ? nextMinor(describedVersion)
+    : describedVersion;
+
 const stableVersion = (
   process.env.DOCS_STABLE_VERSION ||
   git(["tag", "--list", "v[0-9]*", "--sort=-v:refname"])
@@ -65,10 +79,11 @@ const stableVersion = (
 ).replace(/^v/, "");
 
 const docsChannel =
-  channelVersion && stableVersion
+  channelVersionShown && stableVersion
     ? {
         channel,
-        version: channelVersion,
+        version: channelVersionShown,
+        prerelease: channelIsPrerelease,
         stableVersion,
         stableUrl: `${siteUrl}/`,
         nextUrl: `${siteUrl}/next/`,

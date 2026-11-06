@@ -32,6 +32,8 @@ export interface DocsChannelInfo {
   nextUrl: string;
   /** Site route of the installation page, for the banner's link. */
   installTo: string;
+  /** Whether a prerelease of that version is published to install. */
+  prerelease: boolean;
 }
 
 export function useDocsChannel(): DocsChannelInfo | null {
@@ -117,38 +119,62 @@ export function DocsChannelBanner(): React.ReactElement | null {
   return (
     <div className={styles.banner} role="note">
       <span>
-        <Translate
-          id="docsChannel.banner"
-          description="Banner shown on every page of the next-release documentation"
-          values={{
-            version: info.version,
-            install: (
-              <Link to={info.installTo}>
-                {translate({
-                  id: "docsChannel.banner.install",
-                  message: "Install the beta",
-                  description: "Link text to the installation page",
-                })}
-              </Link>
-            ),
-            stable: (
-              <a href={info.stableUrl}>
-                {translate(
-                  {
-                    id: "docsChannel.banner.stable",
-                    message: "documentation for {version}",
-                    description: "Link text to the stable documentation",
-                  },
-                  { version: info.stableVersion },
-                )}
-              </a>
-            ),
-          }}
-        >
-          {
-            "These pages describe Bowrain {version}, the release in progress. {install} to follow them, or read the {stable}."
-          }
-        </Translate>
+        {info.prerelease ? (
+          <Translate
+            id="docsChannel.banner"
+            description="Banner shown on every page of the next-release documentation while a beta exists"
+            values={{
+              version: info.version,
+              install: (
+                <Link to={info.installTo}>
+                  {translate({
+                    id: "docsChannel.banner.install",
+                    message: "Install the beta",
+                    description: "Link text to the installation page",
+                  })}
+                </Link>
+              ),
+              stable: (
+                <a href={info.stableUrl}>
+                  {translate(
+                    {
+                      id: "docsChannel.banner.stable",
+                      message: "documentation for {version}",
+                      description: "Link text to the stable documentation",
+                    },
+                    { version: info.stableVersion },
+                  )}
+                </a>
+              ),
+            }}
+          >
+            {
+              "These pages describe Bowrain {version}, the release in progress. {install} to follow them, or read the {stable}."
+            }
+          </Translate>
+        ) : (
+          <Translate
+            id="docsChannel.banner.noBeta"
+            description="Banner shown on every page of the next-release documentation before its first beta"
+            values={{
+              version: info.version,
+              stable: (
+                <a href={info.stableUrl}>
+                  {translate(
+                    {
+                      id: "docsChannel.banner.stable",
+                      message: "documentation for {version}",
+                      description: "Link text to the stable documentation",
+                    },
+                    { version: info.stableVersion },
+                  )}
+                </a>
+              ),
+            }}
+          >
+            {"These pages describe Bowrain {version}, the release in progress. Read the {stable}."}
+          </Translate>
+        )}
       </span>
     </div>
   );
