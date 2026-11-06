@@ -5,11 +5,11 @@ sidebar_position: 3
 
 # Source Language Preparation
 
-Quality results start with quality source content. kapi provides tools to validate, clean, and prepare source-language content before the convergence loop carries it into every target language.
+Check, clean and prepare source-language content before a run carries it into every target language. kapi runs these checks locally and in CI.
 
-## Why Source-First Quality Matters
+## Why fix the source first
 
-Issues in source content compound through translation. A misspelled term, an inconsistent placeholder format, or a missing sentence boundary in the source will produce the same problem across every target language. Fixing one source issue prevents N target-language issues.
+A misspelled term, an inconsistent placeholder format or a missing sentence boundary in the source reappears in every target language. A fix in the source is one fix instead of one per language.
 
 Common source problems:
 
@@ -56,9 +56,9 @@ Create `flows/source-checks.yaml`, with `flows_dir: flows` in `kapi.yaml`:
 
 Step config keys are the tool's own schema keys, in camelCase; see
 [the tool reference](https://neokapi.github.io/reference/tools/qa).
-An unrecognized key is silently ignored, so a misspelling costs you the check
-rather than an error. The locale is not a config key either: it comes from the
-run's `--target-lang`, so one flow serves every locale.
+kapi ignores an unrecognized key without an error, so a misspelled key
+silently drops its check. The locale comes from the run's `--target-lang`, so
+one flow serves every locale.
 
 ```yaml
 name: source-checks
@@ -81,8 +81,8 @@ steps:
       checkTargetInconsistency: true
 ```
 
-Run it, then gate on the findings: the flow annotates the content, and
-`kapi check` is what turns findings into an exit code:
+Run it, then gate on the findings. The flow annotates the content, and
+`kapi check` turns the findings into an exit code:
 
 ```bash
 kapi run source-checks --target-lang fr
