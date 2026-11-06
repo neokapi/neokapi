@@ -39,10 +39,9 @@ than textual changes.
 
 The typed placeholders the generalized tier keys on (`{PERSON}`, `{PRODUCT}`, …)
 come from entity detection, a fast local model or an LLM that recognizes the
-named things in a block. You don't run detection as a separate task: it happens
-as part of preparing content, and the same detection also powers
-[redaction](/framework/redaction). Annotate entities once and both generalized
-memory reuse and redaction follow.
+named things in a block. Detection runs as part of preparing content, and the
+same detection feeds [redaction](/framework/redaction), so one annotation pass
+serves both.
 
 ## Storage backends
 
@@ -98,7 +97,7 @@ applies matches. Every match, exact or fuzzy, is recorded as an
 `AltTranslation` annotation (matched source/target runs, score, match type),
 and a filled target is committed with provenance
 (`Origin{Kind: "memory", Tool: "recycle"}`), its score, and `draft` status, so
-the leverage is auditable rather than an opaque overwrite. Exact matches skip AI
+you can audit every fill. Exact matches skip AI
 translation, reducing cost and latency.
 
 **Segment-aware leverage.** When a block carries a multi-segment
@@ -108,18 +107,18 @@ leverage for multi-sentence blocks that would never match the sentence-keyed
 memory as a single unit. A single-segment block (most UI strings) takes the
 whole-block path unchanged.
 
-The result is recorded so it is **auditable**:
+`recycle` records the result for **audit**:
 
 - Each matching sentence is attached as an `AltTranslation` annotation (matched
   source and target runs, score, exact/fuzzy match type), kept
   whether or not the block target is filled, so **partial** leverage (some
-  sentences matched, some new) is preserved for a reviewer or a later
-  translation stage rather than discarded.
+  sentences matched, some new) stays available to a reviewer or a later
+  translation stage.
 - The block records `tm-segment-matches` (e.g. `3/5`) for quick gating.
 - The block target is filled only when **every** sentence matched and the
   segments are contiguous; when it is, the committed target carries
   provenance (`Origin{Kind: "memory", Tool: "recycle"}`), the roll-up `Score`,
-  and `draft` status: a reviewable pre-fill rather than an approved translation.
+  and `draft` status: a pre-fill waiting for review.
 
 Run [segmentation](/framework/segmentation) before `recycle` to enable this.
 
@@ -146,14 +145,14 @@ Recycle answers by *source text*: the same sentence, or one close to it, gets
 the same translation. The translate step asks a second question by *block*: what
 was the previously approved translation of this block, before its source was
 edited? The answer goes into the prompt as reference, so the model redrafts
-from wording a person already accepted rather than from nothing.
+from wording a person already accepted.
 
 The read is gated on governance. A `VersionRequest` names the block (the block's
 identity across edits), the point the content sits at, the source and target
 locales, and `GovernedBy`, the fingerprint of the voice guidance and term rules
 about to reach the model. An answer approved under any other context is
 withheld, because a translation accepted under a different voice or vocabulary
-is a wrong reference rather than a helpful one. The translate tool's `reuse`
+would mislead the model. The translate tool's `reuse`
 setting (`prior`, the default, or `none`) turns the read on or off; the
 `context:` setting is separate, because a prior version costs a corpus read
 where a block's neighbours come free from the document in hand.
@@ -228,9 +227,9 @@ type LookupOptions struct {
 }
 ```
 
-An entry is multilingual: there is no authoritative source at the persistence
-layer; each language is a peer `Variants[locale]` Run sequence, and the lookup
-direction is supplied at the call site. `MatchType` ranges from
+An entry is multilingual. Each language is a peer `Variants[locale]` Run
+sequence, with no authoritative source at the persistence layer, and the caller
+supplies the lookup direction. `MatchType` ranges from
 `generalized-exact` (highest reuse) through `structural-exact`, `exact`, the
 corresponding fuzzy variants, down to `fuzzy`. `Entry` helpers:
 `Variant(locale)`, `VariantText(locale)`, `VariantStructural(locale)`,
@@ -294,8 +293,13 @@ implementing the persistent `Store` interface.
 
 ## Content memory and terminology
 
-Content memory and [terminology](/framework/terminology) are deliberately
-separate systems with different data shapes: memory stores segment pairs,
-terminology stores multi-locale concepts. They share the `Block` annotation
-system as their integration point, so both kinds of match are available to any
-downstream tool or editor.
+Content memory and [terminology](/framework/terminology) are separate systems
+with different data shapes: memory stores segment pairs, terminology stores
+multi-locale concepts. Both write to the `Block` annotation system, so any
+downstream tool or editor sees both kinds of match.
+
+## Related
+
+- [Segmentation](/framework/segmentation): the sentence boundaries memory keys on.
+- [Terminology](/framework/terminology): the terms store beside content memory.
+- [Content preparation](/framework/content-preparation): where `recycle` sits in the pass.

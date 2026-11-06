@@ -7,6 +7,7 @@ keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, m
 
 import { BlockPreview } from "@site/src/components/curated";
 import { ContentLab } from "@site/src/components/Lab";
+import { RoundTripDiagram } from "@neokapi/docs-shared";
 
 # Formats
 
@@ -17,6 +18,29 @@ writer turns that stream back into a file. Every reader produces the same Parts,
 so the same [tools](/framework/tools) and [flows](/framework/flows) operate on
 any format. A tool handles a Block the same way whether it came from JSON, HTML
 or DOCX.
+
+The diagram shows one round trip: the reader records the skeleton, and the
+writer replays it around the edited blocks.
+
+<RoundTripDiagram
+  ariaLabel="A format round trip: the reader captures the skeleton, the writer replays it"
+  forward={[
+    { label: "source file", role: "io" },
+    { label: "reader", sub: "DataFormat" },
+    { label: "Part stream", sub: "blocks · data" },
+    { label: "tools" },
+  ]}
+  back={[
+    { label: "output file", role: "io" },
+    { label: "writer", sub: "DataFormat" },
+    { label: "edited Parts" },
+  ]}
+  hub={{ label: "skeleton", sub: "structure + block refs" }}
+  forwardIndex={1}
+  backIndex={1}
+  forwardLabel="captures"
+  backLabel="replays"
+/>
 
 :::tip See the skeleton preserved
 Reading a file splits it into content [blocks](/framework/content-model) and
@@ -172,3 +196,9 @@ kapi formats --ext .docx
 ## Interactive Format Reference
 
 See the [Format Reference](/formats) page for interactive documentation of all formats with configurable parameters.
+
+## Related
+
+- [Content Model](/framework/content-model): the Parts a reader produces.
+- [Inline Formatting](/framework/inline-formatting): how markup inside a block becomes runs.
+- [Format maturity](/format-maturity): the evidence for each reader and writer.

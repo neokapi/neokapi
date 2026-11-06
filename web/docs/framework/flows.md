@@ -7,6 +7,7 @@ keywords: [flows, pipeline, YAML, tool composition, kapi run, translation workfl
 
 import { DualExample } from "@site/src/components/curated";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Flows
 
@@ -80,7 +81,20 @@ steps:
 ```
 
 Each step names a tool and optionally configures it. Steps run sequentially: each
-tool's output channel feeds the next tool's input channel. A flow carries only
+tool's output channel feeds the next tool's input channel. At run time the flow
+above becomes this chain, with the ends bound when you run it:
+
+<PipelineDiagram
+  stages={[
+    { label: "source", sub: "binding", role: "io" },
+    { label: "recycle", sub: "memory matches", role: "translate" },
+    { label: "translate", sub: "the rest", role: "translate" },
+    { label: "qa", sub: "findings", role: "qa" },
+    { label: "sink", sub: "binding", role: "io" },
+  ]}
+/>
+
+A flow carries only
 its steps. *Where content comes from and goes to* is a binding you choose when
 you run it (see [Source and sink](#source-and-sink-the-flows-ends)).
 

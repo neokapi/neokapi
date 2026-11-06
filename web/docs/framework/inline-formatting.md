@@ -120,3 +120,9 @@ i18n variables like `{userName}` or `{count}` become `Ph` runs marked as non-del
 ### XLIFF Exchange Files
 
 XLIFF `<pc>` maps to a `PcOpen`/`PcClose` pair, `<ph>` to a `Ph` run, and `<sc>`/`<ec>` to a `PcOpen`/`PcClose` pair. XLIFF content therefore uses the same run model as every other format.
+
+## Related
+
+- [Vocabularies](/framework/vocabularies): the semantic types and constraints behind each code.
+- [Content Model](/framework/content-model): where runs sit in a block.
+- [ksed](/toolbox/ksed): find and replace that keeps inline codes.

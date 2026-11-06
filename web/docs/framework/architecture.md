@@ -124,6 +124,8 @@ a few concepts, each with its own page:
 - **[Pipeline](/framework/pipeline)**: the concurrent executor that runs a flow:
   goroutines, buffered channels, and context-driven cancellation.
 
-For the concrete Go interfaces and method signatures behind these concepts, see
-the [Interface Reference](/contribute/interfaces). For the design rationale, see
-the [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules).
+## Related
+
+- [Concepts](/framework/concepts): every term above in one table.
+- [Interface Reference](/contribute/interfaces): the Go interfaces and method signatures.
+- [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules): the design rationale.

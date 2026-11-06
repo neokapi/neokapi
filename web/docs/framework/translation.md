@@ -25,12 +25,11 @@ Microsoft Translator, and the like) ships in the core binary.
 The generated [Tool reference](/reference/tools/translate) lists the current
 parameters and default model for each provider.
 
-:::tip Configuring a provider is a task, not a concept
-Selecting a model, supplying credentials, and setting a default are walked
-step by step in the recipe
-**[Choose a translation model](/kapi/recipes/choose-a-translation-provider)**,
-including on-device translation with Ollama. This page covers what translation
-*is* and how it composes.
+:::tip Configuring a provider
+The recipe
+**[Choose a translation model](/kapi/recipes/choose-a-translation-provider)**
+covers selecting a model, supplying credentials and setting a default, step by
+step, including on-device translation with Ollama.
 :::
 
 ## A single tool
@@ -38,8 +37,8 @@ including on-device translation with Ollama. This page covers what translation
 Because every backend is a value of `--provider` on the same `translate`
 command, switching between them is a configuration change only. Replace
 `provider: anthropic` with `provider: ollama` and the rest of a flow is
-unchanged. The API key is never read from the recipe; credentials are supplied
-out-of-band (see the recipe).
+unchanged. kapi never reads the API key from the recipe; you supply credentials
+out of band (see the recipe).
 
 ## Related AI tools
 
@@ -72,9 +71,6 @@ steps:
   - tool: qa
 ```
 
-Switching providers (`anthropic` to `ollama`, or vice versa) is a
-configuration change; the surrounding steps are unchanged.
-
 ## Prompts
 
 Every prompt kapi sends is built in `core/ai/prompt/`, composed from framework
@@ -84,8 +80,8 @@ the steering your project declares: an instruction, a
 [terms store](/framework/terminology). The prompt is the same for every provider;
 only the transport differs.
 
-You do not have to take that on trust: `--explain-prompts` prints the exact text
-sent to the model, attributed section by section. See [Prompts](/framework/prompts).
+`--explain-prompts` prints the exact text sent to the model, attributed section
+by section. See [Prompts](/framework/prompts).
 
 [Content memory](/framework/content-memory) reaches the prompt in one bounded
 way. Fuzzy and exact matches are applied by `recycle`, a deterministic step that
@@ -93,5 +89,11 @@ runs before translation and fills what it can; they are never offered to the
 model as examples. A block's own previously approved translation is different:
 when a block has been edited since it was last translated, `translate` sends
 that prior version as reference under `reuse: prior` (the default), gated by the
-governing context, so the model revises rather than starts over. `reuse: none`
+governing context, so the model revises that earlier version. `reuse: none`
 turns it off.
+
+## Related
+
+- [Prompts](/framework/prompts): what the translate step sends to the model.
+- [Content memory](/framework/content-memory): the `recycle` step that runs first.
+- [Choose a translation model](/kapi/recipes/choose-a-translation-provider): provider setup.
