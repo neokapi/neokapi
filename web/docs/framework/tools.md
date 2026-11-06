@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Tools
-description: Tools are the composable processing stages in a neokapi pipeline: each reads Parts from an input channel, transforms them, and writes to an output channel. Built-in tools cover translation, checks, segmentation, memory leverage, and more.
+description: "Tools are the composable processing stages in a neokapi pipeline: each reads Parts from an input channel, transforms them, and writes to an output channel. Built-in tools cover translation, checks, segmentation, memory leverage, and more."
 keywords: [tools, pipeline stage, processing, translation, checks, memory leverage, segmentation, composable]
 ---
 
