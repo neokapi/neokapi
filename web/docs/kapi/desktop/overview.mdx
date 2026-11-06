@@ -5,6 +5,8 @@ description: "Kapi Desktop shows the rules your projects keep, lets you decide a
 keywords: [Kapi, desktop app, context, map, decide, what's new, suggestion, keep, assistant, history, reset, share, sync, voice profile, terms, content memory, checks]
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # Kapi Desktop
 
 Kapi Desktop shows the rules your projects keep: their terms, their voice and
@@ -24,6 +26,14 @@ The app opens on **Your context**, captioned "What your projects write by, and
 what your assistants noticed." At the right of the title, a small chip names
 the workspace folder by its last segment; hover it for the full path. A
 workspace you can only read carries a **Read only** badge beside it.
+
+<ThemedImage
+  alt="Your context: counts across the workspace, What's new with a row per project, and the Projects list"
+  sources={{
+    light: "/img/desktop/light/context-home.png",
+    dark: "/img/desktop/dark/context-home.png",
+  }}
+/>
 
 Under the title, a row of counts: projects, rules in force, terms, suggestions
 advising, and what needs you. Rules are what you decided in review. Terms are
@@ -109,6 +119,15 @@ A project opens on its **Map**. Under the project's name, one line says when
 kapi last read the files, such as "Read 2 minutes ago". When kapi read fewer
 files than the project has, the line names how many it read. Then come four
 counts, each a link to what it counts:
+
+<ThemedImage
+  alt="A project's Map: the files, blocks, rules and findings counts, What your files do with the suggestions, and the Files list"
+  sources={{
+    light: "/img/desktop/light/map.png",
+    dark: "/img/desktop/dark/map.png",
+  }}
+/>
+
 
 - **files**, the content files the recipe's collections declare;
 - **blocks**, the blocks kapi read from those files, which open Ask;

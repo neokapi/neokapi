@@ -12,10 +12,13 @@ import { RoundTripDiagram } from "@neokapi/docs-shared";
 A project's context is its rules and suggestions, its terms, voice profiles
 and content memory, and the record of who approved what. It lives in your
 [workspace](/kapi/project-store) on this machine, shared by every clone and
-worktree of the project. `kapi context sync` shares it with the rest of the
-team. `kapi share` runs the same sync for a person, and `kapi share --via git`
-or `kapi share --via folder <path>` writes the `context:` block below before
-its first sync.
+worktree of the project. Once you share it, a rule one person keeps is in
+force on every machine that syncs the project. In Kapi Desktop, the project's
+**Share** section names the place and syncs. On the command line,
+`kapi context sync` shares the context with the rest of the team. `kapi share`
+runs the same sync for a person, and `kapi share --via git` or
+`kapi share --via folder <path>` writes the `context:` block below before its
+first sync.
 
 | Command | Use it to |
 | --- | --- |
@@ -65,7 +68,7 @@ conflict on the project's home with both wordings: keep the wording held now,
 take the other one, or write a new one. Editing that block again from the
 command line or through an agent settles it the same way.
 
-Content files travel in git, as they always do.
+Content files travel in git.
 
 ## What stays on this machine
 

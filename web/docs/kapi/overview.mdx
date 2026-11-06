@@ -5,6 +5,8 @@ description: "kapi reads your project's files, holds the rules the project keeps
 keywords: [kapi, writing rules, terms, voice profile, kapi look, kapi rules, kapi check, kapi fix, kapi connect, kapi share, agent, AGENTS.md, CLAUDE.md, Kapi Desktop, overview]
 ---
 
+import { CycleDiagram } from "@neokapi/docs-shared";
+
 # Keep your writing consistent, and check every edit
 
 A help article, an API reference and a release note should use the same words,
@@ -16,6 +18,16 @@ language.
 
 [Start a project](/kapi/get-started/first-project) or
 [use kapi with your agent](/kapi/get-started/use-with-claude).
+
+<CycleDiagram
+  steps={[
+    { label: "see what applies", sub: "kapi look · Map" },
+    { label: "write", sub: "you or an assistant" },
+    { label: "check every edit", sub: "kapi check · Reader" },
+    { label: "decide what becomes a rule", sub: "kapi rules · Decide" },
+  ]}
+  caption="The writing loop: what you decide becomes a rule that the next look, draft and check all read."
+/>
 
 ## See what applies
 

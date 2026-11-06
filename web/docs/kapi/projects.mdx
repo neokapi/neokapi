@@ -13,7 +13,7 @@ There are two ways to drive Kapi, and it's the **same commands** either way. Wha
 
 ## Ad-hoc: one-off, nothing saved
 
-Run a tool or flow directly on the files you name. Nothing is kept; when it's done, it's done.
+Run a tool or flow directly on the files you name. Nothing is kept after the run.
 
 > _Translate this one file to French._ · _Check this folder for off-brand terms._
 
@@ -59,7 +59,7 @@ Kapi has one set of commands, and what changes between ad-hoc and project use is
 - **Ad-hoc** = the `file` binding: you name `-i`/`-o`.
 - **In a project**, the default *sink* is the **store** (a *process-only* run); an explicit `-o` forces a file instead.
 
-A process-only run persists only *working* output: target overlays in the block tables of `.kapi/work/store.db`, pre-merge. A review **decision** is a different thing: `kapi apply` records one in the project's context store, and a flow's sink never writes them. The projection rebuilds from your files; the decisions are the authored part. See [the project store](/kapi/project-store).
+A process-only run keeps only *working* output: the target overlays it produced, in `.kapi/work/store.db`, until you merge them. A review **decision** is kept elsewhere: `kapi apply` records it in the project's context store, and a flow's sink never writes decisions. kapi can rebuild the working output from your files. The decisions are what people authored. See [the project store](/kapi/project-store).
 
 `--explain` prints the resolved binding without running:
 
@@ -97,7 +97,7 @@ See the [bilingual workflow](/kapi/bilingual-workflow) for the interchange loop 
 
 ## The `.kpz` parcel: move work without a server
 
-A `.kpz` is a portable, single-file carrier: how you hand work between machines or people without a server. Two profiles:
+A `.kpz` is a portable single file that carries work between machines or people without a server. It comes in two profiles:
 
 ```bash
 # Whole-project snapshot: a runnable "project in a file"
@@ -125,7 +125,7 @@ Source travels as identity + a round-trip skeleton by default; `--with-source` e
 | `terms` | the authoritative terms (`.terms.json`) |
 | `history` | an advisory provenance chain (`--log`) |
 
-Deliberately **not** carried: `.kapi/work/cache/` (regenerable: parse cache, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data. A part with nothing in it is absent from the archive.
+A snapshot leaves out `.kapi/work/cache/` (parse cache, extractions and collections, which kapi regenerates), credentials (they live in the OS keychain) and server sync tokens. It holds only state kapi cannot recompute, with no secrets and no derived data. A part with nothing in it is absent from the archive.
 
 ```bash
 kapi info                        # this project: what a snapshot would capture
@@ -133,11 +133,11 @@ kapi info handoff.kpz            # this archive: what it holds
 kapi info --output-format json   # either form, machine-readable
 ```
 
-Each part reports whether it is present and how many items it holds, measured the way `pack` collects it: `sources` counts what the extraction manifests record rather than what the recipe tracks, so a project that has never been extracted reports none. A part that is absent says what would produce it.
+Each part reports whether it is present and how many items it holds, measured the way `pack` collects it. `sources` counts what the extraction manifests record, not what the recipe tracks, so a project that has never been extracted reports none. A part that is absent says what would produce it.
 
-A *workspace* `.kpz` (the ad-hoc parcel with a shadow cache, rather than a project snapshot) answers a different question, so `kapi info work.kpz` on one reports its documents, locales and whether the cache holds work not yet packed back into the file.
+A *workspace* `.kpz` is the ad-hoc parcel with a shadow cache. `kapi info work.kpz` on one reports its documents, locales and whether the cache holds work not yet packed back into the file.
 
-`pack` writes exactly the parts `info` lists and `unpack` restores exactly those parts: the content memory, the terms, the blocks and overlays, the skeletons, and, with `--with-source`, the raw source files, which `unpack` writes back into the tree without overwriting anything already there. Agreement between `kapi info` on a project and on its snapshot is therefore the round-trip check. `pack` refuses to write a content-less archive rather than hand over an empty file.
+`pack` writes exactly the parts `info` lists and `unpack` restores exactly those parts: the content memory, the terms, the blocks and overlays, the skeletons, and, with `--with-source`, the raw source files, which `unpack` writes back into the tree without overwriting anything already there. To check the round trip, compare `kapi info` on a project with `kapi info` on its snapshot. `pack` refuses to write an archive with no content.
 
 ## Do the modes mix?
 
