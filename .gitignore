@@ -205,6 +205,7 @@ web/reference/tools/
 # Generated documentation assets (fetched from docs-assets release in CI)
 web/static/img/bowrain/
 web/static/img/web-app/
+web/static/img/desktop/
 web/static/video/
 
 # What the skill-eval agents produced (translated .docx, rewritten .pptx, …),
