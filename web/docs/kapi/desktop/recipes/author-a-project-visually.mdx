@@ -10,14 +10,13 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Author a project visually
 
-**For the concept** of the project model (the `kapi.yaml` recipe, the state dir,
-discovery), see [Projects](/kapi/projects) and
-[Your first project](/kapi/get-started/first-project); this recipe walks creating
-and shaping one in Kapi Desktop.
+**Goal:** set up a project in Kapi Desktop: the content it governs, the voice
+and coordinates that govern it and, if you translate, its languages. You end
+with the same committable `kapi.yaml` recipe that `kapi init` writes.
 
-**Goal:** stand up a project (the content it governs, the voice and coordinates
-that govern it, and, if you translate, its languages) through the app, ending
-with the same committable `kapi.yaml` recipe you would get from `kapi init`.
+For the project model itself (the recipe, the state directory, how commands
+find a project), see [Projects](/kapi/projects) and
+[Your first project](/kapi/get-started/first-project).
 
 <ThemedVideo
   sources={{
@@ -25,7 +24,7 @@ with the same committable `kapi.yaml` recipe you would get from `kapi init`.
     dark: "/video/kapi/kapi-desktop-projects-dark.webm",
   }}
   outdated="interface"
-  outdatedNote="The clip shows an earlier layout of the project home; the app now opens on the two-axis standing and where content sits. It comes from the Kapi Desktop tour, so it covers creating and managing a project as part of a wider walkthrough rather than following the steps below end to end."
+  outdatedNote="The clip shows an earlier layout of the project home; the app opens on the two-axis standing and where content sits. It comes from the Kapi Desktop tour, so it shows creating and managing a project within a wider walkthrough and does not follow the steps below one by one."
 />
 
 ## Steps
@@ -55,12 +54,12 @@ with the same committable `kapi.yaml` recipe you would get from `kapi init`.
    [`kapi context sync`](/kapi/context-portability) is how it reaches another
    machine or a teammate.
 
-## Why the desktop
+## What the desktop adds
 
-Visual authoring keeps the project's shape in view (which patterns match which
-files, what format each is, what governs each point) and validates as you go.
-The artifact is an ordinary `kapi.yaml` recipe: nothing is desktop-only, so the
-project is fully drivable from `kapi` on the command line and in CI.
+The app keeps the project's shape in view: which patterns match which files,
+the format of each, and what governs each point. It validates the recipe as you
+go. The result is an ordinary `kapi.yaml` recipe, so `kapi` on the command line
+and in CI drives the same project.
 
 ## Next
 

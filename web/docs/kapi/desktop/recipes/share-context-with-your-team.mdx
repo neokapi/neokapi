@@ -6,33 +6,29 @@ description: "Use Kapi Desktop's Share page to move a project's context from thi
 keywords: [Kapi Desktop, share, sync, context, git, folder, S3, workspace, kapi share, kapi context sync, team]
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # Share context with your team
 
 **Goal:** have everyone who works on a project read the same rules, terms,
 voice profile and content memory, and see what everyone else's assistants
 noticed. The project's **Share** page shows how far its rules reach and sets
-up the next step.
-
-**From the command line**, `kapi share` does the same:
-
-| Command | What it does |
-| --- | --- |
-| `kapi share` | prints the rungs with the current one marked, or syncs through the place `kapi.yaml` names |
-| `kapi share --via git` | keeps the context in a ref of the project's repository, then syncs |
-| `kapi share --via folder <path>` | keeps it in a folder every machine reaches, then syncs |
-| `kapi share --via s3 s3://<bucket>/<prefix>` | keeps it in an S3 bucket, then syncs |
-| `kapi share --status` | prints the rung and the last sync, without syncing |
-
-`--via` writes the same `context:` block the dialog below saves, and writes a
-`kapi.yaml` first in a folder that has none. An assistant or a CI job runs
-`kapi context sync`, which syncs the same way; see
-[Sharing context](/kapi/context-portability) for its flags.
+up the next step. A rule one person keeps is then in force on every machine
+that syncs the project.
 
 ## On this Mac
 
 Every project starts here. The page is titled with the project's name, such
 as **Fernwell · Share**, and lists three rungs under "How far your rules
 reach". Each rung says what reaching it changes for you:
+
+<ThemedImage
+  alt="The Share page with three rungs, On this Mac marked Current, With your team and the managed workspace"
+  sources={{
+    light: "/img/desktop/light/share.png",
+    dark: "/img/desktop/dark/share.png",
+  }}
+/>
 
 | Rung | What it adds |
 | --- | --- |
@@ -121,6 +117,23 @@ the rung shows the command that connects it. A project reaches one through a
 block of its recipe that is separate from the `context:` place, and the rung
 then names the server and the workspace there. The note in the
 [tour](/kapi/desktop/tour#share) says where to read more.
+
+## The same on the command line
+
+`kapi share` does the same from a terminal:
+
+| Command | What it does |
+| --- | --- |
+| `kapi share` | prints the rungs with the current one marked, or syncs through the place `kapi.yaml` names |
+| `kapi share --via git` | keeps the context in a ref of the project's repository, then syncs |
+| `kapi share --via folder <path>` | keeps it in a folder every machine reaches, then syncs |
+| `kapi share --via s3 s3://<bucket>/<prefix>` | keeps it in an S3 bucket, then syncs |
+| `kapi share --status` | prints the rung and the last sync, without syncing |
+
+`--via` writes the same `context:` block the dialog below saves, and writes a
+`kapi.yaml` first in a folder that has none. An assistant or a CI job runs
+`kapi context sync`, which syncs the same way; see
+[Sharing context](/kapi/context-portability) for its flags.
 
 ## Next
 
