@@ -104,7 +104,9 @@ async function shoot(page: Page, file: string, selector?: string): Promise<{ w: 
       bottom = HEIGHT;
     }
   }
-  await page.mouse.move(-10, -10);
+  // No pointer, no hover and no focus ring in a docs image.
+  await page.mouse.move(0, 0);
+  await page.evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()");
   fs.mkdirSync(path.dirname(file), { recursive: true });
   await page.screenshot({
     path: file,
@@ -400,7 +402,11 @@ const WEB_SHOTS: WebShot[] = [
   },
   {
     name: "content-memory",
-    open: (c) => go(c, "/context/memory", '[data-testid="tm-browser"]'),
+    open: async (c) => {
+      await go(c, "/context/memory", '[data-slot="memory-pair"]');
+      await c.page.locator('[data-slot="memory-pair"]').first().click();
+      await c.page.waitForSelector('[data-slot="memory-pair-detail"]', { timeout: 20_000 });
+    },
   },
   {
     name: "members",
@@ -408,7 +414,14 @@ const WEB_SHOTS: WebShot[] = [
   },
   {
     name: "automations",
-    open: (c) => go(c, `/p/${c.pid}/s/main/automations`, MAIN),
+    open: async (c) => {
+      // The seed's push to the Help Center project ran its automation once.
+      const heading = c.page.locator("h3", { hasText: "Automation Runs" });
+      await go(c, `/p/${c.pid}/s/main/automations`, "h3");
+      await heading.waitFor({ timeout: 20_000 });
+      await heading.locator("xpath=following-sibling::*[1]").click();
+      await c.page.getByText(/^Run [0-9a-zA-Z]{8}/).first().waitFor({ timeout: 20_000 });
+    },
   },
   {
     name: "settings",
@@ -426,6 +439,7 @@ async function shootBowrain(outRoot: string, only?: string[]): Promise<void> {
   const host = new URL(BASE()).hostname;
   const shots = only?.length ? WEB_SHOTS.filter((s) => only.includes(s.name)) : WEB_SHOTS;
 
+  let session: { token: string; at: number } | undefined;
   const browser = await chromium.launch();
   try {
     for (const theme of THEMES) {
@@ -437,7 +451,12 @@ async function shootBowrain(outRoot: string, only?: string[]): Promise<void> {
           { name: "neokapi-theme", value: theme, domain: host, path: "/", sameSite: "Lax", secure: false },
         ]);
         if (!shot.anonymous) {
-          const token = await deviceAuth(email, name);
+          // The server limits device-flow starts, and a token lives 15 min:
+          // mint one and renew it after ten.
+          if (!session || Date.now() - session.at > 10 * 60_000) {
+            session = { token: await deviceAuth(email, name), at: Date.now() };
+          }
+          const token = session.token;
           await context.addCookies([
             { name: "bowrain_session", value: token, domain: host, path: "/api/", httpOnly: true, sameSite: "Lax", secure: false },
           ]);
