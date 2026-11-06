@@ -1685,6 +1685,9 @@ importers:
       '@neokapi/kapi-playground':
         specifier: '*'
         version: link:../packages/kapi-playground
+      '@neokapi/project-screens':
+        specifier: '*'
+        version: link:../packages/project-screens
       '@neokapi/reference-data':
         specifier: '*'
         version: link:../packages/reference-data
