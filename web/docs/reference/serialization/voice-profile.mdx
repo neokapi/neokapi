@@ -24,7 +24,8 @@ are steered by it. Word rules ("write this, not that") are
 [terms](/reference/serialization/terms); a voice file may carry them beside the
 voice under `terms:` (see [Word rules](#term-rules)).
 
-It is the one serialization in this family that is **YAML rather than JSON**.
+It is the one serialization in this family written in **YAML**; the others are
+JSON.
 
 Implemented in Go at
 [`core/profile`](https://github.com/neokapi/neokapi/tree/main/core/profile).
@@ -61,7 +62,7 @@ checkout is what
 that resolves a profile opens one.
 
 `--profile`, `--profile-file`, and `--pack` are mutually exclusive; passing
-more than one is an error rather than a silent precedence.
+more than one is an error.
 
 ## Fields
 
@@ -83,8 +84,8 @@ more than one is an error rather than a silent precedence.
 | `workspace_id` | string | Set when the profile came from a workspace. |
 
 A voice file may also hold a top-level `terms:` list of word rules beside these
-fields (see [Word rules](#term-rules)). The list belongs to the file rather than
-to the profile, and importing the file moves it into the project's terms.
+fields (see [Word rules](#term-rules)). The list belongs to the file, not to the
+profile, and importing the file moves it into the project's terms.
 
 ### Tone
 
@@ -125,7 +126,7 @@ Each entry under `prohibited_patterns` and `required_patterns` is a **Pattern**:
 ```yaml
 style:
   prohibited_patterns:
-    - regex: "—"
+    - regex: '\x{2014}'
       description: "Em dashes read as machine-written; one per thousand words is the ceiling."
       fails: true
       rate: { max: 1, per_words: 1000 }
@@ -319,7 +320,7 @@ findings alone.
 A profile that cannot be read resolves to the default bar, so roll-ups over
 historical scores stay comparable.
 
-## What is deliberately not in it
+## What the profile leaves out
 
 - **Scores and findings.** Those are check results computed against the
   profile, stored with the content or the run, and never written back here.

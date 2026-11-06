@@ -41,19 +41,19 @@ Implemented in Go at
 
 ## Where an import looks for one
 
-A flow needing a project's terms reads the project's terms store; no flow opens
-a bundle. [`kapi store import`](/reference/commands/store-import) is what
-reads one, and with no path it looks at `<project-root>/.kapi/terms.json`, the
+A flow that needs a project's terms reads the project's terms store; no flow
+opens a bundle. [`kapi store import`](/reference/commands/store-import) reads
+one, and with no path it looks at `<project-root>/.kapi/terms.json`, the
 conventional place beside the rest of a project's context files. Name a
-directory, `kapi store import context`, to read the `terms.json` in it. The
-recipe names no terms file.
+directory, `kapi store import context`, to read the `terms.json` in it. A
+recipe has no key for a terms file.
 
 ## Content memory has no single conventional file
 
-A project has one terms bundle, so a single conventional filename is
-meaningful. Content memory is plural: this repository's own dogfood recipe
-keeps a separate memory bundle per surface. So an import reads every bundle in
-`.kapi/memory/` rather than one well-known name.
+A project has one terms bundle, so one conventional filename works. A project
+can hold several content-memory bundles; this repository's own dogfood recipe
+keeps one per surface. An import therefore reads every bundle in
+`.kapi/memory/`.
 
 ## Envelope
 
@@ -108,13 +108,12 @@ for the bundle because both are JSON:
 
 Reach for `bundle` whenever the file is staying inside kapi.
 
-## What is deliberately not in it
+## What the bundle leaves out
 
 - **The store's own tables.** A bundle carries the concepts and relations; the
   terms tables in the project store are what an import writes them into.
-- **Match state.** Which blocks a term was found in is a check result rather
-  than a property of the terminology; `kapi terms occurrences` reads it from
-  the project's block cache.
+- **Match state.** Which blocks a term was found in is a check result;
+  `kapi terms occurrences` reads it from the project's block cache.
 
 ## See also
 

@@ -23,13 +23,11 @@ commands, machines and people.
 
 They are distinct from the formats kapi *reads and writes on your behalf*
 (JSON catalogs, DOCX, Markdown, `strings.xml` and the rest), which are covered
-in the [format reference](/formats). This section is about kapi's own file
-family.
+in the [format reference](/formats).
 
 ## Three kinds of artifact
 
-The most useful distinction in this family is between three roles a file can
-play.
+A file in this family plays one of three roles.
 
 **A projection is derived working state.** `.kapi/work/store.db` holds what
 kapi read out of the working tree: the block cache, the overlays a run wrote,
@@ -52,7 +50,7 @@ file carrying the same content losslessly: a
 [project archive](/reference/serialization/project-archive). Bundles move: they
 are what you hand over, ship, or put in a pull request.
 
-### The rule this produces
+### How bundles and the store relate
 
 Bundles serialize authored context for exchange and review.
 `kapi terms export` and `kapi memory export` write them, and
@@ -82,16 +80,16 @@ Not sure which you want? [Choosing a format](/reference/serialization/choosing).
 Every one of these files except the project archive and the voice profile is
 JSON or JSON Lines, and each portable one keeps a **marker segment ahead of the
 serialization suffix**: `.kbf.json`, `.terms.json`, `.overlays.jsonl`. The state
-shards are the exception, and the exception proves the rule: they never travel
-alone, their names are derived from document keys, and the directory holding
-them (`.kapi/state/`) already says what they are.
+shards are the exception: they never travel alone, their names are derived
+from document keys, and the directory holding them (`.kapi/state/`) already
+says what they are.
 
-Both halves earn their place. The `.json` tail keeps `jq`, GitHub, editors and
+The `.json` tail keeps `jq`, GitHub, editors and
 syntax highlighting treating the file as what it is. The marker segment says
 *which* JSON it is, so a directory listing stays readable and a format can be
 recognised before parsing.
 
-One cost follows: the standard library's `filepath.Ext` reports `.json` for
+The compound suffix has one cost: the standard library's `filepath.Ext` reports `.json` for
 every one of them. Extension-driven code goes through the
 helpers in
 [`core/format`](https://github.com/neokapi/neokapi/tree/main/core/format)
@@ -106,18 +104,16 @@ follows the same forward-compatibility rule:
 
 > Reject an unknown **major**. Accept unknown **minors** of a known major.
 
-Strict on major, best-effort on minor. A
-file from a future major version is refused with a message naming the version
-the build speaks, rather than parsed into something half-understood.
+Strict on major, best-effort on minor. A file from a future major version is
+refused with a message naming the version the build speaks.
 
-The rule is uniform; the code is not. Each format implements the check
+The rule is the same for every format, but each format implements the check
 separately, and the overlay set inside a project archive carries **its own**
 `schemaVersion`, versioned independently of the enclosing package.
 
 ## Two ways a file says what it is
 
-Identification is deliberately split, and the two mechanisms answer different
-questions:
+A file identifies itself in two ways, which answer different questions:
 
 - **`kind`**: the magic string on the document root. Answers *what schema is
   this?*, works on content alone, and survives a rename. It is what sniffing
@@ -130,7 +126,7 @@ is caught by whichever mechanism notices first: a wrong `kind` by the reader
 that owns the envelope, a wrong extension by the command that had to choose a
 reader before opening anything.
 
-## Import identifies the file, or says that it cannot
+## Import refuses a file it cannot identify
 
 `kapi memory import` and `kapi terms import` resolve `--format auto` from the
 extension, and they refuse to guess, because a wrong guess is silent. The
@@ -148,9 +144,9 @@ cannot identify seed.dat: ".dat" is not a content-memory extension
 (expected .memory.json, .tmx or .tmx.gz); pass --format (bundle, tmx) to say what it is
 ```
 
-Export works the other way round. An output path expresses what the caller
-wants written rather than what an unread file already is, and stdout carries no
-extension at all, so there `auto` falls back to the interchange default.
+Export works the other way round. An output path names what the caller wants
+written, and stdout carries no extension at all, so there `auto` falls back to
+the interchange default.
 
 ## See also
 
