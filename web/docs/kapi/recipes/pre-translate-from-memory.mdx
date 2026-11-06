@@ -13,7 +13,7 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 # Reuse what you've translated
 
-**Goal:** never re-translate a sentence you've already translated. When you ship an update, most text is unchanged; kapi brings back what it recognizes from earlier releases and sends only the new and changed parts forward, marking anything still untranslated so nothing slips out blank. Deterministic, seconds, no API key. Concepts: [Content memory](/framework/content-memory) and [Terminology](/framework/terminology); where each store lives: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
+**Goal:** never re-translate a sentence you've already translated. When you ship an update, most text is unchanged; kapi brings back what it recognizes from earlier releases and sends only the new and changed parts forward, marking anything still untranslated so nothing slips out blank. The pass is deterministic, takes seconds and needs no API key. Concepts: [Content memory](/framework/content-memory) and [Terminology](/framework/terminology); where each store lives: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -22,7 +22,7 @@ The **Content Memory** view is where the project's memory lives:
 
 1. **Bring in past work.** Load a content-memory bundle (or, coming from another system, a TMX export) with `kapi memory import`, or read a checkout's bundle in with `kapi store import`; the view lists entries and language pairs as they land.
 2. **Run the flow.** A project flow whose first step is `recycle` fills every exact match from memory before any translate step runs; **Bring up to date** applies it across locales, and only the misses go forward.
-3. **Watch leverage accumulate.** Every finished run absorbs its results, so the next release starts warmer.
+3. **Watch the reuse grow.** Every finished run adds its results to the content memory, so the next release has more to reuse.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -36,7 +36,7 @@ The assistant runs `kapi memory import`, then `recycle`, and reports the residue
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-Three deterministic steps: leverage, make the gaps visible, pre-flag terms:
+Four deterministic steps: load past work, fill the matches, make the gaps visible, pre-flag terms:
 
 ```bash
 kapi memory import project.memory.json          # 1. load past work (see kapi memory stats)
@@ -50,7 +50,7 @@ kapi exec term-check messages_en.json --target step2.json \
 
 Tune matching with `--fuzzy-threshold` (default 70) and `--fill-target-threshold` (default 95); [how matching works](/framework/content-memory). To machine-translate the misses instead of pseudo-filling them, swap step 3 for [`kapi translate`](/reference/commands/translate) and keep `term-check` as the guardrail.
 
-Reuse has a second, governed form on the translate step itself. A block whose source was edited keeps its earlier approved translation in the memory; with `reuse: prior` (the translate tool's default), that translation goes into the prompt as reference, offered only when the same governing context (voice, terms, point) is in force, so the model redrafts from wording a person already accepted rather than from nothing. The recycle thresholds above stay on the paths that run without a translate step; `reuse: none` turns the reference off for a cheap run.
+Reuse has a second, governed form on the translate step itself. A block whose source was edited keeps its earlier approved translation in the memory; with `reuse: prior` (the translate tool's default), that translation goes into the prompt as reference, offered only when the same governing context (voice, terms, point) is in force, so the model redrafts from wording a person already accepted. The recycle thresholds above stay on the paths that run without a translate step; `reuse: none` turns the reference off for a cheap run.
 
 **In a project**, declare it once as a flow and drop every flag:
 

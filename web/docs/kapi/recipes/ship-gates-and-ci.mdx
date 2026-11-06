@@ -13,7 +13,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Ship gates & CI
 
-**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar: coverage thresholds over the translation lifecycle plus the bound quality gates (voice, terminology, rule-based checks, staleness). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift; a language that is behind is pending work, and `--ship` is the explicit, opt-in enforcement point. The model is [the kapi loop](/kapi/convergence); this guide is the task. Needs a committed [kapi project](/kapi/get-started/first-project).
+**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar: coverage thresholds over the translation lifecycle plus the bound quality gates (voice, terminology, rule-based checks, staleness). `kapi check --ship` evaluates all of it at once and exits non-zero when a gate is unmet, so a regression cannot merge. Ordinary builds never fail on target drift; a language that is behind is pending work, and you opt in to enforcement with `--ship`. The model is [the kapi loop](/kapi/convergence). You need a committed [kapi project](/kapi/get-started/first-project).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -22,7 +22,7 @@ The project view shows each locale's standing against its gate continuously: the
 
 1. **Read the gate cells.** Each locale row shows coverage per lifecycle rung (draft, translated, approved) and whether the scope clears its gate.
 2. **Close the gap.** **Bring up to date** produces what a machine can; a gate cell opens the [Review queue](/kapi/recipes/review-and-approve) for what needs a person.
-3. **Ship when green.** When every scope clears its gate, the CI check below passes by construction.
+3. **Ship when green.** When every scope clears its gate, the CI check below passes too.
 
 <PendingMedia kind="screenshot" scene="harness/demos/kapi-desktop-projects/demo.yaml">
   The coverage grid with per-locale ship-gate cells, one scope green, one
@@ -36,7 +36,7 @@ Ask for the standing, or for the fix:
 
 > Are we shippable in German? If not, get us there.
 
-The assistant reads `kapi status --json`, runs `kapi up` for what a machine can close, walks you through the review worklist for what it can't, and confirms with `kapi check --ship`. With the Claude Code plugin installed, the Stop hook runs the gate automatically when Claude tries to finish; a failing gate keeps it working with the findings. See [Use with Claude](/kapi/get-started/use-with-claude).
+The assistant reads `kapi status --json`, runs `kapi up` for what a machine can close, goes through the review worklist with you for the rest, and confirms with `kapi check --ship`. With the Claude Code plugin installed, the Stop hook runs the gate automatically when Claude tries to finish; a failing gate keeps it working with the findings. See [Use with Claude](/kapi/get-started/use-with-claude).
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -51,7 +51,7 @@ kapi check --ship --json          # structured result for a job summary
 
 A gate that finds no content to check, or whose checks could not show they flag a known problem, did not run. It reports `did_not_run` with a `did_not_run_cause` and exits `4`, even with `--no-fail`, so an empty scope never reads as a passing release.
 
-The terminology gate runs wherever terms govern content in scope, whether the project defaults bind them, a profile that a collection's channel resolves to, or the `term_rules:` the recipe declares on a flow step or a tool preset. Its coverage counts content that neither the bound terms nor the recipe's rules answer for as `not_governed`, and a governed target that could not be read as `not_checked`. When none of the governed content could be read, the gate did not run.
+The terminology gate runs wherever terms govern content in scope: terms bound by the project defaults, by a profile that a collection's channel resolves to, or by the `term_rules:` the recipe declares on a flow step or a tool preset. Its coverage counts content that neither the bound terms nor the recipe's rules answer for as `not_governed`, and a governed target that could not be read as `not_checked`. When none of the governed content could be read, the gate did not run.
 
 In GitHub Actions, install the CLI with the companion [`setup-kapi`](https://github.com/neokapi/setup-kapi) action and run the gate:
 
@@ -95,13 +95,16 @@ The full pipeline picture (catch up on a schedule, deliver a PR/MR, gate merges,
 
 ## File checks vs project gates
 
-Two bars, one command. A bare `kapi check <files>` gates the **files you
-name**: a checkset over their content, failing when a finding fails, no
-project needed; the test runner. `kapi check --ship` gates the **project**:
-coverage against the recipe's [`ship_gates:`](/reference/project-file#ship-gates)
-plus the bound quality gates, across every target language: the release bar.
-Use the first while content is being written, the second before it ships; see
-[Check content like tests](/kapi/recipes/verify-content) for the file-level
+One command sets two bars:
+
+| | `kapi check <files>` | `kapi check --ship` |
+| --- | --- | --- |
+| Gates | the **files you name** | the **project** |
+| Measures | a checkset over their content; fails when a finding fails | coverage against the recipe's [`ship_gates:`](/reference/project-file#ship-gates) plus the bound quality gates, across every target language |
+| Needs a project | no | yes |
+| Use it | while content is being written | before it ships |
+
+See [Check content like tests](/kapi/recipes/verify-content) for the file-level
 half.
 
 ## Next

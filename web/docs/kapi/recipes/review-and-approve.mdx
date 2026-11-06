@@ -8,15 +8,15 @@ hide_table_of_contents: true
 
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
-import { PendingMedia, GatedLoopDiagram } from "@neokapi/docs-shared";
+import { PendingMedia, GatedLoopDiagram, ThemedImage } from "@neokapi/docs-shared";
 
 # Review & approve
 
-**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every block to *translated* and holds the rest back for review. A person approves it; an assistant can pre-review first, leaving a score and its reasons for the person to read. Each review lands in the project's store, bound to the revision of the exact translation it approves and of the source it approves it for, so an approval can never silently outlive the content it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
+**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every block to *translated* and holds the rest back for review. A person approves it; an assistant can pre-review first, leaving a score and its reasons for the person to read. Each review lands in the project's store, bound to the revision of the exact translation it approves and of the source it approves it for, so editing either side drops the approval. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
 
 ## Settle the source first
 
-The loop has a gate before the target work: `kapi up` **settles your source and holds there until it clears its bar**, so an un-checked, off-brand, or empty source is never translated into every language only to be redone when you fix it. A block whose source has not settled is *held* (its translations are not produced) and the run says so plainly rather than spending AI on it.
+The loop has a gate before the target work: `kapi up` **settles your source and holds there until it clears its bar**, so a source that is unchecked, off-brand or empty is not translated into every language and then redone when you fix it. A block whose source has not settled is *held*: kapi produces no translations for it, spends no AI on it, and reports it.
 
 <GatedLoopDiagram
   nodes={[
@@ -45,7 +45,7 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
 
 The local source-settle loop, end to end:
 
-1. **Run.** `kapi up` settles each source block (terminology, voice, source checks), stamps it *written*, and holds any block whose checks fail (or, with `translate_after: established`, any block a person has not approved). Ready blocks translate; held blocks do not. A run that could translate nothing surfaces as *held on source* rather than as a silent skip.
+1. **Run.** `kapi up` settles each source block (terminology, voice, source checks), stamps it *written*, and holds any block whose checks fail (or, with `translate_after: established`, any block a person has not approved). Ready blocks translate; held blocks do not. A run that could translate nothing is reported as *held on source*.
 2. **See what's held.** `kapi status` shows source readiness alongside coverage; `kapi check --ship` enforces the same source bar and lists the blocks that fail it.
 3. **Settle.** Fix the flagged terms, voice findings, or source text, through the round-trip (`kapi apply`) or your editor, so the next check clears them. Approving a source block is a `decide` operation on the source, for the strict `established` level.
 4. **Re-run.** `kapi up` re-settles only the blocks whose source changed and translates the newly-cleared ones. Repeat until nothing is held.
@@ -65,7 +65,10 @@ defaults:
   translate_after: none      # opt out: translate every block, settled or not
 ```
 
-Then the person's half of the loop (promoting the translations themselves) is the rest of this page.
+## Review the translations
+
+Approving translations is the person's half of the loop. Work the queue in Kapi
+Desktop, through your assistant, or on the command line.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -73,9 +76,17 @@ Then the person's half of the loop (promoting the translations themselves) is th
 The **Review** surface is a queue you work through, keyboard-first:
 
 1. **Enter from a gate cell.** Click a ship-gate cell on the project view (or open **Review** from the sidebar); the queue narrows to that collection and locale, ordered findings-first so the risky blocks come up first.
+
+   <ThemedImage
+     alt="The Review queue with every language in one list, one block's source and translation side by side, and its findings"
+     sources={{
+       light: "/img/desktop/light/review.png",
+       dark: "/img/desktop/dark/review.png",
+     }}
+   />
 2. **Inspect.** Each block shows source and target side by side, with its check findings, provenance, and memory match below.
 3. **Decide.** `a` approves, `r` rejects (with a note; the block drops back to draft for the next `up` pass to redo), `space` skips, `j`/`k` move, and `e` puts the cursor in the translation. Edit the target text first when it needs a touch-up: links, bold and placeholders stay in place as chips you type around, and a plural shows one field per form. Save, then approve; the record binds to the edited text. When someone changed the file after you opened the block, the save or the approval stops and shows the text as it is now, and you choose whether to apply yours over it. The **Changes** card lists who changed the block, where and when.
-4. **Batch the clean ones.** **Approve clean** approves every block in the current filter that has no findings, so you read the exceptions rather than the bulk. Each block is checked again as it is approved; one whose translation changed since the queue was listed, or that now has a finding, stops the batch so you read it first.
+4. **Batch the clean ones.** **Approve clean** approves every block in the current filter that has no findings, so you read only the exceptions. Each block is checked again as it is approved; one whose translation changed since the queue was listed, or that now has a finding, stops the batch so you read it first.
 5. **Let the AI read first.** **AI pre-review…** scores the pending blocks with your model before you look; each block then carries an AI review score, so you spend your attention where it disagrees. **Fix with AI** drafts a correction through the same save path as a manual edit.
 
 Approvals raise approved coverage immediately; the gate cell you entered from goes green when its threshold clears.
@@ -89,7 +100,7 @@ Approvals raise approved coverage immediately; the gate cell you entered from go
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
-Review conversationally; useful when you're the reviewer but not at the desktop:
+Review in conversation when you are away from the desktop:
 
 > What's awaiting review in French? Show me the ones with findings first.
 
@@ -134,4 +145,4 @@ This recipe's worklist lives in your checkout and its decisions in the project's
 
 - [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the `established` thresholds this state satisfies.
 - [The kapi loop](/kapi/convergence): produce / promote / release, kept separate.
-- [The project store](/kapi/project-store): the context store that holds the decision record, and the projection that rebuilds.
+- [The project store](/kapi/project-store): the context store that holds the decision record, and the working data kapi rebuilds.
