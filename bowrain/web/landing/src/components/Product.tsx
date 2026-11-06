@@ -27,7 +27,7 @@ const CAPABILITIES = [
     icon: Fingerprint,
     title: t("Writing guidance and findings"),
     body: t(
-      "A voice profile holds writing guidance and wording rules for its scope. Inspect the findings from configured checks; their scores describe the checks performed, not overall content quality.",
+      "A voice profile holds writing guidance and wording rules for its scope. Inspect the findings from the configured checks. A score covers only the checks performed.",
     ),
     detail: [t("Configured checks"), t("Drift detection"), t("Rules from corrections")],
   },
@@ -43,7 +43,7 @@ const CAPABILITIES = [
     icon: Zap,
     title: t("Content automation"),
     body: t(
-      "Configure incoming content to trigger drafting, review tasks and notifications. Inspect run status and per-step logs to track progress.",
+      "Set rules so incoming content starts drafting, review tasks and notifications. Run status and per-step logs show progress.",
     ),
     detail: [t("Draft on push"), t("Review tasks & notifications"), t("Run logs")],
   },

@@ -116,7 +116,7 @@ export function Coordinates() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "Content context connects a file to its audience, surface and applicable guidance. The graph helps you inspect those relationships and understand why a decision applies.",
+              "Content context connects a file to its audience, surface and applicable guidance. The graph shows those relationships and why a decision applies.",
             )}
           </p>
         </div>
@@ -200,7 +200,7 @@ export function Coordinates() {
 
         <p className="mx-auto mt-10 max-w-2xl text-center text-muted-foreground">
           {t(
-            "The examples above are authored illustrations of scoped guidance. In a configured project, kapi context retrieves the applicable guidance for a file; an actual lookup can be inspected before an edit or review.",
+            "The examples above are authored illustrations of scoped guidance. In a configured project, kapi context retrieves the guidance for a file, and you can inspect the lookup before an edit or review.",
           )}
         </p>
       </div>
