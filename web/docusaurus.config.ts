@@ -1163,7 +1163,7 @@ const config: Config = {
             // looking for. What kapi is measured against is its own navbar
             // item, below.
             { label: "Reference Overview", to: "/reference" },
-            { label: "Kapi CLI Commands", to: "/commands" },
+            { label: "Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
             { label: "AI Models", to: "/models" },
@@ -1305,7 +1305,11 @@ const config: Config = {
               to: "/framework/architecture",
             },
             {
-              label: "Kapi CLI",
+              label: "Kapi Desktop",
+              to: "/kapi/desktop/overview",
+            },
+            {
+              label: "Command line",
               to: "/kapi/cli",
             },
             {
