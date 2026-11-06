@@ -5,6 +5,8 @@ sidebar_label: First login and first project
 description: A step-by-step guide to your first login, creating a workspace, establishing the context, and bringing a first project's content in from the browser.
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # First login and first project
 
 Sign in, create a workspace, set up the context your content is written in,
@@ -25,6 +27,14 @@ The web UI redirects you to the identity provider for authentication. On the
 hosted service that is a managed sign-in; a self-hosted server uses whatever
 OIDC provider it is configured with, so you may see a username and password
 form, self-registration, or social sign-in.
+
+<ThemedImage
+  alt="Sign-in page with identity provider options"
+  sources={{
+    light: "/img/web-app/light/login.png",
+    dark: "/img/web-app/dark/login.png",
+  }}
+/>
 
 After authenticating, you are redirected back to the Bowrain web UI with an
 active session.

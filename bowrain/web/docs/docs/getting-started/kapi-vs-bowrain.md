@@ -6,6 +6,8 @@ description: kapi processes local project files. Bowrain shares context across p
 keywords: [kapi, bowrain, context graph, reach, connectors, governed review, open source]
 ---
 
+import { AxisLadderDiagram } from "@neokapi/docs-shared";
+
 # How Bowrain and kapi fit together
 
 Every project carries a [content context](/getting-started/the-context-graph):
@@ -39,6 +41,15 @@ Kapi Desktop shows how far a project's context reaches as three rungs in the
 project's **Share** section. Every rung holds the same context: rules, terms,
 voice profiles, content memory and what assistants noticed. The rungs differ in
 who reads the context and where people decide it.
+
+<AxisLadderDiagram
+  rungs={[
+    { grade: "1", name: "On this Mac", gloss: "every checkout on one machine" },
+    { grade: "2", name: "Shared with your team", gloss: "a git ref, a folder or an S3 bucket" },
+    { grade: "3", name: "Managed on Bowrain", gloss: "one place on the server for every project" },
+  ]}
+  caption="The same context, read by more people at each rung."
+/>
 
 - **On this Mac.** kapi keeps the context in a workspace on your machine. Every
   clone and worktree of the project there reads it, and nobody else does.

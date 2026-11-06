@@ -5,6 +5,8 @@ sidebar_label: Map, Reader and Rules
 description: A project opens on its Map. The Reader shows one file with its findings, and Rules holds the team queue and who kept each rule.
 ---
 
+import { SwimlaneDiagram, ThemedImage } from "@neokapi/docs-shared";
+
 # Map, Reader and Rules
 
 A project opens on its **Map**. The project's sidebar lists **Map** first, then
@@ -27,6 +29,22 @@ bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
 ```
 
+<SwimlaneDiagram
+  actors={[
+    { label: "Your checkout", sub: "kapi.yaml and .kapi/", role: "io" },
+    { label: "Bowrain", sub: "the project's context", role: "qa" },
+    { label: "A teammate", sub: "browser or desktop", role: "annotate" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "send what this machine recorded", detail: "kapi context sync" },
+    { from: 2, to: 1, label: "decide in Rules", detail: "Keep · Not a rule · Later" },
+    { from: 1, to: 0, label: "read what the team decided", detail: "the next sync" },
+  ]}
+  caption="Every checkout of the project sends its suggestions to Bowrain and reads back the decisions people made in Rules."
+/>
+
+To connect a checkout:
+
 1. `kapi share --via bowrain <server-url>` connects the project and writes the
    `bowrain:` block. It leaves the context where it is.
 2. Add `context: {backend: bowrain}` to `kapi.yaml`.
@@ -37,6 +55,14 @@ The fields and the sign-in rules are in
 [The project model](/cli/project-model#sharing-the-projects-context-on-bowrain).
 
 ## Map
+
+<ThemedImage
+  alt="A project on its Map, with counts, open suggestions and the file list"
+  sources={{
+    light: "/img/web-app/light/project-map.png",
+    dark: "/img/web-app/dark/project-map.png",
+  }}
+/>
 
 | Part | What it shows |
 | --- | --- |
@@ -66,6 +92,14 @@ and in the margin the rules that hold at that file.
 ## Rules
 
 Rules holds the team queue above **Kept by**.
+
+<ThemedImage
+  alt="Rules with the team queue above the Kept by list"
+  sources={{
+    light: "/img/web-app/light/project-rules.png",
+    dark: "/img/web-app/dark/project-rules.png",
+  }}
+/>
 
 | Part | What it shows |
 | --- | --- |

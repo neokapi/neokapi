@@ -4,6 +4,8 @@ sidebar_position: 9
 description: A workspace is the top-level unit in Bowrain. It groups projects, members, terms, and content memory, much like a GitHub organization or a Slack workspace.
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # Workspaces
 
 A workspace is the top-level organizational unit in Bowrain. It groups projects, members, terms, and content memory together, similar to a GitHub organization or Slack workspace. Every project belongs to exactly one workspace.
@@ -33,10 +35,10 @@ Each workspace member has a role that determines their permissions:
 ### Before you connect
 
 Until the desktop app is connected to a Bowrain server, its workspace rail shows
-a single placeholder "Personal" workspace. It is not a place to author
-local-file projects; that is [kapi's job](/getting-started/kapi-vs-bowrain).
-Once you connect, the workspaces you have been invited to appear in the rail and
-the desktop opens their server-hosted projects.
+a single placeholder "Personal" workspace. To work on local-file projects, use
+[kapi](/getting-started/kapi-vs-bowrain). Once you connect, the workspaces you
+have been invited to appear in the rail, and the desktop app opens their
+server-hosted projects.
 
 ## Managing workspaces
 
@@ -54,7 +56,15 @@ Go to **Workspace Settings > Members > Invite**. Enter the email address and cho
 
 ### Workspace settings
 
-Access workspace settings from the navigation panel in the web or desktop app. You can update the workspace name, slug, and description, and manage member roles.
+Open workspace settings from the navigation panel in the web or desktop app. You can update the workspace name, slug and description, and manage member roles.
+
+<ThemedImage
+  alt="Workspace settings with name, slug, description and your role"
+  sources={{
+    light: "/img/web-app/light/settings.png",
+    dark: "/img/web-app/dark/settings.png",
+  }}
+/>
 
 ## Next Steps
 

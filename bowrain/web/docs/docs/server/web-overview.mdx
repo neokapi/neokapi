@@ -103,104 +103,47 @@ it back into the main line. See
   outdated="wording"
 />
 
-## Screenshots
+## The main screens
 
-### Login
+### Workspace home
 
-Bowrain authenticates through an identity provider: the hosted service's
-managed one, or the OIDC provider a self-hosted server is configured with.
+The workspace rail on the left switches between workspaces. Each workspace is
+an isolated environment with its own projects, profiles, terms and content
+memory. The home page lists the active workspace's projects, each with its
+name, source language, any target languages and file count.
 
 <ThemedImage
-  alt="Login page with identity provider options"
+  alt="Workspace home with the workspace rail and project list"
   sources={{
-    light: "/img/web-app/light/login.png",
-    dark: "/img/web-app/dark/login.png",
+    light: "/img/web-app/light/workspace-home.png",
+    dark: "/img/web-app/dark/workspace-home.png",
   }}
 />
 
-### Workspace selector
+### A project's Map
 
-The workspace rail on the left lets you switch between workspaces. Each
-workspace is an isolated environment with its own projects, profiles, terms,
-and content memory.
+A project opens on its [Map](/server/project-map): counts of files, blocks,
+rules and findings, the suggestions waiting for a decision, and one row per
+file. Upload files by dragging them onto the project's **Overview**, or click
+**Add Files**.
 
 <ThemedImage
-  alt="Workspace rail with multiple workspaces"
+  alt="A project on its Map, with counts, open suggestions and the file list"
   sources={{
-    light: "/img/web-app/light/workspace-rail.png",
-    dark: "/img/web-app/dark/workspace-rail.png",
+    light: "/img/web-app/light/project-map.png",
+    dark: "/img/web-app/dark/project-map.png",
   }}
 />
 
-### Project dashboard
+Other screens have their own pages:
 
-The dashboard shows all projects in the active workspace. Each card displays
-the project name, its source language, its target languages if it has any, and
-file count. Create new projects or open existing ones from here.
-
-<ThemedImage
-  alt="Project dashboard with project cards"
-  sources={{
-    light: "/img/web-app/light/dashboard.png",
-    dark: "/img/web-app/dark/dashboard.png",
-  }}
-/>
-
-### Project view
-
-The project view shows files in the selected project with format detection,
-word counts, and block counts, and the collections they sit in. Upload new
-files by dragging them onto the drop zone, or click "Add Files" to browse. The
-content memory and the terms explorer open from the header buttons.
-
-<ThemedImage
-  alt="Project view with file list and upload zone"
-  sources={{
-    light: "/img/web-app/light/project-view.png",
-    dark: "/img/web-app/dark/project-view.png",
-  }}
-/>
-
-### Content memory
-
-The [content memory](/server/translation-memory) is a list of the workspace's
-approved pairs beside a detail pane: search it, choose the target language, and
-add, edit or delete entries, one at a time or every marked entry at once.
-
-<ThemedImage
-  alt="Content memory browser with search and filtering"
-  sources={{
-    light: "/img/web-app/light/tm-explorer.png",
-    dark: "/img/web-app/dark/tm-explorer.png",
-  }}
-/>
-
-### Terms explorer
-
-The [terms explorer](/server/terminology) is the Concepts view of the Context
-hub: a list of concepts beside a detail pane. Search it or narrow it by status or
-market, and select a concept to read its terms in every language, what it
-replaces, where it came from and its record, and to approve, relate or edit it.
-
-<ThemedImage
-  alt="Terms explorer with concept browser"
-  sources={{
-    light: "/img/web-app/light/term-explorer.png",
-    dark: "/img/web-app/dark/term-explorer.png",
-  }}
-/>
-
-### Settings
-
-View workspace information including name, slug, description, and your role.
-
-<ThemedImage
-  alt="Settings page with workspace information"
-  sources={{
-    light: "/img/web-app/light/settings.png",
-    dark: "/img/web-app/dark/settings.png",
-  }}
-/>
+| Screen | What it shows | Page |
+| --- | --- | --- |
+| Sign-in | The identity provider's sign-in | [First login](/server/getting-started#logging-in) |
+| Concepts | Concepts beside a detail pane | [Terms](/server/terminology) |
+| Content memory | Approved pairs beside a detail pane | [Content memory](/server/translation-memory) |
+| Review | The session and the inbox | [Review](/server/review) |
+| Settings | Workspace name, slug, description and your role | [Workspaces](/server/workspaces#workspace-settings) |
 
 ## What the workspace holds
 
@@ -233,3 +176,9 @@ and connect to the same server and workspaces, so presence, sign-on, the hub,
 review and the content memory are shared across them. The desktop client adds
 offline editing and runs as a native app. See
 [The desktop app](/server/desktop-app) for the full comparison.
+
+## Related
+
+- [First login and first project](/server/getting-started): sign in and set up a workspace
+- [Context](/server/context): the hub, profiles per point, and governance
+- [Review](/server/review): the session, bulk approval and ship states

@@ -5,7 +5,7 @@ description: The governed review session walks every pending block across a proj
 keywords: [review, review session, ship state, approved, established, translated, pending, bulk approve, pre-review, review inbox, in-context review, bowrain]
 ---
 
-import { ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
+import { ThemedImage, ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
 
 # Review
 
@@ -35,6 +35,14 @@ the draft, the checks that fired on it, the voice findings and the terms in
 force at the block's point. You can open the session for one collection from
 the project overview, so a reviewer who owns the help centre sees only the help
 centre. Item and locale filters narrow the queue further.
+
+<ThemedImage
+  alt="The review session with the source, the draft, the checks and the terms in force"
+  sources={{
+    light: "/img/web-app/light/review-session.png",
+    dark: "/img/web-app/dark/review-session.png",
+  }}
+/>
 
 For each block:
 
@@ -193,6 +201,14 @@ The workspace-level **Review inbox** rolls up every project awaiting review,
 most-pending first, each linking into its own session. It shows the same
 project standing as the dashboard, so you see pooled review and review assigned
 to anyone, as well as your own.
+
+<ThemedImage
+  alt="The review inbox listing projects by pending count"
+  sources={{
+    light: "/img/web-app/light/review-inbox.png",
+    dark: "/img/web-app/dark/review-inbox.png",
+  }}
+/>
 
 ## Ship states
 
