@@ -45,6 +45,9 @@ export function SubNavTabs<T extends string>({
             key={tab.id}
             type="button"
             role="tab"
+            // The label arrives already translated by the caller, so the
+            // button is not extracted as a block of its own.
+            translate="no"
             aria-selected={active === tab.id}
             onClick={() => onSelect(tab.id)}
             className={cn(
