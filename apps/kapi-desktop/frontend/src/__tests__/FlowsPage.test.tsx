@@ -6,15 +6,40 @@ import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 // Wails runtime. Must be declared before importing the component under test.
 const adoptMock = vi.fn();
 const getFlowMock = vi.fn();
+const saveFlowMock = vi.fn();
 vi.mock("../hooks/useApi", () => ({
   api: {
+    listFlows: () =>
+      Promise.resolve([
+        { name: "translate-and-qa", description: "", source: "inline", step_count: 2, steps: [] },
+      ]),
+    listUserFlows: () =>
+      Promise.resolve([
+        {
+          id: "translate-and-qa",
+          name: "translate-and-qa",
+          description: "",
+          source: "built-in",
+          step_count: 2,
+          steps: [],
+        },
+        {
+          id: "pseudo",
+          name: "pseudo",
+          description: "",
+          source: "built-in",
+          step_count: 1,
+          steps: [],
+        },
+      ]),
+    getUserFlow: () => Promise.resolve({ description: "", steps: [{ tool: "pseudo-translate" }] }),
     adoptUserFlowIntoProject: (...args: unknown[]) => adoptMock(...args),
     getFlow: (...args: unknown[]) => getFlowMock(...args),
     listTools: () => Promise.resolve([]),
     listProjectTools: () => Promise.resolve([]),
     getToolSchema: () => Promise.resolve(null),
     listProviders: () => Promise.resolve([]),
-    saveFlow: () => Promise.resolve(),
+    saveFlow: (...args: unknown[]) => saveFlowMock(...args),
     saveProjectFlow: () => Promise.resolve(),
     setDefaultFlow: () => Promise.resolve(),
     renameProjectFlow: () => Promise.resolve(),
@@ -121,5 +146,34 @@ describe("FlowsPage running a flow", () => {
     await userEvent.click(screen.getByText("convert"));
     await waitFor(() => expect(screen.getByLabelText("Back to flow list")).toBeInTheDocument());
     expect(screen.queryByLabelText("Run flow")).not.toBeInTheDocument();
+  });
+});
+
+describe("FlowsPage in a project", () => {
+  it("lists the flows available to add below the project's own, and adds one", async () => {
+    saveFlowMock.mockResolvedValue(undefined);
+    const onFlowChange = vi.fn();
+    render(
+      <ErrorProvider>
+        <FlowsPage tabID="tab-1" onFlowChange={onFlowChange} />
+      </ErrorProvider>,
+    );
+    const section = await waitFor(() => {
+      const el = document.querySelector("[data-slot='flows-available']");
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    // A flow the project already holds is not offered again.
+    expect(section.textContent).toContain("pseudo");
+    expect(section.textContent).not.toContain("translate-and-qa");
+
+    await userEvent.click(screen.getByText("pseudo"));
+    await waitFor(() =>
+      expect(saveFlowMock).toHaveBeenCalledWith("tab-1", "pseudo", {
+        description: "",
+        steps: [{ tool: "pseudo-translate" }],
+      }),
+    );
+    expect(onFlowChange).toHaveBeenCalledWith("pseudo", expect.anything());
   });
 });

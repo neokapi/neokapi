@@ -47,7 +47,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 18 | `kapi-bilingual-workflow`        | **shell.** kapi emits a bilingual XLIFF pre-filled from content memory and merges the return |
 | 19 | `kapi-desktop-projects`          | **desktop.** A folder opened as a project, given a language and a collection, and its plan read |
 | 20 | `kapi-desktop-content`           | **desktop.** The collections read as the project opens, and one file read as keys and values |
-| 21 | `kapi-desktop-flows`             | **desktop.** The Toolbox: a flow gains a step, is reordered, and becomes the project default |
+| 21 | `kapi-desktop-flows`             | **desktop.** Project flows: a flow gains a step, is reordered, and becomes the project default |
 | 22 | `kapi-desktop-review`            | **desktop.** The review queue, and the five layers behind one decision |
 | 23 | `kapi-desktop-explorer`          | **desktop.** A project's terms and content memory, searched in the Context hub |
 | 24 | `kapi-desktop-config`            | **desktop.** Appearance, plugins, and where a provider key is stored |

@@ -90,8 +90,8 @@ export function FlowPage({
   const host = useSchemaFormHost();
   const handleGetSchema = useToolSchemas(fetchToolSchema);
 
-  // Tools list as react-query server state, shared with ToolRunnerPage under the
-  // same key (the raw entry is cached; `select` shapes it for the editor). The
+  // Tools list as react-query server state (the raw entry is cached; `select`
+  // shapes it for the editor). The
   // "registries-changed" event invalidates it (a plugin change may have added
   // or removed tools).
   const toolsQuery = useQuery({

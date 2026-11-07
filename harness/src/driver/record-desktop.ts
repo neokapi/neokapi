@@ -1238,11 +1238,11 @@ async function contentWalk(c: WalkCtx): Promise<void> {
 }
 
 /**
- * The Toolbox: what a project runs over its content, and composing one.
+ * Project flows: what a project runs over its content, and composing one.
  *
- * Flows stopped being a rail pillar; the Toolbox pillar hosts Tools and Flows
- * as tabs (IconSidebar `Toolbox` → view `tools`, ToolboxPage's two buttons), and
- * a flow card opens the pipeline in the shared linear editor.
+ * Flows are a tab of Project Settings (IconSidebar `Project Settings` → its
+ * Flows tab, view `project-settings:flows`), and a flow card opens the
+ * pipeline in the shared linear editor.
  *
  * The walk edits a flow and makes it the project's default, both of which are
  * local. It does not press Run: the seeded providers carry names and no keys
@@ -1251,11 +1251,10 @@ async function contentWalk(c: WalkCtx): Promise<void> {
  */
 async function flowsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
-  // Open the KapiMart sample and go straight to its flows: the Tools tab is a
-  // different subject and the video has one.
+  // Open the KapiMart sample and go straight to its flows.
   await landOnHome(page);
-  await openSample(page, "sample-kapimart", "Toolbox");
-  await humanClick(page, sidebar("Toolbox"));
+  await openSample(page, "sample-kapimart", "Project Settings");
+  await humanClick(page, sidebar("Project Settings"));
   await page.waitForTimeout(1200);
   const flowsTab = page.locator('[role="tab"]:has-text("Flows")').first();
   if (await flowsTab.count()) await humanClick(page, flowsTab);

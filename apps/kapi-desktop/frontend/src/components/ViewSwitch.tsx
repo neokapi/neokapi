@@ -7,8 +7,6 @@ import type { ProjectHistory } from "../hooks/useProjectHistory";
 import { AppHome } from "./AppHome";
 import { RunnerPage } from "./RunnerPage";
 import { FlowsPage } from "./FlowsPage";
-import { ToolRunnerPage } from "./ToolRunnerPage";
-import { ToolboxPage } from "./ToolboxPage";
 import { ChecksPanel } from "./ChecksPanel";
 import { MapPage } from "./MapPage";
 import { ReaderPage } from "./ReaderPage";
@@ -22,7 +20,6 @@ import {
 } from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
-import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
 import { OverviewStanding } from "./OverviewStanding";
 import { ProjectContentPage } from "./ProjectContentPage";
@@ -378,6 +375,23 @@ export function ViewSwitch({
               hasTargetLanguages={languages}
             />
           ),
+          flows: (
+            <FlowsPage
+              tabID={tabID}
+              projectFlows={history.project.flows}
+              onRunFlow={handleRunFlow}
+              onFlowChange={(name, spec) => {
+                updateProject({
+                  ...history.project,
+                  flows: { ...history.project.flows, [name]: spec },
+                });
+              }}
+              onFlowDelete={(name) => {
+                const { [name]: _, ...rest } = history.project.flows ?? {};
+                updateProject({ ...history.project, flows: rest });
+              }}
+            />
+          ),
           assistants: connect("project-settings:assistants"),
           sessions: connect("project-settings:sessions"),
           share: connect("project-settings:share"),
@@ -467,35 +481,13 @@ export function ViewSwitch({
         );
       }
 
-      // The Toolbox hosts Tools, Flows and Formats as route-driven tabs.
+      // Flows are a tab of Project Settings. "tools", "flows" and "formats"
+      // are persisted view ids of the pages that tab replaced, so a saved
+      // session lands there.
       case "tools":
       case "flows":
       case "formats":
-        return (
-          <ToolboxPage
-            tab={route}
-            onTabChange={navigate}
-            tools={<ToolRunnerPage tabID={tabID} />}
-            flows={
-              <FlowsPage
-                tabID={tabID}
-                projectFlows={history.project.flows}
-                onRunFlow={handleRunFlow}
-                onFlowChange={(name, spec) => {
-                  updateProject({
-                    ...history.project,
-                    flows: { ...history.project.flows, [name]: spec },
-                  });
-                }}
-                onFlowDelete={(name) => {
-                  const { [name]: _, ...rest } = history.project.flows ?? {};
-                  updateProject({ ...history.project, flows: rest });
-                }}
-              />
-            }
-            formats={<FormatsPage />}
-          />
-        );
+        return projectSettings("flows");
 
       case "runner":
         // Bring up to date is language work: on a project whose saved recipe

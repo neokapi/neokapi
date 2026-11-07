@@ -4,11 +4,11 @@ import { SubNavTabs } from "./SubNavTabs";
 
 /**
  * The tabs of Project Settings besides the settings themselves: the project's
- * content collections and where they stand, the assistants connected to it,
- * and sharing its context. Sessions is reached from the Assistants page, so it
+ * content collections and where they stand, the flows it runs over them, the
+ * assistants connected to it, and sharing its context. Sessions is reached from the Assistants page, so it
  * has no tab of its own and keeps Assistants marked.
  */
-export const SETTINGS_SECTIONS = ["content", "assistants", "sessions", "share"] as const;
+export const SETTINGS_SECTIONS = ["content", "flows", "assistants", "sessions", "share"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 type TabID = "settings" | Exclude<SettingsSection, "sessions">;
@@ -16,6 +16,7 @@ type TabID = "settings" | Exclude<SettingsSection, "sessions">;
 const TABS: Array<{ id: TabID; label: () => string }> = [
   { id: "settings", label: () => t("Settings") },
   { id: "content", label: () => t("Content") },
+  { id: "flows", label: () => t("Flows") },
   { id: "assistants", label: () => t("Assistants") },
   { id: "share", label: () => t("Share") },
 ];

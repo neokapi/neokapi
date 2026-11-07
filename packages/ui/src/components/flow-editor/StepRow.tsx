@@ -13,6 +13,7 @@ import { Button } from "../ui/button";
 import { Markdown } from "../ui/markdown";
 import { SimpleTooltip } from "../ui/tooltip";
 import { SchemaForm } from "../schema-form";
+import { ToolCommandCopy } from "./ToolCommandCopy";
 import type { ComponentSchema, SchemaFormHost } from "../schema-form";
 import type { FlowStep, FlowTool } from "./types";
 
@@ -60,7 +61,7 @@ export function StepRow({
   const hasOptions = !!schema && Object.keys(schema.properties ?? {}).length > 0;
 
   return (
-    <li className="rounded-lg border" data-testid="step-row">
+    <li className="group/step rounded-lg border" data-testid="step-row">
       <div className="flex items-start gap-2 p-2">
         <span className="mt-1 text-muted-foreground/50" aria-hidden="true">
           <GripVertical className="size-4" />
@@ -77,6 +78,14 @@ export function StepRow({
           )}
         </div>
 
+        {/* The command line that runs this step's tool, shown on hover or
+            focus so the row stays quiet. */}
+        {!step.parallel?.length && step.tool && (
+          <ToolCommandCopy
+            tool={step.tool}
+            className="opacity-0 transition-opacity group-focus-within/step:opacity-100 group-hover/step:opacity-100"
+          />
+        )}
         {!readOnly && (
           <div className="flex items-center gap-0.5">
             {hasOptions && (

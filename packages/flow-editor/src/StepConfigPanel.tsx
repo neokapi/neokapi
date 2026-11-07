@@ -9,6 +9,7 @@ import {
   Markdown,
   ScrollArea,
   SimpleTooltip,
+  ToolCommandCopy,
 } from "@neokapi/ui-primitives";
 import { IoContract } from "./nodes/PortChip";
 import { getCategoryStyle } from "./category";
@@ -118,6 +119,7 @@ export function StepConfigPanel({
             </div>
             <div className="text-sm font-semibold text-foreground">{displayName}</div>
           </div>
+          <ToolCommandCopy tool={step.tool} className="self-start" />
           <Button
             variant="ghost"
             size="icon-xs"

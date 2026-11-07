@@ -24,6 +24,18 @@ const SCHEMA: ComponentSchema = {
 afterEach(cleanup);
 
 describe("StepRow", () => {
+  it("offers the command that runs its tool on files", () => {
+    render(
+      <ul>
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} count={1} readOnly />
+      </ul>,
+    );
+    const copy = screen.getByRole("button", {
+      name: "Copy kapi exec translate <files...> for the terminal",
+    });
+    expect(copy.getAttribute("data-command")).toBe("kapi exec translate <files...>");
+  });
+
   it("shows the tool's name and description", () => {
     render(
       <ul>

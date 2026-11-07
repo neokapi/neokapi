@@ -4,6 +4,8 @@ export { StepRow } from "./StepRow";
 export type { StepRowProps } from "./StepRow";
 export { AddStepPicker } from "./AddStepPicker";
 export type { AddStepPickerProps } from "./AddStepPicker";
+export { ToolCommandCopy } from "./ToolCommandCopy";
+export type { ToolCommandCopyProps } from "./ToolCommandCopy";
 export { ParallelGroupRow } from "./ParallelGroupRow";
 export type { ParallelGroupRowProps } from "./ParallelGroupRow";
 export { parallelStepError, sequenceIssues, listBranchesInOrder } from "./sequence";

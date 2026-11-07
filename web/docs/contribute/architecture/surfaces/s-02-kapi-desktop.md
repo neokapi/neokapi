@@ -254,11 +254,12 @@ avoids interpreting filesystem events from SQLite database and WAL files.
 ### The rail and the Overview
 
 Every project tab opens on its **Overview**, and a persisted view opens where
-it was. The project rail lists, in order, Overview, Context, Review, Toolbox
-and Project Settings, and each page has exactly one entry: the checks panel
-and the Reader open from the Overview and keep it marked, the Toolbox holds
-Tools, Flows and Formats as tabs, and Project Settings holds Settings,
-Content, Assistants and Share as tabs. Review is always on the rail; on a
+it was. The project rail lists, in order, Overview, Context, Review and
+Project Settings, and each page has exactly one entry: the checks panel and
+the Reader open from the Overview and keep it marked, and Project Settings
+holds Settings, Content, Flows, Assistants and Share as tabs. The formats, with
+the presets saved for each, are a tab of App Settings, because presets belong
+to the user rather than a project. Review is always on the rail; on a
 project that declares no target language it shows the languages section of
 Project Settings under one line, and nothing else on the rail changes with
 the project's languages.
@@ -709,11 +710,11 @@ event stream would vanish. The backend keeps the events, collapsing consecutive
 metric snapshots so a long run does not grow the buffer at the sampling rate.
 The runner asks for a target language only when the flow produces one.
 
-### The toolbox is a reference; flows run through the runner
+### Tools are described in the flow editor; flows run through the runner
 
-The Toolbox page describes each registry tool: what it does, its schema, what it
-consumes and produces, its reference page, and the command that runs it
-(`kapi exec <tool>`, with `kapi tools schema <tool>` for its options). Tools
+The flow editor's tool palette and step panel describe each registry tool:
+what it does, its schema, what it consumes and produces, and the command that
+runs it (`kapi exec <tool>`, copied from the step's terminal icon). Tools
 execute through the CLI and through flows; the desktop runs no tool on its
 own, because a third path would have to re-solve project isolation and AI
 consent for little.
