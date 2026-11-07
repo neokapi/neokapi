@@ -252,7 +252,7 @@ func (a *App) readerRead(tabID, relPath string) (*readerRead, error) {
 	}
 	out.place(blocks, findings)
 
-	answer, err := a.ContextAt(tabID, rel, host.DefaultContextTermsLimit)
+	answer, err := a.ContextAt(tabID, rel, "", host.DefaultContextTermsLimit)
 	if err != nil {
 		return nil, fmt.Errorf("read the rules for %s: %w", rel, err)
 	}
@@ -282,7 +282,7 @@ func (a *App) readerSource(tabID string, op *openProject, rel string) (project.R
 		}
 		return rf, nil
 	}
-	if ans, aerr := a.ContextAt(tabID, rel, 1); aerr == nil && ans.EditionOf != nil {
+	if ans, aerr := a.ContextAt(tabID, rel, "", 1); aerr == nil && ans.EditionOf != nil {
 		return project.ResolvedFile{}, fmt.Errorf("%s is the %s translation of %s: the Reader reads and fixes the source",
 			rel, ans.EditionOf.Edition, ans.EditionOf.Source)
 	}

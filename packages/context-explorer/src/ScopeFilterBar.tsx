@@ -9,6 +9,8 @@ import { useMemo } from "react";
 import {
   Badge,
   Button,
+  LocaleSelect,
+  resolveLocaleName,
   Select,
   SelectContent,
   SelectItem,
@@ -66,6 +68,25 @@ function DimensionSelect({ dimension }: { dimension: Dimension }) {
         data-dimension={dimension}
         className="h-8 w-36 rounded-md border bg-background px-2 text-sm"
         onBlur={(e) => setDimension(dimension, e.target.value.trim() || undefined)}
+      />
+    );
+  }
+
+  // A language reads by its name, through the same picker every other language
+  // choice in the app uses; the code alone makes a reader guess.
+  if (dimension === "locale") {
+    return (
+      <LocaleSelect
+        className="w-48"
+        aria-label={dimensionLabel(dimension)}
+        data-slot="scope-locale"
+        value={value ?? ""}
+        onChange={(next) => setDimension(dimension, next || undefined)}
+        clearLabel={loading ? t("Loading…") : t("Any language")}
+        locales={options.map((option) => ({
+          code: option.value,
+          displayName: option.label ?? resolveLocaleName(option.value),
+        }))}
       />
     );
   }

@@ -105,7 +105,7 @@ describe("createLocalContextSource", () => {
       scope: { ...SCOPE, path: "docs/help/billing.json" },
       limit: 5,
     });
-    expect(backend.at).toHaveBeenCalledWith(TAB, "docs/help/billing.json", 5);
+    expect(backend.at).toHaveBeenCalledWith(TAB, "docs/help/billing.json", "", 5);
     expect(backend.governs).not.toHaveBeenCalled();
     expect(answer.point.path).toBe("docs/help/billing.json");
     expect(answer.terms_total).toBe(18);
@@ -116,8 +116,17 @@ describe("createLocalContextSource", () => {
     const backend = fakeBackend();
     const source = createLocalContextSource(TAB, backend);
     await source.governs({ scope: SCOPE, limit: 5 });
-    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "", 5);
+    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "", "", 5);
     expect(backend.at).not.toHaveBeenCalled();
+  });
+
+  it("narrows the terms to the chosen language at a collection and at a file", async () => {
+    const backend = fakeBackend();
+    const source = createLocalContextSource(TAB, backend);
+    await source.governs({ scope: { ...SCOPE, locale: "nb" }, limit: 5 });
+    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "", "nb", 5);
+    await source.governs({ scope: { ...SCOPE, locale: "nb", path: "docs/a.json" }, limit: 5 });
+    expect(backend.at).toHaveBeenCalledWith(TAB, "docs/a.json", "nb", 5);
   });
 
   it("flattens concepts into term rows, marking the discouraged one", async () => {

@@ -189,14 +189,14 @@ func TestContextGovernsResolvesTheFinestDeclaredPoint(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
-	docs, err := app.ContextGoverns(tab.ID, "Docs", "", 0)
+	docs, err := app.ContextGoverns(tab.ID, "Docs", "", "", 0)
 	require.NoError(t, err)
 	assert.Equal(t, "support", docs.Point.Profile)
 	assert.Equal(t, "docs", docs.Point.Channel)
 	assert.False(t, docs.Point.Default)
 
 	// A collection that binds nothing falls back to the project's default point.
-	appColl, err := app.ContextGoverns(tab.ID, "App", "", 0)
+	appColl, err := app.ContextGoverns(tab.ID, "App", "", "", 0)
 	require.NoError(t, err)
 	assert.Empty(t, appColl.Point.Profile)
 	assert.True(t, appColl.Point.Default)
@@ -207,7 +207,7 @@ func TestContextAtAnswersThroughTheRetrievalSurface(t *testing.T) {
 	tab, _ := newContextProject(t, app)
 	seedConcept(t, app, tab)
 
-	res, err := app.ContextAt(tab.ID, "docs/help/billing.json", 10)
+	res, err := app.ContextAt(tab.ID, "docs/help/billing.json", "", 10)
 	require.NoError(t, err)
 	assert.Equal(t, "docs/help/billing.json", res.Point.Path)
 	assert.Equal(t, "support", res.Point.Profile)
@@ -225,7 +225,7 @@ func TestContextAtRefusesAPathlessRequest(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
-	_, err := app.ContextAt(tab.ID, "", 10)
+	_, err := app.ContextAt(tab.ID, "", "", 10)
 	assert.Error(t, err, "a collection has no location to resolve")
 }
 
@@ -236,13 +236,13 @@ func TestContextGovernsNamesTheVoiceInForce(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
-	docs, err := app.ContextGoverns(tab.ID, "Docs", "", 0)
+	docs, err := app.ContextGoverns(tab.ID, "Docs", "", "", 0)
 	require.NoError(t, err)
 	require.NotNil(t, docs.Voice, "the support point keeps a voice of its own")
 	assert.Equal(t, "Northsea Support", docs.Voice.Name)
 	assert.Contains(t, docs.Voice.Guide, "Northsea Support")
 
-	appColl, err := app.ContextGoverns(tab.ID, "App", "", 0)
+	appColl, err := app.ContextGoverns(tab.ID, "App", "", "", 0)
 	require.NoError(t, err)
 	require.NotNil(t, appColl.Voice, "the project default governs a collection that binds nothing")
 	assert.Equal(t, "Northsea", appColl.Voice.Name)
@@ -253,7 +253,7 @@ func TestContextGovernsReportsAProfileWindow(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
-	res, err := app.ContextGoverns(tab.ID, "Docs", "", 0)
+	res, err := app.ContextGoverns(tab.ID, "Docs", "", "", 0)
 	require.NoError(t, err)
 
 	states := map[string]string{}
@@ -269,7 +269,7 @@ func TestContextGovernsCarriesTheProjectVocabulary(t *testing.T) {
 	tab, _ := newContextProject(t, app)
 	seedConcept(t, app, tab)
 
-	res, err := app.ContextGoverns(tab.ID, "Docs", "", 10)
+	res, err := app.ContextGoverns(tab.ID, "Docs", "", "", 10)
 	require.NoError(t, err)
 	require.Len(t, res.Concepts, 1)
 	assert.Equal(t, "c-signin", res.Concepts[0].ID)
@@ -281,6 +281,35 @@ func TestContextGovernsCarriesTheProjectVocabulary(t *testing.T) {
 	}
 	assert.Equal(t, "preferred", statuses["sign in"])
 	assert.Equal(t, "forbidden", statuses["log in"])
+}
+
+func TestContextGovernsNarrowsTheTermsToOneLanguage(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	seedConcept(t, app, tab)
+	db, err := app.projectStore(app.getOpenProject(tab.ID))
+	require.NoError(t, err)
+	require.NoError(t, db.Terms().AddConcept(context.Background(), terms.Concept{
+		ID:         "c-cart",
+		Definition: "A container for items before checkout.",
+		Terms: []terms.Term{
+			{Text: "cart", Locale: "en-US", Status: model.TermPreferred},
+			{Text: "handlekurv", Locale: "nb-NO", Status: model.TermPreferred},
+			{Text: "Warenkorb", Locale: "de-DE", Status: model.TermPreferred},
+		},
+	}))
+
+	res, err := app.ContextGoverns(tab.ID, "Docs", "", "nb-NO", 10)
+	require.NoError(t, err)
+	require.Len(t, res.Concepts, 1, "a concept with no Norwegian term is not listed")
+	assert.Equal(t, "c-cart", res.Concepts[0].ID)
+	assert.Equal(t, 1, res.ConceptsTotal)
+	require.Len(t, res.Concepts[0].Terms, 1)
+	assert.Equal(t, "handlekurv", res.Concepts[0].Terms[0].Text)
+
+	all, err := app.ContextGoverns(tab.ID, "Docs", "", "", 10)
+	require.NoError(t, err)
+	assert.Equal(t, 2, all.ConceptsTotal)
 }
 
 func TestContextLivesPlacesContentAtThePoint(t *testing.T) {
@@ -459,7 +488,7 @@ func TestContextOptionsOffersOnlyTheFreeDimensions(t *testing.T) {
 func TestContextExplorerRejectsAnUnknownTab(t *testing.T) {
 	app := NewApp()
 
-	_, err := app.ContextGoverns("nope", "", "", 0)
+	_, err := app.ContextGoverns("nope", "", "", "", 0)
 	require.Error(t, err)
 	_, err = app.ContextLives("nope", "", "", 0)
 	require.Error(t, err)

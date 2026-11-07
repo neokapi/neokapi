@@ -31,11 +31,12 @@ export interface ContextBackend {
    * The by-location answer for one file — the same resolution `kapi context
    * <path>` and the `context://` resource serve.
    */
-  at(tabID: string, path: string, limit: number): Promise<AtResult | null>;
+  at(tabID: string, path: string, locale: string, limit: number): Promise<AtResult | null>;
   governs(
     tabID: string,
     collection: string,
     path: string,
+    locale: string,
     limit: number,
   ): Promise<GovernsResult | null>;
   lives(
@@ -184,9 +185,9 @@ interface OptionResult {
 
 /** The production backend: each method dispatches to its Wails binding. */
 export const wailsContextBackend: ContextBackend = {
-  at: (tabID, path, limit) => call<AtResult>("ContextAt", tabID, path, limit),
-  governs: (tabID, collection, path, limit) =>
-    call<GovernsResult>("ContextGoverns", tabID, collection, path, limit),
+  at: (tabID, path, locale, limit) => call<AtResult>("ContextAt", tabID, path, locale, limit),
+  governs: (tabID, collection, path, locale, limit) =>
+    call<GovernsResult>("ContextGoverns", tabID, collection, path, locale, limit),
   lives: (tabID, collection, path, limit) =>
     call<LivesResult>("ContextLives", tabID, collection, path, limit),
   relates: (tabID, kind, subject, limit) =>
@@ -269,9 +270,11 @@ export function createLocalContextSource(
     async governs(q: ScopedQuery): Promise<GovernanceAnswer> {
       // A file is the finest declared point and the form the retrieval surface
       // owns, so it answers there rather than here. A collection has no
-      // location to resolve and takes the coarser path.
+      // location to resolve and takes the coarser path. Both narrow the terms
+      // to the chosen language, the way `kapi context --locale` does.
+      const locale = q.scope.locale ?? "";
       if (q.scope.path) {
-        const at = required(await backend.at(tabID, q.scope.path, limitOf(q)));
+        const at = required(await backend.at(tabID, q.scope.path, locale, limitOf(q)));
         return {
           point: at.point,
           scope: "project",
@@ -282,7 +285,9 @@ export function createLocalContextSource(
           notes: at.notes ?? [],
         };
       }
-      const res = required(await backend.governs(tabID, q.scope.collection ?? "", "", limitOf(q)));
+      const res = required(
+        await backend.governs(tabID, q.scope.collection ?? "", "", locale, limitOf(q)),
+      );
       return {
         point: res.point,
         scope: "project",

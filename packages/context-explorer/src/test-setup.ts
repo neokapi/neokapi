@@ -12,5 +12,11 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 
+// The language picker's list scrolls its active item into view, which JSDOM
+// does not implement.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {};
+}
+
 // Component tests render into jsdom; unmount between cases to avoid DOM bleed.
 afterEach(cleanup);
