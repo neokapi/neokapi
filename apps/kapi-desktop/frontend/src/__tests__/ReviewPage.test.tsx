@@ -117,18 +117,84 @@ async function cancelAsk() {
 }
 
 describe("ReviewPage", () => {
-  it("renders the queue grouped by file, findings-first", async () => {
+  it("groups every language's rows under one header per language", async () => {
     renderPage();
     const items = await screen.findAllByRole("button", { name: /greeting|farewell/i });
     expect(items.length).toBeGreaterThanOrEqual(3);
     const queueItems = document.querySelectorAll("[data-slot='review-queue-item']");
     expect(queueItems).toHaveLength(3);
-    // Findings-first ordering: the de-DE unit (has findings) leads the queue.
     expect(queueItems[0].getAttribute("data-key")).toBe("greeting");
-    expect(queueItems[0].textContent).toContain("de-DE");
-    // Grouped by file: both file headers render.
-    expect(screen.getByText("locales/de-DE.json")).toBeInTheDocument();
-    expect(screen.getByText("locales/fr-FR.json")).toBeInTheDocument();
+    expect(queueItems[0].getAttribute("data-language")).toBe("de-DE");
+    // One header per language, each naming its language once.
+    const groups = Array.from(document.querySelectorAll("[data-slot='review-queue-group']"));
+    expect(groups.map((g) => g.getAttribute("data-language"))).toEqual(["de-DE", "fr-FR"]);
+    expect(groups[1].textContent).toContain("2");
+    // The row names its key, with the file's last segment as meta.
+    expect(queueItems[0].querySelector("[data-slot='review-queue-file']")?.textContent).toBe(
+      "de-DE.json",
+    );
+  });
+
+  it("orders the rows the way j walks them, findings first within a language", async () => {
+    const items: ReviewItem[] = [
+      { ...ITEMS[2], hasFindings: false },
+      { ...ITEMS[1], key: "zeta", hasFindings: true },
+      ITEMS[0],
+    ];
+    renderPage({ items });
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(3),
+    );
+    const drawn = Array.from(document.querySelectorAll("[data-slot='review-queue-item']")).map(
+      (el) => `${el.getAttribute("data-language")}:${el.getAttribute("data-key")}`,
+    );
+    expect(drawn).toEqual(["de-DE:greeting", "fr-FR:zeta", "fr-FR:farewell"]);
+    const walked: string[] = [];
+    const active = () => {
+      const el = document.querySelector("[data-slot='review-queue-item'][data-active]");
+      return `${el?.getAttribute("data-language")}:${el?.getAttribute("data-key")}`;
+    };
+    await waitFor(() => expect(active()).toBe(drawn[0]));
+    walked.push(active());
+    for (const next of drawn.slice(1)) {
+      fireEvent.keyDown(window, { key: "j" });
+      await waitFor(() => expect(active()).toBe(next));
+      walked.push(active());
+    }
+    expect(walked).toEqual(drawn);
+  });
+
+  it("drops the language headers when one language is chosen", async () => {
+    renderPage({ scope: { locale: "fr-FR" } });
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(2),
+    );
+    expect(document.querySelector("[data-slot='review-queue-group']")).toBeNull();
+  });
+
+  it("heads the unit with its key and keeps the path in the tooltip", async () => {
+    renderPage();
+    const heading = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-unit-key']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(heading.textContent).toBe("greeting");
+    expect(document.querySelector("[data-slot='review-unit']")?.textContent).not.toContain(
+      "locales/de-DE.json:greeting",
+    );
+  });
+
+  it("shows the keyboard hints only while the action bar is hovered or focused", async () => {
+    renderPage();
+    const hints = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-key-hints']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(hints.className).toContain("opacity-0");
+    expect(hints.className).toContain("group-hover:opacity-100");
+    expect(hints.className).toContain("group-focus-within:opacity-100");
   });
 
   it("renders the queue row's source preview in the item's own source locale", async () => {
@@ -282,7 +348,9 @@ describe("ReviewPage", () => {
 
   it("filters with the findings chips", async () => {
     renderPage();
-    await screen.findByText("locales/de-DE.json");
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(3),
+    );
     await userEvent.click(screen.getByRole("button", { name: "With findings" }));
     expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(1);
     await userEvent.click(screen.getByRole("button", { name: "Clean" }));
@@ -699,7 +767,8 @@ describe("ReviewPage", () => {
     };
     const onPreReview = vi.fn(async () => result);
     renderPage({ onPreReview });
-    await userEvent.click(await screen.findByRole("button", { name: /AI pre-review/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "More review actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /AI pre-review/ }));
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-prereview-modal']")).not.toBeNull(),
     );
@@ -718,7 +787,8 @@ describe("ReviewPage", () => {
   it("pre-review passes the scope filters", async () => {
     const onPreReview = vi.fn(async () => ({ model: "claude-x", reviewed: 1 }));
     renderPage({ onPreReview, scope: { locale: "fr-FR", collection: "Docs" } });
-    await userEvent.click(await screen.findByRole("button", { name: /AI pre-review/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "More review actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /AI pre-review/ }));
     await userEvent.click(await screen.findByRole("button", { name: /Run pre-review/ }));
     await waitFor(() => expect(onPreReview).toHaveBeenCalledTimes(1));
     expect(onPreReview.mock.calls[0][0]).toBe("fr-FR");
@@ -799,33 +869,25 @@ describe("ReviewPage review model", () => {
     );
   }
 
-  it("renders the point rail: ref, collection, coordinates, voice and term rules", async () => {
+  it("renders the point as the voice and the terms, without coordinates or notes", async () => {
     renderWithContext();
     await waitFor(() =>
-      expect(document.querySelector("[data-slot='review-point-ref']")?.textContent).toBe(
-        "retail/web",
+      expect(document.querySelector("[data-slot='review-point-voice']")?.textContent).toBe(
+        "Kapimart retail",
       ),
     );
-    expect(document.querySelector("[data-slot='review-point-voice']")?.textContent).toBe(
-      "Kapimart retail",
-    );
-    // Each axis is a chip: the value in words, the axis name in the label.
-    const coordinates = Array.from(
-      document.querySelectorAll("[data-slot='review-point-coordinate']"),
-    );
-    const product = coordinates.find((el) => el.getAttribute("data-axis") === "product");
-    expect(product?.textContent?.trim()).toBe("kapimart");
-    expect(product?.getAttribute("aria-label")).toBe("Product: kapimart");
-    expect(coordinates.map((el) => el.getAttribute("data-axis"))).toContain("channel");
-    const terms = Array.from(document.querySelectorAll("[data-slot='review-point-term']")).map(
+    const point = document.querySelector("[data-slot='review-point']")!;
+    // Coordinates, the voice's store id, the file and the resolution notes are
+    // implementation detail, not review help.
+    expect(point.querySelector("[data-slot='review-point-coordinate']")).toBeNull();
+    expect(point.textContent).not.toContain("pack:retail");
+    expect(point.textContent).not.toContain("content/app.json");
+    expect(point.textContent).not.toContain("three days ago");
+    const terms = Array.from(point.querySelectorAll("[data-slot='review-point-term']")).map(
       (el) => el.textContent,
     );
     expect(terms[0]).toContain("cart");
     expect(terms[0]).toContain("basket");
-    // A capped list says what it is part of.
-    expect(document.querySelector("[data-slot='review-point-terms-total']")?.textContent).toContain(
-      "40",
-    );
     // The rendered guidance is prose, so it sits behind a disclosure.
     expect(document.querySelector("[data-slot='review-point-guide']")).toBeNull();
     await userEvent.click(
@@ -834,6 +896,33 @@ describe("ReviewPage review model", () => {
     expect(document.querySelector("[data-slot='review-point-guide']")?.textContent).toContain(
       "second person",
     );
+  });
+
+  it("puts the terms past the first few behind a disclosure", async () => {
+    const loadUnit = vi.fn(async (item: ReviewItem) => ({
+      ...unitFor(item),
+      context: {
+        ...CONTEXT,
+        point: {
+          ...CONTEXT.point,
+          term_rules: ["a", "b", "c", "d", "e", "f"].map((term) => ({ term, replacement: term })),
+        },
+      },
+    }));
+    render(
+      <ErrorProvider>
+        <ReviewPage tabID="t1" items={ITEMS} loadUnit={loadUnit} />
+      </ErrorProvider>,
+    );
+    const more = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>("[data-slot='review-point-terms-more']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(document.querySelectorAll("[data-slot='review-point-term']")).toHaveLength(4);
+    expect(more.textContent).toBe("2 more");
+    await userEvent.click(more);
+    expect(document.querySelectorAll("[data-slot='review-point-term']")).toHaveLength(6);
   });
 
   it("renders the neighbourhood in document order, placeholders and all", async () => {
