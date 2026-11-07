@@ -45,7 +45,7 @@ In dev mode (plugin not active) `t` returns the source text verbatim, with `{nam
 
 ## Why a separate marker?
 
-JSX needs no wrappers, because the element tells the extractor what it holds. In a JS data structure, nothing in the syntax says whether `label: "English"` is copy or an ID, an enum value or a CSS class.
+JSX needs no wrappers, because the element tells the extractor what it holds. In a JS data structure, nothing in the syntax marks `label: "English"` as copy; it could as well be an ID, an enum value or a CSS class.
 
 `t()` marks it as copy, with one function call per string, and JSX stays free of wrappers.
 
@@ -57,7 +57,7 @@ t("Hello, {name}!", { name: "Alice" });
 // → translation with {name} substituted at runtime in production
 ```
 
-Parameter syntax mirrors what the JSX extractor uses (`{name}`), so a translator editing an entry sees the same placeholder shape whether it came from JSX or `t()`.
+Parameter syntax mirrors what the JSX extractor uses (`{name}`), so a translator sees the same placeholder shape in a string from JSX and in one from `t()`.
 
 ## Context: disambiguating identical source strings
 
