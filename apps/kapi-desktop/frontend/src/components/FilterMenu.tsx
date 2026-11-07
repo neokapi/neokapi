@@ -50,7 +50,9 @@ export function FilterMenu({ project }: { project: KapiProject }) {
               variant="outline"
               size="sm"
               className="h-7 gap-1.5"
-              aria-label={t("Filter: {name}", { name: active ? active.name : t("All files") })}
+              aria-label={
+                active ? t("Filter: {name}", { name: active.name }) : t("Filter: all files")
+              }
             >
               <Filter size={13} className={active ? "text-primary" : "text-muted-foreground"} />
               <span className="max-w-[10rem] truncate">
