@@ -17,8 +17,8 @@ An AI assistant reaches kapi through two surfaces over one implementation. The
 teaches an assistant that runs shell commands *when* to reach for kapi and
 *which* verb to run, and `kapi help <topic>` serves the reference files beside
 it. The **MCP server**
-(`kapi mcp`) serves clients that call tools rather than shell out, exposing a
-deliberately curated set plus the `context://` resource space. Both converge on
+(`kapi mcp`) serves clients that call tools, exposing a
+curated set plus the `context://` resource space. Both converge on
 the same asymmetry: **the assistant writes the content; kapi supplies the
 context, applies edits through format-aware writers, and runs configured checks.** On the
 command line, content and asset edits land through `kapi apply` as a
@@ -216,8 +216,8 @@ Four properties hold for the rules files:
 - **kapi owns one section.** It sits between `<!-- kapi:rules -->` markers;
   the person's text around it is never touched, and a file holding an
   unterminated section is refused rather than guessed at.
-- **A file kapi created is removed when nothing else is in it.** A folder that
-  no longer has rules of its own loses the section; the file goes only when
+- **A file kapi created is removed when nothing else is in it.** A folder left
+  with no rules of its own loses the section; the file goes only when
   the section was all it held.
 - **One copy per agent.** A `CLAUDE.md` that imports `@AGENTS.md`, or is the
   same file, gets no section, so Claude Code reads the rules once.
@@ -258,7 +258,7 @@ exits: a row that stops moving ages out on the next write.
 
 The skill's `description` is the sole triggering lever, and it is loaded at
 startup by every `SKILL.md`-aware tool. Whether it fires on the right tasks is
-measured rather than remembered: `scripts/skilleval` drives a real assistant
+measured: `scripts/skilleval` drives a real assistant
 session (`claude -p`) per scenario in a throwaway workspace and records what
 the agent did. `make skill-eval` scores triggering over positive and negative
 prompts, `make skill-eval-completion` drives each positive scenario to a green
@@ -605,7 +605,7 @@ a name the way `kapi run` does ([E-04](../engine/e-04-flows-and-io-binding.md)).
 something a caller cannot produce itself or check something with no porcelain
 equivalent. The full generated list is in the [MCP reference](/reference/mcp).
 
-Three curation rules are asserted by tests rather than remembered:
+Tests assert three curation rules:
 
 - **Nothing that executes caller-supplied code is ever agent-facing**, not even
   under `--all-tools`. "Show me every tool" and "let a caller run arbitrary
@@ -752,8 +752,7 @@ between revising content and troubleshooting the command.
   the read rather than a second address, and keeps both forms of the question in
   one address space.
 - Whether the skill fires, and whether an agent picks the right tool, is a
-  measured number with a transcript behind it rather than a checklist someone
-  remembers to run.
+  measured number with a transcript behind it.
 - A project's context grows out of the work an assistant was doing anyway,
   because the habits are in the two places an assistant reads before it acts:
   the skill body and the server's instructions. What it records advises and

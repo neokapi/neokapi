@@ -104,7 +104,7 @@ its session.
 
 The channel-based `Tool.Process` is a forward-only transform. Some tools need
 random access to the project's block state: lookup by content hash, reading
-prior overlays (memory matches, check findings, previously-produced targets) to
+prior overlays (memory matches, check findings, targets an earlier run produced) to
 skip work that is already done, or writing annotations that downstream tools in
 the same or a later run will consult. Those tools opt into the `SessionTool`
 interface alongside `Tool`:
@@ -391,7 +391,7 @@ const (
 ```
 
 A handful of these string values (`"tm-match"` above, and the memory and terms
-side effects below) keep spellings the prose no longer uses. Annotation keys and
+side effects below) keep spellings the prose has retired. Annotation keys and
 side-effect ids are a wire and storage boundary, where renaming a value splits a
 record rather than moving it. The Go identifiers carry the current vocabulary;
 the strings behind them do not change.
@@ -623,8 +623,8 @@ the seam for **runtime-contributed members**: `RegisterGroup` defines the
 built-in members, and `AddGroupMember(group, member)` appends one later
 (recomposing the flat schema, `MemberSchema`, the `ToolInfo.Group` metadata, and
 the dispatcher), so a source outside the group's own package can extend it
-without that package knowing. The discriminator value selects the right backend
-whether it is built-in or contributed.
+without that package knowing. The discriminator value selects the right backend,
+built-in or contributed.
 
 For **plugin-contributed members**, segmentation wires its engines from the
 manifest `segmenters[]` capability into the segmentation engine sub-registry over

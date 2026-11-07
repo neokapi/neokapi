@@ -29,8 +29,8 @@ against real systems.
 A framework with a library surface, a CLI, and a desktop app covers a wide testing
 surface. Fast unit tests protect refactors; round-trip tests protect format
 fidelity; end-to-end tests protect user workflows. Documentation has to stay
-synchronized with actual behavior: a recording that shows a command that no longer
-exists defeats its own purpose.
+synchronized with actual behavior: a recording that shows a removed command
+defeats its own purpose.
 
 Because demo assets exercise real commands, testing and documentation are tightly
 coupled: a recording is both a regression signal and user-facing content. Demos
@@ -438,7 +438,7 @@ Before committing a change that affects documented behavior:
 - Architecture decisions and implementation notes are readable both in-repo and on
   the published site.
 - Demo assets are generated from actual commands and interfaces, so they cannot
-  quietly describe a version that no longer exists.
+  quietly describe a version that is gone.
 - One authored walkthrough prompt drives both the generated embed and the published
   page, so a documented command and its in-browser playground stay in lock-step.
 - Recording against real systems means a breaking change in identity or an API

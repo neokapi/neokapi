@@ -127,8 +127,8 @@ what the person does with the revision it read:
 - Approve and Reject send `decide` with the outcome `establish` or `reject`, Reject with the reviewer's note on the
   change set. A held-back draft, which reads as `absent`, is decided as `absent`.
   Approving the clean blocks of a view reads each one as it approves it and runs
-  its checks again; a block whose text is no longer what its row lists, or that
-  now trips a check, stops the batch with its row brought up to date.
+  its checks again; a block whose text differs from what its row lists, or that
+  trips a check, stops the batch with its row brought up to date.
 - A check finding whose rule names a replacement carries its fix, the
   `replace_text` `kapi check` reports, and the Checks panel sends it as it is.
   A finding whose words have an inline code among them carries none.
@@ -628,7 +628,7 @@ it is local work that calls no provider. The app therefore keeps it current
 without a person's step. `SyncProjectStore` compares the resolved source files
 with their extract-time stamps (`DetectStoreDrift`) and runs the shared
 `ExtractToProjectStore` path only when the cache is missing, was written by
-another kapi version, or no longer matches the files. The frontend calls it
+another kapi version, or differs from the files. The frontend calls it
 when a project tab becomes active and after the file watcher reports a change.
 It returns without extracting while a run holds the project, because
 `kapi up` extracts before each pass.

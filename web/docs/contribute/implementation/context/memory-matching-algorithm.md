@@ -7,7 +7,9 @@ keywords: [content memory matching, fuzzy match, memory, plain key, structural k
 
 # Content Memory Matching Algorithm
 
-This note provides implementation details for [C-09](/contribute/architecture/context/c-09-content-memory).
+The content memory derives matching keys from each entry, matches in tiers, and
+keeps a version chain per block. Parent AD:
+[C-09](/contribute/architecture/context/c-09-content-memory).
 
 ## Derived matching keys
 

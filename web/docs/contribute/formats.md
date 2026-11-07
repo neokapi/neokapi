@@ -7,8 +7,9 @@ keywords: [format implementation, DataFormatReader, DataFormatWriter, neokapi, G
 
 # Implementing a New Format
 
-This guide explains how to add a new document format to neokapi, from basic
-readers and writers to full inline code support with roundtrip fidelity.
+A format is a reader that turns a file into Blocks and a writer that writes
+them back. You implement both, carry inline markup as runs, and prove the
+roundtrip with tests before you register the format.
 
 ## Structure
 
@@ -235,7 +236,7 @@ Consider this HTML paragraph:
 <p>Click <b>here</b> for <a href="/help">info</a></p>
 ```
 
-The reader extracts the `<p>` content as a single segment whose `Runs` are:
+The reader extracts the `<p>` content as a single block whose `Runs` are:
 
 ```
 [
@@ -259,8 +260,8 @@ The runs are ordered, and a `PcClose` shares its `ID` with the matching
 
 Tools project the runs to plain text and skip the inline codes. Translation
 engines get clean text with opaque tokens. The writer re-emits each run's
-`Data` to reconstruct the original markup perfectly, even preserving
-attributes like `class="emphasis"` or `href="/help"`.
+`Data` to reconstruct the original markup, attributes such as
+`class="emphasis"` or `href="/help"` included.
 
 ### Three Categories of Inline Elements
 
@@ -339,10 +340,9 @@ func (r *Reader) collectFromNode(n *html.Node, runs *[]model.Run) {
 }
 ```
 
-The key insight: **recurse into inline children** to handle nested formatting
-like `<b><i>bold italic</i></b>`. Each level of nesting appends its own
-`PcOpen`/`PcClose` pair, and the flat run sequence naturally captures the
-correct order. Attach the collected runs to a block with
+**Recurse into inline children** to handle nested formatting like
+`<b><i>bold italic</i></b>`. Each level of nesting appends its own
+`PcOpen`/`PcClose` pair, and the flat run sequence keeps them in order. Attach the collected runs to a block with
 `block.SetSourceRuns(runs)`, or build the block directly with
 `model.NewRunsBlock(id, runs)`.
 
@@ -360,7 +360,7 @@ func (w *Writer) renderRuns(buf *strings.Builder, runs []model.Run) {
 }
 ```
 
-Replaying `Data` is what keeps inline markup faithful: an
+Replaying `Data` keeps inline markup faithful: an
 `<a href="/help" class="nav">` tag roundtrips as exactly that string,
 attributes and all, without the writer understanding it.
 
@@ -481,9 +481,9 @@ if block.Skeleton != nil {
 }
 ```
 
-Skeletons are critical for roundtrip fidelity of the block-level document
-structure. Without them, the writer would need to re-generate all surrounding
-tags, whitespace, and attributes, which risks losing information.
+The skeleton keeps the block-level structure of the document intact through a
+roundtrip. A writer without one has to generate the surrounding tags,
+whitespace and attributes again, and can lose information doing so.
 
 ---
 
@@ -535,7 +535,7 @@ it back unchanged. A new format joins the sweep through `bomSweepFormats`.
 
 ## Run Metadata Fields
 
-An inline-code run carries more than just the raw markup. These fields help
+An inline-code run carries the raw markup and several fields beside it. These fields help
 tools, editors, and checks work with inline codes intelligently:
 
 | Field         | Purpose                                          | Example                                  |
@@ -549,8 +549,8 @@ tools, editors, and checks work with inline codes intelligently:
 | `Constraints` | Editing policy (`Deletable`/`Cloneable`/`Reorderable`) | non-deletable for a `{count}` variable |
 
 Set these fields in the reader when you have the information. At minimum, set
-the discriminator, `Type`, `ID`, and `Data`. The other fields enhance the
-experience for translators and tools but are optional.
+the discriminator, `Type`, `ID`, and `Data`. The other fields are optional; editors and
+tools use them when they are set.
 
 ---
 
@@ -612,7 +612,7 @@ format in another repository builds the `model.RawDocument` and drains the
 
 ### Extraction Tests
 
-Verify that the reader correctly identifies translatable content and inline
+Verify that the reader identifies the text and the inline
 codes:
 
 ```go
@@ -685,7 +685,7 @@ func TestReadLinkRun(t *testing.T) {
 
 ### Roundtrip Tests
 
-The gold standard: read a file, write it back, compare with the original.
+Read a file, write it back, and compare the result with the original.
 This proves that inline codes survive the full read-write cycle:
 
 ```go
@@ -750,7 +750,7 @@ func TestTranslationRoundTrip(t *testing.T) {
 }
 ```
 
-See [Testing](/contribute/testing) for more patterns.
+See [Testing Strategy](/contribute/testing) for more patterns.
 
 ---
 
@@ -805,3 +805,10 @@ Use `model.NewBlock(id, text)` to create a block with a single plain `TextRun`.
 If these formats contain embedded HTML or Markdown, use nested Layers
 (see [Architecture](/framework/architecture)) to delegate inline
 handling to the appropriate sub-format reader.
+
+## Related
+
+- [E-02: The format system](/contribute/architecture/engine/e-02-format-system): the reader and writer contracts and what each format declares.
+- [Interface Reference](/contribute/interfaces): `DataFormatReader`, `DataFormatWriter` and the run types.
+- [Testing Strategy](/contribute/testing): roundtrip and spec-suite tests.
+- [Plugin System](/contribute/plugins): shipping a format out of tree.

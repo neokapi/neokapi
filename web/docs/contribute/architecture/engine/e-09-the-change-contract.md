@@ -416,7 +416,7 @@ skeleton alone holds no text to edit and is refused `unsupported`. The
 conformance suite runs on it with two JSON documents and a bilingual catalog.
 
 A whole document **diverges** when a write to it was made from a version that
-is no longer its head. Two machines that each edited one document from one
+has stopped being its head. Two machines that each edited one document from one
 head leave one write as the head and the other beside it once their logs meet.
 The kapi host records a third case the same way: a `.kpz` replaced on disk
 while its cache holds edits nobody packed. Each edited document the new file
@@ -664,7 +664,7 @@ The verbs that write whole translations build the service with
 `Materialize` set, so the file home writes each translation's file from its
 source's skeleton, keeping what each block's partner in the file held where the
 change set leaves it, and a translation follows the source's structure, even
-where the change set changes no content in a file whose blocks no longer pair
+where the change set changes no content in a file whose blocks have stopped pairing
 with the source's. A bilingual translation file that still holds every unit
 of its source keeps its own skeleton, header included.
 `kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
@@ -723,7 +723,7 @@ from a closed set of codes, each mapped once to an exit code and an HTTP status
 | `invalid` | the change set does not decode, fails its schema or contradicts itself | 2 | 400 |
 | `not_found` | a reference resolves to no document, block or edition, or a `find` matches nothing | 3 | 404 |
 | `ambiguous` | a key or a `find` matches more than one thing | 3 | 409 |
-| `stale` | an `if_match` no longer holds, or under `require_basis` the basis moved | 3 | 409 |
+| `stale` | an `if_match` fails to hold, or under `require_basis` the basis moved | 3 | 409 |
 | `doc_changed` | the document changed under the commit and one more pass could not settle it | 3 | 409 |
 | `guard` | the result breaks an inline code, a plural or select, or a position (subcode `codes_changed`, `structure_lost`, `bad_position` or `overlap`) | 3 | 422 |
 | `gate_failed` | the commit check found a failing finding the change introduces | 3 | 422 |

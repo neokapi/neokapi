@@ -7,7 +7,8 @@ keywords: [workspace, context store, projection, SQLite, ATTACH, WAL, advisory l
 
 # Workspace storage
 
-This note provides implementation details for
+The files a workspace keeps, the tables in each pool, and how kapi opens and
+queries them. Parent AD:
 [C-03](/contribute/architecture/context/c-03-context-store-and-graph).
 
 ## The files

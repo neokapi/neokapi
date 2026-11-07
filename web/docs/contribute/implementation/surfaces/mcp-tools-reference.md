@@ -9,15 +9,13 @@ keywords: [MCP tools, kapi mcp, tool handlers, JSON-RPC, MCP server, implementat
 
 Implementation detail for
 [S-03: Agent surfaces](/contribute/architecture/surfaces/s-03-agent-surfaces),
-which decides that MCP is one of the two doors an assistant reaches kapi
-through.
+the decision that makes MCP one of the two ways an assistant reaches kapi.
 
-**The tool list is not here.** Tool names, descriptions, input schemas, the
+**The tool list is generated.** Tool names, descriptions, input schemas, the
 surface each belongs to, and the resource addresses the server answers reads at
 are generated from a running server onto
-[the MCP reference page](/reference/mcp), with a CI drift gate. A second,
-hand-maintained copy is how the published list came to document three tools
-that no longer existed and omit the ones that did. This note covers what a
+[the MCP reference page](/reference/mcp), with a CI drift gate, so no
+hand-maintained copy can drift from the server. This note covers what a
 generated table cannot: where the handlers live and how a tool gets registered.
 
 ## How a tool reaches the server

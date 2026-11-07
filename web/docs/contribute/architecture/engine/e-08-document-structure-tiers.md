@@ -32,8 +32,7 @@ through two backends that share their content-producing logic:
 Both emit the same `Part` stream: positioned text Blocks carrying a
 `GeometryAnnotation` (bounding box, optionally per-glyph boxes), grouped into
 lines by a shared algorithm, with structure recovered through the tiers. PDFium
-is the only PDF path on every platform; there is no hand-rolled pure-Go reader
-beside it.
+is the only PDF path on every platform.
 
 ## Context
 

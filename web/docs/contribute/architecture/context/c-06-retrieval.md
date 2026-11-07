@@ -225,7 +225,7 @@ kapi owns one delimited section (`<!-- kapi:rules -->` to
 `<!-- /kapi:rules -->`, `core/agentrules`) and nothing else in the file. The
 section also replaces a `<!-- kapi:voice -->` pointer section where a file holds one. A
 `CLAUDE.md` that imports `@AGENTS.md`, or is the same file, gets no section of
-its own. A folder that no longer has rules of its own loses the section, and a
+its own. A folder left with no rules of its own loses the section, and a
 file that held nothing else is deleted. The rules files are never content
 (`core/ignore` ignores both names), so a collection globbing `**/*.md` does not
 read them.
@@ -304,7 +304,7 @@ available for that query:
 | Primitive | What is counted |
 | --- | --- |
 | By location | applicable voice profile, terms, and established or workspace-wide rules |
-| By content | matching terms and previously approved wording |
+| By content | matching terms and approved wording from earlier work |
 
 Two or more kinds produce `covered`, one produces `thin`, and none produces
 `empty`. The grade describes the response, not the whole project. Unreviewed
