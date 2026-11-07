@@ -7,15 +7,15 @@ keywords: [linting, i18n-react-lint, ESLint, oxlint, i18n lint rules, extraction
 
 # Linting
 
-neokapi-i18n's build-time transform catches a lot, but some authoring mistakes only show up _after_ extraction (a `t(variable)` that can't be extracted, a label string hidden in a data array that the extractor never walks, a ternary that smuggles two literals past the JSX walker). `@neokapi/i18n-react-lint` gives you editor squigglies for those cases.
+`@neokapi/i18n-react-lint` marks, in your editor, the code whose text the extractor can't see: a `t(variable)` call, a label string in a data array the extractor never walks, a template literal in a ternary branch. Without it, these surface only after extraction, as English strings in a translated build.
 
-The same rule objects work under **ESLint** and **oxlint**: oxlint's plugin API is ESLint v9 compatible, so you install one plugin and wire it into whichever linter you already use. Oxlint is recommended for speed (typically 100–200ms on a few hundred files).
+The same rule objects work under **ESLint** and **oxlint**. oxlint's plugin API is ESLint v9 compatible, so you install one plugin and add it to the linter you already use. Oxlint is the faster choice, typically 100–200ms on a few hundred files.
 
 ## The three layers
 
-| Layer               | When it runs                 | What catches                                                                                                                           | How loud                                                                   |
+| Layer               | When it runs                 | What it catches                                                                                                                        | How loud                                                                   |
 | ------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **Lint rules**      | editor / `oxlint` / `eslint` | single-file authoring mistakes (unextractable `t()` calls, concat in translatable attrs, ternaries smuggling literals past extraction) | per-rule severity in your config                                           |
+| **Lint rules**      | editor / `oxlint` / `eslint` | single-file authoring mistakes (unextractable `t()` calls, concat in translatable attrs, template literals in ternary branches) | per-rule severity in your config                                           |
 | **Plugin warnings** | build-time transform         | cross-cutting issues that need config context (unmapped components → componentMap, ternary attrs the extractor can't resolve)          | `console.warn` by default                                                  |
 | **Enforcement**     | CI                           | both of the above, promoted to errors                                                                                                  | `--strict` on the extract CLI or `warningsAsErrors: true` in plugin config |
 
@@ -55,7 +55,7 @@ Add to `.oxlintrc.json`:
 }
 ```
 
-The `overrides` block disables the two higher-FP rules for Storybook fixture files, where demo strings don't warrant the same rigor.
+The `overrides` block turns off the two rules most prone to false positives for Storybook fixture files, whose demo strings don't need translating.
 
 ## ESLint (flat config)
 
@@ -79,7 +79,7 @@ The shareable configs are `recommended` (safe defaults: the five core rules at `
 
 ## The W3C `translate="no"` escape hatch
 
-All rules in this package respect `translate="no"` on the element itself **or any JSX ancestor**. The neokapi-i18n extractor already honours it; the lint rules match those semantics.
+Every rule in this package respects `translate="no"` on the element itself **or any JSX ancestor**, the same way the extractor does.
 
 ```tsx
 // Rule fires: {meta.label} looks like user-visible copy.
@@ -96,13 +96,13 @@ All rules in this package respect `translate="no"` on the element itself **or an
 </section>
 ```
 
-Use it for data that's legitimately dynamic (backend identifiers, file paths, version strings, user-provided names) without polluting the lint config with per-line disables.
+Use it for data that is dynamic by nature (backend identifiers, file paths, version strings, user-provided names), so the lint config needs no per-line disables.
 
 ## Rules
 
 ### `t-literal-first-arg`
 
-Flags `t(variable)` / `t(getLabel())` / `t(cond ? 'A' : 'B')`. The extractor reads the first argument of `t()` statically at build time; anything that isn't a literal produces nothing to translate.
+Flags `t(variable)` / `t(getLabel())` / `t(cond ? 'A' : 'B')`. The extractor reads the first argument of `t()` statically at build time, and any expression other than a literal produces nothing to translate.
 
 ```tsx
 // ✓ fine
@@ -117,7 +117,7 @@ t(ok ? "Save" : "Cancel");
 
 ### `t-no-concat`
 
-Flags `t('Hello ' + name)` and ``t(`Hello ${name}`)``; neither extracts because the full string isn't visible at build time. Use a placeholder pattern instead.
+Flags `t('Hello ' + name)` and ``t(`Hello ${name}`)``. Neither extracts, because the full string is unknown at build time. Use a placeholder instead.
 
 ```tsx
 // ✗ broken
@@ -143,7 +143,7 @@ Any attribute in neokapi-i18n's translatable-attribute set (`alt`, `title`, `pla
 
 ### `no-ternary-in-translatable-attr`
 
-Sibling of `no-concat-in-translatable-attr`. Flags translatable attributes whose value is a ternary with at least one _non-string-literal_ branch. The all-string-literal case (`title={cond ? "A" : "B"}`) is extracted by the neokapi-i18n walker as two blocks (no warning). The mixed case is unextractable.
+Companion to `no-concat-in-translatable-attr`. Flags translatable attributes whose value is a ternary with at least one _non-string-literal_ branch. The all-string-literal case (`title={cond ? "A" : "B"}`) is extracted by the neokapi-i18n walker as two blocks (no warning). The mixed case is unextractable.
 
 ```tsx
 // ✓ both branches are string literals; the extractor handles them.
@@ -185,7 +185,7 @@ Variants the rule handles cleanly:
 
 ### `no-string-literal-jsx-expr`
 
-`<p>{'Hello'}</p>`: a bare string literal wrapped in an expression container. It looks extractable, but the transform walks JSX text nodes only and skips expression containers that happen to hold a string. Auto-fixes to `<p>Hello</p>`.
+`<p>{'Hello'}</p>`: a bare string literal wrapped in an expression container. It looks extractable, but the extractor reads JSX text, and treats an expression container as a placeholder even when it holds a string. The rule auto-fixes it to `<p>Hello</p>`.
 
 ### `prefer-t-for-label-expr`
 
@@ -203,7 +203,7 @@ const categoryMeta = {
 };
 ```
 
-Only fires on a narrow set of property names that _almost always_ name user-visible copy: `label`, `title`, `heading`, `caption`, `subtitle`, `tooltip`, `placeholder`, `summary`. Deliberately excludes `.name`, `.description`, `.text`, `.message`: those overwhelmingly name backend / runtime data in real React apps and would create too much noise.
+It fires only on property names that _almost always_ hold user-visible copy: `label`, `title`, `heading`, `caption`, `subtitle`, `tooltip`, `placeholder`, `summary`. It skips `.name`, `.description`, `.text` and `.message`, which in React apps mostly hold backend or runtime data.
 
 Customise via the `keys` option:
 
@@ -222,7 +222,7 @@ Suppress false positives on a specific element with `translate="no"`:
 
 ### `prefer-t-for-label-props`
 
-The classic "label hidden in a data array" pattern, the _declaration side_ of the same idea:
+The _declaration side_ of the same pattern: a label string in a data array.
 
 ```tsx
 // ✗ 'System' never gets extracted
@@ -239,7 +239,7 @@ const THEMES = [
 ];
 ```
 
-Only in the `recommendedStrict` preset by default because it can fire on internal-only data arrays. Same narrow key list as `prefer-t-for-label-expr`. Turn on individually:
+It is on only in the `recommendedStrict` preset, because it can fire on data arrays that never reach the UI. It uses the same key list as `prefer-t-for-label-expr`. To turn it on by itself:
 
 ```json
 { "rules": { "neokapi-i18n/prefer-t-for-label-props": "error" } }
@@ -269,7 +269,7 @@ Wrap non-trivial lookup tables in a function that returns fresh values per rende
 
 ## CI enforcement
 
-Two ways to fail the build on warnings:
+Three places can fail the build on warnings:
 
 **Lint step:**
 
@@ -285,7 +285,7 @@ Non-zero exit when any rule at severity `error` fires. Wire it alongside your ty
 vp neokapi-i18n extract --strict
 ```
 
-Exits non-zero if the extractor recorded any warning (`unknown-component`, `ternary-attr-complex`, `dyn-label-splice`). Good for catching authoring issues the lint rules can't see from a single file.
+Exits non-zero if the extractor recorded any warning (`unknown-component`, `ternary-attr-complex`, `dyn-label-splice`). This catches authoring issues that a single-file lint rule can't see.
 
 **Plugin (build-time):**
 
@@ -297,11 +297,11 @@ export default {
 };
 ```
 
-Promotes transform-side warnings (unknown-component, etc.) to thrown build errors. Use `process.env.CI` to keep local dev ergonomic.
+Promotes transform-side warnings (unknown-component, etc.) to thrown build errors. Gating on `process.env.CI` keeps local builds at warnings.
 
 ## Excluding fixture code
 
-Stories, mocks, and fixtures don't usually warrant the same i18n rigor as shipped components. Two complementary ways to exclude them:
+Stories, mocks and fixtures rarely need translating. Exclude them in two places:
 
 **From lint**: the `.oxlintrc.json` `overrides` block (see above).
 
@@ -315,4 +315,10 @@ Stories, mocks, and fixtures don't usually warrant the same i18n rigor as shippe
 }
 ```
 
-The flag is repeatable and passed through to Node's `fs/promises.glob` `exclude` option.
+The flag is repeatable, and the CLI passes it to Node's `fs/promises.glob` `exclude` option.
+
+## Related
+
+- [Writing translatable components](./writing-components): the extraction rules the lint rules follow.
+- [The `t()` escape hatch](./t-escape-hatch): the fix most rules point to.
+- [Configuration](./configuration): `warningsAsErrors`, `strict` and `onWarning`.

@@ -7,10 +7,11 @@ keywords: [runtime mode, inline mode, bundle, neokapi-i18n, production, i18n mod
 
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { PseudoModeExplorer } from "@site/src/components/react/PseudoModeExplorer";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Runtime vs. inline mode
 
-The plugin has two production modes. Pick based on how you ship your app.
+The mode decides how translated text reaches the browser. Runtime mode ships one bundle and fetches a dict for the active locale, and inline mode builds one bundle per locale with the translated text already in it. Pick the one that matches how you deploy.
 
 ## Runtime mode
 
@@ -18,7 +19,18 @@ The plugin has two production modes. Pick based on how you ship your app.
 neokapi({ mode: "runtime" });
 ```
 
-One bundle. Translations live in per-locale JSON files loaded at runtime via `fetch`.
+You ship one bundle, and the app fetches a per-locale JSON file at runtime.
+
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "Your JSX", role: "io" },
+    { label: "One bundle", sub: "__t(hash) lookups", role: "tool" },
+    { label: "fetch", sub: "{locale}.json", role: "translate" },
+    { label: "Rendered page", sub: "any locale", role: "io" },
+  ]}
+  caption="Runtime mode: one build, and the dict for the active locale loads in the browser."
+/>
 
 Every translatable JSX site gets rewritten to a `__t(hash, fallback, params)` call:
 
@@ -37,7 +49,7 @@ The runtime is ~2 kB gzipped; it holds the active dict and a subscriber set. Whe
 - You ship a single JS bundle to a CDN and flip locales based on user preference.
 - You want to add new locales without re-deploying your JS.
 - You have more than a handful of locales; the per-locale JSON is a small download compared to your JS bundle.
-- You care about hot-swapping locale in-page (language picker, A/B).
+- You want to switch locale in the page (language picker, A/B).
 
 ### Load once, subscribe to changes
 
@@ -59,11 +71,11 @@ function AppRoot() {
 }
 ```
 
-`useNeokapi()` subscribes to the translation store via `useSyncExternalStore`. When the dict updates, any component that called the hook re-renders, and the cascade takes care of the rest.
+`useNeokapi()` subscribes to the translation store via `useSyncExternalStore`. When the dict updates, every component that called the hook re-renders, and React re-renders its children as usual.
 
 For a locale switcher UI: call `loadTranslations` or `setTranslations("en", {})` on change, and make sure `useNeokapi()` is called high enough in the tree for the whole visible surface to re-render.
 
-If you'd rather not think about *how high* is high enough, wrap the tree in `<NeokapiProvider>`. It subscribes on your behalf and re-keys its children on every locale change, so the whole subtree remounts and re-reads the dict, with no missed corners:
+To skip that decision, wrap the tree in `<NeokapiProvider>`. It subscribes for you and re-keys its children on every locale change, so the whole subtree remounts and re-reads the dict:
 
 ```tsx
 import { NeokapiProvider } from "@neokapi/i18n-react/runtime";
@@ -75,7 +87,7 @@ ReactDOM.createRoot(root).render(
 );
 ```
 
-The trade-off is exactly what it sounds like: a remount discards component state below it. That's usually right on a locale switch and usually wrong mid-form. `useNeokapi()` is the surgical option; `NeokapiProvider` is the safe one.
+A remount discards the component state below it. That is usually fine on a locale switch and usually wrong in the middle of a form. `useNeokapi()` re-renders only the components that subscribe, and `NeokapiProvider` reaches every component in the tree.
 
 ### Fallback chain
 
@@ -85,13 +97,13 @@ The trade-off is exactly what it sounds like: a remount discards component state
 await loadTranslations("pt-BR", ["/translations/pt.json", "/translations/pt-BR.json"]);
 ```
 
-Everything is merged into one dict, with later entries overriding earlier ones, so `pt-BR` wins where it has a string, and `pt` fills the rest. A fallback that fails to load is tolerated (you get the strings you could fetch); a failing **primary** rejects, because that's a real error you want to see.
+Everything merges into one dict, with later entries overriding earlier ones, so `pt-BR` wins where it has a string and `pt` fills the rest. If a fallback fails to load, you get the strings that did load. If the **primary** fails, the call rejects, so you see the error.
 
-Both also push the new locale onto `<html lang>` and `<html dir>` automatically, handy for screen readers, fonts, hyphenation, and RTL support. Opt out with `{ syncDocumentLocale: false }` if your app owns those attributes. Details: [Configuration → HTML `lang` and `dir`](./configuration#html-lang-and-dir-attributes).
+`loadTranslations` and `setTranslations` also set `<html lang>` and `<html dir>` to the new locale, which screen readers, fonts, hyphenation and RTL layout depend on. Opt out with `{ syncDocumentLocale: false }` if your app owns those attributes. Details: [Configuration → HTML `lang` and `dir`](./configuration#html-lang-and-dir-attributes).
 
 ### Lazy loading per route (code splitting)
 
-For larger apps, the single-catalog-per-locale model downloads every string even for routes the user never visits. The plugin + runtime can split translations along the same lines the bundler splits code:
+In a larger app, one catalog per locale means the user downloads every string, including those for routes they never visit. The plugin and the runtime can split translations along the same lines the bundler splits code:
 
 1. In runtime mode, the plugin emits `translations-manifest.json` next to your JS chunks, a `{chunkName: hashes[]}` map of which strings each chunk needs. Vite, Rollup, webpack, Rspack, and esbuild all emit it (esbuild needs `metafile: true`).
 2. `neokapi-i18n split` slices each master `{locale}.json` into per-chunk subsets (`{locale}/{chunkName}.json`), duplicating strings shared across chunks so each file is independently loadable.
@@ -127,13 +139,13 @@ neokapi-i18n split \
   --out dist/translations
 ```
 
-Missing hashes fall back to the source text baked into each `__t` / `__tx` call at build time, so a late-arriving chunk is never fatal. Users see English for ~100ms while the chunk streams in, rather than a broken render.
+A missing hash renders the source text baked into its `__t` / `__tx` call at build time, so a late chunk never breaks the render. The user sees English for about 100ms while the chunk loads.
 
-If `merge: true` is passed to `setTranslations` or `loadTranslations`, the incoming entries OR into the existing dict instead of replacing it. `loadTranslationChunk` uses this internally. Switching locale (without `merge`) drops any in-flight chunk loads for the previous locale so their payloads can't poison the new dict.
+With `merge: true`, `setTranslations` and `loadTranslations` merge the incoming entries into the existing dict instead of replacing it. `loadTranslationChunk` uses this internally. Switching locale without `merge` drops any in-flight chunk loads for the previous locale, so their payloads can't overwrite entries in the new dict.
 
 ### Runtime pseudo-translation
 
-Runtime mode can apply pseudo-translation **on the fly**, with no build step and no catalog; useful for dev ergonomics, layout checks, and debugging which strings flow through the translation system:
+Runtime mode can pseudo-translate **on the fly**, with no build step and no catalog. Use it during development to check layout and to see which strings pass through translation:
 
 ```tsx
 import { setPseudoMode } from "@neokapi/i18n-react/runtime/pseudo";
@@ -153,17 +165,17 @@ setPseudoMode({
 setPseudoMode(null);
 ```
 
-The transform stacks on top of whatever's in the runtime dict, so you can load a real French catalog and THEN flip pseudo on to see what French looks like at +30% length, with markers showing which strings got translated vs. which fell through to source. `{param}` / `{=m0}` tokens are preserved verbatim so param substitution still works.
+The transform applies on top of the runtime dict. You can load a real French catalog, then turn pseudo on to see French at +30% length, with markers that show which strings were translated and which fell back to source. `{param}` / `{=m0}` tokens are preserved verbatim, so param substitution still works.
 
-Text inside a `<code>`, a `<kbd>`, a `<samp>` or a `<var>` comes through as the author wrote it, the same bytes a `kapi pseudo-translate` catalog carries. `Run <code>kapi check --ship</code> first.` reads as accented prose around a command that still runs. A `translate="yes"` on the span claims its text back for the transform. Padding skips those spans too: a command is not going to grow in a real translation, so it is left out of the expansion count.
+Text inside a `<code>`, a `<kbd>`, a `<samp>` or a `<var>` comes through as the author wrote it, the same bytes a `kapi pseudo-translate` catalog carries. `Run <code>kapi check --ship</code> first.` reads as accented prose around a command that still runs. A `translate="yes"` on the span claims its text back for the transform. Padding skips those spans too, because a command keeps its length in a real translation.
 
-**Works without a catalog.** The source string lands in the `__t` / `__tx` call as the `fallback` argument at build time. When the dict is empty the runtime uses the fallback, and pseudo transforms it. Edit `<h1>Welcome</h1>` → save → HMR replaces the module → React re-renders → `"▒ Ŵéļçöḿé ▒"`. No extract step, no compile step, no rebuild; just your source text flowing through the transform. A plain `neokapi({ mode: "runtime" })` in `vite.config.ts` is the only prerequisite; without runtime mode the plugin no-ops and there's no `__t` wrapper for pseudo to hook into.
+**Works without a catalog.** The source string lands in the `__t` / `__tx` call as the `fallback` argument at build time. When the dict is empty the runtime uses the fallback, and pseudo transforms it. Edit `<h1>Welcome</h1>` → save → HMR replaces the module → React re-renders → `"▒ Ŵéļçöḿé ▒"`. You need no extract, compile or rebuild step. The only prerequisite is `neokapi({ mode: "runtime" })` in `vite.config.ts`; without runtime mode the plugin does nothing, and there is no `__t` call for pseudo to transform.
 
 The panel below runs the real neokapi-i18n runtime in your browser, with no catalog loaded. Toggle pseudo mode and the same strings flip to accented, expanded text; `{name}` stays literal because `{param}` tokens are preserved through the transform:
 
 <BrowserOnly>{() => <PseudoModeExplorer />}</BrowserOnly>
 
-If you want pseudo to be the default in dev, wire it at the top of `main.tsx` guarded on `import.meta.env.DEV`, then keep the dev console handle available for tuning:
+To make pseudo the default in development, call it at the top of `main.tsx`, guarded on `import.meta.env.DEV`, and keep a console handle for tuning:
 
 ```tsx
 import { setPseudoMode } from "@neokapi/i18n-react/runtime/pseudo";
@@ -175,7 +187,7 @@ if (import.meta.env.DEV) {
 }
 ```
 
-The pseudo module lives at a separate subpath (`@neokapi/i18n-react/runtime/pseudo`) so importing it is opt-in; the main runtime stays ~2 kB. Internally it uses `setStringTransform`, a general post-lookup hook also exported from the main runtime for custom transforms (debug markers, letter-spacing audits, etc.).
+The pseudo module has its own subpath (`@neokapi/i18n-react/runtime/pseudo`), so you import it only when you want it, and the main runtime stays ~2 kB. It is built on `setStringTransform`, a post-lookup hook that the main runtime also exports for custom transforms such as debug markers or letter-spacing audits.
 
 A custom transform takes the message text and a context. The context carries `markers`, one entry per inline element that answers for the text inside it: `"no"` for a span holding a command, a key or an identifier, `"yes"` where the source claimed it back. `protectionMask(text, markers)`, exported from the runtime, turns those answers into a per-character array so a transform can rewrite the prose and leave the rest:
 
@@ -198,7 +210,18 @@ neokapi({
 });
 ```
 
-One bundle **per locale**. Every JSX text node is replaced at build time with the translated literal. No runtime dict lookup, no subscription, no `loadTranslations()`:
+You build one bundle **per locale**, and the build replaces every JSX text node with the translated literal. There is no runtime dict lookup, subscription or `loadTranslations()` call:
+
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "Your JSX", role: "io" },
+    { label: "Build per locale", sub: "translations/fr.json", role: "translate" },
+    { label: "Bundle for fr", sub: "text inlined", role: "tool" },
+    { label: "Rendered page", sub: "fr only", role: "io" },
+  ]}
+  caption="Inline mode: one build per locale, with the translated text written into each bundle."
+/>
 
 ```tsx
 // Source
@@ -222,9 +245,9 @@ Rich text is rebuilt as JSX, so a translator is free to move the link, and the m
 
 Inline mode is zero-runtime with one documented exception: **`<Plural>`, `<Select>`, and any string a translator gave an ICU format to keep a runtime call.**
 
-The reason is structural. A plural's pivot (the count) is only known when the component renders, so no build step can pick the form. Inline mode does the half it can: the translated ICU template is baked into the call as its fallback, so there's no dictionary to fetch and no network on the critical path. What stays is the ~2 kB ICU resolver.
+A plural's pivot (the count) is known only when the component renders, so no build step can pick the form. Inline mode does the half it can: the translated ICU template is baked into the call as its fallback, so there's no dictionary to fetch and no network on the critical path. What stays is the ~2 kB ICU resolver.
 
-If you have no plurals and no ICU formats, inline mode ships nothing. If you have one, you ship the resolver. It is never invalid JSX and never a silent fallback to source.
+If you have no plurals and no ICU formats, inline mode ships nothing. If you have one, you ship the resolver. Either way the output is valid JSX, and the string renders in the target language.
 
 ### When inline mode fits
 
@@ -256,7 +279,7 @@ export default defineConfig({
 });
 ```
 
-`strict: "error"` turns missing translations into a build error: nothing untranslated ships. For market-by-market rollouts you'd keep `strict: "warn"` (default) during development, and flip to `"error"` before the final release build.
+`strict: "error"` turns missing translations into a build error: nothing untranslated ships. For a market-by-market rollout, keep `strict: "warn"` (the default) during development and switch to `"error"` for the release build.
 
 ### Build-time fallback chain
 
@@ -284,7 +307,7 @@ neokapi({ mode: "inline", locale: "en" });
 // when the user switches, compiled from the same KBF directory.
 ```
 
-Mixing modes within a single build is unsupported; you pick one per deploy.
+A single build uses one mode, and you choose the mode per deploy.
 
 ## Mode comparison
 
@@ -306,9 +329,7 @@ A translation that is present but unsound counts as missing too: `neokapi-i18n c
 - `<Plural>` / `<Select>` / `t()` all work the same in authoring.
 - Unmapped-component warnings fire identically.
 
-The mode decision is purely about how the translated output lands in the user's browser.
-
-## Next
+## Related
 
 - [Translating with kapi](./translating-with-kapi): AI translation, pseudo-translation, round-trip checks.
 - [Configuration](./configuration): componentMap, rules, Storybook, custom warning routing.
