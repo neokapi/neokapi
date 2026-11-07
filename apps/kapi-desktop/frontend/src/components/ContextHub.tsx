@@ -17,27 +17,13 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  BookOpen,
-  Bot,
-  Check,
-  Database,
-  History,
-  MessageSquareQuote,
-  Search,
-  Share2,
-  Sparkles,
-  Telescope,
-  Terminal,
-} from "lucide-react";
+import { ArrowLeft, Check, Terminal } from "lucide-react";
 import {
   Button,
   LoadingSpinner,
   PageHeader,
   ScrollArea,
   SimpleTooltip,
-  cn,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
@@ -54,6 +40,7 @@ import { VoicePage } from "./VoicePage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { SharePanel } from "./SharePanel";
+import { SubNavTabs } from "./SubNavTabs";
 
 /** The surfaces filed under Context. */
 export type ContextSection =
@@ -133,7 +120,6 @@ export function connectSectionOf(view: string): ContextSection | undefined {
 
 const SECTIONS: Array<{
   id: ContextSection;
-  icon: React.ReactNode;
   localeGated?: boolean;
   /**
    * Reads the recipe or the files beside it, so a context-only tab does not
@@ -146,22 +132,18 @@ const SECTIONS: Array<{
    */
   under?: ContextSection;
 }> = [
-  { id: "rules", icon: <Sparkles size={14} /> },
-  { id: "atlas", icon: <Telescope size={14} /> },
-  { id: "explorer", icon: <Search size={14} />, needsCheckout: true },
+  { id: "rules" },
+  { id: "atlas" },
+  { id: "explorer", needsCheckout: true },
   // A context-only tab keeps the Assistants: the page says a checkout is
   // needed to connect one, and lists the sessions.
-  { id: "agent", icon: <Bot size={14} /> },
-  {
-    id: "voice",
-    icon: <MessageSquareQuote size={14} />,
-    needsCheckout: true,
-  },
-  { id: "terms", icon: <BookOpen size={14} /> },
-  { id: "memory", icon: <Database size={14} />, localeGated: true },
-  { id: "history", icon: <History size={14} />, under: "agent" },
+  { id: "agent" },
+  { id: "voice", needsCheckout: true },
+  { id: "terms" },
+  { id: "memory", localeGated: true },
+  { id: "history", under: "agent" },
   // A context-only tab keeps Share: the panel offers it the first rung only.
-  { id: "share", icon: <Share2 size={14} /> },
+  { id: "share" },
 ];
 
 /**
@@ -235,31 +217,15 @@ export function ContextHub({
           <SectionCommand section={current} contextOnly={contextOnly} />
         </div>
       ) : (
-        <nav
-          aria-label={t("Context sections")}
-          className="flex shrink-0 items-center gap-1 border-b border-border px-6 py-2"
-        >
-          {sections
+        <SubNavTabs
+          label={t("Context sections")}
+          tabs={sections
             .filter((s) => !s.under)
-            .map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => (s.id === "agent" ? openAssistants() : setActive(s.id))}
-                aria-current={marked === s.id ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
-                  marked === s.id
-                    ? "bg-accent font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                )}
-              >
-                {s.icon}
-                <SectionLabel id={s.id} />
-              </button>
-            ))}
-          <SectionCommand section={current} contextOnly={contextOnly} />
-        </nav>
+            .map((s) => ({ id: s.id, label: <SectionLabel id={s.id} /> }))}
+          active={marked}
+          onSelect={(id) => (id === "agent" ? openAssistants() : setActive(id))}
+          trailing={<SectionCommand section={current} contextOnly={contextOnly} />}
+        />
       )}
       <div className="min-h-0 flex-1">
         {current === "explorer" && (

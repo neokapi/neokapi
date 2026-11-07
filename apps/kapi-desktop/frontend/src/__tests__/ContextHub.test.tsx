@@ -153,9 +153,7 @@ import { CONTEXT_DIGEST } from "../stories/fixtures/contextDigest";
 
 const railLabels = () =>
   Array.from(
-    screen
-      .getByRole("navigation", { name: "Context sections" })
-      .querySelectorAll("button:not([data-slot='context-section-command'])"),
+    within(screen.getByRole("tablist", { name: "Context sections" })).getAllByRole("tab"),
   ).map((b) => b.textContent);
 
 describe("ContextHub", () => {
@@ -163,7 +161,7 @@ describe("ContextHub", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     expect(screen.getByText("decide for t1")).toBeInTheDocument();
     expect(screen.queryByText("digest for t1")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Decide" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("tab", { name: "Decide" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("opens the digest under Decide on a tab with no checkout", () => {
@@ -195,7 +193,7 @@ describe("ContextHub", () => {
   it("leaves the assistants and sharing to Project Settings, which draws its own tabs", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" section="agent" group="connect" />);
     expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Context sections" })).toBeNull();
+    expect(screen.queryByRole("tablist", { name: "Context sections" })).toBeNull();
   });
 
   it("keeps what a tab with no checkout can read, and drops what reads files", async () => {
@@ -208,9 +206,9 @@ describe("ContextHub", () => {
       "Content Memory",
       "Share",
     ]);
-    await userEvent.click(screen.getByRole("button", { name: "Share" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Share" }));
     expect(screen.getByText("share for t1 of Northsea without a checkout")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Assistants" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Assistants" }));
     expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
   });
 
@@ -266,16 +264,17 @@ describe("ContextHub", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     const commands = () =>
       Array.from(document.querySelectorAll("[data-slot='context-section-command']"));
-    const nav = screen.getByRole("navigation", { name: "Context sections" });
+    // The command sits in the tab row, after the tabs, outside the tab list.
+    const nav = screen.getByRole("tablist", { name: "Context sections" }).parentElement!;
     expect(commands()).toHaveLength(1);
     expect(nav).toContainElement(commands()[0] as HTMLElement);
     expect(commands()[0].getAttribute("data-command")).toBe("kapi rules");
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Search" }));
     expect(commands()[0].getAttribute("data-command")).toBe("kapi context <path>");
-    await userEvent.click(screen.getByRole("button", { name: "Voice" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Voice" }));
     expect(commands()[0].getAttribute("data-command")).toBe("kapi voice show");
     // Terms and Content Memory search and look up: no one command is the page.
-    await userEvent.click(screen.getByRole("button", { name: "Terms" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Terms" }));
     expect(commands()).toHaveLength(0);
     vi.restoreAllMocks();
   });
@@ -309,7 +308,7 @@ describe("ContextHub", () => {
     const title = screen.getByRole("heading", { name: "Decide" });
     expect(title.parentElement?.querySelector("p")).toBeNull();
     expect(document.body.textContent).not.toContain("The same as");
-    await userEvent.click(screen.getByRole("button", { name: "Assistants" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Assistants" }));
     await userEvent.click(screen.getByRole("button", { name: "open session" }));
     expect(
       screen.getByRole("heading", { name: "Sessions" }).parentElement?.querySelector("p"),
@@ -376,10 +375,10 @@ describe("ContextHub", () => {
 
   it("moves to Voice and marks it current", async () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
-    await userEvent.click(screen.getByRole("button", { name: "Voice" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Voice" }));
     expect(screen.getByText("voice for t1")).toBeInTheDocument();
     expect(screen.queryByText("decide for t1")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Voice" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("tab", { name: "Voice" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("honours the section it is opened on", () => {
@@ -389,21 +388,21 @@ describe("ContextHub", () => {
 
   it("files the stores under Context", async () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
-    await userEvent.click(screen.getByRole("button", { name: "Terms" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Terms" }));
     expect(screen.getByText("terms for t1")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Content Memory" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Content Memory" }));
     expect(screen.getByText("memory for t1")).toBeInTheDocument();
   });
 
   it("keeps Content Memory quiet until the project declares targets", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages={false} />);
-    expect(screen.getByRole("button", { name: "Terms" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Content Memory" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Terms" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Content Memory" })).not.toBeInTheDocument();
   });
 
   it("opens the explorer standing at a unit the memory browser names", async () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
-    await userEvent.click(screen.getByRole("button", { name: "Content Memory" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Content Memory" }));
     await userEvent.click(screen.getByRole("button", { name: "open unit" }));
 
     expect(screen.getByText("explorer for t1")).toBeInTheDocument();

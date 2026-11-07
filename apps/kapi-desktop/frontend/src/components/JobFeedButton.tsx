@@ -13,8 +13,9 @@ import { Button, RunErrorNotice, ScrollArea, SimpleTooltip } from "@neokapi/ui-p
 import { useJobFeed, type Job } from "../context/JobFeedContext";
 
 /**
- * Persistent job feed button in the top-right header area.
- * Shows a badge when jobs are active, and a dropdown panel on click.
+ * Job feed button in the top-right header area. It appears once the session
+ * has a job, running or finished, shows a badge while jobs run, and opens a
+ * dropdown panel on click.
  */
 export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void }) {
   const { jobs, hasActive, selectJob, clearJob, clearAll } = useJobFeed();
@@ -37,6 +38,10 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
   useEffect(() => {
     if (hasActive) setOpen(true);
   }, [hasActive]);
+
+  // Nothing has run this session (or the finished jobs were cleared): the top
+  // bar carries no button for an empty feed.
+  if (jobs.length === 0) return null;
 
   const statusIcon = (job: Job) => {
     switch (job.status) {

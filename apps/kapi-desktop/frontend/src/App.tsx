@@ -342,12 +342,17 @@ function AppInner() {
                   </SimpleTooltip>
                 </div>
               )}
-              {/* Tabs or spacer */}
+              {/* Tabs or spacer. The strip shows once two projects are open;
+                  until then the spacer stays part of the window's drag region. */}
               <div
                 className={`flex-1 ${tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
-                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                style={
+                  tm.tabs.length > 1
+                    ? ({ WebkitAppRegion: "no-drag" } as React.CSSProperties)
+                    : undefined
+                }
               >
-                {tm.tabs.length > 0 && (
+                {tm.tabs.length > 1 && (
                   <TabBar
                     tabs={tm.tabs.map((t) => t.info)}
                     activeTabID={tm.activeTabID}

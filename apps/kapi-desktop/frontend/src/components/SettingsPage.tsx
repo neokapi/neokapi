@@ -3,22 +3,15 @@ import { Sun, Moon, Monitor, Languages, FlaskConical } from "lucide-react";
 import { loadTranslations, setTranslations, t } from "@neokapi/i18n-react/runtime";
 import { api, type VersionInfo } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import {
-  Button,
-  Card,
-  CardContent,
-  Switch,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  LoadingSpinner,
-} from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, Switch, LoadingSpinner } from "@neokapi/ui-primitives";
 import { analyticsAvailable, setTelemetryEnabled } from "../analytics";
 import { DevPseudoCard } from "./DevPseudoCard";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
 import { LocaleSettings } from "./LocaleSettings";
+import { SubNavTabs } from "./SubNavTabs";
+
+type SettingsTab = "general" | "credentials" | "plugins" | "locales";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type UILanguage = "en" | "nb" | "qps";
@@ -56,6 +49,7 @@ export function SettingsPage({
   startHereDismissed: propStartHere,
   onRestoreStartHere,
 }: SettingsPageProps = {}) {
+  const [tab, setTab] = useState<SettingsTab>("general");
   const [theme, setTheme] = useState<ThemeMode>(propTheme ?? "system");
   const [uiLanguage, setUILanguage] = useState<UILanguage>(propLang ?? "en");
   const [loading, setLoading] = useState(!propTheme);
@@ -168,153 +162,166 @@ export function SettingsPage({
   }
 
   return (
-    <Tabs defaultValue="general" className="flex h-full flex-col">
-      <TabsList variant="line">
-        <TabsTrigger value="general">General</TabsTrigger>
-        <TabsTrigger value="credentials">AI Models</TabsTrigger>
-        <TabsTrigger value="plugins">Plugins</TabsTrigger>
-        <TabsTrigger value="locales">Languages</TabsTrigger>
-      </TabsList>
+    <div className="flex h-full flex-col">
+      <SubNavTabs
+        label={t("App Settings sections")}
+        tabs={[
+          { id: "general", label: t("General") },
+          { id: "credentials", label: t("AI Models") },
+          { id: "plugins", label: t("Plugins") },
+          { id: "locales", label: t("Languages") },
+        ]}
+        active={tab}
+        onSelect={setTab}
+      />
 
-      <TabsContent value="general" className="flex-1 overflow-auto">
-        <div className="p-6">
-          <h1 className="mb-6 text-xl font-semibold">App settings</h1>
+      {tab === "general" && (
+        <div role="tabpanel" className="flex-1 overflow-auto">
+          <div className="p-6">
+            <h1 className="mb-6 text-xl font-semibold">App settings</h1>
 
-          <div className="max-w-lg space-y-6">
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-3 text-sm font-medium">Appearance</div>
-                <div className="flex gap-2">
-                  {[
-                    { value: "system" as ThemeMode, icon: Monitor, label: t("System") },
-                    { value: "light" as ThemeMode, icon: Sun, label: t("Light") },
-                    { value: "dark" as ThemeMode, icon: Moon, label: t("Dark") },
-                  ].map(({ value, icon: Icon, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => void handleThemeChange(value)}
-                      className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
-                        theme === value
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                      }`}
-                    >
-                      <Icon size={16} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[10px] text-muted-foreground">
-                  System follows your operating system's appearance setting.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-3 text-sm font-medium">Language</div>
-                <div className="flex gap-2">
-                  {UI_LANGUAGES.map(({ value, icon: Icon, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => void handleLanguageChange(value)}
-                      className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
-                        uiLanguage === value
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                      }`}
-                    >
-                      <Icon size={16} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[10px] text-muted-foreground">
-                  Pseudo English expands strings and adds accents, which is useful for multilingual
-                  checks.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-3 text-sm font-medium">{t("Home")}</div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-xs text-muted-foreground">
-                    {t("Start here walks through a first project and a first assistant.")}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    data-slot="restore-start-here"
-                    disabled={!startHereDismissed}
-                    onClick={handleRestoreStartHere}
-                  >
-                    Show Start here again
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Usage statistics (D1 opt-out) — only meaningful in builds that
-                carry an analytics key; keyless builds never emit anything. */}
-            {analyticsAvailable() && (
+            <div className="max-w-lg space-y-6">
               <Card>
                 <CardContent className="p-4">
-                  <div className="mb-3 text-sm font-medium">{t("Usage statistics")}</div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-xs text-muted-foreground">
-                      {t(
-                        "Share anonymous usage statistics: screen views and feature usage, never your content, project names, or file paths.",
-                      )}
-                    </span>
-                    <Switch
-                      checked={telemetryOn}
-                      onCheckedChange={(checked) => void handleTelemetryChange(checked)}
-                    />
+                  <div className="mb-3 text-sm font-medium">Appearance</div>
+                  <div className="flex gap-2">
+                    {[
+                      { value: "system" as ThemeMode, icon: Monitor, label: t("System") },
+                      { value: "light" as ThemeMode, icon: Sun, label: t("Light") },
+                      { value: "dark" as ThemeMode, icon: Moon, label: t("Dark") },
+                    ].map(({ value, icon: Icon, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => void handleThemeChange(value)}
+                        className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
+                          theme === value
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                        }`}
+                      >
+                        <Icon size={16} />
+                        {label}
+                      </button>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <DevPseudoCard />
-
-            {version && (
-              <Card>
-                <CardContent className="p-4">
-                  <div className="mb-3 text-sm font-medium">{t("About")}</div>
-                  <dl
-                    className="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-1.5 text-sm"
-                    data-testid="version-info"
-                  >
-                    <dt className="text-muted-foreground">{t("Version")}</dt>
-                    <dd className="font-mono text-xs">{version.version || "dev"}</dd>
-                    <dt className="text-muted-foreground">{t("Commit")}</dt>
-                    <dd className="font-mono text-xs">{version.commit || "unknown"}</dd>
-                    <dt className="text-muted-foreground">{t("Build date")}</dt>
-                    <dd className="font-mono text-xs">{version.build_date || "unknown"}</dd>
-                  </dl>
-                  <p className="mt-3 text-[10px] text-muted-foreground">
-                    © {new Date().getFullYear()} neokapi
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    System follows your operating system's appearance setting.
                   </p>
                 </CardContent>
               </Card>
-            )}
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="mb-3 text-sm font-medium">Language</div>
+                  <div className="flex gap-2">
+                    {UI_LANGUAGES.map(({ value, icon: Icon, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => void handleLanguageChange(value)}
+                        className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
+                          uiLanguage === value
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                        }`}
+                      >
+                        <Icon size={16} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    Pseudo English expands strings and adds accents, which is useful for
+                    multilingual checks.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="mb-3 text-sm font-medium">{t("Home")}</div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-xs text-muted-foreground">
+                      {t("Start here walks through a first project and a first assistant.")}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-slot="restore-start-here"
+                      disabled={!startHereDismissed}
+                      onClick={handleRestoreStartHere}
+                    >
+                      Show Start here again
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Usage statistics (D1 opt-out) — only meaningful in builds that
+                carry an analytics key; keyless builds never emit anything. */}
+              {analyticsAvailable() && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="mb-3 text-sm font-medium">{t("Usage statistics")}</div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-xs text-muted-foreground">
+                        {t(
+                          "Share anonymous usage statistics: screen views and feature usage, never your content, project names, or file paths.",
+                        )}
+                      </span>
+                      <Switch
+                        checked={telemetryOn}
+                        onCheckedChange={(checked) => void handleTelemetryChange(checked)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <DevPseudoCard />
+
+              {version && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="mb-3 text-sm font-medium">{t("About")}</div>
+                    <dl
+                      className="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-1.5 text-sm"
+                      data-testid="version-info"
+                    >
+                      <dt className="text-muted-foreground">{t("Version")}</dt>
+                      <dd className="font-mono text-xs">{version.version || "dev"}</dd>
+                      <dt className="text-muted-foreground">{t("Commit")}</dt>
+                      <dd className="font-mono text-xs">{version.commit || "unknown"}</dd>
+                      <dt className="text-muted-foreground">{t("Build date")}</dt>
+                      <dd className="font-mono text-xs">{version.build_date || "unknown"}</dd>
+                    </dl>
+                    <p className="mt-3 text-[10px] text-muted-foreground">
+                      © {new Date().getFullYear()} neokapi
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
-      </TabsContent>
+      )}
 
-      <TabsContent value="credentials" className="flex-1 overflow-auto">
-        <CredentialsPage />
-      </TabsContent>
+      {tab === "credentials" && (
+        <div role="tabpanel" className="flex-1 overflow-auto">
+          <CredentialsPage />
+        </div>
+      )}
 
-      <TabsContent value="plugins" className="flex-1 overflow-auto">
-        <PluginManager />
-      </TabsContent>
+      {tab === "plugins" && (
+        <div role="tabpanel" className="flex-1 overflow-auto">
+          <PluginManager />
+        </div>
+      )}
 
-      <TabsContent value="locales" className="flex-1 overflow-auto">
-        <LocaleSettings />
-      </TabsContent>
-    </Tabs>
+      {tab === "locales" && (
+        <div role="tabpanel" className="flex-1 overflow-auto">
+          <LocaleSettings />
+        </div>
+      )}
+    </div>
   );
 }
