@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
+import { Info } from "lucide-react";
 import {
   Badge,
-  Card,
-  CardContent,
   LocaleLabel,
   NeighbourhoodCard,
-  PointCard,
+  SimpleTooltip,
   localeLabel,
 } from "@neokapi/ui-primitives";
 import type { BlockRead, ChangeResult } from "@neokapi/contract-types";
@@ -13,6 +12,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../../hooks/useApi";
 import { editionContent, invalidatedEditions } from "../../lib/changes";
 import { EditionEditPanel } from "../edit/EditionEditPanel";
+import { ReviewPointSummary } from "./ReviewPointSummary";
 import type { ChangeSender } from "../edit/useChangeSender";
 import type { ReviewContext, ReviewItem } from "../../types/api";
 
@@ -94,69 +94,68 @@ export function SourceUnitPane({
   const content = read ? editionContent(read) : null;
 
   return (
-    <div className="space-y-3" data-slot="source-unit-pane">
-      <PointCard point={model?.point} loading={modelLoading} />
+    <div className="space-y-4" data-slot="source-unit-pane">
+      <ReviewPointSummary point={model?.point} />
 
-      <Card>
-        <CardContent className="space-y-3 p-3">
-          {item.held && (
-            <Badge
-              variant="outline"
-              className="border-warning/40 text-[11px] text-warning-ink"
-              data-slot="source-unit-held"
+      <section className="space-y-2">
+        {item.held && (
+          <Badge
+            variant="outline"
+            className="border-warning/40 text-[11px] text-warning-ink"
+            data-slot="source-unit-held"
+          >
+            {t("holding every language")}
+          </Badge>
+        )}
+
+        <div>
+          <p className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+            <LocaleLabel
+              locale={item.sourceLocale ?? item.language ?? item.locale}
+              source
+              data-slot="source-unit-language"
+            />
+            <SimpleTooltip
+              content={t(
+                "Approving binds to this exact wording: editing it later drops the approval. Saving an edit leaves every translation in place, and the next run re-drafts the ones it wrote.",
+              )}
             >
-              {t("holding every language")}
-            </Badge>
-          )}
-
-          <div>
-            <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-              <LocaleLabel
-                locale={item.sourceLocale ?? item.language ?? item.locale}
-                source
-                data-slot="source-unit-language"
-              />
-            </p>
-            {readError ? (
-              <p className="text-xs text-destructive" data-slot="source-unit-read-error">
-                {readError}
-              </p>
-            ) : (
-              <EditionEditPanel
-                sender={sender}
-                content={content}
-                locale={item.sourceLocale}
-                readOnlyReason={
-                  read && !read.ops.includes("set_content")
-                    ? t("This format does not write a change to this text.")
-                    : undefined
-                }
-                saveLabel={t("Save and re-draft")}
-                note={t("Source edited in review")}
-                compact
-                autoFocus={false}
-                data-slot="source-unit"
-              />
-            )}
-          </div>
-
-          <p className="text-[11px] text-muted-foreground">
-            {t(
-              "Approving binds to this exact wording: editing it later drops the approval. Saving an edit leaves every translation in place, and the next run re-drafts the ones it wrote.",
-            )}
+              <Info size={11} className="shrink-0" aria-label={t("About approving the source")} />
+            </SimpleTooltip>
           </p>
-
-          {awaiting !== null && (
-            <p className="text-[11px] text-muted-foreground" data-slot="source-unit-awaiting">
-              {awaiting.length === 0
-                ? t("Source saved. No language has a translation of this block yet.")
-                : t("Source saved. {langs} will be re-drafted on the next run.", {
-                    langs: awaiting.map((l) => localeLabel(l)).join(", "),
-                  })}
+          {readError ? (
+            <p className="text-xs text-destructive" data-slot="source-unit-read-error">
+              {readError}
             </p>
+          ) : (
+            <EditionEditPanel
+              sender={sender}
+              content={content}
+              locale={item.sourceLocale}
+              readOnlyReason={
+                read && !read.ops.includes("set_content")
+                  ? t("This format does not write a change to this text.")
+                  : undefined
+              }
+              saveLabel={t("Save and re-draft")}
+              note={t("Source edited in review")}
+              compact
+              autoFocus={false}
+              data-slot="source-unit"
+            />
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {awaiting !== null && (
+          <p className="text-[11px] text-muted-foreground" data-slot="source-unit-awaiting">
+            {awaiting.length === 0
+              ? t("Source saved. No language has a translation of this block yet.")
+              : t("Source saved. {langs} will be re-drafted on the next run.", {
+                  langs: awaiting.map((l) => localeLabel(l)).join(", "),
+                })}
+          </p>
+        )}
+      </section>
 
       <NeighbourhoodCard
         neighbourhood={model?.neighbourhood}

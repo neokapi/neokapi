@@ -5,8 +5,8 @@ import {
   CheckCheck,
   CheckCircle2,
   Circle,
-  FileText,
   Loader2,
+  MoreHorizontal,
   PauseCircle,
   RefreshCw,
   Sparkles,
@@ -21,11 +21,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   HistoryCard,
   JudgementCard,
   LocaleLabel,
   NeighbourhoodCard,
-  PointCard,
   ProvenanceCard,
   ReviewLanguageSelect,
   ALL_LANGUAGES,
@@ -43,6 +50,7 @@ import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
 import { FilePreview } from "./FilePreview";
 import { SourceUnitPane } from "./review/SourceUnitPane";
+import { ReviewPointSummary } from "./review/ReviewPointSummary";
 import { ChangesCard } from "./edit/ChangesCard";
 import { EditionEditPanel } from "./edit/EditionEditPanel";
 import { EditTextDisplay } from "./edit/EditTextDisplay";
@@ -116,6 +124,9 @@ export interface ReviewPageProps {
 
 type Chip = "all" | "findings" | "clean";
 
+/** Keyboard hints show while the action bar is hovered or holds focus. */
+const HINT = "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100";
+
 /** The language this row belongs to: a target locale, or the source language. */
 const rowLanguage = (it: ReviewItem) => it.language || it.locale;
 
@@ -156,9 +167,10 @@ interface AskPrompt {
 
 const itemId = (it: ReviewItem) => `${it.locale}:${it.file}:${it.key}`;
 
-function shortFile(p: string): string {
+/** A path's last segment; the full path is the tooltip. */
+function baseName(p: string): string {
   const parts = p.split(/[\\/]/);
-  return parts.slice(-2).join("/") || p;
+  return parts[parts.length - 1] || p;
 }
 
 /**
@@ -168,9 +180,22 @@ function shortFile(p: string): string {
  * Source first is where convergence.SortReviewQueue puts them, so this list and
  * `kapi status --review` read in the same order. Findings-first applies to the
  * target rows: a source row carries no findings enrichment to sort on.
+ *
+ * With `languageRank`, the queue is grouped by language first, in the
+ * selector's order, so the rows under each language header are contiguous and
+ * j/k walks them in the order they are drawn.
  */
-function orderItems(items: ReviewItem[]): ReviewItem[] {
+function orderItems(items: ReviewItem[], languageRank?: Map<string, number>): ReviewItem[] {
+  const rank = (it: ReviewItem) => languageRank?.get(rowLanguage(it)) ?? Number.MAX_SAFE_INTEGER;
   return [...items].sort((a, b) => {
+    if (languageRank) {
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      const la = rowLanguage(a);
+      const lb = rowLanguage(b);
+      if (la !== lb) return la.localeCompare(lb);
+    }
     if (!!a.isSource !== !!b.isSource) return a.isSource ? -1 : 1;
     if (!a.isSource) {
       const fa = a.hasFindings ? 0 : 1;
@@ -360,8 +385,14 @@ export function ReviewPage({
     if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
     if (chip === "findings") items = items.filter((it) => it.hasFindings === true);
     if (chip === "clean") items = items.filter((it) => it.hasFindings === false);
+    // Every language at once groups by language, in the selector's order
+    // (source language first).
+    if (!language) {
+      const rank = new Map(languages.map((l, i) => [l.language, i]));
+      return orderItems(items, rank);
+    }
     return orderItems(items);
-  }, [queue, language, collectionFilter, chip]);
+  }, [queue, language, languages, collectionFilter, chip]);
 
   const selectedIndex = visible.findIndex((it) => itemId(it) === selectedId);
   const selected = selectedIndex >= 0 ? visible[selectedIndex] : null;
@@ -823,29 +854,34 @@ export function ReviewPage({
     }
   }, [cleanVisible, loadRead, loadUnit, tabID, client, showError]);
 
-  // Group the visible queue by file, then flatten to a single row stream
-  // (a file header, then its units) so the left pane can be virtualized: a
-  // review queue can reach thousands of units, and mounting every one is what
-  // turns the pane into a multi-thousand-node scroll. The flat stream keeps the
-  // grouped-by-file presentation while letting the virtualizer mount only the
-  // rows near the viewport (it falls back to a full render for small queues and
-  // in jsdom, where a viewport can't be measured).
+  // The queue as one flat row stream so the list pane can be virtualized: a
+  // review queue can reach thousands of units, and mounting every one turns the
+  // pane into a multi-thousand-node scroll. With every language in view the
+  // stream carries a header per language (the visible queue is already grouped
+  // that way); with one language chosen it is the rows alone. Each row names
+  // its key, with the file as muted meta.
   const rows = useMemo(() => {
-    const m = new Map<string, ReviewItem[]>();
-    for (const it of visible) {
-      const g = m.get(it.file);
-      if (g) g.push(it);
-      else m.set(it.file, [it]);
-    }
-    const out: Array<
-      { kind: "header"; file: string; count: number } | { kind: "item"; item: ReviewItem }
-    > = [];
-    for (const [file, items] of m.entries()) {
-      out.push({ kind: "header", file, count: items.length });
-      for (const item of items) out.push({ kind: "item", item });
+    type Row =
+      | { kind: "header"; language: string; source?: boolean; count: number }
+      | { kind: "item"; item: ReviewItem };
+    if (language) return visible.map((item): Row => ({ kind: "item", item }));
+    const out: Row[] = [];
+    let header: Extract<Row, { kind: "header" }> | null = null;
+    for (const item of visible) {
+      const lang = rowLanguage(item);
+      if (!header || header.language !== lang) {
+        header = { kind: "header", language: lang, source: item.isSource || undefined, count: 0 };
+        out.push(header);
+      }
+      header.count += 1;
+      out.push({ kind: "item", item });
     }
     return out;
-  }, [visible]);
+  }, [visible, language]);
+  const selectedRow = useMemo(
+    () => rows.findIndex((r) => r.kind === "item" && itemId(r.item) === selectedId),
+    [rows, selectedId],
+  );
 
   // What the Active Filter is holding back, said in the reviewer's terms. A
   // queue that is quietly smaller than the project reads as a shorter queue,
@@ -884,15 +920,26 @@ export function ReviewPage({
 
   return (
     <div className="flex h-full flex-col p-6" data-slot="review-page">
-      {/* Header: title + queue filters */}
+      {/* Header: the title, the language and one filter. The rest of the
+          queue's controls sit in the overflow menu. */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div>
-          <h1 className="text-lg font-semibold">{t("Review")}</h1>
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-lg font-semibold">
+            {t("Review")}
+            {loadingQueue && queue && (
+              <Loader2
+                size={14}
+                className="animate-spin text-muted-foreground"
+                aria-label={t("Loading")}
+              />
+            )}
+          </h1>
           {filterNarrowing && (
-            <p className="mt-1 text-xs text-muted-foreground" data-slot="review-filter-notice">
-              {t("Showing {scope}.", { scope: filterNarrowing })}{" "}
-              <span className="opacity-70">{t("Change it in the filter menu, top right.")}</span>
-            </p>
+            <SimpleTooltip content={t("Change it in the filter menu, top right.")}>
+              <p className="mt-1 text-xs text-muted-foreground" data-slot="review-filter-notice">
+                {t("Showing {scope}", { scope: filterNarrowing })}
+              </p>
+            </SimpleTooltip>
           )}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -905,12 +952,22 @@ export function ReviewPage({
             size="xs"
             data-slot="review-language-select"
           />
-          <div className="flex items-center gap-1" data-slot="review-chips">
+          <div
+            className="inline-flex items-center rounded-md border p-0.5"
+            role="group"
+            aria-label={t("Filter by findings")}
+            data-slot="review-chips"
+          >
             {chips.map((c) => (
               <Button
                 key={c.id}
-                variant={chip === c.id ? "default" : "outline"}
+                variant="ghost"
                 size="xs"
+                className={
+                  chip === c.id
+                    ? "h-6 bg-muted text-foreground hover:bg-muted"
+                    : "h-6 text-muted-foreground"
+                }
                 onClick={() => setChip(c.id)}
                 aria-pressed={chip === c.id}
               >
@@ -918,48 +975,71 @@ export function ReviewPage({
               </Button>
             ))}
           </div>
-          {collections.length > 1 && (
-            <select
-              className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={collectionFilter}
-              onChange={(e) => setCollectionFilter(e.target.value)}
-              aria-label={t("Filter by collection")}
-              data-slot="review-collection-filter"
+          {collectionFilter && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setCollectionFilter("")}
+              aria-label={t("Show every collection")}
+              data-slot="review-collection-chip"
             >
-              <option value="">{t("All collections")}</option>
-              {collections.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              <span translate="no">{collectionFilter}</span>
+              <X size={12} />
+            </Button>
           )}
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => {
-              setPreReviewResult(null);
-              setPreReviewOpen(true);
-            }}
-            disabled={loadingQueue || preReviewPending.length === 0}
-            data-slot="review-prereview-open"
-          >
-            <Sparkles size={12} />
-            {t("AI pre-review…")}
-          </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => void refreshQueue()}
-            disabled={loadingQueue}
-            aria-label={t("Refresh the review queue")}
-          >
-            {loadingQueue ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <RefreshCw size={12} />
-            )}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={t("More review actions")}
+                data-slot="review-more"
+              >
+                <MoreHorizontal size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onSelect={() => {
+                  setPreReviewResult(null);
+                  setPreReviewOpen(true);
+                }}
+                disabled={loadingQueue || preReviewPending.length === 0}
+                data-slot="review-prereview-open"
+              >
+                <Sparkles size={12} />
+                {t("AI pre-review…")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => void refreshQueue()}
+                disabled={loadingQueue}
+                data-slot="review-refresh"
+              >
+                <RefreshCw size={12} />
+                {t("Refresh")}
+              </DropdownMenuItem>
+              {collections.length > 1 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    {t("Collection")}
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={collectionFilter}
+                    onValueChange={setCollectionFilter}
+                    data-slot="review-collection-filter"
+                  >
+                    <DropdownMenuRadioItem value="">{t("All collections")}</DropdownMenuRadioItem>
+                    {collections.map((c) => (
+                      <DropdownMenuRadioItem key={c} value={c}>
+                        <span translate="no">{c}</span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -1093,46 +1173,6 @@ export function ReviewPage({
         </DialogContent>
       </Dialog>
 
-      {/* Batch bar: approve every clean unit in the current view. Source rows
-          carry no findings enrichment, so they never count here. */}
-      {cleanVisible.length > 0 && (
-        <div
-          className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs"
-          data-slot="review-batch"
-        >
-          <CheckCheck size={13} className="shrink-0 text-muted-foreground" />
-          <span className="text-muted-foreground">
-            {t(
-              "{count, plural, one {# clean block (no findings) in this view} other {# clean blocks (no findings) in this view}}",
-              {
-                count: cleanVisible.length,
-              },
-            )}
-          </span>
-          <Button
-            size="xs"
-            className="ml-auto"
-            disabled={batch !== null || deciding}
-            onClick={() => void approveClean()}
-            data-slot="review-batch-approve"
-          >
-            {batch ? (
-              <>
-                <Loader2 size={12} className="animate-spin" />
-                {t("Approving {done} of {total}…", { done: batch.done, total: batch.total })}
-              </>
-            ) : (
-              <>
-                <Check size={12} />
-                {t("{count, plural, one {Approve # clean block} other {Approve # clean blocks}}", {
-                  count: cleanVisible.length,
-                })}
-              </>
-            )}
-          </Button>
-        </div>
-      )}
-
       {queueWarnings.length > 0 && (
         <Card className="mb-3 border-amber-500/40" data-slot="review-unread">
           <CardContent className="p-3">
@@ -1165,119 +1205,158 @@ export function ReviewPage({
         </Card>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] gap-4">
-          {/* Left: the queue, grouped by file. Virtualized once it grows past a
-              handful of units (shared @neokapi/editor-grid VirtualList) so a
-              thousands-strong queue never mounts a thousands-strong DOM; the
-              viewport is bounded so the page never becomes the scroll surface.
-              The primitive owns the positioned, measured row wrapper; the queue
-              rows (file header or unit button) render unchanged inside it. */}
-          <VirtualList
-            items={rows}
-            estimateSize={44}
-            overscan={16}
-            className="min-h-0 flex-1 rounded-md border p-2"
-            dataSlot="review-queue"
-            renderRow={(row, { key, rowProps }) => (
-              <div key={key} {...rowProps}>
-                {row.kind === "header" ? (
-                  <div className="mb-1 mt-2 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground first:mt-0">
-                    <FileText size={11} />
-                    <SimpleTooltip content={row.file}>
-                      <span className="truncate" translate="no">
-                        {shortFile(row.file)}
-                      </span>
-                    </SimpleTooltip>
-                    <span className="text-muted-foreground/60">· {row.count}</span>
-                  </div>
-                ) : (
-                  (() => {
-                    const it = row.item;
-                    const id = itemId(it);
-                    const active = id === selectedId;
-                    return (
-                      <button
-                        className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                          active ? "bg-primary/10" : "hover:bg-accent"
-                        }`}
-                        onClick={() => setSelectedId(id)}
-                        data-slot="review-queue-item"
-                        data-active={active || undefined}
-                        data-key={it.key}
-                        data-language={rowLanguage(it)}
-                        data-source={it.isSource || undefined}
-                      >
-                        {/* A source row carries no findings enrichment, so it
-                            takes the neutral marker and says what it is in the
-                            language affix beside its key. */}
-                        {it.isSource ? (
-                          <Circle
-                            size={8}
-                            className="mt-1 shrink-0 text-muted-foreground/40"
-                            aria-label={t("Source wording")}
-                          />
-                        ) : it.hasFindings ? (
-                          <Circle
-                            size={8}
-                            className="mt-1 shrink-0 fill-current text-warning-ink"
-                            aria-label={t("Has findings")}
-                          />
-                        ) : (
-                          <Circle
-                            size={8}
-                            className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-success" : "text-muted-foreground/40"}`}
-                            aria-label={it.hasFindings === false ? t("Clean") : t("Not checked")}
-                          />
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-1.5">
-                            {it.held && (
-                              <PauseCircle
-                                size={11}
-                                className="shrink-0 text-warning-ink"
-                                aria-label={t("holding every language")}
-                              />
-                            )}
-                            <span className="truncate font-medium" translate="no">
-                              {it.key}
-                            </span>
-                            {/* Every row says which language it belongs to,
-                                because the queue holds them all at once, and a
-                                source row wears the same source marker the
-                                selector and the detail pane use. */}
-                            <LocaleLabel locale={rowLanguage(it)} compact source={it.isSource} />
-                            {it.aiScore !== undefined && (
-                              <SimpleTooltip
-                                content={
-                                  it.aiModel
-                                    ? t("AI review score ({model})", { model: it.aiModel })
-                                    : t("AI review score")
-                                }
-                              >
-                                <span
-                                  className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
-                                  data-slot="review-queue-ai-score"
-                                >
-                                  {t("ai {score}", { score: it.aiScore })}
-                                </span>
-                              </SimpleTooltip>
-                            )}
-                          </span>
-                          <SimpleTooltip content={it.source}>
-                            <span
-                              className="block truncate text-muted-foreground"
-                              {...directionAttrs(it.sourceLocale)}
-                            >
-                              {it.source}
-                            </span>
-                          </SimpleTooltip>
-                        </span>
-                      </button>
-                    );
-                  })()
-                )}
+          {/* Left: the queue, grouped by language when every language is in
+              view. Virtualized once it grows past a handful of units (shared
+              @neokapi/editor-grid VirtualList) so a thousands-strong queue never
+              mounts a thousands-strong DOM; the viewport is bounded so the page
+              never becomes the scroll surface. Approving every clean block in
+              the view sits above the list it acts on. Source rows carry no
+              findings enrichment, so they never count as clean. */}
+          <div className="flex min-h-0 flex-col gap-2">
+            {cleanVisible.length > 0 && (
+              <div data-slot="review-batch">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="w-full"
+                  disabled={batch !== null || deciding}
+                  onClick={() => void approveClean()}
+                  data-slot="review-batch-approve"
+                >
+                  {batch ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      {t("Approving {done} of {total}…", { done: batch.done, total: batch.total })}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCheck size={12} />
+                      {t(
+                        "{count, plural, one {Approve # clean block} other {Approve # clean blocks}}",
+                        { count: cleanVisible.length },
+                      )}
+                    </>
+                  )}
+                </Button>
               </div>
             )}
-          />
+            <VirtualList
+              items={rows}
+              estimateSize={44}
+              overscan={16}
+              scrollToIndex={selectedRow}
+              className="min-h-0 flex-1 rounded-md border px-2 pb-2"
+              dataSlot="review-queue"
+              renderRow={(row, { key, rowProps }) => (
+                <div
+                  key={key}
+                  {...rowProps}
+                  className={row.kind === "header" ? "sticky top-0 z-10 bg-background" : "pt-0.5"}
+                >
+                  {row.kind === "header" ? (
+                    <div
+                      className="flex items-center gap-1.5 px-1 pb-1 pt-2 text-[11px] font-medium text-muted-foreground"
+                      data-slot="review-queue-group"
+                      data-language={row.language}
+                    >
+                      <LocaleLabel locale={row.language} source={row.source} />
+                      <span className="tabular-nums text-muted-foreground/60">{row.count}</span>
+                    </div>
+                  ) : (
+                    (() => {
+                      const it = row.item;
+                      const id = itemId(it);
+                      const active = id === selectedId;
+                      return (
+                        <button
+                          className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                            active ? "bg-primary/10" : "hover:bg-accent"
+                          }`}
+                          onClick={() => setSelectedId(id)}
+                          data-slot="review-queue-item"
+                          data-active={active || undefined}
+                          data-key={it.key}
+                          data-language={rowLanguage(it)}
+                          data-source={it.isSource || undefined}
+                        >
+                          {/* A source row carries no findings enrichment, so it
+                            takes the neutral marker and says what it is in the
+                            language affix beside its key. */}
+                          {it.isSource ? (
+                            <Circle
+                              size={8}
+                              className="mt-1 shrink-0 text-muted-foreground/40"
+                              aria-label={t("Source wording")}
+                            />
+                          ) : it.hasFindings ? (
+                            <Circle
+                              size={8}
+                              className="mt-1 shrink-0 fill-current text-warning-ink"
+                              aria-label={t("Has findings")}
+                            />
+                          ) : (
+                            <Circle
+                              size={8}
+                              className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-success" : "text-muted-foreground/40"}`}
+                              aria-label={it.hasFindings === false ? t("Clean") : t("Not checked")}
+                            />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-1.5">
+                              {it.held && (
+                                <PauseCircle
+                                  size={11}
+                                  className="shrink-0 text-warning-ink"
+                                  aria-label={t("holding every language")}
+                                />
+                              )}
+                              <span className="truncate font-medium" translate="no">
+                                {it.key}
+                              </span>
+                              {it.aiScore !== undefined && (
+                                <SimpleTooltip
+                                  content={
+                                    it.aiModel
+                                      ? t("AI review score ({model})", { model: it.aiModel })
+                                      : t("AI review score")
+                                  }
+                                >
+                                  <span
+                                    className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
+                                    data-slot="review-queue-ai-score"
+                                  >
+                                    {t("ai {score}", { score: it.aiScore })}
+                                  </span>
+                                </SimpleTooltip>
+                              )}
+                            </span>
+                            <span className="flex min-w-0 items-baseline gap-2 text-muted-foreground">
+                              <SimpleTooltip content={it.source}>
+                                <span
+                                  className="min-w-0 flex-1 truncate"
+                                  {...directionAttrs(it.sourceLocale)}
+                                >
+                                  {it.source}
+                                </span>
+                              </SimpleTooltip>
+                              <span
+                                className="max-w-[45%] shrink-0 truncate text-[10px] text-muted-foreground/70"
+                                title={it.file}
+                                translate="no"
+                                data-slot="review-queue-file"
+                              >
+                                {baseName(it.file)}
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })()
+                  )}
+                </div>
+              )}
+            />
+          </div>
 
           {/* Center: the unit. The point it sits at, the source wording and
               the translation under each language's own name, the document
@@ -1288,10 +1367,14 @@ export function ReviewPage({
               <div className="space-y-3 pr-3">
                 {selected && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <SimpleTooltip content={`${selected.file}:${selected.key}`}>
-                      <span className="truncate" translate="no">
-                        {selected.file}:{selected.key}
-                      </span>
+                    <SimpleTooltip content={selected.file}>
+                      <h2
+                        className="truncate text-sm font-medium text-foreground"
+                        translate="no"
+                        data-slot="review-unit-key"
+                      >
+                        {selected.key}
+                      </h2>
                     </SimpleTooltip>
                     <LocaleLabel locale={selected.locale} compact source={selected.isSource} />
                     {selected.isSource
@@ -1341,116 +1424,114 @@ export function ReviewPage({
                   </>
                 ) : (
                   <>
-                    <PointCard point={model?.point} loading={unitLoading} />
+                    <ReviewPointSummary point={model?.point} />
 
-                    <Card>
-                      <CardContent className="p-3">
-                        {/* Headed by the language, named. A reviewer reads "French
-                        (France)", never a code in capitals. */}
-                        <div className="mb-1 text-[11px] font-medium text-muted-foreground">
-                          <LocaleLabel
-                            locale={unit?.source_locale ?? selected?.sourceLocale ?? ""}
-                            source
-                            data-slot="review-source-language"
-                          />
-                        </div>
-                        <div
-                          className="whitespace-pre-wrap text-sm"
-                          data-slot="review-source"
-                          translate="no"
-                          {...directionAttrs(unit?.source_locale)}
-                        >
-                          {unit?.source ?? selected?.source ?? ""}
-                        </div>
-                      </CardContent>
-                    </Card>
+                    {/* Source and target are plain sections headed by the
+                        language, named: a reviewer reads "French (France)",
+                        never a code in capitals. The editable target alone
+                        takes a border. */}
+                    <section>
+                      <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+                        <LocaleLabel
+                          locale={unit?.source_locale ?? selected?.sourceLocale ?? ""}
+                          source
+                          data-slot="review-source-language"
+                        />
+                      </div>
+                      <div
+                        className="whitespace-pre-wrap text-sm"
+                        data-slot="review-source"
+                        translate="no"
+                        {...directionAttrs(unit?.source_locale)}
+                      >
+                        {unit?.source ?? selected?.source ?? ""}
+                      </div>
+                    </section>
 
-                    <Card>
-                      <CardContent className="p-3">
-                        <div className="mb-1 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                          <LocaleLabel
-                            locale={unit?.locale ?? selected?.locale ?? ""}
-                            data-slot="review-target-language"
-                          />
-                        </div>
-                        {readError ? (
-                          <div className="space-y-1">
-                            <div className="whitespace-pre-wrap text-sm" translate="no">
-                              {unit?.target ?? selected?.target ?? ""}
-                            </div>
-                            <p className="text-xs text-destructive" data-slot="review-read-error">
-                              {readError}
-                            </p>
+                    <section className="rounded-md border p-3">
+                      <div className="mb-1 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                        <LocaleLabel
+                          locale={unit?.locale ?? selected?.locale ?? ""}
+                          data-slot="review-target-language"
+                        />
+                      </div>
+                      {readError ? (
+                        <div className="space-y-1">
+                          <div className="whitespace-pre-wrap text-sm" translate="no">
+                            {unit?.target ?? selected?.target ?? ""}
                           </div>
-                        ) : (
-                          <EditionEditPanel
-                            sender={editSender}
-                            content={read ? editionContent(read) : null}
-                            locale={unit?.locale ?? selected?.locale}
-                            reference={sourceReference}
-                            readOnlyReason={
-                              read && !read.ops.includes("set_content")
-                                ? t("This format does not write a change to this text.")
-                                : undefined
-                            }
-                            saveLabel={t("Save & re-check")}
-                            compact
-                            autoFocus={false}
-                            data-slot="review-target"
-                            actions={
-                              /* Per-unit AI actions (phase 3): explicit clicks only. */
-                              <div
-                                className="flex flex-wrap items-center gap-2"
-                                data-slot="review-ai-actions"
+                          <p className="text-xs text-destructive" data-slot="review-read-error">
+                            {readError}
+                          </p>
+                        </div>
+                      ) : (
+                        <EditionEditPanel
+                          sender={editSender}
+                          content={read ? editionContent(read) : null}
+                          locale={unit?.locale ?? selected?.locale}
+                          reference={sourceReference}
+                          readOnlyReason={
+                            read && !read.ops.includes("set_content")
+                              ? t("This format does not write a change to this text.")
+                              : undefined
+                          }
+                          saveLabel={t("Save & re-check")}
+                          compact
+                          autoFocus={false}
+                          data-slot="review-target"
+                          actions={
+                            /* Per-unit AI actions (phase 3): explicit clicks only. */
+                            <div
+                              className="flex flex-wrap items-center gap-2"
+                              data-slot="review-ai-actions"
+                            >
+                              <Button
+                                variant="outline"
+                                size="xs"
+                                onClick={() => void runAIAction("fix-findings")}
+                                disabled={!canEdit || aiBusy !== null || editSender.busy}
+                                data-slot="review-ai-fix"
                               >
-                                <Button
-                                  variant="outline"
-                                  size="xs"
-                                  onClick={() => void runAIAction("fix-findings")}
-                                  disabled={!canEdit || aiBusy !== null || editSender.busy}
-                                  data-slot="review-ai-fix"
-                                >
-                                  {aiBusy === "fix-findings" ? (
-                                    <Loader2 size={12} className="animate-spin" />
-                                  ) : (
-                                    <Sparkles size={12} />
-                                  )}
-                                  {t("Fix with AI")}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="xs"
-                                  onClick={() => void runAIAction("retranslate")}
-                                  disabled={!canEdit || aiBusy !== null || editSender.busy}
-                                  data-slot="review-ai-retranslate"
-                                >
-                                  {aiBusy === "retranslate" ? (
-                                    <Loader2 size={12} className="animate-spin" />
-                                  ) : (
-                                    <Sparkles size={12} />
-                                  )}
-                                  {t("Retranslate…")}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="xs"
-                                  onClick={() => void runAIAction("explain")}
-                                  disabled={!unit || aiBusy !== null}
-                                  data-slot="review-ai-explain"
-                                >
-                                  {aiBusy === "explain" ? (
-                                    <Loader2 size={12} className="animate-spin" />
-                                  ) : (
-                                    <Sparkles size={12} />
-                                  )}
-                                  {t("Explain")}
-                                </Button>
-                              </div>
-                            }
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
+                                {aiBusy === "fix-findings" ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <Sparkles size={12} />
+                                )}
+                                {t("Fix with AI")}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="xs"
+                                onClick={() => void runAIAction("retranslate")}
+                                disabled={!canEdit || aiBusy !== null || editSender.busy}
+                                data-slot="review-ai-retranslate"
+                              >
+                                {aiBusy === "retranslate" ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <Sparkles size={12} />
+                                )}
+                                {t("Retranslate…")}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="xs"
+                                onClick={() => void runAIAction("explain")}
+                                disabled={!unit || aiBusy !== null}
+                                data-slot="review-ai-explain"
+                              >
+                                {aiBusy === "explain" ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <Sparkles size={12} />
+                                )}
+                                {t("Explain")}
+                              </Button>
+                            </div>
+                          }
+                        />
+                      )}
+                    </section>
 
                     {/* AI proposal: current vs proposed, Accept / Discard. Accept
                     routes through the same save path as a manual edit. */}
@@ -1638,7 +1719,7 @@ export function ReviewPage({
                 one decision, so Reject is absent on a source row and `r`
                 answers nothing there. */}
             <div
-              className="mt-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
+              className="group mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
               data-slot="review-actions"
             >
               <Button
@@ -1650,7 +1731,7 @@ export function ReviewPage({
               >
                 <Check size={13} />
                 {selected?.isSource ? t("Approve source") : t("Approve")}
-                <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">a</kbd>
+                <kbd className={`ml-1 rounded bg-black/10 px-1 text-[10px] ${HINT}`}>a</kbd>
               </Button>
               {/* Reject takes destructive, which is where the shared scale puts
                   it (packages/ui/docs/judgement-colours.md): it undoes the
@@ -1665,18 +1746,18 @@ export function ReviewPage({
                 >
                   <X size={13} />
                   {t("Reject")}
-                  <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">r</kbd>
+                  <kbd className={`ml-1 rounded bg-black/10 px-1 text-[10px] ${HINT}`}>r</kbd>
                 </Button>
               )}
               <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
-                <span>
+                <span className={HINT} data-slot="review-key-hints">
                   <kbd className="rounded bg-muted px-1">j</kbd>/
                   <kbd className="rounded bg-muted px-1">k</kbd> {t("navigate")}
                 </span>
-                <span>
+                <span className={HINT}>
                   <kbd className="rounded bg-muted px-1">e</kbd> {t("edit")}
                 </span>
-                <span>
+                <span className={HINT}>
                   <kbd className="rounded bg-muted px-1">space</kbd> {t("skip")}
                 </span>
                 {deciding && <Loader2 size={12} className="animate-spin" />}
