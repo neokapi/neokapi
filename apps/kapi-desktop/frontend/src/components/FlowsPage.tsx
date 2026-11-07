@@ -482,7 +482,7 @@ export function FlowsPage({
   return (
     <div className="p-6">
       <PageHeader
-        title={isProjectMode ? "Project Flows" : "Flows"}
+        title={isProjectMode ? "Flows" : "Flows"}
         actions={
           <div className="flex gap-2">
             {!isProjectMode && (
@@ -494,12 +494,12 @@ export function FlowsPage({
             {isProjectMode && (
               <Button variant="outline" size="sm" onClick={() => void handleOpenImportDialog()}>
                 <Import size={12} />
-                Import Flow
+                Import flow
               </Button>
             )}
             <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               <Plus size={12} />
-              New Flow
+              New flow
             </Button>
           </div>
         }
@@ -544,10 +544,10 @@ export function FlowsPage({
       >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>New Flow</DialogTitle>
+            <DialogTitle>New flow</DialogTitle>
           </DialogHeader>
           <div>
-            <Label className="text-xs text-muted-foreground block mb-1">Flow Name</Label>
+            <Label className="text-xs text-muted-foreground block mb-1">Flow name</Label>
             <Input
               type="text"
               value={newFlowName}
@@ -589,7 +589,7 @@ export function FlowsPage({
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Import Flow</DialogTitle>
+            <DialogTitle>Import flow</DialogTitle>
             <DialogDescription>
               Copy a built-in or user flow into this project. The flow will be independent. Changes
               won't affect the original.

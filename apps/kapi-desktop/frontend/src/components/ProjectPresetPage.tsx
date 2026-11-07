@@ -42,7 +42,7 @@ export function ProjectPresetPage({
   return (
     <div className="flex h-full items-center justify-center p-6">
       <div className="w-full max-w-lg">
-        <h1 className="mb-2 text-center text-xl font-semibold">Configure Project</h1>
+        <h1 className="mb-2 text-center text-xl font-semibold">Configure the project</h1>
         <p className="mb-8 text-center text-sm text-muted-foreground">
           We detected an existing codebase. Apply a preset to configure content patterns and
           workflows automatically.

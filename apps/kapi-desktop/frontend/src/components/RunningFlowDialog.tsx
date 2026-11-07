@@ -29,7 +29,7 @@ export function RunningFlowDialog({ onCancelFlow, onKeepRunning }: RunningFlowDi
     >
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Flow Running</DialogTitle>
+          <DialogTitle>A flow is running</DialogTitle>
           <DialogDescription>
             A flow is still running. Do you want to cancel it and close, or keep it running?
           </DialogDescription>
@@ -38,7 +38,7 @@ export function RunningFlowDialog({ onCancelFlow, onKeepRunning }: RunningFlowDi
           <Button variant="outline" onClick={onCancelFlow}>
             Cancel Flow &amp; Close
           </Button>
-          <Button onClick={onKeepRunning}>Keep Running</Button>
+          <Button onClick={onKeepRunning}>Keep running</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

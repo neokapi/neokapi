@@ -22,10 +22,10 @@ import {
   BookOpen,
   Bot,
   Check,
-  Compass,
   Database,
   History,
   MessageSquareQuote,
+  Search,
   Share2,
   Sparkles,
   Telescope,
@@ -148,7 +148,7 @@ const SECTIONS: Array<{
 }> = [
   { id: "rules", icon: <Sparkles size={14} /> },
   { id: "atlas", icon: <Telescope size={14} /> },
-  { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
+  { id: "explorer", icon: <Search size={14} />, needsCheckout: true },
   // A context-only tab keeps the Assistants: the page says a checkout is
   // needed to connect one, and lists the sessions.
   { id: "agent", icon: <Bot size={14} /> },
@@ -227,32 +227,40 @@ export function ContextHub({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <nav
-        aria-label={t("Context sections")}
-        className="flex shrink-0 items-center gap-1 border-b border-border px-6 py-2"
-      >
-        {sections
-          .filter((s) => !s.under && group !== "connect")
-          .map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => (s.id === "agent" ? openAssistants() : setActive(s.id))}
-              aria-current={marked === s.id ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
-                marked === s.id
-                  ? "bg-accent font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-              )}
-            >
-              {s.icon}
-              <SectionLabel id={s.id} />
-            </button>
-          ))}
-        <SectionCommand section={current} contextOnly={contextOnly} />
-      </nav>
+    <div className="relative flex h-full min-h-0 flex-col">
+      {/* Project Settings draws its own tabs for the connect group, so the
+          hub adds no bar of its own there: only the command, at the corner. */}
+      {group === "connect" ? (
+        <div className="pointer-events-none absolute top-4 right-6 z-10 [&>*]:pointer-events-auto">
+          <SectionCommand section={current} contextOnly={contextOnly} />
+        </div>
+      ) : (
+        <nav
+          aria-label={t("Context sections")}
+          className="flex shrink-0 items-center gap-1 border-b border-border px-6 py-2"
+        >
+          {sections
+            .filter((s) => !s.under)
+            .map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => (s.id === "agent" ? openAssistants() : setActive(s.id))}
+                aria-current={marked === s.id ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
+                  marked === s.id
+                    ? "bg-accent font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                )}
+              >
+                {s.icon}
+                <SectionLabel id={s.id} />
+              </button>
+            ))}
+          <SectionCommand section={current} contextOnly={contextOnly} />
+        </nav>
+      )}
       <div className="min-h-0 flex-1">
         {current === "explorer" && (
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
@@ -272,7 +280,7 @@ export function ContextHub({
         )}
         {current === "agent" && (
           <ScrollArea className="h-full">
-            <div className="mx-auto max-w-3xl px-6 py-5">
+            <div className="max-w-3xl p-6">
               {reading && !contextOnly ? (
                 <AssistantPanel tabID={tabID} path={pin?.path} onBack={() => setReading(false)} />
               ) : (
@@ -357,7 +365,7 @@ export function ContextHub({
         )}
         {current === "share" && (
           <ScrollArea className="h-full">
-            <div className="mx-auto max-w-3xl px-6 py-5">
+            <div className="max-w-3xl p-6">
               <SharePanel tabID={tabID} projectName={projectName} contextOnly={contextOnly} />
             </div>
           </ScrollArea>
@@ -464,7 +472,7 @@ function SectionLabel({ id }: { id: ContextSection }) {
     case "atlas":
       return <>Explore</>;
     case "explorer":
-      return <>Ask</>;
+      return <>Search</>;
     case "agent":
       return <>Assistants</>;
     case "voice":

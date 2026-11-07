@@ -35,6 +35,17 @@ const DIMENSION_LABEL: Record<Dimension, () => string> = {
   locale: () => t("Language"),
 };
 
+/** A picker's "no value" entry, written whole so each reads naturally. */
+const ANY_LABEL: Record<Dimension, () => string> = {
+  workspace: () => t("Any workspace"),
+  project: () => t("Any project"),
+  stream: () => t("Any stream"),
+  collection: () => t("Any collection"),
+  path: () => t("Any path"),
+  coordinate: () => t("Any coordinate"),
+  locale: () => t("Any language"),
+};
+
 /** The label of one dimension, for a picker or a chip. */
 export function dimensionLabel(d: Dimension): string {
   return DIMENSION_LABEL[d]();
@@ -77,7 +88,7 @@ function DimensionSelect({ dimension }: { dimension: Dimension }) {
   if (dimension === "locale") {
     return (
       <LocaleSelect
-        className="w-48"
+        className="h-8 w-48 text-sm"
         aria-label={dimensionLabel(dimension)}
         data-slot="scope-locale"
         value={value ?? ""}
@@ -105,9 +116,7 @@ function DimensionSelect({ dimension }: { dimension: Dimension }) {
         <SelectValue placeholder={dimensionLabel(dimension)} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ANY}>
-          {loading ? t("Loading…") : t("Any {dimension}", { dimension: dimensionLabel(dimension) })}
-        </SelectItem>
+        <SelectItem value={ANY}>{loading ? t("Loading…") : ANY_LABEL[dimension]()}</SelectItem>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
             {option.label ?? option.value}

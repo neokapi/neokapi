@@ -23,7 +23,7 @@ import {
   cn,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import { call } from "../hooks/useApi";
+import { api, call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import type { KapiProject, KeptConflict, ProjectStatus, ProjectServer } from "../types/api";
 import { KeptConflicts } from "./KeptConflicts";
@@ -63,6 +63,8 @@ export interface ProjectStandingProps {
   conflicts?: KeptConflict[];
   /** Open Context standing at a point. */
   onOpenPoint?: (pin: { coordinate?: string; collection?: string }) => void;
+  /** The project store's concept count, pre-loaded for Storybook/tests. */
+  termsCount?: number;
   /** Whether the saved recipe declares a target language; the languages row
    *  appears only when it does. Defaults to `declaresTargetLanguages(project)`. */
   hasTargetLanguages?: boolean;
@@ -110,6 +112,7 @@ export function ProjectStanding({
   conflicts,
   onOpenPoint,
   hasTargetLanguages,
+  termsCount: propTermsCount,
 }: ProjectStandingProps) {
   const languages = hasTargetLanguages ?? declaresTargetLanguages(project);
   const statusQuery = useQuery({
@@ -127,6 +130,21 @@ export function ProjectStanding({
     queryFn: () => call<ProjectServer>("GetProjectServer", tabID),
     enabled: !propServer && !!tabID,
   });
+
+  // A project's own terms apply without a `termstore:` binding, so the count
+  // comes from the project store whenever the recipe binds none.
+  const handlesQuery = useQuery({
+    queryKey: qk.projectHandles(tabID),
+    queryFn: () => api.getProjectHandles(tabID),
+    enabled: propTermsCount === undefined && !!tabID,
+  });
+  const termsHandle = handlesQuery.data?.termsHandle ?? "";
+  const termsStatsQuery = useQuery({
+    queryKey: qk.termsStats(termsHandle),
+    queryFn: () => api.getTermsStats(termsHandle),
+    enabled: propTermsCount === undefined && !!termsHandle,
+  });
+  const termsCount = propTermsCount ?? termsStatsQuery.data?.count ?? 0;
 
   const status = propStatus ?? statusQuery.data ?? undefined;
   const points = propPoints ?? pointsQuery.data ?? undefined;
@@ -170,11 +188,20 @@ export function ProjectStanding({
                   })}
                 </Fact>
                 <Fact muted>·</Fact>
-                <Fact muted>{t("{count} collection(s)", { count: collections })}</Fact>
+                <Fact muted>
+                  {t("{count, plural, one {# collection} other {# collections}}", {
+                    count: collections,
+                  })}
+                </Fact>
               </>
             ) : (
               <Fact muted>
-                {t("{count} collection(s) · reading the files", { count: collections })}
+                {t(
+                  "{count, plural, one {# collection} other {# collections}} · reading the files",
+                  {
+                    count: collections,
+                  },
+                )}
               </Fact>
             )}
           </Axis>
@@ -194,12 +221,16 @@ export function ProjectStanding({
             <Fact muted>·</Fact>
             {rootPoint?.termstore ? (
               <Fact>{t("terms {source}", { source: rootPoint.termstore })}</Fact>
+            ) : termsCount > 0 ? (
+              <Fact>
+                {t("{count, plural, one {# concept} other {# concepts}}", { count: termsCount })}
+              </Fact>
             ) : (
               <Fact muted>{t("no terms bound")}</Fact>
             )}
             <Fact muted>·</Fact>
             <Fact muted>
-              {t("{count} of {total} point(s) governed", {
+              {t("{count} of {total, plural, one {# point} other {# points}} governed", {
                 count: bound,
                 total: points?.points.length ?? 0,
               })}

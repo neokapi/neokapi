@@ -196,7 +196,7 @@ export function FormatsPage({
           )}
           {plugin.length > 0 && (
             <FormatSection
-              title="Plugin Formats"
+              title="Plugin formats"
               formats={plugin}
               docs={docs}
               docsSummary={docsSummary}
@@ -680,7 +680,7 @@ function FormatDetail({
                 onClick={handleSavePreset}
                 disabled={saving || !savePresetName.trim()}
               >
-                {saving ? t("Saving...") : t("Save")}
+                {saving ? t("Saving…") : t("Save")}
               </Button>
               <Button
                 variant="outline"
@@ -816,11 +816,13 @@ function FormatDetail({
               className="bg-card hover:border-primary/30 hover:text-primary"
             >
               <Play size={12} />
-              {runnerLoading ? t("Running...") : t("Open File...")}
+              {runnerLoading ? t("Running…") : t("Open file…")}
             </Button>
             {runnerParts !== null && (
               <span className="text-[10px] text-muted-foreground">
-                {t("{count} part(s) extracted", { count: runnerParts.length })}
+                {t("{count, plural, one {# part} other {# parts}} extracted", {
+                  count: runnerParts.length,
+                })}
               </span>
             )}
           </div>

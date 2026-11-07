@@ -56,7 +56,7 @@ describe("the Terms page", () => {
         <TermsPage tabID="t1" />
       </ErrorProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Project Terms")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Terms")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("4 concepts")).toBeInTheDocument());
     await waitFor(() =>
       expect(document.querySelectorAll("[data-slot='terms-concept']")).toHaveLength(4),

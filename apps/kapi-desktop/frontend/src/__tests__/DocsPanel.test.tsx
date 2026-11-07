@@ -63,7 +63,7 @@ describe("DocsPanel", () => {
     expect(screen.getByText("Parameters")).toBeInTheDocument();
     expect(screen.getByText("Examples")).toBeInTheDocument();
     expect(screen.getByText("Limitations")).toBeInTheDocument();
-    expect(screen.getByText("Processing Notes")).toBeInTheDocument();
+    expect(screen.getByText("Processing notes")).toBeInTheDocument();
   });
 
   it("shows parameter count badge", () => {
@@ -150,7 +150,7 @@ describe("DocsPanel", () => {
     expect(screen.queryByText("Parameters")).not.toBeInTheDocument();
     expect(screen.queryByText("Examples")).not.toBeInTheDocument();
     expect(screen.queryByText("Limitations")).not.toBeInTheDocument();
-    expect(screen.queryByText("Processing Notes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Processing notes")).not.toBeInTheDocument();
   });
 });
 

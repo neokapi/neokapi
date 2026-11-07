@@ -181,7 +181,7 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
           <CollapsibleSection
             id="notes"
             icon={<Info size={13} className="text-chart-3" />}
-            title="Processing Notes"
+            title="Processing notes"
             expanded={isExpanded("notes")}
             onToggle={toggleSection}
           >

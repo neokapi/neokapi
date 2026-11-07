@@ -63,7 +63,7 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
     expect(screen.getByText("Bring up to date · translate")).toBeInTheDocument();
     expect(screen.getByText("Passes")).toBeInTheDocument();
     // No manual configuration and no pipeline card in converge mode.
-    expect(screen.queryByText("Select files...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Select files…")).not.toBeInTheDocument();
     expect(screen.queryByText("Pipeline")).not.toBeInTheDocument();
 
     await waitFor(() => expect(bringUpToDateMock).toHaveBeenCalledWith("t1"));

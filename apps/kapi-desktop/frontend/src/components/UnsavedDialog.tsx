@@ -24,7 +24,7 @@ export function UnsavedDialog({ onSave, onDiscard, onCancel }: UnsavedDialogProp
     >
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Unsaved Changes</DialogTitle>
+          <DialogTitle>Unsaved changes</DialogTitle>
           <DialogDescription>Do you want to save changes before closing?</DialogDescription>
         </DialogHeader>
         <DialogFooter>

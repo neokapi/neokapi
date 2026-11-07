@@ -459,10 +459,7 @@ export function VoicePage({ tabID, result, editable = true, save, valueSets }: V
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
-      <PageHeader
-        title={t("Voice")}
-        subtitle={t("The profile that governs each point, and why that one.")}
-      />
+      <PageHeader title={t("Voice")} />
 
       {!result && query.isError && (
         <ErrorHint

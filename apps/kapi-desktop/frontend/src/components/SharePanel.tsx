@@ -172,11 +172,7 @@ export function SharePanel({
 
   return (
     <div data-slot="share-panel">
-      <PageHeader
-        className="mb-5"
-        title={projectName ? t("{project} · Share", { project: projectName }) : t("Share")}
-        subtitle="How far your rules reach"
-      />
+      <PageHeader className="mb-5" title={t("Share")} />
       <ol
         data-slot="share-ladder"
         aria-label={t("How far your rules reach")}

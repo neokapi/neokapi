@@ -59,12 +59,9 @@ const slot = (name: string) => document.querySelector(`[data-slot='${name}']`);
 const slots = (name: string) => Array.from(document.querySelectorAll(`[data-slot='${name}']`));
 
 describe("AppHome", () => {
-  it("opens on your context, with what it is and where the workspace is", () => {
+  it("opens on your context, with where the workspace is", () => {
     render(<AppHome {...defaultProps} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your context" })).toBeInTheDocument();
-    expect(
-      screen.getByText("What your projects write by, and what your assistants noticed."),
-    ).toBeInTheDocument();
     // The location is a value: its last segment, the whole path in the tooltip.
     expect(slot("workspace-location")?.textContent).toBe("default");
     expect(screen.queryByText(/workspaces\/default/)).not.toBeInTheDocument();

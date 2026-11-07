@@ -192,7 +192,7 @@ export function TermsPage({
       <div className="flex h-full min-h-0 flex-col">
         <PageHeader
           className="mb-0 shrink-0 px-6 pt-5 pb-3"
-          title={store?.name ?? (isProject ? "Project Terms" : tbName)}
+          title={store?.name ?? (isProject ? "Terms" : tbName)}
           subtitle={
             count !== undefined
               ? t("{count, plural, one {# concept} other {# concepts}}", { count })
@@ -282,7 +282,7 @@ export function TermsPage({
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>New Terms</DialogTitle>
+            <DialogTitle>New terms store</DialogTitle>
           </DialogHeader>
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
@@ -336,7 +336,7 @@ export function TermsPage({
             </p>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
-                {recovering ? t("Recovering...") : t("Create Fresh Terms")}
+                {recovering ? t("Recovering…") : t("Create fresh terms")}
               </Button>
               <Button
                 variant="outline"

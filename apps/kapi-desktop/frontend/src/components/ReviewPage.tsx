@@ -888,11 +888,6 @@ export function ReviewPage({
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div>
           <h1 className="text-lg font-semibold">{t("Review")}</h1>
-          <p className="text-xs text-muted-foreground">
-            {t(
-              "Approve, edit, or send translations back. A decision binds to the exact text it judged.",
-            )}
-          </p>
           {filterNarrowing && (
             <p className="mt-1 text-xs text-muted-foreground" data-slot="review-filter-notice">
               {t("Showing {scope}.", { scope: filterNarrowing })}{" "}

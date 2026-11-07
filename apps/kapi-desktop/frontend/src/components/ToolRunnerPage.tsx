@@ -179,10 +179,7 @@ export function ToolRunnerPage({
   return (
     <div className="flex h-full flex-col">
       <div className="shrink-0 px-6 pt-6">
-        <PageHeader
-          title={t("Tools")}
-          subtitle={t("What the installed tools can do for your content")}
-        />
+        <PageHeader title={t("Tools")} />
       </div>
       <div className="flex min-h-0 flex-1">
         {/* Left panel: tool browser */}
@@ -198,40 +195,43 @@ export function ToolRunnerPage({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search tools..."
+                placeholder={t("Search tools…")}
                 className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
-            {/* Category filter chips */}
-            <div className="flex flex-wrap gap-1 mt-2">
-              <Button
-                variant={!filterCategory ? "default" : "secondary"}
-                size="xs"
-                onClick={() => setFilterCategory(null)}
-              >
-                All ({tools.length})
-              </Button>
-              {Array.from(categories.entries()).map(([cat, catTools]) => {
-                const meta = categoryMeta(cat);
-                // The button body is NOT extracted as a block (translate="no")
-                // because `meta.label` is already a `t()`-resolved string from
-                // `categoryMeta()`. Extracting would wrap the whole body in a
-                // second translation, producing `▒ ▒ Utility ▒ (32) ▒` in
-                // pseudo. The count is numeric — no translation needed.
-                return (
-                  <Button
-                    key={cat}
-                    translate="no"
-                    variant={filterCategory === cat ? "default" : "secondary"}
-                    size="xs"
-                    onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
-                  >
-                    {meta.label} ({catTools.length})
-                  </Button>
-                );
-              })}
-            </div>
+            {/* Category filter chips, only when there is more than one
+                category to choose between. */}
+            {categories.size > 1 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                <Button
+                  variant={!filterCategory ? "default" : "secondary"}
+                  size="xs"
+                  onClick={() => setFilterCategory(null)}
+                >
+                  All ({tools.length})
+                </Button>
+                {Array.from(categories.entries()).map(([cat, catTools]) => {
+                  const meta = categoryMeta(cat);
+                  // The button body is NOT extracted as a block (translate="no")
+                  // because `meta.label` is already a `t()`-resolved string from
+                  // `categoryMeta()`. Extracting would wrap the whole body in a
+                  // second translation, producing `▒ ▒ Utility ▒ (32) ▒` in
+                  // pseudo. The count is numeric — no translation needed.
+                  return (
+                    <Button
+                      key={cat}
+                      translate="no"
+                      variant={filterCategory === cat ? "default" : "secondary"}
+                      size="xs"
+                      onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+                    >
+                      {meta.label} ({catTools.length})
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Tool list */}
@@ -338,7 +338,7 @@ export function ToolRunnerPage({
                 <Wrench size={32} className="mx-auto mb-3 opacity-20" />
                 <p className="text-sm">Select a tool to see what it does</p>
                 <p className="text-xs mt-1 opacity-60">
-                  {tools.length} tools available across {categories.size} categories
+                  {t("{count, plural, one {# tool} other {# tools}}", { count: tools.length })}
                 </p>
               </div>
             </div>

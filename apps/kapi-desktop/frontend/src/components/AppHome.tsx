@@ -114,7 +114,6 @@ export function AppHome({
         <PageHeader
           className="mb-4"
           title="Your context"
-          subtitle="What your projects write by, and what your assistants noticed."
           actions={
             <>
               <Button

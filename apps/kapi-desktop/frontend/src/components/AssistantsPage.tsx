@@ -73,7 +73,7 @@ type Wrote =
 
 export function AssistantsPage({
   tabID,
-  projectName,
+  projectName: _projectName,
   onShowReads,
   onOpenSession,
   view: given,
@@ -134,7 +134,7 @@ export function AssistantsPage({
   return (
     <div data-slot="assistants-page">
       <PageHeader
-        title={t("{project} · Assistants", { project: projectName })}
+        title={t("Assistants")}
         subtitle={
           view &&
           !view.needs_checkout &&

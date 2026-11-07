@@ -307,7 +307,7 @@ function StripBar({ label, pct, color }: { label: string; pct: number; color?: s
       </span>
       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
         <span
-          className="block h-full rounded-full bg-primary transition-all"
+          className="block h-full rounded-full bg-primary transition-[width]"
           style={{ width: `${pct}%`, ...(color ? { background: color } : {}) }}
         />
       </span>
@@ -835,7 +835,7 @@ export function CollectionsPanel({
   };
 
   const handleAddCollection = () => {
-    updateCollections([...collections, { name: "New Collection", content: [{ path: "" }] }]);
+    updateCollections([...collections, { name: "New collection", content: [{ path: "" }] }]);
   };
 
   const handleUpdateCollection = (index: number, coll: Collection) => {
@@ -1236,7 +1236,7 @@ export function CollectionsPanel({
               placeholder={
                 project.defaults?.source_language
                   ? t("Inherit ({source})", { source: project.defaults.source_language })
-                  : t("Select source...")
+                  : t("Select source…")
               }
             />
           </div>
@@ -1256,7 +1256,7 @@ export function CollectionsPanel({
                   ? t("Inherit ({targets})", {
                       targets: project.defaults.target_languages.join(", "),
                     })
-                  : t("Add targets...")
+                  : t("Add targets…")
               }
             />
           </div>
@@ -1276,7 +1276,9 @@ export function CollectionsPanel({
                   className="absolute right-10 top-3 text-[10px] text-muted-foreground"
                   data-testid="pattern-match-count"
                 >
-                  {t("{count} file(s)", { count: matchCountForItem(ci, ii) })}
+                  {t("{count, plural, one {# file} other {# files}}", {
+                    count: matchCountForItem(ci, ii),
+                  })}
                 </span>
                 <div className="absolute right-2 top-2 opacity-0 group-hover/item:opacity-100">
                   <ConfirmDeleteButton
@@ -1622,7 +1624,7 @@ export function CollectionsPanel({
   // The single flow picker in the section header is scope-aware: it runs across
   // the ticked collections when any are selected, else across the whole project
   // (the runner narrows "all" by the active filter). This is what folds the old
-  // standalone "Run Flows" list into the collection surface (issue #1068).
+  // standalone "Run flows" list into the collection surface (issue #1068).
   const hasSelection = selected.size > 0;
   const runReady = hasSelection ? selectedPaths.length > 0 : matches.length > 0;
   const flowValid = (name: string) => flowValidation[name]?.valid !== false;
@@ -1858,11 +1860,11 @@ export function CollectionsPanel({
             aria-label="Add content collection"
           >
             <Plus size={12} />
-            {t("Add Collection")}
+            {t("Add collection")}
           </Button>
           <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
             <Plus size={12} />
-            {t("Add Files")}
+            {t("Add files")}
           </Button>
           {/* Advanced — collapsed by default: the manual run pickers and the
               Re-extract override live behind it. Bring up to date (the hero)
@@ -1977,10 +1979,13 @@ export function CollectionsPanel({
           <Filter size={12} className="shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">
             {hiddenCount > 0
-              ? t("Filtered by {name} · {count} collection(s) hidden", {
-                  name: activeFilter.name,
-                  count: hiddenCount,
-                })
+              ? t(
+                  "Filtered by {name} · {count, plural, one {# collection} other {# collections}} hidden",
+                  {
+                    name: activeFilter.name,
+                    count: hiddenCount,
+                  },
+                )
               : t("Filtered by {name}", { name: activeFilter.name })}
           </span>
           <Button

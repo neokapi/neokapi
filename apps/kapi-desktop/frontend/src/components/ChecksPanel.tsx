@@ -404,7 +404,6 @@ export function ChecksPanel({
     <div className="p-6">
       <PageHeader
         title="Checks"
-        subtitle="Run content checks like tests over your project: terminology, placeholders, and brand vocabulary. Scope which files and languages to check with the menu-bar filter."
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => void runChecks()} disabled={loading}>

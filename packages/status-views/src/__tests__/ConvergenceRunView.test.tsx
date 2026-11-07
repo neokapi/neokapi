@@ -72,7 +72,7 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
         onOpenReview={onOpenReview}
       />,
     );
-    expect(screen.getByText(/1 scope\(s\) waiting for review/)).toBeInTheDocument();
+    expect(screen.getByText(/1 scope waiting for review/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Review de-DE · docs" }));
     expect(onOpenReview).toHaveBeenCalledWith({ collection: "docs", locale: "de-DE" });
@@ -89,7 +89,7 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
       screen.getByText("Up to date in 1 pass(es). Every gated locale is shippable."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Materialized 4 localized file(s) from the project store."),
+      screen.getByText("Wrote 4 translated files from the project store."),
     ).toBeInTheDocument();
   });
 

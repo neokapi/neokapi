@@ -131,7 +131,7 @@ describe("ConvergenceHero", () => {
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("70% translated; the ship gate needs 100%");
     expect(dialog).toHaveTextContent("2 failing a check");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Open Checks" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Open checks" }));
     expect(onOpenChecks).toHaveBeenCalledTimes(1);
   });
 
