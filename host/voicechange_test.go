@@ -56,3 +56,23 @@ func TestVoiceEditOf_ACreatedProfileKeepsNoPrevious(t *testing.T) {
 	assert.Empty(t, edit.Previous)
 	assert.NotEmpty(t, edit.Changes)
 }
+
+// TestVoiceEditOf_ComparesPatternsByPosition: a list of objects with no id is
+// compared item by item, so editing one pattern's description is one change,
+// and an added item reads as its own words.
+func TestVoiceEditOf_ComparesPatternsByPosition(t *testing.T) {
+	before := &coreprofile.VoiceProfile{ID: "docs", Name: "Docs"}
+	before.Style.ProhibitedPatterns = []coreprofile.Pattern{{Regex: "!", Description: "Exclamation in prose"}}
+	after := &coreprofile.VoiceProfile{ID: "docs", Name: "Docs"}
+	after.Style.ProhibitedPatterns = []coreprofile.Pattern{
+		{Regex: "!", Description: "Exclamation mark in prose"},
+		{Regex: "blazing", Description: "Marketing superlative"},
+	}
+
+	edit, err := voiceEditOf(before, after)
+	require.NoError(t, err)
+	assert.Equal(t, []contextop.VoiceChange{
+		{Field: "style.prohibited_patterns[1].description", From: "Exclamation in prose", To: "Exclamation mark in prose"},
+		{Field: "style.prohibited_patterns[2]", To: "Marketing superlative"},
+	}, edit.Changes)
+}

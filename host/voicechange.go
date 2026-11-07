@@ -130,6 +130,23 @@ func diffVoiceTree(path string, a, b any, out *[]contextop.VoiceChange) {
 			return
 		}
 	}
+	// A list of objects with no ids (patterns, examples) is compared by
+	// position, so an edited description is one field rather than the list.
+	if al, ok := objectList(a); ok {
+		if bl, ok := objectList(b); ok {
+			for i := range max(len(al), len(bl)) {
+				var x, y any
+				if i < len(al) {
+					x = al[i]
+				}
+				if i < len(bl) {
+					y = bl[i]
+				}
+				diffVoiceTree(fmt.Sprintf("%s[%d]", path, i+1), x, y, out)
+			}
+			return
+		}
+	}
 	from, to := voiceValue(a), voiceValue(b)
 	if from == to {
 		return
@@ -158,6 +175,21 @@ func voiceIDList(v any) (map[string]any, bool) {
 		out[id] = item
 	}
 	return out, true
+}
+
+// objectList reports a list whose every item is an object. A nil list is an
+// empty one.
+func objectList(v any) ([]any, bool) {
+	list, ok := v.([]any)
+	if !ok {
+		return nil, v == nil
+	}
+	for _, item := range list {
+		if _, ok := item.(map[string]any); !ok {
+			return nil, false
+		}
+	}
+	return list, true
 }
 
 func unionKeys(a, b map[string]any) []string {
@@ -213,9 +245,10 @@ func voiceValue(v any) string {
 		if len(x) == 0 {
 			return ""
 		}
-		// A constraint reads as its statement.
-		if st, ok := x["statement"].(string); ok && st != "" {
-			s = st
+		// An item reads as its own words: a constraint's statement, a
+		// pattern's description, an example's corrected text.
+		if label := itemLabel(x); label != "" {
+			s = label
 			break
 		}
 		data, _ := json.Marshal(x)
@@ -227,6 +260,17 @@ func voiceValue(v any) string {
 		s = string(r[:voiceValueCap-1]) + "…"
 	}
 	return s
+}
+
+// itemLabel is the field an object in a profile list reads as, empty when it
+// carries none of them.
+func itemLabel(m map[string]any) string {
+	for _, key := range []string{"statement", "description", "after", "name", "text"} {
+		if v, ok := m[key].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // voiceEditPhrase names what an edit changed for the record's one line: the
