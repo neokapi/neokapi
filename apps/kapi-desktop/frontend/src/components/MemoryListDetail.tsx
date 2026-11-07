@@ -1,18 +1,18 @@
-// A content memory as a list of pairs beside a detail pane.
+// A content memory as a list of source wordings beside a detail pane.
 //
 // An entry holds one sentence in several languages. The list has one row per
-// pair, the entry's source text and one of its other languages, so an entry in
-// three languages is two rows. The filter bar at the top of the list searches
+// source wording, with the languages it is held in as pills, so a sentence in
+// six languages is one row; entries sharing the same source wording share the
+// row too. The filter bar at the top of the list searches
 // the store on Enter and narrows it by the facets the store counts (language,
 // target language, project, entity, import, inline codes), as typed tokens or
 // from its Filters menu. Find similar, beside it, looks up wording like a
 // sentence instead, and lists the matches best first with their scores.
 //
-// The box at the start of a row marks its entry, as does x on the selected
+// The box at the start of a row marks its entries, as does x on the selected
 // row, and Mark all shown marks every entry in view. While any entry is marked
 // the detail pane holds what can be done to all of them; otherwise it holds the
-// selected pair, with the toolbar's toggle between the pair and every language
-// the entry holds.
+// selected row, with the wording in each of its languages.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -37,6 +37,7 @@ import {
   ListDetailList,
   LoadingSpinner,
   LocaleLabel,
+  SimpleTooltip,
   ToggleGroup,
   ToggleGroupItem,
   cn,
@@ -50,11 +51,14 @@ import {
   type VariantInputDTO,
 } from "@neokapi/ui-primitives";
 import { memoryFilterFields, memoryQueryParts, memoryTargets } from "../lib/memoryFilters";
-import { pairsOf, variantInput, type MemoryPair } from "../lib/memoryPairs";
+import { rowsOf, variantInput, type MemoryRow } from "../lib/memoryPairs";
 import { MemoryLookupBar } from "./MemoryLookupBar";
-import { AddEntryDialog, BulkDetail, PairDetail, type MemoryView } from "./MemoryPairDetail";
+import { AddEntryDialog, BulkDetail, RowDetail } from "./MemoryPairDetail";
 
-export { pairsOf, sourceLocaleOf, type MemoryPair } from "../lib/memoryPairs";
+export { rowsOf, sourceLocaleOf, type MemoryRow } from "../lib/memoryPairs";
+
+/** How many language pills a row shows before it counts the rest. */
+const ROW_PILLS = 3;
 
 /** How many entries one read of the store carries. */
 export const MEMORY_PAGE = 100;
@@ -78,15 +82,14 @@ export interface MemoryListDetailProps {
   /** The add-entry dialog is open; the page header's button opens it. */
   adding?: boolean;
   onAddingChange?: (open: boolean) => void;
-  /** The pair to open on, by its id. Absent opens with nothing selected. */
+  /** The row to open on, by its first entry's id. Absent opens with nothing selected. */
   defaultSelected?: string;
   /**
-   * The state to open in, for Storybook: filter tokens, the detail's view, the
-   * entries marked once they load, or a Find similar lookup already run.
+   * The state to open in, for Storybook: filter tokens, the entries marked
+   * once they load, or a Find similar lookup already run.
    */
   initial?: {
     tokens?: FilterToken[];
-    view?: MemoryView;
     marked?: string[];
     lookup?: string;
   };
@@ -110,7 +113,6 @@ export function MemoryListDetail({
   const [search, setSearch] = useState("");
   const [tokens, setTokens] = useState<FilterToken[]>(initial?.tokens ?? []);
   const [lookupReq, setLookupReq] = useState<LookupMemoryRequest | null>(null);
-  const [view, setView] = useState<MemoryView>(initial?.view ?? "pair");
   const [marked, setMarked] = useState<ReadonlyMap<string, MemoryEntryDTO>>(NO_MARKS);
   const [selectedId, setSelectedId] = useState<string | null>(defaultSelected ?? null);
 
@@ -173,40 +175,37 @@ export function MemoryListDetail({
     queryFn: async () => (await adapter.lookup!(lookupReq!)) ?? [],
   });
 
-  // The rows: the search's pairs, or in Find similar one pair per match.
+  // The rows: the search's entries by source wording, or in Find similar the
+  // matches, best first, each row carrying the best match among its entries.
   const { rows, matchOf } = useMemo(() => {
     if (mode === "search") {
-      return {
-        rows: entries.flatMap((e) => pairsOf(e, targets)),
-        matchOf: new Map<string, MemoryMatchDTO>(),
-      };
+      return { rows: rowsOf(entries, targets), matchOf: new Map<string, MemoryMatchDTO>() };
     }
+    const matches = lookup.data ?? [];
+    const out = rowsOf(matches.map((m) => m.entry));
     const byId = new Map<string, MemoryMatchDTO>();
-    const out: MemoryPair[] = [];
-    for (const m of lookup.data ?? []) {
-      const into = lookupReq?.target_locale;
-      const pair = pairsOf(m.entry).find((p) => p.target === into) ?? pairsOf(m.entry, targets)[0];
-      if (!pair || byId.has(pair.id)) continue;
-      byId.set(pair.id, m);
-      out.push(pair);
+    for (const row of out) {
+      const ids = new Set(row.entries.map((e) => e.id));
+      const best = matches.find((m) => ids.has(m.entry.id));
+      if (best) byId.set(row.id, best);
     }
     return { rows: out, matchOf: byId };
-  }, [mode, entries, targets, lookup.data, lookupReq]);
+  }, [mode, entries, targets, lookup.data]);
 
-  const selected = rows.find((p) => p.id === selectedId) ?? null;
+  const selected = rows.find((r) => r.id === selectedId) ?? null;
 
-  const toggleMark = (entry: MemoryEntryDTO) =>
+  const isMarked = (row: MemoryRow) => row.entries.every((e) => marked.has(e.id));
+  const toggleMark = (row: MemoryRow) =>
     setMarked((prev) => {
       const next = new Map(prev);
-      if (next.has(entry.id)) next.delete(entry.id);
-      else next.set(entry.id, entry);
+      const on = row.entries.every((e) => next.has(e.id));
+      for (const e of row.entries) {
+        if (on) next.delete(e.id);
+        else next.set(e.id, e);
+      }
       return next;
     });
-  const shownEntries = useMemo(() => {
-    const seen = new Map<string, MemoryEntryDTO>();
-    for (const row of rows) seen.set(row.entry.id, row.entry);
-    return [...seen.values()];
-  }, [rows]);
+  const shownEntries = useMemo(() => rows.flatMap((row) => row.entries), [rows]);
   const allMarked = shownEntries.length > 0 && shownEntries.every((e) => marked.has(e.id));
   const toggleAll = () =>
     setMarked((prev) => {
@@ -243,7 +242,10 @@ export function MemoryListDetail({
     onSettled: refresh,
   });
   const remove = useMutation({
-    mutationFn: (entry: MemoryEntryDTO) => adapter.deleteEntry(entry.id),
+    mutationFn: (row: MemoryRow) =>
+      row.entries.length === 1
+        ? adapter.deleteEntry(row.entries[0].id)
+        : adapter.deleteEntries(row.entries.map((e) => e.id)),
     onSuccess: () => setSelectedId(null),
     onError: (err) => onError?.(t("The entry could not be deleted"), err),
     onSettled: refresh,
@@ -252,7 +254,7 @@ export function MemoryListDetail({
     mutationFn: (ids: string[]) => adapter.deleteEntries(ids),
     onSuccess: (_, ids) => {
       setMarked(NO_MARKS);
-      if (selected && ids.includes(selected.entry.id)) setSelectedId(null);
+      if (selected?.entries.some((e) => ids.includes(e.id))) setSelectedId(null);
     },
     onError: (err) => onError?.(t("The entries could not be deleted"), err),
     onSettled: refresh,
@@ -431,20 +433,20 @@ export function MemoryListDetail({
           aria-label={t("Entries")}
           className="pt-0"
           onKeyDown={(e) => {
-            // x marks the selected row's entry, as the box at its start does.
+            // x marks the selected row's entries, as the box at its start does.
             if (e.key === "x" && !e.metaKey && !e.ctrlKey && !e.altKey && selected) {
               e.preventDefault();
-              toggleMark(selected.entry);
+              toggleMark(selected);
             }
           }}
         >
-          {rows.map((pair) => (
-            <PairRow
-              key={pair.id}
-              pair={pair}
-              marked={marked.has(pair.entry.id)}
-              score={matchOf.get(pair.id)?.score}
-              onToggleMark={() => toggleMark(pair.entry)}
+          {rows.map((row) => (
+            <RowItem
+              key={row.id}
+              row={row}
+              marked={isMarked(row)}
+              score={matchOf.get(row.id)?.score}
+              onToggleMark={() => toggleMark(row)}
             />
           ))}
         </ListDetailList>
@@ -482,18 +484,14 @@ export function MemoryListDetail({
     );
   } else if (selected) {
     detail = (
-      <PairDetail
+      <RowDetail
         key={selected.id}
-        pair={selected}
+        row={selected}
         adapter={adapter}
         search={search}
-        saving={update.isPending}
-        view={view}
-        onViewChange={setView}
         match={matchOf.get(selected.id)}
-        onSelect={setSelectedId}
-        onSave={(locale, runs) => update.mutateAsync({ entry: selected.entry, locale, runs })}
-        onDelete={() => remove.mutate(selected.entry)}
+        onSave={(entry, locale, runs) => update.mutateAsync({ entry, locale, runs })}
+        onDelete={() => remove.mutate(selected)}
         onAnnotated={refresh}
       />
     );
@@ -501,7 +499,7 @@ export function MemoryListDetail({
     detail = (
       <ListDetailEmpty
         title={t("Choose an entry to see it here")}
-        description={t("The source and its translation in full, and where the entry came from.")}
+        description={t("The source and each translation in full, and where the entry came from.")}
       />
     );
   }
@@ -514,25 +512,28 @@ export function MemoryListDetail({
   );
 }
 
-/** One pair in the list: its mark, the source text on one line, and the target's language. */
-function PairRow({
-  pair,
+/** One row in the list: its mark, the source text on one line, and its languages as pills. */
+function RowItem({
+  row,
   marked,
   score,
   onToggleMark,
 }: {
-  pair: MemoryPair;
+  row: MemoryRow;
   marked: boolean;
   /** The match score, in Find similar. */
   score?: number;
   onToggleMark: () => void;
 }) {
-  const variant = pair.entry.variants[pair.source];
+  const variant = row.entries[0]?.variants[row.source];
+  const shown = row.targets.slice(0, ROW_PILLS);
+  const rest = row.targets.slice(ROW_PILLS);
   return (
     <ListDetailItem
-      id={pair.id}
+      id={row.id}
       data-slot="memory-pair"
-      data-testid={`tm-entry-${pair.entry.id}${pair.target ? `-${pair.target}` : ""}`}
+      data-testid={`tm-entry-${row.id}`}
+      data-targets={row.targets.join(" ")}
       data-marked={marked || undefined}
       // Rows off screen skip layout and paint, so a store of thousands of
       // entries scrolls as lightly as a short one.
@@ -548,14 +549,28 @@ function PairRow({
               {Math.round(score * 100)}%
             </span>
           )}
-          {pair.target && <LocaleLabel locale={pair.target} compact />}
+          {shown.map((locale) => (
+            <LocaleLabel key={locale} locale={locale} compact />
+          ))}
+          {rest.length > 0 && (
+            <SimpleTooltip content={rest.join(", ")}>
+              <span
+                data-slot="memory-more-languages"
+                className="text-[11px] text-muted-foreground tabular-nums"
+              >
+                {t("+{count}", "languages beyond the pills on a content memory row", {
+                  count: rest.length,
+                })}
+              </span>
+            </SimpleTooltip>
+          )}
         </>
       }
     >
       <CodedTextDisplay
         runs={variant?.runs}
         text={variant?.text}
-        locale={pair.source}
+        locale={row.source}
         className="[&_*]:whitespace-nowrap"
       />
       {marked && <span className="sr-only">{t("marked", "content memory entry")}</span>}
@@ -564,7 +579,7 @@ function PairRow({
 }
 
 /**
- * The box that marks a row's entry. A click on it marks and leaves the
+ * The box that marks a row's entries. A click on it marks and leaves the
  * selection where it is; the list's x does the same from the keyboard, so the
  * box itself stays out of the tab order and out of the row's name.
  */

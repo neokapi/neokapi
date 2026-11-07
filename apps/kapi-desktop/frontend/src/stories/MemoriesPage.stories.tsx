@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { MemoriesPage } from "../components/MemoriesPage";
-import { SAMPLE_ENTRIES, makeMemoryAdapter, manyEntries } from "./fixtures/memory";
+import { SAMPLE_ENTRIES, SIX_LANGUAGES, makeMemoryAdapter, manyEntries } from "./fixtures/memory";
 
 /**
- * Content memory: one row per pair, the source text and one target language,
- * beside a detail pane with both sides in full and where the entry came from.
- * With no store open, the named stores are listed one row each.
+ * Content memory: one row per source wording, with its languages as pills,
+ * beside a detail pane with each translation in full and where the entry came
+ * from. With no store open, the named stores are listed one row each.
  */
 const meta: Meta<typeof MemoriesPage> = {
   title: "Pages/MemoriesPage",
@@ -37,7 +37,7 @@ export const OpenStore: Story = {
   ),
 };
 
-/** A pair selected: inline formatting as chips, its other language, its provenance and unit. */
+/** An entry selected: inline formatting as chips, its provenance and unit. */
 export const PairSelected: Story = {
   render: () => (
     <MemoriesPage
@@ -45,7 +45,7 @@ export const PairSelected: Story = {
         name: "Project Content Memory",
         adapter: makeMemoryAdapter(),
         count: SAMPLE_ENTRIES.length,
-        defaultSelected: "2::fr-FR",
+        defaultSelected: "2",
       }}
     />
   ),
@@ -54,7 +54,7 @@ export const PairSelected: Story = {
 /** The same in the dark theme. */
 export const PairSelectedDark: Story = { ...PairSelected, globals: { theme: "dark" } };
 
-/** An entry held in three languages, selected on one of its two targets. */
+/** An entry held in three languages: one row, and each translation in the detail. */
 export const ThreeLanguages: Story = {
   render: () => (
     <MemoriesPage
@@ -62,22 +62,21 @@ export const ThreeLanguages: Story = {
         name: "Project Content Memory",
         adapter: makeMemoryAdapter(),
         count: SAMPLE_ENTRIES.length,
-        defaultSelected: "1::de-DE",
+        defaultSelected: "1",
       }}
     />
   ),
 };
 
-/** Every language the entry holds, from the toggle in the detail's toolbar. */
-export const AllLanguages: Story = {
+/** A wording in six languages: three pills on the row, the rest counted. */
+export const ManyLanguages: Story = {
   render: () => (
     <MemoriesPage
       store={{
         name: "Project Content Memory",
-        adapter: makeMemoryAdapter(),
-        count: SAMPLE_ENTRIES.length,
-        defaultSelected: "1::fr-FR",
-        initial: { view: "all" },
+        adapter: makeMemoryAdapter([SIX_LANGUAGES, ...SAMPLE_ENTRIES]),
+        count: SAMPLE_ENTRIES.length + 1,
+        defaultSelected: SIX_LANGUAGES.id,
       }}
     />
   ),
@@ -136,7 +135,7 @@ export const ManyEntries: Story = {
         name: "Project Content Memory",
         adapter: makeMemoryAdapter(manyEntries(500)),
         count: 500,
-        defaultSelected: "m0::fr-FR",
+        defaultSelected: "m0",
       }}
     />
   ),

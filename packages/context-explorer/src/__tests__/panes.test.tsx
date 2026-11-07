@@ -139,14 +139,58 @@ describe("GovernsPane", () => {
     expect(screen.getByTestId("governs-voice")).toHaveTextContent("Support");
   });
 
-  it("marks a discouraged term and names its replacement", async () => {
+  it("lists a concept once, its discouraged term struck through with its replacement", async () => {
     mountPinned(<GovernsPane />);
     await waitFor(() => expect(screen.getAllByTestId("governs-term").length).toBe(2));
-    const discouraged = screen
-      .getAllByTestId("governs-term")
-      .find((el) => el.getAttribute("data-discouraged") === "true");
+    const row = screen.getAllByTestId("governs-term")[0];
+    expect(row).toHaveAttribute("data-concept", "c-signin");
+    expect(row).toHaveAttribute("data-discouraged", "false");
+    expect(row).toHaveTextContent("The act of authenticating into the product.");
+    const discouraged = screen.getByTestId("governs-term-discouraged");
     expect(discouraged).toHaveTextContent("log in");
     expect(discouraged).toHaveTextContent("use sign in");
+    expect(discouraged.querySelector(".line-through")).toHaveTextContent("log in");
+  });
+
+  it("lists a concept held in six languages once, counting the other languages", async () => {
+    mountPinned(<GovernsPane />);
+    await waitFor(() => expect(screen.getAllByTestId("governs-term").length).toBe(2));
+    const row = screen.getAllByTestId("governs-term")[1];
+    expect(row).toHaveAttribute("data-concept", "c-warehouse");
+    expect(row).toHaveTextContent("warehouse");
+    expect(row).not.toHaveTextContent("Lager");
+    expect(within(row).getByTestId("governs-term-more")).toHaveTextContent("+5 languages");
+    expect(within(row).queryByTestId("governs-term-chosen")).toBeNull();
+  });
+
+  it("shows the chosen language's term beside the source term", async () => {
+    render(
+      <ScopeProvider
+        source={makePinnedSource()}
+        pinned={PINNED}
+        scope={{ ...pinnedScope, locale: "de" }}
+      >
+        <GovernsPane />
+      </ScopeProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByTestId("governs-term").length).toBe(2));
+    const row = screen.getAllByTestId("governs-term")[1];
+    expect(within(row).getByTestId("governs-term-chosen")).toHaveTextContent("Lager");
+    expect(row).toHaveTextContent("warehouse");
+    expect(within(row).getByTestId("governs-term-more")).toHaveTextContent("+4 languages");
+  });
+
+  it("counts the concepts shown against the concepts scoped here", async () => {
+    mountPinned(<GovernsPane />);
+    await waitFor(() => expect(screen.getByTestId("governs-terms")).toHaveTextContent("2 of 18"));
+  });
+
+  it("says a capped list is partial when the surface cannot count its concepts", async () => {
+    mountPinned(
+      <GovernsPane />,
+      makePinnedSource({ governance: { terms_total: undefined, terms_capped: true } }),
+    );
+    await waitFor(() => expect(screen.getByTestId("governs-terms")).toHaveTextContent("first 2"));
   });
 
   it("shows an expired validity window rather than hiding the profile", async () => {
