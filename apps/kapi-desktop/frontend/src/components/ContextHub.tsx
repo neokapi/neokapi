@@ -96,6 +96,36 @@ export interface ContextHubProps {
   contextOnly?: boolean;
   /** Go to another view of the project: "map", … */
   onNavigate?: (view: string) => void;
+  /**
+   * Which sections the hub offers. "context" is the rail's Context page;
+   * "connect" is the assistants, their sessions and sharing, which Project
+   * Settings hosts under its own tabs, so the hub draws no section nav there.
+   * A context-only tab has no Project Settings and offers every section.
+   * Defaults to "all" on a context-only tab and "context" otherwise.
+   */
+  group?: "context" | "connect" | "all";
+}
+
+/** The sections Project Settings hosts rather than the Context page. */
+const CONNECT_SECTIONS: ReadonlySet<ContextSection> = new Set(["agent", "history", "share"]);
+
+/**
+ * The connect section a view names, wherever it is spelled: Project Settings'
+ * own tabs ("project-settings:assistants"), or the hub's ids a saved session
+ * may still hold ("context:agent").
+ */
+export function connectSectionOf(view: string): ContextSection | undefined {
+  const [base, section] = view.split(":");
+  if (base === "project-settings") {
+    if (section === "assistants") return "agent";
+    if (section === "sessions") return "history";
+    if (section === "share") return "share";
+    return undefined;
+  }
+  if (base === "context" && CONNECT_SECTIONS.has(section as ContextSection)) {
+    return section as ContextSection;
+  }
+  return undefined;
 }
 
 const SECTIONS: Array<{
@@ -163,6 +193,7 @@ export function ContextHub({
   hasTargetLanguages,
   contextOnly,
   onNavigate,
+  group = contextOnly ? "all" : "context",
 }: ContextHubProps) {
   const [active, setActive] = useState<ContextSection>(section ?? (pin ? "explorer" : "rules"));
   // A pin set from inside the hub (the memory browser opening a unit) rather
@@ -177,7 +208,9 @@ export function ContextHub({
   // one of the two things such a tab exists to show.
   const sections = SECTIONS.filter(
     (s) =>
-      (!s.localeGated || hasTargetLanguages || contextOnly) && (!s.needsCheckout || !contextOnly),
+      (!s.localeGated || hasTargetLanguages || contextOnly) &&
+      (!s.needsCheckout || !contextOnly) &&
+      (group === "all" || (group === "connect") === CONNECT_SECTIONS.has(s.id)),
   );
   // A section the project's languages or its missing checkout gated away must
   // not stay selected.
@@ -197,7 +230,7 @@ export function ContextHub({
         className="flex shrink-0 items-center gap-1 border-b border-border px-6 py-2"
       >
         {sections
-          .filter((s) => !s.under)
+          .filter((s) => !s.under && group !== "connect")
           .map((s) => (
             <button
               key={s.id}

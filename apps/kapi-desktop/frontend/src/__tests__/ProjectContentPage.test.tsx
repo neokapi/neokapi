@@ -1,7 +1,7 @@
 import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
-import { HomePage } from "../components/HomePage";
+import { ProjectContentPage } from "../components/ProjectContentPage";
 import { ErrorProvider } from "../components/ErrorBanner";
 import type { KapiProject, ProjectStatus, ConvergenceReport } from "../types/api";
 
@@ -21,7 +21,7 @@ const project: KapiProject = {
   ],
 };
 
-describe("HomePage merged collection surface", () => {
+describe("Project Settings → Content", () => {
   it("renders per-collection stats and a project-wide coverage strip", () => {
     const status: ProjectStatus = {
       projectPath: "/p/demo/kapi.yaml",
@@ -37,11 +37,12 @@ describe("HomePage merged collection surface", () => {
       ],
     };
     renderWithProviders(
-      <HomePage
+      <ProjectContentPage
         project={project}
         displayName="Demo"
         tabID="t1"
-        onNavigate={vi.fn()}
+        onUpdate={vi.fn()}
+        hasTargetLanguages
         status={status}
       />,
     );
@@ -63,11 +64,12 @@ describe("HomePage merged collection surface", () => {
       collections: [],
     };
     renderWithProviders(
-      <HomePage
+      <ProjectContentPage
         project={project}
         displayName="Demo"
         tabID="t1"
-        onNavigate={vi.fn()}
+        onUpdate={vi.fn()}
+        hasTargetLanguages
         status={status}
       />,
     );
@@ -90,11 +92,12 @@ describe("HomePage merged collection surface", () => {
       ],
     };
     renderWithProviders(
-      <HomePage
+      <ProjectContentPage
         project={project}
         displayName="Demo"
         tabID="t1"
-        onNavigate={vi.fn()}
+        onUpdate={vi.fn()}
+        hasTargetLanguages
         status={status}
       />,
     );
@@ -121,11 +124,12 @@ describe("HomePage merged collection surface", () => {
       ],
     };
     renderWithProviders(
-      <HomePage
+      <ProjectContentPage
         project={project}
         displayName="Demo"
         tabID="t1"
-        onNavigate={vi.fn()}
+        onUpdate={vi.fn()}
+        hasTargetLanguages
         status={status}
       />,
     );
@@ -169,11 +173,12 @@ describe("HomePage merged collection surface", () => {
       review: [],
     };
     renderWithProviders(
-      <HomePage
+      <ProjectContentPage
         project={project}
         displayName="Demo"
         tabID="t1"
-        onNavigate={vi.fn()}
+        onUpdate={vi.fn()}
+        hasTargetLanguages
         status={status}
         convergence={convergence}
       />,
@@ -185,14 +190,5 @@ describe("HomePage merged collection surface", () => {
     expect(screen.getAllByText("In review").length).toBeGreaterThan(0);
     // The project-wide overview is now the per-language completeness timeline.
     expect(screen.getByText("Completeness by language")).toBeInTheDocument();
-  });
-
-  it("drops the standalone Content quick-action card (the page is content now)", () => {
-    renderWithProviders(
-      <HomePage project={project} displayName="Demo" tabID="t1" onNavigate={vi.fn()} />,
-    );
-    // Quick actions: Check / Flows / Tools / Settings — no "Content" card.
-    expect(screen.getByText("Check")).toBeInTheDocument();
-    expect(screen.queryByText("Content")).not.toBeInTheDocument();
   });
 });

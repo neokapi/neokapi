@@ -1,4 +1,4 @@
-// The Map: the page a project tab opens on, drawn by @neokapi/project-screens'
+// The Overview (view id "map"): the page a project tab opens on, drawn by @neokapi/project-screens'
 // MapView. This page reads it through the desktop backend and fills the parts
 // only the desktop has: the deeper look's row, the Connect your AI card, Add
 // files and the file preview.
@@ -77,6 +77,8 @@ export interface MapPageProps {
    * preset. The files' empty state then leads to the page that sets it up.
    */
   setupPending?: boolean;
+  /** Drawn under the counts: the Overview's notices and language standing. */
+  standing?: React.ReactNode;
 }
 
 export function MapPage({
@@ -88,6 +90,7 @@ export function MapPage({
   onNavigate,
   onOpenReader,
   setupPending,
+  standing,
 }: MapPageProps) {
   const qc = useQueryClient();
   const key = qk.mapSummary(tabID);
@@ -190,6 +193,7 @@ export function MapPage({
         running={run.isPending}
         runError={run.error}
         onRun={() => run.mutate()}
+        standing={standing}
         deeperLook={
           <DeeperLookRow
             state={{

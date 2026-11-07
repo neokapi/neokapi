@@ -42,8 +42,8 @@ export function desktopView(target: ScreenTarget): string {
     case "blocks":
       return "context:explorer";
     case "setup":
-      return "project-home";
+      return "setup";
     case "connect-assistant":
-      return "context:agent";
+      return "project-settings:assistants";
   }
 }

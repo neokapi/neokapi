@@ -809,6 +809,19 @@ function contextSection(page: Page, label: string): Locator {
   return page.locator(`nav[aria-label="Context sections"] button:has-text("${label}")`);
 }
 
+/** One tab of Project Settings: Settings, Content, Assistants or Share. */
+function settingsTab(page: Page, label: string): Locator {
+  return page.locator(`[data-slot="project-settings-tabs"] [role="tab"]:has-text("${label}")`);
+}
+
+/** Project Settings on one tab, from wherever the walk stands. */
+async function openSettingsTab(page: Page, label: string): Promise<void> {
+  await humanClick(page, page.locator('button[aria-label="Project Settings"]'));
+  await page.waitForSelector('[data-slot="project-settings-tabs"]', { timeout: 20_000 });
+  await humanClick(page, settingsTab(page, label));
+  await page.waitForTimeout(1000);
+}
+
 /** Terms + content memory, read at the project that agreed them.
  *
  *  The two stores are sections of the Context pillar rather than rail items,
@@ -939,8 +952,8 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     await landOnHome(page);
     await idle(page, 2000);
   });
-  // The folder, dropped on the Open screen. It opens as a tab on its Map, whose
-  // empty files list leads to the project home and its templates; take the
+  // The folder, dropped on the Open screen. It opens as a tab on its Overview, whose
+  // empty files list leads to the setup page and its templates; take the
   // input/output one. Nothing is governed yet, which is what the next beats
   // change.
   await beat("new-project", null, async () => {
@@ -971,13 +984,13 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     if (await save.count()) await humanClick(page, save);
     await page.waitForTimeout(1400);
   });
-  // A collection, declared on the project home: a name and one glob. The
+  // A collection, declared on Project Settings → Content: a name and one glob. The
   // pattern field is a CodeMirror editor (GlobInput → CodeInput), so the text
   // goes in through the focused .cm-content rather than into an <input>, and
   // the row reports what the pattern matched as it is typed.
   await beatEls("add-collection", ['[data-testid="pattern-match-count"]', '[data-slot="code-input"]'], async () => {
-    await humanClick(page, sidebar("Project"));
-    await page.waitForTimeout(1300);
+    await openSettingsTab(page, "Content");
+    await page.waitForTimeout(300);
     await humanClick(page, page.locator('[aria-label="Add content collection"]').first());
     await page.waitForTimeout(900);
     const edit = page.locator('[aria-label="Edit collection"]').last();
@@ -1003,10 +1016,9 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   await page.waitForTimeout(500);
   await landOnHome(page);
   await humanClick(page, page.getByTestId("sample-kapimart"));
-  // A new project tab opens on its Map; the plan is on the project home.
-  await page.waitForSelector('button[aria-label="Project"]:not([disabled])', { timeout: 60_000 });
+  // A new project tab opens on its Overview, where the plan sits under the counts.
+  await page.waitForSelector('button[aria-label="Overview"]:not([disabled])', { timeout: 60_000 });
   await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
-  await humanClick(page, sidebar("Project"));
   await page.waitForSelector('[data-slot="hero-plan"]', { timeout: 60_000 });
   await page.waitForTimeout(1200);
   await beatEls("plan", ['[data-slot="converge-plan-dialog"]'], async () => {
@@ -1092,12 +1104,12 @@ async function landOnHome(page: Page): Promise<void> {
  * and lands on the Get Started template picker, which replaces the project
  * home, and the walk films that instead. A rail item is enabled exactly when
  * a project tab is open, so read it to tell the two states apart and go back
- * through the project home button.
+ * through the Overview button.
  */
 async function openSample(page: Page, testid: string, readyLabel: string): Promise<void> {
   const ready = `button[aria-label="${readyLabel}"]:not([disabled])`;
   if (await page.locator(ready).count()) {
-    const home = page.locator('button[aria-label="Project"]');
+    const home = page.locator('button[aria-label="Overview"]');
     if (await home.count()) await humanClick(page, home);
     await page.waitForTimeout(1400);
     return;
@@ -1107,15 +1119,14 @@ async function openSample(page: Page, testid: string, readyLabel: string): Promi
   // Wait until the project has opened and its plugins resolve (the gated sidebar
   // item becomes enabled), so subsequent clicks land on a ready project.
   await page.waitForSelector(ready, { timeout: 60_000 });
-  // A new project tab opens on its Map; land on the project home, as the
-  // branch above does, so every caller starts from the same place.
+  // A new project tab opens on its Overview, where the branch above lands too,
+  // so every caller starts from the same place.
   await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
-  await humanClick(page, page.locator('button[aria-label="Project"]'));
   await page.waitForTimeout(1200);
 }
 
 /**
- * Expand one collection on the project home and open one of its files in the
+ * Expand one collection on Project Settings → Content and open one of its files in the
  * preview sheet.
  *
  * The matched-file table nests: a shared output pattern renders as a
@@ -1164,9 +1175,8 @@ async function closePreview(page: Page): Promise<void> {
 /**
  * A project's content: what a collection matched, and what one file holds.
  *
- * Content stopped being a rail item when the project home merged (#2273), so
- * the collections ARE the front door: the standing and the point map sit above
- * them and every collection opens in place. The app reads the project's files
+ * The collections are the Content tab of Project Settings: the standing and
+ * the point map sit above them and every collection opens in place. The app reads the project's files
  * itself as the tab opens and again when one changes (App.tsx
  * useProjectStoreSync), so the walk waits for the counts that read produces.
  * Opening a file from a collection raises the preview sheet, which reads a
@@ -1175,11 +1185,12 @@ async function closePreview(page: Page): Promise<void> {
  */
 async function contentWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
-  // Open the KapiMart sample: it lands on its Map, and openSample goes on to
-  // the project home, which opens on the standing.
+  // Open the KapiMart sample: it lands on its Overview, and the walk goes on
+  // to Project Settings → Content, which opens on the standing.
   await beatEls("open-project", ['[data-testid="project-standing"]'], async () => {
     await landOnHome(page);
-    await openSample(page, "sample-kapimart", "Project");
+    await openSample(page, "sample-kapimart", "Overview");
+    await openSettingsTab(page, "Content");
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.24, 700);
     await page.waitForTimeout(1800);
   });
@@ -1453,11 +1464,11 @@ function recordLiveNote(): void {
  * The sample arrives with two assistant sessions (backend/sample/session.go):
  * claude-code noticed names and a word and recorded a correction a person
  * made, and codex took the other side of that correction. The walk opens the
- * sample from the Open screen and reads what waits on its Map, opens Decide
+ * sample from the Open screen and reads what waits on its Overview, opens Decide
  * from there, settles the disagreement by picking a side and pressing `k`,
  * keeps a name in the form its files use and a word with `k`, reads the brief
  * an assistant gets for a file, watches a note recorded from outside the app
- * arrive on the Map, and ends on Share and its Preview.
+ * arrive on the Overview, and ends on Share and its Preview.
  *
  * Decide is a list of suggestions beside one question about the selected
  * one. The choose, keep and word beats select a row, read its question, and
@@ -1466,7 +1477,7 @@ function recordLiveNote(): void {
  */
 async function contextWalk(c: WalkCtx): Promise<void> {
   const { page, beatEls, beatSpan, cursorTo, cue, sidebar } = c;
-  // The Map's header, counts and the list of what waits for a decision.
+  // The Overview's header, counts and the list of what waits for a decision.
   const map = ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'];
   const waiting = '[data-slot="map-suggestions"] [data-slot="map-suggestion"]';
   const suggestion = (text: string) =>
@@ -1507,7 +1518,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await landOnHome(page);
 
   // Try with KapiMart scaffolds the sample with its two sessions and opens it
-  // on the Map, whose list holds what the assistants noticed and nobody has
+  // on the Overview, whose list holds what the assistants noticed and nobody has
   // decided, the disagreement first. The Decide button counts them.
   await beatEls("map", map, async () => {
     await humanClick(page, page.getByTestId("sample-kapimart"));
@@ -1595,7 +1606,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // The brief an assistant gets for the store's interface strings, which the
   // kept word now governs. Show what it reads, on the Assistants page, opens
   // on its Rules files tab, so the beat clicks the brief's tab first.
-  await humanClick(page, contextSection(page, "Assistants"));
+  await openSettingsTab(page, "Assistants");
   await humanClick(page, page.locator('[data-slot="assistants-reads"]'));
   await page.waitForSelector('[data-slot="rules-files"]', { timeout: 30_000 });
   await page.waitForTimeout(1000);
@@ -1626,11 +1637,11 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   });
   await settle();
 
-  // Back on the Map, a note arrives from outside the app. The Map reads again
+  // Back on the Overview, a note arrives from outside the app. It reads again
   // when the backend's workspace watcher reports that the log moved, as the
   // shipped app does, and the take fails rather than narrate a row that never
   // came.
-  await humanClick(page, sidebar("Map"));
+  await humanClick(page, sidebar("Overview"));
   await page.waitForSelector(waiting, { timeout: 20_000 });
   await page.waitForTimeout(1000);
   const arrived = page.locator(waiting).filter({ hasText: "sandbox" }).first();
@@ -1641,7 +1652,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await cue("test", 7.2);
     recordLiveNote();
     await arrived.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
-      throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the Map within 10 s (no sandbox row)");
+      throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the Overview within 10 s (no sandbox row)");
     });
     await cue("row", 10.6);
     await restOn(arrived);
@@ -1652,9 +1663,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await settle();
 
   // How far the project's context reaches.
-  await humanClick(page, sidebar("Context"));
-  await page.waitForSelector('nav[aria-label="Context sections"]', { timeout: 20_000 });
-  await humanClick(page, contextSection(page, "Share"));
+  await openSettingsTab(page, "Share");
   await page.waitForSelector('[data-slot="share-ladder"]', { timeout: 30_000 });
   await page.waitForTimeout(800);
   await beatEls("share", ['[data-slot="share-panel"]'], async () => {

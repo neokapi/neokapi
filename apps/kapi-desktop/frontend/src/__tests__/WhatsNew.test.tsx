@@ -287,11 +287,11 @@ describe("the mark a session is drawn with", () => {
 });
 
 describe("where a row of What's new opens", () => {
-  it("opens Decide while something waits, and History when the news is only a rule kept elsewhere", () => {
+  it("opens Decide while something waits, and Sessions when the news is only a rule kept elsewhere", () => {
     expect(whatsNewView(KAPIMART)).toBe("context:rules");
     expect(whatsNewView({ ...KAPIMART, suggested: 0, conflicts: 1 })).toBe("context:rules");
     expect(whatsNewView({ ...KAPIMART, suggested: 0, conflicts: 0, new: 1 })).toBe(
-      "context:history",
+      "project-settings:sessions",
     );
     expect(whatsNewView(undefined)).toBe("context:rules");
   });

@@ -147,7 +147,7 @@ vi.mock("../components/DecidePage", () => ({
   ),
 }));
 
-import { ContextHub, contextSectionOf } from "../components/ContextHub";
+import { ContextHub, connectSectionOf, contextSectionOf } from "../components/ContextHub";
 import { api } from "../hooks/useApi";
 import { CONTEXT_DIGEST } from "../stories/fixtures/contextDigest";
 
@@ -180,16 +180,13 @@ describe("ContextHub", () => {
 
   it("names the sections in the order a person meets them", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
-    expect(railLabels()).toEqual([
-      "Decide",
-      "Explore",
-      "Ask",
-      "Assistants",
-      "Voice",
-      "Terms",
-      "Content Memory",
-      "Share",
-    ]);
+    expect(railLabels()).toEqual(["Decide", "Explore", "Ask", "Voice", "Terms", "Content Memory"]);
+  });
+
+  it("leaves the assistants and sharing to Project Settings, which draws its own tabs", () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" section="agent" group="connect" />);
+    expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
+    expect(railLabels()).toEqual([]);
   });
 
   it("keeps what a tab with no checkout can read, and drops what reads files", async () => {
@@ -209,38 +206,34 @@ describe("ContextHub", () => {
   });
 
   it("opens what an assistant reads from the Assistants page, and comes back", async () => {
-    render(<ContextHub tabID="t1" projectName="Northsea" section="agent" />);
+    render(<ContextHub tabID="t1" projectName="Northsea" section="agent" group="connect" />);
     await userEvent.click(screen.getByRole("button", { name: "show reads" }));
     expect(screen.getByText("reads for t1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Assistants" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
     await userEvent.click(screen.getByRole("button", { name: "back to assistants" }));
     expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
   });
 
   it("opens what an assistant reads at a file it was handed", () => {
     render(
-      <ContextHub tabID="t1" projectName="Northsea" section="agent" pin={{ path: "docs/a.md" }} />,
+      <ContextHub
+        tabID="t1"
+        projectName="Northsea"
+        section="agent"
+        group="connect"
+        pin={{ path: "docs/a.md" }}
+      />,
     );
     expect(screen.getByText("reads for t1 at docs/a.md")).toBeInTheDocument();
   });
 
-  it("opens Sessions on the session the Assistants page names, under Assistants on the rail", async () => {
+  it("opens Sessions on the session the Assistants page names", async () => {
     vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
-    render(<ContextHub tabID="t1" projectName="Northsea" section="agent" />);
+    render(<ContextHub tabID="t1" projectName="Northsea" section="agent" group="connect" />);
     await userEvent.click(screen.getByRole("button", { name: "open session" }));
     expect(
       await screen.findByText(`feed for ${CONTEXT_DIGEST.project} on session:sess-1`),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sessions" })).toBeInTheDocument();
-    const rail = screen.getByRole("navigation", { name: "Context sections" });
-    expect(within(rail).getByRole("button", { name: "Assistants" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    // The back button and the rail entry share the name; the back button sits in the page.
     const back = document.querySelector<HTMLElement>("[data-slot='sessions-back']")!;
     await userEvent.click(back);
     expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
@@ -255,7 +248,7 @@ describe("ContextHub", () => {
   });
 
   it("opens Share on the project's ladder", () => {
-    render(<ContextHub tabID="t3" projectName="Northsea" section="share" />);
+    render(<ContextHub tabID="t3" projectName="Northsea" section="share" group="connect" />);
     expect(screen.getByText("share for t3 of Northsea")).toBeInTheDocument();
   });
 
@@ -268,12 +261,6 @@ describe("ContextHub", () => {
     expect(commands()).toHaveLength(1);
     expect(nav).toContainElement(commands()[0] as HTMLElement);
     expect(commands()[0].textContent).toBe("kapi rules");
-    await userEvent.click(screen.getByRole("button", { name: "Share" }));
-    expect(commands()[0].textContent).toBe("kapi share");
-    await userEvent.click(screen.getByRole("button", { name: "Assistants" }));
-    expect(commands()[0].textContent).toBe("kapi connect");
-    await userEvent.click(screen.getByRole("button", { name: "open session" }));
-    expect(commands()[0].textContent).toBe("kapi context log");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
     expect(commands()[0].textContent).toBe("kapi context <path>");
     await userEvent.click(screen.getByRole("button", { name: "Voice" }));
@@ -281,6 +268,22 @@ describe("ContextHub", () => {
     // Terms and Content Memory search and look up: no one command is the page.
     await userEvent.click(screen.getByRole("button", { name: "Terms" }));
     expect(commands()).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
+
+  it("names the command of each section Project Settings hosts", async () => {
+    vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
+    const command = () =>
+      document.querySelector("[data-slot='context-section-command']")?.textContent;
+    const { unmount } = render(
+      <ContextHub tabID="t1" projectName="Northsea" section="agent" group="connect" />,
+    );
+    expect(command()).toBe("kapi connect");
+    await userEvent.click(screen.getByRole("button", { name: "open session" }));
+    expect(command()).toBe("kapi context log");
+    unmount();
+    render(<ContextHub tabID="t1" projectName="Northsea" section="share" group="connect" />);
+    expect(command()).toBe("kapi share");
     vi.restoreAllMocks();
   });
 
@@ -315,7 +318,7 @@ describe("ContextHub", () => {
   it("lists the project's own history", async () => {
     const digest = vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
     const mark = vi.spyOn(api, "markProjectContextDigestSeen").mockResolvedValue("");
-    render(<ContextHub tabID="t1" projectName="Northsea" section="history" />);
+    render(<ContextHub tabID="t1" projectName="Northsea" section="history" group="connect" />);
     expect(await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`)).toBeInTheDocument();
     expect(digest).toHaveBeenCalledWith("t1", "");
     // Sessions lists what is new, so opening it moves the home's marker.
@@ -326,7 +329,7 @@ describe("ContextHub", () => {
 
   it("gives Sessions the full height, so its list and detail scroll on their own", async () => {
     const digest = vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
-    render(<ContextHub tabID="t1" projectName="Northsea" section="history" />);
+    render(<ContextHub tabID="t1" projectName="Northsea" section="history" group="connect" />);
     const feed = await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`);
     // No scrolling column around the panel: it fills the section's height.
     expect(feed.closest("[data-slot='scroll-area']")).toBeNull();
@@ -334,6 +337,15 @@ describe("ContextHub", () => {
     expect(feed.parentElement?.className).toContain("flex-1");
     expect(screen.getByRole("heading", { name: "Sessions" })).toBeInTheDocument();
     digest.mockRestore();
+  });
+
+  it("routes a view to the Project Settings section it names, by either spelling", () => {
+    expect(connectSectionOf("project-settings:assistants")).toBe("agent");
+    expect(connectSectionOf("project-settings:sessions")).toBe("history");
+    expect(connectSectionOf("project-settings:share")).toBe("share");
+    expect(connectSectionOf("context:agent")).toBe("agent");
+    expect(connectSectionOf("context:terms")).toBeUndefined();
+    expect(connectSectionOf("project-settings:content")).toBeUndefined();
   });
 
   it("routes a view to the section it names", () => {
