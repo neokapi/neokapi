@@ -16,11 +16,26 @@ describe("VoicePage", () => {
 
   it("names the binding that selected the profile", () => {
     render(<VoicePage tabID="t1" result={voiceFixture} />);
-    // The recipe plumbing sits on its own quiet line, off the resolution chain.
-    const plumbing = screen.getByTestId("voice-plumbing");
-    expect(plumbing).toHaveTextContent("defaults.voice");
-    expect(plumbing).toHaveTextContent("profile");
-    expect(plumbing).toHaveTextContent("northsea");
+    // The binding sits on its own quiet line as a plain phrase; the recipe key
+    // and the store path are its tooltip.
+    expect(screen.getByTestId("voice-binding")).toHaveTextContent("Bound in the recipe's defaults");
+  });
+
+  it("draws the shared coordinates once and each row's differences", () => {
+    render(<VoicePage tabID="t1" result={voiceFixture} />);
+    const shared = screen.getByTestId("voice-shared-coordinates");
+    expect(
+      [...shared.querySelectorAll("[data-slot='coordinate-chip']")].map((c) =>
+        c.getAttribute("data-axis"),
+      ),
+    ).toEqual(["brand"]);
+    const rows = screen.getAllByTestId("voice-point-row");
+    expect(rows[0].querySelector("[data-slot='coordinate-chip']")).toBeNull();
+    expect(
+      [...rows[2].querySelectorAll("[data-slot='coordinate-chip']")].map((c) =>
+        c.getAttribute("data-axis"),
+      ),
+    ).toEqual(["product"]);
   });
 
   it("draws the skipped binding and what governs in its place", async () => {

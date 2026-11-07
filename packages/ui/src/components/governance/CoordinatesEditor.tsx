@@ -12,6 +12,7 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { axisMeta } from "../ui/coordinate-chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 /** One axis the consumer knows about. */
@@ -53,6 +54,15 @@ export interface CoordinatesEditorProps {
   disabled?: boolean;
   className?: string;
   testId?: string;
+}
+
+/**
+ * An axis as a row label: the product's own name for an axis it knows, and the
+ * recipe's key with its first letter capitalised for one a recipe minted.
+ */
+export function axisName(axis: string): string {
+  const name = axisMeta(axis).label;
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 /** The axes of a map whose value is blank, for a consumer that refuses to save one. */
@@ -98,7 +108,9 @@ export function CoordinatesEditor({
             return (
               <li key={a} className="space-y-0.5" data-testid="coordinate-row">
                 <div className="flex items-center gap-2">
-                  <code className="w-28 shrink-0 font-mono text-xs">{a}</code>
+                  <span className="w-28 shrink-0 text-sm" data-testid="coordinate-axis">
+                    {axisName(a)}
+                  </span>
                   {known?.values?.length ? (
                     <Select
                       value={v}

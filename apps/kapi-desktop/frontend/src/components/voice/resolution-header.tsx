@@ -82,6 +82,17 @@ export function ResolutionChain({ point }: { point: VoicePoint }) {
 }
 
 /**
+ * Where in the recipe the voice is bound, in words. The recipe key, how the
+ * profile was selected and where it lives sit in the tooltip.
+ */
+export function bindingPhrase(field?: string): string {
+  if (field === "defaults.voice") return t("Bound in the recipe's defaults");
+  const profile = field ? /^profiles\.([^.]+)\.voice$/.exec(field)?.[1] : undefined;
+  if (profile) return t("Bound in the {profile} profile", { profile });
+  return t("Bound in the recipe");
+}
+
+/**
  * The recipe plumbing that selected this voice, collapsed to one quiet line:
  * the key it was bound on, how it was selected, where it lives, the terms it
  * reads, the channels it covers and its validity window.
@@ -101,21 +112,17 @@ export function PlumbingLine({ point }: { point: VoicePoint }) {
       className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
       data-testid="voice-plumbing"
     >
-      {point.field && (
-        <SimpleTooltip content={t("The recipe key this voice is bound on")}>
-          <span className="inline-flex items-baseline gap-1">
-            {t("bound on")} <code className="font-mono">{point.field}</code>
+      {(point.field || point.binding || path) && (
+        <SimpleTooltip
+          content={
+            <span className="font-mono" translate="no">
+              {[point.field, point.binding?.kind, path].filter(Boolean).join(" · ")}
+            </span>
+          }
+        >
+          <span className="cursor-help" data-testid="voice-binding">
+            {bindingPhrase(point.field)}
           </span>
-        </SimpleTooltip>
-      )}
-      {point.binding && (
-        <SimpleTooltip content={t("How the profile was selected")}>
-          <code className="font-mono">{point.binding.kind}</code>
-        </SimpleTooltip>
-      )}
-      {path && (
-        <SimpleTooltip content={path}>
-          <code className="inline-block max-w-[18rem] truncate align-bottom font-mono">{path}</code>
         </SimpleTooltip>
       )}
       {point.termstore && (
