@@ -1,12 +1,13 @@
 // The detail pane of the Content memory list.
 //
-// A pair shows its source and its target in full, with the inline codes as
-// chips, and the toolbar toggles to every language the entry holds. A match
-// from Find similar adds its score above the wording. Marked entries replace
-// the pair with what can be done to all of them at once.
+// A row shows its source and the wording in each of its languages in full,
+// with the inline codes as chips. When several entries share the source
+// wording, each one's languages, provenance and use follow the source in
+// turn. A match from Find similar adds its score above the wording. Marked
+// entries replace the row with what can be done to all of them at once.
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, FileText, Upload, User, Wrench } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { FileText, Upload, User, Wrench } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { Run } from "@neokapi/kapi-format";
 import {
@@ -29,10 +30,9 @@ import {
   LocaleLabel,
   LocaleSelect,
   MatchScoreBar,
+  Separator,
   SimpleTooltip,
   Textarea,
-  ToggleGroup,
-  ToggleGroupItem,
   When,
   codedToRuns,
   type LocaleInfo,
@@ -44,99 +44,66 @@ import {
   type SpanInfo,
   type VariantDTO,
 } from "@neokapi/ui-primitives";
-import { editable, sourceLocaleOf, type MemoryPair } from "../lib/memoryPairs";
+import { editable, sourceLocaleOf, type MemoryRow } from "../lib/memoryPairs";
 
-/** The pair alone, or every language the entry holds. */
-export type MemoryView = "pair" | "all";
-
-export interface PairDetailProps {
-  pair: MemoryPair;
+export interface RowDetailProps {
+  row: MemoryRow;
   adapter: MemoryAdapter;
   /** The search in the list, the pattern Mark entities starts from. */
   search: string;
-  saving: boolean;
-  /** The pair alone, or every language the entry holds. */
-  view: MemoryView;
-  onViewChange: (view: MemoryView) => void;
-  /** The lookup match this pair came from, in Find similar. */
+  /** The lookup match this row came from, in Find similar. */
   match?: MemoryMatchDTO;
-  onSelect: (pairId: string) => void;
-  onSave: (locale: string, runs: Run[]) => Promise<void>;
+  /** Saves one language of one entry. */
+  onSave: (entry: MemoryEntryDTO, locale: string, runs: Run[]) => Promise<void>;
+  /** Deletes every entry in the row. */
   onDelete: () => void;
   onAnnotated: () => void;
 }
 
-/** The selected pair: both sides in full, the other languages, provenance, and where it is used. */
-export function PairDetail({
-  pair,
+/** The selected row: the source in full, each language's wording, provenance, and where it is used. */
+export function RowDetail({
+  row,
   adapter,
   search,
-  saving,
-  view,
-  onViewChange,
   match,
-  onSelect,
   onSave,
   onDelete,
   onAnnotated,
-}: PairDetailProps) {
-  const { entry, source, target } = pair;
+}: RowDetailProps) {
+  const { source, entries, targets } = row;
+  const first = entries[0];
+  // An editor is open on one language of one entry at a time.
   const [editing, setEditing] = useState<string | null>(null);
   const [marking, setMarking] = useState(false);
-  const others = Object.keys(entry.variants).filter((l) => l !== source && l !== target);
   const sourceSpans = useMemo(
-    () => editable(entry.variants[source]?.runs ?? []).spans,
-    [entry, source],
+    () => editable(first?.variants[source]?.runs ?? []).spans,
+    [first, source],
   );
+  const save = async (entry: MemoryEntryDTO, locale: string, runs: Run[]) => {
+    await onSave(entry, locale, runs);
+    setEditing(null);
+  };
 
   return (
     <ListDetailPane
       data-slot="memory-pair-detail"
-      data-entry={entry.id}
+      data-entry={first?.id}
       toolbar={
         <ListDetailToolbar
           title={
             <span className="flex min-w-0 items-center gap-1.5">
               <LocaleLabel locale={source} variant="short" />
-              {target && (
-                <>
-                  <ArrowRight aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-                  <LocaleLabel locale={target} variant="short" />
-                </>
+              {targets.length > 0 && (
+                <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                  {t("{count, plural, one {# language} other {# languages}}", {
+                    count: targets.length,
+                  })}
+                </span>
               )}
             </span>
           }
           actions={
             <>
-              {target && (
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  value={view}
-                  onValueChange={(next) => next && onViewChange(next as MemoryView)}
-                  aria-label={t("Languages shown")}
-                  data-slot="memory-view"
-                >
-                  <ToggleGroupItem value="pair" className="px-2 text-xs">
-                    Pair
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="all" className="px-2 text-xs">
-                    All languages
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              )}
-              {target && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  data-slot="memory-edit"
-                  disabled={saving}
-                  onClick={() => setEditing(target)}
-                >
-                  Edit
-                </Button>
-              )}
               {adapter.annotateEntities && (
                 <Button
                   variant="ghost"
@@ -154,89 +121,63 @@ export function PairDetail({
       }
     >
       {match && <MatchPanel match={match} />}
-      <VariantBlock
-        label={<>Source</>}
-        locale={source}
-        variant={entry.variants[source]}
-        editing={editing === source}
-        sourceSpans={[]}
-        onEdit={() => setEditing(source)}
-        onCancel={() => setEditing(null)}
-        onSave={async (runs) => {
-          await onSave(source, runs);
-          setEditing(null);
-        }}
-      />
-      {target && (
+      {first && (
         <VariantBlock
-          label={<>Target</>}
-          locale={target}
-          variant={entry.variants[target]}
-          editing={editing === target}
-          sourceSpans={sourceSpans}
-          onEdit={() => setEditing(target)}
+          label={<>Source</>}
+          locale={source}
+          variant={first.variants[source]}
+          editing={editing === `${first.id}::${source}`}
+          sourceSpans={[]}
+          onEdit={() => setEditing(`${first.id}::${source}`)}
           onCancel={() => setEditing(null)}
           onSave={async (runs) => {
-            await onSave(target, runs);
+            // The row is one wording: a change to it is a change to every entry.
+            for (const entry of entries) await onSave(entry, source, runs);
             setEditing(null);
           }}
         />
       )}
 
-      {view === "all" &&
-        others.map((locale) => (
-          <VariantBlock
-            key={locale}
-            label={<>Also</>}
-            locale={locale}
-            variant={entry.variants[locale]}
-            editing={editing === locale}
-            sourceSpans={sourceSpans}
-            onEdit={() => setEditing(locale)}
-            onCancel={() => setEditing(null)}
-            onSave={async (runs) => {
-              await onSave(locale, runs);
-              setEditing(null);
-            }}
-          />
-        ))}
+      {entries.map((entry, i) => (
+        <Fragment key={entry.id}>
+          {i > 0 && <Separator />}
+          {targets
+            .filter((locale) => entry.variants[locale])
+            .map((locale) => (
+              <VariantBlock
+                key={locale}
+                locale={locale}
+                variant={entry.variants[locale]}
+                editing={editing === `${entry.id}::${locale}`}
+                sourceSpans={sourceSpans}
+                onEdit={() => setEditing(`${entry.id}::${locale}`)}
+                onCancel={() => setEditing(null)}
+                onSave={(runs) => save(entry, locale, runs)}
+              />
+            ))}
 
-      {view === "pair" && others.length > 0 && (
-        <p
-          data-slot="memory-other-languages"
-          className="flex flex-wrap items-center gap-1.5 text-xs"
-        >
-          <span className="text-muted-foreground">Also in</span>
-          {others.map((locale) => (
-            <button
-              key={locale}
-              type="button"
-              onClick={() => onSelect(`${entry.id}::${locale}`)}
-              className="rounded focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              <LocaleLabel locale={locale} compact className="hover:underline" />
-            </button>
-          ))}
-        </p>
-      )}
+          {entry.note && (
+            <p className="max-w-prose text-xs text-muted-foreground" translate="no">
+              {entry.note}
+            </p>
+          )}
 
-      {entry.note && (
-        <p className="max-w-prose text-xs text-muted-foreground" translate="no">
-          {entry.note}
-        </p>
-      )}
-
-      <Provenance entry={entry} />
-      <WhereUsed entry={entry} adapter={adapter} />
+          <Provenance entry={entry} />
+          <WhereUsed entry={entry} adapter={adapter} />
+        </Fragment>
+      ))}
 
       {adapter.annotateEntities && (
         <EntityAnnotationDialog
           open={marking}
           onClose={() => setMarking(false)}
-          selectedCount={1}
+          selectedCount={entries.length}
           initialPattern={search}
           onApply={async (patterns) => {
-            const result = await adapter.annotateEntities!({ entry_ids: [entry.id], patterns });
+            const result = await adapter.annotateEntities!({
+              entry_ids: entries.map((e) => e.id),
+              patterns,
+            });
             onAnnotated();
             return result;
           }}
@@ -246,6 +187,7 @@ export function PairDetail({
   );
 }
 
+/** One language of the row in full: its language, its wording, and the editor when open. */
 /** One side of the pair in full: its language, its wording, and the editor when open. */
 function VariantBlock({
   label,
@@ -257,7 +199,8 @@ function VariantBlock({
   onCancel,
   onSave,
 }: {
-  label: React.ReactNode;
+  /** Names the source; a translation is named by its language alone. */
+  label?: React.ReactNode;
   locale: string;
   variant?: VariantDTO;
   editing: boolean;
@@ -270,7 +213,7 @@ function VariantBlock({
   return (
     <section data-slot="memory-variant" data-locale={locale} className="group/variant space-y-1">
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-        <span>{label}</span>
+        {label && <span>{label}</span>}
         <LocaleLabel locale={locale} compact />
         {!editing && (
           <Button

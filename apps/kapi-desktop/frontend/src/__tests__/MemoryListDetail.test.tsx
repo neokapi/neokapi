@@ -1,8 +1,13 @@
 import { describe, it, expect, vi } from "vite-plus/test";
 import { act, fireEvent, render, screen, waitFor, within } from "./testUtils";
 
-import { MemoryListDetail, MEMORY_PAGE, pairsOf } from "../components/MemoryListDetail";
-import { SAMPLE_ENTRIES, makeMemoryAdapter, manyEntries } from "../stories/fixtures/memory";
+import { MemoryListDetail, MEMORY_PAGE, rowsOf } from "../components/MemoryListDetail";
+import {
+  SAMPLE_ENTRIES,
+  SIX_LANGUAGES,
+  makeMemoryAdapter,
+  manyEntries,
+} from "../stories/fixtures/memory";
 import type { MemoryEntryDTO } from "@neokapi/ui-primitives";
 
 function renderMemory(
@@ -45,29 +50,63 @@ function searchFor(text: string) {
   fireEvent.keyDown(input, { key: "Enter" });
 }
 
-describe("pairs of a content memory entry", () => {
-  it("gives one pair per language other than the source", () => {
-    expect(pairsOf(SAMPLE_ENTRIES[0]).map((p) => p.id)).toEqual(["1::fr-FR", "1::de-DE"]);
-    expect(pairsOf(SAMPLE_ENTRIES[0], new Set(["de-DE"])).map((p) => p.id)).toEqual(["1::de-DE"]);
+describe("rows of a content memory", () => {
+  it("gives one row per source wording, with every other language it is held in", () => {
+    const rows = rowsOf(SAMPLE_ENTRIES);
+    expect(rows.map((r) => r.id)).toEqual(["1", "2", "3"]);
+    expect(rows[0].targets).toEqual(["fr-FR", "de-DE"]);
+    expect(rowsOf(SAMPLE_ENTRIES, new Set(["de-DE"])).map((r) => [r.id, r.targets])).toEqual([
+      ["1", ["de-DE"]],
+    ]);
+  });
+
+  it("puts entries that share their source wording on one row", () => {
+    const twin: MemoryEntryDTO = {
+      ...SAMPLE_ENTRIES[0],
+      id: "1b",
+      variants: {
+        "en-US": SAMPLE_ENTRIES[0].variants["en-US"],
+        "ja-JP": { locale: "ja-JP", text: "レジに進む", runs: [{ text: "レジに進む" }] },
+      },
+    };
+    const rows = rowsOf([SAMPLE_ENTRIES[0], twin, SAMPLE_ENTRIES[1]]);
+    expect(rows.map((r) => r.id)).toEqual(["1", "2"]);
+    expect(rows[0].entries.map((e) => e.id)).toEqual(["1", "1b"]);
+    expect(rows[0].targets).toEqual(["fr-FR", "de-DE", "ja-JP"]);
   });
 });
 
-describe("Content memory as a list of pairs beside a detail pane", () => {
-  it("lists one row per pair: the source on one line, and the target's language", async () => {
+describe("Content memory as a list of source wordings beside a detail pane", () => {
+  it("lists one row per source wording: the source on one line, and its languages", async () => {
     renderMemory();
     await loaded();
-    expect(pairRows().map((r) => r.getAttribute("data-list-detail-id"))).toEqual([
-      "1::fr-FR",
-      "1::de-DE",
-      "2::fr-FR",
-      "3::nb-NO",
-    ]);
-    const row = pair("2::fr-FR");
-    expect(row.getAttribute("data-testid")).toBe("tm-entry-2-fr-FR");
+    expect(pairRows().map((r) => r.getAttribute("data-list-detail-id"))).toEqual(["1", "2", "3"]);
+    const row = pair("2");
+    expect(row.getAttribute("data-testid")).toBe("tm-entry-2");
     expect(row.textContent).toContain("Click");
     expect(row.textContent).toContain("to finish your checkout");
     expect(row.textContent).not.toContain("Cliquez");
     expect(row.querySelector("[data-slot='locale-label']")?.textContent).toContain("fr-FR");
+    const pills = Array.from(pair("1").querySelectorAll("[data-slot='locale-label']"));
+    expect(pills.map((p) => p.textContent)).toEqual(["fr-FR", "de-DE"]);
+  });
+
+  it("shows three languages on a row and counts the rest", async () => {
+    renderMemory([SIX_LANGUAGES]);
+    await loaded();
+    const row = pair("six");
+    expect(row.querySelectorAll("[data-slot='locale-label']")).toHaveLength(3);
+    expect(row.querySelector("[data-slot='memory-more-languages']")?.textContent).toBe("+2");
+    fireEvent.click(row);
+    const variants = Array.from(detail().querySelectorAll("[data-slot='memory-variant']"));
+    expect(variants.map((v) => v.getAttribute("data-locale"))).toEqual([
+      "en",
+      "ar",
+      "de",
+      "fr",
+      "ja",
+      "nb",
+    ]);
   });
 
   it("opens with nothing selected and says what the pane shows", async () => {
@@ -80,7 +119,7 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
   it("shows both sides in full, with provenance and the unit it was approved for", async () => {
     renderMemory();
     await loaded();
-    fireEvent.click(pair("2::fr-FR"));
+    fireEvent.click(pair("2"));
     const pane = detail();
     const variants = Array.from(pane.querySelectorAll("[data-slot='memory-variant']"));
     expect(variants.map((v) => v.getAttribute("data-locale"))).toEqual(["en-US", "fr-FR"]);
@@ -100,7 +139,7 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
   });
 
   it("resolves where an entry's unit sits when the entry records no point", async () => {
-    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1::fr-FR" });
+    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1" });
     await waitFor(() =>
       expect(
         detail()?.querySelectorAll("[data-slot='memory-where-used'] [data-slot='coordinate-chip']"),
@@ -109,40 +148,44 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
   });
 
   it("opens the unit an entry was approved for", async () => {
-    const { spies } = renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1::fr-FR" });
+    const { spies } = renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1" });
     await waitFor(() => expect(detail()).not.toBeNull());
     fireEvent.click(within(detail()).getByTestId("entry-unit"));
     expect(spies.openUnit).toHaveBeenCalledWith(expect.objectContaining({ id: "1" }));
   });
 
-  it("names the entry's other languages and opens one", async () => {
-    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1::fr-FR" });
-    const others = await waitFor(() => {
-      const el = detail()?.querySelector("[data-slot='memory-other-languages']");
-      expect(el).toBeTruthy();
-      return el as HTMLElement;
-    });
-    fireEvent.click(within(others).getByRole("button"));
-    expect(pair("1::de-DE").getAttribute("aria-selected")).toBe("true");
+  it("shows the wording in every language the row holds", async () => {
+    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1" });
+    await waitFor(() => expect(detail()).not.toBeNull());
+    const variants = Array.from(detail().querySelectorAll("[data-slot='memory-variant']"));
+    expect(variants.map((v) => v.getAttribute("data-locale"))).toEqual(["en-US", "fr-FR", "de-DE"]);
+    expect(detail().textContent).toContain("Passer à la caisse");
     expect(detail().textContent).toContain("Zur Kasse gehen");
+  });
+
+  it("shows only the Active Filter's languages in the detail", async () => {
+    renderMemory(SAMPLE_ENTRIES, { targetLocales: ["de-DE"], defaultSelected: "1" });
+    await waitFor(() => expect(detail()).not.toBeNull());
+    const variants = Array.from(detail().querySelectorAll("[data-slot='memory-variant']"));
+    expect(variants.map((v) => v.getAttribute("data-locale"))).toEqual(["en-US", "de-DE"]);
   });
 
   it("moves the selection with the list's keys", async () => {
     renderMemory();
     await loaded();
-    fireEvent.click(pair("1::fr-FR"));
+    fireEvent.click(pair("1"));
     const list = screen.getByRole("listbox", { name: "Entries" });
     fireEvent.keyDown(list, { key: "j" });
-    expect(pair("1::de-DE").getAttribute("aria-selected")).toBe("true");
+    expect(pair("2").getAttribute("aria-selected")).toBe("true");
     fireEvent.keyDown(list, { key: "End" });
-    expect(pair("3::nb-NO").getAttribute("aria-selected")).toBe("true");
+    expect(pair("3").getAttribute("aria-selected")).toBe("true");
   });
 
   it("searches the store when Enter sends the search", async () => {
     const { spies } = renderMemory();
     await loaded();
     searchFor("cart");
-    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    await waitFor(() => expect(ids()).toEqual(["3"]));
     expect(spies.search).toHaveBeenLastCalledWith("cart", "", "", 0, MEMORY_PAGE);
     expect(screen.getByText("1 entry matches")).toBeInTheDocument();
   });
@@ -150,7 +193,7 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
   it("narrows the rows to the Active Filter's language, asking the store for that language", async () => {
     const { spies } = renderMemory(SAMPLE_ENTRIES, { targetLocales: ["de-DE"] });
     await loaded();
-    expect(pairRows().map((r) => r.getAttribute("data-list-detail-id"))).toEqual(["1::de-DE"]);
+    expect(pairRows().map((r) => r.getAttribute("data-list-detail-id"))).toEqual(["1"]);
     expect(spies.search).toHaveBeenCalledWith("", "", "de-DE", 0, MEMORY_PAGE);
   });
 
@@ -162,15 +205,20 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
       expect(spies.search).toHaveBeenLastCalledWith("", "", "", MEMORY_PAGE, MEMORY_PAGE),
     );
     await waitFor(() =>
-      expect(document.querySelector("[data-list-detail-id='m149::fr-FR']")).not.toBeNull(),
+      expect(document.querySelector("[data-list-detail-id='m149']")).not.toBeNull(),
     );
     expect(screen.queryByRole("button", { name: /more entries/ })).toBeNull();
   });
 
-  it("opens the editor on the target from the toolbar", async () => {
-    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1::fr-FR" });
+  it("opens the editor on one language from its own Edit button", async () => {
+    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1" });
     await waitFor(() => expect(detail()).not.toBeNull());
-    fireEvent.click(detail().querySelector("[data-slot='memory-edit']") as HTMLElement);
+    fireEvent.click(within(detail()).getByRole("button", { name: "Edit the fr-FR wording" }));
+    expect(
+      detail().querySelector(
+        "[data-slot='memory-variant'][data-locale='de-DE'] [contenteditable='true']",
+      ),
+    ).toBeNull();
     await waitFor(() =>
       expect(
         detail().querySelector(
@@ -181,12 +229,12 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
   });
 
   it("deletes the entry after a confirmation, and clears the selection", async () => {
-    const { spies } = renderMemory(SAMPLE_ENTRIES, { defaultSelected: "3::nb-NO" });
+    const { spies } = renderMemory(SAMPLE_ENTRIES, { defaultSelected: "3" });
     await waitFor(() => expect(detail()).not.toBeNull());
     fireEvent.click(within(detail()).getByRole("button", { name: /Delete/ }));
     fireEvent.click(within(detail()).getByRole("button", { name: "Confirm" }));
     await waitFor(() => expect(spies.deleteEntry).toHaveBeenCalledWith("3"));
-    await waitFor(() => expect(pair("3::nb-NO")).toBeNull());
+    await waitFor(() => expect(pair("3")).toBeNull());
     expect(screen.getByText("Choose an entry to see it here")).toBeInTheDocument();
   });
 
@@ -195,7 +243,7 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
     const { spies } = renderMemory(SAMPLE_ENTRIES, {
       adding: true,
       onAddingChange,
-      defaultSelected: "2::fr-FR",
+      defaultSelected: "2",
       sourceLocale: "en-US",
     });
     await loaded();
@@ -215,8 +263,8 @@ describe("Content memory as a list of pairs beside a detail pane", () => {
       }),
     );
     await waitFor(() => expect(onAddingChange).toHaveBeenCalledWith(false));
-    await waitFor(() => expect(pair("new-1::fr-FR")).not.toBeNull());
-    expect(pair("2::fr-FR").getAttribute("aria-selected")).toBe("true");
+    await waitFor(() => expect(pair("new-1")).not.toBeNull());
+    expect(pair("2").getAttribute("aria-selected")).toBe("true");
     expect(detail().getAttribute("data-entry")).toBe("2");
   });
 
@@ -241,7 +289,7 @@ describe("the filter bar: the store's facets and filter tokens", () => {
     const { spies } = renderMemory();
     await loaded();
     searchFor("codes:with");
-    await waitFor(() => expect(ids()).toEqual(["2::fr-FR", "3::nb-NO"]));
+    await waitFor(() => expect(ids()).toEqual(["2", "3"]));
     expect(spies.searchFiltered).toHaveBeenLastCalledWith(
       "",
       "",
@@ -258,7 +306,7 @@ describe("the filter bar: the store's facets and filter tokens", () => {
     fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
     fireEvent.click(screen.getByText("entity:"));
     fireEvent.click(screen.getByText("entity:person · 1"));
-    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    await waitFor(() => expect(ids()).toEqual(["3"]));
     expect(spies.searchFiltered).toHaveBeenLastCalledWith(
       "",
       "",
@@ -273,7 +321,7 @@ describe("the filter bar: the store's facets and filter tokens", () => {
     const { spies } = renderMemory();
     await loaded();
     searchFor("import:imp-1");
-    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    await waitFor(() => expect(ids()).toEqual(["3"]));
     expect(spies.searchFiltered).toHaveBeenLastCalledWith(
       "",
       "",
@@ -284,14 +332,14 @@ describe("the filter bar: the store's facets and filter tokens", () => {
     );
     fireEvent.click(screen.getByText("imp-1").parentElement!.querySelector("button")!);
     searchFor("project:kapimart");
-    await waitFor(() => expect(ids()).toEqual(["1::fr-FR", "1::de-DE", "2::fr-FR"]));
+    await waitFor(() => expect(ids()).toEqual(["1", "2"]));
   });
 
-  it("keeps the pairs into one target language with target:", async () => {
+  it("keeps the rows held in one target language with target:", async () => {
     const { spies } = renderMemory();
     await loaded();
     searchFor("target:de-DE");
-    await waitFor(() => expect(ids()).toEqual(["1::de-DE"]));
+    await waitFor(() => expect(ids()).toEqual(["1"]));
     expect(spies.search).toHaveBeenLastCalledWith("", "", "de-DE", 0, MEMORY_PAGE);
   });
 
@@ -299,7 +347,7 @@ describe("the filter bar: the store's facets and filter tokens", () => {
     const { spies } = renderMemory();
     await loaded();
     searchFor("language:nb-NO handlekurven");
-    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    await waitFor(() => expect(ids()).toEqual(["3"]));
     expect(spies.search).toHaveBeenLastCalledWith("handlekurven", "nb-NO", "", 0, MEMORY_PAGE);
   });
 });
@@ -310,22 +358,21 @@ describe("marking entries and acting on all of them", () => {
   const bulk = () => document.querySelector("[data-slot='memory-bulk-detail']") as HTMLElement;
 
   it("marks a row's entry from its box without moving the selection", async () => {
-    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "3::nb-NO" });
+    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "3" });
     await loaded();
-    mark("1::fr-FR");
-    expect(pair("1::fr-FR").hasAttribute("data-marked")).toBe(true);
-    // Both pairs of the entry are marked: the mark is the entry's.
-    expect(pair("1::de-DE").hasAttribute("data-marked")).toBe(true);
-    expect(pair("3::nb-NO").getAttribute("aria-selected")).toBe("true");
+    mark("1");
+    expect(pair("1").hasAttribute("data-marked")).toBe(true);
+    expect(pair("2").hasAttribute("data-marked")).toBe(false);
+    expect(pair("3").getAttribute("aria-selected")).toBe("true");
     expect(within(bulk()).getByRole("heading").textContent).toBe("1 entry marked");
   });
 
   it("marks the selected row with x, and every entry in view with Mark all shown", async () => {
     renderMemory();
     await loaded();
-    fireEvent.click(pair("2::fr-FR"));
+    fireEvent.click(pair("2"));
     fireEvent.keyDown(screen.getByRole("listbox", { name: "Entries" }), { key: "x" });
-    expect(pair("2::fr-FR").hasAttribute("data-marked")).toBe(true);
+    expect(pair("2").hasAttribute("data-marked")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Mark all shown" }));
     expect(within(bulk()).getByRole("heading").textContent).toBe("3 entries marked");
     fireEvent.click(screen.getByRole("button", { name: "Unmark all shown" }));
@@ -335,21 +382,21 @@ describe("marking entries and acting on all of them", () => {
   it("deletes every marked entry after a confirmation, from the toolbar", async () => {
     const { spies } = renderMemory();
     await loaded();
-    mark("1::fr-FR");
-    mark("2::fr-FR");
+    mark("1");
+    mark("2");
     fireEvent.click(within(bulk()).getByRole("button", { name: /Delete/ }));
     expect(spies.deleteEntries).not.toHaveBeenCalled();
     fireEvent.click(within(bulk()).getByRole("button", { name: "Confirm" }));
     await waitFor(() => expect(spies.deleteEntries).toHaveBeenCalledWith(["1", "2"]));
-    await waitFor(() => expect(ids()).toEqual(["3::nb-NO"]));
+    await waitFor(() => expect(ids()).toEqual(["3"]));
     expect(bulk()).toBeNull();
   });
 
   it("marks the names in every marked entry, and clears the marks", async () => {
     renderMemory();
     await loaded();
-    mark("1::fr-FR");
-    mark("3::nb-NO");
+    mark("1");
+    mark("3");
     fireEvent.click(bulk().querySelector("[data-slot='memory-bulk-mark-entities']") as HTMLElement);
     expect(await screen.findByText(/across 2 selected entries/)).toBeInTheDocument();
     fireEvent.click(bulk().querySelector("[data-slot='memory-bulk-clear']") as HTMLElement);
@@ -375,11 +422,9 @@ describe("Find similar: the fuzzy lookup as a mode of the search", () => {
         }),
       ),
     );
-    await waitFor(() => expect(ids()[0]).toBe("1::fr-FR"));
-    expect(pair("1::fr-FR").querySelector("[data-slot='memory-match-score']")?.textContent).toBe(
-      "100%",
-    );
-    fireEvent.click(pair("1::fr-FR"));
+    await waitFor(() => expect(ids()[0]).toBe("1"));
+    expect(pair("1").querySelector("[data-slot='memory-match-score']")?.textContent).toBe("100%");
+    fireEvent.click(pair("1"));
     expect(detail().querySelector("[data-slot='memory-match']")).not.toBeNull();
   });
 
@@ -400,8 +445,8 @@ describe("Find similar: the fuzzy lookup as a mode of the search", () => {
         }),
       ),
     );
-    await waitFor(() => expect(ids()).toContain("3::nb-NO"));
-    fireEvent.click(pair("3::nb-NO"));
+    await waitFor(() => expect(ids()).toContain("3"));
+    fireEvent.click(pair("3"));
     expect(detail().querySelector("[data-slot='memory-match']")?.textContent).toContain(
       "Alice takes the place of Bob",
     );
@@ -418,25 +463,40 @@ describe("Find similar: the fuzzy lookup as a mode of the search", () => {
   });
 });
 
-describe("the pair, or every language the entry holds", () => {
-  it("toggles the detail between the pair and all its languages, and keeps the choice", async () => {
-    renderMemory(SAMPLE_ENTRIES, { defaultSelected: "1::fr-FR" });
+describe("entries that share their source wording", () => {
+  const twin: MemoryEntryDTO = {
+    ...SAMPLE_ENTRIES[0],
+    id: "1b",
+    variants: {
+      "en-US": SAMPLE_ENTRIES[0].variants["en-US"],
+      "ja-JP": { locale: "ja-JP", text: "レジに進む", runs: [{ text: "レジに進む" }] },
+    },
+  };
+  const entries = [SAMPLE_ENTRIES[0], twin, SAMPLE_ENTRIES[1]];
+
+  it("shows each entry's languages in the one row's detail", async () => {
+    renderMemory(entries, { defaultSelected: "1" });
     await waitFor(() => expect(detail()).not.toBeNull());
-    const locales = () =>
-      Array.from(detail().querySelectorAll("[data-slot='memory-variant']")).map((v) =>
-        v.getAttribute("data-locale"),
-      );
-    expect(locales()).toEqual(["en-US", "fr-FR"]);
-    fireEvent.click(within(detail()).getByRole("radio", { name: "All languages" }));
-    expect(locales()).toEqual(["en-US", "fr-FR", "de-DE"]);
-    expect(detail().querySelector("[data-slot='memory-other-languages']")).toBeNull();
-    fireEvent.click(pair("2::fr-FR"));
-    expect(within(detail()).getByRole("radio", { name: "All languages" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    fireEvent.click(within(detail()).getByRole("radio", { name: "Pair" }));
-    fireEvent.click(pair("1::de-DE"));
-    expect(locales()).toEqual(["en-US", "de-DE"]);
+    expect(ids()).toEqual(["1", "2"]);
+    const variants = Array.from(detail().querySelectorAll("[data-slot='memory-variant']"));
+    expect(variants.map((v) => v.getAttribute("data-locale"))).toEqual([
+      "en-US",
+      "fr-FR",
+      "de-DE",
+      "ja-JP",
+    ]);
+    expect(detail().querySelectorAll("[data-slot='memory-provenance']")).toHaveLength(2);
+  });
+
+  it("marks and deletes every entry in the row", async () => {
+    const { spies } = renderMemory(entries, { defaultSelected: "1" });
+    await waitFor(() => expect(detail()).not.toBeNull());
+    fireEvent.click(pair("1").querySelector("[data-slot='memory-mark']") as HTMLElement);
+    const bulk = document.querySelector("[data-slot='memory-bulk-detail']") as HTMLElement;
+    expect(within(bulk).getByRole("heading").textContent).toBe("2 entries marked");
+    fireEvent.click(within(bulk).getByRole("button", { name: "Clear" }));
+    fireEvent.click(within(detail()).getByRole("button", { name: /Delete/ }));
+    fireEvent.click(within(detail()).getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(spies.deleteEntries).toHaveBeenCalledWith(["1", "1b"]));
   });
 });

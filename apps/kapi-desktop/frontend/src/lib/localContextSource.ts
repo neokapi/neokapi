@@ -210,7 +210,7 @@ const DESKTOP_CAPABILITIES: Partial<ExplorerCapabilities> = {
   search: true,
 };
 
-/** A concept's terms, flattened into the term rows the governance pane renders. */
+/** A concept's terms, flattened into term rows; the governance pane groups them back by concept. */
 function conceptTerms(concepts: ConceptResult[]): TermHit[] {
   const hits: TermHit[] = [];
   for (const concept of concepts) {
@@ -275,12 +275,17 @@ export function createLocalContextSource(
       const locale = q.scope.locale ?? "";
       if (q.scope.path) {
         const at = required(await backend.at(tabID, q.scope.path, locale, limitOf(q)));
+        const terms = at.terms ?? [];
+        // The by-location surface counts terms, and the pane lists concepts.
+        // A full list counts its own concepts; a capped one says it is
+        // partial, because the concepts behind the rest are unknown here.
+        const capped = (at.terms_total ?? 0) > terms.length;
         return {
           point: at.point,
           scope: "project",
           voice: at.voice,
-          terms: at.terms ?? [],
-          terms_total: at.terms_total,
+          terms,
+          terms_capped: capped || undefined,
           profiles: at.profiles ?? [],
           notes: at.notes ?? [],
         };
