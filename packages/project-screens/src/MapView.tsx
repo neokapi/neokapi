@@ -9,9 +9,8 @@
 // cannot open hides the button that leads there. Without onRun the page draws
 // no check action.
 
-import { FileText, Play, Sparkles } from "lucide-react";
+import { ChevronRight, FileText, Play, Sparkles } from "lucide-react";
 import {
-  Badge,
   Button,
   EmptyState,
   ErrorNotice,
@@ -139,21 +138,6 @@ export function MapView({
           />
           <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
             <MapCounts summary={summary} running={running} nav={nav} onShowFiles={onShowFiles} />
-            {/* The Decide button carries the same number unless disagreements
-                wait too, so the link shows only when the two differ. */}
-            {summary.suggested > 0 && summary.suggested !== summary.awaiting && decides && (
-              <Button
-                variant="link"
-                size="sm"
-                data-slot="map-suggests"
-                className="h-auto px-0 text-xs"
-                onClick={() => onDecide()}
-              >
-                {t("kapi suggests {count}", "a link to the suggestions awaiting a decision", {
-                  count: summary.suggested,
-                })}
-              </Button>
-            )}
           </div>
           {!!runError && <ErrorNotice error={runError} title={t("The checks did not run")} />}
         </div>
@@ -230,11 +214,15 @@ function ReadLine({ summary }: { summary: MapSummary }) {
   if (sameCount && !summary.read_at) return null;
   const when = summary.read_at && <When iso={summary.read_at} relative />;
   if (sameCount) {
-    return <span data-slot="map-read">Read {when}</span>;
+    return <span data-slot="map-read">Last read {when}</span>;
   }
-  const read = t("Read {count, plural, one {# file} other {# files}}", "under the project title", {
-    count: summary.read_files,
-  });
+  const read = t(
+    "Last read {count, plural, one {# file} other {# files}}",
+    "under the project title",
+    {
+      count: summary.read_files,
+    },
+  );
   return (
     <span data-slot="map-read">
       {read}
@@ -307,13 +295,8 @@ function SuggestionRow({
   onDecide?: (rowKey?: string) => void;
 }) {
   const quote = row.item.quote?.quote;
-  return (
-    <li
-      data-slot="map-suggestion"
-      data-id={row.item.id}
-      data-group={row.group}
-      className="flex min-h-11 items-center gap-3 py-1.5"
-    >
+  const body = (
+    <>
       <KindIcon kind={digestKind(row.item)} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm">
@@ -321,15 +304,24 @@ function SuggestionRow({
         </div>
         <EvidenceMeta quote={quote} blocks={row.blocks} files={row.files} />
       </div>
-      {onDecide && (
-        <Button
-          size="sm"
-          variant="outline"
+    </>
+  );
+  // The row is the control: a person decides an item by opening it, so a
+  // Decide button on every row repeats what the header's button already says.
+  return (
+    <li data-slot="map-suggestion" data-id={row.item.id} data-group={row.group}>
+      {onDecide ? (
+        <button
+          type="button"
           data-slot="map-suggestion-decide"
           onClick={() => onDecide(decideRowKey(row))}
+          className="flex min-h-11 w-full items-center gap-3 rounded-md py-1.5 text-left hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         >
-          Decide
-        </Button>
+          {body}
+          <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      ) : (
+        <div className="flex min-h-11 items-center gap-3 py-1.5">{body}</div>
       )}
     </li>
   );
@@ -370,58 +362,59 @@ function EvidenceMeta({ quote, blocks, files }: { quote?: string; blocks: number
   );
 }
 
-/** One content file: its format, its name, its blocks and findings, and Open when it opens. */
+/** One content file: its name, its folder, its blocks and findings; the row opens it. */
 function FileRow({ row, onOpen }: { row: MapFileRow; onOpen?: () => void }) {
   const slash = row.relative.lastIndexOf("/");
   const name = slash >= 0 ? row.relative.slice(slash + 1) : row.relative;
   const folder = slash >= 0 ? row.relative.slice(0, slash) : "";
-  return (
-    <li
-      data-slot="map-file"
-      data-path={row.relative}
-      className="flex min-h-11 items-center gap-3 py-1.5"
-    >
-      <Badge
-        variant="outline"
-        translate="no"
-        className="w-20 shrink-0 justify-center truncate font-mono text-[10px] font-normal text-muted-foreground"
-      >
-        {row.format || "?"}
-      </Badge>
-      <div className="min-w-0 flex-1">
-        <SimpleTooltip content={row.relative}>
-          <span translate="no" className="block truncate text-sm">
-            {name}
+  // The file name already carries its extension, so no format pill; and the
+  // row itself opens the file rather than an Open link at its end.
+  const body = (
+    <div className="min-w-0 flex-1">
+      <SimpleTooltip content={row.relative}>
+        <span translate="no" className="block truncate text-sm">
+          {name}
+        </span>
+      </SimpleTooltip>
+      <div className="flex min-w-0 items-baseline gap-1 text-[11px] text-muted-foreground">
+        {folder && (
+          <span translate="no" className="min-w-0 truncate">
+            {folder}
+            {" · "}
           </span>
-        </SimpleTooltip>
-        <div className="flex min-w-0 items-baseline gap-1 text-[11px] text-muted-foreground">
-          {folder && (
-            <span translate="no" className="min-w-0 truncate">
-              {folder}
-              {" · "}
-            </span>
-          )}
-          <span className="shrink-0 tabular-nums">
-            {t("{count, plural, one {# block} other {# blocks}}", "a file's blocks on the Map", {
-              count: row.blocks,
-            })}
+        )}
+        <span className="shrink-0 tabular-nums">
+          {t("{count, plural, one {# block} other {# blocks}}", "a file's blocks on the Map", {
+            count: row.blocks,
+          })}
+        </span>
+        {row.findings > 0 && (
+          <span data-slot="map-file-findings" className="shrink-0 tabular-nums">
+            {" · "}
+            {t(
+              "{count, plural, one {# finding} other {# findings}}",
+              "a file's findings on the Map",
+              { count: row.findings },
+            )}
           </span>
-          {row.findings > 0 && (
-            <span data-slot="map-file-findings" className="shrink-0 tabular-nums">
-              {" · "}
-              {t(
-                "{count, plural, one {# finding} other {# findings}}",
-                "a file's findings on the Map",
-                { count: row.findings },
-              )}
-            </span>
-          )}
-        </div>
+        )}
       </div>
-      {onOpen && (
-        <Button size="sm" variant="ghost" data-slot="map-file-open" onClick={onOpen}>
-          Open
-        </Button>
+    </div>
+  );
+  return (
+    <li data-slot="map-file" data-path={row.relative}>
+      {onOpen ? (
+        <button
+          type="button"
+          data-slot="map-file-open"
+          onClick={onOpen}
+          className="flex min-h-11 w-full items-center gap-3 rounded-md py-1.5 text-left hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {body}
+          <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      ) : (
+        <div className="flex min-h-11 items-center gap-3 py-1.5">{body}</div>
       )}
     </li>
   );

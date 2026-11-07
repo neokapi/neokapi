@@ -387,12 +387,13 @@ export function ConvergenceHero({
                 )}
               </p>
             )}
-            {/* Which model this run will use — visible where the run is
-                launched, not only in Settings. */}
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {server?.connected && <VenueBadge server={server} />}
-              <ActiveModelBadge tabID={tabID} />
-            </div>
+            {/* The model a run uses is named in the Plan dialog, beside the
+                work it will do; launching without one asks for one. */}
+            {server?.connected && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <VenueBadge server={server} />
+              </div>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -496,6 +497,7 @@ export function ConvergenceHero({
         server={server}
         onConfirm={onBringUpToDate ? launch : undefined}
         confirmDisabled={hasActive || upToDate}
+        tabID={tabID}
       />
 
       <HeldBackDialog
@@ -556,6 +558,8 @@ export interface ConvergePlanDialogProps {
   /** Confirm the pre-flight and launch the run. Hidden when absent. */
   onConfirm?: () => void;
   confirmDisabled?: boolean;
+  /** The project tab, so the dialog names the model the run will use. */
+  tabID?: string;
 }
 
 /** One row label: locale pill + optional collection. */
@@ -585,6 +589,7 @@ export function ConvergePlanDialog({
   server,
   onConfirm,
   confirmDisabled,
+  tabID,
 }: ConvergePlanDialogProps) {
   const scopes = plan?.plan?.scopes ?? [];
   const totals = plan?.plan?.totals;
@@ -598,6 +603,16 @@ export function ConvergePlanDialog({
             {t("A dry run of the pending work. Nothing is written and no provider is called.")}
           </DialogDescription>
         </DialogHeader>
+
+        {tabID !== undefined && (
+          <div
+            className="flex items-center gap-2 text-xs text-muted-foreground"
+            data-slot="plan-model"
+          >
+            {t("Model")}
+            <ActiveModelBadge tabID={tabID} />
+          </div>
+        )}
 
         {server?.connected && (
           <p

@@ -250,7 +250,7 @@ describe("opening the Reader", () => {
     const row = document.querySelector<HTMLElement>(
       '[data-slot="map-file"][data-path="docs/billing.md"]',
     )!;
-    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
     expect(await screen.findByRole("heading", { name: "docs/billing.md" })).toBeInTheDocument();
     expect(read).toHaveBeenCalledWith("t1", "docs/billing.md");
   });
@@ -267,7 +267,7 @@ describe("opening the Reader", () => {
     const row = document.querySelector<HTMLElement>(
       '[data-slot="map-file"][data-path="docs/billing.md"]',
     )!;
-    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
     // The preview sheet opens on the file; the Reader's page title does not.
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1, name: "docs/billing.md" })).toBeNull();

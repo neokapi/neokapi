@@ -91,7 +91,7 @@ describe("MapPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Decide 5" }));
     expect(onDecide).toHaveBeenLastCalledWith(undefined);
     const row = document.querySelector('[data-path="docs/billing.md"]') as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
     expect(onOpenReader).toHaveBeenCalledWith("docs/billing.md");
   });
 
@@ -106,7 +106,7 @@ describe("MapPage", () => {
       />,
     );
     const row = document.querySelector('[data-path="docs/account.md"]') as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
     expect(screen.getByTestId("file-preview")).toHaveTextContent("docs/account.md");
   });
 

@@ -64,7 +64,7 @@ describe("Bowrain preview", () => {
   it("opens a file in the Reader inside the sheet, and Back returns to the Map", async () => {
     const { sheet, port } = await openPreview();
     await within(sheet).findByRole("heading", { name: "Fernwell" });
-    const open = within(sheet).getAllByRole("button", { name: "Open" });
+    const open = Array.from(sheet.querySelectorAll<HTMLElement>('[data-slot="map-file-open"]'));
     await userEvent.click(open[0]);
     await within(sheet).findByRole("heading", { name: READER_WITH_FIXES.path });
     expect(port.readerFile).toHaveBeenCalled();
@@ -314,7 +314,9 @@ describe("the connected preview", () => {
     );
     const sheet = await openConnected();
     await within(sheet).findByRole("heading", { name: "Fernwell" });
-    await userEvent.click(within(sheet).getAllByRole("button", { name: "Open" })[0]);
+    await userEvent.click(
+      Array.from(sheet.querySelectorAll<HTMLElement>('[data-slot="map-file-open"]'))[0],
+    );
     const body = await within(sheet).findByRole("alert");
     expect(body).toHaveTextContent("no such item");
     expect(within(sheet).getByRole("tab", { name: "Map" })).toBeInTheDocument();
