@@ -353,7 +353,7 @@ func (a *App) ContextGoverns(tabID, collection, relPath, locale string, limit in
 			break
 		}
 		out.ConceptsTotal = total
-		source := model.NormalizeLocale(model.LocaleID(op.Project.Defaults.SourceLanguage))
+		source := model.NormalizeLocale(op.Project.Defaults.SourceLanguage)
 		for _, c := range concepts {
 			if lang != "" {
 				c.Terms = termsIn(c.Terms, lang, source)
