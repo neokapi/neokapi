@@ -277,8 +277,8 @@ func (a *App) ContextAt(tabID, relPath, locale string, limit int) (*host.Context
 // quietly replaced — governance changing on a date has to be visible.
 //
 // locale narrows the terms to one language: only concepts with a term in it are
-// counted, and each lists its terms in that language alone. Empty lists every
-// language.
+// counted, and each lists its terms in that language and in the project's
+// source language. Empty lists every language.
 func (a *App) ContextGoverns(tabID, collection, relPath, locale string, limit int) (*ContextGovernsResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -353,9 +353,10 @@ func (a *App) ContextGoverns(tabID, collection, relPath, locale string, limit in
 			break
 		}
 		out.ConceptsTotal = total
+		source := model.NormalizeLocale(op.Project.Defaults.SourceLanguage)
 		for _, c := range concepts {
 			if lang != "" {
-				c.Terms = termsIn(c.Terms, lang)
+				c.Terms = termsIn(c.Terms, lang, source)
 			}
 			out.Concepts = append(out.Concepts, conceptToDTO(c))
 		}
@@ -364,11 +365,13 @@ func (a *App) ContextGoverns(tabID, collection, relPath, locale string, limit in
 	return out, nil
 }
 
-// termsIn keeps the terms written in one language.
-func termsIn(all []terms.Term, locale model.LocaleID) []terms.Term {
+// termsIn keeps the terms written in the chosen language and in the
+// project's source language, so a narrowed list still names each concept the
+// way the source does beside the chosen language's wording.
+func termsIn(all []terms.Term, locale, source model.LocaleID) []terms.Term {
 	out := make([]terms.Term, 0, len(all))
 	for _, t := range all {
-		if model.NormalizeLocale(t.Locale) == locale {
+		if l := model.NormalizeLocale(t.Locale); l == locale || (source != "" && l == source) {
 			out = append(out, t)
 		}
 	}
