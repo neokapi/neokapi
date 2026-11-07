@@ -16,6 +16,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // The context explorer's backend: the three questions the explorer asks at a
@@ -236,7 +237,10 @@ func contextPoint(
 // owns: one function assembles the answer, so the desktop cannot report a
 // context the CLI would describe differently. The coarser forms — a collection,
 // a bare project — have no location to resolve and go through ContextGoverns.
-func (a *App) ContextAt(tabID, relPath string, limit int) (*host.ContextAnswer, error) {
+//
+// locale narrows the terms to one language, as `kapi context --locale` does;
+// empty lists every language.
+func (a *App) ContextAt(tabID, relPath, locale string, limit int) (*host.ContextAnswer, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
@@ -257,8 +261,9 @@ func (a *App) ContextAt(tabID, relPath string, limit int) (*host.ContextAnswer, 
 	// The request resolves a path against the process's working directory, which
 	// is not the project root for a desktop tab.
 	req := host.ContextPointRequest{
-		Path:  filepath.Join(filepath.Dir(op.Path), relPath),
-		Limit: limit,
+		Path:   filepath.Join(filepath.Dir(op.Path), relPath),
+		Locale: model.NormalizeLocale(model.LocaleID(locale)),
+		Limit:  limit,
 	}
 	src, cleanup := a.hostEngine().ContextSourcesAt(cmd, req)
 	defer cleanup()
@@ -270,7 +275,11 @@ func (a *App) ContextAt(tabID, relPath string, limit int) (*host.ContextAnswer, 
 // The point resolves finest-first exactly as a run resolves it, and a binding
 // skipped because its window had closed is reported in Notes rather than
 // quietly replaced — governance changing on a date has to be visible.
-func (a *App) ContextGoverns(tabID, collection, relPath string, limit int) (*ContextGovernsResult, error) {
+//
+// locale narrows the terms to one language: only concepts with a term in it are
+// counted, and each lists its terms in that language alone. Empty lists every
+// language.
+func (a *App) ContextGoverns(tabID, collection, relPath, locale string, limit int) (*ContextGovernsResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
@@ -337,18 +346,33 @@ func (a *App) ContextGoverns(tabID, collection, relPath string, limit int) (*Con
 		if limit <= 0 {
 			limit = host.DefaultContextSearchLimit
 		}
-		concepts, total, terr := src.Terms.Search(ctx, "", "", "", 0, limit)
+		lang := model.NormalizeLocale(model.LocaleID(locale))
+		concepts, total, terr := src.Terms.Search(ctx, "", "", lang, 0, limit)
 		if terr != nil {
 			out.Notes = append(out.Notes, fmt.Sprintf("terms: %v", terr))
 			break
 		}
 		out.ConceptsTotal = total
 		for _, c := range concepts {
+			if lang != "" {
+				c.Terms = termsIn(c.Terms, lang)
+			}
 			out.Concepts = append(out.Concepts, conceptToDTO(c))
 		}
 	}
 
 	return out, nil
+}
+
+// termsIn keeps the terms written in one language.
+func termsIn(all []terms.Term, locale model.LocaleID) []terms.Term {
+	out := make([]terms.Term, 0, len(all))
+	for _, t := range all {
+		if model.NormalizeLocale(t.Locale) == locale {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // ContextLives answers "what lives here": the collections at or under the

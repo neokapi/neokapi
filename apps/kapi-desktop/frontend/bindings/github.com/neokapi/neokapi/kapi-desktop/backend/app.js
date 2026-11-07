@@ -453,13 +453,17 @@ export function ConnectAssistant(tabID, hostName) {
  * owns: one function assembles the answer, so the desktop cannot report a
  * context the CLI would describe differently. The coarser forms — a collection,
  * a bare project — have no location to resolve and go through ContextGoverns.
+ * 
+ * locale narrows the terms to one language, as `kapi context --locale` does;
+ * empty lists every language.
  * @param {string} tabID
  * @param {string} relPath
+ * @param {string} locale
  * @param {number} limit
  * @returns {$CancellablePromise<host$0.ContextAnswer | null>}
  */
-export function ContextAt(tabID, relPath, limit) {
-    return $Call.ByID(559423694, tabID, relPath, limit).then(/** @type {($result: any) => any} */(($result) => {
+export function ContextAt(tabID, relPath, locale, limit) {
+    return $Call.ByID(559423694, tabID, relPath, locale, limit).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType29($result);
     }));
 }
@@ -483,14 +487,19 @@ export function ContextFeed(projectKey, limit) {
  * The point resolves finest-first exactly as a run resolves it, and a binding
  * skipped because its window had closed is reported in Notes rather than
  * quietly replaced — governance changing on a date has to be visible.
+ * 
+ * locale narrows the terms to one language: only concepts with a term in it are
+ * counted, and each lists its terms in that language alone. Empty lists every
+ * language.
  * @param {string} tabID
  * @param {string} collection
  * @param {string} relPath
+ * @param {string} locale
  * @param {number} limit
  * @returns {$CancellablePromise<$models.ContextGovernsResult | null>}
  */
-export function ContextGoverns(tabID, collection, relPath, limit) {
-    return $Call.ByID(913007441, tabID, collection, relPath, limit).then(/** @type {($result: any) => any} */(($result) => {
+export function ContextGoverns(tabID, collection, relPath, locale, limit) {
+    return $Call.ByID(913007441, tabID, collection, relPath, locale, limit).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType33($result);
     }));
 }

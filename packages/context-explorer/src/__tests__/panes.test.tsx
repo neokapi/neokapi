@@ -115,6 +115,19 @@ describe("ScopeFilterBar", () => {
     expect(within(bar).queryByLabelText("Project")).not.toBeInTheDocument();
     expect(within(bar).getByLabelText("Collection")).toBeInTheDocument();
   });
+
+  it("names each language and narrows the scope to the one picked", async () => {
+    const user = userEvent.setup();
+    const onScopeChange = vi.fn();
+    const source = makePinnedSource();
+    source.capabilities = { ...source.capabilities, free: ["locale"] };
+    mountPinned(<ScopeFilterBar />, source, onScopeChange);
+    const picker = await screen.findByLabelText("Language");
+    expect(picker).toHaveTextContent("Any language");
+    await user.click(picker);
+    await user.click(await screen.findByText("Norwegian Bokmål"));
+    expect(onScopeChange).toHaveBeenLastCalledWith(expect.objectContaining({ locale: "nb" }));
+  });
 });
 
 describe("GovernsPane", () => {

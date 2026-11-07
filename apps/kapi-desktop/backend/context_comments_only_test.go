@@ -56,7 +56,7 @@ func TestContextPointResolvesContentPastACommentsOnlyItem(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	for _, rel := range []string{"config/app.yaml", "code/parse.go"} {
-		res, err := app.ContextGoverns(tab.ID, "", rel, 0)
+		res, err := app.ContextGoverns(tab.ID, "", rel, "", 0)
 		require.NoError(t, err)
 		assert.True(t, res.Point.Default, "%s: no item governs the file's content", rel)
 		assert.Empty(t, res.Point.Profile, rel)

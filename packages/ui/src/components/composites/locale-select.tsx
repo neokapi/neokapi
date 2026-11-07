@@ -133,9 +133,9 @@ export function LocaleSelect({
       </PopoverTrigger>
       <PopoverContent className="min-w-[240px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search locales..." />
+          <CommandInput placeholder={t("Search languages…")} />
           <CommandList>
-            <CommandEmpty>No matching locales.</CommandEmpty>
+            <CommandEmpty>{t("No matching languages.")}</CommandEmpty>
             <CommandGroup>
               {clearLabel ? (
                 <CommandItem

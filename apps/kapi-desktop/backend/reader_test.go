@@ -132,7 +132,7 @@ func TestReaderFile_KapiMart(t *testing.T) {
 	assert.Equal(t, fixable, got.Fixable)
 
 	// Rules: the context answer for the file, row for row in its order.
-	answer, err := app.ContextAt(tab.ID, row.Relative, 0)
+	answer, err := app.ContextAt(tab.ID, row.Relative, "", 0)
 	require.NoError(t, err)
 	rules, total := readerRules(answer)
 	assert.Equal(t, rules, got.Rules)
