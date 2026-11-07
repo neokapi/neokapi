@@ -991,7 +991,7 @@ Surfacing is additive over the existing guarantees.
   A surfaced renderable block stands in for the rendered body via a skeleton ref,
   or a **sub-skeleton**: verbatim segments interleaved with refs to translatable
   spans inside an otherwise-opaque payload. A surfaced comment's bytes are copied
-  verbatim. An untranslated round-trip is byte-identical whether the flag is on or
+  verbatim. An untranslated round-trip is byte-identical with the flag on and with it
   off. Translation of a surfaced *translatable* span splices in place; the
   surrounding structure is untouched.
 - **Translation-skip.** A surfaced block carries `Translatable: false`, so the

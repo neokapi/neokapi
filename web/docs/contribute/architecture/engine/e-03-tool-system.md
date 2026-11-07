@@ -623,8 +623,8 @@ the seam for **runtime-contributed members**: `RegisterGroup` defines the
 built-in members, and `AddGroupMember(group, member)` appends one later
 (recomposing the flat schema, `MemberSchema`, the `ToolInfo.Group` metadata, and
 the dispatcher), so a source outside the group's own package can extend it
-without that package knowing. The discriminator value selects the right backend
-whether it is built-in or contributed.
+without that package knowing. The discriminator value selects the right backend,
+built-in or contributed.
 
 For **plugin-contributed members**, segmentation wires its engines from the
 manifest `segmenters[]` capability into the segmentation engine sub-registry over

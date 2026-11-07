@@ -39,7 +39,7 @@ typed `KapiRuntime` facade.
   (with the platform `Translator` API). Each degrades with an actionable
   error when its bridge is absent. The typed interfaces live in
   `packages/engine/src/capabilities.ts`. A page installs them on its own
-  `globalThis` whether the engine runs there or in a Worker.
+  `globalThis`, and the engine finds them there from the page or from a Worker.
 
 ## The Worker
 
