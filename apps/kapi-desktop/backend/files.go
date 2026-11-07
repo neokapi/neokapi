@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
 )
 
 // FileMatch represents a file matched by content patterns.
@@ -107,6 +108,10 @@ type ProjectFileInfo struct {
 	Format   string `json:"format,omitempty"`
 	Size     int64  `json:"size"`
 	IsDir    bool   `json:"is_dir"`
+	// Context marks a context file (host.ContextFileFilter): a voice profile,
+	// a terms or content-memory bundle, a decision-record shard. It governs
+	// the content and is never a candidate for a collection.
+	Context bool `json:"context,omitempty"`
 }
 
 // IsEmptyProject returns true if the project directory contains only
@@ -144,8 +149,12 @@ func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
 
 	// Use project-scoped format detection when a project is available.
 	var ctx *project.ProjectContext
+	isContext := host.IsContextFile
 	if op != nil {
 		ctx = project.NewProjectContext(op.Project, op.Path)
+		if op.Path != "" {
+			isContext = host.ContextFileFilter(op.Path)
+		}
 	}
 
 	var files []ProjectFileInfo
@@ -158,6 +167,7 @@ func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
 			IsDir:    info.IsDir(),
 		}
 		if !info.IsDir() {
+			pf.Context = isContext(rel)
 			if ctx != nil {
 				pf.Format = ctx.DetectFormat(a.formatReg, path)
 			} else {

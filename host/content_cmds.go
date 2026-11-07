@@ -16,8 +16,6 @@ import (
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host/output"
-	"github.com/neokapi/neokapi/memory/kmb"
-	"github.com/neokapi/neokapi/terms/ktb"
 )
 
 // Local project content management — add/rm edit the .kapi recipe's content
@@ -100,13 +98,14 @@ func (a *App) UntrackedContent(proj *coreproj.KapiProject, recipePath string, pr
 	}
 	tracked[filepath.Base(recipePath)] = true
 
+	isContext := ContextFileFilter(recipePath)
 	out := output.LsOutput{Untracked: true}
 	err = coreproj.WalkProjectDir(root, func(rel string, info os.FileInfo) error {
 		if info.IsDir() {
 			return nil
 		}
 		rel = filepath.ToSlash(rel)
-		if tracked[rel] || isContextFile(rel) || !MatchesPathPrefix(rel, prefixes) {
+		if tracked[rel] || isContext(rel) || !MatchesPathPrefix(rel, prefixes) {
 			return nil
 		}
 		for _, pattern := range proj.Defaults.Exclude {
@@ -176,13 +175,6 @@ func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, err
 		}
 	}
 	return tracked, nil
-}
-
-// isContextFile reports whether a file is named the way `kapi store import`
-// finds a context file in a layout: a voice profile, a terms bundle or a
-// content-memory bundle.
-func isContextFile(rel string) bool {
-	return filepath.Base(rel) == VoiceConventionalName || ktb.IsBundlePath(rel) || kmb.IsBundlePath(rel)
 }
 
 // CollectionForAdd returns the collection new patterns are appended to: nil

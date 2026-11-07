@@ -153,7 +153,9 @@ import { CONTEXT_DIGEST } from "../stories/fixtures/contextDigest";
 
 const railLabels = () =>
   Array.from(
-    screen.getByRole("navigation", { name: "Context sections" }).querySelectorAll("button"),
+    screen
+      .getByRole("navigation", { name: "Context sections" })
+      .querySelectorAll("button:not([data-slot='context-section-command'])"),
   ).map((b) => b.textContent);
 
 describe("ContextHub", () => {
@@ -260,11 +262,11 @@ describe("ContextHub", () => {
     const nav = screen.getByRole("navigation", { name: "Context sections" });
     expect(commands()).toHaveLength(1);
     expect(nav).toContainElement(commands()[0] as HTMLElement);
-    expect(commands()[0].textContent).toBe("kapi rules");
+    expect(commands()[0].getAttribute("data-command")).toBe("kapi rules");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
-    expect(commands()[0].textContent).toBe("kapi context <path>");
+    expect(commands()[0].getAttribute("data-command")).toBe("kapi context <path>");
     await userEvent.click(screen.getByRole("button", { name: "Voice" }));
-    expect(commands()[0].textContent).toBe("kapi voice show");
+    expect(commands()[0].getAttribute("data-command")).toBe("kapi voice show");
     // Terms and Content Memory search and look up: no one command is the page.
     await userEvent.click(screen.getByRole("button", { name: "Terms" }));
     expect(commands()).toHaveLength(0);
@@ -274,7 +276,7 @@ describe("ContextHub", () => {
   it("names the command of each section Project Settings hosts", async () => {
     vi.spyOn(api, "projectContextDigest").mockResolvedValue(CONTEXT_DIGEST);
     const command = () =>
-      document.querySelector("[data-slot='context-section-command']")?.textContent;
+      document.querySelector("[data-slot='context-section-command']")?.getAttribute("data-command");
     const { unmount } = render(
       <ContextHub tabID="t1" projectName="Northsea" section="agent" group="connect" />,
     );
@@ -289,9 +291,9 @@ describe("ContextHub", () => {
 
   it("names the review as Decide's command on a tab with no checkout, which reads the digest", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" contextOnly />);
-    expect(document.querySelector("[data-slot='context-section-command']")?.textContent).toBe(
-      "kapi context review",
-    );
+    expect(
+      document.querySelector("[data-slot='context-section-command']")?.getAttribute("data-command"),
+    ).toBe("kapi context review");
   });
 
   it("carries no caption under the Decide and Sessions titles", async () => {

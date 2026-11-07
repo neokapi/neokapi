@@ -29,12 +29,14 @@ export function ContextExplorer({ limit, header, className }: ContextExplorerPro
     <div className={cn("flex min-h-0 flex-col gap-4", className)} data-testid="context-explorer">
       {header}
 
+      {/* Search first: it is what a reader comes to this page to do. The
+          ladder and filters below it set the scope it searches. */}
+      <ContextSearchPanel limit={limit} onSelect={setSubject} />
+
       <div className="space-y-3">
         <LadderBreadcrumbs />
         <ScopeFilterBar />
       </div>
-
-      <ContextSearchPanel limit={limit} onSelect={setSubject} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <GovernsPane limit={limit} />
