@@ -515,6 +515,9 @@ type Record struct {
 	Because []string `json:"because,omitempty"`
 	// Check is what a check operation found.
 	Check *CheckRun `json:"check,omitempty"`
+	// Voice is what a whole-profile write did, for the edit operation that
+	// records one.
+	Voice *VoiceEdit `json:"voice,omitempty"`
 	// Standing counts the evidence for and against a suggestion, folded from
 	// the log. It is set on a term rule that settling considers.
 	Standing *Standing `json:"standing,omitempty"`
@@ -549,6 +552,7 @@ type payload struct {
 	Signal     *Signal     `json:"signal,omitempty"`
 	Because    []string    `json:"because,omitempty"`
 	Check      *CheckRun   `json:"check,omitempty"`
+	Voice      *VoiceEdit  `json:"voice,omitempty"`
 }
 
 // encode renders a record as the workspace operation that carries it.
@@ -566,6 +570,7 @@ func encode(r Record) (workspace.Op, error) {
 		Signal:     r.Signal,
 		Because:    r.Because,
 		Check:      r.Check,
+		Voice:      r.Voice,
 	})
 	if err != nil {
 		return workspace.Op{}, fmt.Errorf("contextop: encode %s operation: %w", r.Kind, err)
@@ -609,6 +614,7 @@ func decode(op workspace.Op) (Record, bool, error) {
 		Signal:     body.Signal,
 		Because:    body.Because,
 		Check:      body.Check,
+		Voice:      body.Voice,
 		At:         op.At.UTC(),
 	}, true, nil
 }

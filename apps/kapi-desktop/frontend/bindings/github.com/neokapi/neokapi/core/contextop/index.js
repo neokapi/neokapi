@@ -20,5 +20,7 @@ export {
     Status,
     Subject,
     SubjectKind,
-    Uses
+    Uses,
+    VoiceChange,
+    VoiceEdit
 } from "./models.js";

@@ -1056,9 +1056,24 @@ func (a *App) DropContextOperation(ctx context.Context, req ContextDropRequest) 
 	if !target.Status.Answers() {
 		return ContextOperation{}, fmt.Errorf("operation %s is already %s", target.ID, target.Status)
 	}
+	// A voice-profile edit is undone by restoring the profile it replaced,
+	// checked before anything is recorded so a refusal leaves the log alone.
+	if _, err := s.restoreVoiceEdit(ctx, target, false); err != nil {
+		return ContextOperation{}, err
+	}
 	dropped, err := s.setAside(ctx, contextop.KindDrop, req.Actor, target, req.Note)
-	if err != nil || !target.Established {
+	if err != nil {
 		return dropped, err
+	}
+	restored, err := s.restoreVoiceEdit(ctx, target, true)
+	if err != nil {
+		return dropped, err
+	}
+	if restored != "" {
+		dropped.Landed = joinLanded(dropped.Landed, restored)
+	}
+	if !target.Established {
+		return dropped, nil
 	}
 	where, err := s.retract(ctx, target)
 	if err != nil {
