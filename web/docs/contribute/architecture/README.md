@@ -2,7 +2,7 @@
 sidebar_position: 0
 title: Architecture Decisions Overview
 slug: index
-description: Index of Architecture Decisions for the neokapi framework: foundations, the engine, context, surfaces, multilingual content, and assurance.
+description: "Index of Architecture Decisions for the neokapi framework: foundations, the engine, context, surfaces, multilingual content, and assurance."
 keywords: [architecture decisions, neokapi, framework design, content model, context, plugin system, framework architecture]
 ---
 
