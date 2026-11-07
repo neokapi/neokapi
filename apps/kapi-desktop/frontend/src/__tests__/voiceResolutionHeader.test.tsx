@@ -1,7 +1,7 @@
 import { render, screen } from "./testUtils";
 import { describe, it, expect } from "vite-plus/test";
 import type { VoicePoint } from "../types/voice";
-import { ResolutionHeader } from "../components/voice/resolution-header";
+import { ResolutionHeader, bindingPhrase } from "../components/voice/resolution-header";
 
 const clean: VoicePoint = {
   label: "project default",
@@ -37,10 +37,17 @@ describe("voice resolution header", () => {
     render(<ResolutionHeader point={clean} />);
     expect(screen.getByTestId("voice-chain")).toHaveTextContent("Northsea");
 
+    // The binding reads as a plain phrase; the recipe key, the selection and
+    // the store path sit in its tooltip.
     const plumbing = screen.getByTestId("voice-plumbing");
-    expect(plumbing).toHaveTextContent("defaults.voice");
-    expect(plumbing).toHaveTextContent("profile");
-    expect(plumbing).toHaveTextContent("northsea");
+    expect(screen.getByTestId("voice-binding")).toHaveTextContent("Bound in the recipe's defaults");
+    expect(plumbing).not.toHaveTextContent("defaults.voice");
+    expect(plumbing).not.toHaveTextContent("store:northsea");
+  });
+
+  it("names the profile a binding sits in", () => {
+    expect(bindingPhrase("profiles.support.voice")).toBe("Bound in the support profile");
+    expect(bindingPhrase(undefined)).toBe("Bound in the recipe");
   });
 
   it("marks the superseded binding and the date its window closed", () => {

@@ -14,20 +14,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Compass, FileText, ShieldCheck, Cloud } from "lucide-react";
-import {
-  Badge,
-  Card,
-  CardContent,
-  CoordinateChip,
-  SimpleTooltip,
-  cn,
-} from "@neokapi/ui-primitives";
+import { Badge, Card, CardContent, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api, call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import type { KapiProject, KeptConflict, ProjectStatus, ProjectServer } from "../types/api";
 import { KeptConflicts } from "./KeptConflicts";
 import { declaresTargetLanguages, resolvedTargetLanguages } from "../lib/languages";
+import { LabelledCoordinates, coordinateDifferences, sharedCoordinates } from "./PointCoordinates";
 
 /** One point the recipe declares, and what governs there. */
 export interface ProjectPoint {
@@ -159,6 +153,12 @@ export function ProjectStanding({
   const rootPoint = points?.points.find((p) => p.default);
   const bound = points?.points.filter((p) => p.voice).length ?? 0;
 
+  // The coordinates every point shares are drawn once under the heading, and
+  // a row shows only where it differs, usually its channel. A row names its
+  // voice only when it differs from the project's own, which the governance
+  // axis above already states.
+  const shared = sharedCoordinates(points?.points.map((p) => p.coordinates) ?? []);
+
   return (
     <div className="mb-6 space-y-3" data-testid="project-standing">
       <Card>
@@ -268,11 +268,16 @@ export function ProjectStanding({
       {points && points.points.length > 0 && (
         <Card>
           <CardContent className="p-4">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <Compass size={12} />
               {t("Where content sits")}
             </h2>
-            <ul className="divide-y" data-testid="point-map">
+            <LabelledCoordinates
+              entries={Object.entries(shared)}
+              className="mt-2"
+              testId="point-map-shared"
+            />
+            <ul className="mt-2 divide-y" data-testid="point-map">
               {points.points.map((p) => (
                 <li key={p.ref || "__default__"}>
                   <button
@@ -291,13 +296,7 @@ export function ProjectStanding({
                     data-testid="point-row"
                   >
                     <span className="min-w-[9rem] font-medium">{p.label}</span>
-                    {p.coordinates && (
-                      <span className="flex flex-wrap items-center gap-1">
-                        {Object.entries(p.coordinates).map(([axis, value]) => (
-                          <CoordinateChip key={axis} axis={axis} value={value} />
-                        ))}
-                      </span>
-                    )}
+                    <LabelledCoordinates entries={coordinateDifferences(p.coordinates, shared)} />
                     <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                       {p.collections.length > 0
                         ? p.collections.join(", ")
@@ -311,12 +310,14 @@ export function ProjectStanding({
                         {t("fell through")}
                       </Badge>
                     )}
-                    {p.voice ? (
-                      <Badge variant="secondary" className="font-normal">
-                        {p.voice}
-                      </Badge>
-                    ) : (
+                    {!p.voice ? (
                       <span className="text-xs text-muted-foreground">{t("no voice")}</span>
+                    ) : (
+                      p.voice !== rootPoint?.voice && (
+                        <Badge variant="secondary" className="font-normal">
+                          {p.voice}
+                        </Badge>
+                      )
                     )}
                   </button>
                 </li>

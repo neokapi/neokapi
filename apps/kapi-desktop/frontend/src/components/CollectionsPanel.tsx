@@ -1747,11 +1747,27 @@ export function CollectionsPanel({
   // One coverage cell: a ship-gate rung (Approved or Ships / In review / Draft / —) with
   // the translated % as a secondary figure once convergence is available; the
   // translated-only bar/tile before then.
+  // A collection that does not translate into a language shows a quiet dot,
+  // named in its tooltip; one that does shows its share translated, 0% included.
+  const notTargeted = (lang: string) => (
+    <SimpleTooltip content={t("Not translated into {lang}", { lang: localeLabel(lang) })}>
+      <span
+        className="text-center text-[10px] text-muted-foreground/40"
+        data-slot="coverage-not-targeted"
+      >
+        &middot;
+      </span>
+    </SimpleTooltip>
+  );
   const langCell = (coll: Collection, lang: string) => {
     if (hasGates) {
-      const r = rungFor(scopeCov(coll, lang));
+      const lc = scopeCov(coll, lang);
+      const r = rungFor(lc);
       if (r.key === "none") {
-        return <span className="text-center text-[10px] text-muted-foreground/40">&middot;</span>;
+        if (!lc) return notTargeted(lang);
+        return (
+          <span className="text-center text-[10px] tabular-nums text-muted-foreground">0%</span>
+        );
       }
       const cellTitle = onOpenReview
         ? `${localeLabel(lang)}: ${r.label} · ${r.pct}% translated · ${t("click to review")}`
@@ -1767,7 +1783,7 @@ export function CollectionsPanel({
         <SimpleTooltip content={cellTitle}>
           <span className="flex items-center justify-center gap-1 text-[10px]">
             <span className="size-2 shrink-0 rounded-full" style={{ background: r.color }} />
-            <span className="tabular-nums text-muted-foreground">{r.pct}</span>
+            <span className="tabular-nums text-muted-foreground">{r.pct}%</span>
           </span>
         </SimpleTooltip>
       ) : (
@@ -1797,9 +1813,7 @@ export function CollectionsPanel({
       );
     }
     const p = covPct(coll, lang);
-    if (p === null) {
-      return <span className="text-center text-[10px] text-muted-foreground/40">&middot;</span>;
-    }
+    if (p === null) return notTargeted(lang);
     return heatmap ? (
       <SimpleTooltip content={`${localeLabel(lang)}: ${p}%`}>
         <span
@@ -1809,7 +1823,7 @@ export function CollectionsPanel({
             color: p > 55 ? "var(--primary-foreground)" : "var(--muted-foreground)",
           }}
         >
-          {p}
+          {p}%
         </span>
       </SimpleTooltip>
     ) : (
@@ -1834,24 +1848,26 @@ export function CollectionsPanel({
   // Grid template shared by the header + every row so columns line up. The
   // coverage block is N language columns (bars or heatmap tiles), or a single
   // flexible spacer before the actions when there's nothing to show.
+  // Language columns take a fixed width so the name column takes the rest of
+  // the row and truncates only when the row is genuinely short of room.
   const coverageCols = showCoverageCols
-    ? `repeat(${columnLangs.length}, minmax(${heatmap ? 40 : 60}px, 1fr))`
-    : "1fr";
-  const gridCols = `${selectable ? "24px " : ""}minmax(150px,1.6fr) 52px 62px ${coverageCols} auto`;
+    ? `repeat(${columnLangs.length}, ${heatmap ? 48 : 88}px)`
+    : "auto";
+  const gridCols = `${selectable ? "24px " : ""}minmax(150px,1fr) 52px 62px ${coverageCols} auto`;
 
   return (
     <section className="mb-8">
       {/* Section header — Collections is the spine; actions live here. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {/* Paths are relative to the project folder; the folder is the
+            heading's tooltip rather than a line of its own. */}
+        <h2
+          className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground"
+          title={basePath ? shortenHome(basePath) : undefined}
+        >
           <FileText size={14} />
           {t("Collections")}
         </h2>
-        {basePath && (
-          <span className="hidden text-xs text-muted-foreground sm:inline">
-            {t("relative to {base}", { base: shortenHome(basePath) })}
-          </span>
-        )}
         <div className="ml-auto flex items-center gap-2">
           <Button
             variant="outline"
@@ -2166,7 +2182,7 @@ export function CollectionsPanel({
                     <span
                       key={l}
                       className="text-center normal-case"
-                      title={localeLabel(l)}
+                      title={t("{lang}: share of blocks translated", { lang: localeLabel(l) })}
                       translate="no"
                     >
                       {heatmap ? l.split("-")[0] : l}

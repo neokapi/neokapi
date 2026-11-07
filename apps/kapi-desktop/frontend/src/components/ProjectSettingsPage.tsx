@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Globe, Plug, Cpu, FileType, AlertTriangle, HardDrive, ChevronRight } from "lucide-react";
 import {
-  Card,
-  CardContent,
   Label,
   Input,
   Switch,
@@ -35,6 +33,7 @@ import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useLocales } from "../hooks/useLocales";
 import { GovernanceSettings, type RecipeGovernance } from "./GovernanceSettings";
+import { SettingLabel } from "./SettingLabel";
 
 export interface ProjectSettingsPageProps {
   /** Project tab ID — the project whose governance vocabulary is read. */
@@ -116,29 +115,25 @@ export function LanguagesSection({ project, onUpdate, untitled }: LanguagesSecti
           Languages
         </SectionHeading>
       )}
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">Source language</Label>
-              <LocaleSelect
-                value={defaults.source_language ?? ""}
-                onChange={(v) => updateDefaults({ source_language: v })}
-                locales={locales}
-                placeholder="Select source language..."
-              />
-            </div>
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">Translate into</Label>
-              <MultiLocaleSelect
-                value={defaults.target_languages ?? []}
-                onChange={(v) => updateDefaults({ target_languages: v })}
-                locales={locales}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <SettingLabel>{t("Source language")}</SettingLabel>
+          <LocaleSelect
+            value={defaults.source_language ?? ""}
+            onChange={(v) => updateDefaults({ source_language: v })}
+            locales={locales}
+            placeholder={t("Select source language…")}
+          />
+        </div>
+        <div>
+          <SettingLabel>{t("Translate into")}</SettingLabel>
+          <MultiLocaleSelect
+            value={defaults.target_languages ?? []}
+            onChange={(v) => updateDefaults({ target_languages: v })}
+            locales={locales}
+          />
+        </div>
+      </div>
     </section>
   );
 }
@@ -221,61 +216,54 @@ export function ProjectSettingsPage({
           <SectionHeading className="mb-3" icon={<HardDrive size={14} />}>
             Files
           </SectionHeading>
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">
-                  Locale codes on disk
-                </Label>
-                <Select
-                  value={defaults.locale_format || "__bcp47__"}
-                  onValueChange={(v) =>
-                    updateDefaults({ locale_format: v === "__bcp47__" ? undefined : v })
-                  }
-                >
-                  <SelectTrigger className="max-w-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__bcp47__">
-                      <code>BCP-47</code> (default)
+          <div className="space-y-4">
+            <div>
+              <SettingLabel
+                help={t(
+                  "How language codes are spelled in file and folder names. kapi reads and stores them in the standard form either way.",
+                )}
+              >
+                {t("Language codes in file names")}
+              </SettingLabel>
+              <Select
+                value={defaults.locale_format || "__bcp47__"}
+                onValueChange={(v) =>
+                  updateDefaults({ locale_format: v === "__bcp47__" ? undefined : v })
+                }
+              >
+                <SelectTrigger className="max-w-xs" aria-label={t("Language codes in file names")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__bcp47__">{t("pt-BR (standard)")}</SelectItem>
+                  <SelectItem value="posix">{t("pt_BR (underscores)")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <SettingLabel help={t("The character encoding kapi reads and writes files in.")}>
+                {t("Default encoding")}
+              </SettingLabel>
+              <Select
+                value={defaults.encoding || "__auto__"}
+                onValueChange={(v) =>
+                  updateDefaults({ encoding: v === "__auto__" ? undefined : v })
+                }
+              >
+                <SelectTrigger className="max-w-xs" aria-label={t("Default encoding")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__auto__">{t("Auto-detect")}</SelectItem>
+                  {ENCODING_OPTIONS.map((enc) => (
+                    <SelectItem key={enc} value={enc}>
+                      {enc}
                     </SelectItem>
-                    <SelectItem value="posix">
-                      <code>POSIX</code> (underscores)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  How locale codes are spelled in file and directory names. The project reads and
-                  stores them as BCP-47 either way.
-                </p>
-              </div>
-              <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Default encoding</Label>
-                <Select
-                  value={defaults.encoding || "__auto__"}
-                  onValueChange={(v) =>
-                    updateDefaults({ encoding: v === "__auto__" ? undefined : v })
-                  }
-                >
-                  <SelectTrigger className="max-w-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__auto__">Auto-detect</SelectItem>
-                    {ENCODING_OPTIONS.map((enc) => (
-                      <SelectItem key={enc} value={enc}>
-                        {enc}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Character encoding for reading and writing files.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </section>
 
         {/* Governance — what governs the content, and where it sits */}
@@ -340,171 +328,167 @@ export function ProjectSettingsPage({
             )
           )}
 
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              {/* Installed plugins as checkboxes */}
-              {[...installedByName.entries()].map(([name, info]) => {
-                const inProject = !!plugins[name];
-                const spec = plugins[name] ?? {};
-                const { pin, base } = parsePin(spec.framework_version);
-                const isPreferred = (spec.format_priority ?? 0) >= PLUGIN_PREFER_PRIORITY;
+          <div className="space-y-3">
+            {/* Installed plugins as checkboxes */}
+            {[...installedByName.entries()].map(([name, info]) => {
+              const inProject = !!plugins[name];
+              const spec = plugins[name] ?? {};
+              const { pin, base } = parsePin(spec.framework_version);
+              const isPreferred = (spec.format_priority ?? 0) >= PLUGIN_PREFER_PRIORITY;
 
-                return (
-                  <div key={name} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={inProject}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              onUpdate({
-                                ...project,
-                                plugins: { ...plugins, [name]: {} },
-                              });
-                            } else {
-                              const next = { ...plugins };
-                              delete next[name];
-                              // A removed plugin can no longer be the
-                              // project's engine or a format's.
-                              const nextFormats = Object.fromEntries(
-                                Object.entries(formatDefaults).map(([k, fd]) => [
-                                  k,
-                                  fd.engine === name ? { ...fd, engine: undefined } : fd,
-                                ]),
-                              );
-                              onUpdate({
-                                ...project,
-                                defaults: {
-                                  ...defaults,
-                                  engine: defaults.engine === name ? undefined : defaults.engine,
-                                  formats: Object.keys(nextFormats).length
-                                    ? nextFormats
-                                    : undefined,
-                                },
-                                plugins: Object.keys(next).length ? next : undefined,
-                              });
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <span className="text-sm font-medium">{name}</span>
-                        <Badge variant="secondary" className="text-[11px]">
-                          {info.version}
-                        </Badge>
-                      </label>
-                      {inProject && (
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs text-muted-foreground">
-                            {t("Rank ahead of other plugins")}
-                          </Label>
-                          <Switch
-                            checked={isPreferred}
-                            onCheckedChange={(checked) =>
-                              updatePlugin(name, {
-                                format_priority: checked ? PLUGIN_PREFER_PRIORITY : undefined,
-                              })
-                            }
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Version pinning (shown when plugin is in project) */}
-                    {inProject && (
-                      <div className="ml-6 flex items-center gap-2">
-                        <Label className="text-xs text-muted-foreground">Version</Label>
-                        <Select
-                          value={pin}
-                          onValueChange={(v) => {
-                            const newPin = v as VersionPin;
-                            const ver = base || info.framework_version || info.version;
-                            updatePlugin(name, {
-                              framework_version: formatPin(newPin, ver),
+              return (
+                <div key={name} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={inProject}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            onUpdate({
+                              ...project,
+                              plugins: { ...plugins, [name]: {} },
                             });
-                          }}
-                        >
-                          <SelectTrigger className="h-7 w-40 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(["none", "compatible", "gte", "exact"] as VersionPin[]).map((v) => (
-                              <SelectItem key={v} value={v}>
-                                {pinLabel(v)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {pin !== "none" && (
-                          <Input
-                            type="text"
-                            value={base}
-                            onChange={(e) =>
-                              updatePlugin(name, {
-                                framework_version: formatPin(pin, e.target.value),
-                              })
-                            }
-                            placeholder={info.framework_version || info.version}
-                            className="h-6 w-28 text-xs"
-                          />
-                        )}
+                          } else {
+                            const next = { ...plugins };
+                            delete next[name];
+                            // A removed plugin can no longer be the
+                            // project's engine or a format's.
+                            const nextFormats = Object.fromEntries(
+                              Object.entries(formatDefaults).map(([k, fd]) => [
+                                k,
+                                fd.engine === name ? { ...fd, engine: undefined } : fd,
+                              ]),
+                            );
+                            onUpdate({
+                              ...project,
+                              defaults: {
+                                ...defaults,
+                                engine: defaults.engine === name ? undefined : defaults.engine,
+                                formats: Object.keys(nextFormats).length ? nextFormats : undefined,
+                              },
+                              plugins: Object.keys(next).length ? next : undefined,
+                            });
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm font-medium">{name}</span>
+                      <Badge variant="secondary" className="text-[11px]">
+                        {info.version}
+                      </Badge>
+                    </label>
+                    {inProject && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground">
+                          {t("Rank ahead of other plugins")}
+                        </Label>
+                        <Switch
+                          checked={isPreferred}
+                          onCheckedChange={(checked) =>
+                            updatePlugin(name, {
+                              format_priority: checked ? PLUGIN_PREFER_PRIORITY : undefined,
+                            })
+                          }
+                        />
                       </div>
                     )}
-
-                    {info.description && (
-                      <p className="ml-6 text-[11px] text-muted-foreground">{info.description}</p>
-                    )}
                   </div>
-                );
-              })}
 
-              {declaredPlugins.length > 0 && (
-                <div className="border-t pt-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Label className="text-xs text-muted-foreground">{t("Format engine")}</Label>
-                    <Select
-                      value={defaults.engine || NATIVE_ENGINE_OPTION}
-                      onValueChange={(v) =>
-                        updateDefaults({ engine: v === NATIVE_ENGINE_OPTION ? undefined : v })
-                      }
-                    >
-                      <SelectTrigger className="h-7 w-48 text-xs" aria-label={t("Format engine")}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NATIVE_ENGINE_OPTION}>
-                          {t("native (default)")}
-                        </SelectItem>
-                        {declaredPlugins.map((name) => (
-                          <SelectItem key={name} value={name}>
-                            {name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {t(
+                  {/* Version pinning (shown when plugin is in project) */}
+                  {inProject && (
+                    <div className="ml-6 flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Version</Label>
+                      <Select
+                        value={pin}
+                        onValueChange={(v) => {
+                          const newPin = v as VersionPin;
+                          const ver = base || info.framework_version || info.version;
+                          updatePlugin(name, {
+                            framework_version: formatPin(newPin, ver),
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="h-7 w-40 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(["none", "compatible", "gte", "exact"] as VersionPin[]).map((v) => (
+                            <SelectItem key={v} value={v}>
+                              {pinLabel(v)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {pin !== "none" && (
+                        <Input
+                          type="text"
+                          value={base}
+                          onChange={(e) =>
+                            updatePlugin(name, {
+                              framework_version: formatPin(pin, e.target.value),
+                            })
+                          }
+                          placeholder={info.framework_version || info.version}
+                          className="h-6 w-28 text-xs"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {info.description && (
+                    <p className="ml-6 text-[11px] text-muted-foreground">{info.description}</p>
+                  )}
+                </div>
+              );
+            })}
+
+            {declaredPlugins.length > 0 && (
+              <div className="border-t pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SettingLabel
+                    className="mb-0"
+                    help={t(
                       "The engine that reads a file whose extension both a built-in format and a plugin's claim. A content item's format and a format default's engine override it.",
                     )}
-                  </p>
-                </div>
-              )}
-
-              {installedByName.size === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {t("No plugins installed.")}{" "}
-                  <button
-                    type="button"
-                    className="text-left underline underline-offset-2 hover:text-foreground"
-                    onClick={() => onNavigate?.("app-settings")}
                   >
-                    {t("Install plugins from the Plugins manager in app Settings.")}
-                  </button>
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                    {t("Format engine")}
+                  </SettingLabel>
+                  <Select
+                    value={defaults.engine || NATIVE_ENGINE_OPTION}
+                    onValueChange={(v) =>
+                      updateDefaults({ engine: v === NATIVE_ENGINE_OPTION ? undefined : v })
+                    }
+                  >
+                    <SelectTrigger className="h-7 w-48 text-xs" aria-label={t("Format engine")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NATIVE_ENGINE_OPTION}>{t("native (default)")}</SelectItem>
+                      {declaredPlugins.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {installedByName.size === 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t("No plugins installed.")}{" "}
+                <button
+                  type="button"
+                  className="text-left underline underline-offset-2 hover:text-foreground"
+                  onClick={() => onNavigate?.("app-settings")}
+                >
+                  {t("Install plugins from the Plugins manager in app Settings.")}
+                </button>
+              </p>
+            )}
+          </div>
         </section>
 
         {/* Processing */}
@@ -512,166 +496,150 @@ export function ProjectSettingsPage({
           <SectionHeading className="mb-3" icon={<Cpu size={14} />}>
             Processing
           </SectionHeading>
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <p className="text-xs text-muted-foreground">
-                The defaults suit most projects. Open the advanced settings only to tune speed on
-                large runs.
-              </p>
-              <Collapsible>
-                <CollapsibleTrigger className="group flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-                  <ChevronRight
-                    size={14}
-                    className="transition-transform group-data-[state=open]:rotate-90"
-                  />
-                  Performance (advanced)
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label
-                        htmlFor="concurrency"
-                        className="mb-1 block text-xs text-muted-foreground"
-                      >
-                        Files at once
-                      </Label>
-                      <Input
-                        id="concurrency"
-                        type="number"
-                        value={defaults.concurrency ?? ""}
-                        onChange={(e) => {
-                          const v = parseInt(e.target.value, 10);
-                          updateDefaults({ concurrency: isNaN(v) ? undefined : v });
-                        }}
-                        placeholder="auto"
-                        min={1}
-                        max={64}
-                      />
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        How many files are processed at the same time. Leave empty for automatic.
-                      </p>
-                    </div>
-                    <div>
-                      <Label
-                        htmlFor="parallel-blocks"
-                        className="mb-1 block text-xs text-muted-foreground"
-                      >
-                        Segments at once
-                      </Label>
-                      <Input
-                        id="parallel-blocks"
-                        type="number"
-                        value={defaults.parallel_blocks ?? ""}
-                        onChange={(e) => {
-                          const v = parseInt(e.target.value, 10);
-                          updateDefaults({ parallel_blocks: isNaN(v) ? undefined : v });
-                        }}
-                        placeholder="auto"
-                        min={1}
-                        max={256}
-                      />
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        How many text segments a tool works on at once within a file. Leave empty
-                        for automatic.
-                      </p>
-                    </div>
+          <div className="space-y-3">
+            <Collapsible>
+              <CollapsibleTrigger className="group flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                <ChevronRight
+                  size={14}
+                  className="transition-transform group-data-[state=open]:rotate-90"
+                />
+                Performance (advanced)
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <SettingLabel
+                      htmlFor="concurrency"
+                      help={t(
+                        "How many files are processed at the same time. Leave empty for automatic.",
+                      )}
+                    >
+                      {t("Files at once")}
+                    </SettingLabel>
+                    <Input
+                      id="concurrency"
+                      type="number"
+                      value={defaults.concurrency ?? ""}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        updateDefaults({ concurrency: isNaN(v) ? undefined : v });
+                      }}
+                      placeholder="auto"
+                      min={1}
+                      max={64}
+                    />
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </CardContent>
-          </Card>
+                  <div>
+                    <SettingLabel
+                      htmlFor="parallel-blocks"
+                      help={t(
+                        "How many text segments a tool works on at once within a file. Leave empty for automatic.",
+                      )}
+                    >
+                      {t("Segments at once")}
+                    </SettingLabel>
+                    <Input
+                      id="parallel-blocks"
+                      type="number"
+                      value={defaults.parallel_blocks ?? ""}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        updateDefaults({ parallel_blocks: isNaN(v) ? undefined : v });
+                      }}
+                      placeholder="auto"
+                      min={1}
+                      max={256}
+                    />
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </section>
 
         {/* Per-format defaults */}
         {hasFormatDefaults && (
           <section>
             <SectionHeading className="mb-3" icon={<FileType size={14} />}>
-              Format Defaults
+              {t("Format defaults")}
             </SectionHeading>
-            <Card>
-              <CardContent className="space-y-4 p-4">
-                <p className="text-xs text-muted-foreground">
-                  Default settings applied to all content items using a given format.
-                </p>
-                {Object.entries(formatDefaults).map(([fmt, fd], i) => (
-                  <div key={fmt}>
-                    {i > 0 && <Separator className="mb-4" />}
-                    <div className="mb-2 flex items-center gap-2">
-                      <Badge variant="outline">{fmt}</Badge>
+            <div className="space-y-4">
+              {Object.entries(formatDefaults).map(([fmt, fd], i) => (
+                <div key={fmt}>
+                  {i > 0 && <Separator className="mb-4" />}
+                  <div className="mb-2 flex items-center gap-2">
+                    <Badge variant="outline">{fmt}</Badge>
+                  </div>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div>
+                      <Label className="mb-0.5 block text-xs text-muted-foreground">Preset</Label>
+                      <Input
+                        type="text"
+                        value={fd.preset ?? ""}
+                        onChange={(e) =>
+                          updateFormatDefault(fmt, { preset: e.target.value || undefined })
+                        }
+                        placeholder="default"
+                        className="h-7 text-xs"
+                      />
                     </div>
-                    <div className="grid grid-cols-4 gap-3">
-                      <div>
-                        <Label className="mb-0.5 block text-xs text-muted-foreground">Preset</Label>
-                        <Input
-                          type="text"
-                          value={fd.preset ?? ""}
-                          onChange={(e) =>
-                            updateFormatDefault(fmt, { preset: e.target.value || undefined })
-                          }
-                          placeholder="default"
+                    <div>
+                      <Label className="mb-0.5 block text-xs text-muted-foreground">Priority</Label>
+                      <Input
+                        type="number"
+                        value={fd.priority ?? ""}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          updateFormatDefault(fmt, { priority: isNaN(v) ? undefined : v });
+                        }}
+                        placeholder="0"
+                        className="h-7 text-xs"
+                        min={0}
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-0.5 block text-xs text-muted-foreground">
+                        {t("Engine")}
+                      </Label>
+                      <Select
+                        value={fd.engine || PROJECT_ENGINE_OPTION}
+                        onValueChange={(v) =>
+                          updateFormatDefault(fmt, {
+                            engine: v === PROJECT_ENGINE_OPTION ? undefined : v,
+                          })
+                        }
+                      >
+                        <SelectTrigger
                           className="h-7 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <Label className="mb-0.5 block text-xs text-muted-foreground">
-                          Priority
-                        </Label>
-                        <Input
-                          type="number"
-                          value={fd.priority ?? ""}
-                          onChange={(e) => {
-                            const v = parseInt(e.target.value, 10);
-                            updateFormatDefault(fmt, { priority: isNaN(v) ? undefined : v });
-                          }}
-                          placeholder="0"
-                          className="h-7 text-xs"
-                          min={0}
-                        />
-                      </div>
-                      <div>
-                        <Label className="mb-0.5 block text-xs text-muted-foreground">
-                          {t("Engine")}
-                        </Label>
-                        <Select
-                          value={fd.engine || PROJECT_ENGINE_OPTION}
-                          onValueChange={(v) =>
-                            updateFormatDefault(fmt, {
-                              engine: v === PROJECT_ENGINE_OPTION ? undefined : v,
-                            })
-                          }
+                          aria-label={t("Engine for {fmt}", { fmt })}
                         >
-                          <SelectTrigger
-                            className="h-7 text-xs"
-                            aria-label={t("Engine for {fmt}", { fmt })}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={PROJECT_ENGINE_OPTION}>
-                              {t("Project engine")}
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={PROJECT_ENGINE_OPTION}>
+                            {t("Project engine")}
+                          </SelectItem>
+                          <SelectItem value="native">native</SelectItem>
+                          {declaredPlugins.map((name) => (
+                            <SelectItem key={name} value={name}>
+                              {name}
                             </SelectItem>
-                            <SelectItem value="native">native</SelectItem>
-                            {declaredPlugins.map((name) => (
-                              <SelectItem key={name} value={name}>
-                                {name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="mb-0.5 block text-xs text-muted-foreground">Config</Label>
-                        <span className="text-xs text-muted-foreground">
-                          {fd.config
-                            ? t("{count} keys", { count: Object.keys(fd.config).length })
-                            : t("none")}
-                        </span>
-                      </div>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="mb-0.5 block text-xs text-muted-foreground">Config</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {fd.config
+                          ? t("{count} keys", { count: Object.keys(fd.config).length })
+                          : t("none")}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                </div>
+              ))}
+            </div>
           </section>
         )}
       </div>

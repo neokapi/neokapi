@@ -149,12 +149,24 @@ describe("ProjectStanding", () => {
     const rows = screen.getAllByTestId("point-row");
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent("project default");
+    // The coordinates every point shares are drawn once, above the rows.
+    const shared = screen.getByTestId("point-map-shared");
     expect(
-      rows[0].querySelector("[data-slot='coordinate-chip'][data-axis='brand']"),
+      shared.querySelector("[data-slot='coordinate-chip'][data-axis='brand']"),
     ).toHaveTextContent("northsea");
+    expect(shared).toHaveTextContent("brand");
+    expect(rows[0].querySelector("[data-slot='coordinate-chip']")).toBeNull();
+    // A row shows only the coordinates where it differs.
+    expect(
+      [...rows[1].querySelectorAll("[data-slot='coordinate-chip']")].map((c) =>
+        c.getAttribute("data-axis"),
+      ),
+    ).toEqual(["product", "channel"]);
     expect(rows[1]).toHaveTextContent("support/docs");
     expect(rows[1]).toHaveTextContent("Docs");
+    // A voice is named on a row only where it differs from the project's own.
     expect(rows[1]).toHaveTextContent("Northsea Support");
+    expect(rows[0]).not.toHaveTextContent("Northsea");
     // A point nothing sits at says so rather than reading as an error.
     expect(rows[2]).toHaveTextContent("no collection sits here");
     expect(rows[2]).toHaveTextContent("fell through");
