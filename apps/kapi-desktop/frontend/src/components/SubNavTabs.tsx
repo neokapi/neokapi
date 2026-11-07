@@ -20,8 +20,8 @@ export interface SubNavTabsProps<T extends string> {
 
 /**
  * The one sub-navigation of a page: underlined tabs in a row under the top
- * bar, inset to the page's content padding. Context, the Toolbox, Project
- * Settings and App Settings all draw their sections with it.
+ * bar, inset to the page's content padding. Context, Project Settings and
+ * App Settings all draw their sections with it.
  */
 export function SubNavTabs<T extends string>({
   label,

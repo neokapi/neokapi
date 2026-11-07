@@ -2,7 +2,6 @@ import {
   Home,
   Compass,
   ClipboardCheck,
-  Wrench,
   LayoutDashboard,
   Settings,
   SlidersHorizontal,
@@ -18,8 +17,8 @@ type SidebarItem =
       icon: React.ReactNode;
       label: string;
       alwaysEnabled?: boolean;
-      /** Extra routes that keep this item highlighted, such as the Toolbox on
-       *  its "flows" tab. */
+      /** Extra routes that keep this item highlighted, such as the persisted
+       *  view ids of pages an item replaced. */
       activeViews?: string[];
     }
   | { type: "separator" };
@@ -71,16 +70,12 @@ const projectItems: SidebarItem[] = [
   },
   {
     type: "item",
-    view: "tools",
-    icon: <Wrench size={20} strokeWidth={SW} />,
-    label: "Toolbox",
-    activeViews: ["flows", "formats"],
-  },
-  {
-    type: "item",
     view: "project-settings",
     icon: <SlidersHorizontal size={20} strokeWidth={SW} />,
     label: "Project Settings",
+    // Flows are a tab here; "tools" and "formats" are the persisted ids of
+    // the pages it replaced, which open the same tab.
+    activeViews: ["flows", "tools", "formats"],
   },
 ];
 

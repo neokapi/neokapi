@@ -185,7 +185,7 @@ describe("the monolingual home", () => {
     // The Overview, Context and the rest are fully present.
     expect(screen.getByRole("button", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Context" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Toolbox" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Project Settings" })).toBeInTheDocument();
   });
 
   it("apologises for nothing", () => {

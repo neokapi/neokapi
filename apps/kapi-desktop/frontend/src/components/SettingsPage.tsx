@@ -9,9 +9,10 @@ import { DevPseudoCard } from "./DevPseudoCard";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
 import { LocaleSettings } from "./LocaleSettings";
+import { FormatsPage } from "./FormatsPage";
 import { SubNavTabs } from "./SubNavTabs";
 
-type SettingsTab = "general" | "credentials" | "plugins" | "locales";
+type SettingsTab = "general" | "credentials" | "plugins" | "formats" | "locales";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type UILanguage = "en" | "nb" | "qps";
@@ -169,6 +170,7 @@ export function SettingsPage({
           { id: "general", label: t("General") },
           { id: "credentials", label: t("AI Models") },
           { id: "plugins", label: t("Plugins") },
+          { id: "formats", label: t("Formats") },
           { id: "locales", label: t("Languages") },
         ]}
         active={tab}
@@ -264,6 +266,12 @@ export function SettingsPage({
       {tab === "plugins" && (
         <div role="tabpanel" className="flex-1 overflow-auto">
           <PluginManager />
+        </div>
+      )}
+
+      {tab === "formats" && (
+        <div role="tabpanel" className="flex-1 overflow-auto">
+          <FormatsPage />
         </div>
       )}
 

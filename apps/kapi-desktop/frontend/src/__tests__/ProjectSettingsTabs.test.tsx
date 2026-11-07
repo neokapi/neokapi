@@ -6,6 +6,7 @@ import { ProjectSettingsTabs, settingsSectionOf } from "../components/ProjectSet
 const pages = {
   settings: <p>project settings</p>,
   content: <p>collections</p>,
+  flows: <p>flows page</p>,
   assistants: <p>assistants page</p>,
   sessions: <p>sessions page</p>,
   share: <p>share page</p>,
@@ -25,9 +26,12 @@ describe("Project Settings tabs", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Settings",
       "Content",
+      "Flows",
       "Assistants",
       "Share",
     ]);
+    await userEvent.click(screen.getByRole("tab", { name: "Flows" }));
+    expect(onNavigate).toHaveBeenLastCalledWith("project-settings:flows");
     await userEvent.click(screen.getByRole("tab", { name: "Assistants" }));
     expect(onNavigate).toHaveBeenLastCalledWith("project-settings:assistants");
     await userEvent.click(screen.getByRole("tab", { name: "Settings" }));

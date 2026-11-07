@@ -251,7 +251,7 @@ export const okapiMetadata: OkapiMetadataShape = {
     .map((e) => e.schema as ComponentSchema),
 };
 
-// ── Tools metadata (FlowsPage / ToolRunnerPage) ──────────────────────────────
+// ── Tools metadata (FlowsPage) ───────────────────────────────────────────────
 //
 // The old `tools-metadata.json` was a flat `ToolInfo[]` of built-in tools.
 // Reproduce it from the built-in tool entries using the snake_case `ToolInfo`

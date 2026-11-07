@@ -90,7 +90,7 @@ describe("AppHome", () => {
     }
   });
 
-  it("carries no quick tools: the Toolbox is in the sidebar", () => {
+  it("carries no quick tools: flows are in Project Settings", () => {
     render(<AppHome {...defaultProps} workspace={workspaceOf(SEVERAL_ROWS)} />);
     expect(screen.queryByText("Quick tools")).not.toBeInTheDocument();
     expect(screen.queryByText("Design a Flow")).not.toBeInTheDocument();

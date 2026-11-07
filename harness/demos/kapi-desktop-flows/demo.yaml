@@ -1,6 +1,6 @@
 id: kapi-desktop-flows
 title: Compose the flow, run it anywhere
-subtitle: The default flow covers most projects; the Toolbox is where you change it.
+subtitle: The default flow covers most projects; Project Settings is where you change it.
 kind: use-case
 publishAs: kapi-desktop-flows
 terminal: desktop
@@ -9,7 +9,7 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - The Toolbox pillar
+  - The Flows tab
   - Project flows
   - Pipelines of steps
   - The project default
@@ -22,7 +22,7 @@ narration:
     kind: title
     text: >-
       A project needs no flow definition to translate. When the default is not
-      enough, the Toolbox is where you compose your own, and what you save there
+      enough, the Flows tab in Project Settings is where you compose your own, and what you save there
       runs unchanged from the command line.
 
   - id: open-flow
@@ -31,7 +31,7 @@ narration:
     caption: Two steps. Translate, then check.
     crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
     text: >-
-      The Toolbox is where a project keeps what it runs over its content, and a
+      The Flows tab is where a project keeps what it runs over its content, and a
       flow there is a named sequence of steps. This one translates and then
       checks, which is the shape of the built-in default.
 

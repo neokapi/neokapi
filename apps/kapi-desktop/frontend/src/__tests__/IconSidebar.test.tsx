@@ -12,7 +12,6 @@ describe("IconSidebar", () => {
       "Overview",
       "Context",
       "Review",
-      "Toolbox",
       "Project Settings",
       "App Settings",
     ]);
@@ -53,12 +52,15 @@ describe("IconSidebar", () => {
     },
   );
 
-  it("keeps the Toolbox lit on its Flows and Formats tabs", () => {
-    const { rerender } = render(<IconSidebar active="flows" onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Toolbox" }).className).toContain("bg-primary");
-    rerender(<IconSidebar active="formats" onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Toolbox" }).className).toContain("bg-primary");
-  });
+  it.each(["project-settings:flows", "flows", "tools", "formats"])(
+    "keeps Project Settings lit on %s, where Flows open",
+    (view) => {
+      render(<IconSidebar active={view} onChange={vi.fn()} />);
+      expect(screen.getByRole("button", { name: "Project Settings" }).className).toContain(
+        "bg-primary",
+      );
+    },
+  );
 
   it("keeps Project Settings lit on its Assistants tab, and Context dark", () => {
     render(<IconSidebar active="project-settings:assistants" onChange={vi.fn()} />);
