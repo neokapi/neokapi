@@ -68,7 +68,7 @@ Pass a positional context as the second argument:
 ```tsx
 t("State", "US state"); // → address form field
 t("State", "workflow status"); // → task lifecycle
-t("State", "physics lecture"); // → h / cold / gas / plasma
+t("State", "physics lecture"); // → solid / liquid / gas / plasma
 ```
 
 Each of those is a **separate block** with a different hash, so translators can give each one its own target string.
@@ -188,7 +188,7 @@ extracts on its own. A format-only template with no alphabetic text,
 such as `` `${pct}%` `` or `` `v${version}` ``, is code-level
 formatting and needs no `t()`. The lint rule
 [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-jsx-child)
-does not flag it.
+skips it.
 
 ## When to use `t()` vs. refactor to JSX
 
