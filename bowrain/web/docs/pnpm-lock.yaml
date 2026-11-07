@@ -1433,7 +1433,7 @@ packages:
   '@neokapi/docs-shared@file:../../../packages/docs-shared':
     resolution: {directory: ../../../packages/docs-shared, type: directory}
     peerDependencies:
-      react: ^19.0.0
+      react: ^19.3.1
 
   '@noble/hashes@1.4.0':
     resolution: {integrity: sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==, tarball: https://registry.npmjs.org/@noble/hashes/-/hashes-1.4.0.tgz}

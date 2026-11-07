@@ -5,7 +5,7 @@ title: Project Model
 
 # Bowrain Project Model
 
-A bowrain project is a `.kapi` project with a `bowrain:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` directory.
+A connected project keeps its configuration in the repository and its context on Bowrain, where every checkout and every teammate reads the same terms, voice profiles and decisions. On disk it is a kapi project with a `bowrain:` block in its recipe: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` directory, the same project model the `kapi` CLI uses.
 
 ## Directory Structure
 
@@ -34,11 +34,11 @@ my-app/
 
 Ownership zones at the project root:
 
-- **`kapi.yaml`**: hand-edited, committed to git. The recipe is the single source of truth for project configuration. The `.yaml` extension enables YAML highlighting in editors and code hosts. In addition to manual edits, an axis approved on the server arrives as a [`kapi pull`](/cli/commands/pull) that edits `defaults.coordinates`, for review in git.
-- **`.kapi/`**: this checkout's cache, kept out of git. `work/store.db` is the checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files. `work/cache/` holds everything cheaply regenerable (the tree last declared to the server, extraction intermediates, overlay layers) and is safe to delete at any time. Nothing authored lives there: file-per-flow definitions sit in the committed directory the recipe names with `flows_dir:`, and kapi reads nothing from `.kapi/flows/`.
-- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, every checkout of the project shares it, and every gate and lookup answers from it. `kapi context sync` shares it through the backend the recipe declares under `context:`, and `kapi store export` writes it to one file.
+- **`kapi.yaml`**: hand-edited and committed to git. The recipe holds the project configuration. An axis approved on the server also reaches it: the next [`kapi pull`](/cli/commands/pull) edits `defaults.coordinates`, for review in git.
+- **`.kapi/`**: this checkout's cache, kept out of git. `work/store.db` holds the checkout's copy of its working tree: the block cache, the overlays a run wrote and the extraction stamps. It rebuilds from the content files. `work/cache/` holds files kapi can regenerate cheaply, and you can delete it at any time. You author nothing there: file-per-flow definitions sit in the committed directory the recipe names with `flows_dir:`, and kapi reads nothing from `.kapi/flows/`.
+- **The project's context store**: kept by kapi in a workspace under your data directory, outside the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger. Every checkout of the project shares it, and every gate and lookup reads from it. `kapi context sync` shares it through the backend the recipe declares under `context:`, and `kapi store export` writes it to one file.
 
-Local and server converge in shape. Bowrain answers graph questions over one database spanning workspaces, projects and streams; a project answers the same query shapes over its own workspace graph with those dimensions fixed to one value, so which blocks use a given term, by collection and coordinate, is answerable with no server.
+A project can answer the same questions as Bowrain over its own context, for one project and one stream. For example, kapi can list which blocks use a given term, by collection and coordinate, with no server.
 
 ## Recipe schema
 
@@ -159,9 +159,13 @@ Only the connection coordinates sit under `bowrain:`:
 
 ### Sharing the project's context on Bowrain
 
-`kapi context sync` can keep the project's context on the Bowrain project the
-`bowrain:` block connects to: the terms, the kept and dropped suggestions, and
-the decisions every checkout records. `kapi share` reports it there.
+When the project's context lives on Bowrain, every checkout and every teammate
+reads the same terms, kept and dropped suggestions, and decisions. In the
+browser and in Kapi Desktop, Rules shows that record (see
+[Map, Reader and Rules](/server/project-map)). From the command line,
+`kapi context sync` keeps it in step with the Bowrain project the `bowrain:`
+block connects to.
+
 `kapi share --via bowrain` connects the project and leaves the context where
 it is, so name the `bowrain` backend in the recipe's `context:` block
 yourself:
@@ -231,9 +235,9 @@ Every push repeats the line until the recipe and the server agree. The server
 records each change it applies in the audit log, with the pusher and the value
 before and after. Its runs read the value it holds.
 
-Lifecycle (`hooks`, `automations`) and asset policy (`assets`) live at the **top level** of the recipe, not under `bowrain:`: they describe project-owned policy, not server identity.
+Lifecycle (`hooks`, `automations`) and asset policy (`assets`) sit at the **top level** of the recipe, beside `bowrain:`, because they are project policy.
 
-The framework has no built-in notion of a server: `bowrain:` (and `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). kapi identifies the connection through the venue flag on the plugin's schema registration and reads `url:` and `converge:`. So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `bowrain:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [C-01: The project model](https://neokapi.github.io/contribute/architecture/context/c-01-project-model).
+`bowrain:`, `automations:`, `assets:` and `brand_voice:` are bowrain **recipe extensions**. kapi reads them only when the `kapi-bowrain` plugin is installed, and keeps them unchanged otherwise. `kapi init`, `kapi init-connect` and `kapi config server.url …` declare `requires: { bowrain: "*" }` whenever they write a `bowrain:` block. A plain `kapi` binary without the plugin then refuses the recipe with a "requires the bowrain plugin" error. See [C-01: The project model](https://neokapi.github.io/contribute/architecture/context/c-01-project-model).
 
 ## Content Collections
 
@@ -352,13 +356,20 @@ collections:
 | `concept`    | A concept reference (`term:<id>`) the profile carries for display          |
 | `valid_from`, `valid_to` | The profile's validity window                                   |
 
-A profile that binds no `voice:` of its own is answered by the profile the store holds under its name. Profile names and channels are slugs (lowercase letters, digits and hyphens): stable identifiers that cross the sync wire as the content's product and channel coordinates, never vocabulary. A bare `channel:` two profiles declare is a load error naming both qualified spellings; a collection binding no channel is governed by `defaults.voice` and the project's own terms.
+A profile that binds no `voice:` of its own uses the voice profile the store holds under its name. Profile names and channels are slugs (lowercase letters, digits and hyphens). They are stable identifiers, sent with each push as the content's product and channel coordinates. A bare `channel:` that two profiles declare is a load error naming both qualified spellings. A collection that binds no channel uses `defaults.voice` and the project's own terms.
 
-A profile's `termstore:` is the one binding that does not cross to the server, which governs terms from the workspace vocabulary instead. A connected project that binds a terms store per profile warns on every run that the binding applies to local runs only.
+A profile's `termstore:` applies to local runs only. The server applies the workspace terms instead, and a connected project that binds a terms store per profile warns about this on every run.
 
 ## Gates
 
-A gate names the rung of the target ladder a scope must reach, and who may have approved it, for the scope to count as shippable. `ship_gate` sets the bar for every locale; `ship_gates` refines it per scope with a `when:` selector, so a legal collection can wait for a person while a help collection ships on checks; `source_gate` is the source-side coverage bar `kapi check --ship` evaluates. The per-block hold before a run fans out is `defaults.translate_after`, and `translate_after: none` opts out of it. The ship state the server derives from these is described under [Ship states](/server/review#ship-states).
+A gate names the rung of the target ladder a scope must reach, and who may have approved it, for the scope to count as shippable.
+
+- `ship_gate` sets the bar for every locale.
+- `ship_gates` refines it per scope with a `when:` selector, so a legal collection can wait for a person while a help collection ships on checks.
+- `source_gate` is the source-side coverage bar `kapi check --ship` evaluates.
+- `defaults.translate_after` is the per-block hold before a run translates, and `translate_after: none` turns it off.
+
+[Ship states](/server/review#ship-states) describes the state the server derives from these.
 
 ## Tool configuration
 
@@ -366,7 +377,7 @@ A flow step's `config:` keys are the tool's own schema keys, listed in the
 [tool reference](https://neokapi.github.io/reference/tools/term-check). The
 wording constraint is one key everywhere it applies: `term-check`, `translate`
 and `recycle` take `term_rules:`, a list of rules naming a term, what to use
-instead, and how hard the rule bites. The voice profile carries the same rules
+instead, and whether a violation fails a check. The voice profile carries the same rules
 under its `vocabulary:` section, and a run resolves the terms in force at a
 block's point from the profile and the bound terms store.
 
@@ -439,7 +450,7 @@ All commands work from any subdirectory within the project. A directory holds at
 
 `.kapi/`: `kapi init` writes `.kapi/.gitignore` with one line, `*`, so none of the cache reaches git.
 
-Deleting `.kapi/work/` costs a re-extraction and nothing else. Deleting `.kapi/` also costs the sync state in `.kapi/sync/` and, if the project uses redaction, the withheld originals in `.kapi/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so push each project's context to its backend, or take a copy with `kapi store export -o <file>.kpz`, before you remove that.
+Deleting `.kapi/work/` costs a re-extraction and nothing else. Deleting `.kapi/` also loses the sync state in `.kapi/sync/` and, if the project uses redaction, the withheld originals in `.kapi/vault/`. Those originals are local-only and cannot be rebuilt. Your context is in the workspace and survives. Deleting the workspace loses every project's terms, voice profiles, content memory and decisions, so before you remove it, push each project's context to its backend or take a copy with `kapi store export -o <file>.kpz`.
 
 ## Initialization
 

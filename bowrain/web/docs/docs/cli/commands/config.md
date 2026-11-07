@@ -5,10 +5,10 @@ sidebar_position: 2
 
 # Bowrain settings (`kapi config`)
 
-There is one configuration command, `kapi config`. The bowrain plugin does not
-ship its own: it claims the `bowrain.*` key namespace in its manifest
-(`capabilities.config_namespaces`), and kapi routes those keys to the plugin's
-own config file.
+Bowrain settings use kapi's own configuration command, `kapi config`. The
+bowrain plugin owns the `bowrain.*` keys (declared in its manifest as
+`capabilities.config_namespaces`), and kapi stores them in the plugin's own
+config file.
 
 Two scopes share the verb, split by shape:
 
@@ -20,8 +20,7 @@ Two scopes share the verb, split by shape:
 The user config directory is `~/.config/kapi` on Linux and
 `~/Library/Application Support/kapi` on macOS. A hand-written file at
 `$HOME/.config/kapi/kapi.yaml` is read on either platform as a
-lower-precedence layer, and `kapi config path` prints the location that is
-actually in force.
+lower-precedence layer, and `kapi config path` prints the location in force.
 
 ## Per-machine bowrain defaults
 
@@ -41,8 +40,8 @@ each installed plugin's, and takes `-o json` like any other listing.
 
 ## Project settings
 
-A project's own server binding lives in the recipe, not in per-machine config,
-so it is committed and travels with the repository:
+A project's own server binding lives in the recipe, so it is committed and
+travels with the repository:
 
 ```bash
 kapi config name                # Read the project name
@@ -62,8 +61,8 @@ kapi config server.stream '$auto'
 
 ## Precedence
 
-The per-machine default is a starting point for new projects; the recipe is
-authoritative for a project that already exists. Set the default once:
+The per-machine default is a starting point for new projects. For a project
+that already exists, the recipe decides. Set the default once:
 
 ```bash
 kapi config set bowrain.server.url https://app.bowrain.cloud

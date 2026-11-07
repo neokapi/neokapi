@@ -34,12 +34,11 @@ steps:
 ```
 
 Step config keys are the tool's own schema keys, in camelCase, exactly as the
-[tool reference](https://neokapi.github.io/tools) lists them. An unrecognized
-key is ignored rather than rejected, so a misspelling costs you the option
-rather than an error. The locale is never a config key: it comes from the
-run's `--target-lang`, or from the recipe inside a project, so one flow serves
-every locale. `kapi tools` lists the tools your installation provides,
-plugins included.
+[tool reference](https://neokapi.github.io/tools) lists them. kapi ignores an
+unrecognized key without an error, so a misspelled key silently drops its
+option. The locale comes from the run's `--target-lang`, or from the recipe
+inside a project, so one flow serves every locale. `kapi tools` lists the
+tools your installation provides, plugins included.
 
 ## Example flows
 
@@ -149,7 +148,7 @@ steps:
 
 `term-check`, `translate` and `recycle` take one key for the wording
 constraint, `term_rules:`, a list of rules naming a term, what to use instead,
-and how hard the rule bites. Inside a project you rarely write it by hand: the
+and whether a violation fails a check. Inside a project you rarely write it by hand: the
 voice profile's `vocabulary:` and the bound terms store supply the rules in
 force at each block's point. See [Project model](/cli/project-model#tool-configuration).
 

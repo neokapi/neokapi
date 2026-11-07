@@ -16,7 +16,12 @@ kapi flows
 
 ## Description
 
-The `kapi run` command executes a named multi-step processing pipeline. Where content comes from and goes to is a binding: a source is read, streamed through each tool, and written to the sink. Ad-hoc, the sink is a file (`-o`); inside a project with no `-o`, the run is *process-only*: it commits results to the project store and `kapi merge` materializes the files. Multiple input files can be processed in parallel. Use `--explain` to print the resolved `source → sink` without running.
+`kapi run` executes a named multi-step pipeline. It reads a source, streams it through each tool, and writes the result to a sink.
+
+- Ad hoc, the sink is a file (`-o`).
+- Inside a project with no `-o`, the run is *process-only*: it commits results to the project store, and `kapi merge` writes the files.
+
+Multiple input files can be processed in parallel. Use `--explain` to print the resolved `source → sink` without running.
 
 **Project-based flows**: If a `.kapi` project exists (a `kapi.yaml` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from the YAML files in the directory the recipe names with `flows_dir:`. This is the primary mode for the bowrain plugin.
 
@@ -104,8 +109,8 @@ steps:
 ```
 
 The term step checks against the project's terms, which `kapi store import`
-reads into the project's store, not a list configured per step;
-`--termstore` overrides it for a single run.
+reads into the project's store. `--termstore` overrides the terms store for a
+single run.
 
 Run with:
 
@@ -113,10 +118,10 @@ Run with:
 kapi run translate-review
 ```
 
-Project flows automatically use the recipe's content collections and locale defaults.
-No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`. A
-project run is process-only: results land in the project store; run
-`kapi merge` to write the target files.
+Project flows use the recipe's content collections and locale defaults, so you
+leave out `--input`, `--output`, `--source-lang` and `--target-lang`. A project
+run is process-only: results land in the project store, and `kapi merge`
+writes the target files.
 
 ## Built-in composed flows
 

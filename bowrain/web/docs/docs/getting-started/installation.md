@@ -13,7 +13,7 @@ Bowrain runs as a **server** your team connects to. Use the hosted service at
 
 Most routes into a workspace need **nothing installed**: content in a content
 platform, a design tool, or a repository connects server-side; see
-[Connectors](/server/connectors). This page covers the pieces you do install:
+[Connectors](/server/connectors). You install these pieces yourself:
 the desktop app, and the kapi CLI for the [developer
 route](/server/connectors/kapi).
 
@@ -43,8 +43,8 @@ brew install --cask neokapi/tap/bowrain@beta   # beta channel
 
 ### Direct downloads
 
-The links below always point at the release named in them; they are regenerated
-on every release from the assets actually attached to it.
+Each link points at the release named in it. The list is regenerated on every
+release from the assets attached to that release.
 
 <!-- BEGIN:downloads-bowrain-desktop -->
 Direct downloads for **Bowrain Desktop 1.3.0-rc10**:
@@ -115,11 +115,11 @@ kapi plugin list
 
 ## Self-hosting
 
-Prefer to run Bowrain yourself instead of using the hosted service? Installing
-the server, the Docker images (`ghcr.io/neokapi/bowrain-server`, `-worker`,
-`-web`), building from source, and configuration all live under
-[For developers: self-hosting](/server/installation). Keep the server, worker,
-and web images on the **same version tag**.
+To run Bowrain yourself, see
+[For developers: self-hosting](/server/installation). It covers the server, the
+Docker images (`ghcr.io/neokapi/bowrain-server`, `-worker`, `-web`), building
+from source, and configuration. Keep the server, worker and web images on the
+**same version tag**.
 
 ## Next steps
 

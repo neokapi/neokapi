@@ -15,10 +15,15 @@ vocabulary, and content memory once, across every project, surface, and
 teammate, and adds real-time collaboration, connectors, automation, versioned
 history, and corrections that become enforced checks.
 
-kapi on its own is enough when one person works from one checkout. Reach for
-Bowrain when content lives in systems beyond that checkout, when several
-projects or surfaces should share one memory, when several people work on the
-same content, or when you need shared review decisions. The full comparison is in
+kapi on its own is enough when one person works from one checkout. Use Bowrain
+when:
+
+- content lives in systems beyond that checkout;
+- several projects or surfaces should share one memory;
+- several people work on the same content;
+- you need shared review decisions.
+
+The full comparison is in
 [How Bowrain and kapi fit together](/getting-started/kapi-vs-bowrain).
 
 ## Can I self-host Bowrain?
@@ -48,9 +53,8 @@ database you can back up directly.
 
 Bowrain reads and writes the same formats the neokapi engine supports: document
 formats, data formats, subtitle formats, office formats, and bilingual
-interchange formats. Rather than repeat a list that changes as formats are added, see the
-generated [format reference](https://neokapi.github.io/formats)
-for the current, complete set.
+interchange formats. The generated
+[format reference](https://neokapi.github.io/formats) lists the current set.
 
 ## Does Bowrain train models on my content?
 
@@ -74,9 +78,8 @@ See [Review](/server/review).
 Bowrain drafts with AI (large language model) providers, not dedicated
 machine-translation engines. You can bring your own key for any provider the
 engine's [translate tool](https://neokapi.github.io/reference/tools/translate)
-supports, including a locally hosted model, and drafting runs against it. There
-is no separate machine-translation provider integration to configure: dedicated
-MT providers are not part of the product.
+supports, including a locally hosted model, and drafting runs against it.
+Dedicated MT providers are not part of the product.
 
 ## I have a question that is not here
 

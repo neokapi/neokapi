@@ -13,11 +13,11 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 A **voice profile** is a machine-readable description of how your content
 should read: the vocabulary it should use, the terms it should avoid, and the
 tone and style that make it recognizable. Most workspaces call their default
-profile *brand*; a workspace with several audiences carries several profiles,
-each bound at the point it governs. On its own, a profile is a set of
-[checks](https://neokapi.github.io/framework/checks): kapi and
-Bowrain run it over content and report what drifts off-voice, the same way a
-test reports what broke.
+profile *brand*. A workspace with several audiences carries several profiles,
+each bound at the point it governs. A profile works as a set of
+[checks](https://neokapi.github.io/framework/checks). kapi and Bowrain run it
+over content and report what drifts off-voice, in the way a test reports what
+broke.
 
 Bowrain aggregates repeated corrections into candidate rules. Reviewers can
 inspect their evidence, preview their effect on stored content and promote them
@@ -44,15 +44,15 @@ review:
    and who made it.
 2. **Surface.** When the same `(original → corrected)` correction recurs across
    the project, it surfaces as a **candidate rule**. Candidates are recomputed
-   live from the correction stream, so they always reflect current evidence.
+   live from the correction stream and reflect the current evidence.
 3. **Preview.** Before a candidate is enforced, Bowrain computes its **blast
-   radius**: it runs the rule over your stored content and shows how many blocks
-   it would newly flag, how many it resolves, and how many of the new findings
-   fail a check, so you see the impact before anything changes.
+   radius**. It runs the rule over your stored content and shows how many
+   blocks it would newly flag, how many it resolves, and how many of the new
+   findings fail a check.
 4. **Promote.** A reviewer **promotes** the candidate. Bowrain writes it into
-   the workspace's terms as a term rule, records who promoted it and when, and
-   the rule is enforced as a deterministic check on every future generation, in
-   every language the terms cover. The promoted rule is **concept-backed**: it
+   the workspace's terms as a term rule and records who promoted it and when.
+   From then on, a rule-based check enforces it on every generation, in every
+   language the terms cover. The promoted rule is **concept-backed**: it
    references the [concept](/server/context#concepts) its term denotes, so the
    rule and the term it governs share one identity in the Context hub.
    Promoting a voice rule is a governed edit, and a concept's
@@ -86,16 +86,16 @@ transition period.
 
 ## Progressive autonomy
 
-Every profile starts fully manual: each candidate waits for a human to promote
-it. As a team learns to trust the candidates a dimension produces, it can raise
-that dimension's **auto-promote threshold**, so a correction that pushes a term
-past the threshold promotes its rule automatically and announces it. Autonomy is
-opt-in and per-profile; a team widens it dimension by dimension as confidence
-grows, and never all at once.
+Every profile starts fully manual: each candidate waits for a person to promote
+it. When a team trusts the candidates a dimension produces, it can raise that
+dimension's **auto-promote threshold**. A correction that pushes a term past
+the threshold then promotes its rule automatically and announces it. You turn
+autonomy on per profile, one dimension at a time.
 
 ## Where it shows up
 
-You can use the same voice engine through these interfaces:
+The browser, an AI assistant and the command line all work with the same voice
+profiles:
 
 - **Web**: each voice profile's review lists its candidates beside a detail
   pane, in groups: needs you, suggested, approved, established and rejected. A
@@ -106,20 +106,18 @@ You can use the same voice engine through these interfaces:
   preview a candidate's blast radius over that project's content. The Context
   hub's [dashboard](/server/context#the-dashboard-and-the-decision-inbox)
   links each profile's review and marks a drifting project on its row.
-- **MCP**: an AI assistant can read what its own corrections have surfaced,
-  preview a candidate's impact, and promote it, so the assistant participates in
-  governing the voice it writes in.
-- **CLI / CI**: once a rule is promoted it is an ordinary
-  [check](https://neokapi.github.io/framework/checks). `kapi`
-  enforces it locally and in CI, gated by exit code, with no server round-trip.
+- **MCP**: an AI assistant can read the candidates its own corrections
+  produced, preview a candidate's impact, and promote it.
+- **CLI / CI**: a promoted rule is an ordinary
+  [check](https://neokapi.github.io/framework/checks). `kapi` enforces it
+  locally and in CI through its exit code, without contacting the server.
 
-The detection and scoring are the open engine's job; Bowrain owns the durable
-governance layer (the decisions, profile versions, provenance, autonomy, and
-drift) and the surfaces that drive it.
+The open engine detects and scores. Bowrain keeps the decisions, profile
+versions, provenance, autonomy settings and drift history, and provides the
+screens that work with them.
 
-For voice changes too consequential to make in place, such as banning a term
-across the workspace or swapping a preferred term, the
-[Context](/server/context) hub bundles the voice-rule edits into a reviewable
-**change-set** whose
-[blast radius](/server/context#experiments-change-sets-and-pilots) is measured before
+For larger voice changes, such as banning a term across the workspace or
+swapping a preferred term, the [Context](/server/context) hub groups the
+voice-rule edits into a reviewable **change-set**. Bowrain measures its
+[blast radius](/server/context#experiments-change-sets-and-pilots) before
 anyone approves it.

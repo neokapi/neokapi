@@ -5,12 +5,11 @@ title: Overview
 
 # Flows
 
-A flow is a composable pipeline that processes content files through a
-sequence of tools: AI drafting, source checks, term checks, and more. Flows
-are a [neokapi engine](https://neokapi.github.io/) feature; this page covers
-how they behave inside a Bowrain project. For the mechanics of the streaming
-pipeline, the full tool catalog, and the supported formats, see the neokapi
-reference:
+A flow runs content files through a sequence of tools, such as AI drafting,
+source checks and term checks. Flows are a
+[neokapi engine](https://neokapi.github.io/) feature, and the sections below
+cover how they behave inside a Bowrain project. For the streaming pipeline,
+the full tool catalog and the supported formats, see the neokapi reference:
 
 - [Tool reference](https://neokapi.github.io/tools): every processing tool
   and its inputs and outputs.
@@ -21,16 +20,16 @@ reference:
 
 ## Flows in a synced project
 
-In a Bowrain project, a flow reads the source files, streams their blocks through
-the tools in order, and, with no `-o`, commits the results to the project store
-as overlays (a *process-only* run); `kapi merge` then materializes the target
-files (pass `-o` to write a file directly instead). You then
-[`kapi push`](/cli/commands/push) those changes to the server like any other
-edit. The flow itself runs locally; it does not touch the server until you push.
+In a Bowrain project, a flow reads the source files and streams their blocks
+through the tools in order. With no `-o`, it commits the results to the project
+store as overlays (a *process-only* run), and `kapi merge` then writes the
+target files. Pass `-o` to write a file directly instead. You then
+[`kapi push`](/cli/commands/push) the changes to the server like any other
+edit. The flow runs locally and reaches the server only when you push.
 
-For the everyday reconcile, [`kapi up`](/cli/commands/up) runs the project's
-default flow for you, on the server when the project is connected. Run a named
-flow yourself when you want one composition, one pass, and no gate loop.
+Day to day, [`kapi up`](/cli/commands/up) runs the project's default flow for
+you, on the server when the project is connected. Run a named flow yourself
+for one composition in one pass, without the gate loop.
 
 ## Built-in flows
 
@@ -45,8 +44,8 @@ kapi ships a small set of composed flows you can run by name:
 | `recycle`          | Pre-fill targets from content memory                              |
 | `segmentation`     | Split source text into sentence segments                          |
 
-List what is available in your installation, including any tools and formats
-added by plugins, rather than relying on a fixed list:
+To list what your installation provides, including tools and formats added by
+plugins:
 
 ```bash
 kapi flows     # composed flows

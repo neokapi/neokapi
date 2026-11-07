@@ -4,10 +4,12 @@ sidebar_position: 12
 description: Run your own Bowrain instance with Docker, the cooperating services a self-hosted deployment needs and how they fit together.
 ---
 
+import { SwimlaneDiagram } from "@neokapi/docs-shared";
+
 # Self-Hosting
 
-Run your own Bowrain instance with Docker. A deployment is a few cooperating
-services:
+Run your own Bowrain instance with Docker, on infrastructure you control. A
+deployment is a set of cooperating services:
 
 - **bowrain-server**: the REST + gRPC API.
 - **bowrain-worker**: the async worker; ingests pushes and runs the drafting
@@ -24,6 +26,22 @@ services:
 - An **OIDC identity provider** (for example Keycloak) and an **SMTP** sender.
 
 A reverse proxy routes `/api` + gRPC to the server and everything else to the web UI.
+
+<SwimlaneDiagram
+  actors={[
+    { label: "Client", sub: "kapi · browser · desktop", role: "io" },
+    { label: "bowrain-server", sub: "REST + gRPC", role: "translate" },
+    { label: "bowrain-worker", sub: "async jobs", role: "qa" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "push", detail: "through the reverse proxy" },
+    { from: 1, to: 2, label: "enqueue the job", detail: "SQS or ElasticMQ" },
+    { from: 2, to: 2, label: "ingest and draft", detail: "PostgreSQL · blob storage · AI provider" },
+    { from: 2, to: 1, label: "events", detail: "Redis Streams" },
+    { from: 1, to: 0, label: "live progress" },
+  ]}
+  caption="The server accepts a push and enqueues it; the worker ingests and drafts, and events flow back to the clients."
+/>
 
 ## Quick Start
 
@@ -194,14 +212,14 @@ redirect URI to the public HTTPS URL. Set `BOWRAIN_OIDC_PUBLIC_URL` too if the
 browser reaches your identity provider under a different name than the server
 does.
 
-`BOWRAIN_FORCE_SECURE_COOKIES` is already `true` by default, which is what you
-want here: TLS terminates at the proxy, so without it the `Secure` flag would
-depend on the `X-Forwarded-Proto` header above continuing to arrive.
+Keep `BOWRAIN_FORCE_SECURE_COOKIES` at its default, `true`. TLS terminates at
+the proxy, so without it the `Secure` flag would depend on the
+`X-Forwarded-Proto` header above arriving on every request.
 
-A server is production unless `BOWRAIN_ALLOW_INSECURE_DEV=1` says otherwise, so
-a self-hosted deployment gets the strict origin policy by default. That flag is
-for a local development box and should never be set on anything reachable from
-the internet.
+A server runs in production mode unless `BOWRAIN_ALLOW_INSECURE_DEV=1` is set,
+so a self-hosted deployment gets the strict origin policy by default. Set that
+flag only on a local development box, never on anything reachable from the
+internet.
 
 ## Docker Image Tags
 

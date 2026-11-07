@@ -5,19 +5,22 @@ sidebar_label: Map, Reader and Rules
 description: A project opens on its Map. The Reader shows one file with its findings, and Rules holds the team queue and who kept each rule.
 ---
 
+import { SwimlaneDiagram, ThemedImage } from "@neokapi/docs-shared";
+
 # Map, Reader and Rules
 
 A project opens on its **Map**. The project's sidebar lists **Map** first, then
-**Overview**, **Rules** and the other sections. These are the screens kapi draws on the desktop,
-read from the server, so your team works from one record of what an assistant
-noticed and what a person decided.
+**Overview**, **Rules** and the other sections. Kapi Desktop shows the same
+screens, read from the server, so your team works from one record of what
+assistants noticed and what people decided.
 
-## How a project gets its context here
+## Keeping a checkout's context on Bowrain
 
 The Map and Rules read the project's context: the suggestions assistants
-recorded and the decisions people made about them. A project connected from a
-checkout keeps that context on Bowrain when its recipe names the `bowrain`
-backend:
+recorded and the decisions people made about them. When that context lives on
+the server, every checkout of the project reads the same decisions. A project
+connected from a checkout keeps its context on Bowrain when its recipe names
+the `bowrain` backend:
 
 ```yaml
 context:
@@ -25,6 +28,22 @@ context:
 bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
 ```
+
+<SwimlaneDiagram
+  actors={[
+    { label: "Your checkout", sub: "kapi.yaml and .kapi/", role: "io" },
+    { label: "Bowrain", sub: "the project's context", role: "qa" },
+    { label: "A teammate", sub: "browser or desktop", role: "annotate" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "send what this machine recorded", detail: "kapi context sync" },
+    { from: 2, to: 1, label: "decide in Rules", detail: "Keep · Not a rule · Later" },
+    { from: 1, to: 0, label: "read what the team decided", detail: "the next sync" },
+  ]}
+  caption="Every checkout of the project sends its suggestions to Bowrain and reads back the decisions people made in Rules."
+/>
+
+To connect a checkout:
 
 1. `kapi share --via bowrain <server-url>` connects the project and writes the
    `bowrain:` block. It leaves the context where it is.
@@ -36,6 +55,14 @@ The fields and the sign-in rules are in
 [The project model](/cli/project-model#sharing-the-projects-context-on-bowrain).
 
 ## Map
+
+<ThemedImage
+  alt="A project on its Map, with counts, open suggestions and the file list"
+  sources={{
+    light: "/img/web-app/light/project-map.png",
+    dark: "/img/web-app/dark/project-map.png",
+  }}
+/>
 
 | Part | What it shows |
 | --- | --- |
@@ -59,12 +86,20 @@ and in the margin the rules that hold at that file.
 - **Approve & re-draft** in that list applies the change and keeps every
   inline code. Approving needs the `edit_source` permission; filing needs
   `review`.
-- **Edit by hand** marks a finding no fix answers.
+- **Edit by hand** marks a finding that no automatic fix resolves.
 - **Map** returns to the Map.
 
 ## Rules
 
 Rules holds the team queue above **Kept by**.
+
+<ThemedImage
+  alt="Rules with the team queue above the Kept by list"
+  sources={{
+    light: "/img/web-app/light/project-rules.png",
+    dark: "/img/web-app/dark/project-rules.png",
+  }}
+/>
 
 | Part | What it shows |
 | --- | --- |

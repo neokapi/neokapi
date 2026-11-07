@@ -31,7 +31,7 @@ const STEPS = [
     icon: ShieldCheck,
     title: t("Enforce"),
     body: t(
-      "Run the promoted rule where that profile applies. Findings identify wording that violates the configured rule; reviewers remain responsible for decisions beyond its coverage.",
+      "Run the promoted rule where that profile applies. Findings show wording that breaks the rule. Reviewers decide what the rule does not cover.",
     ),
   },
 ];
@@ -83,9 +83,7 @@ export function Loop() {
             ))}
           </div>
           <p className="mt-6 text-center text-xs text-muted-foreground/70">
-            {t(
-              "Review findings and later corrections to decide whether a rule should be retained, revised or removed.",
-            )}
+            {t("Use findings and later corrections to keep, revise or remove a rule.")}
           </p>
         </div>
       </div>

@@ -44,14 +44,16 @@ include:
 By default the `kapi_up` job runs on scheduled and web-triggered pipelines
 and on pushes to the default branch. It runs `kapi up` and reports what the
 run changed in the `kapi-changed-files.txt` artifact and the
-`KAPI_HAS_CHANGES` variable, for a delivery job of your own. With
-`deliver: mr`, when the run produced changes, the job pushes a branch and
-opens a merge request through the API (`GITLAB_API_TOKEN`) carrying the run
-report: outcome, passes, languages waiting for review. `deliver: commit` pushes a commit to
-the pipeline's branch instead. A run that leaves work **waiting for
-review** still delivers what it caught up; the languages waiting for review
-are the review queue, not a failure (set `fail_on_parked: true` to hard-fail
-instead).
+`KAPI_HAS_CHANGES` variable, for a delivery job of your own.
+
+- With `deliver: mr`, when the run produced changes, the job pushes a branch
+  and opens a merge request through the API (`GITLAB_API_TOKEN`) with the run
+  report: outcome, passes and languages waiting for review.
+- With `deliver: commit`, the job pushes a commit to the pipeline's branch.
+
+A run that leaves work **waiting for review** still delivers what it caught up,
+and the job passes. The languages waiting for review go to the review queue.
+Set `fail_on_parked: true` to fail the job instead.
 
 The `stage` input names the stage the job runs in, and the pipeline's
 `stages:` list must declare it: GitLab refuses to create a pipeline in which a
@@ -90,9 +92,9 @@ terms, rule-based check, or coverage gate is unmet. It posts one threaded MR
 note with the failing gates and findings, updated in place on re-runs, and
 keeps the full `--json` report as a job artifact. Exit `4`, a gate that did
 not run, also fails the job, with no MR note; the report artifact names the
-cause in `did_not_run_cause`. The gate is the explicit, opt-in enforcement
-point, and no other job fails on target-language drift. To leave pushes to the
-default branch ungated, set the `rules` input to merge-request pipelines alone.
+cause in `did_not_run_cause`. This gate is the only job that fails when target
+languages are behind. To leave pushes to the default branch ungated, set the
+`rules` input to merge-request pipelines alone.
 
 ## Report the cost of a change on its merge request
 

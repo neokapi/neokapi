@@ -12,11 +12,11 @@ back to the same posts.
 
 :::note
 
-This connector is added in a project's **Connectors** view in the web app, or
+Add this connector in a project's **Connectors** view in the web app, or
 through the workspace **connectors API** described below. Saved credentials are
-write-only: used for sync, never displayed again. All connector operations
-require the **manage connectors** permission. It is one route into a workspace
-among several; see [Connectors](/server/connectors) for the full row.
+write-only: Bowrain uses them for sync and never displays them again. All
+connector operations need the **manage connectors** permission. For the other
+routes into a workspace, see [Connectors](/server/connectors).
 
 :::
 
@@ -28,7 +28,7 @@ endpoint.
 | Direction | Content |
 | --------- | ------- |
 | Fetch (in) | For each post: the title, the content body, and the excerpt (when the post has one). Content is read from the REST API's rendered fields and treated as HTML. |
-| Publish (out) | The title, content, and excerpt fields of a post that was previously fetched. |
+| Publish (out) | The title, content, and excerpt fields of a post the connector has fetched. |
 
 The connector reads posts only. Pages, custom post types, taxonomies, media,
 and custom fields are not included.
@@ -76,9 +76,9 @@ for subsequent fetch, publish, status, and remove calls.
 
 ## How sync works
 
-Sync is explicit: content moves only when you fetch or publish (**Fetch now**
-and **Publish** in the Connectors view, or the endpoints below). The connector
-does not poll the site on a schedule and does not receive WordPress webhooks.
+Sync is explicit: content moves only when you fetch or publish, with **Fetch
+now** and **Publish** in the Connectors view or the endpoints below. The
+connector neither polls the site nor receives WordPress webhooks.
 
 **Fetch** requests the first 100 posts from the site and stores their title,
 content, and excerpt as blocks on the target project's main content stream. Call
@@ -88,10 +88,10 @@ content, and excerpt as blocks on the target project's main content stream. Call
 { "connector_id": "{id}", "project_id": "{project}" }
 ```
 
-The response reports how many items were fetched. Fetching stores source
-content; it does not itself start a run. Catch the fetched content up
-the way you would any project content, for example by starting a run or by
-letting the project's `bowrain.converge` policy produce and review targets.
+The response reports how many items were fetched. A fetch stores source content
+and starts no run. Catch the content up as you would any project content, for
+example by starting a run or by letting the project's `bowrain.converge` policy
+produce and review targets.
 
 **Publish** sends the project's stored block text back to the matching posts.
 Call `POST /api/v1/{workspace}/connectors/{id}/publish` with the same fields:

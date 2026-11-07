@@ -5,14 +5,19 @@ description: The kapi connector in depth. The project model, the command set, fl
 keywords: [kapi, bowrain plugin, project sync, kapi.yaml, push, pull, up, flows, CI]
 ---
 
+import { SwimlaneDiagram } from "@neokapi/docs-shared";
+
 # The developer route
 
-This section documents **kapi**, the connector for a developer's working
-checkout. It is one of [several routes into a
-workspace](/server/connectors); a content platform, a design tool, or a
-repository connected server-side reach the same workspace without any of it. Use
-this section when the source files live in a repository someone edits every day
-and the results should land in that working tree.
+A checkout connected to a workspace reads the same context as the rest of the
+team: the terms, voice profiles and decisions, the shared review queue, and
+runs on the server that catch every language up. The connection is **kapi**
+with the bowrain plugin, and the pages in this section document it.
+
+kapi is one of [several routes into a workspace](/server/connectors). A content
+platform, a design tool or a repository connected server-side reach the same
+workspace without it. Use kapi when the source files live in a repository
+someone edits every day and the results should land in that working tree.
 
 For when to choose this route over a server-side repository connector, see
 [the kapi connector](/server/connectors/kapi).
@@ -48,17 +53,29 @@ kapi up          # runs on the server: org keys, shared memory and vocabulary
 kapi up --plan   # dry run: pending work, reuse from memory, and a cost estimate
 ```
 
-On a connected project `kapi up` prints its resolved venue first (*server*),
-pushes what drifted, streams the run's progress into the terminal, and pulls the
-results down. What a machine cannot decide waits in the team's
-[review session](/server/review). See [`kapi up`](/cli/commands/up) for flags and
-venue resolution, and [Keeping content caught up](/the-loop) for what a run
-does.
+<SwimlaneDiagram
+  actors={[
+    { label: "Your checkout", sub: "kapi up", role: "io" },
+    { label: "Bowrain server", sub: "the run", role: "translate" },
+    { label: "Reviewer", sub: "browser or desktop", role: "qa" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "push what drifted" },
+    { from: 1, to: 1, label: "reuse, draft, check", detail: "progress streams to the terminal" },
+    { from: 1, to: 0, label: "pull the results" },
+    { from: 1, to: 2, label: "hold what needs a person", detail: "the review session" },
+  ]}
+  caption="kapi up on a connected project: the server runs the work, the checkout receives the results, and a person reviews what a machine cannot decide."
+/>
+
+On a connected project, `kapi up` first prints its resolved venue (*server*).
+See [`kapi up`](/cli/commands/up) for flags and venue resolution, and
+[Keeping content caught up](/the-loop) for what a run does.
 
 ## Moving content without producing
 
-`kapi push` and `kapi pull` are pure transport. Like `git push` and `git
-fetch`, they move project state and never draft anything:
+`kapi push` and `kapi pull` only move content. Like `git push` and `git
+fetch`, they transfer project state and draft nothing:
 
 ```bash
 kapi status    # local changes, per-language coverage, server standing
@@ -71,9 +88,9 @@ Only changed blocks transfer; sync is content-addressed.
 
 ## Running one flow
 
-For a specific composition (one named flow, one pass, no gate loop), define a
-flow inline on the recipe, or in a file in the directory the recipe names
-with `flows_dir:`, and run it:
+To run one named flow in one pass, without the gate loop, define the flow
+inline in the recipe or in a file in the directory the recipe names with
+`flows_dir:`, and run it:
 
 ```bash
 kapi run my-flow          # a custom flow

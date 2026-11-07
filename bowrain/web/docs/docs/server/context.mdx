@@ -15,10 +15,9 @@ It shows where terms apply, their history and relations, and the effects of
 proposed changes. Profiles can be scoped to a brand, product, channel or other
 coordinate.
 
-This page explains the hub and its approval process. See
-[Voice and corrections](/server/context-voice) and [Terms](/server/terminology)
-for detailed workflows. To derive initial proposals from existing content, run a
-[context scan](/server/context-scan).
+For detailed workflows, see [Voice and corrections](/server/context-voice) and
+[Terms](/server/terminology). To derive first proposals from existing content,
+run a [context scan](/server/context-scan).
 
 <ThemedVideo
   sources={{
@@ -31,25 +30,25 @@ for detailed workflows. To derive initial proposals from existing content, run a
 ## Profiles
 
 The hub opens on **Profiles**: one card per point the workspace's content sits
-at. A point is a coordinate, a product, a channel, a brand, a market, and a
-profile is what governs it. The workspace's own point, where content that
-declares no coordinates sits, is labelled **Brand**.
+at. A point is a coordinate such as a product, channel, brand or market. A
+profile is the guidance that applies at a point. The workspace's own point,
+which holds content that declares no coordinates, is labelled **Brand**.
 
 Each card shows the applicable voice profile, vocabulary, stored check results,
 pending reviews and custodians. Check results include scores and findings for
 the blocks checked. A point with no results is marked as unchecked.
 Opening a card shows these details and the collections and projects at that point.
 
-Check standing is scoped by the **voice**, not by the point: a stored check
-records the voice it resolved through, which is the narrowest coordinate the
-check itself carries. Two points sharing one voice therefore share the number,
-and the card says as much.
+A check score belongs to a **voice profile**. A stored check records the voice
+profile it resolved through, at the narrowest coordinate the check carries. Two
+points that share one voice profile show the same score, and the card says so.
 
-A profile is derived, never stored. A [`kapi push`](/cli/commands/push) declares
-each collection's coordinates and the voice they resolved to; grouping the
-collections by point recovers the profiles. A recipe's own `profiles:` regions
-never cross the wire, since the project resolves them and sends the outcome, so
-one broad profile governing two points reads here as the two points it governs.
+Bowrain derives profiles from the content it holds. Each push from a checkout
+([`kapi push`](/cli/commands/push)) declares every collection's coordinates and
+the voice profile they resolved to, and Bowrain groups the collections by point
+to recover the profiles. A recipe's own `profiles:` regions stay in the
+project, which resolves them and sends only the result. One broad profile that
+governs two points therefore appears here as two points.
 
 ### Who holds a point
 
@@ -82,12 +81,11 @@ coordinate resolution unchanged.
 
 ## Concepts
 
-The unit the hub curates is the **concept**, the language-neutral notion
-Bowrain already uses for [terms](/server/terminology): each carries terms
-across locales, every term with a lifecycle status, plus a domain and a
-definition. A forbidden term is a concept whose term carries the `forbidden`
-status rather than a separate kind of object. Voice vocabulary rules reference
-the same concepts, so terms and voice cannot drift apart.
+The hub works with **concepts**. A concept is the language-neutral notion
+behind [terms](/server/terminology). It carries terms across locales, each with
+a lifecycle status, plus a domain and a definition. A forbidden term is a
+concept whose term has the `forbidden` status. Voice vocabulary rules reference
+the same concepts, so terms and voice profiles stay consistent.
 
 The **Concepts** section is a list of concepts beside a detail pane. Each row
 shows the term a concept is headed by, that term's status, and how many
@@ -134,11 +132,10 @@ relation applies directly; a succession (`replaced_by`) relation is a governed
 edit that travels through a [change-set](#experiments-change-sets-and-pilots)
 before it lands.
 
-Every relation can carry a **validity**: a half-open time interval plus free tags
-evaluated against a query-time scope. The same relation can hold in one market and
-be absent in another, or be true only after a launch date, so the relations a
-concept shows are the ones that apply *as of* the chosen date and *within* the
-chosen market.
+Every relation can carry a **validity**: a time window, plus tags such as a
+market. A relation can hold in one market and not in another, or only after a
+launch date. A concept shows the relations that apply *as of* the chosen date
+and *within* the chosen market.
 
 ## Markets
 
@@ -154,32 +151,32 @@ of markets; see [Billing and credits](/server/billing-and-credits#markets-and-br
 
 ## The concept story
 
-Every concept carries a **story**, its **History** tab in the detail pane: a
-chronological record that merges the concept's revision history (each edit
-produces an immutable snapshot with a human-readable summary, which is where
-term-status transitions and relation changes are recorded), the **observations**
-recorded against it, its **comment** threads, and the **change-sets** that touched
-it, newest first, each with who acted and when. The story shows how a concept
-changed and the evidence behind those changes, and the **Discussion** and
-**Evidence** tabs beside it hold the comments and the observations in full.
-Compliance scores are not part of the story; those are reported per project and
-locale on the hub's [Dashboard](#the-dashboard-and-the-decision-inbox), not per
-concept.
+Every concept has a **story**, shown on the **History** tab of its detail pane.
+It lists, newest first and with who acted and when:
+
+- the concept's revisions. Each edit produces an immutable snapshot with a
+  summary, which records term-status transitions and relation changes.
+- the **observations** recorded against it.
+- its **comment** threads.
+- the **change-sets** that touched it.
+
+The **Discussion** and **Evidence** tabs beside it hold the comments and the
+observations in full. Compliance scores are reported per project and locale on
+the hub's [Dashboard](#the-dashboard-and-the-decision-inbox).
 
 ### Observations: what others say
 
 An **observation** attaches external evidence to a concept: a competitor's
 phrasing, customer language from a support ticket, a style-guide citation, a
 regulatory requirement. Observations carry a kind, a quote, a source, and an
-optional locale and market. They are evidence rather than rules: they inform
-proposals and appear in the story, and they enforce nothing.
+optional locale and market. Observations are evidence. They inform proposals
+and appear in the story, and no check enforces them.
 
 ### Comments
 
-Concepts carry threaded comments with @mentions, reusing the platform's
-mention-notification machinery. Discussion lives where the decision will be
-made, on the concept or on the change-set under review, and resolved threads
-remain part of the story.
+Concepts carry threaded comments with @mentions, which notify the person
+mentioned. Discussion happens where the decision is made: on the concept, or on
+the change-set under review. Resolved threads stay in the story.
 
 ## Voice and corrections
 
@@ -191,16 +188,16 @@ blast-radius previews and progressive autonomy.
 
 ## Experiments: change-sets and pilots
 
-Some changes are too consequential to make in place. The hub's **Experiments**
-section turns them into reviewable drafts.
+The hub's **Experiments** section holds consequential changes as reviewable
+drafts.
 
 A **change-set** is a named draft of edits to the graph and to the vocabulary:
 create or update concepts, add or remove terms, change a term's status, add or
-remove relations, add or remove concept-backed voice rules. Operations accumulate
-in the draft; nothing touches the live graph until the change-set merges. Two
-capabilities support evaluation before approval:
+remove relations, add or remove concept-backed voice rules. Operations collect
+in the draft, and the live graph changes only when the change-set merges. You
+can evaluate a draft in two ways before approval:
 
-- **Blast-radius preview.** At any point the platform evaluates
+- **Blast-radius preview.** At any point, Bowrain evaluates
   the draft against stored content across the workspace and reports which blocks,
   in which projects, collections, streams, and locales, would be newly flagged or
   resolved, with a source word count as a proxy for re-translation effort and a
@@ -229,7 +226,7 @@ concept-backed voice rule changes, and merging any change-set, travel through a
 change-set and require at least one approval from **someone other than the
 author** (separation of duties). Term-status transitions are additionally
 checked against the framework's status-transition policy, so a forbidden term
-cannot quietly return to preferred without passing through a governed transition.
+returns to preferred only through a governed transition.
 
 <SwimlaneDiagram
   actors={[
@@ -304,12 +301,11 @@ gained and lost, observations and comments added, change-sets submitted,
 approved, merged, and abandoned, and pilots started and stopped. It is the
 workspace-wide counterpart to a single concept's story.
 
-## One hub, many surfaces
+## The hub in the desktop app, CI and assistants
 
 The Context hub is the same in the web app and the desktop app. The desktop app
-remains a working copy of the server: it reads the same API, and concepts and
-relations are edited inline in the hub against the server, never authored
-offline.
+is a working copy of the server and reads the same API. You edit concepts and
+relations in the hub against the server, so editing them needs a connection.
 
 Terms also reach a project's local files and CI through ordinary sync. A
 [`kapi pull`](/cli/commands/pull) snapshots the workspace's governed concepts and
@@ -318,15 +314,15 @@ their relations into the project's local terms store, and
 against exactly the terms the hub shows, the pattern documented in
 [Gate governed terms in CI](/cli/use-cases/brand-terminology-ci). A
 [`kapi push`](/cli/commands/push) sends local term edits back: ordinary
-edits apply directly, while governed edits become a submitted change-set
-proposal, so the same separation of duties holds whether an edit is made in the
-hub or from a project.
+edits apply directly, and governed edits become a submitted change-set
+proposal. Edits from the hub and edits from a project follow the same
+separation of duties.
 
 AI assistants retrieve the same approved context through the bowrain plugin's
-[MCP](/cli/mcp) tools, concept search, a concept's story, and change-set status,
-so an assistant consults the hub's terms rather than guessing.
+[MCP](/cli/mcp) tools: concept search, a concept's story and change-set status.
+An assistant works from the hub's terms.
 
-## Under the hood
+## Related
 
 - [The context graph](/getting-started/the-context-graph): the model the hub is a
   view onto.
