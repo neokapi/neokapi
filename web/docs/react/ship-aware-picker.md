@@ -4,11 +4,32 @@ description: "A locale ships approved (a person approved it) or translated (tran
 keywords: [ship gate, approval gate, ship.json, language picker, ship state, AI badge, kapi status, neokapi-i18n]
 ---
 
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
 # Ship-aware language picker
 
-A project's maintainers decide which translated versions to offer its users. neokapi models
-that decision with **two gates**, both declared in `kapi.yaml`, both evaluated
-the same way against the target status ladder
+A ship-aware language picker offers your users only the locales that are ready,
+and marks the ones that are AI translation. kapi writes each locale's standing
+to a `ship.json` manifest, and `@neokapi/i18n-react/ship` turns that manifest
+into a picker model.
+
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "kapi.yaml", sub: "ship + approval gates", role: "io" },
+    { label: "kapi status --ship", role: "qa" },
+    { label: "ship.json", sub: "locale → state", role: "io" },
+    { label: "languagePickerModel", role: "tool" },
+    { label: "Language picker", sub: "AI badge", role: "io" },
+  ]}
+  caption="The gates in the recipe decide each locale's state, and the picker reads the manifest kapi writes."
+/>
+
+## Two gates decide what ships
+
+A project's maintainers decide which translated versions to offer its users.
+They declare that decision as **two gates** in `kapi.yaml`, and kapi evaluates
+both the same way against the target status ladder
 (`draft → translated → approved`):
 
 - **The ship gate**: the bar to go live. A locale that clears it ships
@@ -16,7 +37,7 @@ the same way against the target status ladder
   `ship_gate` / `ship_gates` configuration.
 - **The approval gate**: the bar to ship approved, meaning a person approved
   the content. It is the `established_gate` / `established_gates`
-  configuration. The recipe and `ship.json` spell the approved rung and state
+  configuration. The recipe and `ship.json` name the approved rung and state
   `established`.
 
 A locale that ships `translated` is AI work, and the picker marks it. A project
@@ -63,9 +84,9 @@ locale whether or not a gate matches it.
 
 ## Emitting the manifest
 
-`kapi status --ship` projects the per-locale standing to a minimal manifest a
-language picker can consume. Write it into your app's static assets as part of
-the build:
+`kapi status --ship` writes each locale's standing as a small manifest that a
+language picker reads. Write it into your app's static assets as part of the
+build:
 
 ```bash
 kapi status --ship --emit public/ship.json
@@ -106,27 +127,30 @@ gate and is offered as not gated, and Japanese is withheld.
 A locale spread over several collections takes the weakest state among them, in
 the order withheld, not_gated, translated, established. `shippable` is `true`
 for every state but `withheld`, so a picker that reads only `shippable` offers a
-not-gated locale; `state` is what tells a cleared gate from no gate. An entry carries `not_governed` when a dimension governs
-nothing in that language: `terms` means that none of the terms bound where the
-language's content sits, under the project defaults or on a profile, has a term
-for it. The picker does not read it. It is there so a build step or a
-reader does not take the language for a governed one. The richer `kapi status --json`
-report carries `shippable` and the state, as `shipState`, per collection and
-locale, with the full coverage percentages, for dashboards.
+not-gated locale. `state` tells a cleared gate from no gate.
+
+An entry carries `not_governed` when a dimension governs nothing in that
+language. `terms` means that none of the terms bound where the language's
+content sits, under the project defaults or on a profile, has a term for it. The
+picker ignores the field; it tells a build step or a person that no terms
+govern the language.
+
+For dashboards, the `kapi status --json` report carries `shippable` and the
+state, as `shipState`, per collection and locale, with the full coverage
+percentages.
 
 ## A hosted feed instead of a built file
 
-The manifest does not have to be a file you build into your assets. Because the
-loader takes a URL, it can read the same shape from a **hosted feed**, a
-server that serves the per-locale manifest live at a public URL. The build step
-disappears, and the picker reads the current standing on each load rather than
-whatever was true at build time.
+The loader takes a URL, so it can read the manifest from a **hosted feed** as
+well as from a built file. A hosted feed is a server that serves the per-locale
+manifest live at a public URL. You drop the build step, and the picker reads
+the current standing on each load.
 
-The contract is exactly the file's: an object keyed by locale, each value
-`{ shippable, state }`, with `not_governed` where it applies. A hosted feed is read-only and needs no auth (a
-public picker fetches it directly), and should send an `ETag` and a short
-`Cache-Control: public, max-age=…` so a picker or a CDN can revalidate cheaply
-with a `304`.
+The feed returns the file's shape: an object keyed by locale, each value
+`{ shippable, state }`, with `not_governed` where it applies. A hosted feed is
+read-only and needs no auth, since a public picker fetches it directly. It
+should send an `ETag` and a short `Cache-Control: public, max-age=…`, so a
+picker or a CDN can revalidate cheaply with a `304`.
 
 Point the loader at the URL; nothing else changes:
 
@@ -136,19 +160,18 @@ const model = languagePickerModel(status, ["en", "fr", "de", "ja"]);
 ```
 
 The same `languagePickerModel` transform and the same `useShipStatus` hook (whose
-second argument is the manifest URL) drive the picker whether the manifest came
-from a built file or a hosted feed: one code path, one shape.
+second argument is the manifest URL) drive the picker for a built file and a
+hosted feed alike.
 
 ## Driving the picker
 
 `@neokapi/i18n-react/ship` provides a dependency-free loader and a headless
-transform. The loader tolerates a missing or malformed manifest: it resolves to
-an empty object, so the picker falls back to showing every locale unbadged
-rather than breaking the page.
+transform. If the manifest is missing or malformed, the loader resolves to an
+empty object, and the picker shows every locale without a badge.
 
-Pass locale **codes**; the display label for each is derived automatically as the
-locale's endonym (the language named in its own language) via
-`Intl.DisplayNames`, so there is no per-locale label table to maintain:
+Pass locale **codes**. The label for each is the locale's endonym (the language
+named in its own language), from `Intl.DisplayNames`, so you keep no per-locale
+label table:
 
 ```ts
 import { loadShipStatus, languagePickerModel } from "@neokapi/i18n-react/ship";
@@ -160,9 +183,9 @@ const model = languagePickerModel(status, ["en", "fr", "de", "ja"]);
 
 The label is resolved in this order: an explicit `label` on a `LocaleInput`, then
 an entry in the `labels` override map, then the `Intl.DisplayNames` endonym, then
-the raw code. So an explicit label overrides the derived one where you want a
-different form, and the override map names locales `Intl` cannot: a pseudo-locale
-such as `qps` has no standard name, so give it one:
+the raw code. An explicit label replaces the derived one where you want a
+different form, and the override map names locales that `Intl` cannot. A
+pseudo-locale such as `qps` has no standard name, so give it one:
 
 ```ts
 const model = languagePickerModel(status, ["fr", "de", "qps"], {
@@ -209,8 +232,8 @@ function LanguagePicker({ locales }) {
 }
 ```
 
-Rendering is left to the application: style the entries and the `AI` badge to
-match your design. Development-only locales (pseudo-translation such as `qps`)
+You render the picker yourself: style the entries and the `AI` badge to match
+your design. Development-only locales (pseudo-translation such as `qps`)
 are not part of the ship manifest; name them through the `labels` override map
 if you list them in the picker, or surface them separately in your own dev
 tooling.
@@ -223,3 +246,8 @@ shipping locale read `translated`. The picker helper degrades safely when
 flag alone, so a project can adopt the manifest and the picker independently.
 A recipe that still carries `verified_gate` fails to load and names
 `established_gate`.
+
+## Related
+
+- [Ship gates and CI](/kapi/recipes/ship-gates-and-ci): declaring gates and failing a release on them.
+- [Runtime vs. inline mode](./modes): loading the locales the picker offers.

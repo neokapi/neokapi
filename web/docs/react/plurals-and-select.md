@@ -9,7 +9,7 @@ import { PluralSelectExplorer } from "@site/src/components/react/PluralSelectExp
 
 # Plurals and select
 
-Count-aware and choice-based text, authored in React with per-form children. No raw ICU strings in your source.
+`<Plural>` and `<Select>` let you write count-aware and choice-based text as React children, one child per form. Your source holds no ICU strings, and translators still receive the ICU template their tools expect.
 
 ## Plurals: the authoring form
 
@@ -52,13 +52,13 @@ Traditional i18n libraries express plurals as a single ICU message:
 {count, plural, zero {No messages} one {1 message} other {# messages}}
 ```
 
-That works, but mixes the source-language forms into an opaque string literal. neokapi-i18n keeps each form as a JSX child so:
+That form puts every source-language form inside one opaque string literal. neokapi-i18n keeps each form as a JSX child instead, which gives you:
 
 - **Source readability**: the English forms look like English in source, translators see English in the extract.
-- **Inline elements per form**: you can write `<Other><strong>{n}</strong> items</Other>` with the strong tag preserved as a position token. ICU doesn't model that naturally.
+- **Inline elements per form**: you can write `<Other><strong>{n}</strong> items</Other>` with the strong tag preserved as a position token. ICU has no natural way to express that.
 - **Placeholders per form**: `{n}` is an expression, handled by the same placeholder machinery as any JSX text.
 
-Under the hood the extractor emits the canonical ICU template that translators know. Source authors work in React; translators work in their CAT tool against ICU. Both views are correct.
+The extractor writes the canonical ICU template for each plural or select block. You work in React, and translators work against ICU in their CAT tool.
 
 Move the count and change the locale to see which form `Intl.PluralRules` resolves (the same lookup `<Plural>` does at render time) next to the ICU template the extractor emits:
 
@@ -84,7 +84,7 @@ Each form is extracted as a typed run sequence: `<strong>` becomes a position to
 
 ## Which forms to declare
 
-Use the superset of forms your product actually ships. Languages you don't target today can still be added later without source changes: add the translation in the CAT tool, the runtime picks the right form.
+Declare the forms your product ships. You can add a language later without a source change: its translation supplies that language's forms, and the runtime picks the right one.
 
 | Language                  | Forms used                                   |
 | ------------------------- | -------------------------------------------- |
@@ -107,7 +107,7 @@ Sometimes the count variable's name doesn't match what you want translators to r
 </Plural>
 ```
 
-The pivot variable becomes a placeholder named after the expression (`items.length` → `length`). If that's confusing for translators, rename via a local:
+The pivot variable becomes a placeholder named after the expression (`items.length` → `length`). If that name means little to a translator, assign the count to a local first:
 
 ```tsx
 const n = cart.items.length;
@@ -129,17 +129,17 @@ one:   1 Nachricht
 other: Sie haben {n} Nachrichten
 ```
 
-while the English source stays flat. The target-side data model is handled by `@neokapi/kapi-format`'s `upgradeTargetToPlural` / `downgradePluralTarget` helpers. See [C-01](/contribute/architecture/context/c-01-project-model) for the on-disk shape.
+while the English source stays flat. `@neokapi/kapi-format`'s `upgradeTargetToPlural` / `downgradePluralTarget` helpers implement the target-side data model. See [C-01](/contribute/architecture/context/c-01-project-model) for the on-disk shape.
 
 ## Runtime resolution
 
-`<Plural>` / `<Select>` are authoring components: at render time a locale switch re-evaluates the form via `Intl.PluralRules` / the case map rather than remounting them. `Intl.PluralRules` ships in every modern browser and Node, so no polyfill.
+`<Plural>` / `<Select>` are authoring components. At render time, a locale switch re-evaluates the form through `Intl.PluralRules` or the case map, without remounting them. `Intl.PluralRules` ships in every modern browser and in Node, so you need no polyfill.
 
 The pivot (the count or the case value) is a runtime value, so the form cannot be chosen at build time. Plural and select blocks therefore keep a runtime call **in both modes**: inline mode bakes the translated ICU template in as the call's fallback, so the dictionary fetch disappears, but the ~2 kB ICU resolver stays. This is the one documented exception to inline mode's zero-runtime rule (see [Runtime vs. inline modes](./modes#the-icu-exception)).
 
 Inside a plural branch, `#` is replaced by the count **formatted for the active locale**: `1.234` in `de`, `1,234` in `en`.
 
-## Next
+## Related
 
 - [Pipeline](./pipeline): how plural blocks round-trip through extract/translate/compile.
 - [Runtime vs. inline modes](./modes): when to pick which build mode.
