@@ -36,9 +36,9 @@ first-class:
 | video | audio child-layer (ASR) + frames child-layer (OCR geometry+timing), or opaque Media when no ffmpeg | passthrough | subtitle file (speech only); whole-video replace-asset |
 | vtt / srt / ttml | subtitle cues with `TimingAnnotation` | yes | byte-exact subtitle round-trip |
 
-The `srt` reader populates the canonical `TimingAnnotation`, not only
-`Properties["timecode"]`. The `video` reader degrades to opaque Media when no
-ffmpeg/av engine is resolvable, rather than erroring.
+The `srt` reader populates the canonical `TimingAnnotation` as well as
+`Properties["timecode"]`. The `video` reader degrades to opaque Media, without
+an error, when no ffmpeg/av engine is resolvable.
 
 ## Flows
 

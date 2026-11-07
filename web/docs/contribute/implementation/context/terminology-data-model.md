@@ -7,7 +7,8 @@ keywords: [terminology data model, Concept, Term, SQLite, TBX import, CSV, term 
 
 # Terminology Data Model
 
-This note provides implementation details for [C-08](/contribute/architecture/context/c-08-terms).
+The Go structs and the `Terminology` interface behind the terms store. Parent
+AD: [C-08](/contribute/architecture/context/c-08-terms).
 
 ## Data Model: Concept-Oriented
 

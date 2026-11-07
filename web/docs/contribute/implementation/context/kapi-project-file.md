@@ -316,8 +316,8 @@ machine, and a local store means nothing to a venue that governs terminology
 from a shared vocabulary. A recipe that binds a terms store per profile
 (`KapiProject.BindsTermsByProfile`) and also binds a venue is warned at run time
 (`host.WarnUnsyncedCoordinates`, called by `kapi run`, `kapi up` and
-`RunFlowAllLocales`) that the binding applies to local runs only. The run
-proceeds; this is a caveat, not a fault.
+`RunFlowAllLocales`) that the binding applies to local runs only, and the
+run proceeds.
 
 One function resolves governance for every surface:
 `KapiProject.ResolveGovernanceFor(GovernancePoint{Profile, Collection, Path, Comments, At})`.

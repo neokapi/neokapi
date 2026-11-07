@@ -120,7 +120,7 @@ A tool such as `kapi sed` with no target locale edits a block's source runs
 in place, and a rendering from an edited source is its own comparison. The
 reader therefore stamps every block it emits with a digest of the source
 runs (`source_fingerprint.go`, the `openxml-source-fingerprint` annotation),
-and a writer replays nothing over a block whose runs no longer match it:
+and a writer replays nothing over a block whose runs differ from it:
 the docx region renders such a block whole, and the SpreadsheetML and
 DrawingML source forms are held back the same way. A block that reaches the
 writer without the stamp is treated as edited, so a path that drops
@@ -260,7 +260,7 @@ unchanged.
 time is deflate rather than replay. Its one drawing carries a megabyte of
 base64 in an `o:gfxdata` attribute with an `&#xA;` reference every 76
 characters; the source spelling deflates in 21.6 ms against 0.9 ms for the
-same attribute with raw newlines, which is what the writer used to produce.
+same attribute with raw newlines.
 An XML parser normalises a raw newline in an attribute value to a space
 (XML 1.0 §3.3.3), so the source spelling is the one that keeps the shape.
 
