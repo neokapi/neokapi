@@ -19,7 +19,7 @@ built-in and plugin formats uniformly. Detection cascades through extension,
 priority, and content sniffing. Byte-exact write-back rides one skeleton store
 that every reader and writer pair wires the same way, and a reader classifies
 its input **three** ways: translatable content, pure structure, and
-non-translatable-but-meaningful context that is *surfaced* rather than buried.
+non-translatable-but-meaningful context that the reader *surfaces* to tools.
 
 ## Context
 
@@ -979,7 +979,7 @@ non-translatable structure. The convention is uniform; each reader decides which
 of its fragments are genuinely *context* rather than inert data.
 
 Which formats expose the flag, and exactly what each surfaces, is generated into
-the [Format Reference](/formats) rather than enumerated here;
+the [Format Reference](/formats);
 [content-fidelity](/contribute/implementation/engine/content-fidelity) is the
 recipe for adding surfacing to a format.
 
@@ -1135,7 +1135,7 @@ for the store's details.
   no changes to the engine are needed.
 - The three-way reader output policy serves ingestion and translation from one
   parse, and the inverted opt-out means a format that has not thought about the
-  question still surfaces context rather than hiding it.
+  question still surfaces context.
 
 ## Related
 

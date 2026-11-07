@@ -738,7 +738,7 @@ uses of one term in one block fold into a `count` property rather than into
 separate edges, and the term and the locale are the edge discriminators;
 `governed_by` comes from resolving each named collection's governance; `blesses`
 joins the decision ledger against the block cache, so a record whose block
-no longer exists keeps its node and loses its edge. A unit state names its
+has left the cache keeps its node and loses its edge. A unit state names its
 document by the durable key the ledger's view records
 ([C-04](c-04-block-state-and-decisions.md)); the graph writer turns that key back
 into the path the block cache files blocks under before joining.
@@ -833,16 +833,15 @@ producer means one number wherever the question is asked, and because that
 producer is extraction, the number is as of the last extraction rather than of
 the working tree. Each surface says so beside the count. The passage a use sits
 in is read from the block cache by the content key the edge names, so a block
-the cache no longer holds costs the snippet and never the count.
+missing from the cache costs the snippet and never the count.
 
 ### The query shapes are written once
 
 A store spanning many projects answers the same questions with the dimensions
-free; a local project answers them with the dimensions pinned to one value. That
-is enforced rather than described. The queries live in `core/contextgraph/query.go`
+free; a local project answers them with the dimensions pinned to one value. Code
+enforces it. The queries live in `core/contextgraph/query.go`
 against two narrow read interfaces, `EdgeReader` and `NodeFinder`, that both
-backing stores satisfy, so there is one implementation rather than two agreeing
-by convention:
+backing stores satisfy, so there is one implementation:
 
 | Query | Question |
 | --- | --- |

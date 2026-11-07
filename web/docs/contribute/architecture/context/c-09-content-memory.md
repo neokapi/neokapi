@@ -14,13 +14,13 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 The content memory is the framework's reuse store, in the `memory/` package. It
 stores multilingual entries as per-locale `[]model.Run` sequences, preserving
-inline markup and entity metadata rather than flat strings, and uses a tiered
+inline markup and entity metadata, and uses a tiered
 matching pipeline to maximize reuse. In-memory and SQLite backends ship; a wider
 backend can be supplied behind the same interface.
 
 The content memory is the project's **recycle** corpus: a pool of source→target
-pairs reused to pre-fill and leverage future work. It is not the carrier of unit
-state. Whether a person established a particular target lives in the
+pairs reused to pre-fill and leverage future work. Unit state has its own
+carrier: whether a person established a particular target lives in the
 unit-state record ([C-04](c-04-block-state-and-decisions.md)). Adding a pair to
 the memory (a `memory` operation through `kapi apply`) is recycle leverage; it does not
 promote a unit to *reviewed*.
@@ -396,7 +396,7 @@ Because the absorber's entries are reproducible from the committed translations
 by construction (that is what this stage does), an entry written under an older
 identity is **re-learned rather than migrated**: the pass drops the stamps
 that would let it skip a document, reads the record again, and afterwards
-forgets the entries it had minted that the current identity no longer mints.
+forgets the entries it had minted that the current identity does not mint.
 Entries imported from other sources are preserved.
 
 The forgetting comes after the pass rather than before it, and that ordering is

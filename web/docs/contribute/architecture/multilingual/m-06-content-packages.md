@@ -117,7 +117,7 @@ absent one would.
 - **Native (lossless)**: the format family and `.kpz`. Used for packing,
   caching, hashing, and any flow that must reconstruct project state exactly.
 - **Interchange (lossy)**: XLIFF and PO for blocks, TMX for content memory, TBX
-  for terms. Used to hand content across an organizational boundary into the
+  for terms. They hand content across an organizational boundary into the
   wider translation industry. These stay the export path and are **never**
   package members, because they cannot represent the native fields
   ([M-01](m-01-bilingual-interop.md)).

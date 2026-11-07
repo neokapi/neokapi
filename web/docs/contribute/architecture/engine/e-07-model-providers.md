@@ -195,15 +195,15 @@ primary list, which is sorted Recommended → Advanced → Legacy (superseded). 
 *active default* can never be non-recommended; a test enforces it.
 
 **Catalog validation.** `make check-models` (`scripts/modelcheck`) lists each
-provider's available models and reports catalogued models that are no longer
-served. With `-candidates`, it also reports available models missing from the catalog. The
+provider's available models and reports catalogued models that the provider does
+not serve. With `-candidates`, it also reports available models missing from the catalog. The
 live half needs provider credentials and stays a manual or scheduled tool: a
 rate-limited provider must never be mistaken for a retired one, the same
 false-cliff trap the [batch eval](/batch-eval) guards against. The keyless half
 (every published price must be for a catalogued model) is an ordinary unit test,
 so it runs in `make test`. The `/models` page is generated from the catalog and
-gated by `make check-reference-docs`, so it cannot describe a model the catalog
-no longer lists.
+gated by `make check-reference-docs`, so it cannot describe a model missing from the
+catalog.
 
 #### StreamingLLMProvider
 
@@ -452,8 +452,8 @@ another), and the rest of the flow is unchanged.
 Model-backed tools receive terminology context from upstream stages: matched
 terms and their preferred translations, identified entities with their
 do-not-translate flags and locale formatting hints, and a dedicated term-constraint
-section for the current Block's coordinates. Terminology is therefore not only a
-post-translation check; it guides the generation from the start
+section for the current Block's coordinates. Terminology is therefore a
+post-translation check and also guides the generation from the start
 ([C-08](../context/c-08-terms.md)).
 
 ### Scope boundary

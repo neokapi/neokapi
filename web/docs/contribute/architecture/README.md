@@ -2,20 +2,20 @@
 sidebar_position: 0
 title: Architecture Decisions Overview
 slug: index
-description: Index of Architecture Decisions for the neokapi open content and language intelligence framework — foundations, the engine, context, surfaces, multilingual content, and assurance.
+description: Index of Architecture Decisions for the neokapi framework: foundations, the engine, context, surfaces, multilingual content, and assurance.
 keywords: [architecture decisions, neokapi, framework design, content model, context, plugin system, framework architecture]
 ---
 
 # Architecture Decisions: neokapi
 
 These are the Architecture Decisions for the **neokapi framework**, the open
-content and language engine. Everything here is Apache-2.0 and describes the
+content engine. Everything here is Apache-2.0 and describes the
 framework modules: the repository root, the cobra-free host runtime, the shared
 CLI base, the `kapi` binary, Kapi Desktop, and the in-repo plugins.
 
-Each decision describes the **current** state of its subsystem, not the history
-of how it got there. When a subsystem evolves, its decision is updated in place;
-the history lives in version control.
+Each decision describes the **current** state of its subsystem. When a subsystem
+evolves, its decision is updated in place, and the history lives in version
+control.
 
 Tactical detail (SQL schemas, wire formats, algorithm pseudocode) is separated
 into [Implementation Notes](/contribute/implementation/index).
@@ -36,8 +36,8 @@ retired:
 | **A: Assurance** | how the framework proves it works |
 
 Each series is a directory, and its decisions sort by `sidebar_position` within
-it. The sidebar is generated from the directory: adding a decision means adding a
-file, never editing a list.
+it. The sidebar is generated from the directory, so adding a decision means adding a
+file.
 
 ## F: Foundations
 
