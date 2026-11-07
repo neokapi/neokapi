@@ -1109,6 +1109,127 @@ export class Uses {
     }
 }
 
+/**
+ * VoiceChange is one field a voice-profile write changed. From is empty for a
+ * field the write added, and To for one it removed.
+ */
+export class VoiceChange {
+    /**
+     * Creates a new VoiceChange instance.
+     * @param {Partial<VoiceChange>} [$$source = {}] - The source object to create the VoiceChange.
+     */
+    constructor($$source = {}) {
+        if (!("field" in $$source)) {
+            /**
+             * Field is the field's path in the authored document: "tone.formality",
+             * "constraints[no-passive].statement".
+             * @member
+             * @type {string}
+             */
+            this["field"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["to"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceChange instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceChange}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoiceChange(/** @type {Partial<VoiceChange>} */($$parsedSource));
+    }
+}
+
+/**
+ * VoiceEdit is what a whole-profile write did to a voice profile, carried by
+ * the edit operation that records it. It is what a reader drills into, and what
+ * dropping the edit restores.
+ */
+export class VoiceEdit {
+    /**
+     * Creates a new VoiceEdit instance.
+     * @param {Partial<VoiceEdit>} [$$source = {}] - The source object to create the VoiceEdit.
+     */
+    constructor($$source = {}) {
+        if (!("profile" in $$source)) {
+            /**
+             * Profile is the id of the voice profile that was written.
+             * @member
+             * @type {string}
+             */
+            this["profile"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Changes are the fields that differ between the profile as it stood and
+             * as it was written, in the order the authored document lists them.
+             * Omitted lists the changes past the cap a record keeps.
+             * @member
+             * @type {VoiceChange[] | undefined}
+             */
+            this["changes"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["omitted"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Previous is the profile as it stood before the write, as the YAML a
+             * project authors. Empty when the write created the profile.
+             * @member
+             * @type {string | undefined}
+             */
+            this["previous"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Wrote fingerprints the profile as the write left it, so dropping the
+             * edit restores Previous only while nothing has written the profile since.
+             * @member
+             * @type {string | undefined}
+             */
+            this["wrote"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceEdit instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceEdit}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("changes" in $$parsedSource) {
+            $$parsedSource["changes"] = $$createField1_0($$parsedSource["changes"]);
+        }
+        return new VoiceEdit(/** @type {Partial<VoiceEdit>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = CheckFinding.createFrom;
@@ -1120,3 +1241,5 @@ const $$createType6 = profile$0.TermRule.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = MemoryPair.createFrom;
 const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = VoiceChange.createFrom;
+const $$createType11 = $Create.Array($$createType10);

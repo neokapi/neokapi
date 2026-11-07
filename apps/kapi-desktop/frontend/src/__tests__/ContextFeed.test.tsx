@@ -218,6 +218,40 @@ describe("History as a list of sessions beside a detail pane", () => {
     expect(detail().getAttribute("data-session")).toBe("session:sess-1");
   });
 
+  it("lists what a voice-profile edit changed and offers undoing it", () => {
+    const edit = feedEntry({
+      id: "v1",
+      kind: "edit",
+      status: "established",
+      droppable: true,
+      widen_to: [],
+      subject: { kind: "note", text: "voice profile docs edited: tone", describe: "" },
+      voice: {
+        profile: "docs",
+        restorable: true,
+        changes: [{ field: "tone.formality", from: "formal", to: "casual" }],
+        omitted: 2,
+      },
+    });
+    const feed: ContextFeed = {
+      ...CONTEXT_FEED,
+      groups: [feedGroup({ id: "session:sess-1", session: "sess-1", entries: [edit] })],
+    };
+    const { onDrop } = renderFeed(feed);
+    const row = entry("v1");
+    const toggle = row.querySelector("[data-slot='context-details-toggle']") as HTMLElement;
+    expect(toggle.textContent).toBe("3 changes");
+    fireEvent.click(toggle);
+    const changes = row.querySelector("[data-slot='voice-changes']");
+    expect(changes?.textContent).toContain("tone.formality");
+    expect(changes?.textContent).toContain("formal→casual");
+    expect(changes?.textContent).toContain("2 more changes");
+
+    expect(row.querySelector("[data-slot='drop-rule']")).toBeNull();
+    fireEvent.click(row.querySelector("[data-slot='undo-voice-edit']") as HTMLElement);
+    expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({ id: "v1" }));
+  });
+
   it("offers dropping and widening on a rule in force, and neither on a proposal", () => {
     const { onDrop, onWiden } = renderFeed();
     const confirmed = entry(IN_FORCE.id);

@@ -1200,6 +1200,18 @@ export interface ContextFeedEntry {
   widen_to: string[];
   /** The project's checkout on this machine, absent when none is here. A decision needs none. */
   recipe?: string;
+  /** What a whole voice-profile write changed, for the edit that records one. */
+  voice?: ContextVoiceEdit;
+}
+
+/** What a whole voice-profile write changed: each field as it stood and as it was written. */
+export interface ContextVoiceEdit {
+  profile: string;
+  changes: { field: string; from?: string; to?: string }[];
+  /** The changes past the ones the record lists. */
+  omitted?: number;
+  /** Dropping the edit restores the profile as it stood. */
+  restorable: boolean;
 }
 
 /** One session's work: an agent run, or a person's operations on one day. */
