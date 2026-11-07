@@ -7,7 +7,7 @@ keywords: [kapi json, scripting, jq, exit codes, NDJSON, progress events, automa
 
 # Scripting & JSON contract
 
-kapi's core verbs speak a documented, golden-tested machine contract so scripts, CI pipelines, and foreign-language callers never have to parse prose. This page covers the output flags, the structured results of `run`, `extract`, and `merge`, the JSON error envelope, exit codes, and streaming progress events. An application that drives kapi instead of a person at a terminal uses one of the channels in [Driving kapi from an application](#driving-kapi-from-an-application); for the AI-agent surface, see the [MCP server](/reference/mcp).
+kapi's core verbs follow a documented, golden-tested machine contract, so scripts, CI pipelines and callers in other languages never parse prose. The sections below give the output flags, the structured results of `run`, `extract`, and `merge`, the JSON error envelope, exit codes, and streaming progress events. An application that drives kapi instead of a person at a terminal uses one of the channels in [Driving kapi from an application](#driving-kapi-from-an-application); for the AI-agent surface, see the [MCP server](/reference/mcp).
 
 Compatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names and types do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).
 
@@ -33,13 +33,13 @@ Precedence: `--jq` > `--json` > `--text` > `--output-format`.
 
 Color is off whenever stdout is not a terminal, so piping or redirecting always yields plain text, with no ANSI stripping required. `NO_COLOR` disables color and `CLICOLOR_FORCE` forces it, both overridden by an explicit `--color`.
 
-There is no light/dark setting, because kapi does not have a light and a dark theme. It has one palette, chosen so that every color clears the WCAG contrast bar for UI text on any terminal background: white, black, Solarized, One Dark, Dracula alike. Nothing to configure and nothing to get wrong.
+kapi has one palette and no light or dark setting. Every color in it clears the WCAG contrast bar for UI text on any terminal background: white, black, Solarized, One Dark, Dracula alike.
 
 That also means kapi never queries the terminal for its background color. Terminals answer such a query on **stdin**, which kapi's own commands read (`kcat -`), and a terminal that does not answer leaves the raw escape sequence in the output, corrupting piped output, CI logs, and recorded sessions.
 
 ## Result documents
 
-With `--json`, the core verbs print one JSON document on stdout when they finish. Without it, they print a human report, which is presentation rather than a contract (see above).
+With `--json`, the core verbs print one JSON document on stdout when they finish. Without it, they print a human report, which is presentation and carries no contract (see above).
 
 ### `kapi run`
 
@@ -205,7 +205,7 @@ when the failing writer *is* stderr, the message has nowhere to land.
 
 ## Streaming inspection: `kapi inspect --jsonl`
 
-For block-level content streaming (rather than run progress), `kapi inspect --jsonl` emits one JSON object per block, without HTML escaping, so `<x id="…"/>` placeholders read as written. Each record is the read record of the change contract: `ref` (`doc`, `block`, and `edition` for a translation), `rev`, `text`, `codes`, `structures`, `editions` and `ops`, with the block's `role` and `level`; run `kapi inspect --help` for each field. Inside a project (`-p`, or the one discovery finds) `doc` is a file's project-relative path, or the absolute path of a file outside the project, and `kapi apply` in the same project resolves both.
+For streaming block content, `kapi inspect --jsonl` emits one JSON object per block, without HTML escaping, so `<x id="…"/>` placeholders read as written. Each record is the read record of the change contract: `ref` (`doc`, `block`, and `edition` for a translation), `rev`, `text`, `codes`, `structures`, `editions` and `ops`, with the block's `role` and `level`; run `kapi inspect --help` for each field. Inside a project (`-p`, or the one discovery finds) `doc` is a file's project-relative path, or the absolute path of a file outside the project, and `kapi apply` in the same project resolves both.
 
 ## Change sets: `kapi apply`
 
@@ -277,8 +277,8 @@ carries `plugins` (`name`, `version`, `serves`). `Decide` never reads the
 record, so it leaves `pass`, `verdict`, `summary` and the exit code as
 they are, and the human output carries none of it. Every producer of a
 `kapi.check/v2` Report supplies it: `kapi check` whole or scoped to a diff, and
-the MCP `check_file` and `check_text` tools. `kapi check --ship` reports gates
-rather than a Report and carries the same `evaluation` object at its top level,
+the MCP `check_file` and `check_text` tools. `kapi check --ship` reports gates,
+not a Report, and carries the same `evaluation` object at its top level,
 assembled once for the whole run: `analyzers` covers the analyzers of every
 gate, and `plugins` names every plugin any gate reached, whether it read a
 format, located a language's comments or ran an analysis. The findings roll-up
@@ -375,9 +375,9 @@ What a **recipe** does with them is gated. A project whose recipe names either
 tool prompts once, showing the command it would run, and the answer is
 remembered under the kapi config directory against a fingerprint of what was
 approved, so an unrelated recipe edit keeps the approval and a changed command
-asks again. With no terminal attached kapi refuses rather than assuming
-consent; `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general
-`--yes` flag deliberately does not grant it. The MCP tool surface refuses
+asks again. With no terminal attached, kapi refuses and assumes no consent;
+`KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general `--yes` flag
+does not grant it. The MCP tool surface refuses
 these tools outright. See
 [E-06](/contribute/architecture/engine/e-06-execution-trust).
 
@@ -386,7 +386,7 @@ path: `{path, format?, engine?, rule?, content?, order?[], candidates?[],
 error?}`, each candidate `{format, engine}`. `rule` is the registry's rule
 (`native first`, `engine override`, `engine preference`, `engine default`,
 `format engine`, `engine order`) or `content item format` / `format flag`
-when the format was named rather than detected; a path no format reads
+when the format was named, not detected; a path no format reads
 carries `error` and no `format`. `kapi formats --json` entries carry `engine`
 beside `source` and `shared_extensions`, the extensions another engine also
 claims. Locked by `cli/testdata/contract/formats_explain.golden.json`.

@@ -5,7 +5,7 @@ description: Redaction replaces sensitive spans (people, product names, internal
 keywords: [redaction, sensitive content, privacy, placeholders, translation, data protection]
 ---
 
-import { RedactionDiagram } from "@neokapi/docs-shared";
+import { PipelineDiagram, RedactionDiagram } from "@neokapi/docs-shared";
 
 # Redaction
 
@@ -28,20 +28,23 @@ local machine.
 For the architecture and design decisions behind this, see
 [C-10: Content Redaction](/contribute/architecture/context/c-10-redaction).
 
-In the CLI, `redact` and `unredact` are pipeline steps: the built-in
-`secure-translate` flow runs redact → translate → unredact
-(`kapi run secure-translate`), a project flow can place the same steps around
-its own pipeline, and `kapi extract --redact` protects a translator hand-off.
-In a project that declares a redaction policy, `kapi exec <tool>` puts the
-same two steps around a tool that calls a model, for each file under the
-policy that covers it (see [Recipe configuration](#recipe-configuration)). They apply the policy's rules
-to every block the tool reads, blocks marked not translatable included, and to
-each translation beside the source, plural forms included, and to everything
-the tool sends with them (see [What the policy covers](#what-the-policy-covers)).
-A policy that detects entities stops
-the run, because no step ahead of the tool finds them. A tool with no declared
-contract does not run under the policy, because nothing says whether it calls a
-model. See
+In the CLI, `redact` and `unredact` are pipeline steps. They run in four places:
+
+- the built-in `secure-translate` flow runs redact, translate, unredact
+  (`kapi run secure-translate`);
+- a project flow can place the same steps around its own pipeline;
+- `kapi extract --redact` protects a translator hand-off;
+- in a project that declares a redaction policy, `kapi exec <tool>` puts the
+  two steps around a tool that calls a model, for each file under the policy
+  that covers it (see [Recipe configuration](#recipe-configuration)).
+
+Under `kapi exec`, the steps apply the policy's rules to every block the tool
+reads, blocks marked not translatable included, to each translation beside the
+source, plural forms included, and to everything the tool sends with them (see
+[What the policy covers](#what-the-policy-covers)). A policy that detects
+entities stops the run, because no step ahead of the tool finds them. A tool
+with no declared contract does not run under the policy, because kapi cannot
+tell whether it calls a model. See
 [Understanding the CLI layers](/kapi/direct-execution-layer) for the flow and
 single-tool surfaces.
 
@@ -90,8 +93,8 @@ the same text.
 rules of `defaults.redaction` to the terms it sends, and writes no forms for
 a term the policy withholds.
 
-The image crop or speech clip `media-refine` sends is media, not text, and
-the rules do not reach it. A machine-translation engine from a plugin reads
+The rules cover text only, so they do not reach the image crop or speech clip
+`media-refine` sends. A machine-translation engine from a plugin reads
 the redacted block, each withheld value as a placeholder element it keeps in
 place, and nothing else from the project.
 
@@ -119,10 +122,9 @@ Redaction finds sensitive spans with one or both detectors:
 - **Entities** (opt-in) are named entities (people, organizations, products,
   locations, dates, …) recognized automatically and redacted by category. A fast
   local model keeps detection on the machine; a cloud model trades that for
-  broader coverage during the detection step. Entity recognition is not a
-  separate task: it is the same detection that powers entity-generalized
-  [content-memory](/framework/content-memory) reuse, so entities
-  annotated once serve both.
+  broader coverage during the detection step. The same detection feeds
+  entity-generalized [content-memory](/framework/content-memory) reuse, so one
+  annotation serves both.
 
   The `entity-extract` step selects the detector with `engine`: `llm` (the
   configured AI provider; the default), `ner` (an on-device model, with no
@@ -139,11 +141,11 @@ free-form, so use whatever the placeholder template should display.
 
 ## Rules file
 
-The term list is itself sensitive, so it lives in a dedicated file (keep it
-gitignored) rather than in the committed recipe:
+The term list is itself sensitive, so it lives in a dedicated file outside the
+committed recipe. Keep it gitignored:
 
 ```yaml
-# redaction.yaml — bind it with defaults.redaction.rules, and gitignore it
+# redaction.yaml: bind it with defaults.redaction.rules, and gitignore it
 version: v1
 placeholder: "[REDACTED:{category}]"   # {category} and {n} are substituted
 detectors: [rules]
@@ -152,7 +154,7 @@ rules:
     category: person
   - term: "Project Halcyon"            # unreleased codename
     category: product
-  - pattern: "ACME-[A-Z]+-\\d+"        # regular expression — internal SKUs
+  - pattern: "ACME-[A-Z]+-\\d+"        # regular expression: internal SKUs
     category: product
     flags: [ignorecase]                # also: wholeword (literal terms)
 ```
@@ -169,8 +171,17 @@ is only ever in memory:
 kapi run secure-translate -i src/locales/en.json --target-lang fr
 ```
 
-The flow is `reader → redact → translate → unredact → writer`. `redact` is
-an ordinary [transformer step](/framework/flows#transformers): the framework
+<PipelineDiagram
+  stages={[
+    { label: "reader", role: "io" },
+    { label: "redact", sub: "placeholders + vault" },
+    { label: "translate", sub: "sees tokens only", role: "translate" },
+    { label: "unredact", sub: "restore originals" },
+    { label: "writer", role: "io" },
+  ]}
+/>
+
+`redact` is an ordinary [transformer step](/framework/flows#transformers): the framework
 applier rewrites the source, replacing sensitive spans with placeholders and
 vaulting the originals fail-closed, before the next step observes it. Because
 redaction's edit plan is structured, run-anchored overlays attached upstream
@@ -277,9 +288,9 @@ needs it when a policy covers that file.
 | External (`extract --redact` → `merge`) | `.kapi/vault/batches/<batch-id>.json`, in a directory kept out of version control and written private (`0700`, files `0600`) |
 | Package from source files (`extract <files> -o work.kpz --redact-rules <file>` → `merge work.kpz`) | `work.kpz.vault` beside the package, written private (`0600`) |
 
-The vault sits in `.kapi/vault/`, beside `.kapi/work/` and deliberately *not*
-inside it. Everything under `work/` is free to delete because it rebuilds; a
-withheld original rebuilds from nothing. It is never committed and never synced
+The vault sits in `.kapi/vault/`, beside `.kapi/work/` and outside it.
+Everything under `work/` rebuilds, so you can delete it; a withheld original
+cannot be rebuilt. The vault is never committed and never synced
 to a server, so the only copy is the one on your machine. `rm -rf .kapi/work`
 stays safe at any time; deleting `.kapi/` wholesale strands any batch you have
 out with a translator, because the merge that would restore the originals has
@@ -356,3 +367,9 @@ in a field kapi does not read as a block, or across an inline code), and one
 whose block IDs change once the values are withheld. It also refuses a policy
 that detects entities, since a `.kpz` extraction runs no entity-extract step.
 A project's XLIFF 2 or PO extraction carries the blocks alone.
+
+## Related
+
+- [C-10: Content Redaction](/contribute/architecture/context/c-10-redaction): the design.
+- [Flows](/framework/flows#transformers): transformer steps and the placement pass.
+- [Bilingual workflow](/kapi/bilingual-workflow): extract and merge with a translator.

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Content memory
-description: "The .memory.json content-memory bundle: envelope, entries, entity mappings, origins and import sessions, why it is JSON rather than JSON Lines, and what TMX cannot carry."
+description: "The .memory.json content-memory bundle: envelope, entries, entity mappings, origins and import sessions, why it is JSON and not JSON Lines, and what TMX cannot carry."
 keywords:
   [
     content memory,
@@ -21,12 +21,11 @@ A content-memory bundle is the portable, lossless serialization of a project's
 content memory: the multilingual entries kapi reuses to avoid re-translating
 text it has already seen, together with where each entry came from.
 
-It is a **bundle** rather than a store. The working store is SQLite: inside a
+It is a **bundle**, not a store. The working store is SQLite: inside a
 project, the memory tables of the [project store](/kapi/project-store), which
 sits outside the checkout and outside git, and `memory.db` for a standalone
-store. A
-bundle is what you get when you export that store into a single reviewable,
-hashable file. `kapi memory export` writes one and `kapi store import`
+store. Exporting that store gives you a bundle: a single reviewable, hashable
+file. `kapi memory export` writes one and `kapi store import`
 reads one.
 See the [overview](/reference/serialization/overview) for why kapi keeps that
 distinction.
@@ -60,7 +59,7 @@ file's extension.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `schemaVersion` | string | `MAJOR.MINOR`. A reader rejects an unknown major and accepts unknown minors of a known major. |
-| `kind` | string | Always `kapi-memory`. Also the sniffing marker used to detect the format by content. |
+| `kind` | string | Always `kapi-memory`. Also the sniffing marker that identifies the format by content. |
 | `created` | string | RFC 3339. Optional. |
 | `generator` | object | `{id, version}`, the tool that produced the file. Optional. |
 | `entries` | array | The content-memory entries. Always present. |
@@ -68,11 +67,10 @@ file's extension.
 
 ## Entry
 
-An entry is **multilingual**, and this is the design decision that most
-separates it from TMX. There is no authoritative source language at this layer:
-`variants` is a map of locale to run sequence, and the locales are peers.
-`hintSrcLang` records which locale the entry was originally authored in, as a
-hint for matching rather than a privileged field.
+An entry is **multilingual**, which most separates it from TMX. There is no
+authoritative source language at this layer: `variants` is a map of locale to
+run sequence, and the locales are peers. `hintSrcLang` records which locale the
+entry was originally authored in, as a hint for matching.
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -89,7 +87,7 @@ hint for matching rather than a privileged field.
 Variant content reuses the same `Run` serialization the
 [content bundle](/reference/serialization/content-bundle) emits, so inline
 codes, placeholders, and plural/select constructs survive an export/import
-round trip unchanged rather than being flattened to a string.
+round trip unchanged.
 
 ### Entity mappings
 
@@ -137,21 +135,21 @@ and JSON expresses that directly. JSON Lines would mean inventing a framing
 convention to say which line is the envelope and how the two record types
 interleave.
 
-## What is deliberately not in it
+## What the bundle leaves out
 
 - **The SQLite store's indexes.** FTS5 and fuzzy-match side tables are derived;
   `kapi memory import` rebuilds them after a bulk load.
-- **A privileged source language.** Deliberate; see above.
+- **A privileged source language.** See [Entry](#entry).
 - **Fuzzy-match scores or thresholds.** Matching is a runtime concern driven by
-  the recipe rather than a property of stored content.
+  the recipe, and stored content carries none.
 
 ## Relationship to TMX
 
 TMX is supported (`--format tmx`) and is the right choice for handing content
 to a tool outside this project. It is a **lossy** tier: it has no
 representation for entity mappings, concept cross-links, per-entry provenance,
-or import-session metadata, and it assumes a source/target pair rather than
-peer locales.
+or import-session metadata, and it assumes a source/target pair where the
+bundle has peer locales.
 
 Export to TMX to interoperate; keep the bundle when the content is staying
 inside kapi. [Choosing a format](/reference/serialization/choosing) covers the

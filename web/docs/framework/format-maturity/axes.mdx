@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: The axes
-description: "The format-maturity score is a vector: one level per axis, grouped into three families (Comprehension, Assurance, Enablement). This page describes what each axis measures and the ladder it climbs, and features the Structure & Geometry and Prose axes."
+description: "The format-maturity score is a vector: one level per axis, grouped into three families (Comprehension, Assurance, Enablement). It lists what each axis measures and the ladder it climbs, with the Structure & Geometry and Prose axes in detail."
 keywords: [maturity axes, comprehension, assurance, enablement, engine, vocabulary, structure and geometry, prose, comments, corpus, security, knowledge, editor]
 ---
 
@@ -9,15 +9,15 @@ import { AxisFamiliesDiagram, AxisLadderDiagram } from "@neokapi/docs-shared";
 
 # The axes
 
-The [maturity score](/framework/format-maturity) is a vector rather than a single
-number: one level per axis, each axis a short ladder. The axes group into three
+The [maturity score](/framework/format-maturity) is a vector: one level per
+axis, each axis a short ladder. The axes group into three
 families, named for the question each answers.
 
 <AxisFamiliesDiagram
   families={[
     {
       name: "Comprehension",
-      tagline: "how deeply we read it",
+      tagline: "how deeply kapi reads it",
       axes: [
         { label: "Engine", range: "L0–L4" },
         { label: "Vocabulary", range: "V0–V3" },
@@ -27,7 +27,7 @@ families, named for the question each answers.
     },
     {
       name: "Assurance",
-      tagline: "how we prove it",
+      tagline: "how support is proven",
       axes: [
         { label: "Corpus", range: "C0–C3" },
         { label: "Security", range: "S0–S4" },
@@ -35,22 +35,22 @@ families, named for the question each answers.
     },
     {
       name: "Enablement",
-      tagline: "how we work with it",
+      tagline: "how people work with it",
       axes: [
         { label: "Knowledge", range: "K0–K3" },
         { label: "Editor", range: "E0–E4" },
       ],
     },
   ]}
-  caption="The axes in three families; the grouping is a reading aid."
+  caption="The axes in three families."
 />
 
-The grouping is a reading aid. The headline tier is still the minimum over the
-**gating axes** (Engine, Corpus, and Knowledge), which deliberately span all
-three families. **Security**, **Structure & Geometry** and **Prose** are
+The grouping is a reading aid. The headline tier is the minimum over the
+**gating axes** (Engine, Corpus and Knowledge), one from each family.
+**Security**, **Structure & Geometry** and **Prose** are
 **non-gating**: they score and rank work without entering the tier minimum.
 
-## Comprehension: how deeply we read it
+## Comprehension: how deeply kapi reads a format
 
 Three of the Comprehension axes ask one fidelity question at increasing
 resolution: bytes, then inline meaning, then structure. The fourth, Prose, reads
@@ -75,8 +75,7 @@ the comments a file carries beside its content.
 
 ### Structure & Geometry, by example
 
-The clearest way to read this axis is to imagine an image format, where every
-rung recovers more of the page:
+On an image format, every rung recovers more of the page:
 
 <AxisLadderDiagram
   rungs={[
@@ -121,14 +120,14 @@ try the [Structure and layout](/learn/structure) lab on your own files.
 
 Prose is scored per language. A format such as YAML or PO has its own row. A
 source language such as Go has no format of its own, so the dashboard lists it
-as a language row. A language kapi has no reader for is shown as **absent**,
-which is a different fact from a language at P0: at P0 kapi reads the files and
-leaves their comments untouched.
+as a language row. A language kapi has no reader for is shown as **absent**.
+That differs from a language at P0, where kapi reads the files and leaves their
+comments untouched.
 
 A rung is awarded only when a test that asserts it passes. A rung test that was
 skipped or did not build is shown as not run, and awards nothing.
 
-## Assurance: how we prove it
+## Assurance: how support is proven
 
 - **Corpus (C0–C3)**: the reference files that validate support, with
   provenance: committed exemplars, harvested wild files (license-checked and
@@ -139,7 +138,7 @@ skipped or did not build is shown as not run, and awards nothing.
   input: resource budgets, fuzzing, and clean sweeps over a hostile corpus.
   This axis does not affect the published support tier.
 
-## Enablement: how we work with it
+## Enablement: working with a format
 
 - **Knowledge (K0–K3)**: the specification and learning assets that let a person
   *or a model* work on the format correctly from in-repo material alone: a

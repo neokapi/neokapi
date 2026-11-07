@@ -5,13 +5,15 @@ description: "Checks are tests for AI output: read-only verifiers that inspect c
 keywords: [checks, content verification, tests for AI, findings, voice profile, terminology, gate, CI]
 ---
 
+import { CycleDiagram } from "@neokapi/docs-shared";
+
 # Checks
 
 A **check** reads content, inspects it against a set of rules, and **reports
 findings without modifying it**. neokapi runs every kind of verification through
 one engine: deterministic rule-based checks, terminology enforcement, placeholder and
 do-not-translate integrity, and [voice profile](/framework/checks/voice) are
-check families that share one model rather than separate systems.
+check families that share one model.
 
 In the CLI, `kapi check <path>` checks authored content and `kapi check --ship`
 enforces project release gates. Checks also run inside `kapi up`'s loop: each pass runs the project's bound
@@ -21,21 +23,32 @@ checks over what was produced. `kapi exec` runs a single check tool (`qa`,
 
 ## Checks are tests for AI output
 
-Exact rule checks behave like tests: for fixed input and context they are
-repeatable, and report a specific violation: an over-long string, a forbidden phrase, an
-off-brand term, a doubled word. `kapi check` runs a **content-first** checkset
-over any file, with no translation needed, and returns one stable, machine-readable
+Exact rule checks behave like tests. For fixed input and context they are
+repeatable, and each reports a specific violation: an over-long string, a
+forbidden phrase, an off-voice term, a doubled word.
+
+`kapi check` runs a **content-first** checkset over any file, with no
+translation needed, and returns one stable, machine-readable
 [`kapi.check/v2` Report](#the-report): `pass`, a 0–100 score, and a finding
 per **stable rule id** (`length.max-chars-exceeded`, `hygiene.doubled-word`, …)
 anchored to the exact **block**. The [Check reference](/reference/checks)
 documents every rule id the source checks report and what fixes each. Each
 finding either fails or reports, as the rule that raised it says (see [What
 fails](#what-fails)). The command **exits
-non-zero when a finding fails**, so a regression is caught in CI, or inside an
-AI assistant's fix-loop, the same way a failing test is. The assistant drafts,
-the checks tell it which block and which rule broke, it fixes that block
-(through `kapi apply`, or the `apply_edits` MCP tool), and re-checks. Meaning
-and unsupported guidance remain for review.
+non-zero when a finding fails**, so CI or an AI assistant's fix-loop catches a
+regression the way it catches a failing test. The fix-loop:
+
+<CycleDiagram
+  steps={[
+    { label: "Draft", sub: "the assistant writes" },
+    { label: "Check", sub: "kapi check" },
+    { label: "Findings", sub: "block + rule id" },
+    { label: "Fix", sub: "kapi apply / apply_edits" },
+  ]}
+  caption="The assistant re-checks after each fix until no finding fails."
+/>
+
+Meaning, and guidance that no rule encodes, remain for review.
 
 Bilingual checks (do-not-translate and placeholder integrity, which
 compare a translated target against its source) are an opt-in: pass
@@ -55,9 +68,9 @@ rule's `replacement`, carries a `fix`: the `replace_text` operation of a
 finding objects to, addressed to the block and naming the revision the check
 read. Each fix names its words by their place in the text the check read, so
 the fixes for one block travel as one operation, their edits together; a second
-operation on the same block would see the text the first one left. This applies
-every fix of a report, and a fix whose block changed since the check is refused
-as stale:
+operation on the same block would see the text the first one left. The command
+below applies every fix in a report. kapi refuses a fix whose block changed
+since the check as stale:
 
 ```bash
 kapi check docs/guide.md --json \
@@ -218,9 +231,8 @@ applicable profile and channel. An explicit profile replaces that voice
 selection, while project terms still apply. Check the reported scope before
 using a passing result to assess the task.
 
-A passing verdict means no failing findings in the configured checks. It does
-not establish factual accuracy or compliance with
-rules that were never encoded. Exact voice rules, advisory example similarity
+A passing verdict means the configured checks raised no failing finding.
+Factual accuracy, and rules nobody encoded, are outside it. Exact voice rules, advisory example similarity
 (`--voice`), and optional LLM review are distinct analyses. `kapi check` does not
 run LLM review and records `voice.llm` as `not_requested`. Applicable profile
 guidance that exact rules cannot assess is recorded as `voice.guidance` with
@@ -256,8 +268,8 @@ at another commit.
 Every diff check is governed by the recipe, voice profiles and terms on disk
 where kapi runs. For a range, those are the rules in force now, never the
 versions B holds, so each commit in a range is held to today's rules. A pull
-request check needs exactly that, and so does a search of history for the
-commit where a file first broke a rule. Inside a project, a file B holds is
+request check needs that, and so does a search of history for the commit where
+a file first broke a rule. Inside a project, a file B holds is
 content when that recipe declares its path.
 [Check changes in git](/kapi/recipes/verify-content#check-changes-in-git) has a
 pre-commit hook, a pull request check, a sweep for the commits that added
@@ -371,16 +383,16 @@ checkset):
   code counts as content. A leading or trailing placeholder is the edge of the
   content, so the space beside it is a separator, not stray whitespace:
   `{price} each` has no leading whitespace, `Hello {name} world` has no double
-  space, and a block that is only a placeholder is not empty. Genuine
-  whitespace (` {price} each`) still reports.
+  space, and a block that is only a placeholder is not empty. Real whitespace
+  (` {price} each`) still reports.
 
   An inline code is likewise a real **boundary** for the adjacency rules: it
   separates what sits either side of it, so `the {name} the cat` holds no doubled
-  word. It is a token of its own rather than part of the word beside it, so it
-  cannot hide one either: `{name}the the cat` reports. Nothing separates two
-  *adjacent text runs*, so a defect spanning their join (`the ` + `the cat`) is
-  real and reports. The editor's highlights come from these same rules, so a
-  preview and a `kapi check` finding cannot disagree.
+  word. It is a token of its own, so it cannot hide a doubled word either:
+  `{name}the the cat` reports. Nothing separates two *adjacent text runs*, so a
+  defect spanning their join (`the ` + `the cat`) reports. The editor's
+  highlights come from these same rules, so a preview and a `kapi check`
+  finding agree.
 - **Length**: flag content over a character or word budget (`--max-chars`/
   `--max-words`).
 - **Patterns**: regex that must not appear (`--forbid`) or must appear
@@ -431,8 +443,8 @@ The full rule-based family (whitespace, inline-code integrity, cross-block
 consistency, optional LLM review) is documented under
 [Rule-based checks](/framework/checks/rule-checks).
 
-> **Document structure & encoding validity** is a format-reader concern rather
-> than a content check: the readers extract leniently by default. Surface it on
+> **Document structure & encoding validity** belongs to the format readers,
+> which extract leniently by default. Surface it on
 > demand with `kapi check --validate report`: the reader emits located
 > `structure.*` / `encoding.*` findings (malformed XML/YAML, invalid UTF-8,
 > charset mismatch, and the JSON faults the parser rejects) into the same
@@ -448,22 +460,23 @@ consistency, optional LLM review) is documented under
 
 ## Composing and gating
 
-Checks are tools, so they compose in a [flow](/framework/flows) exactly like
-translation or transform stages, typically as the trailing stage after
-translation. In CI, gate on the exit code; in an editor or assistant, surface
-the findings and apply the fixes they carry through the change service. A check
-annotates and changes no content itself, and a failing finding fails the
-check.
+Checks are tools, so they compose in a [flow](/framework/flows) like
+translation or transform stages, usually as the last stage after translation.
+In CI, gate on the exit code. In an editor or assistant, surface the findings
+and apply the fixes they carry through the change service. A check changes no
+content itself.
 
 In a project, `kapi check --ship` (and each pass of `kapi up`) runs the bound
 gates over what was produced. The project-gate response groups findings by gate:
-**voice**
-(the bound profile's rules, failing on a failing finding, with the compliance
-score reported),
-**terminology**, **qa**, **ship** (the ship gate on target status), **source**
-(the source-side checks), and **staleness** (content produced under a context
-that has since changed, such as a new voice profile version or new term rules,
-must be re-run before its locale ships).
+
+| Gate | What it checks |
+| --- | --- |
+| **voice** | The bound profile's rules; fails on a failing finding, and reports the compliance score |
+| **terminology** | The terms the project requires |
+| **qa** | The rule-based quality checks |
+| **ship** | Target status |
+| **source** | The source-side checks |
+| **staleness** | Content produced under a context that has since changed, such as a new voice profile version or new term rules; it must be re-run before its locale ships |
 
 Source-only collections receive authored-content checks, including in a project
 that also has translated targets. Naming a source-only file checks that content
@@ -474,5 +487,8 @@ exits `4`. See
 [the agent surface design](/contribute/architecture/surfaces/s-03-agent-surfaces)
 for the edit loop and its release checks.
 
-For a worked example of gating a pull request on a project's bound checks with
-GitHub Actions, see [Ship gates &amp; CI](/kapi/recipes/ship-gates-and-ci).
+## Related
+
+- [Ship gates &amp; CI](/kapi/recipes/ship-gates-and-ci): gate a pull request on a project's bound checks with GitHub Actions.
+- [Rule-based checks](/framework/checks/rule-checks): the full rule-based family.
+- [Check reference](/reference/checks): every rule id and its fix.

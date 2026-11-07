@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
 title: Project archive
-description: "The .kpz project archive: the manifest, its members and content types, the two package kinds, the Merkle root hash, and what the archive deliberately excludes."
+description: "The .kpz project archive: the manifest, its members and content types, the two package kinds, the Merkle root hash, and what the archive leaves out."
 keywords: [KBF, memory bundle, terms bundle, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, pack, unpack]
 ---
 
@@ -32,8 +32,8 @@ segment ahead of `.json` keeps the file self-describing; the `.json` tail means
 configuration. `.kpz` keeps a dedicated extension because it is a binary zip.
 
 The native forms round-trip **every** field of the internal model. The
-interchange forms map only the standard, industry-portable subset, which is
-exactly why they cannot be used to pack a project losslessly:
+interchange forms map only the standard, industry-portable subset, so they
+cannot pack a project losslessly:
 
 - **TMX drops** the entity mappings (including the `conceptId` cross-link from a
   content-memory entity to a terms concept), provenance origins and import
@@ -138,13 +138,12 @@ hashes) rebuild faithfully from it. The manifest's per-member SHA-256 and Merkle
 the package, and each member, a stable content identity; unpacking verifies
 both before trusting the contents.
 
-### What a package deliberately excludes
+### What a package leaves out
 
 A `.kpz` packs the **source of truth** and leaves the regenerable index behind. It excludes
 `.kapi/work/store.db` and everything under `.kapi/work/cache/`, which rebuild on demand,
 and it excludes secrets (the sync claim token). A part with nothing in it is
-absent rather than empty. This is what makes the
-package the at-rest twin of the sync wire format: packing is the sync converters
+absent. The package is therefore the at-rest twin of the sync wire format: packing is the sync converters
 writing files instead of protobuf, and unpacking is the inverse.
 
 Raw source bytes are also excluded by default: a `.kpz` carries each source's
