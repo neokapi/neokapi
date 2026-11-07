@@ -3,7 +3,7 @@ import { Sun, Moon, Monitor, Languages, FlaskConical } from "lucide-react";
 import { loadTranslations, setTranslations, t } from "@neokapi/i18n-react/runtime";
 import { api, type VersionInfo } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import { Button, Card, CardContent, Switch, LoadingSpinner } from "@neokapi/ui-primitives";
+import { Button, Switch, LoadingSpinner } from "@neokapi/ui-primitives";
 import { analyticsAvailable, setTelemetryEnabled } from "../analytics";
 import { DevPseudoCard } from "./DevPseudoCard";
 import { CredentialsPage } from "./CredentialsPage";
@@ -180,126 +180,76 @@ export function SettingsPage({
           <div className="p-6">
             <h1 className="mb-6 text-xl font-semibold">App settings</h1>
 
-            <div className="max-w-lg space-y-6">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="mb-3 text-sm font-medium">Appearance</div>
-                  <div className="flex gap-2">
-                    {[
-                      { value: "system" as ThemeMode, icon: Monitor, label: t("System") },
-                      { value: "light" as ThemeMode, icon: Sun, label: t("Light") },
-                      { value: "dark" as ThemeMode, icon: Moon, label: t("Dark") },
-                    ].map(({ value, icon: Icon, label }) => (
-                      <button
-                        key={value}
-                        onClick={() => void handleThemeChange(value)}
-                        className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
-                          theme === value
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                        }`}
-                      >
-                        <Icon size={16} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[10px] text-muted-foreground">
-                    System follows your operating system's appearance setting.
-                  </p>
-                </CardContent>
-              </Card>
+            {/* Labelled rows, one control each: the settings shape in
+                page-patterns.md. */}
+            <div className="max-w-2xl divide-y divide-border/60 border-y border-border/60">
+              <SettingRow label={t("Appearance")}>
+                <Segmented
+                  label={t("Appearance")}
+                  value={theme}
+                  onChange={(v) => void handleThemeChange(v as ThemeMode)}
+                  options={[
+                    { value: "system", icon: Monitor, label: t("System") },
+                    { value: "light", icon: Sun, label: t("Light") },
+                    { value: "dark", icon: Moon, label: t("Dark") },
+                  ]}
+                />
+              </SettingRow>
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="mb-3 text-sm font-medium">Language</div>
-                  <div className="flex gap-2">
-                    {UI_LANGUAGES.map(({ value, icon: Icon, label }) => (
-                      <button
-                        key={value}
-                        onClick={() => void handleLanguageChange(value)}
-                        className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
-                          uiLanguage === value
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                        }`}
-                      >
-                        <Icon size={16} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[10px] text-muted-foreground">
-                    Pseudo English expands strings and adds accents, which is useful for
-                    multilingual checks.
-                  </p>
-                </CardContent>
-              </Card>
+              <SettingRow label={t("Language")}>
+                <Segmented
+                  label={t("Language")}
+                  value={uiLanguage}
+                  onChange={(v) => void handleLanguageChange(v as UILanguage)}
+                  options={UI_LANGUAGES}
+                />
+              </SettingRow>
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="mb-3 text-sm font-medium">{t("Home")}</div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-xs text-muted-foreground">
-                      {t("Start here walks through a first project and a first assistant.")}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      data-slot="restore-start-here"
-                      disabled={!startHereDismissed}
-                      onClick={handleRestoreStartHere}
-                    >
-                      Show Start here again
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <SettingRow label={t("Start here")}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-slot="restore-start-here"
+                  disabled={!startHereDismissed}
+                  onClick={handleRestoreStartHere}
+                >
+                  {t("Show it again")}
+                </Button>
+              </SettingRow>
 
               {/* Usage statistics (D1 opt-out) — only meaningful in builds that
                 carry an analytics key; keyless builds never emit anything. */}
               {analyticsAvailable() && (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="mb-3 text-sm font-medium">{t("Usage statistics")}</div>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-xs text-muted-foreground">
-                        {t(
-                          "Share anonymous usage statistics: screen views and feature usage, never your content, project names, or file paths.",
-                        )}
-                      </span>
-                      <Switch
-                        checked={telemetryOn}
-                        onCheckedChange={(checked) => void handleTelemetryChange(checked)}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                <SettingRow
+                  label={t("Usage statistics")}
+                  meta={t(
+                    "Screen views and feature use; never your content, project names or paths.",
+                  )}
+                >
+                  <Switch
+                    aria-label={t("Share anonymous usage statistics")}
+                    checked={telemetryOn}
+                    onCheckedChange={(checked) => void handleTelemetryChange(checked)}
+                  />
+                </SettingRow>
               )}
-
-              <DevPseudoCard />
 
               {version && (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="mb-3 text-sm font-medium">{t("About")}</div>
-                    <dl
-                      className="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-1.5 text-sm"
-                      data-testid="version-info"
-                    >
-                      <dt className="text-muted-foreground">{t("Version")}</dt>
-                      <dd className="font-mono text-xs">{version.version || "dev"}</dd>
-                      <dt className="text-muted-foreground">{t("Commit")}</dt>
-                      <dd className="font-mono text-xs">{version.commit || "unknown"}</dd>
-                      <dt className="text-muted-foreground">{t("Build date")}</dt>
-                      <dd className="font-mono text-xs">{version.build_date || "unknown"}</dd>
-                    </dl>
-                    <p className="mt-3 text-[10px] text-muted-foreground">
-                      © {new Date().getFullYear()} neokapi
-                    </p>
-                  </CardContent>
-                </Card>
+                <SettingRow label={t("Version")}>
+                  <span
+                    translate="no"
+                    className="font-mono text-xs text-muted-foreground"
+                    data-testid="version-info"
+                  >
+                    {version.version || "dev"} · {version.commit || "unknown"} ·{" "}
+                    {version.build_date || "unknown"}
+                  </span>
+                </SettingRow>
               )}
+            </div>
+
+            <div className="mt-6 max-w-2xl">
+              <DevPseudoCard />
             </div>
           </div>
         </div>
@@ -322,6 +272,68 @@ export function SettingsPage({
           <LocaleSettings />
         </div>
       )}
+    </div>
+  );
+}
+
+/** One setting: its label on the left, its one control on the right. */
+function SettingRow({
+  label,
+  meta,
+  children,
+}: {
+  label: string;
+  meta?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-12 items-center justify-between gap-6 py-2.5">
+      <div className="min-w-0">
+        <div className="text-sm">{label}</div>
+        {meta && <div className="text-[11px] text-muted-foreground">{meta}</div>}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+/** A small segmented control: one choice among a few, each with an icon. */
+function Segmented({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; icon: React.ComponentType<{ size?: number }> }[];
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="flex rounded-md border border-border p-0.5"
+    >
+      {options.map(({ value: v, label: l, icon: Icon }) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          // Each label arrives translated, so the button is not extracted.
+          translate="no"
+          aria-checked={value === v}
+          onClick={() => onChange(v)}
+          className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none ${
+            value === v
+              ? "bg-accent font-medium text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Icon size={13} />
+          {l}
+        </button>
+      ))}
     </div>
   );
 }
