@@ -186,7 +186,7 @@ jobs:
       # them and fail if a committed page is stale — gen-reference-pages.ts needs
       # only the @neokapi/reference-data package resolvable, so vp install
       # suffices (no i18n-react/wasm build).
-      - uses: voidzero-dev/setup-vp@v1.21.2
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "22"
           cache: true
