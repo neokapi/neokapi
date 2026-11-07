@@ -61,7 +61,12 @@ describe("the Map route", () => {
         navigate={navigate}
       />,
     );
-    const open = await screen.findAllByRole("button", { name: "Open" });
+    await screen.findByRole("heading", { name: "Fernwell" });
+    const open = await waitFor(() => {
+      const rows = document.querySelectorAll<HTMLElement>('[data-slot="map-file-open"]');
+      expect(rows.length).toBeGreaterThan(0);
+      return rows;
+    });
     await userEvent.click(open[0]);
     expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ kind: "reader" }));
   });
