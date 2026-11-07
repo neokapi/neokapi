@@ -148,7 +148,7 @@ Component libraries like shadcn, Radix and MUI, and your own internal components
 
 ```text
 [neokapi] src/Settings.tsx:19: <TabsTrigger> is an unmapped component with
-  translatable text — extracted. Add a componentMap entry to stabilise
+  translatable text: extracted. Add a componentMap entry to stabilise
   hashes: { TabsTrigger: '<underlying-html-tag>' }.
   ↳ <TabsTrigger value="general">General</TabsTrigger>
 ```

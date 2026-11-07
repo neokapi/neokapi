@@ -496,7 +496,7 @@ function readPackageVersion(): string {
 }
 
 const usage = `
-neokapi-i18n extract — scan JSX/TSX files and emit translatable blocks.
+neokapi-i18n extract: scan JSX/TSX files and emit translatable blocks.
 
 Usage:
   neokapi-i18n extract [options]
@@ -519,18 +519,18 @@ Options:
   --source-root <dir>     Directory every recorded source path is relative to
                           (default: the working directory). Declare it wherever
                           --src reaches outside the working directory, so a
-                          catalog names its source the same way from anywhere —
-                          it is the document's identity as well as what a
+                          catalog names its source the same way from anywhere.
+                          It is the document's identity as well as what a
                           reviewer reads, so changing it re-keys the catalogs.
                           Catalogs mirror the source tree, so the default
-                          "src/**" glob writes them under "i18n/src/" —
+                          "src/**" glob writes them under "i18n/src/",
                           leaving "i18n/{lang}/" free for kapi's per-locale
                           targets.
   --stream                Emit NDJSON block records on stdout instead
                           of writing .kbf.json files. Reads NUL-separated
                           paths on stdin instead of expanding --src.
   --strict                Treat any recorded warning (e.g. unknown
-                          component) as an error — exits non-zero.
+                          component) as an error and exit non-zero.
   --warnings-json <path>  Write every recorded warning as JSON (kind, file,
                           line, tag) to <path>, for a check that compares
                           them with a baseline.

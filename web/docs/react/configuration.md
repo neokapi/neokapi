@@ -238,10 +238,10 @@ neokapi-i18n explain "src/**/*.tsx" --extracted   # only the elements that extra
 ```
 
 ```text
-L3    <div>          [container] skipped — has block-level children (they extract separately)
+L3    <div>          [container] skipped: has block-level children (they extract separately)
 L4    <h1>           [translatable] extracted  hash=cYEMc2v3JVx
-L6    <code>         [non-translatable] skipped — classified non-translatable
-L7    <input>        [container] skipped — no translator-editable text
+L6    <code>         [non-translatable] skipped: classified non-translatable
+L7    <input>        [container] skipped: no translator-editable text
         ↳ placeholder [attribute] extracted  hash=i42kuGUFbb4
 ```
 
