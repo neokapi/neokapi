@@ -29,7 +29,7 @@ type Story = StoryObj<typeof FilterMenu>;
 
 /**
  * The menu-bar Active Filter control. Without a backing project the dropdown
- * shows "All" and "New filter…"; opening "New filter…" reveals the editor
+ * shows "All files" and "New filter…"; opening "New filter…" reveals the editor
  * populated from the project's collections and target languages.
  */
 export const Default: Story = {};

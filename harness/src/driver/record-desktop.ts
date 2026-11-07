@@ -803,10 +803,12 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
   return { page, beat, beatEls, beatSpan, cursorTo, cue, sidebar, peer };
 }
 
-/** A Context hub section tab by its label. The hub's own nav carries the
- *  sections (Explorer · Voice · Terms · Content Memory) as plain buttons. */
+/** A Context hub section tab by its label. The hub's tab list carries the
+ *  sections (Decide · Explore · Search · Voice · Terms · Content Memory). */
 function contextSection(page: Page, label: string): Locator {
-  return page.locator(`nav[aria-label="Context sections"] button:has-text("${label}")`);
+  return page.locator(
+    `[role="tablist"][aria-label="Context sections"] [role="tab"]:has-text("${label}")`,
+  );
 }
 
 /** One tab of Project Settings: Settings, Content, Assistants or Share. */
@@ -1255,7 +1257,7 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
   await openSample(page, "sample-kapimart", "Toolbox");
   await humanClick(page, sidebar("Toolbox"));
   await page.waitForTimeout(1200);
-  const flowsTab = page.locator('button:has-text("Flows")').first();
+  const flowsTab = page.locator('[role="tab"]:has-text("Flows")').first();
   if (await flowsTab.count()) await humanClick(page, flowsTab);
   await page.waitForTimeout(1400);
   await beatEls("open-flow", ['[data-testid="linear-flow-editor"]'], async () => {

@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { KapiProject, ProjectFilter } from "../types/api";
@@ -25,7 +26,7 @@ import { isEmptyFilter } from "../lib/filter";
 
 /**
  * Menu-bar control for the project's Active Filter: shows the active filter (or
- * "All"), switches between saved filters in one click, and opens an editor to
+ * "All files"), switches between saved filters in one click, and opens an editor to
  * create/edit filters (collections + glob + languages, shared or personal).
  */
 export function FilterMenu({ project }: { project: KapiProject }) {
@@ -41,23 +42,31 @@ export function FilterMenu({ project }: { project: KapiProject }) {
   return (
     <>
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1.5"
-            aria-label={t("Active filter")}
-          >
-            <Filter size={13} className={active ? "text-primary" : "text-muted-foreground"} />
-            <span className="max-w-[10rem] truncate">{active ? active.name : t("All")}</span>
-            <ChevronDown size={12} className="text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
+        <SimpleTooltip
+          content={t("Narrows the files, collections and languages the project's pages show")}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5"
+              aria-label={
+                active ? t("Filter: {name}", { name: active.name }) : t("Filter: all files")
+              }
+            >
+              <Filter size={13} className={active ? "text-primary" : "text-muted-foreground"} />
+              <span className="max-w-[10rem] truncate">
+                {active ? active.name : t("All files")}
+              </span>
+              <ChevronDown size={12} className="text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+        </SimpleTooltip>
         <DropdownMenuContent align="end" className="w-60">
           <DropdownMenuLabel>{t("Active filter")}</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => void setActive("")}>
             <Check size={14} className={activeId === "" ? "opacity-100" : "opacity-0"} />
-            {t("All")}
+            {t("All files")}
           </DropdownMenuItem>
           {filters.map((f) => (
             <DropdownMenuItem key={f.id} onClick={() => void setActive(f.id)}>
