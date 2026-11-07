@@ -2,102 +2,77 @@ import type { ReactNode } from "react";
 import { t } from "@neokapi/i18n-react/runtime";
 
 /**
- * The sections of Project Settings → Tools. Each renders the app-wide page of
- * the same name: the tools and flows, terms, content memories and formats
- * that stand outside any one project.
+ * The tabs of Project Settings besides the settings themselves: the project's
+ * content collections and where they stand, the assistants connected to it,
+ * and sharing its context. Sessions is reached from the Assistants page, so it
+ * has no tab of its own and keeps Assistants marked.
  */
-export const SETTINGS_TOOL_SECTIONS = ["tools", "flows", "terms", "memories", "formats"] as const;
-export type SettingsToolSection = (typeof SETTINGS_TOOL_SECTIONS)[number];
+export const SETTINGS_SECTIONS = ["content", "assistants", "sessions", "share"] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+const TABS: Array<{ id: SettingsSection | null; label: () => string }> = [
+  { id: null, label: () => t("Settings") },
+  { id: "content", label: () => t("Content") },
+  { id: "assistants", label: () => t("Assistants") },
+  { id: "share", label: () => t("Share") },
+];
 
 /**
  * Which part of Project Settings a view names. The view is
  * "project-settings" for the settings themselves, and
- * "project-settings:<section>" for one section of Tools.
+ * "project-settings:<section>" for one of the other tabs.
  */
-export function settingsSectionOf(view: string): SettingsToolSection | null {
+export function settingsSectionOf(view: string): SettingsSection | null {
   const section = view.split(":")[1];
-  return (SETTINGS_TOOL_SECTIONS as readonly string[]).includes(section)
-    ? (section as SettingsToolSection)
+  return (SETTINGS_SECTIONS as readonly string[]).includes(section)
+    ? (section as SettingsSection)
     : null;
 }
 
 export interface ProjectSettingsTabsProps {
-  /** The section of Tools on view, or null for the project's settings. */
-  section: SettingsToolSection | null;
+  /** The tab on view, or null for the project's settings. */
+  section: SettingsSection | null;
   /** Navigate to a view; the tabs are routes, so each is deep-linkable. */
   onNavigate: (view: string) => void;
-  /** The project's settings. */
-  settings: ReactNode;
-  /** The page for each section of Tools. */
-  tools: Record<SettingsToolSection, ReactNode>;
+  /** The page for each tab. */
+  pages: { settings: ReactNode } & Record<Exclude<SettingsSection, "sessions">, ReactNode> & {
+      sessions?: ReactNode;
+    };
 }
 
-const SECTION_LABELS: Record<SettingsToolSection, () => string> = {
-  tools: () => t("Tools"),
-  flows: () => t("Flows"),
-  terms: () => t("Terms"),
-  memories: () => t("Content memory"),
-  formats: () => t("Formats"),
-};
-
-/**
- * Project Settings as two tabs: the project's own settings, and Tools, which
- * holds the app-wide pages a person reaches without a project in mind.
- */
-export function ProjectSettingsTabs({
-  section,
-  onNavigate,
-  settings,
-  tools,
-}: ProjectSettingsTabsProps) {
+/** Project Settings as tabs: one page per tab, each a route. */
+export function ProjectSettingsTabs({ section, onNavigate, pages }: ProjectSettingsTabsProps) {
+  const marked = section === "sessions" ? "assistants" : section;
+  const page = section === null ? pages.settings : (pages[section] ?? pages.assistants);
   return (
     <div data-slot="project-settings-tabs" className="flex h-full min-h-0 flex-col">
       <div
         role="tablist"
         className="sticky top-0 z-10 flex shrink-0 items-center gap-1 border-b border-border bg-background/95 px-4 backdrop-blur"
       >
-        <TabButton active={section === null} onClick={() => onNavigate("project-settings")}>
-          {t("Settings")}
-        </TabButton>
-        <TabButton active={section !== null} onClick={() => onNavigate("project-settings:tools")}>
-          {t("Tools")}
-        </TabButton>
-      </div>
-      {section === null ? (
-        <div className="min-h-0 flex-1 overflow-auto">{settings}</div>
-      ) : (
-        <>
-          <div
-            data-slot="settings-tool-sections"
-            role="tablist"
-            className="flex shrink-0 items-center gap-1 border-b border-border/60 px-4"
+        {TABS.map((tab) => (
+          <TabButton
+            key={tab.id ?? "settings"}
+            active={marked === tab.id}
+            onClick={() =>
+              onNavigate(tab.id === null ? "project-settings" : `project-settings:${tab.id}`)
+            }
           >
-            {SETTINGS_TOOL_SECTIONS.map((s) => (
-              <TabButton
-                key={s}
-                small
-                active={s === section}
-                onClick={() => onNavigate(`project-settings:${s}`)}
-              >
-                {SECTION_LABELS[s]()}
-              </TabButton>
-            ))}
-          </div>
-          <div className="min-h-0 flex-1 overflow-auto">{tools[section]}</div>
-        </>
-      )}
+            {tab.label()}
+          </TabButton>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">{page}</div>
     </div>
   );
 }
 
 function TabButton({
   active,
-  small,
   onClick,
   children,
 }: {
   active: boolean;
-  small?: boolean;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -107,7 +82,7 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`-mb-px border-b-2 px-3 transition-colors ${small ? "py-2 text-xs" : "py-2.5 text-sm"} ${
+      className={`-mb-px border-b-2 px-3 py-2.5 text-sm transition-colors ${
         active
           ? "border-primary font-medium text-foreground"
           : "border-transparent text-muted-foreground hover:text-foreground"

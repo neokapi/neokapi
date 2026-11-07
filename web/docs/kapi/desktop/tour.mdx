@@ -23,13 +23,13 @@ with a row for each project where an assistant noticed something since you last
 looked. A row carries the assistant's mark and a chip for each kind of thing it
 noticed. **Review** on a row opens the project on **Decide**.
 
-A project otherwise opens on its **Map**: when kapi last read the files, four
+A project otherwise opens on its **Overview**: when kapi last read the files, four
 counts (files, blocks, rules and findings), **What your files do** with one row
 for each suggestion waiting for you, and **Files** with one row for each
 content file, the files with the most findings first. **Run on everything**
 checks every file and refreshes the counts, and the findings count opens what
-the checks found. **Decide** on a suggestion's row, or at the top of the Map,
-opens Decide.
+the checks found. **Decide** on a suggestion's row, or at the top of the
+Overview, opens Decide.
 
 **Open** on a file shows it in the Reader: its blocks in file order, each
 finding marked on its words with a row under the block, and **Fix** beside a
@@ -48,7 +48,7 @@ Above the actions, a line says what keeping the picked option does, such as
 Below them, **Seen in** quotes the sentence and names the file and the
 assistant that recorded it. **Keep** (`k`), **Not a rule** (`n`) and **Later**
 (`l`) answer, the option numbers pick another option, and the next question is
-selected. **Sessions**, under Assistants, widens a kept rule across the project or the workspace.
+selected. **Sessions**, under Assistants in Project Settings, widens a kept rule across the project or the workspace.
 
 <ThemedImage
   alt="Decide asking which spelling the files use, with the options, what keeping one does, and the sentence it was seen in"
@@ -77,7 +77,7 @@ that used it, and where.
 
 ## Assistants
 
-**Assistants** has a row for Claude Code, Cursor, VS Code, Codex, Agent skills
+**Assistants**, a tab of **Project Settings**, has a row for Claude Code, Cursor, VS Code, Codex, Agent skills
 and Claude Desktop. A connected assistant reads **Connected** and what it gets:
 the rules, and the check on every edit once Claude Code has the kapi plugin.
 **Connect** on any other row writes the files `kapi connect` writes for that
@@ -141,7 +141,7 @@ set aside.
   }}
 />
 
-**Share** is titled with the project's name, such as **Fernwell · Share**, and
+**Share**, a tab of **Project Settings**, is titled with the project's name, such as **Fernwell · Share**, and
 lists how far your rules reach as three rungs. Each rung says what reaching it
 changes for you, and the one the project stands on carries a **Current**
 badge. **On this Mac** is where every project starts: your rules and your
@@ -186,8 +186,8 @@ which then names the server and the workspace, for example
 
 ## Where the project stands
 
-The **Project** section answers "where is this" on two axes before it offers
-to do anything.
+**Content**, a tab of **Project Settings**, answers "where is this" on two
+axes.
 
 **Content** is the blocks the project's files hold, and what is missing. **Governance** is the voice profile in force, the
 terms that apply, when the project last converged, and whether it is in sync
@@ -197,7 +197,8 @@ Beneath, **Where content sits** gives one row for each part of the project the
 recipe declares, with the collections there and the voice that applies to them.
 A project with one voice for everything is one row.
 
-On a project with a target language, **Bring up to date** runs the project's
+On a project with a target language, the Overview shows **Bring up to date**
+under its counts. It runs the project's
 default flow until every gated locale ships or waits for review. **Plan…**
 beside it is the pre-flight: the pending work, the leverage available from
 content memory, and a token estimate, before anything runs.
@@ -222,7 +223,8 @@ project opens and again when they change, so no step reads them in by hand.
 
 A project's content is grouped into named collections: documentation, store
 copy, contracts, templates. Each is a set of patterns, and the home shows one
-card per collection with the real files matched beside the format kapi detected.
+card per collection on the **Content** tab of Project Settings, with the real
+files matched beside the format kapi detected.
 
 Opening a file previews it the way the engine reads it. A **Preview** of the
 rendered document, a **Blocks** list, and, where the format carries them, a
@@ -240,8 +242,8 @@ leaving every other byte as it was.
 
 ## Checks
 
-Checks are tests for prose. **Run on everything** on the Map runs them, and the
-Map's findings count opens the findings, which read like a test report. A finding
+Checks are tests for prose. **Run on everything** on the Overview runs them,
+and the Overview's findings count opens the findings, which read like a test report. A finding
 names the rule that fired and where it applies, and clicking it opens Context
 there with the rule in view.
 
@@ -263,7 +265,8 @@ through version control. Open one to edit its pipeline, and run it through the
 runner with live per-file progress.
 
 The tool browser beside it is a reference. It says what each tool does, what it
-consumes and produces, and the command line that runs it.
+consumes and produces, and the command line that runs it. **Formats**, the
+third tab, lists the formats kapi reads and their settings.
 
 <ThemedVideo
   sources={{
@@ -280,8 +283,8 @@ Settings has four tabs: **General** for appearance, **AI Models** for the
 providers and models kapi runs with (keys stay in your OS keychain, never in the
 project file), **Plugins** for the formats and tools that extend it, and
 **Locales**. Project Settings carries the recipe itself: the languages, the
-voice and terms each part of the project uses, and
-the default flow.
+voice and terms each part of the project uses, and the default flow. Its other
+tabs are **Content**, **Assistants** and **Share**.
 
 Plugins install from the registry in one click, and the formats and tools they
 add appear in the project immediately. The
@@ -307,11 +310,10 @@ keyboard-first, with an optional AI pre-review to triage a long queue. See
 [Review & approve](/kapi/recipes/review-and-approve).
 
 A project that declares no target languages is complete without this. Its
-sidebar shows **Languages +** instead of Review, and the Project page shows no
-coverage and no **Bring up to date**. **Languages +** opens the source language
-and the languages to translate into. Once the saved recipe declares the first
-target, the entry reads **Languages** and opens the Project page at **Bring up
-to date**, and Review, Content Memory and the coverage appear.
+Overview shows no coverage and no **Bring up to date**, and **Review** opens the
+source language and the languages to translate into. Once the saved recipe
+declares the first target, **Bring up to date** appears on the Overview, and
+the Review queue, Content Memory and the coverage appear.
 
 ## Next
 

@@ -1,12 +1,9 @@
 import {
   Home,
   Compass,
-  FolderKanban,
   ClipboardCheck,
-  Languages,
-  Plus,
   Wrench,
-  Map as MapIcon,
+  LayoutDashboard,
   Settings,
   SlidersHorizontal,
 } from "lucide-react";
@@ -21,15 +18,8 @@ type SidebarItem =
       icon: React.ReactNode;
       label: string;
       alwaysEnabled?: boolean;
-      /** When true, this item appears only once the project declares a target
-       *  language (Review). Hidden, not disabled, when it does not: a project
-       *  shows the surfaces its languages call for. */
-      localeGated?: boolean;
-      /** The Languages door: "Languages +" until the project declares a
-       *  target language, "Languages" from then on. */
-      languages?: boolean;
-      /** Extra routes that keep this item highlighted — e.g. the Toolbox stays
-       *  active on its "flows" sub-tab. */
+      /** Extra routes that keep this item highlighted, such as the Toolbox on
+       *  its "flows" tab. */
       activeViews?: string[];
     }
   | { type: "separator" };
@@ -38,12 +28,11 @@ interface IconSidebarProps {
   active: string;
   onChange: (view: string) => void;
   projectDisabled?: boolean;
-  /** Whether the open project's recipe declares a target language
-   *  (`declaresTargetLanguages`). Review appears only when it does, and the
-   *  Languages entry reads "Languages +" until then. */
-  hasTargetLanguages?: boolean;
 }
 
+// One entry per page, and one route to each page. The view ids are persisted
+// in the session (backend/settings.go), so the Overview keeps the "map" id and
+// the ids of the pages it absorbed stay highlighted under it.
 const projectItems: SidebarItem[] = [
   {
     type: "item",
@@ -58,11 +47,12 @@ const projectItems: SidebarItem[] = [
   {
     type: "item",
     view: "map",
-    icon: <MapIcon size={20} strokeWidth={SW} />,
-    label: "Map",
-    // The findings open from the Map's count and a file opens in the Reader
-    // from its Files rows, so the Checks page and the Reader stay lit under it.
-    activeViews: ["checks", "reader"],
+    icon: <LayoutDashboard size={20} strokeWidth={SW} />,
+    label: "Overview",
+    // The findings open from the Overview's count and a file opens in the
+    // Reader from its Files rows, so both stay lit under it. "project-home",
+    // "content" and "languages" are the persisted ids of pages it replaced.
+    activeViews: ["checks", "reader", "setup", "project-home", "content", "languages"],
   },
   {
     type: "item",
@@ -70,36 +60,21 @@ const projectItems: SidebarItem[] = [
     icon: <Compass size={20} strokeWidth={SW} />,
     label: "Context",
     // Terms and Content Memory are sections of the hub; their view ids stay
-    // routable so a persisted view still opens where it used to. A view of
-    // the form "context:<section>" opens the hub on one section.
+    // routable so a persisted view still opens where it used to.
     activeViews: ["termbases", "memories"],
-  },
-  {
-    type: "item",
-    view: "project-home",
-    icon: <FolderKanban size={20} strokeWidth={SW} />,
-    label: "Project",
-  },
-  {
-    type: "item",
-    view: "languages",
-    icon: <Languages size={20} strokeWidth={SW} />,
-    label: "Languages",
-    languages: true,
   },
   {
     type: "item",
     view: "review",
     icon: <ClipboardCheck size={20} strokeWidth={SW} />,
     label: "Review",
-    localeGated: true,
   },
   {
     type: "item",
     view: "tools",
     icon: <Wrench size={20} strokeWidth={SW} />,
     label: "Toolbox",
-    activeViews: ["flows"],
+    activeViews: ["flows", "formats"],
   },
   {
     type: "item",
@@ -109,36 +84,20 @@ const projectItems: SidebarItem[] = [
   },
 ];
 
-export function IconSidebar({
-  active,
-  onChange,
-  projectDisabled,
-  hasTargetLanguages,
-}: IconSidebarProps) {
-  const items = projectItems;
-
+export function IconSidebar({ active, onChange, projectDisabled }: IconSidebarProps) {
   return (
     <aside className="flex h-full w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
-        {items.map((item, i) => {
+        {projectItems.map((item, i) => {
           if (item.type === "separator") {
             return <div key={`sep-${i}`} className="my-1 h-px w-6 bg-border" />;
           }
-          // Review appears only once the project declares a target language.
-          if (item.localeGated && !hasTargetLanguages) {
-            return null;
-          }
-          // Without a target language the Languages door carries a plus, and
-          // a persisted Review view, which opens the door too, keeps it lit.
-          const door = item.languages && !hasTargetLanguages;
-          const label = door ? "Languages +" : item.label;
-          const activeViews = door ? [...(item.activeViews ?? []), "review"] : item.activeViews;
           const disabled = projectDisabled && !item.alwaysEnabled;
           const isActive =
             active === item.view ||
             active.startsWith(`${item.view}:`) ||
-            (activeViews?.some((v) => active === v || active.startsWith(`${v}:`)) ?? false);
-          const title = disabled ? `${label} (open a project first)` : label;
+            (item.activeViews?.some((v) => active === v || active.startsWith(`${v}:`)) ?? false);
+          const title = disabled ? `${item.label} (open a project first)` : item.label;
           return (
             <SimpleTooltip key={item.view} content={title} side="right">
               <span className="inline-flex">
@@ -152,21 +111,9 @@ export function IconSidebar({
                         ? "text-muted-foreground/30 cursor-not-allowed"
                         : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   }`}
-                  aria-label={label}
+                  aria-label={item.label}
                 >
-                  {door ? (
-                    <span className="relative inline-flex" data-slot="languages-door">
-                      {item.icon}
-                      <Plus
-                        size={10}
-                        strokeWidth={2.5}
-                        aria-hidden
-                        className="absolute -right-1.5 -bottom-1"
-                      />
-                    </span>
-                  ) : (
-                    item.icon
-                  )}
+                  {item.icon}
                 </button>
               </span>
             </SimpleTooltip>

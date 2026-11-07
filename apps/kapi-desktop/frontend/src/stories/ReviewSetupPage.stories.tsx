@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { LanguagesPage } from "../components/LanguagesPage";
+import { ReviewSetupPage } from "../components/ReviewSetupPage";
 
-const meta: Meta<typeof LanguagesPage> = {
-  title: "Pages/LanguagesPage",
-  component: LanguagesPage,
+const meta: Meta<typeof ReviewSetupPage> = {
+  title: "Pages/ReviewSetupPage",
+  component: ReviewSetupPage,
   tags: ["autodocs"],
   args: {
     onUpdate: fn(),
@@ -12,9 +12,9 @@ const meta: Meta<typeof LanguagesPage> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof LanguagesPage>;
+type Story = StoryObj<typeof ReviewSetupPage>;
 
-/** What the rail's Languages + opens on a project with one language. */
+/** What Review shows on a project with one language. */
 export const SourceOnly: Story = {
   args: {
     project: {

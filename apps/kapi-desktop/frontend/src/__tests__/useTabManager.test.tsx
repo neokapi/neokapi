@@ -57,11 +57,22 @@ describe("where a project tab lands", () => {
     await act(() => result.current.openRecent(TAB.path));
     act(() => result.current.navigate("home"));
     expect(result.current.effectiveView).toBe("home");
-    act(() => result.current.openTabOn(TAB.id, "context:agent"));
-    expect(result.current.effectiveView).toBe("context:agent");
+    act(() => result.current.openTabOn(TAB.id, "project-settings:assistants"));
+    expect(result.current.effectiveView).toBe("project-settings:assistants");
   });
 
-  it("lands every project on its Map, one waiting to be set up too", () => {
+  it("moves a retired view id to the page that holds it now", async () => {
+    const { result } = renderHook(() => useTabManager(), { wrapper });
+    await act(() => result.current.openRecent(TAB.path));
+    act(() => result.current.openTabOn(TAB.id, "context:agent"));
+    expect(result.current.effectiveView).toBe("project-settings:assistants");
+    act(() => result.current.navigate("project-home"));
+    expect(result.current.effectiveView).toBe("map");
+    act(() => result.current.navigate("languages"));
+    expect(result.current.effectiveView).toBe("map");
+  });
+
+  it("lands every project on its Overview, one waiting to be set up too", () => {
     expect(landingView()).toBe("map");
   });
 });

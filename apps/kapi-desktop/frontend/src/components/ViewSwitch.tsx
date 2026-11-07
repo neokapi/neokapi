@@ -2,31 +2,36 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { t } from "@neokapi/i18n-react/runtime";
 import type { ContextProjectStanding, KapiProject, FlowSpec, WorkspaceHome } from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
-import type { TabState } from "../hooks/useTabManager";
+import { canonicalView, type TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
 import { AppHome } from "./AppHome";
 import { RunnerPage } from "./RunnerPage";
 import { FlowsPage } from "./FlowsPage";
 import { ToolRunnerPage } from "./ToolRunnerPage";
 import { ToolboxPage } from "./ToolboxPage";
-import { TermsPage } from "./TermsPage";
-import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
 import { MapPage } from "./MapPage";
 import { ReaderPage } from "./ReaderPage";
 import { readerTargetOf, readerView } from "../lib/screenTargets";
-import { ContextHub, contextSectionOf, decideRowOf, type ContextPin } from "./ContextHub";
+import {
+  ContextHub,
+  connectSectionOf,
+  contextSectionOf,
+  decideRowOf,
+  type ContextPin,
+} from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
-import { HomePage } from "./HomePage";
+import { OverviewStanding } from "./OverviewStanding";
+import { ProjectContentPage } from "./ProjectContentPage";
 import { ProjectSetupPage } from "./ProjectSetupPage";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 import { ProjectPresetPage } from "./ProjectPresetPage";
 import { ProjectSettingsTabs, settingsSectionOf } from "./ProjectSettingsTabs";
 import { OpenScreen } from "./OpenScreen";
-import { LanguagesPage } from "./LanguagesPage";
+import { ReviewSetupPage } from "./ReviewSetupPage";
 import { declaresTargetLanguages } from "../lib/languages";
 import { useJobFeed } from "../context/JobFeedContext";
 
@@ -47,7 +52,7 @@ function RunnerViewFallback({
 
   useEffect(() => {
     if (!selectedJob) {
-      navigate("project-home");
+      navigate("map");
     }
   }, [selectedJob, navigate]);
 
@@ -58,9 +63,17 @@ function RunnerViewFallback({
       tabID={tabID}
       flowName={selectedJob.flowName}
       project={project}
-      onClose={() => navigate("project-home")}
+      onClose={() => navigate("map")}
     />
   );
+}
+
+/** The setup route on a project with nothing left to set up: back to the Overview. */
+function SetupDone({ navigate }: { navigate: (view: string) => void }) {
+  useEffect(() => {
+    navigate("map");
+  }, [navigate]);
+  return null;
 }
 
 interface ViewSwitchProps {
@@ -288,9 +301,8 @@ export function ViewSwitch({
   if (!activeTab) return null;
 
   const tabID = activeTab.info.id;
-  // Whether the saved recipe declares a target language. The rail reads the
-  // same answer from the same recipe, so the Languages door, Review, Content
-  // memory and the Project page's language standing appear together.
+  // Whether the saved recipe declares a target language. Review, Content
+  // memory and the Overview's language standing read the same answer.
   const languages = declaresTargetLanguages(activeTab.project);
   // "context:<section>" opens the hub on one section; the view's base is the route.
   const route = effectiveView.split(":")[0];
@@ -308,9 +320,10 @@ export function ViewSwitch({
         </div>
         <div className="min-h-0 flex-1">
           <ContextHub
+            key={effectiveView}
             tabID={tabID}
             projectName={activeTab.info.name}
-            section={hubSection}
+            section={hubSection ?? connectSectionOf(effectiveView)}
             contextOnly
           />
         </div>
@@ -323,36 +336,65 @@ export function ViewSwitch({
   // not installed — issue #4) shows a recoverable install prompt instead of
   // crashing the webview. The boundary key includes pluginsResolved so a
   // successful install remounts the view.
-  // The Project page, also the language view of a project with a target
-  // language: the Languages entry opens it on its language standing.
-  const homePage = (focusLanguages: boolean) => (
-    <HomePage
-      project={history.project}
-      displayName={activeTab.info.name}
-      tabID={tabID}
-      onUpdate={updateProject}
-      onRunFlow={handleRunFlow}
-      onBringUpToDate={handleBringUpToDate}
-      onNavigate={navigate}
-      onOpenReview={handleOpenReview}
-      pluginsResolved={activeTab.pluginsResolved}
-      pluginIssues={activeTab.pluginIssues}
-      onResetSample={() => onResetSample(tabID)}
-      onOpenPoint={handleOpenContext}
-      hasTargetLanguages={languages}
-      focusLanguages={focusLanguages}
-    />
-  );
-  // The Languages door of a project with no target language. A persisted
-  // Review view lands here too, since Review has nothing to hold yet.
-  const languagesPage = <LanguagesPage project={history.project} onUpdate={updateProject} />;
+
+  // Project Settings, also where a saved "context:agent", "context:history" or
+  // "context:share" view lands: the assistants, their sessions and sharing
+  // moved there from the Context hub.
+  const projectSettings = (section: ReturnType<typeof settingsSectionOf>) => {
+    const connect = (view: string) => (
+      <ContextHub
+        key={view}
+        tabID={tabID}
+        projectName={history.project.name}
+        section={connectSectionOf(view)}
+        hasTargetLanguages={languages}
+        onNavigate={navigate}
+        group="connect"
+      />
+    );
+    return (
+      <ProjectSettingsTabs
+        section={section}
+        onNavigate={navigate}
+        pages={{
+          settings: (
+            <ProjectSettingsPage
+              tabID={tabID}
+              project={history.project}
+              onUpdate={updateProject}
+              pluginIssues={activeTab.pluginIssues}
+              onNavigate={navigate}
+            />
+          ),
+          content: (
+            <ProjectContentPage
+              tabID={tabID}
+              project={history.project}
+              displayName={activeTab.info.name}
+              onUpdate={updateProject}
+              onRunFlow={handleRunFlow}
+              onOpenReview={handleOpenReview}
+              onOpenPoint={handleOpenContext}
+              hasTargetLanguages={languages}
+            />
+          ),
+          assistants: connect("project-settings:assistants"),
+          sessions: connect("project-settings:sessions"),
+          share: connect("project-settings:share"),
+        }}
+      />
+    );
+  };
 
   const projectView = ((): ReactNode => {
     switch (route) {
-      case "languages":
-        return languages ? homePage(true) : languagesPage;
-
+      // The Overview. Its id stays "map" because a view id is persisted in the
+      // session; "project-home", "content" and "languages" are the ids of the
+      // pages it replaced, so a saved session still lands here.
       case "map":
+      case "project-home":
+      case "content":
+      case "languages":
         return (
           <MapPage
             tabID={tabID}
@@ -361,35 +403,32 @@ export function ViewSwitch({
             onNavigate={navigate}
             onOpenReader={handleOpenReader}
             setupPending={!!activeTab.isEmpty || !!activeTab.detectedPreset}
+            standing={
+              <OverviewStanding
+                tabID={tabID}
+                hasTargetLanguages={languages}
+                onNavigate={navigate}
+                onOpenReview={() => handleOpenReview()}
+                onBringUpToDate={handleBringUpToDate}
+                pluginsResolved={activeTab.pluginsResolved}
+                pluginIssues={activeTab.pluginIssues}
+                onResetSample={() => onResetSample(tabID)}
+              />
+            }
           />
         );
 
-      case "reader": {
-        const target = readerTargetOf(effectiveView);
-        if (!target) return null;
-        return (
-          <ReaderPage
-            key={target.path}
-            tabID={tabID}
-            path={target.path}
-            focusBlockID={target.blockID}
-            onBack={() => navigate(readerBack)}
-            backLabel={readerBack === "checks" ? t("Back to checks") : t("Back to the Map")}
-            onNavigate={navigate}
-          />
-        );
-      }
-
-      // `content` folds into the merged project home (issue #1068). Kept as an
-      // alias so existing onNavigate("content") calls and saved deep links still
-      // resolve to the collection-centric surface.
-      case "content":
-      case "project-home":
+      // Setting up an empty folder, or one that matches a preset. The
+      // Overview's empty files list leads here.
+      case "setup":
         if (activeTab.isEmpty) {
           return (
             <ProjectSetupPage
               tabID={tabID}
-              onDone={() => updateTab(tabID, { isEmpty: false, detectedPreset: undefined })}
+              onDone={() => {
+                updateTab(tabID, { isEmpty: false, detectedPreset: undefined });
+                navigate("map");
+              }}
             />
           );
         }
@@ -401,21 +440,40 @@ export function ViewSwitch({
               onApplied={(updated) => {
                 history.replace(updated);
                 updateTab(tabID, { project: updated, detectedPreset: undefined });
+                navigate("map");
               }}
-              onSkip={() => updateTab(tabID, { detectedPreset: undefined })}
+              onSkip={() => {
+                updateTab(tabID, { detectedPreset: undefined });
+                navigate("map");
+              }}
             />
           );
         }
-        return homePage(false);
+        return <SetupDone navigate={navigate} />;
 
-      // The Toolbox hosts Tools + Flows as route-driven tabs. Flows are
-      // authored/managed here (the library); running a flow against the
-      // project's content stays on the Home page.
+      case "reader": {
+        const target = readerTargetOf(effectiveView);
+        if (!target) return null;
+        return (
+          <ReaderPage
+            key={target.path}
+            tabID={tabID}
+            path={target.path}
+            focusBlockID={target.blockID}
+            onBack={() => navigate(readerBack)}
+            backLabel={readerBack === "checks" ? t("Back to checks") : t("Back to the Overview")}
+            onNavigate={navigate}
+          />
+        );
+      }
+
+      // The Toolbox hosts Tools, Flows and Formats as route-driven tabs.
       case "tools":
       case "flows":
+      case "formats":
         return (
           <ToolboxPage
-            tab={effectiveView === "flows" ? "flows" : "tools"}
+            tab={route}
             onTabChange={navigate}
             tools={<ToolRunnerPage tabID={tabID} />}
             flows={
@@ -435,6 +493,7 @@ export function ViewSwitch({
                 }}
               />
             }
+            formats={<FormatsPage />}
           />
         );
 
@@ -459,7 +518,7 @@ export function ViewSwitch({
               }}
               onClose={() => {
                 setRunnerState(null);
-                navigate("project-home");
+                navigate("map");
               }}
             />
           );
@@ -472,6 +531,11 @@ export function ViewSwitch({
       // persisted view still lands where it used to.
       case "termbases":
       case "memories":
+        // A saved "context:agent", "context:history" or "context:share" view:
+        // those sections live in Project Settings.
+        if (connectSectionOf(effectiveView)) {
+          return projectSettings(settingsSectionOf(canonicalView(effectiveView)));
+        }
         return (
           <ContextHub
             key={contextEntry.current}
@@ -496,36 +560,14 @@ export function ViewSwitch({
         );
 
       case "review":
-        if (!languages) return languagesPage;
+        if (!languages)
+          return <ReviewSetupPage project={history.project} onUpdate={updateProject} />;
         return (
           <ReviewPage key={reviewEntry.current} tabID={tabID} scope={reviewScope ?? undefined} />
         );
 
-      // Project Settings holds the project's settings and, under Tools, the
-      // app-wide tools, flows, terms, content memories and formats.
       case "project-settings":
-        return (
-          <ProjectSettingsTabs
-            section={settingsSectionOf(effectiveView)}
-            onNavigate={navigate}
-            settings={
-              <ProjectSettingsPage
-                tabID={tabID}
-                project={history.project}
-                onUpdate={updateProject}
-                pluginIssues={activeTab.pluginIssues}
-                onNavigate={navigate}
-              />
-            }
-            tools={{
-              tools: <ToolRunnerPage />,
-              flows: <FlowsPage adoptTabID={tabID} adoptProjectName={activeTab.info.name} />,
-              terms: <TermsPage />,
-              memories: <MemoriesPage />,
-              formats: <FormatsPage />,
-            }}
-          />
-        );
+        return projectSettings(settingsSectionOf(effectiveView));
 
       default:
         return null;

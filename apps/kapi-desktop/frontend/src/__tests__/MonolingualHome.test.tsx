@@ -1,9 +1,9 @@
 // The monolingual test (DECISIONS R13.2), as a test rather than an eyeball.
 //
 // A project with zero target languages must read as COMPLETE: the two-axis
-// standing and the point map present, the language work (coverage, Bring up
-// to date, Plan…, Review) absent behind the rail's Languages + door, and
-// nothing on the page apologising for what it lacks. A source-only project is
+// standing and the point map present on Project Settings → Content, the
+// language work (coverage, Bring up to date, Plan…) absent from the Overview
+// and Content, and nothing on either page apologising for what it lacks. A source-only project is
 // the ordinary case, not a half-configured one.
 
 import { render, screen } from "./testUtils";
@@ -32,7 +32,9 @@ vi.mock("../hooks/useApi", async () => {
   };
 });
 
-import { HomePage } from "../components/HomePage";
+import { OverviewStanding } from "../components/OverviewStanding";
+import { ProjectContentPage } from "../components/ProjectContentPage";
+import { declaresTargetLanguages } from "../lib/languages";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { IconSidebar } from "../components/IconSidebar";
 import { ActiveFilterProvider } from "../context/ActiveFilterContext";
@@ -83,11 +85,17 @@ function renderHome(project: KapiProject = monolingual, projectStatus: ProjectSt
     <ErrorProvider>
       <JobFeedProvider>
         <ActiveFilterProvider tabID="t1" enabled>
-          <HomePage
+          <OverviewStanding
+            tabID="t1"
+            hasTargetLanguages={declaresTargetLanguages(project)}
+            onNavigate={vi.fn()}
+          />
+          <ProjectContentPage
             project={project}
             displayName="Handbook"
             tabID="t1"
-            onNavigate={vi.fn()}
+            onUpdate={vi.fn()}
+            hasTargetLanguages={declaresTargetLanguages(project)}
             status={projectStatus}
             points={points}
             server={{ connected: false, stream: "main" }}
@@ -121,8 +129,6 @@ describe("the monolingual home", () => {
     expect(screen.queryByText("Bring up to date")).not.toBeInTheDocument();
     expect(screen.queryByText("Plan…")).not.toBeInTheDocument();
     expect(document.querySelector('[data-slot="convergence-hero"]')).toBeNull();
-    // The writing gate stays: Check leads to the checks and their fixes.
-    expect(screen.getByText("Check")).toBeInTheDocument();
   });
 
   it("shows Bring up to date, Plan… and the targets once the recipe declares one", () => {
@@ -154,7 +160,7 @@ describe("the monolingual home", () => {
     expect(screen.getByText("Coverage across collections")).toBeInTheDocument();
   });
 
-  it("names the languages a collection declares, in the header and the standing", () => {
+  it("names the languages a collection declares in the standing", () => {
     renderHome({
       ...monolingual,
       collections: [
@@ -165,9 +171,6 @@ describe("the monolingual home", () => {
         },
       ],
     });
-    const header = screen.getByRole("heading", { name: "Handbook" }).parentElement!;
-    expect(header).toHaveTextContent("de-DE");
-    expect(header).not.toHaveTextContent("No targets");
     expect(screen.getByTestId("project-standing")).toHaveTextContent("languagesde-DE");
   });
 
@@ -175,24 +178,19 @@ describe("the monolingual home", () => {
     renderHome();
     const standing = screen.getByTestId("project-standing");
     expect(standing).not.toHaveTextContent("languages");
-    // The header names the source language and no target.
-    expect(screen.queryByText("No targets")).not.toBeInTheDocument();
     expect(screen.queryByText("Coverage across collections")).not.toBeInTheDocument();
 
     render(<IconSidebar active="home" onChange={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Content Memory" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Languages +" })).toBeInTheDocument();
-    // The Map, Context and the rest are fully present.
-    expect(screen.getByRole("button", { name: "Map" })).toBeInTheDocument();
+    // The Overview, Context and the rest are fully present.
+    expect(screen.getByRole("button", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Context" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Toolbox" })).toBeInTheDocument();
   });
 
   it("apologises for nothing", () => {
     renderHome();
-    const page = screen.getByTestId("project-standing").closest("div.p-6") ?? document.body;
-    const text = page.textContent ?? "";
+    const text = document.body.textContent ?? "";
     for (const apology of [
       "No target languages",
       "no languages configured",

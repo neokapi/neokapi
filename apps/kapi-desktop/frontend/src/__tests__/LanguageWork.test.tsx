@@ -1,10 +1,10 @@
 // Languages are the second act. A project whose recipe declares no target
-// language shows no language work: the rail's Languages + opens the
-// add-a-language settings under one line, and a persisted Review view lands
-// there too. Once the saved recipe on the tab declares a target, the same
-// route opens the Project page on its language standing, with Bring up to
-// date, and Review holds the queue again. The runner's Bring up to date view
-// reads the same answer.
+// language shows no language work: Review opens the add-a-language settings
+// under one line, and the Overview carries no language standing. Once the
+// saved recipe on the tab declares a target, the Overview shows its language
+// standing, with Bring up to date, and Review holds the queue. The runner's
+// Bring up to date view reads the same answer. A saved session's retired
+// "languages" and "project-home" views open the Overview.
 
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
@@ -40,6 +40,14 @@ vi.mock("../hooks/useApi", async () => {
   };
 });
 
+// The Overview's own reads are MapPage's tests; here it draws what the route
+// hands it to draw under its counts.
+vi.mock("../components/MapPage", () => ({
+  MapPage: ({ standing }: { standing?: React.ReactNode }) => (
+    <div data-testid="overview">{standing}</div>
+  ),
+}));
+
 import { ViewSwitch } from "../components/ViewSwitch";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { ActiveFilterProvider } from "../context/ActiveFilterContext";
@@ -66,7 +74,7 @@ function tabOf(project: KapiProject): TabState {
     info: { id: "t1", name: "Handbook", path: "/p/handbook/kapi.yaml", recipe_written: true },
     project,
     pluginsResolved: true,
-    view: "languages",
+    view: "map",
   };
 }
 
@@ -120,38 +128,41 @@ function view(effectiveView: string, project: KapiProject, navigate = vi.fn()) {
 }
 
 const LINE =
-  "Add a language to translate into. Review, content memory and coverage appear with the first one.";
+  "Add a language to translate into. Translations to review appear here, with content memory and coverage.";
 
-describe("the Languages door", () => {
-  it("opens the add-a-language settings with one line above them", () => {
-    render(view("languages", sourceOnly));
+describe("language work", () => {
+  it("opens the add-a-language settings on Review while there is nothing to review", () => {
+    render(view("review", sourceOnly));
+    expect(screen.getByRole("heading", { name: "Review" })).toBeInTheDocument();
     expect(screen.getByText(LINE)).toBeInTheDocument();
     expect(screen.getByText("Translations")).toBeInTheDocument();
+  });
+
+  it("keeps the Overview free of language work until the recipe declares a target", () => {
+    const { rerender } = render(view("map", sourceOnly));
+    expect(screen.getByTestId("overview")).toBeInTheDocument();
     expect(screen.queryByText("Bring up to date")).not.toBeInTheDocument();
-  });
-
-  it("opens the same page for a Review view while there is nothing to review", () => {
-    render(view("review", sourceOnly));
-    expect(screen.getByText(LINE)).toBeInTheDocument();
-  });
-
-  it("opens the Project page's language standing once the saved recipe declares a target", () => {
-    const { rerender } = render(view("languages", sourceOnly));
-    expect(screen.getByText(LINE)).toBeInTheDocument();
 
     // A saved recipe that gains a target updates the tab's project; the
     // route follows without the tab being reopened.
-    rerender(view("languages", withFrench));
-    expect(screen.queryByText(LINE)).not.toBeInTheDocument();
+    rerender(view("map", withFrench));
     expect(screen.getByText("Bring up to date")).toBeInTheDocument();
     expect(screen.getByText("Plan…")).toBeInTheDocument();
   });
+
+  it.each(["languages", "project-home", "content"])(
+    "opens the Overview for a saved %s view",
+    (saved) => {
+      render(view(saved, withFrench));
+      expect(screen.getByTestId("overview")).toBeInTheDocument();
+    },
+  );
 });
 
 describe("Bring up to date in the runner", () => {
   it("opens the Bring up to date view only while the saved recipe declares a target", async () => {
     const navigate = vi.fn();
-    const { rerender } = render(view("project-home", withFrench, navigate));
+    const { rerender } = render(view("map", withFrench, navigate));
     await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
     await waitFor(() => expect(navigate).toHaveBeenLastCalledWith("runner"));
 

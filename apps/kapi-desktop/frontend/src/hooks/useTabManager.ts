@@ -23,10 +23,34 @@ export interface TabState {
  */
 export const GLOBAL_OVERLAYS: ReadonlySet<string> = new Set(["home", "history", "app-settings"]);
 
+/** Views the Overview ("map") replaced; a saved session may still name one. */
+export const OVERVIEW_ALIASES: ReadonlySet<string> = new Set([
+  "project-home",
+  "content",
+  "languages",
+]);
+
+/** The Context hub's sections that moved to Project Settings, by old view id. */
+const MOVED_TO_SETTINGS: Readonly<Record<string, string>> = {
+  "context:agent": "project-settings:assistants",
+  "context:history": "project-settings:sessions",
+  "context:share": "project-settings:share",
+};
+
 /**
- * Where a newly opened project tab lands: its Map, whatever state the project
- * is in. The Map's own empty state is a new project's first screen, and the
- * page that sets a project up stays on the project home.
+ * The current id of a view. View ids are persisted in the session, so a saved
+ * session, a link or an older caller may still name a page by an id it had
+ * before the rail was regrouped.
+ */
+export function canonicalView(view: string): string {
+  if (OVERVIEW_ALIASES.has(view)) return "map";
+  return MOVED_TO_SETTINGS[view] ?? view;
+}
+
+/**
+ * Where a newly opened project tab lands: its Overview, whatever state the
+ * project is in. The Overview's own empty state is a new project's first
+ * screen, and leads to the page that sets a project up.
  */
 export function landingView(): string {
   return "map";
@@ -53,10 +77,8 @@ export function useTabManager() {
 
   const navigate = useCallback(
     (v: string) => {
-      // `content` folds into the merged project home (issue #1068) — normalize
-      // the alias so the Project sidebar item highlights and the tab's stored
-      // view stays canonical.
-      const view = v === "content" ? "project-home" : v;
+      // Normalize retired ids so the tab's stored view stays canonical.
+      const view = canonicalView(v);
       if (GLOBAL_OVERLAYS.has(view)) {
         setGlobalView(view);
       } else if (activeTabID) {
@@ -90,7 +112,8 @@ export function useTabManager() {
   // `view` opens the tab on a view of the caller's choosing, a tab already
   // open included; absent, a new tab lands where landingView says.
   const addTab = useCallback(
-    async (tab: TabInfo, project: KapiProject, view?: string) => {
+    async (tab: TabInfo, project: KapiProject, requested?: string) => {
+      const view = requested ? canonicalView(requested) : undefined;
       const reopen = (prev: TabState[]) =>
         view ? prev.map((t) => (t.info.id === tab.id ? { ...t, view } : t)) : prev;
       // A context-only tab carries no recipe and no files, so the questions
@@ -160,7 +183,8 @@ export function useTabManager() {
   }, []);
 
   // Bring an open tab forward on one view, e.g. a project's Assistant section.
-  const openTabOn = useCallback((id: string, view: string) => {
+  const openTabOn = useCallback((id: string, requested: string) => {
+    const view = canonicalView(requested);
     setTabs((prev) => prev.map((t) => (t.info.id === id ? { ...t, view } : t)));
     setActiveTabID(id);
     setGlobalView("");

@@ -28,14 +28,17 @@ function Panel({ label }: { label: string }) {
   );
 }
 
-function Interactive({ initial }: { initial: "tools" | "flows" }) {
-  const [tab, setTab] = useState<"tools" | "flows">(initial);
+type Tab = "tools" | "flows" | "formats";
+
+function Interactive({ initial }: { initial: Tab }) {
+  const [tab, setTab] = useState<Tab>(initial);
   return (
     <ToolboxPage
       tab={tab}
-      onTabChange={(v) => setTab(v === "flows" ? "flows" : "tools")}
+      onTabChange={(v) => setTab(v === "flows" || v === "formats" ? v : "tools")}
       tools={<Panel label="Tools" />}
       flows={<Panel label="Flows" />}
+      formats={<Panel label="Formats" />}
     />
   );
 }
@@ -46,4 +49,8 @@ export const ToolsTab: Story = {
 
 export const FlowsTab: Story = {
   render: () => <Interactive initial="flows" />,
+};
+
+export const FormatsTab: Story = {
+  render: () => <Interactive initial="formats" />,
 };

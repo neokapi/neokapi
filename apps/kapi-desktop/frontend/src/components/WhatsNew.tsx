@@ -54,12 +54,13 @@ export function projectsWithNews(standings: ContextProjectStanding[]): ContextPr
 
 /**
  * The view a project's row opens: Decide while a suggestion or a disagreement
- * waits, else History, which lists the operations behind what is new, such as
+ * waits, else Sessions in Project Settings, which lists the operations behind what is new, such as
  * a rule kept on another machine. Each of the two moves the marker as it shows
  * them.
  */
 export function whatsNewView(standing: ContextProjectStanding | undefined): string {
-  if (standing && standing.suggested === 0 && standing.conflicts === 0) return "context:history";
+  if (standing && standing.suggested === 0 && standing.conflicts === 0)
+    return "project-settings:sessions";
   return "context:rules";
 }
 
