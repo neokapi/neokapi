@@ -10,7 +10,7 @@ keywords: [neokapi, architecture decision, flow, source, sink, binding, block st
 
 ## Summary
 
-Three nouns divide the work cleanly: a **tool** is the unit of work, a **flow**
+Three nouns divide the work: a **tool** is the unit of work, a **flow**
 is a named reusable *composition* of tools, and a **binding** is an end: where
 content enters and leaves. A flow is a **pure transformation over a stream of
 Blocks** backed by a block-store session: it owns no I/O, and a single tool is
@@ -43,7 +43,7 @@ Bindings are named by one scheme vocabulary across the CLI, the flow document,
 and the existing resource URIs. A concrete binding resolves by precedence
 (explicit flag, then project or `.kpz` context, then the flow's intent, then
 auto-detection), and `kapi run --explain` always shows the resolved
-`source → sink` so nothing is hidden. A flow declares only *intrinsic intent*
+`source → sink`. A flow declares only *intrinsic intent*
 (`sink: none` for an analysis flow), never a path.
 
 ## Context

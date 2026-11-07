@@ -25,7 +25,7 @@ import { LanesDiagram } from "@neokapi/docs-shared";
 # Plugin protocol v1
 
 This is the **versioned, language-neutral specification** for plugins targeting
-kapi. It is a contract, not a tour: a plugin author in any language implements
+kapi. A plugin author in any language implements
 against this page and verifies the result with the
 [conformance suite](#conformance-suite), which runs against a *released* kapi
 module, so a plugin repository never needs to live inside this one.
@@ -162,8 +162,8 @@ Every plugin binary answers these, regardless of which transports it declares:
 <binary> doctor            # self-check, exit 0 when healthy (only if selfcheck)
 ```
 
-`version` is used to confirm an installed binary matches its manifest, and to
-warm first exec on macOS. `doctor` backs `kapi plugins doctor`; a plugin that
+kapi calls `version` to confirm an installed binary matches its manifest, and
+to warm first exec on macOS. `doctor` backs `kapi plugins doctor`; a plugin that
 bundles native libraries, models, or in-process engines declares
 `capabilities.selfcheck` and confirms those resolve.
 
@@ -385,8 +385,8 @@ carries its reason in the `error` field. kapi fails a read or a write whose
 stream ends without it (`io.ErrUnexpectedEOF`, a truncated run), and fails the
 run when `error` is set. A plugin may send `ProcessComplete` before step 6, as
 okapi-bridge does once its pipeline has written the document; kapi accepts that
-completion when its own processed-part stream ends, waiting no longer than the
-run's context allows. After a successful completion, kapi discards any
+completion when its own processed-part stream ends, waiting at most as long as
+the run's context allows. After a successful completion, kapi discards any
 processed part it still holds once the plugin has returned from `Process`,
 because the document is already written.
 

@@ -128,7 +128,7 @@ subject, those that act on one, and `check`, which does neither.
   machine that recorded it: sharing the context leaves it out
   (`projector.LocalKinds`). A
   failing finding that one run reports and the session's next run on the same
-  file no longer finds counts as caught. A Stop hook run covers every file; an
+  file does not find counts as caught. A Stop hook run covers every file; an
   edit hook run covers its one file and the findings whose rule the writing
   check reports (`CheckRun.Covers`), so a finding on another file waits for the
   next run that checks that file; `host.SessionOutcomes` derives the
@@ -234,7 +234,7 @@ derived from the target and that evidence, so two machines settling the same
 log record one operation. The host lands the rule the way a keep does, and a
 later signal against it takes it back out of the store through the same
 reconciliation a contesting correction uses. Because the fold reads the
-evidence again on every read, an `establish` whose evidence no longer holds
+evidence again on every read, an `establish` whose evidence fails to hold
 stops binding, and the outcome is the same whatever order two logs were merged
 in.
 

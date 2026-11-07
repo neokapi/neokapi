@@ -238,8 +238,8 @@ Coverage grades the basis of both classes alike, by the revision of the
 source, so a changed link counts as a source change as much as a changed word.
 A source change under an undecided target grades the block stale, the plan counts
 it, and the next pass re-drafts it with the old wording still on disk. Only a decision moves an edition on
-its ladder. A target that no longer holds the revision the flow left was taken
-over by a person; the next read records that change as observed, with no
+its ladder. A target that holds a different revision from the one the flow left was
+taken over by a person; the next read records that change as observed, with no
 author and no basis, and the block grades as basis unknown and is left alone and
 reported. No host clears targets to force the loop's attention. A venue's own
 worker records the basis of the drafts it writes, and a push carries the basis

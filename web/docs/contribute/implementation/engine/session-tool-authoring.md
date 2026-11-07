@@ -10,8 +10,8 @@ keywords: [SessionTool, block state, overlay, hash lookup, authoring, implementa
 A `tool.SessionTool` is any tool that wants random access to the
 project's block state: block lookups by hash, overlay reads for
 "skip if already done", overlay writes for cross-run annotations.
-The existing `tool.Tool` streaming contract is unchanged;
-`SessionTool` is additive.
+`SessionTool` adds to the `tool.Tool` streaming contract and leaves it
+as it is.
 
 This note walks through when to implement it and what the wire
 conventions are. See [C-01](/contribute/architecture/context/c-01-project-model) for

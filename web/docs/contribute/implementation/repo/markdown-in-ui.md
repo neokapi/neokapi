@@ -28,11 +28,11 @@ it through the shared typeset primitive instead:
 ```tsx
 import { Markdown } from "@neokapi/ui-primitives"; // or "@neokapi/ui" in bowrain apps
 
-// Dedicated detail / doc view — block prose:
+// Dedicated detail / doc view: block prose
 <Markdown>{tool.description}</Markdown>
 
 // Compact context (clamped list row, table cell, tooltip, chip,
-// CardDescription) — inline flow, no block margins:
+// CardDescription): inline flow, no block margins
 <Markdown inline>{tool.description}</Markdown>
 ```
 

@@ -388,12 +388,12 @@ layers rehydrate the typed value from its type name.
 
 Tools communicate by reading the overlays and annotations produced upstream and
 writing their own downstream, staying loosely coupled through the shared data
-model rather than through direct dependencies.
+model.
 
 Two annotations, `structure` and `geometry`, are held in private Block fields
 rather than in the map, while every accessor presents them exactly as if they sat
 in `Annotations`, so the wire, the stores, and every consumer see no difference.
-They are the two set on nearly every structured block rather than occasionally: a
+They are set on nearly every structured block: a
 role on any block a format gives structure to, a position on any block that comes
 from a grid or a page. A map entry costs around 285 bytes, so a spreadsheet of a
 million cells was paying a quarter of a gigabyte to hold one enum and four small
@@ -411,7 +411,7 @@ system follows the medium:
 
 - **Text** anchors by **run position**: the `Anchor` every overlay, finding
   and stand-off annotation already uses. Run anchoring is the text facet of
-  one general idea rather than a separate concept.
+  one general idea.
 - **Rendered media** (an image, a page) anchors **spatially**: a `geometry`
   annotation holding a page and a bounding box.
 - **Timed media** (audio, video) anchors **temporally**: a `timing` annotation
@@ -450,7 +450,7 @@ confidence-gated refinement step reads it to decide what to re-examine
 same `Origin` record; the source's is held in the block's source-origin
 annotation (`SourceOrigin`), which every wire and store carries.
 
-**What governed it.** `Origin` records not only *how* a target was produced but
+**What governed it.** `Origin` records *how* a target was produced and
 *what governed it*: the `Profile` and `ProfileVersion` in force, and a
 `ContextFingerprint`, a hash of the rendered voice guidance and the terms as they
 actually reached the producer. That second half cannot be reconstructed after the

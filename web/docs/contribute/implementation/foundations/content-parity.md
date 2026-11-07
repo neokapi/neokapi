@@ -8,8 +8,8 @@ keywords: [content parity, wire schema, projection, round-trip, overlays, protoc
 
 # Content-Model Parity Across Wire Projections
 
-This note records the parity contract that keeps a `model.Block` intact
-wherever it is serialized. It is the operational companion to
+The parity contract keeps a `model.Block` intact wherever it is serialized.
+It is the operational companion to
 [F-04: The content-model wire schema](/contribute/architecture/foundations/f-04-wire-schema)
 (the canonical schema and the projection rule) and
 [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)
