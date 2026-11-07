@@ -55,13 +55,15 @@ describe("the Map", () => {
   it("names when kapi read the files, and no count the files count already gives", () => {
     renderView(MAP_PENDING);
     const read = document.querySelector('[data-slot="map-read"]')?.textContent ?? "";
-    expect(read).toMatch(/^Read /);
+    expect(read).toMatch(/^Last read /);
     expect(read).not.toMatch(/\d+ files?/);
   });
 
   it("names how many files kapi read when that differs from the files count", () => {
     renderView(MAP_PARTLY_READ);
-    expect(document.querySelector('[data-slot="map-read"]')?.textContent).toMatch(/^Read 3 files /);
+    expect(document.querySelector('[data-slot="map-read"]')?.textContent).toMatch(
+      /^Last read 3 files /,
+    );
   });
 
   it("leaves the line out before the first read when the counts agree", () => {
@@ -69,7 +71,7 @@ describe("the Map", () => {
     expect(document.querySelector('[data-slot="map-read"]')).toBeNull();
   });
 
-  it("lists each suggestion with its kind mark and evidence, and Decide opens that row", async () => {
+  it("lists each suggestion with its kind mark and evidence, and the row opens it", async () => {
     const { navigate } = renderView(MAP_PENDING);
     const rows = document.querySelectorAll('[data-slot="map-suggestion"]');
     expect(rows).toHaveLength(MAP_PENDING.suggestions.length);
@@ -79,7 +81,9 @@ describe("the Map", () => {
     expect(kinds).toEqual(["conflict", "name", "name", "word", "note"]);
     expect(rows[1].textContent).toContain("1 block · 1 file");
 
-    await userEvent.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Decide" }));
+    await userEvent.click(
+      rows[1].querySelector('[data-slot="map-suggestion-decide"]') as HTMLElement,
+    );
     expect(navigate).toHaveBeenCalledWith({
       kind: "rules",
       row: decideRowKey(MAP_PENDING.suggestions[1]),
@@ -95,12 +99,11 @@ describe("the Map", () => {
     expect(screen.queryByRole("button", { name: /kapi suggests/ })).not.toBeInTheDocument();
   });
 
-  it("offers Decide with the count awaiting, and kapi suggests beside the counts", async () => {
+  it("offers Decide with the count awaiting, once", async () => {
     const { navigate } = renderView(MAP_PENDING);
     await userEvent.click(screen.getByRole("button", { name: "Decide 5" }));
     expect(navigate).toHaveBeenLastCalledWith({ kind: "rules" });
-    await userEvent.click(screen.getByRole("button", { name: "kapi suggests 4" }));
-    expect(navigate).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: /kapi suggests/ })).not.toBeInTheDocument();
   });
 
   it("sends each count to the place that holds what it counts", async () => {
@@ -113,19 +116,19 @@ describe("the Map", () => {
     expect(navigate).toHaveBeenCalledWith({ kind: "blocks" });
   });
 
-  it("lists the files with their format, blocks and findings, and Open opens one in the Reader", async () => {
+  it("lists the files with their blocks and findings, and the row opens one in the Reader", async () => {
     const { navigate } = renderView(MAP_PENDING);
     const rows = document.querySelectorAll('[data-slot="map-file"]');
     expect(Array.from(rows).map((r) => r.getAttribute("data-path"))).toEqual(
       MAP_PENDING.file_rows.map((f) => f.relative),
     );
-    expect(rows[0].textContent).toContain("markdown");
+    expect(rows[0].textContent).not.toContain("markdown");
     expect(rows[0].textContent).toContain("billing.md");
     expect(rows[0].textContent).toContain("42 blocks");
     expect(rows[0].textContent).toContain("3 findings");
     expect(rows[2].querySelector('[data-slot="map-file-findings"]')).toBeNull();
 
-    await userEvent.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Open" }));
+    await userEvent.click(rows[1].querySelector('[data-slot="map-file-open"]') as HTMLElement);
     expect(navigate).toHaveBeenCalledWith({
       kind: "reader",
       path: MAP_PENDING.file_rows[1].relative,
@@ -139,7 +142,7 @@ describe("the Map", () => {
     };
     const { navigate, onPreviewFile } = renderView(unread);
     const row = document.querySelector('[data-slot="map-file"]') as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
     expect(onPreviewFile).toHaveBeenCalledWith(unread.file_rows[0]);
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -200,7 +203,7 @@ describe("the Map a host acts on only in part", () => {
       canNavigate: (target) => target.kind !== "reader",
     });
     const row = document.querySelector('[data-slot="map-file"]') as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
     expect(onPreviewFile).toHaveBeenCalledWith(MAP_PENDING.file_rows[0]);
     expect(navigate).not.toHaveBeenCalled();
   });
