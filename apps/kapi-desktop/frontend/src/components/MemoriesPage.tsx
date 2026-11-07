@@ -209,7 +209,7 @@ export function MemoriesPage({
       <div className="flex h-full min-h-0 flex-col">
         <PageHeader
           className="mb-0 shrink-0 px-6 pt-5 pb-3"
-          title={store?.name ?? (isProject ? "Project Content Memory" : memoryName)}
+          title={store?.name ?? (isProject ? "Content memory" : memoryName)}
           subtitle={
             count !== undefined
               ? t("{count, plural, one {# entry} other {# entries}}", { count })
@@ -258,7 +258,7 @@ export function MemoriesPage({
   return (
     <div className="mx-auto max-w-3xl p-6">
       <PageHeader
-        title="Content Memories"
+        title="Content memories"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleOpenDialog}>
@@ -371,7 +371,7 @@ export function MemoriesPage({
                 onClick={() => void handleRecover()}
                 disabled={recovering}
               >
-                {recovering ? t("Recovering...") : t("Recover")}
+                {recovering ? t("Recovering…") : t("Recover")}
               </Button>
               <Button
                 variant="outline"

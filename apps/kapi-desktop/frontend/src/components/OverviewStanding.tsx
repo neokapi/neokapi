@@ -134,11 +134,11 @@ function PluginIssuesNotice({
           <div className="mt-3 flex gap-2">
             <Button size="sm" variant="outline" onClick={() => onNavigate("project-settings")}>
               <Settings2 size={12} />
-              {t("Edit Plugin Settings")}
+              {t("Edit plugin settings")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => onNavigate("app-settings")}>
               <Plug size={12} />
-              {t("Manage Plugins")}
+              {t("Manage plugins")}
             </Button>
           </div>
         </div>

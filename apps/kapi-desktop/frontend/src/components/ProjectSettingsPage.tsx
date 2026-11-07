@@ -120,7 +120,7 @@ export function LanguagesSection({ project, onUpdate, untitled }: LanguagesSecti
         <CardContent className="space-y-4 p-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">Source Language</Label>
+              <Label className="mb-1 block text-xs text-muted-foreground">Source language</Label>
               <LocaleSelect
                 value={defaults.source_language ?? ""}
                 onChange={(v) => updateDefaults({ source_language: v })}
@@ -129,7 +129,7 @@ export function LanguagesSection({ project, onUpdate, untitled }: LanguagesSecti
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">Translations</Label>
+              <Label className="mb-1 block text-xs text-muted-foreground">Translate into</Label>
               <MultiLocaleSelect
                 value={defaults.target_languages ?? []}
                 onChange={(v) => updateDefaults({ target_languages: v })}

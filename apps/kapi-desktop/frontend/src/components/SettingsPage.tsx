@@ -173,12 +173,12 @@ export function SettingsPage({
         <TabsTrigger value="general">General</TabsTrigger>
         <TabsTrigger value="credentials">AI Models</TabsTrigger>
         <TabsTrigger value="plugins">Plugins</TabsTrigger>
-        <TabsTrigger value="locales">Locales</TabsTrigger>
+        <TabsTrigger value="locales">Languages</TabsTrigger>
       </TabsList>
 
       <TabsContent value="general" className="flex-1 overflow-auto">
         <div className="p-6">
-          <h1 className="mb-6 text-xl font-semibold">Settings</h1>
+          <h1 className="mb-6 text-xl font-semibold">App settings</h1>
 
           <div className="max-w-lg space-y-6">
             <Card>

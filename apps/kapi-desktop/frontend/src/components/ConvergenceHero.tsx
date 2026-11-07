@@ -850,12 +850,12 @@ export function HeldBackDialog({
         <DialogFooter>
           {failing && checks && (
             <Button variant="outline" size="sm" onClick={checks}>
-              {t("Open Checks")}
+              {t("Open checks")}
             </Button>
           )}
           {review && (
             <Button size="sm" onClick={review}>
-              {t("Open Review")}
+              {t("Open review")}
             </Button>
           )}
         </DialogFooter>

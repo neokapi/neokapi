@@ -283,7 +283,7 @@ function ConvergeOutcomeBlock({
         <div className="space-y-1.5">
           <p className="flex items-center gap-1.5 text-xs text-warning-ink">
             <PauseCircle size={13} />
-            {t("{count} scope(s) waiting for review by a person.", {
+            {t("{count, plural, one {# scope} other {# scopes}} waiting for review by a person.", {
               count: parked.length,
             })}
           </p>
@@ -342,9 +342,12 @@ function ConvergeOutcomeBlock({
       )}
       {(result.materializedFiles ?? 0) > 0 && (
         <p className="mt-1 text-[11px] text-muted-foreground">
-          {t("Materialized {count} localized file(s) from the project store.", {
-            count: result.materializedFiles ?? 0,
-          })}
+          {t(
+            "Wrote {count, plural, one {# translated file} other {# translated files}} from the project store.",
+            {
+              count: result.materializedFiles ?? 0,
+            },
+          )}
         </p>
       )}
     </div>

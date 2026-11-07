@@ -135,7 +135,7 @@ describe("language work", () => {
     render(view("review", sourceOnly));
     expect(screen.getByRole("heading", { name: "Review" })).toBeInTheDocument();
     expect(screen.getByText(LINE)).toBeInTheDocument();
-    expect(screen.getByText("Translations")).toBeInTheDocument();
+    expect(screen.getByText("Translate into")).toBeInTheDocument();
   });
 
   it("keeps the Overview free of language work until the recipe declares a target", () => {

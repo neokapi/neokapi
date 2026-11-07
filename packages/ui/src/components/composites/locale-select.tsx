@@ -75,7 +75,7 @@ export function LocaleSelect({
   value,
   onChange,
   locales,
-  placeholder = t("Select locale..."),
+  placeholder = t("Select a language…"),
   className,
   disabled,
   compact = false,
@@ -189,7 +189,7 @@ export function MultiLocaleSelect({
   value,
   onChange,
   locales,
-  placeholder = t("Add locale..."),
+  placeholder = t("Add a language…"),
   className,
   disabled,
 }: MultiLocaleSelectProps) {

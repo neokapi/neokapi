@@ -182,13 +182,20 @@ describe("ContextHub", () => {
 
   it("names the sections in the order a person meets them", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
-    expect(railLabels()).toEqual(["Decide", "Explore", "Ask", "Voice", "Terms", "Content Memory"]);
+    expect(railLabels()).toEqual([
+      "Decide",
+      "Explore",
+      "Search",
+      "Voice",
+      "Terms",
+      "Content Memory",
+    ]);
   });
 
   it("leaves the assistants and sharing to Project Settings, which draws its own tabs", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" section="agent" group="connect" />);
     expect(screen.getByText("assistants for t1 in Northsea")).toBeInTheDocument();
-    expect(railLabels()).toEqual([]);
+    expect(screen.queryByRole("navigation", { name: "Context sections" })).toBeNull();
   });
 
   it("keeps what a tab with no checkout can read, and drops what reads files", async () => {
@@ -263,7 +270,7 @@ describe("ContextHub", () => {
     expect(commands()).toHaveLength(1);
     expect(nav).toContainElement(commands()[0] as HTMLElement);
     expect(commands()[0].getAttribute("data-command")).toBe("kapi rules");
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(commands()[0].getAttribute("data-command")).toBe("kapi context <path>");
     await userEvent.click(screen.getByRole("button", { name: "Voice" }));
     expect(commands()[0].getAttribute("data-command")).toBe("kapi voice show");

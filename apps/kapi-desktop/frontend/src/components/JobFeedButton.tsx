@@ -178,7 +178,7 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
                         </div>
                         <div className="h-1 rounded-full bg-accent overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-primary transition-all duration-300"
+                            className="h-full rounded-full bg-primary transition-[width] duration-300"
                             style={{
                               width: `${(job.progress.current / job.progress.total) * 100}%`,
                             }}

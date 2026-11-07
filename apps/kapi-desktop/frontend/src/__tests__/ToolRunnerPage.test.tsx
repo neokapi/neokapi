@@ -76,7 +76,7 @@ describe("ToolRunnerPage", () => {
 
   it("shows tool count in empty state", () => {
     renderPage({ tools: sampleTools });
-    expect(screen.getByText(/4 tools available/)).toBeInTheDocument();
+    expect(screen.getByText(/^4 tools$/)).toBeInTheDocument();
   });
 
   it("renders all tools in sidebar", () => {
@@ -105,7 +105,7 @@ describe("ToolRunnerPage", () => {
 
   it("filters by search text", async () => {
     renderPage({ tools: sampleTools });
-    await userEvent.type(screen.getByPlaceholderText("Search tools..."), "pseudo");
+    await userEvent.type(screen.getByPlaceholderText("Search tools…"), "pseudo");
     expect(screen.getByText("pseudo-translate")).toBeInTheDocument();
     expect(screen.queryByText("translate")).not.toBeInTheDocument();
   });
@@ -148,7 +148,7 @@ describe("ToolRunnerPage", () => {
 
     // The page describes the tool and hands over the command; it never presents
     // itself as a runner, so there is no disabled form standing in for one.
-    expect(screen.queryByText("Select files...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Select files…")).not.toBeInTheDocument();
     expect(screen.queryByText("Target Language")).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText("e.g. fr")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Run translate/ })).not.toBeInTheDocument();
@@ -168,7 +168,7 @@ describe("ToolRunnerPage", () => {
 
   it("shows no tools message when search has no results", async () => {
     renderPage({ tools: sampleTools });
-    await userEvent.type(screen.getByPlaceholderText("Search tools..."), "zzzzz");
+    await userEvent.type(screen.getByPlaceholderText("Search tools…"), "zzzzz");
     expect(screen.getByText("No tools match your search.")).toBeInTheDocument();
   });
 

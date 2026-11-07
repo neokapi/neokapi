@@ -214,7 +214,7 @@ export function LocaleSettings() {
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Locales</h1>
+          <h1 className="text-xl font-semibold">Languages</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {entries.length - hiddenCount} active, {hiddenCount} hidden
             {customCount > 0 && `, ${customCount} custom`}
@@ -232,7 +232,7 @@ export function LocaleSettings() {
         {/* Add custom locale */}
         <Card>
           <CardContent className="p-4">
-            <Label className="mb-2 block text-sm font-medium">Add Custom Locale</Label>
+            <Label className="mb-2 block text-sm font-medium">Add a custom language</Label>
             <div className="flex items-center gap-2">
               <Input
                 type="text"

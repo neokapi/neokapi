@@ -44,18 +44,21 @@ describe("Terms as a list of concepts beside a detail pane", () => {
     ]);
     const cart = row("c1");
     expect(cart.querySelector(".font-medium")?.textContent).toBe("shopping cart");
-    expect(cart.querySelector("[data-slot='term-status']")?.textContent).toBe("Preferred");
-    expect(cart.textContent).toMatch(/4$/);
+    // A preferred term carries no badge; only an exception does.
+    expect(cart.querySelector("[data-slot='term-status']")).toBeNull();
+    expect(cart.textContent).toMatch(/4 languages$/);
     // The forms a concept discourages stay out of its row.
     expect(cart.textContent).not.toContain("basket");
     expect(cart.textContent).not.toContain("trolley");
   });
 
-  it("opens with nothing selected and says what the pane shows", async () => {
+  it("opens on the first concept", async () => {
     renderTerms();
     await rows();
-    expect(screen.getByText("Choose a concept to see it here")).toBeInTheDocument();
-    expect(detail()).toBeNull();
+    await waitFor(() => expect(detail()).not.toBeNull());
+    expect(within(detail()).getByRole("heading", { level: 2 }).textContent).toContain(
+      "shopping cart",
+    );
   });
 
   it("shows the selected concept: definition, what to write instead, terms by language, provenance", async () => {

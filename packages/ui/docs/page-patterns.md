@@ -88,9 +88,10 @@ time. Explanation belongs in one of these, in this order of preference:
 3. **The first-run card.** "Start here" on the overview, dismissed once.
 4. **The docs.** A link, when the explanation runs past a sentence.
 
-The line that names a page's command-line equivalent is a mono chip in the
-page header's right-hand slot, as the Assistants page shows `kapi connect`. It
-appears once per page and never as a caption under a section.
+A page's command-line equivalent is a terminal icon at the right of the page's
+navigation or header. Its tooltip shows the command, and a click copies it, as
+the Context sections do for `kapi rules`. It appears once per page and never as
+a caption under a section.
 
 ## Hierarchy
 
@@ -129,7 +130,7 @@ appears once per page and never as a caption under a section.
 - One `default` button.
 - No meta line carries more than three facts.
 - Paths show their last segment, full on hover.
-- The command-line equivalent is in the header slot and nowhere else.
+- The command-line equivalent is the terminal icon, once, and nowhere else.
 - Empty states use `EmptyState` with one action.
 - Stories cover empty, one item, many items and long content, in light and
   dark.

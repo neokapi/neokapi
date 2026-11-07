@@ -404,7 +404,7 @@ export function CredentialsPage({
                       aria-label={t("Add credentials for {name}", { name: g.label })}
                     >
                       <Plus size={12} />
-                      {t("Add Credentials")}
+                      {t("Add credentials")}
                     </Button>
                   </div>
                 )}
@@ -510,7 +510,7 @@ export function CredentialsPage({
               disabled={!editing?.name || !editing?.provider_type || saving}
             >
               {saving && <Loader2 size={12} className="animate-spin" />}
-              {saving ? t("Saving...") : t("Save")}
+              {saving ? t("Saving…") : t("Save")}
             </Button>
           </DialogFooter>
         </DialogContent>

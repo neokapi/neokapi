@@ -54,7 +54,7 @@ function renderPage(ui: React.ReactElement) {
 describe("the Content memory page", () => {
   it("opens the project's store as pairs beside a detail pane, its count in the header", async () => {
     renderPage(<MemoriesPage tabID="t1" />);
-    await waitFor(() => expect(screen.getByText("Project Content Memory")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Content memory")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("3 entries")).toBeInTheDocument());
     await waitFor(() =>
       expect(document.querySelectorAll("[data-slot='memory-pair']")).toHaveLength(4),

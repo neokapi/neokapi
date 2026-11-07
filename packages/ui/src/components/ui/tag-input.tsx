@@ -22,7 +22,7 @@ export interface TagInputProps {
 export function TagInput({
   value,
   onChange,
-  placeholder = t("Add tag..."),
+  placeholder = t("Add tag…"),
   disabled,
   className,
 }: TagInputProps) {

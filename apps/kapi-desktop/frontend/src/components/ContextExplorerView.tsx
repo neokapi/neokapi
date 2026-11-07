@@ -70,10 +70,7 @@ export function ContextExplorerView({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
-      <PageHeader
-        title="Explorer"
-        subtitle="What governs a point in this project, what lives there, and how it relates."
-      />
+      <PageHeader title="Search" />
       {pin?.rule && (
         <div
           className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs"

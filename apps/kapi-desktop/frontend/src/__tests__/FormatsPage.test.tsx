@@ -64,7 +64,7 @@ describe("FormatsPage", () => {
   it("shows search empty state", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.queryByText("Loading configuration schema...")).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading configuration schema…")).not.toBeInTheDocument();
     });
     await userEvent.type(
       screen.getByPlaceholderText("Search formats by name or file extension..."),

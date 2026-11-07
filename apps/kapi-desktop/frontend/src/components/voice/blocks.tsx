@@ -37,7 +37,7 @@ function ToneEditorInner({
         <TagInput
           value={tone.personality ?? []}
           onChange={(personality) => onChange({ ...tone, personality })}
-          placeholder={t("Add a trait...")}
+          placeholder={t("Add a trait…")}
         />
       </Field>
       <div className="grid gap-2 sm:grid-cols-3">

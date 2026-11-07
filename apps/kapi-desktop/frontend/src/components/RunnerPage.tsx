@@ -333,8 +333,10 @@ export function RunnerPage({
             >
               <FileText size={16} />
               {inputFiles.length > 0
-                ? t("{count} file(s) selected", { count: inputFiles.length })
-                : t("Select files...")}
+                ? t("{count, plural, one {# file} other {# files}} selected", {
+                    count: inputFiles.length,
+                  })
+                : t("Select files…")}
             </Button>
             {project && inputFiles.length > 0 && (
               <p className="mt-1 text-xs text-muted-foreground">{t("From project content")}</p>
@@ -444,7 +446,7 @@ export function RunnerPage({
             aria-valuemax={progress.total}
           >
             <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
+              className="h-full rounded-full bg-primary transition-[width] duration-300"
               style={{
                 width: `${(progress.current / progress.total) * 100}%`,
               }}

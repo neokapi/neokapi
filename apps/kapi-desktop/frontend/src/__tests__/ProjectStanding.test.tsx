@@ -78,10 +78,31 @@ describe("ProjectStanding", () => {
     const standing = screen.getByTestId("project-standing");
     expect(standing).toHaveTextContent("stream main");
     expect(standing).toHaveTextContent("42 blocks");
-    expect(standing).toHaveTextContent("2 collection(s)");
+    expect(standing).toHaveTextContent("2 collections");
     expect(screen.getByTestId("standing-voice")).toHaveTextContent("voice Northsea");
     expect(standing).toHaveTextContent("northsea-terms");
-    expect(standing).toHaveTextContent("3 of 3 point(s) governed");
+    expect(standing).toHaveTextContent("3 of 3 points governed");
+  });
+
+  it("counts the project's own terms when the recipe binds no store", () => {
+    const unbound: ProjectPointsResult = {
+      ...points,
+      points: points.points.map((p) => ({ ...p, termstore: undefined })),
+    };
+    render(
+      <ProjectStanding
+        tabID="t1"
+        project={project}
+        displayName="Northsea"
+        status={status}
+        points={unbound}
+        server={{ connected: false, stream: "main" }}
+        termsCount={100}
+      />,
+    );
+    const standing = screen.getByTestId("project-standing");
+    expect(standing).toHaveTextContent("100 concepts");
+    expect(standing).not.toHaveTextContent("no terms bound");
   });
 
   it("names the venue when one is connected", () => {

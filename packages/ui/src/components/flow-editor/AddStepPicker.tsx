@@ -69,7 +69,7 @@ export function AddStepPicker({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("Search tools...")}
+              placeholder={t("Search tools…")}
               aria-label={t("Search tools")}
               autoFocus
               className="w-full rounded-md border border-input bg-transparent py-1.5 pr-3 pl-8 text-xs outline-none focus:ring-1 focus:ring-ring"
