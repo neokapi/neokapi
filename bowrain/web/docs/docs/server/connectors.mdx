@@ -9,14 +9,12 @@ import { LanesDiagram, RoundTripDiagram } from "@neokapi/docs-shared";
 
 # Connectors
 
-Bowrain governs content where it already lives. A **connector** links a
-workspace to a system that holds source content, brings that content into a
-project so the voice, terms, and content memory in force at its point apply to
-it, and publishes approved results back to where they came from.
+A **connector** links a workspace to a system that holds source content. It
+brings the content into a project, where the voice profile, terms and content
+memory in force at its point apply, and publishes approved results back.
 
-No single connector is the way in. A workspace can run several at once: a
-marketing site, a design file, and a product repository can all converge under
-one governed vocabulary.
+A workspace can run several connectors at once. A marketing site, a design file
+and a product repository can share one set of terms.
 
 ## The connector row
 
@@ -28,10 +26,10 @@ one governed vocabulary.
 | [GitHub / GitLab](/server/connectors/github) | Repository content files | Server-side | In, back out as a pull/merge request |
 | [kapi](/server/connectors/kapi) | A developer's working checkout | On the developer's machine, or in CI | In and back out |
 
-Everything above the last row runs **server-side**: nobody installs anything,
-nothing is checked out, and the workspace reaches the source system directly
-over its API. The last row is the developer path: a person or a CI job working
-in a repository, driving content in and out from where they already are.
+Every row except the last runs **server-side**. Nobody installs anything or
+checks anything out, and the workspace reaches the source system over its API.
+The last row is the developer path: a person or a CI job moves content in and
+out from a repository checkout.
 
 <LanesDiagram
   lanes={[
@@ -96,11 +94,11 @@ in a repository, driving content in and out from where they already are.
 ## Managing connectors
 
 Server-side connectors are scoped to a workspace and managed from a project's
-**Connectors** view in the web app: add one there, browse the content it can
-see, fetch it into the project, and publish results back. Saved credentials are
-write-only: used for sync, never displayed again. The same operations are
-available through the workspace connectors API for scripting. Both surfaces
-require the **manage connectors** permission.
+**Connectors** view in the web app. There you add a connector, browse the
+content it can see, fetch it into the project and publish results back. Saved
+credentials are write-only: Bowrain uses them for sync and never displays them
+again. The workspace connectors API offers the same operations for scripting.
+Both need the **manage connectors** permission.
 
 Sync is explicit: content moves when you select **Fetch now** or **Publish**, or
 call the corresponding endpoints. A fetch emits no event, so automation rules do
@@ -111,19 +109,19 @@ produce and review targets.
 The GitHub/GitLab connector is configured through the workspace connectors API,
 or from a project's Connectors page once the server has a GitHub App. The plain
 `git` and local `file` connectors are server-side building blocks with no
-web-app surface: they back the repository connector and server-hosted
+web-app page: they back the repository connector and server-hosted
 directories, and only a single-tenant host registers them. The kapi connector
-needs no server-side configuration at all: it authenticates as the developer
-and connects a project from the command line.
+needs no server-side configuration. It authenticates as the developer and
+connects a project from the command line.
 
 A PostHog connector reads locale demand from product analytics into the
-workspace's locale-demand view. It carries no content and is kept as labelled
-sample data rather than as a route in.
+workspace's locale-demand view. It carries no content and is labelled as
+sample data.
 
 ## Choosing a route for a repository
 
-Source files in a repository can arrive either way, and the choice is about who
-drives:
+Source files in a repository can arrive by either route. Choose by who starts
+the work:
 
 - **[GitHub / GitLab](/server/connectors/github)** when nobody wants a
   pipeline. A push webhook triggers the server, and results arrive as one open
@@ -133,8 +131,8 @@ drives:
   their own hand: running it locally before a commit, watching progress stream
   into their terminal, or gating a release in CI with an explicit exit code.
 
-They are not exclusive. A repository can deliver through GitHub while a
-developer also runs kapi locally against the same project.
+You can use both. A repository can deliver through GitHub while a developer
+also runs kapi locally against the same project.
 
 ## Next steps
 

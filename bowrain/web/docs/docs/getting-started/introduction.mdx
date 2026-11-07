@@ -41,10 +41,10 @@ for candidate rules that reviewers can promote into a profile. See
 
 ### Governed review
 
-A run drafts and checks, and holds back what a machine cannot decide; a person
-promotes it in one [review session](/server/review) across items and locales,
-and the decision is recorded against the workspace. Review decides what a
-locale can ship as, and the last approval starts the run that delivers.
+A run drafts and checks content, and holds back what a machine cannot decide.
+A person approves those items in one [review session](/server/review), across
+items and locales, and Bowrain records each decision against the workspace. The
+last approval for a locale starts the run that delivers it.
 
 ### Collaboration
 
@@ -61,7 +61,7 @@ GitLab), or a developer's checkout (kapi). Most run **server-side, with no local
 checkout**: source flows into the governed workspace, gets drafted and checked,
 and publishes back to where it came from. See [Connectors](/server/connectors).
 
-### AI that knows where it is
+### Context for AI assistants
 
 AI assistants can retrieve workspace terms, content memory and voice guidance
 over [MCP](/cli/mcp). Checks assess generated text against that guidance, and
@@ -69,9 +69,9 @@ recorded corrections provide evidence for future rules.
 
 ### Automation
 
-Server-side rules run flows when content arrives, a language stops meeting a ship gate, or a
-review completes: shared, event-driven workflows for the whole workspace. See
-[Automation](/server/automation).
+Server-side rules run flows when content arrives, when a language stops meeting
+a ship gate, or when a review completes. The rules apply across the workspace.
+See [Automation](/server/automation).
 
 ### Stewardship over time
 
@@ -117,9 +117,9 @@ corrections and approved wording remain available as project contributors change
 - [Installation](/installation): the server, the clients, and the kapi plugin
 - [How Bowrain and kapi fit together](/getting-started/kapi-vs-bowrain): one graph, two scopes
 
-## One graph, two scopes
+## Bowrain and kapi
 
 Bowrain is built on [kapi](https://neokapi.github.io/), the Apache-2.0
-toolchain that holds the context graph for one project and runs on its own,
-directly on local files without a server or account. Bowrain adds shared
-context, hosted review and collaboration across projects.
+toolchain that holds the context graph for one project. kapi works on local
+files and needs no server or account. Bowrain adds shared context, hosted
+review and collaboration across projects.

@@ -10,8 +10,8 @@ declared to the server: like `git diff --stat`, for content. For each file it
 reports how many blocks were added, changed, or removed locally, and (when a
 server is configured) the number of remote changes available to pull.
 
-Without a server, `kapi diff` still works: it compares against the local sync
-cache, so it stays useful offline.
+Without a server, `kapi diff` compares against the local sync cache, so it
+works offline.
 
 ## Usage
 
@@ -72,8 +72,8 @@ Output format and color come from the shared global flags:
 4. When a server is configured, query it for the count of pending remote
    changes.
 
-Block identity is derived from the block's id/key and source content, so only
-genuinely changed blocks are reported.
+Block identity is derived from the block's id/key and source content, so the
+report lists only blocks whose content changed.
 
 ## Exit codes
 

@@ -6,11 +6,11 @@ title: Walkthroughs
 # Walkthroughs
 
 Step-by-step guides for common workflows. The steps are the same in the
-browser and the [desktop app](/server/desktop-app); both are clients of the
-same server. The first two curate the context a workspace governs content
-with; the rest carry content through drafting, memory reuse and review.
+browser and the [desktop app](/server/desktop-app), because both are clients of
+the same server. The first two build the terms the workspace applies. The rest
+take content through drafting, memory reuse and review.
 
-## Curate the terms a workspace governs with
+## Build the workspace terms store
 
 Build a terms store so every draft and every check uses the same vocabulary.
 
@@ -93,13 +93,13 @@ Reuse approved wording to keep drafts consistent and reduce effort.
 ### What you learned
 
 - Adding entries to the content memory
-- Bulk reuse from memory across an entire file
+- Recycle from memory across an entire file
 - Understanding match scores and match types
 - Applying memory suggestions from the context panel
 
 ## Translate a website from English to French
 
-This walkthrough covers the complete workflow from project creation to file export.
+The steps run from project creation to file export.
 
 ### Steps
 

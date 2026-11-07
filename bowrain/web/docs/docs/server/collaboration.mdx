@@ -9,14 +9,14 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Real-time collaboration
 
-kapi holds one project's graph for one person working from one checkout.
-Bowrain is where a **team** works on the same content at the same time. The web
-app and the desktop app are equal clients of one server, so a project is a
-shared, live workspace rather than a file each person edits alone.
+In Bowrain, a **team** works on the same content at the same time. You see who
+is on which block, edits and reviews appear live, and the desktop app keeps
+working offline.
 
-A workspace is shared by a team: invite teammates with roles, bound to a
-language or a point where that fits, and keep parallel work apart on streams
-that merge back when ready.
+The web app and the desktop app are clients of one server with the same
+real-time features. You invite teammates with roles, bound to a language or a
+point where that fits, and keep parallel work apart on streams that merge back
+when ready.
 
 <ThemedVideo
   sources={{
@@ -29,45 +29,45 @@ that merge back when ready.
 ## Presence: see who is here
 
 Open a project and you see your teammates: their names and avatars appear on the
-blocks they are editing, and move with them as they navigate. You always know
-who is on block 42 before you start typing there, and you watch a colleague work
-through a file in real time. Presence is broadcast by the server to every client
-watching the same project, in the browser or in the desktop app.
+blocks they are editing, and move with them as they navigate. You can see who is
+on block 42 before you start typing there. The server sends presence to every
+client watching the same project, in the browser or in the desktop app.
 
 ## Live updates
 
 Edits propagate as they happen. When a teammate edits a block, reviews one,
 or updates a term, your views update without a manual refresh and the progress
-bar moves as the team works. The web app subscribes to a server event stream and
-the desktop app to a project event stream, so a change one person saves shows up
-for everyone watching the project.
+bar moves as the team works. A change one person saves shows up for everyone
+watching the project.
 
-Content itself is saved on the server, which is authoritative. Editing is
-block-level, and each save names the version of the translation it was made
-against. When two people edit the same translation, the first save lands and
-the second is refused: the editor shows the second person the translation that
-now stands and asks whether to save theirs over it or keep it. Edits to
-different languages of one block do not meet each other. A review decision
-names the wording it judges in the same way, so an approval never lands on
-wording the reviewer did not read. There is no character-by-character
-co-editing of a single block; live cursors and the roster are presence only.
-The model is the same in the browser and on the desktop.
+The server holds the saved content. Editing is per block, and each save names
+the version of the translation it was made against. When two people edit the
+same translation, the first save lands and the second waits. The editor shows
+the second person the current translation and asks whether to save theirs over
+it or keep it. Edits to different languages of one block stay independent. A
+review decision names the wording it applies to in the same way, so an approval
+always lands on the wording the reviewer read. Live cursors and the roster show
+presence; two people do not type in one block at once. The browser and the
+desktop app work the same way.
 
 ## Review handoff
 
-Drafting and review are different jobs, and Bowrain routes them. Work is
-assigned as **tasks** (translate, review, review source, fix quality); a task
-shows up in the assignee's activity feed, they claim it, do the work in the
-[review session](/server/review), and mark it done, and the next person sees
-the handoff live. A reviewer marking a block reviewed is a presence-and-progress
-event everyone watching the project sees. Corrections a reviewer makes feed the
-[voice correction loop](/server/context-voice), so a fix made once becomes a
-check that protects the whole project.
+Bowrain assigns work as **tasks**: translate, review, review source and fix
+quality.
+
+1. The task appears in the assignee's activity feed.
+2. They claim it and do the work in the [review session](/server/review).
+3. They mark it done, and the next person sees the handoff live.
+
+When a reviewer marks a block reviewed, everyone watching the project sees it.
+A reviewer's corrections feed the
+[voice correction loop](/server/context-voice), where a recurring fix can
+become a check for the whole project.
 
 ## Web and desktop, in sync
 
-Both apps connect to the same server and the same project. Which you reach for is
-a matter of where you work, not what you can do:
+Both apps connect to the same server and the same project. Choose by where you
+work:
 
 | | **Web** | **Desktop** |
 | --- | --- | --- |
@@ -78,34 +78,30 @@ a matter of where you work, not what you can do:
 | Local footprint | Browser session | **Cache only**: a content cache, an offline edit queue, and memory and terms mirrors |
 | Best for | Quick access, reviewers, occasional contributors | Daily contributors, large files, unreliable connectivity |
 
-Both are real-time clients of the same server, so presence, edits, reviews,
-content memory, and terms are shared and consistent across them: a reviewer in
-the browser and a contributor in the desktop app see each other's presence, and
-each change one saves appears in the other's view without a refresh.
+Presence, edits, reviews, content memory and terms are the same in both. A
+reviewer in the browser and a contributor in the desktop app see each other's
+presence, and a change one saves appears in the other's view without a
+refresh.
 
-The desktop app's local store is a **working copy of the server, never a source
-of truth**: it speeds up editing and lets you work offline, but the
-authoritative state lives on the server. Authoring local files and project
-configuration, the `kapi.yaml` recipe with its content, flows, plugins,
-languages, coordinates and voice binding, is
-[kapi's job](/getting-started/kapi-vs-bowrain), not the desktop app's. Sourcing
-content from a filesystem or a git checkout happens server-side through
-[connectors](/server/connectors).
+The desktop app's local store is a **working copy of the server**. It speeds up
+editing and lets you work offline, and the server holds the saved state. To
+work on local files and project configuration, such as the `kapi.yaml` recipe,
+use [kapi](/getting-started/kapi-vs-bowrain). To source content from a
+filesystem or a git checkout, use a server-side
+[connector](/server/connectors).
 
 ## Offline on the desktop
 
 The desktop app keeps a local cache of the project, so you can keep working
 when the network drops: on a flight, in a tunnel, or during server maintenance.
 Edits, reviews, and memory updates made offline queue locally and replay in
-order the moment you reconnect, then rejoin the live session. Each queued edit
-and review names the version of the translation it was made against, so one
-that meets a translation a teammate changed while you were offline is not
-applied over theirs; the app lists it, with its wording, as a change that was
-not sent (see
+order when you reconnect, then rejoin the live session. Each queued edit and
+review names the version of the translation it was made against. If a teammate
+changed that translation while you were offline, the app keeps their version
+and lists yours, with its wording, as a change that was not sent (see
 [Troubleshooting](/server/troubleshooting#the-desktop-app-has-pending-or-failed-changes)).
-You do not have to think about sync; it happens on reconnect.
 
-## See it
+## Related
 
 - [The editor](/server/translation-editor): the editing surface presence and live updates appear in
 - [Workspaces & members](/server/workspaces): invite teammates and assign roles

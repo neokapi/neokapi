@@ -246,7 +246,7 @@ export function Languages() {
 
         <p className="mx-auto mt-10 max-w-2xl text-center text-muted-foreground">
           {t(
-            "Set the bar where the content sits: a legal notice waits for a person, a help article may not have to. The delivery view answers one question (what can go out today) and answers it the same way every time.",
+            "Set the bar to suit the content: a legal notice waits for a person, and a help article can ship on checks. The delivery view shows what can go out today, by the same rule every time.",
           )}
         </p>
       </div>

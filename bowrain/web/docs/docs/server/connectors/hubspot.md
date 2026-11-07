@@ -12,11 +12,11 @@ and writes approved text back to the same pages.
 
 :::note
 
-This connector is added in a project's **Connectors** view in the web app, or
+Add this connector in a project's **Connectors** view in the web app, or
 through the workspace **connectors API** described below. Saved credentials are
-write-only: used for sync, never displayed again. All connector operations
-require the **manage connectors** permission. It is one route into a workspace
-among several; see [Connectors](/server/connectors) for the full row.
+write-only: Bowrain uses them for sync and never displays them again. All
+connector operations need the **manage connectors** permission. For the other
+routes into a workspace, see [Connectors](/server/connectors).
 
 :::
 
@@ -28,7 +28,7 @@ The connector works against HubSpot CMS site pages through the
 | Direction | Content |
 | --------- | ------- |
 | Fetch (in) | For each site page: the HTML title, and the meta description (when the page has one). |
-| Publish (out) | The HTML title and meta description of a previously fetched page. |
+| Publish (out) | The HTML title and meta description of a page the connector has fetched. |
 
 The connector reads the page title and meta description only. Page body
 content, modules, blog posts, emails, and landing pages are not included.
@@ -67,9 +67,9 @@ for subsequent fetch, publish, status, and remove calls.
 
 ## How sync works
 
-Sync is explicit: content moves only when you fetch or publish (**Fetch now**
-and **Publish** in the Connectors view, or the endpoints below). The connector
-does not poll HubSpot on a schedule and does not receive HubSpot webhooks.
+Sync is explicit: content moves only when you fetch or publish, with **Fetch
+now** and **Publish** in the Connectors view or the endpoints below. The
+connector neither polls HubSpot nor receives HubSpot webhooks.
 
 **Fetch** requests site pages and stores each page's title and meta description
 as blocks on the target project's main content stream. Call
@@ -79,10 +79,10 @@ as blocks on the target project's main content stream. Call
 { "connector_id": "{id}", "project_id": "{project}" }
 ```
 
-The response reports how many items were fetched. Fetching stores source
-content; it does not itself start a run. Catch the fetched content up the
-way you would any project content, for example by starting a run or by letting
-the project's `bowrain.converge` policy produce and review targets.
+The response reports how many items were fetched. A fetch stores source content
+and starts no run. Catch the content up as you would any project content, for
+example by starting a run or by letting the project's `bowrain.converge` policy
+produce and review targets.
 
 **Publish** sends the project's stored title and meta-description text back to
 the matching pages. Call `POST /api/v1/{workspace}/connectors/{id}/publish` with
@@ -93,9 +93,8 @@ the same fields:
 ```
 
 Each page is updated in place with a PATCH to the CMS pages API, matched by its
-HubSpot page ID. The connector writes to the page object; it does not perform a
-separate HubSpot publish step, so changes may need to be published from within
-HubSpot to appear on the live site.
+HubSpot page ID. The connector writes to the page object only. To show the
+changes on the live site, publish the page in HubSpot.
 
 Call `GET /api/v1/{workspace}/connectors/{id}/status` to see the connector's
 current view of HubSpot.

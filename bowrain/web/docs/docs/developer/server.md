@@ -302,8 +302,8 @@ applying push to commit and a push waits for the block writes already in
 progress, and both complete. A write-back that waited skips the blocks the push
 removed or changed.
 
-Approving a source proposal is refused when the block's source no longer
-matches the source the proposal was made against, and the proposal stays open.
+Approving a source proposal is refused when the block's source differs from
+the source the proposal was made against, and the proposal stays open.
 A block removed in the meantime stays removed, as it does for a rollback, a
 batch revert or a flow run over the project's blocks.
 

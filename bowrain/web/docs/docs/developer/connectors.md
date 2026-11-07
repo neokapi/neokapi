@@ -5,7 +5,7 @@ sidebar_position: 12
 
 # Connector System
 
-Connectors provide bidirectional sync between neokapi and external content sources. They pull content into the Content Store and push results back. This page covers the Go interfaces; for configuring connectors on a server, see [Connectors](/server/connectors).
+Connectors sync content in both directions between Bowrain and external content sources. They pull content into the Content Store and push results back. The sections below cover the Go interfaces. To configure connectors on a server, see [Connectors](/server/connectors).
 
 ## Connector Interfaces
 

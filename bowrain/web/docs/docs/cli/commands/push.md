@@ -5,11 +5,13 @@ sidebar_position: 5
 
 # kapi push
 
-Send local changes to Bowrain Server. `kapi push` is pure transport: it moves
-project state (the content, the terms edits, the voice binding and the
-[settings the recipe owns](/cli/project-model#settings-a-push-carries)) and
-never drafts anything. With the project's `bowrain.converge` policy at its default
-`on-push`, the server starts a run of its own when the push lands.
+Share your checkout's work with the team. A push sends the content, terms
+edits, voice binding, decisions and the
+[settings the recipe owns](/cli/project-model#settings-a-push-carries) to the
+workspace, where the browser, Kapi Desktop and every other checkout read them.
+`kapi push` only moves content and drafts nothing. With the project's
+`bowrain.converge` policy at its default `on-push`, the server starts a run
+when the push lands.
 
 ## Usage
 
@@ -55,12 +57,12 @@ protocol serves `kapi push`, `kapi up`, and the server-side connectors, and
 [`kapi pull`](/cli/commands/pull) reads the same tree back.
 
 1. **Scan.** kapi reads the recipe's `collections:`, extracts every block, and
-   computes a hash of each item's content, its inline codes included, so a
-   changed link is pushed as a changed block. When a file a collection covers cannot be
-   read (it fails to parse, or it is a catalog in a schema this kapi does not
-   read), the push stops before it sends anything and names the file and the
-   reason. A file that no format reads is left out of the tree, and the server
-   keeps what it holds at that path.
+   computes a hash of each item's content, inline codes included, so a changed
+   link counts as a changed block. If a file a collection covers cannot be read
+   (it fails to parse, or it is a catalog in a schema this kapi does not read),
+   the push stops before sending anything and names the file and the reason. A
+   file that no format reads is left out of the tree, and the server keeps what
+   it holds at that path.
 2. **Declare the tree.** The client sends the server its whole tree: every
    tracked item, its path, its collection and the point it sits at, and its
    hash. The server diffs that against the tree it holds and answers with the
@@ -74,8 +76,7 @@ protocol serves `kapi push`, `kapi up`, and the server-side connectors, and
    stored, and the output's `ingest` field says whether the push was applied
    or queued when the command returned.
 
-Because the tree is declared whole, the server reconciles what a diff alone
-could not:
+Because the push declares the whole tree, the server also handles:
 
 - **Deletions.** A path present in the last tree and absent from this one is
   retired on the server, on this stream.
@@ -86,37 +87,39 @@ could not:
   derived from that declaration. The server refuses content at a point whose
   axis no recipe declares.
 
-`.kapi/sync/sync-cache.json` records the last tree the client declared
-and the ref it was committed as. It is gitignored and survives deleting
-`.kapi/work/`. Deleting it loses an anonymous project's claim token; otherwise: the next
-push declares the tree again and the server tells it what it lacks.
+`.kapi/sync/sync-cache.json` records the last tree the client declared and the
+ref it was committed as. It is gitignored and survives deleting `.kapi/work/`.
+Deleting it loses an anonymous project's claim token. Otherwise the next push
+declares the tree again, and the server answers with what it lacks.
 
 ## Decisions the server accepts
 
-Push carries the project's committed decision record with the content it judges.
-The server is authoritative for review, so an approval arriving
-this way is held to the same rules as one made in the web app: you need review
-permission for that language in that project, and the workspace's
+Push carries the project's committed decision record with the content it
+applies to. The server decides review, so an approval sent this way follows
+the same rules as one made in the web app. You need review permission for that
+language in that project, and the workspace's
 [separation of duties](/server/members-and-roles#governance-controls) applies
 with you as the decider.
 
-Beside the decisions, a push carries how each translation of the files it
-reads was written, from the project's record of its changes: the source a run
-made it from, and who wrote it. The server grades a translation that a run on
-your machine produced against that source, as it grades one it drafted itself,
-so a source that changed since, its wording or an inline code such as a link,
-reads as stale on the dashboard, as it does on your machine (see
-[What an approval leaves behind](/server/review#what-an-approval-leaves-behind)).
-A translation you
-wrote by hand (with `kapi apply`, in Kapi Desktop, or through an agent working
-for you) counts as yours for separation of duties, so your approval of it, in
-the same push or a later one, is not accepted when the workspace policy blocks
-approving your own work. A translation that a run produced, or that `kapi pull`
-or `kapi merge` brought in, names no author. Each translation's record goes
-once, and again when it changes.
+A push also carries how each translation was written, from the project's
+record of its changes: the source a run made it from, and who wrote it.
 
-The content lands either way. A verdict the server does not accept is reported
-per language, and the translation stays one awaiting review:
+- The server grades a translation a run on your machine produced against that
+  source, as it grades one it drafted itself. If the source changed since, in
+  its wording or an inline code such as a link, the dashboard shows it as
+  stale, as your machine does (see
+  [What an approval leaves behind](/server/review#what-an-approval-leaves-behind)).
+- A translation you wrote by hand (with `kapi apply`, in Kapi Desktop, or
+  through an agent working for you) counts as yours for separation of duties.
+  When the workspace policy blocks approving your own work, the server refuses
+  your approval of it, in the same push or a later one.
+- A translation that a run produced, or that `kapi pull` or `kapi merge`
+  brought in, names no author.
+
+Each translation's record is sent once, and again when it changes.
+
+The content lands either way. The push reports each verdict the server refused,
+per language, and the translation stays awaiting review:
 
 ```
 Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
@@ -125,36 +128,36 @@ Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
 3 local record(s) now match the platform; they will not be sent again
 ```
 
-The last line is the project's record following the server's answer, so the same
-refused verdicts are not sent again on every push.
+The last line shows the project's record updated to the server's answer, so
+the next push does not send the same refused verdicts again.
 
-Taking an approved translation back is held to the same permission. A push
-that lowers a target the server holds as approved, with the translation and
-the source it was approved for unchanged, withdraws it, and the withdrawal
-lands only when you hold review permission for that language. Otherwise the
-translation stays approved, the push reports the demotion it did not apply,
-and the project's record is restored to what the server holds:
+Withdrawing an approval needs the same permission. A push that lowers a target
+the server holds as approved, with the translation and its source unchanged,
+withdraws the approval. The withdrawal applies only when you hold review
+permission for that language. Otherwise the translation stays approved, the
+push reports the demotion it did not apply, and kapi restores the project's
+record to what the server holds:
 
 ```
 1 demotion not accepted for nb-NO: withdrawing an approved translation needs review permission
 1 local record(s) now match the platform; they will not be sent again
 ```
 
-A rejection applies to the translation it names. When the server has replaced
-that translation since your working copy last pulled, the rejection changes
-nothing there. The server's translation keeps its rung and its record, the push
-reports the rejection it did not apply, and kapi replaces the project's record with the one
-the server holds. Pull before rejecting, so that the rejection names the
-translation on the server.
+A rejection applies to the translation it names. If the server replaced that
+translation after your working copy last pulled, the rejection leaves the
+server's translation as it is, with its rung and its record. The push reports
+the rejection it did not apply, and kapi replaces the project's record with the
+server's. Pull before rejecting, so that the rejection names the translation on
+the server.
 
 ```
 1 demotion not accepted for nb: the rejection names a translation the platform no longer holds
 1 local record(s) now match the platform; they will not be sent again
 ```
 
-An edited translation is not a withdrawal: it lands at translated, as an edit
-made in the web app does. Taking back an approval at reviewed is ordinary
-translation work and needs no review permission.
+An edited translation lands at translated, as an edit made in the web app does.
+Taking back an approval at reviewed is ordinary translation work and needs no
+review permission.
 
 `kapi up` prints the same lines after its push phase, on a connected project and
 after `kapi up --local`. With `--json` it writes them as one `governance` record
@@ -172,22 +175,21 @@ the bound terms store against that baseline. Ordinary edits, such as
 definitions, notes, proposed terms and non-governed relations, apply directly
 through the concept endpoints. Governed edits, such as a term set to
 `forbidden` or `preferred`, an un-forbidding, a `replaced_by` relation, or a
-concept delete, are bundled into a single submitted change-set **proposal** for
-review, the same separation of duties the
+concept delete, go into a single submitted change-set **proposal** for
+review, with the same separation of duties the
 [Context](/server/context#tiered-governance) hub enforces. Push reports what
-applied directly versus what was proposed, with a link to review the
-change-set.
+applied directly and what it proposed, with a link to review the change-set.
 
 ## The voice binding
 
 When the recipe binds a voice profile (`defaults.voice`, or a profile's own
 `voice:`), push carries it into the
 workspace [Context](/server/context) hub, matched by profile name: created on
-first push, a no-op when the content is unchanged, and otherwise applied as a
-**new profile version**. The previous server-side state is archived in the
-version history, never overwritten, and vocabulary rules the server promoted
-from corrections are preserved. The output reports whether the voice was
-carried, skipped, or would be pushed on a dry run.
+first push, left alone when the content is unchanged, and otherwise applied as
+a **new profile version**. The previous server-side version stays in the
+version history, and vocabulary rules the server promoted from corrections are
+kept. The output reports whether the voice was carried, skipped, or would be
+pushed on a dry run.
 
 ## Exit codes
 

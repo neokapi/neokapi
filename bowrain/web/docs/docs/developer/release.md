@@ -19,8 +19,8 @@ modules, cut a `bowrain-v*` release from a commit whose `kapi-bowrain` plugin is
 protocol-compatible with a released kapi. They need not be the same commit, but
 keep them close.
 
-This page is the bowrain-focused overview. The full maintainer runbook,
-including signing identities, secrets, and the Windows step, lives in
+The full maintainer runbook, including signing identities, secrets and the
+Windows step, lives in
 [`RELEASE.md`](https://github.com/neokapi/neokapi/blob/main/RELEASE.md).
 
 ## Prerequisites
