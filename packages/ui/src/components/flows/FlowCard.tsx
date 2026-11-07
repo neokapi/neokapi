@@ -108,7 +108,8 @@ export function FlowCard({
               <Markdown inline>{item.description}</Markdown>
             </div>
           )}
-          {steps.length > 0 ? (
+          {steps.length === 1 && steps[0] === item.name ? null : steps.length > 0 ? (
+            // A one-step flow named after its step would show the name twice.
             <div className="mt-2">
               <StepChips steps={steps} />
             </div>

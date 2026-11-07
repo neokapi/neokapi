@@ -37,6 +37,12 @@ import {
   PageHeader,
   ItemCard,
   SimpleTooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
@@ -144,7 +150,7 @@ export function FormatsPage({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search formats by name or file extension..."
+          placeholder={t("Search formats by name or file extension…")}
           className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
         <svg
@@ -187,7 +193,7 @@ export function FormatsPage({
         <>
           {builtIn.length > 0 && (
             <FormatSection
-              title="Built-in Formats"
+              title="Built-in formats"
               formats={builtIn}
               docs={docs}
               docsSummary={docsSummary}
@@ -239,95 +245,81 @@ function FormatSection({
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
         {title}
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        {formats.map((f) => {
-          const filterDoc = resolveFilterDoc(f.name, docs);
-          const hasDocs = filterDoc || documentedIDs.has(f.name);
-          return (
-            <ItemCard key={f.name} clickable onClick={() => onSelect(f.name)}>
-              <div className="flex items-start gap-3">
-                <FileText
-                  size={18}
-                  className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                      {f.display_name || f.name}
-                    </span>
-                    {f.display_name && (
-                      <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono shrink-0">
-                        {f.name}
-                      </span>
-                    )}
+      {/* A reference list reads as a table: one row per format, its file
+          extensions and what kapi does with it, so the page is a third of the
+          height a card grid takes for the same facts. */}
+      <Table data-slot="formats-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("Format")}</TableHead>
+            <TableHead>{t("Extensions")}</TableHead>
+            <TableHead className="w-28">{t("Reads")}</TableHead>
+            <TableHead className="w-28">{t("Writes")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {formats.map((f) => {
+            const hasDocs = !!resolveFilterDoc(f.name, docs) || documentedIDs.has(f.name);
+            return (
+              <TableRow
+                key={f.name}
+                data-slot="format-row"
+                className="cursor-pointer"
+                onClick={() => onSelect(f.name)}
+              >
+                <TableCell className="py-2">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-left text-sm font-medium text-foreground hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(f.name);
+                    }}
+                  >
+                    {f.display_name || f.name}
                     {f.source && f.source !== "built-in" && (
-                      <Plug size={10} className="text-muted-foreground shrink-0" />
-                    )}
-                  </div>
-
-                  {/* Doc overview snippet (only when pre-loaded, e.g. Storybook) */}
-                  {filterDoc && (
-                    <div className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-2">
-                      <Markdown inline>{filterDoc.overview}</Markdown>
-                    </div>
-                  )}
-
-                  {f.extensions && f.extensions.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {f.extensions.map((ext) => {
-                        const shared = f.shared_extensions?.some(
-                          (s) => s.toLowerCase() === ext.toLowerCase(),
-                        );
-                        return (
-                          <span
-                            key={ext}
-                            className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono"
-                            title={
-                              shared
-                                ? t(
-                                    "Another engine also reads {ext}; the project's engine order decides",
-                                    {
-                                      ext,
-                                    },
-                                  )
-                                : undefined
-                            }
-                          >
-                            {ext}
-                            {shared ? "*" : ""}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
-                    {f.has_reader && (
-                      <span className="flex items-center gap-0.5">
-                        <FileInput size={9} /> Read
-                      </span>
-                    )}
-                    {f.has_writer && (
-                      <span className="flex items-center gap-0.5">
-                        <FileOutput size={9} /> Write
-                      </span>
-                    )}
-                    {f.has_schema && (
-                      <span className="flex items-center gap-0.5">
-                        <Settings2 size={9} /> Configurable
-                      </span>
+                      <Plug size={11} className="shrink-0 text-muted-foreground" aria-hidden />
                     )}
                     {hasDocs && (
-                      <span className="flex items-center gap-0.5">
-                        <BookOpen size={9} /> Docs
-                      </span>
+                      <BookOpen size={11} className="shrink-0 text-muted-foreground" aria-hidden />
                     )}
-                  </div>
-                </div>
-              </div>
-            </ItemCard>
-          );
-        })}
-      </div>
+                  </button>
+                </TableCell>
+                <TableCell className="py-2 font-mono text-[11px] whitespace-normal text-muted-foreground">
+                  {(f.extensions ?? []).map((ext, i) => {
+                    const shared = f.shared_extensions?.some(
+                      (s) => s.toLowerCase() === ext.toLowerCase(),
+                    );
+                    return (
+                      <span
+                        key={ext}
+                        title={
+                          shared
+                            ? t(
+                                "Another engine also reads {ext}; the project's engine order decides",
+                                { ext },
+                              )
+                            : undefined
+                        }
+                      >
+                        {i > 0 ? ", " : ""}
+                        {ext}
+                        {shared ? "*" : ""}
+                      </span>
+                    );
+                  })}
+                </TableCell>
+                <TableCell className="py-2 text-xs text-muted-foreground">
+                  {f.has_reader ? t("Yes") : "–"}
+                </TableCell>
+                <TableCell className="py-2 text-xs text-muted-foreground">
+                  {f.has_writer ? t("Yes") : "–"}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
