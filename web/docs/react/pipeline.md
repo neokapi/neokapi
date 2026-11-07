@@ -55,10 +55,10 @@ vp neokapi-i18n explain src/components/Settings.tsx
 ```
 
 ```text
-L3    <div>          [container] skipped — has block-level children (they extract separately)
+L3    <div>          [container] skipped: has block-level children (they extract separately)
 L4    <h1>           [translatable] extracted  hash=cYEMc2v3JVx
-L6    <code>         [non-translatable] skipped — classified non-translatable
-L7    <input>        [container] skipped — no translator-editable text
+L6    <code>         [non-translatable] skipped: classified non-translatable
+L7    <input>        [container] skipped: no translator-editable text
         ↳ placeholder [attribute] extracted  hash=i42kuGUFbb4
 ```
 
@@ -107,7 +107,7 @@ The extractor prints a warning for each unmapped React component, with the `comp
 
 ```text
 Scanning 186 files...
-[neokapi] src/components/Settings.tsx:19: <TabsTrigger> is an unmapped component with translatable text — extracted. Add a componentMap entry: { TabsTrigger: 'button' }.
+[neokapi] src/components/Settings.tsx:19: <TabsTrigger> is an unmapped component with translatable text: extracted. Add a componentMap entry: { TabsTrigger: 'button' }.
 Extracted 1007 blocks from 186 files → i18n/
 ```
 

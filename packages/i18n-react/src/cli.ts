@@ -60,7 +60,7 @@ async function main() {
 
 function usage() {
   console.log(`
-neokapi-i18n — zero-config i18n for React
+neokapi-i18n: zero-config i18n for React
 
 Commands:
   extract       Extract translatable strings from JSX/TSX source files

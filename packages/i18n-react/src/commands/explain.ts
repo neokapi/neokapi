@@ -1,5 +1,5 @@
 /**
- * neokapi-i18n explain — print the translatability decision for every
+ * neokapi-i18n explain: print the translatability decision for every
  * JSX element in a file (or glob): which W3C rule classified it, why
  * it was or wasn't extracted, and the hash it got.
  *
@@ -20,11 +20,11 @@ const OUTCOME_LABEL: Record<ExplainDecision["outcome"], string> = {
   extracted: "extracted",
   "extracted-promoted": "extracted (container promoted: direct text + inline children)",
   "consumed-by-parent-block": "text carried by the block above; attributes extract on their own",
-  "skipped-translate-no": 'skipped — translate="no" on self or ancestor',
-  "skipped-not-translatable": "skipped — classified non-translatable",
-  "skipped-no-text": "skipped — no translator-editable text",
-  "skipped-block-children": "skipped — has block-level children (they extract separately)",
-  "skipped-empty": "skipped — empty after whitespace collapse",
+  "skipped-translate-no": 'skipped: translate="no" on self or ancestor',
+  "skipped-not-translatable": "skipped: classified non-translatable",
+  "skipped-no-text": "skipped: no translator-editable text",
+  "skipped-block-children": "skipped: has block-level children (they extract separately)",
+  "skipped-empty": "skipped: empty after whitespace collapse",
 };
 
 export async function runExplain(args: string[]): Promise<void> {
@@ -126,7 +126,7 @@ function loadConfig(path: string | null): ExplainConfig {
 }
 
 const usage = `
-neokapi-i18n explain — show the translatability decision for every JSX
+neokapi-i18n explain: show the translatability decision for every JSX
 element: the W3C ITS classification, why it was or wasn't extracted,
 and the hash it received.
 
