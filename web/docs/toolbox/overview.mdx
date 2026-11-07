@@ -14,13 +14,12 @@ import ReferenceCount from "@site/src/components/reference/ReferenceCount";
 Unix text utilities. `grep`, `sed`, `cat` and `diff` operate on raw bytes: the
 lines of a file as the operating system stores them. These four read, rewrite
 and compare the **text content inside any format** kapi understands,
-regardless of how that text is encoded on disk. It is the same content engine the
-rest of kapi runs on, exposed as the Unix verbs you already know.
+regardless of how that text is encoded on disk. They run on the same content
+engine as the rest of kapi.
 
-The practical consequence: you can search the prose inside a Word `.docx`,
-rewrite a phrase across a directory of JSON catalogs, or print the segments of
-an XLIFF file as plain text, using muscle memory from tools you already know,
-without first converting anything.
+You can search the prose inside a Word `.docx`, rewrite a phrase across a
+directory of JSON catalogs, or print the segments of an XLIFF file as plain
+text, without converting anything first.
 
 [`kdiff`](kdiff.md) extends the same idea to `diff`: it compares the text of two
 files block by block, so a reflowed `.docx` or a reordered JSON catalog shows
@@ -29,8 +28,7 @@ it reports which blocks are still untranslated.
 
 A fifth utility, [`kconv`](kconv.md), has no classic Unix analog: it *converts*
 between formats (a `.docx` to clean Markdown, a DocLang document to HTML, or any
-supported format to DocLang), carrying the document's structure across rather
-than its bytes.
+supported format to DocLang), and carries the document's structure across.
 
 The video below shows the whole loop on a sales team's collateral: a Markdown
 pitch, a Word proposal, and an Excel price list. `kcat` prints the text inside
@@ -63,15 +61,14 @@ toolbox operates on those blocks:
 - `ksed` rewrites a block's text and asks the format writer to reconstruct the
   document, so structure is preserved.
 - `kdiff` aligns the blocks of two files (by key for catalogs, by content for
-  prose) and reports added, removed, changed and moved blocks rather than
-  changed bytes.
+  prose) and reports added, removed, changed and moved blocks.
 - `kconv` hands the blocks, and the role each one carries (heading, list item,
   table cell), to a *different* format's writer, projecting the document's
   structure into the target format.
 
 ## Installation
 
-The Kapi CLI bundles these commands:
+The kapi CLI bundles these commands:
 
 ```bash
 brew install neokapi/tap/kapi-cli  # macOS/Linux
@@ -81,14 +78,14 @@ See [Installation](/kapi/get-started/installation#beta-channel) for the release
 channels.
 
 On Windows, `winget install Neokapi.KapiCli` installs kapi 1.0.2, which predates
-the behaviour this page describes. Take a Windows build from the
+the behaviour described here. Take a Windows build from the
 [direct downloads](/kapi/get-started/installation#binary-downloads) instead.
 
 Every utility is also reachable as a `kapi` subcommand under the same name:
 `kapi kgrep`, `kapi ksed`, `kapi kcat`, `kapi kdiff`, `kapi kconv`. Each behaves
-identically to the standalone short name on every platform. (The
-proxies carry the k-names so every bare verb stays free: bare `kapi diff` is
-the connected-project sync diff, not a file diff.)
+identically to its short name on every platform. The subcommands keep the
+k-names because the bare verbs are taken: `kapi diff` is the connected-project
+sync diff.
 
 :::note Windows
 The Homebrew install adds the short names (`kgrep`, `ksed`, `kcat`, `kdiff`,
@@ -104,7 +101,7 @@ equivalent.
   read from standard input. Without a file extension to go by, the format is
   sniffed from the content and falls back to plain text.
 - **Format selection.** `-f, --format` overrides format detection (for example
-  `-f json`). Note this differs from `grep`/`sed`, where `-f` reads patterns or
+  `-f json`). This differs from `grep`/`sed`, where `-f` reads patterns or
   scripts from a file; in the toolbox `-f` always means *format*, matching the
   rest of the kapi CLI. Use `-e` for explicit patterns and scripts.
 - **Source vs. translation.** For multilingual formats the utilities by default
@@ -118,7 +115,13 @@ equivalent.
   `--regexp-extended`, so the letter is left alone.
 - **Binary input is refused.** A file that no format claims and whose bytes are
   binary (a `.dmg`, an installer, an image with no reader) is reported and
-  skipped rather than read as plain text, so a glob over a downloads folder
-  cannot spray raw bytes at the terminal or into a converted file. Other files in
+  skipped, so a glob over a downloads folder cannot write raw bytes to the
+  terminal or into a converted file. Other files in
   the same run are unaffected, and the exit status is 2. `-f FORMAT` overrides
   the guard when you mean it.
+
+## Related
+
+- [kgrep](kgrep.md): search the text inside documents.
+- [ksed](ksed.md): rewrite it and keep each file's format.
+- [kconv](kconv.md): convert between formats.

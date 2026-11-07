@@ -15,14 +15,14 @@ The content model is the vocabulary every part of neokapi shares. Whatever the
 input format (JSON, HTML, Markdown, a Word document), a [reader](/framework/formats)
 turns it into the same handful of types, so [tools](/framework/tools),
 [flows](/framework/flows), [content memory](/framework/content-memory),
-and editors all work against one representation rather than against each format's
-quirks. It is a deliberate, format-independent abstraction over the content inside
-a document: the blocks you read, check, edit, and write back.
+and editors all work against one representation, whatever the format's quirks.
+The model covers the content inside a document: the blocks you read, check, edit
+and write back.
 
 **By analogy:** read it as a *streaming DOM* (Parts flow past instead of sitting
-in one tree), where each translatable node is a *record with editions* (the one
+in one tree), where each content node is a *record with editions* (the one
 the document is written in, and one per translation, tone or channel) and
-annotations are *margin notes* pinned to spans rather than edits to the text.
+annotations are *margin notes* pinned to spans of an unchanged text.
 Part, Layer, Block, Run, Edition, Overlay and EditionKey are each defined once in
 [Concepts](/framework/concepts); this page develops them.
 
@@ -30,21 +30,20 @@ Part, Layer, Block, Run, Edition, Overlay and EditionKey are each defined once i
 Pick a lesson and a sample (or drop in your own file) and watch the real `kapi`
 reader decompose it in your browser via WebAssembly. **Anatomy** shows the Layers,
 Groups, Blocks and **Runs**, so an HTML `<strong>` shows up as a paired inline
-code while a JSON `{name}` stays literal text. The other lessons reveal what rides
-on a Block without touching its text: **segmentation** boundaries, **terms &
+code while a JSON `{name}` stays literal text. The other lessons show what a Block
+carries beside its text: **segmentation** boundaries, **terms &
 findings** overlays, the **source ↔ target** editions, the document **structure**, and a
-**round-trip** that proves only the text changed.
+**round-trip** that shows only the text changed.
 :::
 
 <ContentLab defaultSampleId="page-html" />
 
 ## The Part is the streaming unit
 
-A document is not loaded as a tree and handed around whole. It flows through the
-[pipeline](/framework/pipeline) as a stream of **Parts**, the indivisible unit
-that travels over the channels between stages. Each Part carries a type
-discriminator and a resource payload: a layer start or end, a translatable block,
-non-translatable structural data, or media. A reader emits Parts as it parses;
+A document flows through the [pipeline](/framework/pipeline) as a stream of
+**Parts**, the indivisible unit that travels over the channels between stages.
+Each Part carries a type discriminator and a resource payload: a layer start or
+end, a block, non-translatable structural data, or media. A reader emits Parts as it parses;
 tools transform the Parts they care about and relay the rest; a writer
 reconstructs the document from the stream.
 
@@ -72,9 +71,9 @@ this:
   ]}
 />
 
-Streaming is why the model is shaped around a Part rather than a document tree:
-it keeps memory bounded and lets stages run concurrently. The mechanics are
-covered in [Pipeline](/framework/pipeline).
+The model is built around the Part, not a whole-document tree, because a stream
+keeps memory bounded and lets stages run concurrently. The mechanics are in
+[Pipeline](/framework/pipeline).
 
 ## The resource types
 
@@ -82,7 +81,7 @@ The payload a Part carries is one of a few resource types. Together they describ
 both the content you read, edit, or translate and the structure that surrounds it.
 
 <TypeDiagram
-  caption="A Block is the centre: each of its editions is a flat run sequence under its key, and its Overlays sit beside the runs rather than in them."
+  caption="A Block is the centre: each of its editions is a flat run sequence under its key, and its Overlays sit beside the runs."
   boxes={[
     {
       name: "Layer",
@@ -150,7 +149,7 @@ both the content you read, edit, or translate and the structure that surrounds i
 - **Layer** is a structural grouping: a whole document, a section, or embedded
   content. Layers nest. Embedded content (HTML inside a JSON value, CDATA inside
   XML) becomes a **child layer** with its own format, so the right reader handles
-  it and inline markup is preserved at every level rather than being flattened.
+  it and inline markup survives at every level.
 - **Block** is the primary modifiable content. Its content is a set of peer
   **editions**, each a single flat `[]Run`: the edition the document is written
   in, the content you read, check, and edit, and one more for each translation,
@@ -166,10 +165,10 @@ both the content you read, edit, or translate and the structure that surrounds i
 - **Overlay** is a typed, run-anchored interpretation _of_ a block's runs:
   sentence segmentation, terminology, entities, check findings, source↔target
   alignment. Each overlay is a **positional stand-off layer** over one edition of
-  the block, layered over the runs rather than baked into the structure. There is no
-  structural `Segment` type: a segment is just a span in the segmentation overlay,
-  so segmentation is opt-in, multi-layer, and reversible (drop the overlay to get
-  the unsegmented content back). The `segmentation` tool writes that overlay from
+  the block, kept apart from the runs. A segment is a span in the segmentation
+  overlay, and there is no structural `Segment` type. Segmentation is therefore
+  opt-in, multi-layer and reversible: drop the overlay and the unsegmented
+  content is back. The `segmentation` tool writes that overlay from
   a pluggable engine chosen with `--engine`: `srx` (the default SRX 2.0 rule
   engine), `uax29` (the ICU Unicode baseline), `llm` (semantic chunks), or `sat`
   (the wtpsplit ML model, run via the `kapi-sat` plugin). See
@@ -184,7 +183,7 @@ both the content you read, edit, or translate and the structure that surrounds i
 
 ## Two ways to annotate a block
 
-A block's content is just its editions, each a `[]Run` under its key.
+A block's content is its editions, each a `[]Run` under its key.
 Every typed interpretation _of_ that content is **stand-off**, kept separate
 from the runs, so the same content can carry segmentation, terminology, check
 findings, notes, and analysis results at once without rewriting it. A block
@@ -247,9 +246,9 @@ canonical keys live in `core/model/structure.go`.
 
 ## Runs keep inline markup out of the way
 
-The Run sequence is where neokapi solves a hard problem: how to let a tool, a
-translation engine, or content memory operate on the words while keeping inline markup like
-`<b>`, `**`, or `{count}` intact. Each edition of a block, source and target alike, is a flat
+The Run sequence lets a tool, a translation engine or content memory operate on
+the words while inline markup like `<b>`, `**` or `{count}` stays intact. Each
+edition of a block, source and target alike, is a flat
 `[]Run`, a discriminated union where each run is exactly one of:
 
 | Run kind        | Field      | Represents                                     |
@@ -288,8 +287,7 @@ metadata they carry.
 
 ## See it on a real file
 
-The clearest way to understand the content model is to watch a reader produce it.
-Below, kapi parses a small JSON message catalog into blocks, each with an
+Here kapi parses a small JSON message catalog into blocks, each with an
 identifier and its source text:
 
 <BlockPreview
@@ -307,21 +305,20 @@ chips mark the `PcOpen`/`PcClose`/`Ph` runs lifted out of the text):
 
 ## Reconstruction with skeletons
 
-Translatable blocks are only part of a document; the rest is structure:
+Blocks are only part of a document; the rest is structure:
 surrounding tags, whitespace, keys, attributes. A **skeleton** captures that
 non-translatable structure interleaved with references to block content, so the
 writer can rebuild the document exactly, substituting translated content where a
-target exists and falling back to source where it does not. This is what gives
-neokapi roundtrip fidelity: read a file and write it back unchanged, or write it
-back with only the changed text differing.
+target exists and falling back to source where it does not. Round-trip fidelity
+rests on the skeleton: a file read and written back comes out unchanged, or
+differs only in the text that changed.
 
-## A monolingual path: no targets at all
+## Monolingual content: source only
 
-Translation is the most visible thing the content model carries, but it is not a
-requirement. A block can hold the one edition it was read in for the whole run,
-and the model works the same way when the only locale in play is the source. This is
-the path a voice or terminology pass takes: read a file, check the source content, edit it in
-place, and write the original back with only the edited text changed.
+A block can hold only the edition it was read in for the whole run, and the
+model works the same way when the source is the only locale in play. A voice or
+terminology pass takes this path: read a file, check the source content, edit it
+in place, and write the original back with only the edited text changed.
 
 Take a Markdown file with one off-brand sentence. The reader produces blocks that
 hold one edition, the one the document is written in:
@@ -356,8 +353,8 @@ Block "intro"
 
 Finally the writer reconstructs the file from the Part stream. Because every
 untouched block is replayed from its skeleton byte-for-byte, only the one sentence
-that changed differs in the output. It is the same round-trip guarantee a
-translation run relies on, with zero targets in sight.
+that changed differs in the output. A translation run relies on the same
+round-trip guarantee.
 
 ## Related reading
 

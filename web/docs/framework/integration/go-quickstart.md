@@ -8,19 +8,17 @@ keywords: [neokapi, go library, quickstart, framework, content model, format rea
 
 # Use neokapi from Go
 
-neokapi is a Go framework first: a format-aware content engine you can import and
-drive directly. It parses any format into one content model, edits or translates
-the content inside it, and writes it back byte-for-byte. The [`kapi` CLI and
-desktop app](/kapi/overview) and [neokapi-i18n](/react/introduction) are surfaces
-built on top of it, but the same content model, format readers and writers, tools,
-and streaming pipeline are a Go library you can import directly. This page walks
-the shortest path from `go get` to a working program, taking the round-trip
-route: read a file, fill in a target, and write it back as bilingual XLIFF.
+neokapi is a Go framework: a format-aware content engine you import and drive
+directly. The program below is the shortest path from `go get` to working code:
+read a file, fill in a target, and write it back as bilingual XLIFF.
 
-If you want the concepts behind the code first, read
-[Architecture](/framework/architecture), the
-[Content Model](/framework/content-model), and [Tools](/framework/tools). This
-page assumes only that you have those open in another tab.
+The engine parses any format into one content model, edits or translates the
+content inside it, and writes it back byte-for-byte. The
+[`kapi` CLI and desktop app](/kapi/overview) and
+[neokapi-i18n](/react/introduction) are built on the same content model, format
+readers and writers, tools and streaming pipeline. For the concepts behind the
+code, read [Architecture](/framework/architecture), the
+[Content Model](/framework/content-model) and [Tools](/framework/tools).
 
 ## Install
 
@@ -225,8 +223,7 @@ and is built as part of the framework module.
 
 ## What each piece is
 
-The program touches every core concept the rest of this section covers in
-depth.
+The program uses each core concept of the framework:
 
 - **The registry** ([`core/registry`](/framework/formats)) maps a format id to a
   reader and writer factory. `formats.RegisterAll` populates it with every
@@ -241,7 +238,7 @@ depth.
   structure.
 - **The content model** ([`core/model`](/framework/content-model)) is what flows
   on the channels. A `Part` carries a type discriminator and a `Resource`; a
-  `Block` is the translatable content, held as peer editions, each a flat
+  `Block` is a unit of content, held as peer editions, each a flat
   `[]Run` under an `EditionKey`, with stand-off overlays. `block.SourceText()`
   projects the runs of the edition the block was read in to plain text;
   `block.SetTargetText(locale, …)` and `block.TargetText(locale)` read and write
@@ -261,8 +258,8 @@ depth.
 
 ## Running flows instead of wiring channels
 
-Wiring the channels by hand, as above, is the clearest way to see how Parts
-move, but you rarely need to. For a single file, `flow.NewFileRunner` runs the
+Wiring the channels by hand shows how Parts move, and most programs don't need
+it. For a single file, `flow.NewFileRunner` runs the
 whole read → process → write pipeline (format detection, reader/writer creation,
 tool chain, output) for you:
 

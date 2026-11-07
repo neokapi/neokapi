@@ -186,8 +186,8 @@ intent, and loading fails if the collection contradicts it. See
 
 A collection's `base` is **where the collection lives**. Every `path`, `target`
 and item `base` beneath it is written relative to that directory and joined onto
-it, so a collection reads as the tree it governs rather than as a prefix repeated
-on every line:
+it, so a collection reads as the tree it governs, with no prefix repeated on
+every line:
 
 ```yaml
 collections:
@@ -938,12 +938,12 @@ the recipe shape.
 
 ## Ship gates
 
-Ship gates decide when translated content is *shippable*: coverage thresholds
+Ship gates set when translated content is *shippable*: coverage thresholds
 over the target lifecycle ladder (`draft` → `translated` → `established`,
 where `established` is the rung `kapi status` shows as *approved*), enforced by
 [`kapi check --ship`](/reference/commands/check) and driven toward by [`kapi up`](/reference/commands/up). The model (ladders,
-derived state, review) is [the kapi loop](/kapi/convergence); this section is
-the schema. All of these keys are top-level (siblings of `defaults`) and
+derived state, review) is described in [the kapi loop](/kapi/convergence), and
+the schema follows. All of these keys are top-level (siblings of `defaults`) and
 optional: with none set, nothing is gated.
 
 | Field         | Type           | Description                                                                                       |
@@ -1049,7 +1049,7 @@ A tiered per-market strategy built from these pieces is worked through in
 ### source_gate
 
 The source-side coverage gate: a threshold map over the authoring ladder
-(`written` → `established`), gating the author's own content rather than the
+(`written` → `established`), gating the author's own content, not the
 translations.
 
 ```yaml

@@ -27,15 +27,15 @@ The **content bundle** is the JSON serialization of neokapi's
 `Run`s: the source, and every translation or other edition of it. Its marker
 segment and Go package are both `kbf`, for Kapi Bundle Format.
 
-This page is the normative schema, followed by
+The normative schema comes first, followed by
 [worked examples](#worked-examples) of every run kind. For where the bundle
 sits among kapi's other formats, start with the
 [overview](/reference/serialization/overview).
 
-## What it is not for
+## Authoring and exchange, not runtime
 
 A content bundle is an **authoring and exchange** format, not a runtime
-catalog. It is intentionally heavy: it carries the data shape that lets
+catalog. It is heavy by design: it carries the data shape that lets
 translators work, that tools round-trip, and that a review platform can
 persist. That richness is waste at runtime, where the only operation is
 `(scope, source) → translated`. Compile it down to an established runtime
@@ -163,7 +163,7 @@ A `Document` is one source file's worth of extracted content.
 | `documentType` | string   | yes      | Source format discriminator. Both implementations define `"jsx"`.         |
 | `path`         | string   | yes      | Path of the source file the content was extracted from.                   |
 | `sourceHash`   | string   | no       | Content hash of the original source file. Omitted when empty.             |
-| `skeleton`     | Skeleton | no       | Reference to the opaque skeleton used to reconstruct the source on merge. |
+| `skeleton`     | Skeleton | no       | Reference to the opaque skeleton that reconstructs the source on merge. |
 | `blocks`       | Block[]  | yes      | The translatable blocks extracted from this document.                      |
 
 ### Skeleton
@@ -211,7 +211,7 @@ Provenance metadata describing where the block was extracted from.
 
 ### BlockPreviewHints
 
-Hints used to render a representative preview of a block.
+Hints for rendering a representative preview of a block.
 
 | Field          | Type                   | Description                                                                     |
 | -------------- | ---------------------- | ------------------------------------------------------------------------------- |
@@ -420,7 +420,7 @@ under its own key:
 - an edition with a tone or a channel under the locale followed by
   `;tone=<value>` and `;channel=<value>` (`"fr;tone=formal"`,
   `"en;channel=short"`), so a short English edition sits beside the English
-  source rather than replacing it.
+  source.
 
 Keys are sorted on the wire. A block with no edition in a language is
 untranslated in that language, and a writer leaves out any edition other than
@@ -541,8 +541,8 @@ on the [KBF Tests page](/kbf-tests).
 ## Companion annotation file (`.overlays.jsonl`)
 
 Stand-off annotations (review status, protected terms, MT confidence,
-terminology matches) live in a companion `.overlays.jsonl` file rather than
-inside the `.kbf.json` itself. A `.overlays.jsonl` file is **JSON-Lines**: each line
+terminology matches) live in a companion `.overlays.jsonl` file, outside the
+`.kbf.json` itself. A `.overlays.jsonl` file is **JSON-Lines**: each line
 is one compact JSON record (no indentation, LF-terminated), which keeps it
 grep- and diff-friendly. The first
 non-empty line is a header record (`"type": "header"`); every subsequent non-empty
@@ -572,10 +572,10 @@ refers to the top-level runs of the block's source edition.
 
 `start` and `end` are each a **run position**: `{"run": <index>, "offset":
 <runes>}`, where `offset` is a rune offset into that run's text and defaults to
-0. Bounding a range by run positions rather than by a flat character offset is
-what lets a span cross run boundaries, so a phrase running through a bold
-segment is one range rather than three, and lets a boundary sit either side of a
-placeholder, which carries no text of its own.
+0. A range bounded by run positions can cross run boundaries, which a flat
+character offset cannot. A phrase running through a bold segment is then one
+range, and a boundary can sit either side of a placeholder, which carries no
+text of its own.
 
 Resolving an anchor against a block either succeeds or returns one of six
 machine-readable failure reasons:

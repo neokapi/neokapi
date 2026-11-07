@@ -42,10 +42,9 @@ the last ledger entry.
 
 The work is organized as a set of recurring **rituals**: score the fleet,
 remediate the top gaps, watch upstream, sweep the corpus, scan for new formats,
-and recalibrate. Each ritual has its own cadence and freshness signal. The
-key property is that due-ness is computed from durable signals, not remembered:
-the ledger only records what each ritual last consumed, so a missed week is
-caught up rather than lost.
+and recalibrate. Each ritual has its own cadence and freshness signal.
+Due-ness is computed from durable signals. The ledger records only what each
+ritual last consumed, so the next run catches up a missed week.
 
 ## Calibration against human grades {#calibration-keeping-the-measure-honest}
 
@@ -69,9 +68,9 @@ Three standing watches keep the evidence current:
   notes and a list of divergences that may now be resolvable.
 - **Corpus.** Reference files are harvested from license-clean sources and swept
   periodically (read → write → read, one file per subprocess, with wall-clock and
-  memory caps), so support is proven over real and wild files, not just
+  memory caps), so support is proven over real and wild files as well as
   hand-picked fixtures. Every bug fix lands a minimized failing file, so the
-  corpus grows from real defects rather than guesses.
+  corpus grows from real defects.
 - **Security.** Parsers carry resource budgets and fuzz targets; sweep failures
   are minimized and promoted into the fuzz seed corpus automatically, so a crash
   found once becomes a permanent regression test.
@@ -99,8 +98,8 @@ A candidate is scanned in from the wider content world and scored against an
 identifiable spec source, and a clear statement of the capability kapi would provide. Once
 the maintainer accepts it, the `implement-format` skill builds the reader,
 writer, specification, and the per-axis artifacts; the next scoring run discovers
-it automatically, because the reporting set is derived from the real format
-directories, so there is no list to edit and no count to hardcode. Tier-review
+it automatically, because the reporting set comes from the format directories.
+Tier-review
 then promotes it Available → Maintained → Supported as its gating axes and CI
 gates come into place. Retirement runs the same funnel backwards: a format drops
 to a plugin or is archived with its corpus and dossier intact, never deleted.

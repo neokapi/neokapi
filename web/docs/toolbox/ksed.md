@@ -29,11 +29,11 @@ By default the edited document is written to standard output, like `sed`. Use
 file, or when the file is `-`, standard input is read.
 
 Editing a binary document produces a binary document: a `.docx` goes back out as
-a zip. When standard output is a terminal, that is refused rather than streamed
-at it. Use `-i`, redirect stdout to a file, or pass `--force` to ask for the
+a zip. When standard output is a terminal, ksed refuses to write those bytes
+to it. Use `-i`, redirect stdout to a file, or pass `--force` to ask for the
 bytes anyway. Redirected and piped output is never inspected, so `ksed … >
-out.docx` and `ksed … | kcat -` behave exactly as they always did. It is the
-same convention `gzip` and `xz` follow, for the same reason.
+out.docx` and `ksed … | kcat -` write the document as usual. `gzip` and `xz`
+follow the same convention for the same reason.
 
 ## Examples
 
@@ -73,7 +73,7 @@ ksed -R -i 's/colour/color/g' docs
 Recursion is `-R`, not the `-r` the other utilities use. In sed, `-r` means
 `--regexp-extended`, and binding it to recursion here would rewrite a whole
 directory tree for someone who only asked for a different regexp dialect. `-r`
-is therefore left unbound, and typing it is an error rather than a surprise.
+is therefore left unbound, and typing it is an error.
 
 ## Faithful round-trips
 
