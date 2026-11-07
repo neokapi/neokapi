@@ -196,6 +196,8 @@ interface ProjectFile {
   format: string;
   size: number;
   is_dir: boolean;
+  /** A context file (voice, terms, content memory, decisions), never content. */
+  context?: boolean;
 }
 
 export interface CollectionsPanelProps {
@@ -897,6 +899,7 @@ export function CollectionsPanel({
   }, []);
 
   // --- Build the "Other files" set: project files that no collection matched ---
+  // Context files govern the content, so they are never offered as unclaimed.
   const matchedSet = new Set(matches.map((m) => m.relative));
   // Relative paths of every known output file, so generated files surface as
   // children of their source rather than getting dumped into "Other files".
@@ -905,7 +908,7 @@ export function CollectionsPanel({
     for (const o of list) outputSet.add(o.relative);
   }
   const unmatchedFiles = projectFiles.filter(
-    (f) => !f.is_dir && !matchedSet.has(f.relative) && !outputSet.has(f.relative),
+    (f) => !f.is_dir && !f.context && !matchedSet.has(f.relative) && !outputSet.has(f.relative),
   );
 
   // ── Active-filter narrowing (bug #1 — consistent everywhere) ───────────────

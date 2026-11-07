@@ -11,9 +11,9 @@ import type { FormEvent } from "react";
 import { Badge, Button, Input, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { EmptyHint, LocalePill, useResource } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useScope } from "./ScopeProvider";
-import { NoteStrip, Pane, PaneError, PaneSkeleton, ReachNote, ValidityChip } from "./atoms";
+import { NoteStrip, Pane, PaneError, PaneSkeleton, ValidityChip } from "./atoms";
 import { SEARCH_GROUP_ORDER } from "./types";
 import type { RelationSubject, SearchAnswer, SearchGroup } from "./types";
 
@@ -173,61 +173,78 @@ export function ContextSearchPanel({ onSelect, limit, className }: ContextSearch
     : [];
   const found = groups.reduce((n, g) => n + groupCount(g), 0);
 
+  const clear = () => {
+    setDraft("");
+    setQuery("");
+  };
+
+  // The search is the page's main input: one wide field at the top, and the
+  // results appear under it once there is a query. The empty state is the
+  // field itself, with its placeholder saying what it finds.
   return (
-    <Pane
-      title={t("Search this scope")}
-      icon={<Search />}
-      reach={data ? data.scope : undefined}
-      className={className}
-      data-testid="search-panel"
-      actions={
-        <form onSubmit={submit} className="flex items-center gap-1.5">
+    <div className={cn("space-y-3", className)} data-testid="search-panel">
+      <form onSubmit={submit} role="search" className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={t("a word or phrase")}
+            placeholder={t("Search terms, past wording and content in this scope")}
             aria-label={t("Search this scope")}
-            className="h-8 w-56"
+            className="h-10 pr-9 pl-9 text-sm"
             data-testid="search-input"
           />
-          <Button type="submit" size="sm" variant="secondary">
-            {t("Search")}
-          </Button>
-        </form>
-      }
-    >
-      {!query && (
-        <ReachNote>
-          {t("Ask what the project calls something, and how it has said it before.")}
-        </ReachNote>
-      )}
-      {query && error && <PaneError error={error} />}
-      {query && !error && loading && <PaneSkeleton rows={4} />}
-      {query && !error && !loading && data && (
-        <div className="space-y-4 text-sm" data-testid="search-results">
-          <NoteStrip notes={data.notes} />
-          {found === 0 ? (
-            <EmptyHint
-              title={t("Nothing matched {query}", { query: data.query })}
-              description={t("The scope searched was: {scope}.", { scope: data.scope })}
-            />
-          ) : (
-            groups
-              .filter((g) => groupCount(g) > 0)
-              .map((group) => (
-                <section key={group.kind} data-testid="search-group" data-kind={group.kind}>
-                  <h4 className="mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    {groupLabel(group.kind)}
-                    <Badge variant="secondary" className="font-normal">
-                      {groupCount(group)}
-                    </Badge>
-                  </h4>
-                  <GroupBody group={group} onSelect={onSelect} />
-                </section>
-              ))
+          {draft && (
+            <button
+              type="button"
+              onClick={clear}
+              aria-label={t("Clear the search")}
+              className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
           )}
         </div>
+        <Button type="submit" className="h-10">
+          {t("Search")}
+        </Button>
+      </form>
+
+      {query && (
+        <Pane
+          title={t("Results for {query}", { query })}
+          icon={<Search />}
+          reach={data ? data.scope : undefined}
+        >
+          {error && <PaneError error={error} />}
+          {!error && loading && <PaneSkeleton rows={4} />}
+          {!error && !loading && data && (
+            <div className="space-y-4 text-sm" data-testid="search-results">
+              <NoteStrip notes={data.notes} />
+              {found === 0 ? (
+                <EmptyHint
+                  title={t("Nothing matched {query}", { query: data.query })}
+                  description={t("The scope searched was: {scope}.", { scope: data.scope })}
+                />
+              ) : (
+                groups
+                  .filter((g) => groupCount(g) > 0)
+                  .map((group) => (
+                    <section key={group.kind} data-testid="search-group" data-kind={group.kind}>
+                      <h4 className="mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        {groupLabel(group.kind)}
+                        <Badge variant="secondary" className="font-normal">
+                          {groupCount(group)}
+                        </Badge>
+                      </h4>
+                      <GroupBody group={group} onSelect={onSelect} />
+                    </section>
+                  ))
+              )}
+            </div>
+          )}
+        </Pane>
       )}
-    </Pane>
+    </div>
   );
 }

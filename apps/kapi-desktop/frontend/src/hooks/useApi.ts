@@ -457,6 +457,7 @@ export const api = {
         format: string;
         size: number;
         is_dir: boolean;
+        context?: boolean;
       }>
     >("ListProjectFiles", tabID),
   applyTemplate: (tabID: string, template: string) => call<void>("ApplyTemplate", tabID, template),

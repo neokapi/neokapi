@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   BookOpen,
   Bot,
+  Check,
   Compass,
   Database,
   History,
@@ -28,6 +29,7 @@ import {
   Share2,
   Sparkles,
   Telescope,
+  Terminal,
 } from "lucide-react";
 import {
   Button,
@@ -40,6 +42,7 @@ import {
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
+import { writeClipboardText } from "../lib/clipboard";
 import { AssistantPanel } from "./AssistantPanel";
 import { AssistantsPage } from "./AssistantsPage";
 import { ContextAtlasView } from "./ContextAtlasView";
@@ -404,8 +407,9 @@ const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
 };
 
 /**
- * The current section's command, as a mono chip at the right of the nav: one
- * place on the page, and never a caption under a section.
+ * The current section's command, as a terminal icon at the right of the nav.
+ * The tooltip names the command and a click copies it, so the page carries
+ * one small control rather than a chip of text.
  */
 function SectionCommand({
   section,
@@ -414,19 +418,40 @@ function SectionCommand({
   section: ContextSection;
   contextOnly?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
   // A tab with no checkout reads the digest, which is the review's.
   const command =
     section === "rules" && contextOnly ? "kapi context review" : SECTION_COMMANDS[section];
   if (!command) return null;
   return (
-    <SimpleTooltip content={t("The same in the terminal")}>
-      <code
+    <SimpleTooltip
+      content={
+        <span className="flex flex-col gap-0.5">
+          <code translate="no" className="font-mono">
+            {command}
+          </code>
+          <span className="opacity-70">{copied ? t("Copied") : t("Copy for the terminal")}</span>
+        </span>
+      }
+    >
+      <Button
+        variant="ghost"
+        size="icon"
         data-slot="context-section-command"
-        translate="no"
-        className="ml-auto shrink-0 rounded-md border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+        data-command={command}
+        aria-label={t("Copy {command} for the terminal", { command })}
+        className="ml-auto size-7 shrink-0 text-muted-foreground"
+        onClick={() => {
+          void writeClipboardText(command).then(() => setCopied(true));
+        }}
       >
-        {command}
-      </code>
+        {copied ? <Check className="size-3.5" /> : <Terminal className="size-3.5" />}
+      </Button>
     </SimpleTooltip>
   );
 }

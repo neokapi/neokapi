@@ -7756,6 +7756,16 @@ export class ProjectFileInfo {
              */
             this["is_dir"] = false;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Context marks a context file (host.ContextFileFilter): a voice profile,
+             * a terms or content-memory bundle, a decision-record shard. It governs
+             * the content and is never a candidate for a collection.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["context"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
