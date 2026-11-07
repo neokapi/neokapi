@@ -489,8 +489,8 @@ export function ContextFeed(projectKey, limit) {
  * quietly replaced — governance changing on a date has to be visible.
  * 
  * locale narrows the terms to one language: only concepts with a term in it are
- * counted, and each lists its terms in that language alone. Empty lists every
- * language.
+ * counted, and each lists its terms in that language and in the project's
+ * source language. Empty lists every language.
  * @param {string} tabID
  * @param {string} collection
  * @param {string} relPath

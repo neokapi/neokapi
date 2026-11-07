@@ -304,8 +304,13 @@ func TestContextGovernsNarrowsTheTermsToOneLanguage(t *testing.T) {
 	require.Len(t, res.Concepts, 1, "a concept with no Norwegian term is not listed")
 	assert.Equal(t, "c-cart", res.Concepts[0].ID)
 	assert.Equal(t, 1, res.ConceptsTotal)
-	require.Len(t, res.Concepts[0].Terms, 1)
-	assert.Equal(t, "handlekurv", res.Concepts[0].Terms[0].Text)
+	// The chosen language's term, and the source language's beside it; the
+	// German term is left out.
+	texts := []string{}
+	for _, term := range res.Concepts[0].Terms {
+		texts = append(texts, term.Text)
+	}
+	assert.ElementsMatch(t, []string{"cart", "handlekurv"}, texts)
 
 	all, err := app.ContextGoverns(tab.ID, "Docs", "", "", 10)
 	require.NoError(t, err)
