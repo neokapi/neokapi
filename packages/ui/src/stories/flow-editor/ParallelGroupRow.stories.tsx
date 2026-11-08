@@ -19,12 +19,9 @@ const meta: Meta<typeof ParallelGroupRow> = {
   tags: ["autodocs"],
   args: {
     index: 0,
-    count: 1,
     tools: TOOLS,
     onChange: fn(),
     onRemove: fn(),
-    onMoveUp: fn(),
-    onMoveDown: fn(),
   },
   render: (args) => (
     <ul className="max-w-2xl">

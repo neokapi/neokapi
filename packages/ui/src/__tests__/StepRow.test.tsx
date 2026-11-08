@@ -27,7 +27,7 @@ describe("StepRow", () => {
   it("offers the command that runs its tool on files", () => {
     render(
       <ul>
-        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} count={1} readOnly />
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} readOnly />
       </ul>,
     );
     const copy = screen.getByRole("button", {
@@ -39,7 +39,7 @@ describe("StepRow", () => {
   it("shows the tool's name and description", () => {
     render(
       <ul>
-        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} count={2} />
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} />
       </ul>,
     );
     expect(screen.getByText("Translate")).toBeTruthy();
@@ -49,14 +49,7 @@ describe("StepRow", () => {
   it("renders the options form when opened by default and a schema is present", () => {
     render(
       <ul>
-        <StepRow
-          step={{ tool: "translate" }}
-          tool={TOOL}
-          index={0}
-          count={1}
-          schema={SCHEMA}
-          defaultOpen
-        />
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} schema={SCHEMA} defaultOpen />
       </ul>,
     );
     expect(screen.getByTestId("step-options")).toBeTruthy();
@@ -65,32 +58,30 @@ describe("StepRow", () => {
   it("shows no options control without a schema", () => {
     render(
       <ul>
-        <StepRow step={{ tool: "qa" }} index={0} count={1} />
+        <StepRow step={{ tool: "qa" }} index={0} />
       </ul>,
     );
     expect(screen.queryByLabelText("Options")).toBeNull();
   });
 
-  it("wires the move and remove controls", async () => {
+  it("wires the remove control", async () => {
     const onRemove = vi.fn();
-    const onMoveDown = vi.fn();
     render(
       <ul>
-        <StepRow
-          step={{ tool: "translate" }}
-          tool={TOOL}
-          index={0}
-          count={2}
-          onRemove={onRemove}
-          onMoveDown={onMoveDown}
-        />
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} onRemove={onRemove} />
       </ul>,
     );
-    expect((screen.getByLabelText("Move up") as HTMLButtonElement).disabled).toBe(true);
-    await userEvent.click(screen.getByLabelText("Move down"));
     await userEvent.click(screen.getByLabelText("Remove Translate"));
-    expect(onMoveDown).toHaveBeenCalledOnce();
     expect(onRemove).toHaveBeenCalledOnce();
+  });
+
+  it("shows a grip only when the step can be reordered", () => {
+    render(
+      <ul>
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} />
+      </ul>,
+    );
+    expect(screen.queryByLabelText("Reorder Translate")).toBeNull();
   });
 
   it("labels a parallel group when the step carries no tool", () => {
@@ -99,7 +90,6 @@ describe("StepRow", () => {
         <StepRow
           step={{ tool: "", parallel: [{ tool: "qa" }, { tool: "voice-check" }] }}
           index={0}
-          count={1}
         />
       </ul>,
     );

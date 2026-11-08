@@ -1277,15 +1277,14 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, tool);
     await page.waitForTimeout(1200);
   });
-  // Move it to the front: two clicks on Move up, and the step strip in the
-  // header follows.
+  // Move it to the front: drag its grip above the first step, and the step
+  // strip in the header follows.
   await beatEls("reorder", ['[data-testid="linear-flow-editor"]'], async () => {
     const rows = page.locator('[data-testid="step-row"]');
-    const n = await rows.count();
-    for (let i = 0; i < Math.max(0, n - 1); i++) {
-      const up = rows.last().locator('button[aria-label="Move up"]').first();
-      if (!(await up.count())) break;
-      await humanClick(page, up);
+    if ((await rows.count()) > 1) {
+      const grip = rows.last().locator('button[aria-label^="Reorder "]').first();
+      await cursorTo('[data-testid="step-row"]:last-child button[aria-label^="Reorder "]');
+      await grip.dragTo(rows.first(), { targetPosition: { x: 40, y: 4 } });
       await page.waitForTimeout(700);
     }
     await page.waitForTimeout(1600);
