@@ -59,8 +59,7 @@ export function StepRow({
     tool?.name ||
     (step.parallel?.length ? t("Parallel group") : step.tool);
   // A read-only flow keeps its options closed; the recipe holds them.
-  const hasOptions =
-    !readOnly && !!schema && Object.keys(schema.properties ?? {}).length > 0;
+  const hasOptions = !readOnly && !!schema && Object.keys(schema.properties ?? {}).length > 0;
 
   const toggle = () => setOpen((v) => !v);
   // Shown on hover or focus so a resting row carries only its grip and chevron.
