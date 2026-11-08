@@ -584,6 +584,50 @@ func (a *App) CloseProjectDB(root string) error {
 	return db.Close()
 }
 
+// ForgetProject removes a project from this App's workspace (workspace.Forget):
+// its registration, its checkouts and the context store that holds its terms,
+// voice profiles, content memory and recorded decisions.
+//
+// The workspace closes that context store, so every handle this App keeps on
+// it goes first: the store of each checkout of the project and the writer
+// opened by its key alone. A handle left behind would answer the project's
+// next open with "database is closed".
+//
+// As with CloseProjectDB, nothing may be using the stores.
+func (a *App) ForgetProject(ctx context.Context, key workspace.ProjectKey) error {
+	if key == "" {
+		return workspace.ErrNoProjectKey
+	}
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return err
+	}
+	s := a.ensureProjectStores()
+	s.mu.Lock()
+	var roots []string
+	for root, b := range s.bound {
+		if b.key == key {
+			roots = append(roots, root)
+		}
+	}
+	s.mu.Unlock()
+	var errs []error
+	for _, root := range roots {
+		errs = append(errs, a.CloseProjectDB(root))
+	}
+	s.forgetKeyed(key)
+	errs = append(errs, ws.Forget(ctx, key))
+	return errors.Join(errs...)
+}
+
+// forgetKeyed drops the writer opened by a project's key alone (ProjectorFor),
+// whose context store the workspace is about to close.
+func (s *projectStores) forgetKeyed(key workspace.ProjectKey) {
+	s.mu.Lock()
+	delete(s.keyed, key)
+	s.mu.Unlock()
+}
+
 // ForgetProjectsUnder forgets every project checked out at or below dir in its
 // workspace (workspace.Forget), so kapi run there again registers the project
 // afresh with an empty context. It is for a host whose projects come and go
@@ -650,6 +694,7 @@ func (a *App) ForgetProjectsUnder(ctx context.Context, dir string) error {
 			return
 		}
 		forgotten[ws][key] = true
+		s.forgetKeyed(key)
 		errs = append(errs, ws.Forget(ctx, key))
 	}
 	for _, g := range gone {
