@@ -338,14 +338,10 @@ func (a *App) ForgetWorkspaceProject(key string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), workspaceHomeTimeout)
 	defer cancel()
 
-	ws, err := a.hostEngine().Workspace(ctx)
-	if err != nil {
-		return err
-	}
 	// A tab on this project is holding its store open, and the store cannot be
 	// deleted under it.
 	a.closeTabsForProject(workspace.ProjectKey(key))
-	if err := ws.Forget(ctx, workspace.ProjectKey(key)); err != nil {
+	if err := a.hostEngine().ForgetProject(ctx, workspace.ProjectKey(key)); err != nil {
 		return err
 	}
 	a.emitEvent("workspace:changed", nil)
