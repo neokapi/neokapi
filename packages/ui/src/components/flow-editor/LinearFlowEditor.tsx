@@ -13,7 +13,7 @@
 // invalid (ParallelGroupRow) and cannot be run from here until its tools are
 // listed as ordered steps.
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Check, Pencil, Play, Star, X } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { cn } from "../../lib/utils";
@@ -28,6 +28,7 @@ import { StepRow } from "./StepRow";
 import { AddStepPicker } from "./AddStepPicker";
 import { ParallelGroupRow } from "./ParallelGroupRow";
 import { listBranchesInOrder, sequenceIssues } from "./sequence";
+import { useStepReorder } from "./reorder";
 
 /** A step's label for the chip strip: its own label, else the tool's name. */
 function stepLabel(step: FlowStep, tools: FlowTool[]): string {
@@ -83,13 +84,18 @@ export function LinearFlowEditor({
   const setSteps = (next: FlowStep[]) => onChange({ ...flow, steps: next });
   const addStep = (toolName: string) => setSteps([...steps, { tool: toolName }]);
   const removeStep = (i: number) => setSteps(steps.filter((_, j) => j !== i));
-  const move = (i: number, delta: number) => {
-    const j = i + delta;
-    if (j < 0 || j >= steps.length) return;
+  const listRef = useRef<HTMLUListElement>(null);
+  const moveTo = (from: number, to: number) => {
     const next = [...steps];
-    [next[i], next[j]] = [next[j], next[i]];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
     setSteps(next);
+    // Keep the keyboard on the step that moved, wherever it landed.
+    requestAnimationFrame(() =>
+      listRef.current?.querySelector<HTMLElement>(`[data-reorder-handle="${to}"]`)?.focus(),
+    );
   };
+  const reorder = useStepReorder(steps.length, moveTo);
   const setConfig = (i: number, config: Record<string, unknown>) => {
     const next = steps.map((s, j) => (j === i ? { ...s, config } : s));
     setSteps(next);
@@ -229,14 +235,13 @@ export function LinearFlowEditor({
           </div>
         ) : (
           <div className="space-y-3">
-            <ul className="space-y-2">
+            <ul ref={listRef} className="space-y-2">
               {steps.map((step, i) =>
                 Array.isArray(step.parallel) ? (
                   <ParallelGroupRow
                     key={`group-${i}`}
                     step={step}
                     index={i}
-                    count={steps.length}
                     tools={tools}
                     onGetSchema={onGetSchema}
                     host={host}
@@ -244,8 +249,7 @@ export function LinearFlowEditor({
                     onChange={(next) => setStep(i, next)}
                     onListInOrder={() => listInOrder(i)}
                     onRemove={() => removeStep(i)}
-                    onMoveUp={() => move(i, -1)}
-                    onMoveDown={() => move(i, 1)}
+                    reorder={steps.length > 1 ? reorder(i) : undefined}
                   />
                 ) : (
                   <StepRow
@@ -253,14 +257,12 @@ export function LinearFlowEditor({
                     step={step}
                     tool={tools.find((tl) => tl.name === step.tool)}
                     index={i}
-                    count={steps.length}
                     schema={onGetSchema?.(step.tool)}
                     host={host}
                     readOnly={readOnly}
                     onConfigChange={(config) => setConfig(i, config)}
                     onRemove={() => removeStep(i)}
-                    onMoveUp={() => move(i, -1)}
-                    onMoveDown={() => move(i, 1)}
+                    reorder={steps.length > 1 ? reorder(i) : undefined}
                   />
                 ),
               )}

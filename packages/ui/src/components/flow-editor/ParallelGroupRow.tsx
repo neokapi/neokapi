@@ -4,18 +4,11 @@
 // list cannot run. The editor creates none; a flow loaded with one shows the
 // group as invalid, with the refusal the runtime gives, and offers to list its
 // tools as ordered steps in its place. Until then the group's branches stay
-// readable and can be configured or removed, and the group as a whole moves
-// and is removed like any other step. Removing its last branch removes the
+// readable and can be configured or removed, and the group as a whole is dragged
+// and removed like any other step. Removing its last branch removes the
 // group, which then holds nothing to run or to list in order.
 
-import {
-  AlertCircle,
-  ChevronDown,
-  ChevronUp,
-  GripVertical,
-  ListOrdered,
-  Trash2,
-} from "lucide-react";
+import { AlertCircle, ListOrdered, Trash2 } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { cn } from "../../lib/utils";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -26,12 +19,13 @@ import type { ComponentSchema, SchemaFormHost } from "../schema-form";
 import type { FlowStep, FlowTool } from "./types";
 import { StepRow } from "./StepRow";
 import { parallelStepError } from "./sequence";
+import { DropIndicator, ReorderHandle } from "./ReorderHandle";
+import type { StepReorder } from "./reorder";
 
 export interface ParallelGroupRowProps {
   /** The parallel step (its `parallel` array holds the branches). */
   step: FlowStep;
   index: number;
-  count: number;
   tools: FlowTool[];
   onGetSchema?: (toolName: string) => ComponentSchema | null;
   host?: SchemaFormHost;
@@ -41,14 +35,13 @@ export interface ParallelGroupRowProps {
   /** Replace the group with its branches as ordered steps. */
   onListInOrder?: () => void;
   onRemove?: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+  /** Drag and keyboard reordering of the group as a whole. */
+  reorder?: StepReorder;
 }
 
 export function ParallelGroupRow({
   step,
   index,
-  count,
   tools,
   onGetSchema,
   host,
@@ -56,8 +49,7 @@ export function ParallelGroupRow({
   onChange,
   onListInOrder,
   onRemove,
-  onMoveUp,
-  onMoveDown,
+  reorder,
 }: ParallelGroupRowProps) {
   const branches = step.parallel ?? [];
   const refusal = parallelStepError(step, index);
@@ -74,16 +66,19 @@ export function ParallelGroupRow({
   return (
     <li
       className={cn(
-        "rounded-lg border border-dashed",
+        "group/step relative rounded-lg border border-dashed",
         refusal ? "border-destructive/60" : "border-border",
+        reorder?.dragging && "opacity-50",
       )}
       data-testid="parallel-group"
       data-invalid={refusal ? "true" : undefined}
+      {...reorder?.row}
     >
+      <DropIndicator side={reorder?.indicator} />
       <div className="flex items-start gap-2 p-2">
-        <span className="mt-1 text-muted-foreground/50" aria-hidden="true">
-          <GripVertical className="size-4" />
-        </span>
+        {!readOnly && reorder && (
+          <ReorderHandle reorder={reorder} index={index} name={step.label || t("Parallel group")} />
+        )}
         {refusal && <AlertCircle className="mt-1 size-4 shrink-0 text-destructive" />}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -97,36 +92,17 @@ export function ParallelGroupRow({
         </div>
 
         {!readOnly && (
-          <div className="flex items-center gap-0.5">
+          <SimpleTooltip content={t("Remove parallel group")}>
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label={t("Move up")}
-              disabled={index === 0}
-              onClick={onMoveUp}
+              className="opacity-0 transition-opacity group-focus-within/step:opacity-100 group-hover/step:opacity-100"
+              aria-label={t("Remove parallel group")}
+              onClick={onRemove}
             >
-              <ChevronUp className="size-3.5" />
+              <Trash2 className="size-3.5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("Move down")}
-              disabled={index === count - 1}
-              onClick={onMoveDown}
-            >
-              <ChevronDown className="size-3.5" />
-            </Button>
-            <SimpleTooltip content={t("Remove parallel group")}>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t("Remove parallel group")}
-                onClick={onRemove}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </SimpleTooltip>
-          </div>
+          </SimpleTooltip>
         )}
       </div>
 
@@ -159,11 +135,9 @@ export function ParallelGroupRow({
                 step={branch}
                 tool={tools.find((tl) => tl.name === branch.tool)}
                 index={bi}
-                count={branches.length}
                 schema={onGetSchema?.(branch.tool)}
                 host={host}
                 readOnly={readOnly}
-                hideMove
                 onConfigChange={(config) => setBranchConfig(bi, config)}
                 onRemove={() => removeBranch(bi)}
               />
