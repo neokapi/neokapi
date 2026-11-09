@@ -28,7 +28,7 @@ import { StepRow } from "./StepRow";
 import { AddStepPicker } from "./AddStepPicker";
 import { ParallelGroupRow } from "./ParallelGroupRow";
 import { listBranchesInOrder, sequenceIssues } from "./sequence";
-import { useStepReorder } from "./reorder";
+import { useStepReorder, type MoveVia } from "./reorder";
 
 /** A step's label for the chip strip: its own label, else the tool's name. */
 function stepLabel(step: FlowStep, tools: FlowTool[]): string {
@@ -85,12 +85,14 @@ export function LinearFlowEditor({
   const addStep = (toolName: string) => setSteps([...steps, { tool: toolName }]);
   const removeStep = (i: number) => setSteps(steps.filter((_, j) => j !== i));
   const listRef = useRef<HTMLUListElement>(null);
-  const moveTo = (from: number, to: number) => {
+  const moveTo = (from: number, to: number, via: MoveVia) => {
     const next = [...steps];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     setSteps(next);
-    // Keep the keyboard on the step that moved, wherever it landed.
+    // Keep the keyboard on the step that moved, wherever it landed. A drag
+    // leaves focus alone, so the grip's tooltip does not open under the pointer.
+    if (via !== "keyboard") return;
     requestAnimationFrame(() =>
       listRef.current?.querySelector<HTMLElement>(`[data-reorder-handle="${to}"]`)?.focus(),
     );

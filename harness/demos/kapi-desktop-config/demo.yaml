@@ -28,6 +28,7 @@ narration:
   - id: open-settings
     kind: desktop
     beat: open-settings
+    crop: { x: 0.01, y: 0.02, w: 0.37, h: 0.42 }
     caption: Appearance, models, plugins and locales, in one place.
     text: >-
       Settings gathers appearance, the AI models a project can translate with,
@@ -36,6 +37,7 @@ narration:
   - id: general
     kind: desktop
     beat: general
+    crop: { x: 0.01, y: 0.02, w: 0.37, h: 0.42 }
     caption: Follows the system, or pinned either way.
     text: >-
       Appearance follows your system by default, or you can pin light or dark.
@@ -46,7 +48,7 @@ narration:
     kind: desktop
     beat: credentials
     caption: The key is typed here, and stored by the keychain.
-    crop: { selector: '[role="dialog"]' }
+    crop: { x: 0.13, y: 0.27, w: 0.4, h: 0.42 }
     text: >-
       AI Models lists the providers and the models under each. Adding
       credentials asks for a name, a model and the key, and the key goes to the
@@ -56,6 +58,7 @@ narration:
   - id: plugins
     kind: desktop
     beat: plugins
+    crop: { x: 0.02, y: 0.03, w: 0.55, h: 0.42 }
     caption: Plugins add formats, connectors and tools.
     text: >-
       Plugins extend what the project can read and run, adding formats,

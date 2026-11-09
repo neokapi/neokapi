@@ -38,11 +38,17 @@ function landing(from: number, index: number, side: DropSide): number {
   return from < to ? to - 1 : to;
 }
 
+/** How a step was moved: dragged with the pointer, or by the arrow keys. */
+export type MoveVia = "drag" | "keyboard";
+
 /**
  * Reorder state for a list of `count` steps. `moveTo` receives the step's
- * current index and the index it should end up at.
+ * current index, the index it should end up at, and how it was moved.
  */
-export function useStepReorder(count: number, moveTo: (from: number, to: number) => void) {
+export function useStepReorder(
+  count: number,
+  moveTo: (from: number, to: number, via: MoveVia) => void,
+) {
   const [dragged, setDragged] = useState<number | null>(null);
   const [over, setOver] = useState<{ index: number; side: DropSide } | null>(null);
 
@@ -71,7 +77,7 @@ export function useStepReorder(count: number, moveTo: (from: number, to: number)
         const to = e.key === "ArrowUp" ? index - 1 : e.key === "ArrowDown" ? index + 1 : null;
         if (to === null) return;
         e.preventDefault();
-        if (to >= 0 && to < count) moveTo(index, to);
+        if (to >= 0 && to < count) moveTo(index, to, "keyboard");
       },
     },
     row: {
@@ -87,7 +93,7 @@ export function useStepReorder(count: number, moveTo: (from: number, to: number)
         if (dragged === null) return;
         e.preventDefault();
         const to = landing(dragged, index, over?.index === index ? over.side : "after");
-        if (to !== dragged) moveTo(dragged, to);
+        if (to !== dragged) moveTo(dragged, to, "drag");
         reset();
       },
     },

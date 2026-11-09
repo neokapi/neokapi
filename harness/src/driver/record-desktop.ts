@@ -972,14 +972,18 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   // A target language, added and saved. MultiLocaleSelect adds on pick with no
   // confirm step (locale-select.tsx), and SaveBar renders only while the draft
   // is dirty, so the save click is guarded rather than assumed.
-  await beatEls("add-language", ['input[placeholder="Add locale..."]', '[data-slot="combobox-item"]'], async () => {
+  await beatEls("add-language", ['input[placeholder^="Add a language"]', '[data-slot="combobox-item"]'], async () => {
     await humanClick(page, sidebar("Project Settings"));
     await page.waitForTimeout(1300);
-    const add = page.locator('input[placeholder="Add locale..."]').first();
+    const add = page.locator('input[placeholder^="Add a language"]').first();
     await add.scrollIntoViewIfNeeded().catch(() => {});
     await humanType(page, add, "French");
     await page.waitForTimeout(800);
-    const item = page.locator('[data-slot="combobox-item"]').first();
+    // "French" also matches Canadian French, which the list offers first.
+    const item = page
+      .locator('[data-slot="combobox-item"]')
+      .filter({ has: page.getByText("French", { exact: true }) })
+      .first();
     if (await item.count()) await humanClick(page, item);
     await page.waitForTimeout(1000);
     const save = page.locator('button:has-text("Save Changes")').first();
@@ -1616,7 +1620,12 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // narration names it.
   const briefTab = page.getByTestId("assistant-tab-brief");
   const picker = page.locator('[aria-label="Choose a file"]');
-  const keptTerm = page.locator('[data-slot="assistant-brief"] li').filter({ hasText: "say cart instead" });
+  // The kept word is filed under the concept that already holds "cart", so
+  // the brief names that concept's preferred wording as the replacement; the
+  // line to rest on is the one for basket.
+  const keptTerm = page
+    .locator('[data-slot="assistant-brief"] li')
+    .filter({ has: page.getByText("basket", { exact: true }) });
   await humanClick(page, briefTab);
   await page.waitForSelector('[data-slot="assistant-brief"]', { timeout: 10_000 });
   await page.waitForTimeout(600);
