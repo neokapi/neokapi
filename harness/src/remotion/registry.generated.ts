@@ -106,6 +106,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "The hand-off is a bilingual file"
   },
   {
+    "id": "kapi-cli-first-project",
+    "title": "Your first project, from the terminal"
+  },
+  {
     "id": "kapi-desktop-config",
     "title": "The keychain holds the key"
   },
