@@ -26,6 +26,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { ConflictLine, RuleLine } from "./DigestRule";
+import { MapSteps } from "./MapSteps";
 import { opens, type ScreenNavigation, type ScreenTarget } from "./port";
 import type { MapFileRow, MapSuggestionRow, MapSummary } from "./types";
 
@@ -53,6 +54,10 @@ export interface MapViewProps extends ScreenNavigation {
   connectAI?: React.ReactNode;
   /** The action in the empty suggestions list; absent, Connect an assistant when the host opens it. */
   suggestionsAction?: React.ReactNode;
+  /** Hide the first steps for this project; absent, they cannot be dismissed. */
+  onDismissSteps?: () => void;
+  /** The guide that walks through the first steps, opened outside the app. */
+  stepsGuideHref?: string;
   /** The project waits to be set up: the files' empty state leads to setting it up. */
   setupPending?: boolean;
   /** The action in the empty files list, such as adding files. */
@@ -76,6 +81,8 @@ export function MapView({
   deeperLook,
   connectAI,
   suggestionsAction,
+  onDismissSteps,
+  stepsGuideHref,
   setupPending,
   addFiles,
   onPreviewFile,
@@ -141,6 +148,18 @@ export function MapView({
           </div>
           {!!runError && <ErrorNotice error={runError} title={t("The checks did not run")} />}
         </div>
+
+        {summary.steps && summary.steps.length > 0 && (
+          <MapSteps
+            steps={summary.steps}
+            onRun={onRun}
+            running={running}
+            onDismiss={onDismissSteps}
+            guideHref={stepsGuideHref}
+            navigate={navigate}
+            canNavigate={canNavigate}
+          />
+        )}
 
         {standing}
 

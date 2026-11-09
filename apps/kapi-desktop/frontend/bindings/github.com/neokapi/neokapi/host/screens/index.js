@@ -10,6 +10,7 @@ export {
     DigestUsage,
     KeptRuleDTO,
     MapFileDTO,
+    MapStepDTO,
     MapSuggestionDTO,
     MapSummaryDTO,
     ReaderBlockDTO,

@@ -309,4 +309,14 @@ export interface MapSummary {
   target_languages: string[];
   file_rows: MapFileRow[];
   suggestions: MapSuggestionRow[];
+  /** A first project's steps, while one that stays done is open; absent once set up. */
+  steps?: MapStep[];
+}
+
+/** One step of a first project, in the order "Your first project" takes them. */
+export interface MapStep {
+  id: "decide" | "check" | "fix" | "connect" | "share";
+  done: boolean;
+  /** What is left: items awaiting a decision, or failing findings. */
+  count?: number;
 }

@@ -926,6 +926,16 @@ export function DiscardWorkspaceDocument(doc, edit) {
 }
 
 /**
+ * DismissMapSteps hides the first steps on the Map of a tab's project, for
+ * that project on this machine.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DismissMapSteps(tabID) {
+    return $Call.ByID(1054868233, tabID);
+}
+
+/**
  * DismissSamples marks the sample project cards as dismissed.
  * @returns {$CancellablePromise<void>}
  */

@@ -396,6 +396,30 @@ func (a *App) readRung(ctx context.Context, recipe string, res *ShareResult) err
 	return nil
 }
 
+// RecipeRung is the rung a recipe's rules reach, read from the recipe alone
+// as readRung reads it, without reaching the place: ShareRungMachine for a
+// recipe that is absent or keeps them on this machine.
+func RecipeRung(recipe string) (string, error) {
+	if _, err := os.Stat(recipe); err != nil {
+		if os.IsNotExist(err) {
+			return ShareRungMachine, nil
+		}
+		return "", err
+	}
+	info, err := ResolveContextBackend(recipe)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case recipeServer(recipe) != "" || info.Kind == project.ContextBackendBowrain:
+		return ShareRungBowrain, nil
+	case info.Kind != project.ContextBackendLocal:
+		return ShareRungTeam, nil
+	default:
+		return ShareRungMachine, nil
+	}
+}
+
 // recipeServer is the URL of the Bowrain server the recipe connects to. The
 // block belongs to the plugin, so a binary without it reads the plugin's
 // recipe key directly.

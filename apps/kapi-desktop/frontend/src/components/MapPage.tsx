@@ -81,6 +81,9 @@ export interface MapPageProps {
   standing?: React.ReactNode;
 }
 
+/** "Your first project" in the kapi docs, which takes the same steps; it opens in the browser. */
+export const FIRST_PROJECT_GUIDE_URL = "https://neokapi.github.io/kapi/get-started/first-project";
+
 export function MapPage({
   tabID,
   projectName,
@@ -112,6 +115,11 @@ export function MapPage({
   }, [syncing, qc, key]);
 
   const summary = given ?? query.data ?? null;
+
+  const dismissSteps = useMutation({
+    mutationFn: () => api.dismissMapSteps(tabID),
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  });
 
   const run = useMutation({
     mutationFn: () =>
@@ -193,6 +201,8 @@ export function MapPage({
         running={run.isPending}
         runError={run.error}
         onRun={() => run.mutate()}
+        onDismissSteps={given ? undefined : () => dismissSteps.mutate()}
+        stepsGuideHref={FIRST_PROJECT_GUIDE_URL}
         standing={standing}
         deeperLook={
           <DeeperLookRow

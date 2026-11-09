@@ -253,7 +253,42 @@ func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 			return nil, err
 		}
 	}
+	out.Steps = a.mapSteps(ctx, op, out, check)
 	return out, nil
+}
+
+// mapSteps reads the first project's steps for the Map: none for a project
+// the workspace does not hold or whose steps the person dismissed. A state it
+// cannot read counts as a step not taken, so the step stays on the list.
+func (a *App) mapSteps(ctx context.Context, op *openProject, out *screens.MapSummaryDTO, check *mapCheckTally) []screens.MapStepDTO {
+	if op.workspaceKey == "" || a.mapStepsDismissed(string(op.workspaceKey)) {
+		return nil
+	}
+	state := screens.MapStepState{Awaiting: out.Awaiting}
+	if check != nil && check.result != nil {
+		state.Checked = true
+		for _, f := range check.result.Files {
+			for _, d := range f.Findings {
+				if d.Fails {
+					state.Failing++
+				}
+			}
+		}
+	}
+	a.mu.RLock()
+	recipe := op.Path
+	a.mu.RUnlock()
+	if root, ok := projectRoot(op); ok {
+		if hosts, err := a.assistantHosts(ctx, recipe, root); err == nil {
+			for _, h := range hosts {
+				state.Connected = state.Connected || h.Connected
+			}
+		}
+	}
+	if rung, err := host.RecipeRung(recipe); err == nil {
+		state.Shared = rung != host.ShareRungMachine
+	}
+	return screens.MapSteps(state)
 }
 
 // localeStrings turns the recipe's target languages into strings.

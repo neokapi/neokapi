@@ -28,7 +28,9 @@ export type ScreenTarget =
   | { kind: "blocks" }
   /** Setting up a project whose folder is empty or matches a preset. */
   | { kind: "setup" }
-  | { kind: "connect-assistant" };
+  | { kind: "connect-assistant" }
+  /** Where the project's rules are shared. */
+  | { kind: "share" };
 
 /** How a screen leads elsewhere. A target the host cannot open hides its control. */
 export interface ScreenNavigation {

@@ -13,6 +13,7 @@ export type {
   KeptRule,
   MapFileRow,
   MapSuggestionRow,
+  MapStep,
   MapSummary,
   ReaderBlock,
   ReaderFile,
