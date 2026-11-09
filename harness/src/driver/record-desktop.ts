@@ -1263,8 +1263,9 @@ async function contentWalk(c: WalkCtx): Promise<void> {
   });
   // The same file as it is written on disk, with the selected key's line
   // highlighted: structure on one tab, bytes on the other.
+  // No settle here: nothing scrolls, and the narration over this beat is
+  // short, so the File tab is clicked as the beat opens.
   await beatEls("code", ['[data-preview="data"]'], async () => {
-    await settle();
     const file = page.locator('[data-preview="data"] button:has-text("File")').first();
     if (await file.count()) await humanClick(page, file);
     await page.waitForTimeout(2400);
