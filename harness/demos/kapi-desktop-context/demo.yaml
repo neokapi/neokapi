@@ -18,10 +18,9 @@ aspects:
 # Every beat sets a box crop. The walk still marks what it acts on
 # (beatSpan in record-desktop.ts), and a box here wins over that region.
 #
-# The sample comes with two assistant sessions (claude-code, then codex),
-# added by the desktop backend when the sample is created. The walk creates
-# it on camera from the Open screen, decides on its suggestions, and records
-# one more note as claude-code from a shell while the Overview is on screen.
+# The sample comes with two assistant sessions (claude-code, then codex). The
+# walk creates it on camera, decides on its suggestions, and records one more
+# note as claude-code from a shell while the Overview is on screen.
 #
 # Cue words the walk waits for, by beat: map (row, decide), decide (codex,
 # claude-code), keep (blocks, k), word (check, k), choose (codex,
