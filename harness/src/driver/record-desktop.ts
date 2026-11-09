@@ -954,19 +954,16 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     await landOnHome(page);
     await idle(page, 2000);
   });
-  // The folder, dropped on the Open screen. It opens as a tab on its Overview, whose
-  // empty files list leads to the setup page and its templates; take the
-  // input/output one. Nothing is governed yet, which is what the next beats
-  // change.
+  // The folder, dropped on the Open screen. It opens as a tab on its Overview,
+  // with no files yet and the project's first steps above them.
   await beat("new-project", null, async () => {
     await cursorTo('[data-slot="open-screen"] h1', 700);
     await page.waitForTimeout(500);
     await dropFolder(page, NEW_PROJECT_DIR);
     await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
     await page.waitForTimeout(900);
-    await humanClick(page, page.locator('button:has-text("Set up the project")'));
-    await page.waitForTimeout(900);
-    await humanClick(page, page.locator('button:has-text("Input → Output")'));
+    // The Overview of an empty project: no files yet, and its first steps.
+    await cursorTo('[data-slot="map"] h1, [data-slot="map"] h2', 700);
     await page.waitForTimeout(1600);
   });
   // A target language, added and saved. MultiLocaleSelect adds on pick with no
@@ -1008,7 +1005,14 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
       await humanType(page, name, "Help Center");
       await page.waitForTimeout(400);
     }
-    const pattern = page.locator('[data-slot="code-input"] .cm-content').last();
+    // The pattern box holds the Path pattern editor first and the Base editor
+    // last, so the pattern is the first editor in the last box.
+    const pattern = page
+      .locator('[data-testid="pattern-match-count"]')
+      .last()
+      .locator("xpath=..")
+      .locator('[data-slot="code-input"] .cm-content')
+      .first();
     if (await pattern.count()) {
       await pattern.click();
       await page.keyboard.type("docs/**/*.md", { delay: 70 });
@@ -1047,8 +1051,12 @@ async function configWalk(c: WalkCtx): Promise<void> {
   const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
   // With no folder open the window is the Open screen, which has no rail; its
   // Settings link opens the app's settings, and the rail with them.
-  await beat("open-settings", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
+  // The whole window: the link sits in the middle of the Open screen, and the
+  // settings it opens start at the window's top-left corner.
+  await beat("open-settings", null, async () => {
     await idle(page, 1200);
+    await cursorTo('[data-slot="open-settings"]', 700);
+    await page.waitForTimeout(400);
     await humanClick(page, page.locator('[data-slot="open-settings"]'));
     await page.waitForSelector('button[aria-label="App Settings"]', { timeout: 20_000 });
     await page.waitForTimeout(1200);
@@ -1156,6 +1164,13 @@ async function openCollectionFile(page: Page, collection: string, filename: stri
   // the glob, either of which may spell the stem differently. Open them in turn
   // until the source row is on the page, rather than guess once and then wait
   // out a timeout on a row that never appeared.
+  // The pattern row that names the file is the likely one, so it goes first:
+  // every other row opened is a second or more on camera with nothing shown.
+  const named = page.locator('tr[data-slot="matched-pattern-row"]').filter({ hasText: filename }).first();
+  if (!(await sourceRow.count()) && (await named.count())) {
+    await humanClick(page, named);
+    await page.waitForTimeout(500);
+  }
   if (!(await sourceRow.count())) {
     const patterns = page.locator('tr[data-slot="matched-pattern-row"]');
     const n = await patterns.count();
@@ -1204,29 +1219,43 @@ async function contentWalk(c: WalkCtx): Promise<void> {
   // language. Reading the collections takes a moment, and the beat is the
   // counts being there, so the wait is for the gate cells rather than a fixed
   // pause, and a take without them fails rather than film an empty table.
+  // The screencast runs a few tenths ahead of the beat clock, so each beat
+  // after the first opens on a still second: the previous beat's last frames
+  // then show its own end, not this beat's first scroll.
+  const settle = () => page.waitForTimeout(1000);
   await beatEls("extract", ['[data-testid="collection-file-count"]', '[data-slot="ship-gate-cell"]'], async () => {
+    await settle();
     await page.waitForSelector('[data-slot="ship-gate-cell"]', { timeout: 120_000 }).catch(() => {
       throw new Error("kapi-desktop-content: no ship-gate cell rendered within 120 s of opening the project");
     });
-    // The collections table sits below the project standing, so bring it on
-    // camera: a crop is resolved from element boxes, and an element scrolled
-    // past the fold contributes nothing to one.
-    await page.locator('[data-slot="ship-gate-cell"]').first().scrollIntoViewIfNeeded().catch(() => {});
+    // The collections table sits below the project standing, at the page's
+    // end: scroll to its last row, so the chart and the table share the shot.
+    await page
+      .locator('[data-testid="collection-file-count"]')
+      .last()
+      .evaluate((el) => el.scrollIntoView({ behavior: "smooth", block: "end" }))
+      .catch(() => {});
+    await page.waitForTimeout(900);
     await cursorTo('[data-testid="collection-file-count"]');
     await page.waitForTimeout(2600);
   });
   // Open one collection: its patterns, and the files they match.
   await beatEls("patterns", ['[data-slot="matched-files-scroll"]'], async () => {
+    await settle();
     const expand = page.locator('button[aria-label="Expand"]').filter({ hasText: "Online Store" }).first();
     if (await expand.count()) await humanClick(page, expand);
     await page.waitForTimeout(1600);
-    await page.locator('[data-slot="matched-files-scroll"]').first().scrollIntoViewIfNeeded().catch(() => {});
-    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.6, 700);
+    await centre(page, page.locator('[data-slot="matched-files-scroll"]').first()).catch(() => {});
+    // Rest on the file name, at the row's left, rather than over the format
+    // column, where the row's tooltip would cover it.
+    const row = page.locator('tr[data-slot="matched-pattern-row"], tr[data-slot="matched-source-row"]').first();
+    if (await row.count()) await moveTo(page, ...(await centreOf(row)));
     await page.waitForTimeout(2000);
   });
   // Open a JSON catalog → the preview sheet reads it as keys and values, and
   // the key column is the thing to look at.
   await beatEls("keys", ['[data-preview="keyed-table"]'], async () => {
+    await settle();
     await openCollectionFile(page, "Online Store", "store-ui.json");
     await page.waitForTimeout(1200);
     await cursorTo('[data-preview="keyed-table"] tr[data-key-path]');
@@ -1234,6 +1263,8 @@ async function contentWalk(c: WalkCtx): Promise<void> {
   });
   // The same file as it is written on disk, with the selected key's line
   // highlighted: structure on one tab, bytes on the other.
+  // No settle here: nothing scrolls, and the narration over this beat is
+  // short, so the File tab is clicked as the beat opens.
   await beatEls("code", ['[data-preview="data"]'], async () => {
     const file = page.locator('[data-preview="data"] button:has-text("File")').first();
     if (await file.count()) await humanClick(page, file);
@@ -1254,7 +1285,7 @@ async function contentWalk(c: WalkCtx): Promise<void> {
  * runner is named in the narration instead.
  */
 async function flowsWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beatEls, cursorTo, cue, sidebar } = c;
   // Open the KapiMart sample and go straight to its flows.
   await landOnHome(page);
   await openSample(page, "sample-kapimart", "Project Settings");
@@ -1288,6 +1319,8 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
     if ((await rows.count()) > 1) {
       const grip = rows.last().locator('button[aria-label^="Reorder "]').first();
       await cursorTo('[data-testid="step-row"]:last-child button[aria-label^="Reorder "]');
+      // The drag lands as the narration says to make it.
+      await cue("drag", 2.5);
       await grip.dragTo(rows.first(), { targetPosition: { x: 40, y: 4 } });
       await page.waitForTimeout(700);
     }
@@ -1371,10 +1404,12 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   // (host/sourcereview.go computeSourceQueue). KapiMart declares no
   // defaults.translate_after, which resolves to `written`, and its source settles
   // clean, so every row here is a translation.
+  // The cursor stays on the queue, where the approved row leaves the list,
+  // rather than on the Approve button at the window's bottom edge.
   await beatEls("decide", ['[data-slot="review-batch"]', '[data-slot="review-queue"]'], async () => {
-    await cursorTo('[data-slot="review-approve"]');
-    await page.waitForTimeout(800);
     await page.locator('[data-slot="review-page"]').first().click({ position: { x: 4, y: 4 } }).catch(() => {});
+    await cursorTo('[data-slot="review-queue-item"]:not([data-source])');
+    await page.waitForTimeout(800);
     await page.keyboard.press("a");
     await page.waitForTimeout(2200);
     await cursorTo('[data-slot="review-batch-approve"]');
@@ -1561,7 +1596,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(question);
     await cue("blocks", 4.2);
     await restOn(consequence);
-    await cue("keeps", 8.4);
+    await cue("k", 8.4);
     await page.keyboard.press("k");
     await name.waitFor({ state: "detached", timeout: 10_000 });
     await page.waitForTimeout(1200);
