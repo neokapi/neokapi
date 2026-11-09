@@ -32,7 +32,7 @@ func TestDecideRuleRecordsOneAnswerAtATime(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, -1, option)
 	assert.Equal(t, "Sign in", n.Label())
-	assert.Equal(t, rulesAgent, n.NoticedBy())
+	assert.Equal(t, rulesAgent, n.RecordedBy())
 	w := decisionFor(t, view, word.ID)
 	assert.Equal(t, "utilise", w.Label())
 	assert.Equal(t, 1, w.Avoided())
@@ -130,7 +130,7 @@ func TestDecideRuleChoosesASide(t *testing.T) {
 	d, option, ok := view.Find(employ.ID)
 	require.True(t, ok)
 	assert.Equal(t, employ.ID, d.Options[option].ID)
-	assert.Equal(t, rulesAgent, d.Options[option].NoticedBy())
+	assert.Equal(t, rulesAgent, d.Options[option].RecordedBy())
 	assert.Equal(t, "utilise", d.Label(), "both sides avoid one wording")
 
 	res, err := app.DecideRule(t.Context(), RuleDecideRequest{Actor: person, Project: recipeOf(root), ID: employ.ID, Answer: RuleAnswerKeep})

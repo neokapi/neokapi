@@ -12,7 +12,7 @@ import { SwimlaneDiagram, ThemedImage } from "@neokapi/docs-shared";
 A project opens on its **Map**. The project's sidebar lists **Map** first, then
 **Overview**, **Rules** and the other sections. Kapi Desktop shows the same
 screens, read from the server, so your team works from one record of what
-assistants noticed and what people decided.
+assistants suggested and what people decided.
 
 ## Keeping a checkout's context on Bowrain
 

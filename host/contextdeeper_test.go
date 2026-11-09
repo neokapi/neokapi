@@ -114,7 +114,7 @@ func TestDeeperLook_FilesTermsAndVoiceAsKapiWithTheModel(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, contextop.Actor{Kind: contextop.ActorTool, Name: aiprovider.DemoModelName}, rule.Actor)
 	assert.Equal(t, contextop.KindObserve, rule.Kind)
-	assert.Equal(t, contextop.StatusSuggested, rule.Status, "it advises and fails nothing until a person keeps it")
+	assert.Equal(t, contextop.StatusSuggested, rule.Status, "it is reported and fails nothing until a person keeps it")
 	got, ok := rule.Rule()
 	require.True(t, ok)
 	assert.Equal(t, "Harbor Help", got.Replacement)
@@ -146,7 +146,7 @@ func TestDeeperLook_FilesTermsAndVoiceAsKapiWithTheModel(t *testing.T) {
 	require.NoError(t, err)
 	var text strings.Builder
 	require.NoError(t, digest.FormatText(&text))
-	assert.Contains(t, text.String(), "noticed by kapi "+aiprovider.DemoModelName+"\n", "the queue names the model beside kapi")
+	assert.Contains(t, text.String(), "suggested by kapi "+aiprovider.DemoModelName+"\n", "the queue names the model beside kapi")
 
 	var printed strings.Builder
 	require.NoError(t, res.FormatText(&printed))

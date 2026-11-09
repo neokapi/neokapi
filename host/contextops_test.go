@@ -120,12 +120,12 @@ func agentIn(session string) contextop.Actor {
 	return contextop.Actor{Kind: contextop.ActorAgent, Name: "claude", Session: session}
 }
 
-// TestCandidateAdvisesAndConfirmedBinds is the whole claim in one test: a
+// TestCandidateReportsAndConfirmedBinds is the whole claim in one test: a
 // proposal is reported and fails nothing, and the same rule fails the gate once
 // a person has confirmed it.
-func TestCandidateAdvisesAndConfirmedBinds(t *testing.T) {
+func TestCandidateReportsAndConfirmedBinds(t *testing.T) {
 	app, _ := contextOpsApp(t)
-	root := contextOpsProject(t, "ctxops-advise")
+	root := contextOpsProject(t, "ctxops-report")
 
 	clean := checkWith(t, app, root)
 	require.Empty(t, vocabularyFindings(clean), "a project with no context says nothing about the word")

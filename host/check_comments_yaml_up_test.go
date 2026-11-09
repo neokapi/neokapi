@@ -118,7 +118,7 @@ func TestUpConvergesAReaderFormatWithCommentsTrueUnchanged(t *testing.T) {
 		assert.Contains(t, string(keyed), "# the first words", "the skeleton keeps the line comment")
 	})
 
-	t.Run("must fail: the comparison notices a run that converged nothing", func(t *testing.T) {
+	t.Run("must fail: the comparison catches a run that converged nothing", func(t *testing.T) {
 		_, converged := convergedYAML(t, true, true)
 		_, unconverged := convergedYAML(t, true, false)
 		assert.NotEqual(t, string(converged), string(unconverged),

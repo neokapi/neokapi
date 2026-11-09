@@ -447,7 +447,7 @@ type ConnectorStatusBatchResponse struct {
 // A dashboard row per connector otherwise costs a request each — and with
 // probe=1 a clone each. The response is keyed by connector id; ?probe applies
 // to the whole batch, and the per-connector route stays for a single deep
-// probe. A connector neither the service nor the config store knows lands in
+// probe. A connector that neither the service nor the config store lists lands in
 // `unknown` rather than failing the batch.
 func (s *Server) HandleConnectorStatusBatch(c echo.Context) error {
 	if s.Services == nil {

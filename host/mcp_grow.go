@@ -21,16 +21,16 @@ import (
 
 // Growing a project's context out of ordinary work (C-11), agent half.
 //
-// Most projects record nothing. What they know is in the heads of the people
-// who write them, and an agent reading such a project learns the same facts
-// every session and forgets them at the end of it. These tools are where that
+// Most projects record nothing. Their conventions live in the heads of the
+// people who write them, and an agent working in such a project has to work out
+// the same facts in every session. These tools are where that
 // goes instead: one small call per habit, cheap enough to make mid-task.
 //
 // context_note is the one recording tool, in parity with `kapi context note`:
-// what the agent noticed, what a person changed, and taking back a note of its
+// what the agent found, what a person changed, and taking back a note of its
 // own. It wraps the calls in host/contextops.go and adds no rule of its own.
 // What an agent may record is decided by core/contextop's policy, not here:
-// every note advises and none can fail a check. Keeping, dropping, widening and
+// checks report every note and none can fail. Keeping, dropping, widening and
 // resetting belong to a person, so this surface carries no tool for them.
 //
 // The actor is never the caller's to state. Kind is agent, the name is what the
@@ -192,7 +192,7 @@ func sessionClientName(req mcp.Request) string {
 
 // ─── What the write tools take ──────────────────────────────────────────────
 
-// contextNoteInput is one note: something an agent noticed while reading a
+// contextNoteInput is one note: something an agent found while reading a
 // project, wording a person changed, or the withdrawal of a note of its own.
 type contextNoteInput struct {
 	Text      string            `json:"text,omitempty" jsonschema:"the fact, in one sentence, in your own words"`
@@ -226,10 +226,10 @@ type contextSessionInput struct {
 type contextRecordOutput struct {
 	// Operation is the id, which is what `kapi context review --keep` takes.
 	Operation string `json:"operation"`
-	// Kind is what was recorded: observe for something noticed, correct for a
+	// Kind is what was recorded: observe for something found, correct for a
 	// change a person made, withdraw for a note taken back.
 	Kind string `json:"kind"`
-	// Status is what the operation counts as. `suggested` advises and fails
+	// Status is what the operation counts as. `suggested` is reported and fails
 	// nothing until a person keeps it; `contested` disagrees with the rules
 	// ContestedBy names.
 	Status string `json:"status"`
@@ -297,14 +297,14 @@ type contextSessionOutput struct {
 // as a rule now in force.
 func suggestionNext(op ContextOperation) string {
 	if op.Status == contextop.StatusContested {
-		return fmt.Sprintf("contested by %s: it advises beside the other side until a person chooses between them.",
+		return fmt.Sprintf("contested by %s: checks report it beside the other side until a person chooses between them.",
 			idList(op.ContestedBy))
 	}
 	if _, isRule := op.Rule(); isRule {
 		return fmt.Sprintf("a suggestion: every check reports it and none can fail on it. "+
 			"It is established when a person keeps it in review (`kapi context review --keep %s`).", contextop.ShortID(op.ID))
 	}
-	return "a suggestion: it advises whoever reads this project's context next, and a person may keep it in review."
+	return "a suggestion: whoever reads this project's context next sees it, and a person may keep it in review."
 }
 
 // idList renders operation ids as a person types them.
@@ -318,7 +318,7 @@ func idList(ids []string) string {
 
 // handleContextNote records one note. Which kind of note it is follows from
 // what the call carries: `withdraw` takes back an earlier one, `from` and `to`
-// record a change a person made, and anything else is something noticed.
+// record a change a person made, and anything else is something found.
 func (a *App) handleContextNote(ctx context.Context, req *mcp.CallToolRequest, in contextNoteInput) (*mcp.CallToolResult, contextRecordOutput, error) {
 	recipe, err := a.RequireMCPCallProject(in.Project)
 	if err != nil {
@@ -431,7 +431,7 @@ func (a *App) noteWithdraw(ctx context.Context, req *mcp.CallToolRequest, recipe
 	}
 	out := recordedOutput(op)
 	out.Recorded = "withdrew note " + id
-	out.Next = "withdrawn: it no longer advises, and the log keeps the record of it."
+	out.Next = "withdrawn: checks no longer report it, and the log keeps the record of it."
 	return out, nil
 }
 

@@ -47,7 +47,7 @@ import {
   useListNavigation,
   type DigestKind,
 } from "@neokapi/ui-primitives";
-import { NoticedBy } from "./NoticedBy";
+import { RecordedBy } from "./RecordedBy";
 import { opens, type ScreenNavigation } from "./port";
 import type {
   ContextActor,
@@ -795,7 +795,7 @@ function OptionRow({
           "an option's uses on Decide",
           { blocks: o.blocks, files: o.files },
         )}
-        {o.noticed_by && <NoticedBy who={o.noticed_by} nameOf={nameOf} />}
+        {o.recorded_by && <RecordedBy who={o.recorded_by} nameOf={nameOf} />}
       </span>
     </button>
   );
@@ -862,8 +862,8 @@ function Evidence({
           </span>
         ))}
       {d.kind !== "disagreement" && (
-        <span data-slot="decide-noticed" className="ml-auto text-[11px]">
-          <NoticedBy who={d.noticed_by} nameOf={nameOf} />
+        <span data-slot="decide-recorded" className="ml-auto text-[11px]">
+          <RecordedBy who={d.recorded_by} nameOf={nameOf} />
         </span>
       )}
     </div>

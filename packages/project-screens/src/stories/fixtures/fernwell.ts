@@ -17,7 +17,7 @@ export function digestItem(over: Partial<DigestItem> & { id: string }): DigestIt
     theme: "words",
     sentence: "",
     subject: { kind: "term" },
-    noticed_by: { kind: "agent", name: "claude", session: "s1" },
+    recorded_by: { kind: "agent", name: "claude", session: "s1" },
     at: ago(5),
     new: true,
     scope: "project",
@@ -33,14 +33,14 @@ export const SIGN_IN = digestItem({
   status: "contested",
   subject: { kind: "term", term: { term: "login", replacement: "sign in" } },
   quote: { path: "docs/account.md", quote: "Login to see your invoices." },
-  noticed_by: { kind: "agent", name: "claude", session: "s3" },
+  recorded_by: { kind: "agent", name: "claude", session: "s3" },
 });
 export const LOG_IN = digestItem({
   id: "0njy7pxnst00000000000000",
   status: "contested",
   subject: { kind: "term", term: { term: "login", replacement: "log in" } },
   quote: { path: "app/strings/en.json", quote: "Login" },
-  noticed_by: { kind: "agent", name: "codex", session: "s4" },
+  recorded_by: { kind: "agent", name: "codex", session: "s4" },
 });
 
 /** Two assistants disagree about one word. */

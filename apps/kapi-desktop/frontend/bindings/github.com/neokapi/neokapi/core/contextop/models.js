@@ -459,9 +459,9 @@ export const Kind = {
     $zero: "",
 
     /**
-     * KindObserve records something somebody noticed: a fact in prose, or the
+     * KindObserve records something somebody found in the files: a fact in prose, or the
      * form the project uses for a word with the forms it avoids, which is a
-     * term rule. It advises from the moment it is recorded.
+     * term rule. Checks report it from the moment it is recorded.
      */
     KindObserve: "observe",
 
@@ -927,8 +927,8 @@ export const Status = {
     $zero: "",
 
     /**
-     * StatusSuggested is an operation nothing has acted on. Its rule advises
-     * and never fails a check.
+     * StatusSuggested is an operation nothing has acted on. Checks report its
+     * rule and never fail on it.
      */
     StatusSuggested: "suggested",
 
@@ -942,7 +942,7 @@ export const Status = {
      * StatusContested is a rule that disagrees with another: two suggestions
      * naming different forms for one word, a suggestion that contradicts an
      * established rule, or an established rule a person's own correction
-     * reversed. It advises and fails no check until a person chooses.
+     * reversed. Checks report it and fail on none until a person chooses.
      * Record.ContestedBy names the other side.
      */
     StatusContested: "contested",

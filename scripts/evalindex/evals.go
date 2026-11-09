@@ -253,7 +253,7 @@ var evals = []Eval{
 		Covers: "The only lever on triggering, which is the skill's description: does an assistant reach for kapi on a content task, and leave it alone on a code task. " +
 			"Activation counts a Skill call or a kapi command, so an agent that reads the skill once and then works from it is not scored as a miss.",
 		Misses: "Triggering only. A scenario that fires and then does the job badly passes here; whether the work is right is skill-completion's question. " +
-			"One model on one day, and the negatives are five prompts rather than a sample of the code tasks a real assistant sees.",
+			"One model on one day, and the negatives are five prompts rather than a sample of the code tasks a real assistant gets.",
 		Settings:  "claude -p with a 4-turn cap, bypassPermissions, 3 repeats. Sampling follows the local CLI's defaults and is not pinned.",
 		Reproduce: "make skill-eval",
 		Data:      "web/src/pages/skill-eval/_skilleval.json",

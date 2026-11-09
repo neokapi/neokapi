@@ -24,11 +24,11 @@ describe("Start here", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Connect an assistant. kapi writes the project's rules where it reads them, and the assistant records what it notices.",
+        "Connect an assistant. kapi writes the project's rules where it reads them, and the assistant records its suggestions.",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Come back. What it noticed appears under What's new; keep what is right."),
+      screen.getByText("Come back. Its suggestions appear under What's new; keep the right ones."),
     ).toBeInTheDocument();
   });
 

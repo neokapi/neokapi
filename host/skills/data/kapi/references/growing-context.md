@@ -65,8 +65,9 @@ Attach evidence with `--seen-in` for the file and `--quote` for the wording.
 Term rules and corrections require evidence so reviewers can compare the
 proposal with its source.
 
-Two suggestions that name different forms for one word are **contested**: both
-advise, each names the other, and a person chooses one in `kapi context review`.
+Two suggestions that name different forms for one word are **contested**:
+checks report both, each names the other, and a person chooses one in
+`kapi context review`.
 
 One call records one thing. Do not batch a session's worth of notes into
 a single sentence, and do not wait until the end of the task to record them.
@@ -120,8 +121,8 @@ kapi context review --session s4f1c2      # only what one run suggested
 ```
 
 A person reviews whenever it suits them, in a terminal or in the Learned
-section of Kapi Desktop. Nothing you record waits on that review, because a
-suggestion advises from the moment it is recorded.
+section of Kapi Desktop. Nothing you record waits on that review, because
+checks report a suggestion from the moment it is recorded.
 
 ---
 

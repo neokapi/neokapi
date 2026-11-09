@@ -20,7 +20,7 @@ func NewLookCmd(a *App) *cobra.Command {
 With no path, look prints the project: the files kapi reads, the blocks in
 them, the rules in force, the findings kapi check reports, and the
 suggestions waiting for you in kapi rules. The first look at a project with
-no rules files what kapi sees in the files as suggestions. Inside a project,
+no rules files the patterns in its files as suggestions. Inside a project,
 kapi with no command prints the same. The last line names the next step: the
 first of deciding the suggestions, fixing what fails, connecting an assistant
 and sharing the rules that is left, or kapi check once all are done.

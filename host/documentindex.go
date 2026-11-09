@@ -87,7 +87,7 @@ func (d DocumentIndex) PathOf(key string) (string, bool) {
 // documentKey is DocumentIndex.Key for one project-relative path, asked of
 // the store for that path alone (state.WorkStore.DocumentKey), for a caller
 // naming a single document: resolving the whole index reads every document
-// the project knows, and a run that records each document it writes would
+// the project holds, and a run that records each document it writes would
 // read them all once per document. A store failure answers with the key the
 // path derives to, as the zero index does.
 func (a *App) documentKey(ctx context.Context, root, rel string) string {

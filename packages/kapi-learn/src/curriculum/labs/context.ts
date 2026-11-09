@@ -1,4 +1,4 @@
-// The context engine: the one lab that draws what the project knows while the
+// The context engine: the one lab that draws the project's context while the
 // commands change it. It runs in Compass, the multilingual sample, because
 // that is where every part of the graph has something to show: a voice and
 // terms in force at one point, a content memory that grows when the loop
@@ -24,9 +24,9 @@ export const contextEngine: Lab = {
   series: "context",
   position: 1,
   title: "The context engine",
-  tagline: "What the project knows, drawn as a graph that grows with the work.",
+  tagline: "The project's rules and decisions, drawn as a graph that grows with the work.",
   summary:
-    "kapi keeps what a project knows about its own content in one place: the voice it writes in, the words it uses and avoids, the content memory, and the record of every decision. Checks and translations read that graph, every decision feeds it, and an assistant gets the same answer a person does. This lab draws the graph above the terminal and takes the Compass project through one cycle: read the context in, converge, review, converge again. Each command adds something to the picture.",
+    "kapi keeps a project's context together: the voice it writes in, the words it uses and avoids, the content memory, and the record of every decision. Checks and translations read that graph, every decision feeds it, and an assistant gets the same answer a person does. This lab draws the graph above the terminal and takes the Compass project through one cycle: read the context in, converge, review, converge again. Each command adds something to the picture.",
   sample: "compass",
   lens: "context-graph",
   concepts: [
@@ -110,7 +110,7 @@ export const contextEngine: Lab = {
       id: "decide",
       title: "A review becomes a record",
       narration:
-        "Applying the change set establishes twenty blocks. Nothing is written into a target file; what changes is what the project knows: twenty Dutch blocks now carry a decision a person made, the edition's established share rises to match, and the decisions join the record at the bottom of the graph beside the imports.",
+        "Applying the change set establishes twenty blocks. Nothing is written into a target file; what changes is the project's record: twenty Dutch blocks now carry a decision a person made, the edition's established share rises to match, and the decisions join the record at the bottom of the graph beside the imports.",
       command: "kapi apply dutch.json",
       expect: ["20 applied"],
       focus: "record",

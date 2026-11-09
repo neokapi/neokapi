@@ -2,7 +2,7 @@ package host
 
 // kdiff — the format-aware reimagining of `diff`. Where the classic `diff`
 // aligns two files line by line over raw bytes, kdiff aligns the translatable
-// *blocks* of any format kapi understands, so a reflowed .docx, a re-zipped
+// *blocks* of any format kapi reads, so a reflowed .docx, a re-zipped
 // container, or a reordered JSON catalog never shows up as a diff — only the
 // prose that actually changed does.
 //

@@ -2,7 +2,7 @@
 id: c-11-context-operations
 sidebar_position: 11
 title: "C-11: Context operations"
-description: "Architecture decision: every change to a project's context is an appended operation carrying an actor, a subject, the evidence behind it and the governance it was made against. Suggestions advise at neutral severity and can never fail a check; a person keeping one establishes the rule and writes it into the subsystem that already reads it, and a reset sets every later operation aside. A rule holds at a point on typed axes and for a window of time, and the log can be read as of any instant."
+description: "Architecture decision: every change to a project's context is an appended operation carrying an actor, a subject, the evidence behind it and the governance it was made against. Checks report suggestions at neutral severity and never fail on one; a person keeping one establishes the rule and writes it into the subsystem that already reads it, and a reset sets every later operation aside. A rule holds at a point on typed axes and for a window of time, and the log can be read as of any instant."
 keywords: [context operations, suggestion, note, review, keep, drop, withdraw, contested, reset, widen, evidence, policy, actor, operation log, workspace, lifetime window, as-of fold, context atlas, architecture decision, neokapi]
 ---
 
@@ -139,9 +139,9 @@ subsequent operations to each subject:
 
 | Status | What it means | Answers |
 | --- | --- | --- |
-| `suggested` | nothing has acted on it | advises |
+| `suggested` | nothing has acted on it | reported |
 | `established` | a person kept, imported or wrote it, or a person's signal settled it | fails a check unless advisory |
-| `contested` | it disagrees with another rule, named in `ContestedBy` | advises |
+| `contested` | it disagrees with another rule, named in `ContestedBy` | reported |
 | `withdrawn` | its author took it back in the session that recorded it | silent |
 | `dropped` | a person set it aside, as a suggestion or as a rule in force | silent |
 | `reset` | a reset set it aside | silent |
@@ -163,7 +163,7 @@ form becomes the rule's term and the rest its forms. A rule whose avoided forms
 differ from the term only in case matches as written, so the rule about
 `quickcast` never fires on `Quickcast`.
 
-### Suggestions advise, established rules bind
+### Suggestions report; kept rules fail checks
 
 A suggestion or a contested rule is projected into checks as a suggested rule
 set (`profile.TermRuleSet.Suggested`). The matcher raises every hit against such
@@ -281,7 +281,7 @@ The fold marks a disagreement `contested` and names the other side in
 `ContestedBy`:
 
 - Two suggestions about the same word are both contested, each naming the
-  other. Both advise, and neither can be kept until a person chooses one:
+  other. Checks report both, and neither can be kept until a person chooses one:
   `host.App.ChooseContextSide` (`kapi context review --choose`) drops the
   rivals and keeps the chosen side, one operation per step.
 - A suggestion that contradicts an established rule is contested by the rule,
@@ -743,7 +743,7 @@ way ([C-03](c-03-context-store-and-graph.md)). A suggestion recorded on one
 machine and kept on another is therefore one history, whichever pulled first.
 
 The agent surface records and reads with two tools: `context_note`, which
-records what the session noticed, a person's change (`from`, `to`, `suggest`),
+records what the session found, a person's change (`from`, `to`, `suggest`),
 or the withdrawal of the session's own note (`withdraw`), with the same
 `point`, `valid_from` and `valid_to` the command line takes, and
 `context_session_summary`, which reports what one session recorded and what

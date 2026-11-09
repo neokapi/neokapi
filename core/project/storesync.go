@@ -168,7 +168,7 @@ type BlockStoreStamper interface {
 // A store that cannot answer it leaves decisions keyed on the path they were
 // made at, which is what happened before any of this existed.
 type DocumentAdopter interface {
-	// AdoptDocuments resolves the read against what the project knows and
+	// AdoptDocuments resolves the read against what the project holds and
 	// returns each path's durable key.
 	AdoptDocuments(ctx context.Context, current []reconcile.DocUnit) (map[string]string, error)
 }

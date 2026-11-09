@@ -75,7 +75,7 @@ describe("Decide as a list", () => {
     ).toEqual(["codex", "claude-code"]);
   });
 
-  it("lists every suggestion theme by theme and collection, on one line with who noticed it", () => {
+  it("lists every suggestion theme by theme and collection, on one line with who suggested it", () => {
     renderDigest();
     const ids = within(slot("digest-suggested")!)
       .getAllByRole("option")
@@ -198,7 +198,7 @@ describe("a suggestion", () => {
     const facts = Array.from(slot("digest-facts")!.querySelectorAll("dt")).map(
       (d) => d.textContent,
     );
-    expect(facts).toEqual(["Noticed by", "When", "Theme", "Collection", "Scope"]);
+    expect(facts).toEqual(["Suggested by", "When", "Theme", "Collection", "Scope"]);
     expect(slot("digest-facts")).toHaveTextContent("claude-code");
     expect(slot("digest-facts")).toHaveTextContent("kapimart-sample-claude-code");
     expect(slot("digest-facts")).toHaveTextContent("Names and spellings");

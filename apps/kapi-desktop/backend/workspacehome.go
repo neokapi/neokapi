@@ -24,7 +24,7 @@ import (
 // list here is every project this machine account works on, and a repository
 // set up from a terminal a minute ago is on it without anyone telling the app.
 //
-// The workspace is also how the app learns that something changed while it was
+// The workspace is also how the app finds out that something changed while it was
 // open. Every registration appends to the workspace's operation log, and the
 // log's head is one number this process reads on a timer (workspaceWatcher).
 // There is no channel to another kapi process and no service in the middle.

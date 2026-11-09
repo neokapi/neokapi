@@ -603,7 +603,7 @@ func (a *App) newCheckResolution(cmd Command, execution *checkExecution) (*check
 	if err != nil {
 		return nil, err
 	}
-	// The vocabulary the project decided travels with the profile: a term
+	// The vocabulary decided for the project travels with the profile: a term
 	// retired in the project's terms is a finding here, not only in retrieval.
 	// Resolved per file for the same reason the profile is; see checkTerms.
 	vocab, err := a.newCheckTerms(cmd)
@@ -913,7 +913,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	groups := opts.pointGroups(blocks, docBlocks)
 	for _, g := range groups {
 		mark := opts.execution.analyzerCount()
-		// Candidates advise. They run outside the analyzer, before it, so the
+		// Candidates only report. They run outside the analyzer, before it, so the
 		// gate never counts them and a point with nothing but candidates is
 		// still reported on. See advisoryDiagnostics.
 		if advisory := g.at.context.Advisory; len(advisory) > 0 {
@@ -1656,7 +1656,7 @@ func (t *checkTerms) coordinatesAt(point project.GovernancePoint) (map[string]st
 	return t.rules.coordinatesAt(point)
 }
 
-// ProjectTermsForFile resolves the vocabulary the project decided for one file:
+// ProjectTermsForFile resolves the vocabulary decided for one file:
 // the terms bound at the point that file sits at, or nil outside a project.
 //
 // It is what `kapi check` runs its vocabulary gate against, exported so an

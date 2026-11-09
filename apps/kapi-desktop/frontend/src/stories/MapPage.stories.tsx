@@ -46,7 +46,7 @@ const meta: Meta<typeof MapPage> = {
 export default meta;
 type Story = StoryObj<typeof MapPage>;
 
-/** An assistant noticed names, words and a way of writing; one disagreement waits. */
+/** An assistant suggested names, words and a way of writing; one disagreement waits. */
 export const SuggestionsPending: Story = {};
 
 /** The Map as drawn, with the deeper look's row in a given state. */

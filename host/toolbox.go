@@ -2,7 +2,7 @@ package host
 
 // Toolbox: format-aware reimaginings of the classic Unix text utilities —
 // cat, grep, sed, diff, plus a convert (conv) verb — that operate on the
-// text/content inside any format kapi understands (JSON catalogs, Markdown,
+// text/content inside any format kapi reads (JSON catalogs, Markdown,
 // HTML, Word documents, …) rather than raw bytes. They share kapi's
 // reader/writer pipeline, so `kgrep` greps the prose inside a .docx, `ksed`
 // rewrites it and saves the document back byte-for-byte, and `kconv`

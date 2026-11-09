@@ -93,7 +93,7 @@ func TestRulesDecideView_KapiMart(t *testing.T) {
 	assert.Equal(t, "Which one do your files use?", name.Question)
 	assert.Equal(t, "Quickcast", name.Label)
 	assert.True(t, name.Other)
-	assert.Equal(t, "agent", name.NoticedBy.Kind)
+	assert.Equal(t, "agent", name.RecordedBy.Kind)
 	require.NotNil(t, name.Seen)
 	assert.Equal(t, "Try Quick cast today.", name.Seen.Quote)
 	assert.Equal(t, "site/index.html", name.Seen.Path)
@@ -249,8 +249,8 @@ func TestDecideRule_ChoosesASide(t *testing.T) {
 	assert.Empty(t, d.ID)
 	require.Len(t, d.Options, 2)
 	for _, o := range d.Options {
-		require.NotNil(t, o.NoticedBy)
-		assert.Equal(t, "agent", o.NoticedBy.Kind)
+		require.NotNil(t, o.RecordedBy)
+		assert.Equal(t, "agent", o.RecordedBy.Kind)
 		assert.NotEmpty(t, o.Consequence)
 	}
 

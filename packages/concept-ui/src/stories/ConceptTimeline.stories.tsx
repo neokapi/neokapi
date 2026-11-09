@@ -33,7 +33,7 @@ export const Rich: Story = {
 
 /**
  * The framework-only path (a local SQLite terms): no revision log, so the
- * timeline is synthesised from what the terms store knows — create/update plus the
+ * timeline is synthesised from what the terms store holds — create/update plus the
  * status and relation changes inferred from validity windows. A caption marks
  * the degradation.
  */

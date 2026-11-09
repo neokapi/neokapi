@@ -1418,7 +1418,7 @@ export function GetProjectServer(tabID) {
  * Coverage is the CLI's own derivation (host.ProjectCoverageTally over
  * working-tree reads), so a target committed beside its source counts here
  * exactly as it counts at the terminal. Extracted totals come from the block
- * cache, which is what the store knows and the tree does not.
+ * cache, which the store holds and the tree does not.
  * 
  * If the project has never been extracted, the returned status has
  * HasData=false and zeroed coverage; this is a well-defined "no data yet"

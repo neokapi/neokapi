@@ -154,7 +154,7 @@ func rulesOf(report *check.Report) []string {
 // nothing. A write canary runs before any comment is written.
 //
 // The subtests named "must fail" break the write path on purpose and assert
-// that the run notices. Nothing in here skips.
+// that the run catches. Nothing in here skips.
 func TestProseP3_go(t *testing.T) {
 	t.Run("a finding is repaired through kapi apply and the check of the change clears it", func(t *testing.T) {
 		isolateCheckExecution(t)

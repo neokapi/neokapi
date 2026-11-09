@@ -24,7 +24,7 @@ function expectDigestItem(it: DigestItem) {
   expect(it.short).not.toBe("");
   expect(it.sentence).not.toBe("");
   expect(["names", "words", "writing", "memory"]).toContain(it.theme);
-  expect(ACTOR_KINDS).toContain(it.noticed_by.kind);
+  expect(ACTOR_KINDS).toContain(it.recorded_by.kind);
   expect(Number.isNaN(Date.parse(it.at))).toBe(false);
   expect(typeof it.keepable).toBe("boolean");
   expect(typeof it.droppable).toBe("boolean");
@@ -127,14 +127,14 @@ describe("rules-decide-view.json", () => {
     }
   });
 
-  it("asks each question with its options and who noticed it", () => {
+  it("asks each question with its options and who suggested it", () => {
     expect(decide.decisions.length).toBeGreaterThan(0);
     for (const d of decide.decisions as RuleDecision[]) {
       expect(DECISION_KINDS).toContain(d.kind);
       expect(d.question).not.toBe("");
       expect(d.label).not.toBe("");
       expect(Array.isArray(d.options)).toBe(true);
-      expectActor(d.noticed_by);
+      expectActor(d.recorded_by);
       if (d.options.length > 0) {
         expect(d.chosen).toBeGreaterThanOrEqual(0);
         expect(d.chosen).toBeLessThan(d.options.length);
@@ -146,7 +146,7 @@ describe("rules-decide-view.json", () => {
         expect(Number.isInteger(o.blocks) && Number.isInteger(o.files)).toBe(true);
         if (d.kind === "disagreement") {
           expect(o.id).toBeTruthy();
-          expectActor(o.noticed_by as ContextActor);
+          expectActor(o.recorded_by as ContextActor);
         }
       }
     }
@@ -154,8 +154,8 @@ describe("rules-decide-view.json", () => {
 
   it("holds an actor with no name", () => {
     const actors = decide.decisions.flatMap((d) => [
-      d.noticed_by,
-      ...d.options.flatMap((o) => (o.noticed_by ? [o.noticed_by] : [])),
+      d.recorded_by,
+      ...d.options.flatMap((o) => (o.recorded_by ? [o.recorded_by] : [])),
     ]);
     expect(actors.some((a) => a.name === undefined)).toBe(true);
   });

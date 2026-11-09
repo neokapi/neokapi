@@ -615,7 +615,7 @@ Tests assert three curation rules:
 - **No curated tool shadows a porcelain one.** Two names for one job means the
   caller picks wrong half the time.
 - **Nothing a person decides is agent-facing.** `context_note` records what an
-  agent may record, each as a suggestion: what it noticed, or a person's
+  agent may record, each as a suggestion: what it found, or a person's
   change (`from`, `to`, `suggest`). With `withdraw` it takes back what the same
   session recorded wrongly and nothing else. Keeping, dropping, widening,
   resetting and sharing are a person's, and the surface carries no tool for
@@ -755,8 +755,8 @@ between revising content and troubleshooting the command.
   measured number with a transcript behind it.
 - A project's context grows out of the work an assistant was doing anyway,
   because the habits are in the two places an assistant reads before it acts:
-  the skill body and the server's instructions. What it records advises and
-  never binds, so a session that records the wrong thing costs a person one
+  the skill body and the server's instructions. Checks report what it records
+  and never fail on it, so a session that records the wrong thing costs a person one
   decision rather than a bad rule in force.
 
 ## Related

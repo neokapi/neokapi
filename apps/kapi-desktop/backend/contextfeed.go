@@ -802,7 +802,7 @@ func deskPerson() contextop.Actor {
 // awaiting a decision that states a rule. A note and a correction that
 // suggested nothing are facts on the record with nothing to decide.
 func decidable(r contextop.Record) bool {
-	if !r.Status.Advises() || r.Established {
+	if !r.Status.Advisory() || r.Established {
 		return false
 	}
 	switch r.Subject.Kind {

@@ -248,7 +248,7 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 	advisory := make([]profile.TermRule, 0, len(records))
 	advised := map[string]bool{}
 	for _, r := range order(records) {
-		if !r.Status.Advises() || !r.Kind.Bears() {
+		if !r.Status.Advisory() || !r.Kind.Bears() {
 			continue
 		}
 		if !answersIn(r, req.Project) || !req.answers(r.Scope) {

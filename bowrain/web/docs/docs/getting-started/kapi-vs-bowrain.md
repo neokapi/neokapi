@@ -39,8 +39,8 @@ voice profiles, terms and content memory. Bowrain also provides:
 
 Kapi Desktop shows how far a project's context reaches as three rungs in the
 project's **Share** section. Every rung holds the same context: rules, terms,
-voice profiles, content memory and what assistants noticed. The rungs differ in
-who reads the context and where people decide it.
+voice profiles, content memory and the suggestions assistants recorded. The
+rungs differ in who reads the context and where people decide it.
 
 <AxisLadderDiagram
   rungs={[

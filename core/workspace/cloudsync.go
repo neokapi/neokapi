@@ -9,7 +9,7 @@ import (
 // A file-synchronizing client and a SQLite database in WAL mode disagree about
 // what a file is. SQLite keeps a database, a write-ahead log and a shared-memory
 // index consistent with each other through byte-range locks the operating system
-// enforces; a sync client copies each of the three whenever it notices a change,
+// enforces; a sync client copies each of the three whenever it detects a change,
 // takes no lock, and replaces a file under an open handle when a second machine
 // writes. The result is a database whose log describes a state the main file is
 // not in. It is reported as corruption long after the copy, in a process that did

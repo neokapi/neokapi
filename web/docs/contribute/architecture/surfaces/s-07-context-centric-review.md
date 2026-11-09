@@ -328,7 +328,7 @@ translation or arrives with a moved source is an edit and lands at
 ### Context is reviewed as discovery, in a digest
 
 A context suggestion (a term rule, a note about how the project writes, a
-wording pair) advises agents and checks from the moment it is recorded, and an
+wording pair) reaches agents and checks from the moment it is recorded, and an
 established rule is what fails a check ([C-11](../context/c-11-context-operations.md)).
 A suggestion nobody answers keeps being reported. Reviewing context means
 reading the suggestions and answering the few that need a person. Nothing waits

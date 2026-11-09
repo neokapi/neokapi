@@ -63,7 +63,7 @@ export function StartHere({
         <Step n={2}>
           <p>
             Connect an assistant. kapi writes the project&apos;s rules where it reads them, and the
-            assistant records what it notices.
+            assistant records its suggestions.
           </p>
           {hasOpenProject ? (
             <Button
@@ -87,7 +87,7 @@ export function StartHere({
           )}
         </Step>
         <Step n={3}>
-          <p>Come back. What it noticed appears under What&apos;s new; keep what is right.</p>
+          <p>Come back. Its suggestions appear under What&apos;s new; keep the right ones.</p>
           <Button size="sm" variant="outline" className="shrink-0" asChild>
             <a href={DESKTOP_OVERVIEW_URL} data-slot="start-here-how">
               How it works

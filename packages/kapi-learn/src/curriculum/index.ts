@@ -46,7 +46,7 @@ export const SERIES: readonly Series[] = [
   {
     id: "context",
     title: "The context engine",
-    tagline: "What the project knows, drawn as it grows.",
+    tagline: "The project's rules and decisions, drawn as they grow.",
     description:
       "One lab that draws the context graph above the terminal: the content and the point it sits at, the voice and terms in force there, the content memory and the record of decisions. Read the context in, converge, review, and watch what each command adds.",
     sample: "compass",

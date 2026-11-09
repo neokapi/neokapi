@@ -82,7 +82,7 @@ export const MAP_EMPTY: MapSummary = {
   suggestions: [],
 };
 
-/** An assistant noticed things, and one disagreement waits for a person. */
+/** An assistant suggested rules, and one disagreement waits for a person. */
 export const MAP_PENDING: MapSummary = {
   ...base,
   files: FILES.length,

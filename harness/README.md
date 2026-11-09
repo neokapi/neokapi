@@ -63,7 +63,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 34 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
 | 35 | `e2-communication-is-context`    | **explainer.** One rename becomes a different rule on each surface, and each rule belongs to a place |
 | 36 | `e2-assistant-run`               | The live run behind E2's beat 6: an assistant edits a help article and an API page, and kapi gives each its own rule |
-| 37 | `kapi-desktop-context`           | **desktop.** What two assistants noticed in the sample, read on its Map, kept, changed and settled in Decide, then the brief for a file, a note arriving live, and Share |
+| 37 | `kapi-desktop-context`           | **desktop.** What two assistants suggested in the sample, read on its Map, kept, changed and settled in Decide, then the brief for a file, a note arriving live, and Share |
 
 An **explainer** (`terminal: explainer`) has no capture: every scene is a
 `kind: diagram` beat drawn in React and SVG under `src/remotion/explainer/`,

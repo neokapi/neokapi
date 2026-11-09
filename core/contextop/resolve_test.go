@@ -123,7 +123,7 @@ func TestResolution_RuleSetsMarkCandidatesAdvisory(t *testing.T) {
 	sets := resolution.RuleSets()
 	require.Len(t, sets, 2)
 	assert.False(t, sets[0].Suggested, "a widened rule binds")
-	assert.True(t, sets[1].Suggested, "a candidate advises")
+	assert.True(t, sets[1].Suggested, "a candidate is reported")
 
 	hits := profile.MatchTermRulesInText(sets, "we leverage and utilise it")
 	require.Len(t, hits, 2)

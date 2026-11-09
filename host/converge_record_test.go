@@ -128,7 +128,7 @@ func TestConverge_LeavesACompleteTargetAloneWhenTheStoreHasNothing(t *testing.T)
 
 // TestConverge_DoesNotAbsorbItsOwnOutput: the targets a run materializes are the
 // store's own output, and reading them back as if a person had committed them
-// would let a stale materialization overwrite whatever the store learned since —
+// would let a stale materialization overwrite whatever the store recorded since —
 // a seed edit pulled in the meantime, an approval. The run stamps what it wrote,
 // so the next pass sees nothing new in it.
 func TestConverge_DoesNotAbsorbItsOwnOutput(t *testing.T) {

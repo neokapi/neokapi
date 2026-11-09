@@ -103,7 +103,7 @@ func withdrawable(t Transition) error {
 	if !sameActor(t.Actor, t.Target.Actor) {
 		return refuse(t, "only its author withdraws a suggestion, in the session that recorded it")
 	}
-	if !t.Target.Status.Advises() || t.Target.Established {
+	if !t.Target.Status.Advisory() || t.Target.Established {
 		return refuse(t, fmt.Sprintf("operation %s is %s, and only a suggestion can be withdrawn", t.Target.ID, t.Target.Status))
 	}
 	return nil

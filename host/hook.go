@@ -146,7 +146,7 @@ func (a *App) RunHookStop(cmd Command) error {
 	}
 
 	// A Stop hook's only channel is the decision JSON on stdout; anything the
-	// assistant sees on stderr is treated as a hook error. Reading content may
+	// assistant reads on stderr is treated as a hook error. Reading content may
 	// start the okapi-bridge subprocess, which logs to stderr — silence it (and
 	// any other gate chatter) so a clean gate failure never looks like a crash.
 	restore := silenceStderr()

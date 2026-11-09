@@ -27,7 +27,7 @@ suggestions:
   - the files addressing the reader as you, when most blocks with a personal
     pronoun do and none says we
 
-Each suggestion is noticed by kapi and waits for you in "kapi context review".
+Each suggestion is filed as suggested by kapi and waits for you in "kapi context review".
 Checks report it and none fails on it until you keep it. Nothing else is
 written: not the recipe, not a rules file. Without --ai no AI model is used.
 
@@ -36,8 +36,8 @@ term-extract and voice-infer, and files what it proposes the same way: the
 terms the files use, and the voice measures it reads, such as whom the files
 address and how long their sentences run. A term is filed only when the files
 write it as the model wrote it in two or more blocks. In a project that binds
-a voice, no voice measures are filed. These suggestions are noticed by kapi
-with the model's name. Without --ai the command needs no network; with it,
+a voice, no voice measures are filed. These suggestions are filed as
+suggested by kapi with the model's name. Without --ai the command needs no network; with it,
 kapi reaches the model's provider. With no AI provider configured, or no key
 for the one configured, --ai refuses before anything is filed; "kapi models
 setup" connects one.

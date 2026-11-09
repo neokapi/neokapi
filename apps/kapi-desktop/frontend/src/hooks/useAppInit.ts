@@ -61,7 +61,7 @@ function openInSystemBrowser(url: string): void {
  *
  * The workspace list follows other processes. A CLI run or an agent's MCP
  * server registering a project moves the workspace's operation log, the backend
- * watcher notices within a second and emits `workspace:changed`, and this
+ * watcher picks it up within a second and emits `workspace:changed`, and this
  * refetches. Nothing tells the app directly.
  *
  * Each project's context in numbers rides on its row of the workspace list,

@@ -462,7 +462,7 @@ func TestAnEditTravelsWithItsBlobs(t *testing.T) {
 }
 
 // observedEdit is a change made outside kapi to one block's Norwegian
-// edition, as every machine that notices it records it.
+// edition, as every machine that detects it records it.
 func observedEdit(round int) projector.Edit {
 	e := flowEdit("d-a", 1, round)
 	e.Actor = change.Actor{}
@@ -517,7 +517,7 @@ func TestARecordMergedUnderAnOlderIdLeavesTheRowsARebuildWrites(t *testing.T) {
 	assert.Equal(t, live, snapshot(t, toWS, toDB)["block_history"], "the rows a rebuild writes")
 }
 
-// TestTwoMachinesObservingTheSameChangesRecordThemOnce: each machine notices
+// TestTwoMachinesObservingTheSameChangesRecordThemOnce: each machine detects
 // the same two changes made outside kapi and syncs after each. The second
 // change extends the first under its address, which both logs agree on, so
 // the logs end with one operation per change.

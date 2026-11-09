@@ -56,7 +56,7 @@
 // The fts5 tag must be spelled in one comma-separated -tags flag together
 // with any other tag: `go` does not union repeated -tags flags, and the
 // content memory's FTS5 rebuild — one of the workloads measured here — is
-// exactly what notices when it is dropped.
+// exactly what detects it being dropped.
 package main
 
 import (

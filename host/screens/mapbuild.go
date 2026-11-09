@@ -21,7 +21,7 @@ func DigestItemFrom(it rulesview.Item) DigestItem {
 		Collection:    it.Collection,
 		Standing:      it.Standing,
 		Usage:         (*DigestUsage)(it.Usage),
-		NoticedBy:     it.NoticedBy,
+		RecordedBy:    it.RecordedBy,
 		At:            it.At,
 		New:           it.New,
 		Scope:         it.Scope,

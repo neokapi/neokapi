@@ -95,8 +95,8 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/ingest-for-ai", label: "Feed content to your AI" },
         {
           type: "doc",
-          id: "kapi/desktop/recipes/review-what-your-assistant-noticed",
-          label: "Review what your assistant noticed",
+          id: "kapi/desktop/recipes/review-your-assistants-suggestions",
+          label: "Review your assistant's suggestions",
         },
         {
           type: "doc",

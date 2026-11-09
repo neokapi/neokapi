@@ -264,13 +264,13 @@ export class DigestItem {
              */
             this["usage"] = undefined;
         }
-        if (!("noticed_by" in $$source)) {
+        if (!("recorded_by" in $$source)) {
             /**
-             * NoticedBy is who recorded it.
+             * RecordedBy is who recorded it.
              * @member
              * @type {contextop$0.Actor}
              */
-            this["noticed_by"] = (new contextop$0.Actor());
+            this["recorded_by"] = (new contextop$0.Actor());
         }
         if (!("at" in $$source)) {
             /**
@@ -375,8 +375,8 @@ export class DigestItem {
         if ("usage" in $$parsedSource) {
             $$parsedSource["usage"] = $$createField9_0($$parsedSource["usage"]);
         }
-        if ("noticed_by" in $$parsedSource) {
-            $$parsedSource["noticed_by"] = $$createField10_0($$parsedSource["noticed_by"]);
+        if ("recorded_by" in $$parsedSource) {
+            $$parsedSource["recorded_by"] = $$createField10_0($$parsedSource["recorded_by"]);
         }
         if ("widen_to" in $$parsedSource) {
             $$parsedSource["widen_to"] = $$createField17_0($$parsedSource["widen_to"]);
@@ -816,7 +816,7 @@ export class MapSummaryDTO {
         }
         if (!("suggested" in $$source)) {
             /**
-             * Suggested counts the suggestions that advise and wait for a person, and
+             * Suggested counts the suggestions waiting for a person, and
              * Conflicts the disagreements. Awaiting is the two together: the rows
              * under Suggestions.
              * @member
@@ -1551,12 +1551,12 @@ export class RuleDecisionDTO {
              */
             this["applies"] = "";
         }
-        if (!("noticed_by" in $$source)) {
+        if (!("recorded_by" in $$source)) {
             /**
              * @member
              * @type {ContextActorDTO}
              */
-            this["noticed_by"] = (new ContextActorDTO());
+            this["recorded_by"] = (new ContextActorDTO());
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1597,8 +1597,8 @@ export class RuleDecisionDTO {
         if ("seen" in $$parsedSource) {
             $$parsedSource["seen"] = $$createField12_0($$parsedSource["seen"]);
         }
-        if ("noticed_by" in $$parsedSource) {
-            $$parsedSource["noticed_by"] = $$createField14_0($$parsedSource["noticed_by"]);
+        if ("recorded_by" in $$parsedSource) {
+            $$parsedSource["recorded_by"] = $$createField14_0($$parsedSource["recorded_by"]);
         }
         if ("assignee" in $$parsedSource) {
             $$parsedSource["assignee"] = $$createField15_0($$parsedSource["assignee"]);
@@ -1671,11 +1671,11 @@ export class RuleOptionDTO {
         }
         if (/** @type {any} */(false)) {
             /**
-             * NoticedBy is who suggested the side, for a disagreement.
+             * RecordedBy is who suggested the side, for a disagreement.
              * @member
              * @type {ContextActorDTO | null | undefined}
              */
-            this["noticed_by"] = undefined;
+            this["recorded_by"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -1689,8 +1689,8 @@ export class RuleOptionDTO {
     static createFrom($$source = {}) {
         const $$createField7_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("noticed_by" in $$parsedSource) {
-            $$parsedSource["noticed_by"] = $$createField7_0($$parsedSource["noticed_by"]);
+        if ("recorded_by" in $$parsedSource) {
+            $$parsedSource["recorded_by"] = $$createField7_0($$parsedSource["recorded_by"]);
         }
         return new RuleOptionDTO(/** @type {Partial<RuleOptionDTO>} */($$parsedSource));
     }
