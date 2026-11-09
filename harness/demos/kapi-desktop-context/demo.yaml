@@ -38,9 +38,9 @@ narration:
     caption: Suggestions wait on the Overview.
     crop: { x: 0.28, y: 0.58, w: 0.46, h: 0.25 }
     text: >-
-      Click Try with KapiMart to open the sample. On the Overview, each row
-      under Suggestions is one suggestion. The Decide button shows the
-      count.
+      Click Try with KapiMart to open the sample. On the Overview, the
+      Suggestions list shows one row per suggestion. The Decide button shows
+      the count.
 
   - id: decide
     kind: desktop
