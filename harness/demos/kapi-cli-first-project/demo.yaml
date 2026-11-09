@@ -1,6 +1,6 @@
 id: kapi-cli-first-project
 title: Your first project, from the terminal
-subtitle: Open a folder, decide what becomes a rule, fix what fails, and share the rules.
+subtitle: Set up a project, choose your rules, fix the text that breaks them, and share the rules.
 kind: use-case
 publishAs: kapi-cli-first-project
 # The CLI half of "Your first project" (web/docs/kapi/get-started/first-project.mdx),
@@ -23,9 +23,9 @@ captureTimeoutSec: 240
 aspects:
   - one project, start to finish
   - the next step on every look
-  - rules an assistant reads
+  - rules Claude Code follows
 outro:
-  line: Run kapi init in a folder of your own.
+  line: Try it in a folder of your own.
   pointer: kapi init
 
 # A repository with a remote, so `kapi share --via git` has somewhere to push.
@@ -42,27 +42,27 @@ setup:
   - git push -q origin HEAD
 
 script:
-  - comment: A folder of help-center docs, a README and five pages. kapi has not run here yet.
+  - comment: A folder of help-center docs, with a README and five pages.
   - command: ls README.md docs
-  - comment: kapi init reads the folder, writes the recipe, and connects Claude Code.
+  - comment: Set up the project and Claude Code.
   - command: kapi init
-  - comment: kapi look shows the project as kapi reads it.
+  - comment: See a summary of the project.
   - command: kapi look
-  - comment: kapi rules asks about each suggestion. Press k to keep it.
+  - comment: Press k to keep each suggestion.
   - command: kapi rules
     keys: [k, k]
-  - comment: What an assistant reads for the guide now.
+  - comment: See the rules for the guide.
   - command: kapi context docs/guide.md
   - command: kapi look
   # The kept rule must fail here: this is the beat.
   - command: kapi check docs/guide.md
     expectExit: 3
-  - comment: kapi fix applies the replacement the rule names.
+  - comment: Fix the text that breaks a rule.
   - command: kapi fix
   - command: kapi look
-  - comment: kapi init already connected Claude Code, so connecting writes nothing new.
+  - comment: Claude Code is already set up.
   - command: kapi connect
-  - comment: Commit kapi's files, then share the rules through the repository.
+  - comment: Commit, then share the rules through git.
   - command: git add -A && git commit -qm "Add kapi"
   - command: kapi share --via git
   - command: kapi look
@@ -71,91 +71,90 @@ narration:
   - id: title
     kind: title
     text: >-
-      You have a folder of help-center docs and no kapi yet. In a few
-      commands you set the project up, decide what becomes a rule, fix what
-      fails, and share the rules with your team.
+      This is a folder of help-center docs. In this video you set up kapi,
+      choose your writing rules, fix the text that breaks them, and share the
+      rules with your team.
 
   - id: init
     kind: terminal
     through: 4
     highlight: { text: [collections, CLAUDE.md] }
-    caption: kapi init writes the recipe and connects Claude Code.
+    caption: Set up the project.
     text: >-
-      Run kapi init in the folder. It proposes collections from the files it
-      finds, writes the recipe, and connects Claude Code: the MCP server, the
-      skill, and the rules files AGENTS.md and CLAUDE.md.
+      Type kapi init. It lists the files kapi will read and saves the project
+      in kapi.yaml. It also sets up Claude Code, so Claude reads your rules
+      from CLAUDE.md.
 
   - id: look
     kind: terminal
     through: 6
     highlight: { text: ["kapi suggests 2", "Decide with"] }
-    caption: The first look records what your files already do.
+    caption: See the project and two suggested rules.
     text: >-
-      Run kapi look. You see six files, eighteen blocks and no rules yet. kapi
-      noticed two things in the files: they write email, not e-mail, and they
-      address the reader as you. The last line names your next step.
+      Type kapi look to see a summary. There are six files and no rules yet.
+      There are two suggestions, based on how the files are already written:
+      write email, not e-mail, and call the reader you. The last line tells you
+      what to do next.
 
   - id: decide
     kind: terminal
     through: 8
     highlight: { text: ["Which one do your files use?", "Kept 2"] }
-    caption: You decide what becomes a rule.
+    caption: Keep the rules you want.
     text: >-
-      Run kapi rules. Each question shows the evidence and what keeping it
-      does. Press k to keep the first, then k again for the second. Both are
-      now rules.
+      Type kapi rules. For each suggestion, you see where it was found and
+      what happens if you keep it. Press k to keep the first one, and k again
+      for the second. You now have two rules.
 
   - id: reads
     kind: terminal
     through: 10
     highlight: { text: ["Say this, not that"] }
-    caption: The rules go where an assistant reads them.
+    caption: See the rules for a file.
     text: >-
-      Ask what applies to the guide, and you get the same rules an assistant
-      reads in CLAUDE.md: email, not e-mail, and address the reader as you.
+      Type kapi context with a file name to see the rules for that file.
+      Claude Code sees the same rules in CLAUDE.md.
 
   - id: check
     kind: terminal
     through: 12
     highlight: { text: [FAILS, "Fix what fails"] }
-    caption: A kept rule fails the check.
+    caption: Find the text that breaks a rule.
     text: >-
-      Look again, and the next step is to fix what fails. kapi check finds
-      e-mail twice in the guide and exits three, so the same command works as
-      a CI step.
+      Type kapi look again. The next step is to fix what fails. kapi check
+      shows e-mail twice in the guide. It ends with an error, so you can use
+      the same command in CI to stop a change that breaks a rule.
 
   - id: fix
     kind: terminal
     through: 15
     highlight: { text: ["2 fixed", "Share the rules"] }
-    caption: kapi fix applies the replacement.
+    caption: Fix the text.
     text: >-
-      Run kapi fix. It replaces both words, leaves every other byte as it
-      was, and checks the file again. Now the look names the next step: share
-      the rules.
+      Type kapi fix. It changes e-mail to email in both places and leaves the
+      rest of the file as it was. The next step is to share the rules.
 
   - id: connect
     kind: terminal
     through: 17
     highlight: { text: [kept] }
-    caption: Claude Code is already connected.
+    caption: Claude Code is already set up.
     text: >-
-      kapi init connected Claude Code, so kapi connect keeps every file. Run
-      kapi connect cursor, or another assistant, to add one.
+      Claude Code is already set up, so kapi connect changes nothing. To add
+      another assistant, such as Cursor, type kapi connect cursor.
 
   - id: share
     kind: terminal
     through: 21
     highlight: { text: ["With your team", "Check with"] }
-    caption: The rules go to your team through git.
+    caption: Share the rules through git.
     text: >-
-      Commit kapi's files, then run kapi share with git. The rules go to a ref
-      outside every branch, so everyone who pulls the project reads the same
-      ones. The last look has nothing left but the check you run on every
-      change.
+      Commit the new files, then type kapi share with git. Everyone who pulls
+      the repository gets the same rules. Now kapi look only asks you to run
+      kapi check after each change.
 
   - id: outro
     kind: outro
     text: >-
-      Run kapi init in a folder of your own, and follow the last line of kapi
-      look.
+      Try it in a folder of your own. Type kapi init, then follow the last
+      line of kapi look.
