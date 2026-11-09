@@ -187,6 +187,13 @@ export interface ScriptStep {
    * the recording no longer shows what the demo says it shows.
    */
   expectExit?: number | number[];
+  /**
+   * Lines a person types into the command, one per question. A step with keys
+   * runs in a pseudo-terminal (scripts/pty-run.py), so a command that asks only
+   * at a terminal asks, and each line is typed once the question is on screen.
+   * The terminal echoes it, so the recording shows the answer beside its prompt.
+   */
+  keys?: string[];
 }
 
 /** How to capture one visual artifact after the Claude run finishes. */
