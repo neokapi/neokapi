@@ -46,6 +46,21 @@ func ReplacementFromNote(note string) string {
 	return strings.TrimSpace(rest)
 }
 
+// Replacement is what to say instead of the discouraged term t of c: the
+// wording t's note names (ReplacementFromNote), else the concept's preferred
+// term in t's language. The note comes first because a person recorded it for
+// this term, as in `kapi context review --keep`; the concept's preferred term
+// stands for every term of the concept that names nothing of its own.
+func Replacement(c Concept, t Term) string {
+	if r := ReplacementFromNote(t.Note); r != "" {
+		return r
+	}
+	if pref := c.PreferredTerm(t.Locale); pref != nil && !strings.EqualFold(pref.Text, t.Text) {
+		return pref.Text
+	}
+	return ""
+}
+
 // UsageNote is a term note as a reader sees it beside a finding: the note
 // itself, or "" when the note only names the replacement. The replacement is
 // reported on its own, so carrying such a note too would print it twice

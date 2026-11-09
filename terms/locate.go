@@ -334,38 +334,34 @@ func LookupLocales(loc model.LocaleID) []model.LocaleID {
 	return out
 }
 
-// PreferredTerm answers "what should this say instead" for a matched term: the
-// preferred term its concept carries in the same language, or the replacement
-// the term's own note names when the concept carries no preferred sibling.
+// PreferredTerm answers "what should this say instead" for a matched term, as
+// Replacement does: the replacement the term's own note names, else the
+// preferred term its concept carries in the same language.
 //
 // The match is consulted first and the store second, for a match whose concept
 // carries only its ID.
-//
-// The note is the last resort rather than the first, because a concept that
-// carries both words is the better record and the one `kapi apply` writes. It
-// still has to be read: a term decided before that, or imported from a
-// vocabulary that files each word separately, has the replacement in the note
-// and nowhere else, and a finding that names no alternative is the beat of the
-// correction loop that lands without its fix.
 func PreferredTerm(ctx context.Context, store Terminology, m TermMatch, loc model.LocaleID) (string, error) {
+	if r := ReplacementFromNote(m.Term.Note); r != "" {
+		return r, nil
+	}
 	if pref := m.Concept.PreferredTerm(loc); pref != nil && pref.Text != "" {
 		return pref.Text, nil
 	}
 	if m.Concept.ID == "" || len(m.Concept.Terms) > 0 {
 		// Nothing to look up, or the concept was whole and named none.
-		return ReplacementFromNote(m.Term.Note), nil
+		return "", nil
 	}
 	full, found, err := store.GetConcept(ctx, m.Concept.ID)
 	if err != nil {
 		return "", fmt.Errorf("read concept %s: %w", m.Concept.ID, err)
 	}
 	if !found {
-		return ReplacementFromNote(m.Term.Note), nil
+		return "", nil
 	}
 	if pref := full.PreferredTerm(loc); pref != nil && pref.Text != "" {
 		return pref.Text, nil
 	}
-	return ReplacementFromNote(m.Term.Note), nil
+	return "", nil
 }
 
 // Hit presents the occurrence as a word-rule hit, so a consumer can pass it

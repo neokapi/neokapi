@@ -5,9 +5,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/contextop"
-	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,18 +85,6 @@ func TestSayThisNotThatMergesABareWordingIntoAnAdvisoryLine(t *testing.T) {
 	require.Equal(t, 2, total)
 	assert.Equal(t, []string{"basket"}, rules[1].Not)
 	assert.False(t, rules[1].Advisory)
-}
-
-// A discouraged term standing in a concept of its own names its replacement
-// in its note, and the answer reads it there as the check does.
-func TestDiscouragedReplacementReadsTheNote(t *testing.T) {
-	c := terms.Concept{ID: "leverage", Terms: []terms.Term{
-		{Text: "leverage", Locale: "en", Status: model.TermForbidden, Note: terms.ReplacementNote("use")},
-	}}
-	assert.Equal(t, "use", discouragedReplacement(c, c.Terms[0]))
-
-	c.Terms = append(c.Terms, terms.Term{Text: "rely on", Locale: "en", Status: model.TermPreferred})
-	assert.Equal(t, "rely on", discouragedReplacement(c, c.Terms[0]), "the preferred term comes first")
 }
 
 // The text answer: the voice brief, one list of word rules, the suggestions
