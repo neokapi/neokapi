@@ -238,10 +238,10 @@ function Quote({ text, path }: { text: string; path: string }) {
   );
 }
 
-function NoticedBy({ actor, name, how }: { actor: string; name?: string; how: string }) {
+function RecordedBy({ actor, name, how }: { actor: string; name?: string; how: string }) {
   return (
     <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 text-[11px]">
-      <span className="text-muted-foreground">Noticed by</span>
+      <span className="text-muted-foreground">Suggested by</span>
       <span className="flex items-center gap-1.5 text-sm">
         <ActorMark actor={actor} name={name} size="sm" decorative />
         <span>
@@ -283,7 +283,7 @@ function ConflictDetail({ row }: { row: Row & { sides: [Side, Side] } }) {
                 <s className="font-normal text-muted-foreground">not {side.not}</s>
               </p>
               <Quote text={side.quote} path={side.path} />
-              <NoticedBy actor={side.actor} how={side.how} />
+              <RecordedBy actor={side.actor} how={side.how} />
               <div className="flex flex-wrap items-center gap-1.5">
                 <Button size="sm" variant={i === 0 ? "default" : "outline"}>
                   Choose this side
@@ -342,7 +342,7 @@ function SuggestionDetail({ row }: { row: Row }) {
       }
     >
       {row.quote && row.path && <Quote text={row.quote} path={row.path} />}
-      <NoticedBy
+      <RecordedBy
         actor={row.actor}
         name={row.name}
         how={established ? `kept ${row.when}` : (row.when ?? "")}
@@ -356,7 +356,7 @@ function Detail({ row }: { row: Row | undefined }) {
     return (
       <ListDetailEmpty
         title="Choose a suggestion"
-        description="Its wording, where it was seen and who noticed it appear here."
+        description="Its wording, where it was seen and who suggested it appear here."
       />
     );
   }
@@ -412,7 +412,7 @@ function WhatsNew({
   );
 }
 
-/** The disagreement selected: two sides, each with its evidence and who noticed it. */
+/** The disagreement selected: two sides, each with its evidence and who suggested it. */
 export const Conflict: Story = {
   name: "What's new: a disagreement",
   render: () => <WhatsNew initial="c1" />,

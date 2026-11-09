@@ -688,7 +688,7 @@ func (v *pointResolver) key(pt project.GovernancePoint) string {
 	return rc.Ref().String()
 }
 
-// termsAt returns the vocabulary the project decided for this file's point —
+// termsAt returns the vocabulary decided for this file's point —
 // what `kapi check` runs its gate against.
 //
 // A surface passing no terminology reports only what a voice profile forbids

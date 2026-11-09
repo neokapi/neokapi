@@ -79,7 +79,7 @@ const KapiCards: Card[] = [
     description: translate({
       id: "home.kapi.desktop.description",
       message:
-        "Open a folder. The Map shows your files, the rules in force and what an assistant noticed. Decide what becomes a rule, then open a file and fix a finding in place.",
+        "Open a folder. The Map shows your files, the rules in force and what an assistant suggested. Decide what becomes a rule, then open a file and fix a finding in place.",
     }),
     link: "/kapi/desktop/overview",
     linkText: translate({ id: "home.kapi.desktop.link", message: "Kapi Desktop" }),

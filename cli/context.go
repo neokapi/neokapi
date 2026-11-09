@@ -12,7 +12,7 @@ import (
 // `kapi context` is split by audience. A person meets what applies to a file
 // (`kapi context <path>`), what the project says about a word (search), the
 // suggestions waiting for a decision (review), sharing (sync) and going back
-// to an earlier state (reset). An assistant records what it noticed (note) and
+// to an earlier state (reset). An assistant records its suggestions (note) and
 // reads back what its session did (log), listed apart under "For assistants".
 // The maintenance verbs live under `kapi store`.
 //

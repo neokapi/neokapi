@@ -464,7 +464,7 @@ func stampedFingerprint(t *testing.T, cfg tools.AITranslateConfig) string {
 // TestContextFingerprintTracksTheContextNotTheEngine is the property that makes
 // the stamp mean something. Profile/ProfileVersion pin the profile, but
 // terminology reaches the tool separately and carries no version — so the
-// fingerprint is what notices the terms moving. It must move when the governing
+// fingerprint is what detects the terms moving. It must move when the governing
 // context moves, and must NOT move when only the engine does: a stamp that
 // changed on a model swap would be useless as a statement about governance.
 func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {

@@ -1,18 +1,18 @@
 ---
-id: review-what-your-assistant-noticed
-title: "Review what your assistant noticed"
-sidebar_label: "Review what your assistant noticed"
+id: review-your-assistants-suggestions
+title: "Review your assistant's suggestions"
+sidebar_label: "Review your assistant's suggestions"
 description: "Open the KapiMart sample in Kapi Desktop and answer one question per suggestion two assistant sessions left on it: keep, not a rule or later, see the kept rule in what the assistant reads, and reset to before a session."
 keywords: [Kapi Desktop, what's new, decide, map, suggestion, keep, not a rule, later, disagreement, assistant, history, reset, sample]
 ---
 
 import { ThemedImage } from "@neokapi/docs-shared";
 
-# Review what your assistant noticed
+# Review your assistant's suggestions
 
 **Goal:** practise the loop you run after every assistant session, on a
 sample project where nothing you do touches your own work. You decide about what two assistants
-noticed in the KapiMart sample, see a kept rule reach the assistant, and go
+suggested in the KapiMart sample, see a kept rule reach the assistant, and go
 back to before a session.
 
 The sample arrives with the notes already recorded, so no model runs and you
@@ -28,7 +28,7 @@ else. For what each surface is, see the [overview](/kapi/desktop/overview).
    files: claude-code first, then codex.
 2. **Read the news on the home.** **What's new** has a row for KapiMart. It
    starts with the mark of the assistant that worked there last, CX for codex,
-   and carries a chip for each kind of thing it noticed, such as "1 name" and
+   and carries a chip for each kind of thing it suggested, such as "1 name" and
    "1 word". Because the two assistants disagree about one wording, the row
    adds a highlighted "1 needs you" chip and its button reads **Decide**.
 3. **Open Decide.** Click **Decide**. The project opens on **KapiMart ·
@@ -66,10 +66,10 @@ else. For what each surface is, see the [overview](/kapi/desktop/overview).
    and the line above the actions says what a check reports once you keep it.
    Press `k`.
 7. **Mark one as not a rule.** Select the note about how the store copy
-   addresses the shopper and press `n`, or click **Not a rule**. It stops
-   advising at once.
+   addresses the shopper and press `n`, or click **Not a rule**. Checks
+   stop reporting it at once.
 8. **Leave one for later.** Select *PayPal* and press `l`, or click **Later**.
-   kapi records nothing: the suggestion keeps advising, and Decide asks about
+   kapi records nothing: checks keep reporting the suggestion, and Decide asks about
    it again the next time you open it.
 9. **Look up the file the evidence came from.** Select any remaining
    suggestion and click the file under **Seen in**. **Search** opens standing at
@@ -112,6 +112,6 @@ make it.
 ## Next
 
 - [Connect an assistant](/kapi/desktop/recipes/connect-an-assistant): put
-  your own assistant on a project, so it records what it notices.
+  your own assistant on a project, so it records its suggestions.
 - [Share context with your team](/kapi/desktop/recipes/share-context-with-your-team):
   let every machine read the rules you kept.

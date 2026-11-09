@@ -306,7 +306,7 @@ func (st *decideState) counts() (rules, suggested, narrowed int) {
 	}
 	for _, r := range st.records {
 		if r.Project != st.key || !r.Kind.Bears() || r.Kind == contextop.KindImport || r.Established ||
-			!r.Status.Advises() || r.Subject.Kind == contextop.SubjectNone {
+			!r.Status.Advisory() || r.Subject.Kind == contextop.SubjectNone {
 			continue
 		}
 		suggested++

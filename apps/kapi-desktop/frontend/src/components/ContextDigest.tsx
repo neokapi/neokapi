@@ -5,8 +5,8 @@
 // disagreement), Suggested (every suggestion, theme by theme), Established
 // (rules that came into force since the person last looked), Earlier (rules
 // in force from before that, collapsed) and Drift. The detail pane holds the
-// selected item's evidence, who noticed it and when, and the decisions open
-// on it. A suggestion nobody answers keeps advising, so nothing here counts
+// selected item's evidence, who suggested it and when, and the decisions open
+// on it. Checks keep reporting a suggestion nobody answers, so nothing here counts
 // unread work and nothing has to be cleared.
 //
 // The keys act on the selected row: j and k (and the arrows) move, a keeps a
@@ -36,7 +36,7 @@ import {
 } from "@neokapi/ui-primitives";
 import type { ContextDigest, DigestItem } from "../types/api";
 import { defaultRowKey, digestRows, nextRowKey, type DigestRow } from "../lib/digestRows";
-import { ConflictLine, NoticedMark, RuleLine, themeLabel } from "@neokapi/project-screens";
+import { ConflictLine, RecordedMark, RuleLine, themeLabel } from "@neokapi/project-screens";
 import { DigestDetail, DigestNothingSelected, type DigestChange } from "./ContextDigestDetail";
 
 export { RuleSentence } from "@neokapi/project-screens";
@@ -400,18 +400,18 @@ export function ContextDigestView({
   );
 }
 
-/** One row of the list: what kind of thing it is, the rule on one line, and who noticed it. */
+/** One row of the list: what kind of thing it is, the rule on one line, and who suggested it. */
 function DigestListRow({ row, decided }: { row: DigestRow; decided: boolean }) {
   const { item } = row;
   let trailing: React.ReactNode;
   if (row.conflict) {
     trailing = row.conflict.sides.map((side) => (
-      <NoticedMark key={side.id} who={side.noticed_by} />
+      <RecordedMark key={side.id} who={side.recorded_by} />
     ));
   } else if (row.group === "established" || row.group === "earlier") {
     trailing = <KeptBy item={item} />;
   } else if (row.group === "suggested") {
-    trailing = <NoticedMark who={item.noticed_by} />;
+    trailing = <RecordedMark who={item.recorded_by} />;
   }
   return (
     <ListDetailItem
@@ -432,7 +432,7 @@ function DigestListRow({ row, decided }: { row: DigestRow; decided: boolean }) {
 /** How a rule in force came to be, as the muted caption at the end of its row. */
 function KeptBy({ item }: { item: DigestItem }) {
   const how = item.how?.[0];
-  const who = item.noticed_by;
+  const who = item.recorded_by;
   const text = how || (who.kind === "person" ? who.name || t("you") : who.name);
   if (!text) return null;
   return <span className="max-w-32 truncate text-[11px] text-muted-foreground">{text}</span>;
@@ -481,7 +481,7 @@ function DigestEmpty({
               : t("Nothing to review")
           }
           description={t(
-            "Every rule kapi holds for this project is settled. What an assistant notices next appears here.",
+            "Every rule kapi holds for this project is settled. New suggestions from your assistants appear here.",
           )}
         />
       </div>
@@ -492,7 +492,7 @@ function DigestEmpty({
       <EmptyState
         title={t("Nothing is recorded yet")}
         description={t(
-          "When you or an assistant working here notice a name, a word the project avoids or how it addresses its readers, it appears here. It advises assistants and checks from the moment it is recorded.",
+          "When you or an assistant working here record a name, a word the project avoids or how it addresses its readers, it appears here. Assistants and checks see it from the moment it is recorded.",
         )}
         action={
           onConnectAssistant && (

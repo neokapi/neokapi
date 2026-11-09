@@ -1498,10 +1498,10 @@ function recordLiveNote(): void {
 }
 
 /**
- * What an assistant noticed, and what the person decides.
+ * What an assistant suggested, and what the person decides.
  *
  * The sample arrives with two assistant sessions (backend/sample/session.go):
- * claude-code noticed names and a word and recorded a correction a person
+ * claude-code suggested names and a word and recorded a correction a person
  * made, and codex took the other side of that correction. The walk opens the
  * sample from the Open screen and reads what waits on its Overview, opens Decide
  * from there, settles the disagreement by picking a side and pressing `k`,
@@ -1557,7 +1557,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   await landOnHome(page);
 
   // Try with KapiMart scaffolds the sample with its two sessions and opens it
-  // on the Overview, whose list holds what the assistants noticed and nobody has
+  // on the Overview, whose list holds what the assistants suggested and nobody has
   // decided, the disagreement first. The Decide button counts them.
   await beatEls("map", map, async () => {
     await humanClick(page, page.getByTestId("sample-kapimart"));

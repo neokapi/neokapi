@@ -42,7 +42,7 @@ const meta: Meta<typeof MapView> = {
 export default meta;
 type Story = StoryObj<typeof MapView>;
 
-/** An assistant noticed names, words and a way of writing; one disagreement waits. */
+/** An assistant suggested names, words and a way of writing; one disagreement waits. */
 export const SuggestionsPending: Story = {};
 
 /** Suggestions and no disagreement: the Decide button carries the count alone. */

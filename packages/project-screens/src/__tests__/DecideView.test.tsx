@@ -89,7 +89,7 @@ describe("Decide's question", () => {
     expect(slot("decide-quote")!.textContent).toBe("Our business plan.");
     expect(slot("decide-open-file")!.textContent).toBe("about.html");
     expect(slot("decide-open-file")!.getAttribute("title")).toBe("site/about.html");
-    expect(slot("decide-noticed")!.textContent).toContain("claude-code");
+    expect(slot("decide-recorded")!.textContent).toContain("claude-code");
   });
 
   it("gives each side of a disagreement its own consequence line", () => {
@@ -278,19 +278,19 @@ describe("where Decide leads", () => {
   it("shows a person with no name by the name the host gives", () => {
     const view: RulesDecideView = {
       ...WORD_VIEW,
-      decisions: [{ ...WORD_DECISION, noticed_by: { kind: "person" } }],
+      decisions: [{ ...WORD_DECISION, recorded_by: { kind: "person" } }],
     };
     renderDecide(view, { nameOf: () => "Ada Lovelace" });
-    expect(slot("decide-noticed")!.textContent).toContain("Ada Lovelace");
+    expect(slot("decide-recorded")!.textContent).toContain("Ada Lovelace");
   });
 
   it("shows a person with no name as you when the host gives none", () => {
     const view: RulesDecideView = {
       ...WORD_VIEW,
-      decisions: [{ ...WORD_DECISION, noticed_by: { kind: "person" } }],
+      decisions: [{ ...WORD_DECISION, recorded_by: { kind: "person" } }],
     };
     renderDecide(view);
-    expect(slot("decide-noticed")!.textContent).toContain("you");
+    expect(slot("decide-recorded")!.textContent).toContain("you");
   });
 });
 

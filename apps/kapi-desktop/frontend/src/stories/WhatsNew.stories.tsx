@@ -48,7 +48,7 @@ const dark = { theme: "dark" };
 
 /**
  * One project with four new items while claude-code is working in it: its
- * mark, a working chip with a live dot, and a chip for each kind it noticed.
+ * mark, a working chip with a live dot, and a chip for each kind it suggested.
  */
 export const OneProjectWorking: Story = { args: { standings: ONE_WORKING } };
 export const OneProjectWorkingDark: Story = { args: OneProjectWorking.args, globals: dark };
@@ -62,7 +62,7 @@ export const SeveralProjects: Story = { args: { standings: SEVERAL } };
 export const SeveralProjectsDark: Story = { args: SeveralProjects.args, globals: dark };
 
 /**
- * A session that noticed one of every kind, and a project whose latest session
+ * A session that suggested one of every kind, and a project whose latest session
  * said nothing about kinds, so its chip counts its suggestions.
  */
 export const EveryKind: Story = {

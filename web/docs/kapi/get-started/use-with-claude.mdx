@@ -114,7 +114,7 @@ not use. Name one with `kapi connect <assistant>`, or choose with
 
 ```bash
 kapi init --agents claude-code,cursor   # exactly these
-kapi init --agents all                  # every agent kapi knows
+kapi init --agents all                  # every agent kapi supports
 kapi init --agents none                 # write no agent configuration
 ```
 
@@ -142,7 +142,7 @@ credential for attended work: Claude writes, kapi applies and checks.
 | You work in… | Use | How it reaches kapi |
 |---|---|---|
 | **Chat** (Claude Code, plain-language prompts) | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the checks pass |
-| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | `context_read` for a file the rules files do not cover, `context_note` for what it notices, and `check_file`; `--tools` adds [more sets](/reference/mcp#available-tools) |
+| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | `context_read` for a file the rules files do not cover, `context_note` for what it suggests, and `check_file`; `--tools` adds [more sets](/reference/mcp#available-tools) |
 | **CI** (no assistant in the loop) | the **CLI** directly | `kapi check` / `kapi check --ship` exit non-zero, failing the build |
 
 <details>

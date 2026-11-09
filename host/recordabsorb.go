@@ -30,7 +30,7 @@ import (
 // leaves every pair that a venue approved after the seed was written living in
 // exactly one place — the per-locale target artifact in git — with nothing that
 // reads it back. The next convergence from a cold store then produces less than
-// the artifact it overwrites, and only a report notices.
+// the artifact it overwrites, and only a report shows it.
 //
 // So after the seeds compile, the target documents themselves are absorbed: each
 // committed target is paired with its source through the collection's own
@@ -550,7 +550,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 //
 // Without it a convergence launders its own output back in: the targets it
 // materializes are, to the next run, artifacts it has never seen, so they read
-// as a statement from git and are absorbed over whatever the store learned in
+// as a statement from git and are absorbed over whatever the store recorded in
 // the meantime — a seed edit pulled since, an approval. What the loop wrote is
 // by definition already in the store; only a target that changed OUTSIDE the
 // loop carries anything new.

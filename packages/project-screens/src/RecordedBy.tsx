@@ -4,13 +4,13 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { ActorMark } from "@neokapi/ui-primitives";
 import type { DigestItem } from "./types";
 
-type Actor = DigestItem["noticed_by"];
+type Actor = DigestItem["recorded_by"];
 
 /**
  * The mark for who recorded an item: a person by their initials, an assistant
  * by its host's letters and hue, a kapi tool by its own name.
  */
-export function NoticedMark({ who, decorative }: { who: Actor; decorative?: boolean }) {
+export function RecordedMark({ who, decorative }: { who: Actor; decorative?: boolean }) {
   if (who.kind === "person") {
     return <ActorMark actor="person" name={who.name} size="sm" decorative={decorative} />;
   }
@@ -31,7 +31,7 @@ export function toolName(name?: string): string {
  * The name a person is shown by on a host where many members work: the name
  * the host's member list holds for the id or handle the actor carries. A
  * person with no name is "A member", never the reader. An assistant or a
- * tool is left to NoticedBy.
+ * tool is left to RecordedBy.
  */
 export function memberName(actor: Actor, nameOf: (id: string) => string): string | undefined {
   if (actor.kind !== "person") return undefined;
@@ -44,14 +44,14 @@ export function memberName(actor: Actor, nameOf: (id: string) => string): string
  * nameOf gives the name a person is shown by; a person it names nothing for,
  * and with no name of their own, is "you".
  */
-export function NoticedBy({
+export function RecordedBy({
   who,
   nameOf,
 }: {
   who: Actor;
   nameOf?: (who: Actor) => string | undefined;
 }) {
-  const mark = <NoticedMark who={who} decorative />;
+  const mark = <RecordedMark who={who} decorative />;
   let name: React.ReactNode;
   if (who.kind === "agent") name = who.name || t("an assistant");
   else if (who.kind === "tool") name = toolName(who.name);

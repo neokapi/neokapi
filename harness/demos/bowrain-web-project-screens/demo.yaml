@@ -44,7 +44,7 @@ narration:
     text: >-
       Opening a project lands on its Map. The counts read files, blocks, rules
       and findings. Each row under What your files do is something an
-      assistant noticed and nobody has decided, and the Decide button counts
+      assistant suggested and nobody has decided yet, and the Decide button counts
       them.
 
   - id: run

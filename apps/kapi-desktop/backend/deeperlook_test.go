@@ -103,8 +103,8 @@ func TestDeeperLook_FilesWhatTheMapShows(t *testing.T) {
 	require.Len(t, after.Suggestions, 7)
 	for _, row := range after.Suggestions {
 		assert.Equal(t, "suggested", row.Group)
-		assert.Equal(t, "tool", string(row.Item.NoticedBy.Kind), row.Item.ID)
-		assert.Equal(t, aiprovider.DemoModelName, row.Item.NoticedBy.Name, "the queue names the model beside kapi")
+		assert.Equal(t, "tool", string(row.Item.RecordedBy.Kind), row.Item.ID)
+		assert.Equal(t, aiprovider.DemoModelName, row.Item.RecordedBy.Name, "the queue names the model beside kapi")
 		assert.Positive(t, row.Files, row.Item.ID)
 	}
 

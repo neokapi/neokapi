@@ -177,7 +177,7 @@ func TestSuggestFromFiles_SpellingFiledByKapi(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, SuggestActor, op.Actor)
 	assert.Equal(t, contextop.KindObserve, op.Kind)
-	assert.Equal(t, contextop.StatusSuggested, op.Status, "it advises and fails nothing until a person keeps it")
+	assert.Equal(t, contextop.StatusSuggested, op.Status, "it is reported and fails nothing until a person keeps it")
 	assert.False(t, op.Established)
 	rule, ok := op.Rule()
 	require.True(t, ok)
@@ -204,7 +204,7 @@ func TestSuggestFromFiles_SpellingFiledByKapi(t *testing.T) {
 	assert.Equal(t, 1, item.Usage.RejectedCount)
 	var text strings.Builder
 	require.NoError(t, digest.FormatText(&text))
-	assert.Contains(t, text.String(), "noticed by kapi\n")
+	assert.Contains(t, text.String(), "suggested by kapi\n")
 }
 
 func TestSuggestFromFiles_PackWords(t *testing.T) {

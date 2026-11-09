@@ -41,7 +41,7 @@ func TestSeedSessions_TheDigestOnFirstOpen(t *testing.T) {
 	require.Len(t, d.Conflicts, 1, "Needs you")
 	var sides []string
 	for _, side := range d.Conflicts[0].Sides {
-		sides = append(sides, side.NoticedBy.Name+": "+side.Sentence)
+		sides = append(sides, side.RecordedBy.Name+": "+side.Sentence)
 	}
 	assert.ElementsMatch(t, []string{
 		"claude-code: Write sign in, not log in.",

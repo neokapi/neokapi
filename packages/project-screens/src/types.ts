@@ -145,7 +145,7 @@ export interface DigestItem {
   collection?: string;
   standing?: string;
   usage?: DigestUsage;
-  noticed_by: { kind: string; name?: string; session?: string };
+  recorded_by: { kind: string; name?: string; session?: string };
   at: string;
   /** Recorded (or established) after the person last looked. */
   new: boolean;
@@ -209,7 +209,7 @@ export interface RuleOption {
   /** What keeping this option does. */
   consequence: string;
   /** Who suggested the side, for a disagreement. */
-  noticed_by?: ContextActor;
+  recorded_by?: ContextActor;
 }
 
 /** One question Decide asks about a suggestion (RuleDecisionDTO), as `kapi rules` asks it. */
@@ -238,7 +238,7 @@ export interface RuleDecision {
   seen?: ContextEvidence;
   /** Where a kept rule holds. */
   applies: string;
-  noticed_by: ContextActor;
+  recorded_by: ContextActor;
   /** The member the question is assigned to, where the host assigns questions. */
   assignee?: ContextActor;
   /** The assigned member's user id, for a picker among the members. */

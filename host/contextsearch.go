@@ -113,7 +113,7 @@ type ContextSearchResult struct {
 	Profiles []ContextProfileHit `json:"profiles,omitempty"`
 	// Suggestions are what somebody recorded about the word and nobody has
 	// established: suggested term rules and notes that mention it, and the
-	// rules a disagreement contests. They advise and fail no check.
+	// rules a disagreement contests. Checks report them and fail on none.
 	Suggestions []ContextSuggestion `json:"suggestions,omitempty"`
 	// Attention holds what a person or an agent must act on before relying on
 	// the answer: context files nothing has read in, a store that could not be
@@ -515,7 +515,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 			// it, the same as every other store.
 			if log, lerr := a.ContextOperations(ctxOrBackground(cmd.Context()), ContextLogRequest{Project: path, Subjects: true}); lerr == nil {
 				for _, op := range log.Operations {
-					if op.Status.Advises() {
+					if op.Status.Advisory() {
 						src.Operations = append(src.Operations, op.Record)
 					}
 				}

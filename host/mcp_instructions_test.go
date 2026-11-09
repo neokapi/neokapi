@@ -79,7 +79,7 @@ func TestMCPInstructionsFollowTheSets(t *testing.T) {
 
 // TestRecordingGuidanceSaysWhatToRecordAndWhatToLeave holds every surface that
 // asks an agent to record to both halves of the habit. An agent told only to
-// record what it notices records what its own page touched and misses the
+// record its suggestions records what its own page touched and misses the
 // names it read; an agent pushed to record more turns a word the project
 // writes two ways into a rule. So each text names what to record, including
 // what the agent's own text does not use, and names the word to leave alone.

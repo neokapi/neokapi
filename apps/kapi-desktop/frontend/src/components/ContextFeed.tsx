@@ -1435,7 +1435,7 @@ export function ContextFeedHint() {
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground">
       <Terminal size={13} className="shrink-0" />
-      An agent working in one of your projects records what it notices here.
+      An agent working in one of your projects records its suggestions here.
     </p>
   );
 }

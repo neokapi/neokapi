@@ -64,7 +64,7 @@ interface AppHomeProps {
 /**
  * The app's first screen, in the overview shape (packages/ui/docs/page-patterns.md):
  * the context this machine account's projects write by, and what the
- * assistants working in them noticed. A header, a row of labelled counts, then
+ * assistants working in them suggested. A header, a row of labelled counts, then
  * two lists of rows, each row leading to a project.
  *
  * Every project kapi has run in is listed, whichever surface ran it. A

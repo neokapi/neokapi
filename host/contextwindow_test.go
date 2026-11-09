@@ -119,7 +119,7 @@ func TestTypedAxes_AGeoRuleAnswersInsideItsRegion(t *testing.T) {
 
 	op := observeUtilise(t, app, root, "nordic/a.md", ContextObserveRequest{})
 	assert.Equal(t, map[string]string{"market": "nordics"}, op.Scope.Coordinates)
-	assert.True(t, advisedAt(t, app, root, "norway/a.md"), "a suggestion scoped to nordics advises at no")
+	assert.True(t, advisedAt(t, app, root, "norway/a.md"), "a suggestion scoped to nordics is reported at no")
 	assert.False(t, advisedAt(t, app, root, "germany/a.md"), "and not at de")
 
 	_, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{Actor: person, Project: recipeOf(root), ID: op.ID})

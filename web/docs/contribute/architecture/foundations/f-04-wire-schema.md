@@ -169,7 +169,7 @@ code rather than accumulating stale exemptions.
 ## Consequences
 
 - There is one place to change the content model's serialization, and one test
-  that notices when someone adds a second.
+  that fails when someone adds a second.
 - Frontend types and JSON Schema cannot drift from Go, because both are generated
   and drift-gated in CI.
 - A wire-compatibility break announces itself as a golden-file failure at the

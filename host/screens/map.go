@@ -24,7 +24,7 @@ type MapSummaryDTO struct {
 	// disk, RFC3339. ReadAt is empty until the first sync in this session.
 	ReadFiles int    `json:"read_files"`
 	ReadAt    string `json:"read_at,omitempty"`
-	// Suggested counts the suggestions that advise and wait for a person, and
+	// Suggested counts the suggestions waiting for a person, and
 	// Conflicts the disagreements. Awaiting is the two together: the rows
 	// under Suggestions.
 	Suggested int `json:"suggested"`

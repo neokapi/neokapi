@@ -1432,7 +1432,7 @@ export class ContextAnswer {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Suggestions are what earlier sessions noticed at this point and nobody
+             * Suggestions are what earlier sessions suggested at this point and nobody
              * has established, with the rules a disagreement contests. They are
              * reported apart from Voice and Terms because they bind nothing: a check
              * reports each one and no check fails on it. A writer reads them as the
@@ -1754,7 +1754,7 @@ export const ContextCoverage = {
 };
 
 /**
- * ContextDigest is what kapi learned about how one project writes.
+ * ContextDigest holds the rules and suggestions about how one project writes.
  */
 export class ContextDigest {
     /**
@@ -1807,7 +1807,7 @@ export class ContextDigest {
         }
         if (!("suggested" in $$source)) {
             /**
-             * Suggested are the suggestions still advising, grouped by theme.
+             * Suggested are the suggestions still waiting, grouped by theme.
              * @member
              * @type {DigestTheme[]}
              */
@@ -2560,7 +2560,7 @@ export class ContextProjectStanding {
         }
         if (!("rules" in $$source)) {
             /**
-             * Rules counts the rules in force, Suggested the suggestions advising and
+             * Rules counts the rules in force, Suggested the suggestions waiting and
              * Conflicts the disagreements that need a person.
              * @member
              * @type {number}
@@ -3147,7 +3147,7 @@ export class ContextSearchResult {
             /**
              * Suggestions are what somebody recorded about the word and nobody has
              * established: suggested term rules and notes that mention it, and the
-             * rules a disagreement contests. They advise and fail no check.
+             * rules a disagreement contests. Checks report them and fail on none.
              * @member
              * @type {ContextSuggestion[] | undefined}
              */
@@ -4443,7 +4443,7 @@ export class DigestNumbers {
         }
         if (!("suggested" in $$source)) {
             /**
-             * Suggested counts the suggestions advising, and Conflicts the
+             * Suggested counts the suggestions waiting, and Conflicts the
              * disagreements.
              * @member
              * @type {number}

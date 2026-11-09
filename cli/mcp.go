@@ -29,7 +29,7 @@ func NewMCPCmd(a *App, implName string) *cobra.Command {
 
   writing       (default) context_read and the context:// resources,
                 context_search, context_note (record what the assistant
-                noticed or a person changed), context_session_summary,
+                found or a person changed), context_session_summary,
                 check_file, and read_blocks, apply_edits and describe_format,
                 which read a document's blocks, write change sets back with
                 its structure kept, and say what a format supports

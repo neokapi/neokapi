@@ -37,7 +37,7 @@ The curated views use the kit's public API.
 
 Parse a sample file and render the content model (blocks / ids / source text,
 with inline-span markers shown as chips) in a clean table. The single best
-framework demo: _"here's how kapi sees your file."_ Use on the content-model /
+framework demo: _"here's how kapi reads your file."_ Use on the content-model /
 formats / inline-formatting concept pages and as the **format → parse/blocks**
 reference view.
 

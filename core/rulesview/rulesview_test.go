@@ -96,8 +96,8 @@ func TestQuestions(t *testing.T) {
 				Kind: DecisionDisagreement, Question: "Which one holds?",
 				Reason: "These rules say different things about the same word. Choose one, and the others are set aside.",
 				Options: []Option{
-					{ID: "sa", Short: contextop.ShortID("sa"), Sentence: "Write sign in, not log in.", Subject: sideA.Subject, Scope: docs, NoticedBy: claude},
-					{ID: "sb", Short: contextop.ShortID("sb"), Sentence: "Write sign on, not log in.", Subject: sideB.Subject, Scope: docs, NoticedBy: sideB.Actor},
+					{ID: "sa", Short: contextop.ShortID("sa"), Sentence: "Write sign in, not log in.", Subject: sideA.Subject, Scope: docs, RecordedBy: claude},
+					{ID: "sb", Short: contextop.ShortID("sb"), Sentence: "Write sign on, not log in.", Subject: sideB.Subject, Scope: docs, RecordedBy: sideB.Actor},
 				},
 			}},
 		},
@@ -117,7 +117,7 @@ func TestQuestions(t *testing.T) {
 				// The question carries its subject and scope for the counts.
 				assert.Equal(t, docs, g.Scope)
 				assert.NotNil(t, g.Seen)
-				g.Subject, g.Scope, g.NoticedBy, g.Seen = contextop.Subject{}, contextop.Scope{}, contextop.Actor{}, nil
+				g.Subject, g.Scope, g.RecordedBy, g.Seen = contextop.Subject{}, contextop.Scope{}, contextop.Actor{}, nil
 				assert.Equal(t, want, g)
 			}
 		})

@@ -889,7 +889,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	execution := newCheckExecution()
 	ctx := CmdContext(cmd)
 
-	// The vocabulary the project decided, enforced beside the profile's lists
+	// The vocabulary decided for the project, enforced beside the profile's lists
 	// and resolved at the same point the profile is.
 	terminology, err := a.newCheckTerms(cmd)
 	if err != nil {

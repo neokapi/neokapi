@@ -12,9 +12,9 @@ import (
 // The sample arrives with an assistant's notes to review.
 //
 // Two sessions are recorded through the host API, as an assistant records
-// them over MCP: claude-code, the earlier one, notices two names, a word and
+// them over MCP: claude-code, the earlier one, suggests two names, a word and
 // how the store addresses the shopper, and records a correction a person made;
-// codex, the later one, takes the other side of that correction and notices
+// codex, the later one, takes the other side of that correction and suggests
 // one more name. Every piece of evidence quotes a sentence in the sample's own
 // files, so a person opening the file finds it there.
 //

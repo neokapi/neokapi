@@ -310,7 +310,7 @@ type basisVerdict int
 
 const (
 	// basisNone — nothing is recorded for this unit and locale. A target here is
-	// one the project knows nothing about: written by hand, or present before
+	// one the project has no record of: written by hand, or present before
 	// kapi ever ran. Nothing can call it stale, and the loop leaves it alone.
 	basisNone basisVerdict = iota
 	// basisUnknown — a record whose basis says nothing about the source in front

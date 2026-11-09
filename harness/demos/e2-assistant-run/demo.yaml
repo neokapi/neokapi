@@ -10,7 +10,7 @@ kind: use-case
 # fixtures/kapi.yaml binds the rename only to the help profile, so the help
 # article is told "Space, not Workspace" and the API reference is told
 # nothing. The prompt asks for an edit to both files and does not mention the
-# rename; what the assistant learns about it comes from kapi.
+# rename; the assistant reads what it needs about it from kapi.
 terminal: claude
 needsAi: false
 project: true

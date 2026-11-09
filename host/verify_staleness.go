@@ -194,7 +194,7 @@ type producedProvenance struct {
 // only the records that carry PROVENANCE: a stamp saying what governed the
 // target, or a decision saying a person judged it.
 //
-// A unit with neither is one the project knows about and has not judged. It has
+// A unit with neither is one the project has a record of and has not judged. It has
 // no provenance to be stale, and counting it would report every untranslated
 // string in the project as unstamped. The basis a convergence pass records for a
 // target it wrote is not provenance either: it says which source the target

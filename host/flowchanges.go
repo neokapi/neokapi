@@ -761,7 +761,7 @@ func (fc *flowChanges) loop() *loopWrites {
 	return fc.history
 }
 
-// docKey is the key the project knows the document ref by.
+// docKey is the key the project stores the document ref under.
 func (fc *flowChanges) docKey(ref string) string {
 	return fc.app.documentKey(fc.ctx, fc.root, ref)
 }

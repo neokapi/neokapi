@@ -68,8 +68,8 @@ type DigestItem struct {
 	// Usage is the project's own words back to it, from the latest usage
 	// count, for a rule a check has counted.
 	Usage *DigestUsage `json:"usage,omitempty"`
-	// NoticedBy is who recorded it.
-	NoticedBy contextop.Actor `json:"noticed_by"`
+	// RecordedBy is who recorded it.
+	RecordedBy contextop.Actor `json:"recorded_by"`
 	// At is when it was recorded.
 	At time.Time `json:"at"`
 	// New reports an item recorded (or, for an established rule, established)

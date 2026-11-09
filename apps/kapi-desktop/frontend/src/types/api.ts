@@ -815,7 +815,7 @@ export interface ContextProjectStanding {
   project_name?: string;
   /** Rules in force. */
   rules: number;
-  /** Suggestions advising. */
+  /** Suggestions waiting for a decision. */
   suggested: number;
   /** Disagreements that need a person. */
   conflicts: number;

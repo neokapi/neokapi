@@ -55,8 +55,8 @@ is the document shape in disguise, and it leaves the list as long as before.
 A fact shown as a sentence has to be read; a fact shown in its place is seen.
 These hold on every shape.
 
-- **A number is a count with a label.** "kapi knows 61 rules across 4
-  projects. 11 suggestions are advising." becomes four labelled counts in a
+- **A number is a count with a label.** "There are 61 rules across 4
+  projects. 11 suggestions are waiting." becomes four labelled counts in a
   row: projects 4, rules 61, suggestions 11, needs you 1. Numbers in a column
   take `tabular-nums`.
 - **A status is a badge or an icon with a word.** `StatusBadge` for a ladder;

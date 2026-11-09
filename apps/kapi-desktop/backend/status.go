@@ -66,7 +66,7 @@ type ProjectStatus struct {
 // Coverage is the CLI's own derivation (host.ProjectCoverageTally over
 // working-tree reads), so a target committed beside its source counts here
 // exactly as it counts at the terminal. Extracted totals come from the block
-// cache, which is what the store knows and the tree does not.
+// cache, which the store holds and the tree does not.
 //
 // If the project has never been extracted, the returned status has
 // HasData=false and zeroed coverage; this is a well-defined "no data yet"
@@ -166,7 +166,7 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	// translated at the terminal and untouched in the app.
 	//
 	// The extracted totals stay the store's: they answer how much content this
-	// project has read in, which is what the store knows and the tree does not.
+	// project has read in, which the store holds and the tree does not.
 	tally, terr := a.workingTreeCoverage(context.Background(), op)
 	if terr != nil {
 		return nil, terr

@@ -14,7 +14,7 @@ import (
 
 // The recording half of the context surface (AD C-11).
 //
-// A project's context grows out of ordinary work. Something is noticed, or a
+// A project's context grows out of ordinary work. Someone records a convention, or a
 // person changes wording, and it is recorded as a suggestion; a person decides
 // about it in review. note and log are what an assistant reaches for mid-task,
 // and they exist here as well as over MCP (context_note,
@@ -22,7 +22,7 @@ import (
 // an assistant can only keep on one of the two surfaces is a habit half the
 // assistants do not have.
 //
-// A suggestion advises from the moment it is recorded. A check reports it and
+// Checks report a suggestion from the moment it is recorded. A check reports it and
 // no check fails on it. A person's signal establishes it: keeping it in review,
 // a change toward it, or the change reaching the default branch (`kapi context
 // sync --merged`). Establishing writes the rule into the project's terms

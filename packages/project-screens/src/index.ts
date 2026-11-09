@@ -34,7 +34,7 @@ export type { ProjectScreensPort, ScreenNavigation, ScreenTarget } from "./port"
 export { opens } from "./port";
 
 export { ConflictLine, ConflictQuestion, RuleLine, RuleSentence, themeLabel } from "./DigestRule";
-export { NoticedBy, NoticedMark, memberName, toolName } from "./NoticedBy";
+export { RecordedBy, RecordedMark, memberName, toolName } from "./RecordedBy";
 
 export { MapView, decideRowKey, type MapViewProps } from "./MapView";
 export { ReaderView, type ReaderViewProps } from "./ReaderView";

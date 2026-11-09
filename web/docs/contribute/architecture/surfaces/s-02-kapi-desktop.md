@@ -177,7 +177,7 @@ tooltip.
 `host.App.ContextStandings` answers the counts, What's new and each project
 row's rules column from one fold of the log over every registered project. A
 `ContextProjectStanding` carries the project's rules in force, the suggestions
-advising, the conflicts, the concepts in its terms store, what is new since the
+waiting, the conflicts, the concepts in its terms store, what is new since the
 person's marker (below), and the latest session's activity as a
 `ContextActivity`: its actor, what it recorded and corrected, what is new by
 digest theme, and `Working`, which holds while an agent session has added an
@@ -192,9 +192,9 @@ two registered projects share a store, so the home's sum counts each concept
 once. The counts are drawn by `StatRow`: projects, rules, terms, suggestions,
 and the conflicts as "needs you", in the warning ink while there are any. No
 sentence on the page is generated from a number. What's new lists the projects
-with something new, a suggestion advising, a conflict or a working session,
+with something new, a suggestion waiting, a conflict or a working session,
 newest session first. A row is the latest session's actor as an `ActorMark`,
-the project and how long ago, one chip per digest theme the session noticed
+the project and how long ago, one chip per digest theme the session recorded
 ("3 names", "1 word") and a warning chip for the conflicts, then one button,
 Decide while there is a conflict and Review otherwise, which opens the
 project's tab on Decide. A working session adds a chip with a live dot.
@@ -504,8 +504,8 @@ A project's Context hub opens on **Decide**, titled with the project's name,
 with the number of suggestions to decide and the number of rules kept. The Overview
 opens it too, selecting the row a person chose there (`conflict:<id>` or
 `suggested:<id>`, matched against a question's own id or one of its sides').
-Deciding there is discovery, never a gate: a suggestion advises agents and
-checks from the moment it is recorded, and one nobody answers keeps advising.
+Deciding there is discovery, never a gate: agents and checks see a suggestion
+from the moment it is recorded, and checks keep reporting one nobody answers.
 
 The page is a list beside a detail pane. The list holds one row per suggestion
 waiting for a person: its kind as a `KindIcon`, the wording it is about, and
@@ -534,7 +534,7 @@ answer through `host.App.DecideRule`, which makes the calls `kapi rules` makes
 for the same keys: a keep is `DecideContextReview` with the suggestion kept in
 the picked form, or with the picked side chosen; Not a rule drops the
 suggestion, or every side of a disagreement; Later records nothing and leaves
-the suggestion advising, and the page leaves it out until it is opened again.
+the suggestion waiting, and the page leaves it out until it is opened again.
 The first keep writes the recipe of a folder opened without one. After each
 answer the next question is selected, and with none left the page says
 "Nothing to decide." with the number of rules kept and a link to the Overview.

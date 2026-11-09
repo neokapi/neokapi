@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 
-import { NoticedBy, memberName, toolName } from "../NoticedBy";
+import { RecordedBy, memberName, toolName } from "../RecordedBy";
 
 describe("toolName", () => {
   it("names kapi itself once", () => {
@@ -16,9 +16,9 @@ describe("toolName", () => {
   });
 });
 
-describe("NoticedBy", () => {
-  it("shows a suggestion kapi filed as noticed by kapi", () => {
-    render(<NoticedBy who={{ kind: "tool", name: "kapi" }} />);
+describe("RecordedBy", () => {
+  it("shows a suggestion kapi filed as suggested by kapi", () => {
+    render(<RecordedBy who={{ kind: "tool", name: "kapi" }} />);
     expect(screen.getByText("kapi")).toBeTruthy();
     expect(screen.queryByText("kapi kapi")).toBeNull();
   });
@@ -33,11 +33,11 @@ describe("memberName", () => {
 
   it("names a person with no name as a member, never as the reader", () => {
     expect(memberName({ kind: "person" }, nameOf)).toBe("A member");
-    render(<NoticedBy who={{ kind: "person" }} nameOf={(who) => memberName(who, nameOf)} />);
+    render(<RecordedBy who={{ kind: "person" }} nameOf={(who) => memberName(who, nameOf)} />);
     expect(screen.getByText("A member")).toBeInTheDocument();
   });
 
-  it("leaves an assistant and a tool to NoticedBy", () => {
+  it("leaves an assistant and a tool to RecordedBy", () => {
     expect(memberName({ kind: "agent", name: "claude" }, nameOf)).toBeUndefined();
     expect(memberName({ kind: "tool" }, nameOf)).toBeUndefined();
   });

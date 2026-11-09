@@ -407,7 +407,7 @@ func (a *App) Init() error {
 	a.InitRegistries()
 
 	// A recipe key that is nearly a field is preserved like any other unknown
-	// one, so nothing in the loader notices `source:` where the field is
+	// one, so nothing in the loader catches `source:` where the field is
 	// `source_language:` and the project loads as a valid monolingual one.
 	// core/project reports the near misses through this hook rather than
 	// printing on its own; the CLI is where they become stderr. See #2223.
