@@ -22,8 +22,8 @@ narration:
   - id: title
     kind: title
     text: >-
-      In this video, you turn a folder of documents into a project, add a
-      language, and see what needs translating.
+      You'll open a folder of help pages as a project and add French as a
+      language.
 
   - id: new-project
     kind: desktop
@@ -31,7 +31,7 @@ narration:
     crop: { x: 0.28, y: 0.06, w: 0.46, h: 0.38 }
     caption: Drop a folder to open it as a project.
     text: >-
-      Drop a folder on the Open screen. The Overview lists your next steps.
+      Drop the folder on the Open screen. The Overview shows the next steps.
 
   - id: add-language
     kind: desktop
@@ -39,8 +39,8 @@ narration:
     crop: { x: 0.03, y: 0.08, w: 0.5, h: 0.36 }
     caption: Add French.
     text: >-
-      Open Project Settings. Under Translate into, pick French, then click
-      Save Changes.
+      Open Project Settings. Under Translate into, pick French, and click Save
+      Changes.
 
   - id: add-collection
     kind: desktop
@@ -48,9 +48,9 @@ narration:
     caption: Choose the files to translate.
     crop: { x: 0.04, y: 0.34, w: 0.55, h: 0.38 }
     text: >-
-      On the Content tab, click Add collection, give it a name, and enter
-      which files to include: here, the Markdown files under docs. The count
-      shows how many files match.
+      On the Content tab, click Add collection. Type a name, then a pattern
+      for the Markdown files under docs. The count beside it shows three
+      files.
 
   - id: plan
     kind: desktop
@@ -59,11 +59,10 @@ narration:
     crop: { x: 0.4, y: 0.01, w: 0.2, h: 0.32 }
     hold: 10
     text: >-
-      Back on the Overview, click Plan. You see how much text needs
-      translating into French. Nothing changes until you click Bring up to
-      date.
+      Back on the Overview, click Plan to see how much text has no French
+      translation yet. Click Bring up to date when you want to translate it.
 
   - id: outro
     kind: outro
     text: >-
-      Next, click Bring up to date to translate the new text.
+      Click Bring up to date to translate the new text.

@@ -20,18 +20,17 @@ narration:
   - id: title
     kind: title
     text: >-
-      In this video, you read a translation, check it in its place, and
-      approve it with one key.
+      You'll read a translation in its place and approve it with one key.
 
   - id: queue
     kind: desktop
     beat: queue
     crop: { x: 0.03, y: 0.05, w: 0.95, h: 0.42 }
-    caption: Everything waiting for you, in one list.
+    caption: Every translation to review.
     text: >-
-      Open Review. The list on the left holds every translation waiting for
-      you. Use the menus at the top to show one language, or only the
-      translations with problems.
+      Open Review. The list on the left shows every translation to review. Use
+      the menus at the top to filter by language, or to show only translations
+      with problems.
 
   - id: open-unit
     kind: desktop
@@ -39,16 +38,17 @@ narration:
     crop: { x: 0.19, y: 0.1, w: 0.79, h: 0.45 }
     caption: The English and the translation.
     text: >-
-      Click one. You see the English and the translation side by side.
+      Click a translation. The English and the translation appear side by
+      side.
 
   - id: details
     kind: desktop
     beat: details
     crop: { x: 0.19, y: 0.35, w: 0.45, h: 0.48 }
-    caption: What helps you judge it.
+    caption: The context for this translation.
     text: >-
-      Below, you see the text around it, the version approved before, and any
-      problems the checks found.
+      Below, read the text around it and the version approved last time.
+      Problems found by the checks appear here as well.
 
   - id: decide
     kind: desktop
@@ -56,11 +56,10 @@ narration:
     crop: { x: 0.03, y: 0.06, w: 0.5, h: 0.4 }
     caption: Approve with one key.
     text: >-
-      Press A to approve it, and the next one opens. To approve every
-      translation with no problems at once, click Approve clean blocks.
+      Press A to approve it, and the next translation opens. To approve all
+      translations without problems, click Approve clean blocks.
 
   - id: outro
     kind: outro
     text: >-
-      Open Review, read each translation in its place, and press A when it
-      reads right.
+      Open Review and press A on each translation you approve.

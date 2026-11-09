@@ -20,9 +20,8 @@ narration:
   - id: title
     kind: title
     text: >-
-      A flow is the list of steps the app runs when you bring a project up to
-      date. In this video, you add a step that reuses your earlier
-      translations.
+      A flow is the list of steps that run when you click Bring up to date.
+      You'll add a step that reuses earlier translations.
 
   - id: open-flow
     kind: desktop
@@ -30,8 +29,8 @@ narration:
     crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
     caption: Translate, then check.
     text: >-
-      In Project Settings, open the Flows tab and click translate-and-qa. It
-      translates first, then checks the result.
+      In Project Settings, open the Flows tab and click translate-and-qa. Its
+      two steps are Translate, then Quality Check.
 
   - id: add-step
     kind: desktop
@@ -39,8 +38,8 @@ narration:
     crop: { x: 0.34, y: 0.28, w: 0.32, h: 0.44 }
     caption: Add the Recycle step.
     text: >-
-      Click Add step, and search for recycle. Recycle reuses translations you
-      already have, so only new text is sent to be translated.
+      Click Add step and search for recycle. Recycle reuses translations you
+      already have, so only new text goes to the provider.
 
   - id: reorder
     kind: desktop
@@ -48,7 +47,7 @@ narration:
     crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
     caption: Recycle runs first.
     text: >-
-      Recycle has to run first. Drag it to the top.
+      Recycle must run before Translate. Drag it to the top.
 
   - id: default
     kind: desktop
@@ -57,9 +56,9 @@ narration:
     highlight: { selector: '[data-testid="flow-default-badge"]' }
     caption: Use this flow by default.
     text: >-
-      Turn on Default flow. From now on, Bring up to date runs this flow.
+      Turn on Default flow. Bring up to date now uses this flow.
 
   - id: outro
     kind: outro
     text: >-
-      Add the steps you need, and Bring up to date runs them in order.
+      Add the steps you need. Bring up to date runs them in order.

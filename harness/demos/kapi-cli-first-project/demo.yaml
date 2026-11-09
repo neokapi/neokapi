@@ -66,9 +66,8 @@ narration:
   - id: title
     kind: title
     text: >-
-      This is a folder of help-center docs. In this video, you set up kapi,
-      keep two writing rules, fix the text that breaks them, and share the
-      rules with your team.
+      This is a folder of help-center docs. You'll set up kapi, keep two
+      writing rules, fix the text that breaks them, and share the rules.
 
   - id: init
     kind: terminal
@@ -76,8 +75,8 @@ narration:
     highlight: { text: [collections, CLAUDE.md] }
     caption: Set up the project.
     text: >-
-      Type kapi init. It finds your files, saves the project in kapi.yaml, and
-      sets up Claude Code to follow your rules.
+      Type kapi init. It lists the files it will read, saves the project in
+      kapi.yaml, and writes your rules into CLAUDE.md for Claude Code.
 
   - id: look
     kind: terminal
@@ -85,9 +84,10 @@ narration:
     highlight: { text: ["kapi suggests 2", "Decide with"] }
     caption: Two suggested rules.
     text: >-
-      Type kapi look. There are six files, no rules yet, and two suggestions
-      based on how the files are written: write email, not e-mail, and address
-      the reader as you. The last line tells you what to do next.
+      Type kapi look for a summary: six files, no rules yet, and two
+      suggestions based on how the files are written. One is email instead of
+      e-mail. The other is addressing the reader as you. The last line shows
+      the next command.
 
   - id: decide
     kind: terminal
@@ -95,8 +95,8 @@ narration:
     highlight: { text: ["Which one do your files use?", "Kept 2"] }
     caption: Keep the rules you want.
     text: >-
-      Type kapi rules, and press k to keep each suggestion. You now have two
-      rules.
+      Type kapi rules and press k to keep each suggestion. The project now has
+      two rules.
 
   - id: check
     kind: terminal
@@ -104,8 +104,8 @@ narration:
     highlight: { text: [FAILS] }
     caption: Find the text that breaks a rule.
     text: >-
-      Type kapi check with the guide. It finds e-mail twice and ends with an
-      error, so the same command can stop such a change in CI.
+      Type kapi check with the guide. It reports e-mail twice and exits with
+      an error, so you can run the same command in CI to block such changes.
 
   - id: fix
     kind: terminal
@@ -113,8 +113,8 @@ narration:
     highlight: { text: ["2 fixed"] }
     caption: Fix the text.
     text: >-
-      Type kapi fix. It changes e-mail to email and leaves the rest of the
-      file as it was.
+      Type kapi fix. It replaces e-mail with email and leaves the rest of the
+      file unchanged.
 
   - id: share
     kind: terminal
@@ -128,5 +128,5 @@ narration:
   - id: outro
     kind: outro
     text: >-
-      Try it in a folder of your own. Type kapi init, then follow the last
-      line of kapi look.
+      Try it in a folder of your own. Type kapi init, then run the command on
+      the last line of kapi look.

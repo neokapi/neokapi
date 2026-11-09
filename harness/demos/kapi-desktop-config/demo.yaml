@@ -19,8 +19,7 @@ narration:
   - id: title
     kind: title
     text: >-
-      In this video, you add an API key for translation, choose how the app
-      looks, and see your plugins.
+      You'll add an API key and look at the other app settings.
 
   - id: open-settings
     kind: desktop
@@ -35,16 +34,17 @@ narration:
     crop: { x: 0.03, y: 0.04, w: 0.4, h: 0.3 }
     caption: Light, dark, or the same as your system.
     text: >-
-      On General, choose Light, Dark, or System, and the language of the app.
+      On General, choose Light, Dark or System, and the app language.
 
   - id: credentials
     kind: desktop
     beat: credentials
     crop: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }
-    caption: Your key stays on this Mac.
+    caption: Your key is stored in the keychain.
     text: >-
       On AI Models, click Add Credentials, choose a model, and paste your API
-      key. The key stays on this Mac and never goes into your project files.
+      key. The key is stored in your Mac's keychain, apart from your project
+      files.
 
   - id: plugins
     kind: desktop
@@ -52,10 +52,10 @@ narration:
     crop: { x: 0.03, y: 0.04, w: 0.95, h: 0.3 }
     caption: Plugins add file formats and tools.
     text: >-
-      Plugins lists what you have installed. A plugin adds file formats or
-      tools. Open the Available tab to install one.
+      Plugins lists what is installed. A plugin adds file formats or tools.
+      Open the Available tab to install one.
 
   - id: outro
     kind: outro
     text: >-
-      Add your key once. Every project on this Mac can use it.
+      Add your key once. Every project on this Mac uses it.

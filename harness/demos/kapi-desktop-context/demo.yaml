@@ -29,8 +29,8 @@ narration:
   - id: title
     kind: title
     text: >-
-      Coding assistants suggest writing rules as they work in your project. In
-      this video, you keep the ones that are right.
+      Coding assistants such as Claude Code record suggested writing rules
+      while they work in your project. You'll choose which ones become rules.
 
   - id: map
     kind: desktop
@@ -39,27 +39,26 @@ narration:
     crop: { x: 0.28, y: 0.58, w: 0.46, h: 0.25 }
     text: >-
       Click Try with KapiMart to open the sample. On the Overview, each row
-      under What your files do is a suggestion. The Decide button shows how
-      many are waiting.
+      under What your files do is one suggestion. The Decide button shows the
+      count.
 
   - id: decide
     kind: desktop
     beat: decide
-    caption: One question for each suggestion.
+    caption: One question per suggestion.
     crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      Click Decide. Each suggestion is one question. At the top, two
-      assistants disagree: codex suggests log in, and claude-code suggests
-      sign in.
+      Click Decide. Each suggestion appears as one question. The first is a
+      conflict: codex suggested log in, and claude-code suggested sign in.
 
   - id: keep
     kind: desktop
     beat: keep
-    caption: Keep the spelling your files use.
+    caption: Keep the most used spelling.
     crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      First, select KapiMart. The first option is the spelling your files
-      use. The line above the buttons shows how many places a check will
+      Select KapiMart. The first option is the spelling used most in the
+      project. The line above the buttons shows how many places a check would
       report. Press K to keep it.
 
   - id: word
@@ -68,8 +67,9 @@ narration:
     caption: Keep a word as a rule.
     crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      Next, basket. Your store writes cart, so claude-code suggests avoiding
-      basket. The line shows what a check will report. Press K to keep it.
+      Next, select basket. Cart appears throughout the store's text, so
+      claude-code suggested a rule against basket. The line shows what a check would
+      report. Press K to keep it.
 
   - id: choose
     kind: desktop
@@ -77,21 +77,21 @@ narration:
     caption: Pick one side, and keep it.
     crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      Now the disagreement. codex suggests log in. claude-code's side, sign
+      Now the conflict. codex suggested log in. claude-code's suggestion, sign
       in, comes from an edit a person made. Pick sign in, and press K to keep
       it.
 
   - id: assistant
     kind: desktop
     beat: assistant
-    caption: Your assistants get the rule.
+    caption: What an assistant reads for a file.
     crop: { x: 0.03, y: 0.1, w: 0.45, h: 0.38 }
     text: >-
-      On Assistants, you see what an assistant reads for each file. Choose the
-      store's interface file. It now tells the assistant to avoid basket.
+      Open Assistants and pick a file, for example the store's interface file.
+      This is what an assistant reads before it edits that file, and basket is
+      now listed as a word to avoid.
 
   - id: outro
     kind: outro
     text: >-
-      Open Decide, and keep the suggestions that are right. Checks then report
-      any text that breaks them.
+      Open Decide and press K on each suggestion you want as a rule.

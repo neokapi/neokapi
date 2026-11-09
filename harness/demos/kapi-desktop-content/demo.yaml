@@ -19,8 +19,7 @@ narration:
   - id: title
     kind: title
     text: >-
-      In this video, you see how far each language has come, and open a file
-      to read its text.
+      You'll check the progress of each language and read one file.
 
   - id: open-project
     kind: desktop
@@ -28,8 +27,8 @@ narration:
     crop: { x: 0.03, y: 0.08, w: 0.5, h: 0.3 }
     caption: The project at a glance.
     text: >-
-      Open the KapiMart sample, then Project Settings, and the Content tab.
-      At the top, you see how much text the project has, and its languages.
+      Open the KapiMart sample. In Project Settings, open the Content tab. The
+      top shows the amount of text and the languages.
 
   - id: extract
     kind: desktop
@@ -38,8 +37,8 @@ narration:
     hold: 8
     caption: Progress for each group of files.
     text: >-
-      Further down, each group of files has a row, with how much of each
-      language is done.
+      Below, each group of files has a row with the progress for each
+      language.
 
   - id: patterns
     kind: desktop
@@ -47,7 +46,7 @@ narration:
     crop: { x: 0.03, y: 0.58, w: 0.68, h: 0.24 }
     caption: The files in a group.
     text: >-
-      Click a group to see its files.
+      Click a group to list its files.
 
   - id: keys
     kind: desktop
@@ -56,10 +55,9 @@ narration:
     hold: 6
     caption: The text of one file.
     text: >-
-      Click a file to read it. Each line of text sits next to its name in the
-      file.
+      Click a file to read it. Each line of text appears next to its key.
 
   - id: outro
     kind: outro
     text: >-
-      When you edit a file, the progress updates on its own.
+      Edit a file, and the progress shown here updates.
