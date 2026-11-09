@@ -99,7 +99,7 @@ export function rewriteSandboxPath(out: string, sandbox: string, cwdLabel: strin
  */
 export async function captureScript(m: DemoManifest, opts: { force?: boolean } = {}): Promise<void> {
   const id = m.id;
-  const sb = sandboxDir(id);
+  const sb = sandboxDir(id, m.cwd);
   const cap = ensureDir(captureDir(id));
   const pub = ensureDir(publicDemoDir(id));
   const captureJson = path.join(pub, "capture.json");
@@ -114,7 +114,7 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
   }
 
   // 1. Fresh sandbox from fixtures (the sandbox IS the project the commands act on).
-  rmrf(sb);
+  rmrf(sandboxDir(id));
   ensureDir(sb);
   const fixtures = demoFixturesDirFor(m);
   if (m.fixturesFrom && !fs.existsSync(fixtures)) {

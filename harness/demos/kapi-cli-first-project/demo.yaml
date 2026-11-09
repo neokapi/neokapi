@@ -55,7 +55,7 @@ script:
   - command: kapi context docs/guide.md
   - command: kapi look
   # The kept rule must fail here: this is the beat.
-  - command: kapi check
+  - command: kapi check docs/guide.md
     expectExit: 3
   - comment: kapi fix applies the replacement the rule names.
   - command: kapi fix
