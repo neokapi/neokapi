@@ -56,7 +56,7 @@ narration:
     kind: desktop
     beat: neighbourhood
     caption: The text around it.
-    crop: { x: 0.19, y: 0.35, w: 0.79, h: 0.17 }
+    crop: { x: 0.19, y: 0.35, w: 0.45, h: 0.17 }
     text: >-
       In the document shows the blocks before and after it, so you can read
       the sentence in its place.
@@ -65,7 +65,7 @@ narration:
     kind: desktop
     beat: history
     caption: What was approved before.
-    crop: { x: 0.19, y: 0.53, w: 0.79, h: 0.2 }
+    crop: { x: 0.19, y: 0.53, w: 0.45, h: 0.2 }
     text: >-
       Already approved shows the version that was approved last time, and the
       best match from your content memory.

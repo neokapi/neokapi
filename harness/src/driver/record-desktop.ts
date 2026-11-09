@@ -1164,6 +1164,13 @@ async function openCollectionFile(page: Page, collection: string, filename: stri
   // the glob, either of which may spell the stem differently. Open them in turn
   // until the source row is on the page, rather than guess once and then wait
   // out a timeout on a row that never appeared.
+  // The pattern row that names the file is the likely one, so it goes first:
+  // every other row opened is a second or more on camera with nothing shown.
+  const named = page.locator('tr[data-slot="matched-pattern-row"]').filter({ hasText: filename }).first();
+  if (!(await sourceRow.count()) && (await named.count())) {
+    await humanClick(page, named);
+    await page.waitForTimeout(500);
+  }
   if (!(await sourceRow.count())) {
     const patterns = page.locator('tr[data-slot="matched-pattern-row"]');
     const n = await patterns.count();

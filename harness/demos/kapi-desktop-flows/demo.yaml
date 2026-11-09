@@ -48,7 +48,6 @@ narration:
     beat: reorder
     caption: Recycle now runs first.
     crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
-    highlight: { selector: '[data-testid="step-chips"] > span:first-child' }
     text: >-
       Recycle has to run before Translate. Drag it to the top. The list of
       steps under the name shows the new order.
