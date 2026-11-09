@@ -1,6 +1,6 @@
 id: kapi-desktop-context
-title: What your assistant noticed, and what you decide
-subtitle: Context grows while you work; the desktop is where you keep what is right.
+title: Decide what your assistants suggest
+subtitle: Coding assistants suggest rules as they work. You keep the right ones.
 kind: use-case
 publishAs: kapi-desktop-context
 terminal: desktop
@@ -9,123 +9,128 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - What waits on the Map
-  - One question per suggestion
-  - The brief an assistant reads
-  - A note arriving from outside the app
-  - How far the context reaches
-  - The project as Bowrain would show it
+  - Suggestions on the Overview
+  - Decide
+  - What an assistant reads
+  - A new suggestion
+  - Share and Preview
 
-# keep, word, choose, assistant and preview carry no crop: the walk crops each
-# to what it marks (beatSpan in record-desktop.ts). That is
-# the row answered in Decide's list and the question beside it, the file
-# picker and the kept rule's line, or the Preview's tabs and its Kept by list.
+# Every beat sets a box crop. The walk still marks what it acts on
+# (beatSpan in record-desktop.ts), and a box here wins over that region.
 #
-# The sample arrives with two assistant sessions (claude-code, then codex),
-# seeded by the desktop backend when the sample is created. The walk creates
-# it on camera from the Open screen, reviews it, and records one more note as
-# claude-code from a shell while the Map is on screen.
+# The sample comes with two assistant sessions (claude-code, then codex),
+# added by the desktop backend when the sample is created. The walk creates
+# it on camera from the Open screen, decides on its suggestions, and records
+# one more note as claude-code from a shell while the Overview is on screen.
+#
+# Cue words the walk waits for, by beat: map (row, decide), decide (codex,
+# claude-code), keep (blocks, k), word (check, k), choose (codex,
+# claude-code's, keep), assistant (for, basket), live (test, row, decide),
+# preview (preview, rules, kept).
 outro:
-  line: Open Decide and press k on the first thing that is right.
+  line: Open Decide, and press K on the first suggestion that is right.
   pointer: kapi rules
 
 narration:
   - id: title
     kind: title
     text: >-
-      An assistant working in a project notices how its files are written. The
-      desktop is where you read what it noticed and decide what holds.
+      When a coding assistant works in your project, it records how your
+      files are written. In Kapi Desktop, you read these suggestions and keep
+      the ones that are right.
 
   - id: map
     kind: desktop
     beat: map
-    caption: What waits for you, on the Map.
-    crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
+    caption: Suggestions wait on the Overview.
+    crop: { x: 0.28, y: 0.58, w: 0.46, h: 0.25 }
     text: >-
-      Try with KapiMart opens the sample on its Map. Each row under What your
-      files do is something an assistant noticed and nobody has decided yet,
-      and the Decide button counts them.
+      Click Try with KapiMart to open the sample. On the Overview, each row
+      under What your files do is a suggestion from an assistant. The Decide
+      button shows how many are waiting.
 
   - id: decide
     kind: desktop
     beat: decide
-    caption: One question per suggestion.
-    crop: { selector: ['[data-slot="list-detail-list"]', '[data-slot="decide-question"]'] }
+    caption: One question for each suggestion.
+    crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      The Decide button opens one question per suggestion, the disagreement
-      first. Its options are the two sides: codex says log in, claude-code
-      says sign in, and each side says what keeping it does.
+      Click Decide. The first suggestion is a disagreement between two
+      assistants. codex wants log in, and claude-code wants sign in.
 
   - id: keep
     kind: desktop
     beat: keep
-    caption: Keep a name in the form your files use.
+    caption: Keep the product name as your files write it.
+    crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      For the product name, the question is which form your files use. The
-      line above the actions says how many blocks a check then reports, and
-      where the rule applies. Pressing k keeps KapiMart, and the next question
-      is selected.
+      Select KapiMart. The question is which spelling your files use. The
+      line above the buttons shows how many blocks a check will report, and
+      where the rule applies. Press K to keep it.
 
   - id: word
     kind: desktop
     beat: word
-    caption: A word, kept as a rule.
+    caption: Keep a word as a rule.
+    crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      claude-code also noticed that the store says cart, not basket. The
-      question is whether to keep it, with what a check reports once you do.
-      Pressing k keeps it.
+      Next is basket. Your store writes cart, not basket, so claude-code
+      suggests a rule. You also see what a check will report. Press K to keep
+      it.
 
   - id: choose
     kind: desktop
     beat: choose
-    caption: One side kept, the other set aside.
+    caption: Pick one side, and keep it.
+    crop: { x: 0.03, y: 0.09, w: 0.56, h: 0.3 }
     text: >-
-      Now the disagreement. The sentence codex quoted says signing in, the
-      opposite of its own rule, and claude-code's side is a change a person
-      made in the error messages. You pick sign in and keep it, and log in is
-      set aside.
+      Now the disagreement. The text that codex quoted says signing in, so it
+      goes against its own suggestion. claude-code's side comes from a change
+      that a person made. Pick sign in, and press K to keep it. Log in is set
+      aside.
 
   - id: assistant
     kind: desktop
     beat: assistant
-    caption: The brief for one file carries your rule.
+    caption: What an assistant reads for one file.
+    crop: { x: 0.03, y: 0.1, w: 0.45, h: 0.38 }
     text: >-
-      Assistants shows what an assistant reads. For the store's interface
-      strings, the brief marks basket as discouraged, the rule you kept a
-      moment ago. It is the answer kapi context prints for that file.
+      On Assistants, you see what an assistant reads for each file. Choose
+      the store's interface file. Its terms now mark basket as discouraged.
+      That is the rule you just kept.
 
   - id: live
     kind: desktop
     beat: live
-    caption: A note from outside the app, arriving live.
-    crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
+    caption: A new suggestion appears.
+    crop: { x: 0.28, y: 0.58, w: 0.46, h: 0.25 }
     text: >-
-      Back on the Map, a note arrives from a terminal off screen, recorded as
-      claude-code: the docs say sandbox, not test mode. Within a second it is a
-      row of its own in the list, and the Decide button counts one more.
+      Back on the Overview, claude-code records a note from a terminal. The
+      docs say sandbox, not test mode. A moment later, the note appears as a
+      new row, and the number on Decide goes up by one.
 
   - id: share
     kind: desktop
     beat: share
-    caption: How far this context reaches.
-    crop: { selector: '[data-slot="share-panel"]' }
+    caption: Where your rules are kept.
+    crop: { x: 0.03, y: 0.08, w: 0.41, h: 0.36 }
     text: >-
-      Share says how far the project's context reaches. It is on this Mac,
-      where every clone and worktree of the project reads it. Sharing with your
-      team is not set up yet, and Bowrain is not connected.
+      Share shows where the project's rules are kept. Right now they are on
+      this Mac, and every copy of the project on this Mac uses them. You can
+      also share them with your team, or through Bowrain.
 
   - id: preview
     kind: desktop
     beat: preview
-    caption: The project as a Bowrain project page shows it.
+    caption: The project as Bowrain shows it.
+    crop: { x: 0.79, y: 0.0, w: 0.21, h: 0.32 }
     text: >-
-      Preview draws the project as a Bowrain project page would. With no
-      server connected, it reads this Mac and says so. The Map tab is the page
-      a Bowrain project opens on. On the Rules tab, Kept by lists the rules you
-      kept a moment ago, each with who kept it and the day.
+      Click Preview to see the project as a Bowrain project page shows it.
+      No server is connected, so it uses the data on this Mac. Open the Rules
+      tab. Kept by lists the rules you kept, with who kept each one and when.
 
   - id: outro
     kind: outro
     text: >-
-      Every suggestion advises from the moment an assistant records it. The
-      ones you keep become rules that checks enforce.
+      A suggestion is only advice. When you keep it, it becomes a rule, and
+      checks report any text that breaks it.

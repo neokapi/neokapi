@@ -1,6 +1,6 @@
 id: kapi-desktop-review
-title: Judged where it sits
-subtitle: Five layers under one unit, and a keystroke to decide.
+title: Review a translation
+subtitle: Read what applies to each block, then approve it with one key.
 kind: use-case
 publishAs: kapi-desktop-review
 terminal: desktop
@@ -9,96 +9,98 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - One review queue
-  - The point a unit sits at
-  - Prior decisions and approved wording
-  - Findings anchored in the runs
+  - The review list
+  - Source and translation
+  - Earlier approvals
+  - Checks
 outro:
-  line: Open Review and press A on a clean unit.
+  line: Open Review, and press A on a block with no findings.
   pointer: kapi status --review
 
 narration:
   - id: title
     kind: title
     text: >-
-      A translation is judged where it sits: at its point, beside its
-      neighbours, against what was approved before.
+      Review shows each translation with what you need to judge it. You read
+      it, and then approve it with one key.
 
   - id: queue
     kind: desktop
     beat: queue
-    crop: { x: 0.01, y: 0.02, w: 0.92, h: 0.5 }
-    caption: One list, every language, two ways to narrow it.
+    crop: { x: 0.03, y: 0.05, w: 0.95, h: 0.42 }
+    caption: Every language in one list.
     text: >-
-      Review is one queue. Every language is in the same list, with a count per
-      language and chips for what a check flagged.
+      Open Review. The list on the left holds every translation that waits for
+      you, grouped by language. Use the menus at the top to show one language,
+      or only the blocks with findings.
 
   - id: open-unit
     kind: desktop
     beat: open-unit
-    crop: { x: 0.17, y: 0.05, w: 0.76, h: 0.42 }
-    caption: Source, target, and the layers beneath them.
+    crop: { x: 0.19, y: 0.1, w: 0.79, h: 0.45 }
+    caption: The source and the translation.
     text: >-
-      Opening a unit gives the source and the translation, with what shaped
-      them stacked underneath.
+      Click a block. You see the English source and the translation, with
+      more detail below.
 
   - id: point
     kind: desktop
     beat: point
-    caption: What governs here?
-    crop: { x: 0.17, y: 0.06, w: 0.5, h: 0.25 }
+    caption: The voice profile and terms for this block.
+    crop: { x: 0.19, y: 0.1, w: 0.5, h: 0.16 }
     text: >-
-      The first layer is the point this content sits at: its coordinates, the
-      voice governing there, and the term rules bound to it.
+      The line at the top shows the voice profile and the terms that apply
+      to this block.
 
   - id: neighbourhood
     kind: desktop
     beat: neighbourhood
-    caption: What sits either side of it?
-    crop: { x: 0.17, y: 0.32, w: 0.76, h: 0.32 }
+    caption: The text around it.
+    crop: { x: 0.19, y: 0.35, w: 0.79, h: 0.17 }
     text: >-
-      The second is the neighbourhood: the blocks either side of it, so a
-      sentence is read where a reader will meet it.
+      In the document shows the blocks before and after it, so you can read
+      the sentence in its place.
 
   - id: history
     kind: desktop
     beat: history
-    caption: What was decided before?
-    crop: { x: 0.17, y: 0.49, w: 0.76, h: 0.32 }
+    caption: What was approved before.
+    crop: { x: 0.19, y: 0.53, w: 0.79, h: 0.2 }
     text: >-
-      The third is what was decided before: the version approved last time,
-      beside the match memory offers now.
+      Already approved shows the version that was approved last time, and the
+      best match from your content memory.
 
   - id: findings
     kind: desktop
     beat: findings
-    caption: What did the checks find, and where?
-    crop: { x: 0.17, y: 0.66, w: 0.5, h: 0.25 }
+    caption: What the checks found.
+    crop: { x: 0.19, y: 0.76, w: 0.3, h: 0.07 }
     highlight: { selector: '[data-slot="review-finding"]' }
     text: >-
-      The fourth is the checks. A finding is anchored in the run it names, so a
-      complaint about a placeholder points at the placeholder.
+      Checks lists the problems that the automatic checks found, such as a
+      missing placeholder. This block has none.
 
   - id: provenance
     kind: desktop
     beat: provenance
-    caption: Who decided, and when?
-    crop: { x: 0.17, y: 0.75, w: 0.5, h: 0.25 }
+    caption: Who wrote it, and who approved it.
+    crop: { x: 0.19, y: 0.845, w: 0.3, h: 0.07 }
+    zoom: 1.2
     text: >-
-      The fifth is provenance: who wrote it, who decided it, and whether the
-      text has moved since. This one carries none.
+      Provenance shows who wrote the translation and who approved it. This
+      block has no record yet.
 
   - id: decide
     kind: desktop
     beat: decide
-    crop: { x: 0.01, y: 0.03, w: 0.5, h: 0.5 }
-    caption: One keystroke, then the clean ones together.
+    crop: { x: 0.03, y: 0.06, w: 0.5, h: 0.4 }
+    caption: Approve with one key.
     text: >-
-      With that read, the decision is a keystroke bound to the text it judged,
-      and the units no check flagged go together.
+      Press A to approve the block, and the next one opens. To approve every
+      block with no findings at once, click Approve clean blocks.
 
   - id: outro
     kind: outro
     text: >-
-      Every decision here is the record the command line reads and writes, so
-      the surface you work from is a preference.
+      The app and the command line use the same review records, so you can
+      work in either one.

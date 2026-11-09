@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FULL_WINDOW_FIT, fitCeilings, frameGeometry, isWebDemo, regionFit, unionRect } from "./crop.ts";
+import { EDGE_OVERSCAN, FULL_WINDOW_FIT, MAX_CROP_SCALE, fitCeilings, frameGeometry, isWebDemo, panInsideWindow, regionFit, unionRect } from "./crop.ts";
 import type { ZoomRect } from "../types.ts";
 
 /** Compare a region to four numbers, past the noise of dividing by 1920. */
@@ -86,4 +86,45 @@ test("unionRect never returns a region the composition cannot compose", () => {
     assert.ok(r.w > 0 && r.h > 0, `non-positive region ${JSON.stringify(r)}`);
     assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= 1.0000001 && r.y + r.h <= 1.0000001);
   }
+});
+
+/** The pan that centres `region` in the crop area, as DesktopScene computes it, then clamped. */
+function shot(region: ZoomRect, frame = native) {
+  const geo = frameGeometry(frame);
+  const s = Math.min(Math.max(regionFit(region, geo), 1), MAX_CROP_SCALE);
+  const cx = region.x + region.w / 2;
+  const cy = region.y + region.h / 2;
+  const tx = geo.areaCx - geo.cardCx - s * (cx * geo.bw - geo.cardW / 2);
+  const ty = geo.areaCy - geo.cardCy - s * (geo.bar + cy * geo.bh - geo.cardH / 2);
+  const pan = panInsideWindow(region, s, tx, ty, geo);
+  // A window point, in the box's pixels.
+  const at = (u: number, v: number) => ({
+    x: geo.cardCx + pan.tx + s * (u * geo.bw - geo.cardW / 2),
+    y: geo.cardCy + pan.ty + s * (geo.bar + v * geo.bh - geo.cardH / 2),
+  });
+  return { geo, centred: { tx, ty }, pan, at };
+}
+
+test("a crop at the window's left edge pans so the window still fills the box", () => {
+  // kapi-desktop-projects/add-collection: centring this region drew the
+  // backdrop beside the window's left edge.
+  const region = { x: 0.02, y: 0.5, w: 0.5, h: 0.45 };
+  const { geo, centred, pan, at } = shot(region);
+  assert.ok(centred.tx > pan.tx, "the pan should move the window left");
+  assert.ok(at(0, 0).x <= -EDGE_OVERSCAN * geo.boxW + 1e-6, `left edge at ${at(0, 0).x}`);
+  assert.ok(at(1, 0).x >= geo.boxW, "the right edge stays past the box");
+  assert.ok(at(region.x, 0).x >= -1e-6 && at(region.x + region.w, 0).x <= geo.areaW + 1e-6);
+  assert.ok(at(0, region.y).y >= -1e-6 && at(0, region.y + region.h).y <= geo.areaH + 1e-6);
+});
+
+test("a crop in the window's middle keeps its centred pan", () => {
+  const { centred, pan } = shot({ x: 0.4, y: 0.35, w: 0.2, h: 0.2 });
+  assert.ok(Math.abs(centred.tx - pan.tx) < 1e-9 && Math.abs(centred.ty - pan.ty) < 1e-9);
+});
+
+test("a crop at the window's bottom keeps the region above the captions", () => {
+  const region = { x: 0.2, y: 0.88, w: 0.6, h: 0.1 };
+  const { geo, at } = shot(region);
+  assert.ok(at(0, region.y + region.h).y <= geo.areaH + 1e-6, "the region's bottom stays above the caption band");
+  assert.ok(at(0, 0).y <= 0, "the window's top stays past the box's top");
 });

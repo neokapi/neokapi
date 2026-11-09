@@ -1,6 +1,6 @@
 id: kapi-desktop-config
-title: The keychain holds the key
-subtitle: A recipe records which credential to use, and the secret stays out of it.
+title: Settings and API keys
+subtitle: Add a provider key, choose the appearance, and see your plugins.
 kind: use-case
 publishAs: kapi-desktop-config
 terminal: desktop
@@ -10,62 +10,59 @@ needsAi: false
 oneshot: true
 aspects:
   - Appearance
-  - AI providers
+  - AI models
+  - API keys in the keychain
   - Plugins
-  - Keychain-backed keys
 outro:
-  line: Add the key once; both surfaces use it.
+  line: Add your key once. The command line uses it too.
   pointer: kapi credentials add
 
 narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop puts a provider key in the operating system keychain, so the
-      recipe you commit never carries one. Settings is where the key is added,
-      and where plugins and appearance live too.
+      Kapi Desktop keeps your provider keys in the system keychain, and your
+      kapi.yaml file never contains a key. This video shows where you add a
+      key, and the other app settings.
 
   - id: open-settings
     kind: desktop
     beat: open-settings
-    crop: { x: 0.01, y: 0.02, w: 0.37, h: 0.42 }
-    caption: Appearance, models, plugins and locales, in one place.
+    caption: Open the app settings.
     text: >-
-      Settings gathers appearance, the AI models a project can translate with,
-      plugins, and the languages the interface itself can run in.
+      On the Open screen, click Settings. The app settings have tabs for
+      General, AI Models, Plugins, Formats and Languages.
 
   - id: general
     kind: desktop
     beat: general
-    crop: { x: 0.01, y: 0.02, w: 0.37, h: 0.42 }
-    caption: Follows the system, or pinned either way.
+    crop: { x: 0.03, y: 0.04, w: 0.4, h: 0.3 }
+    caption: Light, dark, or the same as your system.
     text: >-
-      Appearance follows your system by default, or you can pin light or dark.
-      The interface can also run in a pseudo-language, which is how you test
-      that a screen survives longer words.
+      On General, choose System, Light or Dark. You can also change the
+      language of the app.
 
   - id: credentials
     kind: desktop
     beat: credentials
-    caption: The key is typed here, and stored by the keychain.
-    crop: { x: 0.13, y: 0.27, w: 0.4, h: 0.42 }
+    caption: Your API key is saved in the keychain.
+    crop: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }
     text: >-
-      AI Models lists the providers and the models under each. Adding
-      credentials asks for a name, a model and the key, and the key goes to the
-      operating system keychain. The recipe records which credential to use, and
-      never the secret itself.
+      On AI Models, click Add Credentials for a provider. Enter a name, a
+      model and your API key. When you click Save, the key goes into the
+      keychain. kapi.yaml stores only the name of the credential.
 
   - id: plugins
     kind: desktop
     beat: plugins
-    crop: { x: 0.02, y: 0.03, w: 0.55, h: 0.42 }
-    caption: Plugins add formats, connectors and tools.
+    crop: { x: 0.03, y: 0.04, w: 0.95, h: 0.3 }
+    caption: Plugins add file formats and tools.
     text: >-
-      Plugins extend what the project can read and run, adding formats,
-      connectors and tools beyond the built-in set.
+      Plugins lists the plugins you have installed. A plugin adds more file
+      formats or tools. Open the Available tab to install one.
 
   - id: outro
     kind: outro
     text: >-
-      Add a key once here and the command line in the same folder uses the same
-      one, because both read the same keychain.
+      Add a key once in the app. kapi on the command line uses the same key,
+      because both read the same keychain.

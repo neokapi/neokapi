@@ -8,7 +8,7 @@ import type { ThemeMode } from "./theme.ts";
 import type { SceneLayout } from "./layout.ts";
 import { BoxMark } from "./Marks.tsx";
 import { clickFrames, planPlayback } from "../playback.ts";
-import { cardGeometry, FULL_WINDOW_FIT, isWebDemo, MAX_CROP_SCALE, regionFit } from "../../lib/crop.ts";
+import { cardGeometry, FULL_WINDOW_FIT, isWebDemo, MAX_CROP_SCALE, panInsideWindow, regionFit } from "../../lib/crop.ts";
 import type { CardGeometry } from "../../lib/crop.ts";
 
 const Light: React.FC<{ c: string }> = ({ c }) => (
@@ -34,7 +34,8 @@ interface Cam {
  * 1.0, lightly turned; a region beat crops to its region: the scale that fits
  * the region into the crop area (above the captions), clamped to 1 to 2.5,
  * times the beat's own `zoom`, and the region's centre brought to the area's
- * centre. The tilt shrinks with the crop so a pushed-in window stays flat.
+ * centre, or as near it as the window's edges allow (`panInsideWindow`). The
+ * tilt shrinks with the crop so a pushed-in window stays flat.
  */
 function shotPose(region: ZoomRect | null, zoomMul: number, geo: CardGeometry, idx: number): Cam {
   const alt = idx % 2 === 0 ? 1 : -1;
@@ -50,10 +51,11 @@ function shotPose(region: ZoomRect | null, zoomMul: number, geo: CardGeometry, i
   const cy = region.y + region.h / 2;
   const ox = cx * geo.bw - geo.cardW / 2;
   const oy = geo.bar + cy * geo.bh - geo.cardH / 2;
+  const { tx, ty } = panInsideWindow(region, s, geo.areaCx - geo.cardCx - s * ox, geo.areaCy - geo.cardCy - s * oy, geo);
   return {
     s,
-    tx: geo.areaCx - geo.cardCx - s * ox,
-    ty: geo.areaCy - geo.cardCy - s * oy,
+    tx,
+    ty,
     yaw: clamp(alt * yawMag + (0.5 - cx) * 4, -6, 6) / s,
     pitch: clamp(pitchBase + (0.5 - cy) * 3, -2, 5) / s,
   };

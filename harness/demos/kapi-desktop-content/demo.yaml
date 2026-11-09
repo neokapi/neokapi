@@ -1,6 +1,6 @@
 id: kapi-desktop-content
-title: What a collection holds
-subtitle: Every matched file read as the project opens, and one file as keys and values.
+title: Collections and files
+subtitle: See which files a project reads, and open one to see its text.
 kind: use-case
 publishAs: kapi-desktop-content
 terminal: desktop
@@ -9,75 +9,70 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Content collections
+  - Collections
   - File patterns
-  - Keyed file preview
-  - Format detection
+  - Keys and text
+  - The file on disk
 outro:
-  line: Edit a file; the app reads it again.
+  line: Edit a file, and the counts update.
   pointer: kapi status
 
 narration:
   - id: title
     kind: title
     text: >-
-      A collection is a set of file patterns. The app reads the files they
-      match as the project opens, and every language has a number against it.
+      A collection is a group of files that you choose with file patterns.
+      When you open a project, Kapi Desktop reads those files and counts the
+      text for each language.
 
   - id: open-project
     kind: desktop
     beat: open-project
-    crop: { x: 0.01, y: 0.03, w: 0.5, h: 0.45 }
-    caption: The collections, read as the project opens.
+    crop: { x: 0.03, y: 0.08, w: 0.5, h: 0.3 }
+    caption: A summary of the project.
     text: >-
-      The sample opens on its Map, and the project section beside it shows the
-      standing: the blocks read from its collections, and the voice and terms
-      that govern them.
+      Open the KapiMart sample, then Project Settings, and the Content tab.
+      At the top, you see how many blocks of text the project has, its
+      collections, and its languages.
 
   - id: extract
     kind: desktop
     beat: extract
-    caption: Read on its own, and the coverage fills in.
-    crop: { selector: ['[data-slot="ship-gate-cell"]', '[data-testid="collection-file-count"]'] }
-    highlight: { selector: '[data-slot="ship-gate-cell"]' }
-    hold: 12
+    caption: Files and progress for each collection.
+    crop: { x: 0.03, y: 0.42, w: 0.95, h: 0.38 }
+    hold: 10
     text: >-
-      The app reads every matched file with the format it detected for it and
-      turns each one into blocks. The counts and the ladder for each language
-      come from that read.
+      Further down, each collection has a row. You see how many files and
+      blocks it has, and how much of each language is done.
 
   - id: patterns
     kind: desktop
     beat: patterns
-    caption: The patterns, and the files each one matched.
-    crop: { x: 0.01, y: 0.58, w: 0.55, h: 0.42 }
+    caption: The files in a collection.
+    crop: { x: 0.03, y: 0.58, w: 0.68, h: 0.24 }
     text: >-
-      Opening a collection shows the patterns that define it. Each output
-      pattern opens to the source file above its language files, every one
-      carrying the format Kapi read it as.
+      Click a collection to open it. Each row is a file, with its format and
+      the pattern that found it.
 
   - id: keys
     kind: desktop
     beat: keys
-    caption: The key column names the block Review decides on.
-    crop: { x: 0.5, y: 0.14, w: 0.5, h: 0.42 }
+    caption: A JSON file as keys and text.
+    crop: { x: 0.5, y: 0.0, w: 0.34, h: 0.36 }
     text: >-
-      A JSON catalog is a list of keys with text against them, so the preview
-      reads it as a table. The key column is what makes it navigable, and it is
-      the same key that names the block in Review.
+      Click a file to preview it. A JSON file shows as a table, with each key
+      next to its text. Review uses the same keys to name each block.
 
   - id: code
     kind: desktop
     beat: code
-    caption: The same file, as it is written on disk.
-    crop: { x: 0.5, y: 0.12, w: 0.5, h: 0.42 }
+    caption: The same file, as saved on disk.
+    crop: { x: 0.5, y: 0.0, w: 0.34, h: 0.36 }
     text: >-
-      The other tab is the file itself, with the line for the selected key
-      highlighted. Structure on one, bytes on the other, and the same content
-      underneath both.
+      Click File to see the file exactly as it is saved on disk.
 
   - id: outro
     kind: outro
     text: >-
-      An edit to a source file is read again on its own, so what the project
-      knows stays level with the working tree.
+      When you edit a source file, the app reads it again, and the counts
+      update.
