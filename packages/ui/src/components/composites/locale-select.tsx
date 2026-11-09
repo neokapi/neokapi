@@ -22,7 +22,6 @@ import {
 import {
   Combobox,
   ComboboxContent,
-  ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
@@ -265,7 +264,14 @@ export function MultiLocaleSelect({
           <ComboboxInput placeholder={placeholder} disabled={disabled} className="w-full" />
           <ComboboxContent>
             <ComboboxList>
-              <ComboboxEmpty>No matching locales.</ComboboxEmpty>
+              {/* `available` is filtered here, by the locale's name, and the
+                  combobox is given no items of its own, so it cannot tell
+                  whether the list is empty. Say so from the list itself. */}
+              {available.length === 0 && (
+                <p className="py-2 text-center text-sm text-muted-foreground">
+                  {t("No matching locales.")}
+                </p>
+              )}
               {available.map((l) => (
                 <ComboboxItem key={l.code} value={l.code}>
                   <span className="flex items-center gap-2">

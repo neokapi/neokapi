@@ -27,6 +27,7 @@ narration:
   - id: queue
     kind: desktop
     beat: queue
+    crop: { x: 0.01, y: 0.02, w: 0.92, h: 0.5 }
     caption: One list, every language, two ways to narrow it.
     text: >-
       Review is one queue. Every language is in the same list, with a count per
@@ -35,6 +36,7 @@ narration:
   - id: open-unit
     kind: desktop
     beat: open-unit
+    crop: { x: 0.17, y: 0.05, w: 0.76, h: 0.42 }
     caption: Source, target, and the layers beneath them.
     text: >-
       Opening a unit gives the source and the translation, with what shaped
@@ -44,7 +46,7 @@ narration:
     kind: desktop
     beat: point
     caption: What governs here?
-    crop: { selector: '[data-slot="review-point"]' }
+    crop: { x: 0.17, y: 0.06, w: 0.5, h: 0.25 }
     text: >-
       The first layer is the point this content sits at: its coordinates, the
       voice governing there, and the term rules bound to it.
@@ -53,7 +55,7 @@ narration:
     kind: desktop
     beat: neighbourhood
     caption: What sits either side of it?
-    crop: { selector: '[data-slot="review-neighbourhood"]' }
+    crop: { x: 0.17, y: 0.32, w: 0.76, h: 0.32 }
     text: >-
       The second is the neighbourhood: the blocks either side of it, so a
       sentence is read where a reader will meet it.
@@ -62,7 +64,7 @@ narration:
     kind: desktop
     beat: history
     caption: What was decided before?
-    crop: { selector: '[data-slot="review-history"]' }
+    crop: { x: 0.17, y: 0.49, w: 0.76, h: 0.32 }
     text: >-
       The third is what was decided before: the version approved last time,
       beside the match memory offers now.
@@ -71,7 +73,7 @@ narration:
     kind: desktop
     beat: findings
     caption: What did the checks find, and where?
-    crop: { selector: '[data-slot="review-findings"]' }
+    crop: { x: 0.17, y: 0.66, w: 0.5, h: 0.25 }
     highlight: { selector: '[data-slot="review-finding"]' }
     text: >-
       The fourth is the checks. A finding is anchored in the run it names, so a
@@ -81,7 +83,7 @@ narration:
     kind: desktop
     beat: provenance
     caption: Who decided, and when?
-    crop: { selector: '[data-slot="review-provenance"]' }
+    crop: { x: 0.17, y: 0.75, w: 0.5, h: 0.25 }
     text: >-
       The fifth is provenance: who wrote it, who decided it, and whether the
       text has moved since. This one carries none.
@@ -89,6 +91,7 @@ narration:
   - id: decide
     kind: desktop
     beat: decide
+    crop: { x: 0.01, y: 0.03, w: 0.5, h: 0.5 }
     caption: One keystroke, then the clean ones together.
     text: >-
       With that read, the decision is a keystroke bound to the text it judged,

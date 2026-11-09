@@ -7,7 +7,7 @@ export type { AddStepPickerProps } from "./AddStepPicker";
 export { ToolCommandCopy } from "./ToolCommandCopy";
 export type { ToolCommandCopyProps } from "./ToolCommandCopy";
 export { useStepReorder } from "./reorder";
-export type { StepReorder, DropSide } from "./reorder";
+export type { StepReorder, DropSide, MoveVia } from "./reorder";
 export { ParallelGroupRow } from "./ParallelGroupRow";
 export type { ParallelGroupRowProps } from "./ParallelGroupRow";
 export { parallelStepError, sequenceIssues, listBranchesInOrder } from "./sequence";

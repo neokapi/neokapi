@@ -91,9 +91,8 @@ narration:
     caption: The brief for one file carries your rule.
     text: >-
       Assistants shows what an assistant reads. For the store's interface
-      strings, the brief marks basket as discouraged and says cart instead,
-      the rule you kept a moment ago. It is the answer kapi context prints for
-      that file.
+      strings, the brief marks basket as discouraged, the rule you kept a
+      moment ago. It is the answer kapi context prints for that file.
 
   - id: live
     kind: desktop

@@ -27,6 +27,7 @@ narration:
   - id: open-project
     kind: desktop
     beat: open-project
+    crop: { x: 0.01, y: 0.03, w: 0.5, h: 0.45 }
     caption: The collections, read as the project opens.
     text: >-
       The sample opens on its Map, and the project section beside it shows the
@@ -49,7 +50,7 @@ narration:
     kind: desktop
     beat: patterns
     caption: The patterns, and the files each one matched.
-    crop: { selector: '[data-slot="matched-files-scroll"]' }
+    crop: { x: 0.01, y: 0.58, w: 0.55, h: 0.42 }
     text: >-
       Opening a collection shows the patterns that define it. Each output
       pattern opens to the source file above its language files, every one
