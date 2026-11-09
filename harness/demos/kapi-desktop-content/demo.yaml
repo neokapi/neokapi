@@ -68,6 +68,8 @@ narration:
     beat: code
     caption: The same file, as saved on disk.
     crop: { x: 0.5, y: 0.0, w: 0.34, h: 0.36 }
+    # The narration is shorter than the time the file view takes to open.
+    hold: 6
     text: >-
       Click File to see the file exactly as it is saved on disk.
 
