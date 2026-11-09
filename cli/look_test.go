@@ -96,7 +96,7 @@ func TestLookMap(t *testing.T) {
 			want: []string{
 				"1 file · 2 blocks · 0 rules · 0 findings",
 				"Files\n  docs/guide.md  2 blocks\n",
-				"Check with `kapi check`. See a file with `kapi look <path>`.",
+				"Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.",
 			},
 			not: []string{"kapi suggests", "What your files do", "languages"},
 		},
@@ -109,6 +109,7 @@ func TestLookMap(t *testing.T) {
 			want: []string{
 				"2 files · 4 blocks · 0 rules · 1 finding",
 				"  docs/guide.md  2 blocks · 1 finding\n  docs/faq.md    2 blocks\n",
+				"Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.",
 			},
 		},
 		{

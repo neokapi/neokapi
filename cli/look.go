@@ -21,7 +21,9 @@ With no path, look prints the project: the files kapi reads, the blocks in
 them, the rules in force, the findings kapi check reports, and the
 suggestions waiting for you in kapi rules. The first look at a project with
 no rules files what kapi sees in the files as suggestions. Inside a project,
-kapi with no command prints the same.
+kapi with no command prints the same. The last line names the next step: the
+first of deciding the suggestions, fixing what fails, connecting an assistant
+and sharing the rules that is left, or kapi check once all are done.
 
 With a path, look prints the file's blocks in order, each one named the way
 kapi check and kapi inspect name it. A finding is marked with carets under the
