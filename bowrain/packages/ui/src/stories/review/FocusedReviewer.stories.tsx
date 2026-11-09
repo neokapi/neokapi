@@ -398,7 +398,7 @@ export const WithoutResolvedContext: Story = {
 
 /**
  * An agent pre-reviewed the translation through the server's MCP (a decide with
- * outcome advise): its score, its name and its reasons sit in the checks card,
+ * outcome prereview): its score, its name and its reasons sit in the checks card,
  * and the unit stays in the queue for a person to decide.
  */
 export const WithAgentPreReview: Story = {

@@ -305,7 +305,7 @@ schema is the change-set schema, which the snapshot records in full, with the
 per-call `project` added. Its result is a `kapi.change-result/v1` document, an
 error result when the change set is refused or lands only in part.
 `describe_format` reports what each operation supports in a format. A
-pre-review is a `decide` operation with outcome `advise` sent through
+pre-review is a `decide` operation with outcome `prereview` sent through
 `apply_edits`. `review_queue` rows carry
 the `ref` that `review_block` takes.
 
@@ -317,7 +317,7 @@ established from the start, and `evidence` says where the wording behind it was
 seen: a file (`path`, `block`, `quote`) or a web page (`url`). A change set
 takes no actor: `apply_edits` sends every change set as the calling agent in
 the server's session, so the change policy refuses its term, content-memory
-and recipe operations, a `decide` other than `advise`, an `if_match` of `*` and
+and recipe operations, a `decide` other than `prereview`, an `if_match` of `*` and
 the `report` gate, and `kapi apply` records the person or agent its
 environment names. See
 [Growing context](/kapi/context-decisions).

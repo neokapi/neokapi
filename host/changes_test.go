@@ -596,7 +596,7 @@ func TestChangeAssets_APreReviewThatAnnotatesNothingIsRefused(t *testing.T) {
 		Place: change.Place{Kind: change.PlaceOwnFile, File: "locales/de.json"}, Text: "Willkommen", SourceText: "Welcome", Role: change.RoleDerived}
 	agent := change.Actor{Kind: change.ActorAgent, Name: "review-agent", Session: "s1"}
 	_, cerr := assets.Apply(context.Background(), agent, &change.Set{},
-		change.Op{Kind: change.KindDecide, At: at, Body: &change.Decide{Outcome: change.OutcomeAdvise, Score: &score}}, target)
+		change.Op{Kind: change.KindDecide, At: at, Body: &change.Decide{Outcome: change.OutcomePrereview, Score: &score}}, target)
 	require.NotNil(t, cerr)
 	assert.Equal(t, change.CodeNotFound, cerr.Code)
 }

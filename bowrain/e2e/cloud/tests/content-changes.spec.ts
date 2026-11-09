@@ -122,24 +122,24 @@ test.describe("Content changes", () => {
       ops: [setFrench(block.id, "absent", "Bonjour, le monde !")],
     });
     const read = written.ops[0].after!;
-    const adviseOp = {
+    const prereviewOp = {
       op: "decide" as const,
       at: { doc: ITEM, block: block.id, edition: "fr" },
       if_match: read,
-      outcome: "advise" as const,
+      outcome: "prereview" as const,
       score: 72,
       reasons: ["Reads as machine output."],
     };
 
     // The queue shows a pre-review as AI advice, so a person sends none.
-    const personal = await api.sendChanges(wsSlug, projectId, { ops: [adviseOp] });
+    const personal = await api.sendChanges(wsSlug, projectId, { ops: [prereviewOp] });
     expect(personal.status).toBe(403);
     expect(personal.result.ops[0].error?.code).toBe("not_permitted");
 
     // An agent sends it through the server MCP, acting for the same user.
     const advised = await api.callMcpTool<{ status: string }>(
       "apply_edits",
-      { project_id: projectId, ops: [adviseOp] },
+      { project_id: projectId, ops: [prereviewOp] },
       "e2e-agent",
     );
     expect(advised.isError).toBe(false);

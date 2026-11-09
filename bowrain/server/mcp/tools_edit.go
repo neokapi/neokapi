@@ -101,7 +101,7 @@ func (s *MCPServer) registerEditTools() {
 			"not_applied. Each refusal carries a code and the field at fault: re-read, fix the operation and resend. " +
 			"mode preview checks the change set and writes nothing. Every operation is recorded as yours, the calling " +
 			"agent's, acting for the signed-in user. A review decision is a person's: decide records only a pre-review, " +
-			"outcome advise with a score from 0 to 100 and its reasons, which the review queue shows beside the " +
+			"outcome prereview with a score from 0 to 100 and its reasons, which the review queue shows beside the " +
 			"translation while it stands at the revision you read.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		res, err := s.applyEdits(ctx, req)

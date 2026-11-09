@@ -311,7 +311,7 @@ func TestDecide_RejectMovesToDraft(t *testing.T) {
 	assert.Equal(t, model.TargetStatusNew, targetStatusOf(t, got, "de"), "de must be untouched")
 
 	// A pre-review is an agent's, and a stream decides on translations.
-	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeAdvise)
+	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomePrereview)
 	assert.Equal(t, change.CodeNotPermitted.HTTPStatus(), rec.Code, rec.Body.String())
 	assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
 	rec, res = sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{

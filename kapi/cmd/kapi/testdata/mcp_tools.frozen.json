@@ -1121,7 +1121,7 @@
                 },
                 {
                   "additionalProperties": false,
-                  "description": "Record a review decision on the edition revision read. An agent sends only advise.",
+                  "description": "Record a review decision on the edition revision read. An agent sends only prereview.",
                   "properties": {
                     "at": {
                       "$ref": "#/$defs/ref"
@@ -1136,12 +1136,12 @@
                       "type": "string"
                     },
                     "outcome": {
-                      "description": "establish, reject, withdraw, or advise (an agent's pre-review)",
+                      "description": "establish, reject, withdraw, or prereview (an agent's pre-review)",
                       "enum": [
                         "establish",
                         "reject",
                         "withdraw",
-                        "advise"
+                        "prereview"
                       ],
                       "type": "string"
                     },

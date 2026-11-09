@@ -131,7 +131,7 @@ export const Default: Story = {
 
 /**
  * An agent pre-reviewed one translation through the server's MCP (a decide
- * with outcome advise): its row carries the score, and the unit stays in the
+ * with outcome prereview): its row carries the score, and the unit stays in the
  * queue for a person to decide.
  */
 export const AgentPreReview: Story = {

@@ -2,7 +2,7 @@
 id: s-03-agent-surfaces
 sidebar_position: 3
 title: "S-03: Agent surfaces: MCP and skills"
-description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. Content and asset edits are kapi.change/v1 change sets, applied whole or not at all by the change service, sent with kapi apply on the command line and with apply_edits over MCP, where an agent reads blocks with read_blocks and records a pre-review as a decide operation with outcome advise."
+description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. Content and asset edits are kapi.change/v1 change sets, applied whole or not at all by the change service, sent with kapi apply on the command line and with apply_edits over MCP, where an agent reads blocks with read_blocks and records a pre-review as a decide operation with outcome prereview."
 keywords: [neokapi, architecture decision, agent skill, SKILL.md, MCP, model context protocol, kapi apply, apply_edits, change set, hooks, progressive disclosure]
 ---
 
@@ -26,7 +26,7 @@ kapi.change/v1 change set ([E-09](../engine/e-09-the-change-contract.md)), the
 contract the change service applies for every surface. On the MCP server an
 agent reads a document's blocks with `read_blocks` and sends the same change
 set with `apply_edits`. A pre-review is a `decide` operation with outcome
-`advise` in such a change set, and a review decision stays a person's.
+`prereview` in such a change set, and a review decision stays a person's.
 
 ## Context
 
@@ -440,7 +440,7 @@ path a person takes and the path an agent takes share one format.
 A review decision belongs to a person. An agent pre-reviews: `review_block`
 reads a queued block with the reference and revision of the edition under
 review, and `apply_edits` records a `decide` operation at that reference with
-outcome `advise`, a score from 0 to 100 and its reasons. The pre-review is
+outcome `prereview`, a score from 0 to 100 and its reasons. The pre-review is
 bound to the revision the agent read and recorded as `agent/<client>`, and the
 person working the queue reads it beside the block. An agent's `establish`,
 `reject` or `withdraw` is refused as `not_permitted`. A person's decision
@@ -496,13 +496,13 @@ languages of the record's transitions.
 ([C-11](../context/c-11-context-operations.md)) to the operations of a change
 set. A person may send every operation, write over whatever an edition holds,
 and choose the `report` gate to land an edit over its findings. An agent may
-change content and may pre-review (`decide` with `advise`). Its `term`,
+change content and may pre-review (`decide` with `prereview`). Its `term`,
 `memory` and `recipe` operations, any other decision, a blind write
 (`if_match: "*"`) and the `report` gate are refused as `not_permitted`, with
 what to do instead: record a suggestion, ask a person, or read the edition and
 send its revision. A tool in a flow may choose `report`, because its drafts
 meet the ship gates later, and only a tool records how it produced an edition.
-A tool records a decision only with `advise`, as an agent does; a pull or a merge that
+A tool records a decision only with `prereview`, as an agent does; a pull or a merge that
 carries a person's decision sends it as that person. The transport names the
 sender, and a sender of any other kind, or of none, is refused every
 operation.
