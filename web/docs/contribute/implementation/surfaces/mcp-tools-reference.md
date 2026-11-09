@@ -209,7 +209,7 @@ report the canonical reference and the revision of the edition under review,
 then answers with `ReviewUnitWithContext`, addressing the block by the file the
 recipe writes that edition to.
 
-An advise lands through `RecordAIReviews`, under `agent/<client>`. It needs a
+A pre-review lands through `RecordAIReviews`, under `agent/<client>`. It needs a
 score, and one the review queue has no row for is refused as `not_found` once
 the content beside it was written, which makes the change set `partial`.
 

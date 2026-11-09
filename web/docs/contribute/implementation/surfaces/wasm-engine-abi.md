@@ -280,7 +280,7 @@ and returns a Promise of a JSON string.
   one, the sender is the one `kapi apply` records in the same environment: a
   person, unless `KAPI_ACTOR` or an agent host's marker says otherwise. An
   agent's term, memory and recipe operations, its decisions other than a
-  pre-review (`advise`), an `if_match` of `*` and the `report` gate are
+  pre-review (`prereview`), an `if_match` of `*` and the `report` gate are
   refused as `not_permitted`, as they are over MCP.
 - **One service.** The calls build the change service through
   `host.ReadChangesJSON`, `host.ApplyChangesJSON` and

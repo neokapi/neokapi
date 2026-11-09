@@ -27,7 +27,7 @@ import (
 //   - reject moves it to draft, so it re-enters the work queue; withdraw moves
 //     it to translated. Moving an established translation takes the review
 //     permission for its language.
-//   - advise records a pre-review: the score and reasons an agent gives the
+//   - prereview records a pre-review: the score and reasons an agent gives the
 //     translation, which the review queue shows beside it while it stands at
 //     the revision judged (prereviews.go). It moves no status.
 type streamDecisions struct {
@@ -73,7 +73,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 	case target.Ref.Edition.Tone != "" || target.Ref.Edition.Channel != "":
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
 			Message: "a stream records review decisions on a language's translation, not on a tone or channel edition"}
-	case body.Outcome == change.OutcomeAdvise:
+	case body.Outcome == change.OutcomePrereview:
 		return d.prepareAdvice(ctx, body, target)
 	case d.c == nil:
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
@@ -128,7 +128,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 
 func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *change.Set, op change.Op, target *change.DecisionTarget) (change.OpStatus, *change.Error) {
 	body := op.Body.(*change.Decide)
-	if body.Outcome == change.OutcomeAdvise {
+	if body.Outcome == change.OutcomePrereview {
 		return d.recordAdvice(ctx, actor, body, target)
 	}
 	row := d.rows.find(ctx, target.Doc.Doc, target.Ref.Block)

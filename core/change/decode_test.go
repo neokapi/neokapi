@@ -85,7 +85,7 @@ func decodeCases() []decodeCase {
 			}},
 		{name: "decide", object: true, in: envelope(
 			`{"op":"decide","at":{"doc":"docs/guide.md","block":"install/p","edition":"fr"},"if_match":"r:74dbfac2ed1c9d6e","outcome":"establish"}`,
-			`{"op":"decide","at":{"doc":"docs/guide.md","block":"install/p","edition":"fr"},"if_match":"r:74dbfac2ed1c9d6e","outcome":"advise","score":80,"reasons":["terminology"]}`)},
+			`{"op":"decide","at":{"doc":"docs/guide.md","block":"install/p","edition":"fr"},"if_match":"r:74dbfac2ed1c9d6e","outcome":"prereview","score":80,"reasons":["terminology"]}`)},
 		{name: "term, memory and recipe", object: true, in: envelope(
 			`{"op":"term","action":"upsert","term":"handbook","status":"preferred","replaces":"shop guide"}`,
 			`{"op":"memory","action":"add","from":{"edition":"en","text":"handbook"},"to":{"edition":"nb_no","text":"håndbok"}}`,

@@ -1779,7 +1779,7 @@ export interface PendingReviewEntry {
   voice_bar?: number;
   /**
    * The pre-review an agent recorded on this translation (a `decide` with
-   * outcome `advise`), present while the translation stands at the revision
+   * outcome `prereview`), present while the translation stands at the revision
    * the agent judged. It decides nothing.
    */
   pre_review?: PreReviewInfo;

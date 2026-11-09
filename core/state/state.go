@@ -240,7 +240,7 @@ type Decision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | …
 	// By is the person's identity where a hosted surface knows it; empty for
 	// the person at the keyboard. An agent never records a decision: the
-	// change service refuses a decide other than advise from one.
+	// change service refuses a decide other than prereview from one.
 	By       string `json:"by,omitempty"`
 	At       string `json:"at,omitempty"` // RFC 3339
 	Note     string `json:"note,omitempty"`
@@ -309,7 +309,7 @@ func (s UnitState) Key() Key { return Key{Scope: s.Scope, Unit: s.Unit, Variant:
 // Decides reports whether the record decides something about its unit: a
 // review state (an approval or a rejection, of a translation or of source
 // wording), a rung above translated, a parked unit, an assignee or a note, or
-// an agent's pre-review (a decide advise). A record that says only what was
+// an agent's pre-review (a decide prereview). A record that says only what was
 // produced (a translation, the source it was made from, the rung its producer
 // put it on) decides nothing. The block history holds that, beside every
 // other change to the edition, and the ledger holds decisions only.

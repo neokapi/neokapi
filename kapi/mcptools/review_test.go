@@ -205,7 +205,7 @@ func call(t *testing.T, s *mcp.ClientSession, name string, args map[string]any, 
 }
 
 // An agent records its pre-review through apply_edits: a decide operation
-// with outcome advise, at the reference and revision review_block reported.
+// with outcome prereview, at the reference and revision review_block reported.
 // The score lands on the unit under the agent's name, and the unit stays in
 // the queue for a person. An agent's establish is refused, and a pre-review
 // of wording that moved since the read is refused as stale; neither records
@@ -247,13 +247,13 @@ func TestPreReviewIsAnAdviseThroughApplyEdits(t *testing.T) {
 	assert.Equal(t, change.CodeNotPermitted, refused.Ops[0].Error.Code, "an agent never decides")
 
 	var stale result
-	assert.True(t, call(t, session, "apply_edits", decide("advise", "r:0000000000000000"), &stale))
+	assert.True(t, call(t, session, "apply_edits", decide("prereview", "r:0000000000000000"), &stale))
 	require.Len(t, stale.Ops, 1)
 	require.NotNil(t, stale.Ops[0].Error)
 	assert.Equal(t, change.CodeStale, stale.Ops[0].Error.Code, "a pre-review binds to the wording that was read")
 
 	var advised result
-	require.False(t, call(t, session, "apply_edits", decide("advise", picture.Rev), &advised))
+	require.False(t, call(t, session, "apply_edits", decide("prereview", picture.Rev), &advised))
 	assert.Equal(t, "applied", advised.Status)
 
 	// The unit stays in the queue for a person, carrying the score under the

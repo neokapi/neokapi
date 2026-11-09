@@ -323,7 +323,7 @@ The assistant calls `review_queue`, reads each candidate with `review_block`
 using the `ref` its row carries (the result holds the block's text, status and
 review context under `block`), and records a pre-review through
 `apply_edits`: a `decide` operation at that `ref`, with `if_match` set to the
-`rev` `review_block` returned, outcome `advise`, a score from 0 to 100 and its
+`rev` `review_block` returned, outcome `prereview`, a score from 0 to 100 and its
 reasons. The pre-review is bound to the wording the assistant read and
 recorded under the identity `agent/<client>`, so a later edit drops it. It
 decides nothing: the block stays in the queue until a person approves or
@@ -455,7 +455,7 @@ plus the per-call `project`.
 | `remove_edition` | drops a translation: from a bilingual file such as PO, or with its key from a JSON, YAML or ARB translation file |
 | `insert_block` | adds a key to a JSON, YAML or ARB catalog, with its text in each language |
 | `delete_block` | removes a key from such a catalog and from each translation's file |
-| `decide` | a pre-review: outcome `advise`, with a score and reasons |
+| `decide` | a pre-review: outcome `prereview`, with a score and reasons |
 
 `describe_format` lists what each format supports; an operation the format
 refuses is refused as `unsupported` and writes nothing.
@@ -500,7 +500,7 @@ change set holding a `term`, `memory` or `recipe` operation, an `if_match` of
 `*` or `gate: "report"` is refused as `not_permitted` and writes nothing. The assistant records a term rule as a
 suggestion with `context_note`, with `from` and `to` for wording it changed,
 and a person keeps it. A review decision is a person's too: an
-assistant's `decide` takes only the outcome `advise`, with the score it gives.
+assistant's `decide` takes only the outcome `prereview`, with the score it gives.
 A person sends the same operations with `kapi apply` in a terminal.
 
 ### describe_format

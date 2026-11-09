@@ -38,7 +38,7 @@ type changeSender struct {
 //     adds one; its author or a project manager rewrites or removes it. An
 //     entity is marked with edit source.
 //   - An agent sends neither gate report, if_match "*", nor a decision other
-//     than advise, which records a pre-review and takes translate for the
+//     than prereview, which records a pre-review and takes translate for the
 //     language. A pre-review is an agent's: the review queue shows it as AI
 //     advice, so a person sends establish, reject or withdraw instead. Only a
 //     tool records provenance, and a tool records no decision.
@@ -71,13 +71,13 @@ func (p *streamPolicy) Permit(actor change.Actor, set *change.Set, op change.Op)
 		case blindWrite(op):
 			return notPermittedTo("an agent", `send if_match "*"`,
 				"an agent writes over the revision it read; read the edition and send its revision")
-		case decide != nil && decide.Outcome != change.OutcomeAdvise:
+		case decide != nil && decide.Outcome != change.OutcomePrereview:
 			return notPermittedTo("an agent", "decide "+string(decide.Outcome),
-				"a review decision is a person's; record a pre-review with outcome advise")
+				"a review decision is a person's; record a pre-review with outcome prereview")
 		}
 	}
-	if actor.Kind == change.ActorPerson && decide != nil && decide.Outcome == change.OutcomeAdvise {
-		return notPermittedTo("a person", "decide advise",
+	if actor.Kind == change.ActorPerson && decide != nil && decide.Outcome == change.OutcomePrereview {
+		return notPermittedTo("a person", "decide prereview",
 			"a pre-review is an agent's, and the review queue shows it as AI advice; approve or reject the translation")
 	}
 	if op.Kind == change.KindProvenance && actor.Kind != change.ActorTool {

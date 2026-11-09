@@ -11,12 +11,12 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// advise is a pre-review of a block's translation in locale, on revision rev.
-func advise(item, bid, locale, rev string, score *int, reasons ...string) change.Op {
+// prereview returns a pre-review of a block's translation in locale, on revision rev.
+func prereview(item, bid, locale, rev string, score *int, reasons ...string) change.Op {
 	return change.Op{Kind: change.KindDecide,
 		At:      change.Ref{Doc: item, Block: bid, Edition: model.EditionKey{Locale: model.LocaleID(locale)}},
 		IfMatch: rev,
-		Body:    &change.Decide{Outcome: change.OutcomeAdvise, Score: score, Reasons: reasons}}
+		Body:    &change.Decide{Outcome: change.OutcomePrereview, Score: score, Reasons: reasons}}
 }
 
 // An agent pre-reviews a translation through the server MCP's change service.
@@ -39,7 +39,7 @@ func TestPreReview_AnAgentsAdviceShowsBesideTheTranslationItJudged(t *testing.T)
 	read := platstore.TargetRevision(sb, "fr")
 
 	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{
-		advise("greetings.txt", judged, "fr", read, new(72), "reads as machine output"),
+		prereview("greetings.txt", judged, "fr", read, new(72), "reads as machine output"),
 	}}, change.Actor{Kind: change.ActorAgent, Name: "claude-code"})
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
@@ -104,12 +104,12 @@ func TestPreReview_IsRefusedWithoutAScoreOrATranslation(t *testing.T) {
 		op    change.Op
 		code  change.Code
 	}{
-		{"advice with no score", agent, advise("greetings.txt", byText["Open the app"], "fr", read, nil), change.CodeInvalid},
-		{"advice on a translation that does not exist", agent, advise("greetings.txt", byText["Sign in"], "fr", model.AbsentRevision, new(50)), change.CodeNotFound},
+		{"advice with no score", agent, prereview("greetings.txt", byText["Open the app"], "fr", read, nil), change.CodeInvalid},
+		{"advice on a translation that does not exist", agent, prereview("greetings.txt", byText["Sign in"], "fr", model.AbsentRevision, new(50)), change.CodeNotFound},
 		{"an agent's approval", agent, change.Op{Kind: change.KindDecide,
 			At:      change.Ref{Doc: "greetings.txt", Block: byText["Open the app"], Edition: model.EditionKey{Locale: "fr"}},
 			IfMatch: read, Body: &change.Decide{Outcome: change.OutcomeEstablish}}, change.CodeNotPermitted},
-		{"a person's advice", person, advise("greetings.txt", byText["Open the app"], "fr", read, new(100)), change.CodeNotPermitted},
+		{"a person's advice", person, prereview("greetings.txt", byText["Open the app"], "fr", read, new(100)), change.CodeNotPermitted},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -156,7 +156,7 @@ func TestPreReview_JudgesATranslationWithoutWords(t *testing.T) {
 			read := platstore.TargetRevision(sb, "fr")
 			require.NotEqual(t, model.AbsentRevision, read, "the block holds a French translation")
 
-			res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{advise("greetings.txt", bid, "fr", read, new(90))}},
+			res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{prereview("greetings.txt", bid, "fr", read, new(90))}},
 				change.Actor{Kind: change.ActorAgent, Name: "claude-code"})
 			require.NoError(t, err)
 			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)

@@ -344,7 +344,7 @@ func refine(kind change.Kind, m *jsonschema.Schema) {
 	case change.KindDeleteBlock:
 		m.Properties["if_match"].AdditionalProperties.Pattern = patternRevision
 	case change.KindDecide:
-		m.Properties["outcome"].Enum = []any{string(change.OutcomeEstablish), string(change.OutcomeReject), string(change.OutcomeWithdraw), string(change.OutcomeAdvise)}
+		m.Properties["outcome"].Enum = []any{string(change.OutcomeEstablish), string(change.OutcomeReject), string(change.OutcomeWithdraw), string(change.OutcomePrereview)}
 		m.Properties["score"].Minimum = new(0.0)
 		m.Properties["score"].Maximum = new(100.0)
 	case change.KindTerm:
