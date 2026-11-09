@@ -87,7 +87,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-web-project-screens",
-    "title": "One record of what your files do, for the whole team"
+    "title": "One record of the project's rules, for the whole team"
   },
   {
     "id": "bowrain-web-review",

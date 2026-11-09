@@ -43,7 +43,7 @@ A coding agent using kapi's [MCP server](/reference/mcp) records with the
 Each call records one thing:
 
 ```bash
-# something the files do every time
+# consistent wording in the files
 kapi context note --term Quickcast --instead-of "Quick cast" \
   --seen-in docs/guide.md --quote "Quickcast forecasts the next hour."
 
@@ -103,8 +103,8 @@ dropped stays dropped.
 
 With `--ai`, kapi then asks the connected AI model about the same blocks,
 through `term-extract` and `voice-infer`, and records what the model proposes
-the same way. A term is recorded when the files write it as the model wrote it in
-two or more blocks; a term the files write in more than one way is left to the
+the same way. A term is recorded when it appears in two or more blocks exactly
+as the model wrote it; a term spelled more than one way in the files is left to the
 spelling suggestion in the table. A name with spellings to
 avoid, such as `Harbor Help`, becomes a term rule; a single word becomes a
 note naming the term. Each voice measure the model reads becomes a note that
@@ -138,7 +138,7 @@ and files that use it. Before you answer, it says what keeping the marked form
 does: how many blocks a check then reports, and where the rule applies.
 
 ```
-[1/2] Which one do your files use?  #0rbavbmqsx
+[1/2] Which spelling should the project use?  #0rbavbmqsx
   * 1) Quickcast  2 blocks in 2 files
     2) Quick cast  1 block in 1 file
     3) Quick-cast  0 blocks in 0 files

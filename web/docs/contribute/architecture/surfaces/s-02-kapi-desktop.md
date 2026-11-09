@@ -284,8 +284,8 @@ the store sync has not read:
 | --- | --- | --- |
 | Header | the project's name; when the store sync last found the block cache current with the files on disk ("Read 2 minutes ago"), naming how many files the cache holds only when that differs from the files count; **Run on everything**; **Decide** with the count of conflicts and suggestions awaiting a person | the time `SyncProjectStore` records on the tab, the block cache |
 | Counts | **files** (the recipe's resolved content files), **blocks** (the cache's translatable blocks for them, as `GetProjectStatus` counts them), **rules** (the concepts in the bound terms store, the word and pattern rules of the voice profile at the project's own point, and the notes a person kept) and **findings** (the last checks run over every file), the only one in the warning ink and only above zero. Blocks open Ask, rules open Explore, and findings open the checks panel. **kapi suggests** beside them shows only when conflicts make its number differ from Decide's | the block cache, the terms and voice stores, the operation log, the tab's last whole-project `RunChecks` |
-| What your files do | one row for each conflict and each suggestion the digest holds: its kind as a `KindIcon`, the rule, the quotation, and the distinct blocks and files its evidence names. **Decide** opens the Decide section selecting that row (`conflict:<id>` or `suggested:<id>`) | `host.App.ContextDigest`, and the operation log for the evidence |
-| What your files do, empty | "No suggestions yet." and **Connect an assistant**, which opens Project Settings on Assistants | |
+| Suggestions | one row for each conflict and each suggestion the digest holds: its kind as a `KindIcon`, the rule, the quotation, and the distinct blocks and files its evidence names. **Decide** opens the Decide section selecting that row (`conflict:<id>` or `suggested:<id>`) | `host.App.ContextDigest`, and the operation log for the evidence |
+| Suggestions, empty | "No suggestions yet." and **Connect an assistant**, which opens Project Settings on Assistants | |
 | Files | one row per content file: format, name (the folder on the meta line), blocks, findings when above zero, and **Open**, which previews the file. Most findings first, then by path. An empty list offers **Add files**, or **Set up the project** while the project waits to be set up | the resolved content, the block cache, the last checks run |
 
 The checks run behind the findings count is `RunChecks` over every file in
@@ -516,9 +516,9 @@ and the desktop ask the same thing in the same order:
 
 | Suggestion | The question and its options |
 | --- | --- |
-| A name | "Which one do your files use?": each form with the blocks and files of the project's source that write it, the most used first, and **Other…** for a form the person types |
+| A name | "Which spelling should the project use?": each form with the blocks and files of the project's source that write it, the most used first, and **Other…** for a form the person types |
 | A word, a note or a content-memory pair | "Keep this as a rule?", with no options |
-| A disagreement | "Which one holds?" (or "Which one do your files use?" for two names): one option per side, each with who suggested it, its blocks and files, and what keeping it does |
+| A disagreement | "Which one holds?" (or "Which spelling should the project use?" for two names): one option per side, each with who suggested it, its blocks and files, and what keeping it does |
 
 Before the actions, a line states what keeping the picked option does: the
 blocks a check then reports, and where the rule applies ("If you keep

@@ -32,15 +32,15 @@ func newContextNoteCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note [what you noticed]",
 		Short: "Record what you noticed, or what a person changed",
-		Long: `Record one thing this project's files do every time: a product,
-feature or plan name as they write it, the spelling variety they keep to, a
-word they use where writers often use another, who the text addresses. Record
-it whether or not your own text uses it. Leave alone a word the files write
-more than one way (record nothing about it, not even a note), an interface
-label, and wording taken from your task.
+		Long: `Record one thing that is consistent across this project's files: a
+product, feature or plan name as written there, the spelling variety, a word
+chosen where writers often choose another, or how the text addresses the
+reader. Record it whether or not your own text contains it. Leave alone a
+word spelled more than one way in the files (record nothing about it, not
+even a note), an interface label, and wording taken from your task.
 
-For a name or word, pass --term with the form the files use and --instead-of
-with the form they avoid: the split form of a one-word name, the other
+For a name or word, pass --term with the form found in the files and
+--instead-of with the form to avoid: the split form of a one-word name, the other
 spelling, or the other word. kapi derives the other forms to avoid: the
 spaced, hyphenated and closed spellings of a compound, each part
 capitalised. "--term Quickcast --instead-of 'Quick cast'" avoids Quick cast,

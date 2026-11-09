@@ -59,7 +59,7 @@ func TestQuestions(t *testing.T) {
 			name:    "a name with several forms asks which one the files use",
 			records: []contextop.Record{suggested("n1", term("Quickcast", "Quick cast", "QuickCast", "Quick cast"), claude, -1)},
 			want: []Decision{{
-				ID: "n1", Short: contextop.ShortID("n1"), Kind: DecisionName, Question: "Which one do your files use?",
+				ID: "n1", Short: contextop.ShortID("n1"), Kind: DecisionName, Question: "Which spelling should the project use?",
 				Sentence: "Write Quickcast, not Quick cast, QuickCast or Quick cast.", SuggestedBy: "claude",
 				Options: []Option{{Form: "Quickcast", Scope: docs}, {Form: "Quick cast", Scope: docs}, {Form: "QuickCast", Scope: docs}},
 			}},
@@ -68,7 +68,7 @@ func TestQuestions(t *testing.T) {
 			name:    "a spelling filed by kapi is a name with two forms",
 			records: []contextop.Record{suggested("s1", term("e-mail", "email"), SuggestActor, -1)},
 			want: []Decision{{
-				ID: "s1", Short: contextop.ShortID("s1"), Kind: DecisionName, Question: "Which one do your files use?",
+				ID: "s1", Short: contextop.ShortID("s1"), Kind: DecisionName, Question: "Which spelling should the project use?",
 				Sentence: "Write e-mail, not email.", SuggestedBy: "kapi",
 				Options: []Option{{Form: "e-mail", Scope: docs}, {Form: "email", Scope: docs}},
 			}},

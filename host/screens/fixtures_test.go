@@ -204,7 +204,7 @@ func rulesDecideView() screens.RulesDecideViewDTO {
 		Decisions: []screens.RuleDecisionDTO{
 			{
 				ID: "01JBQC2K8M1N3P", Short: "n3p4", Kind: "name",
-				Question: "Which one do your files use?",
+				Question: "Which spelling should the project use?",
 				Sentence: "Write Invoicely, not Invoice-ly.",
 				Label:    "Invoicely", Avoided: 1,
 				Options: []screens.RuleOptionDTO{
@@ -218,7 +218,7 @@ func rulesDecideView() screens.RulesDecideViewDTO {
 			},
 			{
 				Kind:     "disagreement",
-				Question: "Which one do your files use?",
+				Question: "Which spelling should the project use?",
 				Reason:   "Two suggestions name different forms for Quickcast.",
 				Sentence: "Write Quickcast, not Quick cast or QuickCast.",
 				Label:    "Quickcast",

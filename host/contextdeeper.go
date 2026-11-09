@@ -637,7 +637,7 @@ func deeperTermFinding(c suggestCorpus, term, definition string) (suggestFinding
 		fd.key = "term:" + letters
 		fd.signature = term
 		fd.note = deeperLookNotePrefix + fd.key + " = " + term
-		text := fmt.Sprintf("The files use the term %q", term)
+		text := fmt.Sprintf("The term %q appears in the files", term)
 		if definition != "" {
 			text += ": " + strings.TrimRight(definition, ". ")
 		}
@@ -696,35 +696,35 @@ func deeperVoiceFindings(c suggestCorpus, draft *coreprofile.VoiceProfile) []sug
 	}
 	switch draft.Style.PersonPOV {
 	case "second":
-		measures = append(measures, measure{"person_pov", "second", "The files address the reader as you", addressed(pronounsYou)})
+		measures = append(measures, measure{"person_pov", "second", "The reader is addressed as you", addressed(pronounsYou)})
 	case "first_plural":
-		measures = append(measures, measure{"person_pov", "first_plural", "The files speak as we", addressed(pronounsWe)})
+		measures = append(measures, measure{"person_pov", "first_plural", "Written as we", addressed(pronounsWe)})
 	case "third":
-		measures = append(measures, measure{"person_pov", "third", "The files write in the third person", nil})
+		measures = append(measures, measure{"person_pov", "third", "Written in the third person", nil})
 	}
 	contracted := func(b suggestBlock) bool { return deeperContractionRe.MatchString(b.plain) }
 	switch draft.Style.Contractions {
 	case "always":
-		measures = append(measures, measure{"contractions", "always", "The files use contractions", contracted})
+		measures = append(measures, measure{"contractions", "always", "Contractions throughout", contracted})
 	case "sometimes":
-		measures = append(measures, measure{"contractions", "sometimes", "The files use contractions in places", contracted})
+		measures = append(measures, measure{"contractions", "sometimes", "Contractions in places", contracted})
 	case "never":
-		measures = append(measures, measure{"contractions", "never", "The files write without contractions", nil})
+		measures = append(measures, measure{"contractions", "never", "Written without contractions", nil})
 	}
 	switch draft.Style.SentenceLength {
 	case "short":
-		measures = append(measures, measure{"sentence_length", "short", "The files keep sentences short", nil})
+		measures = append(measures, measure{"sentence_length", "short", "Short sentences", nil})
 	case "medium":
-		measures = append(measures, measure{"sentence_length", "medium", "The files write sentences of medium length", nil})
+		measures = append(measures, measure{"sentence_length", "medium", "Sentences of medium length", nil})
 	case "varied":
-		measures = append(measures, measure{"sentence_length", "varied", "The files vary the length of their sentences", nil})
+		measures = append(measures, measure{"sentence_length", "varied", "Sentences of varied length", nil})
 	}
 	if draft.Style.ActiveVoice {
-		measures = append(measures, measure{"active_voice", "true", "The files write in the active voice", nil})
+		measures = append(measures, measure{"active_voice", "true", "Written in the active voice", nil})
 	}
 	switch draft.Tone.Formality {
 	case "casual", "neutral", "formal", "technical":
-		measures = append(measures, measure{"formality", draft.Tone.Formality, "The files read as " + draft.Tone.Formality, nil})
+		measures = append(measures, measure{"formality", draft.Tone.Formality, "Formality: " + draft.Tone.Formality, nil})
 	}
 
 	var out []suggestFinding

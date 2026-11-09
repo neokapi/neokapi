@@ -44,11 +44,11 @@ export interface MapViewProps extends ScreenNavigation {
   /** Run the checks over the whole project. Absent, the page draws no check action. */
   onRun?: () => void;
   /**
-   * What the host draws between the counts and "What your files do", such as
+   * What the host draws between the counts and "Suggestions", such as
    * the desktop's notices and its language standing; absent draws nothing.
    */
   standing?: React.ReactNode;
-  /** The deeper look's row under "What your files do"; absent draws none. */
+  /** The deeper look's row under "Suggestions"; absent draws none. */
   deeperLook?: React.ReactNode;
   /** The Connect your AI card, drawn under the deeper look's row when open. */
   connectAI?: React.ReactNode;
@@ -164,7 +164,7 @@ export function MapView({
         {standing}
 
         <section data-slot="map-suggestions" className="space-y-2">
-          <SectionHeading>What your files do</SectionHeading>
+          <SectionHeading>Suggestions</SectionHeading>
           {summary.suggestions.length === 0 ? (
             <div data-slot="map-suggestions-empty">
               <EmptyState

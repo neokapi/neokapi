@@ -143,7 +143,7 @@ term in a text. A `LocateRequest` carries the text and its runs, the
 `term_rules:` as its own set), each naming where it is held in `From`,
 the bound `Terminology` store, the locale, and the domains, minimum score and
 validity scope passed through to the store lookup. It returns `Occurrence`s:
-the matched text (for a store term, the form as the text spells it), the rule or
+the matched text (for a store term, the form as spelled in the text), the rule or
 concept that declared it, its status or whether a rule hit fails,
 whether it is do-not-translate, byte offsets into the text, and a
 `model.Anchor` into the runs (`model.RangeAnchorForBytes`). Rule hits come

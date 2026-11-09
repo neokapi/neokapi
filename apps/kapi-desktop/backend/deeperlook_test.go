@@ -99,7 +99,7 @@ func TestDeeperLook_FilesWhatTheMapShows(t *testing.T) {
 
 	after, err := app.MapSummary(tabID)
 	require.NoError(t, err)
-	assert.Equal(t, 7, after.Suggested, "the new rows appear under What your files do")
+	assert.Equal(t, 7, after.Suggested, "the new rows appear under Suggestions")
 	require.Len(t, after.Suggestions, 7)
 	for _, row := range after.Suggestions {
 		assert.Equal(t, "suggested", row.Group)

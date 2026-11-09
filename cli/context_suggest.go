@@ -20,12 +20,12 @@ func newContextSuggestCmd(a *App) *cobra.Command {
 		Long: `Read the files this project declares and file what kapi can see in them as
 suggestions:
 
-  - a word the files write more than one way, such as e-mail and email: the
-    form written most often, instead of the others
-  - in a project that binds no voice, the words a starter voice pack avoids,
-    when the files use three or more of them
-  - the files addressing the reader as you, when most blocks with a personal
-    pronoun do and none says we
+  - a word spelled more than one way in the files, such as e-mail and email:
+    the most frequent form, instead of the others
+  - in a project that binds no voice, the words on a starter voice pack's
+    avoid list, when three or more of them appear in the files
+  - the reader addressed as you, when most blocks with a personal pronoun
+    contain you and none contains we
 
 Each suggestion is filed as suggested by kapi and waits for you in "kapi context review".
 Checks report it and none fails on it until you keep it. Nothing else is
@@ -33,9 +33,9 @@ written: not the recipe, not a rules file. Without --ai no AI model is used.
 
 --ai then asks the connected AI model about the same blocks, through
 term-extract and voice-infer, and files what it proposes the same way: the
-terms the files use, and the voice measures it reads, such as whom the files
-address and how long their sentences run. A term is filed only when the files
-write it as the model wrote it in two or more blocks. In a project that binds
+terms in the files, and voice measures such as how the reader is addressed
+and how long the sentences are. A term is filed only when it appears in two
+or more blocks exactly as the model wrote it. In a project that binds
 a voice, no voice measures are filed. These suggestions are filed as
 suggested by kapi with the model's name. Without --ai the command needs no network; with it,
 kapi reaches the model's provider. With no AI provider configured, or no key

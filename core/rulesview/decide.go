@@ -33,7 +33,7 @@ const (
 
 // The questions a decision asks.
 const (
-	questionWhichForm = "Which one do your files use?"
+	questionWhichForm = "Which spelling should the project use?"
 	questionKeep      = "Keep this as a rule?"
 	questionWhichSide = "Which one holds?"
 )

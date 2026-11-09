@@ -42,14 +42,14 @@ func init() { RegisterMCPToolFactory(registerContextGrowthMCPTools) }
 func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_note",
-		Description: "Record what you noticed about how this project writes, as soon as you notice it, " +
-			"including what your own text does not use: a product, feature or plan name as written, the " +
+		Description: "Record what you noticed about the writing in this project, as soon as you notice it, " +
+			"including wording your own text does not contain: a product, feature or plan name as written, the " +
 			"spelling variety, or a word chosen over a common alternative. For a name or word, pass `term` " +
-			"with the form the files use and `instead_of` with the form they avoid: the split form of a " +
+			"with the form found in the files and `instead_of` with the form to avoid: the split form of a " +
 			"one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case " +
 			"variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` " +
-			"from a file that was there before you started. Leave alone, with no note, a word the files write " +
-			"more than one way, an interface label, and wording taken from your task. " +
+			"from a file that was there before you started. Leave alone, with no note, a word spelled " +
+			"more than one way in the files, an interface label, and wording taken from your task. " +
 			"When the person changes your wording, pass `from` (what you wrote), `to` (what they wrote) and " +
 			"`path`, and set `suggest` to also suggest the rule it implies. " +
 			"To take back a note of your own recorded wrongly, pass its id in `withdraw`. " +
