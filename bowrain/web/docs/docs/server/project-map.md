@@ -69,7 +69,7 @@ The fields and the sign-in rules are in
 | Counts | Files, blocks, rules and findings. **Rules** opens the kept rules; **findings** reads *Not checked yet* until a check has run. |
 | **Decide** | The number of suggestions waiting for a person. Opens Rules. |
 | **Run on everything** | Checks every file on the server as one job, and the counts update when it finishes. Needs the `review` permission. |
-| **What your files do** | One row per suggestion nobody has decided: its kind, the rule, a quote from your files, and how many blocks and files it was seen in. **Decide** on a row opens Rules at that question. |
+| **Suggestions** | One row per suggestion nobody has decided: its kind, the rule, a quote from your files, and how many blocks and files it was seen in. **Decide** on a row opens Rules at that question. |
 | **Files** | One row per file with its findings. A row opens the file in the Reader. |
 
 ## Reader

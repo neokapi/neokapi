@@ -59,7 +59,7 @@ export const NameWithForms: Story = {
   args: { view: NAME_VIEW },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Which one do your files use?")).toBeInTheDocument();
+    await expect(canvas.getByText("Which spelling should the project use?")).toBeInTheDocument();
     const options = canvas.getAllByRole("radio");
     await expect(options).toHaveLength(3);
     await userEvent.click(options[1]);

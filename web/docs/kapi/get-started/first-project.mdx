@@ -19,8 +19,8 @@ reads, and `kapi init` adds the files your coding assistant needs to use kapi.
 Your first project has one language. You can add more later.
 
 The examples use `acme-docs`, a git repository with a `README.md` and five
-Markdown files under `docs/`. Most of the files write *email*, but two places
-write *e-mail*.
+Markdown files under `docs/`. Most of the files have *email*, but two places
+have *e-mail*.
 
 Each step has a tab for Kapi Desktop and one for the CLI. Step 1 also has one
 for an assistant. Kapi Desktop and the CLI use the same project, so you can
@@ -148,17 +148,17 @@ Like git, kapi finds the project from any folder inside it.
 
 The project opens on its **Overview**. It shows the same things as
 `kapi look`: how many files, blocks, rules and findings the project has,
-suggested rules under **What your files do**, and the **Files** list.
+suggested rules under **Suggestions**, and the **Files** list.
 
 A new project has no rules yet. kapi looks at how your files are already
 written and suggests rules from that, without using an AI model. In
-`acme-docs`, **What your files do** suggests *email*, which 5 of 7 places use.
+`acme-docs`, **Suggestions** lists *email*, used in 5 of 7 places.
 The two uses of *e-mail* show up as findings, but they don't fail anything
 yet. Click `docs/guide.md` under **Files** to open it in the **Reader**, where
 each finding is marked on its words.
 
 <ThemedImage
-  alt="A project's Overview: the files, blocks, rules and findings counts, What your files do with the suggestions, and the Files list"
+  alt="A project's Overview: the files, blocks, rules and findings counts, the Suggestions list, and the Files list"
   sources={{
     light: "/img/desktop/light/map.png",
     dark: "/img/desktop/dark/map.png",
@@ -176,7 +176,7 @@ acme-docs · read 6 files just now
 
   6 files · 18 blocks · 0 rules · 2 findings · kapi suggests 1
 
-What your files do
+Suggestions
   Name  email, not e-mail, e mail  5 of 7 uses
 
 Files
@@ -215,7 +215,7 @@ rule** (`n`) removes the suggestion. **Later** (`l`) keeps it as a suggestion
 for now.
 
 <ThemedImage
-  alt="Decide asking which spelling the files use, with the options, what keeping one does, and the sentence it was seen in"
+  alt="Decide asking which spelling the project should use, with the options, what keeping one does, and the sentence it was seen in"
   sources={{
     light: "/img/desktop/light/decide.png",
     dark: "/img/desktop/dark/decide.png",
@@ -247,7 +247,7 @@ and what keeping it does:
 
 ```text
 $ kapi rules
-[1/1] Which one do your files use?  #0rbnyk4bjm
+[1/1] Which spelling should the project use?  #0rbnyk4bjm
   * 1) email  5 blocks in 4 files
     2) e-mail  2 blocks in 1 file
     3) e mail  0 blocks in 0 files

@@ -58,7 +58,9 @@ describe("Decide's question", () => {
 
   it("asks which form a name takes, the options with their blocks and files, and Other…", () => {
     renderDecide(NAME_VIEW);
-    expect(slot("decide-question-text")!.textContent).toBe("Which one do your files use?");
+    expect(slot("decide-question-text")!.textContent).toBe(
+      "Which spelling should the project use?",
+    );
     const options = all("decide-option");
     expect(options.map((o) => o.textContent)).toEqual([
       "1Quickcast12 blocks · 5 files",
@@ -244,7 +246,9 @@ describe("the Map's row", () => {
 describe("Decide without answers", () => {
   it("draws the question and its evidence and no Keep, Not a rule or Later", () => {
     renderDecide(NAME_VIEW, { onAnswer: undefined });
-    expect(slot("decide-question-text")!.textContent).toBe("Which one do your files use?");
+    expect(slot("decide-question-text")!.textContent).toBe(
+      "Which spelling should the project use?",
+    );
     expect(all("decide-option")).toHaveLength(3);
     expect(slot("decide-actions")).toBeNull();
     expect(screen.queryByRole("button", { name: /Keep/ })).toBeNull();

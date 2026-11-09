@@ -6,7 +6,7 @@
       "id": "01JBQC2K8M1N3P",
       "short": "n3p4",
       "kind": "name",
-      "question": "Which one do your files use?",
+      "question": "Which spelling should the project use?",
       "sentence": "Write Invoicely, not Invoice-ly.",
       "label": "Invoicely",
       "avoided": 1,
@@ -41,7 +41,7 @@
     },
     {
       "kind": "disagreement",
-      "question": "Which one do your files use?",
+      "question": "Which spelling should the project use?",
       "reason": "Two suggestions name different forms for Quickcast.",
       "sentence": "Write Quickcast, not Quick cast or QuickCast.",
       "label": "Quickcast",

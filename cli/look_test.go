@@ -98,7 +98,7 @@ func TestLookMap(t *testing.T) {
 				"Files\n  docs/guide.md  2 blocks\n",
 				"Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.",
 			},
-			not: []string{"kapi suggests", "What your files do", "languages"},
+			not: []string{"kapi suggests", "Suggestions", "languages"},
 		},
 		{
 			name: "findings",
@@ -118,7 +118,7 @@ func TestLookMap(t *testing.T) {
 			note:  [3]string{"login", "sign in", "docs/guide.md"},
 			want: []string{
 				"kapi suggests 1",
-				"What your files do\n  Word  sign in, not login",
+				"Suggestions\n  Word  sign in, not login",
 				"Decide with `kapi rules`. See a file with `kapi look <path>`.",
 			},
 		},
@@ -207,7 +207,7 @@ func TestLookMap_FirstLookFilesWhatKapiSees(t *testing.T) {
 				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
 			}
 			assert.Contains(t, out, "1 file · 4 blocks · 0 rules · 1 finding · kapi suggests 1\n")
-			assert.Contains(t, out, "\nWhat your files do\n  Name  email, not e-mail, e mail  2 of 3 uses\n\nFiles\n")
+			assert.Contains(t, out, "\nSuggestions\n  Name  email, not e-mail, e mail  2 of 3 uses\n\nFiles\n")
 			assert.True(t, strings.HasPrefix(out, m.Project+" · read 1 file just now\n\n"), out)
 
 			assert.Equal(t, 1, m.Suggests)

@@ -132,7 +132,7 @@ describe("MapPage", () => {
 });
 
 describe("the deeper look on the Map", () => {
-  it("offers one button with one line under What your files do", () => {
+  it("offers one button with one line under Suggestions", () => {
     renderView(MAP_PENDING, { deeperLook: { model: "demo-stub" } });
     const row = document.querySelector('[data-slot="map-deeper-look"]') as HTMLElement;
     expect(row.closest('[data-slot="map-suggestions"]')).not.toBeNull();

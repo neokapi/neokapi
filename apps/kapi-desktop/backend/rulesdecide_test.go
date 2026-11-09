@@ -90,7 +90,7 @@ func TestRulesDecideView_KapiMart(t *testing.T) {
 	}
 	name := byID[quickcast.ID]
 	assert.Equal(t, host.RuleDecisionName, name.Kind)
-	assert.Equal(t, "Which one do your files use?", name.Question)
+	assert.Equal(t, "Which spelling should the project use?", name.Question)
 	assert.Equal(t, "Quickcast", name.Label)
 	assert.True(t, name.Other)
 	assert.Equal(t, "agent", name.RecordedBy.Kind)

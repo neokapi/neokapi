@@ -217,7 +217,7 @@ its text and under each form it declares, and the match names the term, so
 "Two alerts" is a use of `alert` when the term lists `alerts`.
 
 `term-check` holds a translation to what its rules require, and it reads the
-two sides differently. On the source side it asks whether the text uses a rule's
+two sides differently. On the source side it asks whether the text contains a rule's
 term, with the whole-word matcher above. An English source also finds a term's
 regular inflections, the endings -s, -es, -ed and -ing and -d after a final e,
 so "Two new alerts" uses `alert`. A derivation is a word of its own:

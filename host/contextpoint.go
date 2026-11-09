@@ -1022,9 +1022,9 @@ func termsInForce(concepts []terms.Concept, locale model.LocaleID, at time.Time,
 // writer relies on whether or not the page at hand uses them, because an agent
 // told only to record its suggestions records what its own page touched.
 const recordingAdvice = "As you read the files around it, record with context_note " +
-	"(or `kapi context note`) what they do every time, including names your text does not use: " +
+	"(or `kapi context note`) any wording they keep consistent, including names your text does not contain: " +
 	"each product, feature and plan name as written, the spelling variety, and a word chosen over " +
-	"a common alternative. Leave alone a word they write more than one way, with no note about it."
+	"a common alternative. Leave alone a word spelled more than one way, with no note about it."
 
 // FormatText renders the answer as the brief a writer reads before changing a
 // file: the voice, what to say and what not, what has been suggested and not

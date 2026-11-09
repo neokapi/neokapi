@@ -100,7 +100,7 @@ func TestDeeperLook_FilesTermsAndVoiceAsKapiWithTheModel(t *testing.T) {
 	require.Len(t, terms, 2, "%+v", terms)
 	// Both are written in three blocks, so they come in the order of their
 	// letters.
-	assert.Equal(t, `The files use the term "Dockyard": ⟦demo⟧ a capitalised name in the text.`, terms[0].Sentence)
+	assert.Equal(t, `The term "Dockyard" appears in the files: ⟦demo⟧ a capitalised name in the text.`, terms[0].Sentence)
 	assert.Equal(t, "Write Harbor Help, not Harbor-Help or HarborHelp.", terms[1].Sentence)
 	for _, term := range terms {
 		assert.Equal(t, SuggestFiled, term.Outcome, term.Sentence)
@@ -127,11 +127,11 @@ func TestDeeperLook_FilesTermsAndVoiceAsKapiWithTheModel(t *testing.T) {
 	assert.Equal(t, contextop.SubjectNote, note.Subject.Kind)
 
 	assert.Equal(t, "second", measureOf(t, res, "person_pov").Value)
-	assert.Equal(t, "The files address the reader as you (person_pov: second).", measureOf(t, res, "person_pov").Sentence)
-	assert.Equal(t, "The files use contractions in places (contractions: sometimes).", measureOf(t, res, "contractions").Sentence)
-	assert.Equal(t, "The files keep sentences short (sentence_length: short).", measureOf(t, res, "sentence_length").Sentence)
-	assert.Equal(t, "The files write in the active voice (active_voice: true).", measureOf(t, res, "active_voice").Sentence)
-	assert.Equal(t, "The files read as casual (formality: casual).", measureOf(t, res, "formality").Sentence)
+	assert.Equal(t, "The reader is addressed as you (person_pov: second).", measureOf(t, res, "person_pov").Sentence)
+	assert.Equal(t, "Contractions in places (contractions: sometimes).", measureOf(t, res, "contractions").Sentence)
+	assert.Equal(t, "Short sentences (sentence_length: short).", measureOf(t, res, "sentence_length").Sentence)
+	assert.Equal(t, "Written in the active voice (active_voice: true).", measureOf(t, res, "active_voice").Sentence)
+	assert.Equal(t, "Formality: casual (formality: casual).", measureOf(t, res, "formality").Sentence)
 	contraction := measureOf(t, res, "contractions")
 	require.NotNil(t, contraction.Quote)
 	assert.Equal(t, "Open the Dockyard to see your boats. You can't miss it.", contraction.Quote.Quote,
@@ -422,7 +422,7 @@ func TestDeeperLook_AnotherModelsSuggestionStands(t *testing.T) {
 	require.NoError(t, err)
 	updated := measureOf(t, again, "contractions")
 	assert.Equal(t, SuggestUpdated, updated.Outcome)
-	assert.Equal(t, "The files write without contractions (contractions: never).", updated.Sentence)
+	assert.Equal(t, "Written without contractions (contractions: never).", updated.Sentence)
 }
 
 func TestDeeperLook_DroppedAddressStaysDroppedInBothOrders(t *testing.T) {

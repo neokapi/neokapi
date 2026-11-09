@@ -22,13 +22,12 @@ func NewRulesCmd(a *App) *cobra.Command {
 		Use:     "rules",
 		Short:   "Decide, list, narrow or drop the rules your project keeps",
 		GroupID: "work",
-		Long: `The rules are what your project keeps to: names and their spelling, words to
-avoid, and the voice's measures and patterns. An assistant suggests a rule
-when it finds one in your files. Checks report a suggestion, and none fails
-on it until you keep it.
+		Long: `The rules cover names and their spelling, words to avoid, and the voice's
+measures and patterns. An assistant suggests a rule when it finds one in your
+files. Checks report a suggestion, and none fails on it until you keep it.
 
 With suggestions waiting, kapi rules asks about each one in turn: which form
-your files use, or whether to keep it. Before you answer, it shows what
+the project should use, or whether to keep it. Before you answer, it shows what
 keeping it does: how many blocks a check then reports, and where the rule
 applies.
 

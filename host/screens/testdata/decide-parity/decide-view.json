@@ -57,7 +57,7 @@
       "id": "0recs8gt14ph9003v6nd4jr1",
       "short": "0recs8gt14",
       "kind": "name",
-      "question": "Which one do your files use?",
+      "question": "Which spelling should the project use?",
       "sentence": "Write Sign in, not Sign In, Sign-in, Signin or SignIn.",
       "label": "Sign in",
       "avoided": 0,

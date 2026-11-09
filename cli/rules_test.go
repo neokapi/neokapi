@@ -111,7 +111,7 @@ func TestRulesAsksAboutEachSuggestionAtAPrompt(t *testing.T) {
 	// The name: pick its second form, then keep. The word: not a rule.
 	out, err := runRules(t, a, func(prompt string) string {
 		switch {
-		case strings.Contains(prompt, "Which one do your files use?") && !strings.Contains(prompt, "If you keep \"Sign In\""):
+		case strings.Contains(prompt, "Which spelling should the project use?") && !strings.Contains(prompt, "If you keep \"Sign In\""):
 			return "2"
 		case strings.Contains(prompt, "If you keep \"Sign In\""):
 			return "k"
@@ -189,7 +189,7 @@ func TestRulesDecidesByFlag(t *testing.T) {
 
 	// Without a terminal, kapi rules lists the questions with their ids.
 	listed := mustRules(t, a, "rules", "-p", recipe)
-	assert.Contains(t, listed, "Which one do your files use?  #"+name[:10])
+	assert.Contains(t, listed, "Which spelling should the project use?  #"+name[:10])
 	assert.Contains(t, listed, "Keep this as a rule?  #"+word[:10])
 	assert.Contains(t, listed, "Decide with: kapi rules --keep <id>, --drop <id> or --later <id>")
 	assert.Len(t, waitingIDs(t, a, recipe), 3, "listing decides nothing")

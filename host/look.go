@@ -468,7 +468,7 @@ func (m *LookProject) FormatText(w io.Writer) error {
 	}
 
 	if len(m.Suggestions) > 0 {
-		fmt.Fprintf(w, "\n%s\n", s.Title.Render("What your files do"))
+		fmt.Fprintf(w, "\n%s\n", s.Title.Render("Suggestions"))
 		shown := m.Suggestions[:min(len(m.Suggestions), lookMapSuggestions)]
 		kindW, textW := 0, 0
 		for _, sg := range shown {

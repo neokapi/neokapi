@@ -234,7 +234,7 @@ about a hundred and forty words: follow the rules in kapi's section of
 `AGENTS.md` and `CLAUDE.md`, and call `context_read` only for a file no section
 covers or for the full answer, which also names the old names that stay correct
 there; record with
-`context_note` what the files do every time (names as written, the spelling
+`context_note` consistent wording in the files (names as written, the spelling
 variety, a word chosen over a common alternative), with the path it was seen
 in, since a note applies only there, and leave alone a word they write two
 ways; record the person's changes with `context_note` too (`from`,

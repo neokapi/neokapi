@@ -212,7 +212,7 @@ func TestLookProject_FirstLookFilesWhatKapiSees(t *testing.T) {
 	var text bytes.Buffer
 	require.NoError(t, m.FormatText(&text))
 	assert.Contains(t, text.String(), "kapi suggests 1")
-	assert.Contains(t, text.String(), "What your files do\n  Name  email, not e-mail, e mail  2 of 3 uses\n")
+	assert.Contains(t, text.String(), "Suggestions\n  Name  email, not e-mail, e mail  2 of 3 uses\n")
 
 	first, ok := lookStamp(t, app, "firstlook", root)
 	require.True(t, ok, "the pass stamps the checkout")

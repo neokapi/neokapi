@@ -19,7 +19,7 @@ export const NAME_DECISION: RuleDecision = {
   id: DECIDE_IDS.quickcast,
   short: "0njy7pfhjp",
   kind: "name",
-  question: "Which one do your files use?",
+  question: "Which spelling should the project use?",
   sentence: 'Write "Quickcast", not "Quick cast" or "QuickCast"',
   label: "Quickcast",
   avoided: 0,

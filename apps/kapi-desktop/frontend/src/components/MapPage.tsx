@@ -11,7 +11,7 @@
 // the Reader when the block cache holds blocks for it, and to the preview when
 // it holds none.
 //
-// "Deeper look with AI" under "What your files do" reads the files with the
+// "Deeper look with AI" under "Suggestions" reads the files with the
 // connected model and files what it proposes as suggestions, which appear as
 // rows when the run ends. With no model connected the button opens the
 // Connect your AI card in its place.

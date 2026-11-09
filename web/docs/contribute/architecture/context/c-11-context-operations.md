@@ -56,7 +56,7 @@ those proposals before checks enforce them.
     { label: "Enforce", sub: "kapi check" },
     { label: "Note a change", sub: "what a person rewrote" },
   ]}
-  caption="Notes about what the files do and what a person changed become suggestions. A person keeps a suggestion in review before checks enforce it."
+  caption="Notes about consistent wording in the files and what a person changed become suggestions. A person keeps a suggestion in review before checks enforce it."
 />
 
 Suggestions must not fail builds before review. Operations must also be
@@ -197,7 +197,7 @@ meet) and reads the evidence for the group from the log:
 | A correction toward it, by a person or by an agent recording what the person changed | `correct` | Person signal |
 | The change reached the default branch | `signal` with source `merge` | Person signal |
 | Another session records the same rule | `observe` | Standing only |
-| The content writes the preferred form | `signal` with source `usage` | Standing only |
+| The preferred form appears in the content | `signal` with source `usage` | Standing only |
 | An agent's applied edit writes the preferred form | `signal` with source `applied` | Standing only |
 | A correction away from it | `correct` | Against |
 | Its author withdraws it | `withdraw` | Against |
@@ -259,7 +259,7 @@ The other signals are recorded where the content is read. A whole-project
 established rule whose scope covers the content, the uses of its preferred form
 and of the forms it avoids in the source they read, and record a `usage` signal
 as tool `check`; a check of named files or of a diff records none, because part
-of the content says nothing about how the project writes. A rule's counts are
+of the content is no evidence of the wording of the whole project. A rule's counts are
 recorded only when they differ from the latest recorded for it, so a run over
 unchanged content adds nothing to the log. For a suggestion the
 count is standing. For an established rule, a later count that writes a
