@@ -11,8 +11,8 @@ tagline: "A reel cut from the bowrain walkthrough takes"
 # names one beat per demo: bowrain-desktop-dashboard/projects,
 # bowrain-web-editor/split, bowrain-web-collaboration/teammate-joins,
 # bowrain-web-governance/tm-search, bowrain-web-review/focus and
-# bowrain-web-correction-loop/promote. Those six beat ids are load-bearing: a
-# demo that renames one drops its clip back to the take's first beat.
+# bowrain-web-correction-loop/promote. If a demo renames one of those beat ids,
+# its clip falls back to the take's first beat.
 #
 # The reel is silent. Narrating it needs the composition to load a narration
 # track, which is a composition change rather than a manifest one.

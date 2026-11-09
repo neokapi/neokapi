@@ -19,10 +19,9 @@ outro:
   line: Add the gate to your CI job.
   pointer: kapi check --ship
 
-# The gate is on: the first check exits 3 on camera, which is what a merge is
-# held to. `expectExit: 3` binds it both ways, so a take where the gate passed
-# would fail the capture instead of shipping. stderr is dropped from both runs
-# so the recorded output is the findings table and the verdict, nothing else.
+# The first check exits 3 on camera, as it would block a merge. `expectExit: 3`
+# makes a take where that check passes fail the capture. Both runs drop stderr,
+# so the recording shows only the findings table and the verdict.
 script:
   - comment: A prepared German fixture contains two planted defects.
   - command: cat app.de.json
