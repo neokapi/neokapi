@@ -115,7 +115,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-content",
-    "title": "Collections and files"
+    "title": "Your files and progress"
   },
   {
     "id": "kapi-desktop-context",

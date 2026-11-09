@@ -1,6 +1,6 @@
 id: kapi-desktop-review
 title: Review a translation
-subtitle: Read what applies to each block, then approve it with one key.
+subtitle: Read each translation in its place, then approve it with one key.
 kind: use-case
 publishAs: kapi-desktop-review
 terminal: desktop
@@ -11,84 +11,44 @@ oneshot: true
 aspects:
   - The review list
   - Source and translation
-  - Earlier approvals
-  - Checks
+  - What helps you judge it
+  - Approve
 outro:
-  line: Open Review, and press A on a block with no findings.
-  pointer: kapi status --review
+  line: Open Review, and press A on a translation that reads right.
 
 narration:
   - id: title
     kind: title
     text: >-
-      Review shows each translation with what you need to judge it. You read
-      it, and then approve it with one key.
+      In this video, you read a translation, check it in its place, and
+      approve it with one key.
 
   - id: queue
     kind: desktop
     beat: queue
     crop: { x: 0.03, y: 0.05, w: 0.95, h: 0.42 }
-    caption: Every language in one list.
+    caption: Everything waiting for you, in one list.
     text: >-
-      Open Review. The list on the left holds every translation that waits for
-      you, grouped by language. Use the menus at the top to show one language,
-      or only the blocks with findings.
+      Open Review. The list on the left holds every translation waiting for
+      you. Use the menus at the top to show one language, or only the
+      translations with problems.
 
   - id: open-unit
     kind: desktop
     beat: open-unit
     crop: { x: 0.19, y: 0.1, w: 0.79, h: 0.45 }
-    caption: The source and the translation.
+    caption: The English and the translation.
     text: >-
-      Click a block. You see the English source and the translation, with
-      more detail below.
+      Click one. You see the English and the translation side by side.
 
-  - id: point
+  - id: details
     kind: desktop
-    beat: point
-    caption: The voice profile and terms for this block.
-    crop: { x: 0.19, y: 0.1, w: 0.5, h: 0.16 }
+    beat: details
+    crop: { x: 0.19, y: 0.35, w: 0.45, h: 0.48 }
+    caption: What helps you judge it.
     text: >-
-      The line at the top shows the voice profile and the terms that apply
-      to this block.
-
-  - id: neighbourhood
-    kind: desktop
-    beat: neighbourhood
-    caption: The text around it.
-    crop: { x: 0.19, y: 0.35, w: 0.45, h: 0.17 }
-    text: >-
-      In the document shows the blocks before and after it, so you can read
-      the sentence in its place.
-
-  - id: history
-    kind: desktop
-    beat: history
-    caption: What was approved before.
-    crop: { x: 0.19, y: 0.53, w: 0.45, h: 0.2 }
-    text: >-
-      Already approved shows the version that was approved last time, and the
-      best match from your content memory.
-
-  - id: findings
-    kind: desktop
-    beat: findings
-    caption: What the checks found.
-    crop: { x: 0.19, y: 0.76, w: 0.3, h: 0.07 }
-    highlight: { selector: '[data-slot="review-finding"]' }
-    text: >-
-      Checks lists the problems that the automatic checks found, such as a
-      missing placeholder. This block has none.
-
-  - id: provenance
-    kind: desktop
-    beat: provenance
-    caption: Who wrote it, and who approved it.
-    crop: { x: 0.19, y: 0.845, w: 0.3, h: 0.07 }
-    zoom: 1.2
-    text: >-
-      Provenance shows who wrote the translation and who approved it. This
-      block has no record yet.
+      Below, you see the text around it, the version approved before, and any
+      problems the checks found.
 
   - id: decide
     kind: desktop
@@ -96,11 +56,11 @@ narration:
     crop: { x: 0.03, y: 0.06, w: 0.5, h: 0.4 }
     caption: Approve with one key.
     text: >-
-      Press A to approve the block, and the next one opens. To approve every
-      block with no findings at once, click Approve clean blocks.
+      Press A to approve it, and the next one opens. To approve every
+      translation with no problems at once, click Approve clean blocks.
 
   - id: outro
     kind: outro
     text: >-
-      The app and the command line use the same review records, so you can
-      work in either one.
+      Open Review, read each translation in its place, and press A when it
+      reads right.

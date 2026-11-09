@@ -1,6 +1,6 @@
 id: kapi-desktop-projects
 title: Set up a project
-subtitle: Open a folder, add a language, choose your files, and check the plan.
+subtitle: Open a folder, add a language, choose your files, and see what needs translating.
 kind: use-case
 publishAs: kapi-desktop-projects
 terminal: desktop
@@ -9,64 +9,61 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Projects
+  - A folder becomes a project
   - Languages
-  - File patterns
+  - Your files
   - The plan
 outro:
-  line: Open a folder, add a language, and check the plan.
-  pointer: kapi up --plan
+  line: Click Bring up to date to translate the new text.
 
+# The folder holds a few help pages, made off camera, so the files appear as
+# the pattern is typed and the plan has work to show on the same project.
 narration:
   - id: title
     kind: title
     text: >-
-      A kapi project is a folder with a kapi.yaml file in it. Kapi Desktop
-      writes that file for you. In this video, you open a folder, add a
-      language, choose your files, and check the plan.
+      In this video, you turn a folder of documents into a project, add a
+      language, and see what needs translating.
 
   - id: new-project
     kind: desktop
     beat: new-project
     crop: { x: 0.28, y: 0.06, w: 0.46, h: 0.38 }
-    caption: A new project from an empty folder.
+    caption: Drop a folder to open it as a project.
     text: >-
-      Drop a folder on the Open screen. It opens as a new project, with no
-      files yet. The Overview lists the first steps to take.
+      Drop a folder on the Open screen. The Overview lists your next steps.
 
   - id: add-language
     kind: desktop
     beat: add-language
     crop: { x: 0.03, y: 0.08, w: 0.5, h: 0.36 }
-    caption: French is added as a target language.
+    caption: Add French.
     text: >-
-      Open Project Settings. Under Translate into, type French and pick it
-      from the list. Click Save Changes, and kapi adds French to kapi.yaml.
+      Open Project Settings. Under Translate into, pick French, then click
+      Save Changes.
 
   - id: add-collection
     kind: desktop
     beat: add-collection
-    caption: A collection is a name and a file pattern.
+    caption: Choose the files to translate.
     crop: { x: 0.04, y: 0.34, w: 0.55, h: 0.38 }
     text: >-
-      On the Content tab, click Add collection. Type a name, then a file
-      pattern for the Markdown files under docs. This folder is still empty,
-      so no files match yet.
+      On the Content tab, click Add collection, give it a name, and enter
+      which files to include: here, the Markdown files under docs. The count
+      shows how many files match.
 
   - id: plan
     kind: desktop
     beat: plan
-    caption: The plan is a preview. Nothing is translated yet.
+    caption: See the work before it runs.
     crop: { x: 0.4, y: 0.01, w: 0.2, h: 0.32 }
     hold: 10
     text: >-
-      To see a plan, open a project that has content, such as the KapiMart
-      sample, and click Plan. For each language and collection, you see how
-      many blocks have no translation, and how many your content memory
-      already covers. Nothing is translated until you click Bring up to date.
+      Back on the Overview, click Plan. You see how much text needs
+      translating into French. Nothing changes until you click Bring up to
+      date.
 
   - id: outro
     kind: outro
     text: >-
-      Open a folder, add a language and a file pattern, and check the plan
-      before you run it.
+      Next, click Bring up to date to translate the new text.

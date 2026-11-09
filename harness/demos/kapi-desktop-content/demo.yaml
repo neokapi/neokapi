@@ -1,6 +1,6 @@
 id: kapi-desktop-content
-title: Collections and files
-subtitle: See which files a project reads, and open one to see its text.
+title: Your files and progress
+subtitle: See how far each language has come, and open a file to read it.
 kind: use-case
 publishAs: kapi-desktop-content
 terminal: desktop
@@ -9,72 +9,57 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Collections
-  - File patterns
-  - Keys and text
-  - The file on disk
+  - Progress by language
+  - Your files
+  - Reading a file
 outro:
-  line: Edit a file, and the counts update.
-  pointer: kapi status
+  line: Edit a file, and the progress updates.
 
 narration:
   - id: title
     kind: title
     text: >-
-      A collection is a group of files that you choose with file patterns.
-      When you open a project, Kapi Desktop reads those files and counts the
-      text for each language.
+      In this video, you see how far each language has come, and open a file
+      to read its text.
 
   - id: open-project
     kind: desktop
     beat: open-project
     crop: { x: 0.03, y: 0.08, w: 0.5, h: 0.3 }
-    caption: A summary of the project.
+    caption: The project at a glance.
     text: >-
       Open the KapiMart sample, then Project Settings, and the Content tab.
-      At the top, you see how many blocks of text the project has, its
-      collections, and its languages.
+      At the top, you see how much text the project has, and its languages.
 
   - id: extract
     kind: desktop
     beat: extract
-    caption: Files and progress for each collection.
     crop: { x: 0.03, y: 0.42, w: 0.95, h: 0.38 }
-    hold: 10
+    hold: 8
+    caption: Progress for each group of files.
     text: >-
-      Further down, each collection has a row. You see how many files and
-      blocks it has, and how much of each language is done.
+      Further down, each group of files has a row, with how much of each
+      language is done.
 
   - id: patterns
     kind: desktop
     beat: patterns
-    caption: The files in a collection.
     crop: { x: 0.03, y: 0.58, w: 0.68, h: 0.24 }
+    caption: The files in a group.
     text: >-
-      Click a collection to open it. Each row is a file, with its format and
-      the pattern that found it.
+      Click a group to see its files.
 
   - id: keys
     kind: desktop
     beat: keys
-    caption: A JSON file as keys and text.
     crop: { x: 0.5, y: 0.0, w: 0.34, h: 0.36 }
-    text: >-
-      Click a file to preview it. A JSON file shows as a table, with each key
-      next to its text. Review uses the same keys to name each block.
-
-  - id: code
-    kind: desktop
-    beat: code
-    caption: The same file, as saved on disk.
-    crop: { x: 0.5, y: 0.0, w: 0.34, h: 0.36 }
-    # The narration is shorter than the time the file view takes to open.
     hold: 6
+    caption: The text of one file.
     text: >-
-      Click File to see the file exactly as it is saved on disk.
+      Click a file to read it. Each line of text sits next to its name in the
+      file.
 
   - id: outro
     kind: outro
     text: >-
-      When you edit a source file, the app reads it again, and the counts
-      update.
+      When you edit a file, the progress updates on its own.

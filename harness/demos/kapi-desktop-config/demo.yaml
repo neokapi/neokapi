@@ -10,28 +10,24 @@ needsAi: false
 oneshot: true
 aspects:
   - Appearance
-  - AI models
-  - API keys in the keychain
+  - API keys
   - Plugins
 outro:
-  line: Add your key once. The command line uses it too.
-  pointer: kapi credentials add
+  line: Add your key once, in App Settings.
 
 narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop keeps your provider keys in the system keychain, and your
-      kapi.yaml file never contains a key. This video shows where you add a
-      key, and the other app settings.
+      In this video, you add an API key for translation, choose how the app
+      looks, and see your plugins.
 
   - id: open-settings
     kind: desktop
     beat: open-settings
     caption: Open the app settings.
     text: >-
-      On the Open screen, click Settings. The app settings have tabs for
-      General, AI Models, Plugins, Formats and Languages.
+      On the Open screen, click Settings.
 
   - id: general
     kind: desktop
@@ -39,18 +35,16 @@ narration:
     crop: { x: 0.03, y: 0.04, w: 0.4, h: 0.3 }
     caption: Light, dark, or the same as your system.
     text: >-
-      On General, choose System, Light or Dark. You can also change the
-      language of the app.
+      On General, choose Light, Dark, or System, and the language of the app.
 
   - id: credentials
     kind: desktop
     beat: credentials
-    caption: Your API key is saved in the keychain.
     crop: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }
+    caption: Your key stays on this Mac.
     text: >-
-      On AI Models, click Add Credentials for a provider. Enter a name, a
-      model and your API key. When you click Save, the key goes into the
-      keychain. kapi.yaml stores only the name of the credential.
+      On AI Models, click Add Credentials, choose a model, and paste your API
+      key. The key stays on this Mac and never goes into your project files.
 
   - id: plugins
     kind: desktop
@@ -58,11 +52,10 @@ narration:
     crop: { x: 0.03, y: 0.04, w: 0.95, h: 0.3 }
     caption: Plugins add file formats and tools.
     text: >-
-      Plugins lists the plugins you have installed. A plugin adds more file
-      formats or tools. Open the Available tab to install one.
+      Plugins lists what you have installed. A plugin adds file formats or
+      tools. Open the Available tab to install one.
 
   - id: outro
     kind: outro
     text: >-
-      Add a key once in the app. kapi on the command line uses the same key,
-      because both read the same keychain.
+      Add your key once. Every project on this Mac can use it.

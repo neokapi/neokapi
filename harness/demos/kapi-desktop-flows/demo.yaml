@@ -9,60 +9,57 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - The Flows tab
   - Steps
   - Step order
   - The default flow
 outro:
-  line: Edit the flow here. Run it from the app or the command line.
-  pointer: kapi run translate-and-qa
+  line: Click Bring up to date, and the app runs your flow.
 
+# Cue word the walk waits for: reorder (drag).
 narration:
   - id: title
     kind: title
     text: >-
-      A flow is the list of steps kapi runs on your content. Every project
-      starts with a built-in flow. To change the steps, edit a flow on the
-      Flows tab in Project Settings. The command line runs the same flow.
+      A flow is the list of steps the app runs when you bring a project up to
+      date. In this video, you add a step that reuses your earlier
+      translations.
 
   - id: open-flow
     kind: desktop
     beat: open-flow
-    caption: Two steps. Translate, then check.
     crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
+    caption: Translate, then check.
     text: >-
-      Open the Flows tab and click translate-and-qa. This flow has two
-      steps. Translate runs first, then Quality Check.
+      In Project Settings, open the Flows tab and click translate-and-qa. It
+      translates first, then checks the result.
 
   - id: add-step
     kind: desktop
     beat: add-step
-    caption: Add the Recycle step.
     crop: { x: 0.34, y: 0.28, w: 0.32, h: 0.44 }
+    caption: Add the Recycle step.
     text: >-
-      Click Add step, and search for recycle. Recycle reuses translations
-      from your content memory, so your provider translates only the rest.
+      Click Add step, and search for recycle. Recycle reuses translations you
+      already have, so only new text is sent to be translated.
 
   - id: reorder
     kind: desktop
     beat: reorder
-    caption: Recycle now runs first.
     crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
+    caption: Recycle runs first.
     text: >-
-      Recycle has to run before Translate. Drag it to the top. The list of
-      steps under the name shows the new order.
+      Recycle has to run first. Drag it to the top.
 
   - id: default
     kind: desktop
     beat: default
-    caption: This flow is now the default.
     crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
     highlight: { selector: '[data-testid="flow-default-badge"]' }
+    caption: Use this flow by default.
     text: >-
-      Turn on Default flow. A Default label appears next to the name. When
-      you click Bring up to date, the app now runs this flow.
+      Turn on Default flow. From now on, Bring up to date runs this flow.
 
   - id: outro
     kind: outro
     text: >-
-      Edit the flow in the app, and run it from the app or from a terminal.
+      Add the steps you need, and Bring up to date runs them in order.

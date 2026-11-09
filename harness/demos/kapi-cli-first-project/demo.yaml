@@ -51,17 +51,12 @@ script:
   - comment: Press k to keep each suggestion.
   - command: kapi rules
     keys: [k, k]
-  - comment: See the rules for the guide.
-  - command: kapi context docs/guide.md
-  - command: kapi look
+  - comment: Find the text that breaks a rule.
   # The kept rule must fail here: this is the beat.
   - command: kapi check docs/guide.md
     expectExit: 3
   - comment: Fix the text that breaks a rule.
   - command: kapi fix
-  - command: kapi look
-  - comment: Claude Code is already set up.
-  - command: kapi connect
   - comment: Commit, then share the rules through git.
   - command: git add -A && git commit -qm "Add kapi"
   - command: kapi share --via git
@@ -71,8 +66,8 @@ narration:
   - id: title
     kind: title
     text: >-
-      This is a folder of help-center docs. In this video you set up kapi,
-      choose your writing rules, fix the text that breaks them, and share the
+      This is a folder of help-center docs. In this video, you set up kapi,
+      keep two writing rules, fix the text that breaks them, and share the
       rules with your team.
 
   - id: init
@@ -81,20 +76,18 @@ narration:
     highlight: { text: [collections, CLAUDE.md] }
     caption: Set up the project.
     text: >-
-      Type kapi init. It lists the files kapi will read and saves the project
-      in kapi.yaml. It also sets up Claude Code, so Claude reads your rules
-      from CLAUDE.md.
+      Type kapi init. It finds your files, saves the project in kapi.yaml, and
+      sets up Claude Code to follow your rules.
 
   - id: look
     kind: terminal
     through: 6
     highlight: { text: ["kapi suggests 2", "Decide with"] }
-    caption: See the project and two suggested rules.
+    caption: Two suggested rules.
     text: >-
-      Type kapi look to see a summary. There are six files and no rules yet.
-      There are two suggestions, based on how the files are already written:
-      write email, not e-mail, and call the reader you. The last line tells you
-      what to do next.
+      Type kapi look. There are six files, no rules yet, and two suggestions
+      based on how the files are written: write email, not e-mail, and address
+      the reader as you. The last line tells you what to do next.
 
   - id: decide
     kind: terminal
@@ -102,56 +95,35 @@ narration:
     highlight: { text: ["Which one do your files use?", "Kept 2"] }
     caption: Keep the rules you want.
     text: >-
-      Type kapi rules. For each suggestion, you see where it was found and
-      what happens if you keep it. Press k to keep the first one, and k again
-      for the second. You now have two rules.
-
-  - id: reads
-    kind: terminal
-    through: 10
-    highlight: { text: ["Say this, not that"] }
-    caption: See the rules for a file.
-    text: >-
-      Type kapi context with a file name to see the rules for that file.
-      Claude Code sees the same rules in CLAUDE.md.
+      Type kapi rules, and press k to keep each suggestion. You now have two
+      rules.
 
   - id: check
     kind: terminal
-    through: 12
-    highlight: { text: [FAILS, "Fix what fails"] }
+    through: 10
+    highlight: { text: [FAILS] }
     caption: Find the text that breaks a rule.
     text: >-
-      Type kapi look again. The next step is to fix what fails. kapi check
-      shows e-mail twice in the guide. It ends with an error, so you can use
-      the same command in CI to stop a change that breaks a rule.
+      Type kapi check with the guide. It finds e-mail twice and ends with an
+      error, so the same command can stop such a change in CI.
 
   - id: fix
     kind: terminal
-    through: 15
-    highlight: { text: ["2 fixed", "Share the rules"] }
+    through: 12
+    highlight: { text: ["2 fixed"] }
     caption: Fix the text.
     text: >-
-      Type kapi fix. It changes e-mail to email in both places and leaves the
-      rest of the file as it was. The next step is to share the rules.
-
-  - id: connect
-    kind: terminal
-    through: 17
-    highlight: { text: [kept] }
-    caption: Claude Code is already set up.
-    text: >-
-      Claude Code is already set up, so kapi connect changes nothing. To add
-      another assistant, such as Cursor, type kapi connect cursor.
+      Type kapi fix. It changes e-mail to email and leaves the rest of the
+      file as it was.
 
   - id: share
     kind: terminal
-    through: 21
+    through: 16
     highlight: { text: ["With your team", "Check with"] }
     caption: Share the rules through git.
     text: >-
-      Commit the new files, then type kapi share with git. Everyone who pulls
-      the repository gets the same rules. Now kapi look only asks you to run
-      kapi check after each change.
+      Commit the files, then type kapi share with git. Everyone who pulls the
+      repository gets the same rules.
 
   - id: outro
     kind: outro
