@@ -6,7 +6,7 @@ keywords: [kapi, project, first project, Kapi Desktop, kapi init, kapi look, kap
 
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
-import { PendingMedia, ThemedImage } from "@neokapi/docs-shared";
+import { ThemedImage, ThemedVideo } from "@neokapi/docs-shared";
 
 # Your first project
 
@@ -23,6 +23,11 @@ the project and share the rules. Languages are a later step.
 The examples come from `acme-docs`, a git repository with a `README.md` and
 five Markdown files under `docs/`. Two of its blocks use *e-mail* where the
 others use *email*.
+
+Each step has a tab for Kapi Desktop and one for the CLI, and step 1 has one
+for an assistant. Both surfaces read and write the same project, so
+you can switch between them at any step. The tab you pick holds for the rest of
+the page.
 
 ## 1. Open the folder
 
@@ -43,30 +48,16 @@ and an assistant's notes to decide about.
 />
 
 Kapi Desktop reads the files and changes nothing until you ask. The project
-opens on its **Overview**, the desktop form of `kapi look`. From there:
+opens on its **Overview**, the desktop form of `kapi look`, which step 2 walks
+through. The walkthrough creates a project from **New Project**, adds a
+language and a collection of files, and reads the plan before anything runs:
 
-- **What your files do** lists the suggestions, and **Decide** asks about each
-  one with **Keep**, **Not a rule** or **Later**.
-- A row under **Files** opens the file in the **Reader**, with each finding in
-  place, the rules in the margin and **Fix** where kapi can fix a finding.
-- The project's **Project Settings** hold the **Assistants** tab, which
-  connects an assistant, and the **Share** tab.
-
-<ThemedImage
-  alt="A project's Overview: the files, blocks, rules and findings counts, What your files do with the suggestions, and the Files list"
+<ThemedVideo
   sources={{
-    light: "/img/desktop/light/map.png",
-    dark: "/img/desktop/dark/map.png",
+    light: "/video/kapi/kapi-desktop-projects-light.webm",
+    dark: "/video/kapi/kapi-desktop-projects-dark.webm",
   }}
 />
-
-[Review what your assistant noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed)
-walks through **Decide** on the sample.
-
-<PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
-  Creating a project from the New Project dialog, opening the KapiMart sample,
-  adding a content collection, and reading the two-axis standing and where content sits.
-</PendingMedia>
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -147,6 +138,31 @@ like git.
 
 ## 2. See what applies
 
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+The project opens on its **Overview**, which shows what `kapi look` prints:
+the counts of files, blocks, rules and findings, **What your files do** with
+kapi's suggestions, and the **Files** list.
+
+A new project has no rules, so the first look records what kapi sees in the
+files as suggestions. It uses no model for this. In `acme-docs`, **What your
+files do** suggests *email*, used in 5 of 7 places. The two uses of *e-mail*
+are findings against the suggestion and fail nothing. Click
+`docs/guide.md` under **Files** to open it in the **Reader**, with each finding
+marked on the words it is about.
+
+<ThemedImage
+  alt="A project's Overview: the files, blocks, rules and findings counts, What your files do with the suggestions, and the Files list"
+  sources={{
+    light: "/img/desktop/light/map.png",
+    dark: "/img/desktop/dark/map.png",
+  }}
+/>
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
 `kapi look`, or `kapi` on its own, prints the project as kapi reads it:
 
 ```text
@@ -173,13 +189,50 @@ A new project has no rules, so the first look records what kapi sees in the
 files as suggestions. It uses no model for this. Here the files write *email* five times
 and *e-mail* twice. The two findings are the uses of *e-mail*, reported against
 the suggestion and failing nothing. `kapi look docs/guide.md` prints that
-file's blocks with each finding marked under the words it is about. In Kapi
-Desktop, the project's **Overview** shows the same view.
+file's blocks with each finding marked under the words it is about.
+
+</TabItem>
+</Tabs>
 
 ## 3. Decide what becomes a rule
 
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+**Decide** on the Overview asks about each suggestion: which form your files
+use, how many blocks use each, what keeping one does, and a sentence where it
+was seen. **Keep** (`k`) makes the marked form a rule, **Not a rule** (`n`)
+sets the suggestion aside, and **Later** (`l`) leaves it advising.
+
+<ThemedImage
+  alt="Decide asking which spelling the files use, with the options, what keeping one does, and the sentence it was seen in"
+  sources={{
+    light: "/img/desktop/light/decide.png",
+    dark: "/img/desktop/dark/decide.png",
+  }}
+/>
+
+A kept suggestion becomes a rule in the project's terms store, and kapi
+rewrites its section of `CLAUDE.md` and `AGENTS.md` so the next agent session
+reads it. The walkthrough decides suggestions on the KapiMart sample, then
+shows the brief an assistant gets for one file, with the kept rule in it:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-context-light.webm",
+    dark: "/video/kapi/kapi-desktop-context-dark.webm",
+  }}
+/>
+
+Only a person keeps or drops a suggestion; see
+[Growing context](/kapi/context-decisions) and [Review what your assistant
+noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed).
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
 `kapi rules` asks about each suggestion, with the evidence and what keeping it
-does. In Kapi Desktop, **Decide** asks the same questions:
+does:
 
 ```text
 $ kapi rules
@@ -213,7 +266,33 @@ lists what the project keeps, and `kapi rules drop <id>` sets a rule aside.
 Only a person keeps or drops a suggestion; see
 [Growing context](/kapi/context-decisions).
 
+</TabItem>
+</Tabs>
+
 ## 4. Check
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+Before you kept it, the suggestion only reported. Now each use of *e-mail*
+fails. **Run on everything** on the Overview runs the checks across the
+project, and the findings count opens the findings, which read like a test
+report: the rule that fired, and where. In the **Reader**, each finding sits
+on its words with the rule's wording under the block.
+
+<ThemedImage
+  alt="A file in the Reader with a finding marked on its words, the rule's wording under the block and Fix beside it"
+  sources={{
+    light: "/img/desktop/light/reader.png",
+    dark: "/img/desktop/dark/reader.png",
+  }}
+/>
+
+To fail a build on the same findings, run `kapi check` in CI: see
+[Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+
+</TabItem>
+<TabItem value="cli" label="CLI">
 
 Before you kept it, the suggestion only reported and `kapi check` passed. Now
 it fails on each use of *e-mail*:
@@ -238,7 +317,24 @@ loaded. `kapi check` with no path checks the whole project, and
 fails, so you can run the check as a CI step: see
 [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
+</TabItem>
+</Tabs>
+
 ## 5. Fix
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+In the **Reader**, **Fix** beside a finding puts the rule's wording in place of
+the flagged words, and **Fix 2 in this file** fixes every finding in the file
+that has one. Every byte outside the replaced words stays as it was.
+
+A finding about tone or style, or one over words that hold a link or other
+formatting, has no **Fix**, because plain wording in their place would drop the
+formatting. Edit those words in the file.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
 
 `kapi fix` applies the replacement each failing word-rule finding names, then
 checks the files it wrote again:
@@ -250,13 +346,38 @@ $ kapi fix
 kapi check: no failing findings
 ```
 
-Every byte outside the replaced words stays as it was. In Kapi Desktop, **Fix**
-on a finding in the **Reader** applies the same replacement. `kapi fix --dry-run`
+Every byte outside the replaced words stays as it was. `kapi fix --dry-run`
 prints the change each file would get and writes nothing. A finding about tone
 or style, or one over words that hold a link or a placeholder, has no automatic
 fix, and `kapi fix` lists it as needing a rewrite.
 
+</TabItem>
+</Tabs>
+
 ## 6. Put an assistant on it
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+**Assistants**, a tab of **Project Settings**, has a row per assistant.
+`kapi init` already connected Claude Code, so its row reads **Connected**.
+**Connect** on another row writes the files `kapi connect` writes for that
+assistant. **Show what it reads** opens the rules section kapi writes into
+`AGENTS.md` and `CLAUDE.md`, and the brief an assistant gets for a file you
+choose, the same text `kapi context <path>` prints.
+
+<ThemedImage
+  alt="The Assistants page with a row per assistant, Claude Code connected, and a session listed under Sessions"
+  sources={{
+    light: "/img/desktop/light/assistants.png",
+    dark: "/img/desktop/dark/assistants.png",
+  }}
+/>
+
+See [Connect an assistant](/kapi/desktop/recipes/connect-an-assistant).
+
+</TabItem>
+<TabItem value="cli" label="CLI">
 
 `kapi connect` writes what an assistant needs to follow the rules: the rules
 section in `AGENTS.md` and `CLAUDE.md`, an MCP server entry that starts
@@ -282,6 +403,9 @@ Project
 See what an assistant reads for a file: kapi context <path> --explain
 ```
 
+</TabItem>
+</Tabs>
+
 Then give the assistant an ordinary writing task. It reads the rules as it
 starts, asks `kapi context <path>` before it writes a file the rules section
 does not cover, and runs `kapi check` on each file it changed. Claude Code asks
@@ -293,6 +417,31 @@ change in its drafts. Each note arrives as a suggestion in `kapi rules`, and
 step 3 decides it. See [Use with Claude](/kapi/get-started/use-with-claude).
 
 ## 7. Share the rules
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+The rules live in your workspace on this machine, keyed on the project's
+`id:`, so every checkout here reads the same ones. **Share**, a tab of
+**Project Settings**, lists how far they reach. **On this Mac** is where every
+project starts. **With your team** shares them through a git ref, a folder or
+an S3 bucket: **Change** names the place, and **Sync now** pushes what was kept
+here and pulls what the others kept.
+
+<ThemedImage
+  alt="The Share page with three rungs, On this Mac marked Current, With your team and the managed workspace"
+  sources={{
+    light: "/img/desktop/light/share.png",
+    dark: "/img/desktop/dark/share.png",
+  }}
+/>
+
+Commit the change to `kapi.yaml` so every checkout shares through the same
+place. See [Share context with your
+team](/kapi/desktop/recipes/share-context-with-your-team).
+
+</TabItem>
+<TabItem value="cli" label="CLI">
 
 The rules live in your workspace on this machine, keyed on the project's
 `id:`, so every checkout here reads the same ones. `kapi share` shares them
@@ -309,6 +458,9 @@ With your team · through git (origin refs/kapi/context)
 Commit the change to `kapi.yaml` so every checkout shares through the same
 place. After that, `kapi share` on its own reads what the others shared and
 shares what was kept here. See [Sharing context](/kapi/context-portability).
+
+</TabItem>
+</Tabs>
 
 ## Later: add languages
 
