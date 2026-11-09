@@ -64,11 +64,7 @@ func SourceWordRules(concepts []Concept, loc model.LocaleID) []profile.TermRule 
 				ConceptID:  c.ID,
 				Scope:      c.TextScope(),
 			}
-			if pref := c.PreferredTerm(t.Locale); pref != nil && !strings.EqualFold(pref.Text, t.Text) {
-				rule.Replacement = pref.Text
-			} else {
-				rule.Replacement = ReplacementFromNote(t.Note)
-			}
+			rule.Replacement = Replacement(c, t)
 			out = append(out, rule)
 		}
 	}

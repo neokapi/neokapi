@@ -10,8 +10,10 @@ import (
 
 	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/terms"
 )
 
 const key = workspace.ProjectKey("acme/docs")
@@ -313,4 +315,34 @@ func TestSeenByAndActorPhrase(t *testing.T) {
 	assert.Equal(t, "kapi", ActorPhrase(SuggestActor, false))
 	assert.Equal(t, "kapi check", ActorPhrase(contextop.Actor{Kind: contextop.ActorTool, Name: "check"}, false))
 	assert.Equal(t, "an agent's", ActorPhrase(contextop.Actor{Kind: contextop.ActorAgent}, true))
+}
+
+// A kept replacement holds the line: "say cart", with the concept's
+// preferred "shopping cart" among the other admitted wordings.
+func TestSayThisNotThatKeepsTheKeptWord(t *testing.T) {
+	c := terms.Concept{ID: "cart", Terms: []terms.Term{
+		{Text: "shopping cart", Locale: "en", Status: model.TermPreferred},
+		{Text: "cart", Locale: "en", Status: model.TermAdmitted},
+		{Text: "basket", Locale: "en", Status: model.TermForbidden, Note: terms.ReplacementNote("cart")},
+	}}
+	hits, _ := TermsInForce([]terms.Concept{c}, "en", time.Time{}, 0)
+	rules, total := SayThisNotThat(hits, nil, nil, 0)
+	require.Equal(t, 1, total)
+	assert.Equal(t, "cart", rules[0].Say)
+	assert.Equal(t, []string{"shopping cart"}, rules[0].Also)
+	assert.Equal(t, []string{"basket"}, rules[0].Not)
+}
+
+// With no kept word, the concept's preferred term is the one to say.
+func TestSayThisNotThatSaysThePreferredTerm(t *testing.T) {
+	c := terms.Concept{ID: "cart", Terms: []terms.Term{
+		{Text: "shopping cart", Locale: "en", Status: model.TermPreferred},
+		{Text: "cart", Locale: "en", Status: model.TermAdmitted},
+		{Text: "basket", Locale: "en", Status: model.TermForbidden},
+	}}
+	hits, _ := TermsInForce([]terms.Concept{c}, "en", time.Time{}, 0)
+	rules, _ := SayThisNotThat(hits, nil, nil, 0)
+	require.Len(t, rules, 1)
+	assert.Equal(t, "shopping cart", rules[0].Say)
+	assert.Equal(t, []string{"cart"}, rules[0].Also)
 }

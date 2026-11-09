@@ -1023,7 +1023,7 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 				Discouraged: t.Status.Discouraged(),
 			}
 			if hit.Discouraged {
-				hit.Replacement = discouragedReplacement(c, t)
+				hit.Replacement = terms.Replacement(c, t)
 				hit.Advisory = c.Advisory
 			}
 			if v := t.Validity; v != nil {
@@ -1038,19 +1038,6 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 		}
 	}
 	return out
-}
-
-// discouragedReplacement is what to say instead of the discouraged term t of
-// c: the concept's preferred wording in t's language, or the wording t's note
-// names (terms.ReplacementFromNote), as the check reads it (terms.PreferredTerm).
-// A term whose concept would otherwise mark the rules of another term
-// differently stands in a concept of its own, with the replacement in its
-// note (terms.UpsertDecision).
-func discouragedReplacement(c terms.Concept, t terms.Term) string {
-	if pref := preferredTerm(c, t.Locale); pref != "" {
-		return pref
-	}
-	return terms.ReplacementFromNote(t.Note)
 }
 
 // preferredTerm finds the concept's preferred wording in one locale — what to

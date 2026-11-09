@@ -58,7 +58,7 @@ func TermsInForce(concepts []terms.Concept, locale model.LocaleID, at time.Time,
 				Validity:    t.Validity,
 			}
 			if hit.Discouraged {
-				hit.Replacement = DiscouragedReplacement(c, t)
+				hit.Replacement = terms.Replacement(c, t)
 				hit.Advisory = c.Advisory
 			}
 			all = append(all, hit)
@@ -91,18 +91,6 @@ func termRank(h TermHit) int {
 	default:
 		return 2
 	}
-}
-
-// DiscouragedReplacement is what to say instead of the discouraged term t of
-// c: the concept's preferred wording in t's language, or the wording t's note
-// names (terms.ReplacementFromNote).
-func DiscouragedReplacement(c terms.Concept, t terms.Term) string {
-	for _, p := range c.Terms {
-		if p.Locale == t.Locale && p.Status == model.TermPreferred {
-			return p.Text
-		}
-	}
-	return terms.ReplacementFromNote(t.Note)
 }
 
 // WordRule is one line of the rules that hold at a point: what to say, what
@@ -229,6 +217,10 @@ func SayThisNotThat(hits []TermHit, binding []coreprofile.TermRule, voice *corep
 	type conceptKey struct{ id, locale string }
 	var order []conceptKey
 	grouped := map[conceptKey]*WordRule{}
+	// A discouraged term's replacement holds the line's Say, so a word a
+	// person kept for it reads as the rule even when the concept prefers
+	// another; the preferred term then stands with the admitted ones.
+	pinned := map[conceptKey]bool{}
 	for _, h := range hits {
 		key := conceptKey{h.ConceptID, h.Locale}
 		r, held := grouped[key]
@@ -241,11 +233,17 @@ func SayThisNotThat(hits []TermHit, binding []coreprofile.TermRule, voice *corep
 		case h.Discouraged:
 			r.Not = append(r.Not, h.Term)
 			r.Advisory = h.Advisory
-			if r.Say == "" && h.Replacement != "" {
+			if !pinned[key] && h.Replacement != "" {
+				if r.Say != "" && FoldWording(r.Say) != FoldWording(h.Replacement) {
+					r.Also = append(r.Also, r.Say)
+				}
 				r.Say = h.Replacement
+				pinned[key] = true
 			}
 		case r.Say == "" || FoldWording(r.Say) == FoldWording(h.Term):
 			r.Say = h.Term
+		case pinned[key]:
+			r.Also = append(r.Also, h.Term)
 		case h.Status == string(model.TermPreferred) && !slices.Contains(r.Also, r.Say):
 			r.Also = append(r.Also, r.Say)
 			r.Say = h.Term
