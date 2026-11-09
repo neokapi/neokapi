@@ -192,7 +192,7 @@ them back (`kapi pull`), the same record with a different sink.
 
 ## A store with nothing in it
 
-kapi decides whether a store is present table by table. A context store whose
+kapi checks whether a store is present table by table. A context store whose
 terms tables are empty behaves exactly as though there were no terms store at
 all: the terminology gate enforces nothing, `kapi up --plan` never creates
 state, and `kapi pack` carries only the parts that hold something.

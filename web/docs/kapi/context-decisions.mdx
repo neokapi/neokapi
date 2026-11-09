@@ -79,7 +79,7 @@ that recorded it:
 kapi context note --withdraw 0n794e2gk7 --why "recorded the wrong way round"
 ```
 
-## What kapi sees in the files {#what-kapi-sees-in-the-files}
+## Suggestions from your files {#what-kapi-sees-in-the-files}
 
 `kapi context suggest` reads the files the recipe declares and records what it
 can see in them, with no AI model:
@@ -180,7 +180,7 @@ decisions that mention a word. `kapi context review`, below, records the same
 decisions; it is the spelling an assistant uses, and it also applies a rule
 more widely.
 
-## Reviewing what kapi learned {#reviewing-what-kapi-learned}
+## Review the suggestions {#reviewing-what-kapi-learned}
 
 ```bash
 kapi context review
@@ -389,7 +389,7 @@ assistant.
 An assistant can withdraw only its own notes, in the session that recorded
 them.
 
-## How kapi knows who recorded a note
+## Who recorded a note {#how-kapi-knows-who-recorded-a-note}
 
 The MCP server identifies the caller as an assistant, uses the client's name,
 and groups its notes under one session. For shell commands, kapi recognises

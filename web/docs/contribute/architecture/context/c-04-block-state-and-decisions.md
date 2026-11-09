@@ -307,7 +307,7 @@ and `host.DecisionScope` is that one fallback definition, so every party names
 an unresolved document the same way. It is also the name the connector gives the
 item, so a decision travels the sync protocol scoped to the item it was made in.
 
-A decision is not about a translation; it is about a **pairing**: this rendering,
+A decision is about a **pairing**: this rendering,
 *of this source*. Each record therefore carries both halves, computed by the one
 definition every party uses:
 

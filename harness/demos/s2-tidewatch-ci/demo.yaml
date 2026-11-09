@@ -84,8 +84,7 @@ narration:
     caption: A report the job posts. It cannot fail the build.
     text: >-
       This is what the continuous-integration job posts on a pull request. It is
-      a report, and the job that posts it has no power to fail the build, which
-      is the point of separating the two.
+      a report. The job that posts it can't fail the build.
 
   - id: gate
     kind: terminal
