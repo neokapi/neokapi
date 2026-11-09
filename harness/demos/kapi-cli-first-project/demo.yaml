@@ -8,9 +8,10 @@ publishAs: kapi-cli-first-project
 # a model. The last line of each `kapi look` names the next step, so the looks
 # walk the guide's order.
 #
-# Suggestion ids are minted on the first look, so the keep step reads them from
-# `kapi rules --json`. The `kapi check` with `expectExit: 3` is the kept rule
-# failing on camera; a take where it passed fails the capture.
+# `kapi rules` runs in a pseudo-terminal (`keys:`), so it asks as it does for a
+# person, and the two answers are typed at its prompts. The `kapi check` with
+# `expectExit: 3` is the kept rule failing on camera; a take where it passed
+# fails the capture.
 terminal: shell
 brand: kapi
 cwd: ~/acme-docs
@@ -47,10 +48,9 @@ script:
   - command: kapi init
   - comment: kapi look shows the project as kapi reads it.
   - command: kapi look
-  - comment: kapi rules asks about each suggestion. In a terminal you answer with k, n or l.
+  - comment: kapi rules asks about each suggestion. Press k to keep it.
   - command: kapi rules
-  - comment: Keep both suggestions.
-  - command: kapi rules $(kapi rules --json | jq -r '.decisions[] | "--keep " + .short')
+    keys: [k, k]
   - comment: What an assistant reads for the guide now.
   - command: kapi context docs/guide.md
   - command: kapi look
@@ -97,17 +97,17 @@ narration:
 
   - id: decide
     kind: terminal
-    through: 10
-    highlight: { text: ["Which one do your files use?", keep] }
+    through: 8
+    highlight: { text: ["Which one do your files use?", "Kept 2"] }
     caption: You decide what becomes a rule.
     text: >-
       Run kapi rules. Each question shows the evidence and what keeping it
-      does. In a terminal you press k to keep. Here you keep both, and each
-      becomes a rule.
+      does. Press k to keep the first, then k again for the second. Both are
+      now rules.
 
   - id: reads
     kind: terminal
-    through: 12
+    through: 10
     highlight: { text: ["Say this, not that"] }
     caption: The rules go where an assistant reads them.
     text: >-
@@ -116,7 +116,7 @@ narration:
 
   - id: check
     kind: terminal
-    through: 14
+    through: 12
     highlight: { text: [FAILS, "Fix what fails"] }
     caption: A kept rule fails the check.
     text: >-
@@ -126,7 +126,7 @@ narration:
 
   - id: fix
     kind: terminal
-    through: 17
+    through: 15
     highlight: { text: ["2 fixed", "Share the rules"] }
     caption: kapi fix applies the replacement.
     text: >-
@@ -136,7 +136,7 @@ narration:
 
   - id: connect
     kind: terminal
-    through: 19
+    through: 17
     highlight: { text: [kept] }
     caption: Claude Code is already connected.
     text: >-
@@ -145,7 +145,7 @@ narration:
 
   - id: share
     kind: terminal
-    through: 23
+    through: 21
     highlight: { text: ["With your team", "Check with"] }
     caption: The rules go to your team through git.
     text: >-
