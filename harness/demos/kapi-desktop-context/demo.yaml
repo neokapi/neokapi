@@ -39,7 +39,7 @@ narration:
     crop: { x: 0.28, y: 0.58, w: 0.46, h: 0.25 }
     text: >-
       Click Try with KapiMart to open the sample. On the Overview, each row
-      under What your files do is one suggestion. The Decide button shows the
+      under Suggestions is one suggestion. The Decide button shows the
       count.
 
   - id: decide

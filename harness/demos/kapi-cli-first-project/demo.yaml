@@ -92,7 +92,7 @@ narration:
   - id: decide
     kind: terminal
     through: 8
-    highlight: { text: ["Which one do your files use?", "Kept 2"] }
+    highlight: { text: ["Which spelling should the project use?", "Kept 2"] }
     caption: Keep the rules you want.
     text: >-
       Type kapi rules and press k to keep each suggestion. The project now has
