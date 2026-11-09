@@ -376,7 +376,7 @@ names the plugin to install. Nothing is recorded for the unit.
 
 A file declared for its comments, in a language only a plugin reads, is
 reported the same way when that plugin is absent. With no manifest to read, kapi
-learns the plugin from a compiled-in table in `host/check_comments_plugin.go`
+looks the plugin up in a compiled-in table in `host/check_comments_plugin.go`
 that maps each extension to its language and plugin, and a test pins the table
 to the plugin's manifest. The warning names the language's comments and the
 plugin to install, and the file never counts as checked.

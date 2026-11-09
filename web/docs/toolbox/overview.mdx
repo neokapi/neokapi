@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: CLI tools
-description: kgrep, ksed, kcat and kdiff are format-aware reimaginings of grep, sed, cat and diff, and kconv converts between formats. They operate on text inside any format kapi understands (Word documents, JSON catalogs, XLIFF, Markdown) rather than on raw bytes.
+description: kgrep, ksed, kcat and kdiff are format-aware reimaginings of grep, sed, cat and diff, and kconv converts between formats. They operate on text inside any format kapi reads (Word documents, JSON catalogs, XLIFF, Markdown) rather than on raw bytes.
 keywords: [kgrep, ksed, kcat, kdiff, kconv, grep, sed, cat, diff, convert, format-aware, docx, multilingual content, CLI]
 ---
 
@@ -13,7 +13,7 @@ import ReferenceCount from "@site/src/components/reference/ReferenceCount";
 `kgrep`, `ksed`, `kcat` and `kdiff` are format-aware reimaginings of the classic
 Unix text utilities. `grep`, `sed`, `cat` and `diff` operate on raw bytes: the
 lines of a file as the operating system stores them. These four read, rewrite
-and compare the **text content inside any format** kapi understands,
+and compare the **text content inside any format** kapi reads,
 regardless of how that text is encoded on disk. They run on the same content
 engine as the rest of kapi.
 

@@ -121,9 +121,9 @@ Invoke a single tool directly as a tool command. Use a flow to compose tools;
   are distinct transformer roles, validated by the placement pass
   ([E-03](e-03-tool-system.md)), not a flat run of tools.
 
-What a flow is **not**: it is not an I/O harness (that is the binding), it is not
-a runtime primitive beyond an ordered tool chain over a session
-([E-01](e-01-processing-engine.md)), and it is never required to run one tool.
+A flow is an ordered tool chain over a session
+([E-01](e-01-processing-engine.md)). Reading and writing files belongs to the
+binding, and running one tool needs no flow.
 
 ### 1. The flow is the middle; source and sink are bindings
 
