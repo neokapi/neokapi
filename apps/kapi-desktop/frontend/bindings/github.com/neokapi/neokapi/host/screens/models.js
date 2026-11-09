@@ -615,6 +615,54 @@ export class MapFileDTO {
 }
 
 /**
+ * MapStepDTO is one step of a first project: what it is, whether it is done,
+ * and the count that says how much of it is left.
+ */
+export class MapStepDTO {
+    /**
+     * Creates a new MapStepDTO instance.
+     * @param {Partial<MapStepDTO>} [$$source = {}] - The source object to create the MapStepDTO.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("done" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["done"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Count is what is left: the items awaiting a decision for decide, the
+             * failing findings for fix. Zero for a step that counts nothing.
+             * @member
+             * @type {number | undefined}
+             */
+            this["count"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MapStepDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MapStepDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MapStepDTO(/** @type {Partial<MapStepDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * MapSuggestionDTO is one item awaiting a decision.
  */
 export class MapSuggestionDTO {
@@ -817,6 +865,16 @@ export class MapSummaryDTO {
              */
             this["suggestions"] = [];
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Steps are the first project's steps (MapSteps), drawn while one of the
+             * steps that stay done is open. Empty once they are done, and for a host
+             * that reads no assistant or sharing state.
+             * @member
+             * @type {MapStepDTO[] | undefined}
+             */
+            this["steps"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -830,6 +888,7 @@ export class MapSummaryDTO {
         const $$createField11_0 = $$createType8;
         const $$createField12_0 = $$createType13;
         const $$createField13_0 = $$createType15;
+        const $$createField14_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField11_0($$parsedSource["target_languages"]);
@@ -839,6 +898,9 @@ export class MapSummaryDTO {
         }
         if ("suggestions" in $$parsedSource) {
             $$parsedSource["suggestions"] = $$createField13_0($$parsedSource["suggestions"]);
+        }
+        if ("steps" in $$parsedSource) {
+            $$parsedSource["steps"] = $$createField14_0($$parsedSource["steps"]);
         }
         return new MapSummaryDTO(/** @type {Partial<MapSummaryDTO>} */($$parsedSource));
     }
@@ -886,8 +948,8 @@ export class ReaderBlockDTO {
      * @returns {ReaderBlockDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType16;
-        const $$createField2_0 = $$createType18;
+        const $$createField1_0 = $$createType18;
+        const $$createField2_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -1019,11 +1081,11 @@ export class ReaderFileDTO {
      * @returns {ReaderFileDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType20;
-        const $$createField4_0 = $$createType18;
-        const $$createField8_0 = $$createType22;
+        const $$createField3_0 = $$createType22;
+        const $$createField4_0 = $$createType20;
+        const $$createField8_0 = $$createType24;
         const $$createField10_0 = $$createType8;
-        const $$createField11_0 = $$createType24;
+        const $$createField11_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("blocks" in $$parsedSource) {
             $$parsedSource["blocks"] = $$createField3_0($$parsedSource["blocks"]);
@@ -1149,8 +1211,8 @@ export class ReaderFindingDTO {
      * @returns {ReaderFindingDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType25;
-        const $$createField3_0 = $$createType27;
+        const $$createField2_0 = $$createType27;
+        const $$createField3_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("position" in $$parsedSource) {
             $$parsedSource["position"] = $$createField2_0($$parsedSource["position"]);
@@ -1524,10 +1586,10 @@ export class RuleDecisionDTO {
      * @returns {RuleDecisionDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType29;
-        const $$createField12_0 = $$createType31;
+        const $$createField8_0 = $$createType31;
+        const $$createField12_0 = $$createType33;
         const $$createField14_0 = $$createType9;
-        const $$createField15_0 = $$createType32;
+        const $$createField15_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField8_0($$parsedSource["options"]);
@@ -1625,7 +1687,7 @@ export class RuleOptionDTO {
      * @returns {RuleOptionDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField7_0 = $$createType32;
+        const $$createField7_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("noticed_by" in $$parsedSource) {
             $$parsedSource["noticed_by"] = $$createField7_0($$parsedSource["noticed_by"]);
@@ -1700,7 +1762,7 @@ export class RulesDecideViewDTO {
      * @returns {RulesDecideViewDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType34;
+        const $$createField2_0 = $$createType36;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("decisions" in $$parsedSource) {
             $$parsedSource["decisions"] = $$createField2_0($$parsedSource["decisions"]);
@@ -1726,22 +1788,24 @@ const $$createType12 = MapFileDTO.createFrom;
 const $$createType13 = $Create.Array($$createType12);
 const $$createType14 = MapSuggestionDTO.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $Create.Array($Create.Any);
-const $$createType17 = ReaderFindingDTO.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = ReaderBlockDTO.createFrom;
+const $$createType16 = MapStepDTO.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $Create.Array($Create.Any);
+const $$createType19 = ReaderFindingDTO.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = ReaderRuleDTO.createFrom;
+const $$createType21 = ReaderBlockDTO.createFrom;
 const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = ReaderRefusalDTO.createFrom;
+const $$createType23 = ReaderRuleDTO.createFrom;
 const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = model$0.Anchor.createFrom;
-const $$createType26 = ReaderSpan.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = RuleOptionDTO.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = ContextEvidenceDTO.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $Create.Nullable($$createType9);
-const $$createType33 = RuleDecisionDTO.createFrom;
-const $$createType34 = $Create.Array($$createType33);
+const $$createType25 = ReaderRefusalDTO.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = model$0.Anchor.createFrom;
+const $$createType28 = ReaderSpan.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = RuleOptionDTO.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = ContextEvidenceDTO.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = $Create.Nullable($$createType9);
+const $$createType35 = RuleDecisionDTO.createFrom;
+const $$createType36 = $Create.Array($$createType35);

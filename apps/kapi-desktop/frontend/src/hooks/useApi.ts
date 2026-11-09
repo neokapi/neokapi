@@ -158,6 +158,8 @@ export const api = {
   syncProjectStore: (tabID: string) => call<StoreSyncResult>("SyncProjectStore", tabID),
   /** The Map of the tab's project: its counts, file rows and suggestions, in one read. */
   mapSummary: (tabID: string) => call<MapSummary>("MapSummary", tabID),
+  /** Hide the first steps on a project's Map, for that project on this machine. */
+  dismissMapSteps: (tabID: string) => call<void>("DismissMapSteps", tabID),
   /** The model a deeper look of the tab would ask, and whether one is connected. */
   deeperLookModel: (tabID: string) => call<DeeperLookModel>("DeeperLookModel", tabID),
   /** Read the tab's files with the connected model and file what it proposes. */

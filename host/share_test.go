@@ -91,6 +91,9 @@ func TestShare_ViaFolderWritesTheRecipeAndSyncs(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, proj.ID, "the recipe is the one kapi init writes, with an id")
 	assert.NotEmpty(t, proj.Collections, "and the collections it proposes")
+	rung, err := RecipeRung(recipeOf(root))
+	require.NoError(t, err)
+	assert.Equal(t, ShareRungTeam, rung, "RecipeRung reads the rung from the recipe alone")
 	require.NotNil(t, proj.Context)
 	assert.Equal(t, project.ContextBackend{Backend: project.ContextBackendFile, Path: shared}, *proj.Context,
 		"the block the desktop's Share section saves for the same folder")
@@ -235,6 +238,9 @@ func TestShare_ARecipeConnectedToBowrain(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ShareRungBowrain, res.Rung)
 	assert.Nil(t, res.Ladder)
+	rung, err := RecipeRung(recipeOf(root))
+	require.NoError(t, err)
+	assert.Equal(t, ShareRungBowrain, rung)
 	assert.Equal(t, "Managed on Bowrain · https://bowrain.example/acme/site\n"+
 		"  send with kapi push · bring back with kapi pull\n", shareText(t, res))
 }
@@ -259,4 +265,16 @@ func TestShareResult_When(t *testing.T) {
 
 	r.Status = &workspace.SyncStatus{ToPush: 2}
 	assert.Equal(t, "2 changes to push · never synced", r.statusLine())
+}
+
+// TestRecipeRung_NoRecipeStaysOnThisMachine: a folder with no recipe, or one
+// that names no place, keeps its rules on this machine.
+func TestRecipeRung_NoRecipeStaysOnThisMachine(t *testing.T) {
+	rung, err := RecipeRung(recipeOf(contentFolder(t)))
+	require.NoError(t, err)
+	assert.Equal(t, ShareRungMachine, rung)
+
+	rung, err = RecipeRung(recipeOf(contextOpsProject(t, "rung-local")))
+	require.NoError(t, err)
+	assert.Equal(t, ShareRungMachine, rung)
 }

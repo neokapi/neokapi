@@ -63,6 +63,24 @@ export const NotCheckedYet: Story = { args: { summary: MAP_SOURCE_ONLY_UNCHECKED
 /** A checks run over the whole project in progress. */
 export const Checking: Story = { args: { running: true } };
 
+/** A first project: its steps, with what each has left, above the suggestions. */
+export const FirstSteps: Story = {
+  args: {
+    summary: {
+      ...MAP_PENDING,
+      steps: [
+        { id: "decide", done: false, count: MAP_PENDING.awaiting },
+        { id: "check", done: true },
+        { id: "fix", done: false, count: 2 },
+        { id: "connect", done: true },
+        { id: "share", done: false },
+      ],
+    },
+    stepsGuideHref: "https://neokapi.github.io/kapi/get-started/first-project",
+    onDismissSteps: fn(),
+  },
+};
+
 /** A port with the reads alone: no check action, and nothing the host does not open. */
 const READ_ONLY: ProjectScreensPort = {
   mapSummary: async () => MAP_PENDING,

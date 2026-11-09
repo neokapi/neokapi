@@ -970,6 +970,15 @@ export class AppSettings {
         }
         if (/** @type {any} */(false)) {
             /**
+             * StepsDismissed are the workspace keys of the projects whose first
+             * steps the person dismissed from the Map.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["steps_dismissed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * locale codes to hide from selectors
              * @member
              * @type {string[] | undefined}
@@ -1042,17 +1051,21 @@ export class AppSettings {
      */
     static createFrom($$source = {}) {
         const $$createField4_0 = $$createType6;
-        const $$createField5_0 = $$createType19;
-        const $$createField6_0 = $$createType6;
+        const $$createField5_0 = $$createType6;
+        const $$createField6_0 = $$createType19;
+        const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("steps_dismissed" in $$parsedSource) {
+            $$parsedSource["steps_dismissed"] = $$createField4_0($$parsedSource["steps_dismissed"]);
+        }
         if ("hidden_locales" in $$parsedSource) {
-            $$parsedSource["hidden_locales"] = $$createField4_0($$parsedSource["hidden_locales"]);
+            $$parsedSource["hidden_locales"] = $$createField5_0($$parsedSource["hidden_locales"]);
         }
         if ("custom_locales" in $$parsedSource) {
-            $$parsedSource["custom_locales"] = $$createField5_0($$parsedSource["custom_locales"]);
+            $$parsedSource["custom_locales"] = $$createField6_0($$parsedSource["custom_locales"]);
         }
         if ("last_open_projects" in $$parsedSource) {
-            $$parsedSource["last_open_projects"] = $$createField6_0($$parsedSource["last_open_projects"]);
+            $$parsedSource["last_open_projects"] = $$createField7_0($$parsedSource["last_open_projects"]);
         }
         return new AppSettings(/** @type {Partial<AppSettings>} */($$parsedSource));
     }

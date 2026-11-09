@@ -39,6 +39,10 @@ type MapSummaryDTO struct {
 	// Suggestions are the items awaiting a decision: the disagreements, then
 	// the suggestions, in the order the digest lists them.
 	Suggestions []MapSuggestionDTO `json:"suggestions"`
+	// Steps are the first project's steps (MapSteps), drawn while one of the
+	// steps that stay done is open. Empty once they are done, and for a host
+	// that reads no assistant or sharing state.
+	Steps []MapStepDTO `json:"steps,omitempty"`
 }
 
 // MapFileDTO is one content file on the Map.

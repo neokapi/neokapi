@@ -45,5 +45,7 @@ export function desktopView(target: ScreenTarget): string {
       return "setup";
     case "connect-assistant":
       return "project-settings:assistants";
+    case "share":
+      return "project-settings:share";
   }
 }

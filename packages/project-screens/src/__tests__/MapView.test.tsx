@@ -214,3 +214,68 @@ describe("the Map a host acts on only in part", () => {
     expect(within(empty).queryByRole("button")).toBeNull();
   });
 });
+
+describe("the first steps", () => {
+  const steps: MapSummary["steps"] = [
+    { id: "decide", done: false, count: 3 },
+    { id: "check", done: true },
+    { id: "fix", done: false, count: 2 },
+    { id: "connect", done: true },
+    { id: "share", done: false },
+  ];
+
+  it("draws none for a project that is set up", () => {
+    renderView(MAP_PENDING);
+    expect(document.querySelector('[data-slot="map-steps"]')).toBeNull();
+  });
+
+  it("lists each step with what it has left and how many are done", () => {
+    renderView({ ...MAP_PENDING, steps });
+    const section = within(document.querySelector<HTMLElement>('[data-slot="map-steps"]')!);
+    expect(section.getByText("2 of 5")).toBeTruthy();
+    expect(section.getByText("3 waiting")).toBeTruthy();
+    expect(section.getByText("2 failing")).toBeTruthy();
+    // A done step leads nowhere; an open one opens the place that does it.
+    const acts = Array.from(document.querySelectorAll('[data-slot="map-step-act"]')).map((b) =>
+      b.closest("li")?.getAttribute("data-step"),
+    );
+    expect(acts).toEqual(["decide", "fix", "share"]);
+  });
+
+  it("opens the place each open step leads to, and runs the checks for the check step", async () => {
+    const props = renderView({
+      ...MAP_PENDING,
+      steps: steps!.map((s) => (s.id === "check" ? { ...s, done: false } : s)),
+    });
+    const act = (id: string) =>
+      document.querySelector<HTMLElement>(`[data-step="${id}"] [data-slot="map-step-act"]`)!;
+    await userEvent.click(act("decide"));
+    await userEvent.click(act("fix"));
+    await userEvent.click(act("share"));
+    expect(props.navigate.mock.calls.map((c) => c[0])).toEqual([
+      { kind: "rules" },
+      { kind: "checks" },
+      { kind: "share" },
+    ]);
+    await userEvent.click(act("check"));
+    expect(props.onRun).toHaveBeenCalledOnce();
+  });
+
+  it("hides a step's action when the host does not open its place", () => {
+    renderView({ ...MAP_PENDING, steps }, { canNavigate: (target) => target.kind !== "share" });
+    expect(document.querySelector('[data-step="share"] [data-slot="map-step-act"]')).toBeNull();
+  });
+
+  it("dismisses, and links the guide", async () => {
+    const onDismissSteps = vi.fn();
+    renderView(
+      { ...MAP_PENDING, steps },
+      { onDismissSteps, stepsGuideHref: "https://example.test/guide" },
+    );
+    expect(document.querySelector('[data-slot="map-steps-guide"]')?.getAttribute("href")).toBe(
+      "https://example.test/guide",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss first steps" }));
+    expect(onDismissSteps).toHaveBeenCalledOnce();
+  });
+});

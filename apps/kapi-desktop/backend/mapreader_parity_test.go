@@ -238,9 +238,12 @@ func TestMapReaderParity(t *testing.T) {
 
 // MapParityView is the Map without the fields the server cannot know: the
 // paths on disk, the workspace key of a project the server has not bound,
-// and when the files were read and checked.
+// when the files were read and checked, and the first steps.
 func MapParityView(m screens.MapSummaryDTO) screens.MapSummaryDTO {
 	m.ProjectKey, m.ReadAt, m.CheckedAt = "", "", ""
+	// The first steps read this machine: its assistants and what the person
+	// dismissed. A server answers none.
+	m.Steps = nil
 	rows := make([]screens.MapFileDTO, len(m.FileRows))
 	for i, r := range m.FileRows {
 		r.Path = ""

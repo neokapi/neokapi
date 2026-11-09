@@ -225,3 +225,37 @@ func TestMapSummary_UnknownTab(t *testing.T) {
 	_, err := NewApp().MapSummary("nope")
 	require.Error(t, err)
 }
+
+// TestMapSummary_Steps: a project the workspace holds lists its first steps,
+// sharing the rules marks the share step done, and dismissing the steps hides
+// them for that project from then on.
+func TestMapSummary_Steps(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app := newWorkspaceApp(t)
+	tab, _ := openSharingProject(t, app, "Steps")
+
+	steps := func() map[string]screens.MapStepDTO {
+		t.Helper()
+		got, err := app.MapSummary(tab)
+		require.NoError(t, err)
+		out := map[string]screens.MapStepDTO{}
+		for _, s := range got.Steps {
+			out[s.ID] = s
+		}
+		return out
+	}
+
+	first := steps()
+	require.Len(t, first, 5)
+	assert.False(t, first[screens.StepCheck].Done, "no checks have run")
+	assert.False(t, first[screens.StepConnect].Done)
+	assert.False(t, first[screens.StepShare].Done, "the rules stay on this machine")
+
+	_, err := app.SetProjectSharing(tab, project.ContextBackend{Backend: project.ContextBackendFile, Path: filepath.Join(t.TempDir(), "team")})
+	require.NoError(t, err)
+	assert.True(t, steps()[screens.StepShare].Done)
+
+	require.NoError(t, app.DismissMapSteps(tab))
+	assert.Empty(t, steps(), "dismissed for this project")
+	require.NoError(t, app.DismissMapSteps(tab), "dismissing again changes nothing")
+}
