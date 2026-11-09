@@ -106,7 +106,7 @@ collections:
 	assert.Contains(t, look, "look-e2e · read 1 file just now\n")
 	assert.Contains(t, look, "  1 file · 2 blocks · 0 rules · 1 finding\n")
 	assert.Contains(t, look, "Files\n  docs/guide.md  2 blocks · 1 finding\n")
-	assert.True(t, strings.HasSuffix(look, "\nCheck with `kapi check`. See a file with `kapi look <path>`.\n"), look)
+	assert.True(t, strings.HasSuffix(look, "\nConnect your assistant with `kapi connect`. See a file with `kapi look <path>`.\n"), look)
 
 	bare, _ := kapiAt(t, dir)
 	assert.Equal(t, look+"\nkapi --help for the commands\n", bare)

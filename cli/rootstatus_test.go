@@ -52,7 +52,8 @@ func TestRootRunE_InProject(t *testing.T) {
 }
 
 // TestRootRunE_OneLanguageProject: in a project that names no target language
-// the Map has no languages line and names `kapi check` as the next step.
+// the Map has no languages line, and a project with no assistant connected
+// names `kapi connect` as the next step.
 func TestRootRunE_OneLanguageProject(t *testing.T) {
 	recipe, _ := monolingualProject(t)
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -67,7 +68,7 @@ func TestRootRunE_OneLanguageProject(t *testing.T) {
 
 	combined := stdout + buf.String()
 	assert.Contains(t, combined, "docs/berths.md", "the Map lists the file")
-	assert.Contains(t, combined, "Check with `kapi check`. See a file with `kapi look <path>`.")
+	assert.Contains(t, combined, "Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.")
 	assert.Contains(t, combined, "kapi --help for the commands")
 	assert.NotContains(t, combined, "kapi up")
 	assert.NotContains(t, combined, "languages")

@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/screens"
 )
 
 // `kapi look`: the project, and one file, for a person.
@@ -63,7 +64,12 @@ type LookProject struct {
 	// Source is set for a project with no content read: the source line
 	// `kapi status` prints for it.
 	Source *SourceCoverage `json:"source,omitempty"`
-	// Next is the command to run next.
+	// Steps are the first project's steps with what each has left, as the
+	// desktop's Overview lists them. Empty for a project with no content read
+	// and for one that has taken the steps that stay done.
+	Steps []screens.MapStepDTO `json:"steps,omitempty"`
+	// Next is the command to run next: the first step not done, or
+	// `kapi check` once every step is.
 	Next string `json:"next"`
 }
 
@@ -180,6 +186,16 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		if proj.DeclaresTargetLanguages() {
 			out.Languages = a.lookLanguages(ctx, proj, root, recipe)
 		}
+		state := screens.MapStepState{
+			Awaiting:  out.Suggests,
+			Checked:   true,
+			Failing:   out.Failing,
+			Connected: a.AssistantConnected(ctx, recipe, root),
+		}
+		if rung, rerr := RecipeRung(recipe); rerr == nil {
+			state.Shared = rung != ShareRungMachine
+		}
+		out.Steps = screens.MapSteps(state)
 	}
 
 	slices.SortStableFunc(out.Files, func(x, y LookFileSummary) int {
@@ -188,15 +204,39 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		}
 		return cmp.Compare(strings.ToLower(x.Path), strings.ToLower(y.Path))
 	})
-	switch {
-	case out.Source != nil:
-		out.Next = "kapi add <pattern>"
-	case out.Suggests > 0:
-		out.Next = "kapi rules"
-	default:
-		out.Next = "kapi check"
-	}
+	out.Next = lookNext(out)
 	return out, nil
+}
+
+// lookStepCommands is the command that takes each step.
+var lookStepCommands = map[string]string{
+	screens.StepDecide:  "kapi rules",
+	screens.StepCheck:   "kapi check",
+	screens.StepFix:     "kapi fix",
+	screens.StepConnect: "kapi connect",
+	screens.StepShare:   "kapi share",
+}
+
+// lookNext is the Map's next command: adding content for a project with none
+// read, then the first step not done, then fixing what fails, and `kapi check`
+// when nothing is left.
+func lookNext(m *LookProject) string {
+	if m.Source != nil {
+		return "kapi add <pattern>"
+	}
+	for _, st := range m.Steps {
+		if !st.Done {
+			return lookStepCommands[st.ID]
+		}
+	}
+	switch {
+	case m.Suggests > 0:
+		return "kapi rules"
+	case m.Failing > 0:
+		return "kapi fix"
+	default:
+		return "kapi check"
+	}
 }
 
 // lookFirstPass runs the suggestions pass (`kapi context suggest`) the first
@@ -480,10 +520,20 @@ func (m *LookProject) FormatText(w io.Writer) error {
 // project with no content prints its source line in place of it, because that
 // line names the step.
 func (m *LookProject) NextLine() string {
-	if m.Next == "kapi rules" {
-		return "Decide with `kapi rules`. See a file with `kapi look <path>`."
+	var step string
+	switch m.Next {
+	case "kapi rules":
+		step = "Decide with `kapi rules`."
+	case "kapi fix":
+		step = "Fix what fails with `kapi fix`."
+	case "kapi connect":
+		step = "Connect your assistant with `kapi connect`."
+	case "kapi share":
+		step = "Share the rules with `kapi share`."
+	default:
+		step = "Check with `kapi check`."
 	}
-	return "Check with `kapi check`. See a file with `kapi look <path>`."
+	return step + " See a file with `kapi look <path>`."
 }
 
 // LookReader is one file as the Reader draws it.
