@@ -1285,7 +1285,7 @@ async function contentWalk(c: WalkCtx): Promise<void> {
  * runner is named in the narration instead.
  */
 async function flowsWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beatEls, cursorTo, cue, sidebar } = c;
   // Open the KapiMart sample and go straight to its flows.
   await landOnHome(page);
   await openSample(page, "sample-kapimart", "Project Settings");
@@ -1319,6 +1319,8 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
     if ((await rows.count()) > 1) {
       const grip = rows.last().locator('button[aria-label^="Reorder "]').first();
       await cursorTo('[data-testid="step-row"]:last-child button[aria-label^="Reorder "]');
+      // The drag lands as the narration says to make it.
+      await cue("drag", 2.5);
       await grip.dragTo(rows.first(), { targetPosition: { x: 40, y: 4 } });
       await page.waitForTimeout(700);
     }
