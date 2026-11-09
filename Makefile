@@ -2960,6 +2960,10 @@ check-docs-prose: build import-dogfood-context ## Gate: the documentation passes
 	@# collection declared. A reader meets the README before anything else.
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'README.md' 'bowrain/README.md' \
 		-p $(CURDIR)/kapi.yaml
+	@# The narration of the walkthrough videos. Viewers hear it, and its
+	@# translations are generated from it.
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'harness/demos/*/demo.yaml' \
+		-p $(CURDIR)/kapi.yaml
 	@# NOT the agent skill, and not by omission. Gating host/skills reports 30
 	@# failing findings, every one of them correct-by-design: @angular/localize and
 	@# expo-localization are third-party identifiers, gen-l10n is a Flutter tool,

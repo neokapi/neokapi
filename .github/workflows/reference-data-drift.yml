@@ -55,6 +55,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
+      - "harness/demos/*/demo.yaml"
       - "kapi.yaml"
       # The prose `check-governed-prose` gates. The rule that decides the
       # verdict lives in the voice profile, which kapi.yaml binds.
@@ -101,6 +102,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
+      - "harness/demos/*/demo.yaml"
       - "kapi.yaml"
       # The prose `check-governed-prose` gates. The rule that decides the
       # verdict lives in the voice profile, which kapi.yaml binds.
