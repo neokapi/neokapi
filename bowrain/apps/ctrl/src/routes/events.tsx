@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
+import { FilterBar, useSetBreadcrumb, PageContainer } from "@neokapi/ui";
 import type { FilterField, FilterPreset } from "@neokapi/ui";
 import { listEvents } from "../api";
 import { EventFeed } from "../components/EventFeed";
@@ -44,7 +44,7 @@ export function EventsRoute() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       <FilterBar
         filters={filters}
         onFiltersChange={setFilters}
@@ -56,6 +56,6 @@ export function EventsRoute() {
       />
 
       <EventFeed events={events ?? []} loading={isLoading} />
-    </div>
+    </PageContainer>
   );
 }

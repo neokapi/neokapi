@@ -16,6 +16,7 @@ import {
   useWorkspace,
   useApi,
   type DigestSettingsDTO,
+  PageContainer,
 } from "@neokapi/ui";
 import { getStoredUILocale, setUILocale, UI_LOCALES, type UILocale } from "../../i18n";
 import { ProfileEmailCard } from "../../auth/ProfileEmailCard";
@@ -141,7 +142,7 @@ export function UserSettingsRoute() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-6 py-4">
+    <PageContainer width="standard" className="space-y-6">
       <PageHeader
         title="User Settings"
         subtitle="Profile, handle, and notification preferences for your Bowrain account."
@@ -158,6 +159,6 @@ export function UserSettingsRoute() {
       ) : (
         <div className="text-sm text-muted-foreground">Loading notification settings…</div>
       )}
-    </div>
+    </PageContainer>
   );
 }

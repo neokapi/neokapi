@@ -11,6 +11,7 @@ import {
   FlowsEmptyState,
   Label,
   Input,
+  PageContainer,
   PageHeader,
   SectionHeading,
   SimpleTooltip,
@@ -476,7 +477,7 @@ export function FlowsPage({
 
   // Flow list view.
   return (
-    <div className="p-6">
+    <PageContainer width="wide">
       <PageHeader
         title={isProjectMode ? "Flows" : "Flows"}
         actions={
@@ -496,7 +497,7 @@ export function FlowsPage({
       />
 
       {(loading || flows.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
           {loading
             ? [0, 1, 2].map((i) => <FlowCard key={i} loading />)
             : flows.map((item) => (
@@ -526,7 +527,7 @@ export function FlowsPage({
       {available.length > 0 && (
         <section data-slot="flows-available" className="mt-8">
           <SectionHeading className="mb-2">Available to add</SectionHeading>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
             {available.map((item) => (
               <FlowCard
                 key={item.id}
@@ -590,6 +591,6 @@ export function FlowsPage({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

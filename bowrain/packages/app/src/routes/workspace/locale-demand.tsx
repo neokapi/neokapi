@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useApi, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@neokapi/ui";
+import {
+  useApi,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  PageContainer,
+} from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import { projectsQueryOptions } from "../../queries";
 import { LocaleDemandPage } from "../../locale-demand/LocaleDemandPage";
@@ -39,7 +47,7 @@ export function LocaleDemandRoute() {
   return (
     <div>
       {projects && projects.length > 1 && (
-        <div className="mx-auto w-full max-w-7xl px-6 pt-6">
+        <PageContainer width="wide" className="pb-0">
           <label className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Project</span>
             <Select value={project?.id ?? ""} onValueChange={setSelectedProjectId}>
@@ -55,7 +63,7 @@ export function LocaleDemandRoute() {
               </SelectContent>
             </Select>
           </label>
-        </div>
+        </PageContainer>
       )}
       <LocaleDemandPage
         key={project?.id ?? "no-project"}

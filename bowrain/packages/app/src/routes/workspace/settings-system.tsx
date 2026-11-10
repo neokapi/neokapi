@@ -10,6 +10,7 @@ import {
   SettingsSkeleton,
   type ConfigResponse,
   type WebVersionInfo,
+  PageContainer,
 } from "@neokapi/ui";
 
 function InfoField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -49,9 +50,10 @@ export function SettingsSystemRoute() {
   }, [api]);
 
   if (!activeWorkspace) return null;
+  if (!serverInfo && !webInfo) return <SettingsSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+    <PageContainer width="standard" className="space-y-4">
       {serverInfo && (
         <Card>
           <CardHeader>
@@ -82,7 +84,6 @@ export function SettingsSystemRoute() {
           </CardContent>
         </Card>
       )}
-      {!serverInfo && !webInfo && <SettingsSkeleton />}
-    </div>
+    </PageContainer>
   );
 }

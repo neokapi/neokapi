@@ -50,6 +50,32 @@ sentence an item was seen in, the file, who noticed it and when belong to the
 detail pane, where there is room for all of them. Collapsing an item in place
 is the document shape in disguise, and it leaves the list as long as before.
 
+## Page width
+
+A page sits in `PageContainer`, which centres it and gives it the shared side
+padding. The width follows the shape, so two pages of the same shape line up
+on the desktop and the platform. No page sets `max-w-*` or `mx-auto` itself.
+
+| Width | Max | Shapes |
+| --- | --- | --- |
+| `narrow` | 36rem | A setup step, a sign-in, a form of two or three fields |
+| `standard` | 64rem | Settings and setup |
+| `wide` | 80rem | Overview, a page that is one list or table, Reader |
+| `full` | none | List and detail, editors, canvases |
+
+- **Every bounded page is centred.** A column pinned to the left edge leaves
+  the right of a wide window empty.
+- **An Overview fills its width.** Its counts run across the row, and from
+  `xl` up its lists sit side by side rather than one under the other.
+- **A setting is a `SettingsRow`.** The label sits on the left and the control
+  fills the column on the right, from `md` up. Two facts that belong together,
+  such as the source language and the languages to translate into, share a row.
+- **Prose keeps 65 to 75 characters a line.** Set that on the text element,
+  never on the page: a Reader's document is narrow inside a `wide` page.
+- **A `full` page draws its own panes.** Its header strip is `PageHeader` with
+  `px-6 pt-5 pb-3` over a bordered body, and its empty state sits in a
+  `narrow` container.
+
 ## Structure before sentences
 
 A fact shown as a sentence has to be read; a fact shown in its place is seen.
@@ -123,6 +149,7 @@ a caption under a section.
 ## Checklist for a page pull request
 
 - The page's shape is named in the description.
+- The page sits in `PageContainer` at its shape's width.
 - No explanatory paragraph sits under a heading; each explanation is in one
   of the four places above.
 - Every number has a label and none is inside a generated sentence.
@@ -137,6 +164,8 @@ a caption under a section.
 
 ## Components
 
+- **`PageContainer`** is the column every page sits in, at one of four
+  widths. **`SettingsRow`** is one setting, label left and control right.
 - **`StatRow`** draws the overview's labelled counts in a row, with the warning
   ink for the one count that needs a person.
 - **`ActorMark`** names who did something with two letters and a hue for each

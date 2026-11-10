@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useWorkspace, WorkspaceLanguageSettings } from "@neokapi/ui";
+import { useWorkspace, WorkspaceLanguageSettings, PageContainer } from "@neokapi/ui";
 
 export function SettingsLanguagesRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -13,8 +13,8 @@ export function SettingsLanguagesRoute() {
   if (!activeWorkspace) return null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4">
+    <PageContainer width="standard">
       <WorkspaceLanguageSettings workspace={activeWorkspace} />
-    </div>
+    </PageContainer>
   );
 }

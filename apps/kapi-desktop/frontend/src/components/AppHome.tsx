@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   ErrorNotice,
+  PageContainer,
   PageHeader,
   SectionHeading,
   SimpleTooltip,
@@ -109,7 +110,7 @@ export function AppHome({
   );
 
   return (
-    <div data-slot="app-home" className="mx-auto max-w-4xl space-y-8 p-6">
+    <PageContainer width="wide" data-slot="app-home" className="space-y-8">
       <div>
         <PageHeader
           className="mb-4"
@@ -159,53 +160,57 @@ export function AppHome({
 
       {!empty && <WhatsNew standings={standings} onOpen={onOpenWhatsNew} />}
 
-      {/* The workspace: every project kapi has run in, from any surface. */}
-      <section data-slot="home-projects" aria-labelledby="home-projects-heading">
-        <div className="mb-1 flex items-center justify-between gap-3">
-          <div id="home-projects-heading">
-            <SectionHeading>Projects</SectionHeading>
+      {/* The projects and the rules that hold in all of them sit side by
+          side from xl up; either fills the row when it stands alone. */}
+      <div className="flex flex-col gap-8 xl:flex-row xl:items-start [&>*]:min-w-0 [&>*]:flex-1">
+        {/* The workspace: every project kapi has run in, from any surface. */}
+        <section data-slot="home-projects" aria-labelledby="home-projects-heading">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <div id="home-projects-heading">
+              <SectionHeading>Projects</SectionHeading>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={onNewProject}>
+                <Plus size={14} />
+                New project
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onOpenProject}>
+                <FolderOpen size={14} />
+                Open a folder
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={onNewProject}>
-              <Plus size={14} />
-              New project
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onOpenProject}>
-              <FolderOpen size={14} />
-              Open a folder
-            </Button>
-          </div>
-        </div>
 
-        {workspaceError ? (
-          <ErrorNotice error={workspaceError} title="Your workspace could not be read" />
-        ) : projects.length > 0 ? (
-          <div className="divide-y divide-border/50">
-            {projects.map((project) => (
-              <WorkspaceProjectRow
-                key={project.key}
-                project={project}
-                onOpenCheckout={onOpenCheckout}
-                onOpenContext={onOpenContext}
-                onRemove={setRemoving}
-              />
-            ))}
-          </div>
-        ) : (
-          workspace && (
-            <p className="text-sm text-muted-foreground">
-              Nothing here yet. Projects appear as soon as kapi runs in them, whether you open one
-              here or run{" "}
-              <code className="font-mono text-xs" translate="no">
-                kapi
-              </code>{" "}
-              in a folder.
-            </p>
-          )
-        )}
-      </section>
+          {workspaceError ? (
+            <ErrorNotice error={workspaceError} title="Your workspace could not be read" />
+          ) : projects.length > 0 ? (
+            <div className="divide-y divide-border/50">
+              {projects.map((project) => (
+                <WorkspaceProjectRow
+                  key={project.key}
+                  project={project}
+                  onOpenCheckout={onOpenCheckout}
+                  onOpenContext={onOpenContext}
+                  onRemove={setRemoving}
+                />
+              ))}
+            </div>
+          ) : (
+            workspace && (
+              <p className="text-sm text-muted-foreground">
+                Nothing here yet. Projects appear as soon as kapi runs in them, whether you open one
+                here or run{" "}
+                <code className="font-mono text-xs" translate="no">
+                  kapi
+                </code>{" "}
+                in a folder.
+              </p>
+            )
+          )}
+        </section>
 
-      {!empty && <WorkspaceRules rules={workspaceRules} />}
+        {!empty && <WorkspaceRules rules={workspaceRules} />}
+      </div>
 
       {!empty && startHere}
 
@@ -220,7 +225,7 @@ export function AppHome({
       <div className="empty:hidden">
         <ConnectAICard detection={aiDetection} />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

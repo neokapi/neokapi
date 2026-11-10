@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
+import { FilterBar, useSetBreadcrumb, PageContainer } from "@neokapi/ui";
 import type { FilterField, FilterPreset } from "@neokapi/ui";
 import { listWorkspaces } from "../api";
 import { WorkspaceTable } from "../components/WorkspaceTable";
@@ -66,7 +66,7 @@ export function WorkspacesRoute() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       <FilterBar
         filters={filters}
         onFiltersChange={setFilters}
@@ -82,6 +82,6 @@ export function WorkspacesRoute() {
         loading={isLoading}
         onRowClick={handleRowClick}
       />
-    </div>
+    </PageContainer>
   );
 }

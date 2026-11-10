@@ -14,6 +14,7 @@ import {
   DialogTitle,
   Label,
   Input,
+  PageContainer,
   PageHeader,
   EmptyState,
   SimpleTooltip,
@@ -226,9 +227,10 @@ export function TermsPage({
     );
   }
 
-  // No store open: the named stores, one row each, to open one from.
+  // No store open: the named stores, one row each, to open one from, or the
+  // empty state when there are none. A short list, so a narrow column.
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <PageContainer width="narrow">
       <PageHeader
         title="Terms"
         actions={
@@ -352,6 +354,6 @@ export function TermsPage({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

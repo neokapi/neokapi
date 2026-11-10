@@ -15,6 +15,7 @@ import {
   EmptyState,
   Label,
   Input,
+  PageContainer,
   PageHeader,
   SimpleTooltip,
   type MemoryAdapter,
@@ -254,9 +255,10 @@ export function MemoriesPage({
     );
   }
 
-  // No store open: the named stores, one row each, to open one from.
+  // No store open: the named stores, one row each, to open one from, or the
+  // empty state when there are none. A short list, so a narrow column.
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <PageContainer width="narrow">
       <PageHeader
         title="Content memories"
         actions={
@@ -387,6 +389,6 @@ export function MemoriesPage({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

@@ -28,6 +28,7 @@ import {
   LoadingSpinner,
   cn,
   useListNavigation,
+  PageContainer,
 } from "@neokapi/ui-primitives";
 import { ChevronRight } from "../components/icons";
 import type { CandidateRule } from "./types";
@@ -275,14 +276,14 @@ export function CandidateReview({
   }
   if (rows.length === 0) {
     return (
-      <div data-slot="voice-review-empty" className={cn("mx-auto w-full max-w-xl p-6", className)}>
+      <PageContainer width="narrow" data-slot="voice-review-empty" className={className}>
         <EmptyState
           title={t("No suggested rules yet")}
           description={t(
             "When your team corrects the same phrasing again and again, in the editor or through an assistant, it is suggested here as a rule.",
           )}
         />
-      </div>
+      </PageContainer>
     );
   }
 

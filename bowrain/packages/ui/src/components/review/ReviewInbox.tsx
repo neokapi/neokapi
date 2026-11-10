@@ -1,4 +1,4 @@
-import { Card, CardContent, Button, cn } from "@neokapi/ui-primitives";
+import { Card, CardContent, Button, cn, PageContainer } from "@neokapi/ui-primitives";
 import { Eye, CircleCheck, Sparkles, ShieldCheck, ArrowRight, Lock, ListChecks } from "../icons";
 
 /** One project's pending-review standing in the workspace review inbox. */
@@ -83,7 +83,7 @@ export function ReviewInbox({
   const empty = withPending.length === 0 && tasks.length === 0 && withRules.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-4 md:p-6" data-testid="review-inbox">
+    <PageContainer width="wide" data-testid="review-inbox">
       <header className="mb-4 space-y-1">
         <h1 className="flex items-center gap-2 text-lg font-semibold">
           <Eye className="h-5 w-5 text-primary" /> Review inbox
@@ -236,6 +236,6 @@ export function ReviewInbox({
       )}
 
       {coverageNote && <p className="mt-3 text-xs text-muted-foreground">{coverageNote}</p>}
-    </div>
+    </PageContainer>
   );
 }

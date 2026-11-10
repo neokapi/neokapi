@@ -17,6 +17,7 @@ import {
   Badge,
   Card,
   CardContent,
+  PageContainer,
   PageHeader,
   ScrollArea,
   FindingSnippet,
@@ -401,7 +402,7 @@ export function ChecksPanel({
     verdict === "did_not_run" && result?.did_not_run_cause === "checker_invalid";
 
   return (
-    <div className="p-6">
+    <PageContainer width="wide">
       <PageHeader
         title="Checks"
         actions={
@@ -715,6 +716,6 @@ export function ChecksPanel({
         backLabel={t("Back to checks")}
         onClose={() => setDocumentOpen(false)}
       />
-    </div>
+    </PageContainer>
   );
 }

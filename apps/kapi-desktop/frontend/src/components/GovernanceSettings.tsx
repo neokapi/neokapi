@@ -19,6 +19,7 @@ import {
   SelectContent,
   SelectItem,
   SectionHeading,
+  SettingsRow,
   TagInput,
   VoiceBindingSelect,
 } from "@neokapi/ui-primitives";
@@ -26,7 +27,6 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { ChannelMap } from "./channels/ChannelMap";
-import { SettingLabel } from "./SettingLabel";
 import { decodeVoiceBinding, encodeVoiceBinding, voiceBindingOptions } from "./voiceBinding";
 import type { KapiProject, ProjectDefaults } from "../types/api";
 
@@ -87,32 +87,40 @@ export function GovernanceSettings({
         <SectionHeading className="mb-3" icon={<Compass size={14} />}>
           {t("Where content sits")}
         </SectionHeading>
-        <div className="space-y-4">
-          <CoordinatesEditor
-            value={defaults.coordinates ?? {}}
-            axes={governance.axes}
-            allowNewAxis
-            label={t("Default point")}
-            emptyText={t("Every collection sits at the project's own point.")}
-            note={t("{axes} come from a collection's channel.", {
-              axes: structural.map((a) => a.axis).join(" and "),
-            })}
-            onChange={(coordinates) => updateDefaults({ coordinates })}
-          />
+        <div>
+          <SettingsRow label={t("Default point")}>
+            <CoordinatesEditor
+              value={defaults.coordinates ?? {}}
+              axes={governance.axes}
+              allowNewAxis
+              emptyText={t("Every collection sits at the project's own point.")}
+              note={t("{axes} come from a collection's channel.", {
+                axes: structural.map((a) => a.axis).join(" and "),
+              })}
+              onChange={(coordinates) => updateDefaults({ coordinates })}
+            />
+          </SettingsRow>
 
-          <VoiceBindingSelect
-            value={encodeVoiceBinding(defaults.voice)}
-            options={voiceBindingOptions(governance)}
-            inheritLabel={t("None bound")}
+          <SettingsRow
             label={t("Voice profile")}
+            htmlFor="governance-voice"
             help={t("A file is edited on the Voice page. A starter pack is read-only.")}
-            onChange={(key) => updateDefaults({ voice: decodeVoiceBinding(key) })}
-          />
+          >
+            <VoiceBindingSelect
+              id="governance-voice"
+              labelHidden
+              className="max-w-none"
+              value={encodeVoiceBinding(defaults.voice)}
+              options={voiceBindingOptions(governance)}
+              inheritLabel={t("None bound")}
+              label={t("Voice profile")}
+              onChange={(key) => updateDefaults({ voice: decodeVoiceBinding(key) })}
+            />
+          </SettingsRow>
 
-          <div>
-            <SettingLabel>{t("Channels")}</SettingLabel>
+          <SettingsRow label={t("Channels")}>
             <ChannelMap tabID={tabID} onUpdate={onUpdate} />
-          </div>
+          </SettingsRow>
         </div>
       </section>
 
@@ -121,16 +129,16 @@ export function GovernanceSettings({
         <SectionHeading className="mb-3" icon={<Workflow size={14} />}>
           {t("What runs, and what is skipped")}
         </SectionHeading>
-        <div className="space-y-4">
-          <div>
-            <SettingLabel help={t("The flow a run uses when it names no other one.")}>
-              {t("Default flow")}
-            </SettingLabel>
+        <div>
+          <SettingsRow
+            label={t("Default flow")}
+            help={t("The flow a run uses when it names no other one.")}
+          >
             <Select
               value={defaults.flow || NONE}
               onValueChange={(v) => updateDefaults({ flow: v === NONE ? undefined : v })}
             >
-              <SelectTrigger className="max-w-xs" aria-label={t("Default flow")}>
+              <SelectTrigger aria-label={t("Default flow")}>
                 <SelectValue placeholder={t("Chosen per run")} />
               </SelectTrigger>
               <SelectContent>
@@ -142,12 +150,12 @@ export function GovernanceSettings({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </SettingsRow>
 
-          <div>
-            <SettingLabel help={t("Glob patterns a content scan passes over.")}>
-              {t("Skip these paths")}
-            </SettingLabel>
+          <SettingsRow
+            label={t("Skip these paths")}
+            help={t("Glob patterns a content scan passes over.")}
+          >
             <TagInput
               value={defaults.exclude ?? []}
               onChange={(exclude) =>
@@ -155,7 +163,7 @@ export function GovernanceSettings({
               }
               placeholder={t("Add a pattern, e.g. **/vendor/**")}
             />
-          </div>
+          </SettingsRow>
         </div>
       </section>
     </>

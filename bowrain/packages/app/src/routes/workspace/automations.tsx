@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useRouteContext } from "@tanstack/react-router";
-import { Card, AutomationsPage, AutomationRunsPage } from "@neokapi/ui";
+import { Card, AutomationsPage, AutomationRunsPage, PageContainer } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import { ProjectFlowsEditor } from "../../flows";
 import { usePlatform } from "../../platform";
@@ -28,14 +28,16 @@ export function AutomationsRoute() {
 
   if (!activeWorkspace || !projectId) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a project to view automations
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a project to view automations
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className={`mx-auto w-full p-4 md:p-6 ${tab === "flows" ? "max-w-7xl" : "max-w-5xl"}`}>
+    <PageContainer width="wide">
       <div className="flex gap-1 mb-4 border-b border-border">
         {TABS.map((t) => (
           <button
@@ -62,6 +64,6 @@ export function AutomationsRoute() {
       {tab === "flows" && (
         <ProjectFlowsEditor workspaceSlug={activeWorkspace.slug} projectId={projectId} />
       )}
-    </div>
+    </PageContainer>
   );
 }

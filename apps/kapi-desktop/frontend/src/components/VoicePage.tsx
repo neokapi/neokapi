@@ -29,6 +29,7 @@ import {
   Badge,
   Button,
   LocaleLabel,
+  PageContainer,
   PageHeader,
   SectionHeading,
   Separator,
@@ -459,84 +460,87 @@ export function VoicePage({ tabID, result, editable = true, save, valueSets }: V
   }, [active]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
-      <PageHeader title={t("Voice")} />
+    <PageContainer width="full">
+      <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title={t("Voice")} />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-t border-border px-6 pb-6">
+        {!result && query.isError && (
+          <ErrorHint
+            title={t("The voice profiles did not load")}
+            description={(query.error as Error).message}
+          />
+        )}
 
-      {!result && query.isError && (
-        <ErrorHint
-          title={t("The voice profiles did not load")}
-          description={(query.error as Error).message}
-        />
-      )}
+        {!result && query.isLoading && (
+          <div className="mt-4 space-y-2">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        )}
 
-      {!result && query.isLoading && (
-        <div className="mt-4 space-y-2">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      )}
+        {data && (
+          <>
+            {!!data.notes?.length && (
+              <ul className="mt-4 space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                {data.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            )}
 
-      {data && (
-        <>
-          {!!data.notes?.length && (
-            <ul className="mt-4 space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
-              {data.notes.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          )}
-
-          {data.points.length === 0 ? (
-            <EmptyHint
-              title={t("This project declares no points")}
-              description={t("Open the recipe to bind a voice profile.")}
-            />
-          ) : (
-            <div className="mt-4 grid min-h-0 flex-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-              <nav aria-label={t("Points")}>
-                <LabelledCoordinates
-                  entries={Object.entries(shared)}
-                  className="mb-2 px-3"
-                  testId="voice-shared-coordinates"
+            {data.points.length === 0 ? (
+              <PageContainer width="narrow">
+                <EmptyHint
+                  title={t("This project declares no points")}
+                  description={t("Open the recipe to bind a voice profile.")}
                 />
-                <ul className="space-y-1">
-                  {data.points.map((p) => (
-                    <PointRow
-                      key={p.label}
-                      point={p}
-                      shared={shared}
-                      selected={active?.label === p.label}
-                      onSelect={() => setSelected(p.label)}
+              </PageContainer>
+            ) : (
+              <div className="mt-4 grid min-h-0 flex-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+                <nav aria-label={t("Points")}>
+                  <LabelledCoordinates
+                    entries={Object.entries(shared)}
+                    className="mb-2 px-3"
+                    testId="voice-shared-coordinates"
+                  />
+                  <ul className="space-y-1">
+                    {data.points.map((p) => (
+                      <PointRow
+                        key={p.label}
+                        point={p}
+                        shared={shared}
+                        selected={active?.label === p.label}
+                        onSelect={() => setSelected(p.label)}
+                      />
+                    ))}
+                  </ul>
+                </nav>
+                {active &&
+                  (editing ? (
+                    <VoiceProfileEditor
+                      tabID={tabID}
+                      profileName={active.point.profile ?? ""}
+                      target={active.edit}
+                      profile={draft}
+                      valueSets={valueSets}
+                      save={save}
+                      onCancel={() => setEditing(false)}
+                      onSaved={(result) => {
+                        setEditing(false);
+                        void queries.invalidateQueries({ queryKey: qk.projectVoice(tabID) });
+                        notifyRulesFiles(result.rulesFiles);
+                      }}
+                    />
+                  ) : (
+                    <PointDetail
+                      point={active}
+                      onEdit={editable ? () => setEditing(true) : undefined}
                     />
                   ))}
-                </ul>
-              </nav>
-              {active &&
-                (editing ? (
-                  <VoiceProfileEditor
-                    tabID={tabID}
-                    profileName={active.point.profile ?? ""}
-                    target={active.edit}
-                    profile={draft}
-                    valueSets={valueSets}
-                    save={save}
-                    onCancel={() => setEditing(false)}
-                    onSaved={(result) => {
-                      setEditing(false);
-                      void queries.invalidateQueries({ queryKey: qk.projectVoice(tabID) });
-                      notifyRulesFiles(result.rulesFiles);
-                    }}
-                  />
-                ) : (
-                  <PointDetail
-                    point={active}
-                    onEdit={editable ? () => setEditing(true) : undefined}
-                  />
-                ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </PageContainer>
   );
 }

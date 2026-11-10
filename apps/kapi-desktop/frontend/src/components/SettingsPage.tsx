@@ -3,7 +3,7 @@ import { Sun, Moon, Monitor, Languages, FlaskConical } from "lucide-react";
 import { loadTranslations, setTranslations, t } from "@neokapi/i18n-react/runtime";
 import { api, type VersionInfo } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import { Button, Switch, LoadingSpinner } from "@neokapi/ui-primitives";
+import { Button, Switch, LoadingSpinner, PageContainer, SettingsRow } from "@neokapi/ui-primitives";
 import { analyticsAvailable, setTelemetryEnabled } from "../analytics";
 import { DevPseudoCard } from "./DevPseudoCard";
 import { CredentialsPage } from "./CredentialsPage";
@@ -179,13 +179,13 @@ export function SettingsPage({
 
       {tab === "general" && (
         <div role="tabpanel" className="flex-1 overflow-auto">
-          <div className="p-6">
+          <PageContainer width="standard">
             <h1 className="mb-6 text-xl font-semibold">App settings</h1>
 
             {/* Labelled rows, one control each: the settings shape in
                 page-patterns.md. */}
-            <div className="max-w-2xl divide-y divide-border/60 border-y border-border/60">
-              <SettingRow label={t("Appearance")}>
+            <div className="divide-y divide-border/60 border-y border-border/60">
+              <SettingsRow label={t("Appearance")}>
                 <Segmented
                   label={t("Appearance")}
                   value={theme}
@@ -196,18 +196,18 @@ export function SettingsPage({
                     { value: "dark", icon: Moon, label: t("Dark") },
                   ]}
                 />
-              </SettingRow>
+              </SettingsRow>
 
-              <SettingRow label={t("Language")}>
+              <SettingsRow label={t("Language")}>
                 <Segmented
                   label={t("Language")}
                   value={uiLanguage}
                   onChange={(v) => void handleLanguageChange(v as UILanguage)}
                   options={UI_LANGUAGES}
                 />
-              </SettingRow>
+              </SettingsRow>
 
-              <SettingRow label={t("Start here")}>
+              <SettingsRow label={t("Start here")}>
                 <Button
                   size="sm"
                   variant="outline"
@@ -217,14 +217,14 @@ export function SettingsPage({
                 >
                   {t("Show it again")}
                 </Button>
-              </SettingRow>
+              </SettingsRow>
 
               {/* Usage statistics (D1 opt-out) — only meaningful in builds that
                 carry an analytics key; keyless builds never emit anything. */}
               {analyticsAvailable() && (
-                <SettingRow
+                <SettingsRow
                   label={t("Usage statistics")}
-                  meta={t(
+                  help={t(
                     "Screen views and feature use; never your content, project names or paths.",
                   )}
                 >
@@ -233,11 +233,11 @@ export function SettingsPage({
                     checked={telemetryOn}
                     onCheckedChange={(checked) => void handleTelemetryChange(checked)}
                   />
-                </SettingRow>
+                </SettingsRow>
               )}
 
               {version && (
-                <SettingRow label={t("Version")}>
+                <SettingsRow label={t("Version")}>
                   <span
                     translate="no"
                     className="font-mono text-xs text-muted-foreground"
@@ -246,14 +246,14 @@ export function SettingsPage({
                     {version.version || "dev"} · {version.commit || "unknown"} ·{" "}
                     {version.build_date || "unknown"}
                   </span>
-                </SettingRow>
+                </SettingsRow>
               )}
             </div>
 
-            <div className="mt-6 max-w-2xl">
+            <div className="mt-6">
               <DevPseudoCard />
             </div>
-          </div>
+          </PageContainer>
         </div>
       )}
 
@@ -280,27 +280,6 @@ export function SettingsPage({
           <LocaleSettings />
         </div>
       )}
-    </div>
-  );
-}
-
-/** One setting: its label on the left, its one control on the right. */
-function SettingRow({
-  label,
-  meta,
-  children,
-}: {
-  label: string;
-  meta?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex min-h-12 items-center justify-between gap-6 py-2.5">
-      <div className="min-w-0">
-        <div className="text-sm">{label}</div>
-        {meta && <div className="text-[11px] text-muted-foreground">{meta}</div>}
-      </div>
-      <div className="shrink-0">{children}</div>
     </div>
   );
 }

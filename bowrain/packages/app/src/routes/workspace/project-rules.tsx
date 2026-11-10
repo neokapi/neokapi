@@ -9,6 +9,7 @@ import {
   type ProjectScreensPort,
   type ScreenTarget,
 } from "@neokapi/project-screens";
+import { PageContainer } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import { bowrainOpens, useProjectScreensPort } from "./project-screens-port";
 import { useScreenNavigate } from "./project-screens-nav";
@@ -25,7 +26,7 @@ export interface ProjectRulesPageProps {
 /** Decide and the kept rules of one project, read through the port it is given. */
 export function ProjectRulesPage({ port, row, assignedToMe, navigate }: ProjectRulesPageProps) {
   return (
-    <div data-slot="project-rules" className="flex min-h-full flex-col">
+    <PageContainer width="full" data-slot="project-rules" className="h-auto min-h-full">
       <div className="h-[36rem] shrink-0 border-b border-border">
         <DecideScreen
           key={`${row}:${assignedToMe}`}
@@ -36,10 +37,10 @@ export function ProjectRulesPage({ port, row, assignedToMe, navigate }: ProjectR
           canNavigate={bowrainOpens}
         />
       </div>
-      <div className="mx-auto w-full max-w-4xl p-6">
+      <PageContainer width="wide">
         <KeptRulesScreen port={port} />
-      </div>
-    </div>
+      </PageContainer>
+    </PageContainer>
   );
 }
 

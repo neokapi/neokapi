@@ -341,7 +341,7 @@ describe("ContextHub", () => {
     const feed = await screen.findByText(`feed for ${CONTEXT_DIGEST.project}`);
     // No scrolling column around the panel: it fills the section's height.
     expect(feed.closest("[data-slot='scroll-area']")).toBeNull();
-    expect(feed.closest(".max-w-3xl")).toBeNull();
+    expect(feed.closest("[data-slot='page-container']")).toBeNull();
     expect(feed.parentElement?.className).toContain("flex-1");
     expect(screen.getByRole("heading", { name: "Sessions" })).toBeInTheDocument();
     digest.mockRestore();

@@ -27,6 +27,7 @@ import {
   ActivityFeedSkeleton,
   TaskBoardSkeleton,
   ErrorNotice,
+  PageContainer,
 } from "@neokapi/ui";
 import { searchInstallationId, searchSetupAction, searchSetupState } from "./installation-id";
 import {
@@ -97,6 +98,32 @@ export interface WorkspaceRouteContext {
   user: User;
   workspaces: Workspace[];
   activeWorkspace: Workspace;
+}
+
+// The feed and board skeletons are content, shown inline by their components
+// too; as a route's pending state they sit in the page width of that route.
+function WideActivityFeedSkeleton() {
+  return (
+    <PageContainer width="wide">
+      <ActivityFeedSkeleton />
+    </PageContainer>
+  );
+}
+
+function FullActivityFeedSkeleton() {
+  return (
+    <PageContainer width="full" className="px-6 py-5">
+      <ActivityFeedSkeleton />
+    </PageContainer>
+  );
+}
+
+function WideTaskBoardSkeleton() {
+  return (
+    <PageContainer width="wide">
+      <TaskBoardSkeleton />
+    </PageContainer>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -871,7 +898,7 @@ const contextChangeDetailRoute = createRoute({
 const contextActivityRoute = createRoute({
   getParentRoute: () => contextRoute,
   path: "activity",
-  pendingComponent: ActivityFeedSkeleton,
+  pendingComponent: FullActivityFeedSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/context-activity"),
     "ContextActivityRoute",
@@ -1008,14 +1035,14 @@ const auditlogRoute = createRoute({
 const activitiesRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "activities",
-  pendingComponent: ActivityFeedSkeleton,
+  pendingComponent: WideActivityFeedSkeleton,
   component: lazyRouteComponent(() => import("./workspace/activities"), "ActivitiesRoute"),
 });
 
 const tasksRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "tasks",
-  pendingComponent: TaskBoardSkeleton,
+  pendingComponent: WideTaskBoardSkeleton,
   component: lazyRouteComponent(() => import("./workspace/tasks"), "TasksRoute"),
 });
 
@@ -1024,7 +1051,7 @@ const tasksRoute = createRoute({
 const reviewInboxRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "review-inbox",
-  pendingComponent: TaskBoardSkeleton,
+  pendingComponent: WideTaskBoardSkeleton,
   component: lazyRouteComponent(() => import("./workspace/review-inbox"), "ReviewInboxRoute"),
 });
 

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Badge, FilterBar, useSetBreadcrumb } from "@neokapi/ui";
+import { Badge, FilterBar, useSetBreadcrumb, PageContainer } from "@neokapi/ui";
 import type { FilterField } from "@neokapi/ui";
 import { listAllOverrides } from "../api";
 import { useUrlFilters } from "../hooks/useUrlFilters";
@@ -63,7 +63,7 @@ export function OverridesRoute() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       <p className="text-sm text-muted-foreground">
         All per-workspace feature overrides across the platform.
       </p>
@@ -143,6 +143,6 @@ export function OverridesRoute() {
           </table>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

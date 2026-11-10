@@ -11,6 +11,7 @@ import {
   Loader2,
   CircleCheck,
   useApi,
+  PageContainer,
 } from "@neokapi/ui";
 
 interface ConfirmEmailPageProps {
@@ -58,7 +59,7 @@ export function ConfirmEmailPage({ token }: ConfirmEmailPageProps) {
   }, [token, api]);
 
   return (
-    <div className="mx-auto w-full max-w-lg pt-16">
+    <PageContainer width="narrow" className="pt-16">
       <Card>
         <CardHeader>
           <CardTitle>Confirm email change</CardTitle>
@@ -98,6 +99,6 @@ export function ConfirmEmailPage({ token }: ConfirmEmailPageProps) {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
