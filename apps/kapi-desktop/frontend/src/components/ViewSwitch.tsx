@@ -85,14 +85,12 @@ interface ViewSwitchProps {
   workspaceError?: unknown;
   /** Every project's context in numbers. */
   standings?: ContextProjectStanding[] | null;
-  /** The home's Start here steps were dismissed. */
+  /** The home's Get started card was hidden. */
   startHereDismissed: boolean;
   onDismissStartHere: () => void;
   onRestoreStartHere: () => void;
-  /** A project tab is open, so the home can connect an assistant to it. */
+  /** A project tab is open, so the home's tours have a project to show. */
   hasOpenProject: boolean;
-  /** Open the most recent project tab on its Assistant section. */
-  onConnectAssistant: () => void;
   /** Open a project on its Decide section, by workspace key. */
   onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
@@ -103,7 +101,7 @@ interface ViewSwitchProps {
   onForgetProject: (key: string) => Promise<void> | void;
   onNewProject: () => void;
   onOpenProject: () => void;
-  onCreateSampleProject: (name: string) => void;
+  onCreateSampleProject: (name: string) => void | Promise<void>;
   /** Reset an out-of-date sample project to the version bundled with this kapi. */
   onResetSample: (tabID: string) => void;
   /** Open a folder, a recipe or a file inside a folder, by path. */
@@ -129,7 +127,6 @@ export function ViewSwitch({
   onDismissStartHere,
   onRestoreStartHere,
   hasOpenProject,
-  onConnectAssistant,
   onOpenWhatsNew,
   onOpenCheckout,
   onOpenContext,
@@ -267,7 +264,6 @@ export function ViewSwitch({
         startHereDismissed={startHereDismissed}
         onDismissStartHere={onDismissStartHere}
         hasOpenProject={hasOpenProject}
-        onConnectAssistant={onConnectAssistant}
         onOpenWhatsNew={onOpenWhatsNew}
         onOpenCheckout={onOpenCheckout}
         onOpenContext={onOpenContext}

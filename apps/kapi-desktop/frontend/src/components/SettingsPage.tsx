@@ -38,9 +38,9 @@ export interface SettingsPageProps {
   theme?: ThemeMode;
   /** Pre-loaded UI language for Storybook — skips api.getSettings(). */
   uiLanguage?: UILanguage;
-  /** Whether the home's Start here steps are dismissed, as the app holds it. */
+  /** Whether the home's Get started card is hidden, as the app holds it. */
   startHereDismissed?: boolean;
-  /** Bring Start here back. Absent writes the setting directly. */
+  /** Bring Get started back. Absent writes the setting directly. */
   onRestoreStartHere?: () => void;
 }
 
@@ -207,7 +207,7 @@ export function SettingsPage({
                 />
               </SettingsRow>
 
-              <SettingsRow label={t("Start here")}>
+              <SettingsRow label={t("Get started on the home")}>
                 <Button
                   size="sm"
                   variant="outline"

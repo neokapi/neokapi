@@ -657,3 +657,23 @@ export type {
   UseListNavigationOptions,
 } from "./hooks/useListNavigation";
 export * from "./components/ui/stepper";
+
+// ─── Guided tours and the Help panel ─────────────────────────
+export {
+  GuideProvider,
+  useGuide,
+  useOptionalGuide,
+  HelpPanel,
+  TourOverlay,
+  GUIDE_OVERLAY_Z_INDEX,
+  DEFAULT_WAIT_FOR,
+} from "./components/guide";
+export type {
+  GuideProviderProps,
+  HelpPanelProps,
+  TourOverlayProps,
+  Guide,
+  GuideApi,
+  GuideStep,
+  HelpTopic,
+} from "./components/guide";

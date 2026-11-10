@@ -19,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProjectScreensPort } from "@neokapi/project-screens";
 import { t } from "@neokapi/i18n-react/runtime";
 import {
+  CircleHelp,
   Cloud,
   ExternalLink,
   Eye,
@@ -39,6 +40,7 @@ import {
   SimpleTooltip,
   When,
   parseAppError,
+  useOptionalGuide,
 } from "@neokapi/ui-primitives";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
@@ -47,6 +49,7 @@ import { ShareSetupDialog } from "./ShareSetupDialog";
 import { BowrainPreviewSheet } from "./BowrainPreviewSheet";
 import { usePreviewPort } from "../lib/previewPort";
 import { api } from "../hooks/useApi";
+import { TOPIC_IDS } from "../guide/topics";
 import type {
   ContextSyncResult,
   ProjectSharing,
@@ -54,9 +57,6 @@ import type {
   ShareView,
   SyncStatus,
 } from "../types/api";
-
-/** Where the About Bowrain action leads. */
-export const BOWRAIN_ABOUT_URL = "https://bowrain.cloud/docs/getting-started/kapi-vs-bowrain";
 
 /** The command that connects a project to a Bowrain server. */
 export const BOWRAIN_SHARE_COMMAND = "kapi share --via bowrain <server-url>";
@@ -628,10 +628,10 @@ function SyncResultLine({ result }: { result: ContextSyncResult }) {
 
 /**
  * Under Bowrain's rung: Preview, which draws the project as a Bowrain project
- * page draws it, beside a link. Until the recipe connects to a server the
- * link reads about Bowrain, followed by the command that connects it, which
+ * page draws it. Until the recipe connects to a server, About Bowrain opens
+ * the Bowrain page in Help, followed by the command that connects it, which
  * needs the kapi-bowrain plugin; once it does, the server and workspace, and
- * the link opens the project there. A tab with no checkout leaves out the
+ * a link that opens the project there. A tab with no checkout leaves out the
  * command and Preview, since neither reads anything from there.
  */
 function BowrainDetail({
@@ -644,6 +644,7 @@ function BowrainDetail({
   /** Open the preview. Absent, the rung draws no Preview. */
   onPreview?: () => void;
 }) {
+  const guide = useOptionalGuide();
   const sharing = view.sharing;
   const preview = onPreview && (
     <Button size="sm" variant="secondary" data-slot="share-preview-bowrain" onClick={onPreview}>
@@ -655,16 +656,14 @@ function BowrainDetail({
     return (
       <Actions>
         {preview}
-        <Button size="sm" variant="outline" asChild>
-          <a
-            href={BOWRAIN_ABOUT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-slot="share-about-bowrain"
-          >
-            About Bowrain
-            <ExternalLink size={13} aria-hidden />
-          </a>
+        <Button
+          size="sm"
+          variant="outline"
+          data-slot="share-about-bowrain"
+          onClick={() => guide?.openHelp(TOPIC_IDS.bowrain)}
+        >
+          <CircleHelp size={13} aria-hidden />
+          About Bowrain
         </Button>
         {!contextOnly && <MonoChip slot="share-bowrain-command">{BOWRAIN_SHARE_COMMAND}</MonoChip>}
         {!contextOnly && !view.bowrain_plugin && (

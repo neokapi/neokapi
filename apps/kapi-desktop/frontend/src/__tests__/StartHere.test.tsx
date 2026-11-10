@@ -1,65 +1,89 @@
-import { describe, it, expect, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vite-plus/test";
 import userEvent from "@testing-library/user-event";
-import { render, screen } from "./testUtils";
+import { render, screen, waitFor } from "./testUtils";
 
-import { DESKTOP_OVERVIEW_URL, StartHere } from "../components/StartHere";
+import { StartHere } from "../components/StartHere";
+import { DesktopGuide, GUIDE_STORAGE_KEY } from "../guide/DesktopGuide";
+import { GUIDE_IDS } from "../guide/guides";
 
 function renderStartHere(hasOpenProject = true) {
   const handlers = {
     onDismiss: vi.fn(),
-    onCreateSampleProject: vi.fn(),
-    onConnectAssistant: vi.fn(),
+    onCreateSampleProject: vi.fn(async () => {}),
   };
-  render(<StartHere {...handlers} hasOpenProject={hasOpenProject} />);
-  return handlers;
+  const navigate = vi.fn();
+  render(
+    <DesktopGuide navigate={navigate} hasProject={hasOpenProject} onOpenUrl={vi.fn()}>
+      <StartHere {...handlers} hasOpenProject={hasOpenProject} />
+    </DesktopGuide>,
+  );
+  return { ...handlers, navigate };
 }
 
-describe("Start here", () => {
-  it("states the three steps word for word", () => {
+const bubble = () => document.querySelector<HTMLElement>('[data-slot="guide-bubble"]');
+
+beforeEach(() => localStorage.removeItem(GUIDE_STORAGE_KEY));
+afterEach(() => localStorage.removeItem(GUIDE_STORAGE_KEY));
+
+describe("Get started", () => {
+  it("offers three tours, none done yet", () => {
     renderStartHere();
+    expect(screen.getByText("Get started")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Open a project, or try the sample. The sample arrives with an assistant's notes to review.",
-      ),
+      screen.getByText("Try the sample project and take a tour of its Overview."),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Connect an assistant. kapi writes the project's rules where it reads them, and the assistant records its suggestions.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Come back. Its suggestions appear under What's new; keep the right ones."),
-    ).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="start-here-done"]')?.textContent).toBe("0 of 3");
+    expect(bubble()).toBeNull();
   });
 
-  it("creates the KapiMart sample", async () => {
-    const { onCreateSampleProject } = renderStartHere();
+  it("marks the tours finished on this machine", () => {
+    localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify([GUIDE_IDS.decide]));
+    renderStartHere();
+    expect(document.querySelector('[data-slot="start-here-done"]')?.textContent).toBe("1 of 3");
+    const done = document.querySelectorAll('[data-slot="start-here-step"][data-done]');
+    expect(done).toHaveLength(1);
+  });
+
+  it("creates the KapiMart sample, then starts the project tour", async () => {
+    const { onCreateSampleProject, navigate } = renderStartHere();
     await userEvent.click(screen.getByTestId("sample-kapimart"));
     expect(onCreateSampleProject).toHaveBeenCalledWith("kapimart");
+    await waitFor(() => expect(bubble()).not.toBeNull());
+    expect(navigate).toHaveBeenCalledWith("map");
   });
 
-  it("opens the open project's Assistant section", async () => {
-    const { onConnectAssistant } = renderStartHere();
-    await userEvent.click(screen.getByRole("button", { name: "Connect an assistant" }));
-    expect(onConnectAssistant).toHaveBeenCalled();
+  it("starts the Decide tour", async () => {
+    const { navigate } = renderStartHere();
+    await userEvent.click(document.querySelector<HTMLElement>('[data-slot="start-here-decide"]')!);
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("context:rules"));
   });
 
-  it("waits for a project before it connects an assistant", () => {
+  it("starts the assistant tour", async () => {
+    const { navigate } = renderStartHere();
+    await userEvent.click(document.querySelector<HTMLElement>('[data-slot="start-here-connect"]')!);
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("project-settings:assistants"));
+  });
+
+  it("waits for a project before the project tours", () => {
     renderStartHere(false);
-    expect(screen.getByRole("button", { name: "Connect an assistant" })).toBeDisabled();
+    expect(document.querySelector('[data-slot="start-here-decide"]')).toBeDisabled();
+    expect(document.querySelector('[data-slot="start-here-connect"]')).toBeDisabled();
+    expect(screen.getByTestId("sample-kapimart")).toBeEnabled();
   });
 
-  it("links How it works to the desktop overview", () => {
+  it("does not count a skipped tour as done", async () => {
     renderStartHere();
-    expect(screen.getByRole("link", { name: "How it works" })).toHaveAttribute(
-      "href",
-      DESKTOP_OVERVIEW_URL,
-    );
+    await userEvent.click(document.querySelector<HTMLElement>('[data-slot="start-here-decide"]')!);
+    await waitFor(() => expect(bubble()).not.toBeNull());
+    await userEvent.click(screen.getByRole("button", { name: "Skip tour" }));
+    await waitFor(() => expect(bubble()).toBeNull());
+    expect(document.querySelector('[data-slot="start-here-done"]')?.textContent).toBe("0 of 3");
+    expect(localStorage.getItem(GUIDE_STORAGE_KEY)).toBeNull();
   });
 
-  it("dismisses", async () => {
+  it("hides", async () => {
     const { onDismiss } = renderStartHere();
-    await userEvent.click(screen.getByRole("button", { name: "Dismiss Start here" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide Get started" }));
     expect(onDismiss).toHaveBeenCalled();
   });
 });

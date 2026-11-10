@@ -30,7 +30,7 @@ export const DarkTheme: Story = {
   },
 };
 
-/** The home's Start here steps were dismissed; Settings offers them back. */
+/** The home's Get started card was hidden; Settings offers it back. */
 export const StartHereDismissed: Story = {
   args: {
     theme: "system",

@@ -14,6 +14,7 @@ import {
   type DeeperLookState,
 } from "../components/OverviewPage";
 import { api } from "../hooks/useApi";
+import { DesktopGuide } from "../guide/DesktopGuide";
 import type { DeeperLookResult, OverviewSummary } from "../types/api";
 
 // The preview inspects the file through the backend, which no test runtime
@@ -254,5 +255,29 @@ describe("the deeper look on the Overview", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Deeper look with AI" }));
     expect(await screen.findByText("The deeper look did not run")).toBeInTheDocument();
+  });
+
+  it("starts the project tour from the first steps' Guide, opening no website", async () => {
+    const navigate = vi.fn();
+    const onOpenUrl = vi.fn();
+    render(
+      <DesktopGuide navigate={navigate} hasProject onOpenUrl={onOpenUrl}>
+        <OverviewPage
+          tabID="t-guide"
+          projectName="Fernwell"
+          summary={{ ...MAP_PENDING, steps: [{ id: "decide", done: false, count: 1 }] }}
+          deeperLookModel={{ connected: false }}
+          onDecide={vi.fn()}
+          onNavigate={vi.fn()}
+        />
+      </DesktopGuide>,
+    );
+    expect(screen.queryByRole("link", { name: "Guide" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Guide" }));
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="guide-bubble"]')).not.toBeNull(),
+    );
+    expect(navigate).toHaveBeenCalledWith("map");
+    expect(onOpenUrl).not.toHaveBeenCalled();
   });
 });

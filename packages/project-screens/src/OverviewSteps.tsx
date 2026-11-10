@@ -18,6 +18,8 @@ export interface OverviewStepsProps extends ScreenNavigation {
   onDismiss?: () => void;
   /** The guide that walks through the same steps, opened outside the app. */
   guideHref?: string;
+  /** Start the host's own tour of the same steps; it wins over `guideHref`. */
+  onGuide?: () => void;
 }
 
 const targets: Partial<Record<OverviewStep["id"], ScreenTarget>> = {
@@ -61,6 +63,7 @@ export function OverviewSteps({
   running,
   onDismiss,
   guideHref,
+  onGuide,
   navigate,
   canNavigate,
 }: OverviewStepsProps) {
@@ -92,12 +95,24 @@ export function OverviewSteps({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {guideHref && (
-            <Button variant="link" size="sm" className="h-auto px-1 text-xs" asChild>
-              <a href={guideHref} data-slot="overview-steps-guide">
-                Guide
-              </a>
+          {onGuide ? (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto px-1 text-xs"
+              data-slot="overview-steps-guide"
+              onClick={onGuide}
+            >
+              Guide
             </Button>
+          ) : (
+            guideHref && (
+              <Button variant="link" size="sm" className="h-auto px-1 text-xs" asChild>
+                <a href={guideHref} data-slot="overview-steps-guide">
+                  Guide
+                </a>
+              </Button>
+            )
           )}
           {onDismiss && (
             <SimpleTooltip content={t("Dismiss")}>

@@ -1,4 +1,5 @@
 import {
+  CircleHelp,
   Home,
   Compass,
   ClipboardCheck,
@@ -6,7 +7,7 @@ import {
   Settings,
   SlidersHorizontal,
 } from "lucide-react";
-import { SimpleTooltip } from "@neokapi/ui-primitives";
+import { SimpleTooltip, useOptionalGuide } from "@neokapi/ui-primitives";
 
 const SW = 1.5;
 
@@ -80,6 +81,7 @@ const projectItems: SidebarItem[] = [
 ];
 
 export function IconSidebar({ active, onChange, projectDisabled }: IconSidebarProps) {
+  const guide = useOptionalGuide();
   return (
     <aside className="flex h-full w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
@@ -97,6 +99,8 @@ export function IconSidebar({ active, onChange, projectDisabled }: IconSidebarPr
             <SimpleTooltip key={item.view} content={title} side="right">
               <span className="inline-flex">
                 <button
+                  data-slot="sidebar-item"
+                  data-view={item.view}
                   onClick={() => !disabled && onChange(item.view)}
                   disabled={disabled}
                   className={`rounded-lg p-2 transition-colors ${
@@ -116,8 +120,20 @@ export function IconSidebar({ active, onChange, projectDisabled }: IconSidebarPr
         })}
       </nav>
 
-      {/* Global Settings — pinned at bottom */}
-      <div className="flex flex-col items-center">
+      {/* Help and the app's settings, pinned at the bottom. */}
+      <div className="flex flex-col items-center gap-1">
+        {guide && (
+          <SimpleTooltip content="Help" side="right">
+            <button
+              data-slot="sidebar-help"
+              onClick={() => guide.openHelp()}
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label="Help"
+            >
+              <CircleHelp size={20} strokeWidth={SW} />
+            </button>
+          </SimpleTooltip>
+        )}
         <SimpleTooltip content="App Settings" side="right">
           <button
             onClick={() => onChange("app-settings")}
