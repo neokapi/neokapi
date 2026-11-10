@@ -396,8 +396,10 @@ function FileRow({ row, onOpen }: { row: OverviewFileRow; onOpen?: () => void })
   // row itself opens the file rather than an Open link at its end.
   const body = (
     <div className="min-w-0 flex-1">
+      {/* The full path shows while the pointer is on the name, so the
+          tooltip never covers the rest of the row. */}
       <SimpleTooltip content={row.relative}>
-        <span translate="no" className="block truncate text-sm">
+        <span translate="no" className="inline-block max-w-full truncate align-bottom text-sm">
           {name}
         </span>
       </SimpleTooltip>
