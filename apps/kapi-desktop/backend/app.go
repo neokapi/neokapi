@@ -703,19 +703,30 @@ func (a *App) openFolder(recipe string) (*TabInfo, error) {
 // back to the backend before operations like MatchContent.
 func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	op := a.projects[tabID]
 	if op == nil {
+		a.mu.Unlock()
 		return fmt.Errorf("tab %q not found", tabID)
 	}
-	changed := op.unsaved.Load() && !sameRecipe(op.Project, proj)
+	recipeChanged := !sameRecipe(op.Project, proj)
 	op.Project = proj
-	if changed {
+	var err error
+	if recipeChanged && op.unsaved.Load() {
 		// A person changed a setting the recipe holds, in a folder opened
 		// without a kapi.yaml. The first such change writes the file.
-		return a.ensureRecipeLocked(op)
+		err = a.ensureRecipeLocked(op)
 	}
-	return nil
+	a.mu.Unlock()
+	if recipeChanged && err == nil {
+		// A new collection or pattern names files the block cache has not
+		// read, and the edit lives in memory until it is saved, so no file
+		// changes for the watcher to see. The event asks the frontend to sync
+		// the cache. It is not project-files-changed: a listener of that one
+		// pushes its own copy of the recipe back through UpdateProject, which
+		// would race the save this update may be part of.
+		a.emitEvent("project-recipe-changed", tabID)
+	}
+	return err
 }
 
 // CloseProject removes a project tab, stops its file watcher,

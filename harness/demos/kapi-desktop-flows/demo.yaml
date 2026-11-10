@@ -26,7 +26,6 @@ narration:
   - id: open-flow
     kind: desktop
     beat: open-flow
-    crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
     caption: Translate, then check.
     text: >-
       In Project Settings, open the Flows tab and click translate-and-qa. Its
@@ -35,7 +34,6 @@ narration:
   - id: add-step
     kind: desktop
     beat: add-step
-    crop: { x: 0.34, y: 0.28, w: 0.32, h: 0.44 }
     caption: Add the Recycle step.
     text: >-
       Click Add step and search for recycle. Recycle reuses translations you
@@ -44,7 +42,6 @@ narration:
   - id: reorder
     kind: desktop
     beat: reorder
-    crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
     caption: Recycle runs first.
     text: >-
       Recycle must run before Translate. Drag it to the top.
@@ -52,7 +49,6 @@ narration:
   - id: default
     kind: desktop
     beat: default
-    crop: { x: 0.03, y: 0.11, w: 0.5, h: 0.36 }
     highlight: { selector: '[data-testid="flow-default-badge"]' }
     caption: Use this flow by default.
     text: >-

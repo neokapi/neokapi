@@ -52,6 +52,8 @@ export interface Beat {
   tStart: number;
   tEnd: number;
   zoom: ZoomRect | null;
+  /** Seconds from the start of the recording at which the region first showed, when later than tStart. */
+  zoomAt?: number;
   /** The element the beat's highlight selector resolved to, when the manifest named one. */
   highlight?: ZoomRect | null;
 }
@@ -772,16 +774,45 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const box = await page.locator(selector).first().boundingBox().catch(() => null);
     if (box) await moveTo(page, box.x + box.width / 2, box.y + box.height / 2, duration);
   };
+  /**
+   * Watch for the first of `selectors` to show, while a beat runs, and answer
+   * when it did. The region is measured at the beat's end, and an element the
+   * beat opens (a dialog, a picker) is not there at its start, so the camera
+   * needs the moment it appeared to zoom onto it rather than onto empty space.
+   */
+  const watchFirstSeen = (selectors: string[], tStart: number) => {
+    let seenAt: number | undefined;
+    let done = false;
+    const loop = (async () => {
+      while (!done && seenAt === undefined) {
+        for (const s of selectors) {
+          if (await page.locator(s).first().isVisible().catch(() => false)) {
+            seenAt = now();
+            break;
+          }
+        }
+        if (seenAt === undefined) await new Promise((r) => setTimeout(r, 150));
+      }
+    })();
+    return async (): Promise<number | undefined> => {
+      done = true;
+      await loop;
+      return seenAt !== undefined && seenAt - tStart > 0.3 ? seenAt : undefined;
+    };
+  };
   const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>) => {
     const tStart = now();
     current = { id, tStart };
-    await fn();
-    await holdUntil(id, tStart);
     const spec = specs[id];
-    const zoom = await unionZoom(spec?.cropSelectors ?? selectors);
+    const regionSelectors = spec?.cropSelectors ?? selectors;
+    const seen = watchFirstSeen(regionSelectors, tStart);
+    await fn();
+    const zoomAt = await seen();
+    await holdUntil(id, tStart);
+    const zoom = await unionZoom(regionSelectors);
     reportCrop(id, zoom);
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
-    beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
+    beats.push({ id, tStart, tEnd: now(), zoom, ...(zoomAt !== undefined ? { zoomAt } : {}), ...(highlight !== undefined ? { highlight } : {}) });
   };
   // The boxes are window coordinates taken at different moments, so their
   // union is the band of the window that held each of them when it was marked.
@@ -789,16 +820,21 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     const tStart = now();
     current = { id, tStart };
     const boxes: (ElementBox | null)[] = [];
+    let firstMark: number | undefined;
     await fn(async (target) => {
-      boxes.push(await target.first().boundingBox({ timeout: 2000 }).catch(() => null));
+      const box = await target.first().boundingBox({ timeout: 2000 }).catch(() => null);
+      if (box && firstMark === undefined) firstMark = now();
+      boxes.push(box);
     });
+    const zoomAt = firstMark !== undefined && firstMark - tStart > 0.3 ? firstMark : undefined;
     await holdUntil(id, tStart);
     const spec = specs[id];
     const zoom = spec?.cropSelectors ? await unionZoom(spec.cropSelectors) : unionRect(boxes, 0.04, WIDTH, HEIGHT);
     if (!spec?.cropSelectors && !zoom) console.warn(`  ! ${demoId}/${id}: the walk marked nothing on camera; the beat records the whole window`);
     reportCrop(id, zoom, true);
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
-    beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
+    const at = !spec?.cropSelectors && zoomAt !== undefined ? { zoomAt } : {};
+    beats.push({ id, tStart, tEnd: now(), zoom, ...at, ...(highlight !== undefined ? { highlight } : {}) });
   };
   return { page, beat, beatEls, beatSpan, cursorTo, cue, sidebar, peer };
 }
@@ -997,43 +1033,36 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     if (await save.count()) await humanClick(page, save);
     await page.waitForTimeout(1400);
   });
-  // A collection, declared on Project Settings → Content: a name and one glob. The
-  // pattern field is a CodeMirror editor (GlobInput → CodeInput), so the text
-  // goes in through the focused .cm-content rather than into an <input>, and
-  // the row reports what the pattern matched as it is typed.
-  await beatEls("add-collection", ['[data-testid="pattern-match-count"]', '[data-slot="code-input"]'], async () => {
+  // The collection the app proposed when the folder opened (docs/**/*.md),
+  // given a target path on Project Settings → Content and saved. A collection
+  // with no target path is source-only, so without one the plan has nothing
+  // to translate. The target field is a CodeMirror editor (TargetPathInput →
+  // CodeInput), found by its label.
+  await beatEls("add-collection", ['[data-slot="code-input"]'], async () => {
     await openSettingsTab(page, "Content");
-    await page.waitForTimeout(300);
-    await humanClick(page, page.locator('[aria-label="Add content collection"]').first());
+    await page.waitForTimeout(600);
+    await humanClick(page, page.locator('[aria-label="Edit collection"]').first());
     await page.waitForTimeout(900);
-    const edit = page.locator('[aria-label="Edit collection"]').last();
-    if (await edit.count()) await humanClick(page, edit);
-    await page.waitForTimeout(900);
-    const name = page.locator('input[placeholder="Collection name"]').last();
-    if (await name.count()) {
-      await name.fill("");
-      await humanType(page, name, "Help Center");
-      await page.waitForTimeout(400);
-    }
-    // The pattern box holds the Path pattern editor first and the Base editor
-    // last, so the pattern is the first editor in the last box.
-    const pattern = page
-      .locator('[data-testid="pattern-match-count"]')
-      .last()
-      .locator("xpath=..")
-      .locator('[data-slot="code-input"] .cm-content')
-      .first();
-    if (await pattern.count()) {
-      await pattern.click();
-      await page.keyboard.type("docs/**/*.md", { delay: 70 });
-    }
-    await page.waitForTimeout(2000);
+    const target = page.getByText("Target path", { exact: true }).first().locator("xpath=..").locator(".cm-content").first();
+    await target.waitFor({ state: "visible", timeout: 10_000 }).catch(async (e) => {
+      await page.screenshot({ path: path.join(os.tmpdir(), "kapi-desktop-projects-edit.png") }).catch(() => {});
+      throw e;
+    });
+    await target.scrollIntoViewIfNeeded().catch(() => {});
+    await target.click();
+    await page.keyboard.type("translations/{lang}", { delay: 70 });
+    await page.waitForTimeout(800);
+    await humanClick(page, page.locator('button:has-text("Save Changes")').first());
+    await page.waitForTimeout(1400);
   });
-  // The collection is a draft until it is saved, like the language above, so
-  // it is saved off camera before the plan reads it.
-  const saveCollection = page.locator('button:has-text("Save Changes")').first();
-  if (await saveCollection.count()) await humanClick(page, saveCollection);
-  await page.waitForTimeout(1200);
+  // The save is the beat's claim, so a take whose recipe lacks the target fails here.
+  const recipePath = path.join(NEW_PROJECT_DIR, "kapi.yaml");
+  for (let i = 0; i < 20 && !fs.readFileSync(recipePath, "utf8").includes("translations/{lang}"); i++) await page.waitForTimeout(500);
+  if (!fs.readFileSync(recipePath, "utf8").includes("translations/{lang}")) {
+    const shot = path.join(os.tmpdir(), "kapi-desktop-projects-save.png");
+    await page.screenshot({ path: shot }).catch(() => {});
+    throw new Error(`kapi-desktop-projects: Save Changes did not write the target path to kapi.yaml (screenshot ${shot})`);
+  }
   // The plan, read on this project. Its Overview carries the plan once it has
   // a target language (OverviewStanding). The dialog reads data fetched on
   // page load: no provider is called and nothing is written
@@ -1041,6 +1070,24 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   // button is waited for until it is enabled.
   await humanClick(page, sidebar("Overview"));
   await page.waitForSelector('[data-slot="hero-plan"]:not([disabled])', { timeout: 60_000 });
+  // The plan has work to show only once the app has read the new pages, which
+  // the headline says; a take without it fails rather than film an empty plan.
+  await page
+    .locator('[data-slot="hero-drift-summary"]', { hasText: "Translations are missing" })
+    .waitFor({ state: "visible", timeout: 120_000 })
+    .catch(async () => {
+      const headline = await page.locator('[data-slot="hero-drift-summary"], [data-slot="hero-up-to-date"]').first().textContent().catch(() => null);
+      const shot = path.join(os.tmpdir(), "kapi-desktop-projects-plan.png");
+      await page.screenshot({ path: shot }).catch(() => {});
+      const recipe = (() => {
+        try {
+          return fs.readFileSync(path.join(NEW_PROJECT_DIR, "kapi.yaml"), "utf8");
+        } catch {
+          return "(no kapi.yaml)";
+        }
+      })();
+      throw new Error(`kapi-desktop-projects: the Overview never reported missing translations for the new pages (headline: ${headline ?? "none"}; screenshot ${shot}; recipe:\n${recipe})`);
+    });
   await page.waitForTimeout(1200);
   await beatEls("plan", ['[data-slot="converge-plan-dialog"]'], async () => {
     await cursorTo('[data-slot="hero-plan"]');
@@ -1228,7 +1275,7 @@ async function contentWalk(c: WalkCtx): Promise<void> {
   // after the first opens on a still second: the previous beat's last frames
   // then show its own end, not this beat's first scroll.
   const settle = () => page.waitForTimeout(1000);
-  await beatEls("extract", ['[data-testid="collection-file-count"]', '[data-slot="ship-gate-cell"]'], async () => {
+  await beatEls("extract", ['div.rounded-lg.border:has([data-testid="collection-file-count"])'], async () => {
     await settle();
     await page.waitForSelector('[data-slot="ship-gate-cell"]', { timeout: 120_000 }).catch(() => {
       throw new Error("kapi-desktop-content: no ship-gate cell rendered within 120 s of opening the project");
@@ -1280,8 +1327,11 @@ async function contentWalk(c: WalkCtx): Promise<void> {
  * (cmd/seed-demo), so an AI translate started here would fail on camera. The
  * runner is named in the narration instead.
  */
+// The step rows span the editor's width while their names and descriptions
+// sit in its left half, so the shot is that half rather than the rows' boxes.
+const FLOW_STEPS: ZoomRect = { x: 0.03, y: 0.13, w: 0.55, h: 0.32 };
 async function flowsWalk(c: WalkCtx): Promise<void> {
-  const { page, beatEls, cursorTo, cue, sidebar } = c;
+  const { page, beat, beatEls, beatSpan, cursorTo, cue, sidebar } = c;
   // Open the KapiMart sample and go straight to its flows.
   await landOnHome(page);
   await openSample(page, "sample-kapimart", "Project Settings");
@@ -1290,7 +1340,7 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
   const flowsTab = page.locator('[role="tab"]:has-text("Flows")').first();
   if (await flowsTab.count()) await humanClick(page, flowsTab);
   await page.waitForTimeout(1400);
-  await beatEls("open-flow", ['[data-testid="linear-flow-editor"]'], async () => {
+  await beat("open-flow", FLOW_STEPS, async () => {
     await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
     await page.waitForSelector('button[aria-label="Back to flow list"]', { timeout: 30_000 });
     await page.waitForSelector('[data-testid="linear-flow-editor"]', { timeout: 30_000 });
@@ -1299,18 +1349,21 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
   });
   // Add a step. The picker appends, so the new row is moved up to sit in front
   // of the translate it is meant to spare.
-  await beatEls("add-step", ['[data-testid="linear-flow-editor"]'], async () => {
+  // The shot is the picker while it is open and the step strip it adds to.
+  await beatSpan("add-step", async (mark) => {
     await humanClick(page, page.getByTestId("add-step"));
     await page.waitForSelector('input[aria-label="Search tools"]', { timeout: 20_000 });
+    await mark(page.locator('[role="dialog"]:has(input[aria-label="Search tools"])'));
     await humanType(page, page.locator('input[aria-label="Search tools"]'), "recycle");
     await page.waitForTimeout(700);
     const tool = page.locator('[data-testid="add-step-tool"]').first();
     await humanClick(page, tool);
     await page.waitForTimeout(1200);
+    await mark(page.getByTestId("step-chips"));
   });
   // Move it to the front: drag its grip above the first step, and the step
   // strip in the header follows.
-  await beatEls("reorder", ['[data-testid="linear-flow-editor"]'], async () => {
+  await beat("reorder", FLOW_STEPS, async () => {
     const rows = page.locator('[data-testid="step-row"]');
     if ((await rows.count()) > 1) {
       const grip = rows.last().locator('button[aria-label^="Reorder "]').first();
@@ -1358,7 +1411,7 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   await humanClick(page, sidebar("Review"));
   await page.waitForSelector('[data-slot="review-queue-item"]', { timeout: 60_000 });
   await page.waitForTimeout(1200);
-  await beatEls("queue", ['[data-slot="review-queue"]', '[data-slot="review-language-select"]'], async () => {
+  await beatEls("queue", ['[data-slot="review-language-select"]', '[data-slot="review-chips"]', '[data-slot="review-queue-item"] >> nth=4'], async () => {
     await cursorTo('[data-slot="review-language-select"]');
     await page.waitForTimeout(1200);
     await cursorTo('[data-slot="review-chips"]');
@@ -1366,7 +1419,7 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   });
   // Open one translated unit: source, target, and the layers behind them. A
   // row a check flagged goes first, so the checks card has something to show.
-  await beatEls("open-unit", ['[data-slot="review-unit"]'], async () => {
+  await beatEls("open-unit", ['[data-slot="review-source"]', '[data-slot="review-target"]'], async () => {
     const flagged = page
       .locator('[data-slot="review-queue-item"]:not([data-source])')
       .filter({ has: page.locator('[aria-label="Has findings"]') })
@@ -1404,7 +1457,7 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   // clean, so every row here is a translation.
   // The cursor stays on the queue, where the approved row leaves the list,
   // rather than on the Approve button at the window's bottom edge.
-  await beatEls("decide", ['[data-slot="review-batch"]', '[data-slot="review-queue"]'], async () => {
+  await beatEls("decide", ['[data-slot="review-batch"]', '[data-slot="review-queue-item"] >> nth=4'], async () => {
     await page.locator('[data-slot="review-page"]').first().click({ position: { x: 4, y: 4 } }).catch(() => {});
     await cursorTo('[data-slot="review-queue-item"]:not([data-source])');
     await page.waitForTimeout(800);

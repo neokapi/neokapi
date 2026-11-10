@@ -74,8 +74,9 @@ parameters:
     description: Escape non-ASCII characters in output.
     help: |
       When enabled (the default), non-ASCII characters are written using
-      `\uXXXX` notation, matching the historically ASCII-only `.properties`
-      encoding. Disable it to emit characters literally (for UTF-8 bundles).
+      `\uXXXX` notation, so the file reads correctly as ISO-8859-1, the
+      encoding Java's `Properties.load` assumes. Disable it to emit characters
+      literally (for UTF-8 bundles).
     values: "`true` / `false` (default `true`)"
   useCodeFinder:
     description: Enable regex-based inline-code detection.

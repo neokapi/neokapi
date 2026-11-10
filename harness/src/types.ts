@@ -554,6 +554,13 @@ export interface ScreencastBeat {
   tStart: number;
   tEnd: number;
   zoom: ZoomRect | null;
+  /**
+   * Seconds from the start of the recording at which the region's elements
+   * first showed, when that was after the beat began. A dialog the beat opens
+   * is one: the camera waits for it rather than zooming onto the empty space
+   * it will fill.
+   */
+  zoomAt?: number;
   /** The element the beat's highlight selector resolved to, when it declared one. */
   highlight?: ZoomRect | null;
 }

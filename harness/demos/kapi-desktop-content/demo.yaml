@@ -24,7 +24,6 @@ narration:
   - id: open-project
     kind: desktop
     beat: open-project
-    crop: { x: 0.03, y: 0.08, w: 0.5, h: 0.3 }
     caption: The project at a glance.
     text: >-
       Open the KapiMart sample. In Project Settings, open the Content tab. The
@@ -33,7 +32,6 @@ narration:
   - id: extract
     kind: desktop
     beat: extract
-    crop: { x: 0.03, y: 0.42, w: 0.95, h: 0.38 }
     hold: 8
     caption: Progress for each group of files.
     text: >-
@@ -43,7 +41,6 @@ narration:
   - id: patterns
     kind: desktop
     beat: patterns
-    crop: { x: 0.03, y: 0.58, w: 0.68, h: 0.24 }
     caption: The files in a group.
     text: >-
       Click a group to list its files.
@@ -51,7 +48,6 @@ narration:
   - id: keys
     kind: desktop
     beat: keys
-    crop: { x: 0.5, y: 0.0, w: 0.34, h: 0.36 }
     hold: 6
     caption: The text of one file.
     text: >-

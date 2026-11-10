@@ -1,6 +1,6 @@
 id: kapi-desktop-projects
 title: Set up a project
-subtitle: Open a folder, add a language, choose your files, and see what needs translating.
+subtitle: Open a folder, add a language, choose where translations go, and see what needs translating.
 kind: use-case
 publishAs: kapi-desktop-projects
 terminal: desktop
@@ -11,13 +11,14 @@ oneshot: true
 aspects:
   - A folder becomes a project
   - Languages
-  - Your files
+  - Where translations go
   - The plan
 outro:
   line: Click Bring up to date to translate the new text.
 
-# The folder holds a few help pages, made off camera, so the files appear as
-# the pattern is typed and the plan has work to show on the same project.
+# The folder holds a few help pages, made off camera. The app proposes a
+# collection for them when the folder opens, and the walk gives it a target
+# path, so the plan has work to show on the same project.
 narration:
   - id: title
     kind: title
@@ -28,15 +29,14 @@ narration:
   - id: new-project
     kind: desktop
     beat: new-project
-    crop: { x: 0.28, y: 0.06, w: 0.46, h: 0.38 }
     caption: Drop a folder to open it as a project.
     text: >-
-      Drop the folder on the Open screen. The Overview shows the next steps.
+      Drop the folder on the Open screen. The app finds the three help pages
+      and shows the next steps.
 
   - id: add-language
     kind: desktop
     beat: add-language
-    crop: { x: 0.03, y: 0.08, w: 0.5, h: 0.36 }
     caption: Add French.
     text: >-
       Open Project Settings. Under Translate into, pick French, and click Save
@@ -45,18 +45,15 @@ narration:
   - id: add-collection
     kind: desktop
     beat: add-collection
-    caption: Choose the files to translate.
-    crop: { x: 0.04, y: 0.34, w: 0.55, h: 0.38 }
+    caption: Choose where the translations go.
     text: >-
-      On the Content tab, click Add collection. Type a name, then a pattern
-      for the Markdown files under docs. The count beside it shows three
-      files.
+      On the Content tab, edit the collection the app found, enter a folder
+      for the translations, and click Save Changes.
 
   - id: plan
     kind: desktop
     beat: plan
     caption: See the work before it runs.
-    crop: { x: 0.4, y: 0.01, w: 0.2, h: 0.32 }
     hold: 10
     text: >-
       Back on the Overview, click Plan to see how much text has no French

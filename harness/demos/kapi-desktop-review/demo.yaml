@@ -25,7 +25,6 @@ narration:
   - id: queue
     kind: desktop
     beat: queue
-    crop: { x: 0.03, y: 0.05, w: 0.95, h: 0.42 }
     caption: Every translation to review.
     text: >-
       Open Review. The list on the left shows every translation to review. Use
@@ -35,7 +34,6 @@ narration:
   - id: open-unit
     kind: desktop
     beat: open-unit
-    crop: { x: 0.19, y: 0.1, w: 0.79, h: 0.45 }
     caption: The English and the translation.
     text: >-
       Click a translation. The English and the translation appear side by
@@ -44,7 +42,6 @@ narration:
   - id: details
     kind: desktop
     beat: details
-    crop: { x: 0.19, y: 0.35, w: 0.45, h: 0.48 }
     caption: The context for this translation.
     text: >-
       Below, read the text around it and the version approved last time.
@@ -53,7 +50,6 @@ narration:
   - id: decide
     kind: desktop
     beat: decide
-    crop: { x: 0.03, y: 0.06, w: 0.5, h: 0.4 }
     caption: Approve with one key.
     text: >-
       Press A to approve it, and the next translation opens. To approve all

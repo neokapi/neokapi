@@ -31,7 +31,6 @@ narration:
   - id: general
     kind: desktop
     beat: general
-    crop: { x: 0.03, y: 0.04, w: 0.4, h: 0.3 }
     caption: Light, dark, or the same as your system.
     text: >-
       On General, choose Light, Dark or System, and the app language.
@@ -39,7 +38,6 @@ narration:
   - id: credentials
     kind: desktop
     beat: credentials
-    crop: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }
     caption: Your key is stored in the keychain.
     text: >-
       On AI Models, click Add Credentials, choose a model, and paste your API
@@ -49,7 +47,6 @@ narration:
   - id: plugins
     kind: desktop
     beat: plugins
-    crop: { x: 0.03, y: 0.04, w: 0.95, h: 0.3 }
     caption: Plugins add file formats and tools.
     text: >-
       Plugins lists what is installed. A plugin adds file formats or tools.

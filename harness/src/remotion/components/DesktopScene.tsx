@@ -8,66 +8,21 @@ import type { ThemeMode } from "./theme.ts";
 import type { SceneLayout } from "./layout.ts";
 import { BoxMark } from "./Marks.tsx";
 import { clickFrames, planPlayback } from "../playback.ts";
-import { cardGeometry, FULL_WINDOW_FIT, isWebDemo, MAX_CROP_SCALE, panInsideWindow, regionFit } from "../../lib/crop.ts";
-import type { CardGeometry } from "../../lib/crop.ts";
+import { cardGeometry, isWebDemo, MAX_CROP_SCALE } from "../../lib/crop.ts";
+import { cameraAt, zoomPose } from "../camera.ts";
 
 const Light: React.FC<{ c: string }> = ({ c }) => (
   <span style={{ width: 13, height: 13, borderRadius: 13, background: c, display: "inline-block", boxShadow: "0 0 0 0.5px rgba(0,0,0,0.18)" }} />
 );
 
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export { MAX_CROP_SCALE };
 
-// Virtual-camera pose: how the window card sits in the 3D canvas.
-interface Cam {
-  s: number; // dolly (scale)
-  tx: number; // pan x (px)
-  ty: number; // pan y (px)
-  yaw: number; // deg about Y
-  pitch: number; // deg about X
-}
-
 /**
- * The composed shot for a beat. A full-window beat shows the whole window at
- * 1.0, lightly turned; a region beat crops to its region: the scale that fits
- * the region into the crop area (above the captions), clamped to 1 to 2.5,
- * times the beat's own `zoom`, and the region's centre brought to the area's
- * centre, or as near it as the window's edges allow (`panInsideWindow`). The
- * tilt shrinks with the crop so a pushed-in window stays flat.
- */
-function shotPose(region: ZoomRect | null, zoomMul: number, geo: CardGeometry, idx: number): Cam {
-  const alt = idx % 2 === 0 ? 1 : -1;
-  const yawMag = 3 + 2 * Math.abs(Math.sin(idx));
-  const pitchBase = 1 + 1.5 * Math.sin(idx * 1.3);
-  const fit = region ? regionFit(region, geo) : 1;
-  if (!region || fit < FULL_WINDOW_FIT) {
-    const s = clamp(Math.max(1, fit) * zoomMul, 1, 3);
-    return { s, tx: 0, ty: 0, yaw: (alt * yawMag) / s, pitch: clamp(pitchBase + 1, 0, 4) / s };
-  }
-  const s = clamp(clamp(fit, 1, MAX_CROP_SCALE) * zoomMul, 1, 3);
-  const cx = region.x + region.w / 2;
-  const cy = region.y + region.h / 2;
-  const ox = cx * geo.bw - geo.cardW / 2;
-  const oy = geo.bar + cy * geo.bh - geo.cardH / 2;
-  const { tx, ty } = panInsideWindow(region, s, geo.areaCx - geo.cardCx - s * ox, geo.areaCy - geo.cardCy - s * oy, geo);
-  return {
-    s,
-    tx,
-    ty,
-    yaw: clamp(alt * yawMag + (0.5 - cx) * 4, -6, 6) / s,
-    pitch: clamp(pitchBase + (0.5 - cy) * 3, -2, 5) / s,
-  };
-}
-
-const GLIDE_FRAMES = 18; // ~0.6s reframe at 30fps
-
-/**
- * One desktop walkthrough beat, presented as a window in a 3D canvas. The
- * camera glides from the previous beat's shot to this one over GLIDE_FRAMES,
- * then holds with a slow breathing drift. The picture plays its slice at a
- * natural rate and holds its last frame when the narration is longer.
+ * One desktop walkthrough beat, presented as a window on a frosted backdrop.
+ * The camera moves as `cameraAt` says: wide, in on the beat's region, and out
+ * again. The picture plays its slice at a natural rate and holds its last
+ * frame when the narration is longer.
  */
 export const DesktopScene: React.FC<{
   demoId: string;
@@ -76,10 +31,8 @@ export const DesktopScene: React.FC<{
   beat: ScreencastBeat;
   /** The previous beat's data, so the camera can ease from its shot. */
   prevBeat: ScreencastBeat | null;
-  sceneIndex: number;
-  /** This scene's start frame in the whole composition, so camera drift is a
-   *  continuous function of global time (no phase jump at scene boundaries). */
-  globalFrom: number;
+  /** The next beat's data, so the camera can stay zoomed into a nearby shot. */
+  nextBeat: ScreencastBeat | null;
   sceneDurationFrames: number;
   layout: SceneLayout;
   /** An authored crop box, over the recorded one. */
@@ -88,7 +41,7 @@ export const DesktopScene: React.FC<{
   zoom?: number;
   /** An authored box to draw around, over the recorded one. */
   highlight?: ZoomRect;
-}> = ({ demoId, screencast, themeMode, beat, prevBeat, sceneIndex, globalFrom, sceneDurationFrames, layout, crop, zoom, highlight }) => {
+}> = ({ demoId, screencast, themeMode, beat, prevBeat, nextBeat, sceneDurationFrames, layout, crop, zoom, highlight }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -115,31 +68,10 @@ export const DesktopScene: React.FC<{
   const held = plan.heldFrames > 0;
   const clicks = clickFrames(screencast.clicks?.[themeMode], beat, plan, fps);
 
-  // ── Camera: glide from the previous shot to this one, then breathe ──
-  const back = (t: number) => {
-    t = clamp(t, 0, 1);
-    const c1 = 0.9; // gentle overshoot (~5%)
-    const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  };
-  const tSec = (globalFrom + frame) / fps;
-  const driftYaw = 0.7 * Math.sin(tSec * 0.5);
-  const driftPitch = 0.4 * Math.sin(tSec * 0.4);
-  const driftZ = 12 * Math.sin(tSec * 0.42);
-
-  const region = crop ?? beat.zoom;
-  const shot = shotPose(region, zoom ?? 1, geo, sceneIndex);
-  const from = prevBeat
-    ? shotPose(prevBeat.zoom, 1, geo, sceneIndex - 1)
-    : { s: Math.max(1, shot.s * 0.94), tx: shot.tx * 0.85, ty: shot.ty * 0.85, yaw: shot.yaw * 0.3, pitch: shot.pitch * 0.5 };
-  const g = back(frame / GLIDE_FRAMES);
-  const cam: Cam = {
-    s: lerp(from.s, shot.s, g),
-    tx: lerp(from.tx, shot.tx, g),
-    ty: lerp(from.ty, shot.ty, g),
-    yaw: lerp(from.yaw, shot.yaw, g) + driftYaw / shot.s,
-    pitch: lerp(from.pitch, shot.pitch, g) + driftPitch / shot.s,
-  };
+  // ── Camera: wide, ease in on the region, hold, ease out ──
+  const shot = zoomPose(crop ?? beat.zoom, zoom ?? 1, geo);
+  const readyFrame = beat.zoomAt ? Math.min(plan.playFrames, Math.round(((beat.zoomAt - beat.tStart) / plan.rate) * fps)) : 0;
+  const cam = cameraAt(frame, sceneDurationFrames, fps, shot, zoomPose(prevBeat?.zoom, 1, geo), zoomPose(nextBeat?.zoom, 1, geo), geo, readyFrame);
 
   const mark = highlight ?? beat.highlight ?? null;
 
@@ -181,8 +113,6 @@ export const DesktopScene: React.FC<{
           width: boxW,
           height: boxH,
           overflow: "hidden",
-          perspective: 2200,
-          perspectiveOrigin: "50% 42%",
         }}
       >
         <div
@@ -192,9 +122,8 @@ export const DesktopScene: React.FC<{
             top: cardTop,
             width: cardW,
             height: cardH,
-            transformStyle: "preserve-3d",
             transformOrigin: "center center",
-            transform: `translate3d(${cam.tx}px, ${cam.ty}px, ${driftZ}px) rotateX(${cam.pitch}deg) rotateY(${cam.yaw}deg) scale(${cam.s})`,
+            transform: `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.s})`,
             borderRadius: 14,
             overflow: "hidden",
             background: theme.termBg,

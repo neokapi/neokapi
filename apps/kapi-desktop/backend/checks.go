@@ -710,6 +710,13 @@ func (v *pointResolver) termsAt(ctx context.Context, collection, relPath string)
 // loadTerms performs one vocabulary resolution through the same host resolver
 // the CLI's gate uses, taking checksMu unless the caller holds it.
 func (v *pointResolver) loadTerms(ctx context.Context, relPath string) terms.Terminology {
+	// A folder opened without a kapi.yaml has no recipe on disk for the host
+	// resolver to load, and the recipe drafted for it binds no terms store, so
+	// there is no vocabulary to read. Asking would fail the whole run with a
+	// missing-file error the person cannot act on.
+	if v.op.unsaved.Load() {
+		return nil
+	}
 	if !v.held {
 		v.app.checksMu.Lock()
 		defer v.app.checksMu.Unlock()
