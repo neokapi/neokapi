@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useWorkspace, RoleTemplateManager } from "@neokapi/ui";
+import { useWorkspace, RoleTemplateManager, PageContainer } from "@neokapi/ui";
 
 export function SettingsRolesRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -13,8 +13,8 @@ export function SettingsRolesRoute() {
   if (!activeWorkspace) return null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4">
+    <PageContainer width="standard">
       <RoleTemplateManager workspace={activeWorkspace} />
-    </div>
+    </PageContainer>
   );
 }

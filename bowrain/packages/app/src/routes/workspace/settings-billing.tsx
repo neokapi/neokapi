@@ -21,6 +21,7 @@ import {
   type ModelUsage,
   type RunnerUsage,
   ModelUsageTable,
+  PageContainer,
 } from "@neokapi/ui";
 import { useSearch } from "@tanstack/react-router";
 import { usePlatform } from "../../platform";
@@ -245,7 +246,7 @@ export function SettingsBillingRoute() {
 
   if (!overview) {
     return (
-      <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+      <PageContainer width="standard" className="space-y-4">
         {intendedPlan && (
           <IntendedPlanBanner
             plan={intendedPlan}
@@ -261,7 +262,7 @@ export function SettingsBillingRoute() {
             <CardDescription>Billing is not available for this workspace.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -297,7 +298,7 @@ export function SettingsBillingRoute() {
     .map(([op]) => op);
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+    <PageContainer width="standard" className="space-y-4">
       {checkoutError && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {checkoutError}
@@ -483,6 +484,6 @@ export function SettingsBillingRoute() {
           />
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

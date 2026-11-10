@@ -35,6 +35,7 @@ import {
   ListDetailPane,
   ListDetailToolbar,
   LoadingSpinner,
+  PageContainer,
   PageHeader,
   Select,
   SelectContent,
@@ -411,7 +412,7 @@ export function DecideView({
       {header}
       <div className="min-h-0 flex-1 border-t border-border">
         {decisions.length === 0 ? (
-          <div className="mx-auto max-w-xl p-6" data-slot="decide-empty">
+          <PageContainer width="narrow" data-slot="decide-empty">
             <EmptyState
               title={t("Nothing to decide.")}
               description={
@@ -440,13 +441,13 @@ export function DecideView({
                 )
               }
             />
-          </div>
+          </PageContainer>
         ) : narrowed && membersLoading ? (
           <div className="p-6" data-slot="decide-mine-loading">
             <LoadingSpinner />
           </div>
         ) : shown.length === 0 ? (
-          <div className="mx-auto max-w-xl p-6" data-slot="decide-mine-empty">
+          <PageContainer width="narrow" data-slot="decide-mine-empty">
             <EmptyState
               title={t("Nothing assigned to you.")}
               action={
@@ -455,7 +456,7 @@ export function DecideView({
                 </Button>
               }
             />
-          </div>
+          </PageContainer>
         ) : (
           <ListDetail
             list={

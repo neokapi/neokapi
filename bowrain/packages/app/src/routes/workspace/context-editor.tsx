@@ -10,6 +10,7 @@ import {
   useCreateFromStarter,
   useAnalytics,
   AnalyticsEvents,
+  PageContainer,
 } from "@neokapi/ui";
 import type { StarterPackMeta } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -109,7 +110,7 @@ export function ContextEditorRoute() {
   const wizardProfile = isNew ? undefined : (profile ?? undefined);
 
   return (
-    <>
+    <PageContainer width="wide">
       <StarterPackPicker
         open={showPicker}
         onOpenChange={setShowPicker}
@@ -118,11 +119,11 @@ export function ContextEditorRoute() {
         busy={createFromStarter.isPending}
       />
       {starterError != null && (
-        <div className="mx-auto max-w-2xl px-4 pt-4">
+        <div className="mb-4 max-w-prose">
           <ErrorNotice error={starterError} title="Could not create the profile from that pack" />
         </div>
       )}
       <VoiceProfileWizard profile={wizardProfile} onSave={handleSave} onCancel={handleCancel} />
-    </>
+    </PageContainer>
   );
 }

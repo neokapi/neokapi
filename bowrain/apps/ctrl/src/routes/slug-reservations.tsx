@@ -7,6 +7,7 @@ import {
   useSetBreadcrumb,
   Loader2,
   CircleCheck,
+  PageContainer,
 } from "@neokapi/ui";
 import { listSlugReservations, releaseSlugReservation } from "../api";
 
@@ -41,7 +42,7 @@ export function SlugReservationsRoute() {
   const reservations = data ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Active workspace slug rename reservations. Each entry holds a slug for the configured grace
         period (30 days) so it can&apos;t be reused for impersonation. Release a slug to free it for
@@ -109,6 +110,6 @@ export function SlugReservationsRoute() {
           </table>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

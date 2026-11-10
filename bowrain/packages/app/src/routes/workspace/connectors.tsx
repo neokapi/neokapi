@@ -1,5 +1,5 @@
 import { useParams, useRouteContext } from "@tanstack/react-router";
-import { Card, ConnectorsPanel } from "@neokapi/ui";
+import { Card, ConnectorsPanel, PageContainer } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 /**
@@ -13,9 +13,11 @@ export function ConnectorsRoute() {
 
   if (!activeWorkspace || !projectId) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a project to manage connectors
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a project to manage connectors
+        </Card>
+      </PageContainer>
     );
   }
 

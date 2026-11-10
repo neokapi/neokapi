@@ -23,6 +23,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import {
   Button,
   EmptyState,
+  PageContainer,
   ErrorNotice,
   KindIcon,
   ListDetail,
@@ -267,9 +268,9 @@ export function ContextDigestView({
   }
   if (rows.length === 0) {
     return (
-      <div className="mx-auto max-w-xl p-6">
+      <PageContainer width="narrow">
         <DigestEmpty digest={digest} since={since} onConnectAssistant={onConnectAssistant} />
-      </div>
+      </PageContainer>
     );
   }
 

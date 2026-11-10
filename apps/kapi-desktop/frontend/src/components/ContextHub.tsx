@@ -21,6 +21,7 @@ import { ArrowLeft, Check, Terminal } from "lucide-react";
 import {
   Button,
   LoadingSpinner,
+  PageContainer,
   PageHeader,
   ScrollArea,
   SimpleTooltip,
@@ -246,7 +247,7 @@ export function ContextHub({
         )}
         {current === "agent" && (
           <ScrollArea className="h-full">
-            <div className="max-w-3xl p-6">
+            <PageContainer width="standard">
               {reading && !contextOnly ? (
                 <AssistantPanel tabID={tabID} path={pin?.path} onBack={() => setReading(false)} />
               ) : (
@@ -260,7 +261,7 @@ export function ContextHub({
                   }}
                 />
               )}
-            </div>
+            </PageContainer>
           </ScrollArea>
         )}
         {current === "rules" && !contextOnly && (
@@ -331,9 +332,9 @@ export function ContextHub({
         )}
         {current === "share" && (
           <ScrollArea className="h-full">
-            <div className="max-w-3xl p-6">
+            <PageContainer width="standard">
               <SharePanel tabID={tabID} projectName={projectName} contextOnly={contextOnly} />
-            </div>
+            </PageContainer>
           </ScrollArea>
         )}
       </div>

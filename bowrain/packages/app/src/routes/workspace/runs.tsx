@@ -14,6 +14,7 @@ import {
   useAnalytics,
   useApi,
   useWorkspace,
+  PageContainer,
 } from "@neokapi/ui";
 import type { ConvergenceRunScope } from "@neokapi/ui";
 import {
@@ -144,9 +145,11 @@ export function RunsRoute() {
 
   if (!activeWorkspace || !projectId) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a project to view runs
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a project to view runs
+        </Card>
+      </PageContainer>
     );
   }
 
@@ -167,7 +170,7 @@ export function RunsRoute() {
     });
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       <ConvergenceRunsList
         runs={runs}
         loading={runsQuery.isLoading}
@@ -210,6 +213,6 @@ export function RunsRoute() {
         onSettleSource={goToTasks}
         onBuyCredits={goToBilling}
       />
-    </div>
+    </PageContainer>
   );
 }

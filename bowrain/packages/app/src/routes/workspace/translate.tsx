@@ -7,6 +7,7 @@ import {
   useApi,
   useCollaboration,
   useStream,
+  PageContainer,
 } from "@neokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
@@ -52,29 +53,31 @@ export function TranslateRoute() {
   });
 
   return (
-    <TranslationEditor
-      project={project}
-      fileName={fileName}
-      surfaceTabs={surfaceTabs}
-      onSelectedBlockChange={collabEnabled ? setSelectedBlock : undefined}
-      onBack={() =>
-        navigate({
-          to: "/$workspace/p/$projectId/s/$stream",
-          params: {
-            workspace: workspace ?? ws,
-            projectId: project.id,
-            stream: activeStream,
-          },
-        })
-      }
-      presenceSlot={
-        <div className="flex items-center gap-2">
-          <PresenceAvatars users={connectedUsers} currentUserId={user.id} />
-          {connectionState === "connecting" && (
-            <span className="text-xs text-muted-foreground">Connecting...</span>
-          )}
-        </div>
-      }
-    />
+    <PageContainer width="full" className="px-6 py-5">
+      <TranslationEditor
+        project={project}
+        fileName={fileName}
+        surfaceTabs={surfaceTabs}
+        onSelectedBlockChange={collabEnabled ? setSelectedBlock : undefined}
+        onBack={() =>
+          navigate({
+            to: "/$workspace/p/$projectId/s/$stream",
+            params: {
+              workspace: workspace ?? ws,
+              projectId: project.id,
+              stream: activeStream,
+            },
+          })
+        }
+        presenceSlot={
+          <div className="flex items-center gap-2">
+            <PresenceAvatars users={connectedUsers} currentUserId={user.id} />
+            {connectionState === "connecting" && (
+              <span className="text-xs text-muted-foreground">Connecting...</span>
+            )}
+          </div>
+        }
+      />
+    </PageContainer>
   );
 }

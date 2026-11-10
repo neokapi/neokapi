@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { ConceptsSection } from "@neokapi/ui";
+import { ConceptsSection, PageContainer } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 /**
@@ -34,18 +34,20 @@ export function ConceptsRoute() {
   );
 
   return (
-    <ConceptsSection
-      selectedId={cid ?? null}
-      onSelect={onSelect}
-      onOpenChangeSet={(id) =>
-        void navigate({
-          to: "/$workspace/context/changes/$id",
-          params: { workspace: ws, id },
-        })
-      }
-      onOpenExperiments={() =>
-        void navigate({ to: "/$workspace/context/changes", params: { workspace: ws } })
-      }
-    />
+    <PageContainer width="full" className="px-6 py-5">
+      <ConceptsSection
+        selectedId={cid ?? null}
+        onSelect={onSelect}
+        onOpenChangeSet={(id) =>
+          void navigate({
+            to: "/$workspace/context/changes/$id",
+            params: { workspace: ws, id },
+          })
+        }
+        onOpenExperiments={() =>
+          void navigate({ to: "/$workspace/context/changes", params: { workspace: ws } })
+        }
+      />
+    </PageContainer>
   );
 }

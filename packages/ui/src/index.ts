@@ -394,6 +394,7 @@ export { TagInput, type TagInputProps } from "./components/ui/tag-input";
 
 // Layout components
 export { PageHeader } from "./components/PageHeader";
+export { PageContainer, SettingsRow, type PageWidth } from "./components/ui/page-container";
 export { SectionHeading } from "./components/SectionHeading";
 export { PanelHeader } from "./components/PanelHeader";
 export { LoadingSpinner } from "./components/LoadingSpinner";

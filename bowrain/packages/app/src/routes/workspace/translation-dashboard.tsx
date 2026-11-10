@@ -16,6 +16,7 @@ import {
   type DeliveryConnectorStatus,
   type FileProgressPaging,
   type ItemPreviewBinding,
+  PageContainer,
 } from "@neokapi/ui";
 import {
   DASHBOARD_ITEM_PAGE_SIZE,
@@ -268,7 +269,7 @@ export function TranslationDashboardRoute() {
 
   if (scope) {
     return (
-      <div className="mx-auto max-w-6xl p-6">
+      <PageContainer width="wide">
         <ScopedItems
           key={scope.collection ?? (scope.ungrouped ? "~ungrouped" : "~all")}
           adapter={adapter}
@@ -286,7 +287,7 @@ export function TranslationDashboardRoute() {
           onReview={openReview}
           preview={previewBinding}
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -319,7 +320,7 @@ export function TranslationDashboardRoute() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <PageContainer width="wide">
       <TranslationDashboard
         stats={stats}
         projectName={project.name}
@@ -346,6 +347,6 @@ export function TranslationDashboardRoute() {
           void navigate({ to: "/$workspace/p/$projectId/s/$stream/source", params: routeParams })
         }
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AuditLogView, useWorkspace, useApi, Card } from "@neokapi/ui";
+import { AuditLogView, useWorkspace, useApi, Card, PageContainer } from "@neokapi/ui";
 import type { AuditEntry, AuditQuery, AuditChainVerification, FilterToken } from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
@@ -89,14 +89,16 @@ export function AuditLogRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a workspace
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+    <PageContainer width="wide">
       <AuditLogView
         entries={allEntries}
         projects={projects}
@@ -112,6 +114,6 @@ export function AuditLogRoute() {
         verifying={verifying}
         verifyError={verifyError}
       />
-    </div>
+    </PageContainer>
   );
 }

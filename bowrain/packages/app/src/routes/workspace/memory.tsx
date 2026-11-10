@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { MemorySection, useWorkspace, Card } from "@neokapi/ui";
+import { MemorySection, useWorkspace, Card, PageContainer } from "@neokapi/ui";
 
 /**
  * MemoryRoute is the workspace's content memory as a list of pairs beside a
@@ -17,11 +17,17 @@ export function MemoryRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a workspace
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </Card>
+      </PageContainer>
     );
   }
 
-  return <MemorySection />;
+  return (
+    <PageContainer width="full" className="px-6 py-5">
+      <MemorySection />
+    </PageContainer>
+  );
 }

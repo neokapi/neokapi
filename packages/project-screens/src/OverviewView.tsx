@@ -16,6 +16,7 @@ import {
   ErrorNotice,
   KindIcon,
   LoadingSpinner,
+  PageContainer,
   PageHeader,
   SectionHeading,
   SimpleTooltip,
@@ -113,112 +114,117 @@ export function OverviewView({
     ));
   return (
     <>
-      <div data-slot="overview" className="mx-auto max-w-4xl space-y-8 p-6">
-        <div className="space-y-5">
-          <PageHeader
-            className="mb-0"
-            title={projectName}
-            subtitle={<ReadLine summary={summary} />}
-            actions={
-              <>
-                {onRun && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    data-slot="overview-run"
-                    disabled={running || summary.files === 0}
-                    onClick={onRun}
-                  >
-                    {running ? <LoadingSpinner size="sm" /> : <Play size={14} />}
-                    {running ? <>Checking</> : <>Run on everything</>}
-                  </Button>
-                )}
-                {summary.awaiting > 0 && decides && (
-                  <Button size="sm" data-slot="overview-decide" onClick={() => onDecide()}>
-                    {t("Decide {count}", "a button: the items awaiting a decision", {
-                      count: summary.awaiting,
-                    })}
-                  </Button>
-                )}
-              </>
-            }
-          />
-          <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
-            <MapCounts summary={summary} running={running} nav={nav} onShowFiles={onShowFiles} />
+      <PageContainer width="wide">
+        <div data-slot="overview" className="space-y-8">
+          <div className="space-y-5">
+            <PageHeader
+              className="mb-0"
+              title={projectName}
+              subtitle={<ReadLine summary={summary} />}
+              actions={
+                <>
+                  {onRun && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-slot="overview-run"
+                      disabled={running || summary.files === 0}
+                      onClick={onRun}
+                    >
+                      {running ? <LoadingSpinner size="sm" /> : <Play size={14} />}
+                      {running ? <>Checking</> : <>Run on everything</>}
+                    </Button>
+                  )}
+                  {summary.awaiting > 0 && decides && (
+                    <Button size="sm" data-slot="overview-decide" onClick={() => onDecide()}>
+                      {t("Decide {count}", "a button: the items awaiting a decision", {
+                        count: summary.awaiting,
+                      })}
+                    </Button>
+                  )}
+                </>
+              }
+            />
+            <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+              <MapCounts summary={summary} running={running} nav={nav} onShowFiles={onShowFiles} />
+            </div>
+            {!!runError && <ErrorNotice error={runError} title={t("The checks did not run")} />}
           </div>
-          {!!runError && <ErrorNotice error={runError} title={t("The checks did not run")} />}
+
+          {summary.steps && summary.steps.length > 0 && (
+            <OverviewSteps
+              steps={summary.steps}
+              onRun={onRun}
+              running={running}
+              onDismiss={onDismissSteps}
+              guideHref={stepsGuideHref}
+              navigate={navigate}
+              canNavigate={canNavigate}
+            />
+          )}
+
+          {standing}
+
+          {/* From xl up the two lists sit side by side rather than one under the other. */}
+          <div className="grid gap-8 xl:grid-cols-2 xl:items-start">
+            <section data-slot="overview-suggestions" className="min-w-0 space-y-2">
+              <SectionHeading>Suggestions</SectionHeading>
+              {summary.suggestions.length === 0 ? (
+                <div data-slot="overview-suggestions-empty">
+                  <EmptyState
+                    icon={<Sparkles size={20} className="mx-auto" />}
+                    title={t("No suggestions yet.")}
+                    action={emptySuggestionsAction || undefined}
+                  />
+                </div>
+              ) : (
+                <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
+                  {summary.suggestions.map((row) => (
+                    <SuggestionRow
+                      key={decideRowKey(row)}
+                      row={row}
+                      onDecide={decides ? onDecide : undefined}
+                    />
+                  ))}
+                </ul>
+              )}
+              {deeperLook}
+              {connectAI}
+            </section>
+
+            <section ref={filesRef} data-slot="overview-files" className="min-w-0 space-y-2">
+              <SectionHeading>Files</SectionHeading>
+              {summary.file_rows.length === 0 ? (
+                <div data-slot="overview-files-empty">
+                  <EmptyState
+                    icon={<FileText size={20} className="mx-auto" />}
+                    title={t("No content files yet")}
+                    action={
+                      setupPending
+                        ? opens(nav, { kind: "setup" }) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate({ kind: "setup" })}
+                            >
+                              Set up the project
+                            </Button>
+                          )
+                        : addFiles
+                    }
+                  />
+                </div>
+              ) : (
+                <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
+                  {summary.file_rows.map((row) => (
+                    <FileRow key={row.relative} row={row} onOpen={openFile(row)} />
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         </div>
-
-        {summary.steps && summary.steps.length > 0 && (
-          <OverviewSteps
-            steps={summary.steps}
-            onRun={onRun}
-            running={running}
-            onDismiss={onDismissSteps}
-            guideHref={stepsGuideHref}
-            navigate={navigate}
-            canNavigate={canNavigate}
-          />
-        )}
-
-        {standing}
-
-        <section data-slot="overview-suggestions" className="space-y-2">
-          <SectionHeading>Suggestions</SectionHeading>
-          {summary.suggestions.length === 0 ? (
-            <div data-slot="overview-suggestions-empty">
-              <EmptyState
-                icon={<Sparkles size={20} className="mx-auto" />}
-                title={t("No suggestions yet.")}
-                action={emptySuggestionsAction || undefined}
-              />
-            </div>
-          ) : (
-            <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
-              {summary.suggestions.map((row) => (
-                <SuggestionRow
-                  key={decideRowKey(row)}
-                  row={row}
-                  onDecide={decides ? onDecide : undefined}
-                />
-              ))}
-            </ul>
-          )}
-          {deeperLook}
-          {connectAI}
-        </section>
-
-        <section ref={filesRef} data-slot="overview-files" className="space-y-2">
-          <SectionHeading>Files</SectionHeading>
-          {summary.file_rows.length === 0 ? (
-            <div data-slot="overview-files-empty">
-              <EmptyState
-                icon={<FileText size={20} className="mx-auto" />}
-                title={t("No content files yet")}
-                action={
-                  setupPending
-                    ? opens(nav, { kind: "setup" }) && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate({ kind: "setup" })}
-                        >
-                          Set up the project
-                        </Button>
-                      )
-                    : addFiles
-                }
-              />
-            </div>
-          ) : (
-            <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
-              {summary.file_rows.map((row) => (
-                <FileRow key={row.relative} row={row} onOpen={openFile(row)} />
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+      </PageContainer>
       {filePreview}
     </>
   );

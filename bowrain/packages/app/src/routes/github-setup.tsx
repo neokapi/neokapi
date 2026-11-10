@@ -21,6 +21,7 @@ import {
   type ProjectFormData,
   type RepoDetection,
   type Workspace,
+  PageContainer,
 } from "@neokapi/ui";
 import { projectsQueryOptions, workspacesQueryOptions } from "../queries";
 import { importPhaseFromStatus } from "./import-phase";
@@ -109,7 +110,7 @@ function newProjectData(name: string): ProjectFormData {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto mt-12 w-full max-w-2xl px-4">
+    <PageContainer width="narrow" className="pt-12">
       <Card className="p-8">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -125,7 +126,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
         {children}
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 

@@ -18,6 +18,7 @@ import {
   useProjects,
   useUserDisplayNames,
   PageHeader,
+  PageContainer,
 } from "@neokapi/ui";
 import type { CandidateRule, BlastRadius, DriftResult } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -102,7 +103,7 @@ export function ContextReviewRoute() {
         : undefined;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <PageContainer width="full" className="gap-4 px-6 py-5">
       <PageHeader
         className="mb-0"
         eyebrow={profile?.name}
@@ -157,7 +158,7 @@ export function ContextReviewRoute() {
           {preview ? <BlastRadiusSummary radius={preview.radius} /> : null}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }
 

@@ -17,6 +17,7 @@ import {
   Label,
   Input,
   ScrollArea,
+  PageContainer,
   PageHeader,
   Select,
   SelectTrigger,
@@ -282,7 +283,7 @@ export function RunnerPage({
   };
 
   return (
-    <div className="p-6">
+    <PageContainer width="wide">
       <PageHeader
         title={
           converge
@@ -507,6 +508,6 @@ export function RunnerPage({
         }}
         onCancel={() => setModelPrompt(null)}
       />
-    </div>
+    </PageContainer>
   );
 }

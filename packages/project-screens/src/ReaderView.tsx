@@ -19,6 +19,7 @@ import {
   FindingSnippet,
   KindIcon,
   LoadingSpinner,
+  PageContainer,
   PageHeader,
   SectionHeading,
   SimpleTooltip,
@@ -120,82 +121,84 @@ export function ReaderView({
   }, [focusBlockID, reader]);
 
   return (
-    <div data-slot="reader" className="mx-auto max-w-6xl space-y-6 p-6">
-      <PageHeader
-        className="mb-0"
-        title={reader.path}
-        subtitle={<ReaderCounts reader={reader} />}
-        backButton={
-          onBack && (
-            <Button size="sm" variant="ghost" data-slot="reader-back" onClick={onBack}>
-              <ArrowLeft size={14} />
-              {backLabel ?? t("Back")}
-            </Button>
-          )
-        }
-        actions={
-          // A filed fix leaves the file as it is, and fixing the file files
-          // every fix again, so the action goes once anything is filed.
-          reader.fixable > 0 &&
-          proposals.size === 0 &&
-          onFixAll && (
-            <Button size="sm" data-slot="reader-fix-file" disabled={busy} onClick={onFixAll}>
-              {fixingAll ? <LoadingSpinner size="sm" /> : <Wand2 size={14} />}
-              {t("Fix {count} in this file", "a button: apply every fix in the file", {
-                count: reader.fixable,
-              })}
-            </Button>
-          )
-        }
-      />
-      {!!fixError && <ErrorNotice error={fixError} title={t("The fix did not apply")} />}
-      {unplaced.length > 0 && (
-        <ul data-slot="reader-refused" className="space-y-1">
-          {unplaced.map((r) => (
-            <li key={r.finding_id} className={`text-xs ${findingToneTextClass("warning")}`}>
-              <NotFixed reason={r.reason} />
-            </li>
-          ))}
-        </ul>
-      )}
+    <PageContainer width="wide">
+      <div data-slot="reader" className="space-y-6">
+        <PageHeader
+          className="mb-0"
+          title={reader.path}
+          subtitle={<ReaderCounts reader={reader} />}
+          backButton={
+            onBack && (
+              <Button size="sm" variant="ghost" data-slot="reader-back" onClick={onBack}>
+                <ArrowLeft size={14} />
+                {backLabel ?? t("Back")}
+              </Button>
+            )
+          }
+          actions={
+            // A filed fix leaves the file as it is, and fixing the file files
+            // every fix again, so the action goes once anything is filed.
+            reader.fixable > 0 &&
+            proposals.size === 0 &&
+            onFixAll && (
+              <Button size="sm" data-slot="reader-fix-file" disabled={busy} onClick={onFixAll}>
+                {fixingAll ? <LoadingSpinner size="sm" /> : <Wand2 size={14} />}
+                {t("Fix {count} in this file", "a button: apply every fix in the file", {
+                  count: reader.fixable,
+                })}
+              </Button>
+            )
+          }
+        />
+        {!!fixError && <ErrorNotice error={fixError} title={t("The fix did not apply")} />}
+        {unplaced.length > 0 && (
+          <ul data-slot="reader-refused" className="space-y-1">
+            {unplaced.map((r) => (
+              <li key={r.finding_id} className={`text-xs ${findingToneTextClass("warning")}`}>
+                <NotFixed reason={r.reason} />
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <div ref={blocksRef} data-slot="reader-blocks" className="min-w-0 max-w-[70ch] space-y-5">
-          {reader.document.length > 0 && (
-            <FindingRows
-              findings={reader.document}
-              refusals={refusals}
-              filed={filed}
-              busy={busy}
-              fixingID={fixingID}
-              onFix={onFix}
-            />
-          )}
-          {reader.blocks.length === 0 ? (
-            <div data-slot="reader-no-blocks">
-              <EmptyState
-                icon={<FileText size={20} className="mx-auto" />}
-                title={t("No blocks in this file")}
-              />
-            </div>
-          ) : (
-            reader.blocks.map((block) => (
-              <BlockView
-                key={block.id}
-                block={block}
-                focused={block.id === focusBlockID}
+        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+          <div ref={blocksRef} data-slot="reader-blocks" className="min-w-0 max-w-[70ch] space-y-5">
+            {reader.document.length > 0 && (
+              <FindingRows
+                findings={reader.document}
                 refusals={refusals}
                 filed={filed}
                 busy={busy}
                 fixingID={fixingID}
                 onFix={onFix}
               />
-            ))
-          )}
+            )}
+            {reader.blocks.length === 0 ? (
+              <div data-slot="reader-no-blocks">
+                <EmptyState
+                  icon={<FileText size={20} className="mx-auto" />}
+                  title={t("No blocks in this file")}
+                />
+              </div>
+            ) : (
+              reader.blocks.map((block) => (
+                <BlockView
+                  key={block.id}
+                  block={block}
+                  focused={block.id === focusBlockID}
+                  refusals={refusals}
+                  filed={filed}
+                  busy={busy}
+                  fixingID={fixingID}
+                  onFix={onFix}
+                />
+              ))
+            )}
+          </div>
+          <RulesMargin reader={reader} nav={nav} />
         </div>
-        <RulesMargin reader={reader} nav={nav} />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

@@ -117,7 +117,7 @@ export function CoordinatesEditor({
                       disabled={disabled}
                       onValueChange={(next) => set({ ...value, [a]: next })}
                     >
-                      <SelectTrigger className="max-w-xs" aria-label={a}>
+                      <SelectTrigger className="min-w-0 flex-1" aria-label={a}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -130,7 +130,7 @@ export function CoordinatesEditor({
                     </Select>
                   ) : (
                     <Input
-                      className="max-w-xs"
+                      className="min-w-0 flex-1"
                       value={v}
                       aria-label={a}
                       aria-invalid={missing || undefined}
