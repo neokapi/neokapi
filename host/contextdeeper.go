@@ -32,7 +32,7 @@ import (
 )
 
 // The deeper look (`kapi context suggest --ai`, and "Deeper look with AI" on
-// Kapi Desktop's Map) asks the connected model about the source blocks the
+// Kapi Desktop's Overview) asks the connected model about the source blocks the
 // suggestions pass reads. term-extract names the terms the files use, and
 // voice-infer reads the voice they are written in.
 //

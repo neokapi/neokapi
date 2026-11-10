@@ -19,13 +19,13 @@ async function selectedId(): Promise<string | null | undefined> {
   return list.querySelector('[role="option"][aria-selected="true"]')?.getAttribute("data-id");
 }
 
-/** A Map row for one suggestion, as MapSummary sends it. */
+/** A Overview row for one suggestion, as OverviewSummary sends it. */
 function mapRow(group: MapSuggestionRow["group"], id: string): MapSuggestionRow {
   const item = { ...CONTEXT_DIGEST.suggested[0].groups[0].items[0], id };
   return { group, item, blocks: 1, files: 1 };
 }
 
-describe("the Map's Decide on one suggestion", () => {
+describe("the Overview's Decide on one suggestion", () => {
   it("names the row in the view, and only a view that names one opens on it", () => {
     expect(contextSectionOf(`context:rules:suggested:${QUICKCAST}`)).toBe("rules");
     expect(decideRowOf(`context:rules:suggested:${QUICKCAST}`)).toBe(`suggested:${QUICKCAST}`);
@@ -47,7 +47,7 @@ describe("the Map's Decide on one suggestion", () => {
     expect(await selectedId()).toBe(QUICKCAST);
   });
 
-  it("opens a disagreement the Map lists by its first side on its question", async () => {
+  it("opens a disagreement the Overview lists by its first side on its question", async () => {
     vi.spyOn(api, "rulesDecideView").mockResolvedValue(DECIDE_VIEW);
     vi.spyOn(api, "markProjectContextDigestSeen").mockResolvedValue("");
     const side = DISAGREEMENT.options[1].id!;

@@ -1,26 +1,30 @@
-// The Map: a Bowrain project's landing page, drawn by the project screens
+// The Overview: a Bowrain project's landing page, drawn by the project screens
 // over the server's REST routes.
 
 import { useEffect } from "react";
 import { useParams, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@neokapi/ui";
-import { MapScreen, type ProjectScreensPort, type ScreenTarget } from "@neokapi/project-screens";
+import {
+  OverviewScreen,
+  type ProjectScreensPort,
+  type ScreenTarget,
+} from "@neokapi/project-screens";
 import type { WorkspaceRouteContext } from "..";
 import { projectQueryOptions } from "../../queries";
 import { bowrainOpens, useProjectScreensPort } from "./project-screens-port";
 import { useScreenNavigate } from "./project-screens-nav";
 
-export interface ProjectMapPageProps {
+export interface ProjectOverviewPageProps {
   port: ProjectScreensPort;
   projectName: string;
   navigate: (target: ScreenTarget) => void;
 }
 
-/** The Map of one project, read through the port it is given. */
-export function ProjectMapPage({ port, projectName, navigate }: ProjectMapPageProps) {
+/** The Overview of one project, read through the port it is given. */
+export function ProjectOverviewPage({ port, projectName, navigate }: ProjectOverviewPageProps) {
   return (
-    <MapScreen
+    <OverviewScreen
       port={port}
       projectName={projectName}
       navigate={navigate}
@@ -29,7 +33,7 @@ export function ProjectMapPage({ port, projectName, navigate }: ProjectMapPagePr
   );
 }
 
-export function ProjectMapRoute() {
+export function ProjectOverviewRoute() {
   const { projectId = "", stream = "main" } = useParams({ strict: false });
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -44,5 +48,5 @@ export function ProjectMapRoute() {
     document.title = `${projectName} · Bowrain`;
   }, [projectName]);
 
-  return <ProjectMapPage port={port} projectName={projectName} navigate={navigate} />;
+  return <ProjectOverviewPage port={port} projectName={projectName} navigate={navigate} />;
 }

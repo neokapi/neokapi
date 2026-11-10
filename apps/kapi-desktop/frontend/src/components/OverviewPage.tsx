@@ -1,9 +1,9 @@
 // The Overview (view id "map"): the page a project tab opens on, drawn by @neokapi/project-screens'
-// MapView. This page reads it through the desktop backend and fills the parts
+// OverviewView. This page reads it through the desktop backend and fills the parts
 // only the desktop has: the deeper look's row, the Connect your AI card, Add
 // files and the file preview.
 //
-// The page renders from one read, MapSummary, which the backend answers from
+// The page renders from one read, OverviewSummary, which the backend answers from
 // what it already holds. It reads again when the store sync finishes, when the
 // files change and when the context changes. Findings come from the last
 // checks run over the whole project: the page runs one the first time it opens
@@ -21,7 +21,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { Button, ErrorNotice, LoadingSpinner, ScrollArea } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import { MapView, type ScreenTarget } from "@neokapi/project-screens";
+import { OverviewView, type ScreenTarget } from "@neokapi/project-screens";
 import { api } from "../hooks/useApi";
 import { ConnectAICard } from "./ConnectAICard";
 import { qk } from "../lib/queryKeys";
@@ -29,9 +29,14 @@ import { desktopView } from "../lib/screenTargets";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useStoreSyncState } from "../hooks/useProjectStoreSync";
 import { FilePreview } from "./FilePreview";
-import type { DeeperLookModel, DeeperLookResult, MapFileRow, MapSummary } from "../types/api";
+import type {
+  DeeperLookModel,
+  DeeperLookResult,
+  OverviewFileRow,
+  OverviewSummary,
+} from "../types/api";
 
-/** The tabs the Map has run a first check for in this session. */
+/** The tabs the Overview has run a first check for in this session. */
 const autoChecked = new Set<string>();
 
 /** How long the deeper look's result line stays, in milliseconds. */
@@ -55,12 +60,12 @@ function noModelError(error: unknown): boolean {
   return /no AI provider configured/.test(String((error as Error)?.message ?? error));
 }
 
-export interface MapPageProps {
+export interface OverviewPageProps {
   tabID: string;
   /** The project's name, the page title. */
   projectName: string;
   /** Pre-loaded summary for Storybook and tests, which reach no backend. */
-  summary?: MapSummary;
+  summary?: OverviewSummary;
   /** Pre-loaded deeper look model, for Storybook and tests. */
   deeperLookModel?: DeeperLookModel;
   /** Open the Decide view, on one row when a key is given. */
@@ -84,7 +89,7 @@ export interface MapPageProps {
 /** "Your first project" in the kapi docs, which takes the same steps; it opens in the browser. */
 export const FIRST_PROJECT_GUIDE_URL = "https://neokapi.github.io/kapi/get-started/first-project";
 
-export function MapPage({
+export function OverviewPage({
   tabID,
   projectName,
   summary: given,
@@ -94,12 +99,12 @@ export function MapPage({
   onOpenReader,
   setupPending,
   standing,
-}: MapPageProps) {
+}: OverviewPageProps) {
   const qc = useQueryClient();
-  const key = qk.mapSummary(tabID);
+  const key = qk.overviewSummary(tabID);
   const query = useQuery({
     queryKey: key,
-    queryFn: () => api.mapSummary(tabID),
+    queryFn: () => api.overviewSummary(tabID),
     enabled: !given,
     placeholderData: (previous) => previous,
   });
@@ -117,7 +122,7 @@ export function MapPage({
   const summary = given ?? query.data ?? null;
 
   const dismissSteps = useMutation({
-    mutationFn: () => api.dismissMapSteps(tabID),
+    mutationFn: () => api.dismissOverviewSteps(tabID),
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
 
@@ -169,7 +174,7 @@ export function MapPage({
     return () => clearTimeout(id);
   }, [lookResult]);
 
-  const [preview, setPreview] = useState<MapFileRow | null>(null);
+  const [preview, setPreview] = useState<OverviewFileRow | null>(null);
   const filesRef = useRef<HTMLElement>(null);
 
   // Decide and the Reader open through the tab's own handlers, which also
@@ -195,7 +200,7 @@ export function MapPage({
 
   return (
     <ScrollArea className="h-full">
-      <MapView
+      <OverviewView
         projectName={projectName}
         summary={summary}
         running={run.isPending}
@@ -288,17 +293,17 @@ export function DeeperLookRow({
   else if (result && result.filed > 0) {
     line = t(
       "{count, plural, one {# new suggestion} other {# new suggestions}} from {model}",
-      "after the deeper look on the Map",
+      "after the deeper look on the Overview",
       { count: result.filed, model: result.model },
     );
   } else if (result) line = t("Nothing more to suggest");
   return (
     <div className="space-y-2 pt-2">
-      <div data-slot="map-deeper-look" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div data-slot="overview-deeper-look" className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button
           size="sm"
           variant="outline"
-          data-slot="map-deeper-look-run"
+          data-slot="overview-deeper-look-run"
           data-connected={model !== null}
           disabled={pending || running || disabled}
           onClick={onRun}
@@ -314,7 +319,7 @@ export function DeeperLookRow({
         </Button>
         {line && (
           <span
-            data-slot="map-deeper-look-line"
+            data-slot="overview-deeper-look-line"
             data-result={result ? "done" : undefined}
             aria-live="polite"
             className="text-xs text-muted-foreground"

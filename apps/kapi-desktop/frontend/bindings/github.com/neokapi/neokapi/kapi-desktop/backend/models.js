@@ -1393,7 +1393,7 @@ export class AssistantsView {
         if (/** @type {any} */(false)) {
             /**
              * Rules is how many rules are in force at the project's own point, the
-             * count the Map shows. Nil when it could not be read.
+             * count the Overview shows. Nil when it could not be read.
              * @member
              * @type {number | null | undefined}
              */
@@ -1566,9 +1566,9 @@ export class BowrainPreviewAnswer {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {screens$0.MapSummaryDTO | null | undefined}
+             * @type {screens$0.OverviewSummaryDTO | null | undefined}
              */
-            this["map"] = undefined;
+            this["overview"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1614,8 +1614,8 @@ export class BowrainPreviewAnswer {
         const $$createField3_0 = $$createType32;
         const $$createField4_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("map" in $$parsedSource) {
-            $$parsedSource["map"] = $$createField0_0($$parsedSource["map"]);
+        if ("overview" in $$parsedSource) {
+            $$parsedSource["overview"] = $$createField0_0($$parsedSource["overview"]);
         }
         if ("reader" in $$parsedSource) {
             $$parsedSource["reader"] = $$createField1_0($$parsedSource["reader"]);
@@ -4870,7 +4870,7 @@ export class DeeperLookModelDTO {
             /**
              * Connected is false when nothing names a model: no provider in the
              * recipe or the app config, no saved credential and no API key in the
-             * environment. The Map then offers to connect one.
+             * environment. The Overview then offers to connect one.
              * @member
              * @type {boolean}
              */
@@ -10186,7 +10186,7 @@ export class ShareView {
         if (/** @type {any} */(false)) {
             /**
              * Rules counts the rules in force at the project's own point, the count
-             * the Map shows. Nil when they could not be counted.
+             * the Overview shows. Nil when they could not be counted.
              * @member
              * @type {number | null | undefined}
              */
@@ -12078,7 +12078,7 @@ const $$createType21 = AssistantHostView.createFrom;
 const $$createType22 = $Create.Array($$createType21);
 const $$createType23 = AssistantSession.createFrom;
 const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = screens$0.MapSummaryDTO.createFrom;
+const $$createType25 = screens$0.OverviewSummaryDTO.createFrom;
 const $$createType26 = $Create.Nullable($$createType25);
 const $$createType27 = screens$0.ReaderFileDTO.createFrom;
 const $$createType28 = $Create.Nullable($$createType27);

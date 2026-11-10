@@ -10,9 +10,9 @@ const (
 	StepShare   = "share"
 )
 
-// MapStepDTO is one step of a first project: what it is, whether it is done,
+// OverviewStepDTO is one step of a first project: what it is, whether it is done,
 // and the count that says how much of it is left.
-type MapStepDTO struct {
+type OverviewStepDTO struct {
 	ID   string `json:"id"`
 	Done bool   `json:"done"`
 	// Count is what is left: the items awaiting a decision for decide, the
@@ -20,8 +20,8 @@ type MapStepDTO struct {
 	Count int `json:"count,omitempty"`
 }
 
-// MapStepState is what MapSteps reads.
-type MapStepState struct {
+// OverviewStepState is what OverviewSteps reads.
+type OverviewStepState struct {
 	// Awaiting counts the items awaiting a decision.
 	Awaiting int
 	// Checked reports a checks run over the whole project, and Failing the
@@ -34,16 +34,16 @@ type MapStepState struct {
 	Shared bool
 }
 
-// MapSteps lists the first project's steps with what each has left. Decide,
+// OverviewSteps lists the first project's steps with what each has left. Decide,
 // connect and share stay done once done; check and fix follow each run. The
 // list is empty when the three that stay done are done, so an established
 // project draws none.
-func MapSteps(s MapStepState) []MapStepDTO {
+func OverviewSteps(s OverviewStepState) []OverviewStepDTO {
 	decided := s.Awaiting == 0
 	if decided && s.Connected && s.Shared {
 		return nil
 	}
-	return []MapStepDTO{
+	return []OverviewStepDTO{
 		{ID: StepDecide, Done: decided, Count: s.Awaiting},
 		{ID: StepCheck, Done: s.Checked},
 		{ID: StepFix, Done: s.Checked && s.Failing == 0, Count: s.Failing},

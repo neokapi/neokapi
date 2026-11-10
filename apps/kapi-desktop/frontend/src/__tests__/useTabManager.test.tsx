@@ -30,7 +30,7 @@ describe("where a project tab lands", () => {
   beforeEach(() => stubBackend());
   afterEach(() => vi.restoreAllMocks());
 
-  it("opens a project on its Map", async () => {
+  it("opens a project on its Overview", async () => {
     const { result } = renderHook(() => useTabManager(), { wrapper });
     await act(() => result.current.openRecent(TAB.path));
     await waitFor(() => expect(result.current.activeTab?.view).toBe("map"));

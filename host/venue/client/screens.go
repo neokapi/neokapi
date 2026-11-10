@@ -9,7 +9,7 @@ import (
 	"github.com/neokapi/neokapi/host/screens"
 )
 
-// The project screens a Bowrain server draws: the Map, the Reader, the
+// The project screens a Bowrain server draws: the Overview, the Reader, the
 // questions Decide asks and the rules in force, each at the client's stream.
 // The server answers each with the host/screens DTO the desktop draws the
 // same screen from.
@@ -20,9 +20,9 @@ func (c *BowrainClient) screenPath(route string) string {
 	return strings.TrimPrefix(c.projectPrefix(), c.baseURL) + "/" + route
 }
 
-// MapSummary reads the project's Map: GET /:ws/:id/map/:ref.
-func (c *BowrainClient) MapSummary(ctx context.Context) (*screens.MapSummaryDTO, error) {
-	var out screens.MapSummaryDTO
+// OverviewSummary reads the project's Overview: GET /:ws/:id/map/:ref.
+func (c *BowrainClient) OverviewSummary(ctx context.Context) (*screens.OverviewSummaryDTO, error) {
+	var out screens.OverviewSummaryDTO
 	if err := c.DoJSON(ctx, http.MethodGet, c.screenPath("map/"+c.ref()), nil, nil, &out); err != nil {
 		return nil, err
 	}

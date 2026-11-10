@@ -25,13 +25,13 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// mapParityDir is the fixture the desktop's TestMapReaderParity writes: the
-// sample samples/audience-context as the desktop reads it, and the Map and
+// overviewParityDir is the fixture the desktop's TestOverviewReaderParity writes: the
+// sample samples/audience-context as the desktop reads it, and the Overview and
 // the Reader it draws.
-var mapParityDir = filepath.Join("..", "..", "host", "screens", "testdata", "map-parity")
+var overviewParityDir = filepath.Join("..", "..", "host", "screens", "testdata", "overview-parity")
 
-// mapParityPushed is pushed.json.
-type mapParityPushed struct {
+// overviewParityPushed is pushed.json.
+type overviewParityPushed struct {
 	SourceLanguage string `json:"source_language"`
 	Collections    []struct {
 		Name        string                    `json:"name"`
@@ -56,15 +56,15 @@ type mapParityPushed struct {
 // readGolden decodes one of the fixture's files into out.
 func readGolden(t *testing.T, name string, out any) {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(mapParityDir, name))
+	data, err := os.ReadFile(filepath.Join(overviewParityDir, name))
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, out))
 }
 
-// mapReaderSQLiteServer serves the Map, Reader and context object routes over
+// overviewReaderSQLiteServer serves the Overview, Reader and context object routes over
 // a SQLite content store, signed in as caller, with the voices and terms the
 // parity project binds.
-func mapReaderSQLiteServer(t *testing.T, caller *decideCaller) (*Server, *echo.Echo, *sqlitestore.SQLiteStore) {
+func overviewReaderSQLiteServer(t *testing.T, caller *decideCaller) (*Server, *echo.Echo, *sqlitestore.SQLiteStore) {
 	t.Helper()
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
 	require.NoError(t, err)
@@ -82,17 +82,17 @@ func mapReaderSQLiteServer(t *testing.T, caller *decideCaller) (*Server, *echo.E
 		}
 	})
 	srv.registerContextObjectRoutes(g)
-	srv.registerMapReaderRoutes(g)
+	srv.registerOverviewReaderRoutes(g)
 	return srv, e, cs
 }
 
-// seedMapParity stores the parity project as a push leaves it: each
+// seedOverviewParity stores the parity project as a push leaves it: each
 // collection bound to the voice at its point, each file's blocks, and the
 // workspace's terms.
-func seedMapParity(t *testing.T, srv *Server, e *echo.Echo, cs platstore.ContentStore, caller *decideCaller) string {
+func seedOverviewParity(t *testing.T, srv *Server, e *echo.Echo, cs platstore.ContentStore, caller *decideCaller) string {
 	t.Helper()
 	ctx := t.Context()
-	var pushed mapParityPushed
+	var pushed overviewParityPushed
 	readGolden(t, "pushed.json", &pushed)
 
 	p := &platstore.Project{
@@ -141,9 +141,9 @@ func seedMapParity(t *testing.T, srv *Server, e *echo.Echo, cs platstore.Content
 
 	// The ledger, pushed as the desktop shares it: a kept term rule the terms
 	// store also holds, and a kept note.
-	segment, err := os.ReadFile(filepath.Join(mapParityDir, "log.jsonl"))
+	segment, err := os.ReadFile(filepath.Join(overviewParityDir, "log.jsonl"))
 	require.NoError(t, err)
-	ops, err := workspace.DecodeSegment(segment, mapParityKey)
+	ops, err := workspace.DecodeSegment(segment, overviewParityKey)
 	require.NoError(t, err)
 	r := &routeRemote{h: e, base: "/api/v1/ws/" + p.ID + "/context/objects"}
 	perms := caller.perms
@@ -153,34 +153,34 @@ func seedMapParity(t *testing.T, srv *Server, e *echo.Echo, cs platstore.Content
 	return p.ID
 }
 
-// mapParityKey is the fixture project's key, as the desktop's test writes it
+// overviewParityKey is the fixture project's key, as the desktop's test writes it
 // into the sample's recipe.
-const mapParityKey workspace.ProjectKey = "prj_mapparityaaaaaaaaaaa"
+const overviewParityKey workspace.ProjectKey = "prj_mapparityaaaaaaaaaaa"
 
-// mapReaderGet requests one route of the project and decodes its JSON into
+// overviewReaderGet requests one route of the project and decodes its JSON into
 // out, returning the status.
-func mapReaderGet(t *testing.T, e *echo.Echo, method, pid, route string, body, out any) int {
+func overviewReaderGet(t *testing.T, e *echo.Echo, method, pid, route string, body, out any) int {
 	t.Helper()
 	return decideRoute(t, e, method, pid, route, body, out)
 }
 
-// TestMapReaderParity holds the server's Map and Reader to the desktop's for
+// TestOverviewReaderParity holds the server's Overview and Reader to the desktop's for
 // the same project. The same blocks under the same voice and terms answer
 // with the same JSON. Left out are the fields the server cannot know: paths
 // on disk, the workspace key of a project no push has bound, and when the
 // files were read and checked. The desktop's note about the profile a file
 // sits under is left out too; the context answer writes it, and the server
 // does not.
-func TestMapReaderParity(t *testing.T) {
+func TestOverviewReaderParity(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent}
-	srv, e, cs := mapReaderSQLiteServer(t, caller)
-	pid := seedMapParity(t, srv, e, cs, caller)
+	srv, e, cs := overviewReaderSQLiteServer(t, caller)
+	pid := seedOverviewParity(t, srv, e, cs, caller)
 
-	// Before a project-wide check, the Map counts no findings. A tally left
+	// Before a project-wide check, the Overview counts no findings. A tally left
 	// by an item the stream no longer lists is not counted.
 	require.NoError(t, cs.PutItemCheckTally(t.Context(), platstore.ItemCheckTally{ProjectID: pid, ItemID: "deleted-item", Findings: 9}))
-	var before screens.MapSummaryDTO
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &before))
+	var before screens.OverviewSummaryDTO
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &before))
 	assert.Nil(t, before.Findings, "a project not checked yet counts no findings")
 	assert.Empty(t, before.CheckedAt)
 
@@ -193,25 +193,25 @@ func TestMapReaderParity(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, left, 4, "the check removes the tally of the item no longer listed")
 
-	var got screens.MapSummaryDTO
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &got))
-	assert.NotEmpty(t, got.CheckedAt, "the Map reports when the check ran")
+	var got screens.OverviewSummaryDTO
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &got))
+	assert.NotEmpty(t, got.CheckedAt, "the Overview reports when the check ran")
 	for _, row := range got.FileRows {
 		assert.Equal(t, row.Relative, row.Path, "the server knows a file by its item name")
 	}
-	var wantMap screens.MapSummaryDTO
-	readGolden(t, "map-summary.json", &wantMap)
+	var wantMap screens.OverviewSummaryDTO
+	readGolden(t, "overview-summary.json", &wantMap)
 	gotMap := got
 	gotMap.ProjectKey, gotMap.ReadAt, gotMap.CheckedAt = "", "", ""
-	gotMap.FileRows = make([]screens.MapFileDTO, len(got.FileRows))
+	gotMap.FileRows = make([]screens.OverviewFileDTO, len(got.FileRows))
 	for i, r := range got.FileRows {
 		r.Path = ""
 		gotMap.FileRows[i] = r
 	}
-	assertSameJSON(t, wantMap, gotMap, "the Map")
+	assertSameJSON(t, wantMap, gotMap, "the Overview")
 
 	var reader screens.ReaderFileDTO
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, pid,
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodGet, pid,
 		"/reader/main?item="+url.QueryEscape("site/locales/en/child.json"), nil, &reader))
 	var wantReader screens.ReaderFileDTO
 	readGolden(t, "reader-file.json", &wantReader)
@@ -221,7 +221,7 @@ func TestMapReaderParity(t *testing.T) {
 	wantReader.Attention = reader.Attention
 	assertSameJSON(t, wantReader, reader, "the Reader")
 
-	// The Map's tally for the file is the Reader's count.
+	// The Overview's tally for the file is the Reader's count.
 	for _, row := range got.FileRows {
 		if row.Relative == reader.Path {
 			assert.Equal(t, reader.Findings, row.Findings)
@@ -243,16 +243,16 @@ func assertSameJSON(t *testing.T, want, got any, what string) {
 // item the stream does not hold is not found.
 func TestReader_UnknownItemAndMissingItem(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent}
-	srv, e, cs := mapReaderSQLiteServer(t, caller)
-	pid := seedMapParity(t, srv, e, cs, caller)
+	srv, e, cs := overviewReaderSQLiteServer(t, caller)
+	pid := seedOverviewParity(t, srv, e, cs, caller)
 	var errBody ErrorResponse
-	assert.Equal(t, http.StatusBadRequest, mapReaderGet(t, e, http.MethodGet, pid, "/reader/main", nil, &errBody))
-	assert.Equal(t, http.StatusNotFound, mapReaderGet(t, e, http.MethodGet, pid, "/reader/main?item=nothing.json", nil, &errBody))
-	assert.Equal(t, http.StatusNotFound, mapReaderGet(t, e, http.MethodGet, "no-such-project", "/map/main", nil, &errBody))
+	assert.Equal(t, http.StatusBadRequest, overviewReaderGet(t, e, http.MethodGet, pid, "/reader/main", nil, &errBody))
+	assert.Equal(t, http.StatusNotFound, overviewReaderGet(t, e, http.MethodGet, pid, "/reader/main?item=nothing.json", nil, &errBody))
+	assert.Equal(t, http.StatusNotFound, overviewReaderGet(t, e, http.MethodGet, "no-such-project", "/map/main", nil, &errBody))
 
 	caller.perms = 0
-	assert.Equal(t, http.StatusForbidden, mapReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &errBody))
-	assert.Equal(t, http.StatusForbidden, mapReaderGet(t, e, http.MethodGet, pid, "/reader/main?item=x", nil, &errBody))
+	assert.Equal(t, http.StatusForbidden, overviewReaderGet(t, e, http.MethodGet, pid, "/map/main", nil, &errBody))
+	assert.Equal(t, http.StatusForbidden, overviewReaderGet(t, e, http.MethodGet, pid, "/reader/main?item=x", nil, &errBody))
 }
 
 // TestChecksAtSourceLocale: checking an item at the project's source
@@ -300,15 +300,15 @@ func TestChecksAtSourceLocale(t *testing.T) {
 // TestCheckProject_WithoutJobSystem: a server with no job queue says so.
 func TestCheckProject_WithoutJobSystem(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent | platauth.PermReview}
-	srv, e, cs := mapReaderSQLiteServer(t, caller)
-	pid := seedMapParity(t, srv, e, cs, caller)
+	srv, e, cs := overviewReaderSQLiteServer(t, caller)
+	pid := seedOverviewParity(t, srv, e, cs, caller)
 	var errBody ErrorResponse
-	assert.Equal(t, http.StatusServiceUnavailable, mapReaderGet(t, e, http.MethodPost, pid, "/map/main/check", nil, &errBody))
+	assert.Equal(t, http.StatusServiceUnavailable, overviewReaderGet(t, e, http.MethodPost, pid, "/map/main/check", nil, &errBody))
 }
 
-// mapReaderPgServer is a server over the PostgreSQL stores with a job queue
+// overviewReaderPgServer is a server over the PostgreSQL stores with a job queue
 // and source proposals, signed in as caller.
-func mapReaderPgServer(t *testing.T, caller *decideCaller) (*Server, *echo.Echo, *jobs.ChannelQueue) {
+func overviewReaderPgServer(t *testing.T, caller *decideCaller) (*Server, *echo.Echo, *jobs.ChannelQueue) {
 	t.Helper()
 	db := pgtest.NewTestDB(t)
 	cs, err := bstore.NewPostgresStoreFromDB(db)
@@ -332,20 +332,20 @@ func mapReaderPgServer(t *testing.T, caller *decideCaller) (*Server, *echo.Echo,
 			return next(c)
 		}
 	})
-	srv.registerMapReaderRoutes(g)
+	srv.registerOverviewReaderRoutes(g)
 	return srv, e, q
 }
 
-// TestCheckProject_EnqueuesAJob: the Map's check is a project-wide check
+// TestCheckProject_EnqueuesAJob: the Overview's check is a project-wide check
 // job of the stream, requested by the member, and enqueued.
 func TestCheckProject_EnqueuesAJob(t *testing.T) {
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent | platauth.PermReview}
-	srv, e, q := mapReaderPgServer(t, caller)
+	srv, e, q := overviewReaderPgServer(t, caller)
 	p := &platstore.Project{Name: "check", DefaultSourceLanguage: "en", WorkspaceID: "ws", Properties: map[string]string{}}
 	require.NoError(t, srv.ContentStore.CreateProject(t.Context(), p))
 
 	var started projectCheckStarted
-	require.Equal(t, http.StatusAccepted, mapReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &started))
+	require.Equal(t, http.StatusAccepted, overviewReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &started))
 	require.NotEmpty(t, started.JobID)
 	job, err := srv.JobStore.GetJob(t.Context(), started.JobID)
 	require.NoError(t, err)
@@ -361,7 +361,7 @@ func TestCheckProject_EnqueuesAJob(t *testing.T) {
 	// A second request while the check waits is answered with the same job,
 	// and nothing more is enqueued.
 	var again projectCheckStarted
-	require.Equal(t, http.StatusAccepted, mapReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &again))
+	require.Equal(t, http.StatusAccepted, overviewReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &again))
 	assert.Equal(t, started.JobID, again.JobID)
 	jobsList, err := srv.JobStore.ListJobs(t.Context(), "ws", 10)
 	require.NoError(t, err)
@@ -370,13 +370,13 @@ func TestCheckProject_EnqueuesAJob(t *testing.T) {
 	// Once it has finished, a request starts a new check.
 	require.NoError(t, srv.JobStore.UpdateJobStatus(t.Context(), started.JobID, jobs.StatusCompleted, ""))
 	var next projectCheckStarted
-	require.Equal(t, http.StatusAccepted, mapReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &next))
+	require.Equal(t, http.StatusAccepted, overviewReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &next))
 	assert.NotEqual(t, started.JobID, next.JobID)
 
 	// Starting a check needs the review permission.
 	caller.perms = platauth.PermViewContent
 	var errBody ErrorResponse
-	assert.Equal(t, http.StatusForbidden, mapReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &errBody))
+	assert.Equal(t, http.StatusForbidden, overviewReaderGet(t, e, http.MethodPost, p.ID, "/map/main/check", nil, &errBody))
 }
 
 // TestReaderFix_FilesASourceProposal: a fix from the Reader is filed as a
@@ -386,7 +386,7 @@ func TestCheckProject_EnqueuesAJob(t *testing.T) {
 func TestReaderFix_FilesASourceProposal(t *testing.T) {
 	ctx := t.Context()
 	caller := &decideCaller{userID: "member-a", perms: platauth.PermViewContent | platauth.PermReview}
-	srv, e, _ := mapReaderPgServer(t, caller)
+	srv, e, _ := overviewReaderPgServer(t, caller)
 	srv.VoiceStore = &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{
 		"bp": {ID: "bp", Name: "Acme", Style: coreprofile.StyleRules{
 			ProhibitedPatterns: []coreprofile.Pattern{{Regex: `\bLocalizely\b`, Description: "Name no competitor"}},
@@ -412,7 +412,7 @@ func TestReaderFix_FilesASourceProposal(t *testing.T) {
 
 	item := "?item=" + url.QueryEscape("docs/a.md")
 	var r screens.ReaderFileDTO
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, p.ID, "/reader/main"+item, nil, &r))
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodGet, p.ID, "/reader/main"+item, nil, &r))
 	require.Equal(t, 3, r.Findings)
 	require.Equal(t, 2, r.Fixable)
 	assert.Equal(t, "failed", r.Verdict)
@@ -431,7 +431,7 @@ func TestReaderFix_FilesASourceProposal(t *testing.T) {
 	require.NotEmpty(t, unfixable.ID)
 
 	var one ReaderFixResult
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
 		readerFixRequest{Item: "docs/a.md", FindingID: fixable.ID}, &one))
 	require.Len(t, one.Proposals, 1)
 	assert.Empty(t, one.Refused)
@@ -454,22 +454,22 @@ func TestReaderFix_FilesASourceProposal(t *testing.T) {
 
 	// The block is as it was: the proposal waits for a source owner.
 	var again screens.ReaderFileDTO
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, p.ID, "/reader/main"+item, nil, &again))
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodGet, p.ID, "/reader/main"+item, nil, &again))
 	assert.Equal(t, 3, again.Findings)
 
 	var refused ReaderFixResult
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
 		readerFixRequest{Item: "docs/a.md", FindingID: unfixable.ID}, &refused))
 	assert.Empty(t, refused.Proposals)
 	require.Len(t, refused.Refused, 1)
 	assert.Equal(t, "This finding has no fix.", refused.Refused[0].Reason)
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
 		readerFixRequest{Item: "docs/a.md", FindingID: "gone-1"}, &refused))
 	assert.Equal(t, "This finding is no longer reported.", refused.Refused[0].Reason)
 
 	// The whole file: one proposal per block with a fix.
 	var all ReaderFixResult
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix-file",
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix-file",
 		readerFixRequest{Item: "docs/a.md"}, &all))
 	require.Len(t, all.Proposals, 2)
 	second, err := srv.SourceProposalStore.Get(ctx, all.Proposals[1])
@@ -478,7 +478,7 @@ func TestReaderFix_FilesASourceProposal(t *testing.T) {
 
 	caller.perms = platauth.PermViewContent
 	var errBody ErrorResponse
-	assert.Equal(t, http.StatusForbidden, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
+	assert.Equal(t, http.StatusForbidden, overviewReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix",
 		readerFixRequest{Item: "docs/a.md", FindingID: fixable.ID}, &errBody))
 }
 
@@ -498,7 +498,7 @@ func TestReaderFix_KeepsInlineCodesThroughApproval(t *testing.T) {
 			return next(c)
 		}
 	})
-	s.registerMapReaderRoutes(g)
+	s.registerOverviewReaderRoutes(g)
 
 	profile := &coreprofile.VoiceProfile{Scope: wsID, Name: "Plain"}
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
@@ -527,10 +527,10 @@ func TestReaderFix_KeepsInlineCodesThroughApproval(t *testing.T) {
 	require.NoError(t, s.ContentStore.StoreBlocksForItem(ctx, p.ID, "main", "ui.json", []*model.Block{block}))
 
 	var r screens.ReaderFileDTO
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodGet, p.ID, "/reader/main?item=ui.json", nil, &r))
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodGet, p.ID, "/reader/main?item=ui.json", nil, &r))
 	require.Equal(t, 1, r.Fixable)
 	var fixed ReaderFixResult
-	require.Equal(t, http.StatusOK, mapReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix-file",
+	require.Equal(t, http.StatusOK, overviewReaderGet(t, e, http.MethodPost, p.ID, "/reader/main/fix-file",
 		readerFixRequest{Item: "ui.json"}, &fixed))
 	require.Len(t, fixed.Proposals, 1, fixed.Refused)
 	proposal, err := s.SourceProposalStore.Get(ctx, fixed.Proposals[0])

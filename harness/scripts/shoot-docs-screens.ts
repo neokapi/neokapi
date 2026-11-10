@@ -142,7 +142,7 @@ interface DesktopShot {
 
 const DESKTOP_SHOTS: DesktopShot[] = [
   { name: "open", story: "components-openscreen--recent-folders" },
-  { name: "map", story: "project-screens-map--suggestions-pending" },
+  { name: "overview", story: "project-screens-overview--suggestions-pending" },
   { name: "decide", story: "components-contexthub--whats-new" },
   { name: "reader", story: "project-screens-reader--findings-with-fixes" },
   { name: "rules", story: "project-screens-rules--kept-by" },
@@ -308,29 +308,29 @@ const WEB_SHOTS: WebShot[] = [
     open: (c) => go(c, "", '[data-testid^="project-card"]'),
   },
   {
-    name: "project-map",
-    open: (c) => go(c, `/p/${c.pid}/s/main/map`, '[data-slot="map-suggestions"] [data-slot="map-suggestion"]'),
+    name: "project-overview",
+    open: (c) => go(c, `/p/${c.pid}/s/main/overview`, '[data-slot="overview-suggestions"] [data-slot="overview-suggestion"]'),
   },
   {
     name: "project-reader",
     open: async (c) => {
-      await go(c, `/p/${c.pid}/s/main/map`, '[data-slot="map-file"]');
+      await go(c, `/p/${c.pid}/s/main/overview`, '[data-slot="overview-file"]');
       const withFindings = c.page
-        .locator('[data-slot="map-file"]')
-        .filter({ has: c.page.locator('[data-slot="map-file-findings"]') })
+        .locator('[data-slot="overview-file"]')
+        .filter({ has: c.page.locator('[data-slot="overview-file-findings"]') })
         .first();
       if (!(await withFindings.count())) {
         // A fresh seed has not been checked yet: run the check once, as a
         // member would, so a file carries its finding.
-        await c.page.locator('[data-slot="map-run"]').click();
+        await c.page.locator('[data-slot="overview-run"]').click();
         await c.page.waitForFunction(
-          () => !document.querySelector('[data-slot="map-run"]')?.textContent?.includes("Checking"),
+          () => !document.querySelector('[data-slot="overview-run"]')?.textContent?.includes("Checking"),
           undefined,
           { timeout: 120_000 },
         );
         await withFindings.waitFor({ timeout: 30_000 });
       }
-      await withFindings.locator('[data-slot="map-file-open"]').click();
+      await withFindings.locator('[data-slot="overview-file-open"]').click();
       await c.page.waitForSelector('[data-slot="reader-blocks"]', { timeout: 30_000 });
       await c.page.locator('[data-slot="reader-finding"]').first().waitFor({ timeout: 20_000 });
       await c.page.waitForSelector('[data-slot="reader-rules"]', { timeout: 20_000 });

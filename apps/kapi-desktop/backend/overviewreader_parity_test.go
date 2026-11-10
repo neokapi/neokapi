@@ -21,39 +21,39 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// The Map and Reader parity fixture: the sample samples/audience-context as
-// the desktop reads it, and the Map and the Reader the desktop draws for it.
-// bowrain/server's Map and Reader test stores the same blocks under the same
+// The Overview and Reader parity fixture: the sample samples/audience-context as
+// the desktop reads it, and the Overview and the Reader the desktop draws for it.
+// bowrain/server's Overview and Reader test stores the same blocks under the same
 // voice and terms, and holds the server's answers to the same files.
 //
 //	pushed.json        the collections, the items with their blocks, and the
 //	                   voice and terms at each collection's point
-//	map-summary.json   the Map, after a checks run over the whole project
+//	overview-summary.json   the Overview, after a checks run over the whole project
 //	reader-file.json   the Reader of readerParityFile
 //
 // The fields the server cannot know are blanked in both files: the paths on
 // disk, and when the files were read and checked. Regenerate after an
 // intended change with
 //
-//	KAPI_UPDATE_GOLDEN=1 go test ./backend -run TestMapReaderParity
-var mapParityDir = filepath.Join("..", "..", "..", "host", "screens", "testdata", "map-parity")
+//	KAPI_UPDATE_GOLDEN=1 go test ./backend -run TestOverviewReaderParity
+var overviewParityDir = filepath.Join("..", "..", "..", "host", "screens", "testdata", "overview-parity")
 
 // readerParityFile is the file the fixture's Reader reads.
 const readerParityFile = "site/locales/en/child.json"
 
-// mapParityKey is the fixture project's key.
-const mapParityKey workspace.ProjectKey = "prj_mapparityaaaaaaaaaaa"
+// overviewParityKey is the fixture project's key.
+const overviewParityKey workspace.ProjectKey = "prj_mapparityaaaaaaaaaaa"
 
-// recordMapParityLog records the fixture's ledger through the calls kapi
+// recordOverviewParityLog records the fixture's ledger through the calls kapi
 // makes and writes the operations it added to path as one segment: an
 // assistant's term rule a person kept, which the terms store already holds,
 // and a note a person kept. Regenerate it with KAPI_UPDATE_MAP_LOG=1.
-func recordMapParityLog(t *testing.T, app *host.App, recipe, path string) {
+func recordOverviewParityLog(t *testing.T, app *host.App, recipe, path string) {
 	t.Helper()
 	ctx := t.Context()
 	ws, err := app.Workspace(ctx)
 	require.NoError(t, err)
-	before, err := ws.Select(ctx, workspace.OpQuery{Project: mapParityKey})
+	before, err := ws.Select(ctx, workspace.OpQuery{Project: overviewParityKey})
 	require.NoError(t, err)
 	var after int64
 	for _, op := range before {
@@ -75,7 +75,7 @@ func recordMapParityLog(t *testing.T, app *host.App, recipe, path string) {
 	_, err = app.DecideRule(ctx, host.RuleDecideRequest{Actor: person, Project: recipe, ID: note.ID, Answer: host.RuleAnswerKeep})
 	require.NoError(t, err)
 
-	ops, err := ws.Select(ctx, workspace.OpQuery{Project: mapParityKey, After: after})
+	ops, err := ws.Select(ctx, workspace.OpQuery{Project: overviewParityKey, After: after})
 	require.NoError(t, err)
 	require.NotEmpty(t, ops)
 	data, err := workspace.EncodeSegment(ops)
@@ -83,16 +83,16 @@ func recordMapParityLog(t *testing.T, app *host.App, recipe, path string) {
 	require.NoError(t, os.WriteFile(path, data, 0o644))
 }
 
-// MapParityPushed is pushed.json.
-type MapParityPushed struct {
-	SourceLanguage string           `json:"source_language"`
-	Collections    []MapParityPoint `json:"collections"`
-	Items          []MapParityItem  `json:"items"`
-	Concepts       []terms.Concept  `json:"concepts"`
+// OverviewParityPushed is pushed.json.
+type OverviewParityPushed struct {
+	SourceLanguage string                `json:"source_language"`
+	Collections    []OverviewParityPoint `json:"collections"`
+	Items          []OverviewParityItem  `json:"items"`
+	Concepts       []terms.Concept       `json:"concepts"`
 }
 
-// MapParityPoint is one collection with the voice at its point.
-type MapParityPoint struct {
+// OverviewParityPoint is one collection with the voice at its point.
+type OverviewParityPoint struct {
 	Name string `json:"name"`
 	// Coordinates are the collection's point, as a push stores them.
 	Coordinates map[string]string         `json:"coordinates"`
@@ -103,22 +103,22 @@ type MapParityPoint struct {
 	Carried     []coreprofile.TermRule `json:"carried,omitempty"`
 }
 
-// MapParityItem is one file and its source blocks.
-type MapParityItem struct {
-	Name       string           `json:"name"`
-	Format     string           `json:"format"`
-	Collection string           `json:"collection"`
-	Blocks     []MapParityBlock `json:"blocks"`
+// OverviewParityItem is one file and its source blocks.
+type OverviewParityItem struct {
+	Name       string                `json:"name"`
+	Format     string                `json:"format"`
+	Collection string                `json:"collection"`
+	Blocks     []OverviewParityBlock `json:"blocks"`
 }
 
-// MapParityBlock is one block as the check reads it.
-type MapParityBlock struct {
+// OverviewParityBlock is one block as the check reads it.
+type OverviewParityBlock struct {
 	ID           string      `json:"id"`
 	Translatable bool        `json:"translatable"`
 	Runs         []model.Run `json:"runs"`
 }
 
-func TestMapReaderParity(t *testing.T) {
+func TestOverviewReaderParity(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	t.Setenv("KAPI_DATA_DIR", t.TempDir())
 	app := NewApp()
@@ -140,7 +140,7 @@ func TestMapReaderParity(t *testing.T) {
 	recipeData, err := os.ReadFile(recipe)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(recipe, []byte(strings.Replace(string(recipeData),
-		"version: v1\n", "version: v1\nid: "+string(mapParityKey)+"\n", 1)), 0o644))
+		"version: v1\n", "version: v1\nid: "+string(overviewParityKey)+"\n", 1)), 0o644))
 
 	// The sample's context read into the workspace the app reads, as `kapi
 	// store import ./context` reads it.
@@ -153,14 +153,14 @@ func TestMapReaderParity(t *testing.T) {
 	require.NoError(t, err)
 
 	// The ledger: a kept term rule the terms store also holds, and a kept
-	// note, so the Map and the Reader count each rule once.
-	logPath := filepath.Join(mapParityDir, "log.jsonl")
+	// note, so the Overview and the Reader count each rule once.
+	logPath := filepath.Join(overviewParityDir, "log.jsonl")
 	if os.Getenv("KAPI_UPDATE_MAP_LOG") != "" {
-		recordMapParityLog(t, importer, recipe, logPath)
+		recordOverviewParityLog(t, importer, recipe, logPath)
 	} else {
 		segment, err := os.ReadFile(logPath)
 		require.NoError(t, err)
-		ops, err := workspace.DecodeSegment(segment, mapParityKey)
+		ops, err := workspace.DecodeSegment(segment, overviewParityKey)
 		require.NoError(t, err)
 		ws, err := importer.Workspace(t.Context())
 		require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestMapReaderParity(t *testing.T) {
 	_, err = app.RunChecks(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
 
-	summary, err := app.MapSummary(tab.ID)
+	summary, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	require.NotNil(t, summary.Findings)
 	require.Positive(t, *summary.Findings, "the sample holds findings to compare")
@@ -189,7 +189,7 @@ func TestMapReaderParity(t *testing.T) {
 	// desktop's checks ran under at each collection's point.
 	op := app.getOpenProject(tab.ID)
 	points := app.newPointResolver(op, false)
-	pushed := MapParityPushed{SourceLanguage: string(op.Project.Defaults.SourceLanguage)}
+	pushed := OverviewParityPushed{SourceLanguage: string(op.Project.Defaults.SourceLanguage)}
 	var concepts []terms.Concept
 	for _, row := range summary.FileRows {
 		profile := points.at(t.Context(), row.Collection, row.Relative)
@@ -201,7 +201,7 @@ func TestMapReaderParity(t *testing.T) {
 		at := project.GovernancePoint{Collection: row.Collection, Path: row.Relative}
 		rc, err := op.Project.ResolveGovernanceFor(at)
 		require.NoError(t, err)
-		point := MapParityPoint{Name: row.Collection, Coordinates: op.Project.CoordinatesAt(at, rc), Voice: &voice}
+		point := OverviewParityPoint{Name: row.Collection, Coordinates: op.Project.CoordinatesAt(at, rc), Voice: &voice}
 		if carried := profile.CarriedTerms(); len(carried.Rules) > 0 {
 			point.CarriedFrom, point.Carried = carried.From, carried.Rules
 		}
@@ -220,9 +220,9 @@ func TestMapReaderParity(t *testing.T) {
 		var blocks []*model.Block
 		_, err = app.runChecks(tab.ID, ProjectFilter{}, checkScope{file: row.Relative, blocks: &blocks})
 		require.NoError(t, err)
-		item := MapParityItem{Name: row.Relative, Format: row.Format, Collection: row.Collection}
+		item := OverviewParityItem{Name: row.Relative, Format: row.Format, Collection: row.Collection}
 		for _, b := range blocks {
-			item.Blocks = append(item.Blocks, MapParityBlock{ID: b.ID, Translatable: b.Translatable, Runs: b.SourceRuns()})
+			item.Blocks = append(item.Blocks, OverviewParityBlock{ID: b.ID, Translatable: b.Translatable, Runs: b.SourceRuns()})
 		}
 		pushed.Items = append(pushed.Items, item)
 	}
@@ -231,20 +231,20 @@ func TestMapReaderParity(t *testing.T) {
 	}
 	pushed.Concepts = concepts
 
-	golden(t, filepath.Join(mapParityDir, "pushed.json"), pushed)
-	golden(t, filepath.Join(mapParityDir, "map-summary.json"), MapParityView(*summary))
-	golden(t, filepath.Join(mapParityDir, "reader-file.json"), ReaderParityView(*reader))
+	golden(t, filepath.Join(overviewParityDir, "pushed.json"), pushed)
+	golden(t, filepath.Join(overviewParityDir, "overview-summary.json"), OverviewParityView(*summary))
+	golden(t, filepath.Join(overviewParityDir, "reader-file.json"), ReaderParityView(*reader))
 }
 
-// MapParityView is the Map without the fields the server cannot know: the
+// OverviewParityView is the Overview without the fields the server cannot know: the
 // paths on disk, the workspace key of a project the server has not bound,
 // when the files were read and checked, and the first steps.
-func MapParityView(m screens.MapSummaryDTO) screens.MapSummaryDTO {
+func OverviewParityView(m screens.OverviewSummaryDTO) screens.OverviewSummaryDTO {
 	m.ProjectKey, m.ReadAt, m.CheckedAt = "", "", ""
 	// The first steps read this machine: its assistants and what the person
 	// dismissed. A server answers none.
 	m.Steps = nil
-	rows := make([]screens.MapFileDTO, len(m.FileRows))
+	rows := make([]screens.OverviewFileDTO, len(m.FileRows))
 	for i, r := range m.FileRows {
 		r.Path = ""
 		rows[i] = r

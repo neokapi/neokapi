@@ -15,7 +15,7 @@ import { useScreenNavigate } from "./project-screens-nav";
 
 export interface ProjectRulesPageProps {
   port: ProjectScreensPort;
-  /** The Map row to open on (`suggested:<id>`, `conflict:<id>`). */
+  /** The Overview row to open on (`suggested:<id>`, `conflict:<id>`). */
   row?: string;
   /** Open Decide on the questions assigned to the signed-in member. */
   assignedToMe?: boolean;

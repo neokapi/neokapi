@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import type { ApiAdapter, JobState, PermissionName, ReaderFixResult } from "@neokapi/ui";
 import { memberName, type RulesDecideView } from "@neokapi/project-screens";
 import { DECIDE_IDS, DECIDE_VIEW, READER_WITH_FIXES } from "@neokapi/project-screens/fixtures";
-import { ProjectMapPage } from "./project-map";
+import { ProjectOverviewPage } from "./project-overview";
 import { ProjectReaderPage } from "./project-reader";
 import { ProjectRulesPage } from "./project-rules";
 import { FERNWELL_MEMBERS, fixtureScreensPort } from "./project-screens-fixture-port";
@@ -26,11 +26,11 @@ const holding =
 const MEMBER = holding("view_content", "review", "manage_terms");
 const VIEWER = holding();
 
-describe("the Map route", () => {
+describe("the Overview route", () => {
   it("offers the project-wide check to a member who may review", async () => {
     const runChecks = vi.fn(async () => {});
     render(
-      <ProjectMapPage
+      <ProjectOverviewPage
         port={permittedPort(fixtureScreensPort({ runChecks }), holding("view_content", "review"))}
         projectName="Fernwell"
         navigate={vi.fn()}
@@ -42,7 +42,7 @@ describe("the Map route", () => {
 
   it("draws no check action for a member who may only view", async () => {
     render(
-      <ProjectMapPage
+      <ProjectOverviewPage
         port={permittedPort(fixtureScreensPort(), holding("view_content"))}
         projectName="Fernwell"
         navigate={vi.fn()}
@@ -55,7 +55,7 @@ describe("the Map route", () => {
   it("opens a file in the Reader by its path", async () => {
     const navigate = vi.fn();
     render(
-      <ProjectMapPage
+      <ProjectOverviewPage
         port={permittedPort(fixtureScreensPort(), MEMBER)}
         projectName="Fernwell"
         navigate={navigate}
@@ -63,7 +63,7 @@ describe("the Map route", () => {
     );
     await screen.findByRole("heading", { name: "Fernwell" });
     const open = await waitFor(() => {
-      const rows = document.querySelectorAll<HTMLElement>('[data-slot="map-file-open"]');
+      const rows = document.querySelectorAll<HTMLElement>('[data-slot="overview-file-open"]');
       expect(rows.length).toBeGreaterThan(0);
       return rows;
     });
@@ -105,7 +105,7 @@ describe("the Reader route", () => {
     expect(screen.queryByRole("button", { name: /^Fix/ })).toBeNull();
   });
 
-  it("goes back to the Map", async () => {
+  it("goes back to the Overview", async () => {
     const navigate = vi.fn();
     render(
       <ProjectReaderPage
@@ -115,8 +115,8 @@ describe("the Reader route", () => {
         navigate={navigate}
       />,
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Map" }));
-    expect(navigate).toHaveBeenCalledWith({ kind: "map" });
+    await userEvent.click(await screen.findByRole("button", { name: "Overview" }));
+    expect(navigate).toHaveBeenCalledWith({ kind: "overview" });
   });
 });
 
@@ -277,8 +277,8 @@ describe("the review inbox's way to Rules", () => {
 });
 
 describe("the port", () => {
-  it("opens the Map, the Reader, Rules, the kept rules and the Source content page", () => {
-    expect(bowrainOpens({ kind: "map" })).toBe(true);
+  it("opens the Overview, the Reader, Rules, the kept rules and the Source content page", () => {
+    expect(bowrainOpens({ kind: "overview" })).toBe(true);
     expect(bowrainOpens({ kind: "reader", path: "a.md" })).toBe(true);
     expect(bowrainOpens({ kind: "rules" })).toBe(true);
     expect(bowrainOpens({ kind: "kept" })).toBe(true);
@@ -353,7 +353,7 @@ describe("following the check's job", () => {
     vi.useRealTimers();
   });
 
-  it("waits longer between reads, up to 5 s, and reads the Map again when the job completes", async () => {
+  it("waits longer between reads, up to 5 s, and reads the Overview again when the job completes", async () => {
     vi.useFakeTimers();
     const { api, getJob } = jobAdapter([
       "queued",
@@ -375,7 +375,7 @@ describe("following the check's job", () => {
     }
     await done;
     expect(getJob).toHaveBeenCalledTimes(6);
-    expect(changed).toHaveBeenCalledWith("map");
+    expect(changed).toHaveBeenCalledWith("overview");
   });
 
   it("gives up after 10 minutes", async () => {
@@ -458,6 +458,6 @@ describe("disposing the port", () => {
     const changed = vi.fn();
     port.subscribe!(changed);
     await port.runChecks!();
-    expect(changed).toHaveBeenCalledWith("map");
+    expect(changed).toHaveBeenCalledWith("overview");
   });
 });

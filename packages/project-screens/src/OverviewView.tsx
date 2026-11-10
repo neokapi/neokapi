@@ -1,9 +1,9 @@
-// The Map: the page a project opens on. It is an overview (page-patterns
+// The Overview: the page a project opens on. It is an overview (page-patterns
 // "Overview"): the project's name and when kapi last read its files, four
 // counts, the suggestions that wait for a person and the content files, each
 // row leading to the place that acts on it. Nothing on it is edited in place.
 //
-// MapView draws one MapSummary already read. The host fills the parts only it
+// OverviewView draws one OverviewSummary already read. The host fills the parts only it
 // has (the deeper look's row, the Connect your AI card, the add-files action,
 // the file preview) as slots, and says which targets it opens: a target it
 // cannot open hides the button that leads there. Without onRun the page draws
@@ -26,18 +26,18 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { ConflictLine, RuleLine } from "./DigestRule";
-import { MapSteps } from "./MapSteps";
+import { OverviewSteps } from "./OverviewSteps";
 import { opens, type ScreenNavigation, type ScreenTarget } from "./port";
-import type { MapFileRow, MapSuggestionRow, MapSummary } from "./types";
+import type { OverviewFileRow, MapSuggestionRow, OverviewSummary } from "./types";
 
 /** The Decide view's key for a row: its group and its item's id. */
 export function decideRowKey(row: MapSuggestionRow): string {
   return `${row.group}:${row.item.id}`;
 }
 
-export interface MapViewProps extends ScreenNavigation {
+export interface OverviewViewProps extends ScreenNavigation {
   projectName: string;
-  summary: MapSummary;
+  summary: OverviewSummary;
   /** A checks run over the whole project is in progress. */
   running?: boolean;
   runError?: unknown;
@@ -63,15 +63,15 @@ export interface MapViewProps extends ScreenNavigation {
   /** The action in the empty files list, such as adding files. */
   addFiles?: React.ReactNode;
   /** Show a file the Reader does not open: one with no blocks, or any when the host opens no Reader. */
-  onPreviewFile?: (row: MapFileRow) => void;
+  onPreviewFile?: (row: OverviewFileRow) => void;
   /** The file preview, drawn after the page. */
   filePreview?: React.ReactNode;
   onShowFiles?: () => void;
   filesRef?: React.Ref<HTMLElement>;
 }
 
-/** The Map as it is drawn, from a summary already read. */
-export function MapView({
+/** The Overview as it is drawn, from a summary already read. */
+export function OverviewView({
   projectName,
   summary,
   running,
@@ -91,13 +91,13 @@ export function MapView({
   filesRef,
   navigate,
   canNavigate,
-}: MapViewProps) {
+}: OverviewViewProps) {
   const nav: ScreenNavigation = { navigate, canNavigate };
   const decides = opens(nav, { kind: "rules" });
   const onDecide = (row?: string) => navigate(row ? { kind: "rules", row } : { kind: "rules" });
   // A file opens in the Reader when the block cache holds blocks for it and
   // the host opens the Reader; otherwise in the preview, when there is one.
-  const openFile = (row: MapFileRow): (() => void) | undefined => {
+  const openFile = (row: OverviewFileRow): (() => void) | undefined => {
     const reader: ScreenTarget = { kind: "reader", path: row.relative };
     if (row.blocks > 0 && opens(nav, reader)) return () => navigate(reader);
     if (onPreviewFile) return () => onPreviewFile(row);
@@ -113,7 +113,7 @@ export function MapView({
     ));
   return (
     <>
-      <div data-slot="map" className="mx-auto max-w-4xl space-y-8 p-6">
+      <div data-slot="overview" className="mx-auto max-w-4xl space-y-8 p-6">
         <div className="space-y-5">
           <PageHeader
             className="mb-0"
@@ -125,7 +125,7 @@ export function MapView({
                   <Button
                     size="sm"
                     variant="outline"
-                    data-slot="map-run"
+                    data-slot="overview-run"
                     disabled={running || summary.files === 0}
                     onClick={onRun}
                   >
@@ -134,7 +134,7 @@ export function MapView({
                   </Button>
                 )}
                 {summary.awaiting > 0 && decides && (
-                  <Button size="sm" data-slot="map-decide" onClick={() => onDecide()}>
+                  <Button size="sm" data-slot="overview-decide" onClick={() => onDecide()}>
                     {t("Decide {count}", "a button: the items awaiting a decision", {
                       count: summary.awaiting,
                     })}
@@ -150,7 +150,7 @@ export function MapView({
         </div>
 
         {summary.steps && summary.steps.length > 0 && (
-          <MapSteps
+          <OverviewSteps
             steps={summary.steps}
             onRun={onRun}
             running={running}
@@ -163,10 +163,10 @@ export function MapView({
 
         {standing}
 
-        <section data-slot="map-suggestions" className="space-y-2">
+        <section data-slot="overview-suggestions" className="space-y-2">
           <SectionHeading>Suggestions</SectionHeading>
           {summary.suggestions.length === 0 ? (
-            <div data-slot="map-suggestions-empty">
+            <div data-slot="overview-suggestions-empty">
               <EmptyState
                 icon={<Sparkles size={20} className="mx-auto" />}
                 title={t("No suggestions yet.")}
@@ -188,10 +188,10 @@ export function MapView({
           {connectAI}
         </section>
 
-        <section ref={filesRef} data-slot="map-files" className="space-y-2">
+        <section ref={filesRef} data-slot="overview-files" className="space-y-2">
           <SectionHeading>Files</SectionHeading>
           {summary.file_rows.length === 0 ? (
-            <div data-slot="map-files-empty">
+            <div data-slot="overview-files-empty">
               <EmptyState
                 icon={<FileText size={20} className="mx-auto" />}
                 title={t("No content files yet")}
@@ -228,12 +228,12 @@ export function MapView({
 // The files count beside it says how many there are, so the line names a
 // number only when kapi read a different number of them (a file no reader
 // opens, or a file waiting for the next read).
-function ReadLine({ summary }: { summary: MapSummary }) {
+function ReadLine({ summary }: { summary: OverviewSummary }) {
   const sameCount = summary.read_files === summary.files;
   if (sameCount && !summary.read_at) return null;
   const when = summary.read_at && <When iso={summary.read_at} relative />;
   if (sameCount) {
-    return <span data-slot="map-read">Last read {when}</span>;
+    return <span data-slot="overview-read">Last read {when}</span>;
   }
   const read = t(
     "Last read {count, plural, one {# file} other {# files}}",
@@ -243,7 +243,7 @@ function ReadLine({ summary }: { summary: MapSummary }) {
     },
   );
   return (
-    <span data-slot="map-read">
+    <span data-slot="overview-read">
       {read}
       {when && <> {when}</>}
     </span>
@@ -257,7 +257,7 @@ function MapCounts({
   nav,
   onShowFiles,
 }: {
-  summary: MapSummary;
+  summary: OverviewSummary;
   running?: boolean;
   nav: ScreenNavigation;
   onShowFiles?: () => void;
@@ -270,7 +270,7 @@ function MapCounts({
     {
       id: "files",
       value: summary.files,
-      label: t("{count, plural, one {file} other {files}}", "a count on the Map", {
+      label: t("{count, plural, one {file} other {files}}", "a count on the Overview", {
         count: summary.files,
       }),
       onClick: onShowFiles,
@@ -278,7 +278,7 @@ function MapCounts({
     {
       id: "blocks",
       value: summary.blocks,
-      label: t("{count, plural, one {block} other {blocks}}", "a count on the Map", {
+      label: t("{count, plural, one {block} other {blocks}}", "a count on the Overview", {
         count: summary.blocks,
       }),
       onClick: to({ kind: "blocks" }),
@@ -286,7 +286,7 @@ function MapCounts({
     {
       id: "rules",
       value: summary.rules,
-      label: t("{count, plural, one {rule} other {rules}}", "a count on the Map", {
+      label: t("{count, plural, one {rule} other {rules}}", "a count on the Overview", {
         count: summary.rules,
       }),
       onClick: to({ kind: "kept" }),
@@ -294,7 +294,7 @@ function MapCounts({
     {
       id: "findings",
       value: findings,
-      label: t("{count, plural, one {finding} other {findings}}", "a count on the Map", {
+      label: t("{count, plural, one {finding} other {findings}}", "a count on the Overview", {
         count: findings,
       }),
       tone: !checked ? "muted" : findings > 0 ? "warning" : "default",
@@ -302,7 +302,7 @@ function MapCounts({
       onClick: to({ kind: "checks" }),
     },
   ];
-  return <StatRow data-slot="map-counts" items={items} />;
+  return <StatRow data-slot="overview-counts" items={items} />;
 }
 
 /** One item awaiting a decision: its kind, the rule, its evidence, and Decide. */
@@ -328,11 +328,11 @@ function SuggestionRow({
   // The row is the control: a person decides an item by opening it, so a
   // Decide button on every row repeats what the header's button already says.
   return (
-    <li data-slot="map-suggestion" data-id={row.item.id} data-group={row.group}>
+    <li data-slot="overview-suggestion" data-id={row.item.id} data-group={row.group}>
       {onDecide ? (
         <button
           type="button"
-          data-slot="map-suggestion-decide"
+          data-slot="overview-suggestion-decide"
           onClick={() => onDecide(decideRowKey(row))}
           className="flex min-h-11 w-full items-center gap-3 rounded-md py-1.5 text-left hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         >
@@ -352,14 +352,14 @@ function EvidenceMeta({ quote, blocks, files }: { quote?: string; blocks: number
   const facts: string[] = [];
   if (blocks > 0) {
     facts.push(
-      t("{count, plural, one {# block} other {# blocks}}", "evidence on a Map row", {
+      t("{count, plural, one {# block} other {# blocks}}", "evidence on an Overview row", {
         count: blocks,
       }),
     );
   }
   if (files > 0) {
     facts.push(
-      t("{count, plural, one {# file} other {# files}}", "evidence on a Map row", {
+      t("{count, plural, one {# file} other {# files}}", "evidence on an Overview row", {
         count: files,
       }),
     );
@@ -367,7 +367,7 @@ function EvidenceMeta({ quote, blocks, files }: { quote?: string; blocks: number
   return (
     <div className="flex min-w-0 items-baseline gap-1 text-[11px] text-muted-foreground">
       {quote && (
-        <q data-slot="map-suggestion-quote" className="min-w-0 truncate">
+        <q data-slot="overview-suggestion-quote" className="min-w-0 truncate">
           {quote}
         </q>
       )}
@@ -382,7 +382,7 @@ function EvidenceMeta({ quote, blocks, files }: { quote?: string; blocks: number
 }
 
 /** One content file: its name, its folder, its blocks and findings; the row opens it. */
-function FileRow({ row, onOpen }: { row: MapFileRow; onOpen?: () => void }) {
+function FileRow({ row, onOpen }: { row: OverviewFileRow; onOpen?: () => void }) {
   const slash = row.relative.lastIndexOf("/");
   const name = slash >= 0 ? row.relative.slice(slash + 1) : row.relative;
   const folder = slash >= 0 ? row.relative.slice(0, slash) : "";
@@ -403,16 +403,16 @@ function FileRow({ row, onOpen }: { row: MapFileRow; onOpen?: () => void }) {
           </span>
         )}
         <span className="shrink-0 tabular-nums">
-          {t("{count, plural, one {# block} other {# blocks}}", "a file's blocks on the Map", {
+          {t("{count, plural, one {# block} other {# blocks}}", "a file's blocks on the Overview", {
             count: row.blocks,
           })}
         </span>
         {row.findings > 0 && (
-          <span data-slot="map-file-findings" className="shrink-0 tabular-nums">
+          <span data-slot="overview-file-findings" className="shrink-0 tabular-nums">
             {" · "}
             {t(
               "{count, plural, one {# finding} other {# findings}}",
-              "a file's findings on the Map",
+              "a file's findings on the Overview",
               { count: row.findings },
             )}
           </span>
@@ -421,11 +421,11 @@ function FileRow({ row, onOpen }: { row: MapFileRow; onOpen?: () => void }) {
     </div>
   );
   return (
-    <li data-slot="map-file" data-path={row.relative}>
+    <li data-slot="overview-file" data-path={row.relative}>
       {onOpen ? (
         <button
           type="button"
-          data-slot="map-file-open"
+          data-slot="overview-file-open"
           onClick={onOpen}
           className="flex min-h-11 w-full items-center gap-3 rounded-md py-1.5 text-left hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         >

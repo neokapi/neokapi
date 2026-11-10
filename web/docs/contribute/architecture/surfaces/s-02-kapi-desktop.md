@@ -274,10 +274,10 @@ A project waiting to be set up, an empty folder or one matching a preset,
 opens on the Overview too, and its empty files list leads to the `setup`
 route, where the setup and the preset are offered. The Overview is an overview
 in the page patterns guide's sense. Its header, counts, suggestions and files
-are `@neokapi/project-screens`' `MapView`, which leaves a slot under the
+are `@neokapi/project-screens`' `OverviewView`, which leaves a slot under the
 counts: the desktop draws the plugin and sample notices there and, on a
 project with a target language, the convergence hero. The page renders from one bound call,
-`MapSummary`, which answers from what the app already holds and reads no file
+`OverviewSummary`, which answers from what the app already holds and reads no file
 the store sync has not read:
 
 | Region | What it shows | Read from |

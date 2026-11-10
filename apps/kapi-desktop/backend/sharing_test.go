@@ -249,7 +249,7 @@ func TestShareView_ABrokenPlaceStandsOnThisMac(t *testing.T) {
 }
 
 // TestShareView_KapiMartCountsTheMapsRules: the team rung's rule count is the
-// number the Map shows for the same project.
+// number the Overview shows for the same project.
 func TestShareView_KapiMartCountsTheMapsRules(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	t.Setenv("KAPI_DATA_DIR", t.TempDir())
@@ -263,7 +263,7 @@ func TestShareView_KapiMartCountsTheMapsRules(t *testing.T) {
 	_, err = app.SyncProjectStore(tab.ID)
 	require.NoError(t, err)
 
-	summary, err := app.MapSummary(tab.ID)
+	summary, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	view, err := app.ShareView(tab.ID)
 	require.NoError(t, err)

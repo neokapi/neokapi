@@ -24,7 +24,7 @@ import { BOWRAIN_SIGNED_IN_VIEW, BOWRAIN_VIEW, LOCAL_VIEW } from "../stories/fix
 /** The Fernwell fixtures through the preview's four reads. */
 function fernwellPort(): ProjectScreensPort {
   return {
-    mapSummary: vi.fn(async () => MAP_PENDING),
+    overviewSummary: vi.fn(async () => MAP_PENDING),
     readerFile: vi.fn(async () => READER_WITH_FIXES),
     decideView: vi.fn(async () => DECIDE_VIEW),
     keptRules: vi.fn(async () => KEPT_RULES),
@@ -50,10 +50,10 @@ function expectNoAction(sheet: HTMLElement) {
 }
 
 describe("Bowrain preview", () => {
-  it("opens on the Map, titled with the project, with no action", async () => {
+  it("opens on the Overview, titled with the project, with no action", async () => {
     const { sheet } = await openPreview();
     expect(within(sheet).getByText("As this Mac shows it")).toBeInTheDocument();
-    expect(within(sheet).getByRole("tab", { name: "Map" })).toHaveAttribute(
+    expect(within(sheet).getByRole("tab", { name: "Overview" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -61,10 +61,12 @@ describe("Bowrain preview", () => {
     expectNoAction(sheet);
   });
 
-  it("opens a file in the Reader inside the sheet, and Back returns to the Map", async () => {
+  it("opens a file in the Reader inside the sheet, and Back returns to the Overview", async () => {
     const { sheet, port } = await openPreview();
     await within(sheet).findByRole("heading", { name: "Fernwell" });
-    const open = Array.from(sheet.querySelectorAll<HTMLElement>('[data-slot="map-file-open"]'));
+    const open = Array.from(
+      sheet.querySelectorAll<HTMLElement>('[data-slot="overview-file-open"]'),
+    );
     await userEvent.click(open[0]);
     await within(sheet).findByRole("heading", { name: READER_WITH_FIXES.path });
     expect(port.readerFile).toHaveBeenCalled();
@@ -89,7 +91,7 @@ describe("Bowrain preview", () => {
     expectNoAction(sheet);
   });
 
-  it("opens Rules from the Map's Decide", async () => {
+  it("opens Rules from the Overview's Decide", async () => {
     const { sheet } = await openPreview();
     await userEvent.click(
       await within(sheet).findByRole("button", { name: `Decide ${MAP_PENDING.awaiting}` }),
@@ -110,17 +112,17 @@ describe("Bowrain preview", () => {
 
 describe("the local preview port", () => {
   it("reads through the tab's bindings and carries no action", async () => {
-    const mapSummary = vi.spyOn(api, "mapSummary").mockResolvedValue(MAP_PENDING);
+    const overviewSummary = vi.spyOn(api, "overviewSummary").mockResolvedValue(MAP_PENDING);
     const keptRules = vi.spyOn(api, "keptRules").mockResolvedValue(KEPT_RULES);
     const port = localPreviewPort("t9");
-    await expect(port.mapSummary()).resolves.toBe(MAP_PENDING);
+    await expect(port.overviewSummary()).resolves.toBe(MAP_PENDING);
     await expect(port.keptRules?.()).resolves.toBe(KEPT_RULES);
-    expect(mapSummary).toHaveBeenCalledWith("t9");
+    expect(overviewSummary).toHaveBeenCalledWith("t9");
     expect(keptRules).toHaveBeenCalledWith("t9");
     expect(Object.keys(port).sort()).toEqual([
       "decideView",
       "keptRules",
-      "mapSummary",
+      "overviewSummary",
       "readerFile",
     ]);
     vi.restoreAllMocks();
@@ -140,8 +142,8 @@ describe("the local preview port", () => {
     expect(previewSource(null)).toBe("local");
   });
 
-  it("opens the Map, the Reader and Rules, and nothing else", () => {
-    expect(previewOpens({ kind: "map" })).toBe(true);
+  it("opens the Overview, the Reader and Rules, and nothing else", () => {
+    expect(previewOpens({ kind: "overview" })).toBe(true);
     expect(previewOpens({ kind: "reader", path: "a.md" })).toBe(true);
     expect(previewOpens({ kind: "rules" })).toBe(true);
     expect(previewOpens({ kind: "kept" })).toBe(true);
@@ -155,8 +157,8 @@ describe("the local preview port", () => {
 /** The server's answers to the four reads, the Fernwell fixtures. */
 function serverAnswers(part: BowrainPreviewPart): BowrainPreviewAnswer {
   switch (part) {
-    case "map":
-      return { map: MAP_PENDING };
+    case "overview":
+      return { overview: MAP_PENDING };
     case "reader":
       return { reader: READER_WITH_FIXES };
     case "decide":
@@ -167,12 +169,12 @@ function serverAnswers(part: BowrainPreviewPart): BowrainPreviewAnswer {
 }
 
 describe("the remote preview port", () => {
-  it("reads through BowrainPreview, opening a file by the item name the Map carries", async () => {
+  it("reads through BowrainPreview, opening a file by the item name the Overview carries", async () => {
     const preview = vi
       .spyOn(api, "bowrainPreview")
       .mockImplementation(async (_tab, part) => serverAnswers(part));
     const port = remotePreviewPort("t9", "Mira Holt");
-    await expect(port.mapSummary()).resolves.toBe(MAP_PENDING);
+    await expect(port.overviewSummary()).resolves.toBe(MAP_PENDING);
     await expect(port.readerFile("docs/billing.md")).resolves.toBe(READER_WITH_FIXES);
     expect(preview).toHaveBeenCalledWith("t9", "reader", "/work/fernwell/docs/billing.md");
     await expect(port.readerFile("docs/other.md")).resolves.toBe(READER_WITH_FIXES);
@@ -183,7 +185,7 @@ describe("the remote preview port", () => {
       "actorName",
       "decideView",
       "keptRules",
-      "mapSummary",
+      "overviewSummary",
       "readerFile",
     ]);
     vi.restoreAllMocks();
@@ -198,7 +200,7 @@ describe("the remote preview port", () => {
     expect(remotePreviewPort("t9").actorName?.({ kind: "person" })).toBeUndefined();
   });
 
-  it("reads the Map first for a file opened before any Map read returned", async () => {
+  it("reads the Overview first for a file opened before any Overview read returned", async () => {
     const preview = vi
       .spyOn(api, "bowrainPreview")
       .mockImplementation(async (_tab, part) => serverAnswers(part));
@@ -206,7 +208,7 @@ describe("the remote preview port", () => {
       READER_WITH_FIXES,
     );
     expect(preview.mock.calls).toEqual([
-      ["t9", "map", ""],
+      ["t9", "overview", ""],
       ["t9", "reader", "/work/fernwell/docs/billing.md"],
     ]);
     vi.restoreAllMocks();
@@ -216,7 +218,7 @@ describe("the remote preview port", () => {
     vi.spyOn(api, "bowrainPreview").mockResolvedValue({
       refusal: { status: 403, message: "insufficient project permissions", action: "open" },
     });
-    const read = remotePreviewPort("t9").mapSummary();
+    const read = remotePreviewPort("t9").overviewSummary();
     await expect(read).rejects.toBeInstanceOf(PreviewRefusalError);
     await expect(read).rejects.toMatchObject({
       refusal: { status: 403, message: "insufficient project permissions", action: "open" },
@@ -237,11 +239,11 @@ describe("the connected preview", () => {
     const preview = vi
       .spyOn(api, "bowrainPreview")
       .mockImplementation(async (_tab, part) => serverAnswers(part));
-    const local = vi.spyOn(api, "mapSummary");
+    const local = vi.spyOn(api, "overviewSummary");
     const sheet = await openConnected();
     expect(within(sheet).getByText("As Bowrain shows it")).toBeInTheDocument();
     await within(sheet).findByRole("heading", { name: "Fernwell" });
-    expect(preview).toHaveBeenCalledWith("t1", "map", "");
+    expect(preview).toHaveBeenCalledWith("t1", "overview", "");
     expect(local).not.toHaveBeenCalled();
     await userEvent.click(within(sheet).getByRole("tab", { name: "Rules" }));
     const kept = await within(sheet).findByRole("region", { name: "Kept by" });
@@ -276,7 +278,7 @@ describe("the connected preview", () => {
       "href",
       "https://app.bowrain.cloud/acme/help",
     );
-    expect(within(sheet).queryByRole("tab", { name: "Map" })).toBeNull();
+    expect(within(sheet).queryByRole("tab", { name: "Overview" })).toBeNull();
     vi.restoreAllMocks();
   });
 
@@ -306,7 +308,7 @@ describe("the connected preview", () => {
     vi.restoreAllMocks();
   });
 
-  it("draws a Reader refusal in place of the file, with Back to the Map", async () => {
+  it("draws a Reader refusal in place of the file, with Back to the Overview", async () => {
     vi.spyOn(api, "bowrainPreview").mockImplementation(async (_tab, part) =>
       part === "reader"
         ? { refusal: { status: 404, message: "no such item", action: "open" } }
@@ -315,11 +317,11 @@ describe("the connected preview", () => {
     const sheet = await openConnected();
     await within(sheet).findByRole("heading", { name: "Fernwell" });
     await userEvent.click(
-      Array.from(sheet.querySelectorAll<HTMLElement>('[data-slot="map-file-open"]'))[0],
+      Array.from(sheet.querySelectorAll<HTMLElement>('[data-slot="overview-file-open"]'))[0],
     );
     const body = await within(sheet).findByRole("alert");
     expect(body).toHaveTextContent("no such item");
-    expect(within(sheet).getByRole("tab", { name: "Map" })).toBeInTheDocument();
+    expect(within(sheet).getByRole("tab", { name: "Overview" })).toBeInTheDocument();
     await userEvent.click(within(body).getByRole("button", { name: /Back/ }));
     await within(sheet).findByRole("heading", { name: "Fernwell" });
     expect(within(sheet).queryByRole("alert")).toBeNull();

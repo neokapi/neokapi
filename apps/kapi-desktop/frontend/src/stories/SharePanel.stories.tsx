@@ -53,7 +53,7 @@ const meta: Meta<typeof SharePanel> = {
     onSetUp: fn(),
     // Preview reads the Fernwell fixtures, as the tab's own bindings would.
     previewPort: {
-      mapSummary: async () => MAP_PENDING,
+      overviewSummary: async () => MAP_PENDING,
       readerFile: async () => READER_WITH_FIXES,
       decideView: async () => DECIDE_VIEW,
       keptRules: async () => KEPT_RULES,

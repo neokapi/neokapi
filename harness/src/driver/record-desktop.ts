@@ -1022,10 +1022,10 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     await cursorTo('[data-slot="open-screen"] h1', 700);
     await page.waitForTimeout(500);
     await dropFolder(page, NEW_PROJECT_DIR);
-    await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
+    await page.waitForSelector('[data-slot="overview"]', { timeout: 60_000 });
     await page.waitForTimeout(900);
     // The Overview of a new project: its first steps.
-    await cursorTo('[data-slot="map"] h1, [data-slot="map"] h2', 700);
+    await cursorTo('[data-slot="overview"] h1, [data-slot="overview"] h2', 700);
     await page.waitForTimeout(1600);
   });
   // A target language, added and saved. MultiLocaleSelect adds on pick with no
@@ -1209,7 +1209,7 @@ async function openSample(page: Page, testid: string, readyLabel: string): Promi
   await page.waitForSelector(ready, { timeout: 60_000 });
   // A new project tab opens on its Overview, where the branch above lands too,
   // so every caller starts from the same place.
-  await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
+  await page.waitForSelector('[data-slot="overview"]', { timeout: 60_000 });
   await page.waitForTimeout(1200);
 }
 
@@ -1562,8 +1562,8 @@ async function freshContextSample(): Promise<void> {
 async function contextWalk(c: WalkCtx): Promise<void> {
   const { page, beatEls, beatSpan, cursorTo, cue } = c;
   // The Overview's header, counts and the list of what waits for a decision.
-  const map = ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'];
-  const waiting = '[data-slot="map-suggestions"] [data-slot="map-suggestion"]';
+  const map = ['[data-slot="overview-decide"]', '[data-slot="overview-counts"]', '[data-slot="overview-suggestions"]'];
+  const waiting = '[data-slot="overview-suggestions"] [data-slot="overview-suggestion"]';
   const suggestion = (text: string) =>
     page.locator('[data-slot="decide-item"]').filter({ hasText: text }).first();
   // The question about the selected row, and the line that says what keeping
@@ -1604,13 +1604,13 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // Try with KapiMart scaffolds the sample with its two sessions and opens it
   // on the Overview, whose list holds what the assistants suggested and nobody has
   // decided, the disagreement first. The Decide button counts them.
-  await beatEls("map", map, async () => {
+  await beatEls("overview", map, async () => {
     await humanClick(page, page.getByTestId("sample-kapimart"));
     await page.waitForSelector(waiting, { timeout: 60_000 });
     await cue("row", 3.6);
     await restOn(page.locator(waiting).first());
     await cue("decide", 9.4);
-    await cursorTo('[data-slot="map-decide"]', 700);
+    await cursorTo('[data-slot="overview-decide"]', 700);
     await page.waitForTimeout(1200);
   });
   await settle();
@@ -1618,7 +1618,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
   // Decide opens on the disagreement, selected: one question, its two sides
   // as the options.
   await beatEls("decide", ['[data-slot="list-detail-list"]', '[data-slot="decide-question"]'], async () => {
-    await humanClick(page, page.locator('[data-slot="map-decide"]'));
+    await humanClick(page, page.locator('[data-slot="overview-decide"]'));
     await page.waitForSelector('[data-slot="decide-item"][data-kind="disagreement"]', { timeout: 60_000 });
     await page.waitForTimeout(1500);
     await cursorTo('[data-slot="decide-item"][data-kind="disagreement"]');
@@ -2422,7 +2422,7 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
   // The work waiting for review, where it waits: the project's own delivery card links
   // straight into the review session.
   await beatEls("parked", ['[data-testid="delivery-panel"]', '[data-testid="review-session"]'], async () => {
-    await humanClick(page, page.getByTestId("subnav-dashboard"));
+    await humanClick(page, page.getByTestId("subnav-languages"));
     await page.waitForTimeout(1600);
     const toReview = page.getByTestId("delivery-open-review");
     if (await toReview.count()) {
@@ -2552,7 +2552,7 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
 }
 
 /**
- * The project Bowrain's Map, Reader and Rules read: one whose context holds
+ * The project Bowrain's Overview, Reader and Rules read: one whose context holds
  * suggestions nobody has decided, synced from a checkout through the bowrain
  * context backend (`context: {backend: bowrain}` and `kapi context sync`),
  * with at least one file a check reports a fixable finding in. seed-bowrain.ts
@@ -2561,7 +2561,7 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
 const BOWRAIN_SCREENS_PROJECT_ID = process.env.BOWRAIN_SCREENS_PROJECT_ID || "";
 
 /**
- * Bowrain web: a project opens on its Map, a whole-project check runs on the
+ * Bowrain web: a project opens on its Overview, a whole-project check runs on the
  * server, a fix from the Reader files a source proposal, and Rules holds the
  * team queue, an assignment, a keep, and Kept by.
  *
@@ -2578,55 +2578,55 @@ async function bowrainProjectScreensWalk(c: WalkCtx): Promise<void> {
       "bowrain-web-project-screens: set BOWRAIN_SCREENS_PROJECT_ID to a project whose context holds undecided suggestions (sync it with context: {backend: bowrain} and kapi context sync)",
     );
   }
-  const map = ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'];
-  const waiting = '[data-slot="map-suggestions"] [data-slot="map-suggestion"]';
+  const map = ['[data-slot="overview-decide"]', '[data-slot="overview-counts"]', '[data-slot="overview-suggestions"]'];
+  const waiting = '[data-slot="overview-suggestions"] [data-slot="overview-suggestion"]';
   const restOn = async (item: Locator) => moveTo(page, ...(await centreOf(item)));
   const settle = () => page.waitForTimeout(1000);
 
-  // The projects list opens a project on its Map.
+  // The projects list opens a project on its Overview.
   await page.waitForSelector(`[data-testid="project-card-${BOWRAIN_SCREENS_PROJECT_ID}"]`, { timeout: 30_000 });
   await page.waitForTimeout(800);
-  await beatEls("map", map, async () => {
+  await beatEls("overview", map, async () => {
     await humanClick(page, page.getByTestId(`project-card-${BOWRAIN_SCREENS_PROJECT_ID}`));
     await page.waitForSelector(waiting, { timeout: 30_000 });
     await cue("row", 4.0);
     await restOn(page.locator(waiting).first());
     await cue("decide", 9.0);
-    await cursorTo('[data-slot="map-decide"]', 700);
+    await cursorTo('[data-slot="overview-decide"]', 700);
     await page.waitForTimeout(1000);
   });
   await settle();
 
   // Run on everything starts the check as a job on the server; the button
-  // reads Checking until the job completes and the Map reads again.
-  const run = page.locator('[data-slot="map-run"]');
-  await beatEls("run", ['[data-slot="map-run"]', '[data-slot="map-counts"]'], async () => {
+  // reads Checking until the job completes and the Overview reads again.
+  const run = page.locator('[data-slot="overview-run"]');
+  await beatEls("run", ['[data-slot="overview-run"]', '[data-slot="overview-counts"]'], async () => {
     await cue("run", 0.6);
     await humanClick(page, run);
     await page.waitForFunction(
       () => {
-        const b = document.querySelector('[data-slot="map-run"]');
+        const b = document.querySelector('[data-slot="overview-run"]');
         return !!b && !b.textContent?.includes("Checking");
       },
       undefined,
       { timeout: 120_000 },
     );
     await cue("findings", 7.0);
-    await cursorTo('[data-slot="map-counts"]', 700);
+    await cursorTo('[data-slot="overview-counts"]', 700);
     await page.waitForTimeout(1200);
   });
   await settle();
 
   // A file with findings opens in the Reader.
   const withFindings = page
-    .locator('[data-slot="map-file"]')
-    .filter({ has: page.locator('[data-slot="map-file-findings"]') })
+    .locator('[data-slot="overview-file"]')
+    .filter({ has: page.locator('[data-slot="overview-file-findings"]') })
     .first();
   await withFindings.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   const fixable = page.locator('[data-slot="reader-finding"]').filter({ has: page.locator('[data-slot="reader-fix"]') }).first();
   await beatSpan("reader", async (mark) => {
-    await humanClick(page, withFindings.locator('[data-slot="map-file-open"]'));
+    await humanClick(page, withFindings.locator('[data-slot="overview-file-open"]'));
     await page.waitForSelector('[data-slot="reader-blocks"]', { timeout: 30_000 });
     await fixable.waitFor({ state: "visible", timeout: 20_000 });
     await fixable.scrollIntoViewIfNeeded();

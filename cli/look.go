@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewLookCmd creates `kapi look`: the project as a person sees it (the Map),
+// NewLookCmd creates `kapi look`: the project as a person sees it (the Overview),
 // or one file with its findings drawn under the words they are about and the
 // rules that hold there (the Reader). It is the person's spelling of what
 // `kapi context <path>` answers for an assistant. The data assembly is

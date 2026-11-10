@@ -85,7 +85,7 @@ func TestHelpTiers_FreshProjectStatus(t *testing.T) {
 }
 
 // TestLook_RealRoot drives `kapi look` and bare `kapi` through the real root:
-// the Map names the file and its finding, bare `kapi` is the Map with the
+// the Overview names the file and its finding, bare `kapi` is the Overview with the
 // line naming where the commands are, and the Reader draws carets under the
 // finding with a range.
 func TestLook_RealRoot(t *testing.T) {

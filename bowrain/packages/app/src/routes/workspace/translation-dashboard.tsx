@@ -210,7 +210,7 @@ export function TranslationDashboardRoute() {
     stream: activeStream,
   };
   // A scope change is a search-param change on the overview's own address.
-  const dashboardRoute = "/$workspace/p/$projectId/s/$stream/overview" as const;
+  const dashboardRoute = "/$workspace/p/$projectId/s/$stream/languages" as const;
 
   const openScope = (next: DashboardSearch) =>
     void navigate({

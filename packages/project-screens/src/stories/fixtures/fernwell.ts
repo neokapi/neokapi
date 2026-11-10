@@ -1,5 +1,5 @@
 // The Fernwell sample's suggestions and its one disagreement, as the digest
-// holds them. The Map's rows and the desktop's digest fixtures share them, so
+// holds them. The Overview's rows and the desktop's digest fixtures share them, so
 // a row's Decide lands on the same item everywhere.
 
 import type { DigestConflict, DigestItem } from "../../types";

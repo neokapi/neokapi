@@ -52,7 +52,7 @@ func decisionIDs(decisions []screens.RuleDecisionDTO) []string {
 }
 
 // TestRulesDecideView_KapiMart: Decide asks about the suggestions `kapi
-// rules` asks about, the ones the Map lists, with the forms of a name counted
+// rules` asks about, the ones the Overview lists, with the forms of a name counted
 // over the sample's blocks and what keeping each does stated.
 func TestRulesDecideView_KapiMart(t *testing.T) {
 	app, recipe, tabID := openKapiMart(t)
@@ -77,8 +77,8 @@ func TestRulesDecideView_KapiMart(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{quickcast.ID, business.ID}, decisionIDs(view.Decisions))
 
-	// Every suggestion the Map lists opens a question here.
-	summary, err := app.MapSummary(tabID)
+	// Every suggestion the Overview lists opens a question here.
+	summary, err := app.OverviewSummary(tabID)
 	require.NoError(t, err)
 	for _, row := range summary.Suggestions {
 		assert.Contains(t, decisionIDs(view.Decisions), row.Item.ID)

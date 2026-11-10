@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { ChecksPanel } from "../components/ChecksPanel";
-import { MapPage } from "../components/MapPage";
+import { OverviewPage } from "../components/OverviewPage";
 import { api } from "../hooks/useApi";
 import { MAP_PENDING } from "@neokapi/project-screens/fixtures";
 import type { CheckRunResult } from "../types/api";
@@ -13,7 +13,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** The run the Map counted: four findings over two files. */
+/** The run the Overview counted: four findings over two files. */
 const LAST_RUN: CheckRunResult = {
   pass: false,
   verdict: "failed",
@@ -36,13 +36,13 @@ const LAST_RUN: CheckRunResult = {
   ],
 };
 
-/** The Map, and the checks page its findings count leads to, as ViewSwitch routes them. */
+/** The Overview, and the checks page its findings count leads to, as ViewSwitch routes them. */
 function MapThenChecks() {
   const [view, setView] = useState("map");
   return view === "checks" ? (
     <ChecksPanel tabID="t1" />
   ) : (
-    <MapPage
+    <OverviewPage
       tabID="t1"
       projectName="Fernwell"
       summary={MAP_PENDING}
@@ -52,7 +52,7 @@ function MapThenChecks() {
   );
 }
 
-describe("the Map's findings count", () => {
+describe("the Overview's findings count", () => {
   it("opens the checks page on the findings it counted", async () => {
     vi.spyOn(api, "lastProjectChecks").mockResolvedValue(LAST_RUN);
     const run = vi.spyOn(api, "runChecks").mockResolvedValue(null);

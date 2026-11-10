@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorNotice, LoadingSpinner } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { DecideView, answerArgs } from "./DecideView";
-import { MapView, type MapViewProps } from "./MapView";
+import { OverviewView, type OverviewViewProps } from "./OverviewView";
 import { KeptRulesView } from "./KeptRulesView";
 import { ReaderView } from "./ReaderView";
 import type { ProjectScreensPort, ScreenNavigation } from "./port";
@@ -29,7 +29,7 @@ const OTHER_DEBOUNCE_MS = 250;
  */
 function usePortRead<T>(
   port: ProjectScreensPort,
-  what: "map" | "reader" | "decide",
+  what: "overview" | "reader" | "decide",
   read: () => Promise<T>,
   of = "",
 ) {
@@ -64,26 +64,26 @@ function Pending({ error, title }: { error: unknown; title: string }) {
   );
 }
 
-export interface MapScreenProps
+export interface OverviewScreenProps
   extends
     ScreenNavigation,
     Pick<
-      MapViewProps,
+      OverviewViewProps,
       "deeperLook" | "connectAI" | "suggestionsAction" | "setupPending" | "addFiles"
     > {
   port: ProjectScreensPort;
   projectName: string;
 }
 
-/** The Map, read through the port. */
-export function MapScreen({ port, projectName, ...rest }: MapScreenProps) {
-  const { data, error, reload } = usePortRead(port, "map", () => port.mapSummary());
+/** The Overview, read through the port. */
+export function OverviewScreen({ port, projectName, ...rest }: OverviewScreenProps) {
+  const { data, error, reload } = usePortRead(port, "overview", () => port.overviewSummary());
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<unknown>(null);
   if (!data) return <Pending error={error} title={t("The project could not be read")} />;
   const runChecks = port.runChecks?.bind(port);
   return (
-    <MapView
+    <OverviewView
       {...rest}
       projectName={projectName}
       summary={data}
@@ -176,7 +176,7 @@ export function ReaderScreen({ port, path, ...rest }: ReaderScreenProps) {
 
 export interface DecideScreenProps extends ScreenNavigation {
   port: ProjectScreensPort;
-  /** The Map row to open on (`suggested:<id>`, `conflict:<id>`). */
+  /** The Overview row to open on (`suggested:<id>`, `conflict:<id>`). */
   defaultSelected?: string;
   keyboard?: boolean;
   /** Open with the list narrowed to the questions assigned to the reader. */

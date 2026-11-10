@@ -8,7 +8,7 @@ import { AppHome } from "./AppHome";
 import { RunnerPage } from "./RunnerPage";
 import { FlowsPage } from "./FlowsPage";
 import { ChecksPanel } from "./ChecksPanel";
-import { MapPage } from "./MapPage";
+import { OverviewPage } from "./OverviewPage";
 import { ReaderPage } from "./ReaderPage";
 import { readerTargetOf, readerView } from "../lib/screenTargets";
 import {
@@ -185,7 +185,7 @@ export function ViewSwitch({
     },
     [navigate],
   );
-  // The Map's Decide opens the hub's Decide section. A suggestion's own Decide
+  // The Overview's Decide opens the hub's Decide section. A suggestion's own Decide
   // names its row in the view ("context:rules:<row key>"), so the row travels
   // with the route and a later visit from the rail opens on no row of its own.
   const handleDecide = useCallback(
@@ -197,7 +197,7 @@ export function ViewSwitch({
     [navigate],
   );
 
-  // The Reader opens on one file from the Map's Files rows and from a finding
+  // The Reader opens on one file from the Overview's Files rows and from a finding
   // on the Checks page, and its back button returns to the page it came from.
   const [readerBack, setReaderBack] = useState<string>("map");
   const handleOpenReader = useCallback(
@@ -410,7 +410,7 @@ export function ViewSwitch({
       case "content":
       case "languages":
         return (
-          <MapPage
+          <OverviewPage
             tabID={tabID}
             projectName={activeTab.info.name || history.project.name}
             onDecide={handleDecide}

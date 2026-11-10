@@ -52,7 +52,7 @@ func DigestConflictFrom(c rulesview.Conflict) DigestConflict {
 	return DigestConflict{Sides: DigestItemsFrom(c.Sides), ByEvidence: c.ByEvidence, Reason: c.Reason}
 }
 
-// MapSuggestions are the rows the Map lists as awaiting a decision, with
+// MapSuggestions are the rows the Overview lists as awaiting a decision, with
 // their counts.
 type MapSuggestions struct {
 	Rows      []MapSuggestionDTO
@@ -125,9 +125,9 @@ func EvidenceCounts(ev []contextop.Evidence) (blocks, files int) {
 	return blocks, files
 }
 
-// SortMapFiles orders the Map's file rows the most findings first, then by
+// SortOverviewFiles orders the Overview's file rows the most findings first, then by
 // path.
-func SortMapFiles(rows []MapFileDTO) {
+func SortOverviewFiles(rows []OverviewFileDTO) {
 	sort.SliceStable(rows, func(i, j int) bool {
 		if rows[i].Findings != rows[j].Findings {
 			return rows[i].Findings > rows[j].Findings

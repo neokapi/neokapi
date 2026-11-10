@@ -302,7 +302,7 @@ func TestOneLanguageProject_NamesNoLanguageWork(t *testing.T) {
 // TestFreshOneLanguageProject_StatusNamesTheNextStep: a project `kapi init`
 // just scaffolded has no content and no target language. Its status is one
 // source line naming the command that adds content, never an empty report.
-// `kapi look` prints that line in place of the Map's counts, and bare `kapi`
+// `kapi look` prints that line in place of the Overview's counts, and bare `kapi`
 // prints it above its hint. None names language work.
 func TestFreshOneLanguageProject_StatusNamesTheNextStep(t *testing.T) {
 	isolateHelp(t)

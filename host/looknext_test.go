@@ -8,9 +8,9 @@ import (
 )
 
 func TestLookNext(t *testing.T) {
-	steps := func(s screens.MapStepState) []screens.MapStepDTO {
+	steps := func(s screens.OverviewStepState) []screens.OverviewStepDTO {
 		s.Checked = true
-		return screens.MapSteps(s)
+		return screens.OverviewSteps(s)
 	}
 	tests := []struct {
 		name string
@@ -25,25 +25,25 @@ func TestLookNext(t *testing.T) {
 		},
 		{
 			name: "suggestions waiting",
-			m:    LookProject{Suggests: 2, Steps: steps(screens.MapStepState{Awaiting: 2})},
+			m:    LookProject{Suggests: 2, Steps: steps(screens.OverviewStepState{Awaiting: 2})},
 			next: "kapi rules",
 			line: "Decide with `kapi rules`. See a file with `kapi look <path>`.",
 		},
 		{
 			name: "findings that fail",
-			m:    LookProject{Failing: 3, Steps: steps(screens.MapStepState{Failing: 3})},
+			m:    LookProject{Failing: 3, Steps: steps(screens.OverviewStepState{Failing: 3})},
 			next: "kapi fix",
 			line: "Fix what fails with `kapi fix`. See a file with `kapi look <path>`.",
 		},
 		{
 			name: "no assistant connected",
-			m:    LookProject{Steps: steps(screens.MapStepState{Shared: true})},
+			m:    LookProject{Steps: steps(screens.OverviewStepState{Shared: true})},
 			next: "kapi connect",
 			line: "Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.",
 		},
 		{
 			name: "rules kept on this machine",
-			m:    LookProject{Steps: steps(screens.MapStepState{Connected: true})},
+			m:    LookProject{Steps: steps(screens.OverviewStepState{Connected: true})},
 			next: "kapi share",
 			line: "Share the rules with `kapi share`. See a file with `kapi look <path>`.",
 		},

@@ -235,9 +235,9 @@ func (a *App) RestoreStartHere() error {
 	return a.settings.persist()
 }
 
-// DismissMapSteps hides the first steps on the Map of a tab's project, for
+// DismissOverviewSteps hides the first steps on the Overview of a tab's project, for
 // that project on this machine.
-func (a *App) DismissMapSteps(tabID string) error {
+func (a *App) DismissOverviewSteps(tabID string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return fmt.Errorf("project tab %q not found", tabID)
@@ -255,9 +255,9 @@ func (a *App) DismissMapSteps(tabID string) error {
 	return a.settings.persist()
 }
 
-// mapStepsDismissed reports whether the person dismissed the first steps of
+// overviewStepsDismissed reports whether the person dismissed the first steps of
 // the project a workspace key names.
-func (a *App) mapStepsDismissed(key string) bool {
+func (a *App) overviewStepsDismissed(key string) bool {
 	a.settings.mu.Lock()
 	defer a.settings.mu.Unlock()
 	return slices.Contains(a.settings.settings.StepsDismissed, key)

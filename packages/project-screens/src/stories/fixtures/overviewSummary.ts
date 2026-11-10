@@ -1,9 +1,9 @@
-// The Map of Fernwell, a studio-software project, in its three states: no
+// The Overview of Fernwell, a studio-software project, in its three states: no
 // content files yet, suggestions waiting for a person, and every suggestion
 // kept. The suggestion rows are the Fernwell digest's (fernwell.ts), so a
 // row's Decide lands on the same item in the Decide view.
 
-import type { MapFileRow, MapSuggestionRow, MapSummary } from "../../types";
+import type { OverviewFileRow, MapSuggestionRow, OverviewSummary } from "../../types";
 import { FERNWELL_PROJECT, FERNWELL_SUGGESTED, LOGIN_CONFLICT } from "./fernwell";
 
 const minute = 60_000;
@@ -11,7 +11,7 @@ const ago = (minutes: number) => new Date(Date.now() - minutes * minute).toISOSt
 
 const conflict = LOGIN_CONFLICT;
 
-/** The digest's disagreement, then its suggestions, as MapSummary lists them. */
+/** The digest's disagreement, then its suggestions, as OverviewSummary lists them. */
 const SUGGESTIONS: MapSuggestionRow[] = [
   { group: "conflict", item: conflict.sides[0], conflict, blocks: 2, files: 2 },
   ...FERNWELL_SUGGESTED.flatMap((theme, ti) =>
@@ -24,7 +24,7 @@ const SUGGESTIONS: MapSuggestionRow[] = [
   ),
 ];
 
-const FILES: MapFileRow[] = [
+const FILES: OverviewFileRow[] = [
   {
     path: "/work/fernwell/docs/billing.md",
     relative: "docs/billing.md",
@@ -67,7 +67,7 @@ const base = {
 };
 
 /** A project whose collections match no file yet. */
-export const MAP_EMPTY: MapSummary = {
+export const MAP_EMPTY: OverviewSummary = {
   ...base,
   files: 0,
   blocks: 0,
@@ -83,7 +83,7 @@ export const MAP_EMPTY: MapSummary = {
 };
 
 /** An assistant suggested rules, and one disagreement waits for a person. */
-export const MAP_PENDING: MapSummary = {
+export const MAP_PENDING: OverviewSummary = {
   ...base,
   files: FILES.length,
   blocks: FILES.reduce((n, f) => n + f.blocks, 0),
@@ -98,7 +98,7 @@ export const MAP_PENDING: MapSummary = {
 };
 
 /** Every suggestion kept: the rules hold, and the files pass. */
-export const MAP_ALL_KEPT: MapSummary = {
+export const MAP_ALL_KEPT: OverviewSummary = {
   ...base,
   files: FILES.length,
   blocks: FILES.reduce((n, f) => n + f.blocks, 0),
@@ -115,7 +115,7 @@ export const MAP_ALL_KEPT: MapSummary = {
 };
 
 /** Suggestions and no disagreement: Decide carries the one number. */
-export const MAP_SUGGESTED_ONLY: MapSummary = {
+export const MAP_SUGGESTED_ONLY: OverviewSummary = {
   ...MAP_PENDING,
   suggested: SUGGESTIONS.length - 1,
   conflicts: 0,
@@ -124,13 +124,13 @@ export const MAP_SUGGESTED_ONLY: MapSummary = {
 };
 
 /** One file no reader opens, so kapi read fewer files than the project has. */
-export const MAP_PARTLY_READ: MapSummary = {
+export const MAP_PARTLY_READ: OverviewSummary = {
   ...MAP_ALL_KEPT,
   read_files: FILES.length - 1,
 };
 
 /** A source-only project, never checked in this session. */
-export const MAP_SOURCE_ONLY_UNCHECKED: MapSummary = {
+export const MAP_SOURCE_ONLY_UNCHECKED: OverviewSummary = {
   ...MAP_ALL_KEPT,
   target_languages: [],
   findings: null,

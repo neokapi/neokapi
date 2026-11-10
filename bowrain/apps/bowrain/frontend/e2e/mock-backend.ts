@@ -134,14 +134,14 @@ function wailsCallIds(): Record<string, number> {
 
 /** The project screens' server responses, as the mock serves them. */
 interface ScreenFixtures {
-  mapSummary: unknown;
+  overviewSummary: unknown;
   readerFile: unknown;
   rulesDecideView: unknown;
   keptRules: unknown;
 }
 
 /**
- * The JSON host/screens marshals for the Map, the Reader, Decide and the kept
+ * The JSON host/screens marshals for the Overview, the Reader, Decide and the kept
  * rules, pinned by its fixtures test and shared with the project screens'
  * package. The mock answers the server's routes with these, so a change to a
  * screen's shape reaches this suite through the same files.
@@ -157,7 +157,7 @@ function projectScreensFixtures(): ScreenFixtures {
       ),
     );
   return {
-    mapSummary: read("map-summary"),
+    overviewSummary: read("map-summary"),
     readerFile: read("reader-file"),
     rulesDecideView: read("rules-decide-view"),
     keptRules: read("kept-rules"),
@@ -1498,9 +1498,9 @@ export async function injectMockBackend(page: Page) {
           }),
         ],
 
-        // The project screens: the Map a project opens on, the Reader, Decide,
+        // The project screens: the Overview a project opens on, the Reader, Decide,
         // the kept rules, the project-wide check and the workspace's queue.
-        ["GET", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+$/, () => screens.mapSummary],
+        ["GET", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+$/, () => screens.overviewSummary],
         ["POST", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+\/check$/, () => ({ job_id: "job-check-1" })],
         [
           "GET",

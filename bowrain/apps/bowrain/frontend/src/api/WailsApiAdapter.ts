@@ -2055,8 +2055,8 @@ export class WailsApiAdapter implements ApiAdapter {
 
   // The project screens read a Bowrain server's stores; the desktop app draws
   // them from its own project instead.
-  async getMapSummary(): Promise<never> {
-    throw new Error("the Map is not available in the desktop app");
+  async getOverviewSummary(): Promise<never> {
+    throw new Error("the Overview is not available in the desktop app");
   }
 
   async getReaderFile(): Promise<never> {

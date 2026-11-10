@@ -27,7 +27,7 @@ import (
 
 // `kapi look`: the project, and one file, for a person.
 //
-// The Map (LookProject) counts the project's files, blocks, rules, findings and
+// The Overview (LookProject) counts the project's files, blocks, rules, findings and
 // waiting suggestions. The Reader (LookFile) draws one file's blocks with each
 // finding under the words it is about, and the rules that hold there.
 //
@@ -36,7 +36,7 @@ import (
 // here is one another command prints. The assembly is cobra-free, so the
 // desktop can draw the same Map.
 
-// LookProject is the Map: what a project holds and where it stands.
+// LookProject is the Overview: what a project holds and where it stands.
 type LookProject struct {
 	// Project is the project's name.
 	Project string `json:"project"`
@@ -67,7 +67,7 @@ type LookProject struct {
 	// Steps are the first project's steps with what each has left, as the
 	// desktop's Overview lists them. Empty for a project with no content read
 	// and for one that has taken the steps that stay done.
-	Steps []screens.MapStepDTO `json:"steps,omitempty"`
+	Steps []screens.OverviewStepDTO `json:"steps,omitempty"`
 	// Next is the command to run next: the first step not done, or
 	// `kapi check` once every step is.
 	Next string `json:"next"`
@@ -95,7 +95,7 @@ type LookSuggestion struct {
 	Evidence string `json:"evidence,omitempty"`
 }
 
-// LookLanguages is the one line of language standing the Map carries.
+// LookLanguages is the one line of language standing the Overview carries.
 type LookLanguages struct {
 	// Languages counts the source language and the target languages.
 	Languages int `json:"languages"`
@@ -103,14 +103,14 @@ type LookLanguages struct {
 	AwaitingReview int `json:"awaiting_review"`
 }
 
-// lookMapFiles caps the files the Map lists, and lookMapSuggestions the
+// lookOverviewFiles caps the files the Overview lists, and lookMapSuggestions the
 // suggestions. The counts above them are always whole.
 const (
-	lookMapFiles       = 20
+	lookOverviewFiles  = 20
 	lookMapSuggestions = 10
 )
 
-// LookProject assembles the Map for the project cmd resolves.
+// LookProject assembles the Overview for the project cmd resolves.
 func (a *App) LookProject(cmd Command) (*LookProject, error) {
 	a.InitRegistries()
 	ctx := CmdContext(cmd)
@@ -186,7 +186,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		if proj.DeclaresTargetLanguages() {
 			out.Languages = a.lookLanguages(ctx, proj, root, recipe)
 		}
-		state := screens.MapStepState{
+		state := screens.OverviewStepState{
 			Awaiting:  out.Suggests,
 			Checked:   true,
 			Failing:   out.Failing,
@@ -195,7 +195,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		if rung, rerr := RecipeRung(recipe); rerr == nil {
 			state.Shared = rung != ShareRungMachine
 		}
-		out.Steps = screens.MapSteps(state)
+		out.Steps = screens.OverviewSteps(state)
 	}
 
 	slices.SortStableFunc(out.Files, func(x, y LookFileSummary) int {
@@ -217,7 +217,7 @@ var lookStepCommands = map[string]string{
 	screens.StepShare:   "kapi share",
 }
 
-// lookNext is the Map's next command: adding content for a project with none
+// lookNext is the Overview's next command: adding content for a project with none
 // read, then the first step not done, then fixing what fails, and `kapi check`
 // when nothing is left.
 func lookNext(m *LookProject) string {
@@ -240,12 +240,12 @@ func lookNext(m *LookProject) string {
 }
 
 // lookFirstPass runs the suggestions pass (`kapi context suggest`) the first
-// time a project is looked at, so the Map of a new project counts what the
+// time a project is looked at, so the Overview of a new project counts what the
 // files already do. It runs over a checkout with no suggestPassStampPath
 // stamp, in a project whose context log holds no rule and no suggestion that
 // answers. A project whose log holds one is stamped instead, so a later look
-// reads the stamp alone. A pass that cannot run leaves the Map to count what
-// the log holds, and the Map prints nothing about it either way.
+// reads the stamp alone. A pass that cannot run leaves the Overview to count what
+// the log holds, and the Overview prints nothing about it either way.
 func (a *App) lookFirstPass(ctx context.Context, recipe string) {
 	ws, err := a.Workspace(ctx)
 	if err != nil || ws == nil || ws.Describe().ReadOnly {
@@ -276,7 +276,7 @@ func (a *App) lookFirstPass(ctx context.Context, recipe string) {
 	_, _ = s.suggestFromFiles(ctx, false)
 }
 
-// lookCommand is the command the Map and the Reader run the check and the
+// lookCommand is the command the Overview and the Reader run the check and the
 // context answer through: the project at recipe, its output discarded.
 func lookCommand(ctx context.Context, recipe string) *EnvCommand {
 	cmd := NewEnvCommand(ctx, "look")
@@ -358,7 +358,7 @@ func lookSuggestions(d ContextDigest) []LookSuggestion {
 	return out
 }
 
-// lookThemeKind is the mark a digest theme carries on the Map and in the
+// lookThemeKind is the mark a digest theme carries on the Overview and in the
 // Reader, the kinds the desktop's KindIcon draws.
 func lookThemeKind(theme string) string {
 	switch theme {
@@ -383,7 +383,7 @@ func capitalize(s string) string {
 	return strings.ToUpper(string(r)) + s[size:]
 }
 
-// lookSubjectText states a suggestion's subject as the Map's one line: the
+// lookSubjectText states a suggestion's subject as the Overview's one line: the
 // form to write and the forms to avoid, or the note.
 func lookSubjectText(s contextop.Subject, sentence string) string {
 	if rule, ok := s.Rule(); ok {
@@ -489,7 +489,7 @@ func (m *LookProject) FormatText(w io.Writer) error {
 
 	if len(m.Files) > 0 {
 		fmt.Fprintf(w, "\n%s\n", s.Title.Render("Files"))
-		shown := m.Files[:min(len(m.Files), lookMapFiles)]
+		shown := m.Files[:min(len(m.Files), lookOverviewFiles)]
 		pathW := 0
 		for _, f := range shown {
 			pathW = max(pathW, utf8.RuneCountInString(f.Path))
@@ -516,7 +516,7 @@ func (m *LookProject) FormatText(w io.Writer) error {
 	return nil
 }
 
-// NextLine is the Map's last line: the next step and how to see one file. A
+// NextLine is the Overview's last line: the next step and how to see one file. A
 // project with no content prints its source line in place of it, because that
 // line names the step.
 func (m *LookProject) NextLine() string {

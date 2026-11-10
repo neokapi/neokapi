@@ -17,7 +17,7 @@ const selectedId = () =>
 const key = (k: string) => fireEvent.keyDown(window, { key: k });
 
 describe("Decide wired to the backend", () => {
-  it("opens the file a suggestion was seen in, and the Map, through the tab", async () => {
+  it("opens the file a suggestion was seen in, and the Overview, through the tab", async () => {
     vi.spyOn(api, "rulesDecideView").mockResolvedValue(WORD_VIEW);
     vi.spyOn(api, "markProjectContextDigestSeen").mockResolvedValue("");
     const onOpenFile = vi.fn();

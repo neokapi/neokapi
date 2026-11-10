@@ -1,12 +1,12 @@
 // The port a host implements to draw the project screens: the three reads the
-// Map, the Reader and Decide render from, and the actions a person can take on
+// Overview, the Reader and Decide render from, and the actions a person can take on
 // them. Each action is optional. A screen given no action draws no control for
 // it, so a port with the reads alone is a read-only preview.
 
 import type {
   ContextActor,
   KeptRule,
-  MapSummary,
+  OverviewSummary,
   ReaderFile,
   ReaderFixFiled,
   RuleAnswer,
@@ -17,10 +17,10 @@ import type {
 
 /** A place a screen leads to. The host maps each to a view of its own. */
 export type ScreenTarget =
-  | { kind: "map" }
+  | { kind: "overview" }
   /** One content file in the Reader, at one block when one is named. */
   | { kind: "reader"; path: string; block?: string }
-  /** The questions Decide asks, on one Map row when one is named (`suggested:<id>`). */
+  /** The questions Decide asks, on one Overview row when one is named (`suggested:<id>`). */
   | { kind: "rules"; row?: string }
   /** The rules in force. */
   | { kind: "kept" }
@@ -50,7 +50,7 @@ export function opens(nav: ScreenNavigation, target: ScreenTarget): boolean {
  * port stable across renders (`useMemo`) rather than building it inline.
  */
 export interface ProjectScreensPort {
-  mapSummary(): Promise<MapSummary>;
+  overviewSummary(): Promise<OverviewSummary>;
   readerFile(path: string): Promise<ReaderFile>;
   decideView(): Promise<RulesDecideView>;
   /** The rules in force and who kept each. Absent, Kept by is not drawn. */
@@ -73,10 +73,10 @@ export interface ProjectScreensPort {
   fixFinding?(path: string, findingId: string): Promise<ReaderFile | ReaderFixFiled>;
   /** Apply every fix in a file, or file each as a proposal, and answer as fixFinding does. */
   fixFile?(path: string): Promise<ReaderFile | ReaderFixFiled>;
-  /** Run the checks over the whole project. Absent, the Map draws no check action. */
+  /** Run the checks over the whole project. Absent, the Overview draws no check action. */
   runChecks?(): Promise<void>;
   /** The name a person is shown by. Absent, or answering nothing, a person with no name is "you". */
   actorName?(actor: ContextActor): string | undefined;
   /** Call onChange when what a screen reads changes. Answers the function that stops it. */
-  subscribe?(onChange: (what: "map" | "reader" | "decide") => void): () => void;
+  subscribe?(onChange: (what: "overview" | "reader" | "decide") => void): () => void;
 }

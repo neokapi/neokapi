@@ -2,7 +2,7 @@
 // stories and tests of the pages that draw these views.
 
 export * from "./fernwell";
-export * from "./mapSummary";
+export * from "./overviewSummary";
 export * from "./readerFile";
 export * from "./rulesDecide";
 export * from "./keptRules";

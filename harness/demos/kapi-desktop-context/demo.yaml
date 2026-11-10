@@ -16,7 +16,7 @@ aspects:
 # The sample comes with two assistant sessions (claude-code, then codex). The
 # walk creates it on camera and decides on its suggestions.
 #
-# Cue words the walk waits for, by beat: map (row, decide), decide (codex,
+# Cue words the walk waits for, by beat: overview (row, decide), decide (codex,
 # claude-code), keep (places, k), word (check, k), choose (codex,
 # claude-code's, keep), assistant (for, basket).
 outro:
@@ -29,9 +29,9 @@ narration:
       Coding assistants such as Claude Code record suggested writing rules
       while they work in your project. You'll choose which ones become rules.
 
-  - id: map
+  - id: overview
     kind: desktop
-    beat: map
+    beat: overview
     caption: Suggestions wait on the Overview.
     text: >-
       Click Try with KapiMart to open the sample. On the Overview, the
