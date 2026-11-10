@@ -155,6 +155,12 @@ function stopTree(child: ChildProcess): void {
   }
 }
 
+/** The left edge and width of a shot whose top and bottom are measured. */
+interface Band {
+  x: number;
+  w: number;
+}
+
 const KAPI_DESKTOP_DIR = path.join(REPO_ROOT, "apps", "kapi-desktop");
 // Isolated roots so the real app never touches the developer's own data
 // (honored via KAPI_CONFIG_DIR / KAPI_HOME_DIR / KAPI_DESKTOP_CONFIG_DIR — see
@@ -634,7 +640,7 @@ interface WalkCtx {
   /** A fixed-rect beat (sidebar/full views). zoom=null → full frame. */
   beat: (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => Promise<void>;
   /** A beat whose zoom is derived from elements AFTER its actions settle. */
-  beatEls: (id: string, selectors: string[], fn: () => Promise<void>, region?: ZoomRect) => Promise<void>;
+  beatEls: (id: string, selectors: string[], fn: () => Promise<void>, region?: ZoomRect | Band) => Promise<void>;
   /**
    * A beat whose subject moves while it is on camera: the walk marks each
    * element as it stands at that moment, and the crop is the union of the
@@ -801,9 +807,10 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     };
   };
   // `region` frames a fixed part of the window instead of the selectors' union,
-  // for an element wider than the part worth reading. The selectors still say
-  // when the shot can start.
-  const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>, region?: ZoomRect) => {
+  // for an element wider than the part worth reading. A band (x and w only)
+  // keeps the union's top and bottom and narrows its sides. The selectors still
+  // say when the shot can start.
+  const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>, region?: ZoomRect | Band) => {
     const tStart = now();
     current = { id, tStart };
     const spec = specs[id];
@@ -812,7 +819,13 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     await fn();
     const zoomAt = await seen();
     await holdUntil(id, tStart);
-    const zoom = region && !spec?.cropSelectors ? region : await unionZoom(regionSelectors);
+    const measured = region && "y" in region && !spec?.cropSelectors ? null : await unionZoom(regionSelectors);
+    const zoom =
+      region && !spec?.cropSelectors
+        ? "y" in region
+          ? region
+          : measured && { ...measured, x: region.x, w: region.w }
+        : measured;
     reportCrop(id, zoom);
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom, ...(zoomAt !== undefined ? { zoomAt } : {}), ...(highlight !== undefined ? { highlight } : {}) });
@@ -1427,34 +1440,40 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1600);
   });
   // Open one translated unit: source, target, and the layers behind them. A
-  // row a check flagged goes first, so the checks card has something to show.
-  await beatEls("open-unit", ['[data-slot="review-source"]', '[data-slot="review-target"]'], async () => {
-    const flagged = page
-      .locator('[data-slot="review-queue-item"]:not([data-source])')
-      .filter({ has: page.locator('[aria-label="Has findings"]') })
-      .first();
-    const target = (await flagged.count())
-      ? flagged
-      : page.locator('[data-slot="review-queue-item"]:not([data-source])').first();
+  // French row goes first, because left-to-right text sits in the left half of
+  // each card and the shots below frame that half. A row a check flagged goes
+  // first within it, so the checks card has something to show.
+  const TEXT_BAND = { x: 0.185, w: 0.47 };
+  await beatEls("open-unit", ['[data-slot="review-source"]', '[data-slot="review-target"]', '[data-slot="review-ai-actions"]'], async () => {
+    const rows = page.locator('[data-slot="review-queue-item"]:not([data-source])');
+    const french = rows.and(page.locator('[data-language^="fr"]'));
+    const pool = (await french.count()) ? french : rows;
+    const flagged = pool.filter({ has: page.locator('[aria-label="Has findings"]') }).first();
+    const target = (await flagged.count()) ? flagged : pool.first();
+    await target.scrollIntoViewIfNeeded().catch(() => {});
     await humanClick(page, target);
     await page.waitForSelector('[data-slot="review-unit"]', { timeout: 20_000 });
     await page.waitForTimeout(1800);
-  });
-  // The text around it, the version approved before, and what the checks
-  // found, in one beat: each card is opened if it is closed and the cursor
-  // passes over it.
-  await beatEls("details", ['[data-slot="review-neighbourhood"]', '[data-slot="review-findings"]'], async () => {
-    for (const slot of ["review-neighbourhood", "review-history", "review-findings"]) {
-      const card = page.locator(`[data-slot="${slot}"]`).first();
-      if (!(await card.count())) continue;
-      await card.scrollIntoViewIfNeeded().catch(() => {});
-      const toggle = page.locator(`[data-slot="${slot}-toggle"]`).first();
-      if ((await toggle.count()) && (await card.getAttribute("data-open")) === null)
-        await humanClick(page, toggle).catch(() => {});
-      await cursorTo(`[data-slot="${slot}"]`);
-      await page.waitForTimeout(1200);
-    }
-  });
+  }, TEXT_BAND);
+  // The text around it and the version approved before, then what the checks
+  // found: each card is opened if it is closed and the cursor passes over it.
+  const openCard = async (slot: string) => {
+    const card = page.locator(`[data-slot="${slot}"]`).first();
+    if (!(await card.count())) return;
+    await card.scrollIntoViewIfNeeded().catch(() => {});
+    const toggle = page.locator(`[data-slot="${slot}-toggle"]`).first();
+    if ((await toggle.count()) && (await card.getAttribute("data-open")) === null)
+      await humanClick(page, toggle).catch(() => {});
+    await cursorTo(`[data-slot="${slot}"]`);
+    await page.waitForTimeout(1200);
+  };
+  await beatEls("details", ['[data-slot="review-neighbourhood"]', '[data-slot="review-history"]'], async () => {
+    await openCard("review-neighbourhood");
+    await openCard("review-history");
+  }, TEXT_BAND);
+  await beatEls("checks", ['[data-slot="review-findings"]'], async () => {
+    await openCard("review-findings");
+  }, TEXT_BAND);
   // Decide: the keystroke on this unit, then the batch that clears the units no
   // check flagged.
   //

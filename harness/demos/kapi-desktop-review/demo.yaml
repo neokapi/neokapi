@@ -51,6 +51,12 @@ narration:
     caption: The context for this translation.
     text: >-
       Below, read the text around it and the version approved last time.
+
+  - id: checks
+    kind: desktop
+    beat: checks
+    caption: What the checks found.
+    text: >-
       Problems found by the checks appear here as well.
 
   - id: decide
