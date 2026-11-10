@@ -226,6 +226,10 @@ describe("route tree", () => {
     expect(to.to).toBe("/$workspace/p/$projectId/s/$stream/languages");
     expect(to.search).toEqual({ collection: "docs" });
     expect(redirectOf("/$workspace/p/$projectId/s/$stream/overview", {})).toBeUndefined();
+    // A parameter another route reads, such as the theme, is no drill-down.
+    expect(
+      redirectOf("/$workspace/p/$projectId/s/$stream/overview", { theme: "dark" }),
+    ).toBeUndefined();
   });
 
   it("redirects the Overview's former /map address to /overview", () => {

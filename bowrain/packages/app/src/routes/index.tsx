@@ -526,9 +526,15 @@ const projectRoute = createRoute({
   loader: languagesLoader,
 });
 
-/** Whether a link carries the languages page's drill-down state. */
-const drilledDown = (search: Record<string, unknown>) =>
-  Object.values(search).some((v) => v !== undefined);
+/**
+ * Whether a link carries the languages page's drill-down state. Only that
+ * page's own keys count: a route's `search` also holds what parent routes
+ * read, such as `theme`, and those say nothing about the languages page.
+ */
+const drilledDown = (search: Record<string, unknown>) => {
+  const drill = languagesSearch(search);
+  return Object.values(drill).some((v) => v !== undefined);
+};
 
 // The stream root. A link that carries the languages page's drill-down state
 // lands on that page with it; any other lands on the Overview.
