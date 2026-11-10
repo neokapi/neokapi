@@ -73,9 +73,9 @@ export function OverviewSteps({
     return target && opens(nav, target) ? () => navigate(target) : undefined;
   };
   return (
-    <section data-slot="overview-steps" aria-labelledby="map-steps-heading" className="space-y-2">
+    <section data-slot="overview-steps" aria-labelledby="overview-steps-heading" className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div id="map-steps-heading" className="flex items-baseline gap-2">
+        <div id="overview-steps-heading" className="flex items-baseline gap-2">
           <SectionHeading>First steps</SectionHeading>
           <span
             data-slot="overview-steps-done"

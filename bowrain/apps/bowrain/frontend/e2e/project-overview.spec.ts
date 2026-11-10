@@ -18,7 +18,7 @@ test.describe("Project Overview", () => {
   test("opens a new project on the Overview with its counts, and Rules from the panel", async ({
     page,
   }) => {
-    const counts = page.locator("[data-slot='map-counts']");
+    const counts = page.locator("[data-slot='overview-counts']");
     await expect(counts).toBeVisible();
     await expect(counts).toContainText("3");
     await expect(counts).toContainText("42");
