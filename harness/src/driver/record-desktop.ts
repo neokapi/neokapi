@@ -934,22 +934,32 @@ async function dropFolder(page: Page, dir: string): Promise<void> {
   }, dir);
 }
 
-/** The folder the projects walk opens: empty, so the project starts from nothing. */
+/** The folder the projects walk opens: a few help pages and no project yet. */
 const NEW_PROJECT_DIR = path.join(ISO_HOME, "KapiProjects", "Acme Help Center");
+
+/** The help pages in that folder, so the pattern matches files on camera and the plan has work to show. */
+const NEW_PROJECT_PAGES: Record<string, string> = {
+  "docs/getting-started.md": "# Getting started\n\nCreate an account, then open your dashboard.\n\nYour dashboard lists every order you have placed.\n",
+  "docs/account/sign-in.md": "# Sign in\n\nEnter your email address and your password.\n\nIf you forget your password, click Reset password.\n",
+  "docs/billing.md": "# Billing\n\nYou pay at the start of each month.\n\nDownload an invoice from the Billing page.\n",
+};
 
 /** Open a folder as a project, give it a language and a collection, and read the plan.
  *
- *  Every beat here acts. The folder is empty, so the project has no content:
- *  the collection is declared the way the recipe declares it, by a name and a
- *  glob ("Add Files" opens a native picker, CollectionsPanel.handleAddFiles →
+ *  Every beat here acts. The folder holds a few help pages and no recipe, so
+ *  it opens as a new project. The collection is declared by a name and a glob
+ *  ("Add Files" opens a native picker, CollectionsPanel.handleAddFiles →
  *  api.addFilesDialog, which Playwright cannot drive), and the plan is read on
- *  the sample project, which has content to plan over. */
+ *  the same project once the collection is saved. */
 async function projectsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
-  // An empty folder, made off camera: a project starts from a folder, and this
-  // one holds nothing yet. ISO_HOME is wiped between passes, so each pass
-  // makes its own.
-  fs.mkdirSync(NEW_PROJECT_DIR, { recursive: true });
+  // The folder, made off camera with its help pages. ISO_HOME is wiped
+  // between passes, so each pass makes its own.
+  for (const [rel, body] of Object.entries(NEW_PROJECT_PAGES)) {
+    const file = path.join(NEW_PROJECT_DIR, rel);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, body);
+  }
   await beat("intro", null, async () => {
     await landOnHome(page);
     await idle(page, 2000);
@@ -962,7 +972,7 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     await dropFolder(page, NEW_PROJECT_DIR);
     await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
     await page.waitForTimeout(900);
-    // The Overview of an empty project: no files yet, and its first steps.
+    // The Overview of a new project: its first steps.
     await cursorTo('[data-slot="map"] h1, [data-slot="map"] h2', 700);
     await page.waitForTimeout(1600);
   });
@@ -1019,17 +1029,18 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     }
     await page.waitForTimeout(2000);
   });
-  // The plan, read on the sample project, because a dry run of pending work
-  // needs pending work. It opens a dialog over data fetched on page load: no
-  // provider is called and nothing is written (ConvergenceHero.tsx).
-  await page.keyboard.press("Escape").catch(() => {});
-  await page.waitForTimeout(500);
-  await landOnHome(page);
-  await humanClick(page, page.getByTestId("sample-kapimart"));
-  // A new project tab opens on its Overview, where the plan sits under the counts.
-  await page.waitForSelector('button[aria-label="Overview"]:not([disabled])', { timeout: 60_000 });
-  await page.waitForSelector('[data-slot="map"]', { timeout: 60_000 });
-  await page.waitForSelector('[data-slot="hero-plan"]', { timeout: 60_000 });
+  // The collection is a draft until it is saved, like the language above, so
+  // it is saved off camera before the plan reads it.
+  const saveCollection = page.locator('button:has-text("Save Changes")').first();
+  if (await saveCollection.count()) await humanClick(page, saveCollection);
+  await page.waitForTimeout(1200);
+  // The plan, read on this project. Its Overview carries the plan once it has
+  // a target language (OverviewStanding). The dialog reads data fetched on
+  // page load: no provider is called and nothing is written
+  // (ConvergenceHero.tsx). The app reads the new files on its own, so the
+  // button is waited for until it is enabled.
+  await humanClick(page, sidebar("Overview"));
+  await page.waitForSelector('[data-slot="hero-plan"]:not([disabled])', { timeout: 60_000 });
   await page.waitForTimeout(1200);
   await beatEls("plan", ['[data-slot="converge-plan-dialog"]'], async () => {
     await cursorTo('[data-slot="hero-plan"]');
@@ -1187,12 +1198,6 @@ async function openCollectionFile(page: Page, collection: string, filename: stri
   await page.waitForTimeout(1200);
 }
 
-/** Close the file preview sheet and settle back on the collections. */
-async function closePreview(page: Page): Promise<void> {
-  await page.keyboard.press("Escape").catch(() => {});
-  await page.waitForTimeout(800);
-}
-
 /**
  * A project's content: what a collection matched, and what one file holds.
  *
@@ -1205,7 +1210,7 @@ async function closePreview(page: Page): Promise<void> {
  * values, with the file itself one click away.
  */
 async function contentWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const { page, beatEls, cursorTo } = c;
   // Open the KapiMart sample: it lands on its Overview, and the walk goes on
   // to Project Settings → Content, which opens on the standing.
   await beatEls("open-project", ['[data-testid="project-standing"]'], async () => {
@@ -1259,15 +1264,6 @@ async function contentWalk(c: WalkCtx): Promise<void> {
     await openCollectionFile(page, "Online Store", "store-ui.json");
     await page.waitForTimeout(1200);
     await cursorTo('[data-preview="keyed-table"] tr[data-key-path]');
-    await page.waitForTimeout(2400);
-  });
-  // The same file as it is written on disk, with the selected key's line
-  // highlighted: structure on one tab, bytes on the other.
-  // No settle here: nothing scrolls, and the narration over this beat is
-  // short, so the File tab is clicked as the beat opens.
-  await beatEls("code", ['[data-preview="data"]'], async () => {
-    const file = page.locator('[data-preview="data"] button:has-text("File")').first();
-    if (await file.count()) await humanClick(page, file);
     await page.waitForTimeout(2400);
   });
 }
@@ -1338,7 +1334,7 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
 }
 
 /**
- * The Review queue and the five layers behind one decision (S-07).
+ * The Review queue, one translation in its place, and the decision (S-07).
  *
  * KapiMart opens with a queue rather than an empty page: its message catalogue
  * (`src/en/error-messages.properties`) ships translated into all five targets
@@ -1353,22 +1349,7 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
  * body.
  */
 async function reviewWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
-  const layer = async (id: string, slot: string) => {
-    await beatEls(id, [`[data-slot="${slot}"]`], async () => {
-      const card = page.locator(`[data-slot="${slot}"]`).first();
-      if (await card.count()) {
-        await card.scrollIntoViewIfNeeded().catch(() => {});
-        await page.waitForTimeout(300);
-        const toggle = page.locator(`[data-slot="${slot}-toggle"]`).first();
-        if ((await toggle.count()) && (await card.getAttribute("data-open")) === null)
-          await humanClick(page, toggle).catch(() => {});
-        await cursorTo(`[data-slot="${slot}"]`);
-      }
-      await page.waitForTimeout(2300);
-    });
-  };
-
+  const { page, beatEls, cursorTo, sidebar } = c;
   // The queue, and the two controls that narrow it, in one beat: every
   // language in one list, a count per language, and the chips for what a check
   // flagged.
@@ -1383,18 +1364,35 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
     await cursorTo('[data-slot="review-chips"]');
     await page.waitForTimeout(1600);
   });
-  // Open one translated unit: source, target, and the layers behind them.
+  // Open one translated unit: source, target, and the layers behind them. A
+  // row a check flagged goes first, so the checks card has something to show.
   await beatEls("open-unit", ['[data-slot="review-unit"]'], async () => {
-    const target = page.locator('[data-slot="review-queue-item"]:not([data-source])').first();
+    const flagged = page
+      .locator('[data-slot="review-queue-item"]:not([data-source])')
+      .filter({ has: page.locator('[aria-label="Has findings"]') })
+      .first();
+    const target = (await flagged.count())
+      ? flagged
+      : page.locator('[data-slot="review-queue-item"]:not([data-source])').first();
     await humanClick(page, target);
     await page.waitForSelector('[data-slot="review-unit"]', { timeout: 20_000 });
     await page.waitForTimeout(1800);
   });
-  await layer("point", "review-point");
-  await layer("neighbourhood", "review-neighbourhood");
-  await layer("history", "review-history");
-  await layer("findings", "review-findings");
-  await layer("provenance", "review-provenance");
+  // The text around it, the version approved before, and what the checks
+  // found, in one beat: each card is opened if it is closed and the cursor
+  // passes over it.
+  await beatEls("details", ['[data-slot="review-neighbourhood"]', '[data-slot="review-findings"]'], async () => {
+    for (const slot of ["review-neighbourhood", "review-history", "review-findings"]) {
+      const card = page.locator(`[data-slot="${slot}"]`).first();
+      if (!(await card.count())) continue;
+      await card.scrollIntoViewIfNeeded().catch(() => {});
+      const toggle = page.locator(`[data-slot="${slot}-toggle"]`).first();
+      if ((await toggle.count()) && (await card.getAttribute("data-open")) === null)
+        await humanClick(page, toggle).catch(() => {});
+      await cursorTo(`[data-slot="${slot}"]`);
+      await page.waitForTimeout(1200);
+    }
+  });
   // Decide: the keystroke on this unit, then the batch that clears the units no
   // check flagged.
   //
@@ -1432,18 +1430,6 @@ async function callBackend(method: string, args: unknown[] = []): Promise<unknow
 /** The sample's key in the workspace: its recipe's `name:`, as it carries no `id:`. */
 const CONTEXT_SAMPLE_KEY = "KapiMart";
 
-/**
- * The note the `live` beat records. The docs write "sandbox" where an API's
- * docs often say "test mode", and the quoted sentence is in web/en/faq.md,
- * because kapi refuses evidence it cannot find in the file.
- */
-const LIVE_NOTE = [
-  "--term", "sandbox",
-  "--instead-of", "test mode",
-  "--seen-in", "web/en/faq.md",
-  "--quote", "Sandbox accounts are limited to 100 requests per second.",
-];
-
 /** The point a cursor rests on for an element: a little in from its left edge, on its middle line. */
 async function centreOf(locator: Locator): Promise<[number, number]> {
   const box = await locator.first().boundingBox();
@@ -1477,27 +1463,6 @@ async function freshContextSample(): Promise<void> {
 }
 
 /**
- * Record one note as claude-code against the sample, from outside the app,
- * the way an assistant's shell does: the built kapi, the recorder's isolated
- * roots, and an agent identity with a session of its own.
- */
-function recordLiveNote(): void {
-  const kapi = path.join(REPO_ROOT, "bin", "kapi");
-  if (!fs.existsSync(kapi)) throw new Error(`kapi-desktop-context: ${kapi} is missing; run make build first`);
-  const recipe = path.join(ISO_HOME, "KapiProjects", CONTEXT_SAMPLE_KEY, "kapi.yaml");
-  execFileSync(kapi, ["context", "note", ...LIVE_NOTE, "-p", recipe], {
-    env: {
-      ...goEnv(),
-      XDG_CACHE_HOME: path.join(ISO_BASE, "xdg-cache"),
-      KAPI_ACTOR: "agent",
-      KAPI_AGENT_NAME: "claude-code",
-      KAPI_AGENT_SESSION: `kapi-desktop-context-${Date.now()}`,
-    },
-    stdio: "ignore",
-  });
-}
-
-/**
  * What an assistant suggested, and what the person decides.
  *
  * The sample arrives with two assistant sessions (backend/sample/session.go):
@@ -1505,9 +1470,8 @@ function recordLiveNote(): void {
  * made, and codex took the other side of that correction. The walk opens the
  * sample from the Open screen and reads what waits on its Overview, opens Decide
  * from there, settles the disagreement by picking a side and pressing `k`,
- * keeps a name in the form its files use and a word with `k`, reads the brief
- * an assistant gets for a file, watches a note recorded from outside the app
- * arrive on the Overview, and ends on Share and its Preview.
+ * keeps a name in the form its files use and a word with `k`, and ends on the
+ * brief an assistant gets for a file.
  *
  * Decide is a list of suggestions beside one question about the selected
  * one. The choose, keep and word beats select a row, read its question, and
@@ -1515,7 +1479,7 @@ function recordLiveNote(): void {
  * the question (beatSpan).
  */
 async function contextWalk(c: WalkCtx): Promise<void> {
-  const { page, beatEls, beatSpan, cursorTo, cue, sidebar } = c;
+  const { page, beatEls, beatSpan, cursorTo, cue } = c;
   // The Overview's header, counts and the list of what waits for a decision.
   const map = ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'];
   const waiting = '[data-slot="map-suggestions"] [data-slot="map-suggestion"]';
@@ -1594,7 +1558,7 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await select(name);
     await mark(name);
     await mark(question);
-    await cue("blocks", 4.2);
+    await cue("places", 4.2);
     await restOn(consequence);
     await cue("k", 8.4);
     await page.keyboard.press("k");
@@ -1677,66 +1641,6 @@ async function contextWalk(c: WalkCtx): Promise<void> {
     await mark(briefTab);
     await mark(picker);
     await mark(keptTerm);
-    await page.waitForTimeout(1500);
-  });
-  await settle();
-
-  // Back on the Overview, a note arrives from outside the app. It reads again
-  // when the backend's workspace watcher reports that the log moved, as the
-  // shipped app does, and the take fails rather than narrate a row that never
-  // came.
-  await humanClick(page, sidebar("Overview"));
-  await page.waitForSelector(waiting, { timeout: 20_000 });
-  await page.waitForTimeout(1000);
-  const arrived = page.locator(waiting).filter({ hasText: "sandbox" }).first();
-  await beatEls("live", map, async () => {
-    await cursorTo('[data-slot="map-suggestions"]', 800);
-    // The note is recorded once the narration has said what it holds, so the
-    // row arrives as the narration says it does.
-    await cue("test", 7.2);
-    recordLiveNote();
-    await arrived.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
-      throw new Error("kapi-desktop-context: the note recorded as claude-code did not reach the Overview within 10 s (no sandbox row)");
-    });
-    await cue("row", 10.6);
-    await restOn(arrived);
-    await cue("decide", 13.2);
-    await cursorTo('[data-slot="map-decide"]', 500);
-    await page.waitForTimeout(200);
-  });
-  await settle();
-
-  // How far the project's context reaches.
-  await openSettingsTab(page, "Share");
-  await page.waitForSelector('[data-slot="share-ladder"]', { timeout: 30_000 });
-  await page.waitForTimeout(800);
-  await beatEls("share", ['[data-slot="share-panel"]'], async () => {
-    await cursorTo('[data-slot="share-rung"][data-current]', 800);
-    await page.waitForTimeout(2000);
-  });
-  await settle();
-
-  // Preview draws the project as a Bowrain project page draws it. The sample
-  // is connected to no server, so it reads this Mac. It opens on the Map tab;
-  // the Rules tab holds what still waits and Kept by, the rules kept above.
-  // The crop runs from the tabs to the Kept by list.
-  const sheet = '[data-slot="bowrain-preview"]';
-  const rulesTab = page.locator('[data-slot="bowrain-preview-tab-rules"]');
-  const kept = page.locator(`${sheet} [data-slot="kept-rules"]`);
-  await beatSpan("preview", async (mark) => {
-    await cue("preview", 0.6);
-    await humanClick(page, page.locator('[data-slot="share-preview-bowrain"]'));
-    await page.waitForSelector(`${sheet} [data-slot="map-counts"]`, { timeout: 30_000 });
-    await mark(page.locator('[data-slot="bowrain-preview-tab-map"]'));
-    await mark(page.locator(`${sheet} [data-slot="map-counts"]`));
-    await cue("rules", 6.4);
-    await humanClick(page, rulesTab);
-    await kept.locator('[data-slot="kept-rule"]').first().waitFor({ state: "visible", timeout: 20_000 });
-    await cue("kept", 9.2);
-    await kept.scrollIntoViewIfNeeded();
-    await moveTo(page, ...(await centreOf(kept.locator('[data-slot="kept-rule"]').first())));
-    await mark(rulesTab);
-    await mark(kept);
     await page.waitForTimeout(1500);
   });
   await settle();

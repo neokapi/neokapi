@@ -328,7 +328,7 @@ reader and writer, not flattened into a parent document.
 - **Source (fan-out).** Enumerate the archive's regular-file entries; each is
   resolved and run as its own `file` source. An entry whose format is binary
   (image, audio, video), a bilingual interchange file, a nested archive, or
-  unrecognised is **not** processed; it is carried to the sink untouched.
+  unrecognised is carried to the sink untouched.
   Enumeration is bounded by the shared zip-bomb, size, and entry-count guards.
 - **Sink (barrier repack).** Unlike a folder sink, which writes N independent
   files, an archive sink must emit **one valid container atomically**. It is a
