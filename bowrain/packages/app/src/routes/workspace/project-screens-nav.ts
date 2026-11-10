@@ -14,8 +14,8 @@ export function useScreenNavigate(scope: ScreensScope): (target: ScreenTarget) =
     (target: ScreenTarget) => {
       const params = { workspace: ws, projectId, stream };
       switch (target.kind) {
-        case "map":
-          void navigate({ to: "/$workspace/p/$projectId/s/$stream/map", params });
+        case "overview":
+          void navigate({ to: "/$workspace/p/$projectId/s/$stream/overview", params });
           return;
         case "reader":
           void navigate({

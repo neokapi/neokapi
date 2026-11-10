@@ -186,7 +186,7 @@ func kapiRecords(t *testing.T, app *App, root string) int {
 	return n
 }
 
-// lookMap runs the Map over the project at root.
+// lookMap runs the Overview over the project at root.
 func lookMap(t *testing.T, app *App, root string) *LookProject {
 	t.Helper()
 	m, err := app.LookProject(lookCommand(t.Context(), recipeOf(root)))
@@ -195,7 +195,7 @@ func lookMap(t *testing.T, app *App, root string) *LookProject {
 }
 
 // TestLookProject_FirstLookFilesWhatKapiSees: the first look at a new project
-// runs the suggestions pass, so the Map counts what the files do without a
+// runs the suggestions pass, so the Overview counts what the files do without a
 // model, and a second look runs no pass.
 func TestLookProject_FirstLookFilesWhatKapiSees(t *testing.T) {
 	app, _ := contextOpsApp(t)

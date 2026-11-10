@@ -14,13 +14,13 @@ import (
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 )
 
-// TestMapSummary_KapiMart: the Map of the bundled sample counts what the other
+// TestOverviewSummary_KapiMart: the Overview of the bundled sample counts what the other
 // surfaces count. Its files are the recipe's content files, each on disk. Its
 // blocks are the block cache's, as the status counts them. Its findings are
 // the last whole-project checks run's, file by file. The suggestions an
 // assistant recorded are the rows awaiting a decision, with their evidence
 // counted.
-func TestMapSummary_KapiMart(t *testing.T) {
+func TestOverviewSummary_KapiMart(t *testing.T) {
 	// The sample reads its context into the workspace the data directory
 	// holds, so the app and the scaffold share one of their own.
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
@@ -36,7 +36,7 @@ func TestMapSummary_KapiMart(t *testing.T) {
 
 	// Before the store sync and any check: the files are known, nothing has
 	// been read or checked in this session.
-	before, err := app.MapSummary(tab.ID)
+	before, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	assert.Empty(t, before.ReadAt)
 	assert.Nil(t, before.Findings)
@@ -45,18 +45,18 @@ func TestMapSummary_KapiMart(t *testing.T) {
 
 	_, err = app.SyncProjectStore(tab.ID)
 	require.NoError(t, err)
-	// The Map's run: every file, in every target language the recipe declares.
+	// The Overview's run: every file, in every target language the recipe declares.
 	res, err := app.RunChecks(tab.ID, ProjectFilter{Languages: before.TargetLanguages})
 	require.NoError(t, err)
 	last, err := app.LastProjectChecks(tab.ID)
 	require.NoError(t, err)
-	assert.Same(t, res, last, "the checks panel opens on the run the Map counts")
+	assert.Same(t, res, last, "the checks panel opens on the run the Overview counts")
 
 	engine := agentProcess(t, app)
 	quickcast := agentSuggest(t, engine, recipe, "sess-1", "Quick cast", "Quickcast", "site/index.html", "Try Quick cast today.")
 	agentSuggest(t, engine, recipe, "sess-1", "business", "studio", "site/about.html", "Our business plan.")
 
-	got, err := app.MapSummary(tab.ID)
+	got, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 
 	// Files: one row per resolved content file, each one a file the project
@@ -139,7 +139,7 @@ func TestMapSummary_KapiMart(t *testing.T) {
 	assert.NotEmpty(t, got.ProjectKey)
 
 	// A run that narrows the files, or checks fewer languages than the recipe
-	// declares, leaves the Map's counts where the whole-project run put them.
+	// declares, leaves the Overview's counts where the whole-project run put them.
 	for _, narrow := range []ProjectFilter{
 		{Glob: "nothing/**", Languages: before.TargetLanguages},
 		{},
@@ -147,7 +147,7 @@ func TestMapSummary_KapiMart(t *testing.T) {
 	} {
 		_, err = app.RunChecks(tab.ID, narrow)
 		require.NoError(t, err)
-		again, err := app.MapSummary(tab.ID)
+		again, err := app.OverviewSummary(tab.ID)
 		require.NoError(t, err)
 		require.NotNil(t, again.Findings)
 		assert.Equalf(t, wantTotal, *again.Findings, "after a run with %+v", narrow)
@@ -157,9 +157,9 @@ func TestMapSummary_KapiMart(t *testing.T) {
 	}
 }
 
-// TestMapSummary_EmptyProject: a project with no content files answers with
+// TestOverviewSummary_EmptyProject: a project with no content files answers with
 // zeros and no error, and creates no project store by being read.
-func TestMapSummary_EmptyProject(t *testing.T) {
+func TestOverviewSummary_EmptyProject(t *testing.T) {
 	app := newWorkspaceApp(t)
 	dir := t.TempDir()
 	recipe := filepath.Join(dir, project.RecipeFileName)
@@ -175,7 +175,7 @@ func TestMapSummary_EmptyProject(t *testing.T) {
 	_, statErr := os.Stat(project.LayoutAt(dir).StorePath())
 	require.True(t, os.IsNotExist(statErr), "precondition: opening the project creates no store")
 
-	got, err := app.MapSummary(tab.ID)
+	got, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	assert.Zero(t, got.Files)
 	assert.Zero(t, got.Blocks)
@@ -186,22 +186,22 @@ func TestMapSummary_EmptyProject(t *testing.T) {
 	assert.Empty(t, got.Suggestions)
 	assert.Empty(t, got.TargetLanguages, "a source-only project declares no target")
 	_, statErr = os.Stat(project.LayoutAt(dir).StorePath())
-	assert.True(t, os.IsNotExist(statErr), "reading the Map creates no store")
+	assert.True(t, os.IsNotExist(statErr), "reading the Overview creates no store")
 	last, err := app.LastProjectChecks(tab.ID)
 	require.NoError(t, err)
 	assert.Nil(t, last, "no checks have run")
 }
 
-// TestMapSummary_SourceOnlyAndTargeted: the Map reports the recipe's target
+// TestOverviewSummary_SourceOnlyAndTargeted: the Overview reports the recipe's target
 // languages, canonical, and none for a source-only project; the counts do not
 // depend on them.
-func TestMapSummary_SourceOnlyAndTargeted(t *testing.T) {
+func TestOverviewSummary_SourceOnlyAndTargeted(t *testing.T) {
 	app := NewApp()
 	tab, _ := newCoverageProject(t, app)
 	_, err := app.SyncProjectStore(tab.ID)
 	require.NoError(t, err)
 
-	targeted, err := app.MapSummary(tab.ID)
+	targeted, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"fr-FR", "de-DE"}, targeted.TargetLanguages)
 	assert.Equal(t, 1, targeted.Files)
@@ -214,31 +214,31 @@ func TestMapSummary_SourceOnlyAndTargeted(t *testing.T) {
 	app.mu.Lock()
 	op.Project.Defaults.TargetLanguages = nil
 	app.mu.Unlock()
-	sourceOnly, err := app.MapSummary(tab.ID)
+	sourceOnly, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	assert.Empty(t, sourceOnly.TargetLanguages)
 	assert.Equal(t, targeted.Files, sourceOnly.Files)
 	assert.Equal(t, targeted.Blocks, sourceOnly.Blocks)
 }
 
-func TestMapSummary_UnknownTab(t *testing.T) {
-	_, err := NewApp().MapSummary("nope")
+func TestOverviewSummary_UnknownTab(t *testing.T) {
+	_, err := NewApp().OverviewSummary("nope")
 	require.Error(t, err)
 }
 
-// TestMapSummary_Steps: a project the workspace holds lists its first steps,
+// TestOverviewSummary_Steps: a project the workspace holds lists its first steps,
 // sharing the rules marks the share step done, and dismissing the steps hides
 // them for that project from then on.
-func TestMapSummary_Steps(t *testing.T) {
+func TestOverviewSummary_Steps(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	app := newWorkspaceApp(t)
 	tab, _ := openSharingProject(t, app, "Steps")
 
-	steps := func() map[string]screens.MapStepDTO {
+	steps := func() map[string]screens.OverviewStepDTO {
 		t.Helper()
-		got, err := app.MapSummary(tab)
+		got, err := app.OverviewSummary(tab)
 		require.NoError(t, err)
-		out := map[string]screens.MapStepDTO{}
+		out := map[string]screens.OverviewStepDTO{}
 		for _, s := range got.Steps {
 			out[s.ID] = s
 		}
@@ -255,7 +255,7 @@ func TestMapSummary_Steps(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, steps()[screens.StepShare].Done)
 
-	require.NoError(t, app.DismissMapSteps(tab))
+	require.NoError(t, app.DismissOverviewSteps(tab))
 	assert.Empty(t, steps(), "dismissed for this project")
-	require.NoError(t, app.DismissMapSteps(tab), "dismissing again changes nothing")
+	require.NoError(t, app.DismissOverviewSteps(tab), "dismissing again changes nothing")
 }

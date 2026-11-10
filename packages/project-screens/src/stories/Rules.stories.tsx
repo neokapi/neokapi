@@ -102,8 +102,8 @@ export const NothingToDecide: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Nothing to decide.")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Open the Map" }));
-    await expect(args.navigate).toHaveBeenCalledWith({ kind: "map" });
+    await userEvent.click(canvas.getByRole("button", { name: "Open the Overview" }));
+    await expect(args.navigate).toHaveBeenCalledWith({ kind: "overview" });
   },
 };
 
@@ -147,7 +147,7 @@ export const AssignedToMe: Story = {
 
 /** A port with the reads alone. */
 const READ_ONLY: ProjectScreensPort = {
-  mapSummary: async () => MAP_PENDING,
+  overviewSummary: async () => MAP_PENDING,
   readerFile: async () => READER_WITH_FIXES,
   decideView: async () => DECIDE_VIEW,
 };

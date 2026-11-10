@@ -27,9 +27,9 @@ function projectContext(overrides: Partial<Extract<SidebarContext, { level: "pro
     level: "project",
     project,
     activeStream: "main",
-    activeProjectView: "map",
-    onOpenMap: vi.fn(),
-    onOpenDashboard: vi.fn(),
+    activeProjectView: "overview",
+    onOpenOverview: vi.fn(),
+    onOpenLanguages: vi.fn(),
     onOpenRules: vi.fn(),
     onOpenSource: vi.fn(),
     onOpenFile: vi.fn(),
@@ -87,26 +87,27 @@ describe("the panel beside the rail", () => {
   it("holds the project's sections, under the project's name", () => {
     renderShell({ sidebarContext: projectContext() });
     expect(screen.getByText("Docs site")).toBeInTheDocument();
-    for (const id of ["dashboard", "source", "automations", "runs", "connectors"]) {
+    for (const id of ["languages", "source", "automations", "runs", "connectors"]) {
       expect(screen.getByTestId(`subnav-${id}`)).toBeInTheDocument();
     }
   });
 
-  it("opens on the Map, with Overview and Rules after it", () => {
+  it("opens on the Overview, with Languages and Rules after it", () => {
     const { container } = renderShell({ sidebarContext: projectContext() });
     const ids = [...container.querySelectorAll("[data-testid^='subnav-']")].map((el) =>
       el.getAttribute("data-testid")!.slice("subnav-".length),
     );
     expect(ids).toEqual([
-      "map",
-      "dashboard",
+      "overview",
+      "languages",
       "rules",
       "source",
       "automations",
       "runs",
       "connectors",
     ]);
-    expect(screen.getByTestId("subnav-map")).toHaveTextContent("Map");
+    expect(screen.getByTestId("subnav-overview")).toHaveTextContent("Overview");
+    expect(screen.getByTestId("subnav-languages")).toHaveTextContent("Languages");
     expect(screen.getByTestId("subnav-rules")).toHaveTextContent("Rules");
   });
 

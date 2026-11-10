@@ -146,7 +146,7 @@ type checkScope struct {
 }
 
 // runChecks is RunChecks within scope. A run narrowed to one file is never the
-// run the Map counts findings from.
+// run the Overview counts findings from.
 func (a *App) runChecks(tabID string, filter ProjectFilter, scope checkScope) (*CheckRunResult, error) {
 	langs, lerr := canonicalLocales(filter.Languages)
 	if lerr != nil {
@@ -464,7 +464,7 @@ func (a *App) runChecks(tabID string, filter ProjectFilter, scope checkScope) (*
 	score := check.CalculateScore(scored).Overall
 	result := checkRunVerdict(allFindings, commentDiags, blocksChecked, analyzers, score, files, unread)
 	result.Warnings = check.MergeWarnings(warnings, result.Warnings)
-	// A run over every file in every target language is the one the Map
+	// A run over every file in every target language is the one the Overview
 	// counts findings from.
 	if scope.file == "" && coversProject(filter, op.Project) {
 		op.recordCheck(result, time.Now())

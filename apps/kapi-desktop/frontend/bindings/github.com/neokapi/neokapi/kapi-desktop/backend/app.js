@@ -259,7 +259,7 @@ export function AssistantsView(tabID) {
 
 /**
  * BowrainPreview reads one part of a tab's project from the Bowrain server
- * its recipe connects to: part is "map", "reader" (item names the file),
+ * its recipe connects to: part is "overview", "reader" (item names the file),
  * "decide" or "kept". The DTOs are the server's own. A tab whose recipe names
  * no project in a workspace on a server is an error; a missing sign-in and a
  * refusal from the server are a Refusal.
@@ -722,7 +722,7 @@ export function DeclareChannel(tabID, profile, channel) {
 /**
  * DeeperLook reads the tab's source blocks with the connected model and files
  * what it proposes as suggestions. With no model connected it refuses with
- * host.ErrNoAIProvider, which the Map answers by offering to connect one.
+ * host.ErrNoAIProvider, which the Overview answers by offering to connect one.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.DeeperLookDTO | null>}
  */
@@ -926,13 +926,13 @@ export function DiscardWorkspaceDocument(doc, edit) {
 }
 
 /**
- * DismissMapSteps hides the first steps on the Map of a tab's project, for
+ * DismissOverviewSteps hides the first steps on the Overview of a tab's project, for
  * that project on this machine.
  * @param {string} tabID
  * @returns {$CancellablePromise<void>}
  */
-export function DismissMapSteps(tabID) {
-    return $Call.ByID(1054868233, tabID);
+export function DismissOverviewSteps(tabID) {
+    return $Call.ByID(3371642714, tabID);
 }
 
 /**
@@ -1829,7 +1829,7 @@ export function KeptRules(tabID) {
 
 /**
  * LastProjectChecks returns the last checks run over the whole project in
- * this session, the run the Map's findings count is read from, so the checks
+ * this session, the run the Overview's findings count is read from, so the checks
  * panel opens on the findings that count names. Nil when none has run.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.CheckRunResult | null>}
@@ -2130,19 +2130,6 @@ export function LookupMemory(handle, req) {
 }
 
 /**
- * MapSummary answers the Map of the project a tab holds in one call. A tab
- * with no recipe on disk, or holding a project's context alone, answers with
- * zeros.
- * @param {string} tabID
- * @returns {$CancellablePromise<screens$0.MapSummaryDTO | null>}
- */
-export function MapSummary(tabID) {
-    return $Call.ByID(1961346714, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType160($result);
-    }));
-}
-
-/**
  * MarkProjectContextDigestSeen records that the person looked at the digest of
  * the project a tab holds, now. It returns the marker it replaced, RFC3339,
  * empty when the person had never looked.
@@ -2173,7 +2160,7 @@ export function MarkTelemetryNoticeShown() {
  */
 export function MatchContent(tabID) {
     return $Call.ByID(433231038, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType162($result);
+        return $$createType160($result);
     }));
 }
 
@@ -2296,6 +2283,19 @@ export function OpenTermsDialog() {
 export function OpenWorkspaceContext(key) {
     return $Call.ByID(3090130948, key).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType49($result);
+    }));
+}
+
+/**
+ * OverviewSummary answers the Overview of the project a tab holds in one call. A tab
+ * with no recipe on disk, or holding a project's context alone, answers with
+ * zeros.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<screens$0.OverviewSummaryDTO | null>}
+ */
+export function OverviewSummary(tabID) {
+    return $Call.ByID(2431996517, tabID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType162($result);
     }));
 }
 
@@ -3577,10 +3577,10 @@ const $$createType155 = $models.WorkspaceHome.createFrom;
 const $$createType156 = $Create.Nullable($$createType155);
 const $$createType157 = $models.MemoryMatchDTO.createFrom;
 const $$createType158 = $Create.Array($$createType157);
-const $$createType159 = screens$0.MapSummaryDTO.createFrom;
-const $$createType160 = $Create.Nullable($$createType159);
-const $$createType161 = $models.FileMatch.createFrom;
-const $$createType162 = $Create.Array($$createType161);
+const $$createType159 = $models.FileMatch.createFrom;
+const $$createType160 = $Create.Array($$createType159);
+const $$createType161 = screens$0.OverviewSummaryDTO.createFrom;
+const $$createType162 = $Create.Nullable($$createType161);
 const $$createType163 = $models.PreviewResult.createFrom;
 const $$createType164 = $Create.Nullable($$createType163);
 const $$createType165 = host$0.ContextAtlas.createFrom;

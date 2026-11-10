@@ -420,7 +420,7 @@ export function ProjectDetailRoute() {
         }}
         onUploadFiles={handleUploadFiles}
         onRemoveFile={handleRemoveFile}
-        onOpenDashboard={() =>
+        onOpenOverview={() =>
           navigate({
             to: "/$workspace/p/$projectId/s/$stream",
             params: {

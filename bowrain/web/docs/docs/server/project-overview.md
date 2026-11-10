@@ -1,22 +1,22 @@
 ---
 sidebar_position: 3
-title: Map, Reader and Rules
-sidebar_label: Map, Reader and Rules
-description: A project opens on its Map. The Reader shows one file with its findings, and Rules holds the team queue and who kept each rule.
+title: Overview, Reader and Rules
+sidebar_label: Overview, Reader and Rules
+description: A project opens on its Overview. The Reader shows one file with its findings, and Rules holds the team queue and who kept each rule.
 ---
 
 import { SwimlaneDiagram, ThemedImage } from "@neokapi/docs-shared";
 
-# Map, Reader and Rules
+# Overview, Reader and Rules
 
-A project opens on its **Map**. The project's sidebar lists **Map** first, then
-**Overview**, **Rules** and the other sections. Kapi Desktop shows the same
+A project opens on its **Overview**. The project's sidebar lists **Overview** first, then
+**Languages**, **Rules** and the other sections. Kapi Desktop shows the same
 screens, read from the server, so your team works from one record of what
 assistants suggested and what people decided.
 
 ## Keeping a checkout's context on Bowrain
 
-The Map and Rules read the project's context: the suggestions assistants
+The Overview and Rules read the project's context: the suggestions assistants
 recorded and the decisions people made about them. When that context lives on
 the server, every checkout of the project reads the same decisions. A project
 connected from a checkout keeps its context on Bowrain when its recipe names
@@ -54,13 +54,13 @@ To connect a checkout:
 The fields and the sign-in rules are in
 [The project model](/cli/project-model#sharing-the-projects-context-on-bowrain).
 
-## Map
+## Overview
 
 <ThemedImage
-  alt="A project on its Map, with counts, open suggestions and the file list"
+  alt="A project on its Overview, with counts, open suggestions and the file list"
   sources={{
-    light: "/img/web-app/light/project-map.png",
-    dark: "/img/web-app/dark/project-map.png",
+    light: "/img/web-app/light/project-overview.png",
+    dark: "/img/web-app/dark/project-overview.png",
   }}
 />
 
@@ -87,7 +87,7 @@ and in the margin the rules that hold at that file.
   inline code. Approving needs the `edit_source` permission; filing needs
   `review`.
 - **Edit by hand** marks a finding that no automatic fix resolves.
-- **Map** returns to the Map.
+- **Overview** returns to the Overview.
 
 ## Rules
 

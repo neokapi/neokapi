@@ -23,8 +23,8 @@ export function viewFromPath(pathname: string, workspace: string): WorkspaceView
 
 /** A project's sections, by the id the secondary panel gives each. */
 export type ProjectSection =
-  | "map"
-  | "dashboard"
+  | "overview"
+  | "languages"
   | "rules"
   | "source"
   | "automations"
@@ -33,8 +33,8 @@ export type ProjectSection =
 
 /**
  * The project section a URL is on, or undefined outside a project. The Reader
- * is reached from the Map, so it lights the Map; a per-file editor lights the
- * Overview.
+ * is reached from the Overview, so it lights the Overview; a per-file editor
+ * lights Languages.
  */
 export function projectViewFromPath(
   pathname: string,
@@ -45,11 +45,13 @@ export function projectViewFromPath(
   const parts = pathname.slice(prefix.length).split("/");
   if (parts.length < 3 || parts[1] !== "s") return undefined;
   switch (parts[3]) {
+    case "overview":
     case "map":
     case "read":
-      return "map";
-    case "overview":
-      return "dashboard";
+      return "overview";
+    case "languages":
+    case "dashboard":
+      return "languages";
     case "rules":
     case "source":
     case "automations":
@@ -57,6 +59,6 @@ export function projectViewFromPath(
     case "connectors":
       return parts[3];
     default:
-      return "dashboard";
+      return "languages";
   }
 }

@@ -1,4 +1,4 @@
-// A first project's steps on the Map: decide, check, fix, connect and share,
+// A first project's steps on the Overview: decide, check, fix, connect and share,
 // each with what it has left and the place that does it. The host reads which
 // are done from the project; the list ends once the project is set up, and a
 // person can dismiss it sooner.
@@ -7,10 +7,10 @@ import { Check, ChevronRight, X } from "lucide-react";
 import { Button, SectionHeading, SimpleTooltip } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { opens, type ScreenNavigation, type ScreenTarget } from "./port";
-import type { MapStep } from "./types";
+import type { OverviewStep } from "./types";
 
-export interface MapStepsProps extends ScreenNavigation {
-  steps: MapStep[];
+export interface OverviewStepsProps extends ScreenNavigation {
+  steps: OverviewStep[];
   /** Run the checks over the whole project; absent, the check step leads nowhere. */
   onRun?: () => void;
   running?: boolean;
@@ -20,29 +20,29 @@ export interface MapStepsProps extends ScreenNavigation {
   guideHref?: string;
 }
 
-const targets: Partial<Record<MapStep["id"], ScreenTarget>> = {
+const targets: Partial<Record<OverviewStep["id"], ScreenTarget>> = {
   decide: { kind: "rules" },
   fix: { kind: "checks" },
   connect: { kind: "connect-assistant" },
   share: { kind: "share" },
 };
 
-function stepLabel(id: MapStep["id"]): string {
+function stepLabel(id: OverviewStep["id"]): string {
   switch (id) {
     case "decide":
-      return t("Decide what becomes a rule", "a first step on the Map");
+      return t("Decide what becomes a rule", "a first step on the Overview");
     case "check":
-      return t("Check the files", "a first step on the Map");
+      return t("Check the files", "a first step on the Overview");
     case "fix":
-      return t("Fix what fails", "a first step on the Map");
+      return t("Fix what fails", "a first step on the Overview");
     case "connect":
-      return t("Connect an assistant", "a first step on the Map");
+      return t("Connect an assistant", "a first step on the Overview");
     case "share":
-      return t("Share the rules", "a first step on the Map");
+      return t("Share the rules", "a first step on the Overview");
   }
 }
 
-function stepLeft(step: MapStep): string | undefined {
+function stepLeft(step: OverviewStep): string | undefined {
   if (step.done || !step.count) return undefined;
   if (step.id === "decide") {
     return t("{count} waiting", "items awaiting a decision, beside a first step", {
@@ -55,7 +55,7 @@ function stepLeft(step: MapStep): string | undefined {
   return undefined;
 }
 
-export function MapSteps({
+export function OverviewSteps({
   steps,
   onRun,
   running,
@@ -63,21 +63,28 @@ export function MapSteps({
   guideHref,
   navigate,
   canNavigate,
-}: MapStepsProps) {
+}: OverviewStepsProps) {
   const nav: ScreenNavigation = { navigate, canNavigate };
   const done = steps.filter((s) => s.done).length;
-  const actionOf = (step: MapStep): (() => void) | undefined => {
+  const actionOf = (step: OverviewStep): (() => void) | undefined => {
     if (step.done) return undefined;
     if (step.id === "check") return running ? undefined : onRun;
     const target = targets[step.id];
     return target && opens(nav, target) ? () => navigate(target) : undefined;
   };
   return (
-    <section data-slot="map-steps" aria-labelledby="map-steps-heading" className="space-y-2">
+    <section
+      data-slot="overview-steps"
+      aria-labelledby="overview-steps-heading"
+      className="space-y-2"
+    >
       <div className="flex items-center justify-between gap-2">
-        <div id="map-steps-heading" className="flex items-baseline gap-2">
+        <div id="overview-steps-heading" className="flex items-baseline gap-2">
           <SectionHeading>First steps</SectionHeading>
-          <span data-slot="map-steps-done" className="text-xs text-muted-foreground tabular-nums">
+          <span
+            data-slot="overview-steps-done"
+            className="text-xs text-muted-foreground tabular-nums"
+          >
             {t("{done} of {total}", "first steps done, of all of them", {
               done,
               total: steps.length,
@@ -87,7 +94,7 @@ export function MapSteps({
         <div className="flex items-center gap-1">
           {guideHref && (
             <Button variant="link" size="sm" className="h-auto px-1 text-xs" asChild>
-              <a href={guideHref} data-slot="map-steps-guide">
+              <a href={guideHref} data-slot="overview-steps-guide">
                 Guide
               </a>
             </Button>
@@ -97,7 +104,7 @@ export function MapSteps({
               <Button
                 variant="ghost"
                 size="icon-xs"
-                data-slot="map-steps-dismiss"
+                data-slot="overview-steps-dismiss"
                 onClick={onDismiss}
                 className="text-muted-foreground/60"
                 aria-label={t("Dismiss first steps")}
@@ -129,7 +136,7 @@ function StepRow({
   left,
   onAct,
 }: {
-  step: MapStep;
+  step: OverviewStep;
   label: string;
   left?: string;
   onAct?: () => void;
@@ -152,7 +159,7 @@ function StepRow({
       </span>
       {left && (
         <span
-          data-slot="map-step-left"
+          data-slot="overview-step-left"
           className="shrink-0 text-xs text-muted-foreground tabular-nums"
         >
           {left}
@@ -161,11 +168,11 @@ function StepRow({
     </>
   );
   return (
-    <li data-slot="map-step" data-step={step.id} data-done={step.done || undefined}>
+    <li data-slot="overview-step" data-step={step.id} data-done={step.done || undefined}>
       {onAct ? (
         <button
           type="button"
-          data-slot="map-step-act"
+          data-slot="overview-step-act"
           onClick={onAct}
           className="flex min-h-11 w-full items-center gap-3 rounded-md py-1.5 text-left hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         >

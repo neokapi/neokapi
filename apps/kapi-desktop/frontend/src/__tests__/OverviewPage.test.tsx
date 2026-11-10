@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
-import { MapView } from "@neokapi/project-screens";
+import { OverviewView } from "@neokapi/project-screens";
 import {
   MAP_EMPTY,
   MAP_PENDING,
@@ -10,14 +10,14 @@ import {
 import {
   DEEPER_LOOK_RESULT_MS,
   DeeperLookRow,
-  MapPage,
+  OverviewPage,
   type DeeperLookState,
-} from "../components/MapPage";
+} from "../components/OverviewPage";
 import { api } from "../hooks/useApi";
-import type { DeeperLookResult, MapSummary } from "../types/api";
+import type { DeeperLookResult, OverviewSummary } from "../types/api";
 
 // The preview inspects the file through the backend, which no test runtime
-// provides; the Map's job is to open it on the right file.
+// provides; the Overview's job is to open it on the right file.
 vi.mock("../components/FilePreview", () => ({
   FilePreview: ({ filePath, filename }: { filePath: string | null; filename: string }) =>
     filePath ? <div data-testid="file-preview">{filename}</div> : null,
@@ -37,10 +37,10 @@ const LOOKED: DeeperLookResult = {
   tokens: 1200,
 };
 
-/** The Map as drawn, with the deeper look's row in a given state. */
-function renderView(summary: MapSummary, over: { deeperLook: DeeperLookState }) {
+/** The Overview as drawn, with the deeper look's row in a given state. */
+function renderView(summary: OverviewSummary, over: { deeperLook: DeeperLookState }) {
   render(
-    <MapView
+    <OverviewView
       projectName="Fernwell"
       summary={summary}
       navigate={vi.fn()}
@@ -51,11 +51,11 @@ function renderView(summary: MapSummary, over: { deeperLook: DeeperLookState }) 
   );
 }
 
-describe("MapPage", () => {
+describe("OverviewPage", () => {
   it("adds files through the backend from the empty files list", async () => {
     const add = vi.spyOn(api, "addFilesDialog").mockResolvedValue([]);
     render(
-      <MapPage
+      <OverviewPage
         tabID="t-empty"
         projectName="Untitled"
         summary={MAP_EMPTY}
@@ -63,17 +63,17 @@ describe("MapPage", () => {
         onNavigate={vi.fn()}
       />,
     );
-    const empty = document.querySelector('[data-slot="map-files-empty"]') as HTMLElement;
+    const empty = document.querySelector('[data-slot="overview-files-empty"]') as HTMLElement;
     await userEvent.click(within(empty).getByRole("button", { name: "Add files" }));
     expect(add).toHaveBeenCalledWith("t-empty", "");
   });
 
-  it("maps each place the Map leads to onto the tab's views", async () => {
+  it("maps each place the Overview leads to onto the tab's views", async () => {
     const onDecide = vi.fn();
     const onNavigate = vi.fn();
     const onOpenReader = vi.fn();
     render(
-      <MapPage
+      <OverviewPage
         tabID="t-nav"
         projectName="Fernwell"
         summary={MAP_PENDING}
@@ -91,13 +91,13 @@ describe("MapPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Decide 5" }));
     expect(onDecide).toHaveBeenLastCalledWith(undefined);
     const row = document.querySelector('[data-path="docs/billing.md"]') as HTMLElement;
-    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
+    await userEvent.click(row.querySelector('[data-slot="overview-file-open"]') as HTMLElement);
     expect(onOpenReader).toHaveBeenCalledWith("docs/billing.md");
   });
 
   it("opens a file's preview from its row", async () => {
     render(
-      <MapPage
+      <OverviewPage
         tabID="t1"
         projectName="Fernwell"
         summary={MAP_PENDING}
@@ -106,36 +106,41 @@ describe("MapPage", () => {
       />,
     );
     const row = document.querySelector('[data-path="docs/account.md"]') as HTMLElement;
-    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
+    await userEvent.click(row.querySelector('[data-slot="overview-file-open"]') as HTMLElement);
     expect(screen.getByTestId("file-preview")).toHaveTextContent("docs/account.md");
   });
 
   it("checks every file once for a tab with no findings yet, in the recipe's languages", async () => {
-    vi.spyOn(api, "mapSummary").mockResolvedValue(MAP_SOURCE_ONLY_UNCHECKED);
+    vi.spyOn(api, "overviewSummary").mockResolvedValue(MAP_SOURCE_ONLY_UNCHECKED);
     const run = vi.spyOn(api, "runChecks").mockResolvedValue(null);
     render(
-      <MapPage tabID="t-auto" projectName="Fernwell" onDecide={vi.fn()} onNavigate={vi.fn()} />,
+      <OverviewPage
+        tabID="t-auto"
+        projectName="Fernwell"
+        onDecide={vi.fn()}
+        onNavigate={vi.fn()}
+      />,
     );
     await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
     expect(run).toHaveBeenCalledWith("t-auto", { id: "", name: "", languages: [] });
   });
 
   it("runs the checks in the recipe's target languages", async () => {
-    vi.spyOn(api, "mapSummary").mockResolvedValue(MAP_PENDING);
+    vi.spyOn(api, "overviewSummary").mockResolvedValue(MAP_PENDING);
     const run = vi.spyOn(api, "runChecks").mockResolvedValue(null);
     render(
-      <MapPage tabID="t-run" projectName="Fernwell" onDecide={vi.fn()} onNavigate={vi.fn()} />,
+      <OverviewPage tabID="t-run" projectName="Fernwell" onDecide={vi.fn()} onNavigate={vi.fn()} />,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Run on everything" }));
     expect(run).toHaveBeenCalledWith("t-run", { id: "", name: "", languages: ["de", "nb"] });
   });
 });
 
-describe("the deeper look on the Map", () => {
+describe("the deeper look on the Overview", () => {
   it("offers one button with one line under Suggestions", () => {
     renderView(MAP_PENDING, { deeperLook: { model: "demo-stub" } });
-    const row = document.querySelector('[data-slot="map-deeper-look"]') as HTMLElement;
-    expect(row.closest('[data-slot="map-suggestions"]')).not.toBeNull();
+    const row = document.querySelector('[data-slot="overview-deeper-look"]') as HTMLElement;
+    expect(row.closest('[data-slot="overview-suggestions"]')).not.toBeNull();
     expect(within(row).getByRole("button", { name: "Deeper look with AI" })).toBeEnabled();
     expect(row).toHaveTextContent("Reads your files with the connected model and suggests rules.");
   });
@@ -148,18 +153,18 @@ describe("the deeper look on the Map", () => {
   it("shows the quiet progress state with the model's name while it runs", () => {
     renderView(MAP_PENDING, { deeperLook: { model: "demo-stub", running: true } });
     expect(screen.getByRole("button", { name: "Reading with demo-stub" })).toBeDisabled();
-    expect(document.querySelector('[data-slot="map-deeper-look-line"]')).toBeNull();
+    expect(document.querySelector('[data-slot="overview-deeper-look-line"]')).toBeNull();
   });
 
   it("says what the run filed, and that there was nothing more", () => {
     renderView(MAP_PENDING, { deeperLook: { model: "demo-stub", result: LOOKED } });
-    expect(document.querySelector('[data-slot="map-deeper-look-line"]')).toHaveTextContent(
+    expect(document.querySelector('[data-slot="overview-deeper-look-line"]')).toHaveTextContent(
       "3 new suggestions from demo-stub",
     );
     renderView(MAP_PENDING, {
       deeperLook: { model: "demo-stub", result: { ...LOOKED, filed: 0 } },
     });
-    const lines = document.querySelectorAll('[data-slot="map-deeper-look-line"]');
+    const lines = document.querySelectorAll('[data-slot="overview-deeper-look-line"]');
     expect(lines[1]).toHaveTextContent("Nothing more to suggest");
   });
 
@@ -167,7 +172,7 @@ describe("the deeper look on the Map", () => {
     vi.spyOn(api, "detectAIProviders").mockResolvedValue({ detected: [], configured: false });
     const look = vi.spyOn(api, "deeperLook").mockResolvedValue(LOOKED);
     render(
-      <MapPage
+      <OverviewPage
         tabID="t-nomodel"
         projectName="Fernwell"
         summary={MAP_PENDING}
@@ -184,13 +189,13 @@ describe("the deeper look on the Map", () => {
     expect(look).not.toHaveBeenCalled();
   });
 
-  it("runs with the connected model, reads the Map again, and lets the result line go", async () => {
+  it("runs with the connected model, reads the Overview again, and lets the result line go", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const summary = vi.spyOn(api, "mapSummary").mockResolvedValue(MAP_PENDING);
+    const summary = vi.spyOn(api, "overviewSummary").mockResolvedValue(MAP_PENDING);
     vi.spyOn(api, "runChecks").mockResolvedValue(null);
     const look = vi.spyOn(api, "deeperLook").mockResolvedValue(LOOKED);
     render(
-      <MapPage
+      <OverviewPage
         tabID="t-look"
         projectName="Fernwell"
         deeperLookModel={{ connected: true, provider: "demo", model: "demo-stub" }}
@@ -220,7 +225,7 @@ describe("the deeper look on the Map", () => {
     vi.spyOn(api, "deeperLookModel").mockReturnValue(new Promise(() => {}));
     const look = vi.spyOn(api, "deeperLook").mockResolvedValue(LOOKED);
     render(
-      <MapPage
+      <OverviewPage
         tabID="t-pending"
         projectName="Fernwell"
         summary={MAP_PENDING}
@@ -238,7 +243,7 @@ describe("the deeper look on the Map", () => {
   it("shows why the run failed", async () => {
     vi.spyOn(api, "deeperLook").mockRejectedValue(new Error("anthropic: API error 401"));
     render(
-      <MapPage
+      <OverviewPage
         tabID="t-fail"
         projectName="Fernwell"
         summary={MAP_PENDING}

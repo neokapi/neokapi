@@ -67,7 +67,7 @@ export function decisionKey(d: RuleDecision): string {
 }
 
 /**
- * The question a Map row opens on. The row's key is its group and its item's
+ * The question an Overview row opens on. The row's key is its group and its item's
  * id (`suggested:<id>`, `conflict:<id>`), and the id is a suggestion's own or
  * one side's of a disagreement.
  */
@@ -154,7 +154,7 @@ export interface DecideViewProps extends ScreenNavigation {
   view: RulesDecideView | null;
   loading?: boolean;
   error?: unknown;
-  /** The Map row to open on (`suggested:<id>`, `conflict:<id>`). */
+  /** The Overview row to open on (`suggested:<id>`, `conflict:<id>`). */
   defaultSelected?: string;
   /** Take the keyboard. */
   keyboard?: boolean;
@@ -206,7 +206,9 @@ export function DecideView({
   canNavigate,
 }: DecideViewProps) {
   const screenNav: ScreenNavigation = { navigate, canNavigate };
-  const onOpenMap = opens(screenNav, { kind: "map" }) ? () => navigate({ kind: "map" }) : undefined;
+  const onOpenOverview = opens(screenNav, { kind: "overview" })
+    ? () => navigate({ kind: "overview" })
+    : undefined;
   // The file a suggestion was seen in opens in the Reader, when the host opens it.
   const onOpenFile = (path: string) =>
     opens(screenNav, { kind: "reader", path })
@@ -426,14 +428,14 @@ export function DecideView({
                     )
               }
               action={
-                onOpenMap && (
+                onOpenOverview && (
                   <Button
                     size="sm"
                     variant="outline"
                     data-slot="decide-open-map"
-                    onClick={onOpenMap}
+                    onClick={onOpenOverview}
                   >
-                    Open the Map
+                    Open the Overview
                   </Button>
                 )
               }

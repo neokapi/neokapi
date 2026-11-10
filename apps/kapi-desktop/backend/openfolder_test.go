@@ -471,9 +471,9 @@ func roundTrip(t *testing.T, proj *project.KapiProject) *project.KapiProject {
 	return &out
 }
 
-// The Map is the landing view of every tab, a folder opened without a recipe
+// The Overview is the landing view of every tab, a folder opened without a recipe
 // included: it reads the folder's draft cache.
-func TestMapSummaryOfAFolderWithoutARecipe(t *testing.T) {
+func TestOverviewSummaryOfAFolderWithoutARecipe(t *testing.T) {
 	app := newWorkspaceApp(t)
 	dir := contentFolder(t, "Handbook")
 	tab, err := app.OpenProject(dir)
@@ -482,7 +482,7 @@ func TestMapSummaryOfAFolderWithoutARecipe(t *testing.T) {
 	_, err = app.SyncProjectStore(tab.ID)
 	require.NoError(t, err)
 
-	sum, err := app.MapSummary(tab.ID)
+	sum, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 3, sum.ReadFiles)
 	assert.Positive(t, sum.Blocks)

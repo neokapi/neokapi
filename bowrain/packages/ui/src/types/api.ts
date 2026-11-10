@@ -3020,7 +3020,7 @@ export interface ModelRecommendationsResponse {
   locales: ModelSweepLocaleGroup[];
 }
 
-// --- The project screens: the Map, the Reader and Decide on the server ---
+// --- The project screens: the Overview, the Reader and Decide on the server ---
 
 /** The body POST /:ws/:id/map/:ref/check answers with: the job to follow. */
 export interface ProjectCheckStarted {

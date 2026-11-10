@@ -259,7 +259,7 @@ export function ChecksPanel({
   }, [propResult]);
 
   // The panel opens on the last run over every file and target language, the
-  // run the Map's findings count is read from, so the count and the panel
+  // run the Overview's findings count is read from, so the count and the panel
   // agree. Running the checks here replaces it.
   useEffect(() => {
     if (propResult) return;

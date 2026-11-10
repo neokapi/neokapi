@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vite-plus/test";
 
 import {
-  mapSummaryFixture as map,
+  overviewSummaryFixture as map,
   readerFileFixture as reader,
   rulesDecideViewFixture as decide,
   keptRulesFixture as kept,
@@ -39,8 +39,8 @@ function expectFinding(f: ReaderFinding) {
   if (f.span) expect(f.span.end).toBeGreaterThan(f.span.start);
 }
 
-describe("map-summary.json", () => {
-  it("holds the counts the Map shows", () => {
+describe("overview-summary.json", () => {
+  it("holds the counts the Overview shows", () => {
     for (const n of [map.files, map.blocks, map.rules, map.read_files]) {
       expect(Number.isInteger(n)).toBe(true);
     }

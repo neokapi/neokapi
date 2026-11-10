@@ -1,7 +1,7 @@
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
   KeptRule,
-  MapSummary,
+  OverviewSummary,
   ReaderFile,
   RuleDecideResult,
   RulesDecideView,
@@ -1531,9 +1531,13 @@ export interface ApiAdapter {
     stream: string,
   ): Promise<TrialReport>;
 
-  // The project screens: the Map, the Reader and Decide over one stream.
-  /** The Map of a project's stream (GET /:ws/:id/map/:ref). */
-  getMapSummary(workspaceSlug: string, projectId: string, stream?: string): Promise<MapSummary>;
+  // The project screens: the Overview, the Reader and Decide over one stream.
+  /** The Overview of a project's stream (GET /:ws/:id/map/:ref). */
+  getOverviewSummary(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<OverviewSummary>;
   /** One item as the Reader draws it (GET /:ws/:id/reader/:ref?item=). */
   getReaderFile(
     workspaceSlug: string,

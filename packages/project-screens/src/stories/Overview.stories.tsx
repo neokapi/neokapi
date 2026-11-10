@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { Button } from "@neokapi/ui-primitives";
-import { MapView } from "../MapView";
-import { MapScreen } from "../screens";
+import { OverviewView } from "../OverviewView";
+import { OverviewScreen } from "../screens";
 import type { ProjectScreensPort } from "../port";
 import {
   MAP_ALL_KEPT,
@@ -16,13 +16,13 @@ import {
 } from "./fixtures";
 
 /**
- * The Map, the page a project opens on: the files, what applies to them, and
+ * The Overview, the page a project opens on: the files, what applies to them, and
  * four counts. A suggestion's Decide opens Decide on that row; a file's Open
  * opens the file in the Reader.
  */
-const meta: Meta<typeof MapView> = {
-  title: "Project screens/Map",
-  component: MapView,
+const meta: Meta<typeof OverviewView> = {
+  title: "Project screens/Overview",
+  component: OverviewView,
   tags: ["autodocs"],
   args: {
     projectName: "Fernwell",
@@ -40,7 +40,7 @@ const meta: Meta<typeof MapView> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof MapView>;
+type Story = StoryObj<typeof OverviewView>;
 
 /** An assistant suggested names, words and a way of writing; one disagreement waits. */
 export const SuggestionsPending: Story = {};
@@ -83,15 +83,15 @@ export const FirstSteps: Story = {
 
 /** A port with the reads alone: no check action, and nothing the host does not open. */
 const READ_ONLY: ProjectScreensPort = {
-  mapSummary: async () => MAP_PENDING,
+  overviewSummary: async () => MAP_PENDING,
   readerFile: async () => READER_WITH_FIXES,
   decideView: async () => DECIDE_VIEW,
 };
 
 /** A read-only preview: drawn through a port with no actions, opening only the Reader. */
-export const ReadOnly: StoryObj<typeof MapScreen> = {
+export const ReadOnly: StoryObj<typeof OverviewScreen> = {
   render: () => (
-    <MapScreen
+    <OverviewScreen
       port={READ_ONLY}
       projectName="Fernwell"
       navigate={fn()}

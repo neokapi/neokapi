@@ -103,13 +103,13 @@ describe("Decide's question", () => {
     expect(slot("decide-consequence")).toBeNull();
   });
 
-  it("says nothing waits, with the rules count and the way to the Map", async () => {
+  it("says nothing waits, with the rules count and the way to the Overview", async () => {
     const { navigate } = renderDecide(EMPTY_DECIDE_VIEW);
     expect(slot("decide-empty")!.textContent).toContain("Nothing to decide.");
     expect(slot("decide-empty")!.textContent).toContain("14 rules kept");
     expect(slot("decide-counts")).toBeNull();
     await userEvent.click(slot("decide-open-map")!);
-    expect(navigate).toHaveBeenCalledWith({ kind: "map" });
+    expect(navigate).toHaveBeenCalledWith({ kind: "overview" });
   });
 });
 
@@ -227,7 +227,7 @@ describe("what an answer sends to DecideRule", () => {
   });
 });
 
-describe("the Map's row", () => {
+describe("the Overview's row", () => {
   it("opens the question it names: a suggestion's own id, or one side's", () => {
     const decisions = DECIDE_VIEW.decisions;
     expect(decisionForRow(decisions, `suggested:${DECIDE_IDS.business}`)).toBe(WORD_DECISION);
@@ -273,7 +273,7 @@ describe("where Decide leads", () => {
     expect(navigate).toHaveBeenCalledWith({ kind: "reader", path: "site/about.html" });
   });
 
-  it("shows the file without a link, and no way to the Map, when the host opens neither", () => {
+  it("shows the file without a link, and no way to the Overview, when the host opens neither", () => {
     renderDecide(WORD_VIEW, { canNavigate: () => false });
     expect(slot("decide-open-file")).toBeNull();
     expect(slot("decide-evidence")!.textContent).toContain("about.html");

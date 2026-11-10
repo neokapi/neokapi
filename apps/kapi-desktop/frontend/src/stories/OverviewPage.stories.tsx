@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MapView } from "@neokapi/project-screens";
+import { OverviewView } from "@neokapi/project-screens";
 import { MAP_ALL_KEPT, MAP_PENDING } from "@neokapi/project-screens/fixtures";
-import { DeeperLookRow, MapPage, type DeeperLookState } from "../components/MapPage";
+import { DeeperLookRow, OverviewPage, type DeeperLookState } from "../components/OverviewPage";
 import { ConnectAICard } from "../components/ConnectAICard";
 
 const TAB = "tab-fernwell";
@@ -23,13 +23,13 @@ function withClient(Story: React.ComponentType) {
 }
 
 /**
- * The Map in a project tab: the project screens' Map with the parts only the
- * desktop has, the deeper look with AI and adding files. The Map's own states
- * are under Project screens/Map.
+ * The Overview in a project tab: the project screens' Overview with the parts only the
+ * desktop has, the deeper look with AI and adding files. The Overview's own states
+ * are under Project screens/Overview.
  */
-const meta: Meta<typeof MapPage> = {
-  title: "Pages/MapPage",
-  component: MapPage,
+const meta: Meta<typeof OverviewPage> = {
+  title: "Pages/OverviewPage",
+  component: OverviewPage,
   tags: ["autodocs"],
   args: {
     tabID: TAB,
@@ -44,12 +44,12 @@ const meta: Meta<typeof MapPage> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof MapPage>;
+type Story = StoryObj<typeof OverviewPage>;
 
 /** An assistant suggested names, words and a way of writing; one disagreement waits. */
 export const SuggestionsPending: Story = {};
 
-/** The Map as drawn, with the deeper look's row in a given state. */
+/** The Overview as drawn, with the deeper look's row in a given state. */
 function DeeperLookMap({
   state,
   summary = MAP_PENDING,
@@ -60,7 +60,7 @@ function DeeperLookMap({
   connectAI?: React.ReactNode;
 }) {
   return (
-    <MapView
+    <OverviewView
       projectName="Fernwell"
       summary={summary}
       onRun={fn()}

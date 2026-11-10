@@ -40,10 +40,10 @@ vi.mock("../hooks/useApi", async () => {
   };
 });
 
-// The Overview's own reads are MapPage's tests; here it draws what the route
+// The Overview's own reads are OverviewPage's tests; here it draws what the route
 // hands it to draw under its counts.
-vi.mock("../components/MapPage", () => ({
-  MapPage: ({ standing }: { standing?: React.ReactNode }) => (
+vi.mock("../components/OverviewPage", () => ({
+  OverviewPage: ({ standing }: { standing?: React.ReactNode }) => (
     <div data-testid="overview">{standing}</div>
   ),
 }));

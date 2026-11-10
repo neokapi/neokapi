@@ -1,7 +1,7 @@
 package screens
 
-// MapSummaryDTO is everything the Map renders.
-type MapSummaryDTO struct {
+// OverviewSummaryDTO is everything the Overview renders.
+type OverviewSummaryDTO struct {
 	// ProjectKey is the project's workspace key, empty for a tab the
 	// workspace does not hold.
 	ProjectKey string `json:"project_key,omitempty"`
@@ -35,18 +35,18 @@ type MapSummaryDTO struct {
 	TargetLanguages []string `json:"target_languages"`
 	// FileRows has one row per content file, the most findings first, then by
 	// path.
-	FileRows []MapFileDTO `json:"file_rows"`
+	FileRows []OverviewFileDTO `json:"file_rows"`
 	// Suggestions are the items awaiting a decision: the disagreements, then
 	// the suggestions, in the order the digest lists them.
 	Suggestions []MapSuggestionDTO `json:"suggestions"`
-	// Steps are the first project's steps (MapSteps), drawn while one of the
+	// Steps are the first project's steps (OverviewSteps), drawn while one of the
 	// steps that stay done is open. Empty once they are done, and for a host
 	// that reads no assistant or sharing state.
-	Steps []MapStepDTO `json:"steps,omitempty"`
+	Steps []OverviewStepDTO `json:"steps,omitempty"`
 }
 
-// MapFileDTO is one content file on the Map.
-type MapFileDTO struct {
+// OverviewFileDTO is one content file on the Map.
+type OverviewFileDTO struct {
 	// Path is absolute, for the preview; Relative is project-relative and
 	// slash-separated, for the row.
 	Path       string `json:"path"`

@@ -50,13 +50,13 @@ export function subNavTarget(id: string): (typeof subNavTargets)[SubNavId] | und
 
 /**
  * Where each of a project's sections navigates, by the id the secondary panel
- * gives it (projectSubNavConfig). The Map comes first: it is the project's
+ * gives it (projectSubNavConfig). The Overview comes first: it is the project's
  * landing page. `projectSectionTargetsAreComplete` in sub-nav-targets.test.ts
  * holds the table and the panel in step.
  */
 export const projectSectionTargets = {
-  map: "/$workspace/p/$projectId/s/$stream/map",
-  dashboard: "/$workspace/p/$projectId/s/$stream/overview",
+  overview: "/$workspace/p/$projectId/s/$stream/overview",
+  languages: "/$workspace/p/$projectId/s/$stream/languages",
   rules: "/$workspace/p/$projectId/s/$stream/rules",
   source: "/$workspace/p/$projectId/s/$stream/source",
   automations: "/$workspace/p/$projectId/s/$stream/automations",

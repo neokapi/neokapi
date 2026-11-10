@@ -2149,7 +2149,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     }),
     // The project screens, over the Fernwell fixtures the screens' own
     // stories draw. A fix files a proposal and leaves the item as it is.
-    getMapSummary: async () => MAP_PENDING,
+    getOverviewSummary: async () => MAP_PENDING,
     getReaderFile: async () => READER_WITH_FIXES,
     getDecideView: async () => DECIDE_VIEW,
     getDecideConsequence: async (_ws, _projectId, _id, form) =>

@@ -162,7 +162,7 @@ Only the connection coordinates sit under `bowrain:`:
 When the project's context lives on Bowrain, every checkout and every teammate
 reads the same terms, kept and dropped suggestions, and decisions. In the
 browser and in Kapi Desktop, Rules shows that record (see
-[Map, Reader and Rules](/server/project-map)). From the command line,
+[Overview, Reader and Rules](/server/project-overview)). From the command line,
 `kapi context sync` keeps it in step with the Bowrain project the `bowrain:`
 block connects to.
 

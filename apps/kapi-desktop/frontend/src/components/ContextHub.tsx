@@ -1,7 +1,7 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
 // One rail, in the order a person meets it: Decide asks about each suggestion
-// waiting for the project, one question at a time, and the project's Map
+// waiting for the project, one question at a time, and the project's Overview
 // leads to it;
 // Explore lays all of it out on its axes and over time; Ask answers a question
 // at a point; Assistants lists the assistants connected to the project and
@@ -73,7 +73,7 @@ export interface ContextHubProps {
   pin?: ContextPin;
   /**
    * The Decide row to open on, by its key in the list (`suggested:<id>`,
-   * `conflict:<id>`), when the Map sent a person here for one suggestion.
+   * `conflict:<id>`), when the Overview sent a person here for one suggestion.
    */
   decideRow?: string;
   /** Whether the project declares targets. Memory appears when it does. */
@@ -273,7 +273,7 @@ export function ContextHub({
               setUnitPin({ path });
               setActive("explorer");
             }}
-            onOpenMap={onNavigate ? () => onNavigate("map") : undefined}
+            onOpenOverview={onNavigate ? () => onNavigate("map") : undefined}
           />
         )}
         {current === "rules" && contextOnly && (

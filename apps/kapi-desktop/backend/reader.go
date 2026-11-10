@@ -182,7 +182,7 @@ func (a *App) applyReaderFixes(tabID, relPath string, r *readerRead, ids []strin
 	}
 	// The read ran the file's checks in every target language the
 	// whole-project run checks, so its findings take the file's place in that
-	// run, which the Map counts and the Checks page opens on.
+	// run, which the Overview counts and the Checks page opens on.
 	if wrote {
 		if op := a.getOpenProject(tabID); op != nil {
 			op.replaceCheckedFile(out.dto.Abs, out.run)

@@ -133,16 +133,16 @@ vi.mock("../components/DecidePage", () => ({
   DecidePage: ({
     tabID,
     onOpenFile,
-    onOpenMap,
+    onOpenOverview,
   }: {
     tabID: string;
     onOpenFile?: (p: string) => void;
-    onOpenMap?: () => void;
+    onOpenOverview?: () => void;
   }) => (
     <div>
       decide for {tabID}
       <button onClick={() => onOpenFile?.("docs/billing.md")}>open file</button>
-      {onOpenMap && <button onClick={onOpenMap}>open the map</button>}
+      {onOpenOverview && <button onClick={onOpenOverview}>open the overview</button>}
     </div>
   ),
 }));
@@ -171,10 +171,10 @@ describe("ContextHub", () => {
     expect(screen.queryByText("decide for t1")).not.toBeInTheDocument();
   });
 
-  it("goes to the Map from Decide", async () => {
+  it("goes to the Overview from Decide", async () => {
     const onNavigate = vi.fn();
     render(<ContextHub tabID="t1" projectName="Northsea" onNavigate={onNavigate} />);
-    await userEvent.click(screen.getByRole("button", { name: "open the map" }));
+    await userEvent.click(screen.getByRole("button", { name: "open the overview" }));
     expect(onNavigate).toHaveBeenCalledWith("map");
   });
 

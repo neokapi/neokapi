@@ -4,7 +4,7 @@
 // the shared @neokapi/contract-types package (issue #817).
 import type { Anchor, IOPort, ReviewContext, Run } from "@neokapi/contract-types";
 
-// The shapes the Map, the Reader and Decide render are defined in
+// The shapes the Overview, the Reader and Decide render are defined in
 // @neokapi/project-screens, which Bowrain shares; this module re-exports them.
 import type {
   ContextActor,
@@ -13,7 +13,7 @@ import type {
   DigestItem,
   DigestSubject,
   KeptRule,
-  MapSummary,
+  OverviewSummary,
   ReaderFile,
   RulesDecideView,
 } from "@neokapi/project-screens";
@@ -26,9 +26,9 @@ export type {
   DigestTermRule,
   DigestUsage,
   KeptRule,
-  MapFileRow,
+  OverviewFileRow,
   MapSuggestionRow,
-  MapSummary,
+  OverviewSummary,
   ReaderBlock,
   ReaderFile,
   ReaderFinding,
@@ -889,7 +889,7 @@ export interface ShareView {
 }
 
 /** A part of a connected project the Share page's preview reads from Bowrain. */
-export type BowrainPreviewPart = "map" | "reader" | "decide" | "kept";
+export type BowrainPreviewPart = "overview" | "reader" | "decide" | "kept";
 
 /** Why the server, or this Mac, read nothing for the preview. */
 export interface PreviewRefusal {
@@ -903,7 +903,7 @@ export interface PreviewRefusal {
 
 /** One part of a connected project as the Bowrain server shows it, or its refusal. */
 export interface BowrainPreviewAnswer {
-  map?: MapSummary;
+  overview?: OverviewSummary;
   reader?: ReaderFile;
   decide?: RulesDecideView;
   kept?: KeptRule[];
@@ -1072,7 +1072,7 @@ export interface AssistantSession {
 
 /** A tab's Assistants page. */
 export interface AssistantsView {
-  /** The rules in force at the project's own point, as the Map counts them; absent when unread. */
+  /** The rules in force at the project's own point, as the Overview counts them; absent when unread. */
   rules?: number;
   /** Why the assistants could not be read. The sessions are read all the same. */
   hosts_error?: string;
@@ -2009,7 +2009,7 @@ export interface StoreSyncResult {
 
 /** The model a deeper look of a tab would ask (DeeperLookModel). */
 export interface DeeperLookModel {
-  /** False when nothing names a model; the Map then offers to connect one. */
+  /** False when nothing names a model; the Overview then offers to connect one. */
   connected: boolean;
   provider?: string;
   model?: string;

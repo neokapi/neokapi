@@ -1,4 +1,4 @@
-// The port the Bowrain web app draws the project screens through: the Map,
+// The port the Bowrain web app draws the project screens through: the Overview,
 // the Reader and Decide read from the server's REST routes for one project
 // stream, with the actions the signed-in member holds the permission for.
 
@@ -29,7 +29,7 @@ export interface ScreensScope {
   stream: string;
 }
 
-type ScreenRead = "map" | "reader" | "decide";
+type ScreenRead = "overview" | "reader" | "decide";
 
 /** A port that also tells its screens to read again. */
 export interface RestScreensPort extends ProjectScreensPort {
@@ -61,9 +61,9 @@ export interface JobPolling {
 const JOB_POLLING: JobPolling = { firstMs: 1000, maxMs: 5000, limitMs: 10 * 60 * 1000 };
 
 /**
- * The Map's file rows name each file by its path in the project, and the
+ * The Overview's file rows name each file by its path in the project, and the
  * server's Reader takes an item's name. They differ for an item stored under
- * a source path of its own, so the port reads the Map's rows to resolve one.
+ * a source path of its own, so the port reads the Overview's rows to resolve one.
  */
 function itemNames(api: ApiAdapter, scope: ScreensScope) {
   let rows: Map<string, string> | null = null;
@@ -72,7 +72,7 @@ function itemNames(api: ApiAdapter, scope: ScreensScope) {
   };
   const resolve = async (path: string): Promise<string> => {
     if (!rows?.has(path)) {
-      learn(await api.getMapSummary(scope.ws, scope.projectId, scope.stream));
+      learn(await api.getOverviewSummary(scope.ws, scope.projectId, scope.stream));
     }
     return rows?.get(path) ?? path;
   };
@@ -139,8 +139,8 @@ export function restScreensPort(
       for (const done of waits) done();
       listeners.clear();
     },
-    async mapSummary() {
-      const summary = await api.getMapSummary(ws, projectId, stream);
+    async overviewSummary() {
+      const summary = await api.getOverviewSummary(ws, projectId, stream);
       names.learn(summary);
       return summary;
     },
@@ -152,7 +152,7 @@ export function restScreensPort(
     decideConsequence: (id, form) => api.getDecideConsequence(ws, projectId, id, form, stream),
     async decide(id, answer, form) {
       const out = await api.decideRule(ws, projectId, { id, answer, form }, stream);
-      notify("map");
+      notify("overview");
       return out;
     },
     async assign(id, userId) {
@@ -188,7 +188,7 @@ export function restScreensPort(
         await wait(Math.min(delay, Math.max(0, giveUpAt - Date.now())));
         delay = Math.min(delay * 2, poll.maxMs);
       }
-      if (!disposed) notify("map");
+      if (!disposed) notify("overview");
     },
     actorName: (actor) => opts.actorName?.(actor),
     subscribe(onChange) {
@@ -230,10 +230,10 @@ export function permittedPort<P extends ProjectScreensPort>(
   return out;
 }
 
-/** The targets the web app opens: the Map, the Reader, Rules and the Source content page. */
+/** The targets the web app opens: the Overview, the Reader, Rules and the Source content page. */
 export function bowrainOpens(target: ScreenTarget): boolean {
   switch (target.kind) {
-    case "map":
+    case "overview":
     case "reader":
     case "rules":
     case "kept":
@@ -288,7 +288,7 @@ export function useProjectScreensPort(scope: ScreensScope): ProjectScreensPort {
   useEffect(() => {
     if (seen.current === dataUpdatedAt) return;
     seen.current = dataUpdatedAt;
-    rest.notify("map");
+    rest.notify("overview");
     rest.notify("reader");
     rest.notify("decide");
   }, [rest, dataUpdatedAt]);

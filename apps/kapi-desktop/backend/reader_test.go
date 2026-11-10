@@ -32,7 +32,7 @@ func readerFinding(t *testing.T, r *screens.ReaderFileDTO, label string) screens
 }
 
 // cachedBlocks are the block cache's translatable blocks for one file, by id,
-// as the Map counts them.
+// as the Overview counts them.
 func cachedBlocks(t *testing.T, app *App, tabID, rel string) map[string]string {
 	t.Helper()
 	db, ok := app.existingProjectStore(app.getOpenProject(tabID))
@@ -68,7 +68,7 @@ func TestReaderFile_KapiMart(t *testing.T) {
 	_, err = app.SyncProjectStore(tab.ID)
 	require.NoError(t, err)
 
-	summary, err := app.MapSummary(tab.ID)
+	summary, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	res, err := app.RunChecks(tab.ID, ProjectFilter{Languages: summary.TargetLanguages})
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestReaderFile_KapiMart(t *testing.T) {
 		byPath[f.Path] += len(f.Findings)
 	}
 	// The file with the most findings, so the comparison has findings to make.
-	summary, err = app.MapSummary(tab.ID)
+	summary, err = app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, summary.FileRows)
 	row := summary.FileRows[0]
@@ -105,7 +105,7 @@ func TestReaderFile_KapiMart(t *testing.T) {
 	require.Len(t, single.Files, 1)
 	want := single.Files[0].Findings
 	assert.Equal(t, len(want), got.Findings)
-	assert.Equal(t, byPath[row.Path], got.Findings, "the Map's count for the file")
+	assert.Equal(t, byPath[row.Path], got.Findings, "the Overview's count for the file")
 	placed := len(got.Document)
 	fixable := 0
 	type key struct{ block, label string }
@@ -153,8 +153,8 @@ func TestReaderFile_KapiMart(t *testing.T) {
 		i++
 	}
 
-	// A narrowed run is never the one the Map counts.
-	after, err := app.MapSummary(tab.ID)
+	// A narrowed run is never the one the Overview counts.
+	after, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	assert.Equal(t, *summary.Findings, *after.Findings)
 }
@@ -276,7 +276,7 @@ func TestFixFile_AppliesEveryFix(t *testing.T) {
 }
 
 // TestFixFile_UpdatesTheMapsRun: a fix replaces the file's entry in the last
-// whole-project run, so the Map's counts and the Checks page show what the
+// whole-project run, so the Overview's counts and the Checks page show what the
 // file holds after it, without a second run over every file.
 func TestFixFile_UpdatesTheMapsRun(t *testing.T) {
 	wsRoot := t.TempDir()
@@ -287,7 +287,7 @@ func TestFixFile_UpdatesTheMapsRun(t *testing.T) {
 	whole, err := app.RunChecks(tabID, ProjectFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, "failed", whole.Verdict)
-	before, err := app.MapSummary(tabID)
+	before, err := app.OverviewSummary(tabID)
 	require.NoError(t, err)
 	require.NotNil(t, before.Findings)
 	assert.Equal(t, 2, *before.Findings)
@@ -295,7 +295,7 @@ func TestFixFile_UpdatesTheMapsRun(t *testing.T) {
 	_, err = app.FixFile(tabID, "locales/en.json")
 	require.NoError(t, err)
 
-	after, err := app.MapSummary(tabID)
+	after, err := app.OverviewSummary(tabID)
 	require.NoError(t, err)
 	require.NotNil(t, after.Findings)
 	assert.Zero(t, *after.Findings)

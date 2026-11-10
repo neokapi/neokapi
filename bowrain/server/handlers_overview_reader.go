@@ -1,7 +1,7 @@
 package server
 
-// The Map and the Reader on the server, in the shapes the desktop draws them
-// (host/screens). The Map counts what the stores hold and reads no block. The
+// The Overview and the Reader on the server, in the shapes the desktop draws them
+// (host/screens). The Overview counts what the stores hold and reads no block. The
 // Reader reads one item's blocks and checks them at the source language, as
 // the project-wide check does item by item.
 //
@@ -40,23 +40,23 @@ import (
 // desktop's Reader caps them (host.DefaultContextTermsLimit).
 const readerTermsLimit = 25
 
-// registerMapReaderRoutes adds the Map and Reader routes under the project
+// registerOverviewReaderRoutes adds the Overview and Reader routes under the project
 // group /:ws. The stream is the :ref segment, as the item routes take it.
-func (s *Server) registerMapReaderRoutes(g *echo.Group) {
-	g.GET("/:id/map/:ref", s.HandleMapSummary)
+func (s *Server) registerOverviewReaderRoutes(g *echo.Group) {
+	g.GET("/:id/map/:ref", s.HandleOverviewSummary)
 	g.POST("/:id/map/:ref/check", s.HandleCheckProject)
 	g.GET("/:id/reader/:ref", s.HandleReaderFile)
 	g.POST("/:id/reader/:ref/fix", s.HandleReaderFix)
 	g.POST("/:id/reader/:ref/fix-file", s.HandleReaderFixFile)
 }
 
-// HandleMapSummary answers GET /:ws/:id/map/:ref with the Map of the
-// project's stream (screens.MapSummaryDTO). Files are the stream's items,
+// HandleOverviewSummary answers GET /:ws/:id/map/:ref with the Overview of the
+// project's stream (screens.OverviewSummaryDTO). Files are the stream's items,
 // each with its translatable block count and the findings its tally holds;
 // the rules are those in force at the project's own point; the suggestions
 // are the ledger's, as Decide reads them. Findings is nil, and CheckedAt
 // empty, until a project-wide check has recorded a tally.
-func (s *Server) HandleMapSummary(c echo.Context) error {
+func (s *Server) HandleOverviewSummary(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -65,10 +65,10 @@ func (s *Server) HandleMapSummary(c echo.Context) error {
 	if err != nil {
 		return decideError(c, err)
 	}
-	out := screens.MapSummaryDTO{
+	out := screens.OverviewSummaryDTO{
 		ProjectKey:      string(st.key),
 		TargetLanguages: []string{},
-		FileRows:        []screens.MapFileDTO{},
+		FileRows:        []screens.OverviewFileDTO{},
 		Suggestions:     []screens.MapSuggestionDTO{},
 	}
 	for _, l := range st.project.TargetLanguages {
@@ -115,7 +115,7 @@ func (s *Server) HandleMapSummary(c echo.Context) error {
 			return serverErr(c, err)
 		}
 		path := itemSourcePath(it)
-		row := screens.MapFileDTO{
+		row := screens.OverviewFileDTO{
 			// The server knows an item by its name, which the Reader takes.
 			Path:       it.Name,
 			Relative:   path,
@@ -131,7 +131,7 @@ func (s *Server) HandleMapSummary(c echo.Context) error {
 		out.FileRows = append(out.FileRows, row)
 	}
 	out.Files = len(out.FileRows)
-	screens.SortMapFiles(out.FileRows)
+	screens.SortOverviewFiles(out.FileRows)
 
 	if out.Rules, err = s.mapRuleCount(ctx, c, st); err != nil {
 		return serverErr(c, err)
@@ -207,7 +207,7 @@ func notInTerms(records []contextop.Record, concepts []terms.Concept) []contexto
 
 // voiceRuleCount counts the rules a voice profile applies to text: the word
 // rules its file carries and its prohibited and required patterns, as the
-// desktop's Map counts them.
+// desktop's Overview counts them.
 func voiceRuleCount(p *coreprofile.VoiceProfile) int {
 	if p == nil {
 		return 0
@@ -240,7 +240,7 @@ type projectCheckStarted struct {
 // Map. The job's progress counts items. A check of the stream already queued
 // or running is answered with its own id, and no second job is enqueued. It
 // needs the permission reviewing needs, since the job writes the tallies
-// every member's Map reads.
+// every member's Overview reads.
 func (s *Server) HandleCheckProject(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err

@@ -95,7 +95,7 @@ type ShareView struct {
 	Rung    string          `json:"rung"`
 	Sharing *ProjectSharing `json:"sharing"`
 	// Rules counts the rules in force at the project's own point, the count
-	// the Map shows. Nil when they could not be counted.
+	// the Overview shows. Nil when they could not be counted.
 	Rules *int `json:"rules,omitempty"`
 	// BowrainPlugin reports whether the kapi-bowrain plugin is installed,
 	// which connecting a project to a Bowrain server needs.

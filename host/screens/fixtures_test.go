@@ -29,7 +29,7 @@ func TestFixtures(t *testing.T) {
 		name  string
 		value any
 	}{
-		{"map-summary.json", mapSummary()},
+		{"overview-summary.json", overviewSummary()},
 		{"reader-file.json", readerFile()},
 		{"rules-decide-view.json", rulesDecideView()},
 		{"kept-rules.json", keptRules()},
@@ -91,10 +91,10 @@ func quickcastSides() []screens.DigestItem {
 	}
 }
 
-func mapSummary() screens.MapSummaryDTO {
+func overviewSummary() screens.OverviewSummaryDTO {
 	findings := 4
 	sides := quickcastSides()
-	return screens.MapSummaryDTO{
+	return screens.OverviewSummaryDTO{
 		ProjectKey:      "acme/docs",
 		Files:           3,
 		Blocks:          42,
@@ -107,7 +107,7 @@ func mapSummary() screens.MapSummaryDTO {
 		Conflicts:       1,
 		Awaiting:        2,
 		TargetLanguages: []string{"de", "nb"},
-		FileRows: []screens.MapFileDTO{
+		FileRows: []screens.OverviewFileDTO{
 			{Path: "/work/acme-docs/docs/billing.md", Relative: "docs/billing.md", Format: "markdown", Collection: "docs", Blocks: 18, Findings: 3},
 			{Path: "/work/acme-docs/docs/release-notes.md", Relative: "docs/release-notes.md", Format: "markdown", Collection: "docs", Blocks: 15, Findings: 1},
 			{Path: "/work/acme-docs/locales/en.json", Relative: "locales/en.json", Format: "json", Collection: "app", Blocks: 9, Findings: 0},

@@ -47,7 +47,7 @@ function makeTravels(initial: KapiProject) {
  * Manages project undo/redo history and dirty-state tracking using
  * mutative/travels for patch-based storage.
  *
- * Each tab gets its own persistent Travels instance (stored in a Map).
+ * Each tab gets its own persistent Travels instance (stored in an Overview).
  * Switching tabs swaps the active instance without destroying history.
  * Undo boundaries are debounced at ARCHIVE_DEBOUNCE_MS.
  */

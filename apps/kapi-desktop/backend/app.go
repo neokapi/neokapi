@@ -150,7 +150,7 @@ type App struct {
 	aiConfig *appconfig.AppConfig
 
 	// lookModels keeps whether a model is connected for the deeper look, so
-	// showing the Map reads no saved key from the keychain (lookmodel.go).
+	// showing the Overview reads no saved key from the keychain (lookmodel.go).
 	lookModels lookModelCache
 
 	// eventSink, when non-nil, receives every emitted event in addition to the
@@ -277,7 +277,7 @@ type openProject struct {
 	// directory is moved (e.g. mid sample reset). Reset when the file is back.
 	missingWarned atomic.Bool
 
-	// What the Map shows from this session's own reads (mapsummary.go): when
+	// What the Overview shows from this session's own reads (mapsummary.go): when
 	// the store sync last found the block cache current, and the counts of
 	// the last checks run over the whole project. mapMu guards both.
 	mapMu       sync.Mutex

@@ -2,7 +2,7 @@
   margin: 0;
 }
 
-/* A window frame around the still, so the Map reads as the app's page rather
+/* A window frame around the still, so the Overview reads as the app's page rather
    than as part of the docs site. */
 .window {
   position: relative;
@@ -29,7 +29,7 @@
   background: var(--ifm-color-emphasis-300);
 }
 
-/* The Map is a full page; the hero shows its top: the counts, the actions and
+/* The Overview is a full page; the hero shows its top: the counts, the actions and
    the first suggestions. The still is scaled down so the page's width fits the
    column, and a fade closes it. */
 .viewport {

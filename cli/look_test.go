@@ -14,7 +14,7 @@ import (
 	"github.com/neokapi/neokapi/host"
 )
 
-// `kapi look` end to end through the root: the Map with no path, the Reader
+// `kapi look` end to end through the root: the Overview with no path, the Reader
 // with one, and bare `kapi` printing the Map.
 
 // writeLookProject writes a project with one docs collection holding files,
@@ -145,7 +145,7 @@ func TestLookMap(t *testing.T) {
 			if len(tt.files) > 0 {
 				var m host.LookProject
 				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
-				assert.Equal(t, checkFindings(t), m.Findings, "the Map counts the findings kapi check reports")
+				assert.Equal(t, checkFindings(t), m.Findings, "the Overview counts the findings kapi check reports")
 			}
 		})
 	}
@@ -337,7 +337,7 @@ func TestRootHelp_WorkOrder(t *testing.T) {
 	}
 }
 
-// TestBareKapi_PrintsTheMap: bare `kapi` in a project is the Map, its own last
+// TestBareKapi_PrintsTheMap: bare `kapi` in a project is the Overview, its own last
 // line, and the line naming where the commands are listed.
 func TestBareKapi_PrintsTheMap(t *testing.T) {
 	writeLookProject(t, "", map[string]string{"docs/guide.md": "# Guide\n\nOpen the editor to write.\n"})

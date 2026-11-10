@@ -42,12 +42,15 @@ export function featureFromRoutePattern(pattern: string): string | null {
   const project = inWorkspace.match(/^p\/\$projectId\/s\/\$stream(?:\/(.*))?$/);
   if (project) {
     const rest = project[1] ?? "";
-    // The overview keeps the event value `project_overview` at `overview`, so
-    // its metric stays one series. The stream root redirects to the Map or the
-    // overview. `dashboard` is the overview's former address, kept as a
-    // redirect; its own name stays so the two are distinguishable in the funnel
-    // for as long as anything still links there.
-    if (rest === "" || rest === "overview") return "project_overview";
+    // Event values outlive page names: renaming one splits its metric. The
+    // languages page keeps `project_overview`, the value it had at
+    // `overview`, and the Overview keeps `map`, the value it had at `map`.
+    // The stream root redirects to one of them. `dashboard` and `map` are
+    // former addresses kept as redirects; `dashboard` keeps its own name so
+    // it stays distinguishable in the funnel for as long as anything still
+    // links there.
+    if (rest === "" || rest === "languages") return "project_overview";
+    if (rest === "overview" || rest === "map") return "map";
     if (rest === "dashboard") return "translation_dashboard";
     if (rest === "source") return "project_source";
     if (rest === "settings") return "project_settings";

@@ -91,7 +91,7 @@ type AssistantSession struct {
 // AssistantsView is the Assistants page of one tab.
 type AssistantsView struct {
 	// Rules is how many rules are in force at the project's own point, the
-	// count the Map shows. Nil when it could not be read.
+	// count the Overview shows. Nil when it could not be read.
 	Rules *int `json:"rules,omitempty"`
 	// HostsError and SessionsError say why the assistants or the sessions
 	// could not be read; the other part of the page is read all the same.

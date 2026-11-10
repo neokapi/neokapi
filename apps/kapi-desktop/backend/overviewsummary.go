@@ -1,10 +1,10 @@
 package backend
 
-// The Map: the page a project tab opens on. It shows the project's content
+// The Overview: the page a project tab opens on. It shows the project's content
 // files, what applies to them, and four counts (files, blocks, rules and
 // findings), with the suggestions that wait for a person beside them.
 //
-// MapSummary answers the whole page in one call, from what the app already
+// OverviewSummary answers the whole page in one call, from what the app already
 // holds: the resolved recipe, the block cache the store sync keeps current,
 // the operation log and the stores bound to the project, and the last checks
 // run over the whole project. It reads no file the store sync has not read,
@@ -26,10 +26,10 @@ import (
 	"github.com/neokapi/neokapi/host/screens"
 )
 
-// mapSummaryTimeout bounds the reads behind one MapSummary call.
-const mapSummaryTimeout = 30 * time.Second
+// overviewSummaryTimeout bounds the reads behind one OverviewSummary call.
+const overviewSummaryTimeout = 30 * time.Second
 
-// mapCheckTally is what the Map keeps of a checks run over the whole project.
+// mapCheckTally is what the Overview keeps of a checks run over the whole project.
 type mapCheckTally struct {
 	at       time.Time
 	findings int
@@ -61,7 +61,7 @@ func (op *openProject) recordCheck(res *CheckRunResult, at time.Time) {
 
 // replaceCheckedFile puts one file's findings, from a checks run over that
 // file alone in the same target languages, in place of that file's entry in
-// the last whole-project run, so the Map and the Checks page count what the
+// the last whole-project run, so the Overview and the Checks page count what the
 // file holds after a fix. path is the file's absolute path. The verdict and
 // the score are decided again over every file's findings; a run that did not
 // run stays one that did not run. With no whole-project run recorded there
@@ -121,7 +121,7 @@ func (op *openProject) replaceCheckedFile(path string, one *CheckRunResult) {
 
 // coversProject reports whether a checks run with this filter covers the
 // whole project: every file, and every target language the recipe declares.
-// Only such a run is the one the Map counts findings from.
+// Only such a run is the one the Overview counts findings from.
 func coversProject(filter ProjectFilter, proj *project.KapiProject) bool {
 	if filter.FilesNarrowed() {
 		return false
@@ -146,7 +146,7 @@ func coversProject(filter ProjectFilter, proj *project.KapiProject) bool {
 }
 
 // LastProjectChecks returns the last checks run over the whole project in
-// this session, the run the Map's findings count is read from, so the checks
+// this session, the run the Overview's findings count is read from, so the checks
 // panel opens on the findings that count names. Nil when none has run.
 func (a *App) LastProjectChecks(tabID string) (*CheckRunResult, error) {
 	op := a.getOpenProject(tabID)
@@ -167,18 +167,18 @@ func (op *openProject) mapReads() (time.Time, *mapCheckTally) {
 	return op.storeReadAt, op.lastCheck
 }
 
-// MapSummary answers the Map of the project a tab holds in one call. A tab
+// OverviewSummary answers the Overview of the project a tab holds in one call. A tab
 // with no recipe on disk, or holding a project's context alone, answers with
 // zeros.
-func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
+func (a *App) OverviewSummary(tabID string) (*screens.OverviewSummaryDTO, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
-	out := &screens.MapSummaryDTO{
+	out := &screens.OverviewSummaryDTO{
 		ProjectKey:      string(op.workspaceKey),
 		TargetLanguages: []string{},
-		FileRows:        []screens.MapFileDTO{},
+		FileRows:        []screens.OverviewFileDTO{},
 		Suggestions:     []screens.MapSuggestionDTO{},
 	}
 	if op.contextOnly || op.Project == nil || op.Path == "" {
@@ -188,7 +188,7 @@ func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), mapSummaryTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), overviewSummaryTimeout)
 	defer cancel()
 
 	targets, err := canonicalLocales(localeStrings(op.Project.Defaults.TargetLanguages))
@@ -226,7 +226,7 @@ func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 			continue
 		}
 		seen[rel] = true
-		row := screens.MapFileDTO{
+		row := screens.OverviewFileDTO{
 			Path:       rf.Path,
 			Relative:   rel,
 			Format:     rf.Format,
@@ -240,7 +240,7 @@ func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 		out.FileRows = append(out.FileRows, row)
 	}
 	out.Files = len(out.FileRows)
-	screens.SortMapFiles(out.FileRows)
+	screens.SortOverviewFiles(out.FileRows)
 
 	rules, err := a.mapRuleCount(ctx, op)
 	if err != nil {
@@ -253,18 +253,18 @@ func (a *App) MapSummary(tabID string) (*screens.MapSummaryDTO, error) {
 			return nil, err
 		}
 	}
-	out.Steps = a.mapSteps(ctx, op, out, check)
+	out.Steps = a.overviewSteps(ctx, op, out, check)
 	return out, nil
 }
 
-// mapSteps reads the first project's steps for the Map: none for a project
+// overviewSteps reads the first project's steps for the Overview: none for a project
 // the workspace does not hold or whose steps the person dismissed. A state it
 // cannot read counts as a step not taken, so the step stays on the list.
-func (a *App) mapSteps(ctx context.Context, op *openProject, out *screens.MapSummaryDTO, check *mapCheckTally) []screens.MapStepDTO {
-	if op.workspaceKey == "" || a.mapStepsDismissed(string(op.workspaceKey)) {
+func (a *App) overviewSteps(ctx context.Context, op *openProject, out *screens.OverviewSummaryDTO, check *mapCheckTally) []screens.OverviewStepDTO {
+	if op.workspaceKey == "" || a.overviewStepsDismissed(string(op.workspaceKey)) {
 		return nil
 	}
-	state := screens.MapStepState{Awaiting: out.Awaiting}
+	state := screens.OverviewStepState{Awaiting: out.Awaiting}
 	if check != nil && check.result != nil {
 		state.Checked = true
 		for _, f := range check.result.Files {
@@ -288,7 +288,7 @@ func (a *App) mapSteps(ctx context.Context, op *openProject, out *screens.MapSum
 	if rung, err := host.RecipeRung(recipe); err == nil {
 		state.Shared = rung != host.ShareRungMachine
 	}
-	return screens.MapSteps(state)
+	return screens.OverviewSteps(state)
 }
 
 // localeStrings turns the recipe's target languages into strings.
@@ -302,7 +302,7 @@ func localeStrings[L ~string](in []L) []string {
 
 // mapBlockCounts counts the block cache's blocks by the file they were read
 // from, project-relative and slash-separated. It counts the blocks the status
-// counts (translatable ones), so the Map's total matches the collections'.
+// counts (translatable ones), so the Overview's total matches the collections'.
 // A project with no block cache yet counts none, and reading it creates no
 // store.
 func (a *App) mapBlockCounts(ctx context.Context, op *openProject) (map[string]int, error) {
@@ -371,7 +371,7 @@ func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
 
 // mapStoredRuleCount counts the rules the project's stores hold: the concepts
 // in its terms store and the rules of the voice profile at its own point. The
-// caller asks only when the project has a store, so the Map never brings one
+// caller asks only when the project has a store, so the Overview never brings one
 // into being.
 func (a *App) mapStoredRuleCount(ctx context.Context, op *openProject) (int, error) {
 	total := 0
@@ -429,7 +429,7 @@ func voiceRuleCount(p *coreprofile.VoiceProfile) int {
 // mapSuggestions fills the items awaiting a decision from the project's
 // digest, the same read the Decide view makes, with each item's evidence
 // counted from the operation that carries it.
-func (a *App) mapSuggestions(ctx context.Context, op *openProject, out *screens.MapSummaryDTO) error {
+func (a *App) mapSuggestions(ctx context.Context, op *openProject, out *screens.OverviewSummaryDTO) error {
 	if !op.onDisk() {
 		// Suggestions are recorded against a recipe; a folder without one
 		// has none yet.
