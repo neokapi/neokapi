@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ReviewSetupPage } from "../components/ReviewSetupPage";
+import { WithKnownLocales } from "./fixtures/knownLocales";
 
 const meta: Meta<typeof ReviewSetupPage> = {
   title: "Pages/ReviewSetupPage",
   component: ReviewSetupPage,
   tags: ["autodocs"],
+  decorators: [WithKnownLocales],
   args: {
     onUpdate: fn(),
   },

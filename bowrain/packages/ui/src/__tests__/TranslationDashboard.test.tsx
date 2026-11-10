@@ -19,12 +19,12 @@ describe("TranslationDashboard", () => {
 
   it("renders the project name in the header", () => {
     render(<TranslationDashboard stats={sampleDashboardStats} projectName="Demo App" />);
-    expect(screen.getByText(/Demo App · Overview/)).toBeInTheDocument();
+    expect(screen.getByText(/Demo App · Languages/)).toBeInTheDocument();
   });
 
   it("renders generic header when no project name given", () => {
     render(<TranslationDashboard stats={sampleDashboardStats} />);
-    expect(screen.getByText("Overview")).toBeInTheDocument();
+    expect(screen.getByText("Languages")).toBeInTheDocument();
   });
 
   it("renders all four summary stat cards", () => {

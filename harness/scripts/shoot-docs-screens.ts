@@ -23,6 +23,7 @@
  */
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
@@ -148,7 +149,7 @@ const DESKTOP_SHOTS: DesktopShot[] = [
   { name: "rules", story: "project-screens-rules--kept-by" },
   { name: "assistants", story: "components-contexthub--assistants" },
   { name: "share", story: "components-contexthub--share" },
-  { name: "languages", story: "pages-languagespage--source-only" },
+  { name: "languages", story: "pages-reviewsetuppage--source-only" },
   { name: "review", story: "project-reviewpage--queue" },
   { name: "context-home", story: "components-apphome--several-projects" },
 ];
@@ -273,7 +274,16 @@ interface WebCtx {
 async function go(c: WebCtx, rel: string, ready: string): Promise<void> {
   const sep = rel.includes("?") ? "&" : "?";
   await c.page.goto(`${c.ws}${rel}${sep}theme=${c.theme}`, { waitUntil: "domcontentloaded" });
-  await c.page.waitForSelector(ready, { timeout: 30_000 });
+  try {
+    await c.page.waitForSelector(ready, { timeout: 30_000 });
+  } catch (err) {
+    // Keep what the page showed, so a missing element can be told from a
+    // page that never loaded.
+    const shot = path.join(os.tmpdir(), `shoot-docs-screens-timeout-${c.theme}.png`);
+    await c.page.screenshot({ path: shot }).catch(() => {});
+    console.error(`  ✗ ${rel}: waited for ${ready}; the page is in ${shot}`);
+    throw err;
+  }
   await dismissDesktopPrompt(c.page);
 }
 
