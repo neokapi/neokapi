@@ -634,7 +634,7 @@ interface WalkCtx {
   /** A fixed-rect beat (sidebar/full views). zoom=null → full frame. */
   beat: (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => Promise<void>;
   /** A beat whose zoom is derived from elements AFTER its actions settle. */
-  beatEls: (id: string, selectors: string[], fn: () => Promise<void>) => Promise<void>;
+  beatEls: (id: string, selectors: string[], fn: () => Promise<void>, region?: ZoomRect) => Promise<void>;
   /**
    * A beat whose subject moves while it is on camera: the walk marks each
    * element as it stands at that moment, and the crop is the union of the
@@ -800,7 +800,10 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
       return seenAt !== undefined && seenAt - tStart > 0.3 ? seenAt : undefined;
     };
   };
-  const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>) => {
+  // `region` frames a fixed part of the window instead of the selectors' union,
+  // for an element wider than the part worth reading. The selectors still say
+  // when the shot can start.
+  const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>, region?: ZoomRect) => {
     const tStart = now();
     current = { id, tStart };
     const spec = specs[id];
@@ -809,7 +812,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     await fn();
     const zoomAt = await seen();
     await holdUntil(id, tStart);
-    const zoom = await unionZoom(regionSelectors);
+    const zoom = region && !spec?.cropSelectors ? region : await unionZoom(regionSelectors);
     reportCrop(id, zoom);
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom, ...(zoomAt !== undefined ? { zoomAt } : {}), ...(highlight !== undefined ? { highlight } : {}) });
@@ -1306,13 +1309,16 @@ async function contentWalk(c: WalkCtx): Promise<void> {
   });
   // Open a JSON catalog → the preview sheet reads it as keys and values, and
   // the key column is the thing to look at.
+  // The table spans the sheet while its text sits in the left half, so the
+  // shot frames the key and text columns of the first dozen rows.
+  const KEY_ROWS: ZoomRect = { x: 0.505, y: 0.15, w: 0.3, h: 0.4 };
   await beatEls("keys", ['[data-preview="keyed-table"]'], async () => {
     await settle();
     await openCollectionFile(page, "Online Store", "store-ui.json");
     await page.waitForTimeout(1200);
     await cursorTo('[data-preview="keyed-table"] tr[data-key-path]');
     await page.waitForTimeout(2400);
-  });
+  }, KEY_ROWS);
 }
 
 /**
@@ -1403,15 +1409,18 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
  */
 async function reviewWalk(c: WalkCtx): Promise<void> {
   const { page, beatEls, cursorTo, sidebar } = c;
-  // The queue, and the two controls that narrow it, in one beat: every
-  // language in one list, a count per language, and the chips for what a check
-  // flagged.
+  // The queue, then the two controls that narrow it. They sit at opposite
+  // sides of the window, so each has its own beat and shot.
   await landOnHome(page);
   await openSample(page, "sample-kapimart", "Review");
   await humanClick(page, sidebar("Review"));
   await page.waitForSelector('[data-slot="review-queue-item"]', { timeout: 60_000 });
   await page.waitForTimeout(1200);
-  await beatEls("queue", ['[data-slot="review-language-select"]', '[data-slot="review-chips"]', '[data-slot="review-queue-item"] >> nth=4'], async () => {
+  await beatEls("queue", ['[data-slot="review-queue-item"] >> nth=0', '[data-slot="review-queue-item"] >> nth=4'], async () => {
+    await cursorTo('[data-slot="review-queue-item"] >> nth=2');
+    await page.waitForTimeout(1600);
+  });
+  await beatEls("filters", ['[data-slot="review-language-select"]', '[data-slot="review-chips"]'], async () => {
     await cursorTo('[data-slot="review-language-select"]');
     await page.waitForTimeout(1200);
     await cursorTo('[data-slot="review-chips"]');
