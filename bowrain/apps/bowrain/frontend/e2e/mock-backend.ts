@@ -157,7 +157,7 @@ function projectScreensFixtures(): ScreenFixtures {
       ),
     );
   return {
-    overviewSummary: read("map-summary"),
+    overviewSummary: read("overview-summary"),
     readerFile: read("reader-file"),
     rulesDecideView: read("rules-decide-view"),
     keptRules: read("kept-rules"),
