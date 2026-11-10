@@ -21,14 +21,17 @@ import { FRAME_H, FRAME_W, sceneLayout } from "../remotion/components/layout.ts"
 import type { SceneLayout } from "../remotion/components/layout.ts";
 import type { ZoomRect } from "../types.ts";
 
-/** Furthest a crop pushes into the window on its own; a beat's `zoom` can take it to 3. */
-export const MAX_CROP_SCALE = 2.5;
+/**
+ * Furthest the camera zooms into the window. The capture is 1920x1080, so a
+ * deeper zoom draws text from upscaled pixels and it reads soft.
+ */
+export const MAX_CROP_SCALE = 2;
 
 /** A region whose fit is under this is shown as the whole window. */
 export const FULL_WINDOW_FIT = 1.15;
 
-/** A full-window card fits this much of the picture box, so its tilt never clips. */
-export const CARD_INSET = 0.96;
+/** The wide shot fits the window in this much of the picture box, so its frame and shadow show around it. */
+export const CARD_INSET = 0.86;
 
 /**
  * Web demos capture a browser SPA with no window chrome, so the composition
@@ -92,9 +95,16 @@ export function cardGeometry(layout: SceneLayout, aspect: number, web: boolean):
   };
 }
 
-/** The scale at which `region` fills the crop area. Below `FULL_WINDOW_FIT` the shot is the whole window. */
+/** The share of the crop area a zoomed region fills, so it keeps a margin around it. */
+export const ZOOM_FILL = 0.84;
+
+/**
+ * The scale at which `region` fills the crop area, less the margin
+ * `ZOOM_FILL` keeps around it. Below `FULL_WINDOW_FIT` the shot is the whole
+ * window.
+ */
 export function regionFit(region: ZoomRect, geo: CardGeometry): number {
-  return Math.min(geo.areaW / (region.w * geo.bw), geo.areaH / (region.h * geo.bh));
+  return ZOOM_FILL * Math.min(geo.areaW / (region.w * geo.bw), geo.areaH / (region.h * geo.bh));
 }
 
 /**
@@ -158,8 +168,8 @@ export function frameGeometry(frame: DemoFrame): CardGeometry {
 export function fitCeilings(frame: DemoFrame): { w: number; h: number } {
   const geo = frameGeometry(frame);
   return {
-    w: geo.areaW / geo.bw / FULL_WINDOW_FIT,
-    h: geo.areaH / geo.bh / FULL_WINDOW_FIT,
+    w: (ZOOM_FILL * geo.areaW) / geo.bw / FULL_WINDOW_FIT,
+    h: (ZOOM_FILL * geo.areaH) / geo.bh / FULL_WINDOW_FIT,
   };
 }
 

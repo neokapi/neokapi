@@ -180,12 +180,10 @@ export const Sizzle: React.FC<SizzleProps> = (props) => {
       <TitleCard title={props.title ?? META.title} subtitle={props.subtitle ?? META.subtitle} brand="bowrain" />
     </TransitionSeries.Sequence>,
   );
-  let driftOffset = TITLE_FRAMES;
   clips.forEach((c, i) => {
     children.push(
       <TransitionSeries.Transition key={`t-${i}`} presentation={i === 0 ? fade() : slide({ direction: "from-right" })} timing={timing} />,
     );
-    const globalFrom = driftOffset;
     children.push(
       <TransitionSeries.Sequence key={`clip-${i}`} durationInFrames={c.durationFrames}>
         <DesktopScene
@@ -194,8 +192,7 @@ export const Sizzle: React.FC<SizzleProps> = (props) => {
           themeMode={mode}
           beat={c.beat}
           prevBeat={null}
-          sceneIndex={i}
-          globalFrom={globalFrom}
+          nextBeat={null}
           sceneDurationFrames={c.durationFrames}
           layout={layout}
         />
@@ -203,7 +200,6 @@ export const Sizzle: React.FC<SizzleProps> = (props) => {
         <ClipText title={c.title} subtitle={c.subtitle} durationFrames={c.durationFrames} />
       </TransitionSeries.Sequence>,
     );
-    driftOffset += c.durationFrames - CROSS;
   });
   children.push(<TransitionSeries.Transition key="t-outro" presentation={fade()} timing={timing} />);
   children.push(

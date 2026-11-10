@@ -997,43 +997,36 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     if (await save.count()) await humanClick(page, save);
     await page.waitForTimeout(1400);
   });
-  // A collection, declared on Project Settings → Content: a name and one glob. The
-  // pattern field is a CodeMirror editor (GlobInput → CodeInput), so the text
-  // goes in through the focused .cm-content rather than into an <input>, and
-  // the row reports what the pattern matched as it is typed.
-  await beatEls("add-collection", ['[data-testid="pattern-match-count"]', '[data-slot="code-input"]'], async () => {
+  // The collection the app proposed when the folder opened (docs/**/*.md),
+  // given a target path on Project Settings → Content and saved. A collection
+  // with no target path is source-only, so without one the plan has nothing
+  // to translate. The target field is a CodeMirror editor (TargetPathInput →
+  // CodeInput), found by its label.
+  await beatEls("add-collection", ['[data-slot="code-input"]'], async () => {
     await openSettingsTab(page, "Content");
-    await page.waitForTimeout(300);
-    await humanClick(page, page.locator('[aria-label="Add content collection"]').first());
+    await page.waitForTimeout(600);
+    await humanClick(page, page.locator('[aria-label="Edit collection"]').first());
     await page.waitForTimeout(900);
-    const edit = page.locator('[aria-label="Edit collection"]').last();
-    if (await edit.count()) await humanClick(page, edit);
-    await page.waitForTimeout(900);
-    const name = page.locator('input[placeholder="Collection name"]').last();
-    if (await name.count()) {
-      await name.fill("");
-      await humanType(page, name, "Help Center");
-      await page.waitForTimeout(400);
-    }
-    // The pattern box holds the Path pattern editor first and the Base editor
-    // last, so the pattern is the first editor in the last box.
-    const pattern = page
-      .locator('[data-testid="pattern-match-count"]')
-      .last()
-      .locator("xpath=..")
-      .locator('[data-slot="code-input"] .cm-content')
-      .first();
-    if (await pattern.count()) {
-      await pattern.click();
-      await page.keyboard.type("docs/**/*.md", { delay: 70 });
-    }
-    await page.waitForTimeout(2000);
+    const target = page.getByText("Target path", { exact: true }).first().locator("xpath=..").locator(".cm-content").first();
+    await target.waitFor({ state: "visible", timeout: 10_000 }).catch(async (e) => {
+      await page.screenshot({ path: path.join(os.tmpdir(), "kapi-desktop-projects-edit.png") }).catch(() => {});
+      throw e;
+    });
+    await target.scrollIntoViewIfNeeded().catch(() => {});
+    await target.click();
+    await page.keyboard.type("translations/{lang}", { delay: 70 });
+    await page.waitForTimeout(800);
+    await humanClick(page, page.locator('button:has-text("Save Changes")').first());
+    await page.waitForTimeout(1400);
   });
-  // The collection is a draft until it is saved, like the language above, so
-  // it is saved off camera before the plan reads it.
-  const saveCollection = page.locator('button:has-text("Save Changes")').first();
-  if (await saveCollection.count()) await humanClick(page, saveCollection);
-  await page.waitForTimeout(1200);
+  // The save is the beat's claim, so a take whose recipe lacks the target fails here.
+  const recipePath = path.join(NEW_PROJECT_DIR, "kapi.yaml");
+  for (let i = 0; i < 20 && !fs.readFileSync(recipePath, "utf8").includes("translations/{lang}"); i++) await page.waitForTimeout(500);
+  if (!fs.readFileSync(recipePath, "utf8").includes("translations/{lang}")) {
+    const shot = path.join(os.tmpdir(), "kapi-desktop-projects-save.png");
+    await page.screenshot({ path: shot }).catch(() => {});
+    throw new Error(`kapi-desktop-projects: Save Changes did not write the target path to kapi.yaml (screenshot ${shot})`);
+  }
   // The plan, read on this project. Its Overview carries the plan once it has
   // a target language (OverviewStanding). The dialog reads data fetched on
   // page load: no provider is called and nothing is written
@@ -1041,6 +1034,24 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   // button is waited for until it is enabled.
   await humanClick(page, sidebar("Overview"));
   await page.waitForSelector('[data-slot="hero-plan"]:not([disabled])', { timeout: 60_000 });
+  // The plan has work to show only once the app has read the new pages, which
+  // the headline says; a take without it fails rather than film an empty plan.
+  await page
+    .locator('[data-slot="hero-drift-summary"]', { hasText: "Translations are missing" })
+    .waitFor({ state: "visible", timeout: 120_000 })
+    .catch(async () => {
+      const headline = await page.locator('[data-slot="hero-drift-summary"], [data-slot="hero-up-to-date"]').first().textContent().catch(() => null);
+      const shot = path.join(os.tmpdir(), "kapi-desktop-projects-plan.png");
+      await page.screenshot({ path: shot }).catch(() => {});
+      const recipe = (() => {
+        try {
+          return fs.readFileSync(path.join(NEW_PROJECT_DIR, "kapi.yaml"), "utf8");
+        } catch {
+          return "(no kapi.yaml)";
+        }
+      })();
+      throw new Error(`kapi-desktop-projects: the Overview never reported missing translations for the new pages (headline: ${headline ?? "none"}; screenshot ${shot}; recipe:\n${recipe})`);
+    });
   await page.waitForTimeout(1200);
   await beatEls("plan", ['[data-slot="converge-plan-dialog"]'], async () => {
     await cursorTo('[data-slot="hero-plan"]');

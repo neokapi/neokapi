@@ -47,6 +47,11 @@ export function useProjectStoreSync(tabID: string | undefined): void {
   useWailsEvent("project-files-changed", (data) => {
     if (data === tabRef.current) schedule();
   });
+  // A recipe edit in memory (a new collection, a changed pattern) names files
+  // the cache has not read, with nothing on disk for the watcher to see.
+  useWailsEvent("project-recipe-changed", (data) => {
+    if (data === tabRef.current) schedule();
+  });
 }
 
 /** Whether the cache of `tabID` is being synced, and the last sync's error. */
