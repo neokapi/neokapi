@@ -139,6 +139,10 @@ type UpPlanOutput struct {
 	// is already done — or, with UnreadTargets set, that the plan has not been
 	// able to judge it yet. The three must not read the same.
 	Monolingual bool `json:"monolingual,omitempty"`
+	// NoTargets reports a project that declares target languages but has no
+	// collection with a target path, so a run writes no translation. An empty
+	// Scopes list then means there is nowhere to write, not that the work is done.
+	NoTargets bool `json:"noTargets,omitempty"`
 	// Warnings name what the plan could not price, such as a declared file in a
 	// format no installed reader opens (check.WarningFormatNoReader). A run sets
 	// that content aside.
@@ -166,6 +170,10 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	defer writeSetAside(w, o.Warnings)
 	if o.Monolingual {
 		fmt.Fprintln(w, "No target languages configured: `kapi up` reconciles the source. It seeds the committed context, re-extracts the working tree and refreshes the occurrence graph. Nothing is translated and no provider is called.")
+		return nil
+	}
+	if o.NoTargets {
+		fmt.Fprintln(w, "Nothing to translate: no collection has a target path, so a run writes no translations. Add `target:` to a collection in kapi.yaml to say where its translations go.")
 		return nil
 	}
 	if len(o.Scopes) == 0 {
@@ -378,6 +386,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	plan.Warnings = basis.unread.warnings()
 	_, plan.readNothing = basis.unread.unitsSkipped(root, units)
 	plan.Monolingual = !proj.DeclaresTargetLanguages()
+	plan.NoTargets = !plan.Monolingual && !proj.WritesTargets()
 	a.applyPlanProvider(&plan)
 	return plan, nil
 }

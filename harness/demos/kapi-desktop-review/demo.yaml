@@ -27,9 +27,15 @@ narration:
     beat: queue
     caption: Every translation to review.
     text: >-
-      Open Review. The list on the left shows every translation to review. Use
-      the menus at the top to filter by language, or to show only translations
-      with problems.
+      Open Review. The list on the left shows every translation to review.
+
+  - id: filters
+    kind: desktop
+    beat: filters
+    caption: Filter by language or by problem.
+    text: >-
+      Use the menus at the top to filter by language, or to show only
+      translations with problems.
 
   - id: open-unit
     kind: desktop

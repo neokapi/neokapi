@@ -244,6 +244,28 @@ describe("ConvergenceHero", () => {
     expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeDisabled();
   });
 
+  it("asks for a target folder instead of claiming up to date when no collection has one", async () => {
+    const onOpenSettings = vi.fn();
+    const noTargetsPlan: ConvergePlan = {
+      ...convergedPlan,
+      plan: { ...convergedPlan.plan!, noTargets: true },
+    };
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={convergedReport}
+        plan={noTargetsPlan}
+        onOpenSettings={onOpenSettings}
+      />,
+    );
+    expect(screen.getByText("No target folder set")).toBeInTheDocument();
+    expect(screen.queryByText(/Every block is translated/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Set target folder" }));
+    expect(onOpenSettings).toHaveBeenCalledWith("project-settings:content");
+  });
+
   it("opens the pre-flight plan dialog from Plan… and confirms into a run", async () => {
     const onBringUpToDate = vi.fn();
     render(
@@ -281,6 +303,21 @@ describe("ConvergePlanDialog", () => {
       <ConvergePlanDialog open onOpenChange={vi.fn()} plan={convergedPlan} onConfirm={vi.fn()} />,
     );
     expect(screen.getByText("Every block is translated.")).toBeInTheDocument();
+  });
+
+  it("says there is nothing to translate when no collection has a target folder", () => {
+    render(
+      <ConvergePlanDialog
+        open
+        onOpenChange={vi.fn()}
+        plan={{ ...convergedPlan, plan: { ...convergedPlan.plan!, noTargets: true } }}
+        onConfirm={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText("No collection has a target folder, so there is nothing to translate."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Every block is translated.")).not.toBeInTheDocument();
   });
 
   it("cancel closes without launching", async () => {

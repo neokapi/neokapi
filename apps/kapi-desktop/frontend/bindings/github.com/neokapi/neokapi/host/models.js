@@ -4183,6 +4183,16 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * NoTargets reports a run over a project that declares target languages but
+             * has no collection with a target path: the source half ran, and no
+             * translation had anywhere to go.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["noTargets"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * ExtractedFiles and ExtractedBlocks report the pre-pass re-extraction that
              * brought the project store back in sync with the working tree. Both 0 when
              * the store was already current. They are the "what moved" of a monolingual
@@ -4263,8 +4273,8 @@ export class ConvergeOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType92;
         const $$createField4_0 = $$createType94;
-        const $$createField15_0 = $$createType96;
-        const $$createField16_0 = $$createType98;
+        const $$createField16_0 = $$createType96;
+        const $$createField17_0 = $$createType98;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4273,10 +4283,10 @@ export class ConvergeOutput {
             $$parsedSource["parkedScopes"] = $$createField4_0($$parsedSource["parkedScopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField15_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField16_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField16_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField17_0($$parsedSource["findings"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4916,6 +4926,16 @@ export class UpPlanOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * NoTargets reports a project that declares target languages but has no
+             * collection with a target path, so a run writes no translation. An empty
+             * Scopes list then means there is nowhere to write, not that the work is done.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["noTargets"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Warnings name what the plan could not price, such as a declared file in a
              * format no installed reader opens (check.WarningFormatNoReader). A run sets
              * that content aside.
@@ -4944,7 +4964,7 @@ export class UpPlanOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType108;
         const $$createField4_0 = $$createType107;
-        const $$createField8_0 = $$createType96;
+        const $$createField9_0 = $$createType96;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -4953,7 +4973,7 @@ export class UpPlanOutput {
             $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField8_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField9_0($$parsedSource["warnings"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
     }

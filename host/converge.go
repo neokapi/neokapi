@@ -142,6 +142,10 @@ type ConvergeOutput struct {
 	// applicable. Locales is empty for such a run, and a reader needs to tell
 	// that apart from a multilingual project whose locales all dropped out.
 	Monolingual bool `json:"monolingual,omitempty"`
+	// NoTargets reports a run over a project that declares target languages but
+	// has no collection with a target path: the source half ran, and no
+	// translation had anywhere to go.
+	NoTargets bool `json:"noTargets,omitempty"`
 	// ExtractedFiles and ExtractedBlocks report the pre-pass re-extraction that
 	// brought the project store back in sync with the working tree. Both 0 when
 	// the store was already current. They are the "what moved" of a monolingual
@@ -215,7 +219,7 @@ func (o ConvergeOutput) RedraftedUnits() int {
 // FormatText renders the convergence summary.
 func (o ConvergeOutput) FormatText(w io.Writer) error {
 	defer writeSetAside(w, o.Warnings)
-	if o.Monolingual {
+	if o.Monolingual || o.NoTargets {
 		err := o.formatMonolingual(w)
 		o.formatPlaceholderFindings(w)
 		return err
@@ -368,7 +372,11 @@ func (o ConvergeOutput) formatProposedChangeset(w io.Writer) {
 // occurrence graph — completed. What moved is the store, so that is what the
 // summary reports.
 func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
-	fmt.Fprintf(w, "Reconciled the source. No target languages are configured, so the per-language flow %q did not run.\n\n", o.Flow)
+	if o.NoTargets {
+		fmt.Fprintf(w, "Reconciled the source. No collection has a target path, so the per-language flow %q wrote no translations. Add `target:` to a collection in kapi.yaml to say where its translations go.\n\n", o.Flow)
+	} else {
+		fmt.Fprintf(w, "Reconciled the source. No target languages are configured, so the per-language flow %q did not run.\n\n", o.Flow)
+	}
 	if o.ExtractedBlocks > 0 || o.ExtractedFiles > 0 {
 		fmt.Fprintf(w, "Extracted %d block(s) from %d file(s) into the project store.\n", o.ExtractedBlocks, o.ExtractedFiles)
 	} else {
@@ -554,7 +562,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 
 	onEvent := opts.onEvent
 	emitter := convergence.NewEmitter(onEvent)
-	facts := &convergeFacts{monolingual: monolingual, unread: unread}
+	facts := &convergeFacts{monolingual: monolingual, noTargets: !monolingual && len(sources) == 0, unread: unread}
 	if a.specChecksRedactionTokens(spec) {
 		// A program step under a redaction policy records a failing finding on
 		// each block whose program output changes a placeholder, and the block
@@ -791,6 +799,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 // pre-pass extraction moved, and the work the run took in.
 type convergeFacts struct {
 	monolingual     bool
+	noTargets       bool
 	extractedFiles  int
 	extractedBlocks int
 	// redraftable is, per locale, how many stale units the run STARTED with in
@@ -1128,6 +1137,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
 	out.Warnings = facts.unread.warnings()
 	out.Monolingual = facts.monolingual
+	out.NoTargets = facts.noTargets
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
 	out.BlockedOnSource = blockedOnSource
