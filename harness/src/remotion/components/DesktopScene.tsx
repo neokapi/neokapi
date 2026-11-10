@@ -70,7 +70,8 @@ export const DesktopScene: React.FC<{
 
   // ── Camera: wide, ease in on the region, hold, ease out ──
   const shot = zoomPose(crop ?? beat.zoom, zoom ?? 1, geo);
-  const cam = cameraAt(frame, sceneDurationFrames, fps, shot, zoomPose(prevBeat?.zoom, 1, geo), zoomPose(nextBeat?.zoom, 1, geo), geo);
+  const readyFrame = beat.zoomAt ? Math.min(plan.playFrames, Math.round(((beat.zoomAt - beat.tStart) / plan.rate) * fps)) : 0;
+  const cam = cameraAt(frame, sceneDurationFrames, fps, shot, zoomPose(prevBeat?.zoom, 1, geo), zoomPose(nextBeat?.zoom, 1, geo), geo, readyFrame);
 
   const mark = highlight ?? beat.highlight ?? null;
 

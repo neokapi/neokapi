@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T18:12:48Z",
+  "generatedAt": "2026-11-10T10:44:20Z",
   "kind": "format",
   "entries": [
     {
@@ -1609,7 +1609,7 @@
           },
           "escapeExtendedChars": {
             "description": "Escape non-ASCII characters in output.",
-            "help": "When enabled (the default), non-ASCII characters are written using\n`\\uXXXX` notation, matching the historically ASCII-only `.properties`\nencoding. Disable it to emit characters literally (for UTF-8 bundles).\n",
+            "help": "When enabled (the default), non-ASCII characters are written using\n`\\uXXXX` notation, so the file reads correctly as ISO-8859-1, the\nencoding Java's `Properties.load` assumes. Disable it to emit characters\nliterally (for UTF-8 bundles).\n",
             "values": "`true` / `false` (default `true`)"
           },
           "extraComments": {

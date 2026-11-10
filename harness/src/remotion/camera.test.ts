@@ -41,3 +41,13 @@ test("a short beat still spends a third of its length on the zoomed shot", () =>
   for (let f = 0; f < 45; f++) if (cameraAt(f, 45, fps, shot, null, null, geo).s === shot.s) held++;
   assert.ok(held >= 15, `held ${held} of 45 frames`);
 });
+
+test("the camera waits for a region that shows partway through the beat", () => {
+  const shot = zoomPose(small, 1, geo)!;
+  // The dialog shows at frame 120 of 300: the camera is still wide just before it.
+  assert.deepEqual(cameraAt(115, 300, fps, shot, null, null, geo, 120), WIDE);
+  assert.deepEqual(cameraAt(120 + fps + 5, 300, fps, shot, null, null, geo, 120), shot);
+  // A region that shows at the very end still leaves a quarter of the beat zoomed in.
+  const late = cameraAt(300 - 0.8 * fps - 2, 300, fps, shot, null, null, geo, 290);
+  assert.deepEqual(late, shot);
+});

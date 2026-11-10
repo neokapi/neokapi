@@ -60,9 +60,20 @@ const mix = (a: Cam, b: Cam, t: number): Cam => ({ s: lerp(a.s, b.s, t), tx: ler
  * The camera for one frame of a beat, in the manner of a screen recording
  * editor: the beat opens on the whole window, eases in on its region, holds,
  * and eases back out before it ends. Where the neighbouring beat's shot is
- * close (`staysZoomed`), the camera pans between the two instead.
+ * close (`staysZoomed`), the camera pans between the two instead. The move
+ * in starts no earlier than `readyFrame`, the frame at which the region's
+ * elements are on screen.
  */
-export function cameraAt(frame: number, durationFrames: number, fps: number, shot: Cam | null, prev: Cam | null, next: Cam | null, geo: CardGeometry): Cam {
+export function cameraAt(
+  frame: number,
+  durationFrames: number,
+  fps: number,
+  shot: Cam | null,
+  prev: Cam | null,
+  next: Cam | null,
+  geo: CardGeometry,
+  readyFrame = 0,
+): Cam {
   if (!shot) return WIDE;
   const fromPrev = staysZoomed(prev, shot, geo);
   const intoNext = staysZoomed(shot, next, geo);
@@ -79,6 +90,8 @@ export function cameraAt(frame: number, durationFrames: number, fps: number, sho
     zoomIn *= k;
     zoomOut *= k;
   }
+  // Wait for the region, but keep a quarter of the beat on the zoomed shot.
+  delay = clamp(readyFrame, delay, Math.max(delay, durationFrames * 0.75 - zoomIn - zoomOut));
   const start = fromPrev && prev ? prev : WIDE;
   if (frame < delay) return start;
   if (frame < delay + zoomIn) return mix(start, shot, easeInOut((frame - delay) / zoomIn));
