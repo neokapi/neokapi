@@ -19,6 +19,9 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if plan.Monolingual {
 		return "plan: no target languages, reconciling the source only"
 	}
+	if plan.NoTargets {
+		return "plan: no collection has a target path, reconciling the source only"
+	}
 	if plan.readNothing && len(plan.Warnings) > 0 {
 		return fmt.Sprintf("plan: nothing priced: no installed reader opens this project's content (%d file(s) set aside)",
 			len(plan.Warnings))

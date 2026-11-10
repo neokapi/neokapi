@@ -989,6 +989,20 @@ func (p *KapiProject) DeclaresTargetLanguages() bool {
 	return false
 }
 
+// WritesTargets reports whether any collection item names a target path, the
+// place a translation is written. A project can declare target languages and
+// still write none: every collection without a `target:` is source-only.
+func (p *KapiProject) WritesTargets() bool {
+	for i := range p.Collections {
+		for _, item := range p.Collections[i].EffectiveItems() {
+			if item.Target != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // FormatSpec is the per-item format override.
 // Supports short form (scalar string → just the name) and long form (mapping).
 //

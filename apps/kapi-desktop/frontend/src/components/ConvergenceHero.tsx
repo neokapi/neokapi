@@ -241,7 +241,11 @@ export function ConvergenceHero({
   // file-derived tally says, so it is drift in its own right — the state cannot
   // be trusted as converged until a run completes.
   const runFailed = lastRunError != null && lastRunError.kind !== "canceled";
-  const upToDate = loaded && !cachePending && planned === 0 && !runFailed && heldBack.length === 0;
+  // Target languages are set but no collection has a target path, so a run
+  // has nowhere to write a translation. That is a setup step, not "up to date".
+  const noTargets = !!plan?.plan?.noTargets;
+  const upToDate =
+    loaded && !cachePending && !noTargets && planned === 0 && !runFailed && heldBack.length === 0;
   // Reading the files: the cache is behind them and a sync is on its way or
   // under way. A sync that failed is reported below instead.
   const reading = loaded && cachePending && sync.error == null;
@@ -303,6 +307,7 @@ export function ConvergenceHero({
   else if (!loaded) headline = t("Reading the project…");
   else if (reading) headline = t("Reading the project's files…");
   else if (runFailed) headline = t("The last run failed");
+  else if (noTargets) headline = t("No target folder set");
   else if (planned > 0) headline = t("Translations are missing");
   else if (parked > 0 || heldBack.length > 0) headline = t("Waiting for a person");
   else headline = t("Not up to date");
@@ -368,6 +373,11 @@ export function ConvergenceHero({
                 {headline}
               </p>
             )}
+            {noTargets && !reading && loaded && (
+              <p className="text-xs text-muted-foreground" data-slot="hero-no-targets">
+                {t("Set where each collection's translations go.")}
+              </p>
+            )}
             {(upToDate || plan?.plan?.subscription) && (
               <p className="text-xs text-muted-foreground">
                 {upToDate &&
@@ -397,6 +407,15 @@ export function ConvergenceHero({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {noTargets && onOpenSettings && (
+            <Button
+              size="sm"
+              onClick={() => onOpenSettings("project-settings:content")}
+              data-slot="hero-set-targets"
+            >
+              {t("Set target folder")}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -412,7 +431,7 @@ export function ConvergenceHero({
             size="sm"
             variant={runHasWork ? "default" : "outline"}
             onClick={launch}
-            disabled={upToDate || hasActive || sync.syncing || !onBringUpToDate}
+            disabled={upToDate || noTargets || hasActive || sync.syncing || !onBringUpToDate}
             data-slot="hero-bring-up-to-date"
             aria-label={t("Bring the project up to date")}
           >
@@ -422,7 +441,7 @@ export function ConvergenceHero({
         </div>
       </div>
 
-      {loaded && !upToDate && !reading && derivationError == null && (
+      {loaded && !upToDate && !noTargets && !reading && derivationError == null && (
         <StatRow className="mt-4" data-slot="hero-counts" items={counts} />
       )}
 
@@ -631,7 +650,11 @@ export function ConvergePlanDialog({
           </p>
         )}
 
-        {scopes.length === 0 ? (
+        {plan?.plan?.noTargets ? (
+          <p className="py-2 text-sm text-muted-foreground" data-slot="plan-no-targets">
+            {t("No collection has a target folder, so there is nothing to translate.")}
+          </p>
+        ) : scopes.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground" data-slot="plan-empty">
             {t("Every block is translated.")}
           </p>

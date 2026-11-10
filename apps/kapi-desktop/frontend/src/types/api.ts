@@ -1904,6 +1904,9 @@ export interface UpPlanOutput {
   /** True when that provider bills a personal subscription (claude-code) —
    * the token estimate is scale, not a metered API cost. */
   subscription?: boolean;
+  /** Target languages are set but no collection has a target path, so a run
+   * writes no translation. An empty plan then is not one with the work done. */
+  noTargets?: boolean;
   /** Discloses the estimation heuristic (Memory exact-hash only, chars/4 tokens). */
   note: string;
 }
