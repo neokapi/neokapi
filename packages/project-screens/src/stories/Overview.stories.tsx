@@ -76,7 +76,7 @@ export const FirstSteps: Story = {
         { id: "share", done: false },
       ],
     },
-    stepsGuideHref: "https://neokapi.github.io/kapi/get-started/first-project",
+    onStepsGuide: fn(),
     onDismissSteps: fn(),
   },
 };

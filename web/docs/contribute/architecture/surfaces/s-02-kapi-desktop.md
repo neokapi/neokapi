@@ -170,7 +170,7 @@ shape of the page patterns guide (`packages/ui/docs/page-patterns.md`): a page
 header, a row of labelled counts, and two lists of rows that each lead to a
 project. Top to bottom it holds the counts, **What's new**, **Projects**,
 **Holds in every project** (drawn only while the workspace holds a rule) and
-**Start here**, which comes first instead on an empty workspace. The header
+**Get started**, which comes first instead on an empty workspace. The header
 names the workspace directory by its last segment, with the full path in the
 tooltip.
 
@@ -210,11 +210,20 @@ path and Remove, and the first checkout's path is the tooltip on the name.
 into force. Those rules live in the workspace's own rule table, which every
 project on this machine reads.
 
-**Start here** is three steps for a first run: open a project or try the
-sample, connect an assistant, come back to What's new. Dismissing it is a
-setting in the desktop's own settings (`StartHereDismissed`, through
-`DismissStartHere` and `RestoreStartHere`), the way the sample cards are
-dismissed, so it stays dismissed across launches until Settings restores it.
+**Get started** is three guided tours for a first run: try the sample and find
+your way around it, decide what becomes a rule, connect an assistant. Each
+step carries a check once its tour is finished, and the card counts them.
+Hiding it is a setting in the desktop's own settings (`StartHereDismissed`,
+through `DismissStartHere` and `RestoreStartHere`), the way the sample cards
+are dismissed, so it stays hidden across launches until Settings restores it.
+
+The tours and the help topics come from `apps/kapi-desktop/frontend/src/guide/`
+and run on the shared engine in `@neokapi/ui-primitives` (`GuideProvider`,
+`useGuide`). **Help**, at the foot of the sidebar, opens the Help panel: the
+tours, each with **Start**, and short topics read in the app, each ending in a
+link to the matching page of these docs. A tour starts only from a click: the
+Help panel, Get started, or the **Guide** action on a project's first steps.
+Finished tours are kept in the webview's local storage.
 
 The feed of every project's operations is **History**, a view reached from a
 link beside the title ([the feed](#the-feed-of-recorded-context-operations)).

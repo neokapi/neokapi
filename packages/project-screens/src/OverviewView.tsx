@@ -59,6 +59,8 @@ export interface OverviewViewProps extends ScreenNavigation {
   onDismissSteps?: () => void;
   /** The guide that walks through the first steps, opened outside the app. */
   stepsGuideHref?: string;
+  /** Start the host's tour of the first steps; it wins over `stepsGuideHref`. */
+  onStepsGuide?: () => void;
   /** The project waits to be set up: the files' empty state leads to setting it up. */
   setupPending?: boolean;
   /** The action in the empty files list, such as adding files. */
@@ -84,6 +86,7 @@ export function OverviewView({
   suggestionsAction,
   onDismissSteps,
   stepsGuideHref,
+  onStepsGuide,
   setupPending,
   addFiles,
   onPreviewFile,
@@ -158,6 +161,7 @@ export function OverviewView({
               running={running}
               onDismiss={onDismissSteps}
               guideHref={stepsGuideHref}
+              onGuide={onStepsGuide}
               navigate={navigate}
               canNavigate={canNavigate}
             />

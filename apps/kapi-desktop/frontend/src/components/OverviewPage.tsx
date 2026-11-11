@@ -19,7 +19,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
-import { Button, ErrorNotice, LoadingSpinner, ScrollArea } from "@neokapi/ui-primitives";
+import {
+  Button,
+  ErrorNotice,
+  LoadingSpinner,
+  ScrollArea,
+  useOptionalGuide,
+} from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { OverviewView, type ScreenTarget } from "@neokapi/project-screens";
 import { api } from "../hooks/useApi";
@@ -29,6 +35,7 @@ import { desktopView } from "../lib/screenTargets";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useStoreSyncState } from "../hooks/useProjectStoreSync";
 import { FilePreview } from "./FilePreview";
+import { GUIDE_IDS } from "../guide/guides";
 import type {
   DeeperLookModel,
   DeeperLookResult,
@@ -86,9 +93,6 @@ export interface OverviewPageProps {
   standing?: React.ReactNode;
 }
 
-/** "Your first project" in the kapi docs, which takes the same steps; it opens in the browser. */
-export const FIRST_PROJECT_GUIDE_URL = "https://neokapi.github.io/kapi/get-started/first-project";
-
 export function OverviewPage({
   tabID,
   projectName,
@@ -100,6 +104,7 @@ export function OverviewPage({
   setupPending,
   standing,
 }: OverviewPageProps) {
+  const guide = useOptionalGuide();
   const qc = useQueryClient();
   const key = qk.overviewSummary(tabID);
   const query = useQuery({
@@ -207,7 +212,7 @@ export function OverviewPage({
         runError={run.error}
         onRun={() => run.mutate()}
         onDismissSteps={given ? undefined : () => dismissSteps.mutate()}
-        stepsGuideHref={FIRST_PROJECT_GUIDE_URL}
+        onStepsGuide={guide ? () => guide.start(GUIDE_IDS.project) : undefined}
         standing={standing}
         deeperLook={
           <DeeperLookRow

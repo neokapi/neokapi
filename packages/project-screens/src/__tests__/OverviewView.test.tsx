@@ -280,4 +280,14 @@ describe("the first steps", () => {
     await userEvent.click(screen.getByRole("button", { name: "Dismiss first steps" }));
     expect(onDismissSteps).toHaveBeenCalledOnce();
   });
+  it("starts the host's own tour from Guide, in place of the link", async () => {
+    const onStepsGuide = vi.fn();
+    renderView(
+      { ...MAP_PENDING, steps },
+      { onStepsGuide, stepsGuideHref: "https://example.test/guide" },
+    );
+    expect(screen.queryByRole("link", { name: "Guide" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Guide" }));
+    expect(onStepsGuide).toHaveBeenCalledOnce();
+  });
 });

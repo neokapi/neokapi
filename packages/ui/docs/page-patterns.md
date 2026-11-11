@@ -100,7 +100,7 @@ These hold on every shape.
   a sync each get an avatar or icon, so a reader recognises the actor before
   reading the name.
 
-## Explanation lives in four places
+## Explanation lives in five places
 
 A paragraph under a heading that tells the reader what the section is for
 is the first thing to remove from a screen. It is read once and seen every
@@ -112,7 +112,12 @@ time. Explanation belongs in one of these, in this order of preference:
 2. **An affordance on the heading.** A tooltip or popover behind an
    information mark, for a reader who asks.
 3. **The first-run card.** "Start here" on the overview, dismissed once.
-4. **The docs.** A link, when the explanation runs past a sentence.
+4. **A guided tour or a help topic.** The Help panel holds short topics read
+   in the app and tours that light each control in turn. A tour starts only
+   when the person asks for one. A link on the page opens the topic or starts
+   the tour; it does not leave the app.
+5. **The docs.** The last line of a help topic, when the full story runs past
+   what the app should hold.
 
 A page's command-line equivalent is a terminal icon at the right of the page's
 navigation or header. Its tooltip shows the command, and a click copies it, as
@@ -151,7 +156,7 @@ a caption under a section.
 - The page's shape is named in the description.
 - The page sits in `PageContainer` at its shape's width.
 - No explanatory paragraph sits under a heading; each explanation is in one
-  of the four places above.
+  of the five places above.
 - Every number has a label and none is inside a generated sentence.
 - Each fact appears once on the screen.
 - One `default` button.

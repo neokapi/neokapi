@@ -23,7 +23,6 @@ const defaultProps = {
   startHereDismissed: false,
   hasOpenProject: false,
   onDismissStartHere: vi.fn(),
-  onConnectAssistant: vi.fn(),
   onOpenWhatsNew: vi.fn(),
   onOpenCheckout: vi.fn(),
   onOpenContext: vi.fn(),
@@ -143,7 +142,7 @@ describe("AppHome", () => {
     expect(onOpenWhatsNew).toHaveBeenCalledWith("prj_acmehelp");
   });
 
-  it("leaves Start here to carry a first run, without counts or What's new", () => {
+  it("leaves Get started to carry a first run, without counts or What's new", () => {
     render(<AppHome {...defaultProps} />);
     expect(slot("workspace-numbers")).toBeNull();
     expect(slot("whats-new")).toBeNull();
@@ -183,19 +182,19 @@ describe("AppHome", () => {
     expect(slot("workspace-read-only")).toHaveTextContent("Read only");
   });
 
-  it("shows Start here until it is dismissed", async () => {
+  it("shows Get started until it is hidden", async () => {
     const onDismissStartHere = vi.fn();
     const { rerender } = render(
       <AppHome {...defaultProps} onDismissStartHere={onDismissStartHere} />,
     );
-    expect(screen.getByText("Start here")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Dismiss Start here" }));
+    expect(screen.getByText("Get started")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Hide Get started" }));
     expect(onDismissStartHere).toHaveBeenCalled();
     rerender(<AppHome {...defaultProps} startHereDismissed />);
-    expect(screen.queryByText("Start here")).not.toBeInTheDocument();
+    expect(screen.queryByText("Get started")).not.toBeInTheDocument();
   });
 
-  it("creates the sample from Start here", async () => {
+  it("creates the sample from Get started", async () => {
     const onCreateSampleProject = vi.fn();
     render(<AppHome {...defaultProps} onCreateSampleProject={onCreateSampleProject} />);
     await userEvent.click(screen.getByTestId("sample-kapimart"));

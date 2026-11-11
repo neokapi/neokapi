@@ -37,13 +37,11 @@ interface AppHomeProps {
   standings?: ContextProjectStanding[] | null;
   /** Pre-loaded workspace rules for Storybook and tests, which reach no backend. */
   workspaceRules?: WorkspaceRule[];
-  /** The Start here steps were dismissed. */
+  /** The Get started card was hidden. */
   startHereDismissed: boolean;
   onDismissStartHere: () => void;
-  /** A project tab is open, so Start here can connect an assistant to it. */
+  /** A project tab is open, so Get started can tour it. */
   hasOpenProject: boolean;
-  /** Open the most recent project tab on its Assistant section. */
-  onConnectAssistant: () => void;
   /** Open a project on its What's new, by workspace key. */
   onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
@@ -55,7 +53,7 @@ interface AppHomeProps {
   onNewProject: () => void;
   onOpenProject: () => void;
   onNavigate: (view: string) => void;
-  onCreateSampleProject: (name: string) => void;
+  onCreateSampleProject: (name: string) => void | Promise<void>;
   /** Pre-loaded AI detection for Storybook/tests — forwarded to ConnectAICard. */
   aiDetection?: AIDetectionResult;
   /** Pre-loaded .kpz document conflicts for Storybook and tests. */
@@ -80,7 +78,6 @@ export function AppHome({
   startHereDismissed,
   onDismissStartHere,
   hasOpenProject,
-  onConnectAssistant,
   onOpenWhatsNew,
   onOpenCheckout,
   onOpenContext,
@@ -96,7 +93,7 @@ export function AppHome({
   const projects = workspace?.projects ?? [];
   const derived = useMemo(() => standingsOf(workspace), [workspace]);
   const standings = given ?? derived;
-  // On a first visit nothing is registered, so the three steps come first and
+  // On a first visit nothing is registered, so Get started comes first and
   // the counts and the sections that would only say "nothing yet" wait until
   // there is a project to fill them.
   const empty = !workspaceError && !!workspace && projects.length === 0;
@@ -104,7 +101,6 @@ export function AppHome({
     <StartHere
       onDismiss={onDismissStartHere}
       onCreateSampleProject={onCreateSampleProject}
-      onConnectAssistant={onConnectAssistant}
       hasOpenProject={hasOpenProject}
     />
   );

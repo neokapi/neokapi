@@ -1,7 +1,8 @@
-import { render, screen } from "./testUtils";
+import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
 import { IconSidebar } from "../components/IconSidebar";
+import { DesktopGuide } from "../guide/DesktopGuide";
 
 describe("IconSidebar", () => {
   it("lists one entry per page, in a fixed order", () => {
@@ -15,6 +16,18 @@ describe("IconSidebar", () => {
       "Project Settings",
       "App Settings",
     ]);
+  });
+
+  it("puts Help above App Settings inside the guide", async () => {
+    render(
+      <DesktopGuide navigate={vi.fn()} hasProject={false} onOpenUrl={vi.fn()}>
+        <IconSidebar active="home" onChange={vi.fn()} />
+      </DesktopGuide>,
+    );
+    const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+    expect(labels.slice(-2)).toEqual(["Help", "App Settings"]);
+    await userEvent.click(screen.getByRole("button", { name: "Help" }));
+    await waitFor(() => expect(document.querySelector('[data-slot="help-panel"]')).not.toBeNull());
   });
 
   it("files the stores under Context rather than beside it", () => {

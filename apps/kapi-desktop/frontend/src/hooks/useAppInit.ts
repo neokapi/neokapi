@@ -44,7 +44,7 @@ export function interceptLinkClick(e: MouseEvent, open: (url: string) => void): 
 }
 
 /** Open a URL in the system browser, or in a new window outside Wails. */
-function openInSystemBrowser(url: string): void {
+export function openInSystemBrowser(url: string): void {
   import("@wailsio/runtime")
     .then((m) => m.Browser.OpenURL(url))
     .catch(() => {

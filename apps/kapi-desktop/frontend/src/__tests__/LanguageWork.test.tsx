@@ -109,7 +109,6 @@ function view(effectiveView: string, project: KapiProject, navigate = vi.fn()) {
             onDismissStartHere={vi.fn()}
             onRestoreStartHere={vi.fn()}
             hasOpenProject
-            onConnectAssistant={vi.fn()}
             onOpenWhatsNew={vi.fn()}
             onOpenCheckout={vi.fn()}
             onOpenContext={vi.fn()}
