@@ -11,9 +11,34 @@ import { clickFrames, planPlayback } from "../playback.ts";
 import { cardGeometry, isWebDemo, MAX_CROP_SCALE } from "../../lib/crop.ts";
 import { cameraAt, zoomPose } from "../camera.ts";
 
-const Light: React.FC<{ c: string }> = ({ c }) => (
+/**
+ * The macOS window buttons, in the recorded page's own CSS pixels: 14px across,
+ * centres 23px apart, the first centred 25px in from the window's top-left
+ * corner, measured off a Kapi Desktop window. `s` scales them with the picture.
+ */
+/** A window button in the browser bar the web demos are framed under. */
+const BarLight: React.FC<{ c: string }> = ({ c }) => (
   <span style={{ width: 13, height: 13, borderRadius: 13, background: c, display: "inline-block", boxShadow: "0 0 0 0.5px rgba(0,0,0,0.18)" }} />
 );
+
+const LIGHT = { size: 14, first: 25, step: 23 };
+const Light: React.FC<{ c: string; i: number; s: number }> = ({ c, i, s }) => {
+  const d = LIGHT.size * s;
+  return (
+    <span
+      style={{
+        position: "absolute",
+        left: (LIGHT.first + i * LIGHT.step) * s - d / 2,
+        top: LIGHT.first * s - d / 2,
+        width: d,
+        height: d,
+        borderRadius: d,
+        background: c,
+        boxShadow: "0 0 0 0.5px rgba(0,0,0,0.18)",
+      }}
+    />
+  );
+};
 
 
 export { MAX_CROP_SCALE };
@@ -148,9 +173,9 @@ export const DesktopScene: React.FC<{
               }}
             >
               <div style={{ display: "flex", gap: 9, marginLeft: 20 }}>
-                <Light c="#ff5f57" />
-                <Light c="#febc2e" />
-                <Light c="#28c840" />
+                <BarLight c="#ff5f57" />
+                <BarLight c="#febc2e" />
+                <BarLight c="#28c840" />
               </div>
               <div
                 style={{
@@ -185,14 +210,14 @@ export const DesktopScene: React.FC<{
           </Freeze>
           {mark ? <BoxMark left={mark.x * bw} top={bar + mark.y * bh} width={mark.w * bw} height={mark.h * bh} /> : null}
           {!isWeb && (
-            // Native-app demos: macOS traffic lights overlaid on the app's own
-            // title-bar gutter (kapi-desktop reserves pl-16; bowrain-desktop via
-            // the bw-desktop-mac marker).
-            <div style={{ position: "absolute", top: 17, left: 20, display: "flex", gap: 9 }}>
-              <Light c="#ff5f57" />
-              <Light c="#febc2e" />
-              <Light c="#28c840" />
-            </div>
+            // Native-app demos: the macOS window buttons, drawn into the
+            // title-bar strip the app reserves when it runs on macOS
+            // (the recorder reports darwin), scaled with the picture.
+            <>
+              <Light c="#ff5f57" i={0} s={bw / screencast.width} />
+              <Light c="#febc2e" i={1} s={bw / screencast.width} />
+              <Light c="#28c840" i={2} s={bw / screencast.width} />
+            </>
           )}
         </div>
       </div>

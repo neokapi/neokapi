@@ -2826,6 +2826,14 @@ async function recordTheme(
       document.addEventListener("DOMContentLoaded", pin);
     })();`,
   );
+  // A native take reports macOS the way a Wails window does, before the app
+  // reads it: Kapi Desktop then reserves its title-bar strip for the window
+  // buttons (platform.ts), and DesktopScene draws the buttons into that strip.
+  if (!web) {
+    await context.addInitScript(
+      `window._wails = window._wails || {}; window._wails.environment = { OS: "darwin", Arch: "arm64", Debug: false };`,
+    );
+  }
   const t0 = Date.now();
   const page = await context.newPage();
   // Debug: surface the browser console (HARNESS_DEBUG=1) + uncaught errors
