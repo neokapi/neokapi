@@ -46,7 +46,7 @@ export function DesktopGuide({
     [locale],
   );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const topics = useMemo(() => buildTopics(), [locale]);
+  const topics = useMemo(() => buildTopics(locale), [locale]);
   return (
     <GuideProvider
       guides={guides}

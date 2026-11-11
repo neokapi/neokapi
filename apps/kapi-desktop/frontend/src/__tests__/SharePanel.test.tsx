@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor, within } from "./testUtils";
 
 import {
+  BOWRAIN_ABOUT_URL,
   BOWRAIN_SHARE_COMMAND,
   SharePanel,
   lastSegments,
@@ -12,7 +13,6 @@ import {
   venueProject,
 } from "../components/SharePanel";
 import { api } from "../hooks/useApi";
-import { DesktopGuide } from "../guide/DesktopGuide";
 import {
   BOWRAIN_BACKEND_VIEW,
   BOWRAIN_VIEW,
@@ -253,29 +253,15 @@ describe("the Share page", () => {
     expect(slot("share-bowrain-plugin", bowrain)?.textContent).toBe(
       "Needs the kapi-bowrain plugin",
     );
-    expect(within(bowrain).queryByRole("link")).toBeNull();
+    const about = within(bowrain).getByRole("link", { name: "About Bowrain" });
+    expect(about).toHaveAttribute("href", BOWRAIN_ABOUT_URL);
+    expect(about).toHaveAttribute("target", "_blank");
+    expect(about).toHaveAttribute("rel", "noopener noreferrer");
     expect(
       within(bowrain)
         .getAllByRole("button")
         .map((b) => b.textContent?.trim()),
-    ).toEqual(["Preview", "About Bowrain"]);
-  });
-
-  it("About Bowrain opens the Bowrain page in Help, and no website directly", async () => {
-    const onOpenUrl = vi.fn();
-    render(
-      <DesktopGuide navigate={vi.fn()} hasProject onOpenUrl={onOpenUrl}>
-        <SharePanel tabID="t1" view={LOCAL_VIEW} />
-      </DesktopGuide>,
-    );
-    await userEvent.click(within(rung("bowrain")).getByRole("button", { name: "About Bowrain" }));
-    const help = await screen.findByRole("dialog");
-    expect(within(help).getByText("kapi and Bowrain")).toBeInTheDocument();
-    expect(onOpenUrl).not.toHaveBeenCalled();
-    await userEvent.click(within(help).getByRole("button", { name: /Read more on the website/ }));
-    expect(onOpenUrl).toHaveBeenCalledWith(
-      "https://bowrain.cloud/docs/getting-started/kapi-vs-bowrain",
-    );
+    ).toEqual(["Preview"]);
   });
 
   it("before Bowrain, with the plugin installed: the command alone", () => {
@@ -325,17 +311,18 @@ describe("the Share page", () => {
     expect(primaries()).toEqual([]);
   });
 
-  it("context-only: the rungs, and why sharing needs a checkout, with About Bowrain alone and no command", () => {
+  it("context-only: the rungs, and why sharing needs a checkout, with no button or command", () => {
     render(<SharePanel tabID="t1" view={LOCAL_VIEW} contextOnly />);
     expect(marked()).toEqual(["machine"]);
     expect(slot("share-needs-checkout")?.textContent).toBe(
       "Sharing is named in the project's kapi.yaml, so it needs a checkout of this project on this Mac.",
     );
-    expect(screen.getAllByRole("button").map((b) => b.textContent?.trim())).toEqual([
-      "About Bowrain",
-    ]);
+    expect(screen.queryByRole("button")).toBeNull();
     expect(slot("share-bowrain-command")).toBeNull();
     expect(slot("share-bowrain-plugin")).toBeNull();
+    expect(
+      within(rung("bowrain")).getByRole("link", { name: "About Bowrain" }),
+    ).toBeInTheDocument();
   });
 });
 

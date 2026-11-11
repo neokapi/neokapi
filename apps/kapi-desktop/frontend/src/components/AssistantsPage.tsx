@@ -134,6 +134,7 @@ export function AssistantsPage({
   return (
     <div data-slot="assistants-page">
       <PageHeader
+        help="assistants"
         title={t("Assistants")}
         subtitle={
           view &&

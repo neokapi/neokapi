@@ -1,11 +1,13 @@
-// Every tour step points at an element the frontend draws, and every help
-// topic's website link names a page that exists. Both are read from the
-// sources, so a renamed slot or a moved page fails here rather than leaving a
-// bubble in the middle of the window or a link to nowhere.
+// Every tour step points at an element the frontend draws, every help topic
+// is a section the docs page has, and every link in a topic opens another
+// topic or a page that exists. All are read from the sources, so a renamed
+// slot, a renamed heading id or a moved page fails here rather than leaving a
+// bubble in the middle of the window, an empty topic or a link to nowhere.
 
 import { describe, expect, it, vi } from "vite-plus/test";
 import { buildGuides, GUIDE_IDS } from "../guide/guides";
-import { buildTopics } from "../guide/topics";
+import { TOPIC_HREF_PREFIX } from "@neokapi/ui-primitives";
+import { buildTopics, TOPIC_SPECS, topicProblems } from "../guide/topics";
 
 const sources = Object.values(
   import.meta.glob<string>(
@@ -23,9 +25,6 @@ const sources = Object.values(
 const kapiPages = Object.keys(
   import.meta.glob("../../../../../web/docs/kapi/**/*.{md,mdx}", { eager: false }),
 ).map((p) => p.replace(/^.*\/web\/docs\//, "").replace(/\.mdx?$/, ""));
-const bowrainPages = Object.keys(
-  import.meta.glob("../../../../../bowrain/web/docs/docs/**/*.{md,mdx}", { eager: false }),
-).map((p) => p.replace(/^.*\/bowrain\/web\/docs\/docs\//, "").replace(/\.mdx?$/, ""));
 
 const guides = buildGuides({ navigate: vi.fn(), hasProject: () => true });
 const topics = buildTopics();
@@ -34,7 +33,6 @@ describe("guides", () => {
   it("reads the sources it checks against", () => {
     expect(sources).toContain('data-slot="overview-counts"');
     expect(kapiPages).toContain("kapi/desktop/overview");
-    expect(bowrainPages).toContain("getting-started/kapi-vs-bowrain");
   });
 
   const steps = guides.flatMap((g) => g.steps.map((s) => ({ guide: g.id, ...s })));
@@ -85,12 +83,39 @@ describe("guides", () => {
 });
 
 describe("help topics", () => {
-  it.each(topics.map((t) => [t.id, t.moreUrl ?? ""]))("%s links a page that exists", (_, url) => {
-    const kapi = url.match(/^https:\/\/neokapi\.github\.io\/(kapi\/.+)$/);
-    const bowrain = url.match(/^https:\/\/bowrain\.cloud\/docs\/(.+)$/);
-    expect(kapi || bowrain, url).toBeTruthy();
-    if (kapi) expect(kapiPages).toContain(kapi[1]);
-    if (bowrain) expect(bowrainPages).toContain(bowrain[1]);
+  it("finds every section it names on the docs page", () => {
+    expect(topicProblems()).toEqual({ missing: [], unsupported: [] });
+    expect(topics.map((t) => t.id)).toEqual(TOPIC_SPECS.map((s) => s.id));
+    for (const t of topics) {
+      expect(t.title, t.id).not.toBe("");
+      expect(t.summary, t.id).not.toBe("");
+      expect(t.body, t.id).not.toMatch(/<[A-Z]|\{#|\{\/\*/);
+    }
+  });
+
+  it.each(topics.map((t) => [t.id, t.moreUrl ?? ""]))("%s opens its own section", (id, url) => {
+    expect(url).toBe(`https://neokapi.github.io/kapi/desktop/overview#${id}`);
+  });
+
+  const links = topics.flatMap((t) =>
+    [...t.body.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => [t.id, m[1]] as const),
+  );
+  it.each(links)("%s links %s, which exists", (_, href) => {
+    if (href.startsWith(TOPIC_HREF_PREFIX)) {
+      expect(topics.map((t) => t.id)).toContain(href.slice(TOPIC_HREF_PREFIX.length));
+      return;
+    }
+    const page = href.match(/^https:\/\/neokapi\.github\.io\/([^#]+)/);
+    expect(page, href).toBeTruthy();
+    // Reference pages are generated at docs build time; the guides are files.
+    if (page![1].startsWith("kapi/")) expect(kapiPages).toContain(page![1]);
+  });
+
+  it("opens a topic that exists from every page title that names one", () => {
+    const ids = new Set(topics.map((t) => t.id));
+    const named = [...sources.matchAll(/<PageHeader[^>]*?\shelp="([^"]+)"/g)].map((m) => m[1]);
+    expect(named.length).toBeGreaterThan(10);
+    for (const id of named) expect(ids.has(id), id).toBe(true);
   });
 
   it("names guides that exist", () => {

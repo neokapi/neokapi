@@ -111,13 +111,15 @@ time. Explanation belongs in one of these, in this order of preference:
    place a section explains itself in full.
 2. **An affordance on the heading.** A tooltip or popover behind an
    information mark, for a reader who asks.
-3. **The first-run card.** "Start here" on the overview, dismissed once.
-4. **A guided tour or a help topic.** The Help panel holds short topics read
-   in the app and tours that light each control in turn. A tour starts only
-   when the person asks for one. A link on the page opens the topic or starts
-   the tour; it does not leave the app.
-5. **The docs.** The last line of a help topic, when the full story runs past
-   what the app should hold.
+3. **The first-run card.** "Get started" on the home, hidden once.
+4. **A help topic or a guided tour.** `PageHeader`'s `help` puts an info
+   button beside the title that opens the Help panel on the page's topic. A
+   topic is a section of the docs, read from its source when the app is
+   built, so write the explanation there, not in the component. A tour lights
+   each control of one task in turn and starts only when the person asks for
+   one. See S-08, *In-app help*, in the architecture docs.
+5. **The docs.** The last line of a help topic opens the same section on the
+   website, in the page around it.
 
 A page's command-line equivalent is a terminal icon at the right of the page's
 navigation or header. Its tooltip shows the command, and a click copies it, as

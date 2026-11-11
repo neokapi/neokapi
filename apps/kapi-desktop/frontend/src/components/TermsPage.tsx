@@ -192,6 +192,7 @@ export function TermsPage({
     return (
       <div className="flex h-full min-h-0 flex-col">
         <PageHeader
+          help="voice-and-terms"
           className="mb-0 shrink-0 px-6 pt-5 pb-3"
           title={store?.name ?? (isProject ? "Terms" : tbName)}
           subtitle={
@@ -232,6 +233,7 @@ export function TermsPage({
   return (
     <PageContainer width="narrow">
       <PageHeader
+        help="voice-and-terms"
         title="Terms"
         actions={
           <div className="flex gap-2">

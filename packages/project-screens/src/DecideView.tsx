@@ -360,6 +360,7 @@ export function DecideView({
 
   const header = view && (
     <PageHeader
+      help="decide"
       className="mb-0 shrink-0 px-6 pt-5 pb-3"
       title={t("{project} · Decide", "the Decide page title", { project: view.project_name })}
       // With nothing waiting, the empty state states the kept count.

@@ -70,7 +70,11 @@ export function ContextExplorerView({
 
   return (
     <PageContainer width="full">
-      <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title="Search" />
+      <PageHeader
+        help="search-and-explore"
+        className="mb-0 shrink-0 px-6 pt-5 pb-3"
+        title="Search"
+      />
       <div className="min-h-0 flex-1 overflow-y-auto border-t border-border px-6 pb-6">
         {pin?.rule && (
           <div

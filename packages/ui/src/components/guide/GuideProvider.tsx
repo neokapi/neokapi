@@ -144,6 +144,13 @@ export function GuideProvider({
     setHelp({ open: true, topicId: topicId ?? null });
   }, []);
 
+  const topicsRef = React.useRef(topics);
+  topicsRef.current = topics;
+  const hasTopic = React.useCallback(
+    (topicId: string) => topicsRef.current.some((tp) => tp.id === topicId),
+    [],
+  );
+
   const activeGuide = running ? guides.find((g) => g.id === running.guideId) : undefined;
   const active = React.useMemo(
     () => (running && activeGuide ? { guide: activeGuide, step: running.step } : null),
@@ -151,8 +158,8 @@ export function GuideProvider({
   );
 
   const api = React.useMemo<GuideApi>(
-    () => ({ start, stop, active, openHelp, completed }),
-    [start, stop, active, openHelp, completed],
+    () => ({ start, stop, active, openHelp, hasTopic, completed }),
+    [start, stop, active, openHelp, hasTopic, completed],
   );
 
   return (

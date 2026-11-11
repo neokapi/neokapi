@@ -479,6 +479,7 @@ export function FlowsPage({
   return (
     <PageContainer width="wide">
       <PageHeader
+        help="project-settings"
         title={isProjectMode ? "Flows" : "Flows"}
         actions={
           <div className="flex gap-2">

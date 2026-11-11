@@ -1,10 +1,23 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { StepRow } from "../components/flow-editor";
 import type { FlowTool } from "../components/flow-editor";
 import type { ComponentSchema } from "../components/schema-form";
+
+// The remove control's tooltip measures itself with ResizeObserver, which
+// jsdom lacks; when the hover opens it before the click lands, the throw ate
+// the click.
+beforeAll(() => {
+  if (typeof globalThis.ResizeObserver === "undefined") {
+    globalThis.ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+});
 
 const TOOL: FlowTool = {
   name: "translate",

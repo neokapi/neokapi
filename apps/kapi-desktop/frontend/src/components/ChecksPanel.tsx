@@ -404,6 +404,7 @@ export function ChecksPanel({
   return (
     <PageContainer width="wide">
       <PageHeader
+        help="checks"
         title="Checks"
         actions={
           <div className="flex items-center gap-2">

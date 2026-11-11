@@ -121,6 +121,7 @@ export function OverviewView({
         <div data-slot="overview" className="space-y-8">
           <div className="space-y-5">
             <PageHeader
+              help="overview"
               className="mb-0"
               title={projectName}
               subtitle={<ReadLine summary={summary} />}

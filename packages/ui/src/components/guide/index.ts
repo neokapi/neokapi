@@ -5,3 +5,6 @@ export type { HelpPanelProps } from "./HelpPanel";
 export { TourOverlay, GUIDE_OVERLAY_Z_INDEX, DEFAULT_WAIT_FOR } from "./TourOverlay";
 export type { TourOverlayProps } from "./TourOverlay";
 export type { Guide, GuideApi, GuideStep, HelpTopic } from "./types";
+export { topicsFromDocs, TOPIC_HREF_PREFIX } from "./docs-topics";
+export type { DocsPage, DocsTopicSpec, DocsTopicsOptions, DocsTopicsResult } from "./docs-topics";
+export { HelpButton } from "./HelpButton";
