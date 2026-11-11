@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { GuideProvider, useGuide, useOptionalGuide } from "../components/guide";
+import { GuideProvider, HelpButton, useGuide, useOptionalGuide } from "../components/guide";
 import type { Guide, HelpTopic } from "../components/guide";
 import { placeBubble } from "../components/guide/geometry";
 
@@ -52,7 +52,7 @@ const topics: HelpTopic[] = [
     id: "checks",
     title: "Checks",
     summary: "What a check reports",
-    body: "## Findings\n\nEach **finding** names a rule.",
+    body: "## Findings\n\nEach **finding** names a rule in [Terms](#topic=terms). See [the site](https://example.com/rules).",
     guides: ["tour"],
     moreUrl: "https://example.com/checks",
   },
@@ -93,6 +93,8 @@ function setup(extra: Partial<React.ComponentProps<typeof GuideProvider>> = {}) 
       <div data-slot="first">first</div>
       <div data-slot="second">second</div>
       <Controls />
+      <HelpButton topic="checks" />
+      <HelpButton topic="nowhere" />
     </GuideProvider>,
   );
   return { onOpenUrl };
@@ -336,6 +338,15 @@ describe("help panel", () => {
     expect(within(panel).getByText("No guides or topics match")).toBeTruthy();
   });
 
+  it("opens a page's topic from its info button, and draws none for a topic it lacks", async () => {
+    setup();
+    const buttons = screen.getAllByLabelText("Help for this page");
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByText("Findings")).toBeTruthy();
+  });
+
   it("opens a topic, goes back, and opens its website page", async () => {
     const { onOpenUrl } = setup();
     fireEvent.click(screen.getByText("open help"));
@@ -344,8 +355,19 @@ describe("help panel", () => {
     expect(within(panel).getByText("Findings")).toBeTruthy();
     expect(within(panel).getByLabelText("Start Check and fix a file")).toBeTruthy();
 
-    fireEvent.click(within(panel).getByText("Read more on the website"));
+    fireEvent.click(within(panel).getByText("Open on the website"));
     expect(onOpenUrl).toHaveBeenCalledWith("https://example.com/checks");
+
+    // A link to the site goes out through onOpenUrl, never the window itself.
+    fireEvent.click(within(panel).getByText("the site"));
+    expect(onOpenUrl).toHaveBeenLastCalledWith("https://example.com/rules");
+
+    // A link to another topic opens it in the panel.
+    fireEvent.click(within(panel).getByText("Terms"));
+    expect(within(panel).queryByText("Findings")).toBeNull();
+    expect(onOpenUrl).toHaveBeenCalledTimes(2);
+    fireEvent.click(within(panel).getByLabelText("Back to help"));
+    fireEvent.click(within(panel).getByText("Checks"));
 
     fireEvent.click(within(panel).getByLabelText("Back to help"));
     expect(within(panel).getByText("Terms")).toBeTruthy();

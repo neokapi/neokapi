@@ -56,7 +56,7 @@ export function ProjectContentPage({
 }: ProjectContentPageProps) {
   return (
     <PageContainer width="wide" data-slot="project-content-page">
-      <PageHeader title={t("Content")} />
+      <PageHeader help="project-settings" title={t("Content")} />
       <ProjectStanding
         tabID={tabID}
         project={project}

@@ -21,6 +21,7 @@ export function ReviewSetupPage({ project, onUpdate }: ReviewSetupPageProps) {
   return (
     <PageContainer width="narrow" data-slot="review-setup-page">
       <PageHeader
+        help="languages"
         title={t("Review")}
         subtitle={t(
           "Add a language to translate into. Translations to review appear here, with content memory and coverage.",

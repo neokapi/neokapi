@@ -124,6 +124,7 @@ export function ReaderView({
     <PageContainer width="wide">
       <div data-slot="reader" className="space-y-6">
         <PageHeader
+          help="reader"
           className="mb-0"
           title={reader.path}
           subtitle={<ReaderCounts reader={reader} />}

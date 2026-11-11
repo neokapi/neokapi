@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "../lib/utils";
+import { HelpButton } from "./guide/HelpButton";
 
 interface PageHeaderProps {
   title: string;
@@ -9,6 +10,11 @@ interface PageHeaderProps {
   eyebrow?: React.ReactNode;
   actions?: React.ReactNode;
   backButton?: React.ReactNode;
+  /**
+   * The help topic for the page. An info button beside the title opens the
+   * Help panel on it, where the app has a Help panel with that topic.
+   */
+  help?: string;
   /**
    * "default" is the page title row, with its actions on the right. "hero" is
    * the large centred title an empty state opens with, above a lead paragraph.
@@ -28,6 +34,7 @@ export function PageHeader({
   eyebrow,
   actions,
   backButton,
+  help,
   variant = "default",
   className,
 }: PageHeaderProps) {
@@ -56,7 +63,10 @@ export function PageHeader({
               {eyebrow}
             </div>
           )}
-          <h1 className="text-xl font-semibold">{title}</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-xl font-semibold">{title}</h1>
+            {help && <HelpButton topic={help} />}
+          </div>
           {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
         </div>
       </div>

@@ -667,6 +667,9 @@ export {
   TourOverlay,
   GUIDE_OVERLAY_Z_INDEX,
   DEFAULT_WAIT_FOR,
+  topicsFromDocs,
+  TOPIC_HREF_PREFIX,
+  HelpButton,
 } from "./components/guide";
 export type {
   GuideProviderProps,
@@ -676,4 +679,8 @@ export type {
   GuideApi,
   GuideStep,
   HelpTopic,
+  DocsPage,
+  DocsTopicSpec,
+  DocsTopicsOptions,
+  DocsTopicsResult,
 } from "./components/guide";

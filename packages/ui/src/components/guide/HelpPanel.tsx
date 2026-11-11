@@ -16,6 +16,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Markdown } from "../ui/markdown";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
+import { TOPIC_HREF_PREFIX } from "./docs-topics";
 import type { Guide, HelpTopic } from "./types";
 
 export interface HelpPanelProps {
@@ -75,7 +76,9 @@ export function HelpPanel({
       >
         {topic ? (
           <TopicView
+            key={topic.id}
             topic={topic}
+            onTopicChange={onTopicChange}
             guides={guides}
             completed={completed}
             onBack={() => onTopicChange(null)}
@@ -256,8 +259,10 @@ function TopicView({
   onBack,
   onStartGuide,
   onOpenUrl,
+  onTopicChange,
 }: {
   topic: HelpTopic;
+  onTopicChange: (topicId: string) => void;
   guides: Guide[];
   completed: ReadonlySet<string>;
   onBack: () => void;
@@ -284,7 +289,15 @@ function TopicView({
         <SheetDescription className="sr-only">{topic.summary}</SheetDescription>
       </SheetHeader>
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
-        <Markdown variant="chat" className="text-sm">
+        <Markdown
+          variant="chat"
+          className="text-sm"
+          onLinkClick={(href) => {
+            if (href.startsWith(TOPIC_HREF_PREFIX))
+              onTopicChange(href.slice(TOPIC_HREF_PREFIX.length));
+            else onOpenUrl(href);
+          }}
+        >
           {topic.body}
         </Markdown>
         {related.length > 0 && (
@@ -310,7 +323,10 @@ function TopicView({
             className="h-auto self-start px-0"
             onClick={() => onOpenUrl(moreUrl)}
           >
-            {t("Read more on the website", "help panel: link to the full page on the website")}
+            {t(
+              "Open on the website",
+              "help panel: link to the same section in its page on the website",
+            )}
             <ExternalLinkIcon data-icon="inline-end" aria-hidden />
           </Button>
         )}

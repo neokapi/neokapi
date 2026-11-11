@@ -282,7 +282,11 @@ export function ContextHub({
           // in: it reads the digest, a list beside a detail pane, each
           // scrolling on its own, so the section holds a fixed height.
           <div className="flex h-full min-h-0 flex-col">
-            <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title={t("Decide")} />
+            <PageHeader
+              className="mb-0 shrink-0 px-6 pt-5 pb-3"
+              title={t("Decide")}
+              help="decide"
+            />
             <div className="min-h-0 flex-1 border-t border-border">
               <ContextDigestPanel
                 tabID={tabID}
@@ -313,6 +317,7 @@ export function ContextHub({
             <PageHeader
               className="mb-0 shrink-0 px-6 pt-5 pb-3"
               title={t("Sessions")}
+              help="assistants"
               backButton={
                 <Button
                   size="sm"

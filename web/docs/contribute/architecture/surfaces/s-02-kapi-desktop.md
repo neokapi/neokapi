@@ -217,13 +217,14 @@ Hiding it is a setting in the desktop's own settings (`StartHereDismissed`,
 through `DismissStartHere` and `RestoreStartHere`), the way the sample cards
 are dismissed, so it stays hidden across launches until Settings restores it.
 
-The tours and the help topics come from `apps/kapi-desktop/frontend/src/guide/`
-and run on the shared engine in `@neokapi/ui-primitives` (`GuideProvider`,
-`useGuide`). **Help**, at the foot of the sidebar, opens the Help panel: the
-tours, each with **Start**, and short topics read in the app, each ending in a
-link to the matching page of these docs. A tour starts only from a click: the
-Help panel, Get started, or the **Guide** action on a project's first steps.
-Finished tours are kept in the webview's local storage.
+**Help**, at the foot of the sidebar, opens the Help panel: the tours, each
+with **Start**, and help topics read in the app. The info button beside a
+page's title opens the panel on that page's topic. Each topic is a section of
+the Kapi Desktop overview in these docs, read from its source when the app is
+built, and ends with a link to the same section on the website. A tour starts
+only from a click: the Help panel, Get started, or the **Guide** action on a
+project's first steps. Finished tours are kept in the webview's local storage.
+[S-08](s-08-in-app-help.md) describes the design.
 
 The feed of every project's operations is **History**, a view reached from a
 link beside the title ([the feed](#the-feed-of-recorded-context-operations)).

@@ -209,6 +209,7 @@ export function MemoriesPage({
     return (
       <div className="flex h-full min-h-0 flex-col">
         <PageHeader
+          help="voice-and-terms"
           className="mb-0 shrink-0 px-6 pt-5 pb-3"
           title={store?.name ?? (isProject ? "Content memory" : memoryName)}
           subtitle={
@@ -260,6 +261,7 @@ export function MemoriesPage({
   return (
     <PageContainer width="narrow">
       <PageHeader
+        help="voice-and-terms"
         title="Content memories"
         actions={
           <div className="flex gap-2">

@@ -68,7 +68,7 @@ export interface HelpTopic {
   body: string;
   /** Guides that walk through what the topic describes, by id. */
   guides?: string[];
-  /** The page on the website with the full story, shown as the topic's last line. */
+  /** The same text on the website, in its page, shown as the topic's last line. */
   moreUrl?: string;
 }
 
@@ -82,6 +82,8 @@ export interface GuideApi {
   active: { guide: Guide; step: number } | null;
   /** Open the Help panel, optionally on one topic. */
   openHelp: (topicId?: string) => void;
+  /** Whether the app offers a topic with this id. */
+  hasTopic: (topicId: string) => boolean;
   /** Guides finished on this machine, by id. */
   completed: ReadonlySet<string>;
 }

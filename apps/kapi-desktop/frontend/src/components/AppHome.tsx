@@ -109,6 +109,7 @@ export function AppHome({
     <PageContainer width="wide" data-slot="app-home" className="space-y-8">
       <div>
         <PageHeader
+          help="your-context"
           className="mb-4"
           title="Your context"
           actions={

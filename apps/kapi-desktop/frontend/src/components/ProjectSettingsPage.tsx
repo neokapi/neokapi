@@ -207,7 +207,7 @@ export function ProjectSettingsPage({
 
   return (
     <PageContainer width="standard">
-      <PageHeader title="Project Settings" />
+      <PageHeader help="project-settings" title="Project Settings" />
 
       <div className="space-y-6">
         <LanguagesSection project={project} onUpdate={onUpdate} />
