@@ -77,7 +77,7 @@ func TestFormatPlanLine_PricesTheRedraft(t *testing.T) {
 			plan: UpPlanOutput{Totals: UpPlanScope{
 				MissingTarget: 3, Stale: 1, MemoryExact: 2, AIRemaining: 2, TokenEstimate: 40,
 			}},
-			contains: []string{"3 block(s) missing", "re-drafting 1 stale block(s)", "2 exact-content memory", "2 AI"},
+			contains: []string{"3 block(s) missing", "re-drafting 1 stale block(s)", "2 recycled", "2 AI"},
 		},
 		{
 			// The pass drafts what the corpus does not answer, so a produced unit

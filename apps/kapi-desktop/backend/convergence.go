@@ -82,6 +82,9 @@ type ConvergePlan struct {
 	// cleared); VersionStale: the store was written by another kapi version.
 	StoreMissing bool `json:"storeMissing"`
 	VersionStale bool `json:"versionStale"`
+	// Recycled is what the last recycle pass in this tab filled from exact
+	// content-memory matches, or nil when none has filled anything.
+	Recycled *RecycledNote `json:"recycled,omitempty"`
 }
 
 // GetConvergePlan returns the pre-flight convergence plan for a project tab:
@@ -104,7 +107,7 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := &ConvergePlan{Plan: *plan}
+	out := &ConvergePlan{Plan: *plan, Recycled: op.lastRecycled()}
 
 	// Drift summary via the shared core detection (`kapi up`'s pre-pass check).
 	// A resolution failure is propagated, not skipped: DetectStoreDrift over a

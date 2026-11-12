@@ -244,6 +244,33 @@ describe("ConvergenceHero", () => {
     expect(document.querySelector('[data-slot="hero-bring-up-to-date"]')).not.toBeInTheDocument();
   });
 
+  it("counts the blocks the last sync recycled, beside the up-to-date state", () => {
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={convergedReport}
+        plan={{ ...convergedPlan, recycled: { blocks: 12, at: "2026-11-12T09:00:00Z" } }}
+      />,
+    );
+    expect(screen.getByText("Up to date · all gates green")).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="hero-recycled"]')).toHaveTextContent(
+      "12 blocks recycled",
+    );
+  });
+
+  it("names no recycled count when the sync filled nothing", () => {
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={convergedReport}
+        plan={convergedPlan}
+      />,
+    );
+    expect(document.querySelector('[data-slot="hero-recycled"]')).not.toBeInTheDocument();
+  });
+
   it("asks for a target folder instead of claiming up to date when no collection has one", async () => {
     const onOpenSettings = vi.fn();
     const noTargetsPlan: ConvergePlan = {
@@ -283,7 +310,7 @@ describe("ConvergenceHero", () => {
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("docs");
     expect(dialog).toHaveTextContent("12");
-    expect(dialog).toHaveTextContent("Memory exact");
+    expect(dialog).toHaveTextContent("Recycled");
     expect(dialog).toHaveTextContent("Stored drafts");
     expect(dialog).toHaveTextContent("AI work");
     // Total token estimate + the disclosed heuristic note.

@@ -2263,6 +2263,10 @@
         "project": {
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
+        },
+        "recycle_only": {
+          "description": "fill only the targets the content memory answers exactly, in one pass, with no provider calls; runs on this machine, so a server-connected project also needs local",
+          "type": "boolean"
         }
       },
       "type": "object"

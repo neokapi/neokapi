@@ -44,6 +44,10 @@ type ConvergeOptions struct {
 	// capture, when non-nil, receives the final ConvergeOutput instead of it
 	// being printed through the command's output formatter (embedders).
 	capture *ConvergeOutput
+	// recycleOnly replaces the project's flow with RecycleOnlyFlowSpec: the
+	// pass fills what the content memory answers exactly and calls no
+	// provider.
+	recycleOnly bool
 }
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
@@ -399,6 +403,13 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	cf, err := convergeFlowSpec(proj, filepath.Dir(projectPath))
 	if err != nil {
 		return err
+	}
+	if opts.recycleOnly {
+		cf.name, cf.label = recycleOnlyFlowName, recycleOnlyFlowName
+		cf.spec = RecycleOnlyFlowSpec()
+		if cf.translateAfter != model.TranslateAfterNone {
+			cf.spec = prependTranslateAfter(cf.spec, cf.translateAfter)
+		}
 	}
 	flowName, flowLabel, spec, translateAfter := cf.name, cf.label, cf.spec, cf.translateAfter
 
@@ -1472,6 +1483,23 @@ func DefaultConvergeFlowSpec() *flow.StepsSpec {
 	return &flow.StepsSpec{Steps: []flow.FlowStep{
 		{Tool: "recycle"},
 		{Tool: "translate", Config: map[string]any{"skipMatched": true}},
+	}}
+}
+
+// recycleOnlyFlowName labels a recycle-only pass in its events and run record.
+const recycleOnlyFlowName = "recycle"
+
+// RecycleOnlyFlowSpec returns the flow of a recycle-only pass: content memory
+// reuse with exact matches alone. Both thresholds are 100, so a near match
+// (the 95 to 99 band the default flow fills) stays for a full run, where a
+// person asked for the work. An ambiguous exact match, several full-score
+// entries with different targets, is never filled (core/tools.leverageBlock).
+func RecycleOnlyFlowSpec() *flow.StepsSpec {
+	return &flow.StepsSpec{Steps: []flow.FlowStep{
+		{Tool: "recycle", Config: map[string]any{
+			"fuzzyThreshold":      100,
+			"fillTargetThreshold": 100,
+		}},
 	}}
 }
 

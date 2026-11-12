@@ -69,7 +69,7 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if t.Drafts > 0 {
 		drafts = fmt.Sprintf(" · %d drafts", t.Drafts)
 	}
-	line := fmt.Sprintf("plan: %s · %d exact-content memory%s · %d AI · ≈%s tokens",
+	line := fmt.Sprintf("plan: %s · %d recycled%s · %d AI · ≈%s tokens",
 		strings.Join(work, " · "), t.MemoryExact, drafts, t.AIRemaining, compactTokens(t.TokenEstimate))
 	if plan.Provider != "" {
 		if plan.Subscription {
@@ -101,6 +101,7 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Int("jobs", 0, "how many languages to catch up concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced blocks count as translated even when failing guardrails)")
+	cmd.Flags().Bool("recycle-only", false, "fill only the targets the content memory answers exactly, in one pass, with no provider calls")
 	cmd.Flags().Bool("materialize", false, "after the loop, write target-language files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
 	cmd.Flags().Bool("plan", false, "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale), with no provider calls and no writes")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
@@ -190,6 +191,12 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	if maxPasses == 0 {
 		maxPasses = ConvergeMaxPassesDefault
 	}
+	// A recycle-only pass has nothing to loop on: a second pass would find
+	// the same exact matches already filled.
+	recycleOnly := BoolFlag(cmd, "recycle-only")
+	if recycleOnly {
+		untilGate, maxPasses = false, 1
+	}
 	jobs, _ := cmd.Flags().GetInt("jobs")
 	if jobs <= 0 {
 		jobs = proj.Defaults.Jobs
@@ -255,6 +262,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		jobs:        jobs,
 		onEvent:     onEvent,
 		capture:     &result,
+		recycleOnly: recycleOnly,
 	}); err != nil {
 		// A run that left blocks unchanged because a program changed their
 		// redaction placeholders completed: its summary carries the findings,

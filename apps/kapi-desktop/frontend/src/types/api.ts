@@ -1919,6 +1919,14 @@ export interface ConvergePlan {
   removedFiles: number;
   storeMissing: boolean;
   versionStale: boolean;
+  /** What the last recycle pass in this tab filled from exact content-memory matches. */
+  recycled?: RecycledNote;
+}
+
+/** Targets a sync filled from exact content-memory matches (backend RecycledNote). */
+export interface RecycledNote {
+  blocks: number;
+  at: string;
 }
 
 // One typed progress event of a convergence run (core/convergence.Event) — the
@@ -2005,6 +2013,8 @@ export interface StoreSyncResult {
   files: number;
   blocks: number;
   skipped?: ExtractSkip[];
+  /** Targets the sync filled from exact content-memory matches. */
+  recycled?: number;
 }
 
 /** The model a deeper look of a tab would ask (DeeperLookModel). */

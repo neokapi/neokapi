@@ -26,6 +26,7 @@ type upMCPInput struct {
 	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"`
 	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing blocks then count as translated)"`
 	Local       bool   `json:"local,omitempty" jsonschema:"in a server-connected project, run the loop on this machine and push the results, instead of running it on the server"`
+	RecycleOnly bool   `json:"recycle_only,omitempty" jsonschema:"fill only the targets the content memory answers exactly, in one pass, with no provider calls; runs on this machine, so a server-connected project also needs local"`
 }
 
 // upPlanMCPInput is the input to the `up_plan` MCP tool.
@@ -54,9 +55,14 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		// override is what makes it stick: starting the server adopted the start
 		// project's language into the field the loop's own resolution reads as
 		// "named", so the loop would otherwise keep that one.
+		untilGate, maxPasses := in.Passes != 1, in.Passes
+		if in.RecycleOnly {
+			untilGate, maxPasses = false, 1
+		}
 		out, err := a.RunUpDispatch(ctx, path, a.mcpCallSourceLocale(path), UpOptions{
-			UntilGate:   in.Passes != 1,
-			MaxPasses:   in.Passes,
+			UntilGate:   untilGate,
+			MaxPasses:   maxPasses,
+			RecycleOnly: in.RecycleOnly,
 			Jobs:        in.Jobs,
 			NoChecks:    in.NoChecks,
 			Materialize: in.Materialize,

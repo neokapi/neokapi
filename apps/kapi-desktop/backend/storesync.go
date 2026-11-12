@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -19,6 +20,9 @@ type StoreSyncResult struct {
 	Blocks int `json:"blocks"`
 	// Skipped lists files the rebuild could not read, with the reason.
 	Skipped []ExtractSkip `json:"skipped,omitempty"`
+	// Recycled counts the targets the sync filled from exact content-memory
+	// matches (recycleExactMatches).
+	Recycled int `json:"recycled,omitempty"`
 }
 
 // SyncProjectStore keeps the project's block cache current with its source
@@ -70,7 +74,11 @@ func (a *App) SyncProjectStore(tabID string) (*StoreSyncResult, error) {
 	ctx := context.Background()
 	if !db.DetectStoreDrift(ctx, resolved).Any() {
 		op.recordStoreRead(time.Now())
-		return &StoreSyncResult{}, nil
+		out := &StoreSyncResult{}
+		if op.recycleChecked.CompareAndSwap(false, true) {
+			a.recycleAfterSync(tabID, op, out)
+		}
+		return out, nil
 	}
 
 	a.emitEvent("project:store-syncing", map[string]any{"tabID": tabID})
@@ -88,7 +96,30 @@ func (a *App) SyncProjectStore(tabID string) (*StoreSyncResult, error) {
 		"files":  out.Files,
 		"blocks": out.Blocks,
 	})
+	op.recycleChecked.Store(true)
+	a.recycleAfterSync(tabID, op, out)
 	return out, nil
+}
+
+// recycleAfterSync runs the recycle pass once the block cache is current and
+// tells the tab what it filled. A failed pass is logged and leaves the sync's
+// own result standing: the cache is current either way, and the work stays
+// in the plan for a run.
+func (a *App) recycleAfterSync(tabID string, op *openProject, out *StoreSyncResult) {
+	n, err := a.recycleExactMatches(op)
+	if err != nil {
+		slog.Warn("recycle exact content-memory matches", "project", op.Path, "error", err)
+		return
+	}
+	if n == 0 {
+		return
+	}
+	out.Recycled = n
+	// The pass wrote targets, so the surfaces that re-derive on an extraction
+	// re-derive now, as they do after a run.
+	a.emitEvent("project:recycled", map[string]any{"tabID": tabID, "blocks": n})
+	a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
+	a.emitEvent("outputs-changed", map[string]any{})
 }
 
 // runActive reports whether a flow or convergence run is in progress.
