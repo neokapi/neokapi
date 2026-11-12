@@ -273,10 +273,7 @@ export function buildGuides({ navigate, hasProject }: GuideNavigation): Guide[] 
     {
       id: GUIDE_IDS.languages,
       title: t("Translate into another language", "a guided tour"),
-      summary: t(
-        "Add a language, see what a run would do, and bring it up to date.",
-        "a guided tour",
-      ),
+      summary: t("Add a language, see what a run would do, and translate it.", "a guided tour"),
       available: needsProject,
       topic: "languages",
       steps: [
@@ -317,10 +314,12 @@ export function buildGuides({ navigate, hasProject }: GuideNavigation): Guide[] 
         {
           id: "bring-up-to-date",
           target: slot("hero-bring-up-to-date"),
+          // The run button is there only when the run has work.
+          optional: true,
           placement: "bottom",
-          title: t("Bring up to date", "tour step title"),
+          title: t("Translate", "tour step title"),
           body: t(
-            "**Bring up to date** reuses earlier translations, translates the rest, and holds back for **Review** what needs a person. The run opens in its own view.",
+            "The button names the work, such as **Translate 12 blocks**. It reuses earlier translations, translates the rest, and holds back for **Review** what needs a person. The run opens in its own view.",
             "tour step",
           ),
         },

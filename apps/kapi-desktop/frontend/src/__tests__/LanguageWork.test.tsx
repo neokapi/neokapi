@@ -2,8 +2,8 @@
 // language shows no language work: Review opens the add-a-language settings
 // under one line, and the Overview carries no language standing. Once the
 // saved recipe on the tab declares a target, the Overview shows its language
-// standing, with Bring up to date, and Review holds the queue. The runner's
-// Bring up to date view reads the same answer. A saved session's retired
+// standing, with its run action, and Review holds the queue. The runner's
+// Catch up view reads the same answer. A saved session's retired
 // "languages" and "project-home" views open the Overview.
 
 import { render, screen, waitFor } from "./testUtils";
@@ -18,8 +18,14 @@ vi.mock("../hooks/useApi", async () => {
       ...actual.api,
       getSampleInfo: vi.fn().mockResolvedValue(null),
       getProjectStatus: vi.fn().mockResolvedValue(null),
-      getConvergence: vi.fn().mockResolvedValue(null),
-      getConvergePlan: vi.fn().mockResolvedValue(null),
+      getConvergence: vi.fn().mockResolvedValue({ locales: [], review: [] }),
+      // Three blocks to draft, so the Overview offers its run action.
+      getConvergePlan: vi.fn().mockResolvedValue({
+        plan: {
+          scopes: [],
+          totals: { missingTarget: 3, memoryExact: 0, aiRemaining: 3, tokenEstimate: 30 },
+        },
+      }),
       getProjectServer: vi.fn().mockResolvedValue(null),
       getLastRunError: vi.fn().mockResolvedValue(null),
       listFormats: vi.fn().mockResolvedValue([]),
@@ -140,12 +146,11 @@ describe("language work", () => {
   it("keeps the Overview free of language work until the recipe declares a target", () => {
     const { rerender } = render(view("map", sourceOnly));
     expect(screen.getByTestId("overview")).toBeInTheDocument();
-    expect(screen.queryByText("Bring up to date")).not.toBeInTheDocument();
+    expect(screen.queryByText("Plan…")).not.toBeInTheDocument();
 
     // A saved recipe that gains a target updates the tab's project; the
     // route follows without the tab being reopened.
     rerender(view("map", withFrench));
-    expect(screen.getByText("Bring up to date")).toBeInTheDocument();
     expect(screen.getByText("Plan…")).toBeInTheDocument();
   });
 
@@ -158,20 +163,22 @@ describe("language work", () => {
   );
 });
 
-describe("Bring up to date in the runner", () => {
-  it("opens the Bring up to date view only while the saved recipe declares a target", async () => {
+describe("Catch up in the runner", () => {
+  it("opens the Catch up view only while the saved recipe declares a target", async () => {
     const navigate = vi.fn();
     const { rerender } = render(view("map", withFrench, navigate));
-    await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
+    const run = await screen.findByRole("button", { name: "Translate 3 blocks" });
+    await waitFor(() => expect(run).toBeEnabled());
+    await userEvent.click(run);
     await waitFor(() => expect(navigate).toHaveBeenLastCalledWith("runner"));
 
     rerender(view("runner", withFrench, navigate));
-    expect(screen.getByRole("heading", { name: "Bring up to date" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Catch up" })).toBeInTheDocument();
 
     // The saved recipe loses its last target: the route shows the run it
-    // launched as the selected job, with no Bring up to date view.
+    // launched as the selected job, with no Catch up view.
     rerender(view("runner", sourceOnly, navigate));
-    expect(screen.queryByText("Bring up to date")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Catch up" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Run: up" })).toBeInTheDocument();
   });
 });

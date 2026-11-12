@@ -84,14 +84,14 @@ export interface ConvergenceHeroProps {
 /**
  * The convergence hero strip at the top of the project home (issue #1078 C4):
  * the project's standing as three labelled counts, split by who acts on them,
- * a "Bring up to date" that runs the shared `kapi up` engine, and a "Plan…"
- * pre-flight dialog. Translations to draft are the run's work; translations
+ * one action that runs the shared `kapi up` engine, and a "Plan…" pre-flight
+ * dialog. The action is named for the work it does ("Translate 12 blocks",
+ * "Run again", "Catch up") and is absent when the run has nothing to do. Translations to draft are the run's work; translations
  * waiting for review and languages held back from shipping are a person's, and
  * each count leads to where that person deals with it. The block cache is the
  * app's own business: while it catches up with the files the hero says the
  * files are being read, and never asks anyone to extract. When everything is
- * converged and the gates are green it renders the calm state with the button
- * disabled. Both derivations are cheap, read-only calls made on load and after
+ * converged and the gates are green it renders the calm state with no action. Both derivations are cheap, read-only calls made on load and after
  * a run or a sync.
  */
 export function ConvergenceHero({
@@ -275,7 +275,7 @@ export function ConvergenceHero({
         { count: planned },
       ),
       tone: planned > 0 ? "default" : "muted",
-      hint: t("Bring up to date drafts these from the content memory and the AI model."),
+      hint: t("Drafted from the content memory first, then by the AI model."),
     },
     {
       id: "waiting-for-review",
@@ -311,6 +311,24 @@ export function ConvergenceHero({
   else if (planned > 0) headline = t("Translations are missing");
   else if (parked > 0 || heldBack.length > 0) headline = t("Waiting for a person");
   else headline = t("Not up to date");
+
+  // The run's action says what it will do. Blocks to draft come first; a
+  // failed run with nothing new to draft is repeated; anything else the run
+  // can clear (a redraft, a term check) is a catch-up.
+  const actionLabel =
+    planned > 0
+      ? t(
+          "{count, plural, one {Translate # block} other {Translate # blocks}}",
+          "the project home's run button: drafts the blocks that have no translation",
+          { count: planned },
+        )
+      : runFailed
+        ? t("Run again", "the project home's run button after a failed run")
+        : t("Catch up", "the project home's run button: the desktop form of kapi up");
+  const fromMemory = totalsPlanned?.memoryExact ?? 0;
+  const fromDrafts = totalsPlanned?.drafts ?? 0;
+  const byAI = totalsPlanned?.aiRemaining ?? 0;
+  const tokens = totalsPlanned?.tokenEstimate ?? 0;
 
   // launch: model pre-flight first (the built-in default flow's translate step
   // is provider-backed), then the actual run.
@@ -373,6 +391,36 @@ export function ConvergenceHero({
                 {headline}
               </p>
             )}
+            {planned > 0 &&
+              !reading &&
+              loaded &&
+              !noTargets &&
+              (fromMemory > 0 || fromDrafts > 0 || byAI > 0) && (
+                <p className="text-xs text-muted-foreground" data-slot="hero-run-size">
+                  {[
+                    fromMemory > 0 &&
+                      t("{count} from the content memory", "how many blocks memory reuse fills", {
+                        count: fromMemory,
+                      }),
+                    fromDrafts > 0 &&
+                      t("{count} from stored drafts", "how many blocks a stored draft fills", {
+                        count: fromDrafts,
+                      }),
+                    byAI > 0 &&
+                      (plan?.plan?.subscription
+                        ? t("{count} by the AI model", "how many blocks the AI model drafts", {
+                            count: byAI,
+                          })
+                        : t(
+                            "{count} by the AI model, about {tokens} tokens",
+                            "how many blocks the AI model drafts, and the token estimate",
+                            { count: byAI, tokens: tokens.toLocaleString() },
+                          )),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
             {noTargets && !reading && loaded && (
               <p className="text-xs text-muted-foreground" data-slot="hero-no-targets">
                 {t("Set where each collection's translations go.")}
@@ -427,17 +475,23 @@ export function ConvergenceHero({
             <ClipboardList size={13} />
             {t("Plan…")}
           </Button>
-          <Button
-            size="sm"
-            variant={runHasWork ? "default" : "outline"}
-            onClick={launch}
-            disabled={upToDate || noTargets || hasActive || sync.syncing || !onBringUpToDate}
-            data-slot="hero-bring-up-to-date"
-            aria-label={t("Bring the project up to date")}
-          >
-            {hasActive ? <Loader2 size={13} className="animate-spin" /> : <PlayCircle size={13} />}
-            {t("Bring up to date")}
-          </Button>
+          {/* The run is offered only when it has work; a project waiting for a
+              person leads to Review through its counts instead. */}
+          {runHasWork && !upToDate && !noTargets && onBringUpToDate && (
+            <Button
+              size="sm"
+              onClick={launch}
+              disabled={hasActive || sync.syncing || !loaded}
+              data-slot="hero-bring-up-to-date"
+            >
+              {hasActive ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <PlayCircle size={13} />
+              )}
+              {actionLabel}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -514,7 +568,8 @@ export function ConvergenceHero({
         onOpenChange={setPlanOpen}
         plan={plan}
         server={server}
-        onConfirm={onBringUpToDate ? launch : undefined}
+        onConfirm={onBringUpToDate && runHasWork && !noTargets ? launch : undefined}
+        confirmLabel={actionLabel}
         confirmDisabled={hasActive || upToDate}
         tabID={tabID}
       />
@@ -560,7 +615,7 @@ export function VenueBadge({ server }: { server: ProjectServer }) {
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
           {t(
-            "This project is connected to Bowrain, so kapi up runs on the server. Bringing it up to date here runs the same engine locally.",
+            "This project is connected to Bowrain, so kapi up runs on the server. Catching up here runs the same engine locally.",
           )}
         </TooltipContent>
       </Tooltip>
@@ -576,6 +631,8 @@ export interface ConvergePlanDialogProps {
   server?: ProjectServer | null;
   /** Confirm the pre-flight and launch the run. Hidden when absent. */
   onConfirm?: () => void;
+  /** The confirm button's label: the same words as the action on the home. */
+  confirmLabel?: string;
   confirmDisabled?: boolean;
   /** The project tab, so the dialog names the model the run will use. */
   tabID?: string;
@@ -607,6 +664,7 @@ export function ConvergePlanDialog({
   plan,
   server,
   onConfirm,
+  confirmLabel,
   confirmDisabled,
   tabID,
 }: ConvergePlanDialogProps) {
@@ -641,11 +699,11 @@ export function ConvergePlanDialog({
             <Cloud size={12} className="shrink-0" />
             {server.host
               ? t(
-                  "Connected to Bowrain ({host}): kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                  "Connected to Bowrain ({host}): kapi up runs on the server; catching up here runs the same engine locally.",
                   { host: server.host },
                 )
               : t(
-                  "Connected to Bowrain: kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                  "Connected to Bowrain: kapi up runs on the server; catching up here runs the same engine locally.",
                 )}
           </p>
         )}
@@ -754,7 +812,8 @@ export function ConvergePlanDialog({
               data-slot="plan-confirm"
             >
               <PlayCircle size={13} />
-              {t("Bring up to date")}
+              {confirmLabel ??
+                t("Catch up", "the project home's run button: the desktop form of kapi up")}
             </Button>
           )}
         </DialogFooter>
@@ -837,7 +896,7 @@ export function HeldBackDialog({
         <DialogHeader>
           <DialogTitle>{t("Held back from shipping")}</DialogTitle>
           <DialogDescription>
-            {t("Bring up to date redrafts and checks what it can. The rest waits for a person.")}
+            {t("Catch up redrafts and checks what it can. The rest waits for a person.")}
           </DialogDescription>
         </DialogHeader>
         <Table className="text-xs">

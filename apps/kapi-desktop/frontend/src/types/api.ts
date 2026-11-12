@@ -88,7 +88,7 @@ export interface ProjectDefaults {
    */
   engine?: string;
   formats?: Record<string, FormatDefaults>;
-  /** The default flow `kapi up` / Bring up to date converges with. */
+  /** The default flow `kapi up` / Catch up converges with. */
   flow?: string;
   /** Glob patterns skipped during content scanning. */
   exclude?: string[];

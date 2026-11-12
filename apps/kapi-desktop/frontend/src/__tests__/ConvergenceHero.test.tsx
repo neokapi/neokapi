@@ -109,8 +109,10 @@ describe("ConvergenceHero", () => {
     await userEvent.click(within(counts).getByRole("button", { name: /waiting for review/ }));
     expect(onOpenReview).toHaveBeenCalledTimes(1);
 
-    const btn = screen.getByRole("button", { name: "Bring the project up to date" });
+    // The run's action names its work and its size.
+    const btn = screen.getByRole("button", { name: "Translate 21 blocks" });
     expect(btn).toBeEnabled();
+    expect(document.querySelector('[data-slot="hero-run-size"]')).toBeInTheDocument();
   });
 
   it("lists what holds each language back, and leads to Checks", async () => {
@@ -186,7 +188,7 @@ describe("ConvergenceHero", () => {
         plan={driftedPlan}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Translate \d+ blocks?$/ }));
     // The hero itself owns the launch; navigation happens only after success.
     await waitFor(() => expect(onBringUpToDate).toHaveBeenCalledTimes(1));
     expect(bringUpToDate).toHaveBeenCalledWith("t1");
@@ -205,7 +207,7 @@ describe("ConvergenceHero", () => {
         plan={driftedPlan}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Translate \d+ blocks?$/ }));
 
     // The error renders inline on the hero…
     const alert = await screen.findByRole("alert");
@@ -225,13 +227,11 @@ describe("ConvergenceHero", () => {
 
     expect(await screen.findByText("Project files are missing or moved")).toBeInTheDocument();
     // Quiet terminal state: no run controls, no error banner.
-    expect(
-      screen.queryByRole("button", { name: "Bring the project up to date" }),
-    ).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="hero-bring-up-to-date"]')).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("renders the calm state with the button disabled when converged", () => {
+  it("renders the calm state with no run action when converged", () => {
     render(
       <ConvergenceHero
         tabID="t1"
@@ -241,7 +241,7 @@ describe("ConvergenceHero", () => {
       />,
     );
     expect(screen.getByText("Up to date · all gates green")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeDisabled();
+    expect(document.querySelector('[data-slot="hero-bring-up-to-date"]')).not.toBeInTheDocument();
   });
 
   it("asks for a target folder instead of claiming up to date when no collection has one", async () => {
@@ -261,7 +261,7 @@ describe("ConvergenceHero", () => {
     );
     expect(screen.getByText("No target folder set")).toBeInTheDocument();
     expect(screen.queryByText(/Every block is translated/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeDisabled();
+    expect(document.querySelector('[data-slot="hero-bring-up-to-date"]')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Set target folder" }));
     expect(onOpenSettings).toHaveBeenCalledWith("project-settings:content");
   });
@@ -291,7 +291,8 @@ describe("ConvergenceHero", () => {
     expect(dialog).toHaveTextContent(/chars \/ 4/);
 
     // Confirm launches the run and closes the dialog.
-    const confirm = screen.getAllByRole("button", { name: "Bring up to date" });
+    // The dialog's confirm carries the same words as the action on the home.
+    const confirm = within(dialog).getAllByRole("button", { name: "Translate 21 blocks" });
     await userEvent.click(confirm[confirm.length - 1]);
     await waitFor(() => expect(onBringUpToDate).toHaveBeenCalledTimes(1));
   });

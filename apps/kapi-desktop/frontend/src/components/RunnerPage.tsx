@@ -66,7 +66,7 @@ export interface RunnerPageProps {
   /** Human label for the scope (e.g. the collection name), shown in the header. */
   scopeLabel?: string;
   /**
-   * Convergence mode (Bring up to date): the run goes through the shared
+   * Convergence mode (Catch up): the run goes through the shared
    * `kapi up` engine and the page renders passes (extracted / produced /
    * failing checks / waiting for review) instead of raw flow logs. Custom-flow runs keep
    * the classic runner view.
@@ -176,7 +176,7 @@ export function RunnerPage({
     [tabID, flowName, runNow],
   );
 
-  // convergeNow launches Bring up to date — the shared `kapi up` engine on the
+  // convergeNow launches Catch up — the shared `kapi up` engine on the
   // backend (loop-to-gate, auto-extract, checks in the loop). The engine
   // resolves content and locales itself; no paths/targets travel from here.
   const convergeNow = useCallback(async () => {
@@ -203,7 +203,7 @@ export function RunnerPage({
     await convergeNow();
   }, [tabID, flowName, convergeNow]);
 
-  // Auto-run (convergence): launch Bring up to date once per request.
+  // Auto-run (convergence): launch Catch up once per request.
   useEffect(() => {
     if (!converge || !autoRun || autoRunStarted.current) return;
     autoRunStarted.current = true;
@@ -288,8 +288,8 @@ export function RunnerPage({
         title={
           converge
             ? flowName && flowName !== "up"
-              ? t("Bring up to date · {name}", { name: flowName })
-              : t("Bring up to date")
+              ? t("Catch up · {name}", { name: flowName })
+              : t("Catch up")
             : scopeLabel
               ? t("Run: {name} · {scope}", { name: flowName, scope: scopeLabel })
               : t("Run: {name}", { name: flowName })
@@ -456,7 +456,7 @@ export function RunnerPage({
         </div>
       )}
 
-      {/* Convergence view — passes instead of raw flow logs (Bring up to date). */}
+      {/* Convergence view — passes instead of raw flow logs (Catch up). */}
       {converge && (
         <ConvergeRunView
           events={events}

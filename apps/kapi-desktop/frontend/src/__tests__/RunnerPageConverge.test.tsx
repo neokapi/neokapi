@@ -33,7 +33,7 @@ const project = {
   flows: { translate: { steps: [{ tool: "translate" }] } },
 };
 
-describe("RunnerPage converge mode (Bring up to date)", () => {
+describe("RunnerPage converge mode (Catch up)", () => {
   beforeEach(() => {
     bringUpToDateMock.mockClear();
     runFlowMock.mockClear();
@@ -60,7 +60,7 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
     );
 
     // The convergence header + passes card render instead of the flow runner.
-    expect(screen.getByText("Bring up to date · translate")).toBeInTheDocument();
+    expect(screen.getByText("Catch up · translate")).toBeInTheDocument();
     expect(screen.getByText("Passes")).toBeInTheDocument();
     // No manual configuration and no pipeline card in converge mode.
     expect(screen.queryByText("Select files…")).not.toBeInTheDocument();

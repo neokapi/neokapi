@@ -67,7 +67,7 @@ function localeStateLabel(state: string): string {
 }
 
 /**
- * The live convergence view of a "Bring up to date" run. It renders the reduced
+ * The live convergence view of a "Catch up" run. It renders the reduced
  * event stream into passes, each showing one row per locale with a unit-progress
  * bar, the content memory-vs-AI split, and the locale's state (queued → running → done),
  * then the pass's post-derivation summary (produced delta, failing checks, still
@@ -157,7 +157,7 @@ export function ConvergenceRunView({
           >
             <XCircle size={13} />
             {t(
-              "Cancelled. The run stopped before reaching the gates. Nothing is lost: run Bring up to date again to continue.",
+              "Cancelled. The run stopped before reaching the gates. Nothing is lost: run Catch up again to continue.",
             )}
           </p>
         )}
