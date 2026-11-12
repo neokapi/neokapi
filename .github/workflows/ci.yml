@@ -1236,6 +1236,8 @@ jobs:
         run: ./scripts/check-deploy-paths.sh
       - name: Guard — every run projection is declared, never hand-rolled
         run: ./scripts/check-run-projection.sh
+      - name: Guard — machine-readable output uses snake_case field names
+        run: ./scripts/check-json-tags.sh
       # The recorded walkthroughs are the only reader of the apps' testids and
       # rail labels from outside the apps, and nothing compiles them together.
       - name: Guard — every walk selector is still rendered by an app

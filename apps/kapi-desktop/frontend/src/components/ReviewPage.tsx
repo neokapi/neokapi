@@ -143,10 +143,10 @@ function summarizeLanguages(items: ReviewItem[]): ReviewLanguage[] {
     const at = byLanguage.get(language);
     if (at) {
       at.pending += 1;
-      if (it.isSource) at.source = true;
+      if (it.is_source) at.source = true;
       continue;
     }
-    byLanguage.set(language, { language, pending: 1, source: it.isSource || undefined });
+    byLanguage.set(language, { language, pending: 1, source: it.is_source || undefined });
   }
   return [...byLanguage.values()].sort((a, b) => {
     if (!!a.source !== !!b.source) return a.source ? -1 : 1;
@@ -196,10 +196,10 @@ function orderItems(items: ReviewItem[], languageRank?: Map<string, number>): Re
       const lb = rowLanguage(b);
       if (la !== lb) return la.localeCompare(lb);
     }
-    if (!!a.isSource !== !!b.isSource) return a.isSource ? -1 : 1;
-    if (!a.isSource) {
-      const fa = a.hasFindings ? 0 : 1;
-      const fb = b.hasFindings ? 0 : 1;
+    if (!!a.is_source !== !!b.is_source) return a.is_source ? -1 : 1;
+    if (!a.is_source) {
+      const fa = a.has_findings ? 0 : 1;
+      const fb = b.has_findings ? 0 : 1;
       if (fa !== fb) return fa - fb;
     }
     if (a.file !== b.file) return a.file.localeCompare(b.file);
@@ -383,8 +383,8 @@ export function ReviewPage({
     let items = queue ?? [];
     if (language) items = items.filter((it) => rowLanguage(it) === language);
     if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
-    if (chip === "findings") items = items.filter((it) => it.hasFindings === true);
-    if (chip === "clean") items = items.filter((it) => it.hasFindings === false);
+    if (chip === "findings") items = items.filter((it) => it.has_findings === true);
+    if (chip === "clean") items = items.filter((it) => it.has_findings === false);
     // Every language at once groups by language, in the selector's order
     // (source language first).
     if (!language) {
@@ -421,7 +421,7 @@ export function ReviewPage({
     setAIExchanges([]);
     // A source row has no translation to load: SourceUnitPane loads its own
     // model from GetSourceUnitContext.
-    if (!selected || selected.isSource) {
+    if (!selected || selected.is_source) {
       setUnit(null);
       return;
     }
@@ -508,7 +508,7 @@ export function ReviewPage({
       if (!selected) return;
       setLastSaved(res);
       setRead(await loadRead(selected));
-      if (selected.isSource) {
+      if (selected.is_source) {
         // The queue's counts follow the source's rung, which an edit moves.
         await refreshQueue();
         return;
@@ -521,7 +521,7 @@ export function ReviewPage({
         const has = d.findings.length > 0;
         setQueue((q) =>
           (q ?? []).map((it) =>
-            itemId(it) === itemId(selected) ? { ...it, target: d.target, hasFindings: has } : it,
+            itemId(it) === itemId(selected) ? { ...it, target: d.target, has_findings: has } : it,
           ),
         );
       }
@@ -562,7 +562,7 @@ export function ReviewPage({
     const out: Record<string, string> = {};
     for (const it of queue ?? []) {
       if (it.file !== selected.file || it.locale !== selected.locale) continue;
-      out[it.key] = it.hasFindings ? t("findings") : t("awaiting review");
+      out[it.key] = it.has_findings ? t("findings") : t("awaiting review");
     }
     if (unit?.review_state) out[selected.key] = unit.review_state;
     return out;
@@ -625,7 +625,7 @@ export function ReviewPage({
   }, [selected, deciding, read, decide]);
 
   const reject = useCallback(() => {
-    if (!selected || selected.isSource || deciding || !read) return;
+    if (!selected || selected.is_source || deciding || !read) return;
     setAskValue("");
     setAskText({
       kind: "reject",
@@ -718,7 +718,7 @@ export function ReviewPage({
 
   // The pre-review reads translations, so it never counts a source row.
   const preReviewPending = useMemo(() => {
-    let items = (queue ?? []).filter((it) => !it.isSource);
+    let items = (queue ?? []).filter((it) => !it.is_source);
     if (language) items = items.filter((it) => rowLanguage(it) === language);
     if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
     return items;
@@ -798,7 +798,7 @@ export function ReviewPage({
   }, [move, approve, reject, documentOpen]);
 
   // Phase 2 batch: approve every clean unit in the current filter.
-  const cleanVisible = useMemo(() => visible.filter((it) => it.hasFindings === false), [visible]);
+  const cleanVisible = useMemo(() => visible.filter((it) => it.has_findings === false), [visible]);
   // Each unit is read as it is approved, so every approval binds to the text in
   // the file at that moment, and its checks run again over that text. A unit
   // whose text is no longer what its row lists, or that now trips a check,
@@ -822,7 +822,7 @@ export function ReviewPage({
         if (trips || !stillListed(d.target, item.target)) {
           setQueue((q) =>
             (q ?? []).map((it) =>
-              itemId(it) === itemId(item) ? { ...it, target: d.target, hasFindings: trips } : it,
+              itemId(it) === itemId(item) ? { ...it, target: d.target, has_findings: trips } : it,
             ),
           );
           showError(
@@ -870,7 +870,7 @@ export function ReviewPage({
     for (const item of visible) {
       const lang = rowLanguage(item);
       if (!header || header.language !== lang) {
-        header = { kind: "header", language: lang, source: item.isSource || undefined, count: 0 };
+        header = { kind: "header", language: lang, source: item.is_source || undefined, count: 0 };
         out.push(header);
       }
       header.count += 1;
@@ -907,10 +907,10 @@ export function ReviewPage({
   const canEdit = !!read && read.ops.includes("set_content");
   const sourceReference = useMemo(() => {
     if (!read?.editions) return undefined;
-    const src = (unit?.source_locale ?? selected?.sourceLocale ?? "").toLowerCase();
+    const src = (unit?.source_locale ?? selected?.source_locale ?? "").toLowerCase();
     const key = Object.keys(read.editions).find((k) => k.toLowerCase() === src);
     return key ? { text: read.editions[key].text, codes: read.codes } : undefined;
-  }, [read, unit?.source_locale, selected?.sourceLocale]);
+  }, [read, unit?.source_locale, selected?.source_locale]);
 
   const chips: Array<{ id: Chip; label: string }> = [
     { id: "all", label: t("All") },
@@ -1277,18 +1277,18 @@ export function ReviewPage({
                           data-active={active || undefined}
                           data-key={it.key}
                           data-language={rowLanguage(it)}
-                          data-source={it.isSource || undefined}
+                          data-source={it.is_source || undefined}
                         >
                           {/* A source row carries no findings enrichment, so it
                             takes the neutral marker and says what it is in the
                             language affix beside its key. */}
-                          {it.isSource ? (
+                          {it.is_source ? (
                             <Circle
                               size={8}
                               className="mt-1 shrink-0 text-muted-foreground/40"
                               aria-label={t("Source wording")}
                             />
-                          ) : it.hasFindings ? (
+                          ) : it.has_findings ? (
                             <Circle
                               size={8}
                               className="mt-1 shrink-0 fill-current text-warning-ink"
@@ -1297,8 +1297,8 @@ export function ReviewPage({
                           ) : (
                             <Circle
                               size={8}
-                              className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-success" : "text-muted-foreground/40"}`}
-                              aria-label={it.hasFindings === false ? t("Clean") : t("Not checked")}
+                              className={`mt-1 shrink-0 ${it.has_findings === false ? "text-success" : "text-muted-foreground/40"}`}
+                              aria-label={it.has_findings === false ? t("Clean") : t("Not checked")}
                             />
                           )}
                           <span className="min-w-0 flex-1">
@@ -1313,11 +1313,11 @@ export function ReviewPage({
                               <span className="truncate font-medium" translate="no">
                                 {it.key}
                               </span>
-                              {it.aiScore !== undefined && (
+                              {it.ai_score !== undefined && (
                                 <SimpleTooltip
                                   content={
-                                    it.aiModel
-                                      ? t("AI review score ({model})", { model: it.aiModel })
+                                    it.ai_model
+                                      ? t("AI review score ({model})", { model: it.ai_model })
                                       : t("AI review score")
                                   }
                                 >
@@ -1325,7 +1325,7 @@ export function ReviewPage({
                                     className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
                                     data-slot="review-queue-ai-score"
                                   >
-                                    {t("ai {score}", { score: it.aiScore })}
+                                    {t("ai {score}", { score: it.ai_score })}
                                   </span>
                                 </SimpleTooltip>
                               )}
@@ -1334,7 +1334,7 @@ export function ReviewPage({
                               <SimpleTooltip content={it.source}>
                                 <span
                                   className="min-w-0 flex-1 truncate"
-                                  {...directionAttrs(it.sourceLocale)}
+                                  {...directionAttrs(it.source_locale)}
                                 >
                                   {it.source}
                                 </span>
@@ -1376,8 +1376,8 @@ export function ReviewPage({
                         {selected.key}
                       </h2>
                     </SimpleTooltip>
-                    <LocaleLabel locale={selected.locale} compact source={selected.isSource} />
-                    {selected.isSource
+                    <LocaleLabel locale={selected.locale} compact source={selected.is_source} />
+                    {selected.is_source
                       ? selected.status && (
                           <StatusBadge
                             ladder="source"
@@ -1409,7 +1409,7 @@ export function ReviewPage({
                   </div>
                 )}
 
-                {selected?.isSource ? (
+                {selected?.is_source ? (
                   <>
                     <SourceUnitPane
                       tabID={tabID}
@@ -1433,7 +1433,7 @@ export function ReviewPage({
                     <section>
                       <div className="mb-1 text-[11px] font-medium text-muted-foreground">
                         <LocaleLabel
-                          locale={unit?.source_locale ?? selected?.sourceLocale ?? ""}
+                          locale={unit?.source_locale ?? selected?.source_locale ?? ""}
                           source
                           data-slot="review-source-language"
                         />
@@ -1638,7 +1638,7 @@ export function ReviewPage({
                       unitKey={selected?.key}
                       unitSource={unit?.source ?? selected?.source}
                       unitTarget={unit?.target ?? selected?.target}
-                      sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
+                      sourceLocale={unit?.source_locale ?? selected?.source_locale}
                       locale={unit?.locale ?? selected?.locale}
                       loading={unitLoading}
                     />
@@ -1650,7 +1650,7 @@ export function ReviewPage({
                       emptyText={t(
                         "Nothing has been approved for this block yet, and the content memory holds no close match.",
                       )}
-                      sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
+                      sourceLocale={unit?.source_locale ?? selected?.source_locale}
                       locale={unit?.locale ?? selected?.locale}
                       loading={unitLoading}
                       fallbackMemoryScore={unit?.memory_score}
@@ -1691,7 +1691,7 @@ export function ReviewPage({
                 <StalePrompt
                   current={decisionSender.stale.current}
                   codes={read?.codes}
-                  locale={selected?.isSource ? selected.sourceLocale : selected?.locale}
+                  locale={selected?.is_source ? selected.source_locale : selected?.locale}
                   busy={deciding}
                   reapplyLabel={
                     decisionSender.stale.ops.some(
@@ -1730,13 +1730,13 @@ export function ReviewPage({
                 data-slot="review-approve"
               >
                 <Check size={13} />
-                {selected?.isSource ? t("Approve source") : t("Approve")}
+                {selected?.is_source ? t("Approve source") : t("Approve")}
                 <kbd className={`ml-1 rounded bg-black/10 px-1 text-[10px] ${HINT}`}>a</kbd>
               </Button>
               {/* Reject takes destructive, which is where the shared scale puts
                   it (packages/ui/docs/judgement-colours.md): it undoes the
                   translation in force rather than accepting it. */}
-              {!selected?.isSource && (
+              {!selected?.is_source && (
                 <Button
                   variant="destructive"
                   size="sm"
@@ -1775,7 +1775,7 @@ export function ReviewPage({
         filename={documentFile}
         focusKey={selected?.key ?? null}
         unitStates={unitStates}
-        side={selected?.isSource ? "source" : selected?.locale}
+        side={selected?.is_source ? "source" : selected?.locale}
         backLabel={t("Back to the queue")}
         onClose={() => setDocumentOpen(false)}
       />

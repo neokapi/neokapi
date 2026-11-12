@@ -245,8 +245,8 @@ function ConvergeDoneFooter({ model }: { model: ConvergenceRunModel }) {
  */
 function upToDateLine(result: ConvergenceOutcome): string {
   const locales = result.locales ?? [];
-  const notGated = locales.filter((l) => l.shipState === "not_gated").map((l) => l.locale);
-  const gated = locales.some((l) => l.gated || l.shipState !== "not_gated");
+  const notGated = locales.filter((l) => l.ship_state === "not_gated").map((l) => l.locale);
+  const gated = locales.some((l) => l.gated || l.ship_state !== "not_gated");
   if (locales.length > 0 && !gated) {
     return t("Up to date in {count} pass(es). No ship gates are declared.", {
       count: result.passes,
@@ -271,7 +271,7 @@ function ConvergeOutcomeBlock({
   result: ConvergenceOutcome;
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
 }) {
-  const parked = result.parkedScopes ?? [];
+  const parked = result.parked_scopes ?? [];
   return (
     <div className="border-t border-border pt-2" data-slot="converge-result">
       {result.converged ? (
@@ -318,21 +318,21 @@ function ConvergeOutcomeBlock({
           </ul>
         </div>
       )}
-      {(result.blockedOnSource ?? 0) > 0 && (
+      {(result.blocked_on_source ?? 0) > 0 && (
         <div
           className="mt-2 rounded-md border border-warning/40 bg-warning/5 px-2 py-1.5"
           data-slot="convergence-source-hold"
         >
           <p className="text-[11px] text-warning-ink">
             {t("{count} segments need source review before translating.", {
-              count: result.blockedOnSource ?? 0,
+              count: result.blocked_on_source ?? 0,
             })}
           </p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            {result.stallReason === "source_not_ready"
+            {result.stall_reason === "source_not_ready"
               ? t(
                   "Nothing was produced for any language: the source has not reached {level}, the level translation waits for. Settle it in the Review page's source lane.",
-                  { level: statusWord(result.translateAfter || "written") },
+                  { level: statusWord(result.translate_after || "written") },
                 )
               : t(
                   "Their translations were held in every language. Settle them in the Review page's source lane.",
@@ -340,12 +340,12 @@ function ConvergeOutcomeBlock({
           </p>
         </div>
       )}
-      {(result.materializedFiles ?? 0) > 0 && (
+      {(result.materialized_files ?? 0) > 0 && (
         <p className="mt-1 text-[11px] text-muted-foreground">
           {t(
             "Wrote {count, plural, one {# translated file} other {# translated files}} from the project store.",
             {
-              count: result.materializedFiles ?? 0,
+              count: result.materialized_files ?? 0,
             },
           )}
         </p>

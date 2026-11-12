@@ -46,11 +46,11 @@ type SourceStamp struct {
 type StoreDrift struct {
 	// StoreMissing: nothing has been extracted yet (a fresh project, or the
 	// block cache was cleared).
-	StoreMissing bool `json:"storeMissing,omitempty"`
+	StoreMissing bool `json:"store_missing,omitempty"`
 	// VersionStale: the store exists but was written by a different kapi
 	// version (missing or mismatched version stamp), so its content may be
 	// extracted differently by the running binary.
-	VersionStale bool `json:"versionStale,omitempty"`
+	VersionStale bool `json:"version_stale,omitempty"`
 	// Changed lists the project-relative source paths whose bytes drifted
 	// from their extract-time stamps (edited, or never stamped).
 	Changed []string `json:"changed,omitempty"`

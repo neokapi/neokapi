@@ -20,7 +20,7 @@ const convergedPlan: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    totals: { missing_target: 0, memory_exact: 0, ai_remaining: 0, token_estimate: 0 },
     note: "",
   },
   changedFiles: 0,
@@ -106,7 +106,7 @@ describe("ConvergenceHero honesty", () => {
   });
 
   it("does not report convergence when the plan prices work on produced units", () => {
-    // Every unit has a target, so `missingTarget` is zero — and the pass still
+    // Every unit has a target, so `missing_target` is zero — and the pass still
     // drafts them, because the content memory does not answer their source. A
     // hero reading only the missing count called that project up to date while
     // the plan beside it quoted the provider calls.
@@ -115,10 +115,10 @@ describe("ConvergenceHero honesty", () => {
       plan: {
         ...convergedPlan.plan,
         totals: {
-          missingTarget: 0,
-          memoryExact: 0,
-          aiRemaining: 3,
-          tokenEstimate: 12,
+          missing_target: 0,
+          memory_exact: 0,
+          ai_remaining: 3,
+          token_estimate: 12,
           unanswered: 3,
         },
       },

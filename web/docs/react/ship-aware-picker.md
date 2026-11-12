@@ -136,7 +136,7 @@ picker ignores the field; it tells a build step or a person that no terms
 govern the language.
 
 For dashboards, the `kapi status --json` report carries `shippable` and the
-state, as `shipState`, per collection and locale, with the full coverage
+state, as `ship_state`, per collection and locale, with the full coverage
 percentages.
 
 ## A hosted feed instead of a built file

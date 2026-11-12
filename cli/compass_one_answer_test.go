@@ -175,9 +175,9 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 		Locales []struct {
 			Locale        string         `json:"locale"`
 			Shippable     bool           `json:"shippable"`
-			ShipState     string         `json:"shipState"`
+			ShipState     string         `json:"ship_state"`
 			Pct           map[string]int `json:"pct"`
-			FailingChecks int            `json:"failingChecks"`
+			FailingChecks int            `json:"failing_checks"`
 		} `json:"locales"`
 	}
 	result := ""

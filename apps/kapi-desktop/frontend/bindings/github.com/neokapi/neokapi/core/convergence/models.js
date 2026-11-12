@@ -64,7 +64,7 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["maxPasses"] = undefined;
+            this["max_passes"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -79,14 +79,14 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["extractedFiles"] = undefined;
+            this["extracted_files"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {number | undefined}
              */
-            this["extractedBlocks"] = undefined;
+            this["extracted_blocks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -115,14 +115,14 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["viaTM"] = undefined;
+            this["via_memory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {number | undefined}
              */
-            this["viaAI"] = undefined;
+            this["via_ai"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -133,7 +133,7 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["viaDrafts"] = undefined;
+            this["via_drafts"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -148,14 +148,14 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["producedDelta"] = undefined;
+            this["produced_delta"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {number | undefined}
              */
-            this["failingChecks"] = undefined;
+            this["failing_checks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -169,14 +169,14 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["settledSource"] = undefined;
+            this["settled_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {number | undefined}
              */
-            this["blockedOnSource"] = undefined;
+            this["blocked_on_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -201,7 +201,7 @@ export class Event {
              * @member
              * @type {StallReason | undefined}
              */
-            this["stallReason"] = undefined;
+            this["stall_reason"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -372,7 +372,7 @@ export class LocaleCoverage {
              */
             this["pending"] = undefined;
         }
-        if (!("shipState" in $$source)) {
+        if (!("ship_state" in $$source)) {
             /**
              * ShipState is the scope's standing in one value: established, translated,
              * withheld or not_gated. Shippable is true for every state but withheld,
@@ -383,9 +383,9 @@ export class LocaleCoverage {
              * @member
              * @type {ShipState}
              */
-            this["shipState"] = ShipState.$zero;
+            this["ship_state"] = ShipState.$zero;
         }
-        if (!("shipProgress" in $$source)) {
+        if (!("ship_progress" in $$source)) {
             /**
              * ShipProgress is how far the scope has come toward its ship gate, in
              * [0,100] — gate.Progress: the mean fractional attainment of the gate's
@@ -395,7 +395,7 @@ export class LocaleCoverage {
              * @member
              * @type {number}
              */
-            this["shipProgress"] = 0;
+            this["ship_progress"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -431,14 +431,14 @@ export class LocaleCoverage {
              * @member
              * @type {number | undefined}
              */
-            this["staleAwaitingDraft"] = undefined;
+            this["stale_awaiting_draft"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {number | undefined}
              */
-            this["staleAwaitingReview"] = undefined;
+            this["stale_awaiting_review"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -451,7 +451,7 @@ export class LocaleCoverage {
              * @member
              * @type {number | undefined}
              */
-            this["rejectedAwaitingDraft"] = undefined;
+            this["rejected_awaiting_draft"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -467,7 +467,7 @@ export class LocaleCoverage {
              * @member
              * @type {number | undefined}
              */
-            this["failingChecks"] = undefined;
+            this["failing_checks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -478,7 +478,7 @@ export class LocaleCoverage {
              * @member
              * @type {number | undefined}
              */
-            this["termsNotChecked"] = undefined;
+            this["terms_not_checked"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -490,7 +490,7 @@ export class LocaleCoverage {
              * @member
              * @type {string[] | undefined}
              */
-            this["notGoverned"] = undefined;
+            this["not_governed"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -501,7 +501,7 @@ export class LocaleCoverage {
              * @member
              * @type {number | undefined}
              */
-            this["basisUnknown"] = undefined;
+            this["basis_unknown"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -523,8 +523,8 @@ export class LocaleCoverage {
         if ("pending" in $$parsedSource) {
             $$parsedSource["pending"] = $$createField6_0($$parsedSource["pending"]);
         }
-        if ("notGoverned" in $$parsedSource) {
-            $$parsedSource["notGoverned"] = $$createField16_0($$parsedSource["notGoverned"]);
+        if ("not_governed" in $$parsedSource) {
+            $$parsedSource["not_governed"] = $$createField16_0($$parsedSource["not_governed"]);
         }
         return new LocaleCoverage(/** @type {Partial<LocaleCoverage>} */($$parsedSource));
     }
@@ -772,7 +772,7 @@ export class ReviewQueueItem {
              * @member
              * @type {boolean | undefined}
              */
-            this["isSource"] = undefined;
+            this["is_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -834,7 +834,7 @@ export class ReviewQueueItem {
              * @member
              * @type {string | undefined}
              */
-            this["sourceLocale"] = undefined;
+            this["source_locale"] = undefined;
         }
         if (!("source" in $$source)) {
             /**
@@ -860,7 +860,7 @@ export class ReviewQueueItem {
              * @member
              * @type {boolean | null | undefined}
              */
-            this["hasFindings"] = undefined;
+            this["has_findings"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -870,7 +870,7 @@ export class ReviewQueueItem {
              * @member
              * @type {number | null | undefined}
              */
-            this["aiScore"] = undefined;
+            this["ai_score"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -878,7 +878,7 @@ export class ReviewQueueItem {
              * @member
              * @type {string | undefined}
              */
-            this["aiModel"] = undefined;
+            this["ai_model"] = undefined;
         }
 
         Object.assign(this, $$source);

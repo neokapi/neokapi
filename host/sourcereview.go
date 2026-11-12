@@ -114,7 +114,7 @@ type SourceQueueItem struct {
 	Key      string `json:"key"`
 
 	Collection   string `json:"collection,omitempty"`
-	SourceLocale string `json:"sourceLocale,omitempty"`
+	SourceLocale string `json:"source_locale,omitempty"`
 	Source       string `json:"source"`
 
 	// Status is the settled source rung (written|established).

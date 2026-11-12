@@ -23,7 +23,7 @@ vi.mock("../hooks/useApi", async () => {
       getConvergePlan: vi.fn().mockResolvedValue({
         plan: {
           scopes: [],
-          totals: { missingTarget: 3, memoryExact: 0, aiRemaining: 3, tokenEstimate: 30 },
+          totals: { missing_target: 3, memory_exact: 0, ai_remaining: 3, token_estimate: 30 },
         },
       }),
       getProjectServer: vi.fn().mockResolvedValue(null),

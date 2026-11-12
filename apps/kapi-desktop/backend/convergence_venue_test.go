@@ -41,12 +41,12 @@ func venueStubPlugin(t *testing.T) string {
 	argsFile := filepath.Join(root, "argv")
 	binPath := filepath.Join(pluginDir, "kapi-venue-stub")
 	lines := []string{
-		`{"type":"pass_start","pass":1,"maxPasses":5,"pending":["nb-NO"]}`,
+		`{"type":"pass_start","pass":1,"max_passes":5,"pending":["nb-NO"]}`,
 		`{"type":"locale_start","locale":"nb-NO","units":2,"pass":1}`,
-		`{"type":"locale_done","locale":"nb-NO","done":2,"viaTM":1,"viaAI":1,"pass":1}`,
-		`{"type":"pass_done","pass":1,"produced":2,"producedDelta":2}`,
+		`{"type":"locale_done","locale":"nb-NO","done":2,"via_memory":1,"via_ai":1,"pass":1}`,
+		`{"type":"pass_done","pass":1,"produced":2,"produced_delta":2}`,
 		`{"type":"done","state":"converged"}`,
-		`{"type":"result","flow":"server-venue","passes":1,"converged":true,"materializedFiles":1}`,
+		`{"type":"result","flow":"server-venue","passes":1,"converged":true,"materialized_files":1}`,
 	}
 	var script strings.Builder
 	script.WriteString("#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argsFile + "\n")

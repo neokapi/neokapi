@@ -11,7 +11,15 @@ kapi's core verbs follow a documented, golden-tested machine contract, so script
 
 Compatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names and types do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).
 
-One exception is made before 1.3: the content-memory counts in the `kapi merge` result are named `memory_new` and `memory_updated`, and the exact-match count in the `kapi up --plan` result is named `memoryExact`. Releases before 1.3 wrote them as `tm_new`, `tm_updated` and `tmExact`, and a script reading those names needs updating.
+Two exceptions have been made. In 1.3 the content-memory counts in the `kapi merge` result became `memory_new` and `memory_updated`, and the exact-match count in the `kapi up --plan` result became `memory_exact`; earlier releases wrote `tm_new`, `tm_updated` and `tmExact`. Releases up to 1.3 also wrote the `kapi up` result, the `kapi up --plan` result and the `kapi up --json` events with camelCase field names (`shipState`, `missingTarget`, `maxPasses`, `viaTM`). They are now snake_case (`ship_state`, `missing_target`, `max_passes`, `via_memory`), and a script reading the old names needs updating.
+
+## Field names
+
+Every machine-readable document kapi writes uses snake_case field names: `--json` results, NDJSON event streams, the result of every MCP tool, and the inputs those tools take. The recipe uses snake_case keys too. A word that is two words in English is two words in the key: `failing_checks`, `pending_push`, `via_ai`.
+
+One family is exempt. The content model on the wire (the blocks, runs and properties inside a `.kbf` bundle) follows the canonical protobuf JSON mapping, which writes lowerCamelCase (`sourceLocale`, `pcOpen`). [F-04](../contribute/architecture/foundations/f-04-wire-schema.md) fixes those names. A document from an external standard keeps that standard's names.
+
+`scripts/check-json-tags.sh` enforces the rule over the Go types behind these documents, in `make lint`, `make pre-push` and the *Repo guards* CI job.
 
 Human-readable text output is **not** a contract. It is presentation: column widths adapt to your terminal, values are truncated to fit, and it carries ANSI styling when stdout is a TTY. It is restyled whenever the CLI's presentation improves. Scripts must use `--json` (or `--jq`), which is stable, unstyled, and never truncated.
 
@@ -132,7 +140,7 @@ A stored target an earlier kapi wrote names no source, so it is not written eith
 }
 ```
 
-`kapi up --json` carries the same list per locale, as `unstampedDrafts` beside `staleDrafts`.
+`kapi up --json` carries the same list per locale, as `unstamped_drafts` beside `stale_drafts`.
 
 ## Error envelope
 

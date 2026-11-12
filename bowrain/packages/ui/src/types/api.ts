@@ -1543,8 +1543,9 @@ export interface ConvergenceLocaleStanding {
   state: string;
   units?: number;
   produced?: number;
-  viaTM?: number;
-  viaAI?: number;
+  via_memory?: number;
+  via_ai?: number;
+  via_drafts?: number;
 }
 
 /**

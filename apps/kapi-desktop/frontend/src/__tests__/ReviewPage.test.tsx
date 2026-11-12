@@ -23,7 +23,7 @@ const ITEMS: ReviewItem[] = [
     collection: "App",
     source: "Hello {name}",
     target: "Hallo",
-    hasFindings: true,
+    has_findings: true,
   },
   {
     locale: "fr-FR",
@@ -32,7 +32,7 @@ const ITEMS: ReviewItem[] = [
     collection: "App",
     source: "Hello {name}",
     target: "Bonjour {name}",
-    hasFindings: false,
+    has_findings: false,
   },
   {
     locale: "fr-FR",
@@ -41,7 +41,7 @@ const ITEMS: ReviewItem[] = [
     collection: "Docs",
     source: "Goodbye",
     target: "Au revoir",
-    hasFindings: false,
+    has_findings: false,
   },
 ];
 
@@ -54,7 +54,7 @@ function unitFor(item: ReviewItem): ReviewUnitDetail {
     source: item.source,
     target: item.target ?? "",
     status: "translated",
-    findings: item.hasFindings
+    findings: item.has_findings
       ? [
           {
             category: "placeholder",
@@ -137,8 +137,8 @@ describe("ReviewPage", () => {
 
   it("orders the rows the way j walks them, findings first within a language", async () => {
     const items: ReviewItem[] = [
-      { ...ITEMS[2], hasFindings: false },
-      { ...ITEMS[1], key: "zeta", hasFindings: true },
+      { ...ITEMS[2], has_findings: false },
+      { ...ITEMS[1], key: "zeta", has_findings: true },
       ITEMS[0],
     ];
     renderPage({ items });
@@ -204,10 +204,10 @@ describe("ReviewPage", () => {
         file: "locales/de-DE.json",
         key: "greeting",
         collection: "App",
-        sourceLocale: "ar-EG",
+        source_locale: "ar-EG",
         source: "مرحبا",
         target: "Hallo",
-        hasFindings: false,
+        has_findings: false,
       },
     ];
     renderPage({ items: rtlItems, loadUnit: vi.fn(async (item) => unitFor(item)) });
@@ -727,13 +727,13 @@ describe("ReviewPage", () => {
   it("shows the AI pre-review score beside the checks and on queue items", async () => {
     const items: ReviewItem[] = ITEMS.map((it) =>
       it.key === "greeting" && it.locale === "fr-FR"
-        ? { ...it, aiScore: 92, aiModel: "claude-x" }
+        ? { ...it, ai_score: 92, ai_model: "claude-x" }
         : it,
     );
     const loadUnit = vi.fn(async (item: ReviewItem) => ({
       ...unitFor(item),
-      ai_review_score: item.aiScore,
-      ai_review_model: item.aiModel,
+      ai_review_score: item.ai_score,
+      ai_review_model: item.ai_model,
     }));
     render(
       <ErrorProvider>
@@ -1033,12 +1033,12 @@ describe("ReviewPage review model", () => {
 const SOURCE_ROW: ReviewItem = {
   locale: "en-US",
   language: "en-US",
-  isSource: true,
+  is_source: true,
   file: "locales/en-US.json",
   relative: "locales/en-US.json",
   key: "greeting",
   collection: "App",
-  sourceLocale: "en-US",
+  source_locale: "en-US",
   source: "Hello {name}",
   status: "written",
   held: true,

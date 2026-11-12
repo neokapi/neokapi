@@ -13,22 +13,28 @@ const driftedPlan: ConvergePlan = {
       {
         locale: "fr-FR",
         collection: "docs",
-        missingTarget: 12,
-        memoryExact: 4,
-        aiRemaining: 8,
-        tokenEstimate: 640,
+        missing_target: 12,
+        memory_exact: 4,
+        ai_remaining: 8,
+        token_estimate: 640,
       },
       {
         locale: "de-DE",
         collection: "docs",
-        missingTarget: 9,
-        memoryExact: 0,
+        missing_target: 9,
+        memory_exact: 0,
         drafts: 5,
-        aiRemaining: 4,
-        tokenEstimate: 320,
+        ai_remaining: 4,
+        token_estimate: 320,
       },
     ],
-    totals: { missingTarget: 21, memoryExact: 4, drafts: 5, aiRemaining: 12, tokenEstimate: 960 },
+    totals: {
+      missing_target: 21,
+      memory_exact: 4,
+      drafts: 5,
+      ai_remaining: 12,
+      token_estimate: 960,
+    },
     note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).",
   },
   changedFiles: 0,
@@ -47,7 +53,7 @@ const driftedReport: ConvergenceReport = {
       gated: true,
       shippable: false,
       pending: [{ state: "translated", actual: 70, required: 100 }],
-      failingChecks: 2,
+      failing_checks: 2,
     },
   ],
   review: [
@@ -60,7 +66,7 @@ const convergedPlan: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    totals: { missing_target: 0, memory_exact: 0, ai_remaining: 0, token_estimate: 0 },
     note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).",
   },
   changedFiles: 0,
@@ -275,7 +281,7 @@ describe("ConvergenceHero", () => {
     const onOpenSettings = vi.fn();
     const noTargetsPlan: ConvergePlan = {
       ...convergedPlan,
-      plan: { ...convergedPlan.plan!, noTargets: true },
+      plan: { ...convergedPlan.plan!, no_targets: true },
     };
     render(
       <ConvergenceHero
@@ -338,7 +344,7 @@ describe("ConvergePlanDialog", () => {
       <ConvergePlanDialog
         open
         onOpenChange={vi.fn()}
-        plan={{ ...convergedPlan, plan: { ...convergedPlan.plan!, noTargets: true } }}
+        plan={{ ...convergedPlan, plan: { ...convergedPlan.plan!, no_targets: true } }}
         onConfirm={vi.fn()}
       />,
     );

@@ -214,7 +214,7 @@ export function ConvergenceHero({
   // work the run will do — and a hero that read only the missing ones claimed a
   // project was up to date while the plan beside it quoted provider calls.
   const planned =
-    (totalsPlanned?.missingTarget ?? 0) +
+    (totalsPlanned?.missing_target ?? 0) +
     (totalsPlanned?.stale ?? 0) +
     (totalsPlanned?.unanswered ?? 0);
   const parked = convergence?.review?.length ?? 0;
@@ -233,7 +233,7 @@ export function ConvergenceHero({
   const notGatedLanguages = [
     ...new Set(
       locales
-        .filter((l) => (l.shipState ? l.shipState === "not_gated" : !l.gated && l.shippable))
+        .filter((l) => (l.ship_state ? l.ship_state === "not_gated" : !l.gated && l.shippable))
         .map((l) => l.locale),
     ),
   ];
@@ -243,7 +243,7 @@ export function ConvergenceHero({
   const runFailed = lastRunError != null && lastRunError.kind !== "canceled";
   // Target languages are set but no collection has a target path, so a run
   // has nowhere to write a translation. That is a setup step, not "up to date".
-  const noTargets = !!plan?.plan?.noTargets;
+  const noTargets = !!plan?.plan?.no_targets;
   const upToDate =
     loaded && !cachePending && !noTargets && planned === 0 && !runFailed && heldBack.length === 0;
   // Reading the files: the cache is behind them and a sync is on its way or
@@ -259,9 +259,9 @@ export function ConvergenceHero({
     cachePending ||
     heldBack.some(
       (l) =>
-        (l.staleAwaitingDraft ?? 0) > 0 ||
-        (l.rejectedAwaitingDraft ?? 0) > 0 ||
-        (l.termsNotChecked ?? 0) > 0 ||
+        (l.stale_awaiting_draft ?? 0) > 0 ||
+        (l.rejected_awaiting_draft ?? 0) > 0 ||
+        (l.terms_not_checked ?? 0) > 0 ||
         (l.pending ?? []).length > 0,
     );
 
@@ -327,11 +327,11 @@ export function ConvergenceHero({
       : runFailed
         ? t("Run again", "the project home's run button after a failed run")
         : t("Catch up", "the project home's run button: the desktop form of kapi up");
-  const fromMemory = totalsPlanned?.memoryExact ?? 0;
+  const fromMemory = totalsPlanned?.memory_exact ?? 0;
   const recycled = plan?.recycled?.blocks ?? 0;
   const fromDrafts = totalsPlanned?.drafts ?? 0;
-  const byAI = totalsPlanned?.aiRemaining ?? 0;
-  const tokens = totalsPlanned?.tokenEstimate ?? 0;
+  const byAI = totalsPlanned?.ai_remaining ?? 0;
+  const tokens = totalsPlanned?.token_estimate ?? 0;
 
   // launch: model pre-flight first (the built-in default flow's translate step
   // is provider-backed), then the actual run.
@@ -722,7 +722,7 @@ export function ConvergePlanDialog({
           </p>
         )}
 
-        {plan?.plan?.noTargets ? (
+        {plan?.plan?.no_targets ? (
           <p className="py-2 text-sm text-muted-foreground" data-slot="plan-no-targets">
             {t("No collection has a target folder, so there is nothing to translate.")}
           </p>
@@ -762,19 +762,19 @@ export function ConvergePlanDialog({
                 >
                   <TableCell className="py-1.5 pr-2">{scopeName(s)}</TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {s.missingTarget}
+                    {s.missing_target}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {s.memoryExact}
+                    {s.memory_exact}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.drafts ?? 0}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {s.aiRemaining}
+                    {s.ai_remaining}
                   </TableCell>
                   <TableCell className="py-1.5 pl-2 text-right tabular-nums">
-                    {s.tokenEstimate}
+                    {s.token_estimate}
                   </TableCell>
                 </TableRow>
               ))}
@@ -782,19 +782,19 @@ export function ConvergePlanDialog({
                 <TableRow className="font-medium hover:bg-transparent" data-slot="plan-totals">
                   <TableCell className="py-1.5 pr-2">{t("Total")}</TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.missingTarget}
+                    {totals.missing_target}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.memoryExact}
+                    {totals.memory_exact}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {totals.drafts ?? 0}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.aiRemaining}
+                    {totals.ai_remaining}
                   </TableCell>
                   <TableCell className="py-1.5 pl-2 text-right tabular-nums">
-                    {totals.tokenEstimate}
+                    {totals.token_estimate}
                   </TableCell>
                 </TableRow>
               )}
@@ -849,26 +849,26 @@ function heldBackReasons(l: LocaleCoverage): string[] {
     );
   }
   const n = (v: number | undefined) => v ?? 0;
-  if (n(l.staleAwaitingReview) > 0) {
+  if (n(l.stale_awaiting_review) > 0) {
     out.push(
       t("{count} redrafted after a source change, waiting for review", {
-        count: n(l.staleAwaitingReview),
+        count: n(l.stale_awaiting_review),
       }),
     );
   }
-  if (n(l.staleAwaitingDraft) > 0) {
+  if (n(l.stale_awaiting_draft) > 0) {
     out.push(
-      t("{count} with a source that changed after approval", { count: n(l.staleAwaitingDraft) }),
+      t("{count} with a source that changed after approval", { count: n(l.stale_awaiting_draft) }),
     );
   }
-  if (n(l.rejectedAwaitingDraft) > 0) {
-    out.push(t("{count} turned down by a reviewer", { count: n(l.rejectedAwaitingDraft) }));
+  if (n(l.rejected_awaiting_draft) > 0) {
+    out.push(t("{count} turned down by a reviewer", { count: n(l.rejected_awaiting_draft) }));
   }
-  if (n(l.failingChecks) > 0) {
-    out.push(t("{count} failing a check", { count: n(l.failingChecks) }));
+  if (n(l.failing_checks) > 0) {
+    out.push(t("{count} failing a check", { count: n(l.failing_checks) }));
   }
-  if (n(l.termsNotChecked) > 0) {
-    out.push(t("{count} not checked against the terms", { count: n(l.termsNotChecked) }));
+  if (n(l.terms_not_checked) > 0) {
+    out.push(t("{count} not checked against the terms", { count: n(l.terms_not_checked) }));
   }
   return out;
 }
@@ -894,7 +894,7 @@ export function HeldBackDialog({
   onOpenReview,
   onOpenChecks,
 }: HeldBackDialogProps) {
-  const failing = scopes.some((l) => (l.failingChecks ?? 0) > 0);
+  const failing = scopes.some((l) => (l.failing_checks ?? 0) > 0);
   const toGo = (go?: () => void) =>
     go
       ? () => {
@@ -936,10 +936,10 @@ export function HeldBackDialog({
                     {scopeName({
                       locale: l.locale,
                       collection: l.collection,
-                      missingTarget: 0,
-                      memoryExact: 0,
-                      aiRemaining: 0,
-                      tokenEstimate: 0,
+                      missing_target: 0,
+                      memory_exact: 0,
+                      ai_remaining: 0,
+                      token_estimate: 0,
                     })}
                   </TableCell>
                   <TableCell className="py-1.5 pl-2 whitespace-normal">

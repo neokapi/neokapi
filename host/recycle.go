@@ -22,7 +22,7 @@ type RecycleResult struct {
 	// over every locale.
 	Blocks int `json:"blocks"`
 	// ByLocale splits Blocks by target locale.
-	ByLocale map[string]int `json:"byLocale,omitempty"`
+	ByLocale map[string]int `json:"by_locale,omitempty"`
 }
 
 // RecycleExactMatches fills every target the project's content memory

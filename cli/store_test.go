@@ -73,7 +73,7 @@ func TestContextPortability_ExportAndImportRunOnAProject(t *testing.T) {
 	out := runStore(t, a, "import", "-p", recipe, "--json")
 	var imported struct {
 		Concepts      int `json:"concepts"`
-		VoiceProfiles int `json:"voiceProfiles"`
+		VoiceProfiles int `json:"voice_profiles"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(out), &imported))
 	assert.Equal(t, 1, imported.Concepts)
@@ -123,7 +123,7 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 	out := runStore(t, a, "import", "-p", recipe, "--force", "--json")
 	var imported struct {
 		Concepts      int `json:"concepts"`
-		VoiceProfiles int `json:"voiceProfiles"`
+		VoiceProfiles int `json:"voice_profiles"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(out), &imported))
 	assert.Equal(t, 1, imported.Concepts)
