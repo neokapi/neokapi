@@ -111,7 +111,7 @@ export function SourceUnitPane({
         <div>
           <p className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <LocaleLabel
-              locale={item.sourceLocale ?? item.language ?? item.locale}
+              locale={item.source_locale ?? item.language ?? item.locale}
               source
               data-slot="source-unit-language"
             />
@@ -131,7 +131,7 @@ export function SourceUnitPane({
             <EditionEditPanel
               sender={sender}
               content={content}
-              locale={item.sourceLocale}
+              locale={item.source_locale}
               readOnlyReason={
                 read && !read.ops.includes("set_content")
                   ? t("This format does not write a change to this text.")
@@ -161,7 +161,7 @@ export function SourceUnitPane({
         neighbourhood={model?.neighbourhood}
         unitKey={item.key}
         unitSource={item.source}
-        sourceLocale={item.sourceLocale}
+        sourceLocale={item.source_locale}
         loading={modelLoading}
       />
     </div>

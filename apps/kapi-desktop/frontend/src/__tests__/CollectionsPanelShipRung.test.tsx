@@ -16,22 +16,22 @@ const scope = (over: Partial<LocaleCoverage>): LocaleCoverage => ({
 // scope no gate matches shows how far along the ladder it has come instead.
 describe("rungFor", () => {
   it("never calls a scope no gate matches shippable", () => {
-    const rung = rungFor(scope({ shipState: "not_gated" }));
+    const rung = rungFor(scope({ ship_state: "not_gated" }));
     expect(rung.key).not.toBe("shippable");
     expect(rung.label).toBe("Draft");
   });
 
   it("shows a reviewed scope no gate matches as in review", () => {
     const rung = rungFor(
-      scope({ shipState: "not_gated", pct: { translated: 100, established: 40 } }),
+      scope({ ship_state: "not_gated", pct: { translated: 100, established: 40 } }),
     );
     expect(rung.label).toBe("In review");
   });
 
   it("names the ship state of a scope that clears its gate", () => {
-    const translated = rungFor(scope({ gated: true, shipState: "translated" }));
+    const translated = rungFor(scope({ gated: true, ship_state: "translated" }));
     expect(translated.key).toBe("shippable");
     expect(translated.label).toBe("Ships translated");
-    expect(rungFor(scope({ gated: true, shipState: "established" })).label).toBe("Approved");
+    expect(rungFor(scope({ gated: true, ship_state: "established" })).label).toBe("Approved");
   });
 });

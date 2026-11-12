@@ -123,8 +123,8 @@ export interface Rung {
 /** Whether a scope clears a gate (it ships established or translated), as
  * distinct from a scope no gate matches. */
 const clearsShipGate = (lc: LocaleCoverage) =>
-  lc.shipState
-    ? lc.shipState === "established" || lc.shipState === "translated"
+  lc.ship_state
+    ? lc.ship_state === "established" || lc.ship_state === "translated"
     : lc.gated && lc.shippable;
 
 export function rungFor(lc?: LocaleCoverage): Rung {
@@ -136,7 +136,7 @@ export function rungFor(lc?: LocaleCoverage): Rung {
   // one: established, or translated (it ships as AI translation). A scope no
   // gate matches shows its place on the ladder instead.
   if (clearsShipGate(lc)) {
-    const established = lc.shipState === "established";
+    const established = lc.ship_state === "established";
     return {
       key: "shippable",
       label: established ? "Approved" : "Ships translated",

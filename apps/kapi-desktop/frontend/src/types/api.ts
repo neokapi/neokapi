@@ -1580,19 +1580,19 @@ export interface LocaleCoverage {
   /** established (its established gate is met), translated (its ship gate
    *  is met), withheld, or not_gated (no gate speaks for it and nothing
    *  withholds). Only this field tells a met gate from no gate. */
-  shipState?: ShipState;
+  ship_state?: ShipState;
   pending?: GateShortfall[];
   /** Translations whose source changed since they were approved, not yet
    *  redrafted (a run redrafts them). */
-  staleAwaitingDraft?: number;
+  stale_awaiting_draft?: number;
   /** Translations redrafted after a source change, waiting for review. */
-  staleAwaitingReview?: number;
+  stale_awaiting_review?: number;
   /** Translations a reviewer turned down, not yet redrafted. */
-  rejectedAwaitingDraft?: number;
+  rejected_awaiting_draft?: number;
   /** Translations failing one of the project's bound checks. */
-  failingChecks?: number;
+  failing_checks?: number;
   /** Translations the terms govern that no terminology check has read. */
-  termsNotChecked?: number;
+  terms_not_checked?: number;
 }
 
 /** Project-wide source readiness (written|established). */
@@ -1615,7 +1615,7 @@ export interface ReviewItem {
    *  project's source language for a source unit. */
   language?: string;
   /** The author's own wording awaiting attention, rather than a translation. */
-  isSource?: boolean;
+  is_source?: boolean;
   /** The row's rung on its own ladder: `translated` for a queued translation,
    *  and the settled source rung (written | established) for a source
    *  unit. */
@@ -1628,17 +1628,17 @@ export interface ReviewItem {
   /** The SOURCE file's project-relative path. */
   relative?: string;
   /** The project's source language, for the source preview's direction. */
-  sourceLocale?: string;
+  source_locale?: string;
   source: string;
   target?: string;
   /** Whether the unit currently trips a check, set by ReviewQueue's
    * enrichment. Absent when not computed, as it always is for a source row. */
-  hasFindings?: boolean;
+  has_findings?: boolean;
   /** AI pre-review score (0–100) when a fresh annotation exists for the
    * current translation — read from the state store, never a live call. */
-  aiScore?: number;
-  /** Model that produced aiScore. */
-  aiModel?: string;
+  ai_score?: number;
+  /** Model that produced ai_score. */
+  ai_model?: string;
 }
 
 /** One language present in the review queue (matches Go
@@ -1870,17 +1870,16 @@ export interface UpPlanScope {
   locale?: string;
   collection?: string;
   /** Translatable units with no committed target for the locale. */
-  missingTarget: number;
-  /** Units covered by an exact-hash content-memory hit. The wire name is the
-   *  backend's JSON tag, which the rename boundary leaves as it was. */
-  memoryExact: number;
+  missing_target: number;
+  /** Units covered by an exact-hash content-memory hit. */
+  memory_exact: number;
   /** Units the pass serves from the project store's stored drafts: a
    *  translation of the same source made under the configuration and context
    *  the run would use, so no provider call and no tokens. */
   drafts?: number;
   /** Units left for AI translation after content-memory leverage and stored
    *  drafts. */
-  aiRemaining: number;
+  ai_remaining: number;
   /** Produced units whose decision blessed source wording that has since
    *  changed: the pass re-drafts them and they return to review. */
   stale?: number;
@@ -1889,9 +1888,9 @@ export interface UpPlanScope {
   unanswered?: number;
   /** Produced units the plan declines to judge because the project store has
    *  not read their committed translations yet. */
-  unreadTargets?: number;
+  unread_targets?: number;
   /** Rough input-token estimate for the remaining AI work (chars/4). */
-  tokenEstimate: number;
+  token_estimate: number;
 }
 
 /** The dry-run plan `kapi up --plan` computes (cli.UpPlanOutput). */
@@ -1906,12 +1905,12 @@ export interface UpPlanOutput {
   subscription?: boolean;
   /** Target languages are set but no collection has a target path, so a run
    * writes no translation. An empty plan then is not one with the work done. */
-  noTargets?: boolean;
+  no_targets?: boolean;
   /** The project store's drift from the source files, which a run reads
    * before its first pass (project.StoreDrift). */
   drift?: {
-    storeMissing?: boolean;
-    versionStale?: boolean;
+    store_missing?: boolean;
+    version_stale?: boolean;
     changed?: string[];
     removed?: string[];
   };
@@ -1971,12 +1970,12 @@ export interface ConvergeLocaleResult {
   shippable: boolean;
   /** The weakest state among the locale's scopes: withheld, not_gated,
    *  translated or established. */
-  shipState?: ShipState;
+  ship_state?: ShipState;
   /** A ship gate matches at least one of the locale's scopes. */
   gated?: boolean;
   parked?: boolean;
   pct?: Record<string, number>;
-  failingChecks?: number;
+  failing_checks?: number;
   materialized?: number;
 }
 
@@ -1986,18 +1985,18 @@ export interface ConvergeOutput {
   passes: number;
   converged: boolean;
   locales: ConvergeLocaleResult[];
-  parkedScopes?: ParkedScope[];
-  materializedFiles?: number;
+  parked_scopes?: ParkedScope[];
+  materialized_files?: number;
   /** Translatable source blocks held below translate_after: their translations
    *  were not produced because the source is unsettled. Source-scoped, so it is
    *  one count for every language rather than one per language. */
-  blockedOnSource?: number;
+  blocked_on_source?: number;
   /** The resolved translate_after level the run applied
    *  (none|written|established). */
-  translateAfter?: string;
+  translate_after?: string;
   /** Why the run did not converge, when it did not. `source_not_ready` means
    *  every pending locale had nothing producible. */
-  stallReason?: string;
+  stall_reason?: string;
 }
 
 /** One skipped file from an extraction request. */
