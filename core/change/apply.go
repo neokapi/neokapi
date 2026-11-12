@@ -220,7 +220,7 @@ func (w *workset) admit(op Op) *Error {
 		}
 	}
 	if op.Basis != "" && !spec.basis {
-		return &Error{Code: CodeInvalid, Field: "basis", Message: fmt.Sprintf("%s takes no basis; only set_content records one", op.Kind)}
+		return &Error{Code: CodeInvalid, Field: "basis", Message: fmt.Sprintf("%s takes no basis; only set_content and decide take one", op.Kind)}
 	}
 	if op.Basis != "" && !validRevision(op.Basis) {
 		return &Error{Code: CodeInvalid, Field: "basis", Message: fmt.Sprintf("%q is not a revision", op.Basis)}

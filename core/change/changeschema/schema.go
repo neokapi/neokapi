@@ -284,6 +284,9 @@ func buildSchema() (*jsonschema.Schema, error) {
 		}
 		if spec.Basis {
 			s := str("for a derived edition: the revision of the authoritative edition the content was made from")
+			if spec.Kind == change.KindDecide {
+				s = str("the revision of the authoritative edition you read beside the edition you decide on; under require_basis a decision is refused when it moved")
+			}
 			s.Pattern = patternRevision
 			add("basis", s, false)
 		}
