@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
-	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/host"
 )
 
 // CollectionStatus is the JSON-serialisable summary the UI renders on the
@@ -38,9 +39,9 @@ type CollectionStatus struct {
 //
 // HasData reports whether the project's block store exists and has been
 // populated (i.e. extraction has run at least once). When false, Collections
-// still lists the declared collections and their target languages, but
-// BlockCount/Coverage are zero — the frontend renders a "no data yet, run
-// extract" state rather than an error.
+// still lists the declared collections, their target languages and the
+// working tree's coverage, but BlockCount is zero, and the frontend renders a
+// "no data yet, run extract" state rather than an error.
 type ProjectStatus struct {
 	ProjectPath string `json:"projectPath"`
 	ProjectName string `json:"projectName"`
@@ -69,8 +70,8 @@ type ProjectStatus struct {
 // cache, which the store holds and the tree does not.
 //
 // If the project has never been extracted, the returned status has
-// HasData=false and zeroed coverage; this is a well-defined "no data yet"
-// state, not an error. It is a row question, not a file one: the store file
+// HasData=false and zero block counts beside the working tree's coverage; this
+// is a well-defined "no data yet" state, not an error. It is a row question, not a file one: the store file
 // exists from the first command that touches any subsystem, so its presence
 // stopped being evidence that anything was extracted.
 func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
@@ -86,43 +87,36 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	}
 	out.ProjectName = op.Project.Name
 
-	// Declared collections + target languages — the shell the frontend draws
-	// even before any extraction has happened. Keyed by the recipe collection
-	// name; bare entries share the "" bucket (displayed as "(unnamed)").
-	collTargets := make(map[string][]string)
-	collOrder := make([]string, 0, len(op.Project.Collections))
-	for _, coll := range op.Project.Collections {
-		// Canonical BCP-47, whatever style the recipe declared: these strings
-		// are the locale keys the panel renders, the coverage map is keyed by,
-		// and the CLI prints, so a project written nb_NO must read nb-NO here
-		// exactly as it does at the verb.
-		targets := make([]string, 0, len(coll.TargetLanguages))
-		for _, loc := range coll.TargetLanguages {
-			targets = append(targets, string(locale.Normalize(loc)))
+	// Declared collections and the languages each writes: the shell the
+	// frontend draws even before any extraction has happened. Keyed by the
+	// recipe collection name; bare entries share the "" bucket (displayed as
+	// "(unnamed)").
+	collOrder, collTargets := collectionTargets(op.Project)
+
+	// Coverage comes from the working tree, through the derivation `kapi
+	// status` counts from, whether or not the block store has read the
+	// project. A target file committed beside its source is translated
+	// content before any run has carried it into the store.
+	var tally *convergence.CoverageTally
+	if op.onDisk() {
+		t, terr := a.workingTreeCoverage(host.WithExistingStoresOnly(context.Background()), op)
+		if terr != nil {
+			return nil, terr
 		}
-		// Fall back to project defaults when the collection declares none.
-		if len(targets) == 0 {
-			for _, loc := range op.Project.Defaults.TargetLanguages {
-				targets = append(targets, string(locale.Normalize(loc)))
-			}
-		}
-		if _, seen := collTargets[coll.Name]; !seen {
-			collOrder = append(collOrder, coll.Name)
-		}
-		collTargets[coll.Name] = targets
+		tally = t
 	}
 
-	// Nothing extracted → "no data yet" shell with zeroed coverage. Asked before
+	// Nothing extracted: the "no data yet" shell with zero block counts. Asked before
 	// the store is opened where the project has none, so drawing the shell for a
 	// project nobody has run anything on does not create one.
 	ctx := context.Background()
 	db, ok := a.existingProjectStore(op)
 	if !ok {
-		out.Collections = buildEmptyCollections(collOrder, collTargets)
+		out.Collections = buildCollections(collOrder, collTargets, nil, tally)
 		return out, nil
 	}
 	if extracted, err := db.HasBlocks(ctx); err != nil || !extracted {
-		out.Collections = buildEmptyCollections(collOrder, collTargets)
+		out.Collections = buildCollections(collOrder, collTargets, nil, tally)
 		return out, nil
 	}
 
@@ -131,7 +125,7 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	// permit for the length of a status query would stall every writer.
 	store := db.BlocksAutocommit()
 	if store == nil {
-		out.Collections = buildEmptyCollections(collOrder, collTargets)
+		out.Collections = buildCollections(collOrder, collTargets, nil, tally)
 		return out, nil
 	}
 	sess, err := store.Begin(ctx)
@@ -159,43 +153,9 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 		return nil, fmt.Errorf("read block store coverage: %w", err)
 	}
 
-	// Coverage comes from the working tree, through the derivation `kapi
-	// status` counts from. A target file committed beside its source is
-	// translated content whether or not a run has carried it into the block
-	// store, and counting the store instead read one project as partly
-	// translated at the terminal and untouched in the app.
-	//
-	// The extracted totals stay the store's: they answer how much content this
+	// The extracted totals are the store's: they answer how much content this
 	// project has read in, which the store holds and the tree does not.
-	tally, terr := a.workingTreeCoverage(context.Background(), op)
-	if terr != nil {
-		return nil, terr
-	}
-
-	ladder := gate.TargetLadder()
-	out.Collections = make([]CollectionStatus, 0, len(collOrder))
-	for _, name := range collOrder {
-		targets := collTargets[name]
-		coverage := make(map[string]int, len(targets))
-		units := make(map[string]int, len(targets))
-		for _, loc := range targets {
-			if cov, ok := tally.Coverage(convergence.Scope{Collection: name, Locale: loc}); ok {
-				coverage[loc] = cov.AtLeastCount(ladder, string(model.TargetStatusTranslated))
-				units[loc] = cov.Total
-				continue
-			}
-			coverage[loc] = 0
-			units[loc] = 0
-		}
-		out.Collections = append(out.Collections, CollectionStatus{
-			Name:            collectionLabel(name),
-			BlockCount:      totals[name],
-			Coverage:        coverage,
-			Units:           units,
-			TargetLanguages: targets,
-		})
-	}
-
+	out.Collections = buildCollections(collOrder, collTargets, totals, tally)
 	return out, nil
 }
 
@@ -215,23 +175,59 @@ func (a *App) workingTreeCoverage(ctx context.Context, op *openProject) (*conver
 	return tally, nil
 }
 
-// buildEmptyCollections returns the declared collections with zeroed coverage,
-// used for the "no data yet" state before any extraction has run. order and
-// targets are keyed by recipe collection name; the DTO carries the display
-// label.
-func buildEmptyCollections(order []string, targets map[string][]string) []CollectionStatus {
+// collectionTargets lists the recipe's collections in order with the target
+// languages each writes: the union of its items' languages
+// (ContentItem.ResolvedTargetLanguages, canonical BCP-47), over the items
+// with a target path. These are the languages `kapi status` reports a
+// collection's units in; a collection whose items write no target lists none.
+func collectionTargets(proj *project.KapiProject) ([]string, map[string][]string) {
+	targets := make(map[string][]string)
+	order := make([]string, 0, len(proj.Collections))
+	for i := range proj.Collections {
+		coll := &proj.Collections[i]
+		if _, seen := targets[coll.Name]; !seen {
+			order = append(order, coll.Name)
+			targets[coll.Name] = []string{}
+		}
+		for _, item := range coll.EffectiveItems() {
+			if item.Target == "" {
+				continue
+			}
+			for _, loc := range item.ResolvedTargetLanguages(nil, proj.Defaults) {
+				if !slices.Contains(targets[coll.Name], string(loc)) {
+					targets[coll.Name] = append(targets[coll.Name], string(loc))
+				}
+			}
+		}
+	}
+	return order, targets
+}
+
+// buildCollections returns the status of each collection: its extracted block
+// count from totals (zero before any extraction) and, per target language, the
+// units carrying a translation and the units counted, from the working-tree
+// tally (zero where tally is nil or holds no such scope). order and targets
+// are keyed by recipe collection name; the DTO carries the display label.
+func buildCollections(order []string, targets map[string][]string, totals map[string]int, tally *convergence.CoverageTally) []CollectionStatus {
+	ladder := gate.TargetLadder()
 	out := make([]CollectionStatus, 0, len(order))
 	for _, name := range order {
 		locs := targets[name]
 		coverage := make(map[string]int, len(locs))
 		units := make(map[string]int, len(locs))
 		for _, loc := range locs {
-			coverage[loc] = 0
-			units[loc] = 0
+			coverage[loc], units[loc] = 0, 0
+			if tally == nil {
+				continue
+			}
+			if cov, ok := tally.Coverage(convergence.Scope{Collection: name, Locale: loc}); ok {
+				coverage[loc] = cov.AtLeastCount(ladder, string(model.TargetStatusTranslated))
+				units[loc] = cov.Total
+			}
 		}
 		out = append(out, CollectionStatus{
 			Name:            collectionLabel(name),
-			BlockCount:      0,
+			BlockCount:      totals[name],
 			Coverage:        coverage,
 			Units:           units,
 			TargetLanguages: locs,

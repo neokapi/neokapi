@@ -523,6 +523,10 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	}
 	idx.loop = a.newLoopWrites(ctx, root)
 	st, err := a.OpenProjectState(ctx, root)
+	if errors.Is(err, errNoProjectStore) {
+		// A read that creates no store finds no decision in a project with none.
+		return idx, nil
+	}
 	if err != nil {
 		return idx, err
 	}

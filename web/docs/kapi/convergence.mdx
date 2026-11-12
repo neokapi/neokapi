@@ -467,6 +467,9 @@ kapi up --plan
 # 1 block(s) stale: their source changed since the translation was decided.
 # They are re-drafted against the current source (priced above) and return
 # to review un-approved. See `kapi status --review`.
+#
+# Source drift: 1 source file(s) changed and 0 removed since the project
+# store read them, so a run reads the source files before its first pass.
 
 kapi up --passes 1
 # Re-drafted 1 stale block(s) against the current source. They return to
