@@ -1,7 +1,8 @@
 # Bowrain mobile, starting with review: design note
 
-Status: proposal for founder review. Nothing here is built. Versions and
-store rules were checked on 2026-11-12; items marked *unverified* were not
+Status: approved by the founder on 2026-11-12, including the decisions at the
+end. Nothing here is built yet. Versions and store rules were checked on
+2026-11-12; items marked *unverified* were not
 confirmed against a primary source.
 
 A mock of four screens (language list, a fast-deck card, the reason sheet, a
@@ -357,7 +358,7 @@ The push service is stubbed at the sender interface.
 5. **Store release** of Bowrain with review, then the entity-review card and
    the next features.
 
-## Recommended answers to the open questions
+## Decisions
 
 1. **The backlog:** lot sampling, as in "The backlog before the first swipe":
    sample each lot of clean, high-scoring drafts, approve the lot with
