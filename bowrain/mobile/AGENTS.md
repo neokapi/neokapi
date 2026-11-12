@@ -26,6 +26,10 @@ reads. Read that note before changing a screen.
   decision does: the server computes all of it, so Bowrain web and the app
   answer the same way. The app shows what the server says and sends change
   sets. A rule the server does not have yet is added on the server first.
+- **Styling is Uniwind (Tailwind v4).** `className` works on React Native's
+  own components; a third-party component takes it only through
+  `withUniwind` (see `src/components/SafeArea.tsx`). Without the wrapper the
+  classes are dropped silently and the layout collapses.
 - **Render runs through a `RunSpec`**, never a loop over `run.text`
   (`packages/kapi-format/src/run-projection.ts`). Placeholders and inline codes
   are chips and stay locked in the editor.

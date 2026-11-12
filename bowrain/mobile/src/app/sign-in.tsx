@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "../components/SafeArea";
 
 import { useAuth } from "../lib/auth";
 import { defaultServerUrl } from "../lib/config";

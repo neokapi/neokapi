@@ -22,7 +22,7 @@ import {
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "./SafeArea";
 
 import { RunDiff, ServerDiff } from "./DiffView";
 import { editable, fromSegments, RunEditor, toSegments, type Segment } from "./RunEditor";

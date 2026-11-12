@@ -17,7 +17,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "../../../components/SafeArea";
 
 import { ActionBar } from "../../../components/ActionBar";
 import { FixSheet } from "../../../components/FixSheet";
