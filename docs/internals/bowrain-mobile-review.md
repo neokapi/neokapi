@@ -480,12 +480,20 @@ reads (`text`, `ph`, `pcOpen`, `pcClose`, `sub`, `plural`, `select`).
 Permission: `review` for the language (`PermReview`, language-scoped). A
 caller without it gets `403`.
 
-The server builds the deck from the pending-review queue on every request,
-so a decided card is absent from the next page. Cards come in group order:
-`fast`, then `closer`, then `desk`. The cursor names the last card a page
-returned. When that card has been decided since, the next page starts at
-the beginning of the cursor's group, so a client drops cards it already
-holds by `block_id` and `locale`.
+The deck is the pending-review queue as it stands, so a decided card is
+absent from the next page. Cards come in group order: `fast`, then
+`closer`, then `desk`, and within a group in the order the files read. The
+cursor is a position in that order (group, file, position, block), so the
+next page starts after the last card returned even when that card has been
+decided since. A card whose group changed after a page was read can appear
+again in its new group, so a client drops cards it already holds by
+`block_id` and `locale`.
+
+The server keeps each translation's group and classifies a translation
+again when its draft, its source, its pre-review or its decision changes,
+and once a day otherwise. A request classifies at most 2,000 new or changed
+translations and reads the rest of the deck from what it kept, so only the
+page's blocks are read whole.
 
 ```json
 {
@@ -539,11 +547,12 @@ holds by `block_id` and `locale`.
 - `own_work` is true when the caller wrote the translation. Under the
   workspace's `block` separation-of-duties policy an approval of it is
   refused, and the app hides the swipe on such a card.
-- `counts.partial` is present and true when the queue is longer than the
-  server classifies in one request (10,000 entries). The counts and the deck
-  then cover the first 10,000.
+- `counts` cover every classified card. `counts.unclassified` is present
+  when one request did not reach every new or changed translation; those
+  cards are missing from the deck until a later request classifies them, so
+  a client asks again while it is above zero.
 
-The grouping rule is `host.ClassifyDeckCard`:
+The grouping rule is `reviewdeck.ClassifyDeckCard` (`host/reviewdeck`):
 
 | Group | When | `reason` names |
 | --- | --- | --- |

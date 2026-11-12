@@ -56,6 +56,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 46  a project's context key; term candidates leave the review queue
 // 47  the members a project's suggestions are assigned to
 // 48  the findings a project-wide check counted in each item
+// 49  the review deck's group for each translation waiting for review
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1752,6 +1753,39 @@ var Migrations = []storage.Migration{
 				fixable    INTEGER NOT NULL DEFAULT 0,
 				checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, item_id)
+			);
+		`,
+	},
+	{
+		Version:     49,
+		Description: "the review deck's group for each translation waiting for review",
+		SQL: `
+			-- One row per (block, locale) a review deck has classified: the
+			-- group and the facts it was placed by, with the values of the
+			-- rows it was read from. A row stands while each of those values
+			-- still holds (the translation's updated_at, the source revision,
+			-- the pre-review's and the decision's timestamps, the policy) and
+			-- for a day at most; the deck classifies a row again otherwise.
+			CREATE TABLE IF NOT EXISTS review_deck_facts (
+				project_id        TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream            TEXT NOT NULL DEFAULT 'main',
+				block_id          TEXT NOT NULL,
+				locale            TEXT NOT NULL,
+				target_updated_at TIMESTAMPTZ NOT NULL,
+				source_revision   TEXT NOT NULL DEFAULT '',
+				prereview_at      TIMESTAMPTZ,
+				decision_at       TIMESTAMPTZ,
+				policy            TEXT NOT NULL DEFAULT '',
+				group_rank        INTEGER NOT NULL,
+				deck_group        TEXT NOT NULL,
+				reason            TEXT NOT NULL DEFAULT '',
+				findings          INTEGER NOT NULL DEFAULT 0,
+				failing           INTEGER NOT NULL DEFAULT 0,
+				term_compliance   TEXT NOT NULL DEFAULT '',
+				voice_score       INTEGER,
+				voice_bar         INTEGER,
+				computed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, block_id, locale)
 			);
 		`,
 	},
