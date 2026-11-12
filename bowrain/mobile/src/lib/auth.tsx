@@ -2,18 +2,21 @@
 // and one shared API client that refreshes its access token on a 401.
 //
 // The server brokers the OIDC flow with the workspace's identity provider
-// (Keycloak locally, Cognito in production): the app opens the server's
-// sign-in route in a browser session with a PKCE challenge, the person signs
-// in at the identity provider, and the server redirects to bowrain://auth/callback
-// with a Bowrain access token and refresh token. The API accepts only the
-// server's own tokens, so the app never holds the identity provider's.
+// (Keycloak locally, Cognito in production), because the API accepts only the
+// server's own tokens. The app opens the server's sign-in route in a browser
+// session with a PKCE challenge and a random state; the person signs in at the
+// identity provider; the server redirects to bowrain://auth/callback with a
+// one-time code and the state. The app checks the state and redeems the code
+// with the PKCE verifier by POST, so the tokens arrive only in a response body.
 import { createBowrainClient, type BowrainClient } from "@neokapi/bowrain-client";
 import { makeRedirectUri } from "expo-auth-session";
+import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
+import { readCallback } from "./callback";
 import { authRedirectPath, defaultServerUrl } from "./config";
 import { createPkce } from "./pkce";
 
@@ -53,18 +56,6 @@ async function loadSession(): Promise<Session | null> {
 async function saveSession(s: Session | null): Promise<void> {
   if (s) await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(s));
   else await SecureStore.deleteItemAsync(SESSION_KEY);
-}
-
-/** Read the tokens the server's sign-in redirect carries. */
-export function parseCallback(url: string): { token?: string; refreshToken?: string; email?: string; name?: string } {
-  const q = url.includes("?") ? url.slice(url.indexOf("?") + 1) : "";
-  const params = new URLSearchParams(q.split("#")[0]);
-  return {
-    token: params.get("token") ?? undefined,
-    refreshToken: params.get("refresh_token") ?? undefined,
-    email: params.get("user") ?? undefined,
-    name: params.get("name") ?? undefined,
-  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -130,21 +121,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const base = serverUrl.replace(/\/+$/, "");
       const redirectUri = makeRedirectUri({ scheme: "bowrain", path: authRedirectPath });
       const pkce = await createPkce();
-      const url = createBowrainClient({ baseUrl: base, getAccessToken: () => null }).loginUrl(
+      const state = Crypto.randomUUID();
+      const anon = createBowrainClient({ baseUrl: base, getAccessToken: () => null });
+      const result = await WebBrowser.openAuthSessionAsync(
+        anon.loginUrl(redirectUri, pkce.challenge, state),
         redirectUri,
-        pkce.challenge,
       );
-      const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);
       if (result.type !== "success") return { ok: false, reason: "cancelled" };
-      const cb = parseCallback(result.url);
-      if (!cb.token) return { ok: false, reason: "failed" };
-      await update({
+      const cb = readCallback(result.url, state);
+      if (!cb.ok) return { ok: false, reason: "failed", message: cb.message };
+      // The tokens come only from the response body of the code exchange.
+      const tokens = await anon.exchangeCode(cb.code, pkce.verifier, redirectUri);
+      const next: Session = {
         serverUrl: base,
-        accessToken: cb.token,
-        refreshToken: cb.refreshToken,
-        email: cb.email,
-        name: cb.name,
-      });
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+      };
+      try {
+        const me = await createBowrainClient({ baseUrl: base, getAccessToken: () => next.accessToken }).me();
+        next.email = me.email;
+        next.name = me.name;
+      } catch {
+        // The name is for display; the session stands without it.
+      }
+      await update(next);
       return { ok: true };
     },
     [update],

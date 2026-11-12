@@ -70,8 +70,14 @@ export interface ProjectScope {
 
 export interface BowrainClient {
   readonly baseUrl: string;
-  /** The URL that starts sign-in in a browser (the server brokers the OIDC flow). */
-  loginUrl(redirectUri: string, codeChallenge: string): string;
+  /**
+   * The URL that starts sign-in in a browser. The server brokers the OIDC flow
+   * with the workspace's identity provider and redirects back with a one-time
+   * code and the client's `state`, never with a token.
+   */
+  loginUrl(redirectUri: string, codeChallenge: string, state: string): string;
+  /** Redeem the one-time code with the PKCE verifier; the tokens arrive in the response body. */
+  exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<AuthTokens>;
   refresh(refreshToken: string): Promise<AuthTokens>;
   logout(): Promise<void>;
   me(): Promise<User>;
@@ -166,6 +172,17 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     return { status: res.status, body };
   }
 
+  async function postTokens(path: string, payload: object, failure: string): Promise<AuthTokens> {
+    const res = await doFetch(`${api}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = (await res.json().catch(() => undefined)) as AuthTokens | undefined;
+    if (!res.ok || !body?.access_token) throw new ApiError(res.status, failure, body);
+    return body;
+  }
+
   async function get<T>(path: string): Promise<T> {
     return (await send(path)).body as T;
   }
@@ -173,25 +190,26 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
   const client: BowrainClient = {
     baseUrl,
 
-    loginUrl(redirectUri, codeChallenge) {
+    loginUrl(redirectUri, codeChallenge, state) {
       return `${api}/auth/desktop/login${query({
         redirect_uri: redirectUri,
         code_challenge: codeChallenge,
         code_challenge_method: "S256",
+        state,
+        response_mode: "code",
       })}`;
     },
 
-    async refresh(refreshToken) {
-      const res = await doFetch(`${api}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-      const body = (await res.json().catch(() => undefined)) as AuthTokens | undefined;
-      if (!res.ok || !body?.access_token) {
-        throw new ApiError(res.status, "the session could not be refreshed", body);
-      }
-      return body;
+    exchangeCode(code, codeVerifier, redirectUri) {
+      return postTokens(
+        "/auth/desktop/token",
+        { code, code_verifier: codeVerifier, redirect_uri: redirectUri },
+        "the sign-in code was not accepted",
+      );
+    },
+
+    refresh(refreshToken) {
+      return postTokens("/auth/refresh", { refresh_token: refreshToken }, "the session could not be refreshed");
     },
 
     async logout() {
