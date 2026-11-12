@@ -191,7 +191,15 @@ func TestFixFinding_TermRule(t *testing.T) {
 	data, err := os.ReadFile(srcPath)
 	require.NoError(t, err)
 	assert.Equal(t, strings.Replace(source, "utilize", "use", 1), string(data))
-	assert.Zero(t, after.Findings, "the check read again finds nothing")
+	// The term finding is gone. The check read again still finds the double
+	// space in "Keep  this", a hygiene finding `kapi check` reports on the
+	// same file, and one that reports without failing.
+	assert.Equal(t, before.Findings-1, after.Findings, "the fixed finding is gone")
+	for _, b := range after.Blocks {
+		for _, af := range b.Findings {
+			assert.NotEqual(t, "use, not utilize", af.Label)
+		}
+	}
 	assert.Equal(t, "passed", after.Verdict)
 	require.NotEmpty(t, after.Blocks)
 	var texts []string

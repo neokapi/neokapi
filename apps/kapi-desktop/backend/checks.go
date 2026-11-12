@@ -2,10 +2,7 @@ package backend
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -15,11 +12,11 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
-	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/screens"
 	"github.com/neokapi/neokapi/terms"
@@ -117,19 +114,15 @@ type CheckRunResult struct {
 	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
-// RunChecks runs the project's content checks (placeholder + do-not-translate
-// when a target exists, terms and the voice's patterns on the source when
-// they are bound) over the content files the Active Filter selects (its collections +
-// glob; all when empty), for the filter's target languages — source-side checks
-// run once per file, target-side checks run once per filtered language, and the
-// panel no longer carries its own language picker. With no languages selected,
-// only source-side checks run.
+// RunChecks runs `kapi check` over the content files the Active Filter selects
+// (its collections and glob; all when empty), and holds each file's
+// translations in the filter's target languages to the checks a translation is
+// held to. With no languages selected, only the sources are checked.
 //
-// The pipeline itself is the CLI's exported check service
-// (host.App.ReadBlocksForCheck / host.OverlayTargets / host.RunCheckTool /
-// host.FindingsFromBlock), run inside the project document cache
-// (WithDocumentCache) so unchanged files replay instead of re-parsing —
-// exactly the `kapi check` semantics: the gate fails on any failing finding.
+// The findings come from the host's project check (host.App.ComputeProjectCheck),
+// run inside the project document cache so unchanged files replay instead of
+// re-parsing. The panel and `kapi check` therefore report the same findings,
+// verdict and score for the same content.
 func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, error) {
 	return a.runChecks(tabID, filter, checkScope{})
 }
@@ -163,307 +156,88 @@ func (a *App) runChecks(tabID string, filter ProjectFilter, scope checkScope) (*
 	if err != nil {
 		return nil, fmt.Errorf("resolve content: %w", err)
 	}
-
 	sourceLang := string(pctx.SourceLocale)
 	root := ""
 	if op.Path != "" {
 		root = filepath.Dir(op.Path)
 	}
 
+	// The files the run hands the check, each with the translations the
+	// filter's languages select, at the paths the project resolves for them.
+	req := host.ProjectCheckRequest{Root: root, SourceLang: sourceLang}
+	if op.onDisk() {
+		req.Recipe = op.Path
+	}
+	byPath := map[string]project.ResolvedFile{}
+	for _, rf := range resolved {
+		if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
+			continue
+		}
+		if scope.file != "" && filepath.ToSlash(rf.Relative) != scope.file {
+			continue
+		}
+		ref := host.ProjectCheckFileRef{Path: rf.Path}
+		// A file declared for its comments alone holds no value to translate.
+		if !rf.CommentsOnly() {
+			for _, lang := range filter.Languages {
+				if tgt := a.resolveTargetPath(rf, op, lang); tgt != "" {
+					ref.Targets = append(ref.Targets, host.ProjectCheckTargetRef{Locale: lang, Path: tgt})
+				}
+			}
+		}
+		byPath[rf.Path] = rf
+		req.Files = append(req.Files, ref)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// One instant for the whole run, so every file's point resolves against the
-	// same clock and two findings cannot disagree about which profile governs.
-	at := a.hostEngine().GovernanceInstant()
-
-	// The shared check pipeline holds single-occupancy state on the host.App
-	// (the open document cache), so a checks run is serialized.
+	// The host.App behind a checks run holds single-occupancy state (the open
+	// document cache), so a checks run is serialized.
 	a.checksMu.Lock()
 	defer a.checksMu.Unlock()
 	capp := a.checksCLI()
 
-	// The voice is resolved per file's point rather than once for the project:
-	// a recipe that binds a different profile per product governs each file by
-	// the one at its own point, which is the point the finding reports.
-	//
-	// Do-not-translate terms come from the bound terms store, project-wide.
-	// Both are optional — when absent the corresponding check is skipped,
-	// matching the CLI's flag-free behaviour.
-	points := a.newPointResolver(op, true)
-	dntTerms, err := a.resolveProjectDNTTermsStrict(ctx, op, sourceLang)
-	if err != nil {
-		return nil, err
-	}
-
-	var allFindings []check.Finding
-	files := make([]CheckFileResult, 0, len(resolved))
-	// What the run examined and how each checker proved it could fail, for the
-	// verdict: a panel that ran nothing, or ran an inert checker, must not show
-	// a pass.
-	blocksChecked := 0
-	var analyzers []check.AnalyzerExecution
-	record := func(id, file string, findings int, canary check.CanaryOutcome, required bool) {
-		analyzers = append(analyzers, check.AnalyzerExecution{
-			ID: id, File: file, Status: canary.StatusFor(findings), Required: required,
-			Findings: findings, Reason: canary.Reason, Canary: &canary,
-		})
-	}
-	// The declared files no installed reader opens, such as a collection in a
-	// format a plugin supplies. The run checks the rest and names these in its
-	// result, as `kapi check` does.
-	unread := host.NewUnreadSet(a.discoveredPlugins()...)
-	// The files whose items declare their comments, and the findings on those
-	// comments, which the run checks after the files' values.
-	var commentFiles []project.ResolvedFile
-	var commentDiags []check.Diagnostic
-
+	var run host.ProjectCheck
 	runErr := capp.WithDocumentCache(root, func() error {
-		for _, rf := range resolved {
-			if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
-				continue
-			}
-			if scope.file != "" && filepath.ToSlash(rf.Relative) != scope.file {
-				continue
-			}
-			// A file declared for its comments alone holds no value the panel reads,
-			// and only its comments are checked.
-			if rf.CommentsOnly() {
-				commentFiles = append(commentFiles, rf)
-				continue
-			}
-
-			// Both halves of the recipe's binding: the format the item declares
-			// and the reader config the project declares for it. Under reader
-			// defaults the panel judges content the project excludes — a demo
-			// script's `command:` lines where the recipe's keyPathPatterns select
-			// only its prose.
-			fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
-
-			// The point this file sits at, resolved the way a run resolves it,
-			// so every finding on it can name where it is scoped.
-			filePoint, _, ptErr := contextPoint(op.Project, rf.Collection, rf.Relative, rf.Format == "", false, at)
-			if ptErr != nil {
-				return fmt.Errorf("resolve check point %s: %w", rf.Relative, ptErr)
-			}
-
-			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
-			if unread.Skip(rerr, rf.Relative, rf.Format) {
-				continue
-			}
-			if rerr != nil {
-				return fmt.Errorf("read check source %s: %w", rf.Relative, rerr)
-			}
-			blocksChecked += len(sourceBlocks)
-			if scope.blocks != nil && *scope.blocks == nil {
-				*scope.blocks = sourceBlocks
-			}
-			if rf.CommentItem != nil {
-				commentFiles = append(commentFiles, rf)
-			}
-
-			var fileFindings []DesktopFinding
-			// checkErr records a checker that could not RUN, as distinct from one
-			// that ran and found nothing. It aborts the run: a panel showing a
-			// clean file for checks that never
-			// executed is the "operation failed, success reported" defect this
-			// loop's own read-failure branch above already guards against.
-			var checkErr error
-
-			// Source-side, once per file (independent of how many target
-			// languages are checked): the terms and the voice governing THIS
-			// file's point, as two analyzers the way `kapi check` runs them.
-			profile := points.at(ctx, rf.Collection, rf.Relative)
-			if points != nil && points.err != nil {
-				return points.err
-			}
-			fileTerms := points.termsAt(ctx, rf.Collection, rf.Relative)
-			if points != nil && points.err != nil {
-				return points.err
-			}
-			// runSource runs one source-side checker over the file's blocks and
-			// records it under its analyzer id.
-			// family is the name `kapi check` gives the analyzer's findings.
-			runSource := func(id, family, what string, tool *coretools.VoiceVocabCheckTool, voice *coreprofile.VoiceProfile) {
-				before := len(fileFindings)
-				for _, b := range sourceBlocks {
-					if cerr := host.RunCheckTool(ctx, tool, b); cerr != nil {
-						checkErr = fmt.Errorf("%s: %w", what, cerr)
-						return
-					}
-					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, model.AnnoVoice); ok {
-						for _, f := range ann.Findings {
-							df := withFix(toDesktopFinding(f, b, "source", sourceLang, filePoint), f, b, filepath.ToSlash(rf.Relative), pctx.SourceLocale)
-							df.Check = family
-							fileFindings = append(fileFindings, df)
-							allFindings = append(allFindings, f)
-						}
-					}
-					b.DelAnno(model.AnnoVoice)
-				}
-				canary, cerr := host.ProbeVoiceRules(ctx, tool, voice)
-				if cerr != nil {
-					checkErr = fmt.Errorf("%s: %w", what, cerr)
-					return
-				}
-				// A project binds its terms and voice as configuration, and a
-				// voice may govern tone alone, so one with nothing to catch
-				// leaves only its own analyzer unrun.
-				record(id, rf.Relative, len(fileFindings)-before, canary, false)
-			}
-			// Word rules are terms wherever they are held: the terms store and a
-			// bound starter pack's terms. One analyzer checks them all.
-			words := coreprofile.CarriedRuleSets(profile)
-			if fileTerms != nil || len(words) > 0 {
-				runSource("terms", "terms", "terms",
-					coretools.NewVoiceVocabCheckTool(nil, fileTerms).
-						InSourceLocale(pctx.SourceLocale).
-						Holding(words...),
-					nil)
-			}
-			// The voice's own rules: its prohibited and required patterns and
-			// its constraints.
-			if voice := profile.VoiceOnly(); checkErr == nil && voice != nil &&
-				(coreprofile.HasDeterministicRules(voice) || len(words) == 0) {
-				runSource("voice.rules", "voice", "voice", coretools.NewVoiceVocabCheckTool(voice, nil), voice)
-			}
-
-			// Target-side checks, once per filtered language.
-			for _, lang := range filter.Languages {
-				if checkErr != nil {
-					break
-				}
-				if lang == "" {
-					continue
-				}
-				targetLoc := model.LocaleID(lang)
-				tgtPath := a.resolveTargetPath(rf, op, lang)
-				if tgtPath == "" {
-					continue
-				}
-				if _, serr := os.Stat(tgtPath); serr != nil {
-					if os.IsNotExist(serr) {
-						continue
-					}
-					return fmt.Errorf("stat check target %s: %w", tgtPath, serr)
-				}
-				// Read source blocks fresh per language — OverlayTargets mutates
-				// them (a cached file replays cheaply).
-				passBlocks, perr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
-				if perr != nil {
-					return fmt.Errorf("read check source %s: %w", rf.Relative, perr)
-				}
-				// The target is the translated rendering of this source file, so
-				// it carries the source's reader binding.
-				targetBlocks, terr := capp.ReadBlocksForCheck(ctx, tgtPath, rf.Format, fmtCfg, sourceLang)
-				if terr != nil {
-					return fmt.Errorf("read check target %s: %w", tgtPath, terr)
-				}
-				host.OverlayTargets(passBlocks, targetBlocks, targetLoc)
-
-				// Placeholder integrity.
-				placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(targetLoc))
-				before := len(fileFindings)
-				for _, b := range passBlocks {
-					if cerr := host.RunCheckTool(ctx, placeholder, b); cerr != nil {
-						checkErr = fmt.Errorf("placeholder (%s): %w", lang, cerr)
-						break
-					}
-					for _, f := range host.FindingsFromBlock(b, true) {
-						df := toDesktopFinding(f, b, "target", lang, filePoint)
-						df.Check = "placeholder"
-						fileFindings = append(fileFindings, df)
-						allFindings = append(allFindings, f)
-					}
-				}
-				if checkErr == nil {
-					canary, cerr := host.ProbeBlockTool(ctx, placeholder, coretools.PlaceholderCanaries(targetLoc), "")
-					if cerr != nil {
-						checkErr = fmt.Errorf("placeholder (%s): %w", lang, cerr)
-					} else {
-						record("placeholder", rf.Relative+" ("+lang+")", len(fileFindings)-before, canary, true)
-					}
-				}
-
-				// Do-not-translate: only when terms are configured.
-				if checkErr == nil && len(dntTerms) > 0 {
-					dntCfg := coretools.NewDNTCheckConfig(targetLoc)
-					dntCfg.Terms = dntTerms
-					dnt := coretools.NewDNTCheckTool(dntCfg)
-					before := len(fileFindings)
-					for _, b := range passBlocks {
-						if cerr := host.RunCheckTool(ctx, dnt, b); cerr != nil {
-							checkErr = fmt.Errorf("do-not-translate (%s): %w", lang, cerr)
-							break
-						}
-						for _, f := range host.FindingsFromBlock(b, true) {
-							df := toDesktopFinding(f, b, "target", lang, filePoint)
-							df.Check = "dnt"
-							fileFindings = append(fileFindings, df)
-							allFindings = append(allFindings, f)
-						}
-					}
-					if checkErr == nil {
-						canaries, uncheckable := coretools.DNTCanaries(dntCfg)
-						canary, cerr := host.ProbeBlockTool(ctx, dnt, canaries, uncheckable)
-						if cerr != nil {
-							checkErr = fmt.Errorf("do-not-translate (%s): %w", lang, cerr)
-						} else {
-							record("dnt", rf.Relative+" ("+lang+")", len(fileFindings)-before, canary, true)
-						}
-					}
-				}
-			}
-
-			if checkErr != nil {
-				return fmt.Errorf("checks did not complete for %s: %w", rf.Relative, checkErr)
-			}
-
-			sortDesktopFindings(fileFindings)
-			files = append(files, CheckFileResult{Path: rf.Path, Findings: fileFindings})
-		}
-
-		// The comments go through `kapi check` itself, so the panel reports the
-		// comment findings the command line reports for the same project.
-		comments, cerr := checkComments(ctx, capp, op.Path, commentFiles, sourceLang)
-		if cerr != nil {
-			return fmt.Errorf("check comments: %w", cerr)
-		}
-		blocksChecked += comments.blocks
-		analyzers = append(analyzers, comments.analyzers...)
-		commentDiags = comments.diagnostics
-		for _, file := range comments.files {
-			files = mergeFileFindings(files, file)
-		}
-		return nil
+		var cerr error
+		run, cerr = capp.ComputeProjectCheck(ctx, req)
+		return cerr
 	})
 	if runErr != nil {
 		return nil, runErr
 	}
 
-	// The configuration warnings of each profile the run resolved, once each,
-	// as `kapi check` reports them. A profile the run named from the store is
-	// read back out of it, so the panel reports on the profile that governed.
-	voiceStore, releaseVoiceStore := points.store(ctx)
-	defer releaseVoiceStore()
-	var warnings []check.Warning
-	for _, source := range points.loadedSources() {
-		found, werr := capp.VoiceProfileWarnings(ctx, voiceStore, source)
-		if werr != nil {
-			return nil, fmt.Errorf("voice profile warnings: %w", werr)
+	files := make([]CheckFileResult, 0, len(run.Files))
+	for _, f := range run.Files {
+		rf := byPath[f.Path]
+		if scope.blocks != nil && *scope.blocks == nil {
+			*scope.blocks = readerBlocks(f.Blocks)
 		}
-		warnings = append(warnings, found...)
+		doc := filepath.ToSlash(rf.Relative)
+		findings := make([]DesktopFinding, 0, len(f.Findings))
+		for _, d := range f.Findings {
+			findings = append(findings, desktopFinding(d, f.Blocks, "source", sourceLang, rf.Collection, doc))
+		}
+		for _, t := range f.Targets {
+			for _, d := range t.Findings {
+				findings = append(findings, desktopFinding(d, t.Blocks, "target", t.Locale, rf.Collection, doc))
+			}
+		}
+		sortDesktopFindings(findings)
+		files = append(files, CheckFileResult{Path: f.Path, Findings: findings})
 	}
 
-	// A finding on a comment weighs in the score by its rule and whether it
-	// fails, as check.BuildReport weighs it for `kapi check`.
-	scored := slices.Clone(allFindings)
-	for _, d := range commentDiags {
-		scored = append(scored, check.Finding{Category: d.Rule, Fails: d.Fails, Suggested: d.Suggested})
+	report := run.Report
+	result := &CheckRunResult{
+		Pass:           report.Pass,
+		Verdict:        string(report.Verdict),
+		DidNotRun:      report.DidNotRun,
+		DidNotRunCause: report.DidNotRunCause,
+		Score:          report.Summary.Score,
+		Files:          files,
+		Warnings:       report.Warnings,
 	}
-	score := check.CalculateScore(scored).Overall
-	result := checkRunVerdict(allFindings, commentDiags, blocksChecked, analyzers, score, files, unread)
-	result.Warnings = check.MergeWarnings(warnings, result.Warnings)
 	// A run over every file in every target language is the one the Overview
 	// counts findings from.
 	if scope.file == "" && coversProject(filter, op.Project) {
@@ -472,117 +246,50 @@ func (a *App) runChecks(tabID string, filter ProjectFilter, scope checkScope) (*
 	return result, nil
 }
 
-// checkRunVerdict decides a checks run the way `kapi check` decides a report:
-// a failing finding fails it (a comment the project's formatter would rewrite
-// among them), and check.Report.Decide turns a run over
-// no blocks, or one whose checkers missed or lacked their canaries, into
-// did_not_run. comments are the findings on comments, as `kapi check` reported
-// them. The files unread names become warnings, and a run that read none of the
-// content in its scope did not run because that content went unchecked.
-func checkRunVerdict(findings []check.Finding, comments []check.Diagnostic, blocks int, analyzers []check.AnalyzerExecution, score int, files []CheckFileResult, unread *host.UnreadSet) *CheckRunResult {
-	diags := make([]check.Diagnostic, 0, len(findings)+len(comments))
-	for _, f := range findings {
-		diags = append(diags, check.DiagnosticFrom(f, "", check.Location{}))
-	}
-	diags = append(diags, comments...)
-	report := check.BuildReport(check.Target{Kind: "project", Blocks: blocks}, diags)
-	report.Execution = &check.Execution{Analyzers: analyzers}
-	report.Decide()
-	unread.Report(&report)
-	return &CheckRunResult{
-		Pass:           report.Pass,
-		Verdict:        string(report.Verdict),
-		DidNotRun:      report.DidNotRun,
-		DidNotRunCause: report.DidNotRunCause,
-		Score:          score,
-		Files:          files,
-		Warnings:       report.Warnings,
-	}
-}
-
-// commentChecks is what `kapi check` reports about the comments of the files a
-// checks run hands it.
-type commentChecks struct {
-	// blocks counts the blocks the check read in those files.
-	blocks    int
-	analyzers []check.AnalyzerExecution
-	// diagnostics are the findings on comments, for the verdict.
-	diagnostics []check.Diagnostic
-	// files are those files with the findings on their comments, in the order
-	// they were handed over.
-	files []CheckFileResult
-}
-
-// checkComments runs `kapi check` over files, the files whose items declare
-// their comments, and keeps what it reports about their comments: each finding
-// on a comment, located by the comment's block and lines, with the analyzers
-// that read them and the blocks the check read. The check resolves the recipe
-// at projectPath the way the command line does, so each comment is checked at
-// its own point, with the directives the recipe declares set aside and against
-// the comment limits in force there.
-func checkComments(ctx context.Context, capp *host.App, projectPath string, files []project.ResolvedFile, sourceLang string) (commentChecks, error) {
-	var out commentChecks
-	if len(files) == 0 {
-		return out, nil
-	}
-	cmd := host.NewEnvCommand(ctx, "check")
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-	cmd.Flags().String("project", projectPath, "")
-
-	paths := make([]string, 0, len(files))
-	for _, rf := range files {
-		paths = append(paths, rf.Path)
-	}
-	report, err := capp.ComputeDeclaredCheck(cmd, paths) //nolint:contextcheck // ctx travels on cmd (host.NewEnvCommand), which ComputeCheck reads through CmdContext
-	if err != nil {
-		return out, err
-	}
-	out.blocks = report.Target.Blocks
-	if report.Execution != nil {
-		out.analyzers = report.Execution.Analyzers
-	}
-
-	byPath := make(map[string][]DesktopFinding, len(files))
-	for _, d := range report.Findings {
-		// A finding on a comment carries the fingerprint of the comment it sits
-		// on. The others are on the values the panel checks itself.
-		if d.Location.CommentSHA256 == "" {
-			continue
+// readerBlocks are the blocks of a checked file the Reader draws: the
+// reader's own, without the comment layer the check adds when the recipe
+// declares the file's comments.
+func readerBlocks(blocks []*model.Block) []*model.Block {
+	out := make([]*model.Block, 0, len(blocks))
+	for _, b := range blocks {
+		if !comment.IsBlock(b) {
+			out = append(out, b)
 		}
-		i := slices.IndexFunc(files, func(rf project.ResolvedFile) bool { return rf.Path == d.Location.File })
-		if i < 0 {
-			return out, fmt.Errorf("kapi check reported a comment in %s, which the run did not hand it", d.Location.File)
-		}
-		out.diagnostics = append(out.diagnostics, d)
-		byPath[files[i].Path] = append(byPath[files[i].Path], commentFinding(d, files[i], sourceLang))
 	}
-	for _, rf := range files {
-		found := byPath[rf.Path]
-		sortDesktopFindings(found)
-		out.files = append(out.files, CheckFileResult{Path: rf.Path, Findings: found})
-	}
-	return out, nil
+	return out
 }
 
-// commentFinding flattens a finding on a comment for the panel. The comment's
-// block and lines locate it, and its point is the one the comment was checked
-// at, which the recipe may place apart from its file's.
-func commentFinding(d check.Diagnostic, rf project.ResolvedFile, locale string) DesktopFinding {
+// desktopFinding flattens one finding of the host's project check for the
+// panel. blocks are the blocks the finding was raised over, which locate its
+// block by key; field is the side of the block the finding is on ("source" or
+// "target") and locale that side's language. doc is the checked file
+// project-relative, which a fix addresses.
+//
+// A finding raised over the whole document (a voice's required pattern) names
+// no block. A finding on a comment carries the comment's lines.
+func desktopFinding(d check.Diagnostic, blocks []*model.Block, field, locale, collection, doc string) DesktopFinding {
 	f := DesktopFinding{
-		Category:     d.Check,
+		Category:     strings.TrimPrefix(d.Rule, d.Check+"."),
 		Check:        d.Check,
 		Suggested:    d.Suggested,
 		Fails:        d.Fails,
 		Message:      d.Message,
 		Suggestion:   d.Suggestion,
 		OriginalText: d.Location.Snippet,
-		BlockID:      d.Location.Block,
-		Field:        "source",
+		Field:        field,
 		Locale:       locale,
 		Rule:         d.Rule,
-		Collection:   rf.Collection,
+		Collection:   collection,
 		Lines:        d.Location.Lines,
+		Replacement:  d.Metadata["replacement"],
+		Term:         d.Metadata["term"],
+	}
+	// A finding on a block names the rule as every surface that places findings
+	// in blocks names it (screens.FindingRule), so the Reader keys it the same
+	// way on the desktop and on the platform. A finding on a comment keeps the
+	// rule `kapi check` reports.
+	if d.Location.CommentSHA256 == "" {
+		f.Rule = findingRule(check.Finding{Category: f.Category, Metadata: d.Metadata, OriginalText: d.Location.Snippet})
 	}
 	if d.Point != nil {
 		f.Point = project.ChannelRef{Profile: d.Point.Profile, Channel: d.Point.Channel}.String()
@@ -590,19 +297,37 @@ func commentFinding(d check.Diagnostic, rf project.ResolvedFile, locale string) 
 	if d.Location.Anchor != nil {
 		f.Position = *d.Location.Anchor
 	}
+	if b := blockByKey(blocks, d.Location.Block); b != nil && !comment.IsBlock(b) {
+		f.BlockID = b.ID
+		f.SourceRuns = b.SourceRuns()
+		if field == "target" {
+			f.TargetRuns = b.TargetRuns(model.LocaleID(locale))
+		}
+	} else {
+		f.BlockID = d.Location.Block
+	}
+	if d.Fix != nil && field == "source" && doc != "" {
+		op := *d.Fix
+		op.At.Doc = doc
+		if raw, err := encodeChange(&op); err == nil {
+			f.Fix = raw
+		}
+	}
 	return f
 }
 
-// mergeFileFindings adds file's findings to the result for the same path, or
-// adds file as a result of its own when the run holds none for that path.
-func mergeFileFindings(files []CheckFileResult, file CheckFileResult) []CheckFileResult {
-	i := slices.IndexFunc(files, func(f CheckFileResult) bool { return f.Path == file.Path })
-	if i < 0 {
-		return append(files, file)
+// blockByKey finds the block a finding names by its key (convergence.BlockKey),
+// nil when the finding names none.
+func blockByKey(blocks []*model.Block, key string) *model.Block {
+	if key == "" {
+		return nil
 	}
-	files[i].Findings = append(files[i].Findings, file.Findings...)
-	sortDesktopFindings(files[i].Findings)
-	return files
+	for _, b := range blocks {
+		if b != nil && convergence.BlockKey(b) == key {
+			return b
+		}
+	}
+	return nil
 }
 
 // checksCLI lazily builds the host.App behind RunChecks, sharing the desktop's
@@ -824,63 +549,6 @@ func (a *App) resolveTargetPath(rf project.ResolvedFile, op *openProject, target
 	}
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	return pctx.TargetFile(*rf.Item, filepath.ToSlash(rf.Relative), model.LocaleID(targetLang))
-}
-
-// resolveProjectDNTTerms collects do-not-translate terms from the project's
-// auto-opened terms. A concept opts in via a `do_not_translate` property
-// (the term must survive verbatim); its source-locale term texts are returned.
-// Returns nil when there is no terms or no opted-in concepts — the
-// do-not-translate check is then skipped, matching the CLI's flag-driven default.
-func (a *App) resolveProjectDNTTerms(ctx context.Context, op *openProject, sourceLang string) []string {
-	// Inspect and translation retain their best-effort context policy.
-	resolved, _ := a.resolveProjectDNTTermsStrict(ctx, op, sourceLang)
-	return resolved
-}
-
-// resolveProjectDNTTermsStrict refuses to turn unavailable governance into an
-// empty protected-term list for a completed checks result.
-func (a *App) resolveProjectDNTTermsStrict(ctx context.Context, op *openProject, sourceLang string) ([]string, error) {
-	if op.tbHandle == "" {
-		return nil, nil
-	}
-	tb, ok := a.tbHandles.Get(op.tbHandle)
-	if !ok || tb == nil {
-		return nil, errors.New("bound terms store is unavailable")
-	}
-	srcLoc := model.LocaleID(sourceLang)
-	seen := make(map[string]bool)
-	var terms []string
-	concepts, err := tb.Concepts(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("read protected terms: %w", err)
-	}
-	for _, c := range concepts {
-		if !dntConcept(c.Properties) {
-			continue
-		}
-		for _, t := range c.Terms {
-			if (srcLoc == "" || t.Locale == srcLoc) && t.Text != "" && !seen[t.Text] {
-				seen[t.Text] = true
-				terms = append(terms, t.Text)
-			}
-		}
-	}
-	sort.Strings(terms)
-	return terms, nil
-}
-
-// dntConcept reports whether a concept's properties mark it do-not-translate.
-func dntConcept(props map[string]string) bool {
-	if props == nil {
-		return false
-	}
-	for _, k := range []string{"do_not_translate", "dnt", "no_translate"} {
-		switch strings.ToLower(props[k]) {
-		case "true", "1", "yes":
-			return true
-		}
-	}
-	return false
 }
 
 // toDesktopFinding flattens a check.Finding for the panel, wiring the block ID,
