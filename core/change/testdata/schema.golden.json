@@ -23,7 +23,7 @@
     },
     "require_basis": {
       "type": "boolean",
-      "description": "refuse a derived-edition write whose authoritative edition moved since it was read"
+      "description": "refuse a derived-edition write, or a decision, whose authoritative edition moved since it was read"
     },
     "note": {
       "type": "string",
@@ -732,6 +732,11 @@
                 "type": "string",
                 "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              },
+              "basis": {
+                "type": "string",
+                "description": "the revision of the authoritative edition you read beside the edition you decide on; under require_basis a decision is refused when it moved",
+                "pattern": "^r:[0-9a-f]{16}$"
               },
               "outcome": {
                 "type": "string",

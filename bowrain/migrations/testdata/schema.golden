@@ -789,6 +789,24 @@ refresh_tokens.family_id text NOT NULL DEFAULT ''::text
 refresh_tokens.id text NOT NULL
 refresh_tokens.token_hash text NOT NULL
 refresh_tokens.user_id text NOT NULL
+review_deck_facts.block_id text NOT NULL
+review_deck_facts.computed_at timestamp with time zone NOT NULL DEFAULT now()
+review_deck_facts.decision_at timestamp with time zone NULL
+review_deck_facts.deck_group text NOT NULL
+review_deck_facts.failing integer NOT NULL DEFAULT 0
+review_deck_facts.findings integer NOT NULL DEFAULT 0
+review_deck_facts.group_rank integer NOT NULL
+review_deck_facts.locale text NOT NULL
+review_deck_facts.policy text NOT NULL DEFAULT ''::text
+review_deck_facts.prereview_at timestamp with time zone NULL
+review_deck_facts.project_id text NOT NULL
+review_deck_facts.reason text NOT NULL DEFAULT ''::text
+review_deck_facts.source_revision text NOT NULL DEFAULT ''::text
+review_deck_facts.stream text NOT NULL DEFAULT 'main'::text
+review_deck_facts.target_updated_at timestamp with time zone NOT NULL
+review_deck_facts.term_compliance text NOT NULL DEFAULT ''::text
+review_deck_facts.voice_bar integer NULL
+review_deck_facts.voice_score integer NULL
 review_items.assigned_to text NOT NULL DEFAULT ''::text
 review_items.comment text NOT NULL DEFAULT ''::text
 review_items.confidence double precision NOT NULL DEFAULT 0
@@ -1416,6 +1434,8 @@ quota_schema_migrations quota_schema_migrations_pkey PRIMARY KEY (version)
 refresh_tokens refresh_tokens_pkey PRIMARY KEY (id)
 refresh_tokens refresh_tokens_token_hash_key UNIQUE (token_hash)
 refresh_tokens refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+review_deck_facts review_deck_facts_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+review_deck_facts review_deck_facts_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 review_items review_items_pkey PRIMARY KEY (id)
 review_items review_items_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 role_templates role_templates_pkey PRIMARY KEY (workspace_id, id)
@@ -1825,6 +1845,7 @@ CREATE UNIQUE INDEX provider_configs_pkey ON public.provider_configs USING btree
 CREATE UNIQUE INDEX quota_schema_migrations_pkey ON public.quota_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX refresh_tokens_pkey ON public.refresh_tokens USING btree (id)
 CREATE UNIQUE INDEX refresh_tokens_token_hash_key ON public.refresh_tokens USING btree (token_hash)
+CREATE UNIQUE INDEX review_deck_facts_pkey ON public.review_deck_facts USING btree (project_id, stream, block_id, locale)
 CREATE UNIQUE INDEX review_items_pkey ON public.review_items USING btree (id)
 CREATE UNIQUE INDEX role_templates_pkey ON public.role_templates USING btree (workspace_id, id)
 CREATE UNIQUE INDEX role_templates_workspace_id_name_key ON public.role_templates USING btree (workspace_id, name)

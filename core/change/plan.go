@@ -196,18 +196,30 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 	for _, i := range decides {
 		op := p.set.Ops[i]
 		p.results[i].At = p.canonical(b, op.At.Edition)
-		if op.IfMatch == AnyRevision {
-			continue
-		}
-		if rev := model.EditionRevision(b, op.At.Edition); rev != op.IfMatch {
-			ed, _ := b.Edition(op.At.Edition)
-			cur := &Current{Rev: rev}
-			if rev != model.AbsentRevision {
-				cur.Text = model.RunsEditText(ed.Runs)
+		if op.IfMatch != AnyRevision {
+			if rev := model.EditionRevision(b, op.At.Edition); rev != op.IfMatch {
+				ed, _ := b.Edition(op.At.Edition)
+				cur := &Current{Rev: rev}
+				if rev != model.AbsentRevision {
+					cur.Text = model.RunsEditText(ed.Runs)
+				}
+				p.refuse(i, &Error{Code: CodeStale, Field: "if_match",
+					Message: fmt.Sprintf("edition %s of block %s is at %s, not %s", editionLabel(b, op.At.Edition), key, rev, op.IfMatch)})
+				p.results[i].Current = cur
+				continue
 			}
-			p.refuse(i, &Error{Code: CodeStale, Field: "if_match",
-				Message: fmt.Sprintf("edition %s of block %s is at %s, not %s", editionLabel(b, op.At.Edition), key, rev, op.IfMatch)})
-			p.results[i].Current = cur
+		}
+		// Under require_basis, a decision's basis names the authoritative
+		// edition its sender read beside the edition decided on, so a decision
+		// on a translation whose source moved is refused, as a write to it is.
+		if op.Basis != "" && p.set.RequireBasis {
+			auth := b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))
+			if rev := model.EditionRevision(b, auth); rev != op.Basis {
+				ed, _ := b.Edition(auth)
+				p.refuse(i, &Error{Code: CodeStale, Field: "basis",
+					Message: fmt.Sprintf("the authoritative edition %s of block %s is at %s, not %s", editionLabel(b, auth), key, rev, op.Basis)})
+				p.results[i].Current = &Current{Rev: rev, Text: model.RunsEditText(ed.Runs)}
+			}
 		}
 	}
 

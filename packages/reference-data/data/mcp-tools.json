@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T17:45:07Z",
+  "generatedAt": "2026-11-12T22:31:56Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -46,7 +46,7 @@
           "name": "require_basis",
           "type": "boolean",
           "required": false,
-          "description": "refuse a derived-edition write whose authoritative edition moved since it was read"
+          "description": "refuse a derived-edition write, or a decision, whose authoritative edition moved since it was read"
         },
         {
           "name": "schema",

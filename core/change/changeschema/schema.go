@@ -284,6 +284,9 @@ func buildSchema() (*jsonschema.Schema, error) {
 		}
 		if spec.Basis {
 			s := str("for a derived edition: the revision of the authoritative edition the content was made from")
+			if spec.Kind == change.KindDecide {
+				s = str("the revision of the authoritative edition you read beside the edition you decide on; under require_basis a decision is refused when it moved")
+			}
 			s.Pattern = patternRevision
 			add("basis", s, false)
 		}
@@ -302,7 +305,7 @@ func buildSchema() (*jsonschema.Schema, error) {
 		"schema":        constant(change.SchemaID),
 		"mode":          enum("apply (the default), or preview: compute and check, write nothing", string(change.ModeApply), string(change.ModePreview)),
 		"gate":          enum("enforce (the default): a failing finding the change introduces refuses it; report: the change lands with its findings", string(change.GateEnforce), string(change.GateReport)),
-		"require_basis": {Type: "boolean", Description: "refuse a derived-edition write whose authoritative edition moved since it was read"},
+		"require_basis": {Type: "boolean", Description: "refuse a derived-edition write, or a decision, whose authoritative edition moved since it was read"},
 		"note":          str("one line a person reads in history and review"),
 		"evidence":      {Type: "array", Items: evidence, Description: "where the wording behind the change was seen"},
 		"ops":           {Type: "array", Items: &jsonschema.Schema{OneOf: members}, Description: "the operations, applied in order; a position names the content as read, and an empty list changes nothing. Several operations may name one block, each sending the rev you read, since every if_match is checked against the content the change set began with"},

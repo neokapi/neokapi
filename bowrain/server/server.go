@@ -57,6 +57,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	coreblockstore "github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/host/reviewdeck"
 )
 
 // Server is the REST API server for neokapi.
@@ -346,6 +347,10 @@ type Server struct {
 	// feature toggles. Always non-nil (falls back to env Defaults when the DB
 	// store is unavailable), so callers never nil-check.
 	PlatformConfig *platformconfig.Service
+
+	// ReviewDeckPolicy holds the review deck's thresholds. Its zero value is
+	// reviewdeck.DefaultDeckPolicy.
+	ReviewDeckPolicy reviewdeck.DeckPolicy
 
 	// StripeClient manages Stripe API interactions (Bowrain AD-018).
 	// Nil when STRIPE_SECRET_KEY is not set.
@@ -1926,6 +1931,8 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// The context a reviewer decides in, for one unit: what governs it, what
 	// surrounds it, what was decided about it, what the checks found.
 	g.GET("/:id/blocks/:ref/:bid/review-context", s.HandleGetReviewContext)
+	// The ready-made corrections the fix sheet offers for one translation.
+	g.GET("/:id/blocks/:ref/:bid/fix-candidates", s.HandleGetFixCandidates)
 	g.GET("/:id/blocks/:ref/:bid/html", s.HandleRenderBlockHTML)
 
 	// Entities on blocks are annotations a change set writes; promoting one
@@ -1999,6 +2006,8 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Pending translation review — the session's server-side queue.
 	g.GET("/:id/pending-review/:ref", s.HandleListPendingReview)
+	// The same queue for one language, grouped and ordered as a review deck.
+	g.GET("/:id/review-deck/:ref", s.HandleGetReviewDeck)
 
 	// Review queue — Bowrain AD-011: /:ws/:id/review-queue/:ref
 	g.GET("/:id/review-queue/:ref", s.HandleListReviewQueue)

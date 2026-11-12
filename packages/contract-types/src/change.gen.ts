@@ -38,8 +38,8 @@ export interface ChangeSet {
    */
   gate?: ChangeGate;
   /**
-   * refuse a derived-edition write whose authoritative edition moved since it
-   * was read
+   * refuse a derived-edition write, or a decision, whose authoritative edition
+   * moved since it was read
    */
   require_basis?: boolean;
   /** one line a person reads in history and review */
@@ -344,6 +344,13 @@ export interface DecideOp {
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
   if_match: string;
+  /**
+   * the revision of the authoritative edition you read beside the edition you
+   * decide on; under require_basis a decision is refused when it moved
+   *
+   * @pattern ^r:[0-9a-f]{16}$
+   */
+  basis?: string;
   /** establish, reject, withdraw, or prereview (an agent's pre-review) */
   outcome: DecideOutcome;
   /**

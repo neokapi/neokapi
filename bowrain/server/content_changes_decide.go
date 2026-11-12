@@ -24,6 +24,7 @@ import (
 //   - establish moves the translation to established, under the workspace's
 //     separation-of-duties policy. A change set that also writes the
 //     translation it establishes is judged as the sender's own work.
+//     Refusing that approval keeps the correction.
 //   - reject moves it to draft, so it re-enters the work queue; withdraw moves
 //     it to translated. Moving an established translation takes the review
 //     permission for its language.
@@ -54,7 +55,14 @@ type streamDecisions struct {
 	approved map[model.LocaleID]bool
 	// applied counts the decisions that moved a translation.
 	applied int
+	// heldForSecondReviewer are the approvals of the sender's own
+	// correction that the separation-of-duties policy refuses, keyed by
+	// block id and locale. The correction lands, and Apply refuses the
+	// decision.
+	heldForSecondReviewer map[string]error
 }
+
+func heldKey(blockID, locale string) string { return blockID + "\x00" + locale }
 
 var _ change.Assets = (*streamDecisions)(nil)
 
@@ -115,6 +123,13 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 			sod.wrote(row.Block.ID, locale)
 		}
 		if err := sod.vet(row.Block.ID, locale); err != nil {
+			if fault, ok := errors.AsType[reviewFault](err); ok && edited && fault.msg == sodRefusal {
+				if d.heldForSecondReviewer == nil {
+					d.heldForSecondReviewer = map[string]error{}
+				}
+				d.heldForSecondReviewer[heldKey(row.Block.ID, locale)] = err
+				return nil
+			}
 			return decisionRefusal(err)
 		}
 	default:
@@ -137,6 +152,11 @@ func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *ch
 			Message: fmt.Sprintf("%s holds no block keyed %q", target.Doc.Doc, target.Ref.Block)}
 	}
 	locale := string(target.Ref.Edition.Locale)
+	if err, held := d.heldForSecondReviewer[heldKey(row.Block.ID, locale)]; held && body.Outcome == change.OutcomeEstablish {
+		e := decisionRefusal(err)
+		e.Message = sodRefusal + "; your correction is saved and waits for another reviewer to approve it"
+		return "", e
+	}
 	req := ReviewBlockRequest{TargetLocale: locale, ItemName: target.Doc.Doc, BaseRevision: target.Rev}
 	demoteTo := model.TargetStatusTranslated
 	switch body.Outcome {
