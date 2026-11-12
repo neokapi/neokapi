@@ -52,6 +52,17 @@ func runSessionStoreTests(t *testing.T, store SessionStateStore) {
 		assert.ErrorIs(t, err, ErrSessionNotFound)
 	})
 
+	t.Run("take is single use", func(t *testing.T) {
+		require.NoError(t, store.Set(ctx, "test:take", []byte("once"), 1*time.Minute))
+		val, err := store.Take(ctx, "test:take")
+		require.NoError(t, err)
+		assert.Equal(t, []byte("once"), val)
+		_, err = store.Take(ctx, "test:take")
+		require.ErrorIs(t, err, ErrSessionNotFound)
+		_, err = store.Get(ctx, "test:take")
+		assert.ErrorIs(t, err, ErrSessionNotFound)
+	})
+
 	t.Run("delete missing key", func(t *testing.T) {
 		// Should not error.
 		require.NoError(t, store.Delete(ctx, "test:nonexistent-delete"))

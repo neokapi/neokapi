@@ -210,11 +210,57 @@ against a small sender interface so the switch stays local.
 
 ## Sign-in and permissions
 
-- OIDC authorization code flow with PKCE through `expo-auth-session`
-  (`exchangeCodeAsync`, `refreshAsync`) against the workspace's identity
-  provider: Cognito's hosted UI in production, Keycloak locally (which needs
-  the `offline_access` scope for a refresh token). AWS Amplify is not needed.
+The API accepts only the tokens the Bowrain server issues, so the server
+brokers the OIDC flow with the workspace's identity provider (Cognito's hosted
+UI in production, Keycloak locally) and the app never holds the provider's
+tokens. The redirect back to the app carries a one-time code, never a token: a
+custom-scheme redirect can be delivered to any app that registered the same
+scheme, and the code is useless without the PKCE verifier, which stays in the
+app.
+
+1. The app generates a PKCE verifier, its S256 challenge and a random `state`,
+   and opens the sign-in route in a browser session (`expo-web-browser`):
+
+   `GET /api/v1/auth/desktop/login?redirect_uri=bowrain://auth/callback&code_challenge=<S256>&code_challenge_method=S256&state=<state>&response_mode=code`
+
+   With `response_mode=code` the server requires `S256` (it refuses `plain`
+   and a missing method), a challenge that decodes to a SHA-256 digest, and a
+   `state`. The redirect has to pass the same allowlist as the desktop app's:
+   a loopback `http` URL or a `bowrain://` URL.
+2. After sign-in at the identity provider the server stores a one-time code
+   for the person, bound to the challenge and the redirect, in the shared
+   session store (Redis, so every server instance sees it; the in-memory
+   store is for a single instance). The code lives 60 seconds and holds no
+   token. The server redirects to `bowrain://auth/callback?code=<code>&state=<state>`.
+3. The app refuses a callback whose `state` is missing or different, then
+   redeems the code:
+
+   `POST /api/v1/auth/desktop/token` with `{"code", "code_verifier", "redirect_uri"}`
+
+   The server takes the code from the store in one atomic step, so the first
+   attempt spends it whether or not it succeeds. It checks the redirect and
+   compares the verifier's challenge with the stored one in constant time. It
+   answers `{"access_token", "refresh_token", "token_type", "expires_in"}`,
+   or `400 invalid_grant` for an unknown, used or expired code, another
+   redirect or a wrong verifier. A refusal is logged with its reason and
+   never with the code. The route sits behind the per-IP auth throttle.
+4. The access token lives 15 minutes. The app refreshes it with
+   `POST /api/v1/auth/refresh` and `{"refresh_token"}` in the body; the
+   server rotates the refresh token on every use.
+
 - The refresh token is held in the platform keychain (`expo-secure-store`).
+- Without `response_mode` the sign-in route keeps redirecting with the tokens
+  in the query, which is what the Bowrain desktop app reads today. Moving the
+  desktop app to `response_mode=code` is a follow-up.
+- In production the redirect should be an `https` URL on the Bowrain web
+  domain (Universal Links on iOS, App Links on Android), so no other app can
+  claim it. That is a founder step: publish
+  `/.well-known/apple-app-site-association` (the team ID and bundle ID
+  `cloud.bowrain.app`, path `/auth/callback`) and `/.well-known/assetlinks.json`
+  (package `cloud.bowrain.app` and the signing certificate's SHA-256) on the
+  web domain, add the associated domain to the app's config, and add that
+  `https` URL to the server's redirect allowlist. Development builds keep the
+  `bowrain://` redirect.
 - The review permission is language-scoped (`PermReview`); the app shows only
   the languages a person may approve, and the server checks again on every
   decision.

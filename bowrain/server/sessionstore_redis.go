@@ -53,6 +53,16 @@ func (s *RedisSessionStore) Get(ctx context.Context, key string) ([]byte, error)
 	return val, err
 }
 
+// Take reads and deletes a key in one GETDEL, so every server instance sees a
+// single-use key spent once.
+func (s *RedisSessionStore) Take(ctx context.Context, key string) ([]byte, error) {
+	val, err := s.client.GetDel(ctx, key).Bytes()
+	if errors.Is(err, redis.Nil) {
+		return nil, ErrSessionNotFound
+	}
+	return val, err
+}
+
 func (s *RedisSessionStore) Delete(ctx context.Context, key string) error {
 	return s.client.Del(ctx, key).Err()
 }

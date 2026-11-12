@@ -26,6 +26,11 @@ type SessionStateStore interface {
 
 	// Delete removes a key. Returns nil if the key does not exist.
 	Delete(ctx context.Context, key string) error
+
+	// Take retrieves a value and removes it in one atomic step, so of two
+	// concurrent takes of one key at most one gets the value. Returns
+	// ErrSessionNotFound if the key does not exist or has expired.
+	Take(ctx context.Context, key string) ([]byte, error)
 }
 
 // memoryEntry is a value with an expiry time in the in-memory store.
@@ -81,6 +86,20 @@ func (s *MemorySessionStore) Get(_ context.Context, key string) ([]byte, error) 
 	return val, nil
 }
 
+func (s *MemorySessionStore) Take(_ context.Context, key string) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.entries[key]
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+	delete(s.entries, key)
+	if time.Now().After(e.ExpiresAt) {
+		return nil, ErrSessionNotFound
+	}
+	return e.Value, nil
+}
+
 func (s *MemorySessionStore) Delete(_ context.Context, key string) error {
 	s.mu.Lock()
 	delete(s.entries, key)
@@ -125,6 +144,7 @@ const (
 	prefixDeviceCode    = "device:"
 	prefixWebAuth       = "webauth:"
 	prefixDesktopAuth   = "desktop:"
+	prefixDesktopCode   = "desktopcode:" // one-time sign-in code (keyed by the code), single use
 	prefixDeviceVerify  = "deviceverify:"
 	prefixUserCode      = "usercode:" // secondary index: userCode → deviceCode
 	prefixIDToken       = "idtoken:"  // OIDC ID token for logout (keyed by user ID)
@@ -146,6 +166,19 @@ func sessionSet[T any](ctx context.Context, store SessionStateStore, prefix, key
 
 func sessionGet[T any](ctx context.Context, store SessionStateStore, prefix, key string) (*T, error) {
 	data, err := store.Get(ctx, prefix+key)
+	if err != nil {
+		return nil, err
+	}
+	var val T
+	if err := json.Unmarshal(data, &val); err != nil {
+		return nil, err
+	}
+	return &val, nil
+}
+
+// sessionTake reads a value and removes it atomically: a single-use secret.
+func sessionTake[T any](ctx context.Context, store SessionStateStore, prefix, key string) (*T, error) {
+	data, err := store.Take(ctx, prefix+key)
 	if err != nil {
 		return nil, err
 	}
