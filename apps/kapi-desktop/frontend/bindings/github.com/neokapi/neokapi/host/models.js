@@ -4264,6 +4264,15 @@ export class ConvergeOutput {
              */
             this["findings"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * PreReview counts what the AI pre-review scored after the run, nil when
+             * none was asked for (kapi up --pre-review).
+             * @member
+             * @type {PreReviewResult | null | undefined}
+             */
+            this["preReview"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -4278,6 +4287,7 @@ export class ConvergeOutput {
         const $$createField4_0 = $$createType94;
         const $$createField16_0 = $$createType96;
         const $$createField17_0 = $$createType98;
+        const $$createField18_0 = $$createType100;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4290,6 +4300,9 @@ export class ConvergeOutput {
         }
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField17_0($$parsedSource["findings"]);
+        }
+        if ("preReview" in $$parsedSource) {
+            $$parsedSource["preReview"] = $$createField18_0($$parsedSource["preReview"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4536,7 +4549,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType100;
+        const $$createField2_0 = $$createType102;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -4614,9 +4627,9 @@ export class FindingsReport {
      * @returns {FindingsReport}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType101;
-        const $$createField1_0 = $$createType102;
-        const $$createField2_0 = $$createType104;
+        const $$createField0_0 = $$createType103;
+        const $$createField1_0 = $$createType104;
+        const $$createField2_0 = $$createType106;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
@@ -4671,6 +4684,55 @@ export class ParkedScope {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ParkedScope(/** @type {Partial<ParkedScope>} */($$parsedSource));
+    }
+}
+
+/**
+ * PreReviewResult counts what a pre-review run did.
+ */
+export class PreReviewResult {
+    /**
+     * Creates a new PreReviewResult instance.
+     * @param {Partial<PreReviewResult>} [$$source = {}] - The source object to create the PreReviewResult.
+     */
+    constructor($$source = {}) {
+        if (!("model" in $$source)) {
+            /**
+             * Model is the reviewer the annotations name.
+             * @member
+             * @type {string}
+             */
+            this["model"] = "";
+        }
+        if (!("reviewed" in $$source)) {
+            /**
+             * Reviewed counts the blocks annotated with a score.
+             * @member
+             * @type {number}
+             */
+            this["reviewed"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Skipped counts the blocks left without an annotation: the model gave no
+             * usable score, or the block could not be read again.
+             * @member
+             * @type {number | undefined}
+             */
+            this["skipped"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PreReviewResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PreReviewResult}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PreReviewResult(/** @type {Partial<PreReviewResult>} */($$parsedSource));
     }
 }
 
@@ -4825,7 +4887,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType106;
+        const $$createField0_0 = $$createType108;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -4977,10 +5039,10 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType108;
-        const $$createField4_0 = $$createType107;
+        const $$createField3_0 = $$createType110;
+        const $$createField4_0 = $$createType109;
         const $$createField9_0 = $$createType96;
-        const $$createField10_0 = $$createType109;
+        const $$createField10_0 = $$createType111;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5269,14 +5331,16 @@ const $$createType95 = check$0.Warning.createFrom;
 const $$createType96 = $Create.Array($$createType95);
 const $$createType97 = FindingsReport.createFrom;
 const $$createType98 = $Create.Nullable($$createType97);
-const $$createType99 = DigestGroup.createFrom;
-const $$createType100 = $Create.Array($$createType99);
-const $$createType101 = check$0.Target.createFrom;
-const $$createType102 = check$0.Summary.createFrom;
-const $$createType103 = check$0.Diagnostic.createFrom;
-const $$createType104 = $Create.Array($$createType103);
-const $$createType105 = RulesFile.createFrom;
+const $$createType99 = PreReviewResult.createFrom;
+const $$createType100 = $Create.Nullable($$createType99);
+const $$createType101 = DigestGroup.createFrom;
+const $$createType102 = $Create.Array($$createType101);
+const $$createType103 = check$0.Target.createFrom;
+const $$createType104 = check$0.Summary.createFrom;
+const $$createType105 = check$0.Diagnostic.createFrom;
 const $$createType106 = $Create.Array($$createType105);
-const $$createType107 = UpPlanScope.createFrom;
+const $$createType107 = RulesFile.createFrom;
 const $$createType108 = $Create.Array($$createType107);
-const $$createType109 = project$0.StoreDrift.createFrom;
+const $$createType109 = UpPlanScope.createFrom;
+const $$createType110 = $Create.Array($$createType109);
+const $$createType111 = project$0.StoreDrift.createFrom;

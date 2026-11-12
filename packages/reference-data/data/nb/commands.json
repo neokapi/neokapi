@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T15:35:31Z",
+  "generatedAt": "2026-11-12T16:17:29Z",
   "commands": [
     {
       "id": "add",
@@ -8358,12 +8358,6 @@
           "type": "string"
         },
         {
-          "name": "pre-review",
-          "usage": "with --review, have the AI review tool score each translation awaiting review before listing it; a score is advisory and never approves a block",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "project",
           "shorthand": "p",
           "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra cwd hvis utelatt)",
@@ -9707,6 +9701,12 @@
           "type": "bool"
         },
         {
+          "name": "pre-review",
+          "usage": "after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "print-ops",
           "usage": "write no file and print the change set the run would apply, for kapi apply",
           "default": "false",
@@ -9780,6 +9780,7 @@
         "kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
         "kapi up --recycle-only # fill exact content-memory matches only, with no provider",
+        "kapi up --pre-review   # then have the AI model score the translations awaiting review",
         "kapi up --materialize  # also write target-language files for the shippable locales",
         "kapi up --local        # connected project: run the loop on this machine, then push the results",
         "kapi up -p kapi.yaml   # bring an explicit project recipe up to date"

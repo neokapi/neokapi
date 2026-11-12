@@ -2691,7 +2691,7 @@ export function RulesFiles(tabID) {
 
 /**
  * RunAIPreReview runs the AI pre-review over the pending review queue for a
- * locale (host.App.RunAIPreReview, which `kapi status --review --pre-review`
+ * locale (host.App.RunAIPreReview, which `kapi up --pre-review`
  * also runs). Every block gets an advisory annotation (score and findings) in
  * the project state store, bound to the translation it judged, and stays in
  * the queue for a person to decide. The judge is built from the desktop's
