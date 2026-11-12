@@ -51,13 +51,18 @@ function useOnline(): boolean {
 
 export default function DeckScreen() {
   const { t } = useTranslation();
-  const { ws, project, locale } = useLocalSearchParams<{ ws: string; project: string; locale: string }>();
+  const { ws, project, locale } = useLocalSearchParams<{
+    ws: string;
+    project: string;
+    locale: string;
+  }>();
   const { client } = useAuth();
   const qc = useQueryClient();
   const online = useOnline();
   const scope: ProjectScope = useMemo(() => ({ workspace: ws, project }), [ws, project]);
   const sourceLanguage =
-    qc.getQueryData<Project[]>(["projects", ws])?.find((p) => p.id === project)?.default_source_language ?? "";
+    qc.getQueryData<Project[]>(["projects", ws])?.find((p) => p.id === project)
+      ?.default_source_language ?? "";
 
   const deck = useInfiniteQuery({
     queryKey: ["deck", ws, project, locale],
@@ -75,7 +80,10 @@ export default function DeckScreen() {
       const data = m.state.data as DecisionResult | undefined;
       if (!v) return "";
       if (m.state.status === "pending") return cardId(v.card);
-      if (m.state.status === "success" && (data?.outcome === "applied" || data?.outcome === "held")) {
+      if (
+        m.state.status === "success" &&
+        (data?.outcome === "applied" || data?.outcome === "held")
+      ) {
         return cardId(v.card);
       }
       return "";
@@ -90,7 +98,10 @@ export default function DeckScreen() {
   const [fixing, setFixing] = useState<DeckCard | null>(null);
   const [undoable, setUndoable] = useState(false);
 
-  const cards = useMemo(() => mergePages((deck.data?.pages ?? []).map((p) => p.cards)), [deck.data]);
+  const cards = useMemo(
+    () => mergePages((deck.data?.pages ?? []).map((p) => p.cards)),
+    [deck.data],
+  );
   const view = useMemo(() => deckView(cards, new Set(decided), later), [cards, decided, later]);
   const top = view.swipe[0];
   const next = view.swipe[1];
@@ -107,10 +118,15 @@ export default function DeckScreen() {
   const withdraw = useMutation<unknown, unknown, WithdrawVars>({ mutationKey: WITHDRAW_KEY });
 
   const record = useCallback(
-    (card: DeckCard, kind: DecisionKind, extra: { runs?: Run[]; reasons?: FixReason[]; note?: string } = {}) => {
+    (
+      card: DeckCard,
+      kind: DecisionKind,
+      extra: { runs?: Run[]; reasons?: FixReason[]; note?: string } = {},
+    ) => {
       decide.mutate({ id: Crypto.randomUUID(), scope, card, kind, madeAt: Date.now(), ...extra });
       setUndoable(true);
-      if (kind === "approve") void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (kind === "approve")
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       else void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     },
     [decide, scope],
@@ -149,7 +165,11 @@ export default function DeckScreen() {
             : t("deck.remainingShort", { count: view.swipe.length })}
         </Text>
         <Text testID="deck-sync" className="text-muted-foreground text-sm">
-          {!online ? t("deck.offline", { count: queued }) : queued > 0 ? t("deck.sending", { count: queued }) : ""}
+          {!online
+            ? t("deck.offline", { count: queued })
+            : queued > 0
+              ? t("deck.sending", { count: queued })
+              : ""}
         </Text>
       </View>
 
@@ -158,13 +178,19 @@ export default function DeckScreen() {
       ) : null}
 
       {notices.map((n) => (
-        <View key={n.id} testID={`notice-${n.kind}`} className="bg-warning mx-4 mb-2 gap-1 rounded-xl px-3 py-2">
+        <View
+          key={n.id}
+          testID={`notice-${n.kind}`}
+          className="bg-warning mx-4 mb-2 gap-1 rounded-xl px-3 py-2"
+        >
           <Text className="text-warning-foreground text-sm">{t(`notice.${n.kind}`)}</Text>
           {n.message && n.kind === "refused" ? (
             <Text className="text-warning-foreground text-xs">{n.message}</Text>
           ) : null}
           <Pressable accessibilityRole="button" onPress={() => dismissNotice(qc, n.id)}>
-            <Text className="text-warning-foreground text-sm font-semibold">{t("common.dismiss")}</Text>
+            <Text className="text-warning-foreground text-sm font-semibold">
+              {t("common.dismiss")}
+            </Text>
           </Pressable>
         </View>
       ))}
@@ -186,7 +212,12 @@ export default function DeckScreen() {
                 <ReviewCard card={next} sourceLanguage={sourceLanguage} />
               </View>
             ) : null}
-            <SwipeCard key={cardId(top)} ref={swipeRef} canApprove={!top.ownWork} onAction={onAction}>
+            <SwipeCard
+              key={cardId(top)}
+              ref={swipeRef}
+              canApprove={!top.ownWork}
+              onAction={onAction}
+            >
               <ReviewCard card={top} sourceLanguage={sourceLanguage} />
             </SwipeCard>
           </View>
@@ -197,7 +228,7 @@ export default function DeckScreen() {
 
       {top ? (
         <ActionBar
-          canApprove
+          canApprove={!top.ownWork}
           onAction={(a) => {
             if (swipeRef.current) swipeRef.current.swipe(a);
             else onAction(a);
@@ -242,10 +273,16 @@ function DeskList({ cards }: { cards: DeckCard[] }) {
   }
   return (
     <ScrollView contentContainerClassName="gap-3 pb-6">
-      <Text className="text-foreground text-base font-semibold">{t("deck.deskTitle", { count: cards.length })}</Text>
+      <Text className="text-foreground text-base font-semibold">
+        {t("deck.deskTitle", { count: cards.length })}
+      </Text>
       <Text className="text-muted-foreground text-sm">{t("deck.deskLead")}</Text>
       {cards.map((c) => (
-        <View key={c.key} testID="desk-card" className="bg-card border-border gap-2 rounded-xl border p-3">
+        <View
+          key={c.key}
+          testID="desk-card"
+          className="bg-card border-border gap-2 rounded-xl border p-3"
+        >
           <RunText runs={c.source} />
           {c.reason ? <Text className="text-muted-foreground text-xs">{c.reason}</Text> : null}
         </View>

@@ -166,7 +166,8 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     }
     if (!accept(res.status)) {
       const message =
-        (body as { error?: string } | undefined)?.error ?? `request failed with status ${res.status}`;
+        (body as { error?: string } | undefined)?.error ??
+        `request failed with status ${res.status}`;
       throw new ApiError(res.status, message, body);
     }
     return { status: res.status, body };
@@ -209,7 +210,11 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     },
 
     refresh(refreshToken) {
-      return postTokens("/auth/refresh", { refresh_token: refreshToken }, "the session could not be refreshed");
+      return postTokens(
+        "/auth/refresh",
+        { refresh_token: refreshToken },
+        "the session could not be refreshed",
+      );
     },
 
     async logout() {
@@ -294,7 +299,8 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         (s) => s < 500 && s !== 401,
       );
       if (!isChangeResult(body)) {
-        const message = (body as { error?: string } | undefined)?.error ?? "the change was not accepted";
+        const message =
+          (body as { error?: string } | undefined)?.error ?? "the change was not accepted";
         throw new ApiError(status, message, body);
       }
       return body;
@@ -393,7 +399,8 @@ export function cardFromServer(c: ServerDeckCard): DeckCard {
     locale: c.locale,
     collectionId: c.collection_id ?? "",
     name: c.key,
-    source: c.source_runs && c.source_runs.length > 0 ? c.source_runs : [{ text: c.source_text ?? "" }],
+    source:
+      c.source_runs && c.source_runs.length > 0 ? c.source_runs : [{ text: c.source_text ?? "" }],
     target,
     targetRevision: c.target_revision,
     sourceRevision: c.source_revision,

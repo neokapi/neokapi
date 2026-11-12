@@ -28,7 +28,9 @@ export default function Projects() {
             }
           />
         )}
-        ListEmptyComponent={<QueryState query={projects} empty={projects.isSuccess && t("projects.empty")} />}
+        ListEmptyComponent={
+          <QueryState query={projects} empty={projects.isSuccess && t("projects.empty")} />
+        }
       />
     </View>
   );

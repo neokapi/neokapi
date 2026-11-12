@@ -50,7 +50,9 @@ export default function Workspaces() {
         ListFooterComponent={
           <View className="items-center gap-2 p-6">
             {session?.email ? (
-              <Text className="text-muted-foreground text-sm">{t("signOut.signedInAs", { email: session.email })}</Text>
+              <Text className="text-muted-foreground text-sm">
+                {t("signOut.signedInAs", { email: session.email })}
+              </Text>
             ) : null}
             {session ? (
               <Pressable

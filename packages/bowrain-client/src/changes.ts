@@ -172,7 +172,13 @@ export type ChangeOutcome =
    */
   | { status: "held"; result: ChangeResult; error?: ChangeError }
   /** The translation or its source moved after the card was read. */
-  | { status: "stale"; result: ChangeResult; op: OpResult; current?: CurrentEdition; field?: string }
+  | {
+      status: "stale";
+      result: ChangeResult;
+      op: OpResult;
+      current?: CurrentEdition;
+      field?: string;
+    }
   | { status: "refused"; result: ChangeResult; error: ChangeError };
 
 /** Read a change set's result into the outcome a review surface acts on. */
@@ -187,7 +193,13 @@ export function readOutcome(result: ChangeResult): ChangeOutcome {
   }
   const stale = refused.find((op) => op.error?.code === "stale");
   if (stale) {
-    return { status: "stale", result, op: stale, current: stale.current, field: stale.error?.field };
+    return {
+      status: "stale",
+      result,
+      op: stale,
+      current: stale.current,
+      field: stale.error?.field,
+    };
   }
   const error = result.error ??
     refused.find((op) => op.error)?.error ?? { code: "invalid", message: "the change was refused" };

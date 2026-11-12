@@ -142,7 +142,8 @@ export interface DeckCard {
 
 /** A note on a card (`notes[]` of a deck card). */
 export interface DeckNote {
-  kind: "check" | "term" | "voice" | "pre_review" | string;
+  /** check, term, voice or pre_review; a kind a newer server adds reads as text. */
+  kind: string;
   text: string;
 }
 

@@ -38,7 +38,9 @@ export default function SignIn() {
           <Text className="text-muted-foreground text-base">{t("signIn.lead")}</Text>
         </View>
         <View className="gap-2">
-          <Text className="text-muted-foreground text-xs font-semibold uppercase">{t("signIn.server")}</Text>
+          <Text className="text-muted-foreground text-xs font-semibold uppercase">
+            {t("signIn.server")}
+          </Text>
           <TextInput
             testID="server-url"
             className="bg-card border-border text-foreground rounded-xl border p-4 text-base"
@@ -60,7 +62,9 @@ export default function SignIn() {
           {busy ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text className="text-primary-foreground text-base font-semibold">{t("signIn.button")}</Text>
+            <Text className="text-primary-foreground text-base font-semibold">
+              {t("signIn.button")}
+            </Text>
           )}
         </Pressable>
         {error ? (

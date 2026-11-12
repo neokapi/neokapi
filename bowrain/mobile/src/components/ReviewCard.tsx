@@ -9,7 +9,10 @@ import { RunText } from "./RunText";
 export function ReviewCard({ card, sourceLanguage }: { card: DeckCard; sourceLanguage: string }) {
   const { t } = useTranslation();
   return (
-    <View testID="review-card" className="bg-card border-border flex-1 rounded-3xl border p-5 shadow-sm">
+    <View
+      testID="review-card"
+      className="bg-card border-border flex-1 rounded-3xl border p-5 shadow-sm"
+    >
       <ScrollView contentContainerClassName="gap-5">
         <View className="gap-1">
           {card.name ? (
@@ -23,18 +26,24 @@ export function ReviewCard({ card, sourceLanguage }: { card: DeckCard; sourceLan
         </View>
 
         <View className="gap-2">
-          <Text className="text-muted-foreground text-xs font-semibold uppercase">{sourceLanguage}</Text>
+          <Text className="text-muted-foreground text-xs font-semibold uppercase">
+            {sourceLanguage}
+          </Text>
           <RunText runs={card.source} size="lg" testID="card-source" />
         </View>
 
         <View className="bg-border h-px" />
 
         <View className="gap-2">
-          <Text className="text-muted-foreground text-xs font-semibold uppercase">{card.locale}</Text>
+          <Text className="text-muted-foreground text-xs font-semibold uppercase">
+            {card.locale}
+          </Text>
           {card.target.length > 0 ? (
             <RunText runs={card.target} size="lg" testID="card-target" />
           ) : (
-            <Text className="text-muted-foreground text-base italic">{t("card.noTranslation")}</Text>
+            <Text className="text-muted-foreground text-base italic">
+              {t("card.noTranslation")}
+            </Text>
           )}
         </View>
 

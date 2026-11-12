@@ -17,7 +17,11 @@ const SEGMENTS: ModelRunSpec<Segment> = {
     r.noTranslate ? { kind: "locked", run: r, label: r.text } : { kind: "text", text: r.text },
   ph: (r) => ({ kind: "locked", run: r, label: codeLabel(r.ph) }),
   pcOpen: (r) => ({ kind: "locked", run: r, label: `<${codeLabel(r.pcOpen)}>` }),
-  pcClose: (r) => ({ kind: "locked", run: r, label: `</${codeLabel({ id: r.pcClose.id, equiv: r.pcClose.equiv })}>` }),
+  pcClose: (r) => ({
+    kind: "locked",
+    run: r,
+    label: `</${codeLabel({ id: r.pcClose.id, equiv: r.pcClose.equiv })}>`,
+  }),
   sub: (r) => ({ kind: "locked", run: r, label: `[${codeLabel(r.sub)}]` }),
   // A plural or select has forms of its own, which a single field cannot hold.
   // It stays as it is, and the editor reports that it cannot change it.

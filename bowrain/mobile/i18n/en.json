@@ -59,7 +59,7 @@
     "preReview": "Pre-review score {{score}}",
     "failingFindings_one": "1 failing check",
     "failingFindings_other": "{{count}} failing checks",
-    "ownWork": "You wrote this translation. Your workspace may require a second reviewer.",
+    "ownWork": "You wrote this translation, so another reviewer approves it. You can still fix or reject it.",
     "noContext": "No context for this text. You cannot see where it appears."
   },
   "actions": {
@@ -77,7 +77,8 @@
     "fixesUnavailable": "Fixes need a connection. You can still edit or reject.",
     "noFixRoute": "This server offers no ready-made fixes.",
     "noFixes": "No ready-made fix for this text.",
-    "askAi": "Ask for an AI rewrite",
+    "askAi": "Suggest a rewrite",
+    "askAiHint": "Uses AI credits.",
     "edit": "Edit",
     "notEditable": "This text has plural or select forms. Edit it on a computer.",
     "startEdit": "Edit the translation",
@@ -103,7 +104,7 @@
   },
   "notice": {
     "stale": "This text changed after you read it. The new version is back in the deck.",
-    "held": "Corrected. Waiting for a second reviewer.",
+    "held": "Your correction is saved and waits for another reviewer.",
     "refused": "The server did not accept a decision."
   },
   "undo": {

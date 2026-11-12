@@ -19,7 +19,15 @@ function tokenNode(t: DiffToken, key: string, className?: string) {
 }
 
 /** The diff between a draft and a fix, both as runs. */
-export function RunDiff({ before, after, testID }: { before: readonly Run[]; after: readonly Run[]; testID?: string }) {
+export function RunDiff({
+  before,
+  after,
+  testID,
+}: {
+  before: readonly Run[];
+  after: readonly Run[];
+  testID?: string;
+}) {
   const spans = diffRuns(before, after);
   return (
     <Text testID={testID} className="text-foreground text-base leading-6">

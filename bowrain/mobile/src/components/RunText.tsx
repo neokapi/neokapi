@@ -47,7 +47,11 @@ function spec(prefix: string): ModelRunSpec<ReactNode> {
     ph: ({ ph }) => <Chip key={key()} label={codeLabel(ph)} testID="run-chip" />,
     pcOpen: ({ pcOpen }) => <Chip key={key()} label={`<${codeLabel(pcOpen)}>`} testID="run-chip" />,
     pcClose: ({ pcClose }) => (
-      <Chip key={key()} label={`</${codeLabel({ id: pcClose.id, equiv: pcClose.equiv })}>`} testID="run-chip" />
+      <Chip
+        key={key()}
+        label={`</${codeLabel({ id: pcClose.id, equiv: pcClose.equiv })}>`}
+        testID="run-chip"
+      />
     ),
     sub: ({ sub }) => <Chip key={key()} label={`[${codeLabel(sub)}]`} testID="run-chip" />,
     plural: ({ plural }) => {
@@ -80,7 +84,9 @@ export function RunText({ runs, size = "base", testID }: RunTextProps) {
   return (
     <Text
       testID={testID}
-      className={size === "lg" ? "text-foreground text-xl leading-8" : "text-foreground text-base leading-6"}
+      className={
+        size === "lg" ? "text-foreground text-xl leading-8" : "text-foreground text-base leading-6"
+      }
     >
       {renderRuns(runs, "r")}
     </Text>

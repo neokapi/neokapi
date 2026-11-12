@@ -147,6 +147,71 @@ describe("client", () => {
     expect(calls[1]).toBe("http://server/api/v1/ws/p/pending-review/main?locales=nb&limit=200");
   });
 
+  it("reads the server's deck page and its fix candidates", async () => {
+    const deckBody = {
+      locale: "nb",
+      cards: [
+        {
+          block_id: "b1",
+          item_name: "web/i18n/en.json",
+          key: "settings.save",
+          collection_id: "c1",
+          locale: "nb",
+          source_runs: [{ text: "Save " }, ph],
+          target_runs: [{ text: "Lagre " }, ph],
+          source_revision: "r:0a1b2c3d4e5f6a7b",
+          target_revision: "r:74dbfac2ed1c9d6e",
+          notes: [{ kind: "term", text: "a note" }],
+          own_work: true,
+          group: "fast",
+          reason: "no findings, pre-review score 92",
+        },
+      ],
+      counts: { fast: 1, closer: 0, desk: 0, total: 1 },
+      next_cursor: "abc",
+    };
+    const fixesBody = {
+      candidates: [
+        { kind: "term", label: "Use x", runs: [{ text: "Lagre x" }], edit_text: "Lagre x" },
+      ],
+      dropped: [{ kind: "memory", why: "drops a placeholder" }],
+      notes: ["no AI provider is configured"],
+    };
+    const urls: string[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string) => {
+        urls.push(url);
+        return new Response(JSON.stringify(url.includes("fix-candidates") ? fixesBody : deckBody), {
+          status: 200,
+        });
+      }) as typeof fetch,
+    });
+    const deck = await client.deck({ workspace: "ws", project: "p" }, "nb", {
+      limit: 50,
+      cursor: "x",
+    });
+    expect(urls[0]).toBe("http://server/api/v1/ws/p/review-deck/main?locale=nb&limit=50&cursor=x");
+    expect(deck).toMatchObject({ ordered: true, nextCursor: "abc", total: 1 });
+    expect(deck.cards[0]).toMatchObject({
+      key: "b1:nb",
+      name: "settings.save",
+      sourceRevision: "r:0a1b2c3d4e5f6a7b",
+      targetRevision: "r:74dbfac2ed1c9d6e",
+      ownWork: true,
+      group: "fast",
+    });
+    const fixes = await client.fixCandidates({ workspace: "ws", project: "p" }, deck.cards[0], {
+      reason: "wrong_term",
+    });
+    expect(urls[1]).toBe(
+      "http://server/api/v1/ws/p/blocks/main/b1/fix-candidates?locale=nb&reason=wrong_term",
+    );
+    expect(fixes?.candidates.map((c) => c.kind)).toEqual(["term"]);
+    expect(fixes?.dropped).toHaveLength(1);
+  });
+
   it("refreshes once on a 401", async () => {
     let token = "old";
     const client = createBowrainClient({

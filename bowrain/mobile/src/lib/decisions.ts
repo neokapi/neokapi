@@ -141,9 +141,13 @@ export function registerDecisionDefaults(qc: QueryClient): void {
   qc.setMutationDefaults(WITHDRAW_KEY, {
     mutationFn: async (v: WithdrawVars | undefined) => {
       if (!v) throw new Error("nothing to withdraw");
-      const outcome = readOutcome(await client().applyChanges(v.scope, withdrawSet(v.card, v.revision)));
+      const outcome = readOutcome(
+        await client().applyChanges(v.scope, withdrawSet(v.card, v.revision)),
+      );
       if (outcome.status !== "applied") {
-        throw new Error(outcome.status === "refused" ? outcome.error.message : "the decision could not be undone");
+        throw new Error(
+          outcome.status === "refused" ? outcome.error.message : "the decision could not be undone",
+        );
       }
       return outcome;
     },
@@ -188,7 +192,12 @@ export function planUndo(qc: QueryClient): UndoPlan {
   const data = last.state.data;
   // A correction that landed is not withdrawn: its content stays, so the undo
   // of a sent fix is a new edit on a desk.
-  if (last.state.status === "success" && data?.outcome === "applied" && data.revision && vars.kind !== "fix") {
+  if (
+    last.state.status === "success" &&
+    data?.outcome === "applied" &&
+    data.revision &&
+    vars.kind !== "fix"
+  ) {
     return { kind: "withdraw", vars, revision: data.revision };
   }
   return null;
@@ -199,15 +208,17 @@ export function planUndo(qc: QueryClient): UndoPlan {
  * waiting, or withdraw it with a new decision once it landed. Returns the card
  * that comes back, or null.
  */
-export function undoLast(
-  qc: QueryClient,
-  withdraw: (v: WithdrawVars) => void,
-): DeckCard | null {
+export function undoLast(qc: QueryClient, withdraw: (v: WithdrawVars) => void): DeckCard | null {
   const plan = planUndo(qc);
   if (!plan) return null;
   const m = decisionMutations(qc).find((x) => x.state.variables?.id === plan.vars.id);
   if (plan.kind === "withdraw") {
-    withdraw({ id: plan.vars.id, scope: plan.vars.scope, card: plan.vars.card, revision: plan.revision });
+    withdraw({
+      id: plan.vars.id,
+      scope: plan.vars.scope,
+      card: plan.vars.card,
+      revision: plan.revision,
+    });
   }
   if (m) qc.getMutationCache().remove(m as unknown as Mutation);
   return plan.vars.card;

@@ -13,7 +13,15 @@ import { makeRedirectUri } from "expo-auth-session";
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 
 import { readCallback } from "./callback";
@@ -32,7 +40,9 @@ export interface Session {
   name?: string;
 }
 
-export type SignInResult = { ok: true } | { ok: false; reason: "cancelled" | "failed"; message?: string };
+export type SignInResult =
+  | { ok: true }
+  | { ok: false; reason: "cancelled" | "failed"; message?: string };
 
 interface AuthState {
   ready: boolean;
@@ -138,7 +148,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshToken: tokens.refresh_token,
       };
       try {
-        const me = await createBowrainClient({ baseUrl: base, getAccessToken: () => next.accessToken }).me();
+        const me = await createBowrainClient({
+          baseUrl: base,
+          getAccessToken: () => next.accessToken,
+        }).me();
         next.email = me.email;
         next.name = me.name;
       } catch {

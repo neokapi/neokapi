@@ -45,7 +45,10 @@ function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <SafeAreaProvider
-      initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: 390, height: 844 },
+        insets: { top: 0, left: 0, right: 0, bottom: 0 },
+      }}
     >
       <QueryClientProvider client={qc}>{children}</QueryClientProvider>
     </SafeAreaProvider>

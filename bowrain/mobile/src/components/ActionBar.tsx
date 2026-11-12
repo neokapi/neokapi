@@ -1,5 +1,7 @@
 // A button for every gesture. The corrective action comes first and Approve
-// last, at the trailing edge, as on every review surface.
+// last, at the trailing edge, as on every review surface. A card the person
+// wrote offers no Approve: the server refuses that approval under a
+// separation-of-duties policy.
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
@@ -22,7 +24,9 @@ export function ActionBar({
         onPress={() => onAction("fix")}
         className="bg-corrective flex-1 items-center rounded-2xl py-4 active:opacity-80"
       >
-        <Text className="text-corrective-foreground text-base font-semibold">{t("actions.fix")}</Text>
+        <Text className="text-corrective-foreground text-base font-semibold">
+          {t("actions.fix")}
+        </Text>
       </Pressable>
       <Pressable
         testID="action-later"
@@ -33,17 +37,19 @@ export function ActionBar({
       >
         <Text className="text-foreground text-base font-medium">{t("actions.later")}</Text>
       </Pressable>
-      <Pressable
-        testID="action-approve"
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canApprove }}
-        accessibilityHint={t("actions.approveHint")}
-        disabled={!canApprove}
-        onPress={() => onAction("approve")}
-        className={`bg-primary ml-3 flex-1 items-center rounded-2xl py-4 active:opacity-80 ${canApprove ? "" : "opacity-40"}`}
-      >
-        <Text className="text-primary-foreground text-base font-semibold">{t("actions.approve")}</Text>
-      </Pressable>
+      {canApprove ? (
+        <Pressable
+          testID="action-approve"
+          accessibilityRole="button"
+          accessibilityHint={t("actions.approveHint")}
+          onPress={() => onAction("approve")}
+          className="bg-primary ml-3 flex-1 items-center rounded-2xl py-4 active:opacity-80"
+        >
+          <Text className="text-primary-foreground text-base font-semibold">
+            {t("actions.approve")}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

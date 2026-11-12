@@ -40,7 +40,9 @@ export default function Languages() {
       queryFn: async () => {
         const deck = await client.deck(scope, locale, { limit: 1 });
         // A server without the deck route counts the queue but does not group it.
-        const counts: Partial<DeckCounts> & { total: number } = deck.counts ?? { total: deck.total };
+        const counts: Partial<DeckCounts> & { total: number } = deck.counts ?? {
+          total: deck.total,
+        };
         return counts;
       },
     })),
@@ -64,10 +66,17 @@ export default function Languages() {
             <Row
               testID={`language-${item}`}
               title={item}
-              detail={c?.fast !== undefined ? t("languages.groups", { fast: c.fast, desk: c.desk ?? 0 }) : undefined}
+              detail={
+                c?.fast !== undefined
+                  ? t("languages.groups", { fast: c.fast, desk: c.desk ?? 0 })
+                  : undefined
+              }
               trailing={c ? String(c.total) : "…"}
               onPress={() =>
-                router.push({ pathname: "/[ws]/[project]/[locale]", params: { ws, project, locale: item } })
+                router.push({
+                  pathname: "/[ws]/[project]/[locale]",
+                  params: { ws, project, locale: item },
+                })
               }
             />
           );
@@ -75,7 +84,9 @@ export default function Languages() {
         ListEmptyComponent={
           <QueryState
             query={perms}
-            empty={perms.isSuccess && (mayReview ? t("languages.empty") : t("languages.noPermission"))}
+            empty={
+              perms.isSuccess && (mayReview ? t("languages.empty") : t("languages.noPermission"))
+            }
           />
         }
       />

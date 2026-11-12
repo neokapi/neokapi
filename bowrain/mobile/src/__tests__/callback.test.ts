@@ -33,7 +33,10 @@ describe("readCallback", () => {
 
   it("reports an identity provider error", () => {
     expect(
-      readCallback(`bowrain://auth/callback?error=access_denied&error_description=No&state=${state}`, state),
+      readCallback(
+        `bowrain://auth/callback?error=access_denied&error_description=No&state=${state}`,
+        state,
+      ),
     ).toEqual({ ok: false, reason: "error", message: "No" });
   });
 });

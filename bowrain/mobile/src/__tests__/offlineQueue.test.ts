@@ -1,5 +1,11 @@
 import { createBowrainClient, type DeckCard } from "@neokapi/bowrain-client";
-import { dehydrate, hydrate, MutationObserver, onlineManager, type QueryClient } from "@tanstack/react-query";
+import {
+  dehydrate,
+  hydrate,
+  MutationObserver,
+  onlineManager,
+  type QueryClient,
+} from "@tanstack/react-query";
 
 import {
   DECISION_KEY,
@@ -44,7 +50,9 @@ function vars(n: number, kind: DecisionVars["kind"] = "approve"): DecisionVars {
 }
 
 /** A server double at the HTTP boundary: records each change set, answers with a result. */
-function server(answer: (set: { ops: { if_match: string }[] }) => { status: number; body: unknown }) {
+function server(
+  answer: (set: { ops: { if_match: string }[] }) => { status: number; body: unknown },
+) {
   const sent: { ops: { op: string; at: { block: string }; if_match: string }[] }[] = [];
   const fetch = (async (_url: string, init: RequestInit) => {
     const set = JSON.parse(String(init.body));
@@ -52,7 +60,10 @@ function server(answer: (set: { ops: { if_match: string }[] }) => { status: numb
     const { status, body } = answer(set);
     return new Response(JSON.stringify(body), { status });
   }) as typeof globalThis.fetch;
-  return { sent, client: createBowrainClient({ baseUrl: "http://server", getAccessToken: () => "t", fetch }) };
+  return {
+    sent,
+    client: createBowrainClient({ baseUrl: "http://server", getAccessToken: () => "t", fetch }),
+  };
 }
 
 const applied = () => ({
@@ -67,7 +78,9 @@ const applied = () => ({
 });
 
 function queue(qc: QueryClient, v: DecisionVars) {
-  void new MutationObserver<unknown, unknown, DecisionVars>(qc, { mutationKey: DECISION_KEY }).mutate(v).catch(() => undefined);
+  void new MutationObserver<unknown, unknown, DecisionVars>(qc, { mutationKey: DECISION_KEY })
+    .mutate(v)
+    .catch(() => undefined);
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 0));

@@ -12,7 +12,15 @@ import {
 import type { Run } from "@neokapi/kapi-format";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -23,7 +31,11 @@ import { RunText } from "./RunText";
 export interface FixSheetProps {
   card: DeckCard | null;
   /** Read the fix candidates; null when the server offers none. */
-  loadFixes: (card: DeckCard, reason: FixReason | undefined, ai: boolean) => Promise<FixCandidates | null>;
+  loadFixes: (
+    card: DeckCard,
+    reason: FixReason | undefined,
+    ai: boolean,
+  ) => Promise<FixCandidates | null>;
   onFix: (card: DeckCard, runs: Run[], reasons: FixReason[]) => void;
   onReject: (card: DeckCard, reasons: FixReason[], note: string) => void;
   onClose: () => void;
@@ -51,7 +63,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function FixSheetBody({ card, loadFixes, onFix, onReject, onClose }: FixSheetProps & { card: DeckCard }) {
+export function FixSheetBody({
+  card,
+  loadFixes,
+  onFix,
+  onReject,
+  onClose,
+}: FixSheetProps & { card: DeckCard }) {
   const { t } = useTranslation();
   const [reason, setReason] = useState<FixReason | undefined>(undefined);
   const [ai, setAi] = useState(false);
@@ -105,13 +123,22 @@ export function FixSheetBody({ card, loadFixes, onFix, onReject, onClose }: FixS
 
         <Section title={t("fix.readyMade")}>
           {fixes.isPending ? <ActivityIndicator /> : null}
-          {fixes.isError ? <Text className="text-muted-foreground">{t("fix.fixesUnavailable")}</Text> : null}
-          {fixes.data === null ? <Text className="text-muted-foreground">{t("fix.noFixRoute")}</Text> : null}
+          {fixes.isError ? (
+            <Text className="text-muted-foreground">{t("fix.fixesUnavailable")}</Text>
+          ) : null}
+          {fixes.data === null ? (
+            <Text className="text-muted-foreground">{t("fix.noFixRoute")}</Text>
+          ) : null}
           {fixes.data && fixes.data.candidates.length === 0 ? (
             <Text className="text-muted-foreground">{t("fix.noFixes")}</Text>
           ) : null}
           {fixes.data?.candidates.map((c) => (
-            <Candidate key={c.id} card={card} candidate={c} onUse={() => onFix(card, c.runs, reasons)} />
+            <Candidate
+              key={c.id}
+              card={card}
+              candidate={c}
+              onUse={() => onFix(card, c.runs, reasons)}
+            />
           ))}
           {fixes.data?.notes.map((n, i) => (
             <Text key={i} className="text-muted-foreground text-sm">
@@ -119,8 +146,15 @@ export function FixSheetBody({ card, loadFixes, onFix, onReject, onClose }: FixS
             </Text>
           ))}
           {fixes.data && !ai ? (
-            <Pressable testID="fix-ask-ai" accessibilityRole="button" onPress={() => setAi(true)}>
+            <Pressable
+              testID="fix-ask-ai"
+              accessibilityRole="button"
+              accessibilityHint={t("fix.askAiHint")}
+              onPress={() => setAi(true)}
+              className="gap-0.5"
+            >
               <Text className="text-primary text-base">{t("fix.askAi")}</Text>
+              <Text className="text-muted-foreground text-xs">{t("fix.askAiHint")}</Text>
             </Pressable>
           ) : null}
         </Section>
@@ -140,7 +174,9 @@ export function FixSheetBody({ card, loadFixes, onFix, onReject, onClose }: FixS
           ) : (
             <View className="gap-3">
               <RunEditor segments={segments} onChange={setSegments} />
-              {edited ? <RunDiff before={card.target} after={edited} testID="fix-edit-diff" /> : null}
+              {edited ? (
+                <RunDiff before={card.target} after={edited} testID="fix-edit-diff" />
+              ) : null}
               <Pressable
                 testID="fix-approve-edit"
                 accessibilityRole="button"
@@ -148,7 +184,9 @@ export function FixSheetBody({ card, loadFixes, onFix, onReject, onClose }: FixS
                 onPress={() => edited && onFix(card, edited, reasons)}
                 className="bg-primary items-center rounded-2xl py-4 active:opacity-80"
               >
-                <Text className="text-primary-foreground text-base font-semibold">{t("fix.approveCorrection")}</Text>
+                <Text className="text-primary-foreground text-base font-semibold">
+                  {t("fix.approveCorrection")}
+                </Text>
               </Pressable>
             </View>
           )}
@@ -182,12 +220,26 @@ export function FixSheetBody({ card, loadFixes, onFix, onReject, onClose }: FixS
   );
 }
 
-function Candidate({ card, candidate, onUse }: { card: DeckCard; candidate: FixCandidate; onUse: () => void }) {
+function Candidate({
+  card,
+  candidate,
+  onUse,
+}: {
+  card: DeckCard;
+  candidate: FixCandidate;
+  onUse: () => void;
+}) {
   const { t } = useTranslation();
-  const serverDiff = candidate.diff && (candidate.diff.current.length > 0 || candidate.diff.prior.length > 0);
+  const serverDiff =
+    candidate.diff && (candidate.diff.current.length > 0 || candidate.diff.prior.length > 0);
   return (
-    <View testID={`candidate-${candidate.kind}`} className="bg-card border-border gap-3 rounded-xl border p-3">
-      <Text className="text-muted-foreground text-sm">{candidate.label ?? t(`fix.kind.${candidate.kind}`)}</Text>
+    <View
+      testID={`candidate-${candidate.kind}`}
+      className="bg-card border-border gap-3 rounded-xl border p-3"
+    >
+      <Text className="text-muted-foreground text-sm">
+        {candidate.label ?? t(`fix.kind.${candidate.kind}`)}
+      </Text>
       {serverDiff && candidate.diff ? (
         <ServerDiff diff={candidate.diff} />
       ) : (
