@@ -163,6 +163,23 @@ elsewhere. Whether a person has approved a particular target is recorded in the
 (a `memory` operation through `kapi apply`) is recycle leverage and does **not** promote
 a block to *reviewed*.
 
+## Mark named entities
+
+`kapi memory annotate` marks a name as an entity of a given type in the entries
+that contain it. Each occurrence, in every language of an entry, becomes an
+entity placeholder, and the entry records the entity once with its wording in
+each language. A lookup can then reuse the entry for a sentence that names a
+different entity of the same type in the same place.
+
+```bash
+kapi memory annotate "Acme" --type organization
+kapi memory annotate "Paris" --type location --case-sensitive
+```
+
+`--entry` limits the change to the entries you name. Inside a project, each new
+entity is linked to the concept in the project's terms store whose term it
+matches.
+
 ## Note on locale flags
 
 `kapi memory` and `kapi terms` take the locale with `-s`/`--source-locale` and
