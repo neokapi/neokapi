@@ -3084,6 +3084,34 @@
           "short": "Start an MCP server (stdio) for assistants writing in this project"
         },
         "memory": {
+          "annotate": {
+            "example": "  kapi memory annotate \"Acme\" --type organization\n  kapi memory annotate \"Paris\" --type location --case-sensitive\n  kapi memory annotate \"Kapi Pro\" --type product --entry 3f2a9c",
+            "flags": {
+              "case-sensitive": {
+                "usage": "match the text in its own case only"
+              },
+              "entry": {
+                "usage": "annotate only these entry ids (repeatable, or comma-separated)"
+              },
+              "file": {
+                "usage": "explicit path to resource file"
+              },
+              "local": {
+                "usage": "use resource in current directory"
+              },
+              "name": {
+                "usage": "named resource in KAPI_HOME (e.g. --name project-terms)"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "type": {
+                "usage": "entity type: person, organization, product, location, date, time, currency, measurement or other"
+              }
+            },
+            "long": "Mark a text as a named entity in the content memory's entries.\n\nEach occurrence of the text, in every language of an entry, becomes an entity\nplaceholder of the given type, and the entry records the entity once with its\nwording in each language. A lookup can then match the entry for content that\nnames a different entity of the same type in the same place.\n\nWith no --entry, every entry whose text contains the text is annotated.\nInside a project, each new entity is linked to the concept in the project's\nterms store whose term it matches.\n\nThe entity types are person, organization, product, location, date, time,\ncurrency, measurement and other.",
+            "short": "Mark a text as a named entity in content-memory entries"
+          },
           "audit": {
             "flags": {
               "batch": {
@@ -4486,7 +4514,7 @@
           "short": "Rehydrate a project's working state from a .kpz snapshot"
         },
         "up": {
-          "example": "  kapi up                # run the default flow; stop where a gate holds content back\n  kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --recycle-only # fill exact content-memory matches only, with no provider\n  kapi up --materialize  # also write target-language files for the shippable locales\n  kapi up --local        # connected project: run the loop on this machine, then push the results\n  kapi up -p kapi.yaml   # bring an explicit project recipe up to date",
+          "example": "  kapi up                # run the default flow; stop where a gate holds content back\n  kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --recycle-only # fill exact content-memory matches only, with no provider\n  kapi up --pre-review   # then have the AI model score the translations awaiting review\n  kapi up --materialize  # also write target-language files for the shippable locales\n  kapi up --local        # connected project: run the loop on this machine, then push the results\n  kapi up -p kapi.yaml   # bring an explicit project recipe up to date",
           "flags": {
             "api-key": {
               "usage": "API key for the AI provider"
@@ -4566,6 +4594,9 @@
             "plan": {
               "usage": "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale), with no provider calls and no writes"
             },
+            "pre-review": {
+              "usage": "after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block"
+            },
             "print-ops": {
               "usage": "write no file and print the change set the run would apply, for kapi apply"
             },
@@ -4603,7 +4634,7 @@
               "usage": "write flow trace JSON to file (for flow visualization)"
             }
           },
-          "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated locale is\nshippable or waits for review.\n\nWithout defaults.flow, up runs the built-in default flow, Memory reuse (recycle)\nfollowed by AI translate, so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder waits for review, because it needs a person), or the\npass cap is reached. After each pass the project's bound checks run over what was\nproduced: a translation with failing findings (dropped placeholders,\nterminology violations) still counts as translated, which it is, and holds its\nlocale out of shipping until the finding is fixed. 'kapi status' runs the same checks and\nreports the same verdict. --no-checks opts out.\n\nThe materialize policy determines whether the run owns delivery of the\ntarget-language files. Under 'defaults.materialize: on-converge' (or the\n--materialize flag) it does, and the ship gate holds it back: each pass drafts\ninto a run-local tree, and only a locale whose gated collections are all shippable\nhas its files written where the recipe points, and the files of a locale\nwaiting for review are absent, not merely unblessed. The default ('manual') leaves delivery to\n'kapi merge' and claims no gate.\n\nVenue: in a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default, on\nthe org's keys, against the org's shared Memory and terminology, and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever the recipe\nconnects to a server. Without that block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale): blocks missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate, computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: target content that is pending or\nwaiting for review is normal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.\n\n--recycle-only fills the targets the content memory answers exactly and\nstops: one pass, no provider calls. Near matches and the rest of the work wait\nfor a full run. Kapi Desktop runs the same pass when it reads a project's\nfiles.",
+          "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated locale is\nshippable or waits for review.\n\nWithout defaults.flow, up runs the built-in default flow, Memory reuse (recycle)\nfollowed by AI translate, so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder waits for review, because it needs a person), or the\npass cap is reached. After each pass the project's bound checks run over what was\nproduced: a translation with failing findings (dropped placeholders,\nterminology violations) still counts as translated, which it is, and holds its\nlocale out of shipping until the finding is fixed. 'kapi status' runs the same checks and\nreports the same verdict. --no-checks opts out.\n\nThe materialize policy determines whether the run owns delivery of the\ntarget-language files. Under 'defaults.materialize: on-converge' (or the\n--materialize flag) it does, and the ship gate holds it back: each pass drafts\ninto a run-local tree, and only a locale whose gated collections are all shippable\nhas its files written where the recipe points, and the files of a locale\nwaiting for review are absent, not merely unblessed. The default ('manual') leaves delivery to\n'kapi merge' and claims no gate.\n\nVenue: in a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default, on\nthe org's keys, against the org's shared Memory and terminology, and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever the recipe\nconnects to a server. Without that block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale): blocks missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate, computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: target content that is pending or\nwaiting for review is normal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.\n\n--recycle-only fills the targets the content memory answers exactly and\nstops: one pass, no provider calls. Near matches and the rest of the work wait\nfor a full run. Kapi Desktop runs the same pass when it reads a project's\nfiles.\n\n--pre-review, after the run, has the AI review tool score each translation\nawaiting review against the voice and terms that apply to its file. A score is\nadvisory: it never approves a block, and 'kapi status --review' lists it.",
           "short": "Bring the project up to date: run the default flow and stop where a gate holds content back"
         },
         "update": {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T15:33:13Z",
+  "generatedAt": "2026-11-12T16:17:29Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -2050,6 +2050,12 @@
           "type": "integer",
           "required": false,
           "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)"
+        },
+        {
+          "name": "pre_review",
+          "type": "boolean",
+          "required": false,
+          "description": "after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block; runs on this machine, so a server-connected project also needs local"
         },
         {
           "name": "project",

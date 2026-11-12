@@ -59,6 +59,7 @@ export {
     DigestTheme,
     FindingsReport,
     ParkedScope,
+    PreReviewResult,
     ReviewContext,
     ReviewQueue,
     RulesFile,

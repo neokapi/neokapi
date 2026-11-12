@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,8 +15,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // --- DTOs ---
@@ -872,10 +871,10 @@ func lookupBlock(text string, entities []EntityAnnotationDTO) *model.Block {
 	for i, p := range placed {
 		block.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    fmt.Sprintf("entity:%d", i),
-			Range: model.SpanAnchor(model.RunPos{Run: p.run}, model.RunPos{Run: p.run + 1}),
+			Range: model.SpanAnchor(model.RunPos{Run: p.Run}, model.RunPos{Run: p.Run + 1}),
 			Value: &model.EntityAnnotation{
-				Text:   p.entity.Text,
-				Type:   model.EntityType(p.entity.Type),
+				Text:   p.Span.Text,
+				Type:   model.EntityType(p.Span.Type),
 				Source: model.ExtractionSourceManual,
 			},
 		})
@@ -883,78 +882,19 @@ func lookupBlock(text string, entities []EntityAnnotationDTO) *model.Block {
 	return block
 }
 
-// placedEntity is an entity buildRunsWithEntities turned into a placeholder
-// run, and the index of that run.
-type placedEntity struct {
-	run    int
-	entity EntityAnnotationDTO
-}
-
-// buildRunsWithEntities builds a Run sequence from plain text + entity
-// annotations. Entity ranges, counted in code points of text, become
-// PlaceholderRuns; the surrounding text is split into TextRuns. It returns
-// each entity it placed with the index of its run, in text order; an entity
-// that overlaps an earlier one or falls outside the text is left out. The
-// placeholders are numbered e1, e2, … in text order.
-func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) ([]model.Run, []placedEntity) {
-	spans := make([]entitySpan, len(entities))
+// buildRunsWithEntities builds a Run sequence from plain text and entity
+// annotations (memory.PlaceEntities). Entity ranges, counted in code points of
+// text, become placeholder runs numbered e1, e2, ... in text order.
+func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) ([]model.Run, []memory.PlacedEntity) {
+	spans := make([]memory.EntitySpan, len(entities))
 	for i, ea := range entities {
-		spans[i] = entitySpan{entity: ea}
+		spans[i] = memory.EntitySpan{Text: ea.Text, Type: ea.Type, Start: ea.Start, End: ea.End}
 	}
-	slices.SortStableFunc(spans, func(a, b entitySpan) int { return cmp.Compare(a.entity.Start, b.entity.Start) })
+	slices.SortStableFunc(spans, func(a, b memory.EntitySpan) int { return cmp.Compare(a.Start, b.Start) })
 	for i := range spans {
-		spans[i].id = fmt.Sprintf("e%d", i+1)
+		spans[i].ID = fmt.Sprintf("e%d", i+1)
 	}
-	return placeEntities(text, spans)
-}
-
-// entitySpan is an entity to place and the id its placeholder takes.
-type entitySpan struct {
-	entity EntityAnnotationDTO
-	id     string
-}
-
-// placeEntities places spans, sorted by start, as buildRunsWithEntities
-// describes, each placeholder taking its span's id.
-func placeEntities(text string, spans []entitySpan) ([]model.Run, []placedEntity) {
-	if len(spans) == 0 {
-		if text == "" {
-			return nil, nil
-		}
-		return []model.Run{{Text: &model.TextRun{Text: text}}}, nil
-	}
-
-	runes := []rune(text)
-	var runs []model.Run
-	var placed []placedEntity
-	pos := 0
-	appendText := func(s string) {
-		if s == "" {
-			return
-		}
-		runs = append(runs, model.Run{Text: &model.TextRun{Text: s}})
-	}
-
-	for _, sp := range spans {
-		ea := sp.entity
-		if ea.Start < pos || ea.Start >= len(runes) || ea.End > len(runes) {
-			continue
-		}
-		if ea.Start > pos {
-			appendText(string(runes[pos:ea.Start]))
-		}
-		placed = append(placed, placedEntity{run: len(runs), entity: ea})
-		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-			ID:   sp.id,
-			Type: ea.Type,
-			Data: ea.Text,
-		}})
-		pos = ea.End
-	}
-	if pos < len(runes) {
-		appendText(string(runes[pos:]))
-	}
-	return runs, placed
+	return memory.PlaceEntities(text, spans)
 }
 
 // --- Facets ---
@@ -1086,73 +1026,36 @@ func importSessionToDTO(s memory.ImportSession) ImportSessionDTO {
 
 // --- Batch entity annotation ---
 
-// AnnotateEntities applies entity annotations to selected content-memory entries. The
-// patterns are searched across every variant's plain text and entity spans
-// are inserted where matches are found. Entity values are populated per
-// locale from the matching variant.
-//
-// When TermsHandle is set, each new entity's text is looked up in the
-// terms; if a concept matches, its ID is stored on the EntityMapping
-// so the content-memory entry cross-references the terms store.
+// AnnotateEntities marks each pattern as an entity in the selected
+// content-memory entries (memory.AnnotateEntries, which `kapi memory annotate`
+// also runs). When TermsHandle is set, each new entity is linked to the terms
+// concept its text matches.
 func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*AnnotateResult, error) {
 	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil, fmt.Errorf("content-memory handle %q not found", handle)
 	}
-
-	// Optionally resolve concept IDs from the terms store.
-	var tb *projector.Terms
+	var resolve memory.ConceptResolver
 	if req.TermsHandle != "" {
-		tb, _ = a.tbHandles.Get(req.TermsHandle)
-	}
-
-	var entriesUpdated, entitiesAdded int
-
-	for _, eid := range req.EntryIDs {
-		entry, found, err := tm.GetEntry(context.Background(), eid)
-		if err != nil || !found {
-			continue
-		}
-
-		anyHit := false
-		newVariants := make(map[model.LocaleID][]model.Run, len(entry.Variants))
-		perLocaleCounts := make(map[model.LocaleID]int)
-		for loc, runs := range entry.Variants {
-			if len(runs) == 0 {
-				continue
-			}
-			newRuns, n := rebuildRunsWithEntities(runs, req.Patterns)
-			newVariants[loc] = newRuns
-			if n > 0 {
-				anyHit = true
-				perLocaleCounts[loc] = n
-			}
-		}
-		if !anyHit {
-			continue
-		}
-		entry.Variants = newVariants
-		entry.Entities = buildEntityMappingsFromVariantRuns(entry.Variants)
-		if tb != nil {
-			resolveConceptIDs(entry.Entities, tb)
-		}
-		entry.UpdatedAt = time.Now()
-		if err := tm.Add(context.Background(), entry); err != nil {
-			return nil, fmt.Errorf("update entry %q: %w", eid, err)
-		}
-		entriesUpdated++
-		for _, n := range perLocaleCounts {
-			entitiesAdded += n
+		if tb, found := a.tbHandles.Get(req.TermsHandle); found {
+			resolve = host.TermsConceptResolver(tb)
 		}
 	}
-
-	return &AnnotateResult{EntriesUpdated: entriesUpdated, EntitiesAdded: entitiesAdded}, nil
+	patterns := make([]memory.EntityPattern, len(req.Patterns))
+	for i, p := range req.Patterns {
+		patterns[i] = memory.EntityPattern{Text: p.Text, Type: p.EntityType, CaseSensitive: p.CaseSensitive}
+	}
+	res, err := memory.AnnotateEntries(context.Background(), tm, req.EntryIDs, patterns, resolve)
+	if err != nil {
+		return nil, err
+	}
+	return &AnnotateResult{EntriesUpdated: res.EntriesUpdated, EntitiesAdded: res.EntitiesAdded}, nil
 }
 
-// ResolveEntityConcepts re-links entities on content-memory entries to terms concepts.
-// Useful after a terms store import or when entities were created without a
-// terms available. Entries whose entities already have a ConceptID are
-// skipped unless force is true.
+// ResolveEntityConcepts links the entities on content-memory entries to the
+// terms concepts their text matches (memory.LinkEntryConcepts), after a terms
+// import or for entities created with no terms store at hand. An entity
+// already linked is skipped unless force is true.
 func (a *App) ResolveEntityConcepts(memoryHandle, tbHandle string, entryIDs []string, force bool) (int, error) {
 	tm, ok := a.memoryHandles.Get(memoryHandle)
 	if !ok {
@@ -1162,198 +1065,5 @@ func (a *App) ResolveEntityConcepts(memoryHandle, tbHandle string, entryIDs []st
 	if !ok {
 		return 0, fmt.Errorf("terms handle %q not found", tbHandle)
 	}
-
-	updated := 0
-	for _, eid := range entryIDs {
-		entry, found, err := tm.GetEntry(context.Background(), eid)
-		if err != nil || !found || len(entry.Entities) == 0 {
-			continue
-		}
-		changed := false
-		for i := range entry.Entities {
-			if entry.Entities[i].ConceptID != "" && !force {
-				continue
-			}
-			old := entry.Entities[i].ConceptID
-			resolveOneConceptID(&entry.Entities[i], tb)
-			if entry.Entities[i].ConceptID != old {
-				changed = true
-			}
-		}
-		if !changed {
-			continue
-		}
-		entry.UpdatedAt = time.Now()
-		if err := tm.Add(context.Background(), entry); err != nil {
-			return updated, fmt.Errorf("update entry %q: %w", eid, err)
-		}
-		updated++
-	}
-	return updated, nil
-}
-
-// rebuildRunsWithEntities walks a Run sequence's flat text, locates
-// pattern occurrences, and emits a new Run sequence with PlaceholderRuns
-// inserted at the matched ranges. Returns the new sequence and the
-// number of entity hits inserted. Inline-code runs in the input are
-// dropped — pattern matching is only meaningful against the textual
-// projection.
-func rebuildRunsWithEntities(runs []model.Run, patterns []EntityPatternRequest) ([]model.Run, int) {
-	text := model.FlattenRuns(runs)
-
-	type entityHit struct {
-		start      int
-		end        int
-		entityType string
-		text       string
-		pattern    int
-	}
-	runes := []rune(text)
-	var hits []entityHit
-	for pi, p := range patterns {
-		patLen := len([]rune(p.Text))
-		for _, pos := range findPatternOccurrences(text, p.Text, p.CaseSensitive) {
-			actualText := string(runes[pos : pos+patLen])
-			hits = append(hits, entityHit{
-				start:      pos,
-				end:        pos + patLen,
-				entityType: p.EntityType,
-				text:       actualText,
-				pattern:    pi,
-			})
-		}
-	}
-	slices.SortFunc(hits, func(a, b entityHit) int { return cmp.Compare(a.start, b.start) })
-	var filtered []entityHit
-	lastEnd := 0
-	for _, h := range hits {
-		if h.start >= lastEnd {
-			filtered = append(filtered, h)
-			lastEnd = h.end
-		}
-	}
-
-	// Each pattern names one entity in every variant, so a placeholder takes
-	// its id from the pattern and the occurrence (e1 for the first match of
-	// the first pattern, e1.2 for its second), whatever order a translation
-	// puts the entities in. buildEntityMappingsFromVariantRuns pairs the
-	// variants' values by that id.
-	spans := make([]entitySpan, len(filtered))
-	seen := make(map[int]int)
-	for i, h := range filtered {
-		seen[h.pattern]++
-		id := fmt.Sprintf("e%d", h.pattern+1)
-		if n := seen[h.pattern]; n > 1 {
-			id = fmt.Sprintf("e%d.%d", h.pattern+1, n)
-		}
-		spans[i] = entitySpan{id: id, entity: EntityAnnotationDTO{
-			Text:  h.text,
-			Type:  h.entityType,
-			Start: h.start,
-			End:   h.end,
-		}}
-	}
-	newRuns, _ := placeEntities(text, spans)
-	return newRuns, len(filtered)
-}
-
-// findPatternOccurrences returns rune positions of all non-overlapping occurrences.
-func findPatternOccurrences(text, pattern string, caseSensitive bool) []int {
-	if pattern == "" {
-		return nil
-	}
-	searchText := text
-	searchPattern := pattern
-	if !caseSensitive {
-		searchText = strings.ToLower(text)
-		searchPattern = strings.ToLower(pattern)
-	}
-
-	var positions []int
-	runes := []rune(searchText)
-	patternRunes := []rune(searchPattern)
-	patLen := len(patternRunes)
-
-	for i := 0; i <= len(runes)-patLen; {
-		if string(runes[i:i+patLen]) == string(patternRunes) {
-			positions = append(positions, i)
-			i += patLen
-		} else {
-			i++
-		}
-	}
-	return positions
-}
-
-// buildEntityMappingsFromVariantRuns walks every variant's entity spans
-// (materialised on demand from its Run sequence) and produces a unified
-// EntityMapping list indexed by PlaceholderID. Values are populated per
-// locale from the corresponding variant's entity span.
-func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run) []memory.EntityMapping {
-	if len(variants) == 0 {
-		return nil
-	}
-	type entKey struct {
-		id    string
-		eType string
-	}
-	byKey := make(map[entKey]*memory.EntityMapping)
-	var order []entKey
-	for _, loc := range slices.Sorted(maps.Keys(variants)) {
-		for _, r := range variants[loc] {
-			if r.Ph == nil || !model.IsEntityTypeString(r.Ph.Type) {
-				continue
-			}
-			key := entKey{id: r.Ph.ID, eType: r.Ph.Type}
-			em, ok := byKey[key]
-			if !ok {
-				em = &memory.EntityMapping{
-					PlaceholderID: r.Ph.ID,
-					Type:          model.EntityType(r.Ph.Type),
-					Values:        make(map[model.LocaleID]memory.EntityValue),
-				}
-				byKey[key] = em
-				order = append(order, key)
-			}
-			em.Values[loc] = memory.EntityValue{Text: r.Ph.Data}
-		}
-	}
-	out := make([]memory.EntityMapping, 0, len(order))
-	for _, k := range order {
-		out = append(out, *byKey[k])
-	}
-	return out
-}
-
-// resolveConceptIDs looks up each entity mapping's text in the terms store
-// and sets ConceptID when a concept matches. Looks up the first locale
-// value that returns a hit.
-func resolveConceptIDs(entities []memory.EntityMapping, tb *projector.Terms) {
-	for i := range entities {
-		resolveOneConceptID(&entities[i], tb)
-	}
-}
-
-// resolveOneConceptID looks up one entity mapping's text values in the
-// terms and sets ConceptID if a concept with a matching term is found.
-func resolveOneConceptID(em *memory.EntityMapping, tb *projector.Terms) {
-	if tb == nil {
-		return
-	}
-	// Try each locale's entity value text against the terms store.
-	for loc, val := range em.Values {
-		if val.Text == "" {
-			continue
-		}
-		matches, err := tb.Lookup(context.Background(), val.Text, terms.LookupOptions{
-			SourceLocale:  loc,
-			CaseSensitive: false,
-			MinScore:      1.0, // exact or normalized match only
-			MatchModes:    []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized},
-		})
-		if err == nil && len(matches) > 0 {
-			em.ConceptID = matches[0].Concept.ID
-			return
-		}
-	}
+	return memory.LinkEntryConcepts(context.Background(), tm, entryIDs, force, host.TermsConceptResolver(tb))
 }

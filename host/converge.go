@@ -178,6 +178,9 @@ type ConvergeOutput struct {
 	// was left as it was, and the run exits with the code a failed check uses.
 	// Nil when there are none.
 	Findings *FindingsReport `json:"findings,omitempty"`
+	// PreReview counts what the AI pre-review scored after the run, nil when
+	// none was asked for (kapi up --pre-review).
+	PreReview *PreReviewResult `json:"preReview,omitempty"`
 }
 
 // StaleDraftUnits totals the blocks whose stored draft was made from an
@@ -223,6 +226,7 @@ func (o ConvergeOutput) RedraftedUnits() int {
 // FormatText renders the convergence summary.
 func (o ConvergeOutput) FormatText(w io.Writer) error {
 	defer writeSetAside(w, o.Warnings)
+	defer o.PreReview.formatLine(w)
 	if o.Monolingual || o.NoTargets {
 		err := o.formatMonolingual(w)
 		o.formatPlaceholderFindings(w)

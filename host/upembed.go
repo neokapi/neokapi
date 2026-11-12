@@ -46,6 +46,10 @@ type UpOptions struct {
 	// exact content-memory matches fill their targets and no provider is
 	// called. Local only; RunUpDispatch refuses it for a server venue.
 	RecycleOnly bool
+	// PreReview runs the AI pre-review over the review queue once the run is
+	// over (RunAIPreReview) and reports it in ConvergeOutput.PreReview. Local
+	// only; RunUpDispatch refuses it for a server venue.
+	PreReview bool
 }
 
 // RunUp is the embedded local-venue `kapi up`: it runs the exact convergence
@@ -116,6 +120,13 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 			return &result, err
 		}
 		return nil, err
+	}
+	if opts.PreReview {
+		pre, perr := a.RunAIPreReview(ctx, projectPath, sourceLang, PreReviewOptions{})
+		if perr != nil {
+			return &result, fmt.Errorf("ai pre-review: %w", perr)
+		}
+		result.PreReview = pre
 	}
 	return &result, nil
 }
