@@ -21,8 +21,8 @@ import (
 // Resolved by resolveWasmMTProvider — unset/`browser` use the on-device Translator
 // API where the page supports it, `demo` (or no Translator API) the keyless stub.
 type mtToolConfig struct {
-	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"description=Source locale of the content"`
-	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"description=Target locale for processing"`
+	SourceLocale model.LocaleID `json:"source_locale,omitempty" schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `json:"target_locale,omitempty" schema:"description=Target locale for processing"`
 	Provider     string         `json:"provider,omitempty"     schema:"title=MT engine,description=browser (on-device Translator API, the default where supported) or demo (illustrative output)"`
 }
 
