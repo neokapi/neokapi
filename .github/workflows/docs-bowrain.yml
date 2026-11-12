@@ -45,7 +45,7 @@ jobs:
           # The preview's channel banner names the version from `git describe`,
           # which needs the tags a shallow clone leaves behind.
           fetch-depth: 0
-      - uses: voidzero-dev/setup-vp@v1.21.2
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "22"
           cache: true
