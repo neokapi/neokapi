@@ -130,24 +130,24 @@ export function NeighbourhoodTable({
             )}
           </span>
         ) : (
-        <span className="min-w-0 flex-1 space-y-0.5">
-          <span
-            className="block whitespace-pre-wrap text-muted-foreground"
-            translate="no"
-            {...directionAttrs(sourceLocale)}
-          >
-            {unitSource}
-          </span>
-          {unitTarget ? (
+          <span className="min-w-0 flex-1 space-y-0.5">
             <span
-              className="block whitespace-pre-wrap font-medium"
+              className="block whitespace-pre-wrap text-muted-foreground"
               translate="no"
-              {...directionAttrs(targetLocale)}
+              {...directionAttrs(sourceLocale)}
             >
-              {unitTarget}
+              {unitSource}
             </span>
-          ) : null}
-        </span>
+            {unitTarget ? (
+              <span
+                className="block whitespace-pre-wrap font-medium"
+                translate="no"
+                {...directionAttrs(targetLocale)}
+              >
+                {unitTarget}
+              </span>
+            ) : null}
+          </span>
         )}
       </li>
       {after.map((n, i) => (

@@ -568,7 +568,9 @@ export function FocusedReviewer({
             variant="success"
             onClick={onApprove}
             disabled={busy || !canApprove}
-            title={canApprove ? undefined : "Approving needs the review permission for this language"}
+            title={
+              canApprove ? undefined : "Approving needs the review permission for this language"
+            }
             data-testid="reviewer-approve"
           >
             <Check className="mr-1 h-4 w-4" /> Approve
