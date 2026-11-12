@@ -31,7 +31,14 @@ function convergingRun(): ConvergenceEvent[] {
       via_ai: 4,
       state: "shippable",
     },
-    { type: "pass_done", pass: 1, produced: 16, produced_delta: 16, failing_checks: 0, pending: [] },
+    {
+      type: "pass_done",
+      pass: 1,
+      produced: 16,
+      produced_delta: 16,
+      failing_checks: 0,
+      pending: [],
+    },
     { type: "materialized", files: 2 },
     { type: "done", state: "converged" },
   ];
@@ -121,7 +128,14 @@ describe("reduceRun", () => {
       },
       { type: "pass_start", pass: 2, max_passes: 3, pending: ["fr-FR"] },
       { type: "locale_done", pass: 2, locale: "fr-FR", units: 10, done: 10, state: "shippable" },
-      { type: "pass_done", pass: 2, produced: 10, produced_delta: 3, failing_checks: 0, pending: [] },
+      {
+        type: "pass_done",
+        pass: 2,
+        produced: 10,
+        produced_delta: 3,
+        failing_checks: 0,
+        pending: [],
+      },
       { type: "done", state: "converged" },
     ]);
 
@@ -176,7 +190,15 @@ describe("reduceRun", () => {
       { type: "locale_start", pass: 1, locale: "fr-FR", units: 8 },
       { type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, via_memory: 5, via_ai: 3 },
       // No `state` on locale_done — the engine no longer emits it live.
-      { type: "locale_done", pass: 1, locale: "fr-FR", units: 8, done: 8, via_memory: 5, via_ai: 3 },
+      {
+        type: "locale_done",
+        pass: 1,
+        locale: "fr-FR",
+        units: 8,
+        done: 8,
+        via_memory: 5,
+        via_ai: 3,
+      },
     ]);
     const row = m.passes[0].rows[0];
     expect(row.state).toBe("done"); // lifecycle terminal for the pass

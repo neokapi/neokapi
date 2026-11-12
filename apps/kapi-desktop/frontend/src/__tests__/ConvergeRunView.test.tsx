@@ -15,7 +15,15 @@ const liveEvents: RunEvent[] = [
   { type: "state", flow_id: "up", message: "running" },
   ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["fr-FR", "de-DE"] }),
   ce({ type: "locale_start", pass: 1, locale: "fr-FR", units: 20 }),
-  ce({ type: "locale_done", pass: 1, locale: "fr-FR", units: 20, done: 20, via_memory: 12, via_ai: 8 }),
+  ce({
+    type: "locale_done",
+    pass: 1,
+    locale: "fr-FR",
+    units: 20,
+    done: 20,
+    via_memory: 12,
+    via_ai: 8,
+  }),
   ce({ type: "locale_start", pass: 1, locale: "de-DE", units: 20 }),
   ce({ type: "unit_progress", pass: 1, locale: "de-DE", done: 9, via_memory: 4, via_ai: 5 }),
   ce({

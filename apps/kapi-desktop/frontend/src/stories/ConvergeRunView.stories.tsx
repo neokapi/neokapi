@@ -22,7 +22,15 @@ const RUNNING_PASS: RunEvent[] = [
   { type: "state", flow_id: "up", message: "running" },
   ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["de-DE", "ja-JP", "nb-NO"] }),
   ce({ type: "locale_start", pass: 1, locale: "de-DE", units: 42 }),
-  ce({ type: "locale_done", pass: 1, locale: "de-DE", units: 42, done: 42, via_memory: 30, via_ai: 12 }),
+  ce({
+    type: "locale_done",
+    pass: 1,
+    locale: "de-DE",
+    units: 42,
+    done: 42,
+    via_memory: 30,
+    via_ai: 12,
+  }),
   ce({ type: "locale_start", pass: 1, locale: "ja-JP", units: 42 }),
   ce({ type: "unit_progress", pass: 1, locale: "ja-JP", done: 18, via_memory: 6, via_ai: 12 }),
 ];
@@ -31,8 +39,24 @@ const RUNNING_PASS: RunEvent[] = [
 const TWO_PASSES: RunEvent[] = [
   { type: "state", flow_id: "up", message: "running" },
   ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["de-DE", "ja-JP"] }),
-  ce({ type: "locale_done", pass: 1, locale: "de-DE", units: 42, done: 42, via_memory: 30, via_ai: 12 }),
-  ce({ type: "locale_done", pass: 1, locale: "ja-JP", units: 42, done: 40, via_memory: 8, via_ai: 32 }),
+  ce({
+    type: "locale_done",
+    pass: 1,
+    locale: "de-DE",
+    units: 42,
+    done: 42,
+    via_memory: 30,
+    via_ai: 12,
+  }),
+  ce({
+    type: "locale_done",
+    pass: 1,
+    locale: "ja-JP",
+    units: 42,
+    done: 40,
+    via_memory: 8,
+    via_ai: 32,
+  }),
   ce({
     type: "pass_done",
     pass: 1,
