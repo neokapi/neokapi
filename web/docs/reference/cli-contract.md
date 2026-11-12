@@ -15,11 +15,11 @@ Two exceptions have been made. In 1.3 the content-memory counts in the `kapi mer
 
 ## Field names
 
-Every machine-readable document kapi writes uses snake_case field names: `--json` results, NDJSON event streams, the result of every MCP tool, and the inputs those tools take. The recipe uses snake_case keys too. A word that is two words in English is two words in the key: `failing_checks`, `pending_push`, `via_ai`.
+Every machine-readable document kapi writes uses snake_case field names: `--json` results, NDJSON event streams, the result of every MCP tool, and the inputs those tools take. The recipe uses snake_case keys too, the tool and format config keys under `config:` included ([Tool registration invariants](#tool-registration-invariants)). A word that is two words in English is two words in the key: `failing_checks`, `pending_push`, `via_ai`.
 
 One family is exempt. The content model on the wire (the blocks, runs and properties inside a `.kbf` bundle) follows the canonical protobuf JSON mapping, which writes lowerCamelCase (`sourceLocale`, `pcOpen`). [F-04](../contribute/architecture/foundations/f-04-wire-schema.md) fixes those names. A document from an external standard keeps that standard's names.
 
-`scripts/check-json-tags.sh` enforces the rule over the Go types behind these documents, in `make lint`, `make pre-push` and the *Repo guards* CI job.
+`scripts/check-json-tags.sh` enforces the rule over the Go types behind these documents and over the tool and format config keys, in `make lint`, `make pre-push` and the *Repo guards* CI job.
 
 Human-readable text output is **not** a contract. It is presentation: column widths adapt to your terminal, values are truncated to fit, and it carries ANSI styling when stdout is a TTY. It is restyled whenever the CLI's presentation improves. Scripts must use `--json` (or `--jq`), which is stable, unstyled, and never truncated.
 
