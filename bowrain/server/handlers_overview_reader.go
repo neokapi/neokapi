@@ -248,29 +248,6 @@ func notInTerms(records []contextop.Record, concepts []terms.Concept) []contexto
 	return out
 }
 
-// voiceRuleCount counts the rules a voice profile applies to text: the word
-// rules its file carries and its prohibited and required patterns, as the
-// desktop's Overview counts them.
-func voiceRuleCount(p *coreprofile.VoiceProfile) int {
-	if p == nil {
-		return 0
-	}
-	n := 0
-	for _, set := range coreprofile.CarriedRuleSets(p) {
-		for _, r := range set.Rules {
-			if strings.TrimSpace(r.Term) != "" {
-				n++
-			}
-		}
-	}
-	for _, pat := range slices.Concat(p.Style.ProhibitedPatterns, p.Style.RequiredPatterns) {
-		if strings.TrimSpace(pat.Regex) != "" {
-			n++
-		}
-	}
-	return n
-}
-
 // projectCheckStarted is the body POST /:ws/:id/map/:ref/check answers with:
 // the job to follow at GET /:ws/jobs/:id.
 type projectCheckStarted struct {

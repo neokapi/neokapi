@@ -217,6 +217,42 @@ func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 	assert.Equal(t, entriesBefore, entriesAfter, "--plan must not write to the content memory")
 }
 
+// TestUpPlan_ReportsStoreDrift: the plan states which source files the project
+// store has not read, as JSON and as text: every file before the first run,
+// none after it, and an edited file once it changes.
+func TestUpPlan_ReportsStoreDrift(t *testing.T) {
+	recipe, root := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	planDrift := func(t *testing.T) project.StoreDrift {
+		t.Helper()
+		out, err := runUp(t, processOnlyApp(t), recipe, "--plan", "--json")
+		require.NoError(t, err, out)
+		var plan UpPlanOutput
+		require.NoError(t, json.Unmarshal([]byte(out), &plan), out)
+		return plan.Drift
+	}
+
+	assert.True(t, planDrift(t).StoreMissing, "a project with no store has read nothing")
+	text, err := runUp(t, processOnlyApp(t), recipe, "--plan")
+	require.NoError(t, err, text)
+	assert.Contains(t, text, "Source drift: the project store has not read the source files yet")
+	assert.NoFileExists(t, project.LayoutAt(root).StorePath(), "reporting the drift creates no store")
+
+	out, err := runUp(t, processOnlyApp(t), recipe)
+	require.NoError(t, err, out)
+	assert.False(t, planDrift(t).Any(), "the run read every source file")
+	text, err = runUp(t, processOnlyApp(t), recipe, "--plan")
+	require.NoError(t, err, text)
+	assert.NotContains(t, text, "Source drift")
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src/locales/en/a.json"), []byte(`{"greeting":"Hello again."}`), 0o644))
+	drift := planDrift(t)
+	assert.Equal(t, []string{"src/locales/en/a.json"}, drift.Changed)
+	assert.Empty(t, drift.Removed)
+	text, err = runUp(t, processOnlyApp(t), recipe, "--plan")
+	require.NoError(t, err, text)
+	assert.Contains(t, text, "Source drift: 1 source file(s) changed and 0 removed")
+}
+
 // TestUpPlan_ConvergedProjectHasNoWork: after a converged up, --plan reports
 // nothing to do — when the corpus answers the units the targets hold. That, and
 // not the presence of a target file, is what "nothing to do" means: the pass
