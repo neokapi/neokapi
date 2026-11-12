@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T14:57:58Z",
+  "generatedAt": "2026-11-12T15:35:31Z",
   "commands": [
     {
       "id": "add",
@@ -6333,6 +6333,65 @@
       "demoMode": false
     },
     {
+      "id": "memory.annotate",
+      "path": [
+        "memory",
+        "annotate"
+      ],
+      "use": "annotate \u003ctext\u003e --type \u003centity-type\u003e",
+      "short": "Mark a text as a named entity in content-memory entries",
+      "long": "Mark a text as a named entity in the content memory's entries.\n\nEach occurrence of the text, in every language of an entry, becomes an entity\nplaceholder of the given type, and the entry records the entity once with its\nwording in each language. A lookup can then match the entry for content that\nnames a different entity of the same type in the same place.\n\nWith no --entry, every entry whose text contains the text is annotated.\nInside a project, each new entity is linked to the concept in the project's\nterms store whose term it matches.\n\nThe entity types are person, organization, product, location, date, time,\ncurrency, measurement and other.",
+      "flags": [
+        {
+          "name": "case-sensitive",
+          "usage": "match the text in its own case only",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "entry",
+          "usage": "annotate only these entry ids (repeatable, or comma-separated)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "usage": "entity type: person, organization, product, location, date, time, currency, measurement or other",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi memory annotate \"Acme\" --type organization",
+        "kapi memory annotate \"Paris\" --type location --case-sensitive",
+        "kapi memory annotate \"Kapi Pro\" --type product --entry 3f2a9c"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "memory.audit",
       "path": [
         "memory",
@@ -8273,7 +8332,7 @@
       ],
       "use": "status",
       "short": "Show how ready the project's content is against its gates",
-      "long": "Show how far the project's content has progressed and whether it clears the\nproject's gates: a derived dashboard, like git status. The standing is\nrecomputed from the working tree on every run; nothing is tracked as state.\n\nA project with target languages also gets per-language coverage: for each\ntarget locale, how much of the content is translated and whether it clears\nits ship gate. A locale that is behind is reported as pending rather than as\nan error, because target-language drift is normal, expected work.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality\ngate), and it never fails.",
+      "long": "Show how far the project's content has progressed and whether it clears the\nproject's gates: a derived dashboard, like git status. The standing is\nrecomputed from the working tree on every run; nothing is tracked as state.\n\nA project with target languages also gets per-language coverage: for each\ntarget locale, how much of the content is translated and whether it clears\nits ship gate. A locale that is behind is reported as pending rather than as\nan error, because target-language drift is normal, expected work.\n\nWith --review, the blocks awaiting a person are listed instead. Add\n--pre-review to have the AI review tool score each translation in that queue\nfirst; a score is advisory and never approves a block.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality\ngate), and it never fails.",
       "groupID": "work",
       "flags": [
         {
@@ -8297,6 +8356,12 @@
           "name": "locale",
           "usage": "limit to a single target locale",
           "type": "string"
+        },
+        {
+          "name": "pre-review",
+          "usage": "with --review, have the AI review tool score each translation awaiting review before listing it; a score is advisory and never approves a block",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "project",
