@@ -18,11 +18,11 @@ func (schemaConfig) Schema() *fschema.FormatSchema {
 }
 
 func TestUnknownParameterErrorNamesTheSnakeCaseKey(t *testing.T) {
-	assert.EqualError(t, UnknownParameterError(schemaConfig{}, "json", "extractAllPairs"),
+	require.EqualError(t, UnknownParameterError(schemaConfig{}, "json", "extractAllPairs"),
 		"json: extractAllPairs is now extract_all_pairs")
-	assert.EqualError(t, UnknownParameterError(schemaConfig{}, "json", "useKeyAsName"),
+	require.EqualError(t, UnknownParameterError(schemaConfig{}, "json", "useKeyAsName"),
 		"json: unknown parameter: useKeyAsName", "a camelCase key the schema does not hold is unknown")
-	assert.EqualError(t, UnknownParameterError(schemaConfig{}, "json", "bogus"),
+	require.EqualError(t, UnknownParameterError(schemaConfig{}, "json", "bogus"),
 		"json: unknown parameter: bogus")
 	assert.NoError(t, RenamedParameterError(schemaConfig{}, "json", "extract_all_pairs"))
 }

@@ -472,7 +472,7 @@ defaults:
   formats:
     yaml:
       config:
-        keyPathPatterns:
+        key_path_patterns:
           - narration.*.text
 collections:
   - name: engine
@@ -482,8 +482,8 @@ collections:
         format:
           name: json
           config:
-            extractAllPairs: false
-            extractionRules: '(displayName|description)$'
+            extract_all_pairs: false
+            extraction_rules: '(displayName|description)$'
         target: catalogs/{lang}.json
   - name: demos
     base: harness/demos
