@@ -347,6 +347,14 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 		return nil, UnknownToolError(name)
 	}
 
+	// A camelCase spelling of one of the tool's snake_case config keys is
+	// refused with the key to write, at any depth the schema describes.
+	if reg.Schema != nil {
+		if err := schema.RenamedKeyError(reg.Schema.Properties, config, fmt.Sprintf("tool %s config", name)); err != nil {
+			return nil, err
+		}
+	}
+
 	// Run preprocessor if set (e.g. credential resolution). The requirements
 	// are config-resolved: a tool whose contract drops a requirement under a
 	// given config (entity-extract with engine "ner" needs no credentials)

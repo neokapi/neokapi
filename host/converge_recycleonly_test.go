@@ -74,6 +74,6 @@ func TestRecycleOnlyFlowSpec_FillsExactMatchesOnly(t *testing.T) {
 	spec := RecycleOnlyFlowSpec()
 	require.Len(t, spec.Steps, 1)
 	assert.Equal(t, "recycle", spec.Steps[0].Tool)
-	assert.Equal(t, 100, spec.Steps[0].Config["fillTargetThreshold"])
-	assert.Equal(t, 100, spec.Steps[0].Config["fuzzyThreshold"])
+	assert.Equal(t, 100, spec.Steps[0].Config["fill_target_threshold"])
+	assert.Equal(t, 100, spec.Steps[0].Config["fuzzy_threshold"])
 }

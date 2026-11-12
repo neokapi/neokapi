@@ -19,14 +19,14 @@ A flow is a list of sequential steps. Each step references a tool by name and op
 steps:
   - tool: pseudo-translate
     config:
-      expansionPercent: 30
+      expansion_percent: 30
       prefix: "["
       suffix: "]"
 ```
 
 The run supplies the target locale to every step
 (`--target-lang` at the CLI, or the project's declared targets under `kapi
-run` / `kapi up`), so one flow serves every locale; a `targetLocale` written
+run` / `kapi up`), so one flow serves every locale; a `target_locale` written
 into a step's config is outranked by the run's language.
 
 ### Source and sink
@@ -57,7 +57,7 @@ steps:
   - tool: pseudo-translate
     label: Generate test translations
     config:
-      expansionPercent: 30
+      expansion_percent: 30
 ```
 
 ## Sequential steps
@@ -68,7 +68,7 @@ Steps execute in order. The output channel of one tool feeds into the input chan
 steps:
   - tool: create-target
     config:
-      copySource: true
+      copy_source: true
 
   - tool: search-replace
     config:
@@ -91,7 +91,7 @@ before it emitted. To run several checks, list them one after another:
 steps:
   - tool: create-target
     config:
-      copySource: true
+      copy_source: true
 
   - tool: qa
     label: Quality checks
@@ -124,7 +124,7 @@ steps:
   - tool: redact
     config:
       detectors: [rules]
-      rulesPath: redaction-rules.yaml
+      rules_path: redaction-rules.yaml
 
   - tool: translate
 ```
@@ -171,12 +171,12 @@ A typical translation flow with content-memory leverage, AI translation for new 
 steps:
   - tool: create-target
     config:
-      copySource: false
+      copy_source: false
 
   - tool: recycle
     label: Apply memory matches
     config:
-      fuzzyThreshold: 75
+      fuzzy_threshold: 75
 
   - tool: translate
     label: Translate remaining
@@ -202,13 +202,13 @@ Run analysis tools over pseudo-translated output:
 steps:
   - tool: pseudo-translate
     config:
-      expansionPercent: 30
+      expansion_percent: 30
 
   - tool: term-check
   - tool: qa
     config:
-      checkAbsoluteMaxCharLength: true
-      absoluteMaxCharLength: 200
+      check_absolute_max_char_length: true
+      absolute_max_char_length: 200
 ```
 
 ```bash
@@ -282,11 +282,11 @@ spec := &flow.StepsSpec{
     Input: "json",
     Steps: []flow.FlowStep{
         {Tool: "pseudo-translate", Config: map[string]any{
-            "targetLocale": "fr",
-            "expansionPercent": 30,
+            "target_locale": "fr",
+            "expansion_percent": 30,
         }},
         {Tool: "qa", Config: map[string]any{
-            "targetLocale": "fr",
+            "target_locale": "fr",
         }},
     },
 }

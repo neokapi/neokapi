@@ -749,7 +749,7 @@ spec:
   steps:
     - tool: recycle
       config:
-        fuzzyThreshold: 75
+        fuzzy_threshold: 75
     - tool: translate
       config:
         provider: anthropic
@@ -861,7 +861,7 @@ which a file of strings has nowhere to keep.
 A tool that genuinely needs
 the maximal surface (`script`, which runs arbitrary JavaScript) overrides
 `Process` instead and self-gates source mutation behind its own flag
-(`allowSourceMutation`). The script hands back a whole block, and
+(`allow_source_mutation`). The script hands back a whole block, and
 `change.Diff(before, after)` turns the pair into operations, each guarded by
 the revision of the edition it changes: `set_content` for an edition added or
 rewritten, `replace_text` where one text edit with every inline code kept

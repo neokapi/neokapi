@@ -165,7 +165,7 @@ func TestToolRun_LeavesAToolThatCallsNoProviderAsItWas(t *testing.T) {
 	page := filepath.Join(root, "docs", "page.json")
 	cfg := upperRun(a, page)
 	cfg.Project = recipe
-	cfg.ToolConfig = map[string]any{"mode": "upper", "applySource": true}
+	cfg.ToolConfig = map[string]any{"mode": "upper", "apply_source": true}
 	require.NoError(t, a.RunToolOnFiles(t.Context(), cfg))
 	out, err := os.ReadFile(page)
 	require.NoError(t, err)

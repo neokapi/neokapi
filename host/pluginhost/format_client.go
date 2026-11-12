@@ -64,7 +64,7 @@ func (c *mapConfig) ApplyMap(values map[string]any) error {
 		// fmt.Sprint on a slice yields Go's debug rendering — `[desc caveats]` —
 		// which no plugin can parse back, and which silently produced an
 		// extraction that matched nothing when the sourcecode format's
-		// nodePathPatterns first crossed this boundary. Scalars keep their
+		// node_path_patterns first crossed this boundary. Scalars keep their
 		// existing spelling on purpose: a bridge filter parameter reading
 		// "true" or "42" must not start seeing a quoted JSON string.
 		switch v.(type) {

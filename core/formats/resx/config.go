@@ -59,20 +59,20 @@ func (c *Config) Validate() error {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractComments":
+		case "extract_comments":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractComments: expected bool, got %T", val)
+				return fmt.Errorf("extract_comments: expected bool, got %T", val)
 			}
 			c.ExtractComments = b
-		case "skipNameDataReferences":
+		case "skip_name_data_references":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("skipNameDataReferences: expected bool, got %T", val)
+				return fmt.Errorf("skip_name_data_references: expected bool, got %T", val)
 			}
 			c.SkipNameDataReferences = b
 		default:
-			return fmt.Errorf("resx: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "resx", key)
 		}
 	}
 	return nil

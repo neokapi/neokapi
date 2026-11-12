@@ -7,7 +7,7 @@
 // locale. msgctxt is resolved from (in order): Block.Properties["context"],
 // Block.Name, Block.ID — whichever is first non-empty. This lets blocks
 // produced by the PO filter (which uses Properties["context"]) and blocks
-// produced by the JSON filter with useFullKeyPath (which sets Block.Name to
+// produced by the JSON filter with use_full_key_path (which sets Block.Name to
 // the key path) both round-trip through MO without re-configuration.
 //
 // Untranslated entries (no target for the configured locale) are dropped —
@@ -112,7 +112,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 // blockContext picks the string that becomes msgctxt for this block.
 // Properties["context"] takes precedence (for PO → MO round-trips that
 // already carry the msgctxt verbatim), then Block.Name (the full key path
-// from the JSON filter when useFullKeyPath is set), then Block.ID.
+// from the JSON filter when use_full_key_path is set), then Block.ID.
 func blockContext(b *model.Block) string {
 	if ctx, ok := b.Properties["context"]; ok && ctx != "" {
 		return ctx

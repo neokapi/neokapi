@@ -21,24 +21,24 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "parser",
 				Label: "Parser Settings",
 				Fields: []string{
-					"preserveWhitespace",
+					"preserve_whitespace",
 				},
 			},
 			{
 				ID:    "extraction",
 				Label: "Extraction Rules",
 				Fields: []string{
-					"translatableElements", "translatableAttributes",
-					"excludeByDefault", "inlineElements", "excludedElements",
-					"preserveWhitespaceElements", "groupElements",
-					"idAttributes", "extractNonTranslatableContent",
+					"translatable_elements", "translatable_attributes",
+					"exclude_by_default", "inline_elements", "excluded_elements",
+					"preserve_whitespace_elements", "group_elements",
+					"id_attributes", "extract_non_translatable_content",
 				},
 			},
 			{
 				ID:    "advanced",
 				Label: "Advanced",
 				Fields: []string{
-					"elements", "attributes", "blockTypeMap",
+					"elements", "attributes", "block_type_map",
 				},
 			},
 			{
@@ -52,13 +52,13 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
 			// Parser
-			"preserveWhitespace": schema.Prop(coreschema.PropertySchema{
+			"preserve_whitespace": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Preserve whitespace",
@@ -66,48 +66,48 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Extraction
-			"translatableElements": schema.Prop(coreschema.PropertySchema{
+			"translatable_elements": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Translatable elements",
 				Description: "Element names whose text content is translatable. If empty, all text content is translatable.",
 			}),
-			"translatableAttributes": schema.Prop(coreschema.PropertySchema{
+			"translatable_attributes": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Translatable attributes",
 				Description: "Attribute names that are translatable across all elements",
 			}),
-			"excludeByDefault": schema.Prop(coreschema.PropertySchema{
+			"exclude_by_default": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Exclude by default",
 				Description: "Exclude all elements unless explicitly included by an element rule with INCLUDE",
 			}),
-			"inlineElements": schema.Prop(coreschema.PropertySchema{
+			"inline_elements": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Inline elements",
 				Description: "Element names treated as inline (spans within text) rather than block-level",
 			}),
-			"excludedElements": schema.Prop(coreschema.PropertySchema{
+			"excluded_elements": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Excluded elements",
 				Description: "Element names whose content is excluded from extraction",
 			}),
-			"preserveWhitespaceElements": schema.Prop(coreschema.PropertySchema{
+			"preserve_whitespace_elements": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Preserve whitespace elements",
 				Description: "Element names that preserve whitespace regardless of the global setting",
 			}),
-			"groupElements": schema.Prop(coreschema.PropertySchema{
+			"group_elements": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Group elements",
 				Description: "Element names that produce group/layer boundaries in the output",
 			}),
-			"idAttributes": schema.Prop(coreschema.PropertySchema{
+			"id_attributes": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "ID attributes",
 				Description: "Attribute names used to extract block IDs from elements",
 			}),
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",
@@ -125,7 +125,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Attribute rules",
 				Description: "Advanced attribute-specific processing rules with element scope constraints",
 			}),
-			"blockTypeMap": schema.Prop(coreschema.PropertySchema{
+			"block_type_map": schema.Prop(coreschema.PropertySchema{
 				Type:        "object",
 				Title:       "Block type map",
 				Description: "Map of element names to block type strings for semantic type annotation",
@@ -139,18 +139,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Inline codes
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable inline code detection",
 				Description: "Enable regex-based detection of inline codes within translatable text",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code finder rules",
 				Description: "Regex patterns that match inline codes within translatable text",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

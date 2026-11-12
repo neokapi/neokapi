@@ -651,7 +651,7 @@ func (a *App) BuildVoiceProvider(cmd Command) (aiprovider.LLMProvider, error) {
 		config["provider"] = provider
 	}
 	if apiKey != "" {
-		config["apiKey"] = apiKey
+		config["api_key"] = apiKey
 	}
 	if cred != "" {
 		config["credential"] = cred
@@ -664,7 +664,7 @@ func (a *App) BuildVoiceProvider(cmd Command) (aiprovider.LLMProvider, error) {
 		return nil, err
 	}
 	pName, _ := resolved["provider"].(string)
-	key, _ := resolved["apiKey"].(string)
+	key, _ := resolved["api_key"].(string)
 	mdl, _ := resolved["model"].(string)
 	p, err := aitools.ProviderFromConfig(pName, aiprovider.Config{APIKey: key, Model: mdl})
 	if err != nil {

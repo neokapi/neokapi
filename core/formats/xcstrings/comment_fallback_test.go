@@ -123,7 +123,7 @@ func TestCommentFallback_SurfacesDeveloperComment(t *testing.T) {
 // prior behavior.
 func TestCommentFallback_OffKeepsPartStreamByteIdentical(t *testing.T) {
 	parts := readInlineXC(t, commentFallbackCatalog, map[string]any{
-		"extractNonTranslatableContent": false,
+		"extract_non_translatable_content": false,
 	})
 	blocks := testutil.FilterBlocks(parts)
 
@@ -169,13 +169,13 @@ const staleCommentCatalog = `{
 }
 `
 
-// TestCommentFallback_StaleSkipped verifies the stale path: when extractStale is
+// TestCommentFallback_StaleSkipped verifies the stale path: when extract_stale is
 // off the entry emits no translatable leaf, but its developer comment is still
 // surfaced via a fallback block (carrying the stale extractionState) when
 // surfacing is on, and nothing is emitted when surfacing is off.
 func TestCommentFallback_StaleSkipped(t *testing.T) {
 	t.Run("default_extracts_leaf_no_fallback", func(t *testing.T) {
-		// extractStale defaults true: the stale entry emits a normal leaf and
+		// extract_stale defaults true: the stale entry emits a normal leaf and
 		// carries its comment there, so no fallback is produced.
 		blocks := testutil.FilterBlocks(readInlineXC(t, staleCommentCatalog, nil))
 		require.Len(t, blocks, 1)
@@ -185,7 +185,7 @@ func TestCommentFallback_StaleSkipped(t *testing.T) {
 
 	t.Run("stale_off_surfaces_comment_fallback", func(t *testing.T) {
 		blocks := testutil.FilterBlocks(readInlineXC(t, staleCommentCatalog, map[string]any{
-			"extractStale": false,
+			"extract_stale": false,
 		}))
 		require.Len(t, blocks, 1)
 		b := blocks[0]
@@ -198,8 +198,8 @@ func TestCommentFallback_StaleSkipped(t *testing.T) {
 
 	t.Run("stale_off_surfacing_off_emits_nothing", func(t *testing.T) {
 		blocks := testutil.FilterBlocks(readInlineXC(t, staleCommentCatalog, map[string]any{
-			"extractStale":                  false,
-			"extractNonTranslatableContent": false,
+			"extract_stale":                    false,
+			"extract_non_translatable_content": false,
 		}))
 		assert.Empty(t, blocks, "stale-skipped entry with surfacing off must emit no block")
 	})
@@ -211,12 +211,12 @@ func TestCommentFallback_ConfigToggles(t *testing.T) {
 	c.Reset()
 	assert.True(t, c.ExtractNonTranslatableContent(), "default must be on")
 
-	require.NoError(t, c.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, c.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, c.ExtractNonTranslatableContent())
 
 	c.SetExtractNonTranslatableContent(true)
 	assert.True(t, c.ExtractNonTranslatableContent())
 
-	err := c.ApplyMap(map[string]any{"extractNonTranslatableContent": "nope"})
+	err := c.ApplyMap(map[string]any{"extract_non_translatable_content": "nope"})
 	require.Error(t, err, "non-bool value must be rejected")
 }

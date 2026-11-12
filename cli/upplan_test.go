@@ -33,7 +33,7 @@ func planFixture(t *testing.T, targets []model.LocaleID, shipGate gate.Gate) (re
 	proj.Defaults.Flow = "converge"
 	proj.Flows["converge"] = &flow.StepsSpec{Steps: []flow.FlowStep{
 		{Tool: "recycle"},
-		{Tool: "translate", Config: map[string]any{"provider": "demo", "skipMatched": true}},
+		{Tool: "translate", Config: map[string]any{"provider": "demo", "skip_matched": true}},
 	}}
 	require.NoError(t, project.Save(recipe, proj))
 	return recipe, root

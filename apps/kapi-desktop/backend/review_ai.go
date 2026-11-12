@@ -143,11 +143,11 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 // touches the target file.
 func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang, instruction string) (*ReviewAIActionResult, error) {
 	tl, release, err := a.newReviewAITool(ctx, op, "translate", unit, map[string]any{
-		"sourceLocale": sourceLang,
-		"instruction":  instruction,
+		"source_locale": sourceLang,
+		"instruction":   instruction,
 		// One block, one call: the single-block path renders the instruction
 		// via TranslateRequest.Directives.
-		"batchSize": 1,
+		"batch_size": 1,
 	})
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.Un
 // structured result as explanation text (score + findings). Read-only: the
 // review lands in block properties on an in-memory copy.
 func (a *App) reviewAIExplain(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang string) (*ReviewAIActionResult, error) {
-	tl, release, err := a.newReviewAITool(ctx, op, "review", unit, map[string]any{"sourceLocale": sourceLang})
+	tl, release, err := a.newReviewAITool(ctx, op, "review", unit, map[string]any{"source_locale": sourceLang})
 	if err != nil {
 		return nil, err
 	}

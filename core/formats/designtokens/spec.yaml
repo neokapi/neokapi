@@ -8,7 +8,7 @@
 #   - Inputs are inline DTCG JSON snippets (input_xml) or the committed
 #     testdata fixtures. Assertions reflect the live reader under default
 #     config; numbers verified via go test -run TestSpec.
-#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractDescriptions.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extract_descriptions.
 #   - The byte_faithful feature carries a #847 expected.roundtrip view
 #     (mode: byte_exact).
 
@@ -23,7 +23,7 @@ description: |
   output, splicing only changed descriptions.
 
 config:
-  - key: extractDescriptions
+  - key: extract_descriptions
     type: boolean
     default: true
     description: |
@@ -67,9 +67,9 @@ features:
       - id: dt2off
         name: descriptions_disabled
         class: valid
-        origin: "authored: same input, extractDescriptions off — no translatable content"
+        origin: "authored: same input, extract_descriptions off — no translatable content"
         config:
-          extractDescriptions: false
+          extract_descriptions: false
         input_xml: |
           {
             "color": {

@@ -121,7 +121,7 @@ func TestStructuralName_IDAttributeStillWins(t *testing.T) {
 func TestStructuralName_AttributeBlocksCarryTheOrdinal(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	require.NoError(t, cfg.ApplyMap(map[string]any{
-		"translatableAttributes": []any{"title"},
+		"translatable_attributes": []any{"title"},
 	}))
 	ctx := t.Context()
 	reader := xmlfmt.NewReader()

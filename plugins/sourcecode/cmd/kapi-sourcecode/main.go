@@ -208,7 +208,7 @@ func (s *server) Process(stream pb.BridgeService_ProcessServer) error {
 }
 
 // optionsFrom decodes the recipe's format config, which arrives as flat strings.
-// nodePathPatterns is comma-separated; empty means "extract everything the
+// node_path_patterns is comma-separated; empty means "extract everything the
 // grammar exposes", which is the reader's own default.
 func optionsFrom(params map[string]string) (proseread.Options, error) {
 	opts := proseread.Options{
@@ -219,10 +219,10 @@ func optionsFrom(params map[string]string) (proseread.Options, error) {
 	// A value that does not decode is REPORTED rather than skipped: silently
 	// dropping the include list would widen extraction to every string in the
 	// file, which reads as a working check quietly doing something else.
-	if raw := strings.TrimSpace(params["nodePathPatterns"]); raw != "" {
+	if raw := strings.TrimSpace(params["node_path_patterns"]); raw != "" {
 		var paths []string
 		if err := json.Unmarshal([]byte(raw), &paths); err != nil {
-			return opts, fmt.Errorf("nodePathPatterns: %w", err)
+			return opts, fmt.Errorf("node_path_patterns: %w", err)
 		}
 		opts.NodePathPatterns = paths
 	}

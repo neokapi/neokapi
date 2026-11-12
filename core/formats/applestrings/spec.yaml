@@ -10,8 +10,8 @@
 #     legacy "key" = "value"; grammar (.strings) vs the plist-backed
 #     .stringsdict grammar. Assertions reflect the live reader under
 #     default config; numbers verified via go test -run TestSpec.
-#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractComments,
-#     protectPlaceholders.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extract_comments,
+#     protect_placeholders.
 #   - The byte_faithful feature carries a #847 expected.roundtrip view
 #     (mode: byte_exact): the reader retains the original bytes so the
 #     writer reproduces unchanged input byte-for-byte.
@@ -28,14 +28,14 @@ description: |
   the writer produces byte-faithful output, splicing only changed values.
 
 config:
-  - key: extractComments
+  - key: extract_comments
     type: boolean
     default: true
     description: |
       Surface the /* … */ or // comment immediately preceding an entry as
       a translator note on the emitted block. Comments always round-trip
       verbatim regardless of this setting.
-  - key: protectPlaceholders
+  - key: protect_placeholders
     type: boolean
     default: true
     description: |

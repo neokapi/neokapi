@@ -288,7 +288,7 @@ export async function injectMockBackend(page: Page) {
             defaultLocale: "qps",
           },
           properties: {
-            expansionPercent: {
+            expansion_percent: {
               type: "integer",
               title: "Expansion Percent",
               description:

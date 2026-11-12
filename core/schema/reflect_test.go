@@ -46,7 +46,7 @@ func TestFromStruct_SimpleTypes(t *testing.T) {
 	assert.Equal(t, "test", p.Default)
 
 	// Integer
-	p = s.Properties["maxRetries"]
+	p = s.Properties["max_retries"]
 	assert.Equal(t, "integer", p.Type)
 	assert.Equal(t, 3, p.Default)
 
@@ -104,7 +104,7 @@ func TestFromStruct_NestedTypes(t *testing.T) {
 	require.NotNil(t, rules.Items)
 	assert.Equal(t, "object", rules.Items.Type)
 	assert.Contains(t, rules.Items.Properties, "pattern")
-	assert.Contains(t, rules.Items.Properties, "isRegex")
+	assert.Contains(t, rules.Items.Properties, "is_regex")
 
 	// Map
 	extra := s.Properties["extra"]
@@ -151,22 +151,30 @@ func TestFromStruct_EmptyStruct(t *testing.T) {
 	assert.Empty(t, s.Properties)
 }
 
-func TestToCamelCase(t *testing.T) {
+func TestSnakeCase(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
 	}{
-		{"FuzzyThreshold", "fuzzyThreshold"},
-		{"TargetLocale", "targetLocale"},
-		{"XMLParser", "xmlParser"},
+		{"FuzzyThreshold", "fuzzy_threshold"},
+		{"fillTargetThreshold", "fill_target_threshold"},
+		{"TargetLocale", "target_locale"},
+		{"XMLParser", "xml_parser"},
 		{"ID", "id"},
-		{"ApplyTarget", "applyTarget"},
-		{"CheckEmptyTarget", "checkEmptyTarget"},
+		{"TextUnitIDs", "text_unit_ids"},
+		{"filterByIDs", "filter_by_ids"},
+		{"translateURLs", "translate_urls"},
+		{"translateHTMLBlocks", "translate_html_blocks"},
+		{"includeHorizontalWS", "include_horizontal_ws"},
+		{"escapeGT", "escape_gt"},
+		{"cjkCharsPerLine", "cjk_chars_per_line"},
+		{"baseURL", "base_url"},
+		{"already_snake", "already_snake"},
 		{"A", "a"},
 		{"", ""},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.expected, toCamelCase(tt.input), "toCamelCase(%q)", tt.input)
+		assert.Equal(t, tt.expected, SnakeCase(tt.input), "SnakeCase(%q)", tt.input)
 	}
 }
 

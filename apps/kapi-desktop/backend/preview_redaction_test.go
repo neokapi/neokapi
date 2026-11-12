@@ -37,7 +37,7 @@ func previewRedactionProject(t *testing.T) (*App, string, string) {
 	}
 	op.Project.Flows["rewrite"] = &flow.StepsSpec{Steps: []flow.FlowStep{
 		{Tool: "redact"},
-		{Tool: "external-command", Config: map[string]any{"command": script, "applySource": true, "applyTarget": false}},
+		{Tool: "external-command", Config: map[string]any{"command": script, "apply_source": true, "apply_target": false}},
 		{Tool: "unredact"},
 	}}
 	return app, tab.ID, saw

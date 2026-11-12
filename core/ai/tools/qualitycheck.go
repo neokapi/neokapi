@@ -25,15 +25,15 @@ type AICheckTool struct {
 
 // AICheckConfig holds configuration for the LLM-judged check tool.
 type AICheckConfig struct {
-	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
-	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	SourceLocale model.LocaleID `json:"source_locale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID `json:"target_locale,omitempty" schema:"-"`
 	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey       string         `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	APIKey       string         `json:"api_key,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
-	BaseURL string   `json:"baseURL,omitempty"      schema:"-"`
+	BaseURL string   `json:"base_url,omitempty"      schema:"-"`
 	Model   string   `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 	Checks  []string `json:"checks,omitempty"       schema:"title=Quality Checks,description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
 }

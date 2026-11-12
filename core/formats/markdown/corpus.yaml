@@ -331,7 +331,7 @@ entries:
     size: 602
     license: Apache-2.0
     redistributable: true
-    notes: 'own-created fixture for #2447 (alt text with translateImageAlt off)'
+    notes: 'own-created fixture for #2447 (alt text with translate_image_alt off)'
   - path: core/formats/markdown/testdata/link-titles.md
     tier: A
     origin: bug

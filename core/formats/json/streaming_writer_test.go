@@ -148,7 +148,7 @@ func TestStreamingWriterMatchesBuffered(t *testing.T) {
 		{"whitespace", "{\n    \"key\" :   \"value\"\n}", nil},
 		{"comments", "{\n  // line\n  /* block */\n  # hash\n  \"key\": \"value\"\n}", nil},
 		{"nested", `{"parent": {"child": "value"}, "other": "text"}`, nil},
-		{"array_isolated", `{"items": ["a", "b", "c"]}`, map[string]any{"extractIsolatedStrings": true}},
+		{"array_isolated", `{"items": ["a", "b", "c"]}`, map[string]any{"extract_isolated_strings": true}},
 		{"array_non_isolated", `{"items": ["a", "b", "c"]}`, nil},
 		{"non_string_values", `{"name": "Test", "count": 42, "rate": 3.14, "active": true, "meta": null}`, nil},
 		{"json5_single_quotes", `{'single':'quoted',"dbl":"v"}`, nil},
@@ -156,7 +156,7 @@ func TestStreamingWriterMatchesBuffered(t *testing.T) {
 		{"trailing_newline", "{\"key\": \"value\"}\n", nil},
 		{"empty_object", `{"data": {}, "text": "Hello"}`, nil},
 		{"excluded_value_surfaced", `{"keep": "Hi", "_internal": "secret"}`, map[string]any{"exceptions": "^_internal$"}},
-		{"note_and_id", `{"id": "greet", "text": "Hello", "note": "hint"}`, map[string]any{"idRules": "id", "noteRules": "note"}},
+		{"note_and_id", `{"id": "greet", "text": "Hello", "note": "hint"}`, map[string]any{"id_rules": "id", "note_rules": "note"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

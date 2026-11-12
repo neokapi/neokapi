@@ -362,7 +362,7 @@ func stepHoldsItsOwnKey(cfg map[string]any) bool {
 	if provider, _ := cfg["provider"].(string); provider != "" {
 		return true
 	}
-	key, _ := cfg["apiKey"].(string)
+	key, _ := cfg["api_key"].(string)
 	return key != ""
 }
 

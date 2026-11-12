@@ -10,8 +10,8 @@
 #   - Inputs are inline AsciiDoc snippets (input_xml) or the committed
 #     testdata/sample.adoc exemplar. Assertions reflect the live reader under
 #     default config; verified via `go test -run TestSpec`.
-#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractBlockTitles,
-#     extractTableCells.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extract_block_titles,
+#     extract_table_cells.
 #   - The byte_faithful feature carries an expected.roundtrip view
 #     (mode: byte_exact): an untouched document round-trips verbatim.
 
@@ -28,13 +28,13 @@ description: |
   parsed losslessly so the writer reproduces an untouched document byte-for-byte.
 
 config:
-  - key: extractBlockTitles
+  - key: extract_block_titles
     type: boolean
     default: true
     description: |
       Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false
       they are preserved verbatim as skeleton.
-  - key: extractTableCells
+  - key: extract_table_cells
     type: boolean
     default: true
     description: |

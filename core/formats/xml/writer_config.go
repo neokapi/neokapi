@@ -3,6 +3,7 @@ package xml
 import (
 	"errors"
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // WriterCfg holds writer-side serialization knobs for the XML format.
@@ -67,27 +68,30 @@ func (c *WriterCfg) Validate() error {
 func (c *WriterCfg) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "emitDeclaration":
+		case "emit_declaration":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("emitDeclaration: expected bool, got %T", val)
+				return fmt.Errorf("emit_declaration: expected bool, got %T", val)
 			}
 			c.EmitDeclaration = b
-		case "declarationVersion":
+		case "declaration_version":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("declarationVersion: expected string, got %T", val)
+				return fmt.Errorf("declaration_version: expected string, got %T", val)
 			}
 			c.DeclarationVersion = s
-		case "declarationEncoding":
+		case "declaration_encoding":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("declarationEncoding: expected string, got %T", val)
+				return fmt.Errorf("declaration_encoding: expected string, got %T", val)
 			}
 			c.DeclarationEncoding = s
 		default:
-			// Silently ignore unknown keys for forward compatibility,
-			// matching the reader Config convention.
+			// A camelCase spelling of a renamed key fails; any other
+			// unknown key is ignored, matching the reader Config convention.
+			if err := format.RenamedParameterError(c, "xml", key); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

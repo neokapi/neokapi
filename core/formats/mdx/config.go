@@ -14,15 +14,15 @@ import (
 // the MDX config and NOT forwarded to the delegated markdown reader, whose
 // own non-translatable surfacing (code fences) is governed separately and kept
 // off for the embedded spans (see reader.emitMarkdownSpan).
-const extractNonTranslatableContentKey = "extractNonTranslatableContent"
+const extractNonTranslatableContentKey = "extract_non_translatable_content"
 
 // Config holds configuration for the MDX format. MDX is CommonMark
 // Markdown extended with ESM (`import`/`export`), JSX, and `{expression}`
 // nodes. The Markdown-prose extraction behaviour is governed entirely by
-// the same toggles the markdown format exposes (translateCodeBlocks,
-// translateFrontMatter, translateImageAlt, translateURLs,
-// translateBlockQuotes, translateHTMLBlocks, useCodeFinder,
-// codeFinderRules, …) — these are validated here against a fresh
+// the same toggles the markdown format exposes (translate_code_blocks,
+// translate_front_matter, translate_image_alt, translate_urls,
+// translate_block_quotes, translate_html_blocks, use_code_finder,
+// code_finder_rules, …) — these are validated here against a fresh
 // markdown.Config and replayed onto each markdown reader the MDX reader
 // delegates Markdown spans to.
 //
@@ -33,7 +33,7 @@ type Config struct {
 	// params is the raw, validated parameter map applied via ApplyMap. It
 	// is replayed onto each delegated markdown reader's config so MDX
 	// honours exactly the same parameters as `.md`. nil/empty means
-	// markdown defaults. The extractNonTranslatableContent key is never
+	// markdown defaults. The extract_non_translatable_content key is never
 	// stored here — it is intercepted into disableNonTranslatableContent.
 	params map[string]any
 
@@ -92,7 +92,7 @@ func (c *Config) Validate() error {
 	return probe.ApplyMap(c.params)
 }
 
-// ApplyMap intercepts the MDX-owned extractNonTranslatableContent flag, then
+// ApplyMap intercepts the MDX-owned extract_non_translatable_content flag, then
 // validates the remaining values against the markdown config schema (so an
 // unknown key or type mismatch is rejected up front) and retains them for
 // replay onto delegated markdown readers. The flag is deliberately NOT

@@ -714,7 +714,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			}
 			// The pass is driven by the corpus, not by the target files: a recycle
 			// step fills what the content memory answers exactly and a drafting
-			// step produces the remainder (skipMatched). So this is the question
+			// step produces the remainder (skip_matched). So this is the question
 			// that decides what a unit costs, and it is put to every unit the plan
 			// counts. It is a fact about the corpus alone — what the configured
 			// flow does with the answer is decided below.

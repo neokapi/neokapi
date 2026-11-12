@@ -22,28 +22,28 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "output",
 				Label: "Output",
 				Fields: []string{
-					"version", "writeOriginalData",
+					"version", "write_original_data",
 				},
 			},
 			{
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"forceUniqueIds", "ignoreTagTypeMatch",
+					"force_unique_ids", "ignore_tag_type_match",
 				},
 			},
 			{
 				ID:    "states",
 				Label: "Translation State Handling",
 				Fields: []string{
-					"discardInvalidTargets",
+					"discard_invalid_targets",
 				},
 			},
 			{
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
@@ -63,13 +63,13 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Extraction
-			"forceUniqueIds": schema.Prop(coreschema.PropertySchema{
+			"force_unique_ids": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Ensure unique tag IDs",
 				Description: "Ensure inline tag IDs are unique within each unit",
 			}),
-			"ignoreTagTypeMatch": schema.Prop(coreschema.PropertySchema{
+			"ignore_tag_type_match": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Ignore tag type mismatch",
@@ -77,7 +77,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// States
-			"discardInvalidTargets": schema.Prop(coreschema.PropertySchema{
+			"discard_invalid_targets": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Discard invalid targets",
@@ -85,7 +85,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Output
-			"writeOriginalData": schema.Prop(coreschema.PropertySchema{
+			"write_original_data": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Include original data in output",
@@ -93,18 +93,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Inline codes
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable inline code detection",
 				Description: "Enable regex-based inline code detection in translatable text",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code finder rules",
 				Description: "Regex patterns that match inline codes within translatable text",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

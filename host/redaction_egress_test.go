@@ -75,7 +75,7 @@ func TestToolRun_RedactsTheRestOfTheRequest(t *testing.T) {
 			page := filepath.Join(root, "docs", "page.json")
 			require.NoError(t, os.WriteFile(page, []byte(`{"a": "Write to Ada Lovelace today.", "b": "Thank her twice.", "c": "Ada Lovelace replies."}`+"\n"), 0o600))
 			config := map[string]any{
-				"provider": "demo", "context": "neighbours", "batchSize": 2,
+				"provider": "demo", "context": "neighbours", "batch_size": 2,
 				"instruction": "Address Ada Lovelace formally.", "term_rules": egressTermRules(),
 			}
 			require.NoError(t, a.RunToolOnFiles(t.Context(), execRun(a, "translate", recipe, config, "fr", page)))

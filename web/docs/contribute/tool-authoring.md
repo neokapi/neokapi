@@ -70,7 +70,7 @@ Define a config struct with exported fields. The `schema` struct tag controls ho
 
 ```go
 type MyToolConfig struct {
-    TargetLocale string `json:"targetLocale" schema:"description=Target locale for output"`
+    TargetLocale string `json:"target_locale" schema:"description=Target locale for output"`
     Uppercase    bool   `json:"uppercase"    schema:"description=Convert text to uppercase,default=false"`
     MaxLength    int    `json:"maxLength"    schema:"description=Maximum output length (0 = unlimited),default=0"`
     Mode         string `json:"mode"         schema:"description=Processing mode,enum=fast|thorough|balanced,default=balanced"`
@@ -123,7 +123,7 @@ The function:
 2. Maps Go types to JSON Schema types
 3. Parses `schema` struct tags for metadata (description, default, enum, widget, etc.)
 4. Extracts `group` tags to build `ui:groups` for the UI
-5. Uses `json` struct tags for field names (falls back to camelCase conversion)
+5. Uses `json` struct tags for field names, falling back to the field name in snake_case (`FillTargetThreshold` becomes `fill_target_threshold`). Config keys are snake_case; a `json` tag must be too
 6. Generates a `ComponentSchema` with `toolMeta` metadata
 
 ### Parameter groups
@@ -227,7 +227,7 @@ import (
 type WrapTextConfig struct {
     Prefix       string `json:"prefix"       schema:"description=Text prepended to each block,default=["`
     Suffix       string `json:"suffix"       schema:"description=Text appended to each block,default=]"`
-    TargetLocale string `json:"targetLocale" schema:"description=Target locale,placeholder=en"`
+    TargetLocale string `json:"target_locale" schema:"description=Target locale,placeholder=en"`
     SourceOnly   bool   `json:"sourceOnly"   schema:"description=Wrap source text only,default=false"`
 }
 

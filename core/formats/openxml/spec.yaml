@@ -46,34 +46,34 @@ variants:
 
 config:
   # ── Common (all variants) ─────────────────────────────────────────
-  - key: translateDocProperties
+  - key: translate_doc_properties
     type: boolean
     default: true
     description: Extract document properties from docProps/core.xml (title, subject, keywords).
     okapi_param: bExtractDocumentProperties
 
-  - key: translateHeadersFooters
+  - key: translate_headers_footers
     type: boolean
     default: true
     description: Extract text from headers and footers.
     applies_to: [docx]
     okapi_param: bExtractHeadersFooters
 
-  - key: translateHiddenText
+  - key: translate_hidden_text
     type: boolean
     default: false
     description: Extract text marked with the vanish run property.
     applies_to: [docx]
     okapi_param: bExtractHidden
 
-  - key: translateComments
+  - key: translate_comments
     type: boolean
     default: false
     description: Extract review comments.
     applies_to: [docx, xlsx]
     okapi_param: bExtractComments
 
-  - key: automaticallyAcceptRevisions
+  - key: automatically_accept_revisions
     type: boolean
     default: true
     description: |
@@ -88,21 +88,21 @@ config:
     okapi_param: bAutomaticallyAcceptRevisions
 
   # ── PPTX-specific ─────────────────────────────────────────────────
-  - key: translateSlideNotes
+  - key: translate_slide_notes
     type: boolean
     default: true
     description: Extract speaker notes alongside slide content.
     applies_to: [pptx]
     okapi_param: bTranslateNotes
 
-  - key: translateSlideMasters
+  - key: translate_slide_masters
     type: boolean
     default: false
     description: Extract text from slide masters and layouts.
     applies_to: [pptx]
     okapi_param: bTranslatePowerpointMasters
 
-  - key: translateHiddenSlides
+  - key: translate_hidden_slides
     type: boolean
     default: false
     description: Extract text from slides flagged as hidden.
@@ -110,14 +110,14 @@ config:
     okapi_param: bTranslatePowerpointHidden
 
   # ── XLSX-specific ─────────────────────────────────────────────────
-  - key: translateSheetNames
+  - key: translate_sheet_names
     type: boolean
     default: false
     description: Extract worksheet tab names as translatable strings.
     applies_to: [xlsx]
     okapi_param: bTranslateExcelSheetNames
 
-  - key: excludedSheets
+  - key: excluded_sheets
     type: string_list
     default: []
     description: Worksheet names to exclude from extraction.
@@ -235,7 +235,7 @@ features:
     name: Hidden slides excluded by default (PPTX)
     description: |
       Slides marked hidden in the presentation are NOT extracted unless
-      translateHiddenSlides is enabled. Default behavior should produce
+      translate_hidden_slides is enabled. Default behavior should produce
       no blocks from a deck where every slide is hidden.
     applies_to: [pptx]
     spec_refs:
@@ -248,8 +248,8 @@ features:
         # Default config: hidden slides skipped → no translatable text.
         expected_fail: |
           neokapi extracts slide masters and speaker notes from hidden
-          slides even when translateSlideMasters=false and
-          translateHiddenSlides=false. Native defaults disagree with
+          slides even when translate_slide_masters=false and
+          translate_hidden_slides=false. Native defaults disagree with
           the Okapi contract; tracked here until the reader honors the
           flags consistently.
         block_count_max: 0
@@ -259,15 +259,15 @@ features:
   - id: pptx_hidden_slide_included
     name: Hidden slides included when configured (PPTX)
     description: |
-      Setting translateHiddenSlides=true makes all slides extractable
+      Setting translate_hidden_slides=true makes all slides extractable
       regardless of their hidden flag. Same input as the previous
       feature, different config — should now yield blocks.
     applies_to: [pptx]
     spec_refs:
       - "ECMA-376 Part 1 §19.3 PresentationML — `show` attribute on sld"
     config:
-      translateHiddenSlides: true
-      translateSlideMasters: false
+      translate_hidden_slides: true
+      translate_slide_masters: false
     examples:
       - name: all_hidden_with_flag
         origin: "okapi-fixture: okapi:filters/openxml/.../1010-slide1-hidden-slide2-hidden.pptx (with translateHiddenSlides=true)"
@@ -281,16 +281,16 @@ features:
   - id: doc_properties_opt_out
     name: Document properties opt-out (all variants)
     description: |
-      With translateDocProperties=false the reader skips title /
+      With translate_doc_properties=false the reader skips title /
       subject / keywords from docProps/core.xml. Verifies the Block
       count drops vs the default-on baseline.
     spec_refs:
       - "ECMA-376 Part 2 §11 Open Packaging Conventions — core properties part (docProps/core.xml)"
     config:
-      translateDocProperties: false
+      translate_doc_properties: false
     examples:
       - name: docx_default_minus_props
-        origin: "authored: testdata/simple.docx with translateDocProperties=false config wiring"
+        origin: "authored: testdata/simple.docx with translate_doc_properties=false config wiring"
         variant: docx
         input_file: testdata/simple.docx
         # simple.docx has no doc properties so block_count is unchanged

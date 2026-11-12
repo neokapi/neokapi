@@ -31,7 +31,7 @@ func registerPluginMT(t *testing.T, id mtprovider.ProviderID) {
 // neither registry fails with the unknown-provider error.
 func TestNewTranslateFromConfig_RoutesByProvider(t *testing.T) {
 	t.Run("default is the LLM translator", func(t *testing.T) {
-		tl, err := tools.NewTranslateFromConfig(map[string]any{"apiKey": "test"}, "fr")
+		tl, err := tools.NewTranslateFromConfig(map[string]any{"api_key": "test"}, "fr")
 		require.NoError(t, err)
 		_, isAI := tl.(*tools.AITranslateTool)
 		assert.True(t, isAI, "no provider must default to the LLM translator")
@@ -39,7 +39,7 @@ func TestNewTranslateFromConfig_RoutesByProvider(t *testing.T) {
 	})
 
 	t.Run("explicit LLM provider stays on the LLM engine", func(t *testing.T) {
-		tl, err := tools.NewTranslateFromConfig(map[string]any{"provider": "openai", "apiKey": "test"}, "fr")
+		tl, err := tools.NewTranslateFromConfig(map[string]any{"provider": "openai", "api_key": "test"}, "fr")
 		require.NoError(t, err)
 		_, isAI := tl.(*tools.AITranslateTool)
 		assert.True(t, isAI)
@@ -47,7 +47,7 @@ func TestNewTranslateFromConfig_RoutesByProvider(t *testing.T) {
 
 	t.Run("MT engine id routes to the MT tool", func(t *testing.T) {
 		registerPluginMT(t, "plugin-routing-mt")
-		tl, err := tools.NewTranslateFromConfig(map[string]any{"provider": "plugin-routing-mt", "apiKey": "test"}, "fr")
+		tl, err := tools.NewTranslateFromConfig(map[string]any{"provider": "plugin-routing-mt", "api_key": "test"}, "fr")
 		require.NoError(t, err)
 		_, isAI := tl.(*tools.AITranslateTool)
 		assert.False(t, isAI, "an MT provider id must not build the LLM translator")
@@ -73,10 +73,10 @@ func TestNewCheckFromConfig_ModeDispatch(t *testing.T) {
 	}
 
 	assert.False(t, isLLMJudge(map[string]any{}), "default is deterministic rules")
-	assert.False(t, isLLMJudge(map[string]any{"mode": "rules", "provider": "anthropic", "apiKey": "k"}),
+	assert.False(t, isLLMJudge(map[string]any{"mode": "rules", "provider": "anthropic", "api_key": "k"}),
 		"explicit rules mode wins even with a provider set")
-	assert.True(t, isLLMJudge(map[string]any{"mode": "ai", "apiKey": "k"}), "explicit ai mode builds the LLM judge")
-	assert.False(t, isLLMJudge(map[string]any{"provider": "anthropic", "apiKey": "k"}),
+	assert.True(t, isLLMJudge(map[string]any{"mode": "ai", "api_key": "k"}), "explicit ai mode builds the LLM judge")
+	assert.False(t, isLLMJudge(map[string]any{"provider": "anthropic", "api_key": "k"}),
 		"a provider without a mode runs the rule checks")
 }
 
@@ -129,7 +129,7 @@ func TestTranslateGroupRegistration(t *testing.T) {
 	}
 
 	// End to end through the registry: group config builds a runnable tool.
-	tl, err := reg.NewToolWithConfig("translate", map[string]any{"engine": "llm", "apiKey": "test"}, "fr")
+	tl, err := reg.NewToolWithConfig("translate", map[string]any{"engine": "llm", "api_key": "test"}, "fr")
 	require.NoError(t, err)
 	assert.Equal(t, "translate", tl.Name())
 }

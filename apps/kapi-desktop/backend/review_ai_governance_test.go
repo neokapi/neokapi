@@ -122,7 +122,7 @@ func newGovernedReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 			Tools: map[string]map[string]any{
-				"translate": {"context": "neighbours", "contextWindow": 4},
+				"translate": {"context": "neighbours", "context_window": 4},
 			},
 		},
 		Collections: []project.Collection{{
@@ -171,9 +171,9 @@ func TestReviewAI_RetranslateIsGoverned(t *testing.T) {
 	cfg := captured.last("translate")
 	assertGoverned(t, cfg, "retranslate")
 	assert.Equal(t, "neighbours", cfg["context"], "the recipe's translate preset reaches Review")
-	assert.Equal(t, 4, cfg["contextWindow"])
+	assert.Equal(t, 4, cfg["context_window"])
 	assert.Equal(t, "make it informal", cfg["instruction"], "the action's own keys survive")
-	assert.Equal(t, 1, cfg["batchSize"])
+	assert.Equal(t, 1, cfg["batch_size"])
 }
 
 func TestReviewAI_FixFindingsIsGoverned(t *testing.T) {

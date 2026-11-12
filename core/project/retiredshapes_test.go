@@ -44,7 +44,7 @@ func TestLoad_RefusesRetiredAndIncompleteShapes(t *testing.T) {
 			name:  "checkTerminology in a qa preset",
 			body:  head + "  tools:\n    qa:\n      checkTerminology: true\n" + coll,
 			want:  "defaults.tools.qa.checkTerminology is retired and nothing reads it. Remove the key",
-			fixed: head + "  tools:\n    qa:\n      checkDoubleSpaces: false\n" + coll,
+			fixed: head + "  tools:\n    qa:\n      check_double_spaces: false\n" + coll,
 		},
 		{
 			name:  "defaults.redaction with rules but no enabled",

@@ -51,7 +51,7 @@ func TestCheckSchemaComposition(t *testing.T) {
 		assert.Equal(t, "ai", v.Eq)
 	}
 	// A representative rule toggle's group gated on mode==rules.
-	rv := groupVisibleForField(s, "checkEmptyTarget")
+	rv := groupVisibleForField(s, "check_empty_target")
 	require.NotNil(t, rv, "rule group is gated")
 	assert.Equal(t, "rules", rv.Eq)
 
@@ -113,7 +113,7 @@ func TestTranslateSchemaComposition(t *testing.T) {
 	}
 
 	// Shared credential stays common (its group is ungated).
-	assert.Nil(t, groupVisibleForField(s, "apiKey"), "apiKey is common")
+	assert.Nil(t, groupVisibleForField(s, "api_key"), "apiKey is common")
 }
 
 // TestEntityExtractSchemaComposition asserts the entity-extract tool gates
@@ -129,7 +129,7 @@ func TestEntityExtractSchemaComposition(t *testing.T) {
 	assert.ElementsMatch(t, []string{"llm", "ner", "hybrid"}, optionValues(eng))
 
 	// LLM fields' group is visible for llm OR hybrid (shared config).
-	for _, f := range []string{"provider", "model", "batchSize", "batchConcurrency"} {
+	for _, f := range []string{"provider", "model", "batch_size", "batch_concurrency"} {
 		require.Contains(t, s.Properties, f)
 		v := groupVisibleForField(s, f)
 		require.NotNil(t, v, "field %q's group gated", f)
@@ -140,7 +140,7 @@ func TestEntityExtractSchemaComposition(t *testing.T) {
 
 	// Common fields' groups stay ungated.
 	assert.Nil(t, groupVisibleForField(s, "locale"))
-	assert.Nil(t, groupVisibleForField(s, "knownTerms"))
+	assert.Nil(t, groupVisibleForField(s, "known_terms"))
 
 	// Produces contract survives composition (redact depends on it).
 	require.NotNil(t, s.ToolMeta)

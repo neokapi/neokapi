@@ -16,7 +16,7 @@ overview: |
   files resolve to the JSON format by extension unless `-f designtokens` is
   given. Round-trip is byte-faithful, inherited from the JSON reader/writer.
 parameters:
-  extractDescriptions:
+  extract_descriptions:
     description: Extract $description documentation as translatable content.
     help: |
       When enabled (the default), `$description` fields on tokens and groups
@@ -30,4 +30,4 @@ examples:
   - title: Disable description extraction
     description: Treat the file as fully non-translatable.
     config: |
-      extractDescriptions: false
+      extract_descriptions: false

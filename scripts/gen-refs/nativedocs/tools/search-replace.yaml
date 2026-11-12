@@ -12,35 +12,35 @@ overview: |
   applied to every pattern. By default the tool replaces all matches in target
   text only.
 parameters:
-  regEx:
+  reg_ex:
     description: Treat search patterns as regular expressions.
     help: |
       When enabled, every search pattern is compiled as a regular expression
       and the case, dot-all, and multiline flags below apply.
     values: "`true` / `false` (default `false`)"
-  ignoreCase:
+  ignore_case:
     description: Match case-insensitively.
     help: |
       When enabled, matching ignores letter case. In regex mode this adds the
       case-insensitive flag to each pattern.
     values: "`true` / `false` (default `false`)"
-  dotAll:
+  dot_all:
     description: Let the dot metacharacter match line feeds.
     help: |
       When enabled (regex mode), the `.` metacharacter also matches newline
       characters, so a pattern can span lines.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: regEx
+      - property: reg_ex
         condition: applies in regular-expression mode
-  multiLine:
+  multi_line:
     description: Make anchors match at each line boundary.
     help: |
       When enabled (regex mode), `^` and `$` match at the start and end of each
       line rather than only the whole text.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: regEx
+      - property: reg_ex
         condition: applies in regular-expression mode
   source:
     description: Apply replacements to source content.
@@ -52,7 +52,7 @@ parameters:
       When enabled, search and replace runs over the target text of the
       configured locale.
     values: "`true` / `false` (default `true`)"
-  replaceAll:
+  replace_all:
     description: Replace every match rather than only the first.
     help: |
       When enabled, all occurrences of a pattern are replaced. When disabled,
@@ -69,11 +69,11 @@ examples:
     description: Use literal matching on target text only.
     config: |
       target: true
-      ignoreCase: false
+      ignore_case: false
   - title: Case-insensitive regex over both scopes
     description: Enable regex mode with case folding across source and target.
     config: |
-      regEx: true
-      ignoreCase: true
+      reg_ex: true
+      ignore_case: true
       source: true
       target: true

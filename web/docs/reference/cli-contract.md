@@ -246,6 +246,8 @@ The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its 
 
 The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as placeholder text, takes an optional `path` on a `replace_text` operation, and names a piece of evidence's block `evidence[].block`; `context_note` names it `block` too. `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` holds the frozen surface: a test refuses a tool that is gone and an input schema that no longer extends its frozen one, and the golden, which the snapshot test regenerates, shows every change in review. `apply_edits` declares its result with the generated `kapi.change-result/v1` schema.
 
+The snake_case rule for config keys is another. The input fields of a registry tool on the MCP surface are its config keys, so `translate` takes `api_key`, `batch_concurrency`, `context_window` and `skip_matched`, `redact` takes `entity_types` and `rules_path`, and `term-check` takes `case_sensitive`. The frozen file records the rename.
+
 `check_text` accepts an optional `context_path`, a project-relative destination
 whose voice and terms apply to the supplied draft. It requires a bound project
 and cannot be combined with `profile_file` or `profile_pack`. The result keeps
@@ -422,4 +424,10 @@ Four properties of a built-in tool's registration are asserted over the populate
 
 Withholding a tool from the CLI is a separate decision, declared with `internal: true` on its `ToolMeta` and never expressed by omitting a config factory, which would make a forgotten tool indistinguishable from one deliberately withheld. An internal tool is still configurable: a flow may name it as a step.
 
-Step config keys are the config struct's JSON names, which are **camelCase** (`normalizeSpaces`, `flagExtra`, `textUnitIDs`). Application is a `json.Unmarshal`, so an unrecognized key (a snake_case spelling, or a field the tool does not have) is silently ignored.
+Step config keys are **snake_case** (`normalize_spaces`, `flag_extra`, `text_unit_ids`), the same as every other key in the recipe. A key is the config field's `json` tag, or the field name in snake_case when it has none. A camelCase spelling of a key is refused when the recipe or flow loads, with the key to write instead:
+
+```text
+flows.translate.steps[1].config: fillTargetThreshold is now fill_target_threshold
+```
+
+Format config keys follow the same rule, and a format refuses a camelCase spelling of one of its keys the same way (`json: extractAllPairs is now extract_all_pairs`). Any other key a tool does not have is ignored. The parameters of a format the okapi-bridge plugin provides keep the Okapi Framework's names.

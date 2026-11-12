@@ -401,7 +401,7 @@ func TestConfigProtectPlaceholdersOff(t *testing.T) {
 
 	r := applestrings.NewReader()
 	cfg := r.Config().(*applestrings.Config)
-	require.NoError(t, cfg.ApplyMap(map[string]any{"protectPlaceholders": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"protect_placeholders": false}))
 	doc := &model.RawDocument{URI: "x.strings", Encoding: "UTF-8", Reader: nopReader(data)}
 	require.NoError(t, r.Open(t.Context(), doc))
 	defer r.Close()

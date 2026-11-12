@@ -203,8 +203,8 @@ func TestVoiceInferRegistered(t *testing.T) {
 
 	// Config factory path constructs the tool with the demo provider.
 	tl, err := tools.NewVoiceInferFromConfig(map[string]any{
-		"provider":    "demo",
-		"profileName": "Factory Voice",
+		"provider":     "demo",
+		"profile_name": "Factory Voice",
 	}, "")
 	require.NoError(t, err)
 	assert.Equal(t, "voice-infer", tl.Name())

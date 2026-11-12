@@ -29,7 +29,7 @@ func TestTranslateDispatch(t *testing.T) {
 	tools.RegisterAll(reg)
 
 	// Default (no provider) → LLM translator.
-	tl, err := reg.NewToolWithConfig("translate", map[string]any{"apiKey": "test"}, "fr")
+	tl, err := reg.NewToolWithConfig("translate", map[string]any{"api_key": "test"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, tl)
 	assert.Equal(t, "translate", tl.Name())
@@ -45,7 +45,7 @@ func TestTranslateDispatch(t *testing.T) {
 		mttools.Providers = mttools.Providers[:len(mttools.Providers)-1]
 	})
 
-	mtTool, err := reg.NewToolWithConfig("translate", map[string]any{"provider": string(pluginMT), "apiKey": "test"}, "fr")
+	mtTool, err := reg.NewToolWithConfig("translate", map[string]any{"provider": string(pluginMT), "api_key": "test"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, mtTool)
 	assert.Equal(t, "translate", mtTool.Name())
@@ -63,7 +63,7 @@ func TestCheckDispatch(t *testing.T) {
 	require.NotNil(t, det)
 
 	// mode: ai → the LLM judge.
-	llm, err := reg.NewToolWithConfig("qa", map[string]any{"mode": "ai", "provider": "anthropic", "apiKey": "test"}, "fr")
+	llm, err := reg.NewToolWithConfig("qa", map[string]any{"mode": "ai", "provider": "anthropic", "api_key": "test"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, llm)
 }
@@ -72,7 +72,7 @@ func TestVoiceCheckFromConfig(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 
-	tl, err := reg.NewToolWithConfig("voice-check", map[string]any{"provider": "anthropic", "apiKey": "test"}, "")
+	tl, err := reg.NewToolWithConfig("voice-check", map[string]any{"provider": "anthropic", "api_key": "test"}, "")
 	require.NoError(t, err)
 	require.NotNil(t, tl)
 }
@@ -81,7 +81,7 @@ func TestAITerminologyFromConfig(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 
-	tl, err := reg.NewToolWithConfig("term-extract", map[string]any{"provider": "anthropic", "apiKey": "test", "domain": "technology"}, "")
+	tl, err := reg.NewToolWithConfig("term-extract", map[string]any{"provider": "anthropic", "api_key": "test", "domain": "technology"}, "")
 	require.NoError(t, err)
 	require.NotNil(t, tl)
 }

@@ -15,7 +15,7 @@ overview: |
   configuration. Parser behaviour (whitespace handling) is grouped under
   `parser`.
 parameters:
-  parser.preserveWhitespace:
+  parser.preserve_whitespace:
     description: Preserve whitespace in extracted text instead of collapsing it.
     help: |
       When enabled, original whitespace in text content is preserved. By
@@ -26,39 +26,39 @@ parameters:
     description: Per-element extraction rules.
     help: |
       A map from element name to a rule object that controls how the element
-      is treated. A rule may carry `ruleTypes` (`TEXTUNIT`, `INLINE`,
+      is treated. A rule may carry `rule_types` (`TEXTUNIT`, `INLINE`,
       `EXCLUDE`, `INCLUDE`, `ATTRIBUTES_ONLY`, `PRESERVE_WHITESPACE`, `GROUP`),
-      a `conditions` triplet, `idAttributes`, and a `translatableAttributes`
+      a `conditions` triplet, `id_attributes`, and a `translatable_attributes`
       mapping. These override or extend the built-in element handling.
     values: "Map of element name → rule object (default: built-in rules)"
     examples:
-      - "`{ summary: { ruleTypes: [TEXTUNIT] } }` extracts `summary` element text"
+      - "`{ summary: { rule_types: [TEXTUNIT] } }` extracts `summary` element text"
   attributes:
     description: Per-attribute extraction rules.
     help: |
-      A map from attribute name to a rule object. A rule may carry `ruleTypes`
+      A map from attribute name to a rule object. A rule may carry `rule_types`
       (`ATTRIBUTE_TRANS`, `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`,
-      `ATTRIBUTE_READONLY`), an element scope via `onlyTheseElements` or
-      `allElementsExcept`, and a `conditions` triplet.
+      `ATTRIBUTE_READONLY`), an element scope via `only_these_elements` or
+      `all_elements_except`, and a `conditions` triplet.
     values: "Map of attribute name → rule object (default: built-in rules)"
     examples:
-      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` extracts all `alt` values"
-  useCodeFinder:
+      - "`{ alt: { rule_types: [ATTRIBUTE_TRANS] } }` extracts all `alt` values"
+  use_code_finder:
     description: Enable regex-based inline-code detection.
     help: |
       Enables regex-based detection of inline codes (placeholders, variables,
       tags) within extracted text, beyond the inline HTML elements already
-      recognized. The patterns are supplied via `codeFinderRules`.
+      recognized. The patterns are supplied via `code_finder_rules`.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regex patterns that match inline codes within text.
     help: |
       An array of regular expressions; text matching any of them is treated
       as an inline code rather than translatable words. Only used when
-      `useCodeFinder` is enabled.
+      `use_code_finder` is enabled.
     values: Array of regular expressions (default empty)
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for these patterns to apply
 limitations:
   - The reader applies built-in element/attribute defaults; the `elements` and `attributes` maps adjust them rather than replacing the entire rule set.
@@ -70,11 +70,11 @@ examples:
     description: Keep significant whitespace in text nodes instead of collapsing it.
     config: |
       parser:
-        preserveWhitespace: true
+        preserve_whitespace: true
   - title: Make a custom element translatable
     description: Extract the text of a custom <summary> element.
     config: |
       elements:
         summary:
-          ruleTypes:
+          rule_types:
             - TEXTUNIT

@@ -61,9 +61,9 @@ func TestSegmentationSchemaComposition(t *testing.T) {
 		assert.Equal(t, "engine", v.Field)
 		assert.Equal(t, engineName, v.Eq)
 	}
-	gated("rulesPath", "srx") // SRX engine
-	gated("provider", "llm")  // LLM engine
-	gated("model", "llm")     // LLM engine
+	gated("rules_path", "srx") // SRX engine
+	gated("provider", "llm")   // LLM engine
+	gated("model", "llm")      // LLM engine
 
 	// uax29 has no parameters → no group.
 	for _, g := range s.Groups {
@@ -73,7 +73,7 @@ func TestSegmentationSchemaComposition(t *testing.T) {
 	}
 
 	// Common boundary options are not gated (always visible).
-	for _, field := range []string{"segmentSource", "trimLeadingWhitespace"} {
+	for _, field := range []string{"segment_source", "trim_leading_whitespace"} {
 		assert.Nil(t, groupVisibleForField(field), "common field %q is always visible", field)
 	}
 }

@@ -104,7 +104,7 @@ func forceDemoProviders(app *cli.App) {
 		// not override it — the mt-translate config factory then resolves `browser`
 		// to the demo provider itself when the page lacks the Translator API.
 		if prov, _ := config["provider"].(string); prov == string(localProviderID) || prov == string(browserMTProviderID) {
-			delete(config, "apiKey")
+			delete(config, "api_key")
 			return config, nil
 		}
 		// A tool that requires credentials is provider-backed (AI/MT). Coerce it
@@ -119,7 +119,7 @@ func forceDemoProviders(app *cli.App) {
 			config["provider"] = string(aiprovider.Demo)
 			// Drop any model/key so the demo provider reports its own stub model.
 			delete(config, "model")
-			delete(config, "apiKey")
+			delete(config, "api_key")
 		}
 		return config, nil
 	})

@@ -552,7 +552,7 @@ cask spells both `desc "Desktop workbench…"` and `zap trash:
 ["~/Library/Caches/Kapi"]` as string literals. A pattern cannot separate them.
 The syntax tree can, because it knows the first is an argument to `desc` and the
 second an element of an array. A recipe names the prose-bearing calls with
-`nodePathPatterns`, the way it already names prose-bearing keys in YAML or JSON.
+`node_path_patterns`, the way it already names prose-bearing keys in YAML or JSON.
 
 It is **read-only**, declared as `capabilities: ["read"]` and backed by the
 absence of a writer on either side of the boundary. A round-trip error in a

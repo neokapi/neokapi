@@ -27,13 +27,13 @@ describe("buildSearchReplaceRecipe", () => {
     expect(recipe).toContain('"isRegex":false');
     expect(recipe).toContain("source: true");
     expect(recipe).toContain("target: false");
-    expect(recipe).toContain("regEx: false");
+    expect(recipe).toContain("reg_ex: false");
   });
 
-  it("sets regEx true when regex mode is on", () => {
+  it("sets reg_ex true when regex mode is on", () => {
     const recipe = buildSearchReplaceRecipe("colou?r", "color", true);
     expect(recipe).toContain('"isRegex":true');
-    expect(recipe).toContain("regEx: true");
+    expect(recipe).toContain("reg_ex: true");
   });
 
   it("JSON-escapes find/replace strings so quotes survive", () => {

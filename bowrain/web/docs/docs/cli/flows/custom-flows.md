@@ -82,15 +82,15 @@ steps:
   # 3. Check the terms in force at each block's point
   - tool: term-check
     config:
-      caseSensitive: true
+      case_sensitive: true
 
   # 4. Run quality checks
   - tool: qa
     config:
-      checkDoubleSpaces: true
-      checkDoubledWord: true
-      checkPatterns: true
-      checkTargetInconsistency: true
+      check_double_spaces: true
+      check_doubled_word: true
+      check_patterns: true
+      check_target_inconsistency: true
 ```
 
 The `recycle` and `term-check` steps read the project's content memory and terms
@@ -110,14 +110,14 @@ description: Quality and term checks without drafting
 steps:
   - tool: placeholder-check
     config:
-      flagExtra: true
+      flag_extra: true
 
   - tool: term-check
 
   - tool: qa
     config:
-      checkDoubleSpaces: true
-      checkPatterns: true
+      check_double_spaces: true
+      check_patterns: true
 ```
 
 Run it, then let `kapi check` turn the findings into an exit code; see
@@ -135,13 +135,13 @@ steps:
   - tool: case-transform
     config:
       mode: title
-      applySource: true
+      apply_source: true
 
   - tool: whitespace-correct
     config:
-      normalizeSpaces: true
-      matchSourceWhitespace: true
-      removeZeroWidthChars: true
+      normalize_spaces: true
+      match_source_whitespace: true
+      remove_zero_width_chars: true
 ```
 
 ## The wording constraint
@@ -160,7 +160,7 @@ Use environment variables in flow configs:
 - tool: translate
   config:
     provider: anthropic
-    apiKey: ${ANTHROPIC_API_KEY} # From environment
+    api_key: ${ANTHROPIC_API_KEY} # From environment
 ```
 
 ## Running custom flows

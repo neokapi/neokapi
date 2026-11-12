@@ -20,7 +20,7 @@ func ownKeyTranslateFlow() *flow.FlowDefinition {
 		Name: "Translate on the workspace key",
 		Nodes: []flow.FlowNode{{
 			ID: "t", Type: flow.NodeTool, Name: "translate",
-			Config: map[string]any{"provider": string(aiprovider.Demo), "apiKey": "workspace-key"},
+			Config: map[string]any{"provider": string(aiprovider.Demo), "api_key": "workspace-key"},
 		}},
 	}
 }

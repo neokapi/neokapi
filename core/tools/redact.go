@@ -34,9 +34,9 @@ var defaultEntityCategories = []string{
 // RedactConfig configures the redact tool.
 type RedactConfig struct {
 	Detectors   []string `json:"detectors,omitempty" schema:"title=Detectors,description=Detection backends to run: rules and/or entities"`
-	RulesPath   string   `json:"rulesPath,omitempty" schema:"title=Rules File,description=Path to a redaction rules YAML file"`
+	RulesPath   string   `json:"rules_path,omitempty" schema:"title=Rules File,description=Path to a redaction rules YAML file"`
 	Placeholder string   `json:"placeholder,omitempty" schema:"title=Placeholder Template,description=Visible stand-in template; supports {category} and {n}"`
-	EntityTypes []string `json:"entityTypes,omitempty" schema:"title=Entity Categories,description=Entity categories to redact: person, org, product, location, date, time, currency, measurement, role, other. Setting any enables 'entities' detection (which needs an upstream NER step such as entity-extract)."`
+	EntityTypes []string `json:"entity_types,omitempty" schema:"title=Entity Categories,description=Entity categories to redact: person, org, product, location, date, time, currency, measurement, role, other. Setting any enables 'entities' detection (which needs an upstream NER step such as entity-extract)."`
 
 	// Rules supplies rules inline as an alternative (or addition) to RulesPath.
 	Rules []redaction.Rule `json:"rules,omitempty" schema:"-"`
@@ -44,7 +44,7 @@ type RedactConfig struct {
 	// VaultPath, when set, switches to external mode: originals are written
 	// to a sidecar [redaction.FileVault] at this path instead of riding on
 	// the block as an in-process annotation. Used by extract → merge.
-	VaultPath string `json:"vaultPath,omitempty" schema:"-"`
+	VaultPath string `json:"vault_path,omitempty" schema:"-"`
 
 	// Document names the document the blocks sit in, as the sidecar vault
 	// records it beside each block ID: the project-relative, slash-separated
@@ -53,13 +53,13 @@ type RedactConfig struct {
 	Document string `json:"document,omitempty" schema:"-"`
 
 	// SourceLocale is recorded with each stored value; informational.
-	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
+	SourceLocale model.LocaleID `json:"source_locale,omitempty" schema:"-"`
 
 	// WholeBlock redacts every block, translatable or not, and each target
 	// locale's runs beside the source. A run whose next tool reads the whole
 	// block (term extraction, voice inference, a check that reads the
 	// translation) needs it; unredact restores both sides.
-	WholeBlock bool `json:"wholeBlock,omitempty" schema:"-"`
+	WholeBlock bool `json:"whole_block,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.

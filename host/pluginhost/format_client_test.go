@@ -13,7 +13,7 @@ import (
 // LIST is spelled there is the whole contract for any config that has one.
 //
 // fmt.Sprint renders a slice as Go's debug form — `[desc caveats]` — which no
-// plugin can parse back. The sourcecode format's nodePathPatterns was the first
+// plugin can parse back. The sourcecode format's node_path_patterns was the first
 // list config to cross here, and it failed in the worst way available: the
 // daemon parsed the rendering into a single nonsense entry, matched nothing,
 // and returned zero blocks with no error. A check reported a pass over content
@@ -21,14 +21,14 @@ import (
 func TestListConfigCrossesAsJSON(t *testing.T) {
 	c := &mapConfig{format: "sourcecode", params: map[string]string{}}
 	require.NoError(t, c.ApplyMap(map[string]any{
-		"nodePathPatterns": []any{"desc", "caveats"},
+		"node_path_patterns": []any{"desc", "caveats"},
 	}))
-	assert.JSONEq(t, `["desc","caveats"]`, c.params["nodePathPatterns"])
+	assert.JSONEq(t, `["desc","caveats"]`, c.params["node_path_patterns"])
 
 	// []string is the same declaration arriving from Go rather than from YAML.
 	c.Reset()
-	require.NoError(t, c.ApplyMap(map[string]any{"nodePathPatterns": []string{"desc"}}))
-	assert.JSONEq(t, `["desc"]`, c.params["nodePathPatterns"])
+	require.NoError(t, c.ApplyMap(map[string]any{"node_path_patterns": []string{"desc"}}))
+	assert.JSONEq(t, `["desc"]`, c.params["node_path_patterns"])
 }
 
 // Scalars keep their existing spelling exactly. An okapi-bridge filter

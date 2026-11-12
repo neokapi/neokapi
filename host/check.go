@@ -1241,7 +1241,7 @@ func patternRules(forbid, require []string) []check.PatternRule {
 //
 // Without it the gate read every file by extension under reader defaults, so it
 // judged content the project does not declare as content: a demo script's
-// `command:` lines, which the recipe's keyPathPatterns exclude, and `.md` docs
+// `command:` lines, which the recipe's key_path_patterns exclude, and `.md` docs
 // read by the markdown reader when the recipe binds mdx. Both are text no
 // convergence run ever touches, held to a bar meant for prose.
 type checkFormats struct {

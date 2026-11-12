@@ -1,7 +1,7 @@
 // Package gen emits the builtin tool/format metadata document that the
 // i18n pipeline reads via the standard JSON filter. The generated
 // document is object-keyed (not array-keyed) so block names produced by
-// the JSON filter with useKeyAsName + useFullKeyPath are stable scope
+// the JSON filter with use_key_as_name + use_full_key_path are stable scope
 // identifiers — "tools/translate/displayName" stays put even when a
 // new tool is added. That stability is what makes msgctxt lookup from
 // (toolID, field) work in the runtime Translator.
@@ -77,7 +77,7 @@ type ModelEntry struct {
 
 // Document is the top-level i18n source document. Keyed by domain (tools,
 // formats, plugins, models), then by owner ID. The JSON filter with
-// useKeyAsName + useFullKeyPath + useLeadingSlashOnKeyPath = true
+// use_key_as_name + use_full_key_path + use_leading_slash_on_key_path = true
 // produces block names like "/tools/translate/displayName", which
 // match the Scope values used by the runtime Translator.
 //

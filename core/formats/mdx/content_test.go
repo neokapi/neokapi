@@ -13,7 +13,7 @@ import (
 )
 
 // readPartsExtract runs the MDX reader over src with a skeleton store and the
-// extractNonTranslatableContent flag set to `on`, returning the ordered
+// extract_non_translatable_content flag set to `on`, returning the ordered
 // Block/Data parts plus the populated skeleton store (ready to replay).
 func readPartsExtract(t *testing.T, src []byte, on bool) ([]*model.Part, *format.SkeletonStore) {
 	t.Helper()
@@ -330,16 +330,16 @@ func TestExtractNonTranslatableContentConfig(t *testing.T) {
 	c.Reset()
 	assert.True(t, c.ExtractNonTranslatableContent(), "default is ON")
 
-	require.NoError(t, c.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, c.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, c.ExtractNonTranslatableContent(), "ApplyMap can turn it off")
-	require.NoError(t, c.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, c.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, c.ExtractNonTranslatableContent(), "ApplyMap can turn it back on")
 
 	c.SetExtractNonTranslatableContent(false)
 	assert.False(t, c.ExtractNonTranslatableContent(), "Set toggles the flag")
 
 	// Wrong type is rejected.
-	require.Error(t, c.ApplyMap(map[string]any{"extractNonTranslatableContent": "nope"}))
+	require.Error(t, c.ApplyMap(map[string]any{"extract_non_translatable_content": "nope"}))
 
 	// The flag is NOT forwarded to markdown: a code fence inside an MDX
 	// markdown span stays opaque (Data) even with the mdx flag ON, because

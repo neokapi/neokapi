@@ -67,18 +67,18 @@ description: Validate source content quality before translation
 steps:
   - tool: term-check
     config:
-      caseSensitive: true
+      case_sensitive: true
 
   - tool: placeholder-check
     config:
-      flagExtra: true
+      flag_extra: true
 
   - tool: qa
     config:
-      checkDoubleSpaces: true
-      checkDoubledWord: true
-      checkPatterns: true
-      checkTargetInconsistency: true
+      check_double_spaces: true
+      check_doubled_word: true
+      check_patterns: true
+      check_target_inconsistency: true
 ```
 
 Run it, then gate on the findings. The flow annotates the content, and
@@ -121,13 +121,13 @@ steps:
   - tool: case-transform
     config:
       mode: title
-      applySource: true
+      apply_source: true
 
   - tool: whitespace-correct
     config:
-      normalizeSpaces: true
-      matchSourceWhitespace: true
-      removeZeroWidthChars: true
+      normalize_spaces: true
+      match_source_whitespace: true
+      remove_zero_width_chars: true
 ```
 
 ## CI Integration

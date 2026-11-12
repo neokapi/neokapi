@@ -249,10 +249,10 @@ func TestExtractNonTranslatableContentConfig(t *testing.T) {
 	cfg.SetExtractNonTranslatableContent(false)
 	assert.False(t, cfg.ExtractNonTranslatableContent())
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, cfg.ExtractNonTranslatableContent())
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, cfg.ExtractNonTranslatableContent())
 
 	// Reset restores the opt-out default (on).
@@ -264,7 +264,7 @@ func TestSchemaHasExtractNonTranslatableContent(t *testing.T) {
 	cfg := &odf.Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)
-	prop, ok := s.Properties["extractNonTranslatableContent"]
+	prop, ok := s.Properties["extract_non_translatable_content"]
 	require.True(t, ok, "schema must expose the flag")
 	assert.Equal(t, "boolean", prop.Type)
 	assert.Equal(t, true, prop.Default)

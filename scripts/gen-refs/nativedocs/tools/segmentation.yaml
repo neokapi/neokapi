@@ -10,14 +10,14 @@ overview: |
   selects the segmenter:
 
   - `srx`, the default, finds sentence boundaries with built-in rules and needs
-    no configuration. `rulesPath` loads an SRX 2.0 rules file in their place.
+    no configuration. `rules_path` loads an SRX 2.0 rules file in their place.
   - `uax29` applies the Unicode default sentence boundaries, with no
     language-specific exceptions.
   - `llm` asks an AI provider for meaning-based chunks rather than sentences.
 
   Plugins can register further engines, which appear as options. Bilingual
   formats write the sentence layer as segments. A block that already has a
-  layer keeps it unless `overwriteSegmentation` is set.
+  layer keeps it unless `overwrite_segmentation` is set.
 parameters:
   engine:
     description: The segmenter to run.
@@ -31,49 +31,49 @@ parameters:
       When empty, the engine's own layer is used: the sentence layer for `srx`
       and `uax29`, `llm-chunk` for `llm`. A named layer sits beside the others.
     values: "string (default empty)"
-  segmentSource:
+  segment_source:
     description: Segment the source.
     help: |
       When enabled, the source of each block is segmented. If neither source nor
       target segmentation is enabled, the source is segmented.
     values: "`true` / `false` (default `true`)"
-  segmentTarget:
+  segment_target:
     description: Segment the existing target.
     help: |
       When enabled, the translation in the language `--target-lang` names is
       segmented with the same engine. SRX rules are keyed by language, so each
       side gets its own language's rules.
     values: "`true` / `false` (default `false`)"
-  overwriteSegmentation:
+  overwrite_segmentation:
     description: Re-segment blocks that already have the layer.
     help: |
       By default a block that already carries the layer keeps it. Enable this to
       replace it.
     values: "`true` / `false` (default `false`)"
-  treatIsolatedCodesAsWhitespace:
+  treat_isolated_codes_as_whitespace:
     description: Treat isolated inline codes as whitespace while segmenting.
     help: |
       When enabled, an isolated inline code is treated like whitespace for the
       purpose of finding segment boundaries.
     values: "`true` / `false` (default `false`)"
-  trimLeadingWhitespace:
+  trim_leading_whitespace:
     description: Exclude leading whitespace from each segment.
     help: |
       When enabled, whitespace at the start of a segment falls outside its span.
     values: "`true` / `false` (default `true`)"
-  trimTrailingWhitespace:
+  trim_trailing_whitespace:
     description: Exclude trailing whitespace from each segment.
     help: |
       When enabled, whitespace at the end of a segment falls outside its span.
     values: "`true` / `false` (default `true`)"
-  renumberCodes:
+  renumber_codes:
     description: Renumber inline-code IDs within each segment in bilingual output.
     help: |
       Applies when a bilingual format writes the segments out: inline-code IDs
       are renumbered from 1 within each segment. The overlay itself leaves the
       runs as they are.
     values: "`true` / `false` (default `false`)"
-  rulesPath:
+  rules_path:
     description: Path to an SRX 2.0 rules file (`srx` engine).
     help: |
       Replaces the built-in rules. One file serves source and target, since SRX
@@ -100,7 +100,7 @@ parameters:
     help: |
       Free-text guidance added to the chunking request.
     values: "string"
-  maxChunkRunes:
+  max_chunk_runes:
     description: Soft upper bound on chunk size in characters (`llm` engine).
     help: |
       `0` leaves the size to the model.
@@ -115,10 +115,10 @@ examples:
   - title: Segment the source with the default rules
     description: Mark sentence boundaries using the built-in rules.
     config: |
-      segmentSource: true
+      segment_source: true
   - title: Re-segment with a custom SRX file
     description: Replace existing segmentation using project-specific rules.
     config: |
       engine: srx
-      overwriteSegmentation: true
-      rulesPath: ./rules/segmentation.srx
+      overwrite_segmentation: true
+      rules_path: ./rules/segmentation.srx

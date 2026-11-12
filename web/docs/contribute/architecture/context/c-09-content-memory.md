@@ -154,13 +154,13 @@ The first match at or above the configured threshold wins, so a generalized exac
 match is preferred over a plain fuzzy one.
 
 **The fill policy sits above the matcher.** The `recycle` tool looks up at its
-`fuzzyThreshold` (default 70) and fills a target at or above its
-`fillTargetThreshold` (default 95); a match between the two floors is recorded
+`fuzzy_threshold` (default 70) and fills a target at or above its
+`fill_target_threshold` (default 95); a match between the two floors is recorded
 as an alternative-translation candidate and read by nothing. The fill floor
 catches the cosmetic edits an author actually makes (a trailing period, an added
 comma, a capitalised word), which score between 96 and 98 at realistic sentence
 length. The lookup floor below it is inert. A recipe configured for exact-only fill
-sets `fillTargetThreshold: 100`, which is what the dogfood recipe does. A
+sets `fill_target_threshold: 100`, which is what the dogfood recipe does. A
 sub-exact fill is a pricing mechanism from a time when a person edited rather
 than wrote, and it is retiring in favour of the version chain below: a
 near-match makes a reader diff the source against a stored target to find what

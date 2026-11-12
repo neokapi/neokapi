@@ -31,15 +31,15 @@ A paragraph under the heading.
 // is taken over the units a convergence run produces rather than over the units
 // a default reader would.
 //
-// Front matter is the sharp case: with `translateFrontMatter` the markdown
+// Front matter is the sharp case: with `translate_front_matter` the markdown
 // reader emits the declared keys as units and without it they are configuration,
 // so the two readings of one file differ by exactly the declared keys. When the
 // config reached the flow and not the scope, `kapi up` reported "60/48 units" —
 // a fraction over two denominators.
 func TestUnitsFromProject_ReaderConfigReachesCoveragePath(t *testing.T) {
 	frontMatter := map[string]any{
-		"translateFrontMatter": true,
-		"frontMatterKeys":      []any{"title", "description", "sidebar_label"},
+		"translate_front_matter": true,
+		"front_matter_keys":      []any{"title", "description", "sidebar_label"},
 	}
 
 	tests := []struct {
@@ -67,7 +67,7 @@ func TestUnitsFromProject_ReaderConfigReachesCoveragePath(t *testing.T) {
 			name:     "the item overrides defaults per key",
 			defaults: frontMatter,
 			item: map[string]any{
-				"frontMatterKeys": []any{"title"},
+				"front_matter_keys": []any{"title"},
 			},
 			wantBlocks: 3,
 		},
@@ -140,7 +140,7 @@ func TestUnitFormatBinding_TargetInAnotherFormatIsDetected(t *testing.T) {
 			proj := &project.KapiProject{
 				Defaults: project.Defaults{
 					Formats: map[string]project.FormatDefaults{
-						"markdown": {Config: map[string]any{"translateFrontMatter": true}},
+						"markdown": {Config: map[string]any{"translate_front_matter": true}},
 					},
 				},
 			}
@@ -148,7 +148,7 @@ func TestUnitFormatBinding_TargetInAnotherFormatIsDetected(t *testing.T) {
 
 			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(nil, proj, rf, tc.target)
 			assert.Equal(t, "markdown", srcFormat)
-			assert.Equal(t, map[string]any{"translateFrontMatter": true}, srcCfg)
+			assert.Equal(t, map[string]any{"translate_front_matter": true}, srcCfg)
 			assert.Equal(t, tc.wantFormat, tgtFormat)
 			if tc.wantFormat == "" {
 				assert.Nil(t, tgtCfg)

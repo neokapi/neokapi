@@ -39,7 +39,7 @@ parameters:
     examples:
       - "`` auto, preserving the input version, default 2.2"
       - "`2.0` forces XLIFF 2.0 output"
-  writeOriginalData:
+  write_original_data:
     description: Include original data in the output when available.
     help: |
       When enabled (the default), the `<originalData>` carried by inline
@@ -47,7 +47,7 @@ parameters:
       placeholders stand in for. When disabled, original data is omitted
       from the output.
     values: "`true` / `false` (default `true`)"
-  forceUniqueIds:
+  force_unique_ids:
     description: Ensure inline tag ids are unique within each unit.
     help: |
       When enabled, inline tag `id` values are rewritten so each is unique
@@ -55,14 +55,14 @@ parameters:
       Enable it for inputs whose inline ids may collide and where strict
       validators require per-unit uniqueness.
     values: "`true` / `false` (default `false`)"
-  ignoreTagTypeMatch:
+  ignore_tag_type_match:
     description: Ignore tag-type mismatches between source and target segments.
     help: |
       When enabled, a mismatch between the inline tag types in the source
       and the target segment is tolerated rather than treated as an error.
       When disabled (the default), the tag types are expected to match.
     values: "`true` / `false` (default `false`)"
-  discardInvalidTargets:
+  discard_invalid_targets:
     description: Discard targets that fail validation instead of rejecting the file.
     help: |
       When enabled, a `<target>` that fails validation is dropped while the
@@ -70,25 +70,25 @@ parameters:
       invalid target rejects the file. Enable it to salvage usable content
       from partially invalid input.
     values: "`true` / `false` (default `false`)"
-  useCodeFinder:
+  use_code_finder:
     description: Detect inline codes inside content using regular expressions.
     help: |
       Enables regex-based detection of inline codes in extracted text,
-      using the patterns in `codeFinderRules`. This supplements the native
+      using the patterns in `code_finder_rules`. This supplements the native
       XLIFF 2 inline tag elements. When disabled (the default), only the
       native inline elements are recognised.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regular-expression patterns that match inline codes in content.
     help: |
       A list of regular expressions; each match within extracted text is
       protected as an inline code rather than translated. Only takes effect
-      when `useCodeFinder` is enabled; invalid patterns are skipped.
+      when `use_code_finder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:
       - "`%[0-9]*[sd]` protects `printf`-style format specifiers"
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for the rules to take effect
 processingNotes:
   - One block is emitted per translatable unit; inline elements become inline codes, and an unedited segment is written with its own bytes.
@@ -102,5 +102,5 @@ examples:
   - title: Tolerate invalid targets
     description: Drop targets that fail validation rather than rejecting the file.
     config: |
-      discardInvalidTargets: true
+      discard_invalid_targets: true
 wikiUrl: https://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html

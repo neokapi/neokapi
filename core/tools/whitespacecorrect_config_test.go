@@ -58,9 +58,9 @@ func TestWhitespaceCorrect_StepConfigReachesTheTool(t *testing.T) {
 
 	t.Run("every correction off is a no-op", func(t *testing.T) {
 		got := wsRunStep(t, map[string]any{
-			"normalizeSpaces":       false,
-			"matchSourceWhitespace": false,
-			"trimTrailing":          false,
+			"normalize_spaces":        false,
+			"match_source_whitespace": false,
+			"trim_trailing":           false,
 		}, "nb", source, target)
 		assert.Equal(t,
 			[]string{"text:Lagre  ", "ph:strong", "text:nå   "},
@@ -70,9 +70,9 @@ func TestWhitespaceCorrect_StepConfigReachesTheTool(t *testing.T) {
 
 	t.Run("trimTrailing on, the rest off", func(t *testing.T) {
 		got := wsRunStep(t, map[string]any{
-			"normalizeSpaces":       false,
-			"matchSourceWhitespace": false,
-			"trimTrailing":          true,
+			"normalize_spaces":        false,
+			"match_source_whitespace": false,
+			"trim_trailing":           true,
 		}, "nb", source, target)
 		assert.Equal(t,
 			[]string{"text:Lagre  ", "ph:strong", "text:nå"},
@@ -107,7 +107,7 @@ func TestWhitespaceCorrect_RunLocaleOutranksConfigLocale(t *testing.T) {
 	source := []model.Run{wsTx("Save now")}
 	target := []model.Run{wsTx("Lagre  nå")}
 
-	got := wsRunStep(t, map[string]any{"targetLocale": "de"}, "nb", source, target)
+	got := wsRunStep(t, map[string]any{"target_locale": "de"}, "nb", source, target)
 	assert.Equal(t, []string{"text:Lagre nå"}, runShapes(got),
 		"the run's target language wins over a locale written into the step config")
 }
@@ -115,7 +115,7 @@ func TestWhitespaceCorrect_RunLocaleOutranksConfigLocale(t *testing.T) {
 // The config factory is reachable from the registry at all — the registration
 // this whole class of defect turns on.
 func TestWhitespaceCorrect_RegistryAppliesConfigNotDefaults(t *testing.T) {
-	tl := wsToolFromStep(t, map[string]any{"trimLeading": true, "correctComma": false}, "nb")
+	tl := wsToolFromStep(t, map[string]any{"trim_leading": true, "correct_comma": false}, "nb")
 	bt, ok := tl.(*tool.BaseTool)
 	require.True(t, ok)
 	cfg, ok := bt.Cfg.(*tools.WhitespaceCorrectConfig)

@@ -12,7 +12,7 @@ overview: |
 
   A voice profile is the context type that says how content should read; a
   brand's tone of voice is the common use of it. The profile reaches this tool
-  three ways: named by `profileId` and resolved from the local store, supplied
+  three ways: named by `profile_id` and resolved from the local store, supplied
   already-resolved by the host (the `kapi voice` command, or a project's
   `defaults.voice` binding), or resolved lazily from the organizational context
   hierarchy on first use. With no profile the prompt carries no guidelines, and
@@ -28,7 +28,7 @@ parameters:
     help: |
       Selects which model backend performs the judgement.
     values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
-  apiKey:
+  api_key:
     description: API key for the AI provider.
     help: |
       Credential for the selected provider. A local provider such as Ollama may
@@ -41,7 +41,7 @@ parameters:
       The provider-specific model identifier. Omitted, the provider's default
       model is used.
     values: "string"
-  profileId:
+  profile_id:
     description: Voice profile to resolve from the local store.
     help: |
       The identifier of the profile whose guidelines the text is judged against.
@@ -61,4 +61,4 @@ examples:
     description: Resolve a profile by name from the local store and judge each block against it.
     config: |
       provider: anthropic
-      profileId: house-style
+      profile_id: house-style

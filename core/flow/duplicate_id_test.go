@@ -132,7 +132,7 @@ func TestReaders_UnitsSharingAnIDKeepTheirOwnTargets(t *testing.T) {
 			file: "bundle.kbf.json",
 			doc: `{"schemaVersion":"1.0","kind":"kapi-bundle",
  "generator":{"id":"probe","version":"1"},
- "project":{"id":"app","sourceLocale":"en"},
+ "project":{"id":"app","source_locale":"en"},
  "documents":[{"id":"a.tsx","documentType":"jsx","path":"a.tsx","blocks":[
   {"id":"b1","hash":"h1","translatable":true,"type":"jsx:element","source":[{"text":"File"}]},
   {"id":"b1","hash":"h2","translatable":true,"type":"jsx:element","source":[{"text":"Edit"}]},

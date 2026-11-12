@@ -22,7 +22,7 @@ keywords: [kapi, overview]
 Body text.
 `
 
-// fmRoundtrip reads fmDoc with translateFrontMatter+frontMatterKeys, lets
+// fmRoundtrip reads fmDoc with translate_front_matter+front_matter_keys, lets
 // translate mutate the blocks, and writes back through the skeleton.
 func fmRoundtrip(t *testing.T, translate func([]*model.Part)) (string, []*model.Part) {
 	t.Helper()
@@ -30,8 +30,8 @@ func fmRoundtrip(t *testing.T, translate func([]*model.Part)) (string, []*model.
 
 	reader := markdown.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"translateFrontMatter": true,
-		"frontMatterKeys":      []any{"title", "description"},
+		"translate_front_matter": true,
+		"front_matter_keys":      []any{"title", "description"},
 	}))
 	writer := markdown.NewWriter()
 	writer.SetLocale("nb")

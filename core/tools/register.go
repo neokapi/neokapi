@@ -114,7 +114,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&TermCheckConfig{}, toolMeta("term-check", "Terminology Check", schema.CategoryQuality,
 		withTags("quality", schema.TagLanguages), withRequires("target-language", schema.RequiresTerms), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermsRead))))
 
-	// xml-validation checks the source, and with checkTarget the target the run
+	// xml-validation checks the source, and with check_target the target the run
 	// names. Accepting the target language is what gives `kapi exec
 	// xml-validation` its --target-lang.
 	reg.RegisterWithSchema("xml-validation", func() tool.Tool {

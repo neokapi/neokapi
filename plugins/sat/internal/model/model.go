@@ -32,7 +32,7 @@ const (
 // (URLs + pinned digests); this registry only maps a model name to its cache
 // version, and must stay in lockstep with the manifest's model id + version.
 type Spec struct {
-	// Name is the model id the recipe's satModel param selects and the cache
+	// Name is the model id the recipe's sat_model param selects and the cache
 	// key (e.g. "sat-3l-sm").
 	Name string
 	// Version must match the manifest model asset's version, so the engine

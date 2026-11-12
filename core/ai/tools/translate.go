@@ -133,7 +133,7 @@ func (t *AITranslateTool) applyStored(ctx context.Context, block *model.Block, s
 }
 
 // leavesProducedAlone reports that this tool has nothing to do with a block an
-// earlier step of the flow already translated. Under `skipMatched` the drafting
+// earlier step of the flow already translated. Under `skip_matched` the drafting
 // step is the remainder of the pass, so a recycled unit carrying the project's
 // own approved wording keeps it. The stored-target lookup asks first, because
 // serving a stored draft over a recycled target would replace approved wording
@@ -196,15 +196,15 @@ const (
 // Fields are exposed as CLI flags via schema tags and as flow config
 // via json tags.
 type AITranslateConfig struct {
-	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
-	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	SourceLocale model.LocaleID `json:"source_locale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID `json:"target_locale,omitempty" schema:"-"`
 	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey       string         `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	APIKey       string         `json:"api_key,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
-	BaseURL string `json:"baseURL,omitempty"      schema:"-"`
+	BaseURL string `json:"base_url,omitempty"      schema:"-"`
 	Model   string `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 	// TermRules are the terminology constraints governing this translation: for
 	// each, when the source says Term the target should say Replacement. The
@@ -268,7 +268,7 @@ type AITranslateConfig struct {
 	// the (usually small) set of protected terms.
 	DNT []string `json:"dnt,omitempty" schema:"-"`
 
-	SkipMatched bool `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
+	SkipMatched bool `json:"skip_matched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
 
 	// Batching selects how many blocks share one LLM call.
 	//
@@ -298,14 +298,14 @@ type AITranslateConfig struct {
 
 	// ContextWindow is how many blocks either side to send when Context is
 	// `neighbours`.
-	ContextWindow int `json:"contextWindow,omitempty" schema:"title=Context Window,description=Blocks either side to send as reference (with context: neighbours),default=2,min=1,max=10,group=prompt,showIf=context=neighbours"`
+	ContextWindow int `json:"context_window,omitempty" schema:"title=Context Window,description=Blocks either side to send as reference (with context: neighbours),default=2,min=1,max=10,group=prompt,showIf=context=neighbours"`
 
 	// BatchSize pins an exact block count, bypassing the packer. Not a form
 	// field: it exists for a recipe that must reproduce a historical run, and for
 	// the eval harness sweeping N to measure the quality curve we currently have
 	// to take on faith.
-	BatchSize        int `json:"batchSize,omitempty" schema:"-"`
-	BatchConcurrency int `json:"batchConcurrency,omitempty" schema:"title=Batch Concurrency,description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
+	BatchSize        int `json:"batch_size,omitempty" schema:"-"`
+	BatchConcurrency int `json:"batch_concurrency,omitempty" schema:"title=Batch Concurrency,description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
 
 	// OnProgress is called for each block during translation. It receives
 	// live thinking summaries when the provider supports streaming.

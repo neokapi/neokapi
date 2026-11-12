@@ -102,9 +102,9 @@ func inferProviderID(_ string, config map[string]any) string {
 //
 // Resolution order (highest precedence first):
 //  1. If the tool doesn't require "credentials" → return config unchanged
-//  2. If config has "apiKey" already set → return unchanged (explicit inline key wins)
+//  2. If config has "api_key" already set → return unchanged (explicit inline key wins)
 //  3. If config has "credential" → resolve by name or ID from store
-//  4. If a standard per-provider env var is set → inject it as "apiKey"
+//  4. If a standard per-provider env var is set → inject it as "api_key"
 //  5. Otherwise → auto-detect from store (single match required)
 //
 // Before any of that, the provider endpoint is taken out of the caller's hands
@@ -120,7 +120,7 @@ func ResolveCredentials(store *Store, toolName string, toolRequires []string, co
 	}
 
 	// Explicit inline API key takes priority.
-	if apiKey, ok := config["apiKey"].(string); ok && apiKey != "" {
+	if apiKey, ok := config["api_key"].(string); ok && apiKey != "" {
 		return config, nil
 	}
 
@@ -167,7 +167,7 @@ func ResolveCredentials(store *Store, toolName string, toolRequires []string, co
 // configKeyBaseURL is the tool-config key naming the endpoint a provider is
 // called at. The host owns it end to end: it is cleared on the way in and set
 // only from a resolved credential.
-const configKeyBaseURL = "baseURL"
+const configKeyBaseURL = "base_url"
 
 // stripRecipeEndpoint removes any endpoint the tool config arrived with.
 //
@@ -290,7 +290,7 @@ func mergeCredentials(config map[string]any, cred *ProviderConfigWithKey) map[st
 	if _, ok := result["provider"]; !ok || result["provider"] == "" {
 		result["provider"] = cred.ProviderType
 	}
-	result["apiKey"] = cred.APIKey
+	result["api_key"] = cred.APIKey
 	if cred.Model != "" {
 		if _, ok := result["model"]; !ok || result["model"] == "" {
 			result["model"] = cred.Model

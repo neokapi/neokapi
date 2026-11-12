@@ -1950,7 +1950,7 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 
 	// Enable media extraction if the format supports it.
 	if cfg := reader.Config(); cfg != nil {
-		_ = cfg.ApplyMap(map[string]any{"extractMedia": true})
+		_ = cfg.ApplyMap(map[string]any{"extract_media": true})
 	}
 	// The check, the block cache and the change service read every document
 	// with the skeleton a write would wire, and pull writes with one. Reading

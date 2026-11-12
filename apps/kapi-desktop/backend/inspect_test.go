@@ -173,7 +173,7 @@ func TestInspectFileAnnotatedPopulatesOverlays(t *testing.T) {
 const kbfShapeFixture = `{
   "schemaVersion": "1.0",
   "kind": "kapi-bundle",
-  "project": { "id": "app", "sourceLocale": "en" },
+  "project": { "id": "app", "source_locale": "en" },
   "documents": [
     {
       "id": "App.tsx",

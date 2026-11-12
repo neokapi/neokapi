@@ -4,7 +4,7 @@
 # id is the bare native id `mdx`, not an `okf_*` bridge id; there are no
 # okapi_param / okapi_refs in this spec.
 #
-# Config: MDX owns ONE key of its own — extractNonTranslatableContent (#928,
+# Config: MDX owns ONE key of its own — extract_non_translatable_content (#928,
 # default on) — which it intercepts and does NOT forward; every other key is
 # forwarded to the embedded Markdown filter and any key Markdown does not
 # recognise is rejected. The `config:` block below is intentionally empty
@@ -30,7 +30,7 @@ description: |
   are surfaced as content blocks (#928), translatable where the element's own
   classification allows it and visible to ingestion but skipped by MT where it
   does not, byte-faithful on round-trip, gated behind the
-  extractNonTranslatableContent flag (default on; parity forces it off). ESM
+  extract_non_translatable_content flag (default on; parity forces it off). ESM
   import/export statements, {expressions}, JSX tags/attributes, fenced code
   blocks, and YAML front matter are opaque structure and round-trip verbatim,
   never translatable. The document is segmented losslessly so the writer

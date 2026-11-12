@@ -22,7 +22,7 @@
 #     top-level properties (`parser`, `elements`, `attributes`); the
 #     bridge schema is generated from Okapi's Java parameters, so these
 #     are Okapi parameter names by transitivity. Inline-codes
-#     configuration (useCodeFinder / codeFinderRules) is documented as
+#     configuration (use_code_finder / code_finder_rules) is documented as
 #     a feature but its sub-keys are NOT declared as spec.config
 #     entries to avoid spurious drift against the schema's `$defs`
 #     inline-codes block.
@@ -48,7 +48,7 @@ config:
     default: {}
     description: |
       Parser-behavior settings. The only key currently honored is
-      `preserveWhitespace` (boolean, default false), which disables the
+      `preserve_whitespace` (boolean, default false), which disables the
       default HTML whitespace-collapsing rule globally. Mirrors Okapi's
       parser group (also exposed by the bridge composite schema as the
       `parser` object).
@@ -536,7 +536,7 @@ features:
       newline) into single spaces and trims leading/trailing whitespace
       on each Block. The <pre> and <textarea> elements always preserve
       whitespace (their PreserveWhitespace flag is set on the Block).
-      Setting `parser.preserveWhitespace: true` globally disables
+      Setting `parser.preserve_whitespace: true` globally disables
       collapsing for ALL elements, including <p>.
     spec_refs:
       - "HTML Living Standard §15.5.4 The pre and listing elements (intrinsic whitespace preservation)"
@@ -550,11 +550,11 @@ features:
           - "t1 t2"
           - " t3  \nt4  "
       - name: global_preserve_overrides_collapse
-        origin: "authored: same input + parser.preserveWhitespace=true global override"
+        origin: "authored: same input + parser.preserve_whitespace=true global override"
         input_xml: "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
         config:
           parser:
-            preserveWhitespace: true
+            preserve_whitespace: true
         block_count: 2
         block_texts:
           - " t1  \nt2  "
@@ -657,11 +657,11 @@ features:
 
 # ── Intentionally under-specified ─────────────────────────────────────
 #
-# Inline-codes detection (useCodeFinder + codeFinderRules + the shared
+# Inline-codes detection (use_code_finder + code_finder_rules + the shared
 # inlineCodes $defs block) is implemented natively as a Config field but
 # is NOT declared as spec.config keys here. The bridge composite schema
 # exposes inlineCodes via a $ref into a shared $defs block whose leaf
-# property names (useCodeFinder, codeFinderRules, enabled, rules) would
+# property names (use_code_finder, code_finder_rules, enabled, rules) would
 # be flagged as drift by the contract-audit's flat property walker (it
 # does not follow $ref). The native test
 # html.TestConfig_CodeFinderRules verifies the config plumbing; once
@@ -681,8 +681,8 @@ features:
 # iteration can add a roundtrip-output assertion type.
 #
 # Element / attribute rule overrides (EXCLUDE / INCLUDE / ATTRIBUTES_ONLY
-# rule types, MATCHES condition operator, allElementsExcept /
-# onlyTheseElements scoping, ATTRIBUTE_WRITABLE / ATTRIBUTE_ID /
+# rule types, MATCHES condition operator, all_elements_except /
+# only_these_elements scoping, ATTRIBUTE_WRITABLE / ATTRIBUTE_ID /
 # ATTRIBUTE_READONLY classifications, OR conditions for translatable
 # attributes, regex-based element / attribute matchers) are exercised
 # upstream by HtmlConfigurationSupportTest's 14 test_* methods. The

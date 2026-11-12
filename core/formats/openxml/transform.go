@@ -1,6 +1,10 @@
 package openxml
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiOpenXMLTransformer converts OkfOpenxmlFilterConfig specs to OpenxmlFormatConfig.
 //
@@ -66,53 +70,53 @@ func (okapiOpenXMLTransformer) Transform(spec map[string]any) (map[string]any, e
 			"codeFinderRules",
 			"fontMappings",
 			"complexFieldDefinitionsToExtract":
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 
 		// Okapi key name → native key name
 		case "translateDocumentProperties":
-			result["translateDocProperties"] = val
+			result["translate_doc_properties"] = val
 		case "extractNotes":
-			result["translateSlideNotes"] = val
+			result["translate_slide_notes"] = val
 		case "extractMasterPages", "extractMasters":
-			result["translateSlideMasters"] = val
+			result["translate_slide_masters"] = val
 		case "extractHiddenSlides":
-			result["translateHiddenSlides"] = val
+			result["translate_hidden_slides"] = val
 		case "translateExcelSheetNames":
-			result["translateSheetNames"] = val
+			result["translate_sheet_names"] = val
 
 		// Okapi "ts" prefixed params → native names
 		case "tsExcludedStyles":
-			result["excludeStyles"] = val
+			result["exclude_styles"] = val
 		case "tsIncludedStyles":
-			result["includeStyles"] = val
+			result["include_styles"] = val
 		case "tsExcludedColumns":
-			result["excludedColumns"] = val
+			result["excluded_columns"] = val
 		case "tsExcludedSheets":
-			result["excludedSheets"] = val
+			result["excluded_sheets"] = val
 		case "tsIncludedSlides":
-			result["includedSlides"] = val
+			result["included_slides"] = val
 		case "tsLineSeparatorReplacement":
-			result["lineSeparatorReplacement"] = val
+			result["line_separator_replacement"] = val
 		case "tsReplaceLineSeparator":
-			result["replaceLineSeparator"] = val
+			result["replace_line_separator"] = val
 		case "tsAggressiveCleanup":
-			result["aggressiveCleanup"] = val
+			result["aggressive_cleanup"] = val
 		case "tsTabAsCharacter":
-			result["tabAsCharacter"] = val
+			result["tab_as_character"] = val
 		case "tsExtractChartStrings":
-			result["translateCharts"] = val
+			result["translate_charts"] = val
 		case "tsExtractDiagramData":
-			result["translateDiagrams"] = val
+			result["translate_diagrams"] = val
 		case "tsComplexFieldDefinitionsToExtract":
-			result["complexFieldDefinitionsToExtract"] = val
+			result["complex_field_definitions_to_extract"] = val
 
 		// Okapi composite codeFinder object → extract rules into flat params
 		case "codeFinder":
 			if m, ok := val.(map[string]any); ok {
 				if rules, ok := m["rules"]; ok {
-					result["codeFinderRules"] = rules
+					result["code_finder_rules"] = rules
 				}
-				result["useCodeFinder"] = true
+				result["use_code_finder"] = true
 			}
 
 		// Okapi-only params — drop silently
@@ -127,7 +131,7 @@ func (okapiOpenXMLTransformer) Transform(spec map[string]any) (map[string]any, e
 
 		default:
 			// Unknown params — pass through for forward compatibility
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 

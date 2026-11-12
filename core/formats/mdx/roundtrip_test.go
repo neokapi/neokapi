@@ -415,14 +415,14 @@ func TestEmptyAndWhitespace(t *testing.T) {
 }
 
 // TestConfigForwardsToMarkdown verifies an MDX config parameter (e.g.
-// translateCodeBlocks) is forwarded to the delegated markdown reader.
+// translate_code_blocks) is forwarded to the delegated markdown reader.
 func TestConfigForwardsToMarkdown(t *testing.T) {
 	src := []byte("# Title\n\n```js\nconst x = 1;\n```\n")
 
 	r := NewReader()
 	cfg := r.Config().(*Config)
 	cfg.Reset()
-	require.NoError(t, cfg.ApplyMap(map[string]any{"translateCodeBlocks": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"translate_code_blocks": true}))
 
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
@@ -439,7 +439,7 @@ func TestConfigForwardsToMarkdown(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, codeBlockExtracted, "translateCodeBlocks=true should extract the code block as a translatable Block")
+	assert.True(t, codeBlockExtracted, "translate_code_blocks=true should extract the code block as a translatable Block")
 }
 
 // TestConfigRejectsUnknownKey verifies the config validates parameter names

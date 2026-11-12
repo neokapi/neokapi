@@ -20,7 +20,7 @@ export interface SearchReplaceWidgetProps {
 }
 
 // Build a one-step `kapi.yaml` recipe for the search-replace tool. The
-// find/replace pair is carried in the tool config's `pairs` array; `regEx`
+// find/replace pair is carried in the tool config's `pairs` array; `reg_ex`
 // toggles regular-expression mode. The pairs decode into SearchReplaceConfig.Pairs via the
 // config's JSON round-trip (the field's `schema:"-"` only hides it from the
 // generated schema form, not from JSON), so an inline recipe is the canonical
@@ -40,7 +40,7 @@ export function buildSearchReplaceRecipe(find: string, replace: string, regex: b
     `          pairs: ${JSON.stringify([pair])}`,
     "          source: true",
     "          target: false",
-    `          regEx: ${regex}`,
+    `          reg_ex: ${regex}`,
     "",
   ].join("\n");
 }

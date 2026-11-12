@@ -82,7 +82,7 @@ Write a flow meant to run as ordered steps.
 ```yaml
 steps:
   - tool: recycle
-    config: { fuzzyThreshold: 75 }
+    config: { fuzzy_threshold: 75 }
   - tool: translate
   - tool: qa
 ```

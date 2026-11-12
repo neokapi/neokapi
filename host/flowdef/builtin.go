@@ -27,7 +27,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 			// deterministic check pass verifies placeholders/tags before the
 			// result is written. The raw tool stays at `kapi exec translate`.
 			//
-			// skipMatched is what makes the chain mean "recycle, then translate
+			// skip_matched is what makes the chain mean "recycle, then translate
 			// the REMAINDER". The translate tool's own default is to translate
 			// every translatable block it is handed, which is right for `kapi
 			// exec translate` — you pointed it at the content — and wrong here:
@@ -38,7 +38,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 			Nodes: []flow.FlowNode{
 				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "Memory Reuse", Position: flow.NodePosition{X: 0, Y: 100}},
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 250, Y: 100},
-					Config: map[string]any{"skipMatched": true}},
+					Config: map[string]any{"skip_matched": true}},
 				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Quality Check", Position: flow.NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []flow.FlowEdge{
@@ -147,8 +147,8 @@ func BuiltInFlows() []flow.FlowDefinition {
 				{ID: "entity-extract", Type: flow.NodeTool, Name: "entity-extract", Label: "Detect Entities (NER)", Position: flow.NodePosition{X: 0, Y: 100}},
 				{ID: "redact", Type: flow.NodeTool, Name: "redact", Label: "Redact", Position: flow.NodePosition{X: 250, Y: 100},
 					Config: map[string]any{
-						"detectors":   []string{"entities"},
-						"entityTypes": []string{"person", "org", "location", "date"},
+						"detectors":    []string{"entities"},
+						"entity_types": []string{"person", "org", "location", "date"},
 					}},
 			},
 			Edges: []flow.FlowEdge{

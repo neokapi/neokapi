@@ -28,7 +28,7 @@ func TestRegisterGroup(t *testing.T) {
 	}
 	srxParams := &schema.ComponentSchema{
 		Type:       "object",
-		Properties: map[string]schema.PropertySchema{"rulesPath": {Type: "string", Title: "Rules"}},
+		Properties: map[string]schema.PropertySchema{"rules_path": {Type: "string", Title: "Rules"}},
 	}
 
 	built := ""
@@ -66,12 +66,12 @@ func TestRegisterGroup(t *testing.T) {
 	eng := s.Properties["engine"]
 	assert.Equal(t, "select", eng.Widget)
 	assert.Equal(t, "srx", eng.Default)
-	require.Contains(t, s.Properties, "rulesPath")
+	require.Contains(t, s.Properties, "rules_path")
 
 	// Per-member schema is the master-detail section the UI renders.
 	ms := reg.MemberSchema("segmentation", "srx")
 	require.NotNil(t, ms)
-	assert.Contains(t, ms.Properties, "rulesPath")
+	assert.Contains(t, ms.Properties, "rules_path")
 	assert.Nil(t, reg.MemberSchema("segmentation", "uax29"), "parameterless member has no schema")
 	assert.Nil(t, reg.MemberSchema("segmentation", "nope"), "unknown member")
 

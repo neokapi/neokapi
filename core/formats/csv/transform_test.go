@@ -50,8 +50,8 @@ func TestTransform_ColumnNamesLineNum(t *testing.T) {
 		map[string]any{"columnNamesLineNum": float64(2)},
 	)
 	require.NoError(t, err)
-	assert.Equal(t, 2, result["columnNamesRow"])
-	assert.Equal(t, true, result["hasHeader"])
+	assert.Equal(t, 2, result["column_names_row"])
+	assert.Equal(t, true, result["has_header"])
 }
 
 func TestTransform_ValuesStartLineNum(t *testing.T) {
@@ -62,7 +62,7 @@ func TestTransform_ValuesStartLineNum(t *testing.T) {
 		map[string]any{"valuesStartLineNum": float64(3)},
 	)
 	require.NoError(t, err)
-	assert.Equal(t, 3, result["valuesStartRow"])
+	assert.Equal(t, 3, result["values_start_row"])
 }
 
 func TestTransform_SourceColumns(t *testing.T) {
@@ -73,7 +73,7 @@ func TestTransform_SourceColumns(t *testing.T) {
 		map[string]any{"sourceColumns": "1,3"},
 	)
 	require.NoError(t, err)
-	cols, ok := result["translatableColumns"].([]any)
+	cols, ok := result["translatable_columns"].([]any)
 	require.True(t, ok)
 	assert.Equal(t, []any{0, 2}, cols) // 1-based to 0-based
 }
@@ -86,7 +86,7 @@ func TestTransform_SourceIdColumns(t *testing.T) {
 		map[string]any{"sourceIdColumns": "1"},
 	)
 	require.NoError(t, err)
-	cols, ok := result["keyColumns"].([]any)
+	cols, ok := result["key_columns"].([]any)
 	require.True(t, ok)
 	assert.Equal(t, []any{0}, cols)
 }
@@ -99,7 +99,7 @@ func TestTransform_CommentColumns(t *testing.T) {
 		map[string]any{"commentColumns": "3"},
 	)
 	require.NoError(t, err)
-	cols, ok := result["commentColumns"].([]any)
+	cols, ok := result["comment_columns"].([]any)
 	require.True(t, ok)
 	assert.Equal(t, []any{2}, cols)
 }
@@ -112,7 +112,7 @@ func TestTransform_TrimMode(t *testing.T) {
 		map[string]any{"trimMode": "ALL"},
 	)
 	require.NoError(t, err)
-	assert.Equal(t, true, result["trimValues"])
+	assert.Equal(t, true, result["trim_values"])
 }
 
 func TestTransform_TrimModeNone(t *testing.T) {
@@ -123,7 +123,7 @@ func TestTransform_TrimModeNone(t *testing.T) {
 		map[string]any{"trimMode": "NONE"},
 	)
 	require.NoError(t, err)
-	_, hasTrim := result["trimValues"]
+	_, hasTrim := result["trim_values"]
 	assert.False(t, hasTrim, "NONE should not set trimValues")
 }
 

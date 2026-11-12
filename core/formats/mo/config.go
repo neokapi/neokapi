@@ -1,6 +1,6 @@
 package mo
 
-import "fmt"
+import "github.com/neokapi/neokapi/core/format"
 
 // Config holds configuration for the MO writer. Empty by default — MO is
 // a binary gettext catalog; its shape is determined by the incoming Blocks
@@ -23,7 +23,7 @@ func (c *Config) Validate() error { return nil }
 // contract is that ApplyMap must not silently swallow unknown parameters.
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key := range values {
-		return fmt.Errorf("mo: unknown parameter: %s", key)
+		return format.UnknownParameterError(c, "mo", key)
 	}
 	return nil
 }

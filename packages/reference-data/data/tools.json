@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T10:44:16Z",
+  "generatedAt": "2026-11-12T17:16:50Z",
   "kind": "tool",
   "entries": [
     {
@@ -61,7 +61,7 @@
             "fields": [
               "engine",
               "locale",
-              "knownTerms"
+              "known_terms"
             ]
           },
           {
@@ -69,7 +69,7 @@
             "label": "Provider",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ],
             "ui:visible": {
@@ -89,8 +89,8 @@
             "id": "llm",
             "label": "LLM (AI provider)",
             "fields": [
-              "batchConcurrency",
-              "batchSize"
+              "batch_concurrency",
+              "batch_size"
             ],
             "ui:visible": {
               "any": [
@@ -107,18 +107,18 @@
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
           },
-          "batchConcurrency": {
+          "batch_concurrency": {
             "type": "integer",
             "description": "Number of concurrent batch calls (0 or 1 = sequential)",
             "default": 1,
             "minimum": 1
           },
-          "batchSize": {
+          "batch_size": {
             "type": "integer",
             "description": "Number of blocks per LLM call (0 or 1 = one block per call)",
             "default": 1,
@@ -150,7 +150,7 @@
               "ner": "On-device model: no credentials, nothing leaves the machine."
             }
           },
-          "knownTerms": {
+          "known_terms": {
             "type": "array",
             "description": "Terms to exclude from extraction (already in the terms store)",
             "items": {
@@ -207,22 +207,22 @@
       "doc": {
         "overview": "The **Entity Extract** tool analyses a block's source text with a large\nlanguage model and records two kinds of stand-off annotation: named entities\n(people, organizations, products, locations, and also dates, times,\ncurrencies, and measurements) and terminology candidates (domain-specific\nterms that would benefit from a terms entry). Each entity carries a\nsuggested do-not-translate flag; each term candidate carries a category and a\ntranslatability classification (do-not-translate, consistent, or free). It is\nread-only: it writes annotations only and never changes the source or target.\n\nExtraction can optionally combine the LLM with a NER provider for fast entity\ndetection; the LLM classification is preferred where the two overlap. Blocks\ncan be analysed one at a time or grouped into batches sent in a single\nstructured call, and batches can run concurrently. Known terms already in the\nterms can be supplied so they are not re-proposed. A provider and, for\nhosted providers, credentials are required.\n",
         "parameters": {
-          "apiKey": {
+          "api_key": {
             "description": "API key for the provider.",
             "help": "Credential for the chosen hosted provider. Required for hosted providers;\nnot needed for a local Ollama backend.\n",
             "values": "string"
           },
-          "batchConcurrency": {
+          "batch_concurrency": {
             "description": "Number of batch calls to run in parallel.",
             "help": "How many batches are analysed concurrently. A value of 0 or 1 runs batches\nsequentially.\n",
             "values": "integer ≥ 1 (default `1`)"
           },
-          "batchSize": {
+          "batch_size": {
             "description": "Number of blocks per LLM call.",
             "help": "Blocks are grouped into batches of this size and analysed in a single\nstructured call per batch. A value of 0 or 1 analyses one block per call.\n",
             "values": "integer ≥ 1 (default `1`)"
           },
-          "knownTerms": {
+          "known_terms": {
             "description": "Terms to exclude from extraction (already in the terms store).",
             "help": "Terms the LLM is told not to re-propose, so the candidate list focuses on\ngenuinely new terminology. Matching is case-insensitive.\n",
             "values": "list of strings"
@@ -263,7 +263,7 @@
           {
             "title": "Batched extraction",
             "description": "Analyse blocks in batches of 20, four batches at a time.",
-            "config": "provider: openai\nbatchSize: 20\nbatchConcurrency: 4\n"
+            "config": "provider: openai\nbatch_size: 20\nbatch_concurrency: 4\n"
           }
         ]
       },
@@ -349,13 +349,13 @@
             "label": "Provider",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
@@ -411,7 +411,7 @@
       "doc": {
         "overview": "The **Term Extract** tool sends each block's source text to a\nconfigured LLM provider and asks it to return notable terms, each with a short\ndefinition and domain. The extracted entries are recorded on the block's\nproperties as a terminology list. Blocks whose source is empty are skipped, and\nblocks with no terms found are left unchanged.\n\nBecause the tool calls an external model, it requires provider credentials. An\noptional subject domain can be supplied to bias extraction toward that field\n(for example medical, legal, or technology terminology). The results are\ncandidate terms intended for review and curation into a terms store, not\nauthoritative terminology.\n",
         "parameters": {
-          "apiKey": {
+          "api_key": {
             "description": "API key for the AI provider.",
             "help": "Credential for the selected provider. Local providers such as Ollama may\nnot require a key. Prefer supplying credentials through the credential store\nor environment rather than committing them to a recipe.\n",
             "values": "string"
@@ -513,13 +513,13 @@
             "label": "Provider",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
@@ -529,7 +529,7 @@
             "title": "Model",
             "description": "AI model name"
           },
-          "profileId": {
+          "profile_id": {
             "type": "string",
             "title": "Profile ID",
             "description": "Voice profile to resolve from the store"
@@ -573,9 +573,9 @@
         }
       },
       "doc": {
-        "overview": "The **AI Voice Check** tool sends each block's source text to a configured LLM\nprovider alongside the guidelines a voice profile carries, and reads back\nstructured findings over four dimensions (tone, style, clarity and brand\ncompliance), each with a severity, a message and a suggested rewrite. It\ncomputes an overall compliance score, records the score and any findings on the\nblock's properties, and attaches a `voice` annotation carrying both. A block\nwhose source text is empty or whitespace-only is skipped.\n\nA voice profile is the context type that says how content should read; a\nbrand's tone of voice is the common use of it. The profile reaches this tool\nthree ways: named by `profileId` and resolved from the local store, supplied\nalready-resolved by the host (the `kapi voice` command, or a project's\n`defaults.voice` binding), or resolved lazily from the organizational context\nhierarchy on first use. With no profile the prompt carries no guidelines, and\nthe model is asked to judge against nothing.\n\nThis is the judged half of a pair. `voice-vocab-check` is the deterministic\nhalf, the profile's vocabulary and style patterns matched as rules, needing\nno credentials and no network. Run it first, so that the model\nis spent on what rules cannot decide.\n",
+        "overview": "The **AI Voice Check** tool sends each block's source text to a configured LLM\nprovider alongside the guidelines a voice profile carries, and reads back\nstructured findings over four dimensions (tone, style, clarity and brand\ncompliance), each with a severity, a message and a suggested rewrite. It\ncomputes an overall compliance score, records the score and any findings on the\nblock's properties, and attaches a `voice` annotation carrying both. A block\nwhose source text is empty or whitespace-only is skipped.\n\nA voice profile is the context type that says how content should read; a\nbrand's tone of voice is the common use of it. The profile reaches this tool\nthree ways: named by `profile_id` and resolved from the local store, supplied\nalready-resolved by the host (the `kapi voice` command, or a project's\n`defaults.voice` binding), or resolved lazily from the organizational context\nhierarchy on first use. With no profile the prompt carries no guidelines, and\nthe model is asked to judge against nothing.\n\nThis is the judged half of a pair. `voice-vocab-check` is the deterministic\nhalf, the profile's vocabulary and style patterns matched as rules, needing\nno credentials and no network. Run it first, so that the model\nis spent on what rules cannot decide.\n",
         "parameters": {
-          "apiKey": {
+          "api_key": {
             "description": "API key for the AI provider.",
             "help": "Credential for the selected provider. A local provider such as Ollama may\nneed none. Prefer the credential store or the environment over writing a\nkey into a recipe.\n",
             "values": "string"
@@ -585,7 +585,7 @@
             "help": "The provider-specific model identifier. Omitted, the provider's default\nmodel is used.\n",
             "values": "string"
           },
-          "profileId": {
+          "profile_id": {
             "description": "Voice profile to resolve from the local store.",
             "help": "The identifier of the profile whose guidelines the text is judged against.\nThe host may supply a resolved profile instead, in which case this is not\nneeded.\n",
             "values": "string"
@@ -610,7 +610,7 @@
           {
             "title": "Judge against a stored profile",
             "description": "Resolve a profile by name from the local store and judge each block against it.",
-            "config": "provider: anthropic\nprofileId: house-style\n"
+            "config": "provider: anthropic\nprofile_id: house-style\n"
           }
         ]
       }
@@ -663,13 +663,13 @@
             "label": "Provider",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
@@ -679,7 +679,7 @@
             "title": "Domain",
             "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
           },
-          "maxExamples": {
+          "max_examples": {
             "type": "integer",
             "title": "Max Examples",
             "description": "Maximum before/after examples to infer",
@@ -691,7 +691,7 @@
             "title": "Model",
             "description": "AI model name"
           },
-          "profileName": {
+          "profile_name": {
             "type": "string",
             "title": "Profile Name",
             "description": "Name for the inferred draft profile"
@@ -737,7 +737,7 @@
       "doc": {
         "overview": "The **AI Voice Inference** tool reads a body of content and proposes the voice\nprofile it is already written in, the inverse of `voice-check`, which holds\ncontent to a profile that exists. It is the onboarding move: a project that has\nbeen writing in a consistent register for years has a profile, and this reads\nit off the corpus rather than asking someone to write it down.\n\nInference is corpus-level rather than per-block. Every part passes through\nunchanged while the tool accumulates each block's source text, and one\ninference runs when the input stream ends. The corpus is truncated on a rune\nboundary before it is sent, so a large document set costs one bounded request.\nAn empty stream leaves nothing to infer from, so the tool reports success and\nyields no draft.\n\nThe result is a draft in the ordinary voice-profile shape (tone, style,\nvocabulary and before/after examples), read from `Draft()` after the flow\ncompletes, together with an evidence sidecar carrying the model's confidence\nand a short source note for each top-level field. The evidence stays beside the\nprofile rather than inside it, so the draft round-trips through the same\n`profile.yaml` an author edits by hand. Treat the output as a draft: it is a\nproposal to review and commit, not a decided profile.\n",
         "parameters": {
-          "apiKey": {
+          "api_key": {
             "description": "API key for the AI provider.",
             "help": "Credential for the selected provider. A local provider such as Ollama may\nneed none. Prefer the credential store or the environment over writing a\nkey into a recipe.\n",
             "values": "string"
@@ -747,7 +747,7 @@
             "help": "A short hint at the subject matter (\"medical\", \"developer tools\", \"public\nsector\") which steers the register the model reads the corpus as. Omitted,\nthe corpus speaks for itself.\n",
             "values": "string"
           },
-          "maxExamples": {
+          "max_examples": {
             "description": "How many before/after examples the draft may carry.",
             "help": "Caps the rewrite examples requested from the model and kept out of its\nresponse. Defaults to 3.\n",
             "values": "integer ≥ 1 (default `3`)"
@@ -757,7 +757,7 @@
             "help": "The provider-specific model identifier. Omitted, the provider's default\nmodel is used.\n",
             "values": "string"
           },
-          "profileName": {
+          "profile_name": {
             "description": "Name for the drafted profile.",
             "help": "The name the draft carries. Omitted, the draft is named \"Inferred Voice\".\n",
             "values": "string"
@@ -782,7 +782,7 @@
           {
             "title": "Draft a profile from a documentation set",
             "description": "Name the draft and hint at the subject domain; the corpus is whatever the flow reads.",
-            "config": "provider: anthropic\nprofileName: House Style\ndomain: developer tools\n"
+            "config": "provider: anthropic\nprofile_name: House Style\ndomain: developer tools\n"
           }
         ]
       }
@@ -877,13 +877,13 @@
           "writesOutput": true
         },
         "properties": {
-          "applySource": {
+          "apply_source": {
             "type": "boolean",
             "title": "Apply to Source",
             "description": "Apply to source text",
             "default": true
           },
-          "applyTarget": {
+          "apply_target": {
             "type": "boolean",
             "title": "Apply to Target",
             "description": "Apply to target text",
@@ -914,12 +914,12 @@
       "doc": {
         "overview": "The **Case Transform** tool rewrites the case of text in translatable blocks.\nIt can uppercase, lowercase, or title-case the source text, the target text,\nor both. It is useful for normalizing display strings (for example forcing\nUI labels to upper case) or for preparing case-insensitive comparisons.\n\nWhen applying to the target, a target locale must be set; the tool only\ntransforms locales that already have a target. Non-translatable blocks pass\nthrough unchanged.\n",
         "parameters": {
-          "applySource": {
+          "apply_source": {
             "description": "Apply the transformation to source text.",
             "help": "When enabled, the source text of each translatable block is transformed.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "applyTarget": {
+          "apply_target": {
             "description": "Apply the transformation to target text.",
             "help": "When enabled, the target text is transformed for the configured target\nlocale. A target locale must be set; only existing targets are touched.\n",
             "values": "`true` / `false` (default `false`)"
@@ -941,12 +941,12 @@
           {
             "title": "Uppercase source text",
             "description": "Force all source strings to upper case.",
-            "config": "mode: upper\napplySource: true\n"
+            "config": "mode: upper\napply_source: true\n"
           },
           {
             "title": "Lowercase the target translation",
             "description": "Normalize target text to lower case for a locale.",
-            "config": "mode: lower\napplySource: false\napplyTarget: true\n"
+            "config": "mode: lower\napply_source: false\napply_target: true\n"
           }
         ]
       }
@@ -992,13 +992,13 @@
           "writesOutput": true
         },
         "properties": {
-          "copySource": {
+          "copy_source": {
             "type": "boolean",
             "title": "Copy Source",
             "description": "Copy the source runs into the new target",
             "default": false
           },
-          "createOnNonTranslatable": {
+          "create_on_non_translatable": {
             "type": "boolean",
             "title": "Create on Non-Translatable",
             "description": "Create a target even for non-translatable blocks",
@@ -1010,7 +1010,7 @@
             "description": "Overwrite the existing target if one already exists",
             "default": false
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
             "title": "Target Locale",
             "description": "Target locale to create"
@@ -1020,12 +1020,12 @@
       "doc": {
         "overview": "The **Create Target** tool ensures every block has a target segment for a\ngiven locale. It is the standard first step when preparing content for\ntranslation: it creates the empty (or source-seeded) target containers that\nlater tools (translation, leverage, verification) fill and check.\n\nA target locale is required. By default existing targets are left untouched;\nenable overwriting to replace them. Targets can be created for\nnon-translatable blocks as well, which keeps bilingual structure complete\nacross an entire document.\n",
         "parameters": {
-          "copySource": {
+          "copy_source": {
             "description": "Seed the new target with the source text.",
             "help": "When enabled, the source text is copied into the new target segment so it\nstarts as a duplicate of the source. When disabled, the target is created\nempty.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "createOnNonTranslatable": {
+          "create_on_non_translatable": {
             "description": "Also create targets on non-translatable blocks.",
             "help": "When enabled, target containers are created even for blocks marked\nnon-translatable, keeping the bilingual structure complete. Disable it to\nskip non-translatable blocks entirely.\n",
             "values": "`true` / `false` (default `true`)"
@@ -1035,7 +1035,7 @@
             "help": "By default a block that already has a target for the locale is left\nunchanged. Enable this to overwrite the existing target with a new\n(empty or source-seeded) one.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "targetLocale": {
+          "target_locale": {
             "description": "The locale to create a target for.",
             "help": "The BCP-47 locale identifier for the target to create (for example\n`fr`). On the CLI and in flows this is typically supplied by the\n`--target-lang` value.\n",
             "values": "BCP-47 locale (required)"
@@ -1048,12 +1048,12 @@
           {
             "title": "Create empty targets for a locale",
             "description": "Prepare empty target containers ready for translation.",
-            "config": "targetLocale: fr\n"
+            "config": "target_locale: fr\n"
           },
           {
             "title": "Pre-fill targets with the source",
             "description": "Seed targets with source text as a starting draft.",
-            "config": "targetLocale: de\ncopySource: true\n"
+            "config": "target_locale: de\ncopy_source: true\n"
           }
         ]
       }
@@ -1099,13 +1099,13 @@
           "writesOutput": true
         },
         "properties": {
-          "caseSensitive": {
+          "case_sensitive": {
             "type": "boolean",
             "title": "Case Sensitive",
             "description": "Whether comparison is case-sensitive",
             "default": true
           },
-          "fuzzyMatch": {
+          "fuzzy_match": {
             "type": "boolean",
             "title": "Fuzzy Match",
             "description": "Enable fuzzy matching for similar texts",
@@ -1116,12 +1116,12 @@
       "doc": {
         "overview": "The **Diff Leverage** tool compares each block's source against the same\nblock in a previous version of the document and carries forward the previous\ntranslation when the source is unchanged. It avoids re-translating content\nthat has not changed between versions, and tags each block with its diff\nstatus: `new`, `unchanged`, `modified`, or `leveraged`. A target language is\nrequired.\n\nThe previous version's source and target texts are supplied programmatically\n(keyed by block ID); they are not part of the declarative schema. The two\nschema-visible options control how the source comparison is performed.\n",
         "parameters": {
-          "caseSensitive": {
+          "case_sensitive": {
             "description": "Compare source texts case-sensitively.",
             "help": "When enabled, two sources must match exactly, including letter case, to\ncount as unchanged. When disabled, the comparison ignores case.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "fuzzyMatch": {
+          "fuzzy_match": {
             "description": "Carry forward translations for closely similar sources.",
             "help": "When enabled, a changed source that is sufficiently similar to the\nprevious version (above an internal similarity threshold) still reuses the\nprevious translation and is tagged `leveraged` with a similarity score.\nWhen disabled, only exact matches are reused.\n",
             "values": "`true` / `false` (default `false`)"
@@ -1139,12 +1139,12 @@
           {
             "title": "Reuse exact matches only",
             "description": "Carry forward translations where the source is identical.",
-            "config": "caseSensitive: true\n"
+            "config": "case_sensitive: true\n"
           },
           {
             "title": "Allow fuzzy leverage",
             "description": "Also reuse translations for closely similar sources.",
-            "config": "fuzzyMatch: true\ncaseSensitive: false\n"
+            "config": "fuzzy_match: true\ncase_sensitive: false\n"
           }
         ]
       }
@@ -1206,7 +1206,7 @@
           ]
         },
         "properties": {
-          "caseInsensitive": {
+          "case_insensitive": {
             "type": "boolean",
             "title": "Case-insensitive preservation",
             "description": "Accept a case-folded match in the target instead of requiring exact case",
@@ -1225,7 +1225,7 @@
       "doc": {
         "overview": "The **Do-Not-Translate Check** tool guards terms that must reach the target\nunchanged: product names, trademarks, code identifiers. For each configured\nterm that appears in the source as a whole word, it verifies the term is\npresent verbatim in the target; when it is missing, the block carries a\nfinding that fails the check (the \"the AI translated your product name\" case). It is\nread-only: it annotates findings and never rewrites content.\n\nThe list of protected terms is supplied programmatically rather than as a\nschema field. A project, recipe, or checkset provides them, and the terms store\ncan contribute more. A target locale is required; blocks without a target for\nthat locale are skipped. The only schema-level option controls whether a\ncase-folded match in the target is accepted.\n",
         "parameters": {
-          "caseInsensitive": {
+          "case_insensitive": {
             "description": "Accept a case-folded match in the target instead of requiring exact case.",
             "help": "Off by default, because do-not-translate is usually case-sensitive:\n\"iPhone\" must not become \"Iphone\". When enabled, a case-insensitive match\nin the target satisfies the check.\n",
             "values": "`true` / `false` (default `false`)"
@@ -1245,7 +1245,7 @@
           {
             "title": "Case-insensitive preservation",
             "description": "Accept a case-folded match for protected terms in the target.",
-            "config": "caseInsensitive: true\n"
+            "config": "case_insensitive: true\n"
           }
         ]
       }
@@ -1323,13 +1323,13 @@
           "writesOutput": true
         },
         "properties": {
-          "applySource": {
+          "apply_source": {
             "type": "boolean",
             "title": "Apply to Source",
             "description": "Process source text",
             "default": false
           },
-          "applyTarget": {
+          "apply_target": {
             "type": "boolean",
             "title": "Apply to Target",
             "description": "Process target text",
@@ -1348,13 +1348,13 @@
             "title": "Command Line",
             "description": "The command to execute"
           },
-          "sendAsStdin": {
+          "send_as_stdin": {
             "type": "boolean",
             "title": "Send as Stdin",
             "description": "Send text via stdin instead of command arguments",
             "default": true
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
             "title": "Target Locale",
             "description": "Target locale for processing",
@@ -1375,19 +1375,19 @@
       "doc": {
         "overview": "The **External Command** tool pipes each block's text through an external\ncommand-line program and captures the program's standard output as the new\ntext. It lets a pipeline reuse an existing CLI filter (a custom normalizer,\na spell-fixer, a transliterator) without writing a native tool.\n\nText can be sent to the command on standard input or substituted into the\nargument list via the `${source}` and `${target}` placeholders. A command is\nrequired, and a target locale is required when applying to the target. Each\ninvocation has a timeout; the exit code is recorded on the block, and a\nnon-zero exit leaves the text unchanged and records the error.\n\n**This tool runs code the recipe chooses, so it is gated.** It is exec-class:\na project that names it in a flow runs commands with your privileges and your\nenvironment, and a recipe is bound by entering a directory. kapi therefore\nasks once per project, before anything else happens with it, and remembers the\nanswer; an unattended run with nobody to ask refuses rather than assumes.\n`KAPI_TRUST_EXEC=1` grants it where the pipeline author decides, rather than\nthe repository being processed. The same classification withholds this\ntool from the agent surface, from the engine API, and from any recipe arriving\ninside a `.kpz`. See\n[E-06](/contribute/architecture/engine/e-06-execution-trust).\n\n**A redaction policy applies.** The program may send what it reads anywhere,\nso in a project that declares a [redaction policy](/framework/redaction) the\nprogram reads each withheld value as its placeholder, such as\n`[REDACTED:Person]`, and kapi puts the original back into the program's\noutput. A flow that runs this tool needs a `redact` step ahead of it. An\noutput that drops, alters, repeats or adds a placeholder leaves the block\nunchanged and records a failing `external-command.redaction-placeholder`\nfinding that names the block and the placeholder. `kapi exec` and `kapi up`\nprint the findings and exit with code 3, the code a failed check uses.\n",
         "parameters": {
-          "applySource": {
+          "apply_source": {
             "description": "Process source text.",
             "help": "When enabled, the source text is sent through the command.",
             "values": "`true` / `false` (default `false`)"
           },
-          "applyTarget": {
+          "apply_target": {
             "description": "Process target text.",
             "help": "When enabled, the target text is sent through the command for the\nconfigured locale. Only existing targets are touched.\n",
             "values": "`true` / `false` (default `true`)",
             "dependsOn": [
               {
-                "property": "targetLocale",
-                "condition": "required when applyTarget is enabled"
+                "property": "target_locale",
+                "condition": "required when apply_target is enabled"
               }
             ]
           },
@@ -1401,18 +1401,18 @@
             "help": "Path or name of the command-line program to execute for each block. Its\nstandard output replaces the block text.\n",
             "values": "string (required)"
           },
-          "sendAsStdin": {
+          "send_as_stdin": {
             "description": "Send the text on standard input rather than as an argument.",
             "help": "When enabled, the text is written to the command's standard input. When\ndisabled, the text reaches the command only through the `${source}` /\n`${target}` argument placeholders.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "targetLocale": {
+          "target_locale": {
             "description": "Target locale for processing.",
-            "help": "The locale whose target text is processed. Required when `applyTarget` is enabled.",
+            "help": "The locale whose target text is processed. Required when `apply_target` is enabled.",
             "values": "BCP-47 locale",
             "dependsOn": [
               {
-                "property": "applyTarget",
+                "property": "apply_target",
                 "condition": "must be enabled for this to take effect"
               }
             ]
@@ -1435,12 +1435,12 @@
           {
             "title": "Pipe target text through a formatter",
             "description": "Run an external program on the target, sending text on stdin.",
-            "config": "command: my-formatter\napplyTarget: true\ntargetLocale: fr\n"
+            "config": "command: my-formatter\napply_target: true\ntarget_locale: fr\n"
           },
           {
             "title": "Pass text as an argument",
             "description": "Substitute the text into the argument list instead of stdin.",
-            "config": "command: transform\nargs: [\"--text\", \"${source}\"]\napplySource: true\nsendAsStdin: false\n"
+            "config": "command: transform\nargs: [\"--text\", \"${source}\"]\napply_source: true\nsend_as_stdin: false\n"
           }
         ]
       }
@@ -1475,31 +1475,31 @@
           "writesOutput": true
         },
         "properties": {
-          "applySource": {
+          "apply_source": {
             "type": "boolean",
             "title": "Apply to Source",
             "description": "Apply to the source text",
             "default": false
           },
-          "applyTarget": {
+          "apply_target": {
             "type": "boolean",
             "title": "Apply to Target",
             "description": "Apply to the target text",
             "default": true
           },
-          "includeNonTranslatable": {
+          "include_non_translatable": {
             "type": "boolean",
             "title": "Include Non-Translatable",
             "description": "Apply the removal action even to blocks marked as non-translatable",
             "default": true
           },
-          "replaceWithSpace": {
+          "replace_with_space": {
             "type": "boolean",
             "title": "Replace With Space",
             "description": "Replace line-break inline codes with spaces instead of removing them entirely",
             "default": false
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
             "title": "Target Locale",
             "description": "Target locale for processing",
@@ -1513,46 +1513,46 @@
       "doc": {
         "overview": "The **Inline Codes Remove** tool removes inline-code runs (placeholders and\npaired open/close codes) from segment content, leaving the surrounding plain\ntext. It is useful when a downstream consumer wants the textual content\nwithout markup, for example to build a plain-text reference or to feed a tool\nthat cannot handle coded text.\n\nRemoval recurses into structured plural and select constructs so inline codes\ninside them are also stripped. By default it applies to the target (a target\nlocale is required) and includes non-translatable blocks. Line-break codes\ncan optionally be replaced with a space so adjacent words do not run together.\n",
         "parameters": {
-          "applySource": {
+          "apply_source": {
             "description": "Strip inline codes from source segments.",
             "help": "When enabled, inline-code runs are removed from the source segments.",
             "values": "`true` / `false` (default `false`)"
           },
-          "applyTarget": {
+          "apply_target": {
             "description": "Strip inline codes from target segments.",
             "help": "When enabled, inline-code runs are removed from the target segments of the\nconfigured locale.\n",
             "values": "`true` / `false` (default `true`)",
             "dependsOn": [
               {
-                "property": "targetLocale",
-                "condition": "required when applyTarget is enabled"
+                "property": "target_locale",
+                "condition": "required when apply_target is enabled"
               }
             ]
           },
-          "includeNonTranslatable": {
+          "include_non_translatable": {
             "description": "Also strip codes from non-translatable blocks.",
             "help": "When enabled, the removal also applies to blocks marked non-translatable.\nDisable it to leave non-translatable blocks untouched.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "replaceWithSpace": {
+          "replace_with_space": {
             "description": "Replace line-break codes with a space instead of removing them.",
             "help": "When enabled, line-break-style placeholder codes are replaced with a\nsingle space so that, for example, `foo\u003cbr/\u003ebar` becomes `foo bar` rather\nthan `foobar`. Other inline codes are still removed entirely.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "targetLocale": {
+          "target_locale": {
             "description": "Target locale for processing.",
-            "help": "The locale whose target segments are processed. Required when `applyTarget` is enabled.",
+            "help": "The locale whose target segments are processed. Required when `apply_target` is enabled.",
             "values": "BCP-47 locale",
             "dependsOn": [
               {
-                "property": "applyTarget",
+                "property": "apply_target",
                 "condition": "must be enabled for this to take effect"
               }
             ]
           }
         },
         "limitations": [
-          "At least one of applySource or applyTarget must be enabled."
+          "At least one of apply_source or apply_target must be enabled."
         ],
         "processingNotes": [
           "Removal recurses into plural and select constructs so codes inside them are stripped as well.",
@@ -1562,12 +1562,12 @@
           {
             "title": "Strip codes from the target",
             "description": "Produce plain target text for a locale.",
-            "config": "applyTarget: true\ntargetLocale: fr\n"
+            "config": "apply_target: true\ntarget_locale: fr\n"
           },
           {
             "title": "Keep word boundaries at line breaks",
             "description": "Replace line-break codes with a space when stripping.",
-            "config": "applyTarget: true\ntargetLocale: fr\nreplaceWithSpace: true\n"
+            "config": "apply_target: true\ntarget_locale: fr\nreplace_with_space: true\n"
           }
         ]
       }
@@ -1653,13 +1653,13 @@
             "label": "Provider",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
@@ -1765,7 +1765,7 @@
           ]
         },
         "properties": {
-          "flagExtra": {
+          "flag_extra": {
             "type": "boolean",
             "title": "Flag extra placeholders",
             "description": "Report placeholders present in the target but absent from the source",
@@ -1776,7 +1776,7 @@
       "doc": {
         "overview": "The **Placeholder Check** tool verifies that every interpolation placeholder\nin the source survives, by count, into the target. A dropped `{count}` or an\nunbalanced `\u003c0\u003e` is the kind of break that crashes a translated application at\nruntime, so a placeholder present fewer times in the target than in the source\nfails the check. It is read-only: it annotates findings and never\nrewrites content.\n\nPlaceholders are detected with a built-in pattern covering the common\ninterpolation styles: `{{name}}`, `${name}`, `%(name)s` (Python),\n`%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),\n`{name}` / `{0}` (ICU / .NET), and numbered tags such as `\u003c0\u003e…\u003c/0\u003e`. A target\nlocale is required; blocks without a target for that locale are skipped.\n",
         "parameters": {
-          "flagExtra": {
+          "flag_extra": {
             "description": "Report placeholders present in the target but absent from the source.",
             "help": "When enabled (the default), a placeholder that appears in the target but\nnot the source, usually a stray token, also fails the check, in addition\nto the placeholders dropped from the target.\n",
             "values": "`true` / `false` (default `true`)"
@@ -1789,13 +1789,13 @@
         ],
         "processingNotes": [
           "Operates on translatable blocks that have a target for the configured locale; other parts pass through unchanged.",
-          "Dropped placeholders fail the check, and so do extra placeholders when flagExtra is enabled."
+          "Dropped placeholders fail the check, and so do extra placeholders when flag_extra is enabled."
         ],
         "examples": [
           {
             "title": "Only report dropped placeholders",
             "description": "Disable extra-placeholder reporting and flag only placeholders missing from the target.",
-            "config": "flagExtra: false\n"
+            "config": "flag_extra: false\n"
           }
         ]
       }
@@ -1826,7 +1826,7 @@
           "internal": true
         },
         "properties": {
-          "onlyTranslatable": {
+          "only_translatable": {
             "type": "boolean",
             "title": "Only Translatable",
             "description": "Only set properties on translatable blocks",
@@ -1848,7 +1848,7 @@
       "doc": {
         "overview": "The **Properties Set** tool writes a fixed set of key-value properties onto\nblocks. Properties are metadata that travel with a block and can influence\ndownstream tools and writers. Use it to tag content, for example marking a\nset of blocks with a workflow status or a routing hint.\n\nAt least one property must be configured. By default the tool overwrites\nexisting properties with the same key and applies only to translatable\nblocks.\n",
         "parameters": {
-          "onlyTranslatable": {
+          "only_translatable": {
             "description": "Only set properties on translatable blocks.",
             "help": "When enabled, non-translatable blocks are skipped. Disable it to set\nproperties on every block regardless of translatability.\n",
             "values": "`true` / `false` (default `true`)"
@@ -1928,7 +1928,7 @@
           ]
         },
         "properties": {
-          "expansionPercent": {
+          "expansion_percent": {
             "type": "integer",
             "title": "Expansion Percent",
             "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)",
@@ -1952,7 +1952,7 @@
       "doc": {
         "overview": "The **Pseudo Translate** tool produces fake translations that exercise a\nproduct's handling of translated text without a real translator. It replaces\nASCII letters with accented look-alikes, wraps each segment in marker\ncharacters, and can pad the text to simulate the length growth of a real\ntranslation. The result reveals hard-coded strings, clipped layouts, and\nencoding problems before translation begins. A target language is required\n(the conventional pseudo locale is `qps`).\n\nInline codes and placeholders are protected: text inside `{...}` markers and\nnon-text runs are passed through unchanged so the runtime can still substitute\nparameters. The transform is deterministic, so the same input always yields\nthe same output.\n",
         "parameters": {
-          "expansionPercent": {
+          "expansion_percent": {
             "description": "Extra padding to simulate translation expansion.",
             "help": "Adds padding characters proportional to the text length, so the output is\nlonger than the source, a common effect of real translation. A value of\n0 adds no padding.\n",
             "values": "integer ≥ 0 (default `0`)"
@@ -1985,7 +1985,7 @@
           {
             "title": "Simulate 30% expansion",
             "description": "Pad output to surface layout clipping.",
-            "config": "expansionPercent: 30\n"
+            "config": "expansion_percent: 30\n"
           }
         ]
       }
@@ -2069,17 +2069,17 @@
             "id": "rules:general",
             "label": "General",
             "fields": [
-              "checkLeadingWhitespace",
-              "checkTrailingWhitespace",
-              "checkEmptyTarget",
-              "checkEmptySource",
-              "checkTargetSameAsSource",
-              "targetSameAsSourceWithCodes",
-              "targetSameAsSourceWithNumbers",
-              "checkDoubleSpaces",
-              "checkDoubledWord",
-              "doubledWordExceptions",
-              "checkSpanConstraints"
+              "check_leading_whitespace",
+              "check_trailing_whitespace",
+              "check_empty_target",
+              "check_empty_source",
+              "check_target_same_as_source",
+              "target_same_as_source_with_codes",
+              "target_same_as_source_with_numbers",
+              "check_double_spaces",
+              "check_doubled_word",
+              "doubled_word_exceptions",
+              "check_span_constraints"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2090,8 +2090,8 @@
             "id": "rules:inlineCodes",
             "label": "InlineCodes",
             "fields": [
-              "checkCodeDifference",
-              "strictCodeOrder"
+              "check_code_difference",
+              "strict_code_order"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2102,7 +2102,7 @@
             "id": "rules:patterns",
             "label": "Patterns",
             "fields": [
-              "checkPatterns"
+              "check_patterns"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2113,10 +2113,10 @@
             "id": "rules:characters",
             "label": "Characters",
             "fields": [
-              "checkCorruptedCharacters",
-              "forbiddenChars",
-              "requiredChars",
-              "checkCharset",
+              "check_corrupted_characters",
+              "forbidden_chars",
+              "required_chars",
+              "check_charset",
               "charset"
             ],
             "ui:visible": {
@@ -2128,9 +2128,9 @@
             "id": "rules:consistency",
             "label": "Consistency",
             "fields": [
-              "checkTargetInconsistency",
-              "checkSourceInconsistency",
-              "consistencyCaseSensitive"
+              "check_target_inconsistency",
+              "check_source_inconsistency",
+              "consistency_case_sensitive"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2141,18 +2141,18 @@
             "id": "rules:length",
             "label": "Length",
             "fields": [
-              "checkMaxCharLength",
-              "maxCharLengthBreak",
-              "maxCharLengthAbove",
-              "maxCharLengthBelow",
-              "checkMinCharLength",
-              "minCharLengthBreak",
-              "minCharLengthAbove",
-              "minCharLengthBelow",
-              "checkAbsoluteMaxCharLength",
-              "absoluteMaxCharLength",
-              "checkMaxWords",
-              "maxWords"
+              "check_max_char_length",
+              "max_char_length_break",
+              "max_char_length_above",
+              "max_char_length_below",
+              "check_min_char_length",
+              "min_char_length_break",
+              "min_char_length_above",
+              "min_char_length_below",
+              "check_absolute_max_char_length",
+              "absolute_max_char_length",
+              "check_max_words",
+              "max_words"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2164,7 +2164,7 @@
             "label": "Provider",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ],
             "ui:visible": {
@@ -2185,13 +2185,13 @@
           }
         ],
         "properties": {
-          "absoluteMaxCharLength": {
+          "absolute_max_char_length": {
             "type": "integer",
             "title": "Absolute Maximum Characters",
             "description": "Maximum number of characters allowed in any target segment",
             "default": 255
           },
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
@@ -2202,109 +2202,109 @@
             "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
             "default": "ISO-8859-1"
           },
-          "checkAbsoluteMaxCharLength": {
+          "check_absolute_max_char_length": {
             "type": "boolean",
             "title": "Check Absolute Maximum Length",
             "description": "Flag target segments that exceed an absolute character count limit",
             "default": false
           },
-          "checkCharset": {
+          "check_charset": {
             "type": "boolean",
             "title": "Check Against Charset Encoding",
             "description": "Warn if a target character is not included in the specified character set encoding",
             "default": false
           },
-          "checkCodeDifference": {
+          "check_code_difference": {
             "type": "boolean",
             "title": "Check Code Differences",
             "description": "Verify that target segments have the same inline codes as source segments",
             "default": true
           },
-          "checkCorruptedCharacters": {
+          "check_corrupted_characters": {
             "type": "boolean",
             "title": "Check Corrupted Characters",
             "description": "Check for patterns indicating encoding corruption (mojibake",
             "default": true
           },
-          "checkDoubleSpaces": {
+          "check_double_spaces": {
             "type": "boolean",
             "title": "Check Double Spaces",
             "description": "Check for double spaces in target text",
             "default": true
           },
-          "checkDoubledWord": {
+          "check_doubled_word": {
             "type": "boolean",
             "title": "Warn on Doubled Words",
             "description": "Check for consecutive repeated words in target text",
             "default": true
           },
-          "checkEmptySource": {
+          "check_empty_source": {
             "type": "boolean",
             "title": "Warn on Non-Empty Target with Empty Source",
             "description": "Check for non-empty target when source is empty",
             "default": true
           },
-          "checkEmptyTarget": {
+          "check_empty_target": {
             "type": "boolean",
             "title": "Warn on Empty Target",
             "description": "Check for empty target when source has content",
             "default": true
           },
-          "checkLeadingWhitespace": {
+          "check_leading_whitespace": {
             "type": "boolean",
             "title": "Check Leading Whitespace",
             "description": "Check for leading whitespace mismatches between source and target",
             "default": true
           },
-          "checkMaxCharLength": {
+          "check_max_char_length": {
             "type": "boolean",
             "title": "Check Maximum Length Ratio",
             "description": "Flag targets longer than a percentage of source character length",
             "default": true
           },
-          "checkMaxWords": {
+          "check_max_words": {
             "type": "boolean",
             "title": "Check Maximum Number of Words",
             "description": "Flag target segments that exceed an absolute limit on the number of words",
             "default": false
           },
-          "checkMinCharLength": {
+          "check_min_char_length": {
             "type": "boolean",
             "title": "Check Minimum Length Ratio",
             "description": "Flag targets shorter than a percentage of source character length",
             "default": true
           },
-          "checkPatterns": {
+          "check_patterns": {
             "type": "boolean",
             "title": "Check Patterns",
             "description": "Verify that source patterns have expected corresponding content in the target",
             "default": true
           },
-          "checkSourceInconsistency": {
+          "check_source_inconsistency": {
             "type": "boolean",
             "title": "Check Source Inconsistency",
             "description": "Flag when different source texts share the same translation",
             "default": false
           },
-          "checkSpanConstraints": {
+          "check_span_constraints": {
             "type": "boolean",
             "title": "Check Span Constraints",
             "description": "Check non-deletable and non-cloneable span constraint violations",
             "default": true
           },
-          "checkTargetInconsistency": {
+          "check_target_inconsistency": {
             "type": "boolean",
             "title": "Check Target Inconsistency",
             "description": "Flag when the same source text is translated differently across the run",
             "default": false
           },
-          "checkTargetSameAsSource": {
+          "check_target_same_as_source": {
             "type": "boolean",
             "title": "Warn on Target Same as Source",
             "description": "Check when target text is identical to source text",
             "default": true
           },
-          "checkTrailingWhitespace": {
+          "check_trailing_whitespace": {
             "type": "boolean",
             "title": "Check Trailing Whitespace",
             "description": "Check for trailing whitespace mismatches between source and target",
@@ -2318,60 +2318,60 @@
               "type": "string"
             }
           },
-          "consistencyCaseSensitive": {
+          "consistency_case_sensitive": {
             "type": "boolean",
             "title": "Case-Sensitive Consistency",
             "description": "Whether consistency comparison is case-sensitive",
             "default": true
           },
-          "doubledWordExceptions": {
+          "doubled_word_exceptions": {
             "type": "string",
             "title": "Doubled Word Exceptions",
             "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
             "default": "sie;vous;nous"
           },
-          "forbiddenChars": {
+          "forbidden_chars": {
             "type": "string",
             "title": "Forbidden Characters",
             "description": "Characters that must not appear in target text (e.g. {}[])"
           },
-          "maxCharLengthAbove": {
+          "max_char_length_above": {
             "type": "integer",
             "title": "Percentage for Long Text (Max)",
             "description": "Maximum allowed percentage of source length for long text",
             "default": 200
           },
-          "maxCharLengthBelow": {
+          "max_char_length_below": {
             "type": "integer",
             "title": "Percentage for Short Text (Max)",
             "description": "Maximum allowed percentage of source length for short text",
             "default": 350
           },
-          "maxCharLengthBreak": {
+          "max_char_length_break": {
             "type": "integer",
             "title": "Short/Long Threshold (Max)",
             "description": "Character count above which text is considered long for the maximum length check",
             "default": 20
           },
-          "maxWords": {
+          "max_words": {
             "type": "integer",
             "title": "Maximum Words",
             "description": "Maximum number of words allowed in any target segment",
             "default": 0
           },
-          "minCharLengthAbove": {
+          "min_char_length_above": {
             "type": "integer",
             "title": "Percentage for Long Text (Min)",
             "description": "Minimum required percentage of source length for long text",
             "default": 45
           },
-          "minCharLengthBelow": {
+          "min_char_length_below": {
             "type": "integer",
             "title": "Percentage for Short Text (Min)",
             "description": "Minimum required percentage of source length for short text",
             "default": 30
           },
-          "minCharLengthBreak": {
+          "min_char_length_break": {
             "type": "integer",
             "title": "Short/Long Threshold (Min)",
             "description": "Character count above which text is considered long for the minimum length check",
@@ -2439,24 +2439,24 @@
               }
             ]
           },
-          "requiredChars": {
+          "required_chars": {
             "type": "string",
             "title": "Required Characters",
             "description": "Characters that must appear in target if present in source (e.g. punctuation)"
           },
-          "strictCodeOrder": {
+          "strict_code_order": {
             "type": "boolean",
             "title": "Enforce Strict Code Order",
             "description": "Flag differences when codes appear in a different order between source and target",
             "default": false
           },
-          "targetSameAsSourceWithCodes": {
+          "target_same_as_source_with_codes": {
             "type": "boolean",
             "title": "Include Codes in Comparison",
             "description": "Include inline codes when comparing source and target for identity",
             "default": true
           },
-          "targetSameAsSourceWithNumbers": {
+          "target_same_as_source_with_numbers": {
             "type": "boolean",
             "title": "Include Number-Only Segments",
             "description": "Include number-only segments in same-as-source comparison",
@@ -2467,18 +2467,18 @@
       "doc": {
         "overview": "The **Quality Check** tool compares each block's source with its translation\nin the language `--target-lang` names, and reports what it finds. `--mode`\nselects how:\n\n- `rules`, the default, runs deterministic checks locally. They cover empty\n  and identical targets, whitespace, doubled words, inline codes, span\n  constraints, characters, length, and, when enabled, consistency across the\n  run.\n- `ai` sends each translated block's source and translation to the provider\n  `--provider` names, which reviews the dimensions in `--checks`. A hosted\n  provider needs a credential. `--provider` and `--model` apply only in this\n  mode.\n\nThe tool reads a file that holds both languages, such as XLIFF, or a source\nfile with its translation passed as `--target \u003cfile\u003e`. Findings print on\nstandard output as a table, or as a JSON report with `--json`. The run writes\nno file unless `-o` or `--output-dir` names one. Each finding is marked as\nfailing or reported, and the run exits 0 whatever it finds. It exits 4 when it\ncompared no translation and reported nothing.\n",
         "parameters": {
-          "absoluteMaxCharLength": {
+          "absolute_max_char_length": {
             "description": "Maximum number of characters allowed in a target.",
             "help": "The absolute character cap used by the absolute-maximum-length check.\n",
             "values": "integer (default `255`)",
             "dependsOn": [
               {
-                "property": "checkAbsoluteMaxCharLength",
+                "property": "check_absolute_max_char_length",
                 "condition": "must be enabled for this limit to take effect"
               }
             ]
           },
-          "apiKey": {
+          "api_key": {
             "description": "API key for the AI provider (`ai` mode).",
             "help": "Credential for a hosted provider. A saved credential (`--credential`) is\nused when this is empty.\n",
             "values": "string"
@@ -2489,109 +2489,109 @@
             "values": "string (default `ISO-8859-1`)",
             "dependsOn": [
               {
-                "property": "checkCharset",
+                "property": "check_charset",
                 "condition": "only consulted when the charset check is enabled"
               }
             ]
           },
-          "checkAbsoluteMaxCharLength": {
+          "check_absolute_max_char_length": {
             "description": "Report a target that exceeds an absolute character count.",
-            "help": "When enabled, a target longer than `absoluteMaxCharLength` characters is\nreported, whatever the length of its source.\n",
+            "help": "When enabled, a target longer than `absolute_max_char_length` characters is\nreported, whatever the length of its source.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "absoluteMaxCharLength",
+                "property": "absolute_max_char_length",
                 "condition": "sets the limit applied when this check is enabled"
               }
             ]
           },
-          "checkCharset": {
+          "check_charset": {
             "description": "Report target characters outside a character set encoding.",
             "help": "Reports a finding when the target contains a character that the encoding\nnamed by `charset` cannot represent.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "checkCodeDifference": {
+          "check_code_difference": {
             "description": "Verify that the target has the same inline codes as the source.",
             "help": "Reports findings when inline codes are missing from or extra in the target\ncompared with the source, counted by code type.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkCorruptedCharacters": {
+          "check_corrupted_characters": {
             "description": "Fail a target that shows encoding corruption.",
             "help": "Fails a block whose target contains signs of encoding corruption: UTF-8\nmisread as ISO-8859-1, the Unicode replacement character, or stray control\ncharacters.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkDoubleSpaces": {
+          "check_double_spaces": {
             "description": "Check for double spaces in the target.",
             "help": "Reports a finding when the target contains two consecutive spaces.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkDoubledWord": {
+          "check_doubled_word": {
             "description": "Check for consecutive repeated words in the target.",
-            "help": "Reports a finding when the same word appears twice in a row in the target,\nunless the word is listed in `doubledWordExceptions`.\n",
+            "help": "Reports a finding when the same word appears twice in a row in the target,\nunless the word is listed in `doubled_word_exceptions`.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkEmptySource": {
+          "check_empty_source": {
             "description": "Report a non-empty target whose source is empty.",
             "help": "Reports a finding when the target has content but the source is empty.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkEmptyTarget": {
+          "check_empty_target": {
             "description": "Fail when the target is empty but the source has content.",
             "help": "Fails a block that has source content and no target, or an empty one. A\nblock with no translation in the target language gets this check and no\nother.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkLeadingWhitespace": {
+          "check_leading_whitespace": {
             "description": "Check for leading-whitespace mismatches between source and target.",
             "help": "Reports a finding when the leading whitespace of the target differs from\nthat of the source.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkMaxCharLength": {
+          "check_max_char_length": {
             "description": "Report targets longer than a percentage of source character length.",
             "help": "Enables the maximum length-ratio check, using a long/short model: the\nallowed percentage depends on whether the source is above or below the\nmaximum breakpoint.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkMaxWords": {
+          "check_max_words": {
             "description": "Report a target that exceeds an absolute word count.",
-            "help": "When enabled, a target with more words than `maxWords` is reported.\n",
+            "help": "When enabled, a target with more words than `max_words` is reported.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "maxWords",
+                "property": "max_words",
                 "condition": "sets the limit; `0` leaves the check without effect"
               }
             ]
           },
-          "checkMinCharLength": {
+          "check_min_char_length": {
             "description": "Report targets shorter than a percentage of source character length.",
             "help": "Enables the minimum length-ratio check, using a long/short model: the\nrequired percentage depends on whether the source is above or below the\nminimum breakpoint.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkPatterns": {
+          "check_patterns": {
             "description": "Verify that source patterns have expected corresponding content in the target.",
             "help": "When enabled, configured source/target regex pattern pairs are checked so\nthat patterns found in the source are preserved in the target, and\nforbidden patterns fail the block. The pattern pairs themselves are\nsupplied programmatically.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkSourceInconsistency": {
+          "check_source_inconsistency": {
             "description": "Fail a translation shared by different sources.",
             "help": "Fails a block whose translation occurs earlier in the run for a different\nsource, and names the other sources.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "checkSpanConstraints": {
+          "check_span_constraints": {
             "description": "Check non-deletable and non-cloneable span constraint violations.",
             "help": "Fails a block when a non-deletable inline code is missing from the target,\nor a non-cloneable inline code is duplicated in it, according to the\nper-code constraints carried on the source runs.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkTargetInconsistency": {
+          "check_target_inconsistency": {
             "description": "Fail a source translated differently across the run.",
             "help": "Fails a block whose source occurs earlier in the run with a different\ntranslation, and names the other translations.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "checkTargetSameAsSource": {
+          "check_target_same_as_source": {
             "description": "Report a target identical to its source.",
-            "help": "Reports a finding when the target equals the source and contains at least\none letter or digit. Number-only blocks are governed by\n`targetSameAsSourceWithNumbers`.\n",
+            "help": "Reports a finding when the target equals the source and contains at least\none letter or digit. Number-only blocks are governed by\n`target_same_as_source_with_numbers`.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkTrailingWhitespace": {
+          "check_trailing_whitespace": {
             "description": "Check for trailing-whitespace mismatches between source and target.",
             "help": "Reports a finding when the trailing whitespace of the target differs from\nthat of the source.\n",
             "values": "`true` / `false` (default `true`)"
@@ -2601,23 +2601,23 @@
             "help": "The dimensions the provider reviews, such as terminology, fluency,\naccuracy and consistency. The review reports a finding as failing when the\nprovider rates it an error.\n",
             "values": "list of strings (default `terminology`, `fluency`, `accuracy`)"
           },
-          "consistencyCaseSensitive": {
+          "consistency_case_sensitive": {
             "description": "Whether the consistency checks compare letter case.",
             "help": "When disabled, two blocks that differ only in letter case count as the\nsame for the two consistency checks.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "doubledWordExceptions": {
+          "doubled_word_exceptions": {
             "description": "Words allowed to repeat consecutively.",
             "help": "A semicolon-separated list of words that may legitimately appear twice in a\nrow (for example certain pronouns), so the doubled-word check passes them.\n",
             "values": "string (default `sie;vous;nous`)",
             "dependsOn": [
               {
-                "property": "checkDoubledWord",
+                "property": "check_doubled_word",
                 "condition": "only consulted when the doubled-word check is enabled"
               }
             ]
           },
-          "forbiddenChars": {
+          "forbidden_chars": {
             "description": "Characters that must not appear in the target.",
             "help": "Each character listed here fails a block whose target contains it.\n",
             "values": "string (default empty)",
@@ -2625,50 +2625,50 @@
               "`{}[]` fails any target that contains a brace or a bracket"
             ]
           },
-          "maxCharLengthAbove": {
+          "max_char_length_above": {
             "description": "Maximum allowed percentage of source length for a long source.",
             "help": "The maximum target/source ratio applied when the source is long.\n",
             "values": "integer (default `200`)"
           },
-          "maxCharLengthBelow": {
+          "max_char_length_below": {
             "description": "Maximum allowed percentage of source length for a short source.",
             "help": "The maximum target/source ratio applied when the source is short.\n",
             "values": "integer (default `350`)"
           },
-          "maxCharLengthBreak": {
+          "max_char_length_break": {
             "description": "Character count above which a source is considered long (max check).",
             "help": "A source longer than this is treated as long for the maximum-ratio check;\na shorter one is treated as short.\n",
             "values": "integer (default `20`)"
           },
-          "maxWords": {
+          "max_words": {
             "description": "Maximum number of words allowed in a target.",
             "help": "The word limit used by the maximum-words check.\n",
             "values": "integer (default `0`)",
             "dependsOn": [
               {
-                "property": "checkMaxWords",
+                "property": "check_max_words",
                 "condition": "must be enabled for this limit to take effect"
               }
             ]
           },
-          "minCharLengthAbove": {
+          "min_char_length_above": {
             "description": "Minimum required percentage of source length for a long source.",
             "help": "The minimum target/source ratio applied when the source is long.\n",
             "values": "integer (default `45`)"
           },
-          "minCharLengthBelow": {
+          "min_char_length_below": {
             "description": "Minimum required percentage of source length for a short source.",
             "help": "The minimum target/source ratio applied when the source is short.\n",
             "values": "integer (default `30`)"
           },
-          "minCharLengthBreak": {
+          "min_char_length_break": {
             "description": "Character count above which a source is considered long (min check).",
             "help": "A source longer than this is treated as long for the minimum-ratio check;\na shorter one is treated as short.\n",
             "values": "integer (default `20`)"
           },
           "mode": {
             "description": "How to check the translations.",
-            "help": "`rules` runs the deterministic checks below locally and calls no model.\n`ai` asks an AI provider to review each translation, using `provider`,\n`apiKey`, `model` and `checks`. The rule toggles apply only to `rules`.\n",
+            "help": "`rules` runs the deterministic checks below locally and calls no model.\n`ai` asks an AI provider to review each translation, using `provider`,\n`api_key`, `model` and `checks`. The rule toggles apply only to `rules`.\n",
             "values": "`rules` / `ai` (default `rules`)"
           },
           "model": {
@@ -2687,28 +2687,28 @@
               }
             ]
           },
-          "requiredChars": {
+          "required_chars": {
             "description": "Characters the target must keep when the source has them.",
             "help": "Reports a finding for each listed character that occurs in the source and\nis missing from the target.\n",
             "values": "string (default empty)"
           },
-          "strictCodeOrder": {
+          "strict_code_order": {
             "description": "Report codes that appear in a different order.",
             "help": "When enabled, and no count differences were found, the target is reported\nif its inline codes appear in a different order than in the source.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "checkCodeDifference",
+                "property": "check_code_difference",
                 "condition": "the order check runs alongside code-difference checking"
               }
             ]
           },
-          "targetSameAsSourceWithCodes": {
+          "target_same_as_source_with_codes": {
             "description": "Include inline codes when comparing source and target for identity.",
             "help": "Controls whether inline codes are taken into account in the\nsame-as-source comparison.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "targetSameAsSourceWithNumbers": {
+          "target_same_as_source_with_numbers": {
             "description": "Include number-only blocks in the same-as-source comparison.",
             "help": "When enabled, blocks containing only numbers and punctuation are included\nin the same-as-source check. Disable it to ignore them, since they are\noften legitimately identical.\n",
             "values": "`true` / `false` (default `true`)"
@@ -2716,7 +2716,7 @@
         },
         "limitations": [
           "Length and ratio checks compare character lengths only when source and target are both non-empty.",
-          "The regex pattern pairs used by `checkPatterns` are supplied programmatically, not as schema parameters.",
+          "The regex pattern pairs used by `check_patterns` are supplied programmatically, not as schema parameters.",
           "Requires a target language. The tool compares translations in that one language per run.",
           "Run on a translation file alone, the `rules` mode reads each block as untranslated and reports it as an empty target. Name the source file and pass the translation with `--target`.",
           "A run with `--target` pairs one source file with one translation and refuses `-o` and `--output-dir`."
@@ -2731,12 +2731,12 @@
           {
             "title": "Inline-code and whitespace checks only",
             "description": "Focus on code preservation and whitespace, disabling the length-ratio checks.",
-            "config": "checkCodeDifference: true\ncheckLeadingWhitespace: true\ncheckTrailingWhitespace: true\ncheckMaxCharLength: false\ncheckMinCharLength: false\n"
+            "config": "check_code_difference: true\ncheck_leading_whitespace: true\ncheck_trailing_whitespace: true\ncheck_max_char_length: false\ncheck_min_char_length: false\n"
           },
           {
             "title": "Enforce an absolute character cap",
             "description": "Report any target longer than 200 characters.",
-            "config": "checkAbsoluteMaxCharLength: true\nabsoluteMaxCharLength: 200\n"
+            "config": "check_absolute_max_char_length: true\nabsolute_max_char_length: 200\n"
           },
           {
             "title": "Review with an AI provider",
@@ -2832,25 +2832,25 @@
           "writesOutput": true
         },
         "properties": {
-          "downgradeIdenticalBestMatches": {
+          "downgrade_identical_best_matches": {
             "type": "boolean",
             "title": "Downgrade Identical Exact Matches",
             "description": "Reduce score by 1%% when multiple identical exact matches are returned",
             "default": false
           },
-          "fillIfTargetIsEmpty": {
+          "fill_if_target_is_empty": {
             "type": "boolean",
             "title": "Only If Target Is Empty",
             "description": "Fill the target only when it has no existing content",
             "default": false
           },
-          "fillTarget": {
+          "fill_target": {
             "type": "boolean",
             "title": "Fill Target with Translation",
             "description": "Copy the best translation candidate into the target content",
             "default": true
           },
-          "fillTargetThreshold": {
+          "fill_target_threshold": {
             "type": "integer",
             "title": "Fill Target Threshold",
             "description": "Minimum match score required to fill the target (100 = exact only)",
@@ -2858,7 +2858,7 @@
             "minimum": 0,
             "maximum": 100
           },
-          "fuzzyThreshold": {
+          "fuzzy_threshold": {
             "type": "integer",
             "title": "Fuzzy Match Threshold",
             "description": "Minimum score for a match; the fuzzy path below 100 is retiring",
@@ -2866,13 +2866,13 @@
             "minimum": 0,
             "maximum": 100
           },
-          "makeTmx": {
+          "make_tmx": {
             "type": "boolean",
             "title": "Generate TMX Document",
             "description": "Create a TMX file with all leveraged matches",
             "default": false
           },
-          "noQueryThreshold": {
+          "no_query_threshold": {
             "type": "integer",
             "title": "No-Query Threshold",
             "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)",
@@ -2880,7 +2880,7 @@
             "minimum": 0,
             "maximum": 101
           },
-          "tmxPath": {
+          "tmx_path": {
             "type": "string",
             "title": "TMX Output Path",
             "description": "File path for the generated TMX document"
@@ -2890,60 +2890,60 @@
       "doc": {
         "overview": "The **Recycle** tool queries a content memory (Memory) for each block's\nsource text and pre-fills the target with the best match. It tries an exact\nmatch first, then a fuzzy match above a configurable threshold, recording the\nmatch score and type (`exact` or `fuzzy`) on the block. It requires a target\nlanguage and a content-memory provider; without a content memory the tool has nothing to leverage.\n\nWhether a match is written into the target is governed by a fill threshold\nand an \"only if empty\" option, so high-confidence matches can be applied while\nweaker ones are recorded but left for review. A no-query threshold lets the\ntool skip the content-memory lookup when an existing candidate already scores high enough.\nOptionally, all leveraged matches can be written to a TMX file.\n",
         "parameters": {
-          "downgradeIdenticalBestMatches": {
+          "downgrade_identical_best_matches": {
             "description": "Reduce the score when multiple identical exact matches exist.",
             "help": "When enabled, an exact match is scored 99 instead of 100 if the content memory returns\nmultiple identical best matches, flagging the ambiguity for review.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "fillIfTargetIsEmpty": {
+          "fill_if_target_is_empty": {
             "description": "Only fill the target when it has no existing content.",
             "help": "When enabled, a match is written only if the block's target is currently\nempty, so existing translations are never overwritten.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "fillTarget": {
+          "fill_target": {
             "description": "Copy the best match into the target.",
             "help": "When enabled, the best qualifying match is written into the block's\ntarget content. When disabled, matches are scored and recorded but the\ntarget is not filled.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "fillTargetThreshold": {
+          "fill_target_threshold": {
             "description": "Minimum match score required to fill the target.",
             "help": "A match must score at least this value to be written into the target.\nMatches between the fuzzy threshold and this value are recorded but not\nfilled.\n",
             "values": "integer 0-100 (default `95`)",
             "dependsOn": [
               {
-                "property": "fillTarget",
+                "property": "fill_target",
                 "condition": "filling must be enabled for this threshold to apply"
               }
             ]
           },
-          "fuzzyThreshold": {
+          "fuzzy_threshold": {
             "description": "Minimum score for a fuzzy match to be considered.",
             "help": "The lowest fuzzy-match score (0-100) the content-memory lookup will return. Matches\nbelow this score are ignored.\n",
             "values": "integer 0-100 (default `70`)"
           },
-          "makeTmx": {
+          "make_tmx": {
             "description": "Generate a TMX document of leveraged matches.",
             "help": "When enabled, all leveraged matches are written to a TMX file at the\nconfigured output path.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "tmxPath",
+                "property": "tmx_path",
                 "condition": "set the output path when generating TMX"
               }
             ]
           },
-          "noQueryThreshold": {
+          "no_query_threshold": {
             "description": "Skip the content memory query when an existing candidate scores high enough.",
             "help": "If the block already carries a match score at or above this value, the content memory\nlookup is skipped. The default of 101 means the content memory is always queried.\n",
             "values": "integer 0-101 (default `101`)"
           },
-          "tmxPath": {
+          "tmx_path": {
             "description": "Output path for the generated TMX document.",
             "help": "File path where the TMX document is written when TMX generation is enabled.",
             "values": "file path",
             "dependsOn": [
               {
-                "property": "makeTmx",
+                "property": "make_tmx",
                 "condition": "TMX generation must be enabled"
               }
             ]
@@ -2962,12 +2962,12 @@
           {
             "title": "Apply only high-confidence matches",
             "description": "Fill the target from matches scoring 95 or above.",
-            "config": "fillTarget: true\nfillTargetThreshold: 95\n"
+            "config": "fill_target: true\nfill_target_threshold: 95\n"
           },
           {
             "title": "Leverage and export to TMX",
             "description": "Lower the fuzzy threshold and write matches to a TMX file.",
-            "config": "fuzzyThreshold: 60\nmakeTmx: true\ntmxPath: ./leverage.tmx\n"
+            "config": "fuzzy_threshold: 60\nmake_tmx: true\ntmx_path: ./leverage.tmx\n"
           }
         ]
       }
@@ -3034,7 +3034,7 @@
               "type": "string"
             }
           },
-          "entityTypes": {
+          "entity_types": {
             "type": "array",
             "title": "Entity Categories",
             "description": "Entity categories to redact: person",
@@ -3047,7 +3047,7 @@
             "title": "Placeholder Template",
             "description": "Visible stand-in template; supports {category} and {n}"
           },
-          "rulesPath": {
+          "rules_path": {
             "type": "string",
             "title": "Rules File",
             "description": "Path to a redaction rules YAML file"
@@ -3062,7 +3062,7 @@
             "help": "`rules` matches literal terms and regular expressions from a rules file or\ninline rules. `entities` redacts entity annotations already attached to the\nblock (e.g. by `entity-extract`). Both may be listed; when none is set,\n`rules` is used.\n",
             "values": "list of `rules` / `entities` (default `[rules]`)"
           },
-          "entityTypes": {
+          "entity_types": {
             "description": "Entity categories to redact when the `entities` detector is enabled.",
             "help": "Restricts entity redaction to the listed categories. When unset, the\ndefault set is person, organization, product, and location. Dates, times,\ncurrencies, and measurements are intentionally excluded because they need\nlocale-specific formatting rather than hiding.\n",
             "values": "list of entity categories (default `[person, organization, product, location]`)",
@@ -3078,7 +3078,7 @@
             "help": "The template used to render the visible placeholder that replaces each\nredacted span. It supports `{category}` (the detected category) and `{n}`\n(a per-category counter). When unset, the framework default template is\nused.\n",
             "values": "template string"
           },
-          "rulesPath": {
+          "rules_path": {
             "description": "Path to a redaction rules YAML file.",
             "help": "Loads literal terms and regular expressions to redact. Only relevant when\nthe `rules` detector is enabled. A rules file may also define its own\nplaceholder template, which is used unless the tool's `placeholder` is set.\n",
             "values": "file path",
@@ -3104,12 +3104,12 @@
           {
             "title": "Redact by rules file",
             "description": "Replace spans matched by a rules file with the default placeholder.",
-            "config": "detectors: [rules]\nrulesPath: redaction-rules.yaml\n"
+            "config": "detectors: [rules]\nrules_path: redaction-rules.yaml\n"
           },
           {
             "title": "Redact extracted entities",
             "description": "Redact person and organization entities already annotated on the block.",
-            "config": "detectors: [entities]\nentityTypes: [person, organization]\n"
+            "config": "detectors: [entities]\nentity_types: [person, organization]\n"
           }
         ]
       }
@@ -3146,24 +3146,24 @@
           "writesOutput": true
         },
         "properties": {
-          "filterByIDs": {
+          "filter_by_ids": {
             "type": "boolean",
             "title": "Filter by IDs",
             "description": "When true filter blocks by ID; when false filter by target locale",
             "default": true
           },
-          "removeBlockIfEmpty": {
+          "remove_block_if_empty": {
             "type": "boolean",
             "title": "Remove Empty Blocks",
             "description": "Remove the block entirely if it has no remaining targets after removal",
             "default": false
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
             "title": "Target Locale",
             "description": "Target locale to remove (if empty all targets are removed)"
           },
-          "textUnitIDs": {
+          "text_unit_ids": {
             "type": "string",
             "title": "Block IDs for Removal",
             "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
@@ -3173,28 +3173,28 @@
       "doc": {
         "overview": "The **Remove Target** tool deletes target segments from blocks. With a target\nlocale set, it removes only that locale's targets; with no locale, it removes\nall targets. It is useful for resetting translations before a fresh run, or\nfor clearing targets in a specific locale.\n\nRemoval can be scoped to specific blocks by ID, which restricts the\noperation to a comma-separated list of block IDs. Optionally, a block whose\ntargets are all removed can itself be dropped from the stream.\n",
         "parameters": {
-          "filterByIDs": {
+          "filter_by_ids": {
             "description": "Filter blocks by ID rather than by locale alone.",
-            "help": "When enabled, removal is restricted to the blocks listed in\n`textUnitIDs`. When disabled, removal is driven by the target locale\nacross all blocks.\n",
+            "help": "When enabled, removal is restricted to the blocks listed in\n`text_unit_ids`. When disabled, removal is driven by the target locale\nacross all blocks.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "removeBlockIfEmpty": {
+          "remove_block_if_empty": {
             "description": "Drop a block when it has no targets left.",
             "help": "When enabled, a block that has no remaining target segments after removal\nis dropped from the stream entirely. When disabled, the now-empty block is\nkept.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "targetLocale": {
+          "target_locale": {
             "description": "The locale whose targets to remove.",
             "help": "The locale to clear. When empty, the targets for every locale on the\nblock are removed.\n",
             "values": "BCP-47 locale (empty = remove all targets)"
           },
-          "textUnitIDs": {
+          "text_unit_ids": {
             "description": "Comma-separated block IDs to restrict removal to.",
             "help": "A comma-delimited list of block IDs. When set and ID\nfiltering is enabled, only blocks whose ID appears in the list have their\ntargets removed. Leave empty to remove targets from all blocks.\n",
             "values": "comma-separated string",
             "dependsOn": [
               {
-                "property": "filterByIDs",
+                "property": "filter_by_ids",
                 "condition": "ID filtering must be enabled for this list to apply"
               }
             ]
@@ -3207,12 +3207,12 @@
           {
             "title": "Clear one locale's targets",
             "description": "Remove the French targets from every block.",
-            "config": "targetLocale: fr\n"
+            "config": "target_locale: fr\n"
           },
           {
             "title": "Remove targets for selected blocks",
             "description": "Restrict removal to specific block IDs.",
-            "config": "filterByIDs: true\ntextUnitIDs: \"intro.title, intro.body\"\n"
+            "config": "filter_by_ids: true\ntext_unit_ids: \"intro.title, intro.body\"\n"
           }
         ]
       }
@@ -3285,13 +3285,13 @@
             "label": "Provider",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
@@ -3342,7 +3342,7 @@
       "doc": {
         "overview": "The **Review** tool asks a configured LLM provider to review each\ntranslation and return a concise assessment: a score from 1 to 10, a brief\njudgement of accuracy and fluency, and a suggested improvement where warranted.\nThe review text is recorded on the block's properties along with the provider\nname. Blocks without a translation for the target locale are skipped.\n\nBoth a target locale and provider credentials are required, since the tool makes\nan external API call per block. Unlike the AI-judged check, which returns\nstructured findings, this tool produces a free-form review intended for human\nreviewers deciding whether a translation needs revision.\n",
         "parameters": {
-          "apiKey": {
+          "api_key": {
             "description": "API key for the AI provider.",
             "help": "Credential for the selected provider. Local providers such as Ollama may not\nrequire a key. Prefer the credential store or environment over committing\nkeys to a recipe.\n",
             "values": "string"
@@ -3408,7 +3408,7 @@
           "writesOutput": true
         },
         "properties": {
-          "allowSourceMutation": {
+          "allow_source_mutation": {
             "type": "boolean",
             "title": "Allow Source Mutation",
             "description": "Permit the script to modify the source text (off by default; source is read-only)",
@@ -3424,7 +3424,7 @@
               "eq": "inline"
             }
           },
-          "scriptFile": {
+          "script_file": {
             "type": "string",
             "title": "Script File",
             "description": "Path to a .js file",
@@ -3467,7 +3467,7 @@
               }
             ]
           },
-          "scriptFile": {
+          "script_file": {
             "description": "Path to a JavaScript file.",
             "help": "Path to a `.js` file to load and run, used when `source` is `file`.\nRequired in that mode.\n",
             "values": "file path",
@@ -3480,7 +3480,7 @@
           },
           "source": {
             "description": "Where the script comes from.",
-            "help": "`inline` runs the script supplied in the `code` field; `file` loads the\nscript from the path in `scriptFile`.\n",
+            "help": "`inline` runs the script supplied in the `code` field; `file` loads the\nscript from the path in `script_file`.\n",
             "values": "`inline` / `file` (default `inline`)"
           }
         },
@@ -3501,7 +3501,7 @@
           {
             "title": "Load a script from a file",
             "description": "Run a script stored alongside the project.",
-            "config": "source: file\nscriptFile: ./scripts/transform.js\n"
+            "config": "source: file\nscript_file: ./scripts/transform.js\n"
           }
         ]
       }
@@ -3538,31 +3538,31 @@
           "writesOutput": true
         },
         "properties": {
-          "dotAll": {
+          "dot_all": {
             "type": "boolean",
             "title": "Dot Also Matches Line-Feed",
             "description": "Make the period character match every character including line-feed",
             "default": false
           },
-          "ignoreCase": {
+          "ignore_case": {
             "type": "boolean",
             "title": "Ignore Case Differences",
             "description": "Ignore case when matching search patterns",
             "default": false
           },
-          "multiLine": {
+          "multi_line": {
             "type": "boolean",
             "title": "Multiline Mode",
             "description": "Make ^ and $ match at the beginning and end of each line",
             "default": false
           },
-          "regEx": {
+          "reg_ex": {
             "type": "boolean",
             "title": "Use Regular Expressions",
             "description": "Enable regular expression mode for all search patterns",
             "default": false
           },
-          "replaceAll": {
+          "replace_all": {
             "type": "boolean",
             "title": "Replace All Instances",
             "description": "Replace all matches instead of only the first",
@@ -3585,39 +3585,39 @@
       "doc": {
         "overview": "The **Search and Replace** tool performs find-and-replace on block text. The\nsearch/replace pairs themselves are supplied programmatically or by the\nconfigured command; the schema-visible options here control matching\nbehaviour: literal versus regular-expression mode, case sensitivity, and\nwhether the replacement scans source, target, or both.\n\nWhen regular-expression mode is on, the case, dot-all, and multiline flags are\napplied to every pattern. By default the tool replaces all matches in target\ntext only.\n",
         "parameters": {
-          "dotAll": {
+          "dot_all": {
             "description": "Let the dot metacharacter match line feeds.",
             "help": "When enabled (regex mode), the `.` metacharacter also matches newline\ncharacters, so a pattern can span lines.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "regEx",
+                "property": "reg_ex",
                 "condition": "applies in regular-expression mode"
               }
             ]
           },
-          "ignoreCase": {
+          "ignore_case": {
             "description": "Match case-insensitively.",
             "help": "When enabled, matching ignores letter case. In regex mode this adds the\ncase-insensitive flag to each pattern.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "multiLine": {
+          "multi_line": {
             "description": "Make anchors match at each line boundary.",
             "help": "When enabled (regex mode), `^` and `$` match at the start and end of each\nline rather than only the whole text.\n",
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "regEx",
+                "property": "reg_ex",
                 "condition": "applies in regular-expression mode"
               }
             ]
           },
-          "regEx": {
+          "reg_ex": {
             "description": "Treat search patterns as regular expressions.",
             "help": "When enabled, every search pattern is compiled as a regular expression\nand the case, dot-all, and multiline flags below apply.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "replaceAll": {
+          "replace_all": {
             "description": "Replace every match rather than only the first.",
             "help": "When enabled, all occurrences of a pattern are replaced. When disabled,\nonly the first match in each text is replaced.\n",
             "values": "`true` / `false` (default `true`)"
@@ -3645,12 +3645,12 @@
           {
             "title": "Replace a literal string in targets",
             "description": "Use literal matching on target text only.",
-            "config": "target: true\nignoreCase: false\n"
+            "config": "target: true\nignore_case: false\n"
           },
           {
             "title": "Case-insensitive regex over both scopes",
             "description": "Enable regex mode with case folding across source and target.",
-            "config": "regEx: true\nignoreCase: true\nsource: true\ntarget: true\n"
+            "config": "reg_ex: true\nignore_case: true\nsource: true\ntarget: true\n"
           }
         ]
       }
@@ -3711,15 +3711,15 @@
             "fields": [
               "engine",
               "layer",
-              "segmentSource",
-              "segmentTarget"
+              "segment_source",
+              "segment_target"
             ]
           },
           {
             "id": "srx",
             "label": "Rule-based (hybrid SRX/UAX-29)",
             "fields": [
-              "rulesPath"
+              "rules_path"
             ],
             "ui:visible": {
               "field": "engine",
@@ -3734,7 +3734,7 @@
               "model",
               "credential",
               "instruction",
-              "maxChunkRunes"
+              "max_chunk_runes"
             ],
             "ui:visible": {
               "field": "engine",
@@ -3747,11 +3747,11 @@
             "collapsible": true,
             "collapsed": true,
             "fields": [
-              "overwriteSegmentation",
-              "treatIsolatedCodesAsWhitespace",
-              "trimLeadingWhitespace",
-              "trimTrailingWhitespace",
-              "renumberCodes"
+              "overwrite_segmentation",
+              "treat_isolated_codes_as_whitespace",
+              "trim_leading_whitespace",
+              "trim_trailing_whitespace",
+              "renumber_codes"
             ]
           }
         ],
@@ -3803,7 +3803,7 @@
             "description": "Segmentation overlay layer name; empty uses the engine's natural layer",
             "ui:order": 10
           },
-          "maxChunkRunes": {
+          "max_chunk_runes": {
             "type": "integer",
             "title": "Max Chunk Size",
             "description": "Soft upper bound on chunk size in characters (0 = model default)",
@@ -3816,7 +3816,7 @@
             "description": "Model name",
             "ui:order": 20
           },
-          "overwriteSegmentation": {
+          "overwrite_segmentation": {
             "type": "boolean",
             "title": "Overwrite Existing Segmentation",
             "description": "Re-segment already-segmented blocks replacing previous segmentation",
@@ -3829,49 +3829,49 @@
             "description": "AI provider id (anthropic",
             "ui:order": 10
           },
-          "renumberCodes": {
+          "renumber_codes": {
             "type": "boolean",
             "title": "Renumber Code IDs",
             "description": "Renumber inline code IDs when materializing segments to a bilingual format",
             "default": false,
             "ui:order": 50
           },
-          "rulesPath": {
+          "rules_path": {
             "type": "string",
             "title": "SRX Rules File",
             "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
             "ui:widget": "file-picker",
             "ui:order": 10
           },
-          "segmentSource": {
+          "segment_source": {
             "type": "boolean",
             "title": "Segment Source Text",
             "description": "Segment the source text",
             "default": true,
             "ui:order": 20
           },
-          "segmentTarget": {
+          "segment_target": {
             "type": "boolean",
             "title": "Segment Target Text",
             "description": "Segment existing target text",
             "default": false,
             "ui:order": 30
           },
-          "treatIsolatedCodesAsWhitespace": {
+          "treat_isolated_codes_as_whitespace": {
             "type": "boolean",
             "title": "Treat Isolated Codes as Whitespace",
             "description": "Treat isolated inline codes as whitespace during segmentation",
             "default": false,
             "ui:order": 20
           },
-          "trimLeadingWhitespace": {
+          "trim_leading_whitespace": {
             "type": "boolean",
             "title": "Trim Leading Whitespace",
             "description": "Exclude leading whitespace from each segment span",
             "default": true,
             "ui:order": 30
           },
-          "trimTrailingWhitespace": {
+          "trim_trailing_whitespace": {
             "type": "boolean",
             "title": "Trim Trailing Whitespace",
             "description": "Exclude trailing whitespace from each segment span",
@@ -3881,7 +3881,7 @@
         }
       },
       "doc": {
-        "overview": "The **Segmentation** tool marks sentence or chunk boundaries within each\nblock. It records them as a stand-off overlay and leaves the block's runs\nunchanged, so dropping the overlay restores the unsegmented block. `--engine`\nselects the segmenter:\n\n- `srx`, the default, finds sentence boundaries with built-in rules and needs\n  no configuration. `rulesPath` loads an SRX 2.0 rules file in their place.\n- `uax29` applies the Unicode default sentence boundaries, with no\n  language-specific exceptions.\n- `llm` asks an AI provider for meaning-based chunks rather than sentences.\n\nPlugins can register further engines, which appear as options. Bilingual\nformats write the sentence layer as segments. A block that already has a\nlayer keeps it unless `overwriteSegmentation` is set.\n",
+        "overview": "The **Segmentation** tool marks sentence or chunk boundaries within each\nblock. It records them as a stand-off overlay and leaves the block's runs\nunchanged, so dropping the overlay restores the unsegmented block. `--engine`\nselects the segmenter:\n\n- `srx`, the default, finds sentence boundaries with built-in rules and needs\n  no configuration. `rules_path` loads an SRX 2.0 rules file in their place.\n- `uax29` applies the Unicode default sentence boundaries, with no\n  language-specific exceptions.\n- `llm` asks an AI provider for meaning-based chunks rather than sentences.\n\nPlugins can register further engines, which appear as options. Bilingual\nformats write the sentence layer as segments. A block that already has a\nlayer keeps it unless `overwrite_segmentation` is set.\n",
         "parameters": {
           "credential": {
             "description": "Saved credential name (`llm` engine).",
@@ -3903,7 +3903,7 @@
             "help": "When empty, the engine's own layer is used: the sentence layer for `srx`\nand `uax29`, `llm-chunk` for `llm`. A named layer sits beside the others.\n",
             "values": "string (default empty)"
           },
-          "maxChunkRunes": {
+          "max_chunk_runes": {
             "description": "Soft upper bound on chunk size in characters (`llm` engine).",
             "help": "`0` leaves the size to the model.\n",
             "values": "integer (default `0`)"
@@ -3913,7 +3913,7 @@
             "help": "The provider-specific model identifier. When omitted, the provider's\ndefault model is used.\n",
             "values": "string"
           },
-          "overwriteSegmentation": {
+          "overwrite_segmentation": {
             "description": "Re-segment blocks that already have the layer.",
             "help": "By default a block that already carries the layer keeps it. Enable this to\nreplace it.\n",
             "values": "`true` / `false` (default `false`)"
@@ -3923,37 +3923,37 @@
             "help": "The provider that returns the chunks. When empty, `anthropic` is used.\n",
             "values": "a provider id"
           },
-          "renumberCodes": {
+          "renumber_codes": {
             "description": "Renumber inline-code IDs within each segment in bilingual output.",
             "help": "Applies when a bilingual format writes the segments out: inline-code IDs\nare renumbered from 1 within each segment. The overlay itself leaves the\nruns as they are.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "rulesPath": {
+          "rules_path": {
             "description": "Path to an SRX 2.0 rules file (`srx` engine).",
             "help": "Replaces the built-in rules. One file serves source and target, since SRX\nrules are keyed by language.\n",
             "values": "file path"
           },
-          "segmentSource": {
+          "segment_source": {
             "description": "Segment the source.",
             "help": "When enabled, the source of each block is segmented. If neither source nor\ntarget segmentation is enabled, the source is segmented.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "segmentTarget": {
+          "segment_target": {
             "description": "Segment the existing target.",
             "help": "When enabled, the translation in the language `--target-lang` names is\nsegmented with the same engine. SRX rules are keyed by language, so each\nside gets its own language's rules.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "treatIsolatedCodesAsWhitespace": {
+          "treat_isolated_codes_as_whitespace": {
             "description": "Treat isolated inline codes as whitespace while segmenting.",
             "help": "When enabled, an isolated inline code is treated like whitespace for the\npurpose of finding segment boundaries.\n",
             "values": "`true` / `false` (default `false`)"
           },
-          "trimLeadingWhitespace": {
+          "trim_leading_whitespace": {
             "description": "Exclude leading whitespace from each segment.",
             "help": "When enabled, whitespace at the start of a segment falls outside its span.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "trimTrailingWhitespace": {
+          "trim_trailing_whitespace": {
             "description": "Exclude trailing whitespace from each segment.",
             "help": "When enabled, whitespace at the end of a segment falls outside its span.\n",
             "values": "`true` / `false` (default `true`)"
@@ -3971,12 +3971,12 @@
           {
             "title": "Segment the source with the default rules",
             "description": "Mark sentence boundaries using the built-in rules.",
-            "config": "segmentSource: true\n"
+            "config": "segment_source: true\n"
           },
           {
             "title": "Re-segment with a custom SRX file",
             "description": "Replace existing segmentation using project-specific rules.",
-            "config": "engine: srx\noverwriteSegmentation: true\nrulesPath: ./rules/segmentation.srx\n"
+            "config": "engine: srx\noverwrite_segmentation: true\nrules_path: ./rules/segmentation.srx\n"
           }
         ]
       },
@@ -4176,7 +4176,7 @@
           ]
         },
         "properties": {
-          "caseSensitive": {
+          "case_sensitive": {
             "type": "boolean",
             "title": "Case Sensitive",
             "description": "Whether term matching is case-sensitive",
@@ -4187,7 +4187,7 @@
       "doc": {
         "overview": "The **Terminology Check** tool checks each translation against a set of\nsource/target term pairs. For every entry, if the source term occurs in the\nblock's source text, the tool verifies that the required target term occurs in\nthe translation; when it does not, the block is flagged and the missing\nexpectations are recorded on its properties. A target locale is required, and a\nterms store supplies the term pairs.\n\nThe term pairs are supplied programmatically rather than as a schema field, so\nthe tool is typically wired up by the host application or a project that binds\na terms store. The only schema-level option controls whether term matching\nrespects letter case.\n",
         "parameters": {
-          "caseSensitive": {
+          "case_sensitive": {
             "description": "Whether term matching is case-sensitive.",
             "help": "When enabled, source and target terms must match exactly, including letter\ncase. When disabled, matching is case-insensitive, so a term matches\nregardless of how it is capitalised in the text.\n",
             "values": "`true` / `false` (default `false`)"
@@ -4206,7 +4206,7 @@
           {
             "title": "Case-insensitive term matching",
             "description": "Match terms regardless of capitalisation.",
-            "config": "caseSensitive: false\n"
+            "config": "case_sensitive: false\n"
           }
         ]
       }
@@ -4276,7 +4276,7 @@
             "fields": [
               "engine",
               "provider",
-              "apiKey",
+              "api_key",
               "model",
               "batching"
             ]
@@ -4288,17 +4288,17 @@
               "instruction",
               "reuse",
               "context",
-              "contextWindow"
+              "context_window"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
             "title": "API Key",
             "description": "API key for the AI provider"
           },
-          "batchConcurrency": {
+          "batch_concurrency": {
             "type": "integer",
             "title": "Batch Concurrency",
             "description": "Number of concurrent batch calls (0 or 1 = sequential)",
@@ -4341,7 +4341,7 @@
               }
             ]
           },
-          "contextWindow": {
+          "context_window": {
             "type": "integer",
             "title": "Context Window",
             "description": "Blocks either side to send as reference (with context: neighbours)",
@@ -4480,7 +4480,7 @@
               }
             ]
           },
-          "skipMatched": {
+          "skip_matched": {
             "type": "boolean",
             "title": "Skip Matched",
             "description": "Skip blocks that already have a target translation",
@@ -4491,12 +4491,12 @@
       "doc": {
         "overview": "The **Translate** tool translates untranslated block content. A single\n`--provider` selects the backend: a large-language-model provider (Anthropic,\nOpenAI, Gemini, Azure OpenAI, Ollama) or the keyless offline demo provider.\nClassic machine-translation engines are not built in; a plugin can register\none, and it is then selected the same way. The result is written as the target\ntext, with an alternate-translation annotation recording the originating\nprovider. A target language is required, and credentials are required for\nhosted providers (local Ollama and the offline demo need none).\n\nBlocks that contain inline codes are sent through a placeholder-preserving\nprompt so tags survive translation, then reconstructed from the response.\nBlocks can be translated one at a time or grouped into batches sent in a\nsingle structured call; batches can run concurrently. When run with a session\ncache, already-translated targets are reused and fresh translations are\nwritten back, so repeat runs skip work already done.\n",
         "parameters": {
-          "apiKey": {
+          "api_key": {
             "description": "API key for the provider.",
             "help": "Credential for the chosen hosted provider. Required for hosted providers;\nnot needed for a local Ollama or demo backend.\n",
             "values": "string"
           },
-          "batchConcurrency": {
+          "batch_concurrency": {
             "description": "Number of batch calls to run in parallel.",
             "help": "How many batches are translated concurrently. A value of 0 or 1 runs\nbatches sequentially.\n",
             "values": "integer ≥ 1 (default `1`)"
@@ -4516,7 +4516,7 @@
             "help": "Selects the backend. LLM providers (`anthropic`, `openai`, `gemini`,\n`azureopenai`, `ollama`, `demo`) are chosen here, as is any\nplugin-registered MT engine. Hosted providers require an API key; Ollama\nand the demo provider run locally. The available options are populated\nfrom the provider registry.\n",
             "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `demo` (default `anthropic`)"
           },
-          "skipMatched": {
+          "skip_matched": {
             "description": "Skip blocks that already have a target translation.",
             "help": "When enabled, a block that already has a target for the locale is left\nuntouched, so only untranslated content is sent to the provider.\n",
             "values": "`true` / `false` (default `false`)"
@@ -4546,7 +4546,7 @@
           {
             "title": "Translate only new content",
             "description": "Skip blocks that already have a translation.",
-            "config": "provider: openai\nskipMatched: true\n"
+            "config": "provider: openai\nskip_matched: true\n"
           }
         ]
       },
@@ -4770,88 +4770,88 @@
             "id": "punctuation",
             "label": "Punctuation",
             "fields": [
-              "correctFullStop",
-              "correctComma",
-              "correctExclamation",
-              "correctQuestion"
+              "correct_full_stop",
+              "correct_comma",
+              "correct_exclamation",
+              "correct_question"
             ]
           },
           {
             "id": "whitespace-types",
             "label": "Whitespace-types",
             "fields": [
-              "includeVerticalWS",
-              "includeHorizontalWS"
+              "include_vertical_ws",
+              "include_horizontal_ws"
             ]
           }
         ],
         "properties": {
-          "correctComma": {
+          "correct_comma": {
             "type": "boolean",
             "title": "Comma",
             "description": "Correct whitespace after commas",
             "default": true
           },
-          "correctExclamation": {
+          "correct_exclamation": {
             "type": "boolean",
             "title": "Exclamation Point",
             "description": "Correct whitespace after exclamation marks",
             "default": true
           },
-          "correctFullStop": {
+          "correct_full_stop": {
             "type": "boolean",
             "title": "Full Stop",
             "description": "Correct whitespace after full stops (periods)",
             "default": true
           },
-          "correctQuestion": {
+          "correct_question": {
             "type": "boolean",
             "title": "Question Mark",
             "description": "Correct whitespace after question marks",
             "default": true
           },
-          "includeHorizontalWS": {
+          "include_horizontal_ws": {
             "type": "boolean",
             "title": "Horizontal Tabs",
             "description": "Include horizontal tab characters in corrections",
             "default": true
           },
-          "includeVerticalWS": {
+          "include_vertical_ws": {
             "type": "boolean",
             "title": "Vertical White Space",
             "description": "Include vertical whitespace (line feeds and carriage returns) in corrections",
             "default": true
           },
-          "matchSourceWhitespace": {
+          "match_source_whitespace": {
             "type": "boolean",
             "title": "Match Source Whitespace",
             "description": "Copy source leading/trailing whitespace to target",
             "default": true
           },
-          "normalizeSpaces": {
+          "normalize_spaces": {
             "type": "boolean",
             "title": "Normalize Spaces",
             "description": "Collapse multiple spaces to a single space",
             "default": true
           },
-          "removeZeroWidthChars": {
+          "remove_zero_width_chars": {
             "type": "boolean",
             "title": "Remove Zero-Width Characters",
             "description": "Remove zero-width spaces and joiners",
             "default": true
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
             "title": "Target Locale",
             "description": "Target locale for processing"
           },
-          "trimLeading": {
+          "trim_leading": {
             "type": "boolean",
             "title": "Trim Leading Whitespace",
             "description": "Remove leading whitespace from target text",
             "default": false
           },
-          "trimTrailing": {
+          "trim_trailing": {
             "type": "boolean",
             "title": "Trim Trailing Whitespace",
             "description": "Remove trailing whitespace from target text",
@@ -4862,62 +4862,62 @@
       "doc": {
         "overview": "The **Whitespace Correct** tool cleans up whitespace in target translations.\nIt can collapse repeated spaces, trim leading and trailing whitespace, match\nthe source's leading/trailing whitespace onto the target, remove zero-width\ncharacters, and remove whitespace after specific punctuation marks. The last\nis particularly useful when translating from a space-delimited language into a\nnon-space-delimited one such as Chinese or Japanese.\n\nThe tool operates only on the target text, so a target locale is required, and\nonly blocks that already have a target for that locale are processed.\n",
         "parameters": {
-          "correctComma": {
+          "correct_comma": {
             "description": "Correct whitespace after commas.",
             "help": "When enabled, whitespace following a comma (ASCII `,` or full-width `，`)\nis removed, per the included whitespace types.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "correctExclamation": {
+          "correct_exclamation": {
             "description": "Correct whitespace after exclamation marks.",
             "help": "When enabled, whitespace following an exclamation mark (ASCII `!` or\nfull-width `！`) is removed, per the included whitespace types.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "correctFullStop": {
+          "correct_full_stop": {
             "description": "Correct whitespace after full stops.",
             "help": "When enabled, whitespace following a full stop (ASCII `.` or full-width\n`．`) is removed, per the included whitespace types.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "correctQuestion": {
+          "correct_question": {
             "description": "Correct whitespace after question marks.",
             "help": "When enabled, whitespace following a question mark (ASCII `?` or\nfull-width `？`) is removed, per the included whitespace types.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "includeHorizontalWS": {
+          "include_horizontal_ws": {
             "description": "Include horizontal tabs in corrections.",
             "help": "When enabled, horizontal tab characters are treated as removable after\npunctuation.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "includeVerticalWS": {
+          "include_vertical_ws": {
             "description": "Include vertical whitespace in corrections.",
             "help": "When enabled, vertical whitespace (line feeds and carriage returns) is\ntreated as removable after punctuation.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "matchSourceWhitespace": {
+          "match_source_whitespace": {
             "description": "Copy the source's leading/trailing whitespace to the target.",
             "help": "When enabled, the target's existing leading and trailing whitespace is\nstripped and replaced with the source's, so the target mirrors the\nsource's edge whitespace.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "normalizeSpaces": {
+          "normalize_spaces": {
             "description": "Collapse runs of multiple spaces to one.",
             "help": "When enabled, consecutive spaces are reduced to a single space.",
             "values": "`true` / `false` (default `true`)"
           },
-          "removeZeroWidthChars": {
+          "remove_zero_width_chars": {
             "description": "Remove zero-width spaces and joiners.",
             "help": "When enabled, zero-width spaces and joiners (and the zero-width no-break\nspace) are removed from the target.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "targetLocale": {
+          "target_locale": {
             "description": "Target locale for processing.",
             "help": "The locale whose target text is corrected. Required; only blocks with an\nexisting target for this locale are touched.\n",
             "values": "BCP-47 locale (required)"
           },
-          "trimLeading": {
+          "trim_leading": {
             "description": "Remove leading whitespace from the target.",
             "help": "When enabled, whitespace at the start of the target text is removed.",
             "values": "`true` / `false` (default `false`)"
           },
-          "trimTrailing": {
+          "trim_trailing": {
             "description": "Remove trailing whitespace from the target.",
             "help": "When enabled, whitespace at the end of the target text is removed.",
             "values": "`true` / `false` (default `false`)"
@@ -4931,12 +4931,12 @@
           {
             "title": "Normalize spacing for a locale",
             "description": "Apply the default whitespace cleanup to a target.",
-            "config": "targetLocale: fr\n"
+            "config": "target_locale: fr\n"
           },
           {
             "title": "Tidy CJK punctuation spacing",
             "description": "Remove spaces after punctuation for a non-space-delimited target.",
-            "config": "targetLocale: zh-Hans\ncorrectFullStop: true\ncorrectComma: true\n"
+            "config": "target_locale: zh-Hans\ncorrect_full_stop: true\ncorrect_comma: true\n"
           }
         ]
       }
@@ -4978,13 +4978,13 @@
           ]
         },
         "properties": {
-          "checkSource": {
+          "check_source": {
             "type": "boolean",
             "title": "Check Source",
             "description": "Validate source text for XML well-formedness",
             "default": true
           },
-          "checkTarget": {
+          "check_target": {
             "type": "boolean",
             "title": "Check Target",
             "description": "Validate target text for XML well-formedness",
@@ -4999,7 +4999,7 @@
               "empty": false
             }
           },
-          "wrapRoot": {
+          "wrap_root": {
             "type": "boolean",
             "title": "Wrap in Root Element",
             "description": "Wrap text in a root element before validating",
@@ -5010,12 +5010,12 @@
       "doc": {
         "overview": "The **XML Validation** tool checks the source and, optionally, target text of\neach translatable block for XML well-formedness and records the result on the\nblock's properties: a validity flag and, when invalid, an error message\nidentifying whether the source or target failed and why. Empty text is treated\nas valid.\n\nSource validation is on by default. To validate the target as well, enable the\ntarget check and supply a target locale. Because block text is often an XML\nfragment rather than a complete document, the tool can wrap the text in a root\nelement before parsing so a fragment with multiple top-level nodes still\nvalidates.\n",
         "parameters": {
-          "checkSource": {
+          "check_source": {
             "description": "Validate source text for XML well-formedness.",
             "help": "When enabled, each block's source text is parsed as XML and any\nwell-formedness error is reported.\n",
             "values": "`true` / `false` (default `true`)"
           },
-          "checkTarget": {
+          "check_target": {
             "description": "Validate target text for XML well-formedness.",
             "help": "When enabled, the target translation is parsed as XML in addition to the\nsource. A target locale must be supplied when this is enabled.\n",
             "values": "`true` / `false` (default `false`)",
@@ -5028,16 +5028,16 @@
           },
           "locale": {
             "description": "Target locale to validate.",
-            "help": "The locale whose translation is validated when target checking is enabled.\nRequired when `checkTarget` is on; ignored otherwise.\n",
+            "help": "The locale whose translation is validated when target checking is enabled.\nRequired when `check_target` is on; ignored otherwise.\n",
             "values": "BCP-47 locale (e.g. `fr`)",
             "dependsOn": [
               {
-                "property": "checkTarget",
+                "property": "check_target",
                 "condition": "only used when target checking is enabled"
               }
             ]
           },
-          "wrapRoot": {
+          "wrap_root": {
             "description": "Wrap text in a root element before validating.",
             "help": "When enabled, the text is wrapped in a synthetic root element before\nparsing, so a fragment with several top-level nodes (which is not a valid\nstandalone document) still validates. Disable it to require a single\nwell-formed document.\n",
             "values": "`true` / `false` (default `true`)"
@@ -5054,12 +5054,12 @@
           {
             "title": "Validate source only",
             "description": "Confirm the source text of each block parses as XML.",
-            "config": "checkSource: true\n"
+            "config": "check_source: true\n"
           },
           {
             "title": "Validate target as well",
             "description": "Also validate the French translation, treating each block as a fragment.",
-            "config": "checkTarget: true\nlocale: fr\n"
+            "config": "check_target: true\nlocale: fr\n"
           }
         ]
       }

@@ -25,7 +25,7 @@ func TestTransform_OkapiXMLToXML(t *testing.T) {
 
 	result, err := config.DefaultTransforms.Transform(from, to, input)
 	require.NoError(t, err)
-	assert.Equal(t, true, result["excludeByDefault"])
+	assert.Equal(t, true, result["exclude_by_default"])
 	assert.NotNil(t, result["elements"])
 }
 
@@ -38,7 +38,7 @@ func TestTransform_OkapiXMLStreamToXML(t *testing.T) {
 		"exclude_by_default": false,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, false, result["excludeByDefault"])
+	assert.Equal(t, false, result["exclude_by_default"])
 }
 
 func TestTransform_DropsOkapiOnlyParams(t *testing.T) {
@@ -61,17 +61,17 @@ func TestTransform_DropsOkapiOnlyParams(t *testing.T) {
 	require.NoError(t, err)
 
 	// Okapi-only params should be dropped
-	_, has := result["configFile"]
+	_, has := result["config_file"]
 	assert.False(t, has)
-	_, has = result["configId"]
+	_, has = result["config_id"]
 	assert.False(t, has)
-	_, has = result["useCodeFinder"]
+	_, has = result["use_code_finder"]
 	assert.False(t, has)
-	_, has = result["codeFinderRules"]
+	_, has = result["code_finder_rules"]
 	assert.False(t, has)
-	_, has = result["quoteMode"]
+	_, has = result["quote_mode"]
 	assert.False(t, has)
-	_, has = result["quoteModeDefined"]
+	_, has = result["quote_mode_defined"]
 	assert.False(t, has)
 	_, has = result["global_cdata_subfilter"]
 	assert.False(t, has)
@@ -79,7 +79,7 @@ func TestTransform_DropsOkapiOnlyParams(t *testing.T) {
 	assert.False(t, has)
 
 	// Shared params should be kept (renamed)
-	assert.Equal(t, true, result["excludeByDefault"])
+	assert.Equal(t, true, result["exclude_by_default"])
 }
 
 func TestTransform_DropsParserAssumeWellformed(t *testing.T) {
@@ -98,9 +98,9 @@ func TestTransform_DropsParserAssumeWellformed(t *testing.T) {
 
 	parser, ok := result["parser"].(map[string]any)
 	require.True(t, ok)
-	_, has := parser["assumeWellformed"]
+	_, has := parser["assume_wellformed"]
 	assert.False(t, has, "assumeWellformed should be dropped")
-	assert.Equal(t, true, parser["preserveWhitespace"])
+	assert.Equal(t, true, parser["preserve_whitespace"])
 }
 
 func TestTransform_EmptyParserDropped(t *testing.T) {

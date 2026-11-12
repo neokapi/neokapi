@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/schema"
 )
 
 // CheckModeField is the `qa` tool's mode selector. A qa config chooses its
@@ -44,22 +46,28 @@ var retiredCheckKeys = []string{"checkTerminology", "check_terminology"}
 // the config map itself, such as `flows.review.steps[1].config`. A key is named
 // as the config spells it.
 //
-// Only the qa tool has such keys. A qa config refuses checkTerminology, which
-// nothing reads, and a provider without a mode, because mode alone selects the
-// AI review.
+// Every tool's config keys are snake_case, so a camelCase key is refused with
+// its snake_case spelling: `flows.translate.steps[1].config:
+// fillTargetThreshold is now fill_target_threshold`. Beyond that, only the qa
+// tool has such keys. A qa config refuses checkTerminology, which nothing
+// reads, and a provider without a mode, because mode alone selects the AI
+// review.
 func StepConfigError(tool ToolID, config map[string]any, at, keys string) error {
-	if tool != "qa" {
-		return nil
-	}
 	names := make([]string, 0, len(config))
 	for k := range config {
 		names = append(names, k)
 	}
 	slices.Sort(names)
+	if tool != "qa" {
+		return camelCaseKeyError(names, keys)
+	}
 	for _, k := range names {
 		if slices.ContainsFunc(retiredCheckKeys, func(r string) bool { return strings.EqualFold(k, r) }) {
 			return fmt.Errorf("%s.%s is retired and nothing reads it. Remove the key", keys, k)
 		}
+	}
+	if err := camelCaseKeyError(names, keys); err != nil {
+		return err
 	}
 
 	mode, hasMode := config[CheckModeField]
@@ -88,4 +96,17 @@ func checkModeChoices() string {
 		parts[i] = fmt.Sprintf("%s: %s for %s", CheckModeField, m.Value, m.Runs)
 	}
 	return strings.Join(parts, ", or ")
+}
+
+// camelCaseKeyError reports the first of a step config's keys, in sorted
+// order, that is not snake_case, naming the key to write instead. keys is the
+// key path of the config map.
+func camelCaseKeyError(names []string, keys string) error {
+	for _, k := range names {
+		if schema.IsSnakeCase(k) {
+			continue
+		}
+		return fmt.Errorf("%s: %s is now %s", keys, k, schema.SnakeCase(k))
+	}
+	return nil
 }

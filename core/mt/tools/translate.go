@@ -62,12 +62,12 @@ func (t *MTTranslateTool) ReusesStoredTarget(_ context.Context, b *model.Block, 
 // cli/credentials/resolve.go) or inline in a recipe step. The provider itself
 // is fixed by the id routed via --provider, so there is no Provider field.
 type MTTranslateConfig struct {
-	SourceLocale model.LocaleID `json:"sourceLocale,omitempty"     schema:"-"`
-	TargetLocale model.LocaleID `json:"targetLocale,omitempty"     schema:"-"`
+	SourceLocale model.LocaleID `json:"source_locale,omitempty"     schema:"-"`
+	TargetLocale model.LocaleID `json:"target_locale,omitempty"     schema:"-"`
 
 	// APIKey is the primary credential for keyed MT providers. Resolved from
 	// the keychain by the CLI credential preprocessor, or set inline.
-	APIKey string `json:"apiKey,omitempty"          schema:"title=API Key,description=API key for the MT provider,group=provider,widget=password"`
+	APIKey string `json:"api_key,omitempty"          schema:"title=API Key,description=API key for the MT provider,group=provider,widget=password"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// private-cloud deployment.
 	//
@@ -82,7 +82,7 @@ type MTTranslateConfig struct {
 	// The endpoint and the key sent to it are one decision: they are configured
 	// together with `kapi credentials add --base-url`, and neither is read from
 	// a committable recipe.
-	BaseURL string `json:"baseURL,omitempty"         schema:"-"`
+	BaseURL string `json:"base_url,omitempty"         schema:"-"`
 
 	// ToolName, when set, fixes the reported tool name
 	// regardless of the backing provider. The registry sets this so a tool

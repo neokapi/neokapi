@@ -1,6 +1,10 @@
 package messageformat
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/neokapi/neokapi/core/format"
+)
 
 // Config holds configuration for the ICU MessageFormat format.
 type Config struct {
@@ -40,14 +44,14 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			v, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+				return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !v
 		default:
-			return fmt.Errorf("messageformat: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "messageformat", key)
 		}
 	}
 	return nil

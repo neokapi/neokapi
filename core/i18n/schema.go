@@ -29,7 +29,7 @@ const (
 //
 // Property-level fields extend the scope: tools.<id>.properties.<name>.title,
 // tools.<id>.groups.<id>.label, etc. Matches the dot-separated full key
-// path the JSON filter emits (useKeyAsName=true, default path separator).
+// path the JSON filter emits (use_key_as_name=true, default path separator).
 func LocalizeComponentSchema(s *schema.ComponentSchema, t Translator) *schema.ComponentSchema {
 	if s == nil {
 		return nil
@@ -143,7 +143,7 @@ func baseScope(s *schema.ComponentSchema) Scope {
 }
 
 // join builds a dot-separated Scope, skipping empty segments. Matches
-// the format produced by the JSON filter's default useKeyAsName output
+// the format produced by the JSON filter's default use_key_as_name output
 // (parent.child.leaf) so msgctxt lookups hit without re-normalization.
 func join(parts ...any) Scope {
 	segs := make([]string, 0, len(parts))

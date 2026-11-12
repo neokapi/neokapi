@@ -153,7 +153,7 @@ what it is. Machine translation skips it, and the writer replays its original
 bytes verbatim, so the round trip is unaffected.
 Comments and similar metadata surface as data or notes alongside the content.
 
-Each reader that supports this exposes an `extractNonTranslatableContent` option
+Each reader that supports this exposes an `extract_non_translatable_content` option
 (on by default) in the [Format Reference](/formats); set it to false to keep that
 content in the skeleton only. The design, and why it leaves translation output
 and the round-trip guarantee unchanged, is described in

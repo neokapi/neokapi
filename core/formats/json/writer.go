@@ -54,7 +54,7 @@ func (w *Writer) Config() *Config {
 }
 
 // WriterConfig implements format.WriterConfigurable, exposing the writer's
-// serialization knobs — escapeForwardSlashes, indentation, key ordering — to
+// serialization knobs — escape_forward_slashes, indentation, key ordering — to
 // the recipe. The type is the reader's own Config, so the whole of a
 // `defaults.formats.json.config` block applies to both halves of the pair and
 // an extraction key on the writer is simply inert.

@@ -49,7 +49,7 @@ const pseudoTranslateSchema: ComponentSchema = {
   type: "object",
   toolMeta: { id: "pseudo-translate", category: "transform" },
   "ui:groups": [
-    { id: "output", label: "Output Format", fields: ["prefix", "suffix", "expansionPercent"] },
+    { id: "output", label: "Output Format", fields: ["prefix", "suffix", "expansion_percent"] },
     { id: "behavior", label: "Behavior", fields: ["applyAccents", "padWithX"] },
   ],
   properties: {
@@ -65,7 +65,7 @@ const pseudoTranslateSchema: ComponentSchema = {
       default: "]",
       description: "Suffix added to translations",
     },
-    expansionPercent: {
+    expansion_percent: {
       type: "integer",
       title: "Expansion Percent",
       default: 30,
@@ -96,28 +96,28 @@ const ruleCheckSchema: ComponentSchema = {
     {
       id: "whitespace",
       label: "Whitespace Checks",
-      fields: ["checkLeadingWhitespace", "checkTrailingWhitespace", "checkDoubleSpaces"],
+      fields: ["check_leading_whitespace", "check_trailing_whitespace", "check_double_spaces"],
     },
     {
       id: "content",
       label: "Content Checks",
-      fields: ["checkMissingTranslation", "checkInlineCodes", "checkPatterns"],
+      fields: ["checkMissingTranslation", "checkInlineCodes", "check_patterns"],
     },
   ],
   properties: {
-    checkLeadingWhitespace: {
+    check_leading_whitespace: {
       type: "boolean",
       title: "Check Leading Whitespace",
       default: true,
       description: "Check for leading whitespace mismatches",
     },
-    checkTrailingWhitespace: {
+    check_trailing_whitespace: {
       type: "boolean",
       title: "Check Trailing Whitespace",
       default: true,
       description: "Check trailing whitespace",
     },
-    checkDoubleSpaces: {
+    check_double_spaces: {
       type: "boolean",
       title: "Check Double Spaces",
       default: true,
@@ -135,7 +135,7 @@ const ruleCheckSchema: ComponentSchema = {
       default: true,
       description: "Verify inline codes are preserved",
     },
-    checkPatterns: {
+    check_patterns: {
       type: "boolean",
       title: "Check Patterns",
       default: false,
@@ -166,7 +166,7 @@ const searchReplaceSchema: ComponentSchema = {
   properties: {
     search: { type: "string", title: "Search", description: "Search pattern or literal text" },
     replace: { type: "string", title: "Replace", description: "Replacement text" },
-    regEx: {
+    reg_ex: {
       type: "boolean",
       title: "Regular Expression",
       default: false,
@@ -184,13 +184,13 @@ const searchReplaceSchema: ComponentSchema = {
       default: false,
       description: "Apply to source text",
     },
-    dotAll: {
+    dot_all: {
       type: "boolean",
       title: "Dot All",
       default: false,
       description: "Dot matches newlines in regex",
     },
-    caseInsensitive: {
+    case_insensitive: {
       type: "boolean",
       title: "Case Insensitive",
       default: false,
@@ -216,14 +216,14 @@ const nestedObjectSchema: ComponentSchema = {
       title: "Parser",
       description: "Parser behavior settings",
       properties: {
-        assumeWellformed: {
+        assume_wellformed: {
           type: "boolean",
           title: "Assume Wellformed",
           default: false,
           description:
             "Assume input HTML is well-formed XML. Faster but may fail on non-conforming HTML.",
         },
-        preserveWhitespace: {
+        preserve_whitespace: {
           type: "boolean",
           title: "Preserve Whitespace",
           default: false,
@@ -239,7 +239,7 @@ const nestedObjectSchema: ComponentSchema = {
       additionalProperties: {
         type: "object",
         properties: {
-          ruleTypes: {
+          rule_types: {
             type: "array",
             title: "Rule Types",
             items: {
@@ -258,7 +258,7 @@ const nestedObjectSchema: ComponentSchema = {
       additionalProperties: {
         type: "object",
         properties: {
-          ruleTypes: {
+          rule_types: {
             type: "array",
             title: "Rule Types",
             items: {
@@ -266,7 +266,7 @@ const nestedObjectSchema: ComponentSchema = {
               enum: ["ATTRIBUTE_TRANS", "ATTRIBUTE_WRITABLE", "ATTRIBUTE_READONLY", "ATTRIBUTE_ID"],
             },
           },
-          allElementsExcept: {
+          all_elements_except: {
             type: "array",
             title: "All Elements Except",
             items: { type: "string" },
@@ -278,7 +278,7 @@ const nestedObjectSchema: ComponentSchema = {
       type: "object",
       title: "Inline Codes",
       description: "Inline code detection and handling",
-      "ui:widget": "codeFinderRules",
+      "ui:widget": "code_finder_rules",
       "ui:presets": {
         "HTML Tags": { rules: [{ pattern: "</?\\w[^>]*>" }] },
         "Printf Placeholders": { rules: [{ pattern: "%[\\w.]*[dsfx]" }] },
@@ -415,12 +415,12 @@ const deeplyNestedSchema: ComponentSchema = {
   title: "HTML Format",
   type: "object",
   "ui:groups": [
-    { id: "parser", label: "Parser Settings", fields: ["preserveWhitespace"] },
+    { id: "parser", label: "Parser Settings", fields: ["preserve_whitespace"] },
     { id: "extraction", label: "Extraction Rules", fields: ["elements", "attributes"] },
-    { id: "codes", label: "Inline Codes", fields: ["codeFinderRules", "useCodeFinder"] },
+    { id: "codes", label: "Inline Codes", fields: ["code_finder_rules", "use_code_finder"] },
   ],
   properties: {
-    preserveWhitespace: {
+    preserve_whitespace: {
       type: "boolean",
       title: "Preserve Whitespace",
       default: false,
@@ -449,7 +449,7 @@ const deeplyNestedSchema: ComponentSchema = {
       description: "Map of attribute names to extraction rules",
       additionalProperties: { type: "string" } as unknown as boolean,
     },
-    codeFinderRules: {
+    code_finder_rules: {
       type: "object",
       title: "Code Finder Rules",
       description: "Rules for identifying inline codes",
@@ -473,7 +473,7 @@ const deeplyNestedSchema: ComponentSchema = {
         },
       },
     },
-    useCodeFinder: {
+    use_code_finder: {
       type: "boolean",
       title: "Use Code Finder",
       default: true,
@@ -616,7 +616,7 @@ export const PseudoTranslate: Story = {
 export const PseudoTranslateWithValues: Story = {
   args: {
     schema: pseudoTranslateSchema,
-    initialValues: { prefix: ">>", suffix: "<<", expansionPercent: 45, applyAccents: false },
+    initialValues: { prefix: ">>", suffix: "<<", expansion_percent: 45, applyAccents: false },
   },
 };
 
@@ -647,8 +647,8 @@ export const NestedObjectWithValues: Story = {
   args: {
     schema: nestedObjectSchema,
     initialValues: {
-      parser: { assumeWellformed: true, preserveWhitespace: false },
-      elements: { meta: { ruleTypes: ["ATTRIBUTES_ONLY"] }, script: { ruleTypes: ["EXCLUDE"] } },
+      parser: { assume_wellformed: true, preserve_whitespace: false },
+      elements: { meta: { rule_types: ["ATTRIBUTES_ONLY"] }, script: { rule_types: ["EXCLUDE"] } },
       inlineCodes: { rules: [{ pattern: "</?\\w[^>]*>" }], sample: "<b>bold</b> text" },
     },
   },
@@ -712,7 +712,7 @@ export const DeeplyNestedConfig: Story = {
   args: {
     schema: deeplyNestedSchema,
     initialValues: {
-      preserveWhitespace: false,
+      preserve_whitespace: false,
       elements: {
         div: { ruleType: "TEXTUNIT", translatable: true },
         span: { ruleType: "INLINE", translatable: true },
@@ -723,12 +723,12 @@ export const DeeplyNestedConfig: Story = {
         alt: "translatable",
         placeholder: "translatable",
       },
-      codeFinderRules: {
+      code_finder_rules: {
         useAllRulesWhenTesting: true,
         includes: ["</?\\w[^>]*>", "\\{\\{.*?\\}\\}"],
         excludes: ["<!--.*?-->"],
       },
-      useCodeFinder: true,
+      use_code_finder: true,
     },
   },
 };
@@ -780,14 +780,14 @@ export const WithPresetIndicator: Story = {
     initialValues: {
       prefix: ">>",
       suffix: "]",
-      expansionPercent: 45,
+      expansion_percent: 45,
       applyAccents: true,
       padWithX: false,
     },
     presetValues: {
       prefix: "[",
       suffix: "]",
-      expansionPercent: 30,
+      expansion_percent: 30,
       applyAccents: true,
       padWithX: false,
     },

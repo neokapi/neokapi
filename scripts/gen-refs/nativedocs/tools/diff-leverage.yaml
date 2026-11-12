@@ -13,13 +13,13 @@ overview: |
   (keyed by block ID); they are not part of the declarative schema. The two
   schema-visible options control how the source comparison is performed.
 parameters:
-  caseSensitive:
+  case_sensitive:
     description: Compare source texts case-sensitively.
     help: |
       When enabled, two sources must match exactly, including letter case, to
       count as unchanged. When disabled, the comparison ignores case.
     values: "`true` / `false` (default `true`)"
-  fuzzyMatch:
+  fuzzy_match:
     description: Carry forward translations for closely similar sources.
     help: |
       When enabled, a changed source that is sufficiently similar to the
@@ -37,9 +37,9 @@ examples:
   - title: Reuse exact matches only
     description: Carry forward translations where the source is identical.
     config: |
-      caseSensitive: true
+      case_sensitive: true
   - title: Allow fuzzy leverage
     description: Also reuse translations for closely similar sources.
     config: |
-      fuzzyMatch: true
-      caseSensitive: false
+      fuzzy_match: true
+      case_sensitive: false

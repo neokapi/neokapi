@@ -17,7 +17,7 @@ overview: |
   survives the round-trip. Cues are kept separate, with no merging by
   sentence, so each cue is translated independently.
 parameters:
-  maxCharsPerLine:
+  max_chars_per_line:
     description: Maximum characters per line of cue text on output.
     help: |
       Caps the line length of written cue text. `0` (the default) means no
@@ -26,25 +26,25 @@ parameters:
       does not currently rewrap cue text; lines are written as supplied
       by the block.
     values: "Integer (default `0`, meaning no limit)"
-  maxLinesPerCaption:
+  max_lines_per_caption:
     description: Maximum number of text lines per cue on output.
     help: |
       Caps how many lines a single cue may occupy. `0` (the default) means
       no limit. Accepted for parity with Okapi's WebVTT writer; the native
       writer does not currently enforce it.
     values: "Integer (default `0`, meaning no limit)"
-  cjkCharsPerLine:
+  cjk_chars_per_line:
     description: Maximum characters per line for CJK languages.
     help: |
       A separate per-line character cap applied to CJK text, where each
       character is visually wider. `0` (the default) falls back to
-      `maxCharsPerLine`. Accepted for parity with Okapi's WebVTT writer;
+      `max_chars_per_line`. Accepted for parity with Okapi's WebVTT writer;
       the native writer does not currently enforce it.
-    values: "Integer (default `0`, falls back to maxCharsPerLine)"
+    values: "Integer (default `0`, falls back to max_chars_per_line)"
     dependsOn:
-      - property: maxCharsPerLine
-        condition: used as the fallback when cjkCharsPerLine is 0
-  splitWords:
+      - property: max_chars_per_line
+        condition: used as the fallback when cjk_chars_per_line is 0
+  split_words:
     description: Allow splitting words to keep within the character limit.
     help: |
       When enabled, words may be broken across lines to honour the
@@ -54,10 +54,10 @@ parameters:
       writer does not currently rewrap text.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: maxCharsPerLine
+      - property: max_chars_per_line
         condition: only relevant when a character limit is set
 limitations:
-  - The output line-wrapping parameters (maxCharsPerLine, maxLinesPerCaption, cjkCharsPerLine, splitWords) are accepted for parity with Okapi but are not yet enforced by the native writer; cue text is written as supplied.
+  - The output line-wrapping parameters (max_chars_per_line, max_lines_per_caption, cjk_chars_per_line, split_words) are accepted for parity with Okapi but are not yet enforced by the native writer; cue text is written as supplied.
   - Cues are never merged by sentence; each cue is a separate block.
 processingNotes:
   - The WEBVTT header is emitted as a data part; cue identifiers become their own data parts.

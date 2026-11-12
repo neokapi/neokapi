@@ -13,7 +13,7 @@ import (
 
 // DNTCheckConfig configures the do-not-translate checker.
 type DNTCheckConfig struct {
-	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID `json:"target_locale,omitempty" schema:"-"`
 	// Terms are the do-not-translate strings (product names, trademarks, code
 	// identifiers) that must survive verbatim into the target. Sourced from the
 	// recipe or a checkset; the terms store can supply more.
@@ -25,7 +25,7 @@ type DNTCheckConfig struct {
 	Terms []string `json:"terms,omitempty" schema:"title=Do-Not-Translate Terms,description=Strings that must survive verbatim into the target (product names, trademarks, identifiers)"`
 	// CaseInsensitive accepts a case-folded match in the target. Off by default:
 	// do-not-translate is usually case-sensitive ("iPhone", not "Iphone").
-	CaseInsensitive bool `json:"caseInsensitive,omitempty" schema:"title=Case-insensitive preservation,description=Accept a case-folded match in the target instead of requiring exact case"`
+	CaseInsensitive bool `json:"case_insensitive,omitempty" schema:"title=Case-insensitive preservation,description=Accept a case-folded match in the target instead of requiring exact case"`
 	// TermRules is the project's terminology, the same key and shape every
 	// governed step takes. Its do-not-translate rules join Terms above, which
 	// is what the comment on that field has always promised: a store that

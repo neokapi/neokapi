@@ -30,7 +30,7 @@ func ReadSourceBlocks(
 	if err != nil {
 		return nil, nil, err
 	}
-	// Per-item format config (e.g. translateFrontMatter on a docs item) must
+	// Per-item format config (e.g. translate_front_matter on a docs item) must
 	// apply on every re-read exactly as it did at extract time.
 	if err := ApplyReaderConfig(reader, cfg); err != nil {
 		return nil, nil, fmt.Errorf("apply format config: %w", err)

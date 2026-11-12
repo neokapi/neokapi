@@ -27,7 +27,7 @@ const futureBundle = `{
   "schemaVersion": "3.0",
   "kind": "kapi-bundle",
   "generator": {"id": "test", "version": "0"},
-  "project": {"id": "app", "sourceLocale": "en"},
+  "project": {"id": "app", "source_locale": "en"},
   "documents": []
 }`
 

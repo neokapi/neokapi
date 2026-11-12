@@ -19,27 +19,27 @@ func TestSchemaMatchesApplyMap(t *testing.T) {
 
 	// All ApplyMap keys that Config accepts.
 	applyMapKeys := map[string]bool{
-		"extractAllPairs":               true,
-		"exceptions":                    true,
-		"extractIsolatedStrings":        true,
-		"extractArrayStrings":           true, // alias for extractIsolatedStrings
-		"extractNonTranslatableContent": true,
-		"useKeyAsName":                  true,
-		"useFullKeyPath":                true,
-		"useLeadingSlashOnKeyPath":      true,
-		"escapeForwardSlashes":          true,
-		"subfilters":                    true,
-		"subfilter":                     true,
-		"subfilterRules":                true,
-		"noteRules":                     true,
-		"idRules":                       true,
-		"useIdStack":                    true,
-		"genericMetaRules":              true,
-		"extractionRules":               true,
-		"maxwidthRules":                 true,
-		"maxwidthSizeUnit":              true,
-		"useCodeFinder":                 true,
-		"codeFinderRules":               true,
+		"extract_all_pairs":                true,
+		"exceptions":                       true,
+		"extract_isolated_strings":         true,
+		"extract_array_strings":            true, // alias for extract_isolated_strings
+		"extract_non_translatable_content": true,
+		"use_key_as_name":                  true,
+		"use_full_key_path":                true,
+		"use_leading_slash_on_key_path":    true,
+		"escape_forward_slashes":           true,
+		"subfilters":                       true,
+		"subfilter":                        true,
+		"subfilter_rules":                  true,
+		"note_rules":                       true,
+		"id_rules":                         true,
+		"use_id_stack":                     true,
+		"generic_meta_rules":               true,
+		"extraction_rules":                 true,
+		"maxwidth_rules":                   true,
+		"maxwidth_size_unit":               true,
+		"use_code_finder":                  true,
+		"code_finder_rules":                true,
 	}
 
 	// Every schema property must be accepted by ApplyMap.
@@ -49,7 +49,7 @@ func TestSchemaMatchesApplyMap(t *testing.T) {
 	}
 
 	// Every ApplyMap key (except aliases) should have a schema property.
-	aliases := map[string]bool{"extractArrayStrings": true}
+	aliases := map[string]bool{"extract_array_strings": true}
 	for key := range applyMapKeys {
 		if aliases[key] {
 			continue

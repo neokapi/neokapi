@@ -239,7 +239,7 @@ type Match struct {
 	// not trust blindly: several entries matched the query exactly but
 	// disagree on the target text. Such matches are demoted to
 	// ScoreNearExact and flagged so unattended fills (extract pre-fill,
-	// fillTargetThreshold=100 leverage) can leave them for review instead
+	// fill_target_threshold=100 leverage) can leave them for review instead
 	// of silently picking one by storage order.
 	Ambiguous bool
 }
