@@ -1963,7 +1963,7 @@ export function ListNamedTerms() {
  * so a file claimed by an earlier item is listed under that item's target
  * alone, and a pattern that cannot be expanded fails the listing rather than
  * shortening it. Output paths come from the shared resolver
- * (project.ResolveTargetPath), the same one the flow runner, merge, and the
+ * (ProjectContext.TargetFile), the same one the flow runner, merge, and the
  * CLI use, so the desktop, CLI, and `kapi merge` agree exactly.
  * @param {string} tabID
  * @returns {$CancellablePromise<{ [_ in string]?: $models.OutputFileInfo[] }>}
@@ -2711,19 +2711,15 @@ export function RunAIPreReview(tabID, locale, scope) {
 }
 
 /**
- * RunChecks runs the project's content checks (placeholder + do-not-translate
- * when a target exists, terms and the voice's patterns on the source when
- * they are bound) over the content files the Active Filter selects (its collections +
- * glob; all when empty), for the filter's target languages — source-side checks
- * run once per file, target-side checks run once per filtered language, and the
- * panel no longer carries its own language picker. With no languages selected,
- * only source-side checks run.
+ * RunChecks runs `kapi check` over the content files the Active Filter selects
+ * (its collections and glob; all when empty), and holds each file's
+ * translations in the filter's target languages to the checks a translation is
+ * held to. With no languages selected, only the sources are checked.
  * 
- * The pipeline itself is the CLI's exported check service
- * (host.App.ReadBlocksForCheck / host.OverlayTargets / host.RunCheckTool /
- * host.FindingsFromBlock), run inside the project document cache
- * (WithDocumentCache) so unchanged files replay instead of re-parsing —
- * exactly the `kapi check` semantics: the gate fails on any failing finding.
+ * The findings come from the host's project check (host.App.ComputeProjectCheck),
+ * run inside the project document cache so unchanged files replay instead of
+ * re-parsing. The panel and `kapi check` therefore report the same findings,
+ * verdict and score for the same content.
  * @param {string} tabID
  * @param {$models.ProjectFilter} filter
  * @returns {$CancellablePromise<$models.CheckRunResult | null>}

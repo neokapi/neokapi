@@ -16,8 +16,9 @@ import (
 // OutputFileInfo describes a single generated output file for a source file in
 // a content collection. Output paths are resolved from each collection item's
 // `target` template via the shared core resolver (ProjectContext.TargetFile),
-// with the locale spelled as the project's locale_format writes it, then stat-ed on disk so the UI can show which target files exist and let the
-// user inspect them.
+// with the locale spelled as the project's locale_format writes it, then
+// stat-ed on disk so the UI can show which target files exist and let the user
+// inspect them.
 type OutputFileInfo struct {
 	Lang     string `json:"lang"`
 	Path     string `json:"path"`     // absolute path on disk
