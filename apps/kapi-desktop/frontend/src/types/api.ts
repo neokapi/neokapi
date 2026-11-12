@@ -1907,12 +1907,20 @@ export interface UpPlanOutput {
   /** Target languages are set but no collection has a target path, so a run
    * writes no translation. An empty plan then is not one with the work done. */
   noTargets?: boolean;
+  /** The project store's drift from the source files, which a run reads
+   * before its first pass (project.StoreDrift). */
+  drift?: {
+    storeMissing?: boolean;
+    versionStale?: boolean;
+    changed?: string[];
+    removed?: string[];
+  };
   /** Discloses the estimation heuristic (Memory exact-hash only, chars/4 tokens). */
   note: string;
 }
 
-/** Desktop pre-flight picture: the work plan + the block-store drift the
- * run's auto-extract would heal (backend ConvergePlan). */
+/** Desktop pre-flight picture: the work plan, with its block-store drift
+ * counted for the home hero (backend ConvergePlan). */
 export interface ConvergePlan {
   plan: UpPlanOutput;
   changedFiles: number;

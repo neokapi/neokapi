@@ -2026,6 +2026,76 @@ export class ShipGateRule {
 }
 
 /**
+ * StoreDrift describes how the block store has fallen behind the working tree.
+ */
+export class StoreDrift {
+    /**
+     * Creates a new StoreDrift instance.
+     * @param {Partial<StoreDrift>} [$$source = {}] - The source object to create the StoreDrift.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * StoreMissing: nothing has been extracted yet (a fresh project, or the
+             * block cache was cleared).
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["storeMissing"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * VersionStale: the store exists but was written by a different kapi
+             * version (missing or mismatched version stamp), so its content may be
+             * extracted differently by the running binary.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["versionStale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Changed lists the project-relative source paths whose bytes drifted
+             * from their extract-time stamps (edited, or never stamped).
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["changed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Removed lists stamped source paths that no longer resolve from the
+             * project's content patterns (deleted or de-scoped files whose blocks
+             * linger in the store).
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["removed"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StoreDrift instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StoreDrift}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("changed" in $$parsedSource) {
+            $$parsedSource["changed"] = $$createField2_0($$parsedSource["changed"]);
+        }
+        if ("removed" in $$parsedSource) {
+            $$parsedSource["removed"] = $$createField3_0($$parsedSource["removed"]);
+        }
+        return new StoreDrift(/** @type {Partial<StoreDrift>} */($$parsedSource));
+    }
+}
+
+/**
  * VoiceBinding binds a voice profile by name: to the project under
  * `defaults.voice`, or to a region of the context space under a profile's
  * `voice:`. Exactly one source is expected: a profile the project's voice store

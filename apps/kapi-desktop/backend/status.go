@@ -71,9 +71,9 @@ type ProjectStatus struct {
 //
 // If the project has never been extracted, the returned status has
 // HasData=false and zero block counts beside the working tree's coverage; this
-// is a well-defined "no data yet" state, not an error. It is a row question, not a file one: the store file
-// exists from the first command that touches any subsystem, so its presence
-// stopped being evidence that anything was extracted.
+// is a well-defined "no data yet" state, not an error. It is a row question,
+// not a file one: the store file exists from the first command that touches
+// any subsystem, so its presence is no evidence that anything was extracted.
 func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
