@@ -94,6 +94,10 @@ run_check "Documentation palettes are fresh" make check-docs-palette
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh
 
+# Ungated: a camelCase json tag on an output type changes a field name every
+# script and agent reads. ~1s.
+run_check "Output JSON field names are snake_case" ./scripts/check-json-tags.sh
+
 # Ungated: prose describing a project's context as a file is written wherever
 # someone reaches for a path, and it teaches the habit the store-only model
 # exists to end. ~1s.
