@@ -197,6 +197,22 @@ describe("ReviewPage", () => {
     expect(hints.className).toContain("group-focus-within:opacity-100");
   });
 
+  it("puts the key hints first and the decision last, Reject then Approve", async () => {
+    renderPage();
+    const bar = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-actions']");
+      expect(el?.querySelector("[data-slot='review-approve']")).not.toBeNull();
+      return el!;
+    });
+    expect(bar.firstElementChild?.getAttribute("data-slot")).toBe("review-key-hints");
+    const decisions = bar.querySelector("[data-slot='review-decisions']")!;
+    expect(bar.lastElementChild).toBe(decisions);
+    expect(Array.from(decisions.children, (b) => b.getAttribute("data-slot"))).toEqual([
+      "review-reject",
+      "review-approve",
+    ]);
+  });
+
   it("renders the queue row's source preview in the item's own source locale", async () => {
     const rtlItems: ReviewItem[] = [
       {

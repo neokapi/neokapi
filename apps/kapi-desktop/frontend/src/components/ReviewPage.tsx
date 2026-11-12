@@ -35,6 +35,8 @@ import {
   NeighbourhoodCard,
   ProvenanceCard,
   ReviewLanguageSelect,
+  RunText,
+  labelCodesFromRuns,
   ALL_LANGUAGES,
   checkFindingViews,
   StatusBadge,
@@ -905,12 +907,24 @@ export function ReviewPage({
   // Whether the translation can be edited here, and the source it answers to:
   // its words and codes for the editor's tag palette.
   const canEdit = !!read && read.ops.includes("set_content");
+  // The read's codes, with a placeholder that carries no label of its own (a
+  // code finder's `{{name}}`) labelled by its display text from the unit's
+  // runs, so the editor's chip reads `{{name}}` rather than its type.
+  const unitCodes = useMemo(
+    () => labelCodesFromRuns(read?.codes, unit?.target_runs, unit?.source_runs),
+    [read?.codes, unit?.target_runs, unit?.source_runs],
+  );
   const sourceReference = useMemo(() => {
     if (!read?.editions) return undefined;
     const src = (unit?.source_locale ?? selected?.source_locale ?? "").toLowerCase();
     const key = Object.keys(read.editions).find((k) => k.toLowerCase() === src);
-    return key ? { text: read.editions[key].text, codes: read.codes } : undefined;
-  }, [read, unit?.source_locale, selected?.source_locale]);
+    return key ? { text: read.editions[key].text, codes: unitCodes } : undefined;
+  }, [read, unitCodes, unit?.source_locale, selected?.source_locale]);
+  // The edition the editor opens on, with the codes labelled as above.
+  const editorContent = useMemo(() => {
+    const content = read ? editionContent(read) : null;
+    return content ? { ...content, codes: unitCodes } : null;
+  }, [read, unitCodes]);
 
   const chips: Array<{ id: Chip; label: string }> = [
     { id: "all", label: t("All") },
@@ -1444,7 +1458,11 @@ export function ReviewPage({
                         translate="no"
                         {...directionAttrs(unit?.source_locale)}
                       >
-                        {unit?.source ?? selected?.source ?? ""}
+                        {unit?.source_runs?.length ? (
+                          <RunText runs={unit.source_runs} />
+                        ) : (
+                          (unit?.source ?? selected?.source ?? "")
+                        )}
                       </div>
                     </section>
 
@@ -1458,7 +1476,11 @@ export function ReviewPage({
                       {readError ? (
                         <div className="space-y-1">
                           <div className="whitespace-pre-wrap text-sm" translate="no">
-                            {unit?.target ?? selected?.target ?? ""}
+                            {unit?.target_runs?.length ? (
+                              <RunText runs={unit.target_runs} />
+                            ) : (
+                              (unit?.target ?? selected?.target ?? "")
+                            )}
                           </div>
                           <p className="text-xs text-destructive" data-slot="review-read-error">
                             {readError}
@@ -1467,7 +1489,7 @@ export function ReviewPage({
                       ) : (
                         <EditionEditPanel
                           sender={editSender}
-                          content={read ? editionContent(read) : null}
+                          content={editorContent}
                           locale={unit?.locale ?? selected?.locale}
                           reference={sourceReference}
                           readOnlyReason={
@@ -1554,7 +1576,11 @@ export function ReviewPage({
                                 translate="no"
                                 {...directionAttrs(unit.locale)}
                               >
-                                {unit.target}
+                                {unit.target_runs?.length ? (
+                                  <RunText runs={unit.target_runs} />
+                                ) : (
+                                  unit.target
+                                )}
                               </span>
                             </div>
                             <div className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1">
@@ -1564,7 +1590,7 @@ export function ReviewPage({
                               {aiProposal.edit !== undefined ? (
                                 <EditTextDisplay
                                   text={aiProposal.edit}
-                                  codes={read?.codes}
+                                  codes={unitCodes}
                                   locale={unit.locale}
                                   className="whitespace-pre-wrap"
                                 />
@@ -1579,7 +1605,19 @@ export function ReviewPage({
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          {/* Discard, then Accept last at the trailing edge, as
+                              the decision bar orders Reject and Approve. */}
+                          <div className="flex items-center justify-end gap-6">
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => setAIProposal(null)}
+                              disabled={editSender.busy}
+                              data-slot="review-ai-discard"
+                            >
+                              <X size={12} />
+                              {t("Discard")}
+                            </Button>
                             <Button
                               size="xs"
                               onClick={() => void acceptProposal()}
@@ -1592,16 +1630,6 @@ export function ReviewPage({
                                 <Check size={12} />
                               )}
                               {t("Accept")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="xs"
-                              onClick={() => setAIProposal(null)}
-                              disabled={editSender.busy}
-                              data-slot="review-ai-discard"
-                            >
-                              <X size={12} />
-                              {t("Discard")}
                             </Button>
                           </div>
                           <AIExchangeDisclosure entries={aiExchanges} />
@@ -1636,6 +1664,11 @@ export function ReviewPage({
                     <NeighbourhoodCard
                       neighbourhood={model?.neighbourhood}
                       unitKey={selected?.key}
+                      unit={
+                        unit?.source_runs?.length
+                          ? { key: unit.key, source: unit.source_runs, target: unit.target_runs }
+                          : undefined
+                      }
                       unitSource={unit?.source ?? selected?.source}
                       unitTarget={unit?.target ?? selected?.target}
                       sourceLocale={unit?.source_locale ?? selected?.source_locale}
@@ -1690,7 +1723,7 @@ export function ReviewPage({
               <div className="mt-3">
                 <StalePrompt
                   current={decisionSender.stale.current}
-                  codes={read?.codes}
+                  codes={unitCodes}
                   locale={selected?.is_source ? selected.source_locale : selected?.locale}
                   busy={deciding}
                   reapplyLabel={
@@ -1715,52 +1748,65 @@ export function ReviewPage({
               </p>
             )}
 
-            {/* Action bar: the keyboard verbs, spelled out. A source unit has
-                one decision, so Reject is absent on a source row and `r`
-                answers nothing there. */}
+            {/* Action bar: the keyboard verbs on the leading edge, the decision
+                on the trailing edge with Approve last, as a dialog puts its
+                confirming action last (packages/ui/docs/page-patterns.md). A
+                source unit has one decision, so Reject is absent on a source
+                row and `r` answers nothing there. */}
             <div
-              className="group mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
+              className="group mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3"
               data-slot="review-actions"
             >
-              <Button
-                variant="success"
-                size="sm"
-                onClick={approve}
-                disabled={!selected || deciding || !read}
-                data-slot="review-approve"
+              <div
+                className={`flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground ${HINT}`}
+                data-slot="review-key-hints"
               >
-                <Check size={13} />
-                {selected?.is_source ? t("Approve source") : t("Approve")}
-                <kbd className={`ml-1 rounded bg-black/10 px-1 text-[10px] ${HINT}`}>a</kbd>
-              </Button>
-              {/* Reject takes destructive, which is where the shared scale puts
-                  it (packages/ui/docs/judgement-colours.md): it undoes the
-                  translation in force rather than accepting it. */}
-              {!selected?.is_source && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={reject}
-                  disabled={!selected || deciding || !read}
-                  data-slot="review-reject"
-                >
-                  <X size={13} />
-                  {t("Reject")}
-                  <kbd className={`ml-1 rounded bg-black/10 px-1 text-[10px] ${HINT}`}>r</kbd>
-                </Button>
-              )}
-              <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
-                <span className={HINT} data-slot="review-key-hints">
+                <span>
                   <kbd className="rounded bg-muted px-1">j</kbd>/
                   <kbd className="rounded bg-muted px-1">k</kbd> {t("navigate")}
                 </span>
-                <span className={HINT}>
+                <span>
                   <kbd className="rounded bg-muted px-1">e</kbd> {t("edit")}
                 </span>
-                <span className={HINT}>
+                <span>
                   <kbd className="rounded bg-muted px-1">space</kbd> {t("skip")}
                 </span>
-                {deciding && <Loader2 size={12} className="animate-spin" />}
+                <span>
+                  <kbd className="rounded bg-muted px-1">a</kbd> {t("approve")}
+                </span>
+                {!selected?.is_source && (
+                  <span>
+                    <kbd className="rounded bg-muted px-1">r</kbd> {t("reject")}
+                  </span>
+                )}
+              </div>
+              {deciding && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+              <div className="ml-auto flex items-center gap-6" data-slot="review-decisions">
+                {/* Reject takes destructive, which is where the shared scale
+                    puts it (packages/ui/docs/judgement-colours.md): it undoes
+                    the translation in force rather than accepting it. */}
+                {!selected?.is_source && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={reject}
+                    disabled={!selected || deciding || !read}
+                    data-slot="review-reject"
+                  >
+                    <X size={13} />
+                    {t("Reject")}
+                  </Button>
+                )}
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={approve}
+                  disabled={!selected || deciding || !read}
+                  data-slot="review-approve"
+                >
+                  <Check size={13} />
+                  {selected?.is_source ? t("Approve source") : t("Approve")}
+                </Button>
               </div>
             </div>
           </div>

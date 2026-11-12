@@ -198,8 +198,8 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 				Key:          blockKey(b),
 				Collection:   u.Collection,
 				SourceLocale: string(proj.Defaults.SourceLanguage),
-				Source:       preview(b.SourceText()),
-				Target:       preview(b.TargetText(loc)),
+				Source:       preview(model.RunsDisplayText(b.SourceRuns())),
+				Target:       preview(model.RunsDisplayText(b.TargetRuns(loc))),
 				Position:     i + 1,
 			}
 			// Surface a fresh AI pre-review annotation (score + model) so the

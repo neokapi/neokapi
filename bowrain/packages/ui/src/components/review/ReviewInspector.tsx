@@ -20,6 +20,7 @@ import type { BlockInfo, BlockTermMatch, CheckIssue, ReviewContext } from "../..
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText } from "../editor/blockStatus";
+import { sourceRuns, targetRuns } from "../editor/blockContent";
 import { findingViews, latestNote, matchSaveResult, termHitViews } from "./reviewContext";
 import { Check, Pencil, X } from "../icons";
 
@@ -235,6 +236,11 @@ export function ReviewInspector({
             neighbourhood={context?.neighbourhood}
             loading={!context}
             unitKey={block?.id}
+            unit={
+              block
+                ? { key: block.id, source: sourceRuns(block), target: targetRuns(block, locale) }
+                : undefined
+            }
             unitSource={block?.source}
             unitTarget={block ? getTargetText(block, locale) : undefined}
             locale={locale}
@@ -280,32 +286,10 @@ export function ReviewInspector({
           />
         </div>
 
-        {/* Decision bar */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
-          <Button
-            size="sm"
-            variant="success"
-            onClick={onApprove}
-            disabled={busy || status === "established" || !hasTarget || !canApprove}
-            title={
-              canApprove ? undefined : "Approving needs the review permission for this language"
-            }
-            data-testid={block ? `approve-${block.id}` : undefined}
-          >
-            <Check className="mr-1 h-4 w-4" /> Approve
-            <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">A</kbd>
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={onReject}
-            disabled={busy || !hasTarget}
-            data-testid={block ? `reject-${block.id}` : undefined}
-          >
-            <X className="mr-1 h-4 w-4" /> Reject
-            <kbd className="ml-1.5 rounded bg-destructive/20 px-1 text-[10px]">R</kbd>
-          </Button>
-          <div className="flex-1" />
+        {/* Decision bar: batching and the key hints on the leading edge, the
+            decision on the trailing edge with Approve last, as a dialog puts
+            its confirming action last (packages/ui/docs/page-patterns.md). */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-4 py-2.5">
           <Button
             size="sm"
             variant={marked ? "default" : "outline"}
@@ -323,6 +307,40 @@ export function ReviewInspector({
               M
             </kbd>
           </Button>
+          <span
+            className="hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex"
+            aria-hidden
+          >
+            <span>
+              <kbd className="rounded border border-border px-1">A</kbd> approve
+            </span>
+            <span>
+              <kbd className="rounded border border-border px-1">R</kbd> reject
+            </span>
+          </span>
+          <div className="ml-auto flex items-center gap-6">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={onReject}
+              disabled={busy || !hasTarget}
+              data-testid={block ? `reject-${block.id}` : undefined}
+            >
+              <X className="mr-1 h-4 w-4" /> Reject
+            </Button>
+            <Button
+              size="sm"
+              variant="success"
+              onClick={onApprove}
+              disabled={busy || status === "established" || !hasTarget || !canApprove}
+              title={
+                canApprove ? undefined : "Approving needs the review permission for this language"
+              }
+              data-testid={block ? `approve-${block.id}` : undefined}
+            >
+              <Check className="mr-1 h-4 w-4" /> Approve
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

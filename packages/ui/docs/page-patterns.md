@@ -143,6 +143,12 @@ a caption under a section.
   65 to 75 characters a line; lists and tables take the pane.
 - A keyboard shortcut shows as `kbd` on hover or focus, not permanently on
   every row.
+- A decision pair and a dialog footer order their buttons the same way. The
+  confirming action (Approve, Save, Accept) comes last, at the trailing edge.
+  The negative or destructive action (Reject, Cancel, Discard) sits before it,
+  with clear space between the two rather than the adjacent `gap-2`. In a
+  review action bar the key hints sit on the leading edge. Swiping right to
+  approve on a phone follows the same direction.
 
 ## Copy
 

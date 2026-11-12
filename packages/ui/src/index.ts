@@ -434,6 +434,7 @@ export {
 export type { CodedSegment } from "./components/editor/codedText";
 export { codedToRuns, runsToCoded } from "./components/editor/runsCodedBridge";
 export { codedToEditText, editTextToCoded, editTextToSegments } from "./components/editor/editText";
+export { labelCodesFromRuns } from "./components/editor/codeLabels";
 export { parsePluralFormForChips } from "./components/editor/pluralCellPreview";
 export type { PluralCellPreview } from "./components/editor/pluralCellPreview";
 export {

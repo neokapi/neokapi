@@ -5,6 +5,7 @@ import {
   LocaleLabel,
   NeighbourhoodCard,
   SimpleTooltip,
+  labelCodesFromRuns,
   localeLabel,
 } from "@neokapi/ui-primitives";
 import type { BlockRead, ChangeResult } from "@neokapi/contract-types";
@@ -91,7 +92,12 @@ export function SourceUnitPane({
   }, [tabID, item.file, item.key, loadContext]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const awaiting = saved ? invalidatedEditions(saved) : null;
-  const content = read ? editionContent(read) : null;
+  const edition = read ? editionContent(read) : null;
+  // A placeholder the read leaves unlabelled (a code finder's `{{name}}`) takes
+  // its display text from the unit's runs, so the editor chip reads as it.
+  const content = edition
+    ? { ...edition, codes: labelCodesFromRuns(edition.codes, model?.neighbourhood?.unit?.source) }
+    : null;
 
   return (
     <div className="space-y-4" data-slot="source-unit-pane">
