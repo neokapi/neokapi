@@ -57,6 +57,9 @@
 #                            SPA (bowrain/web/landing/src) → committed runtime
 #                            catalogs
 #                            bowrain/web/landing/translations/<lang>.json
+#   bowrain-mobile         — the mobile app's react-i18next catalog
+#                            (bowrain/mobile/i18n/en.json) →
+#                            i18n/<lang>.json, bundled at build time
 #
 # Drive it with `make l10n`: one kapi pass over this whole recipe, wrapped in the
 # extraction and catalog-compilation stages a recipe may not name itself
@@ -174,6 +177,7 @@ defaults:
     - "harness/demos/*/demo.*.yaml"
     - "scripts/gen-refs/nativedocs/qps/**"
     - "**/palette.generated.css"
+    - "bowrain/mobile/src/uniwind-types.d.ts"
     # Sample projects and test fixtures: content written to be read by a check
     # or a test, faults included, rather than prose about this repository.
     - "samples/**"
@@ -194,7 +198,7 @@ profiles:
     voice:
       profile: neokapi-documentation
   bowrain:
-    channels: [app, ctrl, pulse, docs, email, landing]
+    channels: [app, ctrl, pulse, docs, email, landing, mobile]
     voice:
       profile: bowrain-platform
   # The code comments of both products. The comment voice holds them to its
@@ -399,6 +403,14 @@ collections:
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
+  - name: bowrain-mobile
+    channel: bowrain/mobile
+    base: bowrain/mobile
+    content:
+      - path: i18n/en.json
+        format:
+          name: json
+        target: "i18n/{lang}.json"
   # Distribution metadata: the description a user reads in a package manager
   # before anything is installed, and the one Windows shows in file properties.
   # Both are product copy that no docs sweep has ever looked at, and neither is
@@ -505,7 +517,7 @@ collections:
       - path: "{bowrain/apps,bowrain/packages,packages}/*/src/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{apps/kapi-desktop/frontend,bowrain/apps/bowrain/frontend,bowrain/emails,bowrain/web/landing,web}/src/**/*.{ts,tsx,js,mjs,cjs,css}"
+      - path: "{apps/kapi-desktop/frontend,bowrain/apps/bowrain/frontend,bowrain/emails,bowrain/mobile,bowrain/web/landing,web}/src/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
       - path: "{bowrain/packages,packages}/*/{examples,tests}/**/*.{ts,tsx,js,mjs,cjs,css}"
@@ -520,7 +532,7 @@ collections:
       - path: "*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{apps/kapi-desktop/frontend,bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/packages/*,bowrain/web/docs,bowrain/web/landing,packages/*,web}/*.{ts,tsx,js,mjs,cjs,css}"
+      - path: "{apps/kapi-desktop/frontend,bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/mobile,bowrain/packages/*,bowrain/web/docs,bowrain/web/landing,packages/*,web}/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
       - path: "{apps/kapi-desktop/frontend/scripts,bowrain/apps/bowrain/frontend/scripts,bowrain/emails/scripts,bowrain/web/docs/src,bowrain/web/landing/e2e,packages/*/cli,packages/*/scripts,.skills,examples,.claude/workflows}/**/*.{ts,tsx,js,mjs,cjs,css}"
@@ -548,7 +560,7 @@ collections:
       - path: "bowrain/apps/bowrain/build/**/*.{yaml,yml}"
         comments:
           only: true
-      - path: "{.github,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,cli,core,docs,harness,host,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
+      - path: "{.github,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,bowrain/mobile/e2e,cli,core,docs,harness,host,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
         comments:
           only: true
       - path: "bowrain/*.yaml"

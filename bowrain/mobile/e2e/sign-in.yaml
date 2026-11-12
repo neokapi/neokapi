@@ -1,0 +1,40 @@
+# Sign in to the local stack through Keycloak, from a clean install.
+#
+#   maestro test -e SERVER_URL=http://localhost:8080 \
+#     -e USERNAME=admin@bowrain.cloud -e PASSWORD=admin e2e/sign-in.yaml
+#
+# Runs against a development build on a simulator and the real local stack
+# (make -C bowrain stack-up); nothing here is mocked.
+appId: cloud.bowrain.app
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- assertVisible:
+    id: sign-in
+- tapOn:
+    id: server-url
+- eraseText
+- inputText: ${SERVER_URL}
+- tapOn:
+    id: sign-in
+# iOS asks before the app opens a browser sign-in session.
+- tapOn:
+    text: Continue
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: username
+    timeout: 20000
+- tapOn:
+    id: username
+- inputText: ${USERNAME}
+- tapOn:
+    id: password
+- inputText: ${PASSWORD}
+- tapOn:
+    id: kc-login
+- extendedWaitUntil:
+    visible:
+      id: sign-out
+    timeout: 20000

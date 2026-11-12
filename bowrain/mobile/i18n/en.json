@@ -1,0 +1,116 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "retry": "Try again",
+    "loadFailed": "Could not load this. Check your connection.",
+    "dismiss": "Dismiss"
+  },
+  "signIn": {
+    "title": "Bowrain",
+    "lead": "Review translations in the minutes between other work.",
+    "server": "Server",
+    "button": "Sign in",
+    "failed": "Sign-in did not finish. Try again.",
+    "unreachable": "Could not reach the server."
+  },
+  "signOut": {
+    "button": "Sign out",
+    "signedInAs": "Signed in as {{email}}",
+    "account": "Manage your account",
+    "queuedTitle": "Decisions not sent",
+    "queuedBody_one": "1 decision has not reached the server. Signing out discards it.",
+    "queuedBody_other": "{{count}} decisions have not reached the server. Signing out discards them.",
+    "confirm": "Sign out"
+  },
+  "workspaces": {
+    "title": "Workspaces",
+    "empty": "You are not a member of any workspace."
+  },
+  "projects": {
+    "title": "Projects",
+    "empty": "This workspace has no projects.",
+    "languages_one": "1 language",
+    "languages_other": "{{count}} languages"
+  },
+  "languages": {
+    "title": "Languages",
+    "groups": "{{fast}} quick, {{desk}} for the desk",
+    "empty": "This project has no target languages.",
+    "noPermission": "You do not have review permission in this project."
+  },
+  "deck": {
+    "title": "Review",
+    "remaining_one": "1 card here, {{total}} waiting",
+    "remaining_other": "{{count}} cards here, {{total}} waiting",
+    "remainingShort_one": "1 card",
+    "remainingShort_other": "{{count}} cards",
+    "offline_one": "Offline, 1 decision queued",
+    "offline_other": "Offline, {{count}} decisions queued",
+    "sending_one": "Sending 1 decision",
+    "sending_other": "Sending {{count}} decisions",
+    "unclassified_one": "1 more card is being sorted and joins the deck shortly.",
+    "unclassified_other": "{{count}} more cards are being sorted and join the deck shortly.",
+    "unordered": "This server does not order the deck. Cards come in queue order.",
+    "done": "Nothing left to review here.",
+    "deskTitle_one": "1 card for the desk",
+    "deskTitle_other": "{{count}} cards for the desk",
+    "deskLead": "These need a closer look than a phone allows. Review them in Bowrain on a computer."
+  },
+  "card": {
+    "noTranslation": "No translation yet.",
+    "preReview": "Pre-review score {{score}}",
+    "failingFindings_one": "1 failing check",
+    "failingFindings_other": "{{count}} failing checks",
+    "ownWork": "You wrote this translation, so another reviewer approves it. You can still fix or reject it.",
+    "noContext": "No context for this text. You cannot see where it appears."
+  },
+  "actions": {
+    "fix": "Fix",
+    "fixHint": "Opens the fix sheet. Same as swiping left.",
+    "later": "Later",
+    "laterHint": "Moves the card to the end of the deck. Same as swiping up.",
+    "approve": "Approve",
+    "approveHint": "Approves the translation. Same as swiping right."
+  },
+  "fix": {
+    "title": "Fix the translation",
+    "why": "Why",
+    "readyMade": "Ready-made fixes",
+    "fixesUnavailable": "Fixes need a connection. You can still edit or reject.",
+    "noFixRoute": "This server offers no ready-made fixes.",
+    "noFixes": "No ready-made fix for this text.",
+    "askAi": "Suggest a rewrite",
+    "askAiHint": "Uses AI credits.",
+    "edit": "Edit",
+    "notEditable": "This text has plural or select forms. Edit it on a computer.",
+    "startEdit": "Edit the translation",
+    "approveCorrection": "Approve the correction",
+    "reject": "Reject",
+    "notePlaceholder": "Note for the next draft (optional)",
+    "rejectButton": "Reject and ask for a new draft",
+    "rejectNeedsReason": "Choose a reason above to reject.",
+    "useFix": "Use this fix",
+    "editField": "Text {{n}} of {{count}}",
+    "kind": {
+      "term": "Term fix",
+      "memory": "From the content memory",
+      "ai": "AI rewrite"
+    }
+  },
+  "reasons": {
+    "wrong_term": "Wrong term",
+    "meaning": "Meaning",
+    "tone": "Tone",
+    "placeholder": "Placeholder",
+    "grammar": "Grammar"
+  },
+  "notice": {
+    "stale": "This text changed after you read it. The new version is back in the deck.",
+    "held": "Your correction is saved and waits for another reviewer.",
+    "refused": "The server did not accept a decision."
+  },
+  "undo": {
+    "label": "Decision recorded",
+    "button": "Undo"
+  }
+}

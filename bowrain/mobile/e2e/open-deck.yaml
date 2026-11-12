@@ -1,0 +1,15 @@
+# Open the review deck for one language. Used by the decision flows.
+#
+#   -e WORKSPACE=<slug> -e PROJECT=<project id> -e LOCALE=nb
+appId: cloud.bowrain.app
+---
+- tapOn:
+    id: workspace-${WORKSPACE}
+- tapOn:
+    id: project-${PROJECT}
+- tapOn:
+    id: language-${LOCALE}
+- extendedWaitUntil:
+    visible:
+      id: review-card
+    timeout: 20000
