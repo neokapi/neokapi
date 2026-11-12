@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T22:59:42Z",
+  "generatedAt": "2026-11-12T14:57:58Z",
   "commands": [
     {
       "id": "add",
@@ -9660,6 +9660,12 @@
           "type": "string"
         },
         {
+          "name": "recycle-only",
+          "usage": "fill only the targets the content memory answers exactly, in one pass, with no provider calls",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "server",
           "usage": "▒ ŕéǫüîŕé ţĥé šéŕṽéŕ ṽéñüé: ƒàîļ ŕàţĥéŕ ţĥàñ ŕüñ ţĥé ļööþ ļöçàļļý ŵĥéñ ţĥé ŕéçîþé ĥàš ñö šéŕṽéŕ öŕ ţĥé šéŕṽéŕ þļüḿƃîñĝ îš üñàṽàîļàƃļé ▒",
           "default": "false",
@@ -9708,6 +9714,7 @@
         "kapi up                # run the default flow; stop where a gate holds content back",
         "kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
+        "kapi up --recycle-only # fill exact content-memory matches only, with no provider",
         "kapi up --materialize  # also write target-language files for the shippable locales",
         "kapi up --local        # connected project: run the loop on this machine, then push the results",
         "kapi up -p kapi.yaml   # bring an explicit project recipe up to date"

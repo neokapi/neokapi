@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T22:59:42Z",
+  "generatedAt": "2026-11-12T14:57:58Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -2056,6 +2056,12 @@
           "type": "string",
           "required": false,
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        },
+        {
+          "name": "recycle_only",
+          "type": "boolean",
+          "required": false,
+          "description": "fill only the targets the content memory answers exactly, in one pass, with no provider calls; runs on this machine, so a server-connected project also needs local"
         }
       ]
     },
