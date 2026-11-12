@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -375,8 +374,6 @@ type pointResolver struct {
 	held   bool
 	voices map[string]*coreprofile.VoiceProfile
 	terms  map[string]terms.Terminology
-	// sources are where the profiles the resolver loaded came from, each once.
-	sources []string
 }
 
 // newPointResolver builds a resolver for one operation over one project. held
@@ -493,7 +490,7 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 		return nil
 	}
 	defer release()
-	p, source, ok, err := engine.ResolveVoiceProfile(
+	p, _, ok, err := engine.ResolveVoiceProfile(
 		ctx, v.proj, v.root, host.VoiceResolveOptions{Point: pt, Store: store},
 	)
 	if err != nil {
@@ -503,36 +500,7 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 	if !ok {
 		return nil
 	}
-	if !slices.Contains(v.sources, source) {
-		v.sources = append(v.sources, source)
-	}
 	return p
-}
-
-// store returns the project's voice store, for a caller that reports on a
-// profile the resolver loaded. A recipe binds a voice by name or by the path
-// `kapi store import` filed it under, and the store answers for either.
-// Best-effort: a store this build cannot open reads as nil.
-func (v *pointResolver) store(ctx context.Context) (coreprofile.Store, func()) {
-	noop := func() {}
-	if v == nil {
-		return nil, noop
-	}
-	store, release, err := v.app.checksCLI().ProjectVoiceStore(ctx, v.root)
-	if err != nil {
-		v.err = err
-		return nil, noop
-	}
-	return store, release
-}
-
-// loadedSources are where the profiles the resolver loaded came from, each once,
-// in the order the resolver first loaded them.
-func (v *pointResolver) loadedSources() []string {
-	if v == nil {
-		return nil
-	}
-	return v.sources
 }
 
 // --- helpers ---------------------------------------------------------------

@@ -571,4 +571,3 @@ func TestRunChecksNeverPassesOverNothing(t *testing.T) {
 		assert.Empty(t, res.DidNotRunCause)
 	})
 }
-
