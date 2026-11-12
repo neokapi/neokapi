@@ -173,14 +173,10 @@ export function AgentHosts(tabID) {
 }
 
 /**
- * AnnotateEntities applies entity annotations to selected content-memory entries. The
- * patterns are searched across every variant's plain text and entity spans
- * are inserted where matches are found. Entity values are populated per
- * locale from the matching variant.
- * 
- * When TermsHandle is set, each new entity's text is looked up in the
- * terms; if a concept matches, its ID is stored on the EntityMapping
- * so the content-memory entry cross-references the terms store.
+ * AnnotateEntities marks each pattern as an entity in the selected
+ * content-memory entries (memory.AnnotateEntries, which `kapi memory annotate`
+ * also runs). When TermsHandle is set, each new entity is linked to the terms
+ * concept its text matches.
  * @param {string} handle
  * @param {$models.AnnotateEntitiesRequest} req
  * @returns {$CancellablePromise<$models.AnnotateResult | null>}
@@ -2586,10 +2582,10 @@ export function ResetSampleProject(tabID) {
 }
 
 /**
- * ResolveEntityConcepts re-links entities on content-memory entries to terms concepts.
- * Useful after a terms store import or when entities were created without a
- * terms available. Entries whose entities already have a ConceptID are
- * skipped unless force is true.
+ * ResolveEntityConcepts links the entities on content-memory entries to the
+ * terms concepts their text matches (memory.LinkEntryConcepts), after a terms
+ * import or for entities created with no terms store at hand. An entity
+ * already linked is skipped unless force is true.
  * @param {string} memoryHandle
  * @param {string} tbHandle
  * @param {string[]} entryIDs
@@ -2694,11 +2690,13 @@ export function RulesFiles(tabID) {
 }
 
 /**
- * RunAIPreReview runs the ai review tool over the pending review queue for a
- * locale (batch, explicitly invoked — never during queue listing). Every unit
- * gets an advisory annotation (score + findings) in the project state store,
- * bound to the translation it judged. Every unit stays in the queue for a
- * person to decide.
+ * RunAIPreReview runs the AI pre-review over the pending review queue for a
+ * locale (host.App.RunAIPreReview, which `kapi status --review --pre-review`
+ * also runs). Every block gets an advisory annotation (score and findings) in
+ * the project state store, bound to the translation it judged, and stays in
+ * the queue for a person to decide. The judge is built from the desktop's
+ * tool registry and credential store, and each model call runs under the
+ * block's activity scope.
  * @param {string} tabID
  * @param {string} locale
  * @param {$models.PreReviewScope} scope
