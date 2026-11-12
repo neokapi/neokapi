@@ -14,7 +14,7 @@ import {
 import type { EntityInfo, ComplianceBasis, ReviewContext } from "../../types/api";
 import { ComplianceRateChip } from "../ComplianceRateChip";
 import { entityLabel } from "../editor/entityMarks";
-import { sourceRuns } from "../editor/blockContent";
+import { sourceRuns, targetRuns } from "../editor/blockContent";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
@@ -285,6 +285,7 @@ export function FocusedReviewer({
             neighbourhood={context?.neighbourhood}
             loading={contextLoading}
             unitKey={block.id}
+            unit={{ key: block.id, source: sourceRuns(block), target: targetRuns(block, locale) }}
             unitSource={block.source}
             unitTarget={targetText}
             sourceLocale={sourceLocale}
@@ -523,40 +524,21 @@ export function FocusedReviewer({
         </div>
       </div>
 
-      {/* Decision bar + keyboard hints */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
-        <Button
-          size="sm"
-          variant="success"
-          onClick={onApprove}
-          disabled={busy || !canApprove}
-          title={canApprove ? undefined : "Approving needs the review permission for this language"}
-          data-testid="reviewer-approve"
-        >
-          <Check className="mr-1 h-4 w-4" /> Approve
-          <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">A</kbd>
-        </Button>
-        {/* Reject takes destructive, which is where the shared scale puts it
-            (packages/ui/docs/judgement-colours.md): it undoes the translation
-            in force rather than accepting it. */}
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={onReject}
-          disabled={busy}
-          data-testid="reviewer-reject"
-        >
-          <X className="mr-1 h-4 w-4" /> Reject
-          <kbd className="ml-1.5 rounded bg-destructive/20 px-1 text-[10px]">R</kbd>
-        </Button>
-        <div className="flex-1" />
+      {/* Keyboard hints on the leading edge, the decision on the trailing edge
+          with Approve last, as a dialog puts its confirming action last
+          (packages/ui/docs/page-patterns.md). */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-4 py-2.5">
         <span
           className="hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex"
           aria-hidden
+          data-testid="reviewer-key-hints"
         >
           <span>
             <kbd className="rounded border border-border px-1">J</kbd>/
             <kbd className="rounded border border-border px-1">K</kbd> move
+          </span>
+          <span>
+            <kbd className="rounded border border-border px-1">E</kbd> edit
           </span>
           <span>
             <kbd className="rounded border border-border px-1">A</kbd> approve
@@ -564,13 +546,34 @@ export function FocusedReviewer({
           <span>
             <kbd className="rounded border border-border px-1">R</kbd> reject
           </span>
-          <span>
-            <kbd className="rounded border border-border px-1">E</kbd> edit
-          </span>
           <span className="text-muted-foreground/70">
             {errorCount > 0 ? `${errorCount} error(s)` : ""}
           </span>
         </span>
+        <div className="ml-auto flex items-center gap-6" data-testid="reviewer-decisions">
+          {/* Reject takes destructive, which is where the shared scale puts it
+              (packages/ui/docs/judgement-colours.md): it undoes the translation
+              in force rather than accepting it. */}
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={onReject}
+            disabled={busy}
+            data-testid="reviewer-reject"
+          >
+            <X className="mr-1 h-4 w-4" /> Reject
+          </Button>
+          <Button
+            size="sm"
+            variant="success"
+            onClick={onApprove}
+            disabled={busy || !canApprove}
+            title={canApprove ? undefined : "Approving needs the review permission for this language"}
+            data-testid="reviewer-approve"
+          >
+            <Check className="mr-1 h-4 w-4" /> Approve
+          </Button>
+        </div>
       </div>
     </div>
   );

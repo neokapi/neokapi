@@ -127,17 +127,9 @@ export function ReviewsPanel({ changeset }: ReviewsPanelProps) {
                   : "Could not record the review."}
               </p>
             )}
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => submit("approve")}
-                disabled={busy || blocked}
-                title={blocked ? "You cannot approve your own experiment" : undefined}
-                className={cn(blocked && "cursor-not-allowed")}
-              >
-                <Check />
-                {soloReview ? "Approve as sole reviewer" : "Approve"}
-              </Button>
+            {/* Reject, then Approve last at the trailing edge, as a dialog puts
+                its confirming action last (packages/ui/docs/page-patterns.md). */}
+            <div className="flex items-center justify-end gap-6">
               <Button
                 size="sm"
                 variant="outline"
@@ -148,6 +140,16 @@ export function ReviewsPanel({ changeset }: ReviewsPanelProps) {
               >
                 <X />
                 Reject
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => submit("approve")}
+                disabled={busy || blocked}
+                title={blocked ? "You cannot approve your own experiment" : undefined}
+                className={cn(blocked && "cursor-not-allowed")}
+              >
+                <Check />
+                {soloReview ? "Approve as sole reviewer" : "Approve"}
               </Button>
             </div>
           </div>

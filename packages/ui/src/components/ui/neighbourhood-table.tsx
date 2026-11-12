@@ -14,8 +14,8 @@ import { RunText } from "./run-text";
  * surfaces should be reading one document, not two renderings of it.
  *
  * Each row is a key, the source beneath it, and the target beneath that where
- * the neighbour has one. The neighbours travel as run sequences and are drawn
- * through the declared run projection, chips and all.
+ * the neighbour has one. The neighbours and the unit travel as run sequences
+ * and are drawn through the declared run projection, chips and all.
  */
 
 /** One block beside the unit under decision. */
@@ -34,6 +34,12 @@ export interface NeighbourhoodTableProps {
   after?: NeighbourhoodEntry[];
   /** The unit under decision, rendered in place between its neighbours. */
   unitKey?: string;
+  /**
+   * The unit's own runs. When present they are drawn through the run
+   * projection, as the neighbours are, and unitSource / unitTarget are not read.
+   */
+  unit?: NeighbourhoodEntry;
+  /** The unit's text, for a caller that holds no runs for it. */
   unitSource?: string;
   unitTarget?: string;
   /** The language the source is written in. */
@@ -83,12 +89,14 @@ export function NeighbourhoodTable({
   before = [],
   after = [],
   unitKey,
+  unit,
   unitSource,
   unitTarget,
   sourceLocale,
   targetLocale,
   className,
 }: NeighbourhoodTableProps) {
+  const unitRuns = unit && unit.source && unit.source.length > 0 ? unit : undefined;
   return (
     <ul
       className={cn("divide-y divide-border/60 rounded-md border text-xs", className)}
@@ -106,6 +114,22 @@ export function NeighbourhoodTable({
         <span className="w-24 shrink-0 break-all font-mono text-[10px] font-medium" translate="no">
           {unitKey}
         </span>
+        {unitRuns ? (
+          <span className="min-w-0 flex-1 space-y-0.5">
+            <RunText
+              runs={unitRuns.source}
+              className="block text-muted-foreground"
+              dirAttrs={directionAttrs(sourceLocale)}
+            />
+            {unitRuns.target && unitRuns.target.length > 0 && (
+              <RunText
+                runs={unitRuns.target}
+                className="block font-medium"
+                dirAttrs={directionAttrs(targetLocale)}
+              />
+            )}
+          </span>
+        ) : (
         <span className="min-w-0 flex-1 space-y-0.5">
           <span
             className="block whitespace-pre-wrap text-muted-foreground"
@@ -124,6 +148,7 @@ export function NeighbourhoodTable({
             </span>
           ) : null}
         </span>
+        )}
       </li>
       {after.map((n, i) => (
         <NeighbourRow

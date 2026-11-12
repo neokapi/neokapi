@@ -1715,8 +1715,12 @@ export interface ReviewUnitDetail {
   file: string;
   key: string;
   collection?: string;
+  /** Display text, placeholders included, for a surface that needs one string. */
   source: string;
   target: string;
+  /** The unit's content as runs; the page draws these, chips and all. */
+  source_runs?: Run[];
+  target_runs?: Run[];
   /** The project's source language — drives `dir`/`lang` on the source pane. */
   source_locale?: string;
   /** Effective ladder state (draft|translated|established). */
