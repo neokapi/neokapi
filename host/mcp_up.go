@@ -77,7 +77,8 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "up_plan",
 		Description: "Dry-run the catch-up work for a kapi project: per (collection, locale), the blocks " +
-			"missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider " +
+			"missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate, with the " +
+			"source files the project store has not read yet (drift). No provider " +
 			"calls, nothing written. The pre-flight for the up tool.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upPlanMCPInput) (*mcp.CallToolResult, *UpPlanOutput, error) {
 		path, err := a.mcpProjectPath(in.Project)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T14:57:58Z",
+  "generatedAt": "2026-11-12T15:33:13Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -2067,7 +2067,7 @@
     },
     {
       "name": "up_plan",
-      "description": "Dry-run the catch-up work for a kapi project: per (collection, locale), the blocks missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider calls, nothing written. The pre-flight for the up tool.",
+      "description": "Dry-run the catch-up work for a kapi project: per (collection, locale), the blocks missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate, with the source files the project store has not read yet (drift). No provider calls, nothing written. The pre-flight for the up tool.",
       "surface": "translation",
       "params": [
         {

@@ -20,6 +20,9 @@ import * as convergence$0 from "../core/convergence/models.js";
 import * as profile$0 from "../core/profile/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as project$0 from "../core/project/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as review$0 from "../core/review/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -4944,6 +4947,18 @@ export class UpPlanOutput {
              */
             this["warnings"] = undefined;
         }
+        if (!("drift" in $$source)) {
+            /**
+             * Drift is the project store's standing against the source files on disk:
+             * the files changed or removed since the store last read them, or a store
+             * that is missing or was written by another kapi version. A run reads
+             * those files again before its first pass, unless it runs with
+             * --no-extract. A plan reports a missing store and creates none.
+             * @member
+             * @type {project$0.StoreDrift}
+             */
+            this["drift"] = (new project$0.StoreDrift());
+        }
         if (!("note" in $$source)) {
             /**
              * Note documents the estimation method for agents reading the JSON.
@@ -4965,6 +4980,7 @@ export class UpPlanOutput {
         const $$createField3_0 = $$createType108;
         const $$createField4_0 = $$createType107;
         const $$createField9_0 = $$createType96;
+        const $$createField10_0 = $$createType109;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -4974,6 +4990,9 @@ export class UpPlanOutput {
         }
         if ("warnings" in $$parsedSource) {
             $$parsedSource["warnings"] = $$createField9_0($$parsedSource["warnings"]);
+        }
+        if ("drift" in $$parsedSource) {
+            $$parsedSource["drift"] = $$createField10_0($$parsedSource["drift"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
     }
@@ -5260,3 +5279,4 @@ const $$createType105 = RulesFile.createFrom;
 const $$createType106 = $Create.Array($$createType105);
 const $$createType107 = UpPlanScope.createFrom;
 const $$createType108 = $Create.Array($$createType107);
+const $$createType109 = project$0.StoreDrift.createFrom;

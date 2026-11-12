@@ -185,6 +185,14 @@ func withExistingStoresOnly(ctx context.Context) context.Context {
 	return context.WithValue(ctx, existingStoresOnlyKey{}, true)
 }
 
+// WithExistingStoresOnly marks ctx as withExistingStoresOnly does, for a
+// caller outside host: a surface that only looks at a project, such as the
+// desktop's status panel, reads through it and leaves a project with no store
+// without one.
+func WithExistingStoresOnly(ctx context.Context) context.Context {
+	return withExistingStoresOnly(ctx)
+}
+
 // existingStoresOnly reports whether ctx is marked by withExistingStoresOnly.
 func existingStoresOnly(ctx context.Context) bool {
 	if ctx == nil {

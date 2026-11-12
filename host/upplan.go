@@ -147,6 +147,12 @@ type UpPlanOutput struct {
 	// format no installed reader opens (check.WarningFormatNoReader). A run sets
 	// that content aside.
 	Warnings []check.Warning `json:"warnings,omitempty"`
+	// Drift is the project store's standing against the source files on disk:
+	// the files changed or removed since the store last read them, or a store
+	// that is missing or was written by another kapi version. A run reads
+	// those files again before its first pass, unless it runs with
+	// --no-extract. A plan reports a missing store and creates none.
+	Drift project.StoreDrift `json:"drift"`
 	// Note documents the estimation method for agents reading the JSON.
 	Note string `json:"note"`
 	// readNothing says every unit the plan resolved was set aside, so an empty
@@ -168,6 +174,7 @@ const upPlanSubscriptionNote = "AI work runs on your Claude subscription, so the
 // FormatText renders the plan as a table.
 func (o UpPlanOutput) FormatText(w io.Writer) error {
 	defer writeSetAside(w, o.Warnings)
+	defer writeDrift(w, o.Drift)
 	if o.Monolingual {
 		fmt.Fprintln(w, "No target languages configured: `kapi up` reconciles the source. It seeds the committed context, re-extracts the working tree and refreshes the occurrence graph. Nothing is translated and no provider is called.")
 		return nil
@@ -268,6 +275,25 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
+// writeDrift states the project store's drift from the source files, which
+// a run reads again before its first pass. A store that matches the files
+// prints nothing.
+func writeDrift(w io.Writer, d project.StoreDrift) {
+	var why string
+	switch {
+	case d.StoreMissing:
+		why = "the project store has not read the source files yet"
+	case d.VersionStale:
+		why = "the project store was written by another kapi version"
+	case len(d.Changed) > 0 || len(d.Removed) > 0:
+		why = fmt.Sprintf("%d source file(s) changed and %d removed since the project store read them",
+			len(d.Changed), len(d.Removed))
+	default:
+		return
+	}
+	fmt.Fprintf(w, "\n  Source drift: %s, so a run reads the source files before its first pass.\n", why)
+}
+
 // writeSetAside lists the content a plan or a run set aside because no
 // installed reader opens it, after everything else the output reports.
 func writeSetAside(w io.Writer, warnings []check.Warning) {
@@ -351,6 +377,9 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	if lerr != nil {
 		return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
 	}
+	// A project with no store has read nothing yet: every source file is
+	// drift, and the run's first extraction reads them all.
+	drift := project.StoreDrift{StoreMissing: true}
 	if held, _ := storage.Exists(layout.StorePath()); held {
 		db, derr := a.ProjectDB(ctx, layout.Root)
 		if derr != nil {
@@ -376,12 +405,18 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 			return UpPlanOutput{}, perr
 		}
 		basis.passing = passing
+		resolved, rerr := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
+		if rerr != nil {
+			return UpPlanOutput{}, fmt.Errorf("resolve content: %w", rerr)
+		}
+		drift = db.DetectStoreDrift(ctx, resolved)
 	}
 
 	plan, err := a.computeUpPlan(ctx, basis, proj, units)
 	if err != nil {
 		return plan, err
 	}
+	plan.Drift = drift
 	plan.upToDate = basis.passing != nil && len(basis.passing) == 0
 	plan.Warnings = basis.unread.warnings()
 	_, plan.readNothing = basis.unread.unitsSkipped(root, units)

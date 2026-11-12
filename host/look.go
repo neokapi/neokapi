@@ -286,13 +286,34 @@ func lookCommand(ctx context.Context, recipe string) *EnvCommand {
 	return cmd
 }
 
+// ProjectRuleCount counts the rules in force across the places the files of
+// the project at recipe sit at: the count the Overview reports, in `kapi look`
+// and on the desktop. It reads the project's stores and its context log and
+// creates neither.
+func (a *App) ProjectRuleCount(ctx context.Context, recipe string) (int, error) {
+	a.InitRegistries()
+	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return 0, fmt.Errorf("load project: %w", err)
+	}
+	root := filepath.Dir(recipe)
+	files, err := a.projectSourceFiles(proj, root)
+	if err != nil {
+		return 0, err
+	}
+	pcmd := lookCommand(withExistingStoresOnly(ctx), recipe)
+	a.applyProjectSourceLang(pcmd)
+	return a.lookRuleCount(pcmd, proj, root, files), nil
+}
+
 // lookRuleCount counts the rules in force across the places the project's
-// files sit at: one answer per point, as the rules files read them, with each
-// rule counted once however many points hold it.
+// files sit at: one answer per point, as the rules files read them, added to
+// one rulesview.RuleTally so each rule counts once however many points hold
+// it.
 func (a *App) lookRuleCount(cmd Command, proj *project.KapiProject, root string, files []string) int {
 	at := a.GovernanceInstant()
 	points := map[string]bool{}
-	rules := map[string]bool{}
+	var tally rulesview.RuleTally
 	samples := append([]string{filepath.Join(root, rulesRootSample)}, files...)
 	for _, file := range samples {
 		key := rulesPointKey(proj, projectRel(root, file), at)
@@ -308,20 +329,14 @@ func (a *App) lookRuleCount(cmd Command, proj *project.KapiProject, root string,
 			continue
 		}
 		for _, r := range res.Rules {
-			rules["rule|"+ruleKey(r)] = true
+			tally.AddWordRule(r.Say, r.Not, r.Locale)
 		}
 		for _, n := range res.EstablishedNotes {
-			rules["note|"+n.Operation] = true
+			tally.AddNote(n.Operation)
 		}
-		if v := src.Voice; v != nil {
-			for _, p := range slices.Concat(v.Style.ProhibitedPatterns, v.Style.RequiredPatterns) {
-				if strings.TrimSpace(p.Regex) != "" {
-					rules["voice|"+v.Name+"|"+p.Regex] = true
-				}
-			}
-		}
+		tally.AddVoice(src.Voice)
 	}
-	return len(rules)
+	return tally.Len()
 }
 
 // lookSuggestions lists what review asks a person about: each disagreement,

@@ -185,6 +185,13 @@ func TestOverviewReaderParity(t *testing.T) {
 	require.NoError(t, err)
 	require.Positive(t, reader.Findings)
 
+	// `kapi look` reports the rule count the desktop's Overview reports.
+	lookCmd := host.NewEnvCommand(t.Context(), "look")
+	lookCmd.Flags().String("project", recipe, "")
+	look, err := app.hostEngine().LookProject(lookCmd)
+	require.NoError(t, err)
+	assert.Equal(t, look.Rules, summary.Rules, "the Overview and `kapi look` count the same rules")
+
 	// What a push of the project carries, with the voice and terms the
 	// desktop's checks ran under at each collection's point.
 	op := app.getOpenProject(tab.ID)

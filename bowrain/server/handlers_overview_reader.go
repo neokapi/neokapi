@@ -155,19 +155,62 @@ func (s *Server) HandleOverviewSummary(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
-// mapRuleCount counts the rules in force at the project's own point: the
-// concepts in the workspace's terms store, the patterns of the voice bound
-// there, and the term rules and notes the ledger holds established.
+// mapRuleCount counts the rules in force across the project's places, as
+// `kapi look` and the desktop's Overview count them (rulesview.RuleTally).
+// Each place is the project's own point or a collection's. It adds the word
+// rules of the terms, the voice's file and the ledger's established term
+// rules, the notes kept there and the patterns of the voice bound there.
 func (s *Server) mapRuleCount(ctx context.Context, c echo.Context, st *decideState) (int, error) {
-	checks, err := jobs.ResolvePointChecks(ctx, s.checkBinding(c.Param("ws")), st.project.ID, st.stream, "", st.project.WorkspaceID, st.project.DefaultSourceLanguage)
-	if err != nil {
-		return 0, err
+	now := time.Now().UTC()
+	var tally rulesview.RuleTally
+	// The project's own point first, then one item from each collection.
+	type place struct{ item, path string }
+	places := []place{{}}
+	seen := map[string]bool{}
+	for _, it := range st.items {
+		path := itemSourcePath(it)
+		if col := st.collectionOf[path]; !seen[col] {
+			seen[col] = true
+			places = append(places, place{item: it.Name, path: path})
+		}
 	}
-	concepts, err := conceptsOf(ctx, checks.Terms)
-	if err != nil {
-		return 0, err
+	for _, pl := range places {
+		checks, err := jobs.ResolvePointChecks(ctx, s.checkBinding(c.Param("ws")), st.project.ID, st.stream, pl.item, st.project.WorkspaceID, st.project.DefaultSourceLanguage)
+		if err != nil {
+			return 0, err
+		}
+		concepts, err := conceptsOf(ctx, checks.Terms)
+		if err != nil {
+			return 0, err
+		}
+		var held []string
+		for _, cpt := range concepts {
+			for _, t := range cpt.Terms {
+				held = append(held, t.Text)
+			}
+		}
+		var point map[string]string
+		if pl.item != "" {
+			point = st.coordinates[pl.path]
+		}
+		resolved := contextop.Resolve(st.records, nil, contextop.ResolveRequest{
+			Project: st.key, Coordinates: point, Held: held, Space: st.places.Space, At: now,
+		})
+		hits, _ := rulesview.TermsInForce(concepts, "", now, 0)
+		words, _ := rulesview.SayThisNotThat(hits, resolved.Binding, checks.Voice, 1<<16)
+		tally.AddWordRules(words)
+		for _, r := range st.established() {
+			if r.Subject.Kind != contextop.SubjectNote || r.Kind != contextop.KindObserve {
+				continue
+			}
+			if r.Scope.Level != contextop.LevelWorkspace && !r.Scope.CoversIn(st.places.Space, point) {
+				continue
+			}
+			tally.AddNote(r.ID)
+		}
+		tally.AddVoice(checks.Voice)
 	}
-	return len(concepts) + voiceRuleCount(checks.Voice) + len(notInTerms(st.established(), concepts)), nil
+	return tally.Len(), nil
 }
 
 // conceptsOf reads every concept of a terms store; none when no store is
@@ -203,29 +246,6 @@ func notInTerms(records []contextop.Record, concepts []terms.Concept) []contexto
 		out = append(out, r)
 	}
 	return out
-}
-
-// voiceRuleCount counts the rules a voice profile applies to text: the word
-// rules its file carries and its prohibited and required patterns, as the
-// desktop's Overview counts them.
-func voiceRuleCount(p *coreprofile.VoiceProfile) int {
-	if p == nil {
-		return 0
-	}
-	n := 0
-	for _, set := range coreprofile.CarriedRuleSets(p) {
-		for _, r := range set.Rules {
-			if strings.TrimSpace(r.Term) != "" {
-				n++
-			}
-		}
-	}
-	for _, pat := range slices.Concat(p.Style.ProhibitedPatterns, p.Style.RequiredPatterns) {
-		if strings.TrimSpace(pat.Regex) != "" {
-			n++
-		}
-	}
-	return n
 }
 
 // projectCheckStarted is the body POST /:ws/:id/map/:ref/check answers with:

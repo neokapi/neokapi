@@ -14,13 +14,11 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/contextop"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/screens"
@@ -333,97 +331,21 @@ func (a *App) mapBlockCounts(ctx context.Context, op *openProject) (map[string]i
 	return counts, nil
 }
 
-// mapRuleCount counts the rules in force at the project's own point. Those
-// are the concepts in the terms store the project binds, where a kept term
-// rule is recorded, and the word rules and patterns of the voice profile. The
-// notes a person kept count too; the operation log alone holds them. The
-// record of an import is a note about where context came from, not a rule,
-// and is not counted.
+// mapRuleCount counts the rules in force across the project's places, the
+// count `kapi look` reports, through host.ProjectRuleCount. A folder whose
+// recipe is not written yet has no place to count rules at and counts none.
 func (a *App) mapRuleCount(ctx context.Context, op *openProject) (int, error) {
-	total := 0
-	if _, ok := a.existingProjectStore(op); ok { //nolint:contextcheck // the store opens under the engine's own context
-		n, err := a.mapStoredRuleCount(ctx, op)
-		if err != nil {
-			return 0, err
-		}
-		total += n
+	if !op.onDisk() {
+		return 0, nil
 	}
-
-	// The context log reads a project by its recipe, so a folder whose recipe
-	// is not written yet has no kept notes to count.
-	if op.workspaceKey != "" && op.onDisk() {
-		log, lerr := a.hostEngine().ContextOperations(ctx, host.ContextLogRequest{
-			Project:  op.Path,
-			Status:   contextop.StatusEstablished,
-			Subjects: true,
-		})
-		if lerr != nil {
-			return 0, fmt.Errorf("read kept notes: %w", lerr)
-		}
-		for _, r := range log.Operations {
-			if r.Subject.Kind == contextop.SubjectNote && r.Kind != contextop.KindImport && r.Project == op.workspaceKey {
-				total++
-			}
-		}
-	}
-	return total, nil
-}
-
-// mapStoredRuleCount counts the rules the project's stores hold: the concepts
-// in its terms store and the rules of the voice profile at its own point. The
-// caller asks only when the project has a store, so the Overview never brings one
-// into being.
-func (a *App) mapStoredRuleCount(ctx context.Context, op *openProject) (int, error) {
-	total := 0
-	src, cleanup, err := a.contextExplorerSources(ctx, op)
+	a.mu.RLock()
+	recipe := op.Path
+	a.mu.RUnlock()
+	n, err := a.hostEngine().ProjectRuleCount(ctx, recipe)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("count rules: %w", err)
 	}
-	defer cleanup()
-	if src.TermsErr == nil && src.Terms != nil {
-		_, n, terr := src.Terms.Search(ctx, "", "", "", 0, 1)
-		if terr != nil {
-			return 0, fmt.Errorf("count terms: %w", terr)
-		}
-		total += n
-	}
-
-	root := filepath.Dir(op.Path)
-	voiceStore, release, verr := a.hostEngine().ProjectVoiceStore(ctx, root)
-	if verr == nil {
-		defer release()
-		profile, _, _, ok, perr := a.hostEngine().LoadCollectionVoice(ctx, op.Project, root,
-			host.VoiceResolveOptions{
-				Store: voiceStore,
-				Point: project.GovernancePoint{At: a.hostEngine().GovernanceInstant()},
-			})
-		if perr == nil && ok {
-			total += voiceRuleCount(profile)
-		}
-	}
-	return total, nil
-}
-
-// voiceRuleCount counts the rules a voice profile applies to text: the word
-// rules its file carries and its prohibited and required patterns.
-func voiceRuleCount(p *coreprofile.VoiceProfile) int {
-	if p == nil {
-		return 0
-	}
-	n := 0
-	for _, set := range coreprofile.CarriedRuleSets(p) {
-		for _, r := range set.Rules {
-			if strings.TrimSpace(r.Term) != "" {
-				n++
-			}
-		}
-	}
-	for _, pat := range append(append([]coreprofile.Pattern{}, p.Style.ProhibitedPatterns...), p.Style.RequiredPatterns...) {
-		if strings.TrimSpace(pat.Regex) != "" {
-			n++
-		}
-	}
-	return n
+	return n, nil
 }
 
 // mapSuggestions fills the items awaiting a decision from the project's

@@ -1070,8 +1070,8 @@ export function GetConceptForView(handle, conceptID) {
 /**
  * GetConvergePlan returns the pre-flight convergence plan for a project tab:
  * the same dry-run derivation as `kapi up --plan` (through the shared host.App
- * path), plus the store drift summary the home hero renders. Read-only; safe
- * to call on every home load/refresh.
+ * path), with the drift summary the home hero renders. Read-only; safe to call
+ * on every home load/refresh.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ConvergePlan | null>}
  */
@@ -1421,10 +1421,10 @@ export function GetProjectServer(tabID) {
  * cache, which the store holds and the tree does not.
  * 
  * If the project has never been extracted, the returned status has
- * HasData=false and zeroed coverage; this is a well-defined "no data yet"
- * state, not an error. It is a row question, not a file one: the store file
- * exists from the first command that touches any subsystem, so its presence
- * stopped being evidence that anything was extracted.
+ * HasData=false and zero block counts beside the working tree's coverage; this
+ * is a well-defined "no data yet" state, not an error. It is a row question,
+ * not a file one: the store file exists from the first command that touches
+ * any subsystem, so its presence is no evidence that anything was extracted.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ProjectStatus | null>}
  */

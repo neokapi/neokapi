@@ -4681,9 +4681,10 @@ export class ContextWidenUnit {
 /**
  * ConvergePlan is the desktop's pre-flight picture for "Bring up to date": the
  * dry-run work plan `kapi up --plan` computes (per (collection, locale):
- * missing targets, exact content-memory leverage, remaining AI work, token estimate) plus
- * the block-store drift the run's auto-extract would heal. Both derivations
- * are cheap and read-only — stat checks, file reads, no provider calls.
+ * missing targets, exact content-memory leverage, remaining AI work, token
+ * estimate, and the block-store drift the run's extraction would heal), with
+ * the drift counted for the home hero. The plan is read-only: stat checks,
+ * file reads, no provider calls.
  */
 export class ConvergePlan {
     /**
@@ -8459,9 +8460,9 @@ export class ProjectSharing {
  * 
  * HasData reports whether the project's block store exists and has been
  * populated (i.e. extraction has run at least once). When false, Collections
- * still lists the declared collections and their target languages, but
- * BlockCount/Coverage are zero — the frontend renders a "no data yet, run
- * extract" state rather than an error.
+ * still lists the declared collections, their target languages and the
+ * working tree's coverage, but BlockCount is zero, and the frontend renders a
+ * "no data yet, run extract" state rather than an error.
  */
 export class ProjectStatus {
     /**
