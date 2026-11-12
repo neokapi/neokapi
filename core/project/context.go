@@ -124,6 +124,19 @@ func (ctx *ProjectContext) TargetPath(item ContentItem, sourceRel string, id mod
 	return ResolveTargetPathIn(item.Path, item.Base, item.Target, sourceRel, string(id), format)
 }
 
+// TargetFile is TargetPath as a path on disk: a relative expansion is joined
+// to the project directory. It returns "" when the item declares no target.
+func (ctx *ProjectContext) TargetFile(item ContentItem, sourceRel string, id model.LocaleID) string {
+	if item.Target == "" {
+		return ""
+	}
+	out := ctx.TargetPath(item, sourceRel, id)
+	if filepath.IsAbs(out) || ctx == nil {
+		return out
+	}
+	return filepath.Join(ctx.ProjectDir, out)
+}
+
 // LocaleFromPath canonicalizes a locale read back off disk.
 //
 // A path is written in the project's declared style, so a locale recovered from
