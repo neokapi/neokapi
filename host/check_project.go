@@ -134,7 +134,7 @@ func (a *App) ComputeProjectCheck(ctx context.Context, req ProjectCheckRequest) 
 		root = filepath.Dir(req.Recipe)
 	}
 	pass := &projectPass{targets: targets, result: result, root: root}
-	report, err := a.computeCheck(cmd, files, checkRequest{declared: true, project: pass})
+	report, err := a.computeCheck(cmd, files, checkRequest{declared: true, project: pass}) //nolint:contextcheck // ctx travels on cmd, which computeCheck reads through CmdContext
 	if err != nil {
 		return ProjectCheck{}, err
 	}

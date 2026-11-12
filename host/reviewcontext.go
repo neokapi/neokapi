@@ -411,12 +411,13 @@ func (r *ReviewPointResolver) UnitFindings(ctx context.Context, collection, sour
 func unitFindings(ctx context.Context, entry reviewPointEntry, b *model.Block, sourceLang string, loc model.LocaleID) []UnitFinding {
 	var out []UnitFinding
 	fail := func(what string, err error) {
-		out = append(out, UnitFinding{Finding: check.Finding{
+		f := check.Finding{
 			Category: "check",
 			Fails:    true,
 			Message:  fmt.Sprintf("checks did not complete: %s: %v", what, err),
 			Check:    what,
-		}})
+		}
+		out = append(out, UnitFinding{Finding: f})
 	}
 
 	if entry.voice != nil || entry.terms != nil {

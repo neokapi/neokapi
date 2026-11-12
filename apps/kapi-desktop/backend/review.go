@@ -50,9 +50,9 @@ type ReviewUnitDetail struct {
 	// MemoryScore is the best content-memory match percent for the source (0 = none found or
 	// no project content memory open).
 	MemoryScore int `json:"memory_score,omitempty"`
-	// Findings are the unit's current check findings (placeholder integrity,
-	// do-not-translate, terms and voice patterns — the same checkers the Checks panel
-	// runs, scoped to this one block).
+	// Findings are the unit's current check findings: the checkset the host
+	// holds a translated unit to (host.ReviewPointResolver.UnitFindings), which
+	// also marks the unit's review queue row.
 	Findings []DesktopFinding `json:"findings"`
 	// AIReviewScore/AIReviewModel surface a fresh AI pre-review annotation from
 	// the state store (read-derived; loading a unit never calls a provider).
