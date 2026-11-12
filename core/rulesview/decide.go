@@ -33,7 +33,7 @@ const (
 
 // The questions a decision asks.
 const (
-	questionWhichForm = "Which one do your files use?"
+	questionWhichForm = "Which spelling should the project use?"
 	questionKeep      = "Keep this as a rule?"
 	questionWhichSide = "Which one holds?"
 )
@@ -66,11 +66,11 @@ type Decision struct {
 	SuggestedBy string `json:"suggested_by,omitempty"`
 
 	// Subject is what the question is about, Scope where the suggestion
-	// holds, and NoticedBy who suggested it: the first side's, for a
+	// holds, and RecordedBy who suggested it: the first side's, for a
 	// disagreement.
-	Subject   contextop.Subject `json:"-"`
-	Scope     contextop.Scope   `json:"-"`
-	NoticedBy contextop.Actor   `json:"-"`
+	Subject    contextop.Subject `json:"-"`
+	Scope      contextop.Scope   `json:"-"`
+	RecordedBy contextop.Actor   `json:"-"`
 }
 
 // Option is one answer to a question.
@@ -88,11 +88,11 @@ type Option struct {
 	// Consequence says what keeping this option does.
 	Consequence string `json:"consequence"`
 
-	// Subject, Scope and NoticedBy are the side's, for a disagreement. An
+	// Subject, Scope and RecordedBy are the side's, for a disagreement. An
 	// option that is a form of a name carries the question's scope alone.
-	Subject   contextop.Subject `json:"-"`
-	Scope     contextop.Scope   `json:"-"`
-	NoticedBy contextop.Actor   `json:"-"`
+	Subject    contextop.Subject `json:"-"`
+	Scope      contextop.Scope   `json:"-"`
+	RecordedBy contextop.Actor   `json:"-"`
 }
 
 // Block is one block of the project's source as a count reads it: the file it
@@ -160,13 +160,13 @@ func disagreement(c Conflict, byID map[string]contextop.Record) Decision {
 		}
 		d.Options = append(d.Options, Option{
 			ID: side.ID, Short: side.Short, Sentence: side.Sentence,
-			Subject: side.Subject, Scope: r.Scope, NoticedBy: side.NoticedBy,
+			Subject: side.Subject, Scope: r.Scope, RecordedBy: side.RecordedBy,
 		})
 		if d.Seen == nil && side.Quote != nil {
 			d.Seen = side.Quote
 		}
 		if d.Scope.Level == "" {
-			d.Scope, d.Subject, d.NoticedBy = r.Scope, side.Subject, side.NoticedBy
+			d.Scope, d.Subject, d.RecordedBy = r.Scope, side.Subject, side.RecordedBy
 		}
 	}
 	if names {
@@ -180,8 +180,8 @@ func disagreement(c Conflict, byID map[string]contextop.Record) Decision {
 func suggestion(it Item, scope contextop.Scope) Decision {
 	d := Decision{
 		ID: it.ID, Short: it.Short, Sentence: it.Sentence, Seen: it.Quote,
-		Question: questionKeep, SuggestedBy: ActorPhrase(it.NoticedBy, false),
-		Subject: it.Subject, Scope: scope, NoticedBy: it.NoticedBy,
+		Question: questionKeep, SuggestedBy: ActorPhrase(it.RecordedBy, false),
+		Subject: it.Subject, Scope: scope, RecordedBy: it.RecordedBy,
 	}
 	switch {
 	case it.Subject.Kind == contextop.SubjectMemory:

@@ -7,19 +7,19 @@ type Config struct {
 	// EmitGeometry controls whether the writer emits <location> blocks from a
 	// block's geometry annotation. Default true; set false to project to a
 	// geometry-less DocLang (e.g. when re-emitting reflowable content).
-	EmitGeometry bool `json:"emitGeometry"`
+	EmitGeometry bool `json:"emit_geometry"`
 
 	// ExtractNonTranslatableContent controls whether non-translatable contextual
 	// content (table/figure/picture <caption> text) is surfaced as RoleCaption
 	// content blocks (visible to ingestion, skipped by MT). Default true; disable
 	// to keep captions in skeleton.
-	ExtractNonTranslatableContent bool `json:"extractNonTranslatableContent"`
+	ExtractNonTranslatableContent bool `json:"extract_non_translatable_content"`
 
 	// CompactOutput disables indentation of nested elements. Zero value =
 	// pretty output (each structural level indented by IndentString, matching
 	// the canonical DocLang sample). The reader strips indentation whitespace, so
 	// either form round-trips identically.
-	CompactOutput bool `json:"compactOutput"`
+	CompactOutput bool `json:"compact_output"`
 
 	// IndentString is the per-level indent for pretty-printed output. Empty →
 	// two spaces.

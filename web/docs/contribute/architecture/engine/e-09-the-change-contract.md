@@ -566,8 +566,8 @@ person's overridden findings go to the record.
 The kapi host's policy (`ChangePolicy`) lets a person send every operation.
 An agent may change content, and is refused as `not_permitted` when it sends a
 `term`, `memory` or `recipe` operation, a `decide` with any outcome but
-`advise`, an `if_match` of `*`, or the `report` gate. A tool in a flow may
-choose `report` and decides only with `advise`, and only a tool sends the
+`prereview`, an `if_match` of `*`, or the `report` gate. A tool in a flow may
+choose `report` and decides only with `prereview`, and only a tool sends the
 in-process provenance operation. A sender of any other kind is refused every
 operation.
 

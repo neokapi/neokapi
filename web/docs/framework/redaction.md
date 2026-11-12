@@ -198,7 +198,7 @@ steps:
   - tool: unredact
 ```
 
-In a project, a `redact` step that names no `rulesPath` or `rules` of its own
+In a project, a `redact` step that names no `rules_path` or `rules` of its own
 redacts each file under the policy the recipe declares for that file. A step
 that names its own rules keeps them.
 

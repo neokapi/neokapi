@@ -55,7 +55,7 @@ func TestCheckFileMCP(t *testing.T) {
 	assert.Equal(t, "file", report.Target.Kind)
 	assert.Positive(t, report.Target.Blocks)
 	assert.Positive(t, ruleCounts(report)["length.max-chars-exceeded"], "over-long body must be flagged: %+v", report.Findings)
-	// The located finding points at the block so an assistant knows where to fix.
+	// The located finding points at the block so an assistant can tell where to fix.
 	require.NotEmpty(t, report.Findings)
 	assert.NotEmpty(t, report.Findings[0].Location.Block)
 }

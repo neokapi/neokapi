@@ -3,7 +3,7 @@
 `kcat`, `kgrep`, `ksed`, `kdiff` and `kconv` are format-aware reimaginings of
 `cat`, `grep`, `sed`, `diff` and a converter that operate on the **content**
 kapi extracts from a document: the prose, not the bytes. They read, edit,
-compare and convert the human-readable text inside any format kapi understands,
+compare and convert the human-readable text inside any format kapi supports,
 from a Word `.docx` to a JSON catalog to a Markdown page to an XLIFF file,
 without converting anything first.
 

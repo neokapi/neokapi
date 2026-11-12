@@ -317,7 +317,7 @@ func (a *App) runShipCheck(cmd Command, args []string) error {
 // the canonical Report. It is shared by the CLI and the MCP check tools so a CI
 // gate and an assistant loop read the same findings and gate; timings vary.
 func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
-	return a.computeCheck(cmd, args, false)
+	return a.computeCheck(cmd, args, checkRequest{})
 }
 
 // ComputeDeclaredCheck is ComputeCheck over files the project declares, each
@@ -325,12 +325,14 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 // comments alone has only its comments checked. A check of the same files by
 // name reads their values too.
 func (a *App) ComputeDeclaredCheck(cmd Command, files []string) (check.Report, error) {
-	return a.computeCheck(cmd, files, true)
+	return a.computeCheck(cmd, files, checkRequest{declared: true})
 }
 
-// computeCheck is ComputeCheck, with declared set when the files named are the
-// project's declared content rather than files a caller named.
-func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Report, error) {
+// computeCheck is ComputeCheck, with req saying whether the files named are the
+// project's declared content rather than files a caller named, and whether the
+// check is a project check (ComputeProjectCheck).
+func (a *App) computeCheck(cmd Command, args []string, req checkRequest) (check.Report, error) {
+	declared := req.declared
 	execution := newCheckExecution()
 	a.InitRegistries()
 	// Every read under this context records the plugin it reaches, for the
@@ -399,7 +401,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 			return check.Report{}, fmt.Errorf("no files matched %s", strings.Join(args, ", "))
 		}
 		args = expanded
-		if len(found) > 0 {
+		if len(found) > 0 || req.project != nil {
 			unread = a.newUnreadSet()
 		}
 	}
@@ -494,16 +496,10 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		if terr != nil {
 			return check.Report{}, terr
 		}
-		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt, termRules, opts)
+		biDiags, berr := a.checkTranslation(ctx, cmd, blocks, sourcePath, model.LocaleID(targetLang), dnt, termRules, opts)
 		if berr != nil {
 			return check.Report{}, berr
 		}
-		ruleDiags, qerr := a.collectTargetRuleDiagnostics(ctx, cmd, blocks, sourcePath, model.LocaleID(targetLang), execution)
-		if qerr != nil {
-			return check.Report{}, qerr
-		}
-		biDiags = append(biDiags, ruleDiags...)
-		opts.stampPoints(biDiags, blocks)
 		diags = append(diags, biDiags...)
 	} else {
 		// Content-first generic mode: each positional file is a source, checked
@@ -543,14 +539,15 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 				// reported and the run goes on: a file with no reader is
 				// listed as not read, and one that does not parse is a
 				// failing finding.
-				if !wholeProject && !found[file] {
+				if !wholeProject && req.project == nil && !found[file] {
 					return check.Report{}, ferr
 				}
-				if name, _ := opts.formats.forFile(a, file); unread.skipFound(ferr, file, name) {
+				if name, _ := opts.formats.forFile(a, file); unread.skipFound(ferr, req.project.unreadName(file), name) {
 					continue
 				}
 				if d, ok := readFailure(ferr, file); ok {
 					diags = append(diags, d)
+					req.project.unreadable(file, d)
 					continue
 				}
 				return check.Report{}, ferr
@@ -561,6 +558,13 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 			checked = append(checked, file)
 			totalBlocks += len(blocks)
 			diags = append(diags, fileDiags...)
+			if req.project != nil {
+				targetDiags, terr := req.project.checkFile(ctx, a, cmd, file, blocks, fileDiags, vocab, opts)
+				if terr != nil {
+					return check.Report{}, terr
+				}
+				diags = append(diags, targetDiags...)
+			}
 		}
 		prog.Done()
 		if len(checked) == 1 {
@@ -603,7 +607,7 @@ func (a *App) newCheckResolution(cmd Command, execution *checkExecution) (*check
 	if err != nil {
 		return nil, err
 	}
-	// The vocabulary the project decided travels with the profile: a term
+	// The vocabulary decided for the project travels with the profile: a term
 	// retired in the project's terms is a finding here, not only in retrieval.
 	// Resolved per file for the same reason the profile is; see checkTerms.
 	vocab, err := a.newCheckTerms(cmd)
@@ -913,7 +917,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	groups := opts.pointGroups(blocks, docBlocks)
 	for _, g := range groups {
 		mark := opts.execution.analyzerCount()
-		// Candidates advise. They run outside the analyzer, before it, so the
+		// Candidates only report. They run outside the analyzer, before it, so the
 		// gate never counts them and a point with nothing but candidates is
 		// still reported on. See advisoryDiagnostics.
 		if advisory := g.at.context.Advisory; len(advisory) > 0 {
@@ -1237,7 +1241,7 @@ func patternRules(forbid, require []string) []check.PatternRule {
 //
 // Without it the gate read every file by extension under reader defaults, so it
 // judged content the project does not declare as content: a demo script's
-// `command:` lines, which the recipe's keyPathPatterns exclude, and `.md` docs
+// `command:` lines, which the recipe's key_path_patterns exclude, and `.md` docs
 // read by the markdown reader when the recipe binds mdx. Both are text no
 // convergence run ever touches, held to a bar meant for prose.
 type checkFormats struct {
@@ -1656,7 +1660,7 @@ func (t *checkTerms) coordinatesAt(point project.GovernancePoint) (map[string]st
 	return t.rules.coordinatesAt(point)
 }
 
-// ProjectTermsForFile resolves the vocabulary the project decided for one file:
+// ProjectTermsForFile resolves the vocabulary decided for one file:
 // the terms bound at the point that file sits at, or nil outside a project.
 //
 // It is what `kapi check` runs its vocabulary gate against, exported so an

@@ -1,6 +1,6 @@
 id: kapi-desktop-config
-title: The keychain holds the key
-subtitle: A recipe records which credential to use, and the secret stays out of it.
+title: Settings and API keys
+subtitle: Add a provider key, choose the appearance, and see your plugins.
 kind: use-case
 publishAs: kapi-desktop-config
 terminal: desktop
@@ -10,59 +10,49 @@ needsAi: false
 oneshot: true
 aspects:
   - Appearance
-  - AI providers
+  - API keys
   - Plugins
-  - Keychain-backed keys
 outro:
-  line: Add the key once; both surfaces use it.
-  pointer: kapi credentials add
+  line: Add your key once, in App Settings.
 
 narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop puts a provider key in the operating system keychain, so the
-      recipe you commit never carries one. Settings is where the key is added,
-      and where plugins and appearance live too.
+      You'll add an API key and look at the other app settings.
 
   - id: open-settings
     kind: desktop
     beat: open-settings
-    caption: Appearance, models, plugins and locales, in one place.
+    caption: Open the app settings.
     text: >-
-      Settings gathers appearance, the AI models a project can translate with,
-      plugins, and the languages the interface itself can run in.
+      On the Open screen, click Settings.
 
   - id: general
     kind: desktop
     beat: general
-    caption: Follows the system, or pinned either way.
+    caption: Light, dark, or the same as your system.
     text: >-
-      Appearance follows your system by default, or you can pin light or dark.
-      The interface can also run in a pseudo-language, which is how you test
-      that a screen survives longer words.
+      On General, choose Light, Dark or System, and the app language.
 
   - id: credentials
     kind: desktop
     beat: credentials
-    caption: The key is typed here, and stored by the keychain.
-    crop: { selector: '[role="dialog"]' }
+    caption: Your key is stored in the keychain.
     text: >-
-      AI Models lists the providers and the models under each. Adding
-      credentials asks for a name, a model and the key, and the key goes to the
-      operating system keychain. The recipe records which credential to use, and
-      never the secret itself.
+      On AI Models, click Add Credentials, choose a model, and paste your API
+      key. The key is stored in your Mac's keychain, apart from your project
+      files.
 
   - id: plugins
     kind: desktop
     beat: plugins
-    caption: Plugins add formats, connectors and tools.
+    caption: Plugins add file formats and tools.
     text: >-
-      Plugins extend what the project can read and run, adding formats,
-      connectors and tools beyond the built-in set.
+      Plugins lists what is installed. A plugin adds file formats or tools.
+      Open the Available tab to install one.
 
   - id: outro
     kind: outro
     text: >-
-      Add a key once here and the command line in the same folder uses the same
-      one, because both read the same keychain.
+      Add your key once. Every project on this Mac uses it.

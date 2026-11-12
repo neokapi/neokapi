@@ -11,7 +11,15 @@ kapi's core verbs follow a documented, golden-tested machine contract, so script
 
 Compatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names and types do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).
 
-One exception is made before 1.3: the content-memory counts in the `kapi merge` result are named `memory_new` and `memory_updated`, and the exact-match count in the `kapi up --plan` result is named `memoryExact`. Releases before 1.3 wrote them as `tm_new`, `tm_updated` and `tmExact`, and a script reading those names needs updating.
+Two exceptions have been made. In 1.3 the content-memory counts in the `kapi merge` result became `memory_new` and `memory_updated`, and the exact-match count in the `kapi up --plan` result became `memory_exact`; earlier releases wrote `tm_new`, `tm_updated` and `tmExact`. Releases up to 1.3 also wrote the `kapi up` result, the `kapi up --plan` result and the `kapi up --json` events with camelCase field names (`shipState`, `missingTarget`, `maxPasses`, `viaTM`). They are now snake_case (`ship_state`, `missing_target`, `max_passes`, `via_memory`), and a script reading the old names needs updating.
+
+## Field names
+
+Every machine-readable document kapi writes uses snake_case field names: `--json` results, NDJSON event streams, the result of every MCP tool, and the inputs those tools take. The recipe uses snake_case keys too, the tool and format config keys under `config:` included ([Tool registration invariants](#tool-registration-invariants)). A word that is two words in English is two words in the key: `failing_checks`, `pending_push`, `via_ai`.
+
+One family is exempt. The content model on the wire (the blocks, runs and properties inside a `.kbf` bundle) follows the canonical protobuf JSON mapping, which writes lowerCamelCase (`sourceLocale`, `pcOpen`). [F-04](../contribute/architecture/foundations/f-04-wire-schema.md) fixes those names. A document from an external standard keeps that standard's names.
+
+`scripts/check-json-tags.sh` enforces the rule over the Go types behind these documents and over the tool and format config keys, in `make lint`, `make pre-push` and the *Repo guards* CI job.
 
 Human-readable text output is **not** a contract. It is presentation: column widths adapt to your terminal, values are truncated to fit, and it carries ANSI styling when stdout is a TTY. It is restyled whenever the CLI's presentation improves. Scripts must use `--json` (or `--jq`), which is stable, unstyled, and never truncated.
 
@@ -132,7 +140,7 @@ A stored target an earlier kapi wrote names no source, so it is not written eith
 }
 ```
 
-`kapi up --json` carries the same list per locale, as `unstampedDrafts` beside `staleDrafts`.
+`kapi up --json` carries the same list per locale, as `unstamped_drafts` beside `stale_drafts`.
 
 ## Error envelope
 
@@ -238,6 +246,8 @@ The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its 
 
 The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as placeholder text, takes an optional `path` on a `replace_text` operation, and names a piece of evidence's block `evidence[].block`; `context_note` names it `block` too. `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` holds the frozen surface: a test refuses a tool that is gone and an input schema that no longer extends its frozen one, and the golden, which the snapshot test regenerates, shows every change in review. `apply_edits` declares its result with the generated `kapi.change-result/v1` schema.
 
+The snake_case rule for config keys is another. The input fields of a registry tool on the MCP surface are its config keys, so `translate` takes `api_key`, `batch_concurrency`, `context_window` and `skip_matched`, `redact` takes `entity_types` and `rules_path`, and `term-check` takes `case_sensitive`. The frozen file records the rename.
+
 `check_text` accepts an optional `context_path`, a project-relative destination
 whose voice and terms apply to the supplied draft. It requires a bound project
 and cannot be combined with `profile_file` or `profile_pack`. The result keeps
@@ -305,7 +315,7 @@ schema is the change-set schema, which the snapshot records in full, with the
 per-call `project` added. Its result is a `kapi.change-result/v1` document, an
 error result when the change set is refused or lands only in part.
 `describe_format` reports what each operation supports in a format. A
-pre-review is a `decide` operation with outcome `advise` sent through
+pre-review is a `decide` operation with outcome `prereview` sent through
 `apply_edits`. `review_queue` rows carry
 the `ref` that `review_block` takes.
 
@@ -317,7 +327,7 @@ established from the start, and `evidence` says where the wording behind it was
 seen: a file (`path`, `block`, `quote`) or a web page (`url`). A change set
 takes no actor: `apply_edits` sends every change set as the calling agent in
 the server's session, so the change policy refuses its term, content-memory
-and recipe operations, a `decide` other than `advise`, an `if_match` of `*` and
+and recipe operations, a `decide` other than `prereview`, an `if_match` of `*` and
 the `report` gate, and `kapi apply` records the person or agent its
 environment names. See
 [Growing context](/kapi/context-decisions).
@@ -414,4 +424,10 @@ Four properties of a built-in tool's registration are asserted over the populate
 
 Withholding a tool from the CLI is a separate decision, declared with `internal: true` on its `ToolMeta` and never expressed by omitting a config factory, which would make a forgotten tool indistinguishable from one deliberately withheld. An internal tool is still configurable: a flow may name it as a step.
 
-Step config keys are the config struct's JSON names, which are **camelCase** (`normalizeSpaces`, `flagExtra`, `textUnitIDs`). Application is a `json.Unmarshal`, so an unrecognized key (a snake_case spelling, or a field the tool does not have) is silently ignored.
+Step config keys are **snake_case** (`normalize_spaces`, `flag_extra`, `text_unit_ids`), the same as every other key in the recipe. A key is the config field's `json` tag, or the field name in snake_case when it has none. A camelCase spelling of a key is refused when the recipe or flow loads, with the key to write instead:
+
+```text
+flows.translate.steps[1].config: fillTargetThreshold is now fill_target_threshold
+```
+
+Format config keys follow the same rule, and a format refuses a camelCase spelling of one of its keys the same way (`json: extractAllPairs is now extract_all_pairs`). Any other key a tool does not have is ignored. The parameters of a format the okapi-bridge plugin provides keep the Okapi Framework's names.

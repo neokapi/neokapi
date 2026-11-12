@@ -21,8 +21,8 @@ once per block, and every client renders it. The desktop's detail pane and the
 MCP `review_block` tool receive the same object; a client that draws a subset
 chooses it in its own projection, and every client receives the whole.
 
-Content is reviewed block by block. What kapi learned about how a project writes
-is reviewed differently: as discovery in a **digest** that reads as news and
+Content is reviewed block by block. Suggestions about how a project writes are
+reviewed differently: as discovery in a **digest** that reads as news and
 never gates the work (below).
 
 The bar the design is held to is an invariant:
@@ -328,11 +328,11 @@ translation or arrives with a moved source is an edit and lands at
 ### Context is reviewed as discovery, in a digest
 
 A context suggestion (a term rule, a note about how the project writes, a
-wording pair) advises agents and checks from the moment it is recorded, and an
+wording pair) reaches agents and checks from the moment it is recorded, and an
 established rule is what fails a check ([C-11](../context/c-11-context-operations.md)).
-A suggestion nobody answers keeps advising. Reviewing context is therefore
-reading what kapi learned and answering the few things that need a person;
-nothing waits on it, and there is no queue to clear.
+A suggestion nobody answers keeps being reported. Reviewing context means
+reading the suggestions and answering the few that need a person. Nothing waits
+on it, and there is no queue to clear.
 
 `host.App.ContextDigest` (`host/contextdigest.go`) assembles one project's
 digest from the operation log, and every surface reads it: the desktop's

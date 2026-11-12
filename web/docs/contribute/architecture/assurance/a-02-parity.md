@@ -38,9 +38,9 @@ Two independent stacks must agree on output:
   `kapi` binary.
 - **The bridge plugin**: a Java plugin built from the Okapi Framework JARs,
   developed in its own repository and spawned as a daemon on demand over a local
-  socket. It is not part of the product surface; it is the reference
-  implementation of a third-party plugin in a non-Go language, and, for parity, a
-  convenient second opinion on what an Okapi filter produces.
+  socket. It serves as the reference implementation of a third-party plugin in a
+  non-Go language, and, for parity, as a second opinion on what an Okapi filter
+  produces. Users never see it as part of the product.
 
 When a Go port and a bridge filter both claim to read the same format, kapi
 uses the Go port: a daemon-backed reader is registered only where no native

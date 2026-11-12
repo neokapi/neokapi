@@ -150,7 +150,7 @@ type App struct {
 	aiConfig *appconfig.AppConfig
 
 	// lookModels keeps whether a model is connected for the deeper look, so
-	// showing the Map reads no saved key from the keychain (lookmodel.go).
+	// showing the Overview reads no saved key from the keychain (lookmodel.go).
 	lookModels lookModelCache
 
 	// eventSink, when non-nil, receives every emitted event in addition to the
@@ -277,12 +277,17 @@ type openProject struct {
 	// directory is moved (e.g. mid sample reset). Reset when the file is back.
 	missingWarned atomic.Bool
 
-	// What the Map shows from this session's own reads (mapsummary.go): when
+	// What the Overview shows from this session's own reads (mapsummary.go): when
 	// the store sync last found the block cache current, and the counts of
 	// the last checks run over the whole project. mapMu guards both.
 	mapMu       sync.Mutex
 	storeReadAt time.Time
 	lastCheck   *mapCheckTally
+	// recycled is what the last recycle pass filled (recycle.go), and
+	// recycleChecked latches the first sync's pass, so a tab looks for exact
+	// matches once on opening and again after each extraction.
+	recycled       *RecycledNote
+	recycleChecked atomic.Bool
 
 	// The questions Decide last read (rulesdecide.go), with the blocks they
 	// were counted over, so what keeping a typed form does is stated without
@@ -703,19 +708,30 @@ func (a *App) openFolder(recipe string) (*TabInfo, error) {
 // back to the backend before operations like MatchContent.
 func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	op := a.projects[tabID]
 	if op == nil {
+		a.mu.Unlock()
 		return fmt.Errorf("tab %q not found", tabID)
 	}
-	changed := op.unsaved.Load() && !sameRecipe(op.Project, proj)
+	recipeChanged := !sameRecipe(op.Project, proj)
 	op.Project = proj
-	if changed {
+	var err error
+	if recipeChanged && op.unsaved.Load() {
 		// A person changed a setting the recipe holds, in a folder opened
 		// without a kapi.yaml. The first such change writes the file.
-		return a.ensureRecipeLocked(op)
+		err = a.ensureRecipeLocked(op)
 	}
-	return nil
+	a.mu.Unlock()
+	if recipeChanged && err == nil {
+		// A new collection or pattern names files the block cache has not
+		// read, and the edit lives in memory until it is saved, so no file
+		// changes for the watcher to see. The event asks the frontend to sync
+		// the cache. It is not project-files-changed: a listener of that one
+		// pushes its own copy of the recipe back through UpdateProject, which
+		// would race the save this update may be part of.
+		a.emitEvent("project-recipe-changed", tabID)
+	}
+	return err
 }
 
 // CloseProject removes a project tab, stops its file watcher,
@@ -1283,7 +1299,7 @@ func (a *App) injectCredentialPicker(schema map[string]any) {
 		"field": "credential",
 		"eq":    "",
 	}
-	for _, fieldName := range []string{"provider", "apiKey", "model"} {
+	for _, fieldName := range []string{"provider", "api_key", "model"} {
 		if prop, ok := props[fieldName].(map[string]any); ok {
 			prop["ui:visible"] = manualCondition
 		}

@@ -1,6 +1,7 @@
+import type { ComponentProps } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { StepRow } from "../../components/flow-editor";
+import { StepRow, useStepReorder } from "../../components/flow-editor";
 import type { FlowTool } from "../../components/flow-editor";
 import type { ComponentSchema } from "../../components/schema-form";
 
@@ -28,23 +29,29 @@ const SCHEMA: ComponentSchema = {
   },
 };
 
+/** A row in a three-step flow, so its grip drags and answers the arrow keys. */
+function Reorderable(props: ComponentProps<typeof StepRow>) {
+  const reorder = useStepReorder(3, fn());
+  return (
+    <ul className="max-w-xl">
+      <StepRow {...props} reorder={props.readOnly ? undefined : reorder(props.index)} />
+    </ul>
+  );
+}
+
 const meta: Meta<typeof StepRow> = {
   title: "Flow editor/StepRow",
   component: StepRow,
   tags: ["autodocs"],
-  args: { onRemove: fn(), onMoveUp: fn(), onMoveDown: fn(), onConfigChange: fn() },
-  render: (args) => (
-    <ul className="max-w-xl">
-      <StepRow {...args} />
-    </ul>
-  ),
+  args: { onRemove: fn(), onConfigChange: fn() },
+  render: (args) => <Reorderable {...args} />,
 };
 
 export default meta;
 type Story = StoryObj<typeof StepRow>;
 
 export const Collapsed: Story = {
-  args: { step: { tool: "translate" }, tool: TRANSLATE, index: 1, count: 3, schema: SCHEMA },
+  args: { step: { tool: "translate" }, tool: TRANSLATE, index: 1, schema: SCHEMA },
 };
 
 /** The options area open, rendering the tool's own schema form inline. */
@@ -53,14 +60,9 @@ export const OptionsExpanded: Story = {
     step: { tool: "translate", config: { provider: "anthropic" } },
     tool: TRANSLATE,
     index: 1,
-    count: 3,
     schema: SCHEMA,
     defaultOpen: true,
   },
-};
-
-export const FirstStep: Story = {
-  args: { step: { tool: "translate" }, tool: TRANSLATE, index: 0, count: 3, schema: SCHEMA },
 };
 
 export const ReadOnly: Story = {
@@ -68,7 +70,6 @@ export const ReadOnly: Story = {
     step: { tool: "translate" },
     tool: TRANSLATE,
     index: 1,
-    count: 3,
     schema: SCHEMA,
     readOnly: true,
   },

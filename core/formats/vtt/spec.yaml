@@ -86,7 +86,7 @@ config:
       bridge composite schema under `output`).
     okapi_param: timeFormat
 
-  - key: maxCharsPerLine
+  - key: max_chars_per_line
     type: int
     default: 0
     description: |
@@ -95,7 +95,7 @@ config:
       exposed by the bridge composite schema under `output`).
     okapi_param: maxCharsPerLine
 
-  - key: maxLinesPerCaption
+  - key: max_lines_per_caption
     type: int
     default: 0
     description: |
@@ -104,7 +104,7 @@ config:
       the bridge composite schema under `output`).
     okapi_param: maxLinesPerCaption
 
-  - key: cjkCharsPerLine
+  - key: cjk_chars_per_line
     type: int
     default: 0
     description: |
@@ -113,7 +113,7 @@ config:
       (also exposed by the bridge composite schema under `output`).
     okapi_param: cjkCharsPerLine
 
-  - key: splitWords
+  - key: split_words
     type: boolean
     default: false
     description: |
@@ -405,7 +405,7 @@ features:
       Korean Hangul, Japanese kana, and other non-Latin scripts as
       ordinary Unicode runes. Cue text containing these characters is
       extracted unchanged with no normalization or width adjustment.
-      Output-side wrapping rules (cjkCharsPerLine, splitWords) are
+      Output-side wrapping rules (cjk_chars_per_line, split_words) are
       writer-only and don't affect extraction.
     spec_refs:
       - "W3C WebVTT — UTF-8 text encoding requirement (§4.1 file structure)"
@@ -452,8 +452,8 @@ features:
 # verify both cues are extracted with their original text, leaving the
 # merge step to a future native-reader iteration.
 #
-# Output-side line wrapping (maxCharsPerLine, maxLinesPerCaption,
-# cjkCharsPerLine, splitWords) is exercised upstream by 12+
+# Output-side line wrapping (max_chars_per_line, max_lines_per_caption,
+# cjk_chars_per_line, split_words) is exercised upstream by 12+
 # VTTSkeletonWriterTest#testProcessTextUnit* methods. These are writer-
 # time behaviors that the reader-only assertion vocabulary in this
 # spec cannot express. The config keys are declared above so they
@@ -469,7 +469,7 @@ features:
 # which is what the cue_settings feature above asserts; the writer
 # parameter behavior cannot be expressed without roundtrip assertions.
 #
-# Inline code finder (useCodeFinder, codeFinderRules — inherited from
+# Inline code finder (use_code_finder, code_finder_rules — inherited from
 # SubtitleParameters) is a Java-side regex that converts inline VTT
 # markup into Codes. The native reader preserves inline markup
 # verbatim in the Block source instead (see inline_markup_preserved).

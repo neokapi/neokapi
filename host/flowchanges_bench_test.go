@@ -40,7 +40,7 @@ func (s *translateEvery) Process(ctx context.Context, in <-chan *model.Part, out
 }
 
 // BenchmarkFlowRecord_ManyDocuments measures a run over one document of 300
-// strings in a project whose store knows 200 documents. Every translation
+// strings in a project whose store holds 200 documents. Every translation
 // the run produces is one the file already holds, so the record looks up the
 // most recent change to each string's translation, by the document's key, to
 // tell whether the run's write is recorded already. Naming that key costs one

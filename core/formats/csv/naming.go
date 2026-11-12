@@ -17,7 +17,7 @@ import (
 //
 // Three cases, in order of preference:
 //
-//   - The recipe names key columns (`columns.key` / `keyColumns`). Their values
+//   - The recipe names key columns (`columns.key` / `key_columns`). Their values
 //     joined with "." address the row, and `<key>/<column>` addresses the cell.
 //     A cell's column is named by its header, which is structure the author
 //     controls; without a header row it falls back to `colN`, the position the

@@ -5,33 +5,40 @@ import type { ConvergenceEvent } from "../convergence-fold";
 /** A representative two-locale, single-pass converging run. */
 function convergingRun(): ConvergenceEvent[] {
   return [
-    { type: "pass_start", pass: 1, maxPasses: 3, pending: ["fr-FR", "de-DE"] },
+    { type: "pass_start", pass: 1, max_passes: 3, pending: ["fr-FR", "de-DE"] },
     { type: "locale_start", pass: 1, locale: "fr-FR", units: 10 },
-    { type: "unit_progress", pass: 1, locale: "fr-FR", done: 4, viaTM: 3, viaAI: 1 },
+    { type: "unit_progress", pass: 1, locale: "fr-FR", done: 4, via_memory: 3, via_ai: 1 },
     { type: "locale_start", pass: 1, locale: "de-DE", units: 6 },
-    { type: "unit_progress", pass: 1, locale: "fr-FR", done: 10, viaTM: 6, viaAI: 4 },
+    { type: "unit_progress", pass: 1, locale: "fr-FR", done: 10, via_memory: 6, via_ai: 4 },
     {
       type: "locale_done",
       pass: 1,
       locale: "fr-FR",
       units: 10,
       done: 10,
-      viaTM: 6,
-      viaAI: 4,
+      via_memory: 6,
+      via_ai: 4,
       state: "shippable",
     },
-    { type: "unit_progress", pass: 1, locale: "de-DE", done: 6, viaTM: 2, viaAI: 4 },
+    { type: "unit_progress", pass: 1, locale: "de-DE", done: 6, via_memory: 2, via_ai: 4 },
     {
       type: "locale_done",
       pass: 1,
       locale: "de-DE",
       units: 6,
       done: 6,
-      viaTM: 2,
-      viaAI: 4,
+      via_memory: 2,
+      via_ai: 4,
       state: "shippable",
     },
-    { type: "pass_done", pass: 1, produced: 16, producedDelta: 16, failingChecks: 0, pending: [] },
+    {
+      type: "pass_done",
+      pass: 1,
+      produced: 16,
+      produced_delta: 16,
+      failing_checks: 0,
+      pending: [],
+    },
     { type: "materialized", files: 2 },
     { type: "done", state: "converged" },
   ];
@@ -78,7 +85,7 @@ describe("reduceRun", () => {
 
   it("marks a run parked and carries failing-check counts", () => {
     const m = reduceRun([
-      { type: "pass_start", pass: 1, maxPasses: 2, pending: ["ja-JP"] },
+      { type: "pass_start", pass: 1, max_passes: 2, pending: ["ja-JP"] },
       { type: "locale_start", pass: 1, locale: "ja-JP", units: 8 },
       {
         type: "locale_done",
@@ -86,15 +93,15 @@ describe("reduceRun", () => {
         locale: "ja-JP",
         units: 8,
         done: 5,
-        viaAI: 5,
+        via_ai: 5,
         state: "parked",
       },
       {
         type: "pass_done",
         pass: 1,
         produced: 5,
-        producedDelta: 5,
-        failingChecks: 3,
+        produced_delta: 5,
+        failing_checks: 3,
         pending: ["ja-JP"],
       },
       { type: "done", state: "parked" },
@@ -109,19 +116,26 @@ describe("reduceRun", () => {
 
   it("accumulates multiple passes and resets rows per pass", () => {
     const m = reduceRun([
-      { type: "pass_start", pass: 1, maxPasses: 3, pending: ["fr-FR"] },
+      { type: "pass_start", pass: 1, max_passes: 3, pending: ["fr-FR"] },
       { type: "locale_done", pass: 1, locale: "fr-FR", units: 10, done: 7, state: "pending" },
       {
         type: "pass_done",
         pass: 1,
         produced: 7,
-        producedDelta: 7,
-        failingChecks: 1,
+        produced_delta: 7,
+        failing_checks: 1,
         pending: ["fr-FR"],
       },
-      { type: "pass_start", pass: 2, maxPasses: 3, pending: ["fr-FR"] },
+      { type: "pass_start", pass: 2, max_passes: 3, pending: ["fr-FR"] },
       { type: "locale_done", pass: 2, locale: "fr-FR", units: 10, done: 10, state: "shippable" },
-      { type: "pass_done", pass: 2, produced: 10, producedDelta: 3, failingChecks: 0, pending: [] },
+      {
+        type: "pass_done",
+        pass: 2,
+        produced: 10,
+        produced_delta: 3,
+        failing_checks: 0,
+        pending: [],
+      },
       { type: "done", state: "converged" },
     ]);
 
@@ -137,9 +151,9 @@ describe("reduceRun", () => {
     // A late unit_progress stamped pass 1 must land in pass 1 even after pass 2
     // has opened (out-of-order delivery on reconnect).
     const m = reduceRun([
-      { type: "pass_start", pass: 1, maxPasses: 3, pending: ["fr-FR"] },
-      { type: "pass_start", pass: 2, maxPasses: 3, pending: ["fr-FR"] },
-      { type: "unit_progress", pass: 1, locale: "fr-FR", done: 3, viaTM: 3 },
+      { type: "pass_start", pass: 1, max_passes: 3, pending: ["fr-FR"] },
+      { type: "pass_start", pass: 2, max_passes: 3, pending: ["fr-FR"] },
+      { type: "unit_progress", pass: 1, locale: "fr-FR", done: 3, via_memory: 3 },
     ]);
     expect(m.passes[0].rows[0].done).toBe(3);
     expect(m.passes[1].rows[0].done).toBe(0);
@@ -150,10 +164,10 @@ describe("reduceRun", () => {
       {
         type: "pass_start",
         pass: 1,
-        maxPasses: 1,
+        max_passes: 1,
         pending: ["fr-FR"],
-        extractedFiles: 2,
-        extractedBlocks: 40,
+        extracted_files: 2,
+        extracted_blocks: 40,
       },
       { type: "log", message: "connector transport: pushed 2 files" },
       { type: "done", state: "converged" },
@@ -172,11 +186,19 @@ describe("reduceRun", () => {
   // shippable/parked verdict is authoritative from the run's final standing.
   it("marks a state-less locale_done as done without inventing a ship verdict", () => {
     const m = reduceRun([
-      { type: "pass_start", pass: 1, maxPasses: 3, pending: ["fr-FR"] },
+      { type: "pass_start", pass: 1, max_passes: 3, pending: ["fr-FR"] },
       { type: "locale_start", pass: 1, locale: "fr-FR", units: 8 },
-      { type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, viaTM: 5, viaAI: 3 },
+      { type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, via_memory: 5, via_ai: 3 },
       // No `state` on locale_done — the engine no longer emits it live.
-      { type: "locale_done", pass: 1, locale: "fr-FR", units: 8, done: 8, viaTM: 5, viaAI: 3 },
+      {
+        type: "locale_done",
+        pass: 1,
+        locale: "fr-FR",
+        units: 8,
+        done: 8,
+        via_memory: 5,
+        via_ai: 3,
+      },
     ]);
     const row = m.passes[0].rows[0];
     expect(row.state).toBe("done"); // lifecycle terminal for the pass
@@ -186,24 +208,24 @@ describe("reduceRun", () => {
   it("derives the streaming row lifecycle from coverage (done/units), not from state", () => {
     // Full coverage mid-stream reads as done even before locale_done arrives.
     const covered = reduceRun([
-      { type: "pass_start", pass: 1, maxPasses: 1, pending: ["de-DE"] },
+      { type: "pass_start", pass: 1, max_passes: 1, pending: ["de-DE"] },
       { type: "locale_start", pass: 1, locale: "de-DE", units: 5 },
-      { type: "unit_progress", pass: 1, locale: "de-DE", done: 5, viaAI: 5 },
+      { type: "unit_progress", pass: 1, locale: "de-DE", done: 5, via_ai: 5 },
     ]);
     expect(covered.passes[0].rows[0].state).toBe("done");
 
     // Partial coverage reads as running.
     const partial = reduceRun([
-      { type: "pass_start", pass: 1, maxPasses: 1, pending: ["de-DE"] },
+      { type: "pass_start", pass: 1, max_passes: 1, pending: ["de-DE"] },
       { type: "locale_start", pass: 1, locale: "de-DE", units: 5 },
-      { type: "unit_progress", pass: 1, locale: "de-DE", done: 2, viaAI: 2 },
+      { type: "unit_progress", pass: 1, locale: "de-DE", done: 2, via_ai: 2 },
     ]);
     expect(partial.passes[0].rows[0].state).toBe("running");
   });
 
   it("still adopts a per-locale verdict when a compat stream carries state on locale_done", () => {
     const m = reduceRun([
-      { type: "pass_start", pass: 1, maxPasses: 1, pending: ["fr-FR"] },
+      { type: "pass_start", pass: 1, max_passes: 1, pending: ["fr-FR"] },
       { type: "locale_done", pass: 1, locale: "fr-FR", units: 4, done: 4, state: "shippable" },
     ]);
     expect(m.passes[0].rows[0].localeState).toBe("shippable");

@@ -19,7 +19,7 @@ overview: |
   block. This makes TMX usable both as an input for review or alignment
   and as an output for exporting a memory. It mirrors Okapi's TMX filter.
 parameters:
-  processAllTargets:
+  process_all_targets:
     description: Read every target-language variant in each translation unit.
     help: |
       When enabled (the default), all non-source `<tuv>` variants of a
@@ -28,7 +28,7 @@ parameters:
       skipped, which suits a multilingual memory that should be reduced to a
       single target language.
     values: "`true` / `false` (default `true`)"
-  exitOnInvalid:
+  exit_on_invalid:
     description: Stop processing when an invalid translation unit is encountered.
     help: |
       Governs error handling for malformed `<tu>` elements. When disabled
@@ -36,7 +36,7 @@ parameters:
       continues. When enabled, the first invalid unit aborts processing.
       Use it to fail fast on corrupt or non-conformant input.
     values: "`true` / `false` (default `false`)"
-  escapeGT:
+  escape_gt:
     description: Escape the greater-than character as `&gt;` in output XML.
     help: |
       A writer-side option. When enabled, the `>` character is written as
@@ -44,26 +44,26 @@ parameters:
       literally, which is valid XML outside of a CDATA close sequence.
       Enable it for stricter downstream tools that expect `>` escaped.
     values: "`true` / `false` (default `false`)"
-  useCodeFinder:
+  use_code_finder:
     description: Detect inline codes inside segment text using regular expressions.
     help: |
       Enables regex-based detection of inline codes (placeholders,
       variables, tags) within extracted text, using the patterns in
-      `codeFinderRules`. When disabled (the default), no pattern-based
+      `code_finder_rules`. When disabled (the default), no pattern-based
       inline codes are extracted.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regular-expression patterns that match inline codes in segment text.
     help: |
       A list of regular expressions; each match within a translatable
       block is protected as an inline code rather than translated. Used to
       shield placeholders or markup carried inside memory segments. Only takes
-      effect when `useCodeFinder` is enabled; invalid patterns are skipped.
+      effect when `use_code_finder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:
       - "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for the rules to take effect
 processingNotes:
   - The source segment matches the header `srclang`; one target segment is produced per other-language `<tuv>`.
@@ -72,9 +72,9 @@ examples:
   - title: Read only the first target
     description: Reduce a multilingual memory to a single target language.
     config: |
-      processAllTargets: false
+      process_all_targets: false
   - title: Fail fast on invalid units
     description: Abort processing when a malformed translation unit is found.
     config: |
-      exitOnInvalid: true
+      exit_on_invalid: true
 wikiUrl: https://www.gala-global.org/tmx-14b

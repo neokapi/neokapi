@@ -192,7 +192,7 @@ export function decideTranslation(
 export function decisionOutcome(
   reviewed: boolean,
   rung?: ReviewRung,
-): Exclude<DecideOutcome, "advise"> {
+): Exclude<DecideOutcome, "prereview"> {
   if (reviewed) return "establish";
   return rung === "draft" ? "reject" : "withdraw";
 }

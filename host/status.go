@@ -727,8 +727,9 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			// A collection in a format with no installed reader is left out of
 			// the queue and named, never listed as having nothing to review.
 			unread := a.newUnreadSetFor("listed for review")
+			opts := ReviewQueueOptions{Languages: langs, MarkFindings: true}
 			queue, qerr := a.computeUnifiedReviewQueue(cmd.Context(), proj, root, units, srcUnits,
-				ReviewQueueOptions{Languages: langs}, unread)
+				opts, unread, a.newFindingMarks(cmd, root, opts))
 			if qerr != nil {
 				return fmt.Errorf("compute review queue: %w", qerr)
 			}

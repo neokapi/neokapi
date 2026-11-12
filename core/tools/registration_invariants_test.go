@@ -227,7 +227,7 @@ func TestContentRewritingCLIToolsDeclareWritesOutput(t *testing.T) {
 // monolingual one that accepts or requires the target language. A monolingual
 // tool whose config factory reads the run's target language but declares
 // neither would have its target scope (search-replace's target, xml-validation's
-// checkTarget) unreachable from the command line; one that declares it but
+// check_target) unreachable from the command line; one that declares it but
 // never reads it would offer a flag that does nothing.
 //
 // The run's language is observed the way invariant 3 observes it: build the

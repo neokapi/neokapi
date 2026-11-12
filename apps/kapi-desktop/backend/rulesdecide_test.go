@@ -52,7 +52,7 @@ func decisionIDs(decisions []screens.RuleDecisionDTO) []string {
 }
 
 // TestRulesDecideView_KapiMart: Decide asks about the suggestions `kapi
-// rules` asks about, the ones the Map lists, with the forms of a name counted
+// rules` asks about, the ones the Overview lists, with the forms of a name counted
 // over the sample's blocks and what keeping each does stated.
 func TestRulesDecideView_KapiMart(t *testing.T) {
 	app, recipe, tabID := openKapiMart(t)
@@ -77,8 +77,8 @@ func TestRulesDecideView_KapiMart(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{quickcast.ID, business.ID}, decisionIDs(view.Decisions))
 
-	// Every suggestion the Map lists opens a question here.
-	summary, err := app.MapSummary(tabID)
+	// Every suggestion the Overview lists opens a question here.
+	summary, err := app.OverviewSummary(tabID)
 	require.NoError(t, err)
 	for _, row := range summary.Suggestions {
 		assert.Contains(t, decisionIDs(view.Decisions), row.Item.ID)
@@ -90,10 +90,10 @@ func TestRulesDecideView_KapiMart(t *testing.T) {
 	}
 	name := byID[quickcast.ID]
 	assert.Equal(t, host.RuleDecisionName, name.Kind)
-	assert.Equal(t, "Which one do your files use?", name.Question)
+	assert.Equal(t, "Which spelling should the project use?", name.Question)
 	assert.Equal(t, "Quickcast", name.Label)
 	assert.True(t, name.Other)
-	assert.Equal(t, "agent", name.NoticedBy.Kind)
+	assert.Equal(t, "agent", name.RecordedBy.Kind)
 	require.NotNil(t, name.Seen)
 	assert.Equal(t, "Try Quick cast today.", name.Seen.Quote)
 	assert.Equal(t, "site/index.html", name.Seen.Path)
@@ -249,8 +249,8 @@ func TestDecideRule_ChoosesASide(t *testing.T) {
 	assert.Empty(t, d.ID)
 	require.Len(t, d.Options, 2)
 	for _, o := range d.Options {
-		require.NotNil(t, o.NoticedBy)
-		assert.Equal(t, "agent", o.NoticedBy.Kind)
+		require.NotNil(t, o.RecordedBy)
+		assert.Equal(t, "agent", o.RecordedBy.Kind)
 		assert.NotEmpty(t, o.Consequence)
 	}
 

@@ -353,7 +353,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	var pendingLayer *model.Layer
 
 	// inheritPreserveWS returns true if any ancestor has xml:space="preserve"
-	// or if the config sets preserveSpaceByDefault.
+	// or if the config sets preserve_space_by_default.
 	inheritPreserveWS := func() bool {
 		if r.cfg.PreserveSpaceByDefault {
 			return true

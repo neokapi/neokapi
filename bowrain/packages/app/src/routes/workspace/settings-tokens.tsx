@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useWorkspace, ApiTokenManager } from "@neokapi/ui";
+import { useWorkspace, ApiTokenManager, PageContainer } from "@neokapi/ui";
 
 export function SettingsTokensRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -13,8 +13,8 @@ export function SettingsTokensRoute() {
   if (!activeWorkspace) return null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4">
+    <PageContainer width="standard">
       <ApiTokenManager workspace={activeWorkspace} />
-    </div>
+    </PageContainer>
   );
 }

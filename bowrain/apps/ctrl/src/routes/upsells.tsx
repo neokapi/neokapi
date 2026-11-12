@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
+import { FilterBar, useSetBreadcrumb, PageContainer } from "@neokapi/ui";
 import type { FilterField } from "@neokapi/ui";
 import { getUpsells } from "../api";
 import { UpsellTable } from "../components/UpsellTable";
@@ -69,7 +69,7 @@ export function UpsellsRoute() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Workspaces that are likely candidates for an upgrade, ranked by priority.
       </p>
@@ -90,6 +90,6 @@ export function UpsellsRoute() {
           void navigate({ to: "/workspaces/$workspaceId", params: { workspaceId: id } })
         }
       />
-    </div>
+    </PageContainer>
   );
 }

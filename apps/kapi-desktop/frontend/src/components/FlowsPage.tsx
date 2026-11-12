@@ -1,20 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Workflow, Plus, X, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
+import { Plus, X, Copy, Lock, FolderOpen, Download } from "lucide-react";
 import {
   Button,
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   FlowCard,
   FlowsEmptyState,
   Label,
   Input,
-  Markdown,
-  ScrollArea,
+  PageContainer,
   PageHeader,
+  SectionHeading,
   SimpleTooltip,
   toast,
 } from "@neokapi/ui-primitives";
@@ -83,8 +82,6 @@ export function FlowsPage({
   const [selectedSpec, setSelectedSpec] = useState<FlowSpec | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("user");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [importFlows, setImportFlows] = useState<FlowListItem[]>([]);
   const [newFlowName, setNewFlowName] = useState("");
 
   const { showError } = useError();
@@ -144,6 +141,28 @@ export function FlowsPage({
   });
   const flows: FlowListItem[] = propFlows ?? flowsQuery.data ?? [];
   const loading = !propFlows && flowsQuery.isLoading;
+
+  // In a project, the built-in flows and the person's own flows are listed
+  // below the project's as available to add, minus any the project already
+  // holds under that name.
+  const availableQuery = useQuery({
+    queryKey: qk.userFlows(),
+    enabled: isProjectMode && !propFlows,
+    queryFn: async (): Promise<FlowListItem[]> => {
+      const result = await api.listUserFlows();
+      return (result ?? []).map((f) => ({
+        id: f.id,
+        name: f.name,
+        description: f.description,
+        source: f.source,
+        stepCount: f.step_count,
+        steps: f.steps ?? [],
+        isDefault: false,
+      }));
+    },
+  });
+  const held = new Set(flows.map((f) => f.id));
+  const available = isProjectMode ? (availableQuery.data ?? []).filter((f) => !held.has(f.id)) : [];
 
   useEffect(() => {
     if (flowsQuery.error) showError("Failed to load flows", flowsQuery.error);
@@ -285,27 +304,6 @@ export function FlowsPage({
     [tabID, isProjectMode, onFlowChange, refreshFlows, showError],
   );
 
-  const handleOpenImportDialog = useCallback(async () => {
-    try {
-      const all = await api.listUserFlows();
-      // Show built-in + user flows (everything available outside this project).
-      setImportFlows(
-        (all ?? []).map((f) => ({
-          id: f.id,
-          name: f.name,
-          description: f.description,
-          source: f.source,
-          stepCount: f.step_count,
-          steps: f.steps ?? [],
-          isDefault: false,
-        })),
-      );
-      setShowImportDialog(true);
-    } catch (err) {
-      showError("Failed to load available flows", err);
-    }
-  }, [showError]);
-
   const handleImportFlow = useCallback(
     async (item: FlowListItem) => {
       if (!tabID) return;
@@ -319,7 +317,6 @@ export function FlowsPage({
           };
           await api.saveFlow(tabID, name, spec);
           onFlowChange?.(name, spec);
-          setShowImportDialog(false);
           setSelectedId(name);
           setSelectedSpec(spec);
           setSelectedSource("project");
@@ -480,8 +477,9 @@ export function FlowsPage({
 
   // Flow list view.
   return (
-    <div className="p-6">
+    <PageContainer width="wide">
       <PageHeader
+        help="project-settings"
         title={isProjectMode ? "Flows" : "Flows"}
         actions={
           <div className="flex gap-2">
@@ -489,12 +487,6 @@ export function FlowsPage({
               <Button variant="outline" size="sm" onClick={() => void handleOpenFile()}>
                 <FolderOpen size={12} />
                 Open File...
-              </Button>
-            )}
-            {isProjectMode && (
-              <Button variant="outline" size="sm" onClick={() => void handleOpenImportDialog()}>
-                <Import size={12} />
-                Import flow
               </Button>
             )}
             <Button size="sm" onClick={() => setShowCreateDialog(true)}>
@@ -506,7 +498,7 @@ export function FlowsPage({
       />
 
       {(loading || flows.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
           {loading
             ? [0, 1, 2].map((i) => <FlowCard key={i} loading />)
             : flows.map((item) => (
@@ -531,6 +523,22 @@ export function FlowsPage({
 
       {!loading && flows.length === 0 && (
         <FlowsEmptyState projectMode={isProjectMode} onCreate={() => setShowCreateDialog(true)} />
+      )}
+
+      {available.length > 0 && (
+        <section data-slot="flows-available" className="mt-8">
+          <SectionHeading className="mb-2">Available to add</SectionHeading>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {available.map((item) => (
+              <FlowCard
+                key={item.id}
+                item={item}
+                onClick={() => void handleImportFlow(item)}
+                onAdopt={() => void handleImportFlow(item)}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       <Dialog
@@ -584,55 +592,6 @@ export function FlowsPage({
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Import flow dialog (project mode) */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Import flow</DialogTitle>
-            <DialogDescription>
-              Copy a built-in or user flow into this project. The flow will be independent. Changes
-              won't affect the original.
-            </DialogDescription>
-          </DialogHeader>
-          {importFlows.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No flows available to import.
-            </p>
-          ) : (
-            <ScrollArea className="max-h-64">
-              <div className="flex flex-col gap-1.5">
-                {importFlows.map((item) => (
-                  <Button
-                    key={item.id}
-                    variant="outline"
-                    onClick={() => void handleImportFlow(item)}
-                    className="flex items-center gap-3 w-full h-auto text-left p-3 hover:border-primary/30 hover:bg-accent/50"
-                  >
-                    <Workflow size={14} className="text-muted-foreground shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold truncate">{item.name}</span>
-                        <span className="text-[11px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
-                          {item.source}
-                        </span>
-                      </div>
-                      {item.description && (
-                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                          <Markdown inline>{item.description}</Markdown>
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-muted-foreground">
-                      {item.stepCount} steps
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+    </PageContainer>
   );
 }

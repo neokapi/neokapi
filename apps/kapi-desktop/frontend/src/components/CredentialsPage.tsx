@@ -135,7 +135,7 @@ export function CredentialsPage({
     void qc.invalidateQueries({ queryKey: qk.aiModelData() });
     // Also refresh the raw providers list the schema-form credential picker reads.
     void qc.invalidateQueries({ queryKey: qk.providers() });
-    // A saved, removed or defaulted key changes whether the Map offers a deeper look.
+    // A saved, removed or defaulted key changes whether the Overview offers a deeper look.
     void qc.invalidateQueries({ queryKey: ["ai", "deeper-look-model"] });
   }, [qc]);
 

@@ -65,13 +65,13 @@ func TestExtractNonTranslatableContent_ApplyMap(t *testing.T) {
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, cfg.ExtractNonTranslatableContent())
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, cfg.ExtractNonTranslatableContent())
 
-	require.Error(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": "yes"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": "yes"}))
 }
 
 func TestExtractNonTranslatableContent_Schema(t *testing.T) {
@@ -79,8 +79,8 @@ func TestExtractNonTranslatableContent_Schema(t *testing.T) {
 	cfg := &csvfmt.Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)
-	prop, ok := s.Properties["extractNonTranslatableContent"]
-	require.True(t, ok, "schema declares extractNonTranslatableContent")
+	prop, ok := s.Properties["extract_non_translatable_content"]
+	require.True(t, ok, "schema declares extract_non_translatable_content")
 	assert.Equal(t, "boolean", prop.Type)
 	assert.Equal(t, true, prop.Default)
 }

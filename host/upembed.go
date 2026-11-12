@@ -42,6 +42,14 @@ type UpOptions struct {
 	// LogWriter receives the run's human-readable log lines (auto-extract
 	// notes, per-step output). Discarded when nil.
 	LogWriter io.Writer
+	// RecycleOnly runs RecycleOnlyFlowSpec in place of the project's flow:
+	// exact content-memory matches fill their targets and no provider is
+	// called. Local only; RunUpDispatch refuses it for a server venue.
+	RecycleOnly bool
+	// PreReview runs the AI pre-review over the review queue once the run is
+	// over (RunAIPreReview) and reports it in ConvergeOutput.PreReview. Local
+	// only; RunUpDispatch refuses it for a server venue.
+	PreReview bool
 }
 
 // RunUp is the embedded local-venue `kapi up`: it runs the exact convergence
@@ -103,6 +111,7 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 		jobs:        opts.Jobs,
 		onEvent:     opts.OnEvent,
 		capture:     &result,
+		recycleOnly: opts.RecycleOnly,
 	})
 	if err != nil {
 		// A run that failed on the placeholder findings completed, and its
@@ -111,6 +120,13 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 			return &result, err
 		}
 		return nil, err
+	}
+	if opts.PreReview {
+		pre, perr := a.RunAIPreReview(ctx, projectPath, sourceLang, PreReviewOptions{})
+		if perr != nil {
+			return &result, fmt.Errorf("ai pre-review: %w", perr)
+		}
+		result.PreReview = pre
 	}
 	return &result, nil
 }

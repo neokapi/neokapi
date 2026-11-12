@@ -227,6 +227,7 @@ const config: Config = {
       "@docusaurus/plugin-client-redirects",
       {
         redirects: [
+          { from: "/server/project-map", to: "/server/project-overview" },
           { from: "/architecture-decisions/index", to: "/developer/server" },
           { from: "/architecture-decisions/001-vision-and-modules", to: "/developer/server" },
           {

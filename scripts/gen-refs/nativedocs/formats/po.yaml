@@ -19,7 +19,7 @@ overview: |
   strings. Comments, context, and references are preserved on the block
   and written back. This mirrors Okapi's PO filter.
 parameters:
-  bilingualMode:
+  bilingual_mode:
     description: Treat msgid as the source text and msgstr as the target.
     help: |
       When enabled (the default), each message is read bilingually: the
@@ -29,7 +29,7 @@ parameters:
       the layout used by catalogues whose message IDs are symbolic rather
       than English.
     values: "`true` / `false` (default `true`)"
-  preserveUntranslated:
+  preserve_untranslated:
     description: Emit blocks for messages that have an empty msgstr.
     help: |
       Controls whether messages with an empty `msgstr` (untranslated
@@ -37,7 +37,7 @@ parameters:
       kept so the full catalogue is visible for translation. When
       disabled, untranslated entries are skipped.
     values: "`true` / `false` (default `true`)"
-  wrapContent:
+  wrap_content:
     description: Wrap long content lines in the output catalogue.
     help: |
       A writer-side option. When enabled (the default), long `msgid` and
@@ -46,7 +46,7 @@ parameters:
       each value is written on a single line. The reader ignores this
       setting.
     values: "`true` / `false` (default `true`)"
-  allowEmptyOutputTarget:
+  allow_empty_output_target:
     description: Write an empty target when no translation is available.
     help: |
       A writer-side option. When enabled, a message with no available
@@ -54,27 +54,27 @@ parameters:
       dropped or filled with the source. When disabled (the default),
       empty targets are not emitted.
     values: "`true` / `false` (default `false`)"
-  useCodeFinder:
+  use_code_finder:
     description: Detect inline codes inside message text using regular expressions.
     help: |
       Enables regex-based detection of inline codes (placeholders,
       variables, format specifiers) within the message text, using the
-      patterns in `codeFinderRules`. When disabled (the default), no
+      patterns in `code_finder_rules`. When disabled (the default), no
       pattern-based inline codes are extracted.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regular-expression patterns that match inline codes in message text.
     help: |
       A list of regular expressions; each match within a translatable
       block is protected as an inline code rather than translated. Used to
       shield gettext placeholders or format specifiers. Only takes effect
-      when `useCodeFinder` is enabled; invalid patterns are skipped.
+      when `use_code_finder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:
       - "`%[0-9]*[sd]` protects `printf`-style format specifiers"
       - "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for the rules to take effect
 processingNotes:
   - One block is emitted per message; `msgctxt` is stored on the block context, and comments and references are preserved.
@@ -83,8 +83,8 @@ examples:
   - title: Monolingual catalogue
     description: Treat msgid as an identifier and msgstr as the source text.
     config: |
-      bilingualMode: false
+      bilingual_mode: false
   - title: Skip untranslated entries
     description: Extract only messages that already carry a translation.
     config: |
-      preserveUntranslated: false
+      preserve_untranslated: false

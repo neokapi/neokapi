@@ -99,6 +99,8 @@ export {
   SelectItem,
   Markdown,
   PageHeader,
+  PageContainer,
+  SettingsRow,
   SectionHeading,
   // Governance forms: the voice governing a point and a point's axes, the
   // same forms kapi desktop composes its recipe governance from.
@@ -148,7 +150,7 @@ export {
   TooltipTrigger,
   TooltipContent,
 } from "@neokapi/ui-primitives";
-export type { ChartConfig, MarkdownProps } from "@neokapi/ui-primitives";
+export type { ChartConfig, MarkdownProps, PageWidth } from "@neokapi/ui-primitives";
 export type {
   FlowCardItem,
   LinearFlowEditorProps,

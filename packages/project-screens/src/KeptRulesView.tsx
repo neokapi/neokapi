@@ -11,7 +11,7 @@ import {
   SectionHeading,
   When,
 } from "@neokapi/ui-primitives";
-import { NoticedBy } from "./NoticedBy";
+import { RecordedBy } from "./RecordedBy";
 import { KindMark, kindWord } from "./ReaderView";
 import type { ContextActor, KeptRule } from "./types";
 
@@ -112,7 +112,7 @@ function KeptRuleRow({
         <div className="text-sm">{rule.rule}</div>
         <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
           <span data-slot="kept-by">
-            <NoticedBy who={rule.kept_by} nameOf={nameOf} />
+            <RecordedBy who={rule.kept_by} nameOf={nameOf} />
           </span>
           <span aria-hidden>·</span>
           <When iso={rule.kept_at} dateStyle="medium" />

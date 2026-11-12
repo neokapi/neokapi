@@ -1,8 +1,8 @@
 // What is new across the workspace, for the home screen.
 //
 // One row per project with something to decide about, newest session first:
-// the mark of whoever noticed something most recently, the project and when,
-// a chip for each kind of thing noticed, and one button that opens the project
+// the mark of whoever suggested something most recently, the project and when,
+// a chip for each kind of suggestion, and one button that opens the project
 // on its own What's new. j and k (or the arrows) move over the rows and Enter
 // opens the one under the cursor.
 //
@@ -41,7 +41,7 @@ type Theme = (typeof THEMES)[number];
 
 /**
  * The projects with something to decide about, newest session first: what the
- * person has not seen, a disagreement, suggestions still advising, or an
+ * person has not seen, a disagreement, suggestions still waiting, or an
  * assistant working there now. A project opened on its What's new moves the
  * marker at once, so "new" alone would drop a project whose suggestions still
  * wait.
@@ -130,7 +130,7 @@ export function WhatsNew({ standings, onOpen, keyboard = true }: WhatsNewProps) 
           {anythingRecorded(standings) ? (
             <>Nothing new since you last looked.</>
           ) : (
-            <>Nothing is recorded yet. What an assistant notices in a project appears here.</>
+            <>Nothing is recorded yet. Suggestions from your assistants appear here.</>
           )}
         </p>
       )}
@@ -252,9 +252,9 @@ function isDigestKind(kind: NewsChip["kind"]): kind is DigestKind {
 
 /**
  * What a project's row counts, in the digest's theme order: what the latest
- * session noticed by kind, then the disagreements that need a person. A
- * project whose latest session noticed nothing new still says how much is new,
- * or how many suggestions are advising, in one chip.
+ * session suggested by kind, then the disagreements that need a person. A
+ * project whose latest session suggested nothing new still says how much is new,
+ * or how many suggestions are waiting, in one chip.
  */
 export function newsChips(standing: ContextProjectStanding): NewsChip[] {
   const chips: NewsChip[] = [];
@@ -325,7 +325,7 @@ export function markActor(actor: ContextActivity["actor"]): { actor: string; nam
 
 /**
  * The workspace as labelled counts: projects, rules in force, the concepts in
- * the projects' terms stores, suggestions advising, and the disagreements that
+ * the projects' terms stores, suggestions waiting, and the disagreements that
  * need a person, in the warning ink while there are any.
  */
 export function WorkspaceNumbers({
@@ -370,9 +370,7 @@ export function WorkspaceNumbers({
       label: t("{count, plural, one {suggestion} other {suggestions}}", "a count on the home", {
         count: suggested,
       }),
-      hint: t(
-        "A suggestion advises until you keep it or drop it. A check reports it and fails nothing.",
-      ),
+      hint: t("A check reports a suggestion and fails nothing until you keep it or drop it."),
     },
     {
       id: "needs-you",

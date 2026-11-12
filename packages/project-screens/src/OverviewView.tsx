@@ -1,0 +1,453 @@
+// The Overview: the page a project opens on. It is an overview (page-patterns
+// "Overview"): the project's name and when kapi last read its files, four
+// counts, the suggestions that wait for a person and the content files, each
+// row leading to the place that acts on it. Nothing on it is edited in place.
+//
+// OverviewView draws one OverviewSummary already read. The host fills the parts only it
+// has (the deeper look's row, the Connect your AI card, the add-files action,
+// the file preview) as slots, and says which targets it opens: a target it
+// cannot open hides the button that leads there. Without onRun the page draws
+// no check action.
+
+import { ChevronRight, FileText, Play, Sparkles } from "lucide-react";
+import {
+  Button,
+  EmptyState,
+  ErrorNotice,
+  KindIcon,
+  LoadingSpinner,
+  PageContainer,
+  PageHeader,
+  SectionHeading,
+  SimpleTooltip,
+  StatRow,
+  When,
+  digestKind,
+  type StatItem,
+} from "@neokapi/ui-primitives";
+import { t } from "@neokapi/i18n-react/runtime";
+import { ConflictLine, RuleLine } from "./DigestRule";
+import { OverviewSteps } from "./OverviewSteps";
+import { opens, type ScreenNavigation, type ScreenTarget } from "./port";
+import type { OverviewFileRow, MapSuggestionRow, OverviewSummary } from "./types";
+
+/** The Decide view's key for a row: its group and its item's id. */
+export function decideRowKey(row: MapSuggestionRow): string {
+  return `${row.group}:${row.item.id}`;
+}
+
+export interface OverviewViewProps extends ScreenNavigation {
+  projectName: string;
+  summary: OverviewSummary;
+  /** A checks run over the whole project is in progress. */
+  running?: boolean;
+  runError?: unknown;
+  /** Run the checks over the whole project. Absent, the page draws no check action. */
+  onRun?: () => void;
+  /**
+   * What the host draws between the counts and "Suggestions", such as
+   * the desktop's notices and its language standing; absent draws nothing.
+   */
+  standing?: React.ReactNode;
+  /** The deeper look's row under "Suggestions"; absent draws none. */
+  deeperLook?: React.ReactNode;
+  /** The Connect your AI card, drawn under the deeper look's row when open. */
+  connectAI?: React.ReactNode;
+  /** The action in the empty suggestions list; absent, Connect an assistant when the host opens it. */
+  suggestionsAction?: React.ReactNode;
+  /** Hide the first steps for this project; absent, they cannot be dismissed. */
+  onDismissSteps?: () => void;
+  /** The guide that walks through the first steps, opened outside the app. */
+  stepsGuideHref?: string;
+  /** Start the host's tour of the first steps; it wins over `stepsGuideHref`. */
+  onStepsGuide?: () => void;
+  /** The project waits to be set up: the files' empty state leads to setting it up. */
+  setupPending?: boolean;
+  /** The action in the empty files list, such as adding files. */
+  addFiles?: React.ReactNode;
+  /** Show a file the Reader does not open: one with no blocks, or any when the host opens no Reader. */
+  onPreviewFile?: (row: OverviewFileRow) => void;
+  /** The file preview, drawn after the page. */
+  filePreview?: React.ReactNode;
+  onShowFiles?: () => void;
+  filesRef?: React.Ref<HTMLElement>;
+}
+
+/** The Overview as it is drawn, from a summary already read. */
+export function OverviewView({
+  projectName,
+  summary,
+  running,
+  runError,
+  onRun,
+  standing,
+  deeperLook,
+  connectAI,
+  suggestionsAction,
+  onDismissSteps,
+  stepsGuideHref,
+  onStepsGuide,
+  setupPending,
+  addFiles,
+  onPreviewFile,
+  filePreview,
+  onShowFiles,
+  filesRef,
+  navigate,
+  canNavigate,
+}: OverviewViewProps) {
+  const nav: ScreenNavigation = { navigate, canNavigate };
+  const decides = opens(nav, { kind: "rules" });
+  const onDecide = (row?: string) => navigate(row ? { kind: "rules", row } : { kind: "rules" });
+  // A file opens in the Reader when the block cache holds blocks for it and
+  // the host opens the Reader; otherwise in the preview, when there is one.
+  const openFile = (row: OverviewFileRow): (() => void) | undefined => {
+    const reader: ScreenTarget = { kind: "reader", path: row.relative };
+    if (row.blocks > 0 && opens(nav, reader)) return () => navigate(reader);
+    if (onPreviewFile) return () => onPreviewFile(row);
+    return undefined;
+  };
+  const connect: ScreenTarget = { kind: "connect-assistant" };
+  const emptySuggestionsAction =
+    suggestionsAction ??
+    (opens(nav, connect) && (
+      <Button size="sm" variant="outline" onClick={() => navigate(connect)}>
+        Connect an assistant
+      </Button>
+    ));
+  return (
+    <>
+      <PageContainer width="wide">
+        <div data-slot="overview" className="space-y-8">
+          <div className="space-y-5">
+            <PageHeader
+              help="overview"
+              className="mb-0"
+              title={projectName}
+              subtitle={<ReadLine summary={summary} />}
+              actions={
+                <>
+                  {onRun && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-slot="overview-run"
+                      disabled={running || summary.files === 0}
+                      onClick={onRun}
+                    >
+                      {running ? <LoadingSpinner size="sm" /> : <Play size={14} />}
+                      {running ? <>Checking</> : <>Run on everything</>}
+                    </Button>
+                  )}
+                  {summary.awaiting > 0 && decides && (
+                    <Button size="sm" data-slot="overview-decide" onClick={() => onDecide()}>
+                      {t("Decide {count}", "a button: the items awaiting a decision", {
+                        count: summary.awaiting,
+                      })}
+                    </Button>
+                  )}
+                </>
+              }
+            />
+            <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+              <MapCounts summary={summary} running={running} nav={nav} onShowFiles={onShowFiles} />
+            </div>
+            {!!runError && <ErrorNotice error={runError} title={t("The checks did not run")} />}
+          </div>
+
+          {summary.steps && summary.steps.length > 0 && (
+            <OverviewSteps
+              steps={summary.steps}
+              onRun={onRun}
+              running={running}
+              onDismiss={onDismissSteps}
+              guideHref={stepsGuideHref}
+              onGuide={onStepsGuide}
+              navigate={navigate}
+              canNavigate={canNavigate}
+            />
+          )}
+
+          {standing}
+
+          {/* From xl up the two lists sit side by side rather than one under the other. */}
+          <div className="grid gap-8 xl:grid-cols-2 xl:items-start">
+            <section data-slot="overview-suggestions" className="min-w-0 space-y-2">
+              <SectionHeading>Suggestions</SectionHeading>
+              {summary.suggestions.length === 0 ? (
+                <div data-slot="overview-suggestions-empty">
+                  <EmptyState
+                    icon={<Sparkles size={20} className="mx-auto" />}
+                    title={t("No suggestions yet.")}
+                    action={emptySuggestionsAction || undefined}
+                  />
+                </div>
+              ) : (
+                <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
+                  {summary.suggestions.map((row) => (
+                    <SuggestionRow
+                      key={decideRowKey(row)}
+                      row={row}
+                      onDecide={decides ? onDecide : undefined}
+                    />
+                  ))}
+                </ul>
+              )}
+              {deeperLook}
+              {connectAI}
+            </section>
+
+            <section ref={filesRef} data-slot="overview-files" className="min-w-0 space-y-2">
+              <SectionHeading>Files</SectionHeading>
+              {summary.file_rows.length === 0 ? (
+                <div data-slot="overview-files-empty">
+                  <EmptyState
+                    icon={<FileText size={20} className="mx-auto" />}
+                    title={t("No content files yet")}
+                    action={
+                      setupPending
+                        ? opens(nav, { kind: "setup" }) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate({ kind: "setup" })}
+                            >
+                              Set up the project
+                            </Button>
+                          )
+                        : addFiles
+                    }
+                  />
+                </div>
+              ) : (
+                <ul role="list" className="divide-y divide-border/60 border-y border-border/60">
+                  {summary.file_rows.map((row) => (
+                    <FileRow key={row.relative} row={row} onOpen={openFile(row)} />
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </div>
+      </PageContainer>
+      {filePreview}
+    </>
+  );
+}
+
+/** When kapi last read the project's files, under the title. */
+// The files count beside it says how many there are, so the line names a
+// number only when kapi read a different number of them (a file no reader
+// opens, or a file waiting for the next read).
+function ReadLine({ summary }: { summary: OverviewSummary }) {
+  const sameCount = summary.read_files === summary.files;
+  if (sameCount && !summary.read_at) return null;
+  const when = summary.read_at && <When iso={summary.read_at} relative />;
+  if (sameCount) {
+    return <span data-slot="overview-read">Last read {when}</span>;
+  }
+  const read = t(
+    "Last read {count, plural, one {# file} other {# files}}",
+    "under the project title",
+    {
+      count: summary.read_files,
+    },
+  );
+  return (
+    <span data-slot="overview-read">
+      {read}
+      {when && <> {when}</>}
+    </span>
+  );
+}
+
+/** The four counts: files, blocks, rules and findings. A count whose place the host does not open is not a link. */
+function MapCounts({
+  summary,
+  running,
+  nav,
+  onShowFiles,
+}: {
+  summary: OverviewSummary;
+  running?: boolean;
+  nav: ScreenNavigation;
+  onShowFiles?: () => void;
+}) {
+  const findings = summary.findings ?? 0;
+  const checked = summary.findings !== null;
+  const to = (target: ScreenTarget) =>
+    opens(nav, target) ? () => nav.navigate(target) : undefined;
+  const items: StatItem[] = [
+    {
+      id: "files",
+      value: summary.files,
+      label: t("{count, plural, one {file} other {files}}", "a count on the Overview", {
+        count: summary.files,
+      }),
+      onClick: onShowFiles,
+    },
+    {
+      id: "blocks",
+      value: summary.blocks,
+      label: t("{count, plural, one {block} other {blocks}}", "a count on the Overview", {
+        count: summary.blocks,
+      }),
+      onClick: to({ kind: "blocks" }),
+    },
+    {
+      id: "rules",
+      value: summary.rules,
+      label: t("{count, plural, one {rule} other {rules}}", "a count on the Overview", {
+        count: summary.rules,
+      }),
+      onClick: to({ kind: "kept" }),
+    },
+    {
+      id: "findings",
+      value: findings,
+      label: t("{count, plural, one {finding} other {findings}}", "a count on the Overview", {
+        count: findings,
+      }),
+      tone: !checked ? "muted" : findings > 0 ? "warning" : "default",
+      hint: running ? t("Checking") : !checked ? t("Not checked yet") : undefined,
+      onClick: to({ kind: "checks" }),
+    },
+  ];
+  return <StatRow data-slot="overview-counts" items={items} />;
+}
+
+/** One item awaiting a decision: its kind, the rule, its evidence, and Decide. */
+function SuggestionRow({
+  row,
+  onDecide,
+}: {
+  row: MapSuggestionRow;
+  onDecide?: (rowKey?: string) => void;
+}) {
+  const quote = row.item.quote?.quote;
+  const body = (
+    <>
+      <KindIcon kind={digestKind(row.item)} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm">
+          {row.conflict ? <ConflictLine conflict={row.conflict} /> : <RuleLine item={row.item} />}
+        </div>
+        <EvidenceMeta quote={quote} blocks={row.blocks} files={row.files} />
+      </div>
+    </>
+  );
+  // The row is the control: a person decides an item by opening it, so a
+  // Decide button on every row repeats what the header's button already says.
+  return (
+    <li data-slot="overview-suggestion" data-id={row.item.id} data-group={row.group}>
+      {onDecide ? (
+        <button
+          type="button"
+          data-slot="overview-suggestion-decide"
+          onClick={() => onDecide(decideRowKey(row))}
+          className="flex min-h-11 w-full items-center gap-3 rounded-md py-1.5 text-left hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {body}
+          <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      ) : (
+        <div className="flex min-h-11 items-center gap-3 py-1.5">{body}</div>
+      )}
+    </li>
+  );
+}
+
+/** The evidence on one meta line: the words it was seen in, and where. */
+function EvidenceMeta({ quote, blocks, files }: { quote?: string; blocks: number; files: number }) {
+  if (!quote && blocks === 0 && files === 0) return null;
+  const facts: string[] = [];
+  if (blocks > 0) {
+    facts.push(
+      t("{count, plural, one {# block} other {# blocks}}", "evidence on an Overview row", {
+        count: blocks,
+      }),
+    );
+  }
+  if (files > 0) {
+    facts.push(
+      t("{count, plural, one {# file} other {# files}}", "evidence on an Overview row", {
+        count: files,
+      }),
+    );
+  }
+  return (
+    <div className="flex min-w-0 items-baseline gap-1 text-[11px] text-muted-foreground">
+      {quote && (
+        <q data-slot="overview-suggestion-quote" className="min-w-0 truncate">
+          {quote}
+        </q>
+      )}
+      {facts.length > 0 && (
+        <span className="shrink-0 tabular-nums">
+          {quote ? " · " : ""}
+          {facts.join(" · ")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** One content file: its name, its folder, its blocks and findings; the row opens it. */
+function FileRow({ row, onOpen }: { row: OverviewFileRow; onOpen?: () => void }) {
+  const slash = row.relative.lastIndexOf("/");
+  const name = slash >= 0 ? row.relative.slice(slash + 1) : row.relative;
+  const folder = slash >= 0 ? row.relative.slice(0, slash) : "";
+  // The file name already carries its extension, so no format pill; and the
+  // row itself opens the file rather than an Open link at its end.
+  const body = (
+    <div className="min-w-0 flex-1">
+      {/* The full path shows while the pointer is on the name, so the
+          tooltip never covers the rest of the row. */}
+      <SimpleTooltip content={row.relative}>
+        <span translate="no" className="inline-block max-w-full truncate align-bottom text-sm">
+          {name}
+        </span>
+      </SimpleTooltip>
+      <div className="flex min-w-0 items-baseline gap-1 text-[11px] text-muted-foreground">
+        {folder && (
+          <span translate="no" className="min-w-0 truncate">
+            {folder}
+            {" · "}
+          </span>
+        )}
+        <span className="shrink-0 tabular-nums">
+          {t("{count, plural, one {# block} other {# blocks}}", "a file's blocks on the Overview", {
+            count: row.blocks,
+          })}
+        </span>
+        {row.findings > 0 && (
+          <span data-slot="overview-file-findings" className="shrink-0 tabular-nums">
+            {" · "}
+            {t(
+              "{count, plural, one {# finding} other {# findings}}",
+              "a file's findings on the Overview",
+              { count: row.findings },
+            )}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+  return (
+    <li data-slot="overview-file" data-path={row.relative}>
+      {onOpen ? (
+        <button
+          type="button"
+          data-slot="overview-file-open"
+          onClick={onOpen}
+          className="flex min-h-11 w-full items-center gap-3 rounded-md py-1.5 text-left hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {body}
+          <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      ) : (
+        <div className="flex min-h-11 items-center gap-3 py-1.5">{body}</div>
+      )}
+    </li>
+  );
+}

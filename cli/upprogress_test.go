@@ -32,7 +32,7 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	assert.NotContains(t, got, "\x1b[", "plain stream must carry no ANSI control sequences")
 	assert.Contains(t, got, "Extracted 4 block(s).")
 	assert.Contains(t, got, "pass 1/5 · catching up nb-NO, de-DE")
-	assert.Contains(t, got, "nb-NO      2/2 blocks  (content memory 1 · AI 1)")
+	assert.Contains(t, got, "nb-NO      2/2 blocks  (recycled 1 · AI 1)")
 	assert.Contains(t, got, "pass 1 done · produced 4 (+4) · 1 failing check(s)")
 	assert.Contains(t, got, "materialized 3 target file(s)")
 	// unit_progress is TTY-only detail; a plain stream stays line-per-outcome.

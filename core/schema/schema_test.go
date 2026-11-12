@@ -78,9 +78,9 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 			{ID: "output", Label: "Output", Fields: []string{"prefix", "suffix"}},
 		},
 		Properties: map[string]PropertySchema{
-			"expansionPercent": {Type: "integer", Description: "Extra padding", Default: 0},
-			"prefix":           {Type: "string", Default: "["},
-			"suffix":           {Type: "string", Default: "]"},
+			"expansion_percent": {Type: "integer", Description: "Extra padding", Default: 0},
+			"prefix":            {Type: "string", Default: "["},
+			"suffix":            {Type: "string", Default: "]"},
 		},
 	}
 
@@ -98,7 +98,7 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 	assert.Equal(t, []string{"translation"}, decoded.ToolMeta.Tags)
 	assert.Equal(t, []string{"target-language"}, decoded.ToolMeta.Requires)
 	assert.Len(t, decoded.Properties, 3)
-	assert.Equal(t, "integer", decoded.Properties["expansionPercent"].Type)
+	assert.Equal(t, "integer", decoded.Properties["expansion_percent"].Type)
 }
 
 func TestValidationError_Error(t *testing.T) {

@@ -537,7 +537,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 	block.Name = r.blockName(keyName, path, state)
 
 	// Store the raw key path for non-skeleton roundtrip.
-	// The block Name may differ from the path (e.g. UseFullKeyPath, idRules),
+	// The block Name may differ from the path (e.g. UseFullKeyPath, id_rules),
 	// so the token-based writer needs the original path to match tokens.
 	if block.Name != path {
 		block.Properties["json.keypath"] = path

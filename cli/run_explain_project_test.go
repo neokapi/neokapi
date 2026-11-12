@@ -41,7 +41,7 @@ func explainProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, root
 		Flows: map[string]*flow.StepsSpec{
 			"sidecars": {
 				Steps: []flow.FlowStep{
-					{Tool: "recycle", Config: map[string]any{"fillTarget": true, "fillTargetThreshold": 100}},
+					{Tool: "recycle", Config: map[string]any{"fill_target": true, "fill_target_threshold": 100}},
 				},
 			},
 			"pseudo": {

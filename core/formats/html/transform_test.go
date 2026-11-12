@@ -34,19 +34,19 @@ func TestOkapiHTMLTransform_DropsOkapiOnlyParams(t *testing.T) {
 	require.NoError(t, err)
 
 	// Okapi-only top-level params dropped
-	assert.Nil(t, result["quoteMode"])
-	assert.Nil(t, result["quoteModeDefined"])
+	assert.Nil(t, result["quote_mode"])
+	assert.Nil(t, result["quote_mode_defined"])
 
 	// Parser: assumeWellformed dropped, preserveWhitespace kept
 	parser, ok := result["parser"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, true, parser["preserveWhitespace"])
-	assert.Nil(t, parser["assumeWellformed"])
+	assert.Equal(t, true, parser["preserve_whitespace"])
+	assert.Nil(t, parser["assume_wellformed"])
 
 	// Shared params kept
 	assert.NotNil(t, result["elements"])
-	assert.Equal(t, true, result["useCodeFinder"])
-	assert.NotNil(t, result["codeFinderRules"])
+	assert.Equal(t, true, result["use_code_finder"])
+	assert.NotNil(t, result["code_finder_rules"])
 }
 
 func TestOkapiHTMLTransform_EmptySpec(t *testing.T) {

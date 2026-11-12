@@ -21,12 +21,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "segmentation",
 				Label: "Segmentation",
 				Fields: []string{
-					"segmentByLine", "paragraphs", "spliceLines", "spliceMarker",
+					"segment_by_line", "paragraphs", "splice_lines", "splice_marker",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"segmentByLine": schema.Prop(coreschema.PropertySchema{
+			"segment_by_line": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks.",
@@ -37,18 +37,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Paragraphs",
 				Description: "If true, blank-line-separated paragraphs become blocks instead of individual lines.",
 			}),
-			"spliceLines": schema.Prop(coreschema.PropertySchema{
+			"splice_lines": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Splice Lines",
 				Description: "If true, lines ending with the splice marker are joined with the next line into a single block.",
 			}),
-			"spliceMarker": schema.Prop(coreschema.PropertySchema{
+			"splice_marker": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     `\`,
 				Title:       "Splice Marker",
 				Description: "Continuation marker recognized at the end of a line in splice mode.",
-				Visible:     &coreschema.ConditionExpr{Field: "spliceLines", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "splice_lines", Eq: true},
 			}),
 		},
 	}

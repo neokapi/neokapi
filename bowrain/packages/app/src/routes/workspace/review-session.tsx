@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ReviewSession, useApi, type ReviewQueueFilter } from "@neokapi/ui";
+import { ReviewSession, useApi, type ReviewQueueFilter, PageContainer } from "@neokapi/ui";
 import { projectQueryOptions, translationDashboardQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
@@ -45,7 +45,7 @@ export function ReviewSessionRoute() {
       : undefined;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageContainer width="full" className="px-6 py-5">
       <ReviewSession
         project={project}
         dashboardStats={stats}
@@ -65,6 +65,6 @@ export function ReviewSessionRoute() {
           })
         }
       />
-    </div>
+    </PageContainer>
   );
 }

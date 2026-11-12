@@ -237,7 +237,7 @@ export const martProject: Lab = {
   id: "mart-project",
   series: "engine",
   position: 3,
-  title: "A project remembers",
+  title: "A project keeps its decisions",
   tagline: "Set up a project, give it memory and terms, and hold a draft to them.",
   summary:
     "Ad hoc, nothing is kept between runs. A project keeps a content memory, a terms store and a record. This lab sets one up around KapiMart with kapi init, reads its context in, approved French pairs and the vocabulary, holds a returned draft to the terms, catches brand words in a new page, and runs the loop.",

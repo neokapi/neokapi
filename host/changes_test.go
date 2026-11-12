@@ -96,8 +96,8 @@ func TestChangeService_ReadsAFileWithTheRecipesFormatBinding(t *testing.T) {
 		Path:   "docs/*.md",
 		Target: "i18n/{lang}/{path}.md",
 		Format: &project.FormatSpec{Name: "markdown", Config: map[string]any{
-			"translateFrontMatter": true,
-			"frontMatterKeys":      []any{"title"},
+			"translate_front_matter": true,
+			"front_matter_keys":      []any{"title"},
 		}},
 	}
 	a, recipe := changeProject(t, item, map[string]string{"docs/tides.md": formatConfigDoc})
@@ -367,7 +367,7 @@ func TestChangeAssets_ADecisionBindsToTheContentThatLanded(t *testing.T) {
 func TestChangeService_FormatOverrideTakesNoConfigurationWrittenForAnother(t *testing.T) {
 	item := project.ContentItem{
 		Path:   "docs/*.md",
-		Format: &project.FormatSpec{Name: "markdown", Config: map[string]any{"translateFrontMatter": true, "frontMatterKeys": []any{"title"}}},
+		Format: &project.FormatSpec{Name: "markdown", Config: map[string]any{"translate_front_matter": true, "front_matter_keys": []any{"title"}}},
 	}
 	a, recipe := changeProject(t, item, map[string]string{"docs/tides.md": formatConfigDoc})
 	svc, err := a.ChangeService(context.Background(), ChangeServiceOptions{Project: recipe, Format: "plaintext"})
@@ -385,7 +385,7 @@ func TestChangeService_AnArchiveMemberTakesTheProjectsFormatDefaults(t *testing.
 	item := project.ContentItem{Path: "docs/*.md"}
 	a, recipe := changeProject(t, item, map[string]string{"docs/readme.md": "# Readme\n"}, func(p *project.KapiProject) {
 		p.Defaults.Formats = map[string]project.FormatDefaults{"markdown": {Config: map[string]any{
-			"translateFrontMatter": true, "frontMatterKeys": []any{"title"},
+			"translate_front_matter": true, "front_matter_keys": []any{"title"},
 		}}}
 	})
 	var buf bytes.Buffer
@@ -596,7 +596,7 @@ func TestChangeAssets_APreReviewThatAnnotatesNothingIsRefused(t *testing.T) {
 		Place: change.Place{Kind: change.PlaceOwnFile, File: "locales/de.json"}, Text: "Willkommen", SourceText: "Welcome", Role: change.RoleDerived}
 	agent := change.Actor{Kind: change.ActorAgent, Name: "review-agent", Session: "s1"}
 	_, cerr := assets.Apply(context.Background(), agent, &change.Set{},
-		change.Op{Kind: change.KindDecide, At: at, Body: &change.Decide{Outcome: change.OutcomeAdvise, Score: &score}}, target)
+		change.Op{Kind: change.KindDecide, At: at, Body: &change.Decide{Outcome: change.OutcomePrereview, Score: &score}}, target)
 	require.NotNil(t, cerr)
 	assert.Equal(t, change.CodeNotFound, cerr.Code)
 }

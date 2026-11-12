@@ -11,10 +11,10 @@ import (
 
 // PlaceholderCheckConfig configures the placeholder/tag integrity checker.
 type PlaceholderCheckConfig struct {
-	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID `json:"target_locale,omitempty" schema:"-"`
 	// FlagExtra also reports placeholders that appear in the target but not the
 	// source (usually a stray token), in addition to dropped ones.
-	FlagExtra bool `json:"flagExtra,omitempty" schema:"title=Flag extra placeholders,description=Report placeholders present in the target but absent from the source,default=true"`
+	FlagExtra bool `json:"flag_extra,omitempty" schema:"title=Flag extra placeholders,description=Report placeholders present in the target but absent from the source,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.

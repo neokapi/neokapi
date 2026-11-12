@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { ChecksPanel } from "../components/ChecksPanel";
-import { MapPage } from "../components/MapPage";
+import { OverviewPage } from "../components/OverviewPage";
 import { ReaderPage } from "../components/ReaderPage";
 import { api } from "../hooks/useApi";
 import { readerTargetOf, readerView } from "../lib/screenTargets";
@@ -17,7 +17,7 @@ import {
   READER_WITH_FIXES,
   READER_WITHOUT_FIXES,
 } from "@neokapi/project-screens/fixtures";
-import type { CheckRunResult, MapSummary } from "../types/api";
+import type { CheckRunResult, OverviewSummary } from "../types/api";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -209,8 +209,8 @@ describe("the Reader", () => {
   });
 });
 
-/** The Map, the Checks page and the Reader, routed by view as ViewSwitch routes them. */
-function Routed({ summary, start }: { summary: MapSummary; start: string }) {
+/** The Overview, the Checks page and the Reader, routed by view as ViewSwitch routes them. */
+function Routed({ summary, start }: { summary: OverviewSummary; start: string }) {
   const [view, setView] = useState(start);
   const target = readerTargetOf(view);
   if (target) {
@@ -232,7 +232,7 @@ function Routed({ summary, start }: { summary: MapSummary; start: string }) {
     );
   }
   return (
-    <MapPage
+    <OverviewPage
       tabID="t1"
       projectName="Fernwell"
       summary={summary}
@@ -244,20 +244,20 @@ function Routed({ summary, start }: { summary: MapSummary; start: string }) {
 }
 
 describe("opening the Reader", () => {
-  it("opens from a file on the Map", async () => {
+  it("opens from a file on the Overview", async () => {
     const read = vi.spyOn(api, "readerFile").mockResolvedValue(READER_WITH_FIXES);
     render(<Routed summary={MAP_PENDING} start="map" />);
     const row = document.querySelector<HTMLElement>(
-      '[data-slot="map-file"][data-path="docs/billing.md"]',
+      '[data-slot="overview-file"][data-path="docs/billing.md"]',
     )!;
-    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
+    await userEvent.click(row.querySelector('[data-slot="overview-file-open"]') as HTMLElement);
     expect(await screen.findByRole("heading", { name: "docs/billing.md" })).toBeInTheDocument();
     expect(read).toHaveBeenCalledWith("t1", "docs/billing.md");
   });
 
   it("leaves a file the block cache holds no blocks for to the preview", async () => {
     const read = vi.spyOn(api, "readerFile").mockResolvedValue(READER_WITH_FIXES);
-    const unread: MapSummary = {
+    const unread: OverviewSummary = {
       ...MAP_PENDING,
       file_rows: MAP_PENDING.file_rows.map((f) =>
         f.relative === "docs/billing.md" ? { ...f, blocks: 0 } : f,
@@ -265,9 +265,9 @@ describe("opening the Reader", () => {
     };
     render(<Routed summary={unread} start="map" />);
     const row = document.querySelector<HTMLElement>(
-      '[data-slot="map-file"][data-path="docs/billing.md"]',
+      '[data-slot="overview-file"][data-path="docs/billing.md"]',
     )!;
-    await userEvent.click(row.querySelector('[data-slot="map-file-open"]') as HTMLElement);
+    await userEvent.click(row.querySelector('[data-slot="overview-file-open"]') as HTMLElement);
     // The preview sheet opens on the file; the Reader's page title does not.
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1, name: "docs/billing.md" })).toBeNull();

@@ -376,7 +376,7 @@ names the plugin to install. Nothing is recorded for the unit.
 
 A file declared for its comments, in a language only a plugin reads, is
 reported the same way when that plugin is absent. With no manifest to read, kapi
-learns the plugin from a compiled-in table in `host/check_comments_plugin.go`
+looks the plugin up in a compiled-in table in `host/check_comments_plugin.go`
 that maps each extension to its language and plugin, and a test pins the table
 to the plugin's manifest. The warning names the language's comments and the
 plugin to install, and the file never counts as checked.
@@ -552,7 +552,7 @@ cask spells both `desc "Desktop workbench…"` and `zap trash:
 ["~/Library/Caches/Kapi"]` as string literals. A pattern cannot separate them.
 The syntax tree can, because it knows the first is an argument to `desc` and the
 second an element of an array. A recipe names the prose-bearing calls with
-`nodePathPatterns`, the way it already names prose-bearing keys in YAML or JSON.
+`node_path_patterns`, the way it already names prose-bearing keys in YAML or JSON.
 
 It is **read-only**, declared as `capabilities: ["read"]` and backed by the
 absence of a writer on either side of the boundary. A round-trip error in a

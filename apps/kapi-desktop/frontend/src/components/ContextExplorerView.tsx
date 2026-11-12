@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, PageHeader } from "@neokapi/ui-primitives";
+import { Badge, PageContainer, PageHeader } from "@neokapi/ui-primitives";
 import { ContextExplorer, ScopeProvider } from "@neokapi/context-explorer";
 import type { ContextDataSource, Dimension } from "@neokapi/context-explorer";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -69,27 +69,33 @@ export function ContextExplorerView({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
-      <PageHeader title="Search" />
-      {pin?.rule && (
-        <div
-          className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs"
-          data-testid="explorer-pin"
-        >
-          <span className="text-muted-foreground">{t("Pinned by a check finding")}</span>
-          <Badge variant="outline" className="font-mono text-[11px] font-normal">
-            {pin.rule}
-          </Badge>
-          {pin.coordinate && (
-            <Badge variant="secondary" className="font-normal">
-              {pin.coordinate}
+    <PageContainer width="full">
+      <PageHeader
+        help="search-and-explore"
+        className="mb-0 shrink-0 px-6 pt-5 pb-3"
+        title="Search"
+      />
+      <div className="min-h-0 flex-1 overflow-y-auto border-t border-border px-6 pb-6">
+        {pin?.rule && (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs"
+            data-testid="explorer-pin"
+          >
+            <span className="text-muted-foreground">{t("Pinned by a check finding")}</span>
+            <Badge variant="outline" className="font-mono text-[11px] font-normal">
+              {pin.rule}
             </Badge>
-          )}
-        </div>
-      )}
-      <ScopeProvider source={client} pinned={PINNED} scope={scope}>
-        <ContextExplorer className="mt-4" />
-      </ScopeProvider>
-    </div>
+            {pin.coordinate && (
+              <Badge variant="secondary" className="font-normal">
+                {pin.coordinate}
+              </Badge>
+            )}
+          </div>
+        )}
+        <ScopeProvider source={client} pinned={PINNED} scope={scope}>
+          <ContextExplorer className="mt-4" />
+        </ScopeProvider>
+      </div>
+    </PageContainer>
   );
 }

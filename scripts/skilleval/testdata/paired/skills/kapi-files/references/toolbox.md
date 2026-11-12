@@ -4,7 +4,7 @@
 `cat`, `grep`, `sed`, `diff` and a converter that operate on the **content**
 kapi-files extracts from a document: the prose, not the bytes. They read, edit,
 compare and convert the human-readable text inside any format kapi-files
-understands, from a Word `.docx` to a JSON catalog to a Markdown page to an
+supports, from a Word `.docx` to a JSON catalog to a Markdown page to an
 XLIFF file, without converting anything first.
 
 Each runs as a command of kapi-files: `kapi-files kcat`, `kapi-files kgrep`,

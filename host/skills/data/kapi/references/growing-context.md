@@ -24,14 +24,14 @@ Over MCP the same calls are `context_note`: with `term` and `instead_of`, or
 `text`, for what you noticed, and with `from`, `to` and `suggest` for a change
 the person made.
 
-- **Note** what the project's files do every time, whether or not your own
+- **Note** consistent wording in the project's files, whether or not your own
   text needs it. Look for three kinds in every project:
-  - each product, feature and plan name, as the files write it;
+  - each product, feature and plan name, as written in the files;
   - the spelling variety (British or American), as a fact in prose with two or
     three words that show it;
   - a word the files always use where writers often use another.
 
-  A name or word is a rule: pass `--term` with the form the files use and
+  A name or word is a rule: pass `--term` with the form found in the files and
   `--instead-of` with the form they avoid, which is the split form of a
   one-word name, the other spelling, or the other word. kapi adds the spacing,
   hyphen and capitalisation variants (`Quickcast` avoids `Quick cast`,
@@ -39,7 +39,7 @@ the person made.
   or the register it keeps, states no rule.
 
   Before you record a word, search the files for its other forms (spaced,
-  hyphenated, closed, the other spelling). A word they write more than one way
+  hyphenated, closed, the other spelling). A word spelled more than one way
   is a choice the project has not made, so leave it for a person: record
   nothing about it, not even a note describing the forms. Leave alone
   interface labels, wording taken from your task, anything seen once, and a
@@ -65,8 +65,9 @@ Attach evidence with `--seen-in` for the file and `--quote` for the wording.
 Term rules and corrections require evidence so reviewers can compare the
 proposal with its source.
 
-Two suggestions that name different forms for one word are **contested**: both
-advise, each names the other, and a person chooses one in `kapi context review`.
+Two suggestions that name different forms for one word are **contested**:
+checks report both, each names the other, and a person chooses one in
+`kapi context review`.
 
 One call records one thing. Do not batch a session's worth of notes into
 a single sentence, and do not wait until the end of the task to record them.
@@ -120,8 +121,8 @@ kapi context review --session s4f1c2      # only what one run suggested
 ```
 
 A person reviews whenever it suits them, in a terminal or in the Learned
-section of Kapi Desktop. Nothing you record waits on that review, because a
-suggestion advises from the moment it is recorded.
+section of Kapi Desktop. Nothing you record waits on that review, because
+checks report a suggestion from the moment it is recorded.
 
 ---
 

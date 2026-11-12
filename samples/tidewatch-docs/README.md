@@ -63,8 +63,8 @@ front-matter key is configuration and is left alone.
 format:
   name: markdown
   config:
-    translateFrontMatter: true
-    frontMatterKeys: [title, description, sidebar_label]
+    translate_front_matter: true
+    front_matter_keys: [title, description, sidebar_label]
 ```
 
 The target path is Docusaurus's own default translation path, so there is no copy
@@ -168,7 +168,7 @@ ls i18n/nl
 | --- | --- | --- |
 | 1 | Onboarded through the discovery path, so the graph arrives as reviewable files | **MET**: recipe, voice profile and vocabulary carried forward from the monolingual sample rather than re-authored |
 | 2 | Governance bound at the point day one; review workflow on | **MET**: `profiles.northsea` binds voice and channel; the review round-trip runs offline through `kapi apply` |
-| 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 96 block(s) missing · 15 exact-content memory · 81 AI · ≈2k tokens`, then per-locale `(content memory 23 · AI 37)`. No credential spent |
+| 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 96 block(s) missing · 15 recycled · 81 AI · ≈2k tokens`, then per-locale `(recycled 23 · AI 37)`. No credential spent |
 | 4 | Governed review exercised, with a decision that changes an outcome | **MET**: 60 decisions in `context/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending until its own drafts are reviewed |
 | 5 | Delivery proven, the CI leg | **PARTIAL**: the workflow is authored against the published actions and every kapi command in it is verified locally; it is not executed, because a sample workflow inside `samples/` is not a repository workflow and running it would mean a public sample repository, which this stream does not create |
 | 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s2-tidewatch-build-output/` and `harness/demos/s2-tidewatch-ci/` are authored and neither has been recorded since the split; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |

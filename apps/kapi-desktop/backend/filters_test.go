@@ -89,7 +89,7 @@ func TestProjectFilters_SharedAndLocalRoundTrip(t *testing.T) {
 	assert.Empty(t, app.GetProjectFilters("t").Filters)
 }
 
-// A second checkout of the project sees the team's filters and none of the
+// A second checkout of the project gets the team's filters and none of the
 // first checkout's personal ones.
 func TestProjectFilters_SharedFiltersReachAnotherCheckout(t *testing.T) {
 	// One data directory for both checkouts. Under test each checkout

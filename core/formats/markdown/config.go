@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"regexp"
 )
 
@@ -98,76 +99,69 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 }
 
 // ApplyMap applies configuration values from a map.
-//
-// Bridge-schema leaf aliases (translateImageAltText, translateUrls,
-// translateHeaderMetadata, htmlSubfilter) are accepted alongside the
-// native names (translateImageAlt, translateURLs, translateFrontMatter,
-// subfilter) so a single spec can be consumed by both implementations
-// without bespoke key remapping. Aliases are additive — both spellings
-// continue to work.
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "translateCodeBlocks":
+		case "translate_code_blocks":
 			if v, ok := val.(bool); ok {
 				c.TranslateCodeBlocks = v
 			}
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			if v, ok := val.(bool); ok {
 				c.disableNonTranslatableContent = !v
 			}
-		case "translateFrontMatter", "translateHeaderMetadata":
+		case "translate_front_matter":
 			if v, ok := val.(bool); ok {
 				c.TranslateFrontMatter = v
 			}
-		case "frontMatterKeys":
+		case "front_matter_keys":
 			keys, err := toStringSlice(val)
 			if err != nil {
-				return fmt.Errorf("frontMatterKeys: %w", err)
+				return fmt.Errorf("front_matter_keys: %w", err)
 			}
 			c.FrontMatterKeys = keys
-		case "translateImageAlt", "translateImageAltText":
+		case "translate_image_alt":
 			if v, ok := val.(bool); ok {
 				c.nonSkipImageAlt = !v
 			}
-		case "translateURLs", "translateUrls":
+		case "translate_urls":
 			if v, ok := val.(bool); ok {
 				c.TranslateURLs = v
 			}
-		case "translateBlockQuotes":
+		case "translate_block_quotes":
 			if v, ok := val.(bool); ok {
 				c.nonTranslatableBlockQuotes = !v
 			}
-		case "translateHTMLBlocks":
+		case "translate_html_blocks":
 			if v, ok := val.(bool); ok {
 				c.TranslateHTMLBlocks = v
 			}
-		case "unescapeBackslashCharacters":
+		case "unescape_backslash_characters":
 			if v, ok := val.(bool); ok {
 				c.UnescapeBackslashCharacters = v
 			}
-		case "subfilter", "htmlSubfilter":
+		case "subfilter":
 			s, ok := val.(string)
 			if !ok {
 				return fmt.Errorf("subfilter: expected string, got %T", val)
 			}
 			c.Subfilter = s
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
 			c.compiledCodeFinder = nil
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
 		default:
-			return fmt.Errorf("markdown: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "markdown", key)
 		}
 	}
 	return nil

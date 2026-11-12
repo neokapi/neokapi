@@ -27,7 +27,7 @@ parameters:
       block (e.g. by `entity-extract`). Both may be listed; when none is set,
       `rules` is used.
     values: "list of `rules` / `entities` (default `[rules]`)"
-  rulesPath:
+  rules_path:
     description: Path to a redaction rules YAML file.
     help: |
       Loads literal terms and regular expressions to redact. Only relevant when
@@ -45,7 +45,7 @@ parameters:
       (a per-category counter). When unset, the framework default template is
       used.
     values: "template string"
-  entityTypes:
+  entity_types:
     description: Entity categories to redact when the `entities` detector is enabled.
     help: |
       Restricts entity redaction to the listed categories. When unset, the
@@ -69,9 +69,9 @@ examples:
     description: Replace spans matched by a rules file with the default placeholder.
     config: |
       detectors: [rules]
-      rulesPath: redaction-rules.yaml
+      rules_path: redaction-rules.yaml
   - title: Redact extracted entities
     description: Redact person and organization entities already annotated on the block.
     config: |
       detectors: [entities]
-      entityTypes: [person, organization]
+      entity_types: [person, organization]

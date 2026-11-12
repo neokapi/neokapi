@@ -57,9 +57,9 @@ interface StatusAnswer {
     collection?: string;
     total?: number;
     pct?: Partial<Coverage>;
-    shipState?: string;
+    ship_state?: string;
     blocking?: string;
-    failingChecks?: number;
+    failing_checks?: number;
     shippable?: boolean;
   }[];
   monolingual?: boolean;
@@ -237,7 +237,7 @@ export async function buildContextGraph(
   for (const l of status?.locales ?? []) {
     const id = `edition:${l.locale}`;
     const cov = pct(l.pct);
-    const state = l.shipState ?? (l.shippable ? "translated" : "withheld");
+    const state = l.ship_state ?? (l.shippable ? "translated" : "withheld");
     node({
       id,
       kind: "edition",
@@ -251,8 +251,8 @@ export async function buildContextGraph(
         ["translated", `${cov.translated}%`],
         ["established", `${cov.established}%`],
         ...(l.blocking ? ([["blocked on", l.blocking]] as [string, string][]) : []),
-        ...(l.failingChecks
-          ? ([["failing checks", String(l.failingChecks)]] as [string, string][])
+        ...(l.failing_checks
+          ? ([["failing checks", String(l.failing_checks)]] as [string, string][])
           : []),
       ],
     });

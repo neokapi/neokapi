@@ -116,7 +116,7 @@ defaults:
   formats:
     yaml:
       config:
-        keyPathPatterns:
+        key_path_patterns:
           - title
           - subtitle
           - outro.line
@@ -128,12 +128,12 @@ defaults:
     # `.md` item overridden to the mdx reader still picks up `mdx:` here).
     markdown:
       config:
-        translateFrontMatter: true
-        frontMatterKeys: [title, description, sidebar_label]
+        translate_front_matter: true
+        front_matter_keys: [title, description, sidebar_label]
     mdx:
       config:
-        translateFrontMatter: true
-        frontMatterKeys: [title, description, sidebar_label]
+        translate_front_matter: true
+        front_matter_keys: [title, description, sidebar_label]
   # Code comments are prose, and the collections at source/comments below
   # declare them. A comment line that opens with one of these markers is read
   # by the contract audit (.contract-audit), so a check sets it aside rather
@@ -216,7 +216,7 @@ collections:
       # The block name the reader derives from the key path is the gettext
       # msgctxt the compiled catalog is keyed by, and the Scope the runtime
       # looks a string up under (core/i18n.Scope) — dot-separated, no leading
-      # slash, which is what useKeyAsName alone produces. Only the keys that
+      # slash, which is what use_key_as_name alone produces. Only the keys that
       # hold prose are extracted; ids, categories, extensions and mime types
       # are not text a reader sees.
       #
@@ -231,9 +231,9 @@ collections:
         format:
           name: json
           config:
-            extractAllPairs: false
-            useKeyAsName: true
-            extractionRules: '(displayName|description|title|label|note)$|enumDescriptions\.[^.]+$'
+            extract_all_pairs: false
+            use_key_as_name: true
+            extraction_rules: '(displayName|description|title|label|note)$|enumDescriptions\.[^.]+$'
         target: catalogs/{lang}.json
   # The CLI's own help and output strings.
   - name: neokapi-cli
@@ -341,14 +341,14 @@ collections:
       # `introducedIn` a version and `seeAlso` a cross-reference. Grading those
       # as sentences is how a check earns the reputation that stops anyone
       # reading its findings. `parameters` keys are schema property paths and
-      # carry dots of their own (`parser.preserveWhitespace`), so the patterns
+      # carry dots of their own (`parser.preserve_whitespace`), so the patterns
       # under it span segments with `**` rather than one with `*`.
       - path: "*/*.yaml"
         target: "{lang}/{path}.yaml"
         format:
           name: yaml
           config:
-            keyPathPatterns:
+            key_path_patterns:
               - displayName
               - description
               - overview
@@ -420,14 +420,14 @@ collections:
         format:
           name: yaml
           config:
-            keyPathPatterns:
+            key_path_patterns:
               - description
   - name: neokapi-desktop-build
     channel: neokapi/desktop
     base: apps/kapi-desktop/build
     source_only: true
     content:
-      # extractAllPairs off + exceptions as an INCLUDE list: the file is mostly
+      # extract_all_pairs off + exceptions as an INCLUDE list: the file is mostly
       # version numbers and company/product names, and only these two keys are
       # sentences a user reads in the file's properties dialog.
       # The Wails build config. `description` and `comments` are the product
@@ -439,14 +439,14 @@ collections:
         format:
           name: yaml
           config:
-            keyPathPatterns:
+            key_path_patterns:
               - info.description
               - info.comments
       - path: windows/info.json
         format:
           name: json
           config:
-            extractAllPairs: false
+            extract_all_pairs: false
             exceptions: "FileDescription|Comments"
   - name: neokapi-demos
     channel: neokapi/demos
@@ -459,7 +459,7 @@ collections:
       # rather than committed, so a demo has one exactly when its narration has
       # been translated. Never hand-edit a sidecar: correct the wording where it
       # is reviewed, and the next convergence writes it. Translatable keys are
-      # selected by defaults.formats.yaml.config.keyPathPatterns above.
+      # selected by defaults.formats.yaml.config.key_path_patterns above.
       - path: "*/demo.yaml"
         format:
           name: yaml
@@ -599,8 +599,8 @@ flows:
     steps:
       - tool: recycle
         config:
-          fillTarget: true
-          fillTargetThreshold: 100
+          fill_target: true
+          fill_target_threshold: 100
       - tool: placeholder-check
   # AI translation for new/changed strings: content memory first, then translate for
   # the misses (voice profile + terms are bound project-wide), then checks.
@@ -609,8 +609,8 @@ flows:
     steps:
       - tool: recycle
         config:
-          fillTarget: true
-          fillTargetThreshold: 100
+          fill_target: true
+          fill_target_threshold: 100
       - tool: translate
         config:
           provider: anthropic

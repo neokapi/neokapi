@@ -1,7 +1,14 @@
 import { useMemo } from "react";
 import { Folder, FolderOpen, Store } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { Button, EmptyState, SectionHeading, SimpleTooltip, When } from "@neokapi/ui-primitives";
+import {
+  Button,
+  EmptyState,
+  PageContainer,
+  SectionHeading,
+  SimpleTooltip,
+  When,
+} from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { lastSegment } from "./WorkspaceProjectRow";
@@ -56,9 +63,9 @@ export function OpenScreen({
     <div
       data-slot="open-screen"
       data-file-drop-target
-      className="flex h-full min-h-0 justify-center overflow-auto rounded-lg p-6 [&.file-drop-target-active]:bg-accent/40 [&.file-drop-target-active]:ring-2 [&.file-drop-target-active]:ring-primary/40"
+      className="h-full min-h-0 overflow-auto rounded-lg [&.file-drop-target-active]:bg-accent/40 [&.file-drop-target-active]:ring-2 [&.file-drop-target-active]:ring-primary/40"
     >
-      <div className="w-full max-w-xl space-y-10 pt-[12vh]">
+      <PageContainer width="narrow" className="space-y-10 pt-[12vh]">
         <div className="space-y-6 text-center">
           <div className="space-y-2">
             <h1 className="text-xl font-semibold">{t("Drop a folder to see what it writes")}</h1>
@@ -132,7 +139,7 @@ export function OpenScreen({
             {t("Settings")}
           </Button>
         </footer>
-      </div>
+      </PageContainer>
     </div>
   );
 }

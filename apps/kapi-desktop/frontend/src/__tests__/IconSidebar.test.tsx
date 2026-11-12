@@ -1,7 +1,8 @@
-import { render, screen } from "./testUtils";
+import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
 import { IconSidebar } from "../components/IconSidebar";
+import { DesktopGuide } from "../guide/DesktopGuide";
 
 describe("IconSidebar", () => {
   it("lists one entry per page, in a fixed order", () => {
@@ -12,10 +13,21 @@ describe("IconSidebar", () => {
       "Overview",
       "Context",
       "Review",
-      "Toolbox",
       "Project Settings",
       "App Settings",
     ]);
+  });
+
+  it("puts Help above App Settings inside the guide", async () => {
+    render(
+      <DesktopGuide navigate={vi.fn()} hasProject={false} onOpenUrl={vi.fn()}>
+        <IconSidebar active="home" onChange={vi.fn()} />
+      </DesktopGuide>,
+    );
+    const labels = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+    expect(labels.slice(-2)).toEqual(["Help", "App Settings"]);
+    await userEvent.click(screen.getByRole("button", { name: "Help" }));
+    await waitFor(() => expect(document.querySelector('[data-slot="help-panel"]')).not.toBeNull());
   });
 
   it("files the stores under Context rather than beside it", () => {
@@ -53,12 +65,15 @@ describe("IconSidebar", () => {
     },
   );
 
-  it("keeps the Toolbox lit on its Flows and Formats tabs", () => {
-    const { rerender } = render(<IconSidebar active="flows" onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Toolbox" }).className).toContain("bg-primary");
-    rerender(<IconSidebar active="formats" onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Toolbox" }).className).toContain("bg-primary");
-  });
+  it.each(["project-settings:flows", "flows", "tools", "formats"])(
+    "keeps Project Settings lit on %s, where Flows open",
+    (view) => {
+      render(<IconSidebar active={view} onChange={vi.fn()} />);
+      expect(screen.getByRole("button", { name: "Project Settings" }).className).toContain(
+        "bg-primary",
+      );
+    },
+  );
 
   it("keeps Project Settings lit on its Assistants tab, and Context dark", () => {
     render(<IconSidebar active="project-settings:assistants" onChange={vi.fn()} />);

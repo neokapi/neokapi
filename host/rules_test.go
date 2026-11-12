@@ -102,7 +102,7 @@ func TestDecideRulesAsksWhichFormTheFilesUse(t *testing.T) {
 	require.NoError(t, err)
 	d := decisionFor(t, view, name.ID)
 	assert.Equal(t, RuleDecisionName, d.Kind)
-	assert.Equal(t, "Which one do your files use?", d.Question)
+	assert.Equal(t, "Which spelling should the project use?", d.Question)
 	assert.Equal(t, 0, d.Chosen, "the form the suggestion names is chosen until the person picks another")
 	require.GreaterOrEqual(t, len(d.Options), 2)
 

@@ -12,7 +12,7 @@ import (
 
 // The install hint for content no installed reader opens names the plugin that
 // supplies the format, which is the name `kapi plugins install` resolves. When
-// kapi knows no plugin that supplies the format, the hint says so and prints no
+// kapi lists no plugin that supplies the format, the hint says so and prints no
 // command.
 
 var errNoReader = fmt.Errorf("open: %w", registry.ErrUnknownFormat)

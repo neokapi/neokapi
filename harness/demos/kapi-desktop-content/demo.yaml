@@ -1,6 +1,6 @@
 id: kapi-desktop-content
-title: What a collection holds
-subtitle: Every matched file read as the project opens, and one file as keys and values.
+title: Your files and progress
+subtitle: See how far each language has come, and open a file to read it.
 kind: use-case
 publishAs: kapi-desktop-content
 terminal: desktop
@@ -9,74 +9,51 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Content collections
-  - File patterns
-  - Keyed file preview
-  - Format detection
+  - Progress by language
+  - Your files
+  - Reading a file
 outro:
-  line: Edit a file; the app reads it again.
-  pointer: kapi status
+  line: Edit a file, and the progress updates.
 
 narration:
   - id: title
     kind: title
     text: >-
-      A collection is a set of file patterns. The app reads the files they
-      match as the project opens, and every language has a number against it.
+      You'll check the progress of each language and read one file.
 
   - id: open-project
     kind: desktop
     beat: open-project
-    caption: The collections, read as the project opens.
+    caption: The project at a glance.
     text: >-
-      The sample opens on its Map, and the project section beside it shows the
-      standing: the blocks read from its collections, and the voice and terms
-      that govern them.
+      Open the KapiMart sample. In Project Settings, open the Content tab. The
+      top shows the amount of text and the languages.
 
   - id: extract
     kind: desktop
     beat: extract
-    caption: Read on its own, and the coverage fills in.
-    crop: { selector: ['[data-slot="ship-gate-cell"]', '[data-testid="collection-file-count"]'] }
-    highlight: { selector: '[data-slot="ship-gate-cell"]' }
-    hold: 12
+    hold: 8
+    caption: Progress for each group of files.
     text: >-
-      The app reads every matched file with the format it detected for it and
-      turns each one into blocks. The counts and the ladder for each language
-      come from that read.
+      Below, each group of files has a row with the progress for each
+      language.
 
   - id: patterns
     kind: desktop
     beat: patterns
-    caption: The patterns, and the files each one matched.
-    crop: { selector: '[data-slot="matched-files-scroll"]' }
+    caption: The files in a group.
     text: >-
-      Opening a collection shows the patterns that define it. Each output
-      pattern opens to the source file above its language files, every one
-      carrying the format Kapi read it as.
+      Click a group to list its files.
 
   - id: keys
     kind: desktop
     beat: keys
-    caption: The key column names the block Review decides on.
-    crop: { x: 0.5, y: 0.14, w: 0.5, h: 0.42 }
+    hold: 6
+    caption: The text of one file.
     text: >-
-      A JSON catalog is a list of keys with text against them, so the preview
-      reads it as a table. The key column is what makes it navigable, and it is
-      the same key that names the block in Review.
-
-  - id: code
-    kind: desktop
-    beat: code
-    caption: The same file, as it is written on disk.
-    crop: { x: 0.5, y: 0.12, w: 0.5, h: 0.42 }
-    text: >-
-      The other tab is the file itself, with the line for the selected key
-      highlighted. Structure on one, bytes on the other, and the same content
-      underneath both.
+      Click a file to read it. Each line of text appears next to its key.
 
   - id: outro
     kind: outro
     text: >-
-      An edit to a source file is read again on its own, so what the project
-      knows stays level with the working tree.
+      Edit a file, and the progress shown here updates.

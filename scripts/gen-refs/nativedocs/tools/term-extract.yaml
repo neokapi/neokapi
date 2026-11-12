@@ -19,7 +19,7 @@ parameters:
     help: |
       Selects which model backend performs the extraction.
     values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
-  apiKey:
+  api_key:
     description: API key for the AI provider.
     help: |
       Credential for the selected provider. Local providers such as Ollama may

@@ -13,7 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// A pre-review is a decide with outcome advise: the score an agent gives a
+// A pre-review is a decide with outcome prereview: the score an agent gives a
 // translation and its reasons, recorded against the translation's revision.
 // It moves no status and writes no decision. The review queue shows it beside
 // the translation for as long as the translation stands at that revision, as

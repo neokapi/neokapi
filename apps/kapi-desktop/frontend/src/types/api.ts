@@ -4,7 +4,7 @@
 // the shared @neokapi/contract-types package (issue #817).
 import type { Anchor, IOPort, ReviewContext, Run } from "@neokapi/contract-types";
 
-// The shapes the Map, the Reader and Decide render are defined in
+// The shapes the Overview, the Reader and Decide render are defined in
 // @neokapi/project-screens, which Bowrain shares; this module re-exports them.
 import type {
   ContextActor,
@@ -13,7 +13,7 @@ import type {
   DigestItem,
   DigestSubject,
   KeptRule,
-  MapSummary,
+  OverviewSummary,
   ReaderFile,
   RulesDecideView,
 } from "@neokapi/project-screens";
@@ -26,9 +26,9 @@ export type {
   DigestTermRule,
   DigestUsage,
   KeptRule,
-  MapFileRow,
+  OverviewFileRow,
   MapSuggestionRow,
-  MapSummary,
+  OverviewSummary,
   ReaderBlock,
   ReaderFile,
   ReaderFinding,
@@ -88,7 +88,7 @@ export interface ProjectDefaults {
    */
   engine?: string;
   formats?: Record<string, FormatDefaults>;
-  /** The default flow `kapi up` / Bring up to date converges with. */
+  /** The default flow `kapi up` / Catch up converges with. */
   flow?: string;
   /** Glob patterns skipped during content scanning. */
   exclude?: string[];
@@ -815,7 +815,7 @@ export interface ContextProjectStanding {
   project_name?: string;
   /** Rules in force. */
   rules: number;
-  /** Suggestions advising. */
+  /** Suggestions waiting for a decision. */
   suggested: number;
   /** Disagreements that need a person. */
   conflicts: number;
@@ -889,7 +889,7 @@ export interface ShareView {
 }
 
 /** A part of a connected project the Share page's preview reads from Bowrain. */
-export type BowrainPreviewPart = "map" | "reader" | "decide" | "kept";
+export type BowrainPreviewPart = "overview" | "reader" | "decide" | "kept";
 
 /** Why the server, or this Mac, read nothing for the preview. */
 export interface PreviewRefusal {
@@ -903,7 +903,7 @@ export interface PreviewRefusal {
 
 /** One part of a connected project as the Bowrain server shows it, or its refusal. */
 export interface BowrainPreviewAnswer {
-  map?: MapSummary;
+  overview?: OverviewSummary;
   reader?: ReaderFile;
   decide?: RulesDecideView;
   kept?: KeptRule[];
@@ -1072,7 +1072,7 @@ export interface AssistantSession {
 
 /** A tab's Assistants page. */
 export interface AssistantsView {
-  /** The rules in force at the project's own point, as the Map counts them; absent when unread. */
+  /** The rules in force at the project's own point, as the Overview counts them; absent when unread. */
   rules?: number;
   /** Why the assistants could not be read. The sessions are read all the same. */
   hosts_error?: string;
@@ -1200,6 +1200,18 @@ export interface ContextFeedEntry {
   widen_to: string[];
   /** The project's checkout on this machine, absent when none is here. A decision needs none. */
   recipe?: string;
+  /** What a whole voice-profile write changed, for the edit that records one. */
+  voice?: ContextVoiceEdit;
+}
+
+/** What a whole voice-profile write changed: each field as it stood and as it was written. */
+export interface ContextVoiceEdit {
+  profile: string;
+  changes: { field: string; from?: string; to?: string }[];
+  /** The changes past the ones the record lists. */
+  omitted?: number;
+  /** Dropping the edit restores the profile as it stood. */
+  restorable: boolean;
 }
 
 /** One session's work: an agent run, or a person's operations on one day. */
@@ -1568,19 +1580,19 @@ export interface LocaleCoverage {
   /** established (its established gate is met), translated (its ship gate
    *  is met), withheld, or not_gated (no gate speaks for it and nothing
    *  withholds). Only this field tells a met gate from no gate. */
-  shipState?: ShipState;
+  ship_state?: ShipState;
   pending?: GateShortfall[];
   /** Translations whose source changed since they were approved, not yet
    *  redrafted (a run redrafts them). */
-  staleAwaitingDraft?: number;
+  stale_awaiting_draft?: number;
   /** Translations redrafted after a source change, waiting for review. */
-  staleAwaitingReview?: number;
+  stale_awaiting_review?: number;
   /** Translations a reviewer turned down, not yet redrafted. */
-  rejectedAwaitingDraft?: number;
+  rejected_awaiting_draft?: number;
   /** Translations failing one of the project's bound checks. */
-  failingChecks?: number;
+  failing_checks?: number;
   /** Translations the terms govern that no terminology check has read. */
-  termsNotChecked?: number;
+  terms_not_checked?: number;
 }
 
 /** Project-wide source readiness (written|established). */
@@ -1603,7 +1615,7 @@ export interface ReviewItem {
    *  project's source language for a source unit. */
   language?: string;
   /** The author's own wording awaiting attention, rather than a translation. */
-  isSource?: boolean;
+  is_source?: boolean;
   /** The row's rung on its own ladder: `translated` for a queued translation,
    *  and the settled source rung (written | established) for a source
    *  unit. */
@@ -1616,17 +1628,17 @@ export interface ReviewItem {
   /** The SOURCE file's project-relative path. */
   relative?: string;
   /** The project's source language, for the source preview's direction. */
-  sourceLocale?: string;
+  source_locale?: string;
   source: string;
   target?: string;
   /** Whether the unit currently trips a check, set by ReviewQueue's
    * enrichment. Absent when not computed, as it always is for a source row. */
-  hasFindings?: boolean;
+  has_findings?: boolean;
   /** AI pre-review score (0–100) when a fresh annotation exists for the
    * current translation — read from the state store, never a live call. */
-  aiScore?: number;
-  /** Model that produced aiScore. */
-  aiModel?: string;
+  ai_score?: number;
+  /** Model that produced ai_score. */
+  ai_model?: string;
 }
 
 /** One language present in the review queue (matches Go
@@ -1703,8 +1715,12 @@ export interface ReviewUnitDetail {
   file: string;
   key: string;
   collection?: string;
+  /** Display text, placeholders included, for a surface that needs one string. */
   source: string;
   target: string;
+  /** The unit's content as runs; the page draws these, chips and all. */
+  source_runs?: Run[];
+  target_runs?: Run[];
   /** The project's source language — drives `dir`/`lang` on the source pane. */
   source_locale?: string;
   /** Effective ladder state (draft|translated|established). */
@@ -1858,17 +1874,16 @@ export interface UpPlanScope {
   locale?: string;
   collection?: string;
   /** Translatable units with no committed target for the locale. */
-  missingTarget: number;
-  /** Units covered by an exact-hash content-memory hit. The wire name is the
-   *  backend's JSON tag, which the rename boundary leaves as it was. */
-  memoryExact: number;
+  missing_target: number;
+  /** Units covered by an exact-hash content-memory hit. */
+  memory_exact: number;
   /** Units the pass serves from the project store's stored drafts: a
    *  translation of the same source made under the configuration and context
    *  the run would use, so no provider call and no tokens. */
   drafts?: number;
   /** Units left for AI translation after content-memory leverage and stored
    *  drafts. */
-  aiRemaining: number;
+  ai_remaining: number;
   /** Produced units whose decision blessed source wording that has since
    *  changed: the pass re-drafts them and they return to review. */
   stale?: number;
@@ -1877,9 +1892,9 @@ export interface UpPlanScope {
   unanswered?: number;
   /** Produced units the plan declines to judge because the project store has
    *  not read their committed translations yet. */
-  unreadTargets?: number;
+  unread_targets?: number;
   /** Rough input-token estimate for the remaining AI work (chars/4). */
-  tokenEstimate: number;
+  token_estimate: number;
 }
 
 /** The dry-run plan `kapi up --plan` computes (cli.UpPlanOutput). */
@@ -1892,18 +1907,37 @@ export interface UpPlanOutput {
   /** True when that provider bills a personal subscription (claude-code) —
    * the token estimate is scale, not a metered API cost. */
   subscription?: boolean;
+  /** Target languages are set but no collection has a target path, so a run
+   * writes no translation. An empty plan then is not one with the work done. */
+  no_targets?: boolean;
+  /** The project store's drift from the source files, which a run reads
+   * before its first pass (project.StoreDrift). */
+  drift?: {
+    store_missing?: boolean;
+    version_stale?: boolean;
+    changed?: string[];
+    removed?: string[];
+  };
   /** Discloses the estimation heuristic (Memory exact-hash only, chars/4 tokens). */
   note: string;
 }
 
-/** Desktop pre-flight picture: the work plan + the block-store drift the
- * run's auto-extract would heal (backend ConvergePlan). */
+/** Desktop pre-flight picture: the work plan, with its block-store drift
+ * counted for the home hero (backend ConvergePlan). */
 export interface ConvergePlan {
   plan: UpPlanOutput;
   changedFiles: number;
   removedFiles: number;
   storeMissing: boolean;
   versionStale: boolean;
+  /** What the last recycle pass in this tab filled from exact content-memory matches. */
+  recycled?: RecycledNote;
+}
+
+/** Targets a sync filled from exact content-memory matches (backend RecycledNote). */
+export interface RecycledNote {
+  blocks: number;
+  at: string;
 }
 
 // One typed progress event of a convergence run (core/convergence.Event) — the
@@ -1940,12 +1974,12 @@ export interface ConvergeLocaleResult {
   shippable: boolean;
   /** The weakest state among the locale's scopes: withheld, not_gated,
    *  translated or established. */
-  shipState?: ShipState;
+  ship_state?: ShipState;
   /** A ship gate matches at least one of the locale's scopes. */
   gated?: boolean;
   parked?: boolean;
   pct?: Record<string, number>;
-  failingChecks?: number;
+  failing_checks?: number;
   materialized?: number;
 }
 
@@ -1955,18 +1989,18 @@ export interface ConvergeOutput {
   passes: number;
   converged: boolean;
   locales: ConvergeLocaleResult[];
-  parkedScopes?: ParkedScope[];
-  materializedFiles?: number;
+  parked_scopes?: ParkedScope[];
+  materialized_files?: number;
   /** Translatable source blocks held below translate_after: their translations
    *  were not produced because the source is unsettled. Source-scoped, so it is
    *  one count for every language rather than one per language. */
-  blockedOnSource?: number;
+  blocked_on_source?: number;
   /** The resolved translate_after level the run applied
    *  (none|written|established). */
-  translateAfter?: string;
+  translate_after?: string;
   /** Why the run did not converge, when it did not. `source_not_ready` means
    *  every pending locale had nothing producible. */
-  stallReason?: string;
+  stall_reason?: string;
 }
 
 /** One skipped file from an extraction request. */
@@ -1990,11 +2024,13 @@ export interface StoreSyncResult {
   files: number;
   blocks: number;
   skipped?: ExtractSkip[];
+  /** Targets the sync filled from exact content-memory matches. */
+  recycled?: number;
 }
 
 /** The model a deeper look of a tab would ask (DeeperLookModel). */
 export interface DeeperLookModel {
-  /** False when nothing names a model; the Map then offers to connect one. */
+  /** False when nothing names a model; the Overview then offers to connect one. */
   connected: boolean;
   provider?: string;
   model?: string;

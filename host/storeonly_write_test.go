@@ -208,7 +208,76 @@ func TestVoiceEdit_ReadsTheEditedProfileBackAsOneOperation(t *testing.T) {
 	ops := recordedOps(t, a, recipe)
 	edit := ops[len(ops)-1]
 	assert.Equal(t, contextop.KindEdit, edit.Kind)
-	assert.Contains(t, edit.Subject.Text, "edited whole")
+	assert.Contains(t, edit.Subject.Text, "voice profile "+res.ID+" edited: ")
+	require.NotNil(t, edit.Voice, "the edit carries what it changed")
+	assert.Equal(t, res.ID, edit.Voice.Profile)
+	assert.NotEmpty(t, edit.Voice.Previous, "and the profile as it stood")
+	var named *contextop.VoiceChange
+	for i := range edit.Voice.Changes {
+		if edit.Voice.Changes[i].Field == "name" {
+			named = &edit.Voice.Changes[i]
+		}
+	}
+	require.NotNil(t, named, "the rename is listed")
+	assert.Equal(t, "Edited Voice", named.To)
+	assert.NotEmpty(t, named.From)
+}
+
+// TestVoiceEdit_DropRestoresTheProfileItReplaced: dropping a whole-profile
+// edit puts the profile back as it stood, and says so.
+func TestVoiceEdit_DropRestoresTheProfileItReplaced(t *testing.T) {
+	a, cmd, root, recipe := newApplyAssetProject(t)
+	ownWorkspace(t, a)
+	ctx := context.Background()
+	seedVoiceProfile(t, a, cmd)
+
+	store, release, err := a.ProjectVoiceStore(ctx, root)
+	require.NoError(t, err)
+	defer release()
+	profiles, err := store.ListProfiles(ctx, LocalScope)
+	require.NoError(t, err)
+	require.NotEmpty(t, profiles)
+	seeded := profiles[0]
+
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", writingEditor(t, "name: Edited Voice\ntone:\n  formality: casual\n"))
+	res, err := a.EditVoiceProfile(ctx, cmd, VoiceEditRequest{})
+	require.NoError(t, err)
+	require.True(t, res.Changed)
+	require.Equal(t, seeded.ID, res.ID)
+
+	dropped, err := a.DropContextOperation(ctx, ContextDropRequest{Actor: person, Project: recipe, ID: res.Recorded})
+	require.NoError(t, err)
+	assert.Contains(t, dropped.Landed, "restored to the version before")
+
+	prof, err := store.GetProfile(ctx, res.ID)
+	require.NoError(t, err)
+	assert.Equal(t, seeded.Name, prof.Name, "the profile is back as it stood")
+	assert.Equal(t, seeded.Tone.Formality, prof.Tone.Formality)
+}
+
+// TestVoiceEdit_DropRefusesWhenALaterEditFollowed: restoring an edit a later
+// edit built on would undo the later one too, so the drop is refused and
+// nothing is recorded.
+func TestVoiceEdit_DropRefusesWhenALaterEditFollowed(t *testing.T) {
+	a, cmd, _, recipe := newApplyAssetProject(t)
+	ownWorkspace(t, a)
+	ctx := context.Background()
+	seedVoiceProfile(t, a, cmd)
+
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", writingEditor(t, "name: Edited Voice\ntone:\n  formality: casual\n"))
+	first, err := a.EditVoiceProfile(ctx, cmd, VoiceEditRequest{})
+	require.NoError(t, err)
+	t.Setenv("EDITOR", writingEditor(t, "name: Edited Again\ntone:\n  formality: formal\n"))
+	_, err = a.EditVoiceProfile(ctx, cmd, VoiceEditRequest{})
+	require.NoError(t, err)
+	held := len(recordedOps(t, a, recipe))
+
+	_, err = a.DropContextOperation(ctx, ContextDropRequest{Actor: person, Project: recipe, ID: first.Recorded})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Drop the later edit first")
+	assert.Len(t, recordedOps(t, a, recipe), held, "a refused drop records nothing")
 }
 
 // TestVoiceEdit_AnUnchangedDocumentChangesNothing: a person who opens the

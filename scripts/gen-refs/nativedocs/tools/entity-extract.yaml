@@ -25,7 +25,7 @@ parameters:
       Ollama runs locally. The available options are populated from the provider
       registry.
     values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (local, no key) (default `anthropic`)"
-  apiKey:
+  api_key:
     description: API key for the provider.
     help: |
       Credential for the chosen hosted provider. Required for hosted providers;
@@ -43,19 +43,19 @@ parameters:
       The locale of the text being analysed, passed to the LLM and any NER
       provider so detection is language-aware.
     values: "BCP-47 locale"
-  knownTerms:
+  known_terms:
     description: Terms to exclude from extraction (already in the terms store).
     help: |
       Terms the LLM is told not to re-propose, so the candidate list focuses on
       genuinely new terminology. Matching is case-insensitive.
     values: "list of strings"
-  batchSize:
+  batch_size:
     description: Number of blocks per LLM call.
     help: |
       Blocks are grouped into batches of this size and analysed in a single
       structured call per batch. A value of 0 or 1 analyses one block per call.
     values: "integer ≥ 1 (default `1`)"
-  batchConcurrency:
+  batch_concurrency:
     description: Number of batch calls to run in parallel.
     help: |
       How many batches are analysed concurrently. A value of 0 or 1 runs batches
@@ -80,5 +80,5 @@ examples:
     description: Analyse blocks in batches of 20, four batches at a time.
     config: |
       provider: openai
-      batchSize: 20
-      batchConcurrency: 4
+      batch_size: 20
+      batch_concurrency: 4

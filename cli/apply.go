@@ -56,7 +56,7 @@ the person or agent the environment names (see 'kapi help growing-context').
 That holds for a change set a run printed with --print-ops too: the "origin"
 its operations state (the tool that produced a translation) is not kept, and
 kapi apply says so in one line.
-A decision other than advise, a term, a content-memory pair and a recipe field
+A decision other than prereview, a term, a content-memory pair and a recipe field
 are a person's: run from an agent's shell they are refused.
 
 A code comment is a block of its source file, keyed as 'kapi check' and 'kapi

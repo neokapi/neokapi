@@ -9,8 +9,8 @@
 #     header + resheaders — is too verbose to inline). Assertions reflect
 #     the live reader under default config; numbers verified via
 #     go test -run TestSpec.
-#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractComments,
-#     skipNameDataReferences.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extract_comments,
+#     skip_name_data_references.
 #   - The byte_faithful feature carries a #847 expected.roundtrip view
 #     (mode: byte_exact): the embedded XSD + resheaders round-trip verbatim.
 
@@ -27,14 +27,14 @@ description: |
   output, splicing only changed values.
 
 config:
-  - key: extractComments
+  - key: extract_comments
     type: boolean
     default: true
     description: |
       Surface a <data> entry's sibling <comment> element as a translator
       note on the emitted block. When false, comments still round-trip
       verbatim; they are simply not exposed as block annotations.
-  - key: skipNameDataReferences
+  - key: skip_name_data_references
     type: boolean
     default: true
     description: |

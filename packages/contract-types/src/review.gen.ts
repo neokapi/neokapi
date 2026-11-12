@@ -108,6 +108,7 @@ export interface ReviewNeighbourhood {
   key?: string;
   before?: ReviewNeighbour[];
   after?: ReviewNeighbour[];
+  unit?: ReviewNeighbour;
   window: number;
 }
 

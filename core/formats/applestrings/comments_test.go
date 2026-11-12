@@ -92,7 +92,7 @@ func TestStringsOrphanCommentsGatedByExtractComments(t *testing.T) {
 
 	r := applestrings.NewReader()
 	cfg := r.Config().(*applestrings.Config)
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractComments": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_comments": false}))
 
 	doc := &model.RawDocument{URI: "Orphans.strings", Encoding: "UTF-8", Reader: nopReader([]byte(input))}
 	require.NoError(t, r.Open(t.Context(), doc))

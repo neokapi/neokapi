@@ -2,7 +2,7 @@
 id: s-03-agent-surfaces
 sidebar_position: 3
 title: "S-03: Agent surfaces: MCP and skills"
-description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. Content and asset edits are kapi.change/v1 change sets, applied whole or not at all by the change service, sent with kapi apply on the command line and with apply_edits over MCP, where an agent reads blocks with read_blocks and records a pre-review as a decide operation with outcome advise."
+description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. Content and asset edits are kapi.change/v1 change sets, applied whole or not at all by the change service, sent with kapi apply on the command line and with apply_edits over MCP, where an agent reads blocks with read_blocks and records a pre-review as a decide operation with outcome prereview."
 keywords: [neokapi, architecture decision, agent skill, SKILL.md, MCP, model context protocol, kapi apply, apply_edits, change set, hooks, progressive disclosure]
 ---
 
@@ -26,7 +26,7 @@ kapi.change/v1 change set ([E-09](../engine/e-09-the-change-contract.md)), the
 contract the change service applies for every surface. On the MCP server an
 agent reads a document's blocks with `read_blocks` and sends the same change
 set with `apply_edits`. A pre-review is a `decide` operation with outcome
-`advise` in such a change set, and a review decision stays a person's.
+`prereview` in such a change set, and a review decision stays a person's.
 
 ## Context
 
@@ -234,7 +234,7 @@ about a hundred and forty words: follow the rules in kapi's section of
 `AGENTS.md` and `CLAUDE.md`, and call `context_read` only for a file no section
 covers or for the full answer, which also names the old names that stay correct
 there; record with
-`context_note` what the files do every time (names as written, the spelling
+`context_note` consistent wording in the files (names as written, the spelling
 variety, a word chosen over a common alternative), with the path it was seen
 in, since a note applies only there, and leave alone a word they write two
 ways; record the person's changes with `context_note` too (`from`,
@@ -440,7 +440,7 @@ path a person takes and the path an agent takes share one format.
 A review decision belongs to a person. An agent pre-reviews: `review_block`
 reads a queued block with the reference and revision of the edition under
 review, and `apply_edits` records a `decide` operation at that reference with
-outcome `advise`, a score from 0 to 100 and its reasons. The pre-review is
+outcome `prereview`, a score from 0 to 100 and its reasons. The pre-review is
 bound to the revision the agent read and recorded as `agent/<client>`, and the
 person working the queue reads it beside the block. An agent's `establish`,
 `reject` or `withdraw` is refused as `not_permitted`. A person's decision
@@ -496,13 +496,13 @@ languages of the record's transitions.
 ([C-11](../context/c-11-context-operations.md)) to the operations of a change
 set. A person may send every operation, write over whatever an edition holds,
 and choose the `report` gate to land an edit over its findings. An agent may
-change content and may pre-review (`decide` with `advise`). Its `term`,
+change content and may pre-review (`decide` with `prereview`). Its `term`,
 `memory` and `recipe` operations, any other decision, a blind write
 (`if_match: "*"`) and the `report` gate are refused as `not_permitted`, with
 what to do instead: record a suggestion, ask a person, or read the edition and
 send its revision. A tool in a flow may choose `report`, because its drafts
 meet the ship gates later, and only a tool records how it produced an edition.
-A tool records a decision only with `advise`, as an agent does; a pull or a merge that
+A tool records a decision only with `prereview`, as an agent does; a pull or a merge that
 carries a person's decision sends it as that person. The transport names the
 sender, and a sender of any other kind, or of none, is refused every
 operation.
@@ -615,7 +615,7 @@ Tests assert three curation rules:
 - **No curated tool shadows a porcelain one.** Two names for one job means the
   caller picks wrong half the time.
 - **Nothing a person decides is agent-facing.** `context_note` records what an
-  agent may record, each as a suggestion: what it noticed, or a person's
+  agent may record, each as a suggestion: what it found, or a person's
   change (`from`, `to`, `suggest`). With `withdraw` it takes back what the same
   session recorded wrongly and nothing else. Keeping, dropping, widening,
   resetting and sharing are a person's, and the surface carries no tool for
@@ -755,8 +755,8 @@ between revising content and troubleshooting the command.
   measured number with a transcript behind it.
 - A project's context grows out of the work an assistant was doing anyway,
   because the habits are in the two places an assistant reads before it acts:
-  the skill body and the server's instructions. What it records advises and
-  never binds, so a session that records the wrong thing costs a person one
+  the skill body and the server's instructions. Checks report what it records
+  and never fail on it, so a session that records the wrong thing costs a person one
   decision rather than a bad rule in force.
 
 ## Related

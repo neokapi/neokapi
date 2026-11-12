@@ -10,9 +10,9 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 # Growing context
 
 A new project starts with no terms, voice profile or approved wording. Its
-context grows as you work: an assistant notices the name the files always use,
+context grows as you work: an assistant suggests the name the files always use,
 or the word you changed in its draft, and records it. Each note arrives as a
-**suggestion**. A suggestion advises from the moment it is recorded, and you
+**suggestion**. Checks report a suggestion from the moment it is recorded, and you
 decide about it when it suits you. A suggestion you keep becomes a **rule**.
 
 <PhaseFlow
@@ -21,7 +21,7 @@ decide about it when it suits you. A suggestion you keep becomes a **rule**.
     { label: "suggestion", sub: "checks report it, none fails", role: "annotate", edge: "recorded" },
     { label: "rule", sub: "a check fails on it", role: "qa", edge: "a person keeps it" },
   ]}
-  caption="A note arrives as a suggestion that advises at once; it becomes a rule when a person keeps it."
+  caption="A note arrives as a suggestion that checks report at once; it becomes a rule when a person keeps it."
 />
 
 In Kapi Desktop you decide on the **Decide** page and go back to an earlier
@@ -43,7 +43,7 @@ A coding agent using kapi's [MCP server](/reference/mcp) records with the
 Each call records one thing:
 
 ```bash
-# something the files do every time
+# consistent wording in the files
 kapi context note --term Quickcast --instead-of "Quick cast" \
   --seen-in docs/guide.md --quote "Quickcast forecasts the next hour."
 
@@ -79,7 +79,7 @@ that recorded it:
 kapi context note --withdraw 0n794e2gk7 --why "recorded the wrong way round"
 ```
 
-## What kapi sees in the files {#what-kapi-sees-in-the-files}
+## Suggestions from your files {#what-kapi-sees-in-the-files}
 
 `kapi context suggest` reads the files the recipe declares and records what it
 can see in them, with no AI model:
@@ -103,8 +103,8 @@ dropped stays dropped.
 
 With `--ai`, kapi then asks the connected AI model about the same blocks,
 through `term-extract` and `voice-infer`, and records what the model proposes
-the same way. A term is recorded when the files write it as the model wrote it in
-two or more blocks; a term the files write in more than one way is left to the
+the same way. A term is recorded when it appears in two or more blocks exactly
+as the model wrote it; a term spelled more than one way in the files is left to the
 spelling suggestion in the table. A name with spellings to
 avoid, such as `Harbor Help`, becomes a term rule; a single word becomes a
 note naming the term. Each voice measure the model reads becomes a note that
@@ -117,14 +117,14 @@ applied before the model reads anything. With no AI provider configured, or
 no key for the one configured, the command refuses before it records anything;
 `kapi models setup` connects one. `--dry-run` with `--ai`
 still asks the model and records nothing. In Kapi Desktop, **Deeper look with
-AI** on the Map does the same.
+AI** on the Overview does the same.
 
 ## A suggestion never stops your work
 
-A suggestion advises at once: `kapi context <path>` lists it under
+Checks report a suggestion at once: `kapi context <path>` lists it under
 *Suggested, not yet established*, and checks report text that goes against it.
 No check fails on it and no score changes until it becomes a rule. A
-suggestion nobody answers keeps advising, so nothing here has to be cleared.
+suggestion nobody answers stays reported, so nothing here has to be cleared.
 
 ## Deciding with kapi rules {#deciding-with-kapi-rules}
 
@@ -138,7 +138,7 @@ and files that use it. Before you answer, it says what keeping the marked form
 does: how many blocks a check then reports, and where the rule applies.
 
 ```
-[1/2] Which one do your files use?  #0rbavbmqsx
+[1/2] Which spelling should the project use?  #0rbavbmqsx
   * 1) Quickcast  2 blocks in 2 files
     2) Quick cast  1 block in 1 file
     3) Quick-cast  0 blocks in 0 files
@@ -180,7 +180,7 @@ decisions that mention a word. `kapi context review`, below, records the same
 decisions; it is the spelling an assistant uses, and it also applies a rule
 more widely.
 
-## Reviewing what kapi learned {#reviewing-what-kapi-learned}
+## Review the suggestions {#reviewing-what-kapi-learned}
 
 ```bash
 kapi context review
@@ -222,9 +222,9 @@ Suggested
   Names and spellings
     0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast or QuickCast.
           seen "Try Quick cast today" in docs/intro.md
-          seen in 2 sessions · noticed by claude
+          seen in 2 sessions · suggested by claude
 
-kapi knows 23 rules for Fernwell; 4 are new this week. 1 suggestion is advising.
+23 rules for Fernwell; 4 are new this week. 1 suggestion is waiting for you.
 ```
 
 The sections come in the order you read them: disagreements that need you,
@@ -274,7 +274,7 @@ kapi context review --session s4980103f5148 --keep all
 kapi context review --drop 0pjby7f9fx --note "we say it both ways on purpose"
 ```
 
-A dropped suggestion stops advising at once. Dropping a rule already in force
+Checks stop reporting a dropped suggestion at once. Dropping a rule already in force
 takes it back out of the project's terms or content memory, so checks stop
 failing on it. The record stays either way, so the same suggestion is
 recognisable the next time somebody makes it.
@@ -312,7 +312,7 @@ alone makes nothing a rule.
 ## When two suggestions disagree
 
 Two suggestions that name different forms for one word are **contested**.
-Both still advise, review shows them together under *Needs you*, and neither
+Checks still report both, review shows them together under *Needs you*, and neither
 can be kept on its own. Choose one side:
 
 ```bash
@@ -389,7 +389,7 @@ assistant.
 An assistant can withdraw only its own notes, in the session that recorded
 them.
 
-## How kapi knows who recorded a note
+## Who recorded a note {#how-kapi-knows-who-recorded-a-note}
 
 The MCP server identifies the caller as an assistant, uses the client's name,
 and groups its notes under one session. For shell commands, kapi recognises

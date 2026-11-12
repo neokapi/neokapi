@@ -321,9 +321,9 @@ export function queueChanges(
   history: Record<string, HistoryEntry[]> = {},
 ): MemoryChanges {
   const blocks: MemoryBlock[] = items.map((it) => {
-    const sourceLocale = it.sourceLocale ?? "en-US";
+    const sourceLocale = it.source_locale ?? "en-US";
     const sourceDoc = it.relative ?? `locales/${sourceLocale}.json`;
-    const base: MemoryBlock = it.isSource
+    const base: MemoryBlock = it.is_source
       ? {
           doc: it.file,
           block: it.key,
@@ -331,7 +331,7 @@ export function queueChanges(
           text: it.source,
           editions: Object.fromEntries(
             items
-              .filter((o) => !o.isSource && o.key === it.key)
+              .filter((o) => !o.is_source && o.key === it.key)
               .map((o) => [o.locale, { text: o.target ?? "" }]),
           ),
         }

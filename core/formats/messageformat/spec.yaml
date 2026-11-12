@@ -15,7 +15,7 @@
 # scaffolding ("Text … End", "He has …") stays in the skeleton. Its
 # prose part — the literal text framing a picker — is surfaced as a
 # *non-translatable* content block (default on, opt out via
-# `extractNonTranslatableContent`). `BlockTexts` counts only
+# `extract_non_translatable_content`). `BlockTexts` counts only
 # translatable blocks, so these framing blocks are not asserted on here
 # and parity (which forces the flag off) is unaffected.
 #

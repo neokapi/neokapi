@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { PreProcessSurface, useApi, useStream } from "@neokapi/ui";
+import { PreProcessSurface, useApi, useStream, PageContainer } from "@neokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
@@ -35,21 +35,23 @@ export function PreProcessRoute() {
   }, [fileName, project.name]);
 
   return (
-    <PreProcessSurface
-      project={project}
-      fileName={fileName}
-      surfaceTabs={surfaceTabs}
-      onBack={() =>
-        navigate({
-          to: "/$workspace/p/$projectId/s/$stream/translate/$",
-          params: {
-            workspace: workspace ?? ws,
-            projectId: project.id,
-            stream: activeStream,
-            _splat: fileName,
-          },
-        })
-      }
-    />
+    <PageContainer width="full" className="px-6 py-5">
+      <PreProcessSurface
+        project={project}
+        fileName={fileName}
+        surfaceTabs={surfaceTabs}
+        onBack={() =>
+          navigate({
+            to: "/$workspace/p/$projectId/s/$stream/translate/$",
+            params: {
+              workspace: workspace ?? ws,
+              projectId: project.id,
+              stream: activeStream,
+              _splat: fileName,
+            },
+          })
+        }
+      />
+    </PageContainer>
   );
 }

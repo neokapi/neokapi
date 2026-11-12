@@ -1,5 +1,5 @@
 {
-  "$comment": "The kapi MCP tool surface, frozen for release 1.3.0 on 2026-10-03 with kapi.change/v1; extend only. TestMCPToolSurfaceExtendsFrozen holds the served tools to it: names may only grow, and each input schema must extend its frozen one. Nothing regenerates this file. One edit by hand before 1.3.0 shipped: context_note took the place of context_observe, context_correct and context_withdraw (web/docs/reference/cli-contract.md).",
+  "$comment": "The kapi MCP tool surface, frozen for release 1.3.0 on 2026-10-03 with kapi.change/v1; extend only. TestMCPToolSurfaceExtendsFrozen holds the served tools to it: names may only grow, and each input schema must extend its frozen one. Nothing regenerates this file. Two edits by hand: before 1.3.0 shipped, context_note took the place of context_observe, context_correct and context_withdraw; after it, the registry tools' config fields took their snake_case names (web/docs/reference/cli-contract.md).",
   "tools": [
     {
       "name": "apply_edits",
@@ -1121,7 +1121,7 @@
                 },
                 {
                   "additionalProperties": false,
-                  "description": "Record a review decision on the edition revision read. An agent sends only advise.",
+                  "description": "Record a review decision on the edition revision read. An agent sends only prereview.",
                   "properties": {
                     "at": {
                       "$ref": "#/$defs/ref"
@@ -1136,12 +1136,12 @@
                       "type": "string"
                     },
                     "outcome": {
-                      "description": "establish, reject, withdraw, or advise (an agent's pre-review)",
+                      "description": "establish, reject, withdraw, or prereview (an agent's pre-review)",
                       "enum": [
                         "establish",
                         "reject",
                         "withdraw",
-                        "advise"
+                        "prereview"
                       ],
                       "type": "string"
                     },
@@ -1660,7 +1660,7 @@
             "title": "Detectors",
             "type": "array"
           },
-          "entityTypes": {
+          "entity_types": {
             "description": "Entity categories to redact: person",
             "items": {
               "type": "string"
@@ -1677,7 +1677,7 @@
             "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
             "type": "string"
           },
-          "rulesPath": {
+          "rules_path": {
             "description": "Path to a redaction rules YAML file",
             "title": "Rules File",
             "type": "string"
@@ -1820,7 +1820,7 @@
       "input_schema": {
         "$id": "term-check",
         "properties": {
-          "caseSensitive": {
+          "case_sensitive": {
             "default": false,
             "description": "Whether term matching is case-sensitive",
             "title": "Case Sensitive",
@@ -1885,12 +1885,12 @@
         "$id": "translate",
         "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
         "properties": {
-          "apiKey": {
+          "api_key": {
             "description": "API key for the AI provider",
             "title": "API Key",
             "type": "string"
           },
-          "batchConcurrency": {
+          "batch_concurrency": {
             "default": 1,
             "description": "Number of concurrent batch calls (0 or 1 = sequential)",
             "minimum": 1,
@@ -1933,7 +1933,7 @@
             "title": "Context",
             "type": "string"
           },
-          "contextWindow": {
+          "context_window": {
             "default": 2,
             "description": "Blocks either side to send as reference (with context: neighbours)",
             "maximum": 10,
@@ -2076,7 +2076,7 @@
             "title": "Reuse Prior Translation",
             "type": "string"
           },
-          "skipMatched": {
+          "skip_matched": {
             "default": false,
             "description": "Skip blocks that already have a target translation",
             "title": "Skip Matched",
@@ -2131,7 +2131,7 @@
             "fields": [
               "engine",
               "provider",
-              "apiKey",
+              "api_key",
               "model",
               "batching"
             ],
@@ -2143,7 +2143,7 @@
               "instruction",
               "reuse",
               "context",
-              "contextWindow"
+              "context_window"
             ],
             "id": "prompt",
             "label": "Prompt"

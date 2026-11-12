@@ -29,7 +29,7 @@ export function readerTargetOf(view: string): { path: string; blockID?: string }
 /** The view a target opens in a project tab. */
 export function desktopView(target: ScreenTarget): string {
   switch (target.kind) {
-    case "map":
+    case "overview":
       return "map";
     case "reader":
       return readerView(target.path, target.block);
@@ -45,5 +45,7 @@ export function desktopView(target: ScreenTarget): string {
       return "setup";
     case "connect-assistant":
       return "project-settings:assistants";
+    case "share":
+      return "project-settings:share";
   }
 }

@@ -12,7 +12,7 @@ import { PendingMedia, PhaseFlow, ThemedImage } from "@neokapi/docs-shared";
 
 Add a target language, and kapi keeps it caught up with the source: it reuses earlier translations, translates the rest, and holds back for review what needs a person. A language that is behind is pending work and never breaks a build.
 
-In Kapi Desktop you add a language in **Project Settings** and click **Bring up to date** on the project's Overview. On the command line you declare it in the recipe and run `kapi up`. An assistant can do either for you.
+In Kapi Desktop you add a language in **Project Settings** and click **Translate** on the project's Overview. On the command line you declare it in the recipe and run `kapi up`. An assistant can do either for you.
 
 In the installed kapi, declaring a target language in the recipe also adds the language commands (`translate`, `pseudo-translate`, `memory`) to `kapi --help`. Before that, `kapi help languages` lists them.
 
@@ -29,11 +29,11 @@ In the installed kapi, declaring a target language in the recipe also adds the l
   }}
 />
 
-2. **Bring up to date.** On the project's **Overview**, the language standing shows one row per locale against the ship gate. **Plan…** previews the pending work first: content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date**; kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or a gate holds it back for a person.
+2. **Translate.** On the project's **Overview**, the language standing shows one row per locale against the ship gate. Targets the content memory holds an exact match for are already filled: the app recycles them when it reads the files, and the Overview counts them, such as **12 blocks recycled**. **Plan…** previews the rest first: the blocks left to recycle, the AI work, a token estimate, nothing written. Then click the button that names the work, such as **Translate 12 blocks**; kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or a gate holds it back for a person.
 3. **Review.** Click a ship-gate cell to open the **Review** queue for that locale: inspect each translation, edit if needed, approve or reject. Approvals raise the approved coverage that an `{ established: … }` gate measures; the recipe spells the approved rung `established`.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
-  Adding two target locales in Project Settings, pressing Bring up to date,
+  Adding two target locales in Project Settings, pressing Translate,
   watching coverage climb, and opening the Review queue from a gate cell.
 </PendingMedia>
 
@@ -92,7 +92,7 @@ Each translation climbs a ladder (draft, translated, approved). A **ship gate** 
 
 <PhaseFlow
   nodes={[
-    { label: "produce", sub: "kapi up · Bring up to date", role: "translate" },
+    { label: "produce", sub: "kapi up · Translate", role: "translate" },
     { label: "promote", sub: "Review · kapi apply decide", role: "annotate", edge: "a person" },
     { label: "release", sub: "kapi check --ship", role: "qa", edge: "gate met" },
   ]}

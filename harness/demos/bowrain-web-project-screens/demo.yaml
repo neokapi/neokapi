@@ -1,6 +1,6 @@
 id: bowrain-web-project-screens
-title: One record of what your files do, for the whole team
-subtitle: A project's Map, Reader and Rules in the browser.
+title: One record of the project's rules, for the whole team
+subtitle: A project's Overview, Reader and Rules in the browser.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-project-screens
@@ -11,7 +11,7 @@ needsAi: false
 # One continuous narration read: uniform voice across scenes.
 oneshot: true
 aspects:
-  - A project opens on its Map
+  - A project opens on its Overview
   - A check over every file, on the server
   - A fix filed as a source proposal
   - The team queue and who kept what
@@ -32,26 +32,26 @@ narration:
   - id: title
     kind: title
     text: >-
-      A project on Bowrain opens on its Map. Your team reads what assistants
+      A project on Bowrain opens on its Overview. Your team reads what assistants
       noticed, checks every file on the server, and decides what holds, in
       one place.
 
-  - id: map
+  - id: overview
     kind: desktop
-    beat: map
-    caption: A project opens on its Map.
-    crop: { selector: ['[data-slot="map-decide"]', '[data-slot="map-counts"]', '[data-slot="map-suggestions"]'] }
+    beat: overview
+    caption: A project opens on its Overview.
+    crop: { selector: ['[data-slot="overview-decide"]', '[data-slot="overview-counts"]', '[data-slot="overview-suggestions"]'] }
     text: >-
-      Opening a project lands on its Map. The counts read files, blocks, rules
-      and findings. Each row under What your files do is something an
-      assistant noticed and nobody has decided, and the Decide button counts
+      Opening a project lands on its Overview. The counts read files, blocks, rules
+      and findings. Each row under Suggestions is something an
+      assistant suggested and nobody has decided yet, and the Decide button counts
       them.
 
   - id: run
     kind: desktop
     beat: run
     caption: Every file, checked on the server.
-    crop: { selector: ['[data-slot="map-run"]', '[data-slot="map-counts"]'] }
+    crop: { selector: ['[data-slot="overview-run"]', '[data-slot="overview-counts"]'] }
     text: >-
       Run on everything checks every file on the server as one job, which
       takes the review permission. When the job finishes, the findings count

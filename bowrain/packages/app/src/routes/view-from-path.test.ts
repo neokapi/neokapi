@@ -65,18 +65,20 @@ describe("viewFromPath", () => {
 });
 
 describe("projectViewFromPath", () => {
-  it("lights the Map on the Map and in the Reader it opens", () => {
-    expect(projectViewFromPath("/acme/p/abc/s/main/map", "acme")).toBe("map");
-    expect(projectViewFromPath("/acme/p/abc/s/main/read/docs/a.md", "acme")).toBe("map");
+  it("lights the Overview on the Overview, its former address and the Reader it opens", () => {
+    expect(projectViewFromPath("/acme/p/abc/s/main/overview", "acme")).toBe("overview");
+    expect(projectViewFromPath("/acme/p/abc/s/main/map", "acme")).toBe("overview");
+    expect(projectViewFromPath("/acme/p/abc/s/main/read/docs/a.md", "acme")).toBe("overview");
   });
 
   it("lights Rules on Rules", () => {
     expect(projectViewFromPath("/acme/p/abc/s/main/rules", "acme")).toBe("rules");
   });
 
-  it("lights the Overview on the overview and in a per-file editor", () => {
-    expect(projectViewFromPath("/acme/p/abc/s/main/overview", "acme")).toBe("dashboard");
-    expect(projectViewFromPath("/acme/p/abc/s/main/translate/docs/a.md", "acme")).toBe("dashboard");
+  it("lights Languages on the languages page, its former address and a per-file editor", () => {
+    expect(projectViewFromPath("/acme/p/abc/s/main/languages", "acme")).toBe("languages");
+    expect(projectViewFromPath("/acme/p/abc/s/main/dashboard", "acme")).toBe("languages");
+    expect(projectViewFromPath("/acme/p/abc/s/main/translate/docs/a.md", "acme")).toBe("languages");
   });
 
   it("names each other section by its segment", () => {

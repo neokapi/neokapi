@@ -222,7 +222,7 @@ func (pc ProjectCheck) Run(ctx context.Context) (ProjectCheckResult, error) {
 		}
 	}
 
-	// A tally of an item the stream no longer lists goes, so the Map counts
+	// A tally of an item the stream no longer lists goes, so the Overview counts
 	// the items it shows.
 	listed := make(map[string]bool, len(items))
 	for _, it := range items {

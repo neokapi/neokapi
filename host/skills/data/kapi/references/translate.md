@@ -230,7 +230,7 @@ kapi apply <<<'{"ops":[{"op":"decide","at":{"doc":"src/en.json","block":"save.la
 ```
 
 One queue holds every language. A row carries `language` and, when the language
-is the project's source, `isSource: true` with a `status` on the authoring
+is the project's source, `is_source: true` with a `status` on the authoring
 ladder (`written`/`established`); `languages` in the JSON counts the
 pending blocks per language. A row's `relative` is the source document and its
 `key` the block a decision names. `kapi apply` records a person's decision on a
@@ -242,7 +242,7 @@ Over MCP, each `review_queue` row carries the `ref` a decision names, and
 `review_block` reads it with the `rev` of the edition under review, and the
 block's text, status and review context under `block`. An
 assistant pre-reviews with `apply_edits`: a `decide` operation at that `ref`,
-`if_match` the `rev`, outcome `advise`, a `score` from 0 to 100 and its
+`if_match` the `rev`, outcome `prereview`, a `score` from 0 to 100 and its
 `reasons`. The person working the queue reads it beside the block; an
 assistant's `establish` or `reject` is refused as `not_permitted`.
 

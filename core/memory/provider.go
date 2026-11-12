@@ -46,7 +46,7 @@ const ConfigKey = "memory"
 // target locale reaches a factory as its own argument; the source has no such
 // channel, and every injection route was separately patching it onto the built
 // config to compensate.
-const SourceLocaleKey = "sourceLocale"
+const SourceLocaleKey = "source_locale"
 
 // Provider is everything a producer may ask a content memory.
 //

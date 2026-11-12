@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ActivityFeed, useWorkspace, useApi, Card, PageHeader } from "@neokapi/ui";
+import { ActivityFeed, useWorkspace, useApi, Card, PageHeader, PageContainer } from "@neokapi/ui";
 import type { ActivityInfo } from "@neokapi/ui";
 
 export function ActivitiesRoute() {
@@ -69,14 +69,16 @@ export function ActivitiesRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a workspace
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-4 md:p-6">
+    <PageContainer width="wide">
       <PageHeader title="Activity" />
       <ActivityFeed
         activities={allActivities}
@@ -86,6 +88,6 @@ export function ActivitiesRoute() {
         onActivityClick={handleActivityClick}
         canNavigate={(a) => !!a.project_id}
       />
-    </div>
+    </PageContainer>
   );
 }

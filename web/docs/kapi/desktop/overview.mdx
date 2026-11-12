@@ -1,436 +1,29 @@
 ---
 sidebar_position: 1
 title: Kapi Desktop overview
-description: "Kapi Desktop shows the rules your projects keep, lets you decide about what your assistants noticed, and shows where each project's context lives and who else reads it."
-keywords: [Kapi, desktop app, context, map, decide, what's new, suggestion, keep, assistant, history, reset, share, sync, voice profile, terms, content memory, checks]
+description: "Kapi Desktop shows your projects' writing rules, lets you decide on the rules your assistants suggest, and shows who each project's rules are shared with."
+keywords: [Kapi, desktop app, context, overview, first steps, decide, what's new, suggestion, keep, assistant, sessions, reset, share, sync, voice profile, terms, content memory, checks, help]
 ---
 
 import { ThemedImage } from "@neokapi/docs-shared";
 
 # Kapi Desktop
 
-Kapi Desktop shows the rules your projects keep: their terms, their voice and
-the decisions people made about them. Your assistants record what they notice
-while they work, and in the app you decide about it: keep what is right, change
-it, or drop it. A rule you keep holds in every file, for every assistant. The
-app also shows where each project's context lives, on this Mac or shared with
-your team.
-
-The app, the [kapi CLI](/kapi/cli) and the [MCP server](/reference/mcp) read
-and write the same project data, so a desktop panel, a command and an MCP tool
-give the same answer to the same question.
-
-## What the app opens to
-
-The app opens on **Your context**, captioned "What your projects write by, and
-what your assistants noticed." At the right of the title, a small chip names
-the workspace folder by its last segment; hover it for the full path. A
-workspace you can only read carries a **Read only** badge beside it.
-
-<ThemedImage
-  alt="Your context: counts across the workspace, What's new with a row per project, and the Projects list"
-  sources={{
-    light: "/img/desktop/light/context-home.png",
-    dark: "/img/desktop/dark/context-home.png",
-  }}
-/>
-
-Under the title, a row of counts: projects, rules in force, terms, suggestions
-advising, and what needs you. Rules are what you decided in review. Terms are
-the concepts in your projects' terms stores, including the ones read in from a
-file. The last count is highlighted while a disagreement waits for you.
-
-**What's new** has a row for each project with something you have not seen or
-not decided, newest first. From left to right, a row shows:
-
-- the mark of the assistant that noticed something most recently, such as CC
-  for claude-code, with its name on hover;
-- the project, and how long ago the assistant worked there;
-- a chip for each kind of thing it noticed, such as "3 names" and "1 word",
-  and a highlighted "1 needs you" when two suggestions disagree;
-- **Review**, or **Decide** when something needs you, which opens the
-  project on Decide.
-
-While an assistant is working in a project, the row adds a chip with a live
-dot, such as "claude-code is working". `j` and `k` move between rows, and Enter
-opens one. When nothing waits, the section says "Nothing new since you last
-looked."
-
-**Projects** lists every project the CLI, the app or an assistant has
-registered, one row each, with **New project** and **Open a folder** above the
-list. Each row gives the project's voice profile ("no voice" when none is
-bound), the rules in force, where its context is shared, and when kapi last
-worked there. Where the context is shared reads as an icon and a word: this
-Mac, git, folder, S3, or the managed workspace the project is connected to.
-Hover it for where the shared copy lives, and hover the project's name for the
-folder it opens from. With no projects yet, the list says "Nothing here yet.
-Projects appear as soon as kapi runs in them, whether you open one here or run
-`kapi` in a folder."
-
-Clones and worktrees with the same project id share one row and one context.
-**Open** opens the first checkout, and the row's `⋯` menu lists the others. A
-checkout folder that has gone missing stays in that menu, marked Missing, and
-its context is kept. A project with no checkout on this machine shows **Open
-context** instead, which opens a context-only tab: the context, without the
-actions that need files. The menu also holds **Copy path** and **Remove**.
-Remove takes the project off the list after a confirmation, and the dialog
-names the context store it deletes and the checkout folders it leaves in place.
-
-**Holds in every project** appears once you apply a rule to the whole
-workspace. It lists those rules, one row each, with who kept it and where it
-was decided: "kept by you · decided in Acme Help Center · 12 September".
-
-**Start here** is three short steps for a first visit, each with a button. On
-an empty workspace it comes first; once a project is listed, it moves to the
-end of the page.
-
-1. "Open a project, or try the sample. The sample arrives with an assistant's
-   notes to review." **Try the sample**
-2. "Connect an assistant. kapi writes the project's rules where it reads them,
-   and the assistant records what it notices." **Connect an assistant** opens
-   the Assistants page of the sample or your first project. With no project
-   open, the button is disabled and says "Open a project first".
-3. "Come back. What it noticed appears under What's new; keep what is right."
-   **How it works** opens this page.
-
-Dismiss Start here once you are done with it; Settings brings it back. The
-**Connect your AI** card follows, for the model kapi itself runs with. Tools
-and flows that need no project are in the **Toolbox**, in the sidebar.
-
-**History**, a link beside the title, opens everything recorded in the
-workspace as its own view: the sessions of every project, laid out as a
-project's [Sessions](#history-and-going-back).
-
-A project opens as a tab, on its [Overview](#the-overview), and the tabs you
-had last time come back where you left them.
-
-The sidebar has one entry for each page of the project: **Overview**,
-**Context**, **Review**, **Toolbox** and **Project Settings**. App Settings sits
-at the bottom. Each page opens from one place only. See [And in every
-language](#and-in-every-language) for what changes once a project declares a
-language to translate into.
-
-## The Overview {#the-overview}
-
-A project opens on its **Overview**. Under the project's name, one line says when
-kapi last read the files, such as "Read 2 minutes ago". When kapi read fewer
-files than the project has, the line names how many it read. Then come four
-counts, each a link to what it counts:
-
-<ThemedImage
-  alt="A project's Overview: the files, blocks, rules and findings counts, What your files do with the suggestions, and the Files list"
-  sources={{
-    light: "/img/desktop/light/map.png",
-    dark: "/img/desktop/dark/map.png",
-  }}
-/>
-
-
-- **files**, the content files the recipe's collections declare;
-- **blocks**, the blocks kapi read from those files, which open Search;
-- **rules**, the rules in force: the terms, the voice profile's rules and the
-  notes you kept, which open Explore;
-- **findings**, what the last check over every file reported, which open the
-  findings file by file. It is the one highlighted count, and only while it is
-  above zero.
-
-**What your files do** lists what your assistants suggested and nobody has
-decided yet, one row each: a mark for its kind, the suggestion, the sentence it
-was seen in, and how many blocks and files the evidence names. **Decide** on a
-row opens Decide on that suggestion. The **Decide** button at the top carries
-the count of everything waiting and opens Decide on the first item. When
-disagreements wait as well, **kapi suggests** beside the counts gives the
-suggestions alone. With nothing to decide, the list says "No suggestions yet."
-and offers **Connect an assistant**.
-
-**Deeper look with AI**, under the list, reads your files with the connected AI
-model and records what it proposes as suggestions: the terms the files use and
-the voice they are written in, such as whom they address. While it runs, the
-button names the model. The new rows appear in the list when it ends, noticed
-by kapi with the model's name, and the line beside the button says how many
-it recorded, or "Nothing more to suggest". With no model connected, the button
-opens **Connect your AI**. In a folder without a `kapi.yaml`, the run writes
-the recipe first, as running a flow does. It is the desktop's
-[`kapi context suggest --ai`](/kapi/context-decisions#what-kapi-sees-in-the-files).
-
-**Files** has one row for each content file: its format, its name, its blocks
-and its findings, the files with the most findings first. **Open** shows the
-file in the Reader. A project with no content files says "No content files
-yet" and offers **Add files**, or **Set up the project** while its folder is
-empty or matches a preset kapi recognises. A new project opens on its Overview
-too.
-
-The **Reader** draws a file's blocks in file order. Each finding is marked on
-the words it is about, with a row under its block: its kind, the wording a term
-rule asks for or the check's message, and **Fix** when the rule names a
-replacement and no formatting sits among the words. **Fix _n_ in this file**
-applies every such fix at once, through the file's format, and a fix that
-cannot apply says why under its finding. **Rules here**, beside the blocks,
-lists what `kapi context <path>` prints for the file, in the same order. A
-finding on the Checks page opens the Reader at its block. A file kapi read no
-blocks from, and a finding on a comment, open in the preview.
-
-**Run on everything** runs the checks over every file, in the project's target
-languages, and refreshes the counts. The Overview runs them once on its own the first
-time a project opens in a session, and kapi reads the files again whenever they
-change.
-
-## Decide, and the three answers
-
-**Decide** is the first section of the project's **Context** page, and the
-Overview's Decide buttons open it. Its title is the project's name and Decide, with
-the number of suggestions to decide and the number of rules kept. The list
-holds one row per suggestion waiting for you, and the pane beside it asks one
-question about the row you select, the same question `kapi rules` asks:
-
-- For a name, "Which one do your files use?". The options are its forms, the
-  most used first, each with the blocks and files that write it, and
-  **Other…** takes a form of your own.
-- For a word or a note, "Keep this as a rule?".
-- For two suggestions that disagree, one question with a side per option, each
-  with who suggested it and what keeping it does.
-
-Before you answer, a line says what keeping the picked option does: how many
-blocks a check then reports, and where the rule applies. Below the actions,
-**Seen in** quotes the sentence the suggestion was seen in, names the file,
-which opens Search there, and shows the mark of the assistant that filed it.
-
-A suggestion advises from the moment it is recorded. A check reports it and
-fails nothing, so an assistant's suggestion never stops your work. It becomes a
-rule when you keep it. Each question takes one of three answers:
-
-- **Keep** makes it a rule in the project's terms, voice profile or content
-  memory, where every check reads it. On a disagreement, it keeps the side you
-  picked and sets the other aside.
-- **Not a rule** sets it aside, and it stops advising at once.
-- **Later** records nothing. The suggestion keeps advising, and Decide asks
-  about it again the next time you open it.
-
-The keys: `k` keeps, `n` answers not a rule, `l` leaves it for later, and the
-option numbers pick another option. After each answer the next question is
-selected. With none left, Decide says "Nothing to decide." with the number of
-rules kept and a link to the Overview. **Sessions**, under Assistants in
-Project Settings, drops or widens a rule already in force.
-
-Deciding needs a readable checkout of the project on this machine. A project
-with no checkout here shows what was recorded for it, without the answers. The
-chip at the right of the section bar reads `kapi rules`.
-
-## Search
-
-**Search** answers by word and by file. Give it a file and it shows what applies
-there: the voice profile, the terms and the rules. Search for a word and it
-returns the terms that cover it, the approved wording that uses it, and where
-each is used.
-
-## Explore
-
-**Explore** shows the project's context on the project's axes and over time.
-It covers the rules and notes recorded in the log, the terms in the terms
-store, and the project's content, counted by collection, language and state.
-All views share one query, so a selection made in one view narrows the
-others.
-
-- **The timeline** at the top counts what was recorded each day. Drag across
-  it to choose a window, or pick **7d**, **30d**, **90d** or **All**. The
-  snapshot is at the end of the window. **Clock** switches the timeline
-  between the date a record was recorded and the date it takes effect.
-- **Flow** draws one column per axis, such as product, channel, market or
-  state, with a band for each pair of values that occur together. Hover a value
-  to trace the same records through every column, and click it to keep it in
-  the scope. **State at start** and **State at snapshot** show how records
-  changed state between the two dates.
-- **Matrix** crosses two axes. **Over time** shows a row per value across the
-  window. **Map** draws markets and the regions that locale tags name, either
-  as outlines that you drill into from the world down to a city or as a grid
-  of countries. **Records** lists what is in scope.
-- Selecting a record opens it beside the view: its scope, when it was
-  recorded and when it holds, its history, and the sentence it was seen in.
-- **Pin A** keeps the current query. Change the window or the scope, then
-  choose **Compare with A** to see the two side by side.
-
-**Try a question** offers four starting queries: what changed in the window,
-where rules apply, what needs a person, and which rules hold only for a while.
-`kapi context atlas --json` prints the data that Explore displays.
-[Explore your context](/kapi/desktop/recipes/explore-your-context) goes
-through each view on the sample.
-
-## Assistants
-
-**Assistants** is a tab of **Project Settings**. The page puts an assistant on the project and shows what it
-did there. Under the title, one line says what connecting does: "Checks every
-edit · follows your 4 rules · leaves suggestions here", with the count of
-rules the project keeps.
-
-**Assistants** has one row for each assistant kapi can connect: Claude Code,
-Cursor, VS Code, Codex, Agent skills and Claude Desktop. A row reads, for
-example, "Claude Code · Connected · rules + check on every edit" or "Cursor ·
-Not connected" with **Connect**. Connect writes the same files `kapi connect`
-writes for that assistant and lists them. Until the kapi Claude Code plugin is
-enabled, the Claude Code row names the two commands that install it. Claude
-Desktop reads its servers from your own `claude_desktop_config.json`, outside
-the project, and Connect asks before it changes that file. A context-only tab
-shows no rows and says the project needs a checkout here.
-
-**Sessions** lists the newest sessions recorded in the project, yours and the
-assistants', with their counts. Where the check on every edit ran, a row also
-counts the files the session edited, its checks, the findings left failing and
-the findings caught (those one check reported and the next did not find), as
-in `3 files · 4 checks · 2 caught`, and the page header totals what was caught.
-Selecting one opens it in [Sessions](#history-and-going-back).
-
-**Show what it reads**, beside the title, opens two tabs.
-
-**Rules files** says "kapi writes the rules into AGENTS.md and CLAUDE.md, which
-an assistant reads as it starts." Each file kapi writes has a row you can
-expand to read the section exactly as written. When a project has none,
-**Write them now** writes them.
-
-**The brief for a file** is "For one file, the full answer an assistant gets,
-the same text `kapi context <path>` prints." Pick a file to read the voice, the
-words to use and to avoid, and the text the assistant reads.
-
-[Connect an assistant](/kapi/desktop/recipes/connect-an-assistant) walks
-through it.
-
-## Sessions, and going back {#history-and-going-back}
-
-**Sessions**, reached from the Assistants page, lists what was recorded in the
-project, one session per row, newest first: the assistant or the person who
-worked, when, and how many operations the session holds, if it holds any.
-Select a session and the pane beside the list shows its counts, with the check
-counts where the check on every edit ran, and then one list by time: its
-operations (what the assistant noticed, what a person decided) and its latest
-check runs. A check run's row names the files it checked, or how many, and reads `clean` or
-the failing count with the rules, and marks `caught` beside a finding the next
-run did not find. `kapi context log` prints the same record.
-
-An assistant's session has **Reset to before this session** above its
-operations. It goes back to how the context stood before that session started.
-What the session recorded, and what was decided since, is set aside, and the
-terms, approved wording and voice are rebuilt as they stood. What was set aside
-stays in Sessions, marked as set aside. The reset is recorded too, in the
-session of the person who made it, and **Take this reset back** there brings
-everything back. It is the same as `kapi context reset --before <session>`.
-
-The History link on the home opens the same record for every project in the
-workspace.
-
-## Where the context lives
-
-**Share**, a tab of **Project Settings**, shows how far a project's context reaches, as three rungs, with the
-current one marked.
-
-**On this Mac** is where every project starts: "In your workspace at
-`<path>`. Every clone and worktree of this project on this Mac reads it."
-There is nothing to do on this rung.
-
-**Shared with your team** reads "Not yet. Name a place and sync, and every
-machine that syncs the project reads the same context." **Set up sharing**
-offers three places:
-
-- **git**: the project's own repository, in a ref outside every branch.
-  Whoever can push a branch can push it.
-- **a folder**, such as a mounted team share, by its path.
-- **S3**: a bucket, with a prefix, a region and an endpoint.
-
-Saving writes a `context:` block into `kapi.yaml` and offers **Sync now**. A
-sync takes in what the rest of the team shared, shares what this machine
-recorded, and rewrites the rules files. The rung then says where the context
-is shared and how far apart the two copies are: "Through git (origin
-refs/kapi/context). 2 to push, 0 to pull, as of 10:03." When the place cannot
-be reached, the rung ends "The place could not be reached at 10:03." and
-nothing changes here. The caption reads "`kapi context sync`".
-
-The third rung is a managed workspace that holds every project's context for a
-team. The [tour](/kapi/desktop/tour#share) says what it adds.
-[Share context with your team](/kapi/desktop/recipes/share-context-with-your-team)
-walks through each place, and [Sharing context](/kapi/context-portability) is
-the same on the command line.
-
-## Try it with the sample
-
-**Try the sample** on Start here opens KapiMart, a sample store whose website,
-app, legal and marketing copy come with a voice profile, terms, a content
-memory and five target languages. It arrives with two
-assistant sessions already recorded against its files, so its Map lists
-something to decide on first open.
-
-In the first session, claude-code noticed how the store spells its own name, a
-word the copy uses in place of another, a spelling it keeps to, and how the
-store copy addresses the shopper. It also recorded a correction a person made
-to its draft. In the later session, codex took the other side of that
-correction, so Decide opens on one disagreement.
-
-Every piece of evidence quotes a sentence in the sample's files, and clicking
-the file under **Seen in** opens it. You can keep, mark not a rule, or leave
-for later, see the kept rule in what an assistant reads, and reset to before
-either session from Sessions. Nothing
-calls a model. [Review what your assistant
-noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed) is the walk
-through it.
-
-## The project's content
-
-**Content**, a tab of **Project Settings**, is the project's collections and
-where they stand. It shows two axes: **Content** (the blocks the files hold, and what is missing)
-and **Governance** (the voice profile in force,
-the terms that apply, and when the project last converged). **Where content
-sits** gives one row for each part of the project the recipe declares, with
-its collections and the voice that applies there.
-
-On a project with a target language, the Overview shows **Bring up to date**
-under its counts. It runs the project's
-default flow until every gated locale ships or waits for review, the desktop
-form of `kapi up`. **Plan…** beside it shows the
-pending work, what content memory can supply, and a token estimate before
-anything runs.
-
-Three counts above the button separate the run's work from a person's.
-**Blocks to translate** are what the run drafts. **Waiting for review** opens
-Review. **Languages held back** lists each collection language that does not
-ship yet and what holds it back: a ship gate not yet met, a failing check, or a
-source that changed after approval. The app reads the project's files when the
-project opens and again when they change, so no step reads them in by hand.
-
-### Collections and formats
-
-A project's content is grouped into named collections. Each is a set of
-patterns, and the app shows the files they match beside the format kapi
-detected for each.
-
-Opening a file previews it the way the engine reads it: the rendered document,
-the blocks it parsed, and, where a format carries them, the structure and the
-layout. Media files render as themselves. Formats that need an engine plugin
-offer to install it on first use. The [format reference](/formats) lists what
-kapi reads.
-
-### Checks
-
-Checks are the tests for prose. **Run on everything** on the Overview runs
-them, and the Overview's findings count opens what they found. A finding names the rule that
-fired and where it applies. Click it to open Context there, with the rule in
-view, and change the wording or the rule.
-
-### Flows
-
-The **Toolbox** holds the flows a project runs over its content, each a named
-sequence of steps saved beside the project. Open one to edit it, and run it
-with live progress for each file. The Toolbox also holds single tools, and the
-formats kapi reads with their settings.
-
-### And in every language
-
-A project that declares target languages gets the multilingual half.
-Per-language coverage appears on the collections it applies to, **Bring up to
-date** and **Plan…** appear on the Overview, the **Review** queue takes
-whatever the loop could not carry to the ship gate, and inspection puts source
-and target side by side with their findings, to approve or reject.
-
-A project that declares none is complete as it is. Its Overview shows no
-language work, and **Review** offers the source language and the languages to
-translate into. Adding the first target language there, or in **Project
-Settings**, brings the rest.
+Kapi Desktop shows your projects' writing rules: terms, voice, and the
+decisions people made. While your assistants work, they suggest new rules. In
+the app you keep each one, change it, or drop it. A rule you keep applies to
+every file and every assistant.
+
+The app, the [kapi CLI](/kapi/cli) and the [MCP server](/reference/mcp) use
+the same project data, so you get the same answer from each.
+
+This page shows where to find each part of the app. [Your first
+project](/kapi/get-started/first-project) walks through one project step by
+step, and [the tour](/kapi/desktop/tour) shows each part in a video.
+
+{/* The sections whose heading carries an {#id} are also the topics of the
+    app's Help panel, which reads them from this file. Keep each id; the app
+    build fails when one it names is missing. */}
 
 ## Install
 
@@ -440,28 +33,295 @@ On macOS, the cask installs the app and bundles the `kapi` CLI:
 brew install --cask neokapi/tap/kapi
 ```
 
-See [Installation](/kapi/get-started/installation#beta-channel) for the release
-channels.
+[Installation](/kapi/get-started/installation#install-kapi-desktop) covers the
+Windows installer, the macOS DMG, the Linux tarball and the release channels.
 
-For the Windows installer and the macOS DMG / Linux tarball builds, see
-[Installation](/kapi/get-started/installation#install-kapi-desktop).
+## Your context {#your-context}
+
+The home lists every project in the workspace and what is new in each.
+
+<ThemedImage
+  alt="Your context: counts across the workspace, What's new with a row per project, and the Projects list"
+  sources={{
+    light: "/img/desktop/light/context-home.png",
+    dark: "/img/desktop/dark/context-home.png",
+  }}
+/>
+
+- **Counts** for the workspace: projects, rules in use, terms, open
+  suggestions, and items that need you. The last count is highlighted when two
+  suggestions disagree.
+- **What's new** has a row for each project with something new, newest first.
+  Each row shows the assistant, what it suggested, and **Review** or
+  **Decide**. A live dot means an assistant is working in that project. Press
+  `j` and `k` to move between rows and Enter to open one.
+- **Projects** lists every project you opened in the CLI or the app, or that
+  an assistant set up. Each row shows the project's voice profile, its rules,
+  and who the rules are shared with. Clones and worktrees of one project share
+  a row and one set of rules, and the row's `⋯` menu lists each copy. If a
+  project has no copy on this machine, it opens without the actions that need
+  files.
+- **Holds in every project** lists the rules that apply to all your projects.
+- **Get started** has three guided tours for your first visit: try the sample
+  and find your way around it, decide what becomes a rule, and connect an
+  assistant. Each tour you finish gets a check. **Hide** removes the card, and
+  **Show it again** in **App Settings** brings it back.
+- **History**, next to the title, opens the sessions of every project.
+
+Each project opens in a tab, and the app reopens your tabs from last time. The
+sidebar has one entry per page: **Overview**, **Context**, **Review** and
+**Project Settings**, with **Help** and **App Settings** at the bottom.
+
+## Overview {#overview}
+
+A project opens on its **Overview**, the desktop form of `kapi look`.
+
+<ThemedImage
+  alt="A project's Overview: the files, blocks, rules and findings counts, the Suggestions list, and the Files list"
+  sources={{
+    light: "/img/desktop/light/overview.png",
+    dark: "/img/desktop/dark/overview.png",
+  }}
+/>
+
+- **Counts** of files, blocks, rules and findings. Click a count to see what
+  it counts. The findings count is highlighted when there are any.
+- **First steps**, on a new project: decide what becomes a rule, check the
+  files, fix what fails, connect an assistant, and share the rules. Click a row
+  to go to that step, or **Guide** to take the tour of the project. The list goes away when you have
+  decided the rules, connected an assistant and shared the rules, or when you
+  click **Dismiss**. The last line of `kapi look` shows the same next step.
+- **Suggestions** lists the ones you haven't decided yet, each
+  with a sentence where it was seen. **Decide** opens it in
+  [Decide](#decide).
+- **Deeper look with AI** uses your AI model to read the files and suggest
+  more rules, like
+  [`kapi context suggest --ai`](/kapi/context-decisions#what-kapi-sees-in-the-files).
+- **Files** lists each content file with its blocks and findings, most
+  findings first. **Open** shows it in the [Reader](#reader).
+- **Run on everything** runs the [checks](#checks) on every file.
+
+## Checks and findings {#checks}
+
+A check reads every block of every file and compares it with the project's
+rules: its terms, its voice profile and the rules you kept in Decide. Each
+place where a block breaks a rule is a finding.
+
+- **Run on everything** on the Overview checks the whole project. The first
+  time you open a project in a session, the Overview also runs the checks
+  once.
+- Each file on the Overview shows its own findings. Open it to see them in
+  place.
+
+A word rule fails the check unless it is marked advisory. A tone rule only
+reports until someone marks it to fail. A suggestion nobody has decided
+reports and never fails. `kapi check` runs the same checks on the command
+line; [Verify content](/kapi/recipes/verify-content) covers it.
+
+## The Reader {#reader}
+
+The **Reader** shows one file's blocks in file order and marks each finding on
+its words, with a row under the block.
+
+- **Fix** beside a finding replaces the words with the rule's wording.
+- **Fix _n_ in this file** fixes every finding in the file at once.
+- **Rules here** shows the same rules as `kapi context <path>`.
+
+A fix keeps the rest of the file and its formatting as they were. Findings
+about tone or style, and findings on words that hold a link or other
+formatting, have no **Fix**. Edit those words yourself.
+
+## Decide {#decide}
+
+**Decide** asks you about each suggestion an assistant recorded: a name
+spelled two ways, a word to avoid, a note about tone. Each one stays a
+suggestion until you answer it.
+
+**Decide** is at the top of the **Context** page, and **Decide** on a
+suggestion on the Overview opens it there. Like `kapi rules`, it asks one
+question per suggestion, and you pick one of three answers:
+
+| Answer | Key | What it does |
+| --- | --- | --- |
+| **Keep** | `k` | Makes it a rule in the terms, the voice profile or the content memory. If two suggestions disagree, keeps the one you picked. |
+| **Not a rule** | `n` | Removes it. Checks stop reporting it. |
+| **Later** | `l` | Saves nothing. Checks keep reporting it, and Decide asks again next time. |
+
+Until you decide, checks report a suggestion but never fail on it. Above the
+answers you see what keeping it does, and **Seen in** shows the sentence and
+file it came from. A rule you keep applies to the next check and to every
+assistant that reads the project. To decide, you need a copy of the project on
+this machine. [Review your assistant's
+suggestions](/kapi/desktop/recipes/review-your-assistants-suggestions) walks
+through it on the sample.
+
+## Search and Explore {#search-and-explore}
+
+**Search** finds rules by word or by file. Search for a word to see the terms
+that cover it and approved text that uses it. Search for a file to see the
+rules for that file.
+
+**Explore** shows your rules by product, market and other dimensions, and over
+time: a timeline, flows, a matrix, a map of markets, and a list of records.
+One search filters every view. [Explore your
+context](/kapi/desktop/recipes/explore-your-context) goes through each view,
+and `kapi context atlas --json` prints the same data.
+
+## Voice, terms and content memory {#voice-and-terms}
+
+**Voice**, **Terms** and **Content Memory**, on the **Context** page, let you
+read and edit those stores directly.
+
+- **Voice** shows the voice profile that applies: tone, style rules, pattern
+  rules, examples, and the adjustments for a language, channel or persona.
+  Editing it writes the YAML file in your project, the same file a reviewer
+  reads in a pull request.
+- **Terms** lists the words decided for the project, one concept per row.
+  Select a concept to see its definition, the forms to avoid with what to
+  write instead, and its terms in each language. **Relate** links it to
+  another concept.
+- **Content Memory**, in a project with target languages, holds approved
+  wording one pair per row: a source sentence and its translation.
+
+[Keep source on brand](/kapi/recipes/keep-source-on-brand) shows the voice
+profile and terms at work in a check.
+
+## Project Settings {#project-settings}
+
+**Project Settings** holds the project's languages, its content and flows,
+the assistants connected to it, and who its rules are shared with.
+
+- **Content** shows the collections, the files in each, and each file's
+  format. Open a file to preview the text kapi reads from it.
+- **Flows** holds the project's flows. You can edit them and run them, with
+  progress for each file. See [Build a flow
+  visually](/kapi/desktop/recipes/build-a-flow-visually).
+- **Assistants** and **Share** have sections of their own:
+  [Assistants](#assistants) and [Share](#share).
+
+**App Settings**, at the bottom of the sidebar, holds the app's appearance and
+language, your AI models, plugins, the formats kapi reads with your saved
+settings for each, and the list of languages you pick from, where you can
+hide one or add your own.
+
+## Assistants {#assistants}
+
+**Assistants**, a tab of **Project Settings**, connects Claude Code, Cursor,
+VS Code, Codex, Agent skills or Claude Desktop to the project.
+
+- **Connect** writes the files that assistant reads, the same files
+  `kapi connect` writes.
+- **Show what it reads** shows the section kapi writes into `AGENTS.md` and
+  `CLAUDE.md`, and the rules for any one file.
+- **Sessions** lists what you and the assistants recorded, one session per
+  row, and, if the check on every edit is on, what it found. Select a session
+  to see what it changed and the checks it ran.
+- **Reset to before this session** undoes the session's changes to your
+  rules, and **Take this reset back** undoes the reset. It's the same as
+  `kapi context reset --before <session>`.
+
+What a connected assistant suggests appears on the Overview under
+**Suggestions** and on the home under **What's new**. You answer it in
+[Decide](#decide). See [Connect an
+assistant](/kapi/desktop/recipes/connect-an-assistant).
+
+## Share {#share}
+
+**Share**, a tab of **Project Settings**, shows who can read the project's
+rules, at one of three levels:
+
+- **On this Mac**: every clone and worktree on this machine reads them.
+- **With your team**: git, a shared folder or S3 carries them to every machine
+  that syncs the project. **Sync now** runs `kapi context sync`.
+- **In a managed workspace**: a server that holds the rules for the team,
+  with a queue for the decisions and a record of who kept what.
+
+Everything else stays on your machine, in your project and your workspace.
+See [Share context with your
+team](/kapi/desktop/recipes/share-context-with-your-team).
+
+## In every language {#languages}
+
+To translate a project, open **Project Settings**, add the language under
+**Translate into**, and click **Save Changes**.
+
+When a source file changes, and when you open the project, the app fills
+every target the content memory holds an exact match for, with no run and
+no model. The Overview counts them, such as **12 blocks recycled**. A near
+match waits for a run.
+
+When there are blocks to translate, the Overview shows a button that names
+the work, such as **Translate 12 blocks**, with how many are recycled and
+how many come from the AI model. It is the desktop form of `kapi up`: it
+recycles from the content memory, translates the rest, and holds back for
+**Review** what needs a person. After
+a failed run the button reads **Run again**, and when the project is up to
+date there is no button. **Plan…** shows the work
+to do and estimates the tokens it uses before anything runs. Next to it,
+three counts show the work: blocks to translate, blocks waiting for a person
+to review, and languages held back. **Review** shows the text that isn't
+ready to ship yet.
+
+A project without target languages works as it is. **Review** lets you pick
+languages to translate into, and the **Translate** button with its counts appears
+when you add the first one. A language that is behind is pending work, and it never breaks a
+build. [Add languages](/kapi/get-started/add-languages) covers the same steps
+on the command line.
+
+## Help and guided tours {#help}
+
+**Help**, at the foot of the sidebar, opens the Help panel. The info button
+beside a page's title opens it on the topic for that page. The panel holds two
+lists:
+
+- **Guides**: tours of common tasks, such as finding your way around a
+  project, deciding what becomes a rule, checking the files and fixing a
+  finding, translating into another language, and connecting an assistant.
+  **Start** opens the page the tour is about and lights each control in turn,
+  with a short note beside it. **Next** and **Back** move through the steps,
+  and the × on the note or Esc ends the tour. A finished tour gets a check.
+- **Topics**: the sections of the [Kapi Desktop
+  overview](/kapi/desktop/overview) in these docs, read in the app. Each ends
+  with a link to the same section on the website.
+
+A tour starts only when you click one. The **Guide** action on a project's
+first steps and the tours under **Get started** on the home start the same
+tours.
+
+## The command line {#command-line}
+
+Kapi Desktop and the `kapi` command work on the same project files, so you
+can switch between them.
+
+| In the app | On the command line |
+| --- | --- |
+| **Run on everything** | `kapi check` |
+| **Fix** | `kapi fix` |
+| **Decide** | `kapi rules` |
+| **Rules here** | `kapi context <path>` |
+| **Connect** an assistant | `kapi connect` |
+| **Translate _n_ blocks** | `kapi up` |
+| **Share** | `kapi share` |
+
+Run `kapi --help` in a project for the full list, or see [CLI or
+desktop](/kapi/get-started/cli-vs-desktop).
+
+## The sample {#sample}
+
+**Try the sample** opens KapiMart, a sample store with a voice profile, terms,
+a content memory and five target languages. It comes with two recorded
+assistant sessions, and one disagrees with the other, so Decide has a question
+for you right away. The sample doesn't call an AI model.
 
 ## The project file
 
-Everything you configure is written to a portable `kapi.yaml` recipe. Commit it
-to git to share with your team, reopen it in Kapi Desktop, or run it from the
-command line:
-
-```bash
-kapi up -p kapi.yaml
-```
+Everything you set up is saved in the project's `kapi.yaml` file. Commit it to
+share it with your team, open it again in Kapi Desktop, or run it from the
+command line with `kapi up -p kapi.yaml`. [Kapi Project
+Files](/reference/project-file) is the full reference.
 
 ## Next steps
 
-- [A guided tour](/kapi/desktop/tour): each surface in motion
-- [Review what your assistant noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed): the sample, step by step
-- [Connect an assistant](/kapi/desktop/recipes/connect-an-assistant): what connecting writes, and what the assistant then does
-- [Share context with your team](/kapi/desktop/recipes/share-context-with-your-team): from this Mac to every machine
-- [Your first project](/kapi/get-started/first-project): the step-by-step path
-- [Kapi Project Files](/reference/project-file): the full recipe reference
+- [Your first project](/kapi/get-started/first-project): one project from an open folder to shared rules, step by step in the app and the CLI
+- [A guided tour](/kapi/desktop/tour): each part of the app in motion
 - [Kapi CLI guides](/kapi/cli): the same tasks on the command line, and the [command reference](/commands)

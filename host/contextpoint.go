@@ -118,7 +118,7 @@ type ContextAnswer struct {
 	// TermsTotal is how many terms the point binds in all, so a capped list says
 	// what it is a part of.
 	TermsTotal int `json:"terms_total,omitempty"`
-	// Suggestions are what earlier sessions noticed at this point and nobody
+	// Suggestions are what earlier sessions suggested at this point and nobody
 	// has established, with the rules a disagreement contests. They are
 	// reported apart from Voice and Terms because they bind nothing: a check
 	// reports each one and no check fails on it. A writer reads them as the
@@ -538,7 +538,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 		}
 		for _, op := range log.Operations {
 			switch {
-			case op.Status.Advises() && !req.rulesOnly:
+			case op.Status.Advisory() && !req.rulesOnly:
 				src.Suggestions = append(src.Suggestions, op.Record)
 			// An established note is something somebody noticed and a
 			// person kept. An import or an edit also carries a note subject,
@@ -1020,11 +1020,11 @@ func termsInForce(concepts []terms.Concept, locale model.LocaleID, at time.Time,
 // recordingAdvice closes an answer that has room to grow: what to record while
 // reading the project, and what to leave alone. It names the conventions a
 // writer relies on whether or not the page at hand uses them, because an agent
-// told only to record what it notices records what its own page touched.
+// told only to record its suggestions records what its own page touched.
 const recordingAdvice = "As you read the files around it, record with context_note " +
-	"(or `kapi context note`) what they do every time, including names your text does not use: " +
+	"(or `kapi context note`) any wording they keep consistent, including names your text does not contain: " +
 	"each product, feature and plan name as written, the spelling variety, and a word chosen over " +
-	"a common alternative. Leave alone a word they write more than one way, with no note about it."
+	"a common alternative. Leave alone a word spelled more than one way, with no note about it."
 
 // FormatText renders the answer as the brief a writer reads before changing a
 // file: the voice, what to say and what not, what has been suggested and not

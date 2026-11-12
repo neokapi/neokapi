@@ -18,8 +18,10 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
+  PageContainer,
   PageHeader,
   SectionHeading,
+  SettingsRow,
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
@@ -33,7 +35,6 @@ import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useLocales } from "../hooks/useLocales";
 import { GovernanceSettings, type RecipeGovernance } from "./GovernanceSettings";
-import { SettingLabel } from "./SettingLabel";
 
 export interface ProjectSettingsPageProps {
   /** Project tab ID — the project whose governance vocabulary is read. */
@@ -115,24 +116,24 @@ export function LanguagesSection({ project, onUpdate, untitled }: LanguagesSecti
           Languages
         </SectionHeading>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <SettingLabel>{t("Source language")}</SettingLabel>
+      {/* The source and the languages it goes into are read together, so
+          they sit as one group of rows. */}
+      <div>
+        <SettingsRow label={t("Source language")}>
           <LocaleSelect
             value={defaults.source_language ?? ""}
             onChange={(v) => updateDefaults({ source_language: v })}
             locales={locales}
             placeholder={t("Select source language…")}
           />
-        </div>
-        <div>
-          <SettingLabel>{t("Translate into")}</SettingLabel>
+        </SettingsRow>
+        <SettingsRow label={t("Translate into")}>
           <MultiLocaleSelect
             value={defaults.target_languages ?? []}
             onChange={(v) => updateDefaults({ target_languages: v })}
             locales={locales}
           />
-        </div>
+        </SettingsRow>
       </div>
     </section>
   );
@@ -205,10 +206,10 @@ export function ProjectSettingsPage({
   const hasFormatDefaults = Object.keys(formatDefaults).length > 0;
 
   return (
-    <div className="p-6">
-      <PageHeader title="Project Settings" />
+    <PageContainer width="standard">
+      <PageHeader help="project-settings" title="Project Settings" />
 
-      <div className="max-w-2xl space-y-6">
+      <div className="space-y-6">
         <LanguagesSection project={project} onUpdate={onUpdate} />
 
         {/* Files — how content is read from and written to disk */}
@@ -216,22 +217,20 @@ export function ProjectSettingsPage({
           <SectionHeading className="mb-3" icon={<HardDrive size={14} />}>
             Files
           </SectionHeading>
-          <div className="space-y-4">
-            <div>
-              <SettingLabel
-                help={t(
-                  "How language codes are spelled in file and folder names. kapi reads and stores them in the standard form either way.",
-                )}
-              >
-                {t("Language codes in file names")}
-              </SettingLabel>
+          <div>
+            <SettingsRow
+              label={t("Language codes in file names")}
+              help={t(
+                "How language codes are spelled in file and folder names. kapi reads and stores them in the standard form either way.",
+              )}
+            >
               <Select
                 value={defaults.locale_format || "__bcp47__"}
                 onValueChange={(v) =>
                   updateDefaults({ locale_format: v === "__bcp47__" ? undefined : v })
                 }
               >
-                <SelectTrigger className="max-w-xs" aria-label={t("Language codes in file names")}>
+                <SelectTrigger aria-label={t("Language codes in file names")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -239,18 +238,18 @@ export function ProjectSettingsPage({
                   <SelectItem value="posix">{t("pt_BR (underscores)")}</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <SettingLabel help={t("The character encoding kapi reads and writes files in.")}>
-                {t("Default encoding")}
-              </SettingLabel>
+            </SettingsRow>
+            <SettingsRow
+              label={t("Default encoding")}
+              help={t("The character encoding kapi reads and writes files in.")}
+            >
               <Select
                 value={defaults.encoding || "__auto__"}
                 onValueChange={(v) =>
                   updateDefaults({ encoding: v === "__auto__" ? undefined : v })
                 }
               >
-                <SelectTrigger className="max-w-xs" aria-label={t("Default encoding")}>
+                <SelectTrigger aria-label={t("Default encoding")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -262,7 +261,7 @@ export function ProjectSettingsPage({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </SettingsRow>
           </div>
         </section>
 
@@ -444,23 +443,20 @@ export function ProjectSettingsPage({
             })}
 
             {declaredPlugins.length > 0 && (
-              <div className="border-t pt-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <SettingLabel
-                    className="mb-0"
-                    help={t(
-                      "The engine that reads a file whose extension both a built-in format and a plugin's claim. A content item's format and a format default's engine override it.",
-                    )}
-                  >
-                    {t("Format engine")}
-                  </SettingLabel>
+              <div className="border-t">
+                <SettingsRow
+                  label={t("Format engine")}
+                  help={t(
+                    "The engine that reads a file whose extension both a built-in format and a plugin's claim. A content item's format and a format default's engine override it.",
+                  )}
+                >
                   <Select
                     value={defaults.engine || NATIVE_ENGINE_OPTION}
                     onValueChange={(v) =>
                       updateDefaults({ engine: v === NATIVE_ENGINE_OPTION ? undefined : v })
                     }
                   >
-                    <SelectTrigger className="h-7 w-48 text-xs" aria-label={t("Format engine")}>
+                    <SelectTrigger aria-label={t("Format engine")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -472,7 +468,7 @@ export function ProjectSettingsPage({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </SettingsRow>
               </div>
             )}
 
@@ -506,16 +502,14 @@ export function ProjectSettingsPage({
                 Performance (advanced)
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <SettingLabel
-                      htmlFor="concurrency"
-                      help={t(
-                        "How many files are processed at the same time. Leave empty for automatic.",
-                      )}
-                    >
-                      {t("Files at once")}
-                    </SettingLabel>
+                <div>
+                  <SettingsRow
+                    htmlFor="concurrency"
+                    label={t("Files at once")}
+                    help={t(
+                      "How many files are processed at the same time. Leave empty for automatic.",
+                    )}
+                  >
                     <Input
                       id="concurrency"
                       type="number"
@@ -527,17 +521,16 @@ export function ProjectSettingsPage({
                       placeholder="auto"
                       min={1}
                       max={64}
+                      className="w-32"
                     />
-                  </div>
-                  <div>
-                    <SettingLabel
-                      htmlFor="parallel-blocks"
-                      help={t(
-                        "How many text segments a tool works on at once within a file. Leave empty for automatic.",
-                      )}
-                    >
-                      {t("Segments at once")}
-                    </SettingLabel>
+                  </SettingsRow>
+                  <SettingsRow
+                    htmlFor="parallel-blocks"
+                    label={t("Segments at once")}
+                    help={t(
+                      "How many text segments a tool works on at once within a file. Leave empty for automatic.",
+                    )}
+                  >
                     <Input
                       id="parallel-blocks"
                       type="number"
@@ -549,8 +542,9 @@ export function ProjectSettingsPage({
                       placeholder="auto"
                       min={1}
                       max={256}
+                      className="w-32"
                     />
-                  </div>
+                  </SettingsRow>
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -643,6 +637,12 @@ export function ProjectSettingsPage({
           </section>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }
+
+/**
+ * A setting's label with its explanation behind an info mark, for the label
+ * column of a `SettingsRow`. The mark is a focusable span rather than a
+ * button, because a label may not hold a second labelable control.
+ */

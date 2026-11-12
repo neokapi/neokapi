@@ -173,14 +173,10 @@ export function AgentHosts(tabID) {
 }
 
 /**
- * AnnotateEntities applies entity annotations to selected content-memory entries. The
- * patterns are searched across every variant's plain text and entity spans
- * are inserted where matches are found. Entity values are populated per
- * locale from the matching variant.
- * 
- * When TermsHandle is set, each new entity's text is looked up in the
- * terms; if a concept matches, its ID is stored on the EntityMapping
- * so the content-memory entry cross-references the terms store.
+ * AnnotateEntities marks each pattern as an entity in the selected
+ * content-memory entries (memory.AnnotateEntries, which `kapi memory annotate`
+ * also runs). When TermsHandle is set, each new entity is linked to the terms
+ * concept its text matches.
  * @param {string} handle
  * @param {$models.AnnotateEntitiesRequest} req
  * @returns {$CancellablePromise<$models.AnnotateResult | null>}
@@ -259,7 +255,7 @@ export function AssistantsView(tabID) {
 
 /**
  * BowrainPreview reads one part of a tab's project from the Bowrain server
- * its recipe connects to: part is "map", "reader" (item names the file),
+ * its recipe connects to: part is "overview", "reader" (item names the file),
  * "decide" or "kept". The DTOs are the server's own. A tab whose recipe names
  * no project in a workspace on a server is an error; a missing sign-in and a
  * refusal from the server are a Refusal.
@@ -722,7 +718,7 @@ export function DeclareChannel(tabID, profile, channel) {
 /**
  * DeeperLook reads the tab's source blocks with the connected model and files
  * what it proposes as suggestions. With no model connected it refuses with
- * host.ErrNoAIProvider, which the Map answers by offering to connect one.
+ * host.ErrNoAIProvider, which the Overview answers by offering to connect one.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.DeeperLookDTO | null>}
  */
@@ -926,6 +922,16 @@ export function DiscardWorkspaceDocument(doc, edit) {
 }
 
 /**
+ * DismissOverviewSteps hides the first steps on the Overview of a tab's project, for
+ * that project on this machine.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DismissOverviewSteps(tabID) {
+    return $Call.ByID(3371642714, tabID);
+}
+
+/**
  * DismissSamples marks the sample project cards as dismissed.
  * @returns {$CancellablePromise<void>}
  */
@@ -1060,8 +1066,8 @@ export function GetConceptForView(handle, conceptID) {
 /**
  * GetConvergePlan returns the pre-flight convergence plan for a project tab:
  * the same dry-run derivation as `kapi up --plan` (through the shared host.App
- * path), plus the store drift summary the home hero renders. Read-only; safe
- * to call on every home load/refresh.
+ * path), with the drift summary the home hero renders. Read-only; safe to call
+ * on every home load/refresh.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ConvergePlan | null>}
  */
@@ -1408,13 +1414,13 @@ export function GetProjectServer(tabID) {
  * Coverage is the CLI's own derivation (host.ProjectCoverageTally over
  * working-tree reads), so a target committed beside its source counts here
  * exactly as it counts at the terminal. Extracted totals come from the block
- * cache, which is what the store knows and the tree does not.
+ * cache, which the store holds and the tree does not.
  * 
  * If the project has never been extracted, the returned status has
- * HasData=false and zeroed coverage; this is a well-defined "no data yet"
- * state, not an error. It is a row question, not a file one: the store file
- * exists from the first command that touches any subsystem, so its presence
- * stopped being evidence that anything was extracted.
+ * HasData=false and zero block counts beside the working tree's coverage; this
+ * is a well-defined "no data yet" state, not an error. It is a row question,
+ * not a file one: the store file exists from the first command that touches
+ * any subsystem, so its presence is no evidence that anything was extracted.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ProjectStatus | null>}
  */
@@ -1819,7 +1825,7 @@ export function KeptRules(tabID) {
 
 /**
  * LastProjectChecks returns the last checks run over the whole project in
- * this session, the run the Map's findings count is read from, so the checks
+ * this session, the run the Overview's findings count is read from, so the checks
  * panel opens on the findings that count names. Nil when none has run.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.CheckRunResult | null>}
@@ -1953,7 +1959,7 @@ export function ListNamedTerms() {
  * so a file claimed by an earlier item is listed under that item's target
  * alone, and a pattern that cannot be expanded fails the listing rather than
  * shortening it. Output paths come from the shared resolver
- * (project.ResolveTargetPath), the same one the flow runner, merge, and the
+ * (ProjectContext.TargetFile), the same one the flow runner, merge, and the
  * CLI use, so the desktop, CLI, and `kapi merge` agree exactly.
  * @param {string} tabID
  * @returns {$CancellablePromise<{ [_ in string]?: $models.OutputFileInfo[] }>}
@@ -2120,19 +2126,6 @@ export function LookupMemory(handle, req) {
 }
 
 /**
- * MapSummary answers the Map of the project a tab holds in one call. A tab
- * with no recipe on disk, or holding a project's context alone, answers with
- * zeros.
- * @param {string} tabID
- * @returns {$CancellablePromise<screens$0.MapSummaryDTO | null>}
- */
-export function MapSummary(tabID) {
-    return $Call.ByID(1961346714, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType160($result);
-    }));
-}
-
-/**
  * MarkProjectContextDigestSeen records that the person looked at the digest of
  * the project a tab holds, now. It returns the marker it replaced, RFC3339,
  * empty when the person had never looked.
@@ -2163,7 +2156,7 @@ export function MarkTelemetryNoticeShown() {
  */
 export function MatchContent(tabID) {
     return $Call.ByID(433231038, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType162($result);
+        return $$createType160($result);
     }));
 }
 
@@ -2286,6 +2279,19 @@ export function OpenTermsDialog() {
 export function OpenWorkspaceContext(key) {
     return $Call.ByID(3090130948, key).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType49($result);
+    }));
+}
+
+/**
+ * OverviewSummary answers the Overview of the project a tab holds in one call. A tab
+ * with no recipe on disk, or holding a project's context alone, answers with
+ * zeros.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<screens$0.OverviewSummaryDTO | null>}
+ */
+export function OverviewSummary(tabID) {
+    return $Call.ByID(2431996517, tabID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType162($result);
     }));
 }
 
@@ -2576,10 +2582,10 @@ export function ResetSampleProject(tabID) {
 }
 
 /**
- * ResolveEntityConcepts re-links entities on content-memory entries to terms concepts.
- * Useful after a terms store import or when entities were created without a
- * terms available. Entries whose entities already have a ConceptID are
- * skipped unless force is true.
+ * ResolveEntityConcepts links the entities on content-memory entries to the
+ * terms concepts their text matches (memory.LinkEntryConcepts), after a terms
+ * import or for entities created with no terms store at hand. An entity
+ * already linked is skipped unless force is true.
  * @param {string} memoryHandle
  * @param {string} tbHandle
  * @param {string[]} entryIDs
@@ -2684,11 +2690,13 @@ export function RulesFiles(tabID) {
 }
 
 /**
- * RunAIPreReview runs the ai review tool over the pending review queue for a
- * locale (batch, explicitly invoked — never during queue listing). Every unit
- * gets an advisory annotation (score + findings) in the project state store,
- * bound to the translation it judged. Every unit stays in the queue for a
- * person to decide.
+ * RunAIPreReview runs the AI pre-review over the pending review queue for a
+ * locale (host.App.RunAIPreReview, which `kapi up --pre-review`
+ * also runs). Every block gets an advisory annotation (score and findings) in
+ * the project state store, bound to the translation it judged, and stays in
+ * the queue for a person to decide. The judge is built from the desktop's
+ * tool registry and credential store, and each model call runs under the
+ * block's activity scope.
  * @param {string} tabID
  * @param {string} locale
  * @param {$models.PreReviewScope} scope
@@ -2701,19 +2709,15 @@ export function RunAIPreReview(tabID, locale, scope) {
 }
 
 /**
- * RunChecks runs the project's content checks (placeholder + do-not-translate
- * when a target exists, terms and the voice's patterns on the source when
- * they are bound) over the content files the Active Filter selects (its collections +
- * glob; all when empty), for the filter's target languages — source-side checks
- * run once per file, target-side checks run once per filtered language, and the
- * panel no longer carries its own language picker. With no languages selected,
- * only source-side checks run.
+ * RunChecks runs `kapi check` over the content files the Active Filter selects
+ * (its collections and glob; all when empty), and holds each file's
+ * translations in the filter's target languages to the checks a translation is
+ * held to. With no languages selected, only the sources are checked.
  * 
- * The pipeline itself is the CLI's exported check service
- * (host.App.ReadBlocksForCheck / host.OverlayTargets / host.RunCheckTool /
- * host.FindingsFromBlock), run inside the project document cache
- * (WithDocumentCache) so unchanged files replay instead of re-parsing —
- * exactly the `kapi check` semantics: the gate fails on any failing finding.
+ * The findings come from the host's project check (host.App.ComputeProjectCheck),
+ * run inside the project document cache so unchanged files replay instead of
+ * re-parsing. The panel and `kapi check` therefore report the same findings,
+ * verdict and score for the same content.
  * @param {string} tabID
  * @param {$models.ProjectFilter} filter
  * @returns {$CancellablePromise<$models.CheckRunResult | null>}
@@ -3567,10 +3571,10 @@ const $$createType155 = $models.WorkspaceHome.createFrom;
 const $$createType156 = $Create.Nullable($$createType155);
 const $$createType157 = $models.MemoryMatchDTO.createFrom;
 const $$createType158 = $Create.Array($$createType157);
-const $$createType159 = screens$0.MapSummaryDTO.createFrom;
-const $$createType160 = $Create.Nullable($$createType159);
-const $$createType161 = $models.FileMatch.createFrom;
-const $$createType162 = $Create.Array($$createType161);
+const $$createType159 = $models.FileMatch.createFrom;
+const $$createType160 = $Create.Array($$createType159);
+const $$createType161 = screens$0.OverviewSummaryDTO.createFrom;
+const $$createType162 = $Create.Nullable($$createType161);
 const $$createType163 = $models.PreviewResult.createFrom;
 const $$createType164 = $Create.Nullable($$createType163);
 const $$createType165 = host$0.ContextAtlas.createFrom;

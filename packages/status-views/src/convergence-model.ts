@@ -76,7 +76,7 @@ export interface ParkedScope {
 export interface ConvergenceLocaleOutcome {
   locale: string;
   /** established | translated | withheld | not_gated */
-  shipState?: string;
+  ship_state?: string;
   /** Whether a ship gate matches any of the locale's scopes. */
   gated?: boolean;
 }
@@ -88,19 +88,19 @@ export interface ConvergenceOutcome {
    *  gates only where a gate matches; without it, the line claims every gated
    *  scope shippable. */
   locales?: ConvergenceLocaleOutcome[];
-  parkedScopes?: ParkedScope[];
-  materializedFiles?: number;
+  parked_scopes?: ParkedScope[];
+  materialized_files?: number;
   /** Translatable source blocks the run held below the project's translate_after
    *  level.
    *  Their translations were not produced, in any language: source content is
    *  shared, so this is one count for the whole fan-out rather than one per
    *  locale. */
-  blockedOnSource?: number;
+  blocked_on_source?: number;
   /** The translate_after level the run applied (none|written|established). */
-  translateAfter?: string;
+  translate_after?: string;
   /** Why the run did not converge. `source_not_ready` means every pending
    *  locale had nothing producible, because the source is unsettled. */
-  stallReason?: string;
+  stall_reason?: string;
 }
 
 /** Run metadata for the optional header (trigger, id, timestamp). */

@@ -381,7 +381,7 @@ the flag as it is.
 
 A `term`, `memory` or `recipe` operation writes the project's context or its
 recipe directly, which is a person's decision, and so is a `decide` other than
-`advise`. kapi records each operation as whoever runs the command, so run from
+`prereview`. kapi records each operation as whoever runs the command, so run from
 your shell such an operation is refused, and the change set with it. Send your
 content edits on their own, record the rule as a suggestion instead
 ([create.md → close the loop](create.md)), and leave the term for the person to

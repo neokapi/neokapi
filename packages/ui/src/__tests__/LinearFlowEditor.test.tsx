@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { type ComponentProps } from "react";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { LinearFlowEditor } from "../components/flow-editor";
@@ -96,20 +96,48 @@ describe("LinearFlowEditor", () => {
     expect(onChange).toHaveBeenCalledWith({ steps: [{ tool: "translate" }] });
   });
 
-  it("reorders steps with move down", async () => {
+  it("moves a step with the arrow keys on its grip", async () => {
     const { onChange } = renderEditor();
-    const rows = screen.getAllByTestId("step-row");
-    await userEvent.click(within(rows[0]).getByLabelText("Move down"));
+    const grip = screen.getByLabelText("Reorder Recycle");
+    grip.focus();
+    await userEvent.keyboard("{ArrowDown}");
     expect(onChange).toHaveBeenCalledWith({
       steps: [{ tool: "translate" }, { tool: "recycle" }],
     });
   });
 
-  it("disables move up on the first step and move down on the last", () => {
-    renderEditor();
+  it("leaves the first step in place on arrow up", async () => {
+    const { onChange } = renderEditor();
+    screen.getByLabelText("Reorder Recycle").focus();
+    await userEvent.keyboard("{ArrowUp}");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("moves a step dropped below another", () => {
+    const { onChange } = renderEditor();
     const rows = screen.getAllByTestId("step-row");
-    expect((within(rows[0]).getByLabelText("Move up") as HTMLButtonElement).disabled).toBe(true);
-    expect((within(rows[1]).getByLabelText("Move down") as HTMLButtonElement).disabled).toBe(true);
+    const dataTransfer = {
+      setData: vi.fn(),
+      setDragImage: vi.fn(),
+      effectAllowed: "",
+      dropEffect: "",
+    };
+    fireEvent.dragStart(screen.getByLabelText("Reorder Recycle"), { dataTransfer });
+    // jsdom lays nothing out, so every row's box is empty and the pointer at
+    // y=1 falls in the lower half: the step lands after the row.
+    fireEvent.dragOver(rows[1], { dataTransfer, clientY: 1 });
+    expect(rows[1].querySelector("[data-slot='drop-indicator']")?.getAttribute("data-side")).toBe(
+      "after",
+    );
+    fireEvent.drop(rows[1], { dataTransfer, clientY: 1 });
+    expect(onChange).toHaveBeenCalledWith({
+      steps: [{ tool: "translate" }, { tool: "recycle" }],
+    });
+  });
+
+  it("shows no grip on a flow with one step", () => {
+    renderEditor({ flow: { steps: [{ tool: "translate" }] } });
+    expect(screen.queryByLabelText(/^Reorder /)).toBeNull();
   });
 
   it("expands a step's options when the tool has a schema", async () => {
@@ -151,7 +179,7 @@ describe("LinearFlowEditor", () => {
   it("hides editing controls when read-only", () => {
     renderEditor({ readOnly: true, onRun: vi.fn() });
     expect(screen.queryByTestId("add-step")).toBeNull();
-    expect(screen.queryByLabelText("Move up")).toBeNull();
+    expect(screen.queryByLabelText(/^Reorder /)).toBeNull();
     expect(screen.queryByLabelText(/^Remove /)).toBeNull();
   });
 });
@@ -201,7 +229,7 @@ describe("LinearFlowEditor and parallel groups", () => {
     renderEditor({ flow: grouped });
     const branches = screen.getByTestId("parallel-branches");
     expect(within(branches).getAllByTestId("step-row")).toHaveLength(2);
-    expect(within(branches).queryByLabelText("Move up")).toBeNull();
+    expect(within(branches).queryByLabelText(/^Reorder /)).toBeNull();
   });
 
   it("removes a branch from a group", async () => {

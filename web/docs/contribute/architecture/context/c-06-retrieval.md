@@ -48,7 +48,7 @@ writing against that output has terminology it did not get. Silence would have
 been safer.
 
 The same pressure applies across surfaces. The agent skill drives the CLI, so a
-surface an assistant learns from the skill and a surface it reaches over MCP must
+surface the skill teaches an assistant and a surface it reaches over MCP must
 be the same surface, or the highest-leverage prose in the repository teaches a
 model that does not exist.
 
@@ -254,7 +254,7 @@ narrower question than `kapi context` (*what does this store hold* rather than
 *what applies here*), which is a reasonable thing to ask of a store you opened on
 purpose. What an agent is taught differs: the skill drives `kapi context <path>` and
 `kapi context search`, so the narrow verbs stay available to a person without becoming the
-model an assistant learns.
+model the skill teaches an assistant.
 
 **Management verbs are not retrieval and do not fold.** `terms
 import/export/stats`, `memory import/export/audit`, `voice new/validate/import/pack`

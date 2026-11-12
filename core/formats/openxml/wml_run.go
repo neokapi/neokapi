@@ -598,9 +598,9 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// run-child elements with no content. Upstream Okapi
 				// RunParser (RunParser.java lines 752-766) preserves
 				// the element verbatim unless the conditional
-				// parameter `replaceNoBreakHyphenTag` is true (in which
+				// parameter `replace_no_break_hyphen_tag` is true (in which
 				// case it's substituted with a regular hyphen "-") or
-				// `ignoreSoftHyphenTag` is true (in which case the
+				// `ignore_soft_hyphen_tag` is true (in which case the
 				// softHyphen is dropped). When preserved, upstream
 				// adds the element to the run's Markup chunk stream so
 				// it survives the round-trip \u2014 see fixture

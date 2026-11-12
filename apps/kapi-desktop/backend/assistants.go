@@ -27,13 +27,7 @@ const assistantSessionsShown = 8
 
 // connectAllHosts are the assistants the page lists, in the order kapi
 // connect lists them.
-var connectAllHosts = []host.AgentHost{
-	host.AgentHostClaudeCode,
-	host.AgentHostCursor,
-	host.AgentHostVSCode,
-	host.AgentHostCodex,
-	host.AgentHostAgents,
-}
+var connectAllHosts = host.ConnectAllHosts()
 
 // AssistantHostView is one assistant on the Assistants page.
 type AssistantHostView struct {
@@ -97,7 +91,7 @@ type AssistantSession struct {
 // AssistantsView is the Assistants page of one tab.
 type AssistantsView struct {
 	// Rules is how many rules are in force at the project's own point, the
-	// count the Map shows. Nil when it could not be read.
+	// count the Overview shows. Nil when it could not be read.
 	Rules *int `json:"rules,omitempty"`
 	// HostsError and SessionsError say why the assistants or the sessions
 	// could not be read; the other part of the page is read all the same.
@@ -200,15 +194,13 @@ func (a *App) assistantHosts(ctx context.Context, recipe, root string) ([]Assist
 	rules := host.HasRulesFiles(root)
 	out := make([]AssistantHostView, 0, len(res.Hosts)+1)
 	for _, h := range res.Hosts {
-		row := AssistantHostView{Host: string(h.Host), Label: h.Label, Connected: true, Available: true}
+		row := AssistantHostView{Host: string(h.Host), Label: h.Label, Connected: h.InPlace(), Available: true}
 		for _, f := range h.Files {
 			switch {
 			case f.Kind == host.ConnectHook && f.Action == host.ConnectKept:
 				row.Check = true
 			case f.Kind == host.ConnectHook && f.Action == host.ConnectPending:
 				row.Pending = host.ClaudePluginCommands()
-			case f.Action != host.ConnectKept:
-				row.Connected = false
 			}
 			if f.Path != "" && f.Kind != host.ConnectHook {
 				row.Files = append(row.Files, f.Path)

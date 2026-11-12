@@ -1,6 +1,7 @@
 package project
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -111,6 +112,8 @@ collections:
 	// The file it writes is not.
 	item := ContentItem{Path: "app/en.json", Target: "app/{lang}.json"}
 	assert.Equal(t, "app/nb_NO.json", ctx.TargetPath(item, "app/en.json", ctx.TargetLocales[0]))
+	assert.Equal(t, filepath.Join(ctx.ProjectDir, "app", "nb_NO.json"), ctx.TargetFile(item, "app/en.json", ctx.TargetLocales[0]))
+	assert.Empty(t, ctx.TargetFile(ContentItem{Path: "app/en.json"}, "app/en.json", ctx.TargetLocales[0]))
 
 	// And a project that declares nothing writes the canonical name.
 	plain := &ProjectContext{}

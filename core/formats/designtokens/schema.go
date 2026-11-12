@@ -29,12 +29,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extractDescriptions",
+					"extract_descriptions",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractDescriptions": schema.Prop(coreschema.PropertySchema{
+			"extract_descriptions": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract $description documentation",
 				Default:     true,

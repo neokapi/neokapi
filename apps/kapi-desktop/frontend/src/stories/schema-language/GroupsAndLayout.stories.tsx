@@ -105,10 +105,10 @@ export const CollapsedGroups: Story = {
           description: "Fine-tune extraction behavior",
           collapsed: true,
           fields: [
-            "useCodeFinder",
-            "codeFinderRules",
+            "use_code_finder",
+            "code_finder_rules",
             "subfilter",
-            "preserveWhitespace",
+            "preserve_whitespace",
             "segmentation",
             "inlineTags",
           ],
@@ -117,8 +117,8 @@ export const CollapsedGroups: Story = {
       properties: {
         extractAll: { type: "boolean", title: "Extract All", default: true },
         encoding: { type: "string", title: "Encoding", default: "UTF-8" },
-        useCodeFinder: { type: "boolean", title: "Use Code Finder", default: false },
-        codeFinderRules: {
+        use_code_finder: { type: "boolean", title: "Use Code Finder", default: false },
+        code_finder_rules: {
           type: "string",
           title: "Code Finder Rules",
           description: "Regex for inline codes",
@@ -128,7 +128,7 @@ export const CollapsedGroups: Story = {
           title: "Sub-filter",
           description: "Apply a secondary filter to extracted content",
         },
-        preserveWhitespace: { type: "boolean", title: "Preserve Whitespace", default: false },
+        preserve_whitespace: { type: "boolean", title: "Preserve Whitespace", default: false },
         segmentation: {
           type: "string",
           title: "Segmentation",
@@ -166,7 +166,7 @@ export const GroupDescription: Story = {
           label: "Inline Code Detection",
           description:
             "Patterns that identify inline codes (placeholders, variables) within translatable text. Matched content is protected from translation.",
-          fields: ["useCodeFinder", "codeFinderRules"],
+          fields: ["use_code_finder", "code_finder_rules"],
         },
       ],
       properties: {
@@ -181,8 +181,8 @@ export const GroupDescription: Story = {
           title: "Exceptions",
           description: "Regex for keys to exclude",
         },
-        useCodeFinder: { type: "boolean", title: "Enable Code Finder", default: false },
-        codeFinderRules: {
+        use_code_finder: { type: "boolean", title: "Enable Code Finder", default: false },
+        code_finder_rules: {
           type: "string",
           title: "Rules",
           description: "Regex patterns (one per line)",

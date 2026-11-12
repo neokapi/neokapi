@@ -31,9 +31,9 @@ collections:
         format:
           name: json
           config:
-            extractAllPairs: false
-            useKeyAsName: true
-            extractionRules: "(displayName|description|title|label)$"
+            extract_all_pairs: false
+            use_key_as_name: true
+            extraction_rules: "(displayName|description|title|label)$"
         target: catalogs/{lang}.json
   - name: cli
     base: host/i18n

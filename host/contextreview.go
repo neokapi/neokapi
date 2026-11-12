@@ -207,13 +207,13 @@ func (a *App) ContextSubject(ctx context.Context, project, id string) (ContextOp
 	return ContextOperation{Record: r}, nil
 }
 
-// OnlySession narrows a digest to what one agent session noticed: its
+// OnlySession narrows a digest to what one agent session suggested: its
 // conflicts, suggestions and rules. The numbers stay the project's.
 func (d ContextDigest) OnlySession(session string) ContextDigest {
 	if session == "" {
 		return d
 	}
-	mine := func(it screens.DigestItem) bool { return it.NoticedBy.Session == session }
+	mine := func(it screens.DigestItem) bool { return it.RecordedBy.Session == session }
 	out := d
 	out.Conflicts = nil
 	for _, c := range d.Conflicts {

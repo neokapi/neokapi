@@ -1,7 +1,7 @@
 // Shared fixture library for the kapi playground kit.
 //
 // Each fixture is a small, self-contained sample input in one of the formats
-// kapi understands. A `<RunnableSnippet seed={["messages.json"]} />` references
+// kapi reads. A `<RunnableSnippet seed={["messages.json"]} />` references
 // fixtures by name; on modal open they are written into the in-memory volume
 // under the session cwd (see KapiRuntime.ensureSeed).
 //

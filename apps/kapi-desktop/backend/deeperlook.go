@@ -1,6 +1,6 @@
 package backend
 
-// "Deeper look with AI" on the Map runs the deeper look `kapi context suggest
+// "Deeper look with AI" on the Overview runs the deeper look `kapi context suggest
 // --ai` runs. What the model proposes waits for a person under "What your
 // files do", as suggestions by kapi named with the model.
 //
@@ -26,7 +26,7 @@ const deeperLookTimeout = 10 * time.Minute
 type DeeperLookModelDTO struct {
 	// Connected is false when nothing names a model: no provider in the
 	// recipe or the app config, no saved credential and no API key in the
-	// environment. The Map then offers to connect one.
+	// environment. The Overview then offers to connect one.
 	Connected bool   `json:"connected"`
 	Provider  string `json:"provider,omitempty"`
 	Model     string `json:"model,omitempty"`
@@ -62,7 +62,7 @@ func (a *App) DeeperLookModel(tabID string) (*DeeperLookModelDTO, error) {
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
-	// The answer is kept for the session, so showing the Map again reads no
+	// The answer is kept for the session, so showing the Overview again reads no
 	// saved key (lookmodel.go).
 	model := a.lookModel(op.Project)
 	return &model, nil
@@ -70,7 +70,7 @@ func (a *App) DeeperLookModel(tabID string) (*DeeperLookModelDTO, error) {
 
 // DeeperLook reads the tab's source blocks with the connected model and files
 // what it proposes as suggestions. With no model connected it refuses with
-// host.ErrNoAIProvider, which the Map answers by offering to connect one.
+// host.ErrNoAIProvider, which the Overview answers by offering to connect one.
 func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -83,7 +83,7 @@ func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 	// recipe gets one only for a run that will ask a model.
 	run := a.deeperLookApp()
 	if _, _, err := run.ResolveDeeperLookModel(op.Project); err != nil {
-		// The Map asks again when this refusal reaches it, and the answer
+		// The Overview asks again when this refusal reaches it, and the answer
 		// it then gets is read from the keychain.
 		a.forgetLookModels()
 		return nil, err
@@ -113,7 +113,7 @@ func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 		out.Tokens = res.Usage.TotalTokens()
 	}
 	if res.ChangedCount() > 0 {
-		// A row filed or filed again changes what the Map and Decide list.
+		// A row filed or filed again changes what the Overview and Decide list.
 		a.emitEvent("workspace:changed", nil)
 	}
 	return out, nil

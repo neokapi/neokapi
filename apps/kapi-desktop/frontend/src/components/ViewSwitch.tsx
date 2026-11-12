@@ -7,10 +7,8 @@ import type { ProjectHistory } from "../hooks/useProjectHistory";
 import { AppHome } from "./AppHome";
 import { RunnerPage } from "./RunnerPage";
 import { FlowsPage } from "./FlowsPage";
-import { ToolRunnerPage } from "./ToolRunnerPage";
-import { ToolboxPage } from "./ToolboxPage";
 import { ChecksPanel } from "./ChecksPanel";
-import { MapPage } from "./MapPage";
+import { OverviewPage } from "./OverviewPage";
 import { ReaderPage } from "./ReaderPage";
 import { readerTargetOf, readerView } from "../lib/screenTargets";
 import {
@@ -22,7 +20,6 @@ import {
 } from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
-import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
 import { OverviewStanding } from "./OverviewStanding";
 import { ProjectContentPage } from "./ProjectContentPage";
@@ -88,14 +85,12 @@ interface ViewSwitchProps {
   workspaceError?: unknown;
   /** Every project's context in numbers. */
   standings?: ContextProjectStanding[] | null;
-  /** The home's Start here steps were dismissed. */
+  /** The home's Get started card was hidden. */
   startHereDismissed: boolean;
   onDismissStartHere: () => void;
   onRestoreStartHere: () => void;
-  /** A project tab is open, so the home can connect an assistant to it. */
+  /** A project tab is open, so the home's tours have a project to show. */
   hasOpenProject: boolean;
-  /** Open the most recent project tab on its Assistant section. */
-  onConnectAssistant: () => void;
   /** Open a project on its Decide section, by workspace key. */
   onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
@@ -106,7 +101,7 @@ interface ViewSwitchProps {
   onForgetProject: (key: string) => Promise<void> | void;
   onNewProject: () => void;
   onOpenProject: () => void;
-  onCreateSampleProject: (name: string) => void;
+  onCreateSampleProject: (name: string) => void | Promise<void>;
   /** Reset an out-of-date sample project to the version bundled with this kapi. */
   onResetSample: (tabID: string) => void;
   /** Open a folder, a recipe or a file inside a folder, by path. */
@@ -132,7 +127,6 @@ export function ViewSwitch({
   onDismissStartHere,
   onRestoreStartHere,
   hasOpenProject,
-  onConnectAssistant,
   onOpenWhatsNew,
   onOpenCheckout,
   onOpenContext,
@@ -154,7 +148,7 @@ export function ViewSwitch({
     runId: number;
     scopePaths?: string[];
     scopeLabel?: string;
-    /** Convergence run (Bring up to date): the runner renders passes and
+    /** Convergence run (Catch up): the runner renders passes and
      *  launches through the shared `kapi up` engine. */
     converge?: boolean;
   } | null>(null);
@@ -188,7 +182,7 @@ export function ViewSwitch({
     },
     [navigate],
   );
-  // The Map's Decide opens the hub's Decide section. A suggestion's own Decide
+  // The Overview's Decide opens the hub's Decide section. A suggestion's own Decide
   // names its row in the view ("context:rules:<row key>"), so the row travels
   // with the route and a later visit from the rail opens on no row of its own.
   const handleDecide = useCallback(
@@ -200,7 +194,7 @@ export function ViewSwitch({
     [navigate],
   );
 
-  // The Reader opens on one file from the Map's Files rows and from a finding
+  // The Reader opens on one file from the Overview's Files rows and from a finding
   // on the Checks page, and its back button returns to the page it came from.
   const [readerBack, setReaderBack] = useState<string>("map");
   const handleOpenReader = useCallback(
@@ -229,7 +223,7 @@ export function ViewSwitch({
     [navigate],
   );
 
-  // Bring up to date (the home hero / plan dialog): the HERO launches the run
+  // Catch up (the home hero / plan dialog): the HERO launches the run
   // (so a synchronous launch error stays inline on the hero); this handler
   // fires only after a successful launch and merely opens the runner's
   // convergence view on the already-running job. Marking the runId consumed
@@ -270,7 +264,6 @@ export function ViewSwitch({
         startHereDismissed={startHereDismissed}
         onDismissStartHere={onDismissStartHere}
         hasOpenProject={hasOpenProject}
-        onConnectAssistant={onConnectAssistant}
         onOpenWhatsNew={onOpenWhatsNew}
         onOpenCheckout={onOpenCheckout}
         onOpenContext={onOpenContext}
@@ -378,6 +371,23 @@ export function ViewSwitch({
               hasTargetLanguages={languages}
             />
           ),
+          flows: (
+            <FlowsPage
+              tabID={tabID}
+              projectFlows={history.project.flows}
+              onRunFlow={handleRunFlow}
+              onFlowChange={(name, spec) => {
+                updateProject({
+                  ...history.project,
+                  flows: { ...history.project.flows, [name]: spec },
+                });
+              }}
+              onFlowDelete={(name) => {
+                const { [name]: _, ...rest } = history.project.flows ?? {};
+                updateProject({ ...history.project, flows: rest });
+              }}
+            />
+          ),
           assistants: connect("project-settings:assistants"),
           sessions: connect("project-settings:sessions"),
           share: connect("project-settings:share"),
@@ -396,7 +406,7 @@ export function ViewSwitch({
       case "content":
       case "languages":
         return (
-          <MapPage
+          <OverviewPage
             tabID={tabID}
             projectName={activeTab.info.name || history.project.name}
             onDecide={handleDecide}
@@ -467,40 +477,18 @@ export function ViewSwitch({
         );
       }
 
-      // The Toolbox hosts Tools, Flows and Formats as route-driven tabs.
+      // Flows are a tab of Project Settings. "tools", "flows" and "formats"
+      // are persisted view ids of the pages that tab replaced, so a saved
+      // session lands there.
       case "tools":
       case "flows":
       case "formats":
-        return (
-          <ToolboxPage
-            tab={route}
-            onTabChange={navigate}
-            tools={<ToolRunnerPage tabID={tabID} />}
-            flows={
-              <FlowsPage
-                tabID={tabID}
-                projectFlows={history.project.flows}
-                onRunFlow={handleRunFlow}
-                onFlowChange={(name, spec) => {
-                  updateProject({
-                    ...history.project,
-                    flows: { ...history.project.flows, [name]: spec },
-                  });
-                }}
-                onFlowDelete={(name) => {
-                  const { [name]: _, ...rest } = history.project.flows ?? {};
-                  updateProject({ ...history.project, flows: rest });
-                }}
-              />
-            }
-            formats={<FormatsPage />}
-          />
-        );
+        return projectSettings("flows");
 
       case "runner":
-        // Bring up to date is language work: on a project whose saved recipe
+        // Catch up is language work: on a project whose saved recipe
         // declares no target language, a convergence request opens the
-        // selected job instead of the Bring up to date view.
+        // selected job instead of the Catch up view.
         if (runnerState && (!runnerState.converge || languages)) {
           return (
             <RunnerPage

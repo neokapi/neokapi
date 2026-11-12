@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/convergence"
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 )
 
@@ -69,9 +68,10 @@ func (a *App) GetConvergence(tabID string) (*host.ConvergenceReport, error) {
 
 // ConvergePlan is the desktop's pre-flight picture for "Bring up to date": the
 // dry-run work plan `kapi up --plan` computes (per (collection, locale):
-// missing targets, exact content-memory leverage, remaining AI work, token estimate) plus
-// the block-store drift the run's auto-extract would heal. Both derivations
-// are cheap and read-only — stat checks, file reads, no provider calls.
+// missing targets, exact content-memory leverage, remaining AI work, token
+// estimate, and the block-store drift the run's extraction would heal), with
+// the drift counted for the home hero. The plan is read-only: stat checks,
+// file reads, no provider calls.
 type ConvergePlan struct {
 	Plan host.UpPlanOutput `json:"plan"`
 	// ChangedFiles / RemovedFiles count the source files whose bytes drifted
@@ -82,12 +82,15 @@ type ConvergePlan struct {
 	// cleared); VersionStale: the store was written by another kapi version.
 	StoreMissing bool `json:"storeMissing"`
 	VersionStale bool `json:"versionStale"`
+	// Recycled is what the last recycle pass in this tab filled from exact
+	// content-memory matches, or nil when none has filled anything.
+	Recycled *RecycledNote `json:"recycled,omitempty"`
 }
 
 // GetConvergePlan returns the pre-flight convergence plan for a project tab:
 // the same dry-run derivation as `kapi up --plan` (through the shared host.App
-// path), plus the store drift summary the home hero renders. Read-only; safe
-// to call on every home load/refresh.
+// path), with the drift summary the home hero renders. Read-only; safe to call
+// on every home load/refresh.
 func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -104,34 +107,16 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := &ConvergePlan{Plan: *plan}
-
-	// Drift summary via the shared core detection (`kapi up`'s pre-pass check).
-	// A resolution failure is propagated, not skipped: DetectStoreDrift over a
-	// short (or empty) file list reports "0 changed, 0 removed", which the plan
-	// panel renders as "nothing has drifted" — the wrong number, not an error.
-	// Strictness costs nothing here: UpPlan above resolves the same recipe
-	// through UnitsFromProject and has already hard-failed on it.
-	//
-	// A project with no store yet has drifted from nothing, and reporting that
-	// must not create one: a plan is a dry run, and `kapi up --plan` declines the
-	// same open for the same reason.
-	db, ok := a.existingProjectStore(op)
-	if !ok {
-		out.StoreMissing = true
-		return out, nil
-	}
-	pctx := project.NewProjectContext(op.Project, op.Path)
-	resolved, rerr := pctx.ResolveContent(a.formatReg)
-	if rerr != nil {
-		return nil, rerr
-	}
-	drift := db.DetectStoreDrift(context.Background(), resolved)
-	out.ChangedFiles = len(drift.Changed)
-	out.RemovedFiles = len(drift.Removed)
-	out.StoreMissing = drift.StoreMissing
-	out.VersionStale = drift.VersionStale
-	return out, nil
+	// The store drift is the plan's own (host.UpPlanOutput.Drift), the figure
+	// `kapi up --plan` prints, counted here for the home hero.
+	return &ConvergePlan{
+		Plan:         *plan,
+		ChangedFiles: len(plan.Drift.Changed),
+		RemovedFiles: len(plan.Drift.Removed),
+		StoreMissing: plan.Drift.StoreMissing,
+		VersionStale: plan.Drift.VersionStale,
+		Recycled:     op.lastRecycled(),
+	}, nil
 }
 
 // BringUpToDate reconciles the project toward its ship gates through the same

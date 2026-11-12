@@ -32,7 +32,7 @@ almost no invocation style.
 An engineer processing a file wants one command, no state, and a usable exit
 code. A team running a repeatable workflow wants the same capability bound to a
 recipe under version control, so that "run it again" means the same thing on
-another machine. An AI assistant wants typed input and output and a signal it can
+another machine. An AI assistant needs typed input and output and a signal it can
 branch on without reading prose.
 
 Splitting these into separate binaries would fork the behaviour three ways. A

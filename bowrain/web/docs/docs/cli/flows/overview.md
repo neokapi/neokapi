@@ -85,13 +85,13 @@ steps:
 
   - tool: term-check
     config:
-      caseSensitive: false
+      case_sensitive: false
 
   - tool: qa
     config:
-      checkDoubleSpaces: true
-      checkPatterns: true
-      checkTargetInconsistency: true
+      check_double_spaces: true
+      check_patterns: true
+      check_target_inconsistency: true
 ```
 
 Run it with `kapi run translate-with-checks`. See

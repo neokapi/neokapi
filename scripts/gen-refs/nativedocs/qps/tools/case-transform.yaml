@@ -18,12 +18,12 @@ parameters:
       ţö ļöŵéŕ çàšé, àñđ `ţîţļé` ţö ţîţļé çàšé (éṽéŕý ļéţţéŕ üþþéŕçàšéđ, üšîñĝ
       ţĥé Üñîçöđé ţîţļé-çàšé ḿàþþîñĝ).
     values: "`üþþéŕ` / `ļöŵéŕ` / `ţîţļé` (đéƒàüļţ `üþþéŕ`)"
-  applySource:
+  apply_source:
     description: Àþþļý ţĥé ţŕàñšƒöŕḿàţîöñ ţö šöüŕçé ţéẋţ.
     help: |
       Ŵĥéñ éñàƃļéđ, ţĥé šöüŕçé ţéẋţ öƒ éàçĥ ţŕàñšļàţàƃļé ƃļöçķ îš ţŕàñšƒöŕḿéđ.
     values: "`ţŕüé` / `ƒàļšé` (đéƒàüļţ `ţŕüé`)"
-  applyTarget:
+  apply_target:
     description: Àþþļý ţĥé ţŕàñšƒöŕḿàţîöñ ţö ţàŕĝéţ ţéẋţ.
     help: |
       Ŵĥéñ éñàƃļéđ, ţĥé ţàŕĝéţ ţéẋţ îš ţŕàñšƒöŕḿéđ ƒöŕ ţĥé çöñƒîĝüŕéđ ţàŕĝéţ
@@ -39,10 +39,10 @@ examples:
     description: Ƒöŕçé àļļ šöüŕçé šţŕîñĝš ţö üþþéŕ çàšé.
     config: |
       mode: upper
-      applySource: true
+      apply_source: true
   - title: Ļöŵéŕçàšé ţĥé ţàŕĝéţ ţŕàñšļàţîöñ
     description: Ñöŕḿàļîžé ţàŕĝéţ ţéẋţ ţö ļöŵéŕ çàšé ƒöŕ à ļöçàļé.
     config: |
       mode: lower
-      applySource: false
-      applyTarget: true
+      apply_source: false
+      apply_target: true

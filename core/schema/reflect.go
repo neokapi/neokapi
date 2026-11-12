@@ -181,52 +181,31 @@ func structProperties(t reflect.Type) map[string]PropertySchema {
 	return props
 }
 
-// fieldName returns the JSON-friendly name for a struct field.
-// Uses the json tag if present, otherwise converts to camelCase.
+// fieldName returns the config key for a struct field: the json tag when it
+// names one, otherwise the field name in snake_case. ApplyConfig reads a
+// config map under the same names, so a key the schema shows is a key a step
+// config sets.
 func fieldName(f reflect.StructField) string {
-	if tag := f.Tag.Get("json"); tag != "" {
-		name, _, _ := strings.Cut(tag, ",")
-		if name != "" && name != "-" {
-			return name
-		}
+	if name, ok := jsonTagName(f); ok {
+		return name
 	}
-	return toCamelCase(f.Name)
+	return SnakeCase(f.Name)
 }
 
-// toCamelCase converts a Go PascalCase name to camelCase.
-func toCamelCase(s string) string {
-	if s == "" {
-		return s
+// jsonTagName returns the name a field's json tag gives it, if any.
+func jsonTagName(f reflect.StructField) (string, bool) {
+	tag := f.Tag.Get("json")
+	if tag == "" {
+		return "", false
 	}
-	// Find the boundary between leading uppercase and the rest.
-	// "XMLParser" -> "xmlParser", "FuzzyThreshold" -> "fuzzyThreshold"
-	runes := []rune(s)
-	for i := range runes {
-		if i == 0 {
-			runes[i] = toLower(runes[i])
-			continue
-		}
-		// If current is upper and next is lower, stop lowering
-		if isUpper(runes[i]) && i+1 < len(runes) && isLower(runes[i+1]) {
-			break
-		}
-		if isUpper(runes[i]) {
-			runes[i] = toLower(runes[i])
-		} else {
-			break
-		}
+	name, _, _ := strings.Cut(tag, ",")
+	if name == "" || name == "-" {
+		return "", false
 	}
-	return string(runes)
+	return name, true
 }
 
-func isUpper(r rune) bool { return r >= 'A' && r <= 'Z' }
 func isLower(r rune) bool { return r >= 'a' && r <= 'z' }
-func toLower(r rune) rune {
-	if isUpper(r) {
-		return r + ('a' - 'A')
-	}
-	return r
-}
 
 func goTypeToSchemaType(t reflect.Type) string {
 	switch t.Kind() {

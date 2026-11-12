@@ -735,12 +735,12 @@
               },
               "outcome": {
                 "type": "string",
-                "description": "establish, reject, withdraw, or advise (an agent's pre-review)",
+                "description": "establish, reject, withdraw, or prereview (an agent's pre-review)",
                 "enum": [
                   "establish",
                   "reject",
                   "withdraw",
-                  "advise"
+                  "prereview"
                 ]
               },
               "score": {
@@ -757,7 +757,7 @@
                 "description": "why"
               }
             },
-            "description": "Record a review decision on the edition revision read. An agent sends only advise.",
+            "description": "Record a review decision on the edition revision read. An agent sends only prereview.",
             "required": [
               "op",
               "at",

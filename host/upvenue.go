@@ -128,6 +128,12 @@ func (a *App) RunUpDispatch(ctx context.Context, projectPath, sourceLang string,
 	if dec.Venue != UpVenueServer {
 		return a.RunUp(ctx, projectPath, sourceLang, opts)
 	}
+	if opts.RecycleOnly {
+		return nil, errors.New("a recycle-only pass runs locally; this project converges on its server")
+	}
+	if opts.PreReview {
+		return nil, errors.New("a pre-review runs locally; this project converges on its server, so pass local to run it here")
+	}
 	return runUpAtVenue(ctx, dec.Route, projectPath, opts)
 }
 

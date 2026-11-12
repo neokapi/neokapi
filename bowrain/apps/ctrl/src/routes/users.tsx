@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, FilterBar, useSetBreadcrumb } from "@neokapi/ui";
+import { Badge, FilterBar, useSetBreadcrumb, PageContainer } from "@neokapi/ui";
 import { listUsers, getUser } from "../api";
 import { UserTable } from "../components/UserTable";
 import { useUrlFilters } from "../hooks/useUrlFilters";
@@ -27,7 +27,7 @@ export function UsersRoute() {
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       <FilterBar
         filters={filters}
         onFiltersChange={setFilters}
@@ -45,7 +45,7 @@ export function UsersRoute() {
       />
 
       {selectedUserId && userDetail && <UserWorkspacesInline user={userDetail} />}
-    </div>
+    </PageContainer>
   );
 }
 

@@ -22,26 +22,26 @@ import (
 type AIDetection struct {
 	// ClaudeCode is true when the Claude Code CLI (`claude`) is on PATH. Auth
 	// is verified lazily at first call, not here, so detection stays instant.
-	ClaudeCode bool `json:"claudeCode"`
+	ClaudeCode bool `json:"claude_code"`
 	// ClaudeCodePath is the resolved binary path when detected.
-	ClaudeCodePath string `json:"claudeCodePath,omitempty"`
+	ClaudeCodePath string `json:"claude_code_path,omitempty"`
 	// Ollama is true when a local Ollama server responds on the default port.
 	Ollama bool `json:"ollama"`
 	// EnvKeyProviders are provider ids whose conventional API-key env var is
 	// set (e.g. ANTHROPIC_API_KEY → anthropic), sorted.
-	EnvKeyProviders []string `json:"envKeyProviders,omitempty"`
+	EnvKeyProviders []string `json:"env_key_providers,omitempty"`
 	// SavedCredentialProviders are provider ids with a saved credential in the
 	// store (deduplicated, in store order).
-	SavedCredentialProviders []string `json:"savedCredentialProviders,omitempty"`
+	SavedCredentialProviders []string `json:"saved_credential_providers,omitempty"`
 	// DefaultProvider / DefaultModel are the shared ai.provider / ai.model app
 	// config, when set — resolved through config.ResolveAIDefault, the one
 	// resolver every surface reads.
-	DefaultProvider string `json:"defaultProvider,omitempty"`
-	DefaultModel    string `json:"defaultModel,omitempty"`
+	DefaultProvider string `json:"default_provider,omitempty"`
+	DefaultModel    string `json:"default_model,omitempty"`
 	// DefaultSource carries where the default came from, so a diagnostic can say
 	// which file or env var to change instead of asserting that nothing is
 	// configured.
-	DefaultSource config.AIDefault `json:"defaultSource,omitzero"`
+	DefaultSource config.AIDefault `json:"default_source,omitzero"`
 }
 
 // Configured reports whether any AI provider is already usable without setup:

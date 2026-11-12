@@ -257,6 +257,10 @@ const config: Config = {
       {
         redirects: [
           { from: "/kapi/get-started/project-vs-adhoc", to: "/kapi/projects" },
+          {
+            from: "/kapi/desktop/recipes/review-what-your-assistant-noticed",
+            to: "/kapi/desktop/recipes/review-your-assistants-suggestions",
+          },
           // The engine service is retired; the channels an application drives
           // kapi through are listed on the scripting contract.
           { from: "/reference/engine-service", to: "/reference/cli-contract" },

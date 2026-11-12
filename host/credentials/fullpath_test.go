@@ -51,7 +51,7 @@ func TestEnvFallback_FullInjectResolveRun(t *testing.T) {
 		},
 	})
 	reg.SetConfigFactory("translate", func(config map[string]any, _ string) (tool.Tool, error) {
-		rec.apiKey, _ = config["apiKey"].(string)
+		rec.apiKey, _ = config["api_key"].(string)
 		rec.provider, _ = config["provider"].(string)
 		return rec, nil
 	})

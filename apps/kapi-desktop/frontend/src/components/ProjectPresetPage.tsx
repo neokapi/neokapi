@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles, SkipForward } from "lucide-react";
-import { Badge, ActionCard } from "@neokapi/ui-primitives";
+import { Badge, ActionCard, PageContainer } from "@neokapi/ui-primitives";
 import type { KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
@@ -40,8 +40,8 @@ export function ProjectPresetPage({
   };
 
   return (
-    <div className="flex h-full items-center justify-center p-6">
-      <div className="w-full max-w-lg">
+    <div className="flex h-full items-center">
+      <PageContainer width="narrow">
         <h1 className="mb-2 text-center text-xl font-semibold">Configure the project</h1>
         <p className="mb-8 text-center text-sm text-muted-foreground">
           We detected an existing codebase. Apply a preset to configure content patterns and
@@ -97,7 +97,7 @@ export function ProjectPresetPage({
             onClick={onSkip}
           />
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }

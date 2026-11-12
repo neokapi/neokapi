@@ -1119,9 +1119,9 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
 			Message: "a review decision is recorded in a project; there is no kapi project here"}
 	}
-	if actor.Kind != change.ActorPerson && body.Outcome != change.OutcomeAdvise {
+	if actor.Kind != change.ActorPerson && body.Outcome != change.OutcomePrereview {
 		return &change.Error{Code: change.CodeNotPermitted,
-			Message: "an agent records a pre-review (decide with advise), never a decision; a person decides"}
+			Message: "an agent records a pre-review (decide with prereview), never a decision; a person decides"}
 	}
 	if target == nil {
 		return &change.Error{Code: change.CodeNotFound, Message: "the decision names no edition"}
@@ -1130,7 +1130,7 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 		return &change.Error{Code: change.CodeNotFound, Field: "at/edition",
 			Message: fmt.Sprintf("block %s holds no %s edition to decide on, in its file or in the workspace home", target.Ref.Block, editionText(target.Ref.Edition))}
 	}
-	if body.Outcome == change.OutcomeAdvise && body.Score == nil {
+	if body.Outcome == change.OutcomePrereview && body.Score == nil {
 		return &change.Error{Code: change.CodeInvalid, Field: "score",
 			Message: "a pre-review carries the score it gives, from 0 to 100"}
 	}
@@ -1167,7 +1167,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	locale := string(target.Ref.Edition.Locale)
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
-	case change.OutcomeAdvise:
+	case change.OutcomePrereview:
 		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target), Revision: decided.targetRev}
 		if body.Score != nil {
 			review.Score = *body.Score

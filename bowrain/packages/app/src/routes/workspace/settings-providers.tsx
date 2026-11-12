@@ -31,6 +31,7 @@ import {
   WorkspaceModelSettings,
   type ProviderConfig,
   type ProviderConfigWithKey,
+  PageContainer,
 } from "@neokapi/ui";
 import { configQueryOptions } from "../../queries";
 
@@ -182,7 +183,7 @@ export function SettingsProvidersRoute() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+    <PageContainer width="standard" className="space-y-4">
       <WorkspaceModelSettings workspace={activeWorkspace} />
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -365,6 +366,6 @@ export function SettingsProvidersRoute() {
         loading={deleting}
         onConfirm={() => void handleDelete()}
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -14,7 +14,7 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// The deeper look on the Map asks the demo provider, the one "Skip: use the
+// The deeper look on the Overview asks the demo provider, the one "Skip: use the
 // demo engine" selects, which answers term-extract and voice-infer from the
 // text itself. No test here reaches a real model.
 
@@ -68,7 +68,7 @@ func TestDeeperLook_NoModelConnected(t *testing.T) {
 
 	model, err := app.DeeperLookModel(tabID)
 	require.NoError(t, err)
-	assert.False(t, model.Connected, "nothing names a model, so the Map offers to connect one")
+	assert.False(t, model.Connected, "nothing names a model, so the Overview offers to connect one")
 
 	_, err = app.DeeperLook(tabID)
 	require.Error(t, err)
@@ -84,7 +84,7 @@ func TestDeeperLook_FilesWhatTheMapShows(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, &DeeperLookModelDTO{Connected: true, Provider: "demo", Model: aiprovider.DemoModelName}, model)
 
-	before, err := app.MapSummary(tabID)
+	before, err := app.OverviewSummary(tabID)
 	require.NoError(t, err)
 	assert.Zero(t, before.Suggested)
 
@@ -97,21 +97,21 @@ func TestDeeperLook_FilesWhatTheMapShows(t *testing.T) {
 	assert.Equal(t, 5, got.Blocks)
 	assert.Positive(t, got.Tokens)
 
-	after, err := app.MapSummary(tabID)
+	after, err := app.OverviewSummary(tabID)
 	require.NoError(t, err)
-	assert.Equal(t, 7, after.Suggested, "the new rows appear under What your files do")
+	assert.Equal(t, 7, after.Suggested, "the new rows appear under Suggestions")
 	require.Len(t, after.Suggestions, 7)
 	for _, row := range after.Suggestions {
 		assert.Equal(t, "suggested", row.Group)
-		assert.Equal(t, "tool", string(row.Item.NoticedBy.Kind), row.Item.ID)
-		assert.Equal(t, aiprovider.DemoModelName, row.Item.NoticedBy.Name, "the queue names the model beside kapi")
+		assert.Equal(t, "tool", string(row.Item.RecordedBy.Kind), row.Item.ID)
+		assert.Equal(t, aiprovider.DemoModelName, row.Item.RecordedBy.Name, "the queue names the model beside kapi")
 		assert.Positive(t, row.Files, row.Item.ID)
 	}
 
 	again, err := app.DeeperLook(tabID)
 	require.NoError(t, err)
 	assert.Zero(t, again.Filed, "a second look files nothing new")
-	settled, err := app.MapSummary(tabID)
+	settled, err := app.OverviewSummary(tabID)
 	require.NoError(t, err)
 	assert.Equal(t, 7, settled.Suggested)
 }

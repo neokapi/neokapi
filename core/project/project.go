@@ -989,6 +989,20 @@ func (p *KapiProject) DeclaresTargetLanguages() bool {
 	return false
 }
 
+// WritesTargets reports whether any collection item names a target path, the
+// place a translation is written. A project can declare target languages and
+// still write none: every collection without a `target:` is source-only.
+func (p *KapiProject) WritesTargets() bool {
+	for i := range p.Collections {
+		for _, item := range p.Collections[i].EffectiveItems() {
+			if item.Target != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // FormatSpec is the per-item format override.
 // Supports short form (scalar string → just the name) and long form (mapping).
 //
@@ -1069,7 +1083,7 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 		return nil, fmt.Errorf("invalid project file %s: %w", path, err)
 	}
 	// A key that is nearly a field is preserved like any other unknown one, so
-	// nothing above this line notices it. See keywarnings.go and #2223.
+	// nothing above this line catches it. See keywarnings.go and #2223.
 	reportKeyWarnings(path, &proj)
 
 	return &proj, nil

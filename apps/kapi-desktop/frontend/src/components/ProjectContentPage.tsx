@@ -5,7 +5,7 @@
 // standing above them is `kapi status` in one table: the content and
 // governance axes, and the coordinate points the content sits at.
 
-import { PageHeader } from "@neokapi/ui-primitives";
+import { PageContainer, PageHeader } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type {
   ConvergenceReport,
@@ -55,8 +55,8 @@ export function ProjectContentPage({
   convergence,
 }: ProjectContentPageProps) {
   return (
-    <div className="p-6" data-slot="project-content-page">
-      <PageHeader title={t("Content")} />
+    <PageContainer width="wide" data-slot="project-content-page">
+      <PageHeader help="project-settings" title={t("Content")} />
       <ProjectStanding
         tabID={tabID}
         project={project}
@@ -80,6 +80,6 @@ export function ProjectContentPage({
         formatList={formatList}
         convergence={convergence}
       />
-    </div>
+    </PageContainer>
   );
 }

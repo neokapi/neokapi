@@ -120,14 +120,14 @@ measured is what the assistant did **around** it. None of them asks for kapi.
   (`kapi context docs/guide.md`, or the `context://` resource) before writing a
   word, and its rewrite respects what came back. It fails when it writes first
   and checks afterwards.
-- **19** passes when the assistant recorded what it noticed
+- **19** passes when the assistant recorded what it found
   (`kapi context note`, `context_note`), one call per fact, with
   `--seen-in`. Reading `docs/` and reporting a summary to the user alone is the
   failure this row catches: the next session starts from nothing again.
 - **20** passes when the assistant recorded the correction
   (`kapi context note --from "sign in" --to "log in" --seen-in <file>`) as well as making
   the edit. A rule it suggested and then described to the user as in force is
-  a **fail**: a suggestion advises, and only a person keeps it.
+  a **fail**: checks only report a suggestion, and only a person keeps it.
 - **21** passes when the assistant ran the check on what it changed and ended
   its report with what the session recorded and how to review it
   (`kapi context log --session`, or `context_session_summary`). A green gate with
@@ -142,7 +142,7 @@ kept on one surface and not the other is the drift these rows exist to find.
 Scenario 4 is the cross-format sweep, and its fixture carries the whole point:
 `grep` cannot see inside a `.docx`, so a `docs/` of plain `.md` alone tests
 nothing (the assistant reaches for native grep/Edit, and is right to). With an
-opaque file in the mix the assistant notices grep can't read it, reaches for
+opaque file in the mix the assistant finds that grep can't read it, reaches for
 `kgrep`, and loads the skill.
 
 ## Negative — must NOT trigger

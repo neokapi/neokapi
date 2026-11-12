@@ -123,8 +123,8 @@ export interface Rung {
 /** Whether a scope clears a gate (it ships established or translated), as
  * distinct from a scope no gate matches. */
 const clearsShipGate = (lc: LocaleCoverage) =>
-  lc.shipState
-    ? lc.shipState === "established" || lc.shipState === "translated"
+  lc.ship_state
+    ? lc.ship_state === "established" || lc.ship_state === "translated"
     : lc.gated && lc.shippable;
 
 export function rungFor(lc?: LocaleCoverage): Rung {
@@ -136,7 +136,7 @@ export function rungFor(lc?: LocaleCoverage): Rung {
   // one: established, or translated (it ships as AI translation). A scope no
   // gate matches shows its place on the ladder instead.
   if (clearsShipGate(lc)) {
-    const established = lc.shipState === "established";
+    const established = lc.ship_state === "established";
     return {
       key: "shippable",
       label: established ? "Approved" : "Ships translated",
@@ -635,7 +635,7 @@ export function CollectionsPanel({
   // Collections ticked for a batch run (keyed by index into project.collections).
   const [selected, setSelected] = useState<Set<number>>(new Set());
   // The "Advanced" disclosure (collapsed by default): manual run pickers and
-  // the Re-extract override live behind it — Bring up to date is the primary
+  // the Re-extract override live behind it — Catch up is the primary
   // verb of the home, so per-flow runs are demoted, not removed (#1078 C4).
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [otherCollapsed, setOtherCollapsed] = useState(false);
@@ -1883,7 +1883,7 @@ export function CollectionsPanel({
             {t("Add files")}
           </Button>
           {/* Advanced — collapsed by default: the manual run pickers and the
-              Re-extract override live behind it. Bring up to date (the hero)
+              Re-extract override live behind it. the run action (the hero)
               covers the routine path, including extraction on drift. */}
           <Button
             variant="ghost"
@@ -2015,7 +2015,7 @@ export function CollectionsPanel({
         </div>
       )}
 
-      {/* The stale-store banner is gone: Bring up to date auto-heals version
+      {/* The stale-store banner is gone: a catch-up run auto-heals version
           drift through the shared storesync path before every pass (#1078). */}
 
       {/* Colour-coded "cake": block distribution per collection (slices match

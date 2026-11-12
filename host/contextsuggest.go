@@ -943,7 +943,7 @@ func packFindings(c suggestCorpus) ([]suggestFinding, error) {
 		fd.signature = strings.Join(slices.Sorted(slices.Values(words)), ", ")
 		fd.note = suggestNotePack(name) + fd.signature
 		fd.subject = contextop.Subject{Kind: contextop.SubjectNote, Text: fmt.Sprintf(
-			"The files use %d words the %s starter pack avoids: %s, in %s across %s.",
+			"%d words on the %s starter pack's avoid list appear in the files: %s, in %s across %s.",
 			len(found), name, andList(counted), countWord(fd.blocks, "block", "blocks"), countWord(len(fd.files), "file", "files"))}
 		fd.evidence = fileEvidence(fd.files, c.blocks[sample], found[0].Form)
 		out = append(out, fd)
@@ -1039,7 +1039,7 @@ func addressFinding(c suggestCorpus) (suggestFinding, bool) {
 		files:     slices.Sorted(maps.Keys(files)),
 	}
 	fd.subject = contextop.Subject{Kind: contextop.SubjectNote, Text: fmt.Sprintf(
-		"The files address the reader as you (person_pov: second): %d of %d blocks with a personal pronoun say you, and none says we.",
+		"The reader is addressed as you (person_pov: second): %d of %d blocks with a personal pronoun contain you, and none contains we.",
 		you, any)}
 	fd.evidence = fileEvidence(fd.files, c.blocks[sample], "you")
 	return fd, true

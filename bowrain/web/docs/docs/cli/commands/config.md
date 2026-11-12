@@ -62,7 +62,7 @@ kapi config server.stream '$auto'
 ## Precedence
 
 The per-machine default is a starting point for new projects. For a project
-that already exists, the recipe decides. Set the default once:
+that already exists, the setting in its `kapi.yaml` wins. Set the default once:
 
 ```bash
 kapi config set bowrain.server.url https://app.bowrain.cloud

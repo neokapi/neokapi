@@ -88,14 +88,14 @@ people make to real output, through the
    coordinate in the same project.
 5. Click **Create**
 
-The project opens on its [Map](/server/project-map).
+The project opens on its [Overview](/server/project-overview).
 
 ## Bringing content in
 
 Content reaches a project through a [connector](/server/connectors), or by
 upload:
 
-1. **Drag and drop** files onto the upload zone in the project's **Overview**, or click
+1. **Drag and drop** files onto the upload zone on the project's **Languages** page, or click
    **Add Files** to browse. The server detects the format; the
    [format reference](https://neokapi.github.io/formats) lists what it reads.
 2. Or open the project's **Connectors** view and connect the system the content
@@ -187,7 +187,7 @@ the server, preserving all files and translations.
 
 ## What's next
 
-- [Map, Reader and Rules](/server/project-map): what a project opens on, and the team queue
+- [Overview, Reader and Rules](/server/project-overview): what a project opens on, and the team queue
 - [Context](/server/context): the hub, profiles per point, and governance
 - [Review](/server/review): the session, bulk approval, and ship states
 - [The editor](/server/translation-editor): Visual and Table views, toolbar, keyboard shortcuts, context panel

@@ -21,7 +21,7 @@ func NewAddCmd(a *App) *cobra.Command {
 		Use:     "add <pattern> [pattern...]",
 		Short:   "Add file patterns to the project's content",
 		GroupID: "work",
-		Long: `Add file patterns to this project's content so kapi knows which files to
+		Long: `Add file patterns to this project's content to tell kapi which files to
 process. Patterns support ** for recursive matching. Format is auto-detected
 from the extension unless --format is given.
 

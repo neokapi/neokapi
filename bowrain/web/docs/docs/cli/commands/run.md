@@ -100,12 +100,12 @@ steps:
 
   - tool: qa
     config:
-      checkDoubleSpaces: true
-      checkPatterns: true
+      check_double_spaces: true
+      check_patterns: true
 
   - tool: term-check
     config:
-      caseSensitive: false
+      case_sensitive: false
 ```
 
 The term step checks against the project's terms, which `kapi store import`

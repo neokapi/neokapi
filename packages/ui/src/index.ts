@@ -394,6 +394,7 @@ export { TagInput, type TagInputProps } from "./components/ui/tag-input";
 
 // Layout components
 export { PageHeader } from "./components/PageHeader";
+export { PageContainer, SettingsRow, type PageWidth } from "./components/ui/page-container";
 export { SectionHeading } from "./components/SectionHeading";
 export { PanelHeader } from "./components/PanelHeader";
 export { LoadingSpinner } from "./components/LoadingSpinner";
@@ -433,6 +434,7 @@ export {
 export type { CodedSegment } from "./components/editor/codedText";
 export { codedToRuns, runsToCoded } from "./components/editor/runsCodedBridge";
 export { codedToEditText, editTextToCoded, editTextToSegments } from "./components/editor/editText";
+export { labelCodesFromRuns } from "./components/editor/codeLabels";
 export { parsePluralFormForChips } from "./components/editor/pluralCellPreview";
 export type { PluralCellPreview } from "./components/editor/pluralCellPreview";
 export {
@@ -566,6 +568,8 @@ export {
   StepRow,
   AddStepPicker,
   ParallelGroupRow,
+  ToolCommandCopy,
+  useStepReorder,
   parallelStepError,
   sequenceIssues,
   listBranchesInOrder,
@@ -575,6 +579,8 @@ export type {
   StepRowProps,
   AddStepPickerProps,
   ParallelGroupRowProps,
+  ToolCommandCopyProps,
+  StepReorder,
   SequenceStep,
   SequenceIssue,
   FlowSpec as LinearFlowSpec,
@@ -652,3 +658,30 @@ export type {
   UseListNavigationOptions,
 } from "./hooks/useListNavigation";
 export * from "./components/ui/stepper";
+
+// ─── Guided tours and the Help panel ─────────────────────────
+export {
+  GuideProvider,
+  useGuide,
+  useOptionalGuide,
+  HelpPanel,
+  TourOverlay,
+  GUIDE_OVERLAY_Z_INDEX,
+  DEFAULT_WAIT_FOR,
+  topicsFromDocs,
+  TOPIC_HREF_PREFIX,
+  HelpButton,
+} from "./components/guide";
+export type {
+  GuideProviderProps,
+  HelpPanelProps,
+  TourOverlayProps,
+  Guide,
+  GuideApi,
+  GuideStep,
+  HelpTopic,
+  DocsPage,
+  DocsTopicSpec,
+  DocsTopicsOptions,
+  DocsTopicsResult,
+} from "./components/guide";

@@ -567,9 +567,9 @@ The JSON, YAML and ARB writers declare both operations:
   deeper. It removes a member with the comma before or after it and a comment
   that ends on the member's own line. A value in an array is named by its
   position and is never added or removed. A configuration that reads a block's
-  note, id or metadata from the members beside it (`noteRules`, `idRules`,
-  `useIdStack`, `genericMetaRules`, `maxwidthRules`) declares neither
-  operation, and under `useFullKeyPath` a name such as `/nav/home` is read as
+  note, id or metadata from the members beside it (`note_rules`, `id_rules`,
+  `use_id_stack`, `generic_meta_rules`, `maxwidth_rules`) declares neither
+  operation, and under `use_full_key_path` a name such as `/nav/home` is read as
   the key path it spells.
 - YAML adds a line at the indentation of the mapping's keys, after every line
   of the anchor's value, or above the comment directly over the key it goes
@@ -949,7 +949,7 @@ a check scoped to the written change comes back with the result.
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,
-`extractNonTranslatableContent`, exposed as a schema property in the generated
+`extract_non_translatable_content`, exposed as a schema property in the generated
 format reference and accepted in `ApplyMap` under that key. The implementation is
 an **inverted private field**:
 

@@ -186,7 +186,7 @@ describe("buildRecipe multi-line strings", () => {
   it("emits a script step's code as a YAML literal block, not one escaped string", () => {
     const code = 'function process(part) {\n  log("hi");\n  return part;\n}\n';
     const recipe = buildRecipe({
-      steps: [{ tool: "script", config: { allowSourceMutation: true, code } }],
+      steps: [{ tool: "script", config: { allow_source_mutation: true, code } }],
     });
     expect(recipe).toContain("          code: |");
     expect(recipe).toContain("            function process(part) {");

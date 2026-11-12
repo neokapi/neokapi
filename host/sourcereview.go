@@ -114,7 +114,7 @@ type SourceQueueItem struct {
 	Key      string `json:"key"`
 
 	Collection   string `json:"collection,omitempty"`
-	SourceLocale string `json:"sourceLocale,omitempty"`
+	SourceLocale string `json:"source_locale,omitempty"`
 	Source       string `json:"source"`
 
 	// Status is the settled source rung (written|established).
@@ -178,7 +178,7 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 			if !b.Translatable || !model.RunsHaveContent(b.SourceRuns()) {
 				continue
 			}
-			text := b.SourceText()
+			text := model.RunsDisplayText(b.SourceRuns())
 			approved := approvals.approves(scope, blockKey(b), b)
 			if approved {
 				establishSource(b)
@@ -305,7 +305,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 			if !b.Translatable || blockKey(b) != ref.Key {
 				continue
 			}
-			text := b.SourceText()
+			text := model.RunsDisplayText(b.SourceRuns())
 			if approvals.approves(scope, ref.Key, b) {
 				establishSource(b)
 			}

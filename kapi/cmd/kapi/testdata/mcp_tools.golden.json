@@ -1119,7 +1119,7 @@
               },
               {
                 "additionalProperties": false,
-                "description": "Record a review decision on the edition revision read. An agent sends only advise.",
+                "description": "Record a review decision on the edition revision read. An agent sends only prereview.",
                 "properties": {
                   "at": {
                     "$ref": "#/$defs/ref"
@@ -1134,12 +1134,12 @@
                     "type": "string"
                   },
                   "outcome": {
-                    "description": "establish, reject, withdraw, or advise (an agent's pre-review)",
+                    "description": "establish, reject, withdraw, or prereview (an agent's pre-review)",
                     "enum": [
                       "establish",
                       "reject",
                       "withdraw",
-                      "advise"
+                      "prereview"
                     ],
                     "type": "string"
                   },
@@ -1744,7 +1744,7 @@
           "title": "Detectors",
           "type": "array"
         },
-        "entityTypes": {
+        "entity_types": {
           "description": "Entity categories to redact: person",
           "items": {
             "type": "string"
@@ -1761,7 +1761,7 @@
           "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
           "type": "string"
         },
-        "rulesPath": {
+        "rules_path": {
           "description": "Path to a redaction rules YAML file",
           "title": "Rules File",
           "type": "string"
@@ -1904,7 +1904,7 @@
     "input_schema": {
       "$id": "term-check",
       "properties": {
-        "caseSensitive": {
+        "case_sensitive": {
           "default": false,
           "description": "Whether term matching is case-sensitive",
           "title": "Case Sensitive",
@@ -1969,12 +1969,12 @@
       "$id": "translate",
       "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "description": "API key for the AI provider",
           "title": "API Key",
           "type": "string"
         },
-        "batchConcurrency": {
+        "batch_concurrency": {
           "default": 1,
           "description": "Number of concurrent batch calls (0 or 1 = sequential)",
           "minimum": 1,
@@ -2017,7 +2017,7 @@
           "title": "Context",
           "type": "string"
         },
-        "contextWindow": {
+        "context_window": {
           "default": 2,
           "description": "Blocks either side to send as reference (with context: neighbours)",
           "maximum": 10,
@@ -2160,7 +2160,7 @@
           "title": "Reuse Prior Translation",
           "type": "string"
         },
-        "skipMatched": {
+        "skip_matched": {
           "default": false,
           "description": "Skip blocks that already have a target translation",
           "title": "Skip Matched",
@@ -2215,7 +2215,7 @@
           "fields": [
             "engine",
             "provider",
-            "apiKey",
+            "api_key",
             "model",
             "batching"
           ],
@@ -2227,7 +2227,7 @@
             "instruction",
             "reuse",
             "context",
-            "contextWindow"
+            "context_window"
           ],
           "id": "prompt",
           "label": "Prompt"
@@ -2260,9 +2260,17 @@
           "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)",
           "type": "integer"
         },
+        "pre_review": {
+          "description": "after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block; runs on this machine, so a server-connected project also needs local",
+          "type": "boolean"
+        },
         "project": {
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
+        },
+        "recycle_only": {
+          "description": "fill only the targets the content memory answers exactly, in one pass, with no provider calls; runs on this machine, so a server-connected project also needs local",
+          "type": "boolean"
         }
       },
       "type": "object"

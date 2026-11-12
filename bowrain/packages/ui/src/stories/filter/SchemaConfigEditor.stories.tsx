@@ -16,7 +16,7 @@ const pseudoTranslateSchema: ComponentSchema = {
     displayName: "Pseudo Translate",
   },
   properties: {
-    expansionPercent: {
+    expansion_percent: {
       type: "integer",
       description: "Text expansion percentage (0 = none)",
       default: 0,
@@ -44,7 +44,7 @@ const searchReplaceSchema: ComponentSchema = {
   type: "object",
   toolMeta: { id: "search-and-replace" },
   properties: {
-    regEx: {
+    regex: {
       type: "boolean",
       description: "Use regular expressions",
       default: false,
@@ -54,7 +54,7 @@ const searchReplaceSchema: ComponentSchema = {
       description: "Case insensitive matching",
       default: false,
     },
-    dotAll: {
+    dot_all: {
       type: "boolean",
       description: "Dot matches all characters",
       default: false,
@@ -83,36 +83,36 @@ const groupedSchema: ComponentSchema = {
     {
       id: "whitespace",
       label: "Whitespace Checks",
-      fields: ["checkLeadingWhitespace", "checkTrailingWhitespace", "checkDoubleSpaces"],
+      fields: ["check_leading_whitespace", "check_trailing_whitespace", "check_double_spaces"],
     },
     {
       id: "content",
       label: "Content Checks",
-      fields: ["checkEmptyTarget", "checkTargetSameAsSource"],
+      fields: ["check_empty_target", "check_target_same_as_source"],
     },
   ],
   properties: {
-    checkLeadingWhitespace: {
+    check_leading_whitespace: {
       type: "boolean",
       description: "Check for leading whitespace",
       default: true,
     },
-    checkTrailingWhitespace: {
+    check_trailing_whitespace: {
       type: "boolean",
       description: "Check for trailing whitespace",
       default: true,
     },
-    checkDoubleSpaces: {
+    check_double_spaces: {
       type: "boolean",
       description: "Check for double spaces",
       default: true,
     },
-    checkEmptyTarget: {
+    check_empty_target: {
       type: "boolean",
       description: "Check for empty translations",
       default: true,
     },
-    checkTargetSameAsSource: {
+    check_target_same_as_source: {
       type: "boolean",
       description: "Check if target equals source",
       default: true,

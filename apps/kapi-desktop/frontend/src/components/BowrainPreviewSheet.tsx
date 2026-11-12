@@ -1,13 +1,13 @@
-// The Bowrain preview: the project's Map and Rules as a Bowrain project page
-// draws them, read-only (page-patterns "Reader"). The Map names the project,
+// The Bowrain preview: the project's Overview and Rules as a Bowrain project page
+// draws them, read-only (page-patterns "Reader"). The Overview names the project,
 // and a label beside the title names where the screens read it: the Bowrain
-// server, or this Mac. The Map and Rules are tabs. A file on the Map
+// server, or this Mac. The Overview and Rules are tabs. A file on the Overview
 // opens the Reader in the sheet, and Back returns to the Map. The Rules tab
 // holds the questions waiting for a person and Kept by, the rules in force
 // with who kept each.
 //
 // The sheet draws the screens through the port it is given. A port with the
-// reads alone draws no Keep, no Fix and no check action. A Map, Decide or
+// reads alone draws no Keep, no Fix and no check action. A Overview, Decide or
 // Kept by read the server refuses replaces the body with the server's words
 // and the one action that answers them; a Reader read it refuses shows the
 // same in place of the file, with Back to the Map. A connected project that
@@ -20,7 +20,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import {
   DecideScreen,
   KeptRulesScreen,
-  MapScreen,
+  OverviewScreen,
   ReaderScreen,
   type ProjectScreensPort,
   type ScreenTarget,
@@ -41,7 +41,7 @@ import {
 import { PreviewRefusalError, previewOpens, type PreviewSource } from "../lib/previewPort";
 import type { PreviewRefusal } from "../types/api";
 
-type PreviewTab = "map" | "rules";
+type PreviewTab = "overview" | "rules";
 
 export interface BowrainPreviewSheetProps {
   open: boolean;
@@ -70,7 +70,7 @@ export function BowrainPreviewSheet({
   serverURL,
   projectURL,
   signedOut,
-  defaultTab = "map",
+  defaultTab = "overview",
 }: BowrainPreviewSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -133,7 +133,7 @@ function watchRefusals(
   const watch = watchWith(onRefusal);
   const watchReader = watchWith(onReaderRefusal);
   return {
-    mapSummary: () => watch(port.mapSummary()),
+    overviewSummary: () => watch(port.overviewSummary()),
     readerFile: (path) => watchReader(port.readerFile(path)),
     decideView: () => watch(port.decideView()),
     keptRules: port.keptRules ? () => watch(port.keptRules!()) : undefined,
@@ -168,14 +168,14 @@ function PreviewBody({
 
   const navigate = (target: ScreenTarget) => {
     switch (target.kind) {
-      case "map":
+      case "overview":
         setReading(null);
-        setTab("map");
+        setTab("overview");
         return;
       case "reader":
         setReaderRefusal(null);
         setReading({ path: target.path, block: target.block });
-        setTab("map");
+        setTab("overview");
         return;
       case "rules":
         setRow(target.row);
@@ -195,14 +195,14 @@ function PreviewBody({
       className="flex min-h-0 flex-1 flex-col gap-0"
     >
       <TabsList variant="line" className="shrink-0 px-4">
-        <TabsTrigger value="map" data-slot="bowrain-preview-tab-map">
-          Map
+        <TabsTrigger value="overview" data-slot="bowrain-preview-tab-overview">
+          Overview
         </TabsTrigger>
         <TabsTrigger value="rules" data-slot="bowrain-preview-tab-rules">
           Rules
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="map" className="min-h-0 flex-1 overflow-y-auto">
+      <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto">
         {reading && readerRefusal ? (
           <RefusalBody
             refusal={readerRefusal}
@@ -222,7 +222,7 @@ function PreviewBody({
             onBack={() => setReading(null)}
           />
         ) : (
-          <MapScreen {...nav} port={watched} projectName={projectName} />
+          <OverviewScreen {...nav} port={watched} projectName={projectName} />
         )}
       </TabsContent>
       <TabsContent value="rules" className="min-h-0 flex-1 overflow-y-auto">

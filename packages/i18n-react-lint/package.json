@@ -60,14 +60,14 @@
     "check": "vp run typecheck && vp run lint && vp run fmt:check && vp run test"
   },
   "devDependencies": {
-    "@types/estree": "^1.0.0",
-    "@types/node": "^26.6.5",
+    "@types/estree": "^1.0.10",
+    "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "eslint": "^10.13.0"
+    "eslint": "^10.14.0"
   },
   "peerDependenciesMeta": {
     "eslint": {

@@ -580,5 +580,5 @@ func measureWorkspace(ctx context.Context, cfg config) (result, error) {
 }
 
 // errWorkspaceBar reports a run that missed the bar, so the command exits
-// non-zero and a pipeline notices.
+// non-zero and a pipeline catches it.
 var errWorkspaceBar = errors.New("the workspace run missed its pass bar")

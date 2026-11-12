@@ -19,7 +19,7 @@ import (
 const previewBlockLimit = 2000
 
 // kapiPreview reads a file through the kapi format reader and returns its
-// extracted translatable blocks, so the files panel can show what kapi sees
+// extracted translatable blocks, so the files panel can show what kapi reads
 // (works for binary formats like .docx too, where a raw text view is useless).
 //
 // Returns a Promise — os.ReadFile and the reader are async under js/wasm and

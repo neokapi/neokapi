@@ -30,7 +30,7 @@ retired:
 | --- | --- |
 | **F: Foundations** | what the framework is, what a unit of content is, and how it is identified and serialized |
 | **E: Engine** | how content is read, processed, written, and extended |
-| **C: Context** | what a project knows, where it keeps it, and what governs it |
+| **C: Context** | a project's rules and decisions, where they are kept, and what governs them |
 | **S: Surfaces** | the CLI, the desktop app, agent surfaces, and the runtime libraries |
 | **M: Multilingual** | what it takes for content to exist in more than one language |
 | **A: Assurance** | how the framework proves it works |
@@ -76,7 +76,7 @@ file.
 | [C-08](context/c-08-terms.md) | Terms | the concept model, the terms store, tiered lookup, validity |
 | [C-09](context/c-09-content-memory.md) | Content memory | tiered matching, entity generalization, version chains and governed reuse, the two-stage rebuild |
 | [C-10](context/c-10-redaction.md) | Redaction and clearance | the placeholder model, the local vault, the three policy readers |
-| [C-11](context/c-11-context-operations.md) | Context operations | the append-only operation log, candidates that advise, the policy for who decides |
+| [C-11](context/c-11-context-operations.md) | Context operations | the append-only operation log, candidates that checks report, the policy for who decides |
 | [C-12](context/c-12-places.md) | Places | the gazetteer a geo axis reads, declared places, containment and overlap, the map's outlines |
 
 ## S: Surfaces

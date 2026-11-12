@@ -781,7 +781,7 @@ func TestMCPEditTools_ACodeCommentIsRefusedByName(t *testing.T) {
 	assert.Equal(t, src, readFileIn(t, dir, "demo.go"))
 }
 
-// A pre-review carries its score: a decide with outcome advise that gives
+// A pre-review carries its score: a decide with outcome prereview that gives
 // none is refused before anything is written, the content edit beside it
 // included.
 func TestMCPApplyEdits_APreReviewCarriesItsScore(t *testing.T) {
@@ -800,7 +800,7 @@ func TestMCPApplyEdits_APreReviewCarriesItsScore(t *testing.T) {
 	var res mcpResult
 	isErr, body = callEditTool(t, session, "apply_edits", map[string]any{"project": recipe, "ops": []any{
 		map[string]any{"op": "set_content", "at": at, "if_match": ed.Rev, "text": "Pomme verte"},
-		map[string]any{"op": "decide", "at": at, "if_match": ed.Rev, "outcome": "advise", "reasons": []string{"reads well"}},
+		map[string]any{"op": "decide", "at": at, "if_match": ed.Rev, "outcome": "prereview", "reasons": []string{"reads well"}},
 	}}, &res)
 	assert.True(t, isErr, body)
 	assert.Equal(t, "refused", res.Status, body)

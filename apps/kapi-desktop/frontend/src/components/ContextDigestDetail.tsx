@@ -1,5 +1,5 @@
 // The detail pane of Decide: the selected row's rule, its evidence, who
-// noticed it and when, and the decisions open on it in the toolbar.
+// suggested it and when, and the decisions open on it in the toolbar.
 //
 // A suggestion offers Keep, Change and Drop, and Apply more widely once it is
 // a rule in force. A disagreement lays its sides beside each other, each with
@@ -24,7 +24,7 @@ import {
 } from "@neokapi/ui-primitives";
 import type { DigestItem, DigestTermRule } from "../types/api";
 import { scopeParts, type DigestRow } from "../lib/digestRows";
-import { ConflictQuestion, NoticedBy, RuleSentence, themeLabel } from "@neokapi/project-screens";
+import { ConflictQuestion, RecordedBy, RuleSentence, themeLabel } from "@neokapi/project-screens";
 import { WidenPicker } from "./ContextFeed";
 
 /** A rule's form being changed before it is kept: the row, the side, and the form typed so far. */
@@ -259,8 +259,8 @@ function ConflictDetail({
                 </p>
                 <ItemBody item={side} onOpenFile={onOpenFile} withKey={i === 0} />
                 <dl className={FACTS_CLASS}>
-                  <Fact label={<>Noticed by</>}>
-                    <NoticedBy who={side.noticed_by} />
+                  <Fact label={<>Suggested by</>}>
+                    <RecordedBy who={side.recorded_by} />
                   </Fact>
                   {side.standing && <Fact label={<>Standing</>}>{side.standing}</Fact>}
                 </dl>
@@ -402,8 +402,8 @@ const FACTS_CLASS =
 function ItemFacts({ item, established }: { item: DigestItem; established?: boolean }) {
   return (
     <dl data-slot="digest-facts" className={FACTS_CLASS}>
-      <Fact label={<>Noticed by</>}>
-        <NoticedBy who={item.noticed_by} />
+      <Fact label={<>Suggested by</>}>
+        <RecordedBy who={item.recorded_by} />
       </Fact>
       <Fact label={<>When</>}>
         <When iso={item.at} relative />

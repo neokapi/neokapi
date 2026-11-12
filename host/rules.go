@@ -452,7 +452,7 @@ func (st *rulesState) suggestionLines() []RuleLine {
 	var out []RuleLine
 	for _, r := range st.records {
 		if r.Project != st.key || !r.Kind.Bears() || r.Kind == contextop.KindImport || r.Established ||
-			!r.Status.Advises() || r.Subject.Kind == contextop.SubjectNone {
+			!r.Status.Advisory() || r.Subject.Kind == contextop.SubjectNone {
 			continue
 		}
 		line := st.opLine(r)

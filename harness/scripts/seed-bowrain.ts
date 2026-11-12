@@ -697,7 +697,7 @@ async function ensureRunnableProject(ws: string, pid: string, token: string): Pr
  * The project the project-screens walk opens (record-desktop.ts
  * bowrainProjectScreensWalk). A checkout connects it with
  * `kapi share --via bowrain`, sends its files with `kapi push`, and keeps its
- * context on the server through the bowrain context backend, so the Map and
+ * context on the server through the bowrain context backend, so the Overview and
  * Rules read a ledger a checkout wrote.
  *
  * The recipe's id is fixed: the server keeps the id a connecting recipe sends
@@ -721,7 +721,7 @@ const SCREENS_IDENTITY: SeedIdentity = { session: "harness-seed", person: BOB.na
 
 // account.md carries two blocks the "sign in, not log in" term rule finds, and
 // billing.md one: a take fixes one finding per theme in the first file with
-// findings, and the Map lists files by path.
+// findings, and the Overview lists files by path.
 const SCREENS_FILES: Record<string, string> = {
   "docs/account.md": `# Your account
 
@@ -980,7 +980,7 @@ async function settleScreensContext(co: Checkout): Promise<void> {
  * pushes the same files, sets aside what the last take decided, clears its
  * assignments, and rejects the source proposals its fixes filed, so each take
  * starts from the same queue. A take's project-wide check leaves its tally,
- * so after the first take the Map's findings count reads that check rather
+ * so after the first take the Overview's findings count reads that check rather
  * than "Not checked yet".
  *
  * That reset covers the whole project. The reset goes back to the first
@@ -1319,7 +1319,7 @@ async function main(): Promise<void> {
     console.log(`  · posted ${posted} corrections`);
   }
 
-  // Project 3: the project-screens walk's Map, Reader and Rules.
+  // Project 3: the project-screens walk's Overview, Reader and Rules.
   const screensId = await ensureScreensProject(ws, aliceToken, bobToken, profileId);
 
   const envPath = writeEnv({

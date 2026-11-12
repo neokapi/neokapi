@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// helper: create a reader with paragraph mode (segmentByLine=false)
+// helper: create a reader with paragraph mode (segment_by_line=false)
 func newParagraphReader(t *testing.T) *plaintext.Reader {
 	t.Helper()
 	reader := plaintext.NewReader()
@@ -375,11 +375,11 @@ func TestRead_Paragraphs(t *testing.T) {
 func TestRead_LoadParams(t *testing.T) {
 	// Tests that parameters can be loaded via ApplyMap.
 	cfg := &plaintext.Config{}
-	err := cfg.ApplyMap(map[string]any{"segmentByLine": false})
+	err := cfg.ApplyMap(map[string]any{"segment_by_line": false})
 	require.NoError(t, err)
 	assert.False(t, cfg.SegmentByLine)
 
-	err = cfg.ApplyMap(map[string]any{"segmentByLine": true})
+	err = cfg.ApplyMap(map[string]any{"segment_by_line": true})
 	require.NoError(t, err)
 	assert.True(t, cfg.SegmentByLine)
 
@@ -388,7 +388,7 @@ func TestRead_LoadParams(t *testing.T) {
 	require.Error(t, err)
 
 	// Wrong type should error.
-	err = cfg.ApplyMap(map[string]any{"segmentByLine": "not-a-bool"})
+	err = cfg.ApplyMap(map[string]any{"segment_by_line": "not-a-bool"})
 	require.Error(t, err)
 }
 
@@ -619,7 +619,7 @@ func TestRead_Parameters(t *testing.T) {
 	assert.True(t, cfg.SegmentByLine)
 
 	// Apply valid parameter.
-	err := cfg.ApplyMap(map[string]any{"segmentByLine": false})
+	err := cfg.ApplyMap(map[string]any{"segment_by_line": false})
 	require.NoError(t, err)
 	assert.False(t, cfg.SegmentByLine)
 
@@ -1080,5 +1080,5 @@ func TestRead_Schema(t *testing.T) {
 	assert.Equal(t, "Plain Text Format", schema.Title)
 	assert.Equal(t, "plaintext", schema.FormatMeta.ID)
 	assert.Contains(t, schema.FormatMeta.MimeTypes, "text/plain")
-	assert.Contains(t, schema.Properties, "segmentByLine")
+	assert.Contains(t, schema.Properties, "segment_by_line")
 }

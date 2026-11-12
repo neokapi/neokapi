@@ -28,7 +28,7 @@ parameters:
     description: Where the script comes from.
     help: |
       `inline` runs the script supplied in the `code` field; `file` loads the
-      script from the path in `scriptFile`.
+      script from the path in `script_file`.
     values: "`inline` / `file` (default `inline`)"
   code:
     description: Inline ES5 JavaScript source.
@@ -38,7 +38,7 @@ parameters:
     dependsOn:
       - property: source
         condition: used when source is `inline`
-  scriptFile:
+  script_file:
     description: Path to a JavaScript file.
     help: |
       Path to a `.js` file to load and run, used when `source` is `file`.
@@ -67,4 +67,4 @@ examples:
     description: Run a script stored alongside the project.
     config: |
       source: file
-      scriptFile: ./scripts/transform.js
+      script_file: ./scripts/transform.js

@@ -22,12 +22,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Content Extraction",
 				Fields: []string{
-					"extractNonTranslatableContent",
+					"extract_non_translatable_content",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",

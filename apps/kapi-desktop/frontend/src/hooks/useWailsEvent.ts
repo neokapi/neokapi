@@ -5,7 +5,7 @@
  * isn't available — the callback simply never fires.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 type WailsEventCallback = (data: unknown) => void;
 
@@ -36,20 +36,25 @@ function getEvents(): Promise<WailsEvents | null> {
  *   useWailsEvent("flow:event", (data) => handleEvent(data));
  */
 export function useWailsEvent(name: string, callback: WailsEventCallback) {
+  // The subscription lives as long as the name, and each event calls the
+  // callback of the latest render. A callback captured once would read the
+  // state of the first render: a handler that sends the project back to the
+  // backend would send the project as it was when the component mounted.
+  const latest = useRef(callback);
+  latest.current = callback;
   useEffect(() => {
     let cleanup: (() => void) | null = null;
     let cancelled = false;
     void getEvents().then((events) => {
       if (cancelled) return;
       if (events) {
-        cleanup = events.On(name, (e) => callback(e.data));
+        cleanup = events.On(name, (e) => latest.current(e.data));
       }
     });
     return () => {
       cancelled = true;
       cleanup?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- callback identity managed by caller
   }, [name]);
 }
 
@@ -57,6 +62,8 @@ export function useWailsEvent(name: string, callback: WailsEventCallback) {
  * Subscribe to multiple Wails events with a single callback.
  */
 export function useWailsEvents(names: string[], callback: WailsEventCallback) {
+  const latest = useRef(callback);
+  latest.current = callback;
   useEffect(() => {
     const cleanups: Array<() => void> = [];
     let cancelled = false;
@@ -64,7 +71,7 @@ export function useWailsEvents(names: string[], callback: WailsEventCallback) {
       if (cancelled) return;
       if (events) {
         for (const name of names) {
-          cleanups.push(events.On(name, (e) => callback(e.data)));
+          cleanups.push(events.On(name, (e) => latest.current(e.data)));
         }
       }
     });

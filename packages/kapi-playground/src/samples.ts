@@ -200,7 +200,7 @@ flows:
     steps:
       - tool: recycle
         config:
-          fillTargetThreshold: 100
+          fill_target_threshold: 100
 `;
 }
 

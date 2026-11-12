@@ -175,9 +175,9 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 		Locales []struct {
 			Locale        string         `json:"locale"`
 			Shippable     bool           `json:"shippable"`
-			ShipState     string         `json:"shipState"`
+			ShipState     string         `json:"ship_state"`
 			Pct           map[string]int `json:"pct"`
-			FailingChecks int            `json:"failingChecks"`
+			FailingChecks int            `json:"failing_checks"`
 		} `json:"locales"`
 	}
 	result := ""
@@ -286,7 +286,7 @@ func breakPlaceholder(t *testing.T, root, locale string) {
 // decision in the committed content-memory bundle, and in the delivered catalog
 // that decision produced. Nothing in the project answers that wording any other
 // way, so every pass recycles the same defect back: recycle fills the unit from
-// the approved answer, `skipMatched` keeps the AI step off it, and the
+// the approved answer, `skip_matched` keeps the AI step off it, and the
 // placeholder check reports it again. The loop has no way out, because the
 // defect IS the approved wording — which is what makes this the case a repair
 // cannot swallow.

@@ -10,7 +10,7 @@
 //
 // Three things are worth knowing before reading on.
 //
-// A suggestion advises from the moment it is recorded and binds only once a
+// Checks report a suggestion from the moment it is recorded, and it binds only once a
 // person keeps it. Until then it is projected into checks as a suggested
 // finding, which reports, weighs nothing in the score and never fails.
 //
@@ -78,7 +78,7 @@ type ContextOperationList struct {
 	Operations []ContextOperation `json:"operations"`
 }
 
-// ContextObserveRequest records something somebody noticed: a fact in prose,
+// ContextObserveRequest records something somebody found: a fact in prose,
 // or, with Term, the form the project uses for a word and the forms it avoids.
 type ContextObserveRequest struct {
 	// Actor is who is acting. An empty Kind is a command line, where the
@@ -347,9 +347,9 @@ func teachRefusalTo(err error, actor contextop.Actor, id string) error {
 		err, contextop.ShortID(id))
 }
 
-// RecordContextObservation records something somebody noticed. A fact in
+// RecordContextObservation records something somebody found. A fact in
 // prose implies no rule; an observation naming a term states a term rule that
-// advises from this moment and binds once a person keeps it.
+// is reported from this moment and binds once a person keeps it.
 func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRequest) (ContextOperation, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
@@ -652,7 +652,7 @@ func (s *contextOpsSession) entriesHolding(ctx context.Context, rel, except stri
 // the suggested rule that change implies.
 //
 // A person's correction that reverses an established rule contests the rule,
-// which then advises instead of binding, so the person's own edit never fails
+// which is then reported instead of binding, so the person's own edit never fails
 // their build. The rule is taken out of the store it was written to until a
 // person keeps it again or sets the correction aside.
 func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectRequest) (ContextOperation, error) {
@@ -851,7 +851,7 @@ func (a *App) KeepContextOperations(ctx context.Context, req ContextKeepRequest)
 		// Oldest first, so the keeps read in the order the session worked.
 		for _, r := range slices.Backward(held) {
 			switch {
-			case r.Actor.Session != req.Session || r.Established || !r.Status.Advises():
+			case r.Actor.Session != req.Session || r.Established || !r.Status.Advisory():
 			case r.Status == contextop.StatusContested:
 				out.Skipped = append(out.Skipped, ContextKeepSkip{ID: r.ID, Reason: contestedReason(r)})
 			default:
@@ -1056,9 +1056,24 @@ func (a *App) DropContextOperation(ctx context.Context, req ContextDropRequest) 
 	if !target.Status.Answers() {
 		return ContextOperation{}, fmt.Errorf("operation %s is already %s", target.ID, target.Status)
 	}
+	// A voice-profile edit is undone by restoring the profile it replaced,
+	// checked before anything is recorded so a refusal leaves the log alone.
+	if _, err := s.restoreVoiceEdit(ctx, target, false); err != nil {
+		return ContextOperation{}, err
+	}
 	dropped, err := s.setAside(ctx, contextop.KindDrop, req.Actor, target, req.Note)
-	if err != nil || !target.Established {
+	if err != nil {
 		return dropped, err
+	}
+	restored, err := s.restoreVoiceEdit(ctx, target, true)
+	if err != nil {
+		return dropped, err
+	}
+	if restored != "" {
+		dropped.Landed = joinLanded(dropped.Landed, restored)
+	}
+	if !target.Established {
+		return dropped, nil
 	}
 	where, err := s.retract(ctx, target)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/neokapi/neokapi/host/config"
@@ -18,9 +19,12 @@ type AppSettings struct {
 	SamplesDismissed bool   `json:"samples_dismissed,omitempty"` // true after user dismisses sample project cards
 	// StartHereDismissed is true after the person dismisses the home's Start
 	// here steps. Settings can bring them back.
-	StartHereDismissed bool           `json:"start_here_dismissed,omitempty"`
-	HiddenLocales      []string       `json:"hidden_locales,omitempty"` // locale codes to hide from selectors
-	CustomLocales      []CustomLocale `json:"custom_locales,omitempty"` // additional locales not in the well-known list
+	StartHereDismissed bool `json:"start_here_dismissed,omitempty"`
+	// StepsDismissed are the workspace keys of the projects whose first
+	// steps the person dismissed from the Map.
+	StepsDismissed []string       `json:"steps_dismissed,omitempty"`
+	HiddenLocales  []string       `json:"hidden_locales,omitempty"` // locale codes to hide from selectors
+	CustomLocales  []CustomLocale `json:"custom_locales,omitempty"` // additional locales not in the well-known list
 
 	// LastOpenProjects is the ordered list of project recipe paths that
 	// were open when the app last persisted its session. Most-recently
@@ -229,6 +233,34 @@ func (a *App) RestoreStartHere() error {
 	defer a.settings.mu.Unlock()
 	a.settings.settings.StartHereDismissed = false
 	return a.settings.persist()
+}
+
+// DismissOverviewSteps hides the first steps on the Overview of a tab's project, for
+// that project on this machine.
+func (a *App) DismissOverviewSteps(tabID string) error {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return fmt.Errorf("project tab %q not found", tabID)
+	}
+	key := string(op.workspaceKey)
+	if key == "" {
+		return nil
+	}
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	if slices.Contains(a.settings.settings.StepsDismissed, key) {
+		return nil
+	}
+	a.settings.settings.StepsDismissed = append(a.settings.settings.StepsDismissed, key)
+	return a.settings.persist()
+}
+
+// overviewStepsDismissed reports whether the person dismissed the first steps of
+// the project a workspace key names.
+func (a *App) overviewStepsDismissed(key string) bool {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	return slices.Contains(a.settings.settings.StepsDismissed, key)
 }
 
 // GetSessionState returns the persisted session: the projects to restore and

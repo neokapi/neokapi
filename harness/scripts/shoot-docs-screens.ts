@@ -23,6 +23,7 @@
  */
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
@@ -142,13 +143,13 @@ interface DesktopShot {
 
 const DESKTOP_SHOTS: DesktopShot[] = [
   { name: "open", story: "components-openscreen--recent-folders" },
-  { name: "map", story: "project-screens-map--suggestions-pending" },
+  { name: "overview", story: "project-screens-overview--suggestions-pending" },
   { name: "decide", story: "components-contexthub--whats-new" },
   { name: "reader", story: "project-screens-reader--findings-with-fixes" },
   { name: "rules", story: "project-screens-rules--kept-by" },
   { name: "assistants", story: "components-contexthub--assistants" },
   { name: "share", story: "components-contexthub--share" },
-  { name: "languages", story: "pages-languagespage--source-only" },
+  { name: "languages", story: "pages-reviewsetuppage--source-only" },
   { name: "review", story: "project-reviewpage--queue" },
   { name: "context-home", story: "components-apphome--several-projects" },
 ];
@@ -273,7 +274,16 @@ interface WebCtx {
 async function go(c: WebCtx, rel: string, ready: string): Promise<void> {
   const sep = rel.includes("?") ? "&" : "?";
   await c.page.goto(`${c.ws}${rel}${sep}theme=${c.theme}`, { waitUntil: "domcontentloaded" });
-  await c.page.waitForSelector(ready, { timeout: 30_000 });
+  try {
+    await c.page.waitForSelector(ready, { timeout: 30_000 });
+  } catch (err) {
+    // Keep what the page showed, so a missing element can be told from a
+    // page that never loaded.
+    const shot = path.join(os.tmpdir(), `shoot-docs-screens-timeout-${c.theme}.png`);
+    await c.page.screenshot({ path: shot }).catch(() => {});
+    console.error(`  ✗ ${rel}: waited for ${ready}; the page is in ${shot}`);
+    throw err;
+  }
   await dismissDesktopPrompt(c.page);
 }
 
@@ -308,29 +318,29 @@ const WEB_SHOTS: WebShot[] = [
     open: (c) => go(c, "", '[data-testid^="project-card"]'),
   },
   {
-    name: "project-map",
-    open: (c) => go(c, `/p/${c.pid}/s/main/map`, '[data-slot="map-suggestions"] [data-slot="map-suggestion"]'),
+    name: "project-overview",
+    open: (c) => go(c, `/p/${c.pid}/s/main/overview`, '[data-slot="overview-suggestions"] [data-slot="overview-suggestion"]'),
   },
   {
     name: "project-reader",
     open: async (c) => {
-      await go(c, `/p/${c.pid}/s/main/map`, '[data-slot="map-file"]');
+      await go(c, `/p/${c.pid}/s/main/overview`, '[data-slot="overview-file"]');
       const withFindings = c.page
-        .locator('[data-slot="map-file"]')
-        .filter({ has: c.page.locator('[data-slot="map-file-findings"]') })
+        .locator('[data-slot="overview-file"]')
+        .filter({ has: c.page.locator('[data-slot="overview-file-findings"]') })
         .first();
       if (!(await withFindings.count())) {
         // A fresh seed has not been checked yet: run the check once, as a
         // member would, so a file carries its finding.
-        await c.page.locator('[data-slot="map-run"]').click();
+        await c.page.locator('[data-slot="overview-run"]').click();
         await c.page.waitForFunction(
-          () => !document.querySelector('[data-slot="map-run"]')?.textContent?.includes("Checking"),
+          () => !document.querySelector('[data-slot="overview-run"]')?.textContent?.includes("Checking"),
           undefined,
           { timeout: 120_000 },
         );
         await withFindings.waitFor({ timeout: 30_000 });
       }
-      await withFindings.locator('[data-slot="map-file-open"]').click();
+      await withFindings.locator('[data-slot="overview-file-open"]').click();
       await c.page.waitForSelector('[data-slot="reader-blocks"]', { timeout: 30_000 });
       await c.page.locator('[data-slot="reader-finding"]').first().waitFor({ timeout: 20_000 });
       await c.page.waitForSelector('[data-slot="reader-rules"]', { timeout: 20_000 });

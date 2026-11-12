@@ -49,7 +49,7 @@ type SQLiteStore struct {
 	fuzzyIndex fuzzyIndexState
 }
 
-// fuzzyIndexState is what the store knows about tm_variant_trigram, the FTS5
+// fuzzyIndexState is what the store records about tm_variant_trigram, the FTS5
 // side-table the fuzzy tier queries for candidates. The bulk write path
 // deliberately leaves it unpopulated, so an empty MATCH result does not mean
 // "no match" — the store has to know which it is before it can trust one.

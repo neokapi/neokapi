@@ -18,7 +18,7 @@ overview: |
   they are never altered. Writing back is byte-faithful: only changed values
   and states are rewritten, leaving the rest of the catalog untouched.
 parameters:
-  extractStale:
+  extract_stale:
     description: Extract entries whose extractionState is "stale".
     help: |
       When enabled (the default), entries marked `stale` by Xcode (the source
@@ -26,7 +26,7 @@ parameters:
       translatable blocks, since they remain translatable until removed.
       Disable to skip stale entries.
     values: "`true` / `false` (default `true`)"
-  markTranslatedState:
+  mark_translated_state:
     description: State written when a previously untranslated locale is populated.
     help: |
       The `state` value written into a `stringUnit` when a target translation
@@ -43,8 +43,8 @@ examples:
   - title: Skip stale entries
     description: Do not emit entries Xcode has flagged as stale.
     config: |
-      extractStale: false
+      extract_stale: false
   - title: Mark new translations for review
     description: Write a needs_review state for newly populated locales instead of translated.
     config: |
-      markTranslatedState: needs_review
+      mark_translated_state: needs_review

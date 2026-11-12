@@ -30,24 +30,24 @@ func TestResolveCredentials_EndpointIsNotRecipeSettable(t *testing.T) {
 		{
 			name:     "tool requires no credentials",
 			requires: nil,
-			config:   map[string]any{"baseURL": "https://elsewhere.invalid/"},
+			config:   map[string]any{"base_url": "https://elsewhere.invalid/"},
 		},
 		{
 			name:     "inline api key short-circuits resolution",
 			requires: []string{"credentials"},
-			config:   map[string]any{"apiKey": "inline", "baseURL": "https://elsewhere.invalid/"},
+			config:   map[string]any{"api_key": "inline", "base_url": "https://elsewhere.invalid/"},
 		},
 		{
 			name:     "keyless provider needs no credential",
 			requires: []string{"credentials"},
-			config:   map[string]any{"provider": "ollama", "baseURL": "https://elsewhere.invalid/"},
+			config:   map[string]any{"provider": "ollama", "base_url": "https://elsewhere.invalid/"},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := ResolveCredentials(store, "translate", tc.requires, tc.config)
 			require.NoError(t, err)
-			assert.NotContains(t, got, "baseURL",
+			assert.NotContains(t, got, "base_url",
 				"a config-supplied endpoint must not survive credential resolution")
 		})
 	}
@@ -86,9 +86,9 @@ func TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint(t *testing.T)
 	t.Run("an inline key never gets one", func(t *testing.T) {
 		clearProviderEnv(t)
 		got, err := ResolveCredentials(newStoreWithEndpoint(t), "translate",
-			[]string{"credentials"}, map[string]any{"provider": "openai", "apiKey": "inline"})
+			[]string{"credentials"}, map[string]any{"provider": "openai", "api_key": "inline"})
 		require.NoError(t, err)
-		assert.NotContains(t, got, "baseURL",
+		assert.NotContains(t, got, "base_url",
 			"an inline key short-circuits before an endpoint could be injected")
 	})
 
@@ -98,8 +98,8 @@ func TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint(t *testing.T)
 		got, err := ResolveCredentials(newStoreWithEndpoint(t), "translate",
 			[]string{"credentials"}, map[string]any{"provider": "openai"})
 		require.NoError(t, err)
-		assert.Equal(t, "from-the-environment", got["apiKey"])
-		assert.NotContains(t, got, "baseURL",
+		assert.Equal(t, "from-the-environment", got["api_key"])
+		assert.NotContains(t, got, "base_url",
 			"the environment fallback carries a key and nothing else, saved endpoint or not")
 	})
 
@@ -108,7 +108,7 @@ func TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint(t *testing.T)
 		got, err := ResolveCredentials(newStoreWithEndpoint(t), "translate",
 			[]string{"credentials"}, map[string]any{"credential": "internal"})
 		require.NoError(t, err)
-		assert.Equal(t, endpoint, got["baseURL"],
+		assert.Equal(t, endpoint, got["base_url"],
 			"the supported way to reach a self-hosted endpoint")
 	})
 }
@@ -126,8 +126,8 @@ func TestMergeCredentials_EndpointComesFromTheCredential(t *testing.T) {
 			APIKey:       "k",
 		},
 	)
-	assert.Equal(t, "https://mt.internal.example/v1", got["baseURL"])
-	assert.Equal(t, "k", got["apiKey"])
+	assert.Equal(t, "https://mt.internal.example/v1", got["base_url"])
+	assert.Equal(t, "k", got["api_key"])
 }
 
 // TestMergeCredentials_NoEndpointWhenTheCredentialNamesNone: the ordinary case
@@ -140,18 +140,18 @@ func TestMergeCredentials_NoEndpointWhenTheCredentialNamesNone(t *testing.T) {
 			APIKey:       "k",
 		},
 	)
-	assert.NotContains(t, got, "baseURL")
+	assert.NotContains(t, got, "base_url")
 }
 
 // TestStripRecipeEndpoint_LeavesTheCallersMapAlone: callers still own the
 // config they passed in, so the scrub copies rather than edits.
 func TestStripRecipeEndpoint_LeavesTheCallersMapAlone(t *testing.T) {
-	original := map[string]any{"baseURL": "https://elsewhere.invalid/", "model": "m"}
+	original := map[string]any{"base_url": "https://elsewhere.invalid/", "model": "m"}
 	got := stripRecipeEndpoint(original)
 
-	assert.NotContains(t, got, "baseURL")
+	assert.NotContains(t, got, "base_url")
 	assert.Equal(t, "m", got["model"], "unrelated keys survive")
-	assert.Contains(t, original, "baseURL", "the caller's map is not mutated")
+	assert.Contains(t, original, "base_url", "the caller's map is not mutated")
 
 	// A config naming no endpoint is passed straight through, uncopied.
 	clean := map[string]any{"model": "m"}

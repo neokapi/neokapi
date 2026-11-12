@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,11 +21,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
-	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
 )
 
@@ -146,11 +143,11 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 // touches the target file.
 func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang, instruction string) (*ReviewAIActionResult, error) {
 	tl, release, err := a.newReviewAITool(ctx, op, "translate", unit, map[string]any{
-		"sourceLocale": sourceLang,
-		"instruction":  instruction,
+		"source_locale": sourceLang,
+		"instruction":   instruction,
 		// One block, one call: the single-block path renders the instruction
 		// via TranslateRequest.Directives.
-		"batchSize": 1,
+		"batch_size": 1,
 	})
 	if err != nil {
 		return nil, err
@@ -173,7 +170,7 @@ func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.Un
 // structured result as explanation text (score + findings). Read-only: the
 // review lands in block properties on an in-memory copy.
 func (a *App) reviewAIExplain(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang string) (*ReviewAIActionResult, error) {
-	tl, release, err := a.newReviewAITool(ctx, op, "review", unit, map[string]any{"sourceLocale": sourceLang})
+	tl, release, err := a.newReviewAITool(ctx, op, "review", unit, map[string]any{"source_locale": sourceLang})
 	if err != nil {
 		return nil, err
 	}
@@ -218,11 +215,7 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	var lines []string
 	// The findings a fix is asked to address are the ones this unit's own
 	// point produces, so the voice is resolved there.
-	points := a.newPointResolver(op, false)
-	profile := points.at(ctx, collection, relPath)
-	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	for _, f := range a.blockCheckFindings(ctx, b, relPath, sourceLang, loc, profile,
-		points.termsAt(ctx, collection, relPath), dntTerms) {
+	for _, f := range a.blockCheckFindings(ctx, a.reviewPoints(ctx, op), b, collection, relPath, filepath.ToSlash(relPath), sourceLang, loc) {
 		outcome := "reports"
 		if f.Fails {
 			outcome = "fails"
@@ -401,11 +394,13 @@ type PreReviewResult struct {
 	Skipped int `json:"skipped,omitempty"`
 }
 
-// RunAIPreReview runs the ai review tool over the pending review queue for a
-// locale (batch, explicitly invoked — never during queue listing). Every unit
-// gets an advisory annotation (score + findings) in the project state store,
-// bound to the translation it judged. Every unit stays in the queue for a
-// person to decide.
+// RunAIPreReview runs the AI pre-review over the pending review queue for a
+// locale (host.App.RunAIPreReview, which `kapi up --pre-review`
+// also runs). Every block gets an advisory annotation (score and findings) in
+// the project state store, bound to the translation it judged, and stays in
+// the queue for a person to decide. The judge is built from the desktop's
+// tool registry and credential store, and each model call runs under the
+// block's activity scope.
 func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope) (*PreReviewResult, error) {
 	canon, lerr := canonicalLocale(locale)
 	if lerr != nil {
@@ -419,151 +414,63 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope) (*PreRe
 	if op.Project == nil || op.Path == "" {
 		return nil, errors.New("project has no recipe loaded")
 	}
-
-	rep, err := a.GetConvergence(tabID)
-	if err != nil {
-		return nil, err
-	}
-	var pending []host.ReviewQueueItem
-	for _, it := range rep.Review {
-		if locale != "" && it.Locale != locale {
-			continue
-		}
-		if scope.Collection != "" && it.Collection != scope.Collection {
-			continue
-		}
-		pending = append(pending, it)
-	}
 	modelID, err := a.reviewerModelID()
 	if err != nil {
 		return nil, err
-	}
-	res := &PreReviewResult{Model: modelID}
-	if len(pending) == 0 {
-		return res, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
+	opts := host.PreReviewOptions{
+		Collection: scope.Collection,
+		Model:      modelID,
+		NewTool: func(name string, cfg map[string]any, targetLang string) (tool.Tool, error) {
+			if a.aiToolFactory != nil {
+				return a.aiToolFactory(name, cfg, targetLang)
+			}
+			tl, terr := a.toolReg.NewToolWithConfig(registry.ToolID(name), cfg, targetLang)
+			if terr != nil {
+				return nil, friendlyAIProviderError(terr)
+			}
+			return tl, nil
+		},
+		UnitContext: func(ctx context.Context, it host.ReviewQueueItem) context.Context {
+			return withAIScope(ctx, AIActivityScope{Surface: "pre-review", Locale: it.Locale, File: it.File, Key: it.Key})
+		},
+		Progress: func(done, total int, it host.ReviewQueueItem) {
+			a.emitEvent("prereview:progress", map[string]any{"done": done, "total": total, "file": it.File, "key": it.Key})
+		},
+	}
+	if locale != "" {
+		opts.Languages = []string{locale}
+	}
 	src := string(op.Project.Defaults.SourceLanguage)
-
-	// Group by (file, locale) so each pair is read and overlaid once, and the
-	// annotations for a file land in one state write.
-	type scopeKey struct{ file, locale string }
-	groups := map[scopeKey][]host.ReviewQueueItem{}
-	order := []scopeKey{}
-	for _, it := range pending {
-		k := scopeKey{file: it.File, locale: it.Locale}
-		if _, seen := groups[k]; !seen {
-			order = append(order, k)
-		}
-		groups[k] = append(groups[k], it)
+	res, err := a.hostEngine().RunAIPreReview(ctx, op.Path, src, opts)
+	if err != nil {
+		return nil, err
 	}
-
-	done := 0
-	total := len(pending)
-	for _, k := range order {
-		items := groups[k]
-		rf, tgtPath, ferr := a.findReviewSource(op, k.locale, k.file)
-		if ferr != nil {
-			res.Skipped += len(items)
-			done += len(items)
-			continue
-		}
-		_, byKey, berr := a.reviewUnitBlocks(ctx, op, rf, tgtPath, k.locale)
-		if berr != nil {
-			res.Skipped += len(items)
-			done += len(items)
-			continue
-		}
-		// The judge is steered by the voice and vocabulary governing this file's
-		// point, exactly as the deterministic checks below it are: one tool per
-		// (file, locale) group, because every unit in the group shares a point.
-		unit := host.UnitRef{Collection: rf.Collection, Path: rf.Relative, TargetLang: k.locale}
-		tl, release, terr := a.newReviewAITool(ctx, op, "review", unit,
-			map[string]any{"sourceLocale": sourceLang})
-		if terr != nil {
-			return nil, terr
-		}
-		// The group runs in its own scope so the assembly this tool holds is
-		// released when the group ends, on every exit.
-		if gerr := func() error {
-			defer release()
-
-			annotations := map[string]state.AIReview{}
-
-			for _, it := range items {
-				done++
-				a.emitEvent("prereview:progress", map[string]any{
-					"done": done, "total": total, "file": it.File, "key": it.Key,
-				})
-				b, found := byKey[it.Key]
-				if !found {
-					res.Skipped++
-					continue
-				}
-				unitCtx := withAIScope(ctx, AIActivityScope{
-					Surface: "pre-review", Locale: it.Locale, File: it.File, Key: it.Key,
-				})
-				if rerr := runReviewAITool(unitCtx, tl, b); rerr != nil {
-					return fmt.Errorf("ai pre-review %s:%s: %w", it.File, it.Key, rerr)
-				}
-				scoreStr, hasScore := b.Properties["review-score"]
-				if !hasScore {
-					res.Skipped++ // prose fallback — no usable score, nothing stored
-					continue
-				}
-				score, serr := strconv.Atoi(scoreStr)
-				if serr != nil {
-					res.Skipped++
-					continue
-				}
-				rev := state.AIReview{Score: score, Model: modelID}
-				if parsed, perr := aitools.ParseReviewResult(b.Properties["review"]); perr == nil {
-					for _, f := range parsed.Findings {
-						rev.Findings = append(rev.Findings, state.AIReviewFinding{
-							Severity: f.Severity, Message: f.Message, Suggestion: f.Suggestion,
-						})
-					}
-				}
-				annotations[it.Key] = rev
-				res.Reviewed++
-			}
-
-			if len(annotations) > 0 {
-				if _, aerr := a.hostEngine().RecordAIReviews(ctx, op.Path, src, k.locale, k.file, annotations); aerr != nil {
-					return fmt.Errorf("record ai reviews: %w", aerr)
-				}
-			}
-			return nil
-		}(); gerr != nil {
-			return nil, gerr
-		}
-	}
-	return res, nil
+	return &PreReviewResult{Model: res.Model, Reviewed: res.Reviewed, Skipped: res.Skipped}, nil
 }
 
-// reviewerModelID resolves the model identity a pre-review records
-// ("ai/<model-id>"): the shared ai.model default, the credential's model, or —
-// with neither — the provider id. In tests (aiToolFactory injected) the
-// credential store is not consulted.
+// reviewerModelID resolves the reviewer a pre-review records
+// (host.ReviewerModel) from the desktop's AI config and credential store. In
+// tests (aiToolFactory injected) the credential store is not consulted, and a
+// run with no AI default records "mock".
 func (a *App) reviewerModelID() (string, error) {
-	cfg := map[string]any{}
-	cfg = appconfig.ApplyAIToolDefaults(a.aiConfig, "review", []string{schema.RequiresCredentials}, cfg)
-	if a.aiToolFactory == nil {
-		resolved, err := credentials.ResolveCredentials(a.credentials, "review", []string{schema.RequiresCredentials}, cfg)
-		if err != nil {
-			return "", friendlyAIProviderError(err)
+	store := a.credentials
+	if a.aiToolFactory != nil {
+		store = nil
+	}
+	id, err := host.ReviewerModel(a.aiConfig, store, nil)
+	if err != nil {
+		return "", friendlyAIProviderError(err)
+	}
+	if id == "" {
+		if a.aiToolFactory != nil {
+			return "mock", nil
 		}
-		cfg = resolved
+		return "", errors.New("no AI provider is configured. Add one in Settings → AI Models, then try again")
 	}
-	if m, _ := cfg["model"].(string); m != "" {
-		return m, nil
-	}
-	if p, _ := cfg["provider"].(string); p != "" {
-		return p, nil
-	}
-	return "mock", nil
+	return id, nil
 }

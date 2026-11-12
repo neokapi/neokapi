@@ -42,8 +42,8 @@ gates) is called **convergence**: each `kapi up` pass converges the working
 tree on the state the recipe declares, the way `terraform apply` converges
 infrastructure on a program. The
 [architecture pages](/contribute/architecture/context/c-04-block-state-and-decisions), the
-run's event stream, and the `--json` output keep that vocabulary; these pages
-say *the loop*.
+run's event stream, and the `--json` output keep that vocabulary. In these pages, the
+term is *the loop*.
 :::
 
 ## State is derived
@@ -294,7 +294,12 @@ kapi up                # run the default flow; stop where a gate holds content b
 kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale
 kapi up --passes 1     # a single pass over every locale that needs work
 kapi up --materialize  # also write the translated files for the shippable locales
+kapi up --recycle-only # fill exact content-memory matches only, with no provider
 ```
+
+`--recycle-only` runs one pass that recycles exact matches and calls no
+provider. Near matches and the rest of the work wait for a full run. Kapi
+Desktop runs the same pass when it reads a project's files.
 
 <PhaseFlow
   nodes={[
@@ -385,11 +390,11 @@ by flow**.
 
 ```text
 kapi up · KapiMart · flow "default (built-in)" · anthropic/claude-sonnet-4-6 (your subscription)
-plan: 288 block(s) missing · 54 exact-content memory · 234 AI · ≈61k tokens
+plan: 288 block(s) missing · 54 recycled · 234 AI · ≈61k tokens
 
 pass 1/5
-  fr-FR   ████████████░░░░░░  62/96   (content memory 18 · AI 44)   2 checks ✗
-  de-DE   █████░░░░░░░░░░░░░  27/96   (content memory 18 · AI 9)
+  fr-FR   ████████████░░░░░░  62/96   (recycled 18 · AI 44)   2 checks ✗
+  de-DE   █████░░░░░░░░░░░░░  27/96   (recycled 18 · AI 9)
   ja-JP   queued
   nb-NO   ready               96/96
 
@@ -462,6 +467,9 @@ kapi up --plan
 # 1 block(s) stale: their source changed since the translation was decided.
 # They are re-drafted against the current source (priced above) and return
 # to review un-approved. See `kapi status --review`.
+#
+# Source drift: 1 source file(s) changed and 0 removed since the project
+# store read them, so a run reads the source files before its first pass.
 
 kapi up --passes 1
 # Re-drafted 1 stale block(s) against the current source. They return to

@@ -90,32 +90,32 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractComments":
+		case "extract_comments":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractComments: expected bool, got %T", val)
+				return fmt.Errorf("extract_comments: expected bool, got %T", val)
 			}
 			c.ExtractComments = b
-		case "skipNonTranslatable":
+		case "skip_non_translatable":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("skipNonTranslatable: expected bool, got %T", val)
+				return fmt.Errorf("skip_non_translatable: expected bool, got %T", val)
 			}
 			c.SkipNonTranslatable = b
-		case "skipResourceReferences":
+		case "skip_resource_references":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("skipResourceReferences: expected bool, got %T", val)
+				return fmt.Errorf("skip_resource_references: expected bool, got %T", val)
 			}
 			c.SkipResourceReferences = b
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+				return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !b
 		default:
-			return fmt.Errorf("androidxml: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "androidxml", key)
 		}
 	}
 	return nil

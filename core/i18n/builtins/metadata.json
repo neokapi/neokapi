@@ -14,11 +14,11 @@
       "displayName": "Case Transform",
       "category": "text-processing",
       "properties": {
-        "applySource": {
+        "apply_source": {
           "title": "Apply to Source",
           "description": "Apply to source text"
         },
-        "applyTarget": {
+        "apply_target": {
           "title": "Apply to Target",
           "description": "Apply to target text"
         },
@@ -43,11 +43,11 @@
       "displayName": "Create Target",
       "category": "text-processing",
       "properties": {
-        "copySource": {
+        "copy_source": {
           "title": "Copy Source",
           "description": "Copy the source runs into the new target"
         },
-        "createOnNonTranslatable": {
+        "create_on_non_translatable": {
           "title": "Create on Non-Translatable",
           "description": "Create a target even for non-translatable blocks"
         },
@@ -55,7 +55,7 @@
           "title": "Overwrite Existing",
           "description": "Overwrite the existing target if one already exists"
         },
-        "targetLocale": {
+        "target_locale": {
           "title": "Target Locale",
           "description": "Target locale to create"
         }
@@ -65,11 +65,11 @@
       "displayName": "Diff Leverage",
       "category": "translation",
       "properties": {
-        "caseSensitive": {
+        "case_sensitive": {
           "title": "Case Sensitive",
           "description": "Whether comparison is case-sensitive"
         },
-        "fuzzyMatch": {
+        "fuzzy_match": {
           "title": "Fuzzy Match",
           "description": "Enable fuzzy matching for similar texts"
         }
@@ -79,7 +79,7 @@
       "displayName": "Do-Not-Translate Check",
       "category": "quality",
       "properties": {
-        "caseInsensitive": {
+        "case_insensitive": {
           "title": "Case-insensitive preservation",
           "description": "Accept a case-folded match in the target instead of requiring exact case"
         },
@@ -98,14 +98,14 @@
       "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
       "category": "analysis",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
-        "batchConcurrency": {
+        "batch_concurrency": {
           "description": "Number of concurrent batch calls (0 or 1 = sequential)"
         },
-        "batchSize": {
+        "batch_size": {
           "description": "Number of blocks per LLM call (0 or 1 = one block per call)"
         },
         "engine": {
@@ -128,7 +128,7 @@
             "ner": "On-device model: no credentials, nothing leaves the machine."
           }
         },
-        "knownTerms": {
+        "known_terms": {
           "description": "Terms to exclude from extraction (already in the terms store)"
         },
         "locale": {
@@ -182,11 +182,11 @@
       "displayName": "External Command",
       "category": "text-processing",
       "properties": {
-        "applySource": {
+        "apply_source": {
           "title": "Apply to Source",
           "description": "Process source text"
         },
-        "applyTarget": {
+        "apply_target": {
           "title": "Apply to Target",
           "description": "Process target text"
         },
@@ -198,11 +198,11 @@
           "title": "Command Line",
           "description": "The command to execute"
         },
-        "sendAsStdin": {
+        "send_as_stdin": {
           "title": "Send as Stdin",
           "description": "Send text via stdin instead of command arguments"
         },
-        "targetLocale": {
+        "target_locale": {
           "title": "Target Locale",
           "description": "Target locale for processing"
         },
@@ -216,23 +216,23 @@
       "displayName": "Inline Codes Remove",
       "category": "text-processing",
       "properties": {
-        "applySource": {
+        "apply_source": {
           "title": "Apply to Source",
           "description": "Apply to the source text"
         },
-        "applyTarget": {
+        "apply_target": {
           "title": "Apply to Target",
           "description": "Apply to the target text"
         },
-        "includeNonTranslatable": {
+        "include_non_translatable": {
           "title": "Include Non-Translatable",
           "description": "Apply the removal action even to blocks marked as non-translatable"
         },
-        "replaceWithSpace": {
+        "replace_with_space": {
           "title": "Replace With Space",
           "description": "Replace line-break inline codes with spaces instead of removing them entirely"
         },
-        "targetLocale": {
+        "target_locale": {
           "title": "Target Locale",
           "description": "Target locale for processing"
         }
@@ -247,7 +247,7 @@
       "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
       "category": "text-processing",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
@@ -297,7 +297,7 @@
       "displayName": "Placeholder Check",
       "category": "quality",
       "properties": {
-        "flagExtra": {
+        "flag_extra": {
           "title": "Flag extra placeholders",
           "description": "Report placeholders present in the target but absent from the source"
         }
@@ -307,7 +307,7 @@
       "displayName": "Properties Set",
       "category": "text-processing",
       "properties": {
-        "onlyTranslatable": {
+        "only_translatable": {
           "title": "Only Translatable",
           "description": "Only set properties on translatable blocks"
         },
@@ -325,7 +325,7 @@
       "displayName": "Pseudo Translate",
       "category": "translation",
       "properties": {
-        "expansionPercent": {
+        "expansion_percent": {
           "title": "Expansion Percent",
           "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)"
         },
@@ -344,11 +344,11 @@
       "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
       "category": "quality",
       "properties": {
-        "absoluteMaxCharLength": {
+        "absolute_max_char_length": {
           "title": "Absolute Maximum Characters",
           "description": "Maximum number of characters allowed in any target segment"
         },
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
@@ -356,75 +356,75 @@
           "title": "Character Set Encoding",
           "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)"
         },
-        "checkAbsoluteMaxCharLength": {
+        "check_absolute_max_char_length": {
           "title": "Check Absolute Maximum Length",
           "description": "Flag target segments that exceed an absolute character count limit"
         },
-        "checkCharset": {
+        "check_charset": {
           "title": "Check Against Charset Encoding",
           "description": "Warn if a target character is not included in the specified character set encoding"
         },
-        "checkCodeDifference": {
+        "check_code_difference": {
           "title": "Check Code Differences",
           "description": "Verify that target segments have the same inline codes as source segments"
         },
-        "checkCorruptedCharacters": {
+        "check_corrupted_characters": {
           "title": "Check Corrupted Characters",
           "description": "Check for patterns indicating encoding corruption (mojibake"
         },
-        "checkDoubleSpaces": {
+        "check_double_spaces": {
           "title": "Check Double Spaces",
           "description": "Check for double spaces in target text"
         },
-        "checkDoubledWord": {
+        "check_doubled_word": {
           "title": "Warn on Doubled Words",
           "description": "Check for consecutive repeated words in target text"
         },
-        "checkEmptySource": {
+        "check_empty_source": {
           "title": "Warn on Non-Empty Target with Empty Source",
           "description": "Check for non-empty target when source is empty"
         },
-        "checkEmptyTarget": {
+        "check_empty_target": {
           "title": "Warn on Empty Target",
           "description": "Check for empty target when source has content"
         },
-        "checkLeadingWhitespace": {
+        "check_leading_whitespace": {
           "title": "Check Leading Whitespace",
           "description": "Check for leading whitespace mismatches between source and target"
         },
-        "checkMaxCharLength": {
+        "check_max_char_length": {
           "title": "Check Maximum Length Ratio",
           "description": "Flag targets longer than a percentage of source character length"
         },
-        "checkMaxWords": {
+        "check_max_words": {
           "title": "Check Maximum Number of Words",
           "description": "Flag target segments that exceed an absolute limit on the number of words"
         },
-        "checkMinCharLength": {
+        "check_min_char_length": {
           "title": "Check Minimum Length Ratio",
           "description": "Flag targets shorter than a percentage of source character length"
         },
-        "checkPatterns": {
+        "check_patterns": {
           "title": "Check Patterns",
           "description": "Verify that source patterns have expected corresponding content in the target"
         },
-        "checkSourceInconsistency": {
+        "check_source_inconsistency": {
           "title": "Check Source Inconsistency",
           "description": "Flag when different source texts share the same translation"
         },
-        "checkSpanConstraints": {
+        "check_span_constraints": {
           "title": "Check Span Constraints",
           "description": "Check non-deletable and non-cloneable span constraint violations"
         },
-        "checkTargetInconsistency": {
+        "check_target_inconsistency": {
           "title": "Check Target Inconsistency",
           "description": "Flag when the same source text is translated differently across the run"
         },
-        "checkTargetSameAsSource": {
+        "check_target_same_as_source": {
           "title": "Warn on Target Same as Source",
           "description": "Check when target text is identical to source text"
         },
-        "checkTrailingWhitespace": {
+        "check_trailing_whitespace": {
           "title": "Check Trailing Whitespace",
           "description": "Check for trailing whitespace mismatches between source and target"
         },
@@ -432,43 +432,43 @@
           "title": "Quality Checks",
           "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)"
         },
-        "consistencyCaseSensitive": {
+        "consistency_case_sensitive": {
           "title": "Case-Sensitive Consistency",
           "description": "Whether consistency comparison is case-sensitive"
         },
-        "doubledWordExceptions": {
+        "doubled_word_exceptions": {
           "title": "Doubled Word Exceptions",
           "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)"
         },
-        "forbiddenChars": {
+        "forbidden_chars": {
           "title": "Forbidden Characters",
           "description": "Characters that must not appear in target text (e.g. {}[])"
         },
-        "maxCharLengthAbove": {
+        "max_char_length_above": {
           "title": "Percentage for Long Text (Max)",
           "description": "Maximum allowed percentage of source length for long text"
         },
-        "maxCharLengthBelow": {
+        "max_char_length_below": {
           "title": "Percentage for Short Text (Max)",
           "description": "Maximum allowed percentage of source length for short text"
         },
-        "maxCharLengthBreak": {
+        "max_char_length_break": {
           "title": "Short/Long Threshold (Max)",
           "description": "Character count above which text is considered long for the maximum length check"
         },
-        "maxWords": {
+        "max_words": {
           "title": "Maximum Words",
           "description": "Maximum number of words allowed in any target segment"
         },
-        "minCharLengthAbove": {
+        "min_char_length_above": {
           "title": "Percentage for Long Text (Min)",
           "description": "Minimum required percentage of source length for long text"
         },
-        "minCharLengthBelow": {
+        "min_char_length_below": {
           "title": "Percentage for Short Text (Min)",
           "description": "Minimum required percentage of source length for short text"
         },
-        "minCharLengthBreak": {
+        "min_char_length_break": {
           "title": "Short/Long Threshold (Min)",
           "description": "Character count above which text is considered long for the minimum length check"
         },
@@ -519,19 +519,19 @@
             }
           }
         },
-        "requiredChars": {
+        "required_chars": {
           "title": "Required Characters",
           "description": "Characters that must appear in target if present in source (e.g. punctuation)"
         },
-        "strictCodeOrder": {
+        "strict_code_order": {
           "title": "Enforce Strict Code Order",
           "description": "Flag differences when codes appear in a different order between source and target"
         },
-        "targetSameAsSourceWithCodes": {
+        "target_same_as_source_with_codes": {
           "title": "Include Codes in Comparison",
           "description": "Include inline codes when comparing source and target for identity"
         },
-        "targetSameAsSourceWithNumbers": {
+        "target_same_as_source_with_numbers": {
           "title": "Include Number-Only Segments",
           "description": "Include number-only segments in same-as-source comparison"
         }
@@ -570,35 +570,35 @@
       "displayName": "Recycle",
       "category": "translation",
       "properties": {
-        "downgradeIdenticalBestMatches": {
+        "downgrade_identical_best_matches": {
           "title": "Downgrade Identical Exact Matches",
           "description": "Reduce score by 1%% when multiple identical exact matches are returned"
         },
-        "fillIfTargetIsEmpty": {
+        "fill_if_target_is_empty": {
           "title": "Only If Target Is Empty",
           "description": "Fill the target only when it has no existing content"
         },
-        "fillTarget": {
+        "fill_target": {
           "title": "Fill Target with Translation",
           "description": "Copy the best translation candidate into the target content"
         },
-        "fillTargetThreshold": {
+        "fill_target_threshold": {
           "title": "Fill Target Threshold",
           "description": "Minimum match score required to fill the target (100 = exact only)"
         },
-        "fuzzyThreshold": {
+        "fuzzy_threshold": {
           "title": "Fuzzy Match Threshold",
           "description": "Minimum score for a match; the fuzzy path below 100 is retiring"
         },
-        "makeTmx": {
+        "make_tmx": {
           "title": "Generate TMX Document",
           "description": "Create a TMX file with all leveraged matches"
         },
-        "noQueryThreshold": {
+        "no_query_threshold": {
           "title": "No-Query Threshold",
           "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)"
         },
-        "tmxPath": {
+        "tmx_path": {
           "title": "TMX Output Path",
           "description": "File path for the generated TMX document"
         }
@@ -613,7 +613,7 @@
           "title": "Detectors",
           "description": "Detection backends to run: rules and/or entities"
         },
-        "entityTypes": {
+        "entity_types": {
           "title": "Entity Categories",
           "description": "Entity categories to redact: person"
         },
@@ -621,7 +621,7 @@
           "title": "Placeholder Template",
           "description": "Visible stand-in template; supports {category} and {n}"
         },
-        "rulesPath": {
+        "rules_path": {
           "title": "Rules File",
           "description": "Path to a redaction rules YAML file"
         }
@@ -631,19 +631,19 @@
       "displayName": "Remove Target",
       "category": "text-processing",
       "properties": {
-        "filterByIDs": {
+        "filter_by_ids": {
           "title": "Filter by IDs",
           "description": "When true filter blocks by ID; when false filter by target locale"
         },
-        "removeBlockIfEmpty": {
+        "remove_block_if_empty": {
           "title": "Remove Empty Blocks",
           "description": "Remove the block entirely if it has no remaining targets after removal"
         },
-        "targetLocale": {
+        "target_locale": {
           "title": "Target Locale",
           "description": "Target locale to remove (if empty all targets are removed)"
         },
-        "textUnitIDs": {
+        "text_unit_ids": {
           "title": "Block IDs for Removal",
           "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
         }
@@ -654,7 +654,7 @@
       "description": "Review translations with scoring using an LLM provider",
       "category": "quality",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
@@ -700,7 +700,7 @@
       "displayName": "Script",
       "category": "text-processing",
       "properties": {
-        "allowSourceMutation": {
+        "allow_source_mutation": {
           "title": "Allow Source Mutation",
           "description": "Permit the script to modify the source text (off by default; source is read-only)"
         },
@@ -708,7 +708,7 @@
           "title": "Inline Code",
           "description": "Inline ES5 JavaScript code"
         },
-        "scriptFile": {
+        "script_file": {
           "title": "Script File",
           "description": "Path to a .js file"
         },
@@ -730,23 +730,23 @@
       "displayName": "Search and Replace",
       "category": "text-processing",
       "properties": {
-        "dotAll": {
+        "dot_all": {
           "title": "Dot Also Matches Line-Feed",
           "description": "Make the period character match every character including line-feed"
         },
-        "ignoreCase": {
+        "ignore_case": {
           "title": "Ignore Case Differences",
           "description": "Ignore case when matching search patterns"
         },
-        "multiLine": {
+        "multi_line": {
           "title": "Multiline Mode",
           "description": "Make ^ and $ match at the beginning and end of each line"
         },
-        "regEx": {
+        "regex": {
           "title": "Use Regular Expressions",
           "description": "Enable regular expression mode for all search patterns"
         },
-        "replaceAll": {
+        "replace_all": {
           "title": "Replace All Instances",
           "description": "Replace all matches instead of only the first"
         },
@@ -797,7 +797,7 @@
           "title": "Overlay Layer",
           "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
         },
-        "maxChunkRunes": {
+        "max_chunk_runes": {
           "title": "Max Chunk Size",
           "description": "Soft upper bound on chunk size in characters (0 = model default)"
         },
@@ -805,7 +805,7 @@
           "title": "Model",
           "description": "Model name"
         },
-        "overwriteSegmentation": {
+        "overwrite_segmentation": {
           "title": "Overwrite Existing Segmentation",
           "description": "Re-segment already-segmented blocks replacing previous segmentation"
         },
@@ -813,31 +813,31 @@
           "title": "Provider",
           "description": "AI provider id (anthropic"
         },
-        "renumberCodes": {
+        "renumber_codes": {
           "title": "Renumber Code IDs",
           "description": "Renumber inline code IDs when materializing segments to a bilingual format"
         },
-        "rulesPath": {
+        "rules_path": {
           "title": "SRX Rules File",
           "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)"
         },
-        "segmentSource": {
+        "segment_source": {
           "title": "Segment Source Text",
           "description": "Segment the source text"
         },
-        "segmentTarget": {
+        "segment_target": {
           "title": "Segment Target Text",
           "description": "Segment existing target text"
         },
-        "treatIsolatedCodesAsWhitespace": {
+        "treat_isolated_codes_as_whitespace": {
           "title": "Treat Isolated Codes as Whitespace",
           "description": "Treat isolated inline codes as whitespace during segmentation"
         },
-        "trimLeadingWhitespace": {
+        "trim_leading_whitespace": {
           "title": "Trim Leading Whitespace",
           "description": "Exclude leading whitespace from each segment span"
         },
-        "trimTrailingWhitespace": {
+        "trim_trailing_whitespace": {
           "title": "Trim Trailing Whitespace",
           "description": "Exclude trailing whitespace from each segment span"
         }
@@ -875,7 +875,7 @@
       "displayName": "Terminology Check",
       "category": "quality",
       "properties": {
-        "caseSensitive": {
+        "case_sensitive": {
           "title": "Case Sensitive",
           "description": "Whether term matching is case-sensitive"
         }
@@ -886,7 +886,7 @@
       "description": "Extract candidate terminology from content using an LLM provider",
       "category": "analysis",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
@@ -937,11 +937,11 @@
       "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
       "category": "translation",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
-        "batchConcurrency": {
+        "batch_concurrency": {
           "title": "Batch Concurrency",
           "description": "Number of concurrent batch calls (0 or 1 = sequential)"
         },
@@ -972,7 +972,7 @@
             }
           }
         },
-        "contextWindow": {
+        "context_window": {
           "title": "Context Window",
           "description": "Blocks either side to send as reference (with context: neighbours)"
         },
@@ -1039,7 +1039,7 @@
             }
           }
         },
-        "skipMatched": {
+        "skip_matched": {
           "title": "Skip Matched",
           "description": "Skip blocks that already have a target translation"
         }
@@ -1084,7 +1084,7 @@
       "description": "Check text against a voice profile using an LLM provider",
       "category": "quality",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
@@ -1092,7 +1092,7 @@
           "title": "Model",
           "description": "AI model name"
         },
-        "profileId": {
+        "profile_id": {
           "title": "Profile ID",
           "description": "Voice profile to resolve from the store"
         },
@@ -1135,7 +1135,7 @@
       "description": "Infer a draft voice profile from a content corpus using an LLM provider",
       "category": "analysis",
       "properties": {
-        "apiKey": {
+        "api_key": {
           "title": "API Key",
           "description": "API key for the AI provider"
         },
@@ -1143,7 +1143,7 @@
           "title": "Domain",
           "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
         },
-        "maxExamples": {
+        "max_examples": {
           "title": "Max Examples",
           "description": "Maximum before/after examples to infer"
         },
@@ -1151,7 +1151,7 @@
           "title": "Model",
           "description": "AI model name"
         },
-        "profileName": {
+        "profile_name": {
           "title": "Profile Name",
           "description": "Name for the inferred draft profile"
         },
@@ -1197,51 +1197,51 @@
       "displayName": "Whitespace Correct",
       "category": "text-processing",
       "properties": {
-        "correctComma": {
+        "correct_comma": {
           "title": "Comma",
           "description": "Correct whitespace after commas"
         },
-        "correctExclamation": {
+        "correct_exclamation": {
           "title": "Exclamation Point",
           "description": "Correct whitespace after exclamation marks"
         },
-        "correctFullStop": {
+        "correct_full_stop": {
           "title": "Full Stop",
           "description": "Correct whitespace after full stops (periods)"
         },
-        "correctQuestion": {
+        "correct_question": {
           "title": "Question Mark",
           "description": "Correct whitespace after question marks"
         },
-        "includeHorizontalWS": {
+        "include_horizontal_ws": {
           "title": "Horizontal Tabs",
           "description": "Include horizontal tab characters in corrections"
         },
-        "includeVerticalWS": {
+        "include_vertical_ws": {
           "title": "Vertical White Space",
           "description": "Include vertical whitespace (line feeds and carriage returns) in corrections"
         },
-        "matchSourceWhitespace": {
+        "match_source_whitespace": {
           "title": "Match Source Whitespace",
           "description": "Copy source leading/trailing whitespace to target"
         },
-        "normalizeSpaces": {
+        "normalize_spaces": {
           "title": "Normalize Spaces",
           "description": "Collapse multiple spaces to a single space"
         },
-        "removeZeroWidthChars": {
+        "remove_zero_width_chars": {
           "title": "Remove Zero-Width Characters",
           "description": "Remove zero-width spaces and joiners"
         },
-        "targetLocale": {
+        "target_locale": {
           "title": "Target Locale",
           "description": "Target locale for processing"
         },
-        "trimLeading": {
+        "trim_leading": {
           "title": "Trim Leading Whitespace",
           "description": "Remove leading whitespace from target text"
         },
-        "trimTrailing": {
+        "trim_trailing": {
           "title": "Trim Trailing Whitespace",
           "description": "Remove trailing whitespace from target text"
         }
@@ -1259,11 +1259,11 @@
       "displayName": "XML Validation",
       "category": "quality",
       "properties": {
-        "checkSource": {
+        "check_source": {
           "title": "Check Source",
           "description": "Validate source text for XML well-formedness"
         },
-        "checkTarget": {
+        "check_target": {
           "title": "Check Target",
           "description": "Validate target text for XML well-formedness"
         },
@@ -1271,7 +1271,7 @@
           "title": "Target Locale",
           "description": "Target locale for validation"
         },
-        "wrapRoot": {
+        "wrap_root": {
           "title": "Wrap in Root Element",
           "description": "Wrap text in a root element before validating"
         }
@@ -1284,19 +1284,19 @@
       "description": "Configuration for the native Android string-resources (res/values/strings.xml) reader/writer",
       "family": "catalog-keyvalue",
       "properties": {
-        "extractComments": {
+        "extract_comments": {
           "title": "Extract comments as notes",
           "description": "Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting."
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Surface non-translatable content",
           "description": "Surface \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" as non-translatable content blocks (visible to ingestion, skipped by MT). When off, such entries stay in opaque skeleton and round-trip verbatim. Bare resource references are always skeleton."
         },
-        "skipNonTranslatable": {
+        "skip_non_translatable": {
           "title": "Skip translatable=\"false\" entries",
           "description": "Exclude \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" from extraction. Such resources are developer-owned and round-trip verbatim."
         },
-        "skipResourceReferences": {
+        "skip_resource_references": {
           "title": "Skip resource references",
           "description": "Exclude \u003cstring\u003e values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text."
         }
@@ -1316,11 +1316,11 @@
         ".stringsdict"
       ],
       "properties": {
-        "extractComments": {
+        "extract_comments": {
           "title": "Extract comments as notes",
           "description": "Surface a /* ... */ or // ... comment preceding a .strings entry as a translator note on the emitted block."
         },
-        "protectPlaceholders": {
+        "protect_placeholders": {
           "title": "Protect format placeholders",
           "description": "Lift printf-style specifiers (%@, %lld, %1$@) and .stringsdict %#@var@ tokens into inline codes so they are never translated."
         }
@@ -1339,7 +1339,7 @@
         ".arb"
       ],
       "properties": {
-        "descriptionNotes": {
+        "description_notes": {
           "title": "Surface descriptions as notes",
           "description": "Surface the human-facing context in a resource's sibling \"@\u003cid\u003e\" attributes object as developer notes: the resource \"description\" plus each placeholder's \"example\"/\"description\" hint. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting."
         }
@@ -1380,11 +1380,11 @@
         "text/asciidoc"
       ],
       "properties": {
-        "extractBlockTitles": {
+        "extract_block_titles": {
           "title": "Extract block titles",
           "description": "Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false they are preserved verbatim as skeleton."
         },
-        "extractTableCells": {
+        "extract_table_cells": {
           "title": "Extract table cells",
           "description": "Emit `|===` table cells as translatable blocks grouped into table / table-row groups. When false the table is preserved verbatim."
         }
@@ -1426,11 +1426,11 @@
         "text/csv"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "columnNamesRow": {
+        "column_names_row": {
           "title": "Column Names Row",
           "description": "1-based row number containing column names. 0 means auto-detect."
         },
@@ -1438,19 +1438,19 @@
           "title": "Column Roles",
           "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
         },
-        "commentColumns": {
+        "comment_columns": {
           "title": "Comment Columns",
           "description": "Column indices (0-based) that contain comments or notes"
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts."
         },
-        "hasHeader": {
+        "has_header": {
           "title": "Has Header Row",
           "description": "If true, the first row is treated as headers (non-translatable)"
         },
-        "keyColumns": {
+        "key_columns": {
           "title": "Key Columns",
           "description": "Column indices (0-based) that provide the block ID (source ID / record ID)"
         },
@@ -1458,23 +1458,23 @@
           "title": "Field Delimiter",
           "description": "Field delimiter character (comma for CSV, tab for TSV)"
         },
-        "textQualifier": {
+        "text_qualifier": {
           "title": "Text Qualifier",
           "description": "Character used to quote field values containing delimiters or newlines"
         },
-        "translatableColumns": {
+        "translatable_columns": {
           "title": "Translatable Columns",
           "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
         },
-        "trimValues": {
+        "trim_values": {
           "title": "Trim Values",
           "description": "If true, leading and trailing whitespace is removed from cell values"
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within cell values"
         },
-        "valuesStartRow": {
+        "values_start_row": {
           "title": "Values Start Row",
           "description": "1-based row number where data values begin. 0 means auto-detect."
         }
@@ -1499,7 +1499,7 @@
         ".tokens"
       ],
       "properties": {
-        "extractDescriptions": {
+        "extract_descriptions": {
           "title": "Extract $description documentation",
           "description": "Extract $description values (human-readable token and group documentation) as translatable blocks. This is the only natural-language field in DTCG; $value is always a typed design value (colour, dimension, font name, …) and is never extracted. Disable to read the file as fully non-translatable structure."
         }
@@ -1542,7 +1542,7 @@
         "application/epub+zip"
       ],
       "properties": {
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content such as verbatim code listings (\u003cpre\u003e/\u003ccode\u003e/\u003ckbd\u003e/\u003csamp\u003e) in the direct-XHTML fallback extractor is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         }
@@ -1573,17 +1573,17 @@
       "properties": {
         "attributes": {
           "title": "Attribute Rules",
-          "description": "Global attribute extraction rules -- maps attribute names to their rule configuration (ruleTypes, allElementsExcept, onlyTheseElements, conditions)"
+          "description": "Global attribute extraction rules -- maps attribute names to their rule configuration (rule_types, all_elements_except, only_these_elements, conditions)"
         },
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code finder rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
         "elements": {
           "title": "Element Rules",
-          "description": "Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)"
+          "description": "Element extraction rules -- maps element names to their rule configuration (rule_types, conditions, id_attributes, translatable_attributes)"
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), renderable non-translatable contextual content -- the \u003cnoscript\u003e fallback subtree and JSON data islands (\u003cscript type=\"application/ld+json\"|\"application/json\"\u003e) -- is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Generic executable \u003cscript\u003e and \u003cstyle\u003e always stay opaque."
         },
@@ -1591,13 +1591,13 @@
           "title": "Parser behavior",
           "description": "Settings that control how the HTML parser reads input",
           "properties": {
-            "preserveWhitespace": {
+            "preserve_whitespace": {
               "title": "Preserve whitespace",
               "description": "Preserve original whitespace in extracted text instead of collapsing it"
             }
           }
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text"
         }
@@ -1619,15 +1619,15 @@
       "description": "Configuration for the i18next / react-i18next JSON resource format",
       "family": "catalog-keyvalue",
       "properties": {
-        "legacyPluralForms": {
+        "legacy_plural_forms": {
           "title": "Recognise legacy plural forms",
           "description": "Recognise the legacy v1–v3 plural sibling keys (key_plural and the numeric key_0 / key_1 / key_2 … forms) in addition to the v4 CLDR suffixes (_zero / _one / _two / _few / _many / _other)."
         },
-        "protectInterpolation": {
+        "protect_interpolation": {
           "title": "Protect interpolation and nesting",
           "description": "Detect i18next interpolation ({{var}}, {{var, format}}) and nesting ($t(key)) and protect them as inline codes so they are never translated."
         },
-        "subfilterHtmlValues": {
+        "subfilter_html_values": {
           "title": "Subfilter HTML values (_html keys)",
           "description": "Hand values whose key ends in \"_html\" (the i18next convention for markup) to the HTML subfilter so tags are protected and text remains translatable. Off by default: the HTML subfilter is not byte-faithful for bare markup fragments."
         }
@@ -1677,47 +1677,47 @@
         "application/json"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text."
         },
-        "escapeForwardSlashes": {
+        "escape_forward_slashes": {
           "title": "Escape forward slashes",
           "description": "Escape forward slashes (\\/) in translated values, and in edited values of a document that spells no slash."
         },
         "exceptions": {
           "title": "Key exception pattern",
-          "description": "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included."
+          "description": "Regex pattern for key names. When extract_all_pairs is true, matching keys are excluded. When false, matching keys are included."
         },
-        "extractAllPairs": {
+        "extract_all_pairs": {
           "title": "Extract all key/string pairs",
-          "description": "Extract all key-value pairs for translation. When false, use extractionRules to specify which paths to extract."
+          "description": "Extract all key-value pairs for translation. When false, use extraction_rules to specify which paths to extract."
         },
-        "extractIsolatedStrings": {
+        "extract_isolated_strings": {
           "title": "Extract strings without associated key",
           "description": "Extract string values in arrays (without keys) as translatable blocks."
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable string content (isolated array strings and values excluded by the extraction rules) is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
-        "extractionRules": {
+        "extraction_rules": {
           "title": "Extraction rules",
-          "description": "Regex pattern for JSON paths to extract. Overrides extractAllPairs when specified."
+          "description": "Regex pattern for JSON paths to extract. Overrides extract_all_pairs when specified."
         },
-        "genericMetaRules": {
+        "generic_meta_rules": {
           "title": "Generic metadata rules",
           "description": "Regex for keys whose values become generic metadata."
         },
-        "idRules": {
+        "id_rules": {
           "title": "ID rules",
-          "description": "Regex for keys whose values become Block IDs (overrides useKeyAsName)."
+          "description": "Regex for keys whose values become Block IDs (overrides use_key_as_name)."
         },
-        "maxwidthRules": {
+        "maxwidth_rules": {
           "title": "Maxwidth rules",
           "description": "Regex for keys whose values set max width constraints."
         },
-        "maxwidthSizeUnit": {
+        "maxwidth_size_unit": {
           "title": "Maxwidth size unit",
           "description": "Size unit for maxwidth.",
           "options": {
@@ -1729,7 +1729,7 @@
             }
           }
         },
-        "noteRules": {
+        "note_rules": {
           "title": "Note rules",
           "description": "Regex for keys whose values become translator notes."
         },
@@ -1737,7 +1737,7 @@
           "title": "Subfilter format",
           "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings."
         },
-        "subfilterRules": {
+        "subfilter_rules": {
           "title": "Sub-filter rules",
           "description": "Regex matching keys for which values should be processed with the sub-filter."
         },
@@ -1745,23 +1745,23 @@
           "title": "Subfilter mappings",
           "description": "Array of {pattern, format} mappings for embedded content in specific keys."
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.)."
         },
-        "useFullKeyPath": {
+        "use_full_key_path": {
           "title": "Use the full key path",
           "description": "Use full path (/key1/key2) instead of immediate key as name."
         },
-        "useIdStack": {
+        "use_id_stack": {
           "title": "Use the full path of IDs for resname",
           "description": "Build TextUnit IDs from nested key stack."
         },
-        "useKeyAsName": {
+        "use_key_as_name": {
           "title": "Use the key as the resname",
           "description": "Use JSON key as the Block (TextUnit) name for reference."
         },
-        "useLeadingSlashOnKeyPath": {
+        "use_leading_slash_on_key_path": {
           "title": "Include leading \"/\" on key path",
           "description": "Include leading slash in key path names."
         }
@@ -1811,51 +1811,51 @@
         "text/x-markdown"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content such as code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
-        "frontMatterKeys": {
+        "front_matter_keys": {
           "title": "Front Matter Keys",
-          "description": "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
+          "description": "Front matter keys to extract when translate_front_matter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
         },
         "subfilter": {
           "title": "HTML Subfilter",
           "description": "Subfilter format to apply to HTML content within Markdown (e.g., 'html')"
         },
-        "translateBlockQuotes": {
+        "translate_block_quotes": {
           "title": "Translate Block Quotes",
           "description": "If true, blockquote content is translatable."
         },
-        "translateCodeBlocks": {
+        "translate_code_blocks": {
           "title": "Translate Code Blocks",
           "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data."
         },
-        "translateFrontMatter": {
+        "translate_front_matter": {
           "title": "Translate YAML Front Matter",
           "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data."
         },
-        "translateHTMLBlocks": {
+        "translate_html_blocks": {
           "title": "Translate HTML Blocks",
           "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data."
         },
-        "translateImageAlt": {
+        "translate_image_alt": {
           "title": "Translate Image Alt Text",
           "description": "If true, image alt text is included in translatable content."
         },
-        "translateURLs": {
+        "translate_urls": {
           "title": "Translate Hyperlink URLs",
           "description": "If true, link and image URLs are translatable."
         },
-        "unescapeBackslashCharacters": {
+        "unescape_backslash_characters": {
           "title": "Support Backslash Escaping",
           "description": "Parse backslash-escaped punctuation in source documents"
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within translatable text"
         }
@@ -1886,43 +1886,43 @@
         "text/mdx"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text."
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Surface Non-Translatable Content",
           "description": "If true, MDX-specific non-translatable content (block-level JSX text children, GFM table cell prose, and markdown spans that cannot be reconstructed faithfully) is surfaced as non-translatable content blocks (visible to ingestion, skipped by MT) while staying byte-faithful on round-trip. If false, those constructs stay opaque."
         },
-        "frontMatterKeys": {
+        "front_matter_keys": {
           "title": "Front Matter Keys",
-          "description": "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
+          "description": "Front matter keys to extract when translate_front_matter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
         },
-        "translateBlockQuotes": {
+        "translate_block_quotes": {
           "title": "Translate Block Quotes",
           "description": "If true, blockquote content is translatable."
         },
-        "translateCodeBlocks": {
+        "translate_code_blocks": {
           "title": "Translate Code Blocks",
           "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data."
         },
-        "translateFrontMatter": {
+        "translate_front_matter": {
           "title": "Translate YAML Front Matter",
           "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data."
         },
-        "translateHTMLBlocks": {
+        "translate_html_blocks": {
           "title": "Translate HTML Blocks",
           "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data."
         },
-        "translateImageAlt": {
+        "translate_image_alt": {
           "title": "Translate Image Alt Text",
           "description": "If true, image alt text is included in translatable content."
         },
-        "translateURLs": {
+        "translate_urls": {
           "title": "Translate Hyperlink URLs",
           "description": "If true, link and image URLs are translatable."
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within translatable text."
         }
@@ -1948,7 +1948,7 @@
         "text/x-messageformat"
       ],
       "properties": {
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), literal prose that frames a plural/select branch (the sentence frame around a picker) is surfaced as a non-translatable content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         }
@@ -1987,15 +1987,15 @@
         "application/vnd.oasis.opendocument.presentation"
       ],
       "properties": {
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content, namely image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text), is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
-        "translateHiddenContent": {
+        "translate_hidden_content": {
           "title": "Translate Hidden Content",
           "description": "If true, hidden content is extracted as translatable content."
         },
-        "translateNotes": {
+        "translate_notes": {
           "title": "Translate Presentation Notes",
           "description": "If true, presentation speaker notes are extracted as translatable content."
         }
@@ -2030,139 +2030,139 @@
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       ],
       "properties": {
-        "aggressiveCleanup": {
+        "aggressive_cleanup": {
           "title": "Aggressive code cleanup",
           "description": "Strip revision IDs, proofing errors, and other noise before merging runs."
         },
-        "automaticallyAcceptRevisions": {
+        "automatically_accept_revisions": {
           "title": "Accept revisions automatically",
           "description": "Automatically accept tracked changes before extraction. When true (default, matching Okapi), inserted runs are kept and deleted runs are dropped; rows marked with \u003cw:trPr\u003e\u003cw:del/\u003e (ECMA-376 §17.13.5.13) are removed entirely; rows marked with \u003cw:trPr\u003e\u003cw:ins/\u003e (§17.13.5.16) are kept."
         },
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text."
         },
-        "complexFieldDefinitionsToExtract": {
+        "complex_field_definitions_to_extract": {
           "title": "Complex field definitions to extract",
           "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\")."
         },
-        "excludeColors": {
+        "exclude_colors": {
           "title": "Exclude specific font colors",
           "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red)."
         },
-        "excludeHighlightColors": {
+        "exclude_highlight_colors": {
           "title": "Exclude highlight colors",
           "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\")."
         },
-        "excludeStyles": {
+        "exclude_styles": {
           "title": "Exclude styles",
           "description": "Paragraph/character style names to exclude."
         },
-        "excludedColumns": {
+        "excluded_columns": {
           "title": "Excluded columns",
           "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\")."
         },
-        "excludedSheets": {
+        "excluded_sheets": {
           "title": "Excluded sheets",
           "description": "Sheet names to exclude from extraction."
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content is surfaced: image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts, instead of being hidden in opaque skeleton. Disable to keep it opaque."
         },
-        "extractRunFontsInfo": {
+        "extract_run_fonts_info": {
           "title": "Extract run fonts info",
           "description": "Emit font metadata as annotations on blocks."
         },
-        "fontMappings": {
+        "font_mappings": {
           "title": "Font mappings",
           "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\")."
         },
-        "ignoreSoftHyphenTag": {
+        "ignore_soft_hyphen_tag": {
           "title": "Ignore soft hyphen tags",
           "description": "Ignore soft hyphen tags in the document."
         },
-        "includeHighlightColors": {
+        "include_highlight_colors": {
           "title": "Include highlight colors",
           "description": "If non-empty, only extract text with these highlight colors."
         },
-        "includeStyles": {
+        "include_styles": {
           "title": "Include styles",
           "description": "If non-empty, only extract text with these styles."
         },
-        "includedSlides": {
+        "included_slides": {
           "title": "Included slide numbers",
           "description": "If non-empty, only extract these slide numbers (1-based)."
         },
-        "lineSeparatorReplacement": {
+        "line_separator_replacement": {
           "title": "Line separator replacement string",
           "description": "Replacement string for line separator characters."
         },
-        "replaceLineSeparator": {
+        "replace_line_separator": {
           "title": "Add line separator as character",
           "description": "Replace Unicode line separator (U+2028) in output."
         },
-        "replaceNoBreakHyphenTag": {
+        "replace_no_break_hyphen_tag": {
           "title": "Replace no-break hyphen tags",
           "description": "Replace no-break hyphen tags with the non-breaking hyphen character."
         },
-        "tabAsCharacter": {
+        "tab_as_character": {
           "title": "Add tab as character",
           "description": "Treat tab elements as tab characters instead of placeholder spans."
         },
-        "translateCharts": {
+        "translate_charts": {
           "title": "Translate chart text",
           "description": "Extract strings from embedded charts."
         },
-        "translateComments": {
+        "translate_comments": {
           "title": "Translate comments",
           "description": "Extract comment text from Word documents."
         },
-        "translateDiagrams": {
+        "translate_diagrams": {
           "title": "Translate diagram data",
           "description": "Extract text from SmartArt diagrams."
         },
-        "translateDocProperties": {
+        "translate_doc_properties": {
           "title": "Translate document properties",
           "description": "Extract title, subject, keywords from document properties."
         },
-        "translateFootnotes": {
+        "translate_footnotes": {
           "title": "Translate footnotes and endnotes",
           "description": "Extract footnotes and endnotes from Word documents."
         },
-        "translateHeadersFooters": {
+        "translate_headers_footers": {
           "title": "Translate headers and footers",
           "description": "Extract text from headers and footers in Word documents."
         },
-        "translateHiddenSlides": {
+        "translate_hidden_slides": {
           "title": "Translate hidden slides",
           "description": "Extract content from hidden slides in PowerPoint."
         },
-        "translateHiddenText": {
+        "translate_hidden_text": {
           "title": "Translate hidden text",
           "description": "Extract text with the vanish (hidden) property in Word documents."
         },
-        "translateHyperlinks": {
+        "translate_hyperlinks": {
           "title": "Extract external hyperlinks",
           "description": "Extract hyperlink text for translation."
         },
-        "translateSharedStrings": {
+        "translate_shared_strings": {
           "title": "Translate shared strings",
           "description": "Extract shared strings from Excel workbooks."
         },
-        "translateSheetNames": {
+        "translate_sheet_names": {
           "title": "Translate sheet names",
           "description": "Extract sheet names in Excel workbooks."
         },
-        "translateSlideMasters": {
+        "translate_slide_masters": {
           "title": "Translate master slides",
           "description": "Extract text from slide masters in PowerPoint."
         },
-        "translateSlideNotes": {
+        "translate_slide_notes": {
           "title": "Translate slide notes",
           "description": "Extract speaker notes in PowerPoint presentations."
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.)."
         }
@@ -2207,14 +2207,14 @@
           "title": "Paragraphs",
           "description": "If true, blank-line-separated paragraphs become blocks instead of individual lines."
         },
-        "segmentByLine": {
+        "segment_by_line": {
           "description": "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks."
         },
-        "spliceLines": {
+        "splice_lines": {
           "title": "Splice Lines",
           "description": "If true, lines ending with the splice marker are joined with the next line into a single block."
         },
-        "spliceMarker": {
+        "splice_marker": {
           "title": "Splice Marker",
           "description": "Continuation marker recognized at the end of a line in splice mode."
         }
@@ -2237,27 +2237,27 @@
         "text/x-gettext-translation"
       ],
       "properties": {
-        "allowEmptyOutputTarget": {
+        "allow_empty_output_target": {
           "title": "Allow Empty Target Output",
           "description": "Allow empty target in output when no translation is available"
         },
-        "bilingualMode": {
+        "bilingual_mode": {
           "title": "Bilingual Mode",
           "description": "In bilingual mode (default), msgid is the source text and msgstr is the target. In monolingual mode, msgid is treated as an ID."
         },
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "preserveUntranslated": {
+        "preserve_untranslated": {
           "title": "Preserve Untranslated Entries",
           "description": "If true, entries with empty msgstr are emitted as blocks. If false, they are skipped."
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within PO message text"
         },
-        "wrapContent": {
+        "wrap_content": {
           "title": "Wrap Long Content Lines",
           "description": "Wrap long content lines in output at approximately 80 characters"
         }
@@ -2288,31 +2288,31 @@
         "text/x-java-properties"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "commentsAreNotes": {
+        "comments_are_notes": {
           "title": "Comments as Notes",
           "description": "Treat comments as translator notes attached to the following entry"
         },
-        "escapeExtendedChars": {
+        "escape_extended_chars": {
           "title": "Escape Extended Characters",
           "description": "Escape extended Unicode characters (non-ASCII) in output using \\uXXXX notation"
         },
-        "extraComments": {
+        "extra_comments": {
           "title": "Additional Comment Markers",
           "description": "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers"
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Surface Excluded Values",
           "description": "Surface the value text of excluded entries (keys filtered out, or under #_skip / #_bskip) as non-translatable content blocks visible to ingestion but skipped by translation"
         },
-        "extractOnlyMatchingKey": {
+        "extract_only_matching_key": {
           "title": "Extract Only Matching Keys",
           "description": "When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys"
         },
-        "keyCondition": {
+        "key_condition": {
           "title": "Key Condition Pattern",
           "description": "Regular expression pattern to test against property keys for extraction filtering"
         },
@@ -2320,15 +2320,15 @@
           "title": "Separator",
           "description": "Key-value separator character (typically '=' or ':')"
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within property values"
         },
-        "useJavaEscapes": {
+        "use_java_escapes": {
           "title": "Retain Java Escapes",
           "description": "Keep Java property escape sequences (\\: \\= \\# \\!) in extracted text instead of resolving them"
         },
-        "useKeyCondition": {
+        "use_key_condition": {
           "title": "Enable Key Condition",
           "description": "Filter entries for extraction based on a regex condition applied to their keys"
         }
@@ -2363,11 +2363,11 @@
         "text/microsoft-resx"
       ],
       "properties": {
-        "extractComments": {
+        "extract_comments": {
           "title": "Extract comments as notes",
           "description": "Surface each string \u003cdata\u003e entry's sibling \u003ccomment\u003e element as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting."
         },
-        "skipNameDataReferences": {
+        "skip_name_data_references": {
           "title": "Skip name-reference entries",
           "description": "Exclude designer name-reference entries (those whose name starts with \"\u003e\", e.g. \"\u003e\u003econtrol.Name\") from extraction. These carry WinForms field names, not UI strings."
         }
@@ -2401,23 +2401,23 @@
         "application/x-tmx+xml"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code finder rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "escapeGT": {
+        "escape_gt": {
           "title": "Escape greater-than characters",
           "description": "Escape \u003e as \u0026gt; in output XML"
         },
-        "exitOnInvalid": {
+        "exit_on_invalid": {
           "title": "Exit on invalid TUs",
           "description": "Stop processing when encountering invalid TUs. When false, invalid TUs are skipped."
         },
-        "processAllTargets": {
+        "process_all_targets": {
           "title": "Read all target entries",
           "description": "Read all target language TUVs from each TU. When false, only the first target is read."
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based inline code detection in translatable text"
         }
@@ -2453,11 +2453,11 @@
         "text/tab-separated-values"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "columnNamesRow": {
+        "column_names_row": {
           "title": "Column Names Row",
           "description": "1-based row number containing column names. 0 means auto-detect."
         },
@@ -2465,19 +2465,19 @@
           "title": "Column Roles",
           "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
         },
-        "commentColumns": {
+        "comment_columns": {
           "title": "Comment Columns",
           "description": "Column indices (0-based) that contain comments or notes"
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts."
         },
-        "hasHeader": {
+        "has_header": {
           "title": "Has Header Row",
           "description": "If true, the first row is treated as headers (non-translatable)"
         },
-        "keyColumns": {
+        "key_columns": {
           "title": "Key Columns",
           "description": "Column indices (0-based) that provide the block ID (source ID / record ID)"
         },
@@ -2485,23 +2485,23 @@
           "title": "Field Delimiter",
           "description": "Field delimiter character (comma for CSV, tab for TSV)"
         },
-        "textQualifier": {
+        "text_qualifier": {
           "title": "Text Qualifier",
           "description": "Character used to quote field values containing delimiters or newlines"
         },
-        "translatableColumns": {
+        "translatable_columns": {
           "title": "Translatable Columns",
           "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
         },
-        "trimValues": {
+        "trim_values": {
           "title": "Trim Values",
           "description": "If true, leading and trailing whitespace is removed from cell values"
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within cell values"
         },
-        "valuesStartRow": {
+        "values_start_row": {
           "title": "Values Start Row",
           "description": "1-based row number where data values begin. 0 means auto-detect."
         }
@@ -2547,23 +2547,23 @@
         "text/vtt"
       ],
       "properties": {
-        "cjkCharsPerLine": {
+        "cjk_chars_per_line": {
           "title": "Max characters per line for CJK",
           "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable."
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content such as a STYLE block's embedded CSS is surfaced as a content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden. Disable to keep the legacy opaque behavior."
         },
-        "maxCharsPerLine": {
+        "max_chars_per_line": {
           "title": "Max characters per line",
           "description": "Maximum number of characters per line in output. Set to 0 to disable."
         },
-        "maxLinesPerCaption": {
+        "max_lines_per_caption": {
           "title": "Max lines per caption",
           "description": "Maximum number of lines per caption in output. Set to 0 to disable."
         },
-        "splitWords": {
+        "split_words": {
           "title": "Split words at character limit",
           "description": "Split words so that they don't go over the character limit per line."
         }
@@ -2588,15 +2588,15 @@
         "application/json"
       ],
       "properties": {
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Surface non-translatable content",
-          "description": "Surface an entry's developer comment via a non-translatable fallback block when the entry has no translatable leaf (no localizations, an empty localizations object, or a stale entry skipped because extractStale is off). When off, the part stream is byte-identical to the prior behavior."
+          "description": "Surface an entry's developer comment via a non-translatable fallback block when the entry has no translatable leaf (no localizations, an empty localizations object, or a stale entry skipped because extract_stale is off). When off, the part stream is byte-identical to the prior behavior."
         },
-        "extractStale": {
+        "extract_stale": {
           "title": "Extract stale entries",
           "description": "Emit entries whose extractionState is \"stale\" (the source string no longer appears in the code base) as translatable blocks."
         },
-        "markTranslatedState": {
+        "mark_translated_state": {
           "title": "State for new translations",
           "description": "The stringUnit state value written for a localization populated for the first time. Existing states are preserved verbatim on round-trip."
         }
@@ -2620,67 +2620,67 @@
         "application/x-xliff+xml"
       ],
       "properties": {
-        "addAltTrans": {
+        "add_alt_trans": {
           "title": "Add alt-trans elements",
           "description": "Allow addition of new alt-trans elements"
         },
-        "addTargetLanguage": {
+        "add_target_language": {
           "title": "Add target-language attribute",
           "description": "Add the target-language attribute to file elements if not already present"
         },
-        "allowEmptyTargets": {
+        "allow_empty_targets": {
           "title": "Allow empty targets",
           "description": "Allow target elements with empty content to be written"
         },
-        "alwaysAddTargets": {
+        "always_add_targets": {
           "title": "Add targets for monolingual XLIFF",
           "description": "Add target elements for monolingual XLIFF files that have no target in the source"
         },
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code finder rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "editAltTrans": {
+        "edit_alt_trans": {
           "title": "Edit alt-trans elements",
           "description": "Allow editing of existing alt-trans elements"
         },
-        "fallbackToID": {
+        "fallback_to_id": {
           "title": "Use trans-unit ID as name if no resname",
           "description": "Use the trans-unit id attribute as the block name when no resname attribute is present"
         },
-        "forceUniqueIds": {
+        "force_unique_ids": {
           "title": "Enforce unique trans-unit IDs",
           "description": "Rewrite trans-unit IDs to enforce uniqueness across the file"
         },
-        "ignoreInputSegmentation": {
+        "ignore_input_segmentation": {
           "title": "Ignore input segmentation",
           "description": "Ignore seg-source/mrk segmentation from the input XLIFF and treat the full source as a single segment"
         },
-        "includeExtensions": {
+        "include_extensions": {
           "title": "Include XLIFF extension elements",
           "description": "Include non-standard namespace extension elements in extracted content"
         },
-        "includeIts": {
+        "include_its": {
           "title": "Include ITS markup",
           "description": "Include ITS (Internationalization Tag Set) markup in extracted content"
         },
-        "overrideTargetLanguage": {
+        "override_target_language": {
           "title": "Override target language",
           "description": "Override the target-language attribute in the output document with the pipeline target locale"
         },
-        "preserveSpaceByDefault": {
+        "preserve_space_by_default": {
           "title": "Preserve whitespace by default",
           "description": "Treat all content as xml:space=\"preserve\" unless explicitly overridden"
         },
-        "targetStateValue": {
+        "target_state_value": {
           "title": "Target state value",
-          "description": "State value to set on target elements when useTranslationTargetState is enabled"
+          "description": "State value to set on target elements when use_translation_target_state is enabled"
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based inline code detection in translatable text"
         },
-        "useTranslationTargetState": {
+        "use_translation_target_state": {
           "title": "Update target state attribute",
           "description": "Update the state attribute on target elements when writing translated XLIFF"
         }
@@ -2712,23 +2712,23 @@
         "application/xliff+xml"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code finder rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "discardInvalidTargets": {
+        "discard_invalid_targets": {
           "title": "Discard invalid targets",
           "description": "Discard targets that fail validation rather than rejecting the entire file"
         },
-        "forceUniqueIds": {
+        "force_unique_ids": {
           "title": "Ensure unique tag IDs",
           "description": "Ensure inline tag IDs are unique within each unit"
         },
-        "ignoreTagTypeMatch": {
+        "ignore_tag_type_match": {
           "title": "Ignore tag type mismatch",
           "description": "Ignore tag type mismatch between source and target segments"
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based inline code detection in translatable text"
         },
@@ -2750,7 +2750,7 @@
             }
           }
         },
-        "writeOriginalData": {
+        "write_original_data": {
           "title": "Include original data in output",
           "description": "Output includes original data when available"
         }
@@ -2786,11 +2786,11 @@
           "title": "Attribute rules",
           "description": "Advanced attribute-specific processing rules with element scope constraints"
         },
-        "blockTypeMap": {
+        "block_type_map": {
           "title": "Block type map",
           "description": "Map of element names to block type strings for semantic type annotation"
         },
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code finder rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
@@ -2798,35 +2798,35 @@
           "title": "Element rules",
           "description": "Advanced element-specific processing rules with conditions, inline marking, and translatable attribute mappings"
         },
-        "excludeByDefault": {
+        "exclude_by_default": {
           "title": "Exclude by default",
           "description": "Exclude all elements unless explicitly included by an element rule with INCLUDE"
         },
-        "excludedElements": {
+        "excluded_elements": {
           "title": "Excluded elements",
           "description": "Element names whose content is excluded from extraction"
         },
-        "extractNonTranslatableContent": {
+        "extract_non_translatable_content": {
           "title": "Extract non-translatable content",
           "description": "If true (default), non-translatable contextual content such as whitelist-excluded element text and verbatim code/pre subtrees is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
-        "groupElements": {
+        "group_elements": {
           "title": "Group elements",
           "description": "Element names that produce group/layer boundaries in the output"
         },
-        "idAttributes": {
+        "id_attributes": {
           "title": "ID attributes",
           "description": "Attribute names used to extract block IDs from elements"
         },
-        "inlineElements": {
+        "inline_elements": {
           "title": "Inline elements",
           "description": "Element names treated as inline (spans within text) rather than block-level"
         },
-        "preserveWhitespace": {
+        "preserve_whitespace": {
           "title": "Preserve whitespace",
           "description": "Preserve original whitespace in text content instead of collapsing it"
         },
-        "preserveWhitespaceElements": {
+        "preserve_whitespace_elements": {
           "title": "Preserve whitespace elements",
           "description": "Element names that preserve whitespace regardless of the global setting"
         },
@@ -2834,15 +2834,15 @@
           "title": "Subfilters",
           "description": "Array of {pattern, format} mappings for embedded content. Patterns use dot-separated element paths with glob support."
         },
-        "translatableAttributes": {
+        "translatable_attributes": {
           "title": "Translatable attributes",
           "description": "Attribute names that are translatable across all elements"
         },
-        "translatableElements": {
+        "translatable_elements": {
           "title": "Translatable elements",
           "description": "Element names whose text content is translatable. If empty, all text content is translatable."
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based detection of inline codes within translatable text"
         }
@@ -2879,15 +2879,15 @@
         "application/x-yaml"
       ],
       "properties": {
-        "codeFinderRules": {
+        "code_finder_rules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
-        "extractNonStrings": {
+        "extract_non_strings": {
           "title": "Extract Non-String Values",
           "description": "Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks"
         },
-        "keyPathPatterns": {
+        "key_path_patterns": {
           "title": "Key Path Patterns",
           "description": "When non-empty, only keys matching one of these glob patterns are extracted. Supports * (single key) and ** (any depth)."
         },
@@ -2895,7 +2895,7 @@
           "title": "Subfilter Format",
           "description": "Sub-filter to apply to scalar values (e.g., 'html' to process HTML within YAML values)"
         },
-        "useCodeFinder": {
+        "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within string values"
         }

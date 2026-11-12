@@ -70,7 +70,8 @@ const EDITOR_SURFACE_LABELS: Record<string, string> = {
 
 /** What each project section is called in the trail — the sub-nav's own labels. */
 const PROJECT_SURFACE_LABELS: Record<string, string> = {
-  map: "Map",
+  overview: "Overview",
+  languages: "Languages",
   rules: "Rules",
   source: "Source content",
   automations: "Automations",
@@ -139,7 +140,7 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
     itemName = parts.slice(4).map(decodeURIComponent).join("/");
   }
 
-  const section = projectViewFromPath(pathname, workspaceSlug) ?? "dashboard";
+  const section = projectViewFromPath(pathname, workspaceSlug) ?? "languages";
 
   return { projectId, stream, itemName, section };
 }
@@ -504,8 +505,8 @@ export function WorkspaceLayout() {
       project,
       activeStream: projectParams.stream,
       activeProjectView: projectParams.section,
-      onOpenMap: openSection("map"),
-      onOpenDashboard: openSection("dashboard"),
+      onOpenOverview: openSection("overview"),
+      onOpenLanguages: openSection("languages"),
       onOpenRules: openSection("rules"),
       onOpenSource: openSection("source"),
       onOpenFile: (itemName: string) => {
@@ -600,8 +601,8 @@ export function WorkspaceLayout() {
       // name there is — better a stable step that fills in than one that pops
       // into existence a moment later and shifts everything left.
       label: project?.name ?? projectParams.projectId,
-      // The project's step opens its landing page, the Map.
-      onClick: goto(projectSectionTargets.map, projectRouteParams),
+      // The project's step opens its landing page, the Overview.
+      onClick: goto(projectSectionTargets.overview, projectRouteParams),
       testId: "back-to-project",
     });
 
@@ -614,7 +615,7 @@ export function WorkspaceLayout() {
       });
     }
 
-    const surface = projectParams.section === "dashboard" ? undefined : projectParams.section;
+    const surface = projectParams.section === "languages" ? undefined : projectParams.section;
     if (surface) {
       trail.push({
         label: PROJECT_SURFACE_LABELS[surface],
@@ -876,7 +877,7 @@ export function WorkspaceLayout() {
                     if (task.project_id) {
                       const taskStream = task.stream || "main";
                       void navigate({
-                        to: "/$workspace/p/$projectId/s/$stream/overview",
+                        to: "/$workspace/p/$projectId/s/$stream/languages",
                         params: {
                           workspace: ws,
                           projectId: task.project_id,

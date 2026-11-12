@@ -27,7 +27,7 @@ function effectiveTargets(project: KapiProject): { target?: string; languages: s
  * No file is read.
  *
  * Every surface that shows language work (the rail's Languages and Review,
- * the hub's Content memory, the Project page's coverage, and Bring up to date
+ * the hub's Content memory, the Project page's coverage, and Catch up
  * on the Project page and in the runner) reads this one answer.
  */
 export function declaresTargetLanguages(project: KapiProject | null | undefined): boolean {

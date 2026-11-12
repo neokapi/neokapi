@@ -1,7 +1,14 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ReviewSurface, PresenceAvatars, useApi, useCollaboration, useStream } from "@neokapi/ui";
+import {
+  ReviewSurface,
+  PresenceAvatars,
+  useApi,
+  useCollaboration,
+  useStream,
+  PageContainer,
+} from "@neokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
@@ -50,22 +57,24 @@ export function ReviewRoute() {
   });
 
   return (
-    <ReviewSurface
-      project={project}
-      fileName={fileName}
-      surfaceTabs={surfaceTabs}
-      onBack={() =>
-        navigate({
-          to: "/$workspace/p/$projectId/s/$stream/translate/$",
-          params: {
-            workspace: workspace ?? ws,
-            projectId: project.id,
-            stream: activeStream,
-            _splat: fileName,
-          },
-        })
-      }
-      presenceSlot={<PresenceAvatars users={connectedUsers} currentUserId={user.id} />}
-    />
+    <PageContainer width="full" className="px-6 py-5">
+      <ReviewSurface
+        project={project}
+        fileName={fileName}
+        surfaceTabs={surfaceTabs}
+        onBack={() =>
+          navigate({
+            to: "/$workspace/p/$projectId/s/$stream/translate/$",
+            params: {
+              workspace: workspace ?? ws,
+              projectId: project.id,
+              stream: activeStream,
+              _splat: fileName,
+            },
+          })
+        }
+        presenceSlot={<PresenceAvatars users={connectedUsers} currentUserId={user.id} />}
+      />
+    </PageContainer>
   );
 }

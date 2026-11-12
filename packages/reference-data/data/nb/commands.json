@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T17:54:10Z",
+  "generatedAt": "2026-11-12T17:39:19Z",
   "commands": [
     {
       "id": "add",
@@ -8,7 +8,7 @@
       ],
       "use": "add \u003cpattern\u003e [pattern...]",
       "short": "Legg til filmønstre i prosjektets innhold",
-      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\nOn a pattern the project already tracks, --target sets the target its entry\nlacks; an entry that already declares another target is refused, with the\nrecipe change to make instead. A file belongs to the first entry in the recipe\nwhose pattern matches it, so a target applies to the files its entry claims.\nThe output names each other file and the entry that claims it, and a pattern\nan earlier entry claims every file of is refused. Under a named collection with\na base, the target is given from the project root and kept relative to the\nbase.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
+      "long": "Add file patterns to this project's content to tell kapi which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\nOn a pattern the project already tracks, --target sets the target its entry\nlacks; an entry that already declares another target is refused, with the\nrecipe change to make instead. A file belongs to the first entry in the recipe\nwhose pattern matches it, so a target applies to the files its entry claims.\nThe output names each other file and the entry that claims it, and a pattern\nan earlier entry claims every file of is refused. Under a named collection with\na base, the target is given from the project root and kept relative to the\nbase.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
       "groupID": "work",
       "flags": [
         {
@@ -778,7 +778,7 @@
       ],
       "use": "note [what you noticed]",
       "short": "Record what you noticed, or what a person changed",
-      "long": "Record one thing this project's files do every time: a product,\nfeature or plan name as they write it, the spelling variety they keep to, a\nword they use where writers often use another, who the text addresses. Record\nit whether or not your own text uses it. Leave alone a word the files write\nmore than one way (record nothing about it, not even a note), an interface\nlabel, and wording taken from your task.\n\nFor a name or word, pass --term with the form the files use and --instead-of\nwith the form they avoid: the split form of a one-word name, the other\nspelling, or the other word. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part\ncapitalised. \"--term Quickcast --instead-of 'Quick cast'\" avoids Quick cast,\nQuick-cast and QuickCast. Without --term a note is a fact in prose.\n\nWhen a person changes wording, record it with --from (what was there), --to\n(what replaced it) and --seen-in. A change is evidence about how this project\nwrites. A person's change toward a rule somebody already suggested is that\nperson's backing for it, so the rule is established, and fails a check, unless\nsomething recorded argues against it. With --suggest it also records the rule\nthe change implies, so the next use of the old wording is reported. A person's\nchange that reverses a rule in force contests the rule, so their own edit\nnever fails their build.\n\nEvery note is a suggestion. Checks report it, no check fails on it, and a\nperson decides about it with \"kapi context review\". Say where you saw it with\n--seen-in and --quote. A note holds where its evidence sits; --point narrows\nthat one axis at a time to a value inside it, such as --point market=no, and\n--valid-from and --valid-to bound how long it holds. Take back a note of your own that was wrong with\n--withdraw \u003cid\u003e, in the session that recorded it.",
+      "long": "Record one thing that is consistent across this project's files: a\nproduct, feature or plan name as written there, the spelling variety, a word\nchosen where writers often choose another, or how the text addresses the\nreader. Record it whether or not your own text contains it. Leave alone a\nword spelled more than one way in the files (record nothing about it, not\neven a note), an interface label, and wording taken from your task.\n\nFor a name or word, pass --term with the form found in the files and\n--instead-of with the form to avoid: the split form of a one-word name, the other\nspelling, or the other word. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part\ncapitalised. \"--term Quickcast --instead-of 'Quick cast'\" avoids Quick cast,\nQuick-cast and QuickCast. Without --term a note is a fact in prose.\n\nWhen a person changes wording, record it with --from (what was there), --to\n(what replaced it) and --seen-in. A change is evidence about how this project\nwrites. A person's change toward a rule somebody already suggested is that\nperson's backing for it, so the rule is established, and fails a check, unless\nsomething recorded argues against it. With --suggest it also records the rule\nthe change implies, so the next use of the old wording is reported. A person's\nchange that reverses a rule in force contests the rule, so their own edit\nnever fails their build.\n\nEvery note is a suggestion. Checks report it, no check fails on it, and a\nperson decides about it with \"kapi context review\". Say where you saw it with\n--seen-in and --quote. A note holds where its evidence sits; --point narrows\nthat one axis at a time to a value inside it, such as --point market=no, and\n--valid-from and --valid-to bound how long it holds. Take back a note of your own that was wrong with\n--withdraw \u003cid\u003e, in the session that recorded it.",
       "groupID": "context-assistant",
       "flags": [
         {
@@ -955,7 +955,7 @@
       ],
       "use": "review",
       "short": "Decide about the suggestions waiting for you",
-      "long": "Walk through what has been suggested about how this project writes, and\ndecide about each one: keep it as a rule, drop it, choose a side where two\nsuggestions disagree, or apply a rule more widely than where it was seen.\n\nA suggestion nobody answers keeps advising, so nothing here has to be cleared.\nA rule you keep is in force from then on: checks fail on it unless it is\nadvisory. Dropping a rule already in force takes it back out.\n\nIn a terminal, review asks about each suggestion in turn. Elsewhere it lists\nwhat is waiting, with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use changes what it says\n  --drop \u003cid\u003e        drop a suggestion or a rule (repeatable)\n  --choose \u003cid\u003e      choose one side where two suggestions disagree\n  --widen-to \u003cwhere\u003e with --keep: apply it more widely: project, workspace,\n                     or a part of where it was seen, such as mode\n  --valid-from \u003cwhen\u003e, --valid-to \u003cwhen\u003e\n                     with --keep: the rule holds from, and until, a date\n                     (2006-01-02) or an instant\n\n--session narrows the review to what one assistant session suggested, and\n\"--session \u003cid\u003e --keep all\" keeps everything it suggested that nothing\ndisagrees with.\n\nReviewing moves your \"since you last looked\" marker, kept on this machine and\nnever in the project. --peek leaves it where it is.",
+      "long": "Walk through what has been suggested about how this project writes, and\ndecide about each one: keep it as a rule, drop it, choose a side where two\nsuggestions disagree, or apply a rule more widely than where it was seen.\n\nChecks keep reporting a suggestion until someone answers it, so nothing here\nhas to be cleared.\nA rule you keep is in force from then on: checks fail on it unless it is\nadvisory. Dropping a rule already in force takes it back out.\n\nIn a terminal, review asks about each suggestion in turn. Elsewhere it lists\nwhat is waiting, with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use changes what it says\n  --drop \u003cid\u003e        drop a suggestion or a rule (repeatable)\n  --choose \u003cid\u003e      choose one side where two suggestions disagree\n  --widen-to \u003cwhere\u003e with --keep: apply it more widely: project, workspace,\n                     or a part of where it was seen, such as mode\n  --valid-from \u003cwhen\u003e, --valid-to \u003cwhen\u003e\n                     with --keep: the rule holds from, and until, a date\n                     (2006-01-02) or an instant\n\n--session narrows the review to what one assistant session suggested, and\n\"--session \u003cid\u003e --keep all\" keeps everything it suggested that nothing\ndisagrees with.\n\nReviewing moves your \"since you last looked\" marker, kept on this machine and\nnever in the project. --peek leaves it where it is.",
       "groupID": "context-person",
       "flags": [
         {
@@ -1107,7 +1107,7 @@
       ],
       "use": "suggest",
       "short": "File what kapi can see in the files as suggestions for you to decide",
-      "long": "Read the files this project declares and file what kapi can see in them as\nsuggestions:\n\n  - a word the files write more than one way, such as e-mail and email: the\n    form written most often, instead of the others\n  - in a project that binds no voice, the words a starter voice pack avoids,\n    when the files use three or more of them\n  - the files addressing the reader as you, when most blocks with a personal\n    pronoun do and none says we\n\nEach suggestion is noticed by kapi and waits for you in \"kapi context review\".\nChecks report it and none fails on it until you keep it. Nothing else is\nwritten: not the recipe, not a rules file. Without --ai no AI model is used.\n\n--ai then asks the connected AI model about the same blocks, through\nterm-extract and voice-infer, and files what it proposes the same way: the\nterms the files use, and the voice measures it reads, such as whom the files\naddress and how long their sentences run. A term is filed only when the files\nwrite it as the model wrote it in two or more blocks. In a project that binds\na voice, no voice measures are filed. These suggestions are noticed by kapi\nwith the model's name. Without --ai the command needs no network; with it,\nkapi reaches the model's provider. With no AI provider configured, or no key\nfor the one configured, --ai refuses before anything is filed; \"kapi models\nsetup\" connects one.\n\nRunning it again files nothing new. A suggestion you dropped stays dropped,\nand one the files have changed is filed again as it now stands. --dry-run\nprints what it would file and records nothing; with --ai it still asks the\nmodel.",
+      "long": "Read the files this project declares and file what kapi can see in them as\nsuggestions:\n\n  - a word spelled more than one way in the files, such as e-mail and email:\n    the most frequent form, instead of the others\n  - in a project that binds no voice, the words on a starter voice pack's\n    avoid list, when three or more of them appear in the files\n  - the reader addressed as you, when most blocks with a personal pronoun\n    contain you and none contains we\n\nEach suggestion is filed as suggested by kapi and waits for you in \"kapi context review\".\nChecks report it and none fails on it until you keep it. Nothing else is\nwritten: not the recipe, not a rules file. Without --ai no AI model is used.\n\n--ai then asks the connected AI model about the same blocks, through\nterm-extract and voice-infer, and files what it proposes the same way: the\nterms in the files, and voice measures such as how the reader is addressed\nand how long the sentences are. A term is filed only when it appears in two\nor more blocks exactly as the model wrote it. In a project that binds\na voice, no voice measures are filed. These suggestions are filed as\nsuggested by kapi with the model's name. Without --ai the command needs no network; with it,\nkapi reaches the model's provider. With no AI provider configured, or no key\nfor the one configured, --ai refuses before anything is filed; \"kapi models\nsetup\" connects one.\n\nRunning it again files nothing new. A suggestion you dropped stays dropped,\nand one the files have changed is filed again as it now stands. --dry-run\nprints what it would file and records nothing; with --ai it still asks the\nmodel.",
       "groupID": "context-person",
       "flags": [
         {
@@ -3575,8 +3575,8 @@
           "type": "bool"
         },
         {
-          "name": "filter-by-i-ds",
-          "usage": "Når true, filtrer tekstenheter etter ID; når false, filtrer etter målspråkkode",
+          "name": "filter-by-ids",
+          "usage": "When true filter blocks by ID; when false filter by target locale",
           "default": "true",
           "type": "bool"
         },
@@ -3674,8 +3674,8 @@
           "type": "string"
         },
         {
-          "name": "text-unit-i-ds",
-          "usage": "Kommaseparert liste over ID-er for tekstenheter hvis måltekster skal fjernes; tom liste fjerner alle måltekster",
+          "name": "text-unit-ids",
+          "usage": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets",
           "type": "string"
         },
         {
@@ -4103,8 +4103,8 @@
           "type": "string"
         },
         {
-          "name": "reg-ex",
-          "usage": "Aktiver regulæruttrykk-modus for alle søkemønstre",
+          "name": "regex",
+          "usage": "Enable regular expression mode for all search patterns",
           "default": "false",
           "type": "bool"
         },
@@ -5388,14 +5388,14 @@
           "type": "string"
         },
         {
-          "name": "include-horizontal-w-s",
-          "usage": "Inkluder horisontale tabulatortegn i rettelser",
+          "name": "include-horizontal-ws",
+          "usage": "Include horizontal tab characters in corrections",
           "default": "true",
           "type": "bool"
         },
         {
-          "name": "include-vertical-w-s",
-          "usage": "Ta med vertikale blanktegn (linjeskift og vognretur) i korrigeringer",
+          "name": "include-vertical-ws",
+          "usage": "Include vertical whitespace (line feeds and carriage returns) in corrections",
           "default": "true",
           "type": "bool"
         },
@@ -6183,7 +6183,7 @@
       ],
       "use": "look [path]",
       "short": "See the project, or one file with its rules and findings in place",
-      "long": "See where the project stands, or read one file with what applies to it.\n\nWith no path, look prints the project: the files kapi reads, the blocks in\nthem, the rules in force, the findings kapi check reports, and the\nsuggestions waiting for you in kapi rules. The first look at a project with\nno rules files what kapi sees in the files as suggestions. Inside a project,\nkapi with no command prints the same.\n\nWith a path, look prints the file's blocks in order, each one named the way\nkapi check and kapi inspect name it. A finding is marked with carets under the\nwords it is about, and the rules that hold in the file follow the blocks. A\nfile the project does not read as content is shown too, without rules.\n\n--json gives the same as data.",
+      "long": "See where the project stands, or read one file with what applies to it.\n\nWith no path, look prints the project: the files kapi reads, the blocks in\nthem, the rules in force, the findings kapi check reports, and the\nsuggestions waiting for you in kapi rules. The first look at a project with\nno rules files the patterns in its files as suggestions. Inside a project,\nkapi with no command prints the same. The last line names the next step: the\nfirst of deciding the suggestions, fixing what fails, connecting an assistant\nand sharing the rules that is left, or kapi check once all are done.\n\nWith a path, look prints the file's blocks in order, each one named the way\nkapi check and kapi inspect name it. A finding is marked with carets under the\nwords it is about, and the rules that hold in the file follow the blocks. A\nfile the project does not read as content is shown too, without rules.\n\n--json gives the same as data.",
       "groupID": "work",
       "flags": [
         {
@@ -6327,6 +6327,65 @@
         "kapi memory stats",
         "kapi memory lookup \"welcome back\" -s en -t fr",
         "kapi memory import corpus.tmx -s en -t fr"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "memory.annotate",
+      "path": [
+        "memory",
+        "annotate"
+      ],
+      "use": "annotate \u003ctext\u003e --type \u003centity-type\u003e",
+      "short": "Mark a text as a named entity in content-memory entries",
+      "long": "Mark a text as a named entity in the content memory's entries.\n\nEach occurrence of the text, in every language of an entry, becomes an entity\nplaceholder of the given type, and the entry records the entity once with its\nwording in each language. A lookup can then match the entry for content that\nnames a different entity of the same type in the same place.\n\nWith no --entry, every entry whose text contains the text is annotated.\nInside a project, each new entity is linked to the concept in the project's\nterms store whose term it matches.\n\nThe entity types are person, organization, product, location, date, time,\ncurrency, measurement and other.",
+      "flags": [
+        {
+          "name": "case-sensitive",
+          "usage": "match the text in its own case only",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "entry",
+          "usage": "annotate only these entry ids (repeatable, or comma-separated)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "usage": "entity type: person, organization, product, location, date, time, currency, measurement or other",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi memory annotate \"Acme\" --type organization",
+        "kapi memory annotate \"Paris\" --type location --case-sensitive",
+        "kapi memory annotate \"Kapi Pro\" --type product --entry 3f2a9c"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -7768,7 +7827,7 @@
       ],
       "use": "rules",
       "short": "Decide, list, narrow or drop the rules your project keeps",
-      "long": "The rules are what your project keeps to: names and their spelling, words to\navoid, and the voice's measures and patterns. An assistant suggests a rule\nwhen it notices one in your files. Checks report a suggestion, and none fails\non it until you keep it.\n\nWith suggestions waiting, kapi rules asks about each one in turn: which form\nyour files use, or whether to keep it. Before you answer, it shows what\nkeeping it does: how many blocks a check then reports, and where the rule\napplies.\n\n  k  keep             n  not a rule         l  later\n  a number picks another form, or types one of your own (Other…)\n\nA kept name or word fails a check from then on. A kept note is stated to\nwriters and assistants, and no check reads it. Outside a terminal, kapi rules\nlists the questions with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use picks the form\n  --drop \u003cid\u003e        not a rule: set a suggestion or a kept rule aside\n  --later \u003cid\u003e       leave it waiting; it keeps advising\n  --choose \u003cid\u003e      keep one side where two suggestions disagree\n\nkapi context review records the same decisions for an assistant.",
+      "long": "The rules cover names and their spelling, words to avoid, and the voice's\nmeasures and patterns. An assistant suggests a rule when it finds one in your\nfiles. Checks report a suggestion, and none fails on it until you keep it.\n\nWith suggestions waiting, kapi rules asks about each one in turn: which form\nthe project should use, or whether to keep it. Before you answer, it shows what\nkeeping it does: how many blocks a check then reports, and where the rule\napplies.\n\n  k  keep             n  not a rule         l  later\n  a number picks another form, or types one of your own (Other…)\n\nA kept name or word fails a check from then on. A kept note is stated to\nwriters and assistants, and no check reads it. Outside a terminal, kapi rules\nlists the questions with the id each decision takes:\n\n  --keep \u003cid\u003e        keep a suggestion (repeatable); --use picks the form\n  --drop \u003cid\u003e        not a rule: set a suggestion or a kept rule aside\n  --later \u003cid\u003e       leave it waiting; checks keep reporting it\n  --choose \u003cid\u003e      keep one side where two suggestions disagree\n\nkapi context review records the same decisions for an assistant.",
       "groupID": "work",
       "flags": [
         {
@@ -7796,7 +7855,7 @@
         },
         {
           "name": "later",
-          "usage": "leave a suggestion waiting by id (repeatable); it keeps advising",
+          "usage": "leave a suggestion waiting by id (repeatable); checks keep reporting it",
           "default": "[]",
           "type": "stringArray"
         },
@@ -9642,6 +9701,12 @@
           "type": "bool"
         },
         {
+          "name": "pre-review",
+          "usage": "after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "print-ops",
           "usage": "write no file and print the change set the run would apply, for kapi apply",
           "default": "false",
@@ -9658,6 +9723,12 @@
           "usage": "AI-leverandør (anthropic, openai, ollama)",
           "default": "anthropic",
           "type": "string"
+        },
+        {
+          "name": "recycle-only",
+          "usage": "fill only the targets the content memory answers exactly, in one pass, with no provider calls",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "server",
@@ -9708,6 +9779,8 @@
         "kapi up                # run the default flow; stop where a gate holds content back",
         "kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
+        "kapi up --recycle-only # fill exact content-memory matches only, with no provider",
+        "kapi up --pre-review   # then have the AI model score the translations awaiting review",
         "kapi up --materialize  # also write target-language files for the shippable locales",
         "kapi up --local        # connected project: run the loop on this machine, then push the results",
         "kapi up -p kapi.yaml   # bring an explicit project recipe up to date"

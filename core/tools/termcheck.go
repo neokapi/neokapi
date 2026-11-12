@@ -38,9 +38,9 @@ type TermCheckConfig struct {
 	// SourceLocale is the language the source is written in. An English source
 	// finds a term with its regular inflections; any other finds a term as a
 	// whole word under its text and declared forms.
-	SourceLocale  model.LocaleID `json:"sourceLocale,omitempty"  schema:"-"`
-	TargetLocale  model.LocaleID `json:"targetLocale,omitempty"  schema:"-"`
-	CaseSensitive bool           `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
+	SourceLocale  model.LocaleID `json:"source_locale,omitempty"  schema:"-"`
+	TargetLocale  model.LocaleID `json:"target_locale,omitempty"  schema:"-"`
+	CaseSensitive bool           `json:"case_sensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
 }
 
 // casedFor reports whether a bilingual rule matches in its own casing: when

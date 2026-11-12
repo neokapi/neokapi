@@ -2,7 +2,7 @@ import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
   KeptRule,
-  MapSummary,
+  OverviewSummary,
   ReaderFile,
   RuleDecideResult,
   RulesDecideView,
@@ -1853,11 +1853,11 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── The project screens ────────────────────────────────────────────────
 
-  async getMapSummary(
+  async getOverviewSummary(
     workspaceSlug: string,
     projectId: string,
     stream?: string,
-  ): Promise<MapSummary> {
+  ): Promise<OverviewSummary> {
     return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/map/${this.ref(stream)}`);
   }
 

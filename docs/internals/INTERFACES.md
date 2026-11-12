@@ -967,7 +967,7 @@ func (c *AppConfig) Load() error
 // formats:
 //   html:
 //     encoding: UTF-8
-//     preserveWhitespace: false
+//     preserve_whitespace: false
 //   xliff:
 //     version: "2.0"
 //
@@ -977,7 +977,7 @@ func (c *AppConfig) Load() error
 //   ai-translation:
 //     provider: "anthropic"
 //     model: "claude-sonnet-4-20250514"
-//     apiKey: "${ANTHROPIC_API_KEY}"
+//     api_key: "${ANTHROPIC_API_KEY}"
 //
 // plugins:
 //   directory: "./plugins"

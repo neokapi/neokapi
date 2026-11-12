@@ -473,15 +473,15 @@ func TestConfigApplyMap(t *testing.T) {
 	assert.True(t, c.LegacyPluralForms)
 
 	require.NoError(t, c.ApplyMap(map[string]any{
-		"protectInterpolation": false,
-		"subfilterHtmlValues":  true,
-		"legacyPluralForms":    false,
+		"protect_interpolation": false,
+		"subfilter_html_values": true,
+		"legacy_plural_forms":   false,
 	}))
 	assert.False(t, c.ProtectInterpolation)
 	assert.True(t, c.SubfilterHTMLValues)
 	assert.False(t, c.LegacyPluralForms)
 
-	require.Error(t, c.ApplyMap(map[string]any{"protectInterpolation": "nope"}))
+	require.Error(t, c.ApplyMap(map[string]any{"protect_interpolation": "nope"}))
 	require.Error(t, c.ApplyMap(map[string]any{"unknownKey": true}))
 }
 
@@ -495,9 +495,9 @@ func TestSchema(t *testing.T) {
 	assert.Equal(t, "i18next", s.FormatMeta.ID)
 	assert.Empty(t, s.FormatMeta.Extensions)
 	assert.Empty(t, s.FormatMeta.MimeTypes)
-	assert.Contains(t, s.Properties, "protectInterpolation")
-	assert.Contains(t, s.Properties, "subfilterHtmlValues")
-	assert.Contains(t, s.Properties, "legacyPluralForms")
+	assert.Contains(t, s.Properties, "protect_interpolation")
+	assert.Contains(t, s.Properties, "subfilter_html_values")
+	assert.Contains(t, s.Properties, "legacy_plural_forms")
 }
 
 // TestMalformedJSON verifies that malformed JSON input surfaces a clean error

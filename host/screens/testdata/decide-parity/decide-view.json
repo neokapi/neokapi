@@ -17,7 +17,7 @@
           "blocks": 0,
           "files": 0,
           "consequence": "If you keep \"employ\": \"utilise\" becomes a finding in 1 block. Applies to docs.",
-          "noticed_by": {
+          "recorded_by": {
             "kind": "agent",
             "name": "codex",
             "session": "s-parity",
@@ -31,7 +31,7 @@
           "blocks": 0,
           "files": 0,
           "consequence": "If you keep \"use\": \"utilise\" becomes a finding in 1 block. Applies to docs.",
-          "noticed_by": {
+          "recorded_by": {
             "kind": "agent",
             "name": "codex",
             "session": "s-parity",
@@ -46,7 +46,7 @@
         "quote": "We utilise the widget."
       },
       "applies": "docs",
-      "noticed_by": {
+      "recorded_by": {
         "kind": "agent",
         "name": "codex",
         "session": "s-parity",
@@ -57,7 +57,7 @@
       "id": "0recs8gt14ph9003v6nd4jr1",
       "short": "0recs8gt14",
       "kind": "name",
-      "question": "Which one do your files use?",
+      "question": "Which spelling should the project use?",
       "sentence": "Write Sign in, not Sign In, Sign-in, Signin or SignIn.",
       "label": "Sign in",
       "avoided": 0,
@@ -100,7 +100,7 @@
         "quote": "Please Sign In first."
       },
       "applies": "docs",
-      "noticed_by": {
+      "recorded_by": {
         "kind": "agent",
         "name": "codex",
         "session": "s-parity",
@@ -123,7 +123,7 @@
         "path": "help/c.md"
       },
       "applies": "help",
-      "noticed_by": {
+      "recorded_by": {
         "kind": "person"
       }
     }

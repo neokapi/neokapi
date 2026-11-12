@@ -16,7 +16,7 @@
 #     track the Java field names where they differ from the spec key.
 #   - The bridge composite schema groups options under extraction /
 #     states / output sections; the spec uses the flat leaf names.
-#   - Inline-codes settings (useCodeFinder, codeFinderRules) live under
+#   - Inline-codes settings (use_code_finder, code_finder_rules) live under
 #     the bridge schema's $defs/inlineCodes block and are deliberately
 #     omitted here: the contract-audit walker does not follow $ref into
 #     $defs, so listing them would trigger a false drift report.
@@ -39,7 +39,7 @@ description: |
 
 config:
   # ── Extraction settings ───────────────────────────────────────────
-  - key: forceUniqueIds
+  - key: force_unique_ids
     type: boolean
     default: false
     description: |
@@ -48,7 +48,7 @@ config:
       exists for sources that emit overlapping ids by mistake.
     okapi_param: forceUniqueIds
 
-  - key: ignoreTagTypeMatch
+  - key: ignore_tag_type_match
     type: boolean
     default: false
     description: |
@@ -57,7 +57,7 @@ config:
     okapi_param: ignoreTagTypeMatch
 
   # ── States settings ───────────────────────────────────────────────
-  - key: discardInvalidTargets
+  - key: discard_invalid_targets
     type: boolean
     default: false
     description: |
@@ -67,7 +67,7 @@ config:
     okapi_param: discardInvalidTargets
 
   # ── Output settings ───────────────────────────────────────────────
-  - key: writeOriginalData
+  - key: write_original_data
     type: boolean
     default: true
     description: |

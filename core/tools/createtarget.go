@@ -46,7 +46,7 @@ func NewCreateTargetConfig(targetLocale model.LocaleID) *CreateTargetConfig {
 // NewCreateTargetFromConfig creates a create-target tool from a config map.
 // Without it the tool's target locale came from a zero-arg factory that left it
 // empty, so `create-target` from a flow wrote its container under the empty
-// locale, and `copySource` / `overwrite` were discarded (#1476).
+// locale, and `copy_source` / `overwrite` were discarded (#1476).
 func NewCreateTargetFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := NewCreateTargetConfig(model.LocaleID(targetLang))
 	if err := applyStepConfig("create-target", config, cfg, targetLang, setCreateTargetLocale); err != nil {

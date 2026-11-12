@@ -6,8 +6,10 @@ import type { CheckWarning, ConvergePlan, ConvergenceReport } from "../types/api
 const plan: ConvergePlan = {
   plan: {
     flow: "translate",
-    scopes: [{ locale: "fr", collection: "app", missingTarget: 1, memoryExact: 0, aiRemaining: 1 }],
-    totals: { missingTarget: 1, memoryExact: 0, aiRemaining: 1, tokenEstimate: 4 },
+    scopes: [
+      { locale: "fr", collection: "app", missing_target: 1, memory_exact: 0, ai_remaining: 1 },
+    ],
+    totals: { missing_target: 1, memory_exact: 0, ai_remaining: 1, token_estimate: 4 },
     note: "",
   },
   changedFiles: 0,

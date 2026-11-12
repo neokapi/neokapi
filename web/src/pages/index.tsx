@@ -5,7 +5,7 @@ import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
-import MapPreview from "../components/home/MapPreview";
+import OverviewPreview from "../components/home/OverviewPreview";
 import StructuredData from "../components/home/StructuredData";
 import AuthorsNote from "../components/home/AuthorsNote";
 
@@ -47,7 +47,7 @@ function HomepageHeader() {
           </p>
         </div>
         <div className={styles.heroAside}>
-          <MapPreview />
+          <OverviewPreview />
         </div>
       </div>
     </header>
@@ -79,7 +79,7 @@ const KapiCards: Card[] = [
     description: translate({
       id: "home.kapi.desktop.description",
       message:
-        "Open a folder. The Map shows your files, the rules in force and what an assistant noticed. Decide what becomes a rule, then open a file and fix a finding in place.",
+        "Open a folder. The Overview shows your files, the rules in force and what an assistant suggested. Decide what becomes a rule, then open a file and fix a finding in place.",
     }),
     link: "/kapi/desktop/overview",
     linkText: translate({ id: "home.kapi.desktop.link", message: "Kapi Desktop" }),

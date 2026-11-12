@@ -49,7 +49,7 @@ func TestUp_MemoryFillsReadAsStampedByCheckShip(t *testing.T) {
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
-	require.Contains(t, out, "content memory 2", "both blocks are filled from content memory")
+	require.Contains(t, out, "recycled 2", "both blocks are filled from content memory")
 
 	t.Chdir(root)
 	check := &App{}

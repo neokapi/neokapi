@@ -799,7 +799,7 @@ func TestRead_BlockQuoteEvents(t *testing.T) {
 func TestRead_NonTranslatableBlockQuotes(t *testing.T) {
 	input := "> Quoted text\n"
 	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
-		_ = c.ApplyMap(map[string]any{"translateBlockQuotes": false})
+		_ = c.ApplyMap(map[string]any{"translate_block_quotes": false})
 		c.SetExtractNonTranslatableContent(false)
 	})
 	blocks := testutil.FilterBlocks(parts)
@@ -807,14 +807,14 @@ func TestRead_NonTranslatableBlockQuotes(t *testing.T) {
 	assert.True(t, hasDataNamed(parts, "blockquote"), "blockquote should be opaque Data")
 }
 
-// With translateBlockQuotes off but ExtractNonTranslatableContent on (the
+// With translate_block_quotes off but ExtractNonTranslatableContent on (the
 // default), the blockquote body surfaces as non-translatable content blocks —
 // visible to ingestion, skipped by MT — instead of opaque Data, and still
 // round-trips byte-exact.
 func TestRead_NonTranslatableBlockQuotesAsContent(t *testing.T) {
 	input := "> Quoted text\n>\n> More quoted\n"
 	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
-		_ = c.ApplyMap(map[string]any{"translateBlockQuotes": false})
+		_ = c.ApplyMap(map[string]any{"translate_block_quotes": false})
 	})
 
 	var translatable, content []*model.Block
@@ -835,7 +835,7 @@ func TestRead_NonTranslatableBlockQuotesAsContent(t *testing.T) {
 	assert.False(t, hasDataNamed(parts, "blockquote"), "no opaque blockquote Data on the content path")
 
 	output := roundtripWithSkeletonConfig(t, input, func(c *markdown.Config) {
-		_ = c.ApplyMap(map[string]any{"translateBlockQuotes": false})
+		_ = c.ApplyMap(map[string]any{"translate_block_quotes": false})
 	})
 	assert.Equal(t, input, output, "round-trip stays byte-exact")
 }
@@ -1088,8 +1088,8 @@ func TestConfig_FormatName(t *testing.T) {
 func TestConfig_ApplyMap(t *testing.T) {
 	cfg := &markdown.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"translateCodeBlocks":  true,
-		"translateFrontMatter": true,
+		"translate_code_blocks":  true,
+		"translate_front_matter": true,
 	})
 	require.NoError(t, err)
 	assert.True(t, cfg.TranslateCodeBlocks)

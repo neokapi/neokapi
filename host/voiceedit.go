@@ -139,7 +139,15 @@ func (a *App) EditVoiceProfile(ctx context.Context, cmd Command, req VoiceEditRe
 	}
 	res.Changed, res.Name = true, updated.Name
 
-	op, err := a.recordVoiceEdit(ctx, recipePath, updated)
+	stored, err := store.GetProfile(ctx, prof.ID)
+	if err != nil {
+		return res, fmt.Errorf("read voice profile %s back: %w", prof.ID, err)
+	}
+	edit, err := voiceEditOf(prof, stored)
+	if err != nil {
+		return res, err
+	}
+	op, err := a.recordVoiceEdit(ctx, recipePath, edit)
 	if err != nil {
 		return res, err
 	}
@@ -207,12 +215,14 @@ func (a *App) mayWriteVoice(actor contextop.Actor) error {
 
 // recordVoiceEdit puts the edit on the project's context record, as the person
 // who made it.
-func (a *App) recordVoiceEdit(ctx context.Context, recipePath string, prof *coreprofile.VoiceProfile) (string, error) {
-	return a.recordVoiceWrite(ctx, recipePath, contextop.Actor{}, prof,
-		"edited whole", "edited with `kapi voice edit`")
+func (a *App) recordVoiceEdit(ctx context.Context, recipePath string, edit *contextop.VoiceEdit) (string, error) {
+	return a.recordVoiceWrite(ctx, recipePath, contextop.Actor{}, edit,
+		"edited", "edited with `kapi voice edit`")
 }
 
-// recordVoiceWrite puts a whole-profile write on the project's context record.
+// recordVoiceWrite puts a whole-profile write on the project's context record,
+// with what it changed (voiceEditOf), so a reader can see the fields and
+// dropping the operation can restore the profile as it stood.
 //
 // actor says who wrote it. An empty kind leaves the environment to answer, the
 // way a command line does; a surface a person drives states the person. what
@@ -221,7 +231,7 @@ func (a *App) recordVoiceWrite(
 	ctx context.Context,
 	recipePath string,
 	actor contextop.Actor,
-	prof *coreprofile.VoiceProfile,
+	edit *contextop.VoiceEdit,
 	what, how string,
 ) (string, error) {
 	s, err := a.contextOps(ctx, recipePath)
@@ -232,14 +242,19 @@ func (a *App) recordVoiceWrite(
 	if err != nil {
 		return "", err
 	}
+	text := "voice profile " + edit.Profile + " " + what
+	if phrase := voiceEditPhrase(edit); phrase != "" {
+		text += ": " + phrase
+	}
 	record, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
 		Actor: actor,
 		Kind:  contextop.KindEdit,
 		Subject: contextop.Subject{
 			Kind: contextop.SubjectNote,
-			Text: "voice profile " + prof.ID + " " + what,
+			Text: text,
 		},
-		Note: note,
+		Note:  note,
+		Voice: edit,
 	}, nil))
 	if err != nil {
 		return "", teachRefusal(err)

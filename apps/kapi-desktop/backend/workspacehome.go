@@ -24,7 +24,7 @@ import (
 // list here is every project this machine account works on, and a repository
 // set up from a terminal a minute ago is on it without anyone telling the app.
 //
-// The workspace is also how the app learns that something changed while it was
+// The workspace is also how the app finds out that something changed while it was
 // open. Every registration appends to the workspace's operation log, and the
 // log's head is one number this process reads on a timer (workspaceWatcher).
 // There is no channel to another kapi process and no service in the middle.
@@ -338,14 +338,10 @@ func (a *App) ForgetWorkspaceProject(key string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), workspaceHomeTimeout)
 	defer cancel()
 
-	ws, err := a.hostEngine().Workspace(ctx)
-	if err != nil {
-		return err
-	}
 	// A tab on this project is holding its store open, and the store cannot be
 	// deleted under it.
 	a.closeTabsForProject(workspace.ProjectKey(key))
-	if err := ws.Forget(ctx, workspace.ProjectKey(key)); err != nil {
+	if err := a.hostEngine().ForgetProject(ctx, workspace.ProjectKey(key)); err != nil {
 		return err
 	}
 	a.emitEvent("workspace:changed", nil)

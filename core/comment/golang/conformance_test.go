@@ -33,7 +33,7 @@ const (
 // that accounts for every comment exactly once.
 //
 // The subtests named "must fail" corrupt a result on purpose and assert that
-// the check notices. A check that cannot fail proves nothing, so these are part
+// the check catches it. A check that cannot fail proves nothing, so these are part
 // of the rung rather than beside it. Nothing in here skips.
 func TestProseP1_go(t *testing.T) {
 	t.Run("spans are the parser's own positions", func(t *testing.T) {

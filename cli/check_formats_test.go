@@ -11,7 +11,7 @@ import (
 
 // writeFormatBoundProject creates a project whose recipe declares BOTH halves of
 // a format binding the gate has to honour: a per-format reader config
-// (defaults.formats.yaml.config.keyPathPatterns, which selects the only keys
+// (defaults.formats.yaml.config.key_path_patterns, which selects the only keys
 // that hold prose) and a per-item format override (.md read as mdx). It binds a
 // voice profile with one prohibited pattern so a block that should never have
 // been read announces itself as a finding.
@@ -29,7 +29,7 @@ defaults:
   formats:
     yaml:
       config:
-        keyPathPatterns:
+        key_path_patterns:
           - title
 collections:
   - name: demos

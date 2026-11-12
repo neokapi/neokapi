@@ -161,29 +161,29 @@ type Event struct {
 	// Pass-scoped fields (pass_start, pass_done; Pass also stamps every
 	// locale-scoped event so consumers need no ambient state).
 	Pass      int      `json:"pass,omitempty"`
-	MaxPasses int      `json:"maxPasses,omitempty"`
+	MaxPasses int      `json:"max_passes,omitempty"`
 	Pending   []string `json:"pending,omitempty"`
 
 	// Pre-pass auto-extract on drift (pass_start).
-	ExtractedFiles  int `json:"extractedFiles,omitempty"`
-	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
+	ExtractedFiles  int `json:"extracted_files,omitempty"`
+	ExtractedBlocks int `json:"extracted_blocks,omitempty"`
 
 	// Locale-scoped fields (locale_start, unit_progress, locale_done).
 	Locale    string `json:"locale,omitempty"`
 	Units     int    `json:"units,omitempty"`
 	Done      int    `json:"done,omitempty"`
-	ViaMemory int    `json:"viaTM,omitempty"`
-	ViaAI     int    `json:"viaAI,omitempty"`
+	ViaMemory int    `json:"via_memory,omitempty"`
+	ViaAI     int    `json:"via_ai,omitempty"`
 	// ViaDraft is how many of Done the pass served from the block store's
 	// `targets/<locale>` overlays rather than producing: work an earlier run
 	// paid for, reused because the source and the governing context still
 	// stand. It is a subset of the produced units, disjoint from ViaAI.
-	ViaDraft int `json:"viaDrafts,omitempty"`
+	ViaDraft int `json:"via_drafts,omitempty"`
 
 	// Post-derivation fields (pass_done).
 	Produced      int `json:"produced,omitempty"`
-	ProducedDelta int `json:"producedDelta,omitempty"`
-	FailingChecks int `json:"failingChecks,omitempty"`
+	ProducedDelta int `json:"produced_delta,omitempty"`
+	FailingChecks int `json:"failing_checks,omitempty"`
 
 	// Source-first fields (settle_source stage / pass_done / done). SettledSource
 	// is how many source blocks the settlement phase stamped this pass;
@@ -192,8 +192,8 @@ type Event struct {
 	// signal that a run held on source (source_not_ready). Both are omitted when
 	// zero, so a project at `translate_after: none` (or with a fully-settled source) carries
 	// neither (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
-	SettledSource   int `json:"settledSource,omitempty"`
-	BlockedOnSource int `json:"blockedOnSource,omitempty"`
+	SettledSource   int `json:"settled_source,omitempty"`
+	BlockedOnSource int `json:"blocked_on_source,omitempty"`
 
 	// State on done is the run outcome (converged|parked|failed|canceled) and
 	// is always set. On locale_done State is OPTIONAL: a per-locale
@@ -208,7 +208,7 @@ type Event struct {
 	// vocabulary; hosts may add their own). Empty on a converged run (or when no
 	// reason is recorded), so an actionable stall is distinguishable from a
 	// clean finish (theme C).
-	StallReason StallReason `json:"stallReason,omitempty"`
+	StallReason StallReason `json:"stall_reason,omitempty"`
 
 	// Materialized file count (materialized).
 	Files int `json:"files,omitempty"`

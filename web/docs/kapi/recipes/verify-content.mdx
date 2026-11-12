@@ -19,7 +19,7 @@ import { PendingMedia, ThemedImage } from "@neokapi/docs-shared";
 
 Open your project. It opens on its **Overview**, whose **findings** count reports what the checks found.
 
-1. **Run the checkset.** **Run on everything** on the Map runs the project's bound rules (hygiene, length, patterns, the word rules held as terms, and the voice's patterns when a profile is bound) over the tracked content.
+1. **Run the checkset.** **Run on everything** on the Overview runs the project's bound rules (hygiene, length, patterns, the word rules held as terms, and the voice's patterns when a profile is bound) over the tracked content.
 2. **Read the findings.** Click the **findings** count. Each finding names its rule, whether it fails or only reports, and the exact block; click through to see the flagged text in context.
 3. **Fix and re-run.** Edit the source and re-run; the fixed findings clear. The panel shows the same gate result as the CLI.
 
@@ -340,7 +340,7 @@ collections:
             language: ruby
             # The calls whose arguments hold sentences. Everything else in a
             # cask is a path, a version or an identifier.
-            nodePathPatterns: [desc, caveats]
+            node_path_patterns: [desc, caveats]
 ```
 
 `source_only: true` says the collection has no target language. `kapi up` leaves

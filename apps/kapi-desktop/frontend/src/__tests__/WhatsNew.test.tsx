@@ -95,7 +95,7 @@ describe("what is new across the workspace", () => {
     expect(rows).toEqual([ACME.project, KAPIMART.project, HANDBOOK.project]);
   });
 
-  it("marks each row with whoever noticed something most recently", () => {
+  it("marks each row with whoever suggested something most recently", () => {
     render(<WhatsNew standings={SEVERAL} onOpen={vi.fn()} />);
     expect(all("whats-new-actor").map((m) => m.getAttribute("data-actor"))).toEqual([
       "claude-code",
@@ -105,7 +105,7 @@ describe("what is new across the workspace", () => {
     expect(screen.getByRole("img", { name: "Claude Code" })).toBeInTheDocument();
   });
 
-  it("puts a chip on each row for each kind of thing noticed, in the digest's order", () => {
+  it("puts a chip on each row for each kind of suggestion, in the digest's order", () => {
     render(<WhatsNew standings={SEVERAL} onOpen={vi.fn()} />);
     expect(all("whats-new-row").map(chipsOf)).toEqual([
       [
@@ -237,7 +237,7 @@ describe("what is new across the workspace", () => {
   it("says in one line that nothing is recorded when no project holds anything", () => {
     render(<WhatsNew standings={NOTHING} onOpen={vi.fn()} />);
     expect(all("whats-new-empty").map((p) => p.textContent)).toEqual([
-      "Nothing is recorded yet. What an assistant notices in a project appears here.",
+      "Nothing is recorded yet. Suggestions from your assistants appear here.",
     ]);
   });
 
@@ -248,7 +248,7 @@ describe("what is new across the workspace", () => {
 });
 
 describe("the chips a project's row carries", () => {
-  it("counts each kind the latest session noticed, with the plural forms", () => {
+  it("counts each kind the latest session suggested, with the plural forms", () => {
     const chips = newsChips({
       ...ACME,
       latest: { ...ACME.latest!, new_by_theme: { memory: 2, names: 1 } },

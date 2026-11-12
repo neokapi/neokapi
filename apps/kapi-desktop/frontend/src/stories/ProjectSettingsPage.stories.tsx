@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ProjectSettingsPage } from "../components/ProjectSettingsPage";
+import { WithKnownLocales } from "./fixtures/knownLocales";
 
 const installedPlugins = [
   {
@@ -26,6 +27,7 @@ const meta: Meta<typeof ProjectSettingsPage> = {
   title: "Pages/ProjectSettingsPage",
   component: ProjectSettingsPage,
   tags: ["autodocs"],
+  decorators: [WithKnownLocales],
   args: {
     onUpdate: fn(),
     installedPlugins,

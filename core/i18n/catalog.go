@@ -12,7 +12,7 @@ import (
 // "formats.okf_html.displayName"). Using the full path means homonym
 // source text ("Description") across tools/formats/plugins resolves
 // unambiguously. The dot separator matches what the JSON filter emits
-// by default (useKeyAsName=true, useFullKeyPath=false).
+// by default (use_key_as_name=true, use_full_key_path=false).
 type Scope string
 
 // Translator resolves (scope, source) pairs to locale-specific strings.

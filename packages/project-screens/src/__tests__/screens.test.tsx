@@ -2,7 +2,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
-import { DecideScreen, KeptRulesScreen, MapScreen, ReaderScreen } from "../screens";
+import { DecideScreen, KeptRulesScreen, OverviewScreen, ReaderScreen } from "../screens";
 import { GROUP_ABOVE } from "../KeptRulesView";
 import type { ProjectScreensPort } from "../port";
 import {
@@ -17,7 +17,7 @@ import {
 /** A port with the three reads and no action: a read-only preview. */
 function readOnly(over: Partial<ProjectScreensPort> = {}): ProjectScreensPort {
   return {
-    mapSummary: async () => MAP_PENDING,
+    overviewSummary: async () => MAP_PENDING,
     readerFile: async () => READER_WITH_FIXES,
     decideView: async () => DECIDE_VIEW,
     ...over,
@@ -25,8 +25,8 @@ function readOnly(over: Partial<ProjectScreensPort> = {}): ProjectScreensPort {
 }
 
 describe("the screens over a read-only port", () => {
-  it("draw the Map with no check action", async () => {
-    render(<MapScreen port={readOnly()} projectName="Fernwell" navigate={vi.fn()} />);
+  it("draw the Overview with no check action", async () => {
+    render(<OverviewScreen port={readOnly()} projectName="Fernwell" navigate={vi.fn()} />);
     expect(await screen.findByRole("heading", { name: "Fernwell" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Run on everything" })).toBeNull();
   });
@@ -45,9 +45,9 @@ describe("the screens over a read-only port", () => {
     expect(screen.queryByRole("button", { name: /^Later/ })).toBeNull();
   });
 
-  it("hide the Map's Open when the host opens no Reader and previews nothing", async () => {
+  it("hide the Overview's Open when the host opens no Reader and previews nothing", async () => {
     render(
-      <MapScreen
+      <OverviewScreen
         port={readOnly()}
         projectName="Fernwell"
         navigate={vi.fn()}
@@ -60,19 +60,19 @@ describe("the screens over a read-only port", () => {
 });
 
 describe("the screens over a port that acts", () => {
-  it("run the checks and read the Map again", async () => {
-    const mapSummary = vi.fn(async () => MAP_PENDING);
+  it("run the checks and read the Overview again", async () => {
+    const overviewSummary = vi.fn(async () => MAP_PENDING);
     const runChecks = vi.fn(async () => {});
     render(
-      <MapScreen
-        port={readOnly({ mapSummary, runChecks })}
+      <OverviewScreen
+        port={readOnly({ overviewSummary, runChecks })}
         projectName="Fernwell"
         navigate={vi.fn()}
       />,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Run on everything" }));
     expect(runChecks).toHaveBeenCalled();
-    await waitFor(() => expect(mapSummary).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(overviewSummary).toHaveBeenCalledTimes(2));
   });
 
   it("apply a fix and draw the file the port answers with", async () => {
@@ -100,7 +100,7 @@ describe("the screens over a port that acts", () => {
   });
 
   it("read again when the port reports a change", async () => {
-    let changed: ((what: "map" | "reader" | "decide") => void) | undefined;
+    let changed: ((what: "overview" | "reader" | "decide") => void) | undefined;
     const decideView = vi.fn(async () => DECIDE_VIEW);
     render(
       <DecideScreen
@@ -116,7 +116,7 @@ describe("the screens over a port that acts", () => {
       />,
     );
     await screen.findByRole("listbox", { name: "Suggestions to decide" });
-    act(() => changed?.("map"));
+    act(() => changed?.("overview"));
     act(() => changed?.("decide"));
     await waitFor(() => expect(decideView).toHaveBeenCalledTimes(2));
   });

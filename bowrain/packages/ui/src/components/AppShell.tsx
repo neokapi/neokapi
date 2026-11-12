@@ -203,10 +203,7 @@ export function AppShell<V extends string = string>({
               />
             )}
             <div
-              className={cn(
-                "flex-1 flex flex-col min-h-0 min-w-0 overflow-auto p-4",
-                contentClassName,
-              )}
+              className={cn("flex-1 flex flex-col min-h-0 min-w-0 overflow-auto", contentClassName)}
             >
               {children}
             </div>

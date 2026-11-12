@@ -39,7 +39,7 @@ func previewFixture(t *testing.T, name string) []byte {
 func previewServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	routes := map[string][]byte{
-		"/api/v1/acme/p1/map/main":          previewFixture(t, "map-summary.json"),
+		"/api/v1/acme/p1/map/main":          previewFixture(t, "overview-summary.json"),
 		"/api/v1/acme/p1/reader/main":       previewFixture(t, "reader-file.json"),
 		"/api/v1/acme/p1/rules/main/decide": previewFixture(t, "rules-decide-view.json"),
 		"/api/v1/acme/p1/rules/main/kept":   previewFixture(t, "kept-rules.json"),
@@ -98,12 +98,12 @@ func TestBowrainPreviewReadsEachPart(t *testing.T) {
 	signIn(t, srv.URL, "tok")
 	a := previewApp(t, srv.URL+"/acme/p1")
 
-	got, err := a.BowrainPreview("t", PreviewMap, "")
+	got, err := a.BowrainPreview("t", PreviewOverview, "")
 	require.NoError(t, err)
 	require.Nil(t, got.Refusal)
-	require.NotNil(t, got.Map)
-	assert.Equal(t, "acme/docs", got.Map.ProjectKey)
-	assert.Equal(t, 3, got.Map.Files)
+	require.NotNil(t, got.Overview)
+	assert.Equal(t, "acme/docs", got.Overview.ProjectKey)
+	assert.Equal(t, 3, got.Overview.Files)
 
 	got, err = a.BowrainPreview("t", PreviewReader, "docs/billing.md")
 	require.NoError(t, err)
@@ -129,14 +129,14 @@ func TestBowrainPreviewRefusals(t *testing.T) {
 
 	t.Run("the server does not take the sign-in", func(t *testing.T) {
 		signIn(t, srv.URL, "expired")
-		got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewMap, "")
+		got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewOverview, "")
 		require.NoError(t, err)
 		assert.Equal(t, &PreviewRefusal{Status: 401, Message: "invalid token", Action: PreviewActionSignIn}, got.Refusal)
-		assert.Nil(t, got.Map)
+		assert.Nil(t, got.Overview)
 	})
 	t.Run("no permission on the project", func(t *testing.T) {
 		signIn(t, srv.URL, "tok")
-		got, err := previewApp(t, srv.URL+"/acme/locked").BowrainPreview("t", PreviewMap, "")
+		got, err := previewApp(t, srv.URL+"/acme/locked").BowrainPreview("t", PreviewOverview, "")
 		require.NoError(t, err)
 		assert.Equal(t, &PreviewRefusal{Status: 403, Message: "insufficient project permissions", Action: PreviewActionOpen}, got.Refusal)
 	})
@@ -150,13 +150,13 @@ func TestBowrainPreviewRefusals(t *testing.T) {
 		keyring.MockInit()
 		t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 		t.Setenv("BOWRAIN_AUTH_TOKEN", "")
-		got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewMap, "")
+		got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewOverview, "")
 		require.NoError(t, err)
 		assert.Equal(t, &PreviewRefusal{Action: PreviewActionSignIn}, got.Refusal)
 	})
 	t.Run("the sign-in names another server, which is sent nothing", func(t *testing.T) {
 		signIn(t, "https://other.example.com", "tok")
-		got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewMap, "")
+		got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewOverview, "")
 		require.NoError(t, err)
 		assert.Equal(t, &PreviewRefusal{Action: PreviewActionSignIn}, got.Refusal)
 	})
@@ -170,14 +170,14 @@ func TestBowrainPreviewRefusesWhatItCannotRead(t *testing.T) {
 	require.Error(t, err)
 	_, err = a.BowrainPreview("t", PreviewReader, "")
 	require.Error(t, err, "the reader part names a file")
-	_, err = a.BowrainPreview("missing", PreviewMap, "")
+	_, err = a.BowrainPreview("missing", PreviewOverview, "")
 	require.Error(t, err)
 
-	_, err = previewApp(t, "http://bowrain.example.com/acme/p1").BowrainPreview("t", PreviewMap, "")
+	_, err = previewApp(t, "http://bowrain.example.com/acme/p1").BowrainPreview("t", PreviewOverview, "")
 	require.ErrorContains(t, err, "unencrypted")
-	_, err = previewApp(t, "https://bowrain.example.com/projects/p1").BowrainPreview("t", PreviewMap, "")
+	_, err = previewApp(t, "https://bowrain.example.com/projects/p1").BowrainPreview("t", PreviewOverview, "")
 	require.ErrorContains(t, err, "no project in a workspace")
-	_, err = venueApp(&project.KapiProject{}).BowrainPreview("t", PreviewMap, "")
+	_, err = venueApp(&project.KapiProject{}).BowrainPreview("t", PreviewOverview, "")
 	require.ErrorContains(t, err, "no Bowrain server")
 }
 
@@ -213,7 +213,7 @@ func newRotatingServer(t *testing.T, stale int) *rotatingServer {
 	t.Helper()
 	rs := &rotatingServer{access: "access-1", refresh: "refresh-1", used: map[string]bool{}, stale: stale, gate: make(chan struct{})}
 	kept := previewFixture(t, "kept-rules.json")
-	mapJSON := previewFixture(t, "map-summary.json")
+	overviewJSON := previewFixture(t, "overview-summary.json")
 	rs.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v1/auth/refresh" {
@@ -237,7 +237,7 @@ func newRotatingServer(t *testing.T, stale int) *rotatingServer {
 		}
 		switch r.URL.Path {
 		case "/api/v1/acme/p1/map/main":
-			_, _ = w.Write(mapJSON)
+			_, _ = w.Write(overviewJSON)
 		case "/api/v1/acme/p1/rules/main/kept":
 			_, _ = w.Write(kept)
 		default:
@@ -291,7 +291,7 @@ func TestBowrainPreviewRefreshesOnceForReadsAtOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	answers := make([]*BowrainPreviewAnswer, 2)
 	errs := make([]error, 2)
-	for i, part := range []string{PreviewMap, PreviewKept} {
+	for i, part := range []string{PreviewOverview, PreviewKept} {
 		wg.Go(func() { answers[i], errs[i] = a.BowrainPreview("t", part, "") })
 	}
 	wg.Wait()
@@ -300,7 +300,7 @@ func TestBowrainPreviewRefreshesOnceForReadsAtOnce(t *testing.T) {
 		require.NoError(t, errs[i])
 		assert.Nil(t, answers[i].Refusal)
 	}
-	assert.NotNil(t, answers[0].Map)
+	assert.NotNil(t, answers[0].Overview)
 	assert.Len(t, answers[1].Kept, 3)
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
@@ -319,15 +319,15 @@ func TestBowrainPreviewRefreshRefusedAsksForSignIn(t *testing.T) {
 	signInWithRefresh(t, rs.URL, "refresh-unknown")
 	a := previewApp(t, rs.URL+"/acme/p1")
 
-	got, err := a.BowrainPreview("t", PreviewMap, "")
+	got, err := a.BowrainPreview("t", PreviewOverview, "")
 	require.NoError(t, err)
 	assert.Equal(t, &PreviewRefusal{Status: http.StatusUnauthorized, Action: PreviewActionSignIn}, got.Refusal)
 
 	require.NoError(t, config.SaveAuth(config.StoredAuth{ServerURL: rs.URL, AccessToken: "access-1"}))
-	got, err = a.BowrainPreview("t", PreviewMap, "")
+	got, err = a.BowrainPreview("t", PreviewOverview, "")
 	require.NoError(t, err)
 	assert.Nil(t, got.Refusal)
-	assert.NotNil(t, got.Map)
+	assert.NotNil(t, got.Overview)
 }
 
 // The token goes only to the server the sign-in it is read with names.
@@ -338,7 +338,7 @@ func TestBowrainPreviewChecksTheServerOfTheTokenItSends(t *testing.T) {
 	// BOWRAIN_AUTH_TOKEN with no server names none, which matches no recipe.
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
 	t.Setenv("BOWRAIN_SERVER_URL", "")
-	got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewMap, "")
+	got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewOverview, "")
 	require.NoError(t, err)
 	assert.Equal(t, &PreviewRefusal{Action: PreviewActionSignIn}, got.Refusal)
 }
@@ -369,7 +369,7 @@ func TestBowrainPreviewRefreshesFromTheKeychainAfterAnotherProcessRefreshed(t *t
 	require.NoError(t, config.SaveAuth(config.StoredAuth{ServerURL: rs.URL, AccessToken: "access-1", RefreshToken: "refresh-1"}))
 	a := previewApp(t, rs.URL+"/acme/p1")
 
-	got, err := a.BowrainPreview("t", PreviewMap, "")
+	got, err := a.BowrainPreview("t", PreviewOverview, "")
 	require.NoError(t, err)
 	require.Nil(t, got.Refusal, "the first read caches access-1 and refresh-1")
 
@@ -404,13 +404,13 @@ func TestBowrainPreviewStopsAfterSignOut(t *testing.T) {
 	signIn(t, srv.URL, "tok")
 	a := previewApp(t, srv.URL+"/acme/p1")
 
-	got, err := a.BowrainPreview("t", PreviewMap, "")
+	got, err := a.BowrainPreview("t", PreviewOverview, "")
 	require.NoError(t, err)
 	require.Nil(t, got.Refusal)
 
 	require.NoError(t, config.DeleteAuth(srv.URL))
-	got, err = a.BowrainPreview("t", PreviewMap, "")
+	got, err = a.BowrainPreview("t", PreviewOverview, "")
 	require.NoError(t, err)
 	assert.Equal(t, &PreviewRefusal{Action: PreviewActionSignIn}, got.Refusal)
-	assert.Nil(t, got.Map)
+	assert.Nil(t, got.Overview)
 }

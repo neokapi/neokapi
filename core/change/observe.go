@@ -8,7 +8,7 @@ import (
 )
 
 // An edit made outside kapi (a person's editor saving a file, a git checkout)
-// records nothing when it happens. kapi learns of it on the next read: the
+// records nothing when it happens. kapi finds it on the next read: the
 // revision an edition holds ends no chain of recorded changes, because the
 // last recorded change to it left another revision. A read hands every block
 // it shows to the service's Observer, which compares each edition with its

@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   ErrorNotice,
+  PageContainer,
   PageHeader,
   SectionHeading,
   SimpleTooltip,
@@ -36,13 +37,11 @@ interface AppHomeProps {
   standings?: ContextProjectStanding[] | null;
   /** Pre-loaded workspace rules for Storybook and tests, which reach no backend. */
   workspaceRules?: WorkspaceRule[];
-  /** The Start here steps were dismissed. */
+  /** The Get started card was hidden. */
   startHereDismissed: boolean;
   onDismissStartHere: () => void;
-  /** A project tab is open, so Start here can connect an assistant to it. */
+  /** A project tab is open, so Get started can tour it. */
   hasOpenProject: boolean;
-  /** Open the most recent project tab on its Assistant section. */
-  onConnectAssistant: () => void;
   /** Open a project on its What's new, by workspace key. */
   onOpenWhatsNew: (key: string) => void;
   /** Open a project from one of its checkouts, by recipe path. */
@@ -54,7 +53,7 @@ interface AppHomeProps {
   onNewProject: () => void;
   onOpenProject: () => void;
   onNavigate: (view: string) => void;
-  onCreateSampleProject: (name: string) => void;
+  onCreateSampleProject: (name: string) => void | Promise<void>;
   /** Pre-loaded AI detection for Storybook/tests — forwarded to ConnectAICard. */
   aiDetection?: AIDetectionResult;
   /** Pre-loaded .kpz document conflicts for Storybook and tests. */
@@ -64,7 +63,7 @@ interface AppHomeProps {
 /**
  * The app's first screen, in the overview shape (packages/ui/docs/page-patterns.md):
  * the context this machine account's projects write by, and what the
- * assistants working in them noticed. A header, a row of labelled counts, then
+ * assistants working in them suggested. A header, a row of labelled counts, then
  * two lists of rows, each row leading to a project.
  *
  * Every project kapi has run in is listed, whichever surface ran it. A
@@ -79,7 +78,6 @@ export function AppHome({
   startHereDismissed,
   onDismissStartHere,
   hasOpenProject,
-  onConnectAssistant,
   onOpenWhatsNew,
   onOpenCheckout,
   onOpenContext,
@@ -95,7 +93,7 @@ export function AppHome({
   const projects = workspace?.projects ?? [];
   const derived = useMemo(() => standingsOf(workspace), [workspace]);
   const standings = given ?? derived;
-  // On a first visit nothing is registered, so the three steps come first and
+  // On a first visit nothing is registered, so Get started comes first and
   // the counts and the sections that would only say "nothing yet" wait until
   // there is a project to fill them.
   const empty = !workspaceError && !!workspace && projects.length === 0;
@@ -103,15 +101,15 @@ export function AppHome({
     <StartHere
       onDismiss={onDismissStartHere}
       onCreateSampleProject={onCreateSampleProject}
-      onConnectAssistant={onConnectAssistant}
       hasOpenProject={hasOpenProject}
     />
   );
 
   return (
-    <div data-slot="app-home" className="mx-auto max-w-4xl space-y-8 p-6">
+    <PageContainer width="wide" data-slot="app-home" className="space-y-8">
       <div>
         <PageHeader
+          help="your-context"
           className="mb-4"
           title="Your context"
           actions={
@@ -159,53 +157,57 @@ export function AppHome({
 
       {!empty && <WhatsNew standings={standings} onOpen={onOpenWhatsNew} />}
 
-      {/* The workspace: every project kapi has run in, from any surface. */}
-      <section data-slot="home-projects" aria-labelledby="home-projects-heading">
-        <div className="mb-1 flex items-center justify-between gap-3">
-          <div id="home-projects-heading">
-            <SectionHeading>Projects</SectionHeading>
+      {/* The projects and the rules that hold in all of them sit side by
+          side from xl up; either fills the row when it stands alone. */}
+      <div className="flex flex-col gap-8 xl:flex-row xl:items-start [&>*]:min-w-0 [&>*]:flex-1">
+        {/* The workspace: every project kapi has run in, from any surface. */}
+        <section data-slot="home-projects" aria-labelledby="home-projects-heading">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <div id="home-projects-heading">
+              <SectionHeading>Projects</SectionHeading>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={onNewProject}>
+                <Plus size={14} />
+                New project
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onOpenProject}>
+                <FolderOpen size={14} />
+                Open a folder
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={onNewProject}>
-              <Plus size={14} />
-              New project
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onOpenProject}>
-              <FolderOpen size={14} />
-              Open a folder
-            </Button>
-          </div>
-        </div>
 
-        {workspaceError ? (
-          <ErrorNotice error={workspaceError} title="Your workspace could not be read" />
-        ) : projects.length > 0 ? (
-          <div className="divide-y divide-border/50">
-            {projects.map((project) => (
-              <WorkspaceProjectRow
-                key={project.key}
-                project={project}
-                onOpenCheckout={onOpenCheckout}
-                onOpenContext={onOpenContext}
-                onRemove={setRemoving}
-              />
-            ))}
-          </div>
-        ) : (
-          workspace && (
-            <p className="text-sm text-muted-foreground">
-              Nothing here yet. Projects appear as soon as kapi runs in them, whether you open one
-              here or run{" "}
-              <code className="font-mono text-xs" translate="no">
-                kapi
-              </code>{" "}
-              in a folder.
-            </p>
-          )
-        )}
-      </section>
+          {workspaceError ? (
+            <ErrorNotice error={workspaceError} title="Your workspace could not be read" />
+          ) : projects.length > 0 ? (
+            <div className="divide-y divide-border/50">
+              {projects.map((project) => (
+                <WorkspaceProjectRow
+                  key={project.key}
+                  project={project}
+                  onOpenCheckout={onOpenCheckout}
+                  onOpenContext={onOpenContext}
+                  onRemove={setRemoving}
+                />
+              ))}
+            </div>
+          ) : (
+            workspace && (
+              <p className="text-sm text-muted-foreground">
+                Nothing here yet. Projects appear as soon as kapi runs in them, whether you open one
+                here or run{" "}
+                <code className="font-mono text-xs" translate="no">
+                  kapi
+                </code>{" "}
+                in a folder.
+              </p>
+            )
+          )}
+        </section>
 
-      {!empty && <WorkspaceRules rules={workspaceRules} />}
+        {!empty && <WorkspaceRules rules={workspaceRules} />}
+      </div>
 
       {!empty && startHere}
 
@@ -220,7 +222,7 @@ export function AppHome({
       <div className="empty:hidden">
         <ConnectAICard detection={aiDetection} />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

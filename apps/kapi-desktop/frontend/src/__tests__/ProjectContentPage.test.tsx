@@ -159,7 +159,7 @@ describe("Project Settings → Content", () => {
           pct: { translated: 100, established: 100 },
           gated: true,
           shippable: true,
-          shipState: "established",
+          ship_state: "established",
         },
         {
           collection: "ui-strings",

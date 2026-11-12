@@ -47,8 +47,9 @@ Outside a project and with no flag: same as --local (uses ./memory.db).`,
 	auditCmd := newMemoryAuditCmd(a)
 	listCmd := newMemoryListCmd(a)
 	sessionsCmd := newMemorySessionsCmd(a, memoryCmd)
+	annotateCmd := newMemoryAnnotateCmd(a)
 
-	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, annotateCmd} {
 		AddResourceFlags(cmd)
 	}
 	// The project's content memory is a subsystem of `.kapi/work/store.db`
@@ -58,11 +59,11 @@ Outside a project and with no flag: same as --local (uses ./memory.db).`,
 	// upward walk is off and an explicit -p is the only way in.
 	// import-dir is left out: its -p is already --pattern, and pflag panics at
 	// init on a redefined shorthand rather than failing a test.
-	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, annotateCmd} {
 		AddProjectFlag(cmd)
 	}
 
-	memoryCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, listCmd, sessionsCmd)
+	memoryCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, annotateCmd, listCmd, sessionsCmd)
 	return memoryCmd
 }
 

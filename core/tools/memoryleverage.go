@@ -33,19 +33,19 @@ const (
 
 // MemoryLeverageConfig holds configuration for the content-memory leverage tool.
 type MemoryLeverageConfig struct {
-	TargetLocale model.LocaleID      `json:"targetLocale,omitempty"   schema:"-"`
-	SourceLocale model.LocaleID      `json:"sourceLocale,omitempty"   schema:"-"`
+	TargetLocale model.LocaleID      `json:"target_locale,omitempty"   schema:"-"`
+	SourceLocale model.LocaleID      `json:"source_locale,omitempty"   schema:"-"`
 	Memory       corememory.Provider `json:"-"                   schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match; the fuzzy path below 100 is retiring,default=70,min=0,max=100"`
-	FillTarget                    bool   `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
-	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=95,min=0,max=100"`
-	FillIfTargetIsEmpty           bool   `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
-	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
-	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
-	TMXPath                       string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
-	DowngradeIdenticalBestMatches bool   `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
+	FuzzyThreshold                int    `json:"fuzzy_threshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match; the fuzzy path below 100 is retiring,default=70,min=0,max=100"`
+	FillTarget                    bool   `json:"fill_target,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
+	FillTargetThreshold           int    `json:"fill_target_threshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=95,min=0,max=100"`
+	FillIfTargetIsEmpty           bool   `json:"fill_if_target_is_empty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
+	NoQueryThreshold              int    `json:"no_query_threshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
+	MakeTMX                       bool   `json:"make_tmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
+	TMXPath                       string `json:"tmx_path,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
+	DowngradeIdenticalBestMatches bool   `json:"downgrade_identical_best_matches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
 
 	// Point is where this run's content sits in the project's context space,
 	// injected by the flow's bindings. It is a location, not governance: it
@@ -358,7 +358,7 @@ func fillBreaksTermRules(conf *MemoryLeverageConfig, v tool.VariantView, candida
 //     codes and placeholders survive as model objects;
 //   - an Ambiguous match (several full-score exacts with differing
 //     targets) is recorded as an alt-translation candidate but never
-//     filled, regardless of fillTargetThreshold — unattended leverage must
+//     filled, regardless of fill_target_threshold — unattended leverage must
 //     not turn an arbitrary pick into published content. The text path is
 //     skipped too: it would resolve the same tie by arbitrary pick.
 //

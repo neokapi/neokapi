@@ -52,8 +52,8 @@ type ProjectInfoOutput struct {
 	Project string `json:"project"`
 	Recipe  string `json:"recipe"`
 	// SourceLang / TargetLangs come from the recipe.
-	SourceLang  string   `json:"sourceLang,omitempty"`
-	TargetLangs []string `json:"targetLangs,omitempty"`
+	SourceLang  string   `json:"source_lang,omitempty"`
+	TargetLangs []string `json:"target_langs,omitempty"`
 	// Content is the number of files the recipe tracks.
 	Content int `json:"content"`
 	// Parts is what a snapshot would contain, in archive order.
@@ -287,8 +287,8 @@ type ArchiveInfoOutput struct {
 	Archive string `json:"archive"`
 	// Project / SourceLang / TargetLangs come from the recipe the archive carries.
 	Project     string   `json:"project,omitempty"`
-	SourceLang  string   `json:"sourceLang,omitempty"`
-	TargetLangs []string `json:"targetLangs,omitempty"`
+	SourceLang  string   `json:"source_lang,omitempty"`
+	TargetLangs []string `json:"target_langs,omitempty"`
 	// Bytes is the archive's own size on disk.
 	Bytes int64 `json:"bytes,omitempty"`
 	// Parts is what the archive holds, in the same order and with the same names

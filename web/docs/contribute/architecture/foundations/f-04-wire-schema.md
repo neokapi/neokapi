@@ -92,7 +92,9 @@ marshalling must reproduce the checked-in bytes, and the checked-in bytes must
 keep decoding to the same messages. A failure there is a wire-compatibility break,
 not a formatting nit.
 
-`core/model`'s own JSON struct tags follow the same camelCase convention.
+`core/model`'s own JSON struct tags follow the same camelCase convention. The camelCase applies to the content model only:
+every other machine-readable document kapi writes uses snake_case field names
+(see [Field names](../../../reference/cli-contract.md#field-names)).
 `model.AltTranslation.UnmarshalJSON` additionally accepts the snake_case spelling
 that released bridge builds emit, with camelCase winning where a document carries
 both.
@@ -169,7 +171,7 @@ code rather than accumulating stale exemptions.
 ## Consequences
 
 - There is one place to change the content model's serialization, and one test
-  that notices when someone adds a second.
+  that fails when someone adds a second.
 - Frontend types and JSON Schema cannot drift from Go, because both are generated
   and drift-gated in CI.
 - A wire-compatibility break announces itself as a golden-file failure at the

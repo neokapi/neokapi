@@ -1,6 +1,6 @@
 package backend
 
-// The digest on a project's Context hub: what kapi learned about how the
+// The digest on a project's Context hub: the rules and suggestions about how the
 // project writes since the person last looked. host.ContextDigest assembles
 // it from the operation log, the same call `kapi context review` makes, so
 // the two surfaces show one thing.

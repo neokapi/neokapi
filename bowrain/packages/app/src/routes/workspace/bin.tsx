@@ -1,6 +1,13 @@
 import { useEffect, useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { RecycleBinView, ConfirmDialog, useWorkspace, useApi, Card } from "@neokapi/ui";
+import {
+  RecycleBinView,
+  ConfirmDialog,
+  useWorkspace,
+  useApi,
+  Card,
+  PageContainer,
+} from "@neokapi/ui";
 
 export function BinRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -40,14 +47,16 @@ export function BinRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a workspace
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+    <PageContainer width="wide">
       {/* No server-side auto-purge of archived projects exists today, so we don't
           claim a retention window: projects are kept until manually deleted.
           Pass a positive retentionDays here once a purge policy is enforced. */}
@@ -69,6 +78,6 @@ export function BinRoute() {
         variant="destructive"
         onConfirm={confirmPermanentlyDelete}
       />
-    </div>
+    </PageContainer>
   );
 }

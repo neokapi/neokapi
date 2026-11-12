@@ -41,8 +41,8 @@ func TestToolSchemaEndpoint(t *testing.T) {
 	assert.Equal(t, "term-check", body.ID)
 	assert.NotEmpty(t, body.Title)
 	assert.Equal(t, "term-check", body.ToolMeta["id"])
-	assert.Contains(t, body.Properties, "caseSensitive")
-	assert.Equal(t, "boolean", body.Properties["caseSensitive"]["type"])
+	assert.Contains(t, body.Properties, "case_sensitive")
+	assert.Equal(t, "boolean", body.Properties["case_sensitive"]["type"])
 }
 
 func TestToolSchemaEndpointUnknownTool(t *testing.T) {

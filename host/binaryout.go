@@ -18,7 +18,7 @@ import (
 // wedging it in whatever escape state the deflate stream happens to spell.
 //
 // The input-side guard in binary.go cannot catch this. It only fires when no
-// format claimed the file, so the formats kapi understands *best* — .docx,
+// format claimed the file, so the formats kapi reads *best* — .docx,
 // .pptx, .idml, .epub — are precisely the ones it waves through. This is the
 // output-side half: the same NUL rule, applied to the bytes on their way out.
 //

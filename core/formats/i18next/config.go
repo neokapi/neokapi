@@ -99,26 +99,26 @@ func (c *Config) Validate() error { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "protectInterpolation":
+		case "protect_interpolation":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("protectInterpolation: expected bool, got %T", val)
+				return fmt.Errorf("protect_interpolation: expected bool, got %T", val)
 			}
 			c.ProtectInterpolation = b
-		case "subfilterHtmlValues":
+		case "subfilter_html_values":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("subfilterHtmlValues: expected bool, got %T", val)
+				return fmt.Errorf("subfilter_html_values: expected bool, got %T", val)
 			}
 			c.SubfilterHTMLValues = b
-		case "legacyPluralForms":
+		case "legacy_plural_forms":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("legacyPluralForms: expected bool, got %T", val)
+				return fmt.Errorf("legacy_plural_forms: expected bool, got %T", val)
 			}
 			c.LegacyPluralForms = b
 		default:
-			return fmt.Errorf("i18next: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "i18next", key)
 		}
 	}
 	return nil

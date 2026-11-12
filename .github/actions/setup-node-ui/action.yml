@@ -50,12 +50,12 @@ runs:
     # in @(...) before reading .Count.
     - name: Install Vite+ and the Node.js runtime
       id: vp-setup
-      uses: voidzero-dev/setup-vp@v1.21.2
+      uses: voidzero-dev/setup-vp@v1.22.0
       continue-on-error: true
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.4.0"
+        version: "1.5.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml
@@ -70,11 +70,11 @@ runs:
 
     - name: Install Vite+ and the Node.js runtime (retry)
       if: steps.vp-setup.outcome == 'failure'
-      uses: voidzero-dev/setup-vp@v1.21.2
+      uses: voidzero-dev/setup-vp@v1.22.0
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.4.0"
+        version: "1.5.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml

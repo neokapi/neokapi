@@ -128,9 +128,9 @@ export const EMPTY_DIGEST: ContextDigest = {
 };
 
 // The KapiMart sample as a person first opens it (backend/sample/session.go):
-// claude-code noticed two names, a word and how the store addresses the
+// claude-code suggested two names, a word and how the store addresses the
 // shopper, and recorded a correction a person made; codex took the other side
-// of that correction and noticed one more name.
+// of that correction and suggested one more name.
 const CLAUDE_CODE = { kind: "agent", name: "claude-code", session: "kapimart-sample-claude-code" };
 const CODEX = { kind: "agent", name: "codex", session: "kapimart-sample-codex" };
 const STORE = "project brand=kapimart,channel=store,product=kapimart";
@@ -151,7 +151,7 @@ const SAMPLE_LOG_IN = digestItem({
   },
   collection: "Online Store",
   standing: "1 against",
-  noticed_by: CODEX,
+  recorded_by: CODEX,
   scope: "project brand=kapimart,channel=reference,product=kapimart",
 });
 const SAMPLE_SIGN_IN = digestItem({
@@ -171,7 +171,7 @@ const SAMPLE_SIGN_IN = digestItem({
     quote: "Your session has expired. Please sign in again to continue.",
   },
   collection: "Online Store",
-  noticed_by: CLAUDE_CODE,
+  recorded_by: CLAUDE_CODE,
   scope: "project brand=kapimart,channel=reference,product=kapimart",
 });
 const SAMPLE_PAYPAL = digestItem({
@@ -188,7 +188,7 @@ const SAMPLE_PAYPAL = digestItem({
     quote: "You will be redirected to PayPal to complete your purchase.",
   },
   collection: "Online Store",
-  noticed_by: CODEX,
+  recorded_by: CODEX,
   scope: STORE,
 });
 const SAMPLE_CHECKOUT = digestItem({
@@ -202,7 +202,7 @@ const SAMPLE_CHECKOUT = digestItem({
   },
   quote: { path: "web/en/faq.md", quote: "checkout flow into any website or mobile application." },
   collection: "Website",
-  noticed_by: CLAUDE_CODE,
+  recorded_by: CLAUDE_CODE,
   scope: WEB,
 });
 const SAMPLE_KAPIMART = digestItem({
@@ -219,7 +219,7 @@ const SAMPLE_KAPIMART = digestItem({
     quote: "Welcome to the KapiMart Developer Platform!",
   },
   collection: "Website",
-  noticed_by: CLAUDE_CODE,
+  recorded_by: CLAUDE_CODE,
   scope: WEB,
 });
 const SAMPLE_CART = digestItem({
@@ -233,7 +233,7 @@ const SAMPLE_CART = digestItem({
   },
   quote: { path: "src/en/store-ui.json", quote: "Your cart is empty" },
   collection: "Online Store",
-  noticed_by: CLAUDE_CODE,
+  recorded_by: CLAUDE_CODE,
   scope: STORE,
 });
 const SAMPLE_SHOPPER = digestItem({
@@ -243,7 +243,7 @@ const SAMPLE_SHOPPER = digestItem({
   subject: { kind: "note", text: "The store copy addresses the shopper as you." },
   quote: { path: "src/en/store-ui.json", quote: "Thank you! Your order has been confirmed." },
   collection: "Online Store",
-  noticed_by: CLAUDE_CODE,
+  recorded_by: CLAUDE_CODE,
   scope: STORE,
   keepable: false,
 });
@@ -312,7 +312,7 @@ export function manySuggestions(count = 40): ContextDigest {
             subject: { kind: "note", text: `Release note ${n} leads with what changed.` },
             sentence: `Release note ${n} leads with what changed.`,
             keepable: false,
-            noticed_by: i % 2 ? CODEX : CLAUDE_CODE,
+            recorded_by: i % 2 ? CODEX : CLAUDE_CODE,
           }),
         );
       } else if (theme === "memory") {
@@ -328,7 +328,7 @@ export function manySuggestions(count = 40): ContextDigest {
                 target_locale: "nb",
               },
             },
-            noticed_by: i % 2 ? CODEX : CLAUDE_CODE,
+            recorded_by: i % 2 ? CODEX : CLAUDE_CODE,
           }),
         );
       } else {
@@ -339,7 +339,7 @@ export function manySuggestions(count = 40): ContextDigest {
             subject: { kind: "term", term: { term: `form ${n}`, replacement: `Form${n}` } },
             quote: { path: `docs/page-${n}.md`, quote: `Every form ${n} reads the same.` },
             collection: i % 3 ? "docs" : "app",
-            noticed_by: i % 2 ? CODEX : CLAUDE_CODE,
+            recorded_by: i % 2 ? CODEX : CLAUDE_CODE,
           }),
         );
       }

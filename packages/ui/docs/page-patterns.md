@@ -50,13 +50,39 @@ sentence an item was seen in, the file, who noticed it and when belong to the
 detail pane, where there is room for all of them. Collapsing an item in place
 is the document shape in disguise, and it leaves the list as long as before.
 
+## Page width
+
+A page sits in `PageContainer`, which centres it and gives it the shared side
+padding. The width follows the shape, so two pages of the same shape line up
+on the desktop and the platform. No page sets `max-w-*` or `mx-auto` itself.
+
+| Width | Max | Shapes |
+| --- | --- | --- |
+| `narrow` | 36rem | A setup step, a sign-in, a form of two or three fields |
+| `standard` | 64rem | Settings and setup |
+| `wide` | 80rem | Overview, a page that is one list or table, Reader |
+| `full` | none | List and detail, editors, canvases |
+
+- **Every bounded page is centred.** A column pinned to the left edge leaves
+  the right of a wide window empty.
+- **An Overview fills its width.** Its counts run across the row, and from
+  `xl` up its lists sit side by side rather than one under the other.
+- **A setting is a `SettingsRow`.** The label sits on the left and the control
+  fills the column on the right, from `md` up. Two facts that belong together,
+  such as the source language and the languages to translate into, share a row.
+- **Prose keeps 65 to 75 characters a line.** Set that on the text element,
+  never on the page: a Reader's document is narrow inside a `wide` page.
+- **A `full` page draws its own panes.** Its header strip is `PageHeader` with
+  `px-6 pt-5 pb-3` over a bordered body, and its empty state sits in a
+  `narrow` container.
+
 ## Structure before sentences
 
 A fact shown as a sentence has to be read; a fact shown in its place is seen.
 These hold on every shape.
 
-- **A number is a count with a label.** "kapi knows 61 rules across 4
-  projects. 11 suggestions are advising." becomes four labelled counts in a
+- **A number is a count with a label.** "There are 61 rules across 4
+  projects. 11 suggestions are waiting." becomes four labelled counts in a
   row: projects 4, rules 61, suggestions 11, needs you 1. Numbers in a column
   take `tabular-nums`.
 - **A status is a badge or an icon with a word.** `StatusBadge` for a ladder;
@@ -74,7 +100,7 @@ These hold on every shape.
   a sync each get an avatar or icon, so a reader recognises the actor before
   reading the name.
 
-## Explanation lives in four places
+## Explanation lives in five places
 
 A paragraph under a heading that tells the reader what the section is for
 is the first thing to remove from a screen. It is read once and seen every
@@ -85,8 +111,15 @@ time. Explanation belongs in one of these, in this order of preference:
    place a section explains itself in full.
 2. **An affordance on the heading.** A tooltip or popover behind an
    information mark, for a reader who asks.
-3. **The first-run card.** "Start here" on the overview, dismissed once.
-4. **The docs.** A link, when the explanation runs past a sentence.
+3. **The first-run card.** "Get started" on the home, hidden once.
+4. **A help topic or a guided tour.** `PageHeader`'s `help` puts an info
+   button beside the title that opens the Help panel on the page's topic. A
+   topic is a section of the docs, read from its source when the app is
+   built, so write the explanation there, not in the component. A tour lights
+   each control of one task in turn and starts only when the person asks for
+   one. See S-08, *In-app help*, in the architecture docs.
+5. **The docs.** The last line of a help topic opens the same section on the
+   website, in the page around it.
 
 A page's command-line equivalent is a terminal icon at the right of the page's
 navigation or header. Its tooltip shows the command, and a click copies it, as
@@ -110,6 +143,12 @@ a caption under a section.
   65 to 75 characters a line; lists and tables take the pane.
 - A keyboard shortcut shows as `kbd` on hover or focus, not permanently on
   every row.
+- A decision pair and a dialog footer order their buttons the same way. The
+  confirming action (Approve, Save, Accept) comes last, at the trailing edge.
+  The negative or destructive action (Reject, Cancel, Discard) sits before it,
+  with clear space between the two rather than the adjacent `gap-2`. In a
+  review action bar the key hints sit on the leading edge. Swiping right to
+  approve on a phone follows the same direction.
 
 ## Copy
 
@@ -123,8 +162,9 @@ a caption under a section.
 ## Checklist for a page pull request
 
 - The page's shape is named in the description.
+- The page sits in `PageContainer` at its shape's width.
 - No explanatory paragraph sits under a heading; each explanation is in one
-  of the four places above.
+  of the five places above.
 - Every number has a label and none is inside a generated sentence.
 - Each fact appears once on the screen.
 - One `default` button.
@@ -137,6 +177,8 @@ a caption under a section.
 
 ## Components
 
+- **`PageContainer`** is the column every page sits in, at one of four
+  widths. **`SettingsRow`** is one setting, label left and control right.
 - **`StatRow`** draws the overview's labelled counts in a row, with the warning
   ink for the one count that needs a person.
 - **`ActorMark`** names who did something with two letters and a hue for each

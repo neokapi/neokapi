@@ -189,6 +189,37 @@ describe("NeighbourhoodCard", () => {
     expect(slot("review-neighbour-unit")?.textContent).toContain("Bonjour {name}");
   });
 
+  it("draws the unit's own placeholder from its runs, as it draws a neighbour's", () => {
+    const name = { id: "c1", type: "code", data: "{{name}}", equiv: "" };
+    const unit = {
+      key: "cordonFailed",
+      source: [{ text: "Failed to cordon node " }, { ph: name }],
+      target: [{ text: "Kunne ikke sperre node " }, { ph: name }, { text: " for planlegging." }],
+    };
+    const { unmount } = render(
+      <NeighbourhoodCard
+        neighbourhood={{ key: "cordonFailed", unit, window: 2 }}
+        unitKey="cordonFailed"
+        unitSource="Failed to cordon node "
+        testId="hood"
+      />,
+    );
+    const row = slot("review-neighbour-unit")?.textContent ?? "";
+    expect(row).toContain("Failed to cordon node {{name}}");
+    expect(row).toContain("Kunne ikke sperre node {{name}} for planlegging.");
+    unmount();
+
+    // The caller's runs win over the copy read with the context.
+    render(
+      <NeighbourhoodCard
+        neighbourhood={{ key: "cordonFailed", unit, window: 2 }}
+        unit={{ ...unit, target: [{ text: "Klarte ikke sperre " }, { ph: name }] }}
+        testId="hood"
+      />,
+    );
+    expect(slot("review-neighbour-unit")?.textContent).toContain("Klarte ikke sperre {{name}}");
+  });
+
   it("draws the document top to bottom, with the unit in place among its neighbours", () => {
     render(
       <NeighbourhoodCard

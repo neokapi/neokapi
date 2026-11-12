@@ -157,7 +157,7 @@ collections:
     source_only: true
     content:
       - path: deploy/homebrew/*.rb
-        format: { name: sourcecode, config: { language: ruby, nodePathPatterns: [desc, caveats] } }
+        format: { name: sourcecode, config: { language: ruby, node_path_patterns: [desc, caveats] } }
 ```
 
 - **Voice profile**: `kapi voice import <file.yaml>` files one in the project's

@@ -113,7 +113,7 @@ type ContextSearchResult struct {
 	Profiles []ContextProfileHit `json:"profiles,omitempty"`
 	// Suggestions are what somebody recorded about the word and nobody has
 	// established: suggested term rules and notes that mention it, and the
-	// rules a disagreement contests. They advise and fail no check.
+	// rules a disagreement contests. Checks report them and fail on none.
 	Suggestions []ContextSuggestion `json:"suggestions,omitempty"`
 	// Attention holds what a person or an agent must act on before relying on
 	// the answer: context files nothing has read in, a store that could not be
@@ -515,7 +515,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 			// it, the same as every other store.
 			if log, lerr := a.ContextOperations(ctxOrBackground(cmd.Context()), ContextLogRequest{Project: path, Subjects: true}); lerr == nil {
 				for _, op := range log.Operations {
-					if op.Status.Advises() {
+					if op.Status.Advisory() {
 						src.Operations = append(src.Operations, op.Record)
 					}
 				}
@@ -1023,7 +1023,7 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 				Discouraged: t.Status.Discouraged(),
 			}
 			if hit.Discouraged {
-				hit.Replacement = discouragedReplacement(c, t)
+				hit.Replacement = terms.Replacement(c, t)
 				hit.Advisory = c.Advisory
 			}
 			if v := t.Validity; v != nil {
@@ -1038,19 +1038,6 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 		}
 	}
 	return out
-}
-
-// discouragedReplacement is what to say instead of the discouraged term t of
-// c: the concept's preferred wording in t's language, or the wording t's note
-// names (terms.ReplacementFromNote), as the check reads it (terms.PreferredTerm).
-// A term whose concept would otherwise mark the rules of another term
-// differently stands in a concept of its own, with the replacement in its
-// note (terms.UpsertDecision).
-func discouragedReplacement(c terms.Concept, t terms.Term) string {
-	if pref := preferredTerm(c, t.Locale); pref != "" {
-		return pref
-	}
-	return terms.ReplacementFromNote(t.Note)
 }
 
 // preferredTerm finds the concept's preferred wording in one locale — what to

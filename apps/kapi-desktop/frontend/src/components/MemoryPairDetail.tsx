@@ -456,12 +456,7 @@ export function AddEntryDialog({
   }, [open]);
   const ready = source.trim() && target.trim() && srcLocale && tgtLocale && srcLocale !== tgtLocale;
 
-  const languageField = (
-    id: string,
-    value: string,
-    onChange: (v: string) => void,
-    label: string,
-  ) =>
+  const languageField = (id: string, value: string, onChange: (v: string) => void, label: string) =>
     locales.length > 0 ? (
       <LocaleSelect
         id={id}

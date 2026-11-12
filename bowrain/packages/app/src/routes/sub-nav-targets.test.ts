@@ -41,16 +41,16 @@ describe("sub-nav destinations", () => {
 });
 
 // The same invariant for a project's own sections: every one the panel lists
-// navigates somewhere, in the order the panel lists them, Map first.
+// navigates somewhere, in the order the panel lists them, Overview first.
 describe("project section destinations", () => {
   const noop = () => {};
   const listed = projectSubNavConfig({
     level: "project",
     project: { id: "p1", name: "Fernwell" } as ProjectInfo,
     activeStream: "main",
-    activeProjectView: "map",
-    onOpenMap: noop,
-    onOpenDashboard: noop,
+    activeProjectView: "overview",
+    onOpenOverview: noop,
+    onOpenLanguages: noop,
     onOpenRules: noop,
     onOpenSource: noop,
     onOpenFile: noop,
@@ -64,8 +64,8 @@ describe("project section destinations", () => {
     expect(listed).toEqual(Object.keys(projectSectionTargets));
   });
 
-  it("opens on the Map, with Overview one entry down", () => {
-    expect(listed.slice(0, 3)).toEqual(["map", "dashboard", "rules"]);
+  it("opens on the Overview, with Overview one entry down", () => {
+    expect(listed.slice(0, 3)).toEqual(["overview", "languages", "rules"]);
   });
 
   it("routes every destination through the project and stream params", () => {

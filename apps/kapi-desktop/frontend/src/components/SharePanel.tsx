@@ -55,7 +55,10 @@ import type {
   SyncStatus,
 } from "../types/api";
 
-/** Where the About Bowrain action leads. */
+/**
+ * Where About Bowrain leads. Bowrain's own docs describe it; the kapi docs the
+ * Help panel reads describe kapi alone.
+ */
 export const BOWRAIN_ABOUT_URL = "https://bowrain.cloud/docs/getting-started/kapi-vs-bowrain";
 
 /** The command that connects a project to a Bowrain server. */
@@ -172,7 +175,7 @@ export function SharePanel({
 
   return (
     <div data-slot="share-panel">
-      <PageHeader className="mb-5" title={t("Share")} />
+      <PageHeader help="share" className="mb-5" title={t("Share")} />
       <ol
         data-slot="share-ladder"
         aria-label={t("How far your rules reach")}

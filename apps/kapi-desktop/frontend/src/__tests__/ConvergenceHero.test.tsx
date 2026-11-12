@@ -13,22 +13,28 @@ const driftedPlan: ConvergePlan = {
       {
         locale: "fr-FR",
         collection: "docs",
-        missingTarget: 12,
-        memoryExact: 4,
-        aiRemaining: 8,
-        tokenEstimate: 640,
+        missing_target: 12,
+        memory_exact: 4,
+        ai_remaining: 8,
+        token_estimate: 640,
       },
       {
         locale: "de-DE",
         collection: "docs",
-        missingTarget: 9,
-        memoryExact: 0,
+        missing_target: 9,
+        memory_exact: 0,
         drafts: 5,
-        aiRemaining: 4,
-        tokenEstimate: 320,
+        ai_remaining: 4,
+        token_estimate: 320,
       },
     ],
-    totals: { missingTarget: 21, memoryExact: 4, drafts: 5, aiRemaining: 12, tokenEstimate: 960 },
+    totals: {
+      missing_target: 21,
+      memory_exact: 4,
+      drafts: 5,
+      ai_remaining: 12,
+      token_estimate: 960,
+    },
     note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).",
   },
   changedFiles: 0,
@@ -47,7 +53,7 @@ const driftedReport: ConvergenceReport = {
       gated: true,
       shippable: false,
       pending: [{ state: "translated", actual: 70, required: 100 }],
-      failingChecks: 2,
+      failing_checks: 2,
     },
   ],
   review: [
@@ -60,7 +66,7 @@ const convergedPlan: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    totals: { missing_target: 0, memory_exact: 0, ai_remaining: 0, token_estimate: 0 },
     note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).",
   },
   changedFiles: 0,
@@ -109,8 +115,10 @@ describe("ConvergenceHero", () => {
     await userEvent.click(within(counts).getByRole("button", { name: /waiting for review/ }));
     expect(onOpenReview).toHaveBeenCalledTimes(1);
 
-    const btn = screen.getByRole("button", { name: "Bring the project up to date" });
+    // The run's action names its work and its size.
+    const btn = screen.getByRole("button", { name: "Translate 21 blocks" });
     expect(btn).toBeEnabled();
+    expect(document.querySelector('[data-slot="hero-run-size"]')).toBeInTheDocument();
   });
 
   it("lists what holds each language back, and leads to Checks", async () => {
@@ -186,7 +194,7 @@ describe("ConvergenceHero", () => {
         plan={driftedPlan}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Translate \d+ blocks?$/ }));
     // The hero itself owns the launch; navigation happens only after success.
     await waitFor(() => expect(onBringUpToDate).toHaveBeenCalledTimes(1));
     expect(bringUpToDate).toHaveBeenCalledWith("t1");
@@ -205,7 +213,7 @@ describe("ConvergenceHero", () => {
         plan={driftedPlan}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Translate \d+ blocks?$/ }));
 
     // The error renders inline on the hero…
     const alert = await screen.findByRole("alert");
@@ -225,13 +233,11 @@ describe("ConvergenceHero", () => {
 
     expect(await screen.findByText("Project files are missing or moved")).toBeInTheDocument();
     // Quiet terminal state: no run controls, no error banner.
-    expect(
-      screen.queryByRole("button", { name: "Bring the project up to date" }),
-    ).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="hero-bring-up-to-date"]')).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("renders the calm state with the button disabled when converged", () => {
+  it("renders the calm state with no run action when converged", () => {
     render(
       <ConvergenceHero
         tabID="t1"
@@ -241,7 +247,56 @@ describe("ConvergenceHero", () => {
       />,
     );
     expect(screen.getByText("Up to date · all gates green")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeDisabled();
+    expect(document.querySelector('[data-slot="hero-bring-up-to-date"]')).not.toBeInTheDocument();
+  });
+
+  it("counts the blocks the last sync recycled, beside the up-to-date state", () => {
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={convergedReport}
+        plan={{ ...convergedPlan, recycled: { blocks: 12, at: "2026-11-12T09:00:00Z" } }}
+      />,
+    );
+    expect(screen.getByText("Up to date · all gates green")).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="hero-recycled"]')).toHaveTextContent(
+      "12 blocks recycled",
+    );
+  });
+
+  it("names no recycled count when the sync filled nothing", () => {
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={convergedReport}
+        plan={convergedPlan}
+      />,
+    );
+    expect(document.querySelector('[data-slot="hero-recycled"]')).not.toBeInTheDocument();
+  });
+
+  it("asks for a target folder instead of claiming up to date when no collection has one", async () => {
+    const onOpenSettings = vi.fn();
+    const noTargetsPlan: ConvergePlan = {
+      ...convergedPlan,
+      plan: { ...convergedPlan.plan!, no_targets: true },
+    };
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={convergedReport}
+        plan={noTargetsPlan}
+        onOpenSettings={onOpenSettings}
+      />,
+    );
+    expect(screen.getByText("No target folder set")).toBeInTheDocument();
+    expect(screen.queryByText(/Every block is translated/)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="hero-bring-up-to-date"]')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Set target folder" }));
+    expect(onOpenSettings).toHaveBeenCalledWith("project-settings:content");
   });
 
   it("opens the pre-flight plan dialog from Plan… and confirms into a run", async () => {
@@ -261,7 +316,7 @@ describe("ConvergenceHero", () => {
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("docs");
     expect(dialog).toHaveTextContent("12");
-    expect(dialog).toHaveTextContent("Memory exact");
+    expect(dialog).toHaveTextContent("Recycled");
     expect(dialog).toHaveTextContent("Stored drafts");
     expect(dialog).toHaveTextContent("AI work");
     // Total token estimate + the disclosed heuristic note.
@@ -269,7 +324,8 @@ describe("ConvergenceHero", () => {
     expect(dialog).toHaveTextContent(/chars \/ 4/);
 
     // Confirm launches the run and closes the dialog.
-    const confirm = screen.getAllByRole("button", { name: "Bring up to date" });
+    // The dialog's confirm carries the same words as the action on the home.
+    const confirm = within(dialog).getAllByRole("button", { name: "Translate 21 blocks" });
     await userEvent.click(confirm[confirm.length - 1]);
     await waitFor(() => expect(onBringUpToDate).toHaveBeenCalledTimes(1));
   });
@@ -281,6 +337,21 @@ describe("ConvergePlanDialog", () => {
       <ConvergePlanDialog open onOpenChange={vi.fn()} plan={convergedPlan} onConfirm={vi.fn()} />,
     );
     expect(screen.getByText("Every block is translated.")).toBeInTheDocument();
+  });
+
+  it("says there is nothing to translate when no collection has a target folder", () => {
+    render(
+      <ConvergePlanDialog
+        open
+        onOpenChange={vi.fn()}
+        plan={{ ...convergedPlan, plan: { ...convergedPlan.plan!, no_targets: true } }}
+        onConfirm={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText("No collection has a target folder, so there is nothing to translate."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Every block is translated.")).not.toBeInTheDocument();
   });
 
   it("cancel closes without launching", async () => {

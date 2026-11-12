@@ -1,6 +1,6 @@
 id: kapi-desktop-flows
-title: Compose the flow, run it anywhere
-subtitle: The default flow covers most projects; the Toolbox is where you change it.
+title: Edit a flow
+subtitle: Add a step, change the order, and make it the project's default.
 kind: use-case
 publishAs: kapi-desktop-flows
 terminal: desktop
@@ -9,66 +9,52 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - The Toolbox pillar
-  - Project flows
-  - Pipelines of steps
-  - The project default
+  - Steps
+  - Step order
+  - The default flow
 outro:
-  line: Compose it here, run it from either surface.
-  pointer: kapi run translate-and-qa
+  line: Click Bring up to date, and the app runs your flow.
 
+# Cue word the walk waits for: reorder (drag).
 narration:
   - id: title
     kind: title
     text: >-
-      A project needs no flow definition to translate. When the default is not
-      enough, the Toolbox is where you compose your own, and what you save there
-      runs unchanged from the command line.
+      A flow is the list of steps that run when you click Bring up to date.
+      You'll add a step that reuses earlier translations.
 
   - id: open-flow
     kind: desktop
     beat: open-flow
-    caption: Two steps. Translate, then check.
-    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
+    caption: Translate, then check.
     text: >-
-      The Toolbox is where a project keeps what it runs over its content, and a
-      flow there is a named sequence of steps. This one translates and then
-      checks, which is the shape of the built-in default.
+      In Project Settings, open the Flows tab and click translate-and-qa. Its
+      two steps are Translate, then Quality Check.
 
   - id: add-step
     kind: desktop
     beat: add-step
-    caption: A third step, from the tools the project has.
-    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
+    caption: Add the Recycle step.
     text: >-
-      Adding a step is a picker over every tool the project can reach. Recycle
-      is the one that answers from the project's own content memory, so the
-      provider is asked only for what memory cannot.
+      Click Add step and search for recycle. Recycle reuses translations you
+      already have, so only new text goes to the provider.
 
   - id: reorder
     kind: desktop
     beat: reorder
-    caption: Moved in front of the translate it spares.
-    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
-    highlight: { selector: '[data-testid="step-chips"]' }
+    caption: Recycle runs first.
     text: >-
-      Order is the whole point of putting it there. Recycle has to run before
-      the translate for the translate to have less to do, so the step moves to
-      the front and the strip in the header follows it.
+      Recycle must run before Translate. Drag it to the top.
 
   - id: default
     kind: desktop
     beat: default
-    caption: Marked default. Bring up to date runs this one.
-    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
     highlight: { selector: '[data-testid="flow-default-badge"]' }
+    caption: Use this flow by default.
     text: >-
-      Marking it the project's default is what binds it. From here the one
-      button on the Project page runs this flow, and so does the same flow
-      name from a terminal in the same folder.
+      Turn on Default flow. Bring up to date now uses this flow.
 
   - id: outro
     kind: outro
     text: >-
-      Compose the flow where you can see it, then run it from whichever surface
-      you happen to be in.
+      Add the steps you need. Bring up to date runs them in order.

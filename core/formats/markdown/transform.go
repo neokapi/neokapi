@@ -1,6 +1,10 @@
 package markdown
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiMarkdownTransformer converts OkfMarkdownFilterConfig specs to
 // MarkdownFormatConfig. Most parameters pass through with key mapping
@@ -18,15 +22,15 @@ func (okapiMarkdownTransformer) Transform(spec map[string]any) (map[string]any, 
 
 		// Okapi "extractImageAltText" maps to native "translateImageAlt"
 		case "extractImageAltText":
-			result["translateImageAlt"] = val
+			result["translate_image_alt"] = val
 
 		// Okapi "translateMetadataHeader" maps to native "translateFrontMatter"
 		case "translateMetadataHeader":
-			result["translateFrontMatter"] = val
+			result["translate_front_matter"] = val
 
 		// Shared params — keep as-is
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 	return result, nil

@@ -20,7 +20,7 @@ import (
 // format: which reader it is read with, and — through format.config — which of
 // its leaves are content at all. The convergence path consulted neither: it
 // detected the format from the file extension and configured the reader from
-// `defaults.formats` alone, so an item's `extractionRules` / `keyPathPatterns`
+// `defaults.formats` alone, so an item's `extraction_rules` / `key_path_patterns`
 // never restricted anything and the writer's serialization options never took
 // effect.
 //
@@ -67,7 +67,7 @@ func recipeFormatProject(t *testing.T, sources map[string]string, colls []projec
 		Collections: colls,
 		Flows: map[string]*flow.StepsSpec{
 			"recycle-only": {Steps: []flow.FlowStep{
-				{Tool: "recycle", Config: map[string]any{"fillTarget": true, "fillTargetThreshold": 100}},
+				{Tool: "recycle", Config: map[string]any{"fill_target": true, "fill_target_threshold": 100}},
 			}},
 		},
 		ShipGate: gate.Gate{"translated": {Pct: 100}},
@@ -134,10 +134,10 @@ func TestConverge_ItemExtractionRulesRestrictWhatIsWritten(t *testing.T) {
 			Content: []project.ContentItem{{
 				Path: "src/page.json",
 				Format: &project.FormatSpec{Name: "json", Config: map[string]any{
-					"extractAllPairs":      false,
-					"useKeyAsName":         true,
-					"escapeForwardSlashes": false,
-					"extractionRules":      "(title|body|description)$",
+					"extract_all_pairs":      false,
+					"use_key_as_name":        true,
+					"escape_forward_slashes": false,
+					"extraction_rules":       "(title|body|description)$",
 				}},
 				Target: "out/{lang}.json",
 			}},
@@ -184,7 +184,7 @@ func TestConverge_ItemExtractionRulesRestrictWhatIsWritten(t *testing.T) {
 		assert.Contains(t, got, translated, "a declared content leaf went untranslated")
 	}
 
-	// The write side of the same declaration: escapeForwardSlashes: false.
+	// The write side of the same declaration: escape_forward_slashes: false.
 	assert.NotContains(t, got, `<\/p>`,
 		"the item's writer options must take effect, not just its extraction rules")
 	assert.Contains(t, got, "</p>")
@@ -211,7 +211,7 @@ narration:
 			Content: []project.ContentItem{{
 				Path: "*/demo.yaml",
 				Format: &project.FormatSpec{Name: "yaml", Config: map[string]any{
-					"keyPathPatterns": []any{"title", "narration.*.text"},
+					"key_path_patterns": []any{"title", "narration.*.text"},
 				}},
 				Target: "{dir}/demo.{lang}.yaml",
 			}},
@@ -266,8 +266,8 @@ import { BlockPreview } from "@site/src/components/curated";
 A format in neokapi is a paired reader and writer for a document type.
 `
 	fmCfg := map[string]any{
-		"translateFrontMatter": true,
-		"frontMatterKeys":      []any{"title", "description", "sidebar_label"},
+		"translate_front_matter": true,
+		"front_matter_keys":      []any{"title", "description", "sidebar_label"},
 	}
 	a, cmd, recipe, dir := recipeFormatProject(t,
 		map[string]string{"docs/formats.md": page},

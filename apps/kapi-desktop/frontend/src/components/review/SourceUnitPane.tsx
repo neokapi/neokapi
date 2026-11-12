@@ -5,6 +5,7 @@ import {
   LocaleLabel,
   NeighbourhoodCard,
   SimpleTooltip,
+  labelCodesFromRuns,
   localeLabel,
 } from "@neokapi/ui-primitives";
 import type { BlockRead, ChangeResult } from "@neokapi/contract-types";
@@ -91,7 +92,12 @@ export function SourceUnitPane({
   }, [tabID, item.file, item.key, loadContext]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const awaiting = saved ? invalidatedEditions(saved) : null;
-  const content = read ? editionContent(read) : null;
+  const edition = read ? editionContent(read) : null;
+  // A placeholder the read leaves unlabelled (a code finder's `{{name}}`) takes
+  // its display text from the unit's runs, so the editor chip reads as it.
+  const content = edition
+    ? { ...edition, codes: labelCodesFromRuns(edition.codes, model?.neighbourhood?.unit?.source) }
+    : null;
 
   return (
     <div className="space-y-4" data-slot="source-unit-pane">
@@ -111,7 +117,7 @@ export function SourceUnitPane({
         <div>
           <p className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <LocaleLabel
-              locale={item.sourceLocale ?? item.language ?? item.locale}
+              locale={item.source_locale ?? item.language ?? item.locale}
               source
               data-slot="source-unit-language"
             />
@@ -131,7 +137,7 @@ export function SourceUnitPane({
             <EditionEditPanel
               sender={sender}
               content={content}
-              locale={item.sourceLocale}
+              locale={item.source_locale}
               readOnlyReason={
                 read && !read.ops.includes("set_content")
                   ? t("This format does not write a change to this text.")
@@ -161,7 +167,7 @@ export function SourceUnitPane({
         neighbourhood={model?.neighbourhood}
         unitKey={item.key}
         unitSource={item.source}
-        sourceLocale={item.sourceLocale}
+        sourceLocale={item.source_locale}
         loading={modelLoading}
       />
     </div>

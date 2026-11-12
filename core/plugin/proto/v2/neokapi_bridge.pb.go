@@ -557,7 +557,7 @@ type ProcessHeader struct {
 	// Steps are applied in order to each filter event
 	// before it is streamed to Go or written to output.
 	ConfigId string `protobuf:"bytes,12,opt,name=config_id,json=configId,proto3" json:"config_id,omitempty"` // Optional named Okapi filter configuration to apply
-	// The input document's name as kapi knows it, such as its path in the
+	// The input document's name in kapi, such as its path in the
 	// project, sent whether the bytes arrive by path or inline. A reader may
 	// infer the document's syntax from it; it is never a location to read.
 	InputName     string `protobuf:"bytes,13,opt,name=input_name,json=inputName,proto3" json:"input_name,omitempty"`

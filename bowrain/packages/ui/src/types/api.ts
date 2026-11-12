@@ -1543,8 +1543,9 @@ export interface ConvergenceLocaleStanding {
   state: string;
   units?: number;
   produced?: number;
-  viaTM?: number;
-  viaAI?: number;
+  via_memory?: number;
+  via_ai?: number;
+  via_drafts?: number;
 }
 
 /**
@@ -1779,7 +1780,7 @@ export interface PendingReviewEntry {
   voice_bar?: number;
   /**
    * The pre-review an agent recorded on this translation (a `decide` with
-   * outcome `advise`), present while the translation stands at the revision
+   * outcome `prereview`), present while the translation stands at the revision
    * the agent judged. It decides nothing.
    */
   pre_review?: PreReviewInfo;
@@ -3020,7 +3021,7 @@ export interface ModelRecommendationsResponse {
   locales: ModelSweepLocaleGroup[];
 }
 
-// --- The project screens: the Map, the Reader and Decide on the server ---
+// --- The project screens: the Overview, the Reader and Decide on the server ---
 
 /** The body POST /:ws/:id/map/:ref/check answers with: the job to follow. */
 export interface ProjectCheckStarted {

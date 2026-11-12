@@ -75,13 +75,13 @@ type LocaleCoverage struct {
 	// it ship" offers and delivers them all. Only ShipState tells established
 	// content from translated content and a met gate from no gate, and every
 	// surface that states a verdict reads it.
-	ShipState ShipState `json:"shipState"`
+	ShipState ShipState `json:"ship_state"`
 	// ShipProgress is how far the scope has come toward its ship gate, in
 	// [0,100] — gate.Progress: the mean fractional attainment of the gate's
 	// required thresholds. It is a distance to the bar, not a lifecycle
 	// percentage (those are in Pct), so it answers exactly one question: how
 	// much of the ship gate is left. 100 for an ungated scope.
-	ShipProgress int `json:"shipProgress"`
+	ShipProgress int `json:"ship_progress"`
 	// Blocking names the lowest unmet rung of the ship gate — the one gate to
 	// clear next. Empty when the scope ships.
 	Blocking string `json:"blocking,omitempty"`
@@ -99,15 +99,15 @@ type LocaleCoverage struct {
 	// since has had that draft and is waiting for a person to look at it. The
 	// two are the same count to a gate and different work to a reader, and a
 	// single number sent everyone to `kapi up` for units the loop was done with.
-	StaleAwaitingDraft  int `json:"staleAwaitingDraft,omitempty"`
-	StaleAwaitingReview int `json:"staleAwaitingReview,omitempty"`
+	StaleAwaitingDraft  int `json:"stale_awaiting_draft,omitempty"`
+	StaleAwaitingReview int `json:"stale_awaiting_review,omitempty"`
 	// RejectedAwaitingDraft counts units a reviewer turned down that the loop
 	// has not drafted again since. Their basis may well name the source the
 	// project still holds, so Stale does not count them and the two never
 	// overlap, but a person has said the wording will not do and the work is a
 	// convergence pass either way. They hold the scope out of Shippable for the same reason a stale unit does: a translation somebody
 	// refused is not shippable at any coverage.
-	RejectedAwaitingDraft int `json:"rejectedAwaitingDraft,omitempty"`
+	RejectedAwaitingDraft int `json:"rejected_awaiting_draft,omitempty"`
 	// FailingChecks counts produced units that fail the project's bound
 	// target-side checks (placeholder and tag integrity, terminology). They
 	// count at their true rung in Pct — the unit is translated, and a percentage
@@ -117,23 +117,23 @@ type LocaleCoverage struct {
 	// It is populated only when the caller supplies the check findings; a
 	// surface that does not run the checks reports 0 and would therefore call a
 	// failing scope shippable. Every surface that publishes a verdict runs them.
-	FailingChecks int `json:"failingChecks,omitempty"`
+	FailingChecks int `json:"failing_checks,omitempty"`
 	// TermsNotChecked counts produced units in a locale the project's terms
 	// govern that have no terminology result, such as a target in a format kapi
 	// cannot read back. They hold the scope out of Shippable as a
 	// failing check does: a check that did not run is not one that passed.
-	TermsNotChecked int `json:"termsNotChecked,omitempty"`
+	TermsNotChecked int `json:"terms_not_checked,omitempty"`
 	// NotGoverned names the dimensions that govern nothing in the scope's
 	// locale: "terms" when no concept in the project's terms answers for it.
 	// It withholds nothing, and it is reported so a reader does not take the
 	// scope for a governed one. Empty when every dimension governs, or when the
 	// surface did not run the checks and so did not resolve the terms.
-	NotGoverned []string `json:"notGoverned,omitempty"`
+	NotGoverned []string `json:"not_governed,omitempty"`
 	// BasisUnknown counts units holding a decision recorded before its basis
 	// was tracked. Such a decision says nothing about the source it blessed, so
 	// it keeps its rung and the scope ships — the count is what makes that
 	// assumption visible rather than silent.
-	BasisUnknown int `json:"basisUnknown,omitempty"`
+	BasisUnknown int `json:"basis_unknown,omitempty"`
 }
 
 // SourceCoverage is the source-readiness view for the project: how far its source
@@ -173,7 +173,7 @@ type ReviewQueueItem struct {
 	Language string `json:"language,omitempty"`
 	// IsSource marks a unit in the project's source language: the author's own
 	// wording awaiting attention, rather than a translation of it.
-	IsSource bool `json:"isSource,omitempty"`
+	IsSource bool `json:"is_source,omitempty"`
 	// Status is the unit's rung on its own ladder: `translated` for a queued
 	// translation, and the settled source rung (written|established) for
 	// a source unit.
@@ -199,19 +199,19 @@ type ReviewQueueItem struct {
 	Position int `json:"position,omitempty"`
 	// SourceLocale is the project's source language, so a review surface can
 	// render the source preview in its own writing direction.
-	SourceLocale string `json:"sourceLocale,omitempty"`
+	SourceLocale string `json:"source_locale,omitempty"`
 	Source       string `json:"source"`           // short source preview
 	Target       string `json:"target,omitempty"` // short target preview
 	// HasFindings reports whether the unit currently has check findings —
 	// enrichment a surface may add when it can compute findings cheaply. Nil
 	// means "not computed" (the base derivation never runs checkers).
-	HasFindings *bool `json:"hasFindings,omitempty"`
+	HasFindings *bool `json:"has_findings,omitempty"`
 	// AIScore is the unit's AI pre-review score (0–100) when a fresh annotation
 	// exists for the current translation; nil when none was recorded (queue
 	// listing never calls a provider — the score is read from the state store).
-	AIScore *int `json:"aiScore,omitempty"`
+	AIScore *int `json:"ai_score,omitempty"`
 	// AIModel names the model that produced AIScore.
-	AIModel string `json:"aiModel,omitempty"`
+	AIModel string `json:"ai_model,omitempty"`
 }
 
 // LanguageTag is the language the item belongs to, falling back to Locale for

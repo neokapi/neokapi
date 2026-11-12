@@ -252,7 +252,7 @@ func commentsOnlyYAMLProject(t *testing.T, spelled string) (*App, string, *proje
 			Content: []project.ContentItem{{Path: "config/*.yaml", Comments: spelledComments(t, spelled)}},
 		}},
 		Flows: map[string]*flow.StepsSpec{
-			"recycle-only": {Steps: []flow.FlowStep{{Tool: "recycle", Config: map[string]any{"fillTarget": true}}}},
+			"recycle-only": {Steps: []flow.FlowStep{{Tool: "recycle", Config: map[string]any{"fill_target": true}}}},
 		},
 	}
 	recipe := filepath.Join(dir, project.RecipeFileName)

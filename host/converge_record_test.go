@@ -58,7 +58,7 @@ func newRecordConvergeProject(t *testing.T) (*App, *EnvCommand, string) {
 		},
 		Flows: map[string]*flow.StepsSpec{
 			"recycle-only": {Steps: []flow.FlowStep{
-				{Tool: "recycle", Config: map[string]any{"fillTarget": true, "fillTargetThreshold": 100}},
+				{Tool: "recycle", Config: map[string]any{"fill_target": true, "fill_target_threshold": 100}},
 			}},
 		},
 	}
@@ -128,7 +128,7 @@ func TestConverge_LeavesACompleteTargetAloneWhenTheStoreHasNothing(t *testing.T)
 
 // TestConverge_DoesNotAbsorbItsOwnOutput: the targets a run materializes are the
 // store's own output, and reading them back as if a person had committed them
-// would let a stale materialization overwrite whatever the store learned since —
+// would let a stale materialization overwrite whatever the store recorded since —
 // a seed edit pulled in the meantime, an approval. The run stamps what it wrote,
 // so the next pass sees nothing new in it.
 func TestConverge_DoesNotAbsorbItsOwnOutput(t *testing.T) {

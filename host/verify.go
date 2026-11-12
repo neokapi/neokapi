@@ -889,7 +889,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	execution := newCheckExecution()
 	ctx := CmdContext(cmd)
 
-	// The vocabulary the project decided, enforced beside the profile's lists
+	// The vocabulary decided for the project, enforced beside the profile's lists
 	// and resolved at the same point the profile is.
 	terminology, err := a.newCheckTerms(cmd)
 	if err != nil {
@@ -1165,7 +1165,7 @@ type VerifyUnit struct {
 	//
 	// Measurement must read a file the way the run that produced it read it.
 	// Reader config decides which text a reader even emits — a markdown reader
-	// with `translateFrontMatter` emits the title and description as units,
+	// with `translate_front_matter` emits the title and description as units,
 	// without it they are configuration — so a coverage path blind to the
 	// config counts a different set of units than the flow produced, and the
 	// percentage is a fraction over two denominators.
@@ -2009,7 +2009,7 @@ func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[st
 //
 // The format config is part of the key because it decides which text a reader
 // even emits: the same YAML read with and without the project's
-// keyPathPatterns yields different blocks, and a key blind to the config would
+// key_path_patterns yields different blocks, and a key blind to the config would
 // replay one run's blocks for the other's question.
 func readBlocksConfigKey(formatFlag string, cfg map[string]any, sourceLang string) string {
 	return "rbw|" + formatFlag + "|" + formatConfigDigest(cfg) + "|" + sourceLang

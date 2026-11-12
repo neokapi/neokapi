@@ -32,14 +32,14 @@ overview: |
   skeleton: an untouched document is reproduced byte-for-byte, and only changed
   values are spliced back in.
 parameters:
-  extractBlockTitles:
+  extract_block_titles:
     description: Extract AsciiDoc block titles (`.Title`) as translatable blocks.
     help: |
       When enabled (the default), a block title line (`.My Caption`) attached to
       a following block is emitted as a translatable caption block. Disable to
       keep block titles as non-translatable skeleton.
     values: "`true` / `false` (default `true`)"
-  extractTableCells:
+  extract_table_cells:
     description: Extract `|===` table cells as translatable blocks.
     help: |
       When enabled (the default), the cells of a PSV table are emitted as blocks
@@ -58,8 +58,8 @@ examples:
   - title: Keep block titles untranslated
     description: Treat `.Title` lines as skeleton rather than translatable captions.
     config: |
-      extractBlockTitles: false
+      extract_block_titles: false
   - title: Preserve tables verbatim
     description: Do not extract table cells; round-trip the whole table unchanged.
     config: |
-      extractTableCells: false
+      extract_table_cells: false

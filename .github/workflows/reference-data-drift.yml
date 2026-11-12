@@ -55,6 +55,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
+      - "harness/demos/*/demo.yaml"
       - "kapi.yaml"
       # The prose `check-governed-prose` gates. The rule that decides the
       # verdict lives in the voice profile, which kapi.yaml binds.
@@ -101,6 +102,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
+      - "harness/demos/*/demo.yaml"
       - "kapi.yaml"
       # The prose `check-governed-prose` gates. The rule that decides the
       # verdict lives in the voice profile, which kapi.yaml binds.
@@ -186,7 +188,7 @@ jobs:
       # them and fail if a committed page is stale — gen-reference-pages.ts needs
       # only the @neokapi/reference-data package resolvable, so vp install
       # suffices (no i18n-react/wasm build).
-      - uses: voidzero-dev/setup-vp@v1.21.2
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "22"
           cache: true

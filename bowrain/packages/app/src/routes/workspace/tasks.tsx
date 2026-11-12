@@ -1,7 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { TaskBoard, useWorkspace, useApi, useAuth, Card, PageHeader } from "@neokapi/ui";
+import {
+  TaskBoard,
+  useWorkspace,
+  useApi,
+  useAuth,
+  Card,
+  PageHeader,
+  PageContainer,
+} from "@neokapi/ui";
 import type { TaskInfo } from "@neokapi/ui";
 import { taskCountsQueryOptions } from "../../queries";
 
@@ -85,14 +93,16 @@ export function TasksRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a workspace
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+    <PageContainer width="wide">
       <PageHeader title="Tasks" />
       <TaskBoard
         tasks={allTasks}
@@ -112,7 +122,7 @@ export function TasksRoute() {
           void navigate({
             to: isReview
               ? "/$workspace/p/$projectId/s/$stream/review"
-              : "/$workspace/p/$projectId/s/$stream/overview",
+              : "/$workspace/p/$projectId/s/$stream/languages",
             params: {
               workspace: workspace ?? ws,
               projectId: task.project_id,
@@ -121,6 +131,6 @@ export function TasksRoute() {
           });
         }}
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -2,7 +2,7 @@
 id: connect-an-assistant
 title: "Connect an assistant"
 sidebar_label: "Connect an assistant"
-description: "Connect Claude Code, Cursor, VS Code, Codex or Claude Desktop to a project from the Assistants page of Kapi Desktop, so the assistant reads the project's rules, records what it notices, and checks what it changed."
+description: "Connect Claude Code, Cursor, VS Code, Codex or Claude Desktop to a project from the Assistants page of Kapi Desktop, so the assistant reads the project's rules, records what it suggests, and checks what it changed."
 keywords: [Kapi Desktop, assistant, connect, MCP, Claude Code, Cursor, VS Code, Codex, Claude Desktop, rules files, AGENTS.md, CLAUDE.md, kapi connect, sessions]
 ---
 
@@ -11,7 +11,7 @@ import { ThemedImage } from "@neokapi/docs-shared";
 # Connect an assistant
 
 **Goal:** put the assistant you write with on a project, so it follows the
-project's rules and leaves what it notices for you to review. You do this once
+project's rules and leaves its suggestions for you to review. You do this once
 per project and assistant, on the project's **Assistants** page, with no
 terminal.
 
@@ -112,7 +112,7 @@ The kapi skill asks an assistant for four habits:
 1. **Follow the rules files.** It writes by the rules in `AGENTS.md` and
    `CLAUDE.md` without asking first, and asks kapi only about a file no
    section covers.
-2. **Record what the files do every time.** A name, a spelling, a word the
+2. **Record consistent wording in the files.** A name, a spelling, a word the
    files use where writers often use another: what the files keep to and the
    rules do not list yet.
 3. **Record your corrections.** When you change a wording in its draft, it
@@ -122,14 +122,14 @@ The kapi skill asks an assistant for four habits:
    project's check when it finishes and keeps working while a check fails.
 
 An assistant without the skill reads the rules files, which end by asking it
-to check what it changed and to record what it notices.
+to check what it changed and to record its suggestions.
 
 What the assistant records appears in Kapi Desktop within a second or two:
 under **What's new** on the home, on the project's **Overview** under **What your
 files do**, in the project's **Decide**, and as a session on the Assistants
-page. A suggestion advises at once and fails no check. It becomes a rule when
-you keep it. [Review what your assistant
-noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed) walks
+page. Checks report a suggestion at once, and it fails no check. It becomes a
+rule when you keep it. [Review your assistant's
+suggestions](/kapi/desktop/recipes/review-your-assistants-suggestions) walks
 through deciding.
 
 ## The same on the command line
@@ -148,7 +148,7 @@ agents](/kapi/context#rules-files).
 
 ## Next
 
-- [Review what your assistant noticed](/kapi/desktop/recipes/review-what-your-assistant-noticed):
+- [Review your assistant's suggestions](/kapi/desktop/recipes/review-your-assistants-suggestions):
   the review loop, on the sample.
 - [Use with Claude](/kapi/get-started/use-with-claude): working with kapi
   from inside Claude.

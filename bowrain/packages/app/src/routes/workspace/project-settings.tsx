@@ -13,7 +13,7 @@ import {
   Card,
   CardContent,
   Button,
-  Label,
+  PageContainer,
   PageHeader,
   SectionHeading,
   Select,
@@ -21,6 +21,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SettingsRow,
   Switch,
   VoiceBindingSelect,
   voiceProfileOptions,
@@ -65,7 +66,7 @@ export function ProjectSettingsRoute() {
   const workflowEnabled = project.properties?.workflow_enabled !== "false";
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
+    <PageContainer width="standard" className="space-y-6">
       <PageHeader
         title="Project settings"
         subtitle={project.name}
@@ -114,15 +115,11 @@ export function ProjectSettingsRoute() {
           What runs, and what is skipped
         </SectionHeading>
         <Card>
-          <CardContent className="space-y-4 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium">Translator workflow</p>
-                <p className="text-xs text-muted-foreground">
-                  Create review tasks after AI translation completes. On by default; turn off to
-                  skip human review.
-                </p>
-              </div>
+          <CardContent className="p-4">
+            <SettingsRow
+              label="Translator workflow"
+              help="Create review tasks after AI translation completes. On by default; turn off to skip human review."
+            >
               <Switch
                 checked={workflowEnabled}
                 onCheckedChange={(checked) =>
@@ -130,17 +127,13 @@ export function ProjectSettingsRoute() {
                 }
                 aria-label="Enable translator workflow"
               />
-            </div>
+            </SettingsRow>
             {workflowEnabled && (
-              <div className="space-y-3 border-t border-border/50 pt-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Mode</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Review: translators verify AI translations. Translate: translators work from
-                      source.
-                    </p>
-                  </div>
+              <div className="border-t border-border/50">
+                <SettingsRow
+                  label="Mode"
+                  help="Review: translators verify AI translations. Translate: translators work from source."
+                >
                   <Select
                     value={project.properties?.workflow_mode ?? "review"}
                     onValueChange={(v) => void setProperty("workflow_mode", v)}
@@ -153,14 +146,11 @@ export function ProjectSettingsRoute() {
                       <SelectItem value="translate">Translate</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium">Source review gate</p>
-                    <p className="text-xs text-muted-foreground">
-                      Require source review before translation fan-out.
-                    </p>
-                  </div>
+                </SettingsRow>
+                <SettingsRow
+                  label="Source review gate"
+                  help="Require source review before translation fan-out."
+                >
                   <Switch
                     checked={project.properties?.workflow_source_review === "true"}
                     onCheckedChange={(checked) =>
@@ -168,7 +158,7 @@ export function ProjectSettingsRoute() {
                     }
                     aria-label="Enable source review gate"
                   />
-                </div>
+                </SettingsRow>
               </div>
             )}
           </CardContent>
@@ -176,6 +166,6 @@ export function ProjectSettingsRoute() {
       </section>
 
       <ModelQualityCard ws={ws} projectId={project.id} />
-    </div>
+    </PageContainer>
   );
 }

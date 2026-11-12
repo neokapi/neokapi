@@ -121,9 +121,9 @@ Invoke a single tool directly as a tool command. Use a flow to compose tools;
   are distinct transformer roles, validated by the placement pass
   ([E-03](e-03-tool-system.md)), not a flat run of tools.
 
-What a flow is **not**: it is not an I/O harness (that is the binding), it is not
-a runtime primitive beyond an ordered tool chain over a session
-([E-01](e-01-processing-engine.md)), and it is never required to run one tool.
+A flow is an ordered tool chain over a session
+([E-01](e-01-processing-engine.md)). Reading and writing files belongs to the
+binding, and running one tool needs no flow.
 
 ### 1. The flow is the middle; source and sink are bindings
 
@@ -328,7 +328,7 @@ reader and writer, not flattened into a parent document.
 - **Source (fan-out).** Enumerate the archive's regular-file entries; each is
   resolved and run as its own `file` source. An entry whose format is binary
   (image, audio, video), a bilingual interchange file, a nested archive, or
-  unrecognised is **not** processed; it is carried to the sink untouched.
+  unrecognised is carried to the sink untouched.
   Enumeration is bounded by the shared zip-bomb, size, and entry-count guards.
 - **Sink (barrier repack).** Unlike a folder sink, which writes N independent
   files, an archive sink must emit **one valid container atomically**. It is a

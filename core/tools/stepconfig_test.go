@@ -100,13 +100,13 @@ func TestDNTCheck_LocaleComesFromTheRunNotTheFactory(t *testing.T) {
 	assert.Equal(t, []string{"Acme Cloud"}, cfg.Terms)
 
 	// A locale written into the step config must not outrank the run.
-	tl = stepTool(t, "dnt-check", map[string]any{"targetLocale": "de"}, "nb")
+	tl = stepTool(t, "dnt-check", map[string]any{"target_locale": "de"}, "nb")
 	cfg, ok = tl.(*tool.BaseTool).Cfg.(*tools.DNTCheckConfig)
 	require.True(t, ok)
 	assert.Equal(t, model.LocaleID("nb"), cfg.TargetLocale)
 }
 
-// caseInsensitive is the tool's one schema-visible knob, and it flips the verdict
+// case_insensitive is the tool's one schema-visible knob, and it flips the verdict
 // in both directions — so the assertion cannot pass on defaults alone.
 func TestDNTCheck_StepConfigCaseInsensitiveFlipsTheVerdict(t *testing.T) {
 	strict := runStep(t, "dnt-check", map[string]any{
@@ -115,8 +115,8 @@ func TestDNTCheck_StepConfigCaseInsensitiveFlipsTheVerdict(t *testing.T) {
 	require.Len(t, findings(strict), 1, "exact case is required by default")
 
 	relaxed := runStep(t, "dnt-check", map[string]any{
-		"terms":           []any{"iPhone"},
-		"caseInsensitive": true,
+		"terms":            []any{"iPhone"},
+		"case_insensitive": true,
 	}, "nb", stepBlock("Use iPhone now", "Bruk Iphone nå"))
 	assert.Empty(t, findings(relaxed), "the step turned case-insensitive preservation on")
 }
@@ -138,26 +138,26 @@ func TestPlaceholderCheck_StepRunCatchesADroppedPlaceholder(t *testing.T) {
 	assert.Contains(t, f[0].Message, "nb", "the locale checked is the run's")
 }
 
-// flagExtra defaults to true and is the one knob a step can turn off.
+// flag_extra defaults to true and is the one knob a step can turn off.
 func TestPlaceholderCheck_StepConfigFlagExtra(t *testing.T) {
 	on := runStep(t, "placeholder-check", nil, "nb",
 		stepBlock("You have items", "Du har {count} varer"))
 	require.Len(t, findings(on), 1, "an extra placeholder is reported by default")
 	assert.True(t, findings(on)[0].Fails)
 
-	off := runStep(t, "placeholder-check", map[string]any{"flagExtra": false}, "nb",
+	off := runStep(t, "placeholder-check", map[string]any{"flag_extra": false}, "nb",
 		stepBlock("You have items", "Du har {count} varer"))
 	assert.Empty(t, findings(off), "the step turned extra-placeholder reporting off")
 }
 
 // ── xml-validation ──────────────────────────────────────────────────────────
 
-// checkTarget is off by default and needs a locale, so a step that turns it on
+// check_target is off by default and needs a locale, so a step that turns it on
 // was doing nothing at all: both halves of the config were dropped.
 func TestXMLValidation_StepConfigChecksTheTarget(t *testing.T) {
 	b := runStep(t, "xml-validation", map[string]any{
-		"checkSource": false,
-		"checkTarget": true,
+		"check_source": false,
+		"check_target": true,
 	}, "nb", stepBlock("<b>Save</b>", "<b>Lagre</i>"))
 	assert.Equal(t, "false", b.Properties[tools.PropXMLValid],
 		"the mismatched target tags must be reported invalid")
@@ -175,14 +175,14 @@ func TestXMLValidation_StepConfigChecksTheTarget(t *testing.T) {
 // container under the empty locale — a target for no language.
 func TestCreateTarget_StepConfigCopySourceIntoTheRunLocale(t *testing.T) {
 	b := model.NewBlock("u1", "Save now")
-	out := runStep(t, "create-target", map[string]any{"copySource": true}, "nb", b)
+	out := runStep(t, "create-target", map[string]any{"copy_source": true}, "nb", b)
 
 	assert.Equal(t, "Save now", out.TargetText(model.LocaleID("nb")),
 		"copySource seeds the run's locale with the source text")
 	assert.Empty(t, out.TargetText(model.LocaleID("")),
 		"nothing may be written under the empty locale")
 
-	// copySource defaults to false: an empty container, not a copy.
+	// copy_source defaults to false: an empty container, not a copy.
 	empty := runStep(t, "create-target", nil, "nb", model.NewBlock("u1", "Save now"))
 	require.True(t, empty.HasTarget(model.LocaleID("nb")))
 	assert.Empty(t, empty.TargetText(model.LocaleID("nb")))
@@ -192,12 +192,12 @@ func TestCreateTarget_StepConfigCopySourceIntoTheRunLocale(t *testing.T) {
 // step says otherwise — the dropped config made the destructive answer
 // unreachable *and* the protective one accidental.
 func TestCreateTarget_StepConfigOverwrite(t *testing.T) {
-	kept := runStep(t, "create-target", map[string]any{"copySource": true}, "nb",
+	kept := runStep(t, "create-target", map[string]any{"copy_source": true}, "nb",
 		stepBlock("Save now", "Lagre nå"))
 	assert.Equal(t, "Lagre nå", kept.TargetText(model.LocaleID("nb")),
 		"an existing target is kept when overwrite is at its default")
 
-	replaced := runStep(t, "create-target", map[string]any{"copySource": true, "overwrite": true}, "nb",
+	replaced := runStep(t, "create-target", map[string]any{"copy_source": true, "overwrite": true}, "nb",
 		stepBlock("Save now", "Lagre nå"))
 	assert.Equal(t, "Save now", replaced.TargetText(model.LocaleID("nb")),
 		"the step asked for the existing target to be overwritten")
@@ -209,12 +209,12 @@ func TestCreateTarget_StepConfigOverwrite(t *testing.T) {
 // narrows nothing) and an empty TargetLocale (which means every locale), so a
 // step that named the ids to clear cleared everything instead.
 func TestRemoveTarget_StepConfigNarrowsByTextUnitID(t *testing.T) {
-	keep := runStep(t, "remove-target", map[string]any{"textUnitIDs": "other"}, "nb",
+	keep := runStep(t, "remove-target", map[string]any{"text_unit_ids": "other"}, "nb",
 		stepBlock("Save now", "Lagre nå"))
 	assert.Equal(t, "Lagre nå", keep.TargetText(model.LocaleID("nb")),
 		"a block outside the configured id list must be left alone")
 
-	hit := runStep(t, "remove-target", map[string]any{"textUnitIDs": "u1, other"}, "nb",
+	hit := runStep(t, "remove-target", map[string]any{"text_unit_ids": "u1, other"}, "nb",
 		stepBlock("Save now", "Lagre nå"))
 	assert.False(t, hit.HasTarget(model.LocaleID("nb")),
 		"a block named in the id list has its target removed")
@@ -235,9 +235,9 @@ func TestRemoveTarget_RunLocalePinsWhatIsRemoved(t *testing.T) {
 // ── inline-codes-remove ─────────────────────────────────────────────────────
 
 // TargetLocale was empty from the zero-arg factory, so the tool stripped codes
-// from nothing; and applySource / replaceWithSpace were unreachable.
+// from nothing; and apply_source / replace_with_space were unreachable.
 // lineBreakBlock is a bilingual block whose target carries a line-break inline
-// code between two words — the shape replaceWithSpace exists for.
+// code between two words — the shape replace_with_space exists for.
 func lineBreakBlock() *model.Block {
 	b := model.NewBlock("u1", "Save")
 	b.SetTargetRuns(model.LocaleID("nb"), []model.Run{
@@ -255,9 +255,9 @@ func TestInlineCodesRemove_StepConfigStripsTheRunLocaleTarget(t *testing.T) {
 			"surrounding text runs merge")
 }
 
-// replaceWithSpace defaults to false, and flips the result in both directions.
+// replace_with_space defaults to false, and flips the result in both directions.
 func TestInlineCodesRemove_StepConfigReplaceWithSpace(t *testing.T) {
-	spaced := runStep(t, "inline-codes-remove", map[string]any{"replaceWithSpace": true}, "nb", lineBreakBlock())
+	spaced := runStep(t, "inline-codes-remove", map[string]any{"replace_with_space": true}, "nb", lineBreakBlock())
 	assert.Equal(t, "Lagre straks", model.RunsText(spaced.TargetRuns(model.LocaleID("nb"))),
 		"replaceWithSpace puts a space where the line break was")
 
@@ -266,7 +266,7 @@ func TestInlineCodesRemove_StepConfigReplaceWithSpace(t *testing.T) {
 		"at its default the code is removed outright")
 }
 
-// applySource is off by default, so a step that asked for the source was ignored.
+// apply_source is off by default, so a step that asked for the source was ignored.
 func TestInlineCodesRemove_StepConfigApplySource(t *testing.T) {
 	withCodedSource := func() *model.Block {
 		b := model.NewRunsBlock("u1", []model.Run{
@@ -281,7 +281,7 @@ func TestInlineCodesRemove_StepConfigApplySource(t *testing.T) {
 	assert.Equal(t, []string{"text:Save", "ph:", "text:now"}, runShapes(untouched.SourceRuns()),
 		"the source keeps its codes at the default")
 
-	stripped := runStep(t, "inline-codes-remove", map[string]any{"applySource": true}, "nb", withCodedSource())
+	stripped := runStep(t, "inline-codes-remove", map[string]any{"apply_source": true}, "nb", withCodedSource())
 	assert.Equal(t, []string{"text:Savenow"}, runShapes(stripped.SourceRuns()),
 		"the step asked for the source too")
 }
@@ -351,9 +351,9 @@ func TestPropertiesSet_StepConfigOverwrite(t *testing.T) {
 // into a block property nothing reads.
 func TestExternalCommand_StepConfigRunsTheConfiguredProgram(t *testing.T) {
 	b := runStep(t, "external-command", map[string]any{
-		"command":     "tr",
-		"args":        []any{"a-z", "A-Z"},
-		"sendAsStdin": true,
+		"command":       "tr",
+		"args":          []any{"a-z", "A-Z"},
+		"send_as_stdin": true,
 	}, "nb", stepBlock("Save now", "lagre straks"))
 
 	assert.Equal(t, "LAGRE STRAKS", b.TargetText(model.LocaleID("nb")),

@@ -26,6 +26,7 @@ export {
     RedactionSpec,
     SegmentationDefaults,
     ShipGateRule,
+    StoreDrift,
     VoiceBinding
 } from "./models.js";
 
