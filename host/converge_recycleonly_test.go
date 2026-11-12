@@ -46,6 +46,30 @@ func TestConverge_RecycleOnlyFillsExactMatchesAndCallsNoProvider(t *testing.T) {
 	assert.Equal(t, recycleOnlyFlowName, out.Flow)
 }
 
+// TestRecycleExactMatches_CountsWhatItFilled drives the surface-neutral entry
+// point over the same checkout: one exact match, one string the memory lacks.
+func TestRecycleExactMatches_CountsWhatItFilled(t *testing.T) {
+	a, _, recipe := newFreshCheckoutProject(t)
+	dir := filepath.Dir(recipe)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	proj.Flows = nil
+	require.NoError(t, project.Save(recipe, proj))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "en.json"),
+		[]byte(`{"greeting":"Hello world","farewell":"Goodbye for now"}`), 0o644))
+	readProjectContext(t, dir)
+
+	res, err := a.RecycleExactMatches(t.Context(), recipe, "en", RecycleOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Blocks)
+	assert.Equal(t, map[string]int{"nb": 1}, res.ByLocale)
+
+	again, err := a.RecycleExactMatches(t.Context(), recipe, "en", RecycleOptions{})
+	require.NoError(t, err)
+	assert.Zero(t, again.Blocks, "a filled target is not an exact match left to recycle")
+}
+
 func TestRecycleOnlyFlowSpec_FillsExactMatchesOnly(t *testing.T) {
 	spec := RecycleOnlyFlowSpec()
 	require.Len(t, spec.Steps, 1)
