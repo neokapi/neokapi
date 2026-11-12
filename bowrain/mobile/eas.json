@@ -1,0 +1,41 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_BOWRAIN_SERVER_URL": "https://dev.bowrain.cloud"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "development-device": {
+      "extends": "development",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_BOWRAIN_SERVER_URL": "https://app.bowrain.cloud"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_BOWRAIN_SERVER_URL": "https://app.bowrain.cloud"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

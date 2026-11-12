@@ -1,0 +1,18 @@
+# Approve a card by swiping right, approve the next with the button, and take
+# the last decision back with Undo.
+appId: cloud.bowrain.app
+---
+- runFlow: sign-in.yaml
+- runFlow: open-deck.yaml
+- swipe:
+    from:
+      id: review-card
+    direction: RIGHT
+- assertVisible:
+    id: undo
+- tapOn:
+    id: action-approve
+- tapOn:
+    id: undo
+- assertVisible:
+    id: review-card

@@ -1,0 +1,28 @@
+# Fix a card: open the fix sheet with a left swipe, choose a reason, edit the
+# text with its placeholders locked, and approve the correction.
+#
+#   -e FIX_TEXT="<the corrected text before the first placeholder>"
+appId: cloud.bowrain.app
+---
+- runFlow: sign-in.yaml
+- runFlow: open-deck.yaml
+- swipe:
+    from:
+      id: review-card
+    direction: LEFT
+- assertVisible:
+    id: fix-draft
+- tapOn:
+    id: reason-wrong_term
+- tapOn:
+    id: fix-start-edit
+- tapOn:
+    id: editor-field-0
+- eraseText
+- inputText: ${FIX_TEXT}
+- assertVisible:
+    id: fix-edit-diff
+- tapOn:
+    id: fix-approve-edit
+- assertVisible:
+    id: undo
