@@ -53,6 +53,8 @@ export default function Languages() {
       <FlatList
         data={languages}
         keyExtractor={(l) => l}
+        refreshing={false}
+        onRefresh={() => void qc.invalidateQueries({ queryKey: ["counts", ws, project] })}
         ListHeaderComponent={
           info ? (
             <View className="px-4 pt-4 pb-2">

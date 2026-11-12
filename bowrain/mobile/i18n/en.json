@@ -48,6 +48,8 @@
     "offline_other": "Offline, {{count}} decisions queued",
     "sending_one": "Sending 1 decision",
     "sending_other": "Sending {{count}} decisions",
+    "unclassified_one": "1 more card is being sorted and joins the deck shortly.",
+    "unclassified_other": "{{count}} more cards are being sorted and join the deck shortly.",
     "unordered": "This server does not order the deck. Cards come in queue order.",
     "done": "Nothing left to review here.",
     "deskTitle_one": "1 card for the desk",

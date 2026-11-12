@@ -153,8 +153,12 @@ export interface DeckCounts {
   closer: number;
   desk: number;
   total: number;
-  /** True when the server classified only part of a long queue. */
-  partial?: boolean;
+  /**
+   * Translations the server has not classified yet. Their cards are absent
+   * until a later request classifies them, so a client asks again while this
+   * is above zero.
+   */
+  unclassified?: number;
 }
 
 /** A review deck for one language. */

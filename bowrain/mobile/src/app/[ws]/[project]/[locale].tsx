@@ -114,6 +114,14 @@ export default function DeckScreen() {
     if (view.swipe.length < 5 && hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [view.swipe.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Cards the server has not classified yet arrive on a later request: ask
+  // again when the deck runs out while some remain.
+  const unclassified = counts?.unclassified ?? 0;
+  const { isFetching, refetch } = deck;
+  useEffect(() => {
+    if (view.swipe.length === 0 && !hasNextPage && unclassified > 0 && !isFetching) void refetch();
+  }, [view.swipe.length, hasNextPage, unclassified, isFetching, refetch]);
+
   const decide = useMutation<DecisionResult, unknown, DecisionVars>({ mutationKey: DECISION_KEY });
   const withdraw = useMutation<unknown, unknown, WithdrawVars>({ mutationKey: WITHDRAW_KEY });
 
@@ -172,6 +180,12 @@ export default function DeckScreen() {
               : ""}
         </Text>
       </View>
+
+      {unclassified > 0 ? (
+        <Text testID="deck-unclassified" className="text-muted-foreground px-4 pb-2 text-xs">
+          {t("deck.unclassified", { count: unclassified })}
+        </Text>
+      ) : null}
 
       {!ordered ? (
         <Text className="text-muted-foreground px-4 pb-2 text-xs">{t("deck.unordered")}</Text>
