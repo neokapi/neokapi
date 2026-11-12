@@ -1321,7 +1321,7 @@
           "type": "string"
         },
         "require_basis": {
-          "description": "refuse a derived-edition write whose authoritative edition moved since it was read",
+          "description": "refuse a derived-edition write, or a decision, whose authoritative edition moved since it was read",
           "type": "boolean"
         },
         "schema": {

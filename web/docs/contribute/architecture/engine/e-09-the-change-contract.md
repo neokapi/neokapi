@@ -54,7 +54,7 @@ A change set has an envelope and operations.
 | `schema` | `kapi.change/v1` |
 | `mode` | `apply` (the default) or `preview`, which computes and checks everything, writes nothing, and returns a diff per document |
 | `gate` | `enforce` (the default) or `report`: what a failing governance finding the change introduces does |
-| `require_basis` | refuse a write to a derived edition whose authoritative edition moved since the sender read it |
+| `require_basis` | refuse a write to a derived edition, or a decision, whose authoritative edition moved since the sender read it |
 | `note`, `evidence` | what a person reads in history, and where the wording behind the change was seen: a file's `path`, the `block` key a read reports, a `quote` or a `url` |
 | `ops` | the operations, applied in order; a change set with none changes nothing |
 
@@ -123,6 +123,13 @@ derived edition's basis, and whether the authoritative edition has moved since,
 from that derivation where the edition carries one, and from the host otherwise.
 A KBF bundle carries each edition's derivation, so a bundle read back holds the
 basis it was written with.
+
+A `decide` may name a `basis` too: the revision of the authoritative edition its
+sender read beside the edition decided on. Under `require_basis` a decision whose
+basis no longer holds is refused as `stale` on `basis`, so a reviewer approving a
+translation also binds the source it was read against. A correction and its
+approval in one change set send the same two revisions, read before the change
+set began, and the decision binds to the content the set lands.
 
 A position names that content too. An edit's `start` and `end`, a run `range`,
 and the run index a `path` walks through all refer to the edition at the
