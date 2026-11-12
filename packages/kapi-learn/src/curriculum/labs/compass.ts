@@ -136,8 +136,8 @@ export const compassConverge: Lab = {
       narration:
         "One verb. Approved wording is recycled first; only what is left reaches a provider, here the built-in demo stub, keyless and offline, which marks everything it writes. Thirty-seven of Norwegian's thirty-eight units come back out of the project's own memory. Norwegian and German clear the gate. Dutch waits for review: one of its units fails the project's bound checks.",
       command: "kapi up",
-      expect: ["content memory 37 · AI 1", "waiting for review"],
-      notice: ["content memory 37", "waiting for review"],
+      expect: ["recycled 37 · AI 1", "waiting for review"],
+      notice: ["recycled 37", "waiting for review"],
     },
     {
       id: "status",
