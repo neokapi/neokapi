@@ -203,11 +203,12 @@ func collectionTargets(proj *project.KapiProject) ([]string, map[string][]string
 	return order, targets
 }
 
-// buildCollections returns the status of each collection: its extracted block
-// count from totals (zero before any extraction) and, per target language, the
-// units carrying a translation and the units counted, from the working-tree
-// tally (zero where tally is nil or holds no such scope). order and targets
-// are keyed by recipe collection name; the DTO carries the display label.
+// buildCollections returns the status of each collection. Its extracted block
+// count comes from totals, zero before any extraction. Per target language,
+// the units carrying a translation and the units counted come from the
+// working-tree tally, zero where tally is nil or holds no such scope. order
+// and targets are keyed by recipe collection name; the DTO carries the
+// display label.
 func buildCollections(order []string, targets map[string][]string, totals map[string]int, tally *convergence.CoverageTally) []CollectionStatus {
 	ladder := gate.TargetLadder()
 	out := make([]CollectionStatus, 0, len(order))

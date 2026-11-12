@@ -33,7 +33,7 @@ func TestRuleTally(t *testing.T) {
 	tally.AddNote("op-1")
 	tally.AddVoice(voice)
 	assert.Equal(t, 6, tally.Len())
-	assert.Equal(t, coreprofile.PatternRuleCount(voice)-1, 3,
+	assert.Equal(t, 3, coreprofile.PatternRuleCount(voice)-1,
 		"the tally counts the patterns PatternRuleCount counts, less the one with no expression")
 
 	// A second place holding the same rules, spelled with other case and

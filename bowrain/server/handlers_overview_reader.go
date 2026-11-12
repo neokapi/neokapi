@@ -156,10 +156,10 @@ func (s *Server) HandleOverviewSummary(c echo.Context) error {
 }
 
 // mapRuleCount counts the rules in force across the project's places, as
-// `kapi look` and the desktop's Overview count them (rulesview.RuleTally): at
-// the project's own point and at each collection's, the word rules of the
-// terms, of the voice's file and of the ledger's established term rules, the
-// notes kept there, and the patterns of the voice bound there.
+// `kapi look` and the desktop's Overview count them (rulesview.RuleTally).
+// Each place is the project's own point or a collection's. It adds the word
+// rules of the terms, the voice's file and the ledger's established term
+// rules, the notes kept there and the patterns of the voice bound there.
 func (s *Server) mapRuleCount(ctx context.Context, c echo.Context, st *decideState) (int, error) {
 	now := time.Now().UTC()
 	var tally rulesview.RuleTally
