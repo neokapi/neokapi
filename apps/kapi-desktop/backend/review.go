@@ -29,9 +29,15 @@ type ReviewUnitDetail struct {
 	File       string `json:"file"`
 	Key        string `json:"key"`
 	Collection string `json:"collection,omitempty"`
-	// Source and Target are the unit's rendered text (v1: plain text, not runs).
+	// Source and Target are the unit's display text, placeholders included
+	// (model.RunsDisplayText), for a surface that needs one string.
 	Source string `json:"source"`
 	Target string `json:"target"`
+	// SourceRuns and TargetRuns are the unit's content as runs, which the
+	// Review page draws through the declared run projection so a placeholder
+	// reads as a chip with its own text.
+	SourceRuns []model.Run `json:"source_runs,omitempty"`
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
 	// SourceLocale is the project's source language. The reviewer renders the
 	// source and target panes in their own writing direction, so both locales
 	// have to reach the UI — a right-to-left source (or target) otherwise
@@ -200,8 +206,10 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		File:         file,
 		Key:          key,
 		Collection:   rf.Collection,
-		Source:       b.SourceText(),
-		Target:       targetText,
+		Source:       model.RunsDisplayText(b.SourceRuns()),
+		Target:       model.RunsDisplayText(b.TargetRuns(loc)),
+		SourceRuns:   b.SourceRuns(),
+		TargetRuns:   b.TargetRuns(loc),
 		SourceLocale: sourceLang,
 		Status:       string(model.TargetStatusTranslated),
 	}

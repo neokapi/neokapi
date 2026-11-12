@@ -597,6 +597,63 @@ func flattenRunsTo(buf *strings.Builder, runs []Run) {
 	}
 }
 
+// RunsDisplayText returns a Run sequence as a reader sees it in one line of
+// text: TextRun content verbatim, each placeholder as its display text (Disp,
+// else its native form Data, else its Equiv in braces), each subblock
+// reference as its Equiv in brackets, and plural / select by their 'other'
+// branch (or the first form present). Paired codes contribute nothing; the
+// text between them is kept.
+//
+// It is the text for a list row or a preview, where a placeholder has to stay
+// visible: "Failed to cordon node {{name}}" rather than RunsText's "Failed to
+// cordon node ". It is never parsed back into runs.
+func RunsDisplayText(runs []Run) string {
+	var buf strings.Builder
+	runsDisplayTextTo(&buf, runs)
+	return buf.String()
+}
+
+func runsDisplayTextTo(buf *strings.Builder, runs []Run) {
+	for _, r := range runs {
+		switch r.Kind() {
+		case RunKindText:
+			buf.WriteString(r.Text.Text)
+		case RunKindPh:
+			switch {
+			case r.Ph.Disp != "":
+				buf.WriteString(r.Ph.Disp)
+			case r.Ph.Data != "":
+				buf.WriteString(r.Ph.Data)
+			case r.Ph.Equiv != "":
+				buf.WriteString("{" + r.Ph.Equiv + "}")
+			}
+		case RunKindPcOpen, RunKindPcClose:
+		case RunKindSub:
+			if r.Sub.Equiv != "" {
+				buf.WriteString("[" + r.Sub.Equiv + "]")
+			}
+		case RunKindPlural:
+			if form, ok := r.Plural.Forms[PluralOther]; ok {
+				runsDisplayTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				runsDisplayTextTo(buf, form)
+				break
+			}
+		case RunKindSelect:
+			if form, ok := r.Select.Cases["other"]; ok {
+				runsDisplayTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				runsDisplayTextTo(buf, form)
+				break
+			}
+		}
+	}
+}
+
 // RunsText returns the plain-text flattening of a Run sequence: TextRun
 // content verbatim, inline-code runs (Ph / PcOpen / PcClose / Sub) contribute
 // nothing, plural / select take the 'other' branch (or the first form if

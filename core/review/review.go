@@ -150,6 +150,11 @@ type Neighbourhood struct {
 	// document in order.
 	Before []Neighbour `json:"before,omitempty"`
 	After  []Neighbour `json:"after,omitempty"`
+	// Unit is the block itself, drawn in place between Before and After. It
+	// travels as runs for the same reason the neighbours do: a surface that
+	// drew the unit from a text preview showed its neighbours' placeholders
+	// and left the unit's own out. Absent when the reader has no runs for it.
+	Unit *Neighbour `json:"unit,omitempty"`
 	// Window is how many blocks either side were asked for. A list shorter
 	// than the window means the document ended, rather than that blocks were
 	// dropped.

@@ -9226,7 +9226,8 @@ export class ReviewUnitDetail {
         }
         if (!("source" in $$source)) {
             /**
-             * Source and Target are the unit's rendered text (v1: plain text, not runs).
+             * Source and Target are the unit's display text, placeholders included
+             * (model.RunsDisplayText), for a surface that needs one string.
              * @member
              * @type {string}
              */
@@ -9238,6 +9239,23 @@ export class ReviewUnitDetail {
              * @type {string}
              */
             this["target"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SourceRuns and TargetRuns are the unit's content as runs, which the
+             * Review page draws through the declared run projection so a placeholder
+             * reads as a chip with its own text.
+             * @member
+             * @type {model$0.Run[] | undefined}
+             */
+            this["source_runs"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {model$0.Run[] | undefined}
+             */
+            this["target_runs"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -9341,18 +9359,26 @@ export class ReviewUnitDetail {
      * @returns {ReviewUnitDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField10_0 = $$createType163;
-        const $$createField12_0 = $$createType40;
-        const $$createField15_0 = $$createType165;
+        const $$createField6_0 = $$createType100;
+        const $$createField7_0 = $$createType100;
+        const $$createField12_0 = $$createType163;
+        const $$createField14_0 = $$createType40;
+        const $$createField17_0 = $$createType165;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source_runs" in $$parsedSource) {
+            $$parsedSource["source_runs"] = $$createField6_0($$parsedSource["source_runs"]);
+        }
+        if ("target_runs" in $$parsedSource) {
+            $$parsedSource["target_runs"] = $$createField7_0($$parsedSource["target_runs"]);
+        }
         if ("origin" in $$parsedSource) {
-            $$parsedSource["origin"] = $$createField10_0($$parsedSource["origin"]);
+            $$parsedSource["origin"] = $$createField12_0($$parsedSource["origin"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField12_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField14_0($$parsedSource["findings"]);
         }
         if ("context" in $$parsedSource) {
-            $$parsedSource["context"] = $$createField15_0($$parsedSource["context"]);
+            $$parsedSource["context"] = $$createField17_0($$parsedSource["context"]);
         }
         return new ReviewUnitDetail(/** @type {Partial<ReviewUnitDetail>} */($$parsedSource));
     }
