@@ -103,7 +103,7 @@ func (a *App) RunAIPreReview(ctx context.Context, projectPath, sourceLang string
 	}
 
 	err = a.withParseCache(root, func() error {
-		queue, qerr := a.computeReviewQueue(ctx, proj, root, units, a.newUnreadSetFor("pre-reviewed"))
+		queue, qerr := a.computeReviewQueue(ctx, proj, root, units, a.newUnreadSetFor("pre-reviewed"), nil)
 		if qerr != nil {
 			return fmt.Errorf("compute review queue: %w", qerr)
 		}
