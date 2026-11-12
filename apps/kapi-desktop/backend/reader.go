@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/rulesview"
@@ -35,6 +36,8 @@ type readerRead struct {
 	// the fixable findings in file order.
 	fixes map[string]string
 	order []string
+	// from maps a fixable finding's id to the words its fix replaces.
+	from map[string]string
 	// run is the checks run over the file the read was drawn from.
 	run *CheckRunResult
 }
@@ -97,10 +100,10 @@ func (r *readerRead) holds(id string) bool {
 	return slices.ContainsFunc(r.dto.Document, func(f screens.ReaderFindingDTO) bool { return f.ID == id })
 }
 
-// applyReaderFixes applies the fixes of ids, in that order, as one change set.
-// When the service refuses some, it applies the others again without them, so
-// one fix that does not fit leaves the rest to land, and records each refusal
-// with the service's reason. It answers with the file read again.
+// applyReaderFixes applies the fixes of ids, in that order, as one change set
+// through host.ApplyDocFixes, the function behind kapi fix: a fix the change
+// service refuses is set aside with its reason and the rest land without it.
+// It answers with the file read again.
 func (a *App) applyReaderFixes(tabID, relPath string, r *readerRead, ids []string, note string) (*screens.ReaderFileDTO, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
 	defer cancel()
@@ -108,73 +111,35 @@ func (a *App) applyReaderFixes(tabID, relPath string, r *readerRead, ids []strin
 	if err != nil {
 		return nil, err
 	}
-	var refused []screens.ReaderRefusalDTO
-	// wrote is set once a change set lands.
-	wrote := false
-	pending := slices.Clone(ids)
-	for len(pending) > 0 {
-		ops := make([]change.Op, 0, len(pending))
-		for _, id := range pending {
-			var op change.Op
-			if err := json.Unmarshal([]byte(r.fixes[id]), &op); err != nil {
-				return nil, fmt.Errorf("read the fix for %s: %w", id, err)
-			}
-			// A fix is addressed to the source's own edition of this file. One
-			// addressed anywhere else is not the Reader's to send.
-			if op.At.Doc != r.dto.Path || !op.At.Edition.IsZero() {
-				return nil, fmt.Errorf("the fix for %s is addressed to %s, not to the source of %s", id, op.At.Doc, r.dto.Path)
-			}
-			ops = append(ops, op)
+	fixes := make([]host.DocFix, 0, len(ids))
+	for _, id := range ids {
+		var op change.Op
+		if err := json.Unmarshal([]byte(r.fixes[id]), &op); err != nil {
+			return nil, fmt.Errorf("read the fix for %s: %w", id, err)
 		}
-		res, err := svc.Apply(ctx, change.Set{Note: note, Ops: ops}, desktopActor)
-		if err != nil {
-			if ce, ok := errors.AsType[*change.Error](err); ok && ce != nil {
-				for _, id := range pending {
-					refused = append(refused, screens.ReaderRefusalDTO{FindingID: id, Reason: ce.Message})
-				}
-				break
-			}
-			return nil, err
+		// A fix is addressed to the source's own edition of this file. One
+		// addressed anywhere else is not the Reader's to send.
+		if op.At.Doc != r.dto.Path || !op.At.Edition.IsZero() {
+			return nil, fmt.Errorf("the fix for %s is addressed to %s, not to the source of %s", id, op.At.Doc, r.dto.Path)
 		}
-		if res.Status == change.SetPartial {
-			return nil, fmt.Errorf("the fixes to %s were only partly written", r.dto.Path)
-		}
-		if res.Status != change.SetRefused {
-			wrote = res.Status == change.SetApplied
-			break
-		}
-		if res.Error != nil {
-			for _, id := range pending {
-				refused = append(refused, screens.ReaderRefusalDTO{FindingID: id, Reason: res.Error.Message})
-			}
-			break
-		}
-		var again []string
-		for _, o := range res.Ops {
-			if o.I < 0 || o.I >= len(pending) {
-				continue
-			}
-			switch o.Status {
-			case change.OpRefused:
-				reason := "The change service refused the fix."
-				if o.Error != nil && o.Error.Message != "" {
-					reason = o.Error.Message
-				}
-				refused = append(refused, screens.ReaderRefusalDTO{FindingID: pending[o.I], Reason: reason})
-			case change.OpNotApplied:
-				again = append(again, pending[o.I])
-			}
-		}
-		if len(again) == len(pending) {
-			// Nothing was refused on its own, so nothing would change by
-			// sending the rest again.
-			for _, id := range again {
-				refused = append(refused, screens.ReaderRefusalDTO{FindingID: id, Reason: "The change service refused the change set."})
-			}
-			break
-		}
-		pending = again
+		fixes = append(fixes, host.DocFix{ID: id, Op: op, From: r.from[id]})
 	}
+	var recipe string
+	if op := a.getOpenProject(tabID); op != nil {
+		recipe = op.Path
+	}
+	res, err := a.hostEngine().ApplyDocFixes(ctx, host.DocFixRequest{
+		Service: svc, Actor: contextop.Actor{Kind: contextop.ActorPerson}, Recipe: recipe,
+		Note: note, File: r.dto.Abs, Fixes: fixes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	refused := make([]screens.ReaderRefusalDTO, 0, len(res.Refused))
+	for _, rf := range res.Refused {
+		refused = append(refused, screens.ReaderRefusalDTO{FindingID: rf.ID, Reason: rf.Message()})
+	}
+	wrote := res.Result != nil && res.Result.Status == change.SetApplied
 
 	out, err := a.readerRead(tabID, relPath)
 	if err != nil {
@@ -298,7 +263,7 @@ func (r *readerRead) place(blocks []*model.Block, findings []DesktopFinding) {
 	}
 	p := screens.PlaceFindings(blocks, checked)
 	r.dto.Blocks, r.dto.Document, r.dto.Fixable = p.Blocks, p.Document, p.Fixable
-	r.fixes, r.order = p.Fixes, p.Order
+	r.fixes, r.order, r.from = p.Fixes, p.Order, p.From
 }
 
 // checkedFinding is a desktop finding as the Reader places it.
