@@ -2,7 +2,7 @@
 // project, and the language standing.
 //
 // A project that declares a target language gets the convergence hero, with
-// Bring up to date and the pre-flight Plan… dialog. A project with none gets
+// Catch up and the pre-flight Plan… dialog. A project with none gets
 // no language work at all: a source-only project is complete, and the page
 // does not prompt for what it lacks. Review's empty state and Project
 // Settings are where a first target language is added.
@@ -22,7 +22,7 @@ export interface OverviewStandingProps {
   onNavigate: (view: string) => void;
   /** Open the Review surface. */
   onOpenReview?: () => void;
-  /** Launch the convergence run (Bring up to date → runner passes view). */
+  /** Launch the convergence run (the run action → runner passes view). */
   onBringUpToDate?: () => void;
   /** When false, plugin requirements are unmet and the notice shows. */
   pluginsResolved?: boolean;

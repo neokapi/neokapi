@@ -148,7 +148,7 @@ export function ViewSwitch({
     runId: number;
     scopePaths?: string[];
     scopeLabel?: string;
-    /** Convergence run (Bring up to date): the runner renders passes and
+    /** Convergence run (Catch up): the runner renders passes and
      *  launches through the shared `kapi up` engine. */
     converge?: boolean;
   } | null>(null);
@@ -223,7 +223,7 @@ export function ViewSwitch({
     [navigate],
   );
 
-  // Bring up to date (the home hero / plan dialog): the HERO launches the run
+  // Catch up (the home hero / plan dialog): the HERO launches the run
   // (so a synchronous launch error stays inline on the hero); this handler
   // fires only after a successful launch and merely opens the runner's
   // convergence view on the already-running job. Marking the runId consumed
@@ -486,9 +486,9 @@ export function ViewSwitch({
         return projectSettings("flows");
 
       case "runner":
-        // Bring up to date is language work: on a project whose saved recipe
+        // Catch up is language work: on a project whose saved recipe
         // declares no target language, a convergence request opens the
-        // selected job instead of the Bring up to date view.
+        // selected job instead of the Catch up view.
         if (runnerState && (!runnerState.converge || languages)) {
           return (
             <RunnerPage

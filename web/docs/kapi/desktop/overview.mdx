@@ -245,16 +245,20 @@ team](/kapi/desktop/recipes/share-context-with-your-team).
 To translate a project, open **Project Settings**, add the language under
 **Translate into**, and click **Save Changes**.
 
-The Overview then shows **Bring up to date**, the desktop form of `kapi up`.
-It reuses earlier translations from the content memory, translates the rest,
-and holds back for **Review** what needs a person. **Plan…** shows the work
+When there are blocks to translate, the Overview shows a button that names
+the work, such as **Translate 12 blocks**, with how many come from the
+content memory and how many from the AI model. It is the desktop form of
+`kapi up`: it reuses earlier translations from the content memory,
+translates the rest, and holds back for **Review** what needs a person. After
+a failed run the button reads **Run again**, and when the project is up to
+date there is no button. **Plan…** shows the work
 to do and estimates the tokens it uses before anything runs. Next to it,
 three counts show the work: blocks to translate, blocks waiting for a person
 to review, and languages held back. **Review** shows the text that isn't
 ready to ship yet.
 
 A project without target languages works as it is. **Review** lets you pick
-languages to translate into, and **Bring up to date** with its counts appears
+languages to translate into, and the **Translate** button with its counts appears
 when you add the first one. A language that is behind is pending work, and it never breaks a
 build. [Add languages](/kapi/get-started/add-languages) covers the same steps
 on the command line.
@@ -291,7 +295,7 @@ can switch between them.
 | **Decide** | `kapi rules` |
 | **Rules here** | `kapi context <path>` |
 | **Connect** an assistant | `kapi connect` |
-| **Bring up to date** | `kapi up` |
+| **Translate _n_ blocks** | `kapi up` |
 | **Share** | `kapi share` |
 
 Run `kapi --help` in a project for the full list, or see [CLI or

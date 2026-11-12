@@ -133,7 +133,7 @@ describe("ConvergenceHero honesty", () => {
       />,
     );
     expect(screen.queryByText("Up to date · all gates green")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^Translate \d+ blocks?$/ })).toBeEnabled();
   });
 
   it("does not report convergence when the last run failed", () => {
@@ -152,7 +152,7 @@ describe("ConvergenceHero honesty", () => {
     expect(screen.getByText(/last run failed/)).toBeInTheDocument();
     // Re-running is possible again (the button must not be disabled by a stale
     // "converged" reading).
-    expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Run again" })).toBeEnabled();
   });
 
   it("shows the failure as a headline + remediation action, not a wrapped chain", async () => {

@@ -129,7 +129,7 @@ const CONVERGED_REPORT: ConvergenceReport = {
 
 /** Texts to translate, translations waiting for review and languages held
  *  back: three counts, each leading to where it is dealt with, and an armed
- *  "Bring up to date". */
+ *  "Catch up". */
 export const Drifted: Story = {
   args: {
     tabID: "storybook",
@@ -152,8 +152,8 @@ export const ReadingFiles: Story = {
   },
 };
 
-/** Nothing left to translate: what remains is a person's, so Bring up to date
- *  steps back to an outline button. */
+/** Nothing left to translate: what remains is a person's, so the run action
+ *  is absent and the counts lead to Review. */
 export const WaitingForAPerson: Story = {
   args: {
     tabID: "storybook",

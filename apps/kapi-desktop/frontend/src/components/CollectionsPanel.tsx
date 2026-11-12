@@ -635,7 +635,7 @@ export function CollectionsPanel({
   // Collections ticked for a batch run (keyed by index into project.collections).
   const [selected, setSelected] = useState<Set<number>>(new Set());
   // The "Advanced" disclosure (collapsed by default): manual run pickers and
-  // the Re-extract override live behind it — Bring up to date is the primary
+  // the Re-extract override live behind it — Catch up is the primary
   // verb of the home, so per-flow runs are demoted, not removed (#1078 C4).
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [otherCollapsed, setOtherCollapsed] = useState(false);
@@ -1883,7 +1883,7 @@ export function CollectionsPanel({
             {t("Add files")}
           </Button>
           {/* Advanced — collapsed by default: the manual run pickers and the
-              Re-extract override live behind it. Bring up to date (the hero)
+              Re-extract override live behind it. the run action (the hero)
               covers the routine path, including extraction on drift. */}
           <Button
             variant="ghost"
@@ -2015,7 +2015,7 @@ export function CollectionsPanel({
         </div>
       )}
 
-      {/* The stale-store banner is gone: Bring up to date auto-heals version
+      {/* The stale-store banner is gone: a catch-up run auto-heals version
           drift through the shared storesync path before every pass (#1078). */}
 
       {/* Colour-coded "cake": block distribution per collection (slices match

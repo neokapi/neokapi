@@ -131,12 +131,12 @@ describe("the monolingual home", () => {
     expect(document.querySelector('[data-slot="convergence-hero"]')).toBeNull();
   });
 
-  it("shows Bring up to date, Plan… and the targets once the recipe declares one", () => {
+  it("shows the hero, Plan… and the targets once the recipe declares one", () => {
     renderHome({
       ...monolingual,
       defaults: { source_language: "en-US", target_languages: ["fr-FR"] },
     });
-    expect(screen.getByText("Bring up to date")).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="convergence-hero"]')).toBeInTheDocument();
     expect(screen.getByText("Plan…")).toBeInTheDocument();
     expect(screen.getByTestId("project-standing")).toHaveTextContent("languages");
   });
