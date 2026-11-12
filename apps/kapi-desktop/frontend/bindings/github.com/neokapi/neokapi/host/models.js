@@ -4271,7 +4271,7 @@ export class ConvergeOutput {
              * @member
              * @type {PreReviewResult | null | undefined}
              */
-            this["preReview"] = undefined;
+            this["pre_review"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -4301,8 +4301,8 @@ export class ConvergeOutput {
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField17_0($$parsedSource["findings"]);
         }
-        if ("preReview" in $$parsedSource) {
-            $$parsedSource["preReview"] = $$createField18_0($$parsedSource["preReview"]);
+        if ("pre_review" in $$parsedSource) {
+            $$parsedSource["pre_review"] = $$createField18_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
