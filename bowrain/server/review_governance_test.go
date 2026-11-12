@@ -135,18 +135,20 @@ func TestReviewApproveSoDBlocksOwnWork(t *testing.T) {
 // TestReviewEditAndApproveInOneChangeSetIsOwnWork: a reviewer who rewrites a
 // translation and establishes it in one change set approves their own
 // wording, whoever wrote the draft before and whatever rung it stood on. A
-// blocking policy refuses the whole change set; with the policy off, both
-// land.
+// blocking policy keeps the correction and refuses the approval, so the set is
+// partial and the block waits for a second reviewer; with the policy off or
+// warning, both land.
 func TestReviewEditAndApproveInOneChangeSetIsOwnWork(t *testing.T) {
 	cases := []struct {
-		name    string
-		mode    platauth.SoDMode
-		before  model.TargetStatus
-		refused bool
+		name   string
+		mode   platauth.SoDMode
+		before model.TargetStatus
+		held   bool
 	}{
 		{"a machine draft under a blocking policy", platauth.SoDBlock, model.TargetStatusDraft, true},
 		{"an established translation under a blocking policy", platauth.SoDBlock, model.TargetStatusEstablished, true},
 		{"a machine draft with the policy off", platauth.SoDOff, model.TargetStatusDraft, false},
+		{"a machine draft under a warning policy", platauth.SoDWarn, model.TargetStatusDraft, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -165,18 +167,29 @@ func TestReviewEditAndApproveInOneChangeSetIsOwnWork(t *testing.T) {
 				decide(fr, rev, change.OutcomeEstablish),
 			}})
 			stored := getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), projID, bid)
-			if tc.refused {
-				require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
-				require.Equal(t, change.SetRefused, res.Status)
+			assert.Equal(t, "Bonjour à tous", stored.TargetText("fr"), "the correction lands")
+			if tc.held {
+				require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+				require.Equal(t, change.SetPartial, res.Status, "%+v", res.Ops)
+				assert.Equal(t, change.OpApplied, res.Ops[0].Status)
+				assert.Equal(t, change.OpRefused, res.Ops[1].Status)
 				require.NotNil(t, res.Ops[1].Error)
 				assert.Equal(t, change.CodeNotPermitted, res.Ops[1].Error.Code)
-				assert.Equal(t, "Bonjour", stored.TargetText("fr"), "nothing of a refused change set lands")
-				assert.Equal(t, tc.before, targetStatusOf(t, stored, "fr"))
+				assert.Contains(t, res.Ops[1].Error.Message, sodRefusal)
+				assert.NotEqual(t, model.TargetStatusEstablished, targetStatusOf(t, stored, "fr"),
+					"the correction waits for a second reviewer")
+
+				// A second reviewer approves the corrected wording.
+				other := changeCaller{user: "u-other", perms: testReviewer, ws: wsID}
+				after := targetRev(t, s.ContentStore.(*bstore.PostgresStore), projID, bid, "fr")
+				rec, res = sendChanges(t, s, projID, other, change.Set{Ops: []change.Op{decide(fr, after, change.OutcomeEstablish)}})
+				require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+				require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+				assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 				return
 			}
 			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
-			assert.Equal(t, "Bonjour à tous", stored.TargetText("fr"))
 			assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, stored, "fr"))
 		})
 	}
