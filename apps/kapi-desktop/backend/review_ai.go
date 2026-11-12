@@ -462,7 +462,7 @@ func (a *App) reviewerModelID() (string, error) {
 	if a.aiToolFactory != nil {
 		store = nil
 	}
-	id, err := host.ReviewerModel(a.aiConfig, store)
+	id, err := host.ReviewerModel(a.aiConfig, store, nil)
 	if err != nil {
 		return "", friendlyAIProviderError(err)
 	}

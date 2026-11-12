@@ -27,7 +27,8 @@ type PreReviewOptions struct {
 	// collection.
 	Collection string
 	// Model is the reviewer the annotations name. Empty resolves it from the
-	// app's AI defaults and credential store (ReviewerModel).
+	// review tool's assembled config, the app's AI defaults and its credential
+	// store (ReviewerModel).
 	Model string
 	// NewTool builds the review tool from its assembled config. Nil builds it
 	// through the app's tool registry, whose config preprocessor applies the
@@ -70,16 +71,7 @@ func (a *App) RunAIPreReview(ctx context.Context, projectPath, sourceLang string
 	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 	source := a.SourceLang
 
-	modelID := opts.Model
-	if modelID == "" {
-		if modelID, err = ReviewerModel(a.Config, a.Credentials); err != nil {
-			return nil, err
-		}
-		if modelID == "" {
-			return nil, errors.New("no AI provider is configured: run `kapi models setup`")
-		}
-	}
-	res := &PreReviewResult{Model: modelID}
+	res := &PreReviewResult{Model: opts.Model}
 
 	all, err := a.UnitsFromProject(proj, root, "")
 	if err != nil {
@@ -111,7 +103,7 @@ func (a *App) RunAIPreReview(ctx context.Context, projectPath, sourceLang string
 			groups[k] = append(groups[k], it)
 		}
 		p := &preReview{app: a, proj: proj, recipe: projectPath, root: root, source: source,
-			model: modelID, opts: opts, res: res, total: len(queue)}
+			opts: opts, res: res, total: len(queue)}
 		for _, k := range order {
 			if err := p.group(ctx, units, k.file, k.locale, groups[k]); err != nil {
 				return err
@@ -132,7 +124,6 @@ type preReview struct {
 	recipe string
 	root   string
 	source string
-	model  string
 	opts   PreReviewOptions
 	res    *PreReviewResult
 	done   int
@@ -169,11 +160,14 @@ func (p *preReview) group(ctx context.Context, units []VerifyUnit, file, locale 
 	}
 
 	ref := UnitRef{Collection: unit.Collection, Path: relativeToRoot(p.root, unit.SourcePath), TargetLang: locale}
-	chain, release, err := p.reviewTool(ctx, ref, unit.SourcePath)
+	chain, reviewer, release, err := p.reviewTool(ctx, ref, unit.SourcePath)
 	if err != nil {
 		return err
 	}
 	defer release()
+	if p.res.Model == "" {
+		p.res.Model = reviewer
+	}
 
 	annotations := map[string]state.AIReview{}
 	for _, it := range items {
@@ -193,7 +187,7 @@ func (p *preReview) group(ctx context.Context, units []VerifyUnit, file, locale 
 		if err := RunTools(unitCtx, chain, b); err != nil {
 			return fmt.Errorf("ai pre-review %s:%s: %w", it.File, it.Key, err)
 		}
-		rev, ok := reviewAnnotation(b, p.model)
+		rev, ok := reviewAnnotation(b, reviewer)
 		if !ok {
 			p.res.Skipped++
 			continue
@@ -211,17 +205,30 @@ func (p *preReview) group(ctx context.Context, units []VerifyUnit, file, locale 
 }
 
 // reviewTool builds the review tool for one unit as a run builds it, inside
-// the redaction chain that covers the unit's file. The release function frees
-// what the assembly opened and is always safe to call.
-func (p *preReview) reviewTool(ctx context.Context, ref UnitRef, file string) ([]tool.Tool, func(), error) {
+// the redaction chain that covers the unit's file, and names the reviewer its
+// annotations record: PreReviewOptions.Model, or the one the assembled config
+// resolves to (ReviewerModel). The release function frees what the assembly
+// opened and is always safe to call.
+func (p *preReview) reviewTool(ctx context.Context, ref UnitRef, file string) ([]tool.Tool, string, func(), error) {
 	noop := func() {}
 	const name = "review"
 	cfg, release, err := p.app.ToolConfigForUnit(ctx, p.proj, p.recipe, name, ref, map[string]any{"sourceLocale": p.source})
 	if err != nil {
-		return nil, noop, err
+		return nil, "", noop, err
 	}
 	if release == nil {
 		release = noop
+	}
+	reviewer := p.opts.Model
+	if reviewer == "" {
+		reviewer, err = ReviewerModel(p.app.Config, p.app.Credentials, cfg)
+		if err == nil && reviewer == "" {
+			err = errors.New("no AI provider is configured for the review tool: run `kapi models setup`")
+		}
+		if err != nil {
+			release()
+			return nil, "", noop, err
+		}
 	}
 	var tl tool.Tool
 	if p.opts.NewTool != nil {
@@ -231,14 +238,14 @@ func (p *preReview) reviewTool(ctx context.Context, ref UnitRef, file string) ([
 	}
 	if err != nil {
 		release()
-		return nil, noop, err
+		return nil, "", noop, err
 	}
 	chain, err := p.app.RedactionChain(p.recipe, p.proj, file, name, cfg, tl)
 	if err != nil {
 		release()
-		return nil, noop, err
+		return nil, "", noop, err
 	}
-	return chain, release, nil
+	return chain, reviewer, release, nil
 }
 
 // reviewAnnotation reads the review tool's result off a block: the score and
@@ -263,13 +270,20 @@ func reviewAnnotation(b *model.Block, modelID string) (state.AIReview, bool) {
 	return rev, true
 }
 
-// ReviewerModel is the name a pre-review records its reviewer under: the
-// shared ai.model default, the model the credential names, or with neither the
-// provider. A nil store skips credential resolution, and with nothing
-// configured the name is empty.
-func ReviewerModel(cfg *config.AppConfig, store *credentials.Store) (string, error) {
+// ReviewerModel is the name a pre-review records its reviewer under: the model
+// the review tool's config names, else the shared ai.model default, the model
+// the credential names, or with none of these the provider. toolCfg may be
+// nil. A nil store skips credential resolution, and with nothing configured
+// the name is empty.
+func ReviewerModel(cfg *config.AppConfig, store *credentials.Store, toolCfg map[string]any) (string, error) {
 	requires := []string{schema.RequiresCredentials}
-	c := ApplyAIDefaults(cfg, "review", requires, map[string]any{})
+	c := make(map[string]any, len(toolCfg))
+	for k, v := range toolCfg {
+		if k == "provider" || k == "model" {
+			c[k] = v
+		}
+	}
+	c = ApplyAIDefaults(cfg, "review", requires, c)
 	if store != nil {
 		resolved, err := credentials.ResolveCredentials(store, "review", requires, c)
 		if err != nil {
