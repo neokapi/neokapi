@@ -37,8 +37,9 @@ features that follow review, and none of it is specific to review.
   returns, for people with the review permission for a language.
 - **Later:** the entity queue (`/review-queue`, `entity_review` items: term
   and entity suggestions) suits the same card. It needs a card of its own.
-- **Out of scope for the first version:** editing a translation, long prose
-  (routed to the desk), project settings, source changes.
+- **Out of scope for the first version:** long prose (routed to the desk),
+  project settings, source changes, notifications (phase 3), lot sampling,
+  known-bad cards and pace (phases 2 and 4).
 
 The app is a client. Every rule it applies (what counts as a decision, who
 may decide, which cards come first, which cards go to the desk) is computed
@@ -67,26 +68,50 @@ appears is guessing, and the card should make that plain.
 
 | Action | Gesture | Button | Result |
 | --- | --- | --- | --- |
-| Reject | swipe left | Reject | a reason sheet, then `decide` with outcome `reject` and the chosen reasons in its `reasons` |
+| Fix | swipe left | Fix | the fix sheet (below): pick a ready-made fix or edit, and the corrected translation is approved in one change set |
 | Skip | swipe up | Later | nothing is recorded; the card returns at the end of the deck |
 | Approve | swipe right | Approve | a `decide` operation with outcome `establish` |
 | Undo | the undo bar | Undo | the last decision is withdrawn while it is still queued, or reversed with a new decision once sent |
 
-The buttons follow the rule every review surface uses: Reject first, Approve
-last at the trailing edge, with space between them. Kapi Desktop, Bowrain web
+The buttons follow the rule every review surface uses: the negative or
+corrective action first, Approve last at the trailing edge, with space
+between them. Kapi Desktop, Bowrain web
 and the app place them the same way, and the swipe direction matches: right
 approves.
 
 Every gesture has a button, for discoverability and for accessibility
 (VoiceOver and TalkBack users act on the buttons). Haptics confirm approve and
-reject. A reject always asks for a reason: one tap on a chip (wrong term,
-meaning, tone, placeholder, grammar) and an optional typed or dictated note.
-A bare reject leaves the next draft no better than this one. The note is also
-how a reviewer asks for a specific correction: the next draft reads it.
+fix.
 
-"Approve with a one-line correction" is left out of the first version. It
-brings text editing, validation and edit conflicts into the swipe loop, and
-the reject note covers the need until usage shows otherwise.
+### The fix sheet
+
+A rejected block goes back for a new draft, waits in the queue and comes back
+for review: two more round trips, often days, to change what is usually one or
+two words. A correction settles the block at once, and the corrected wording
+enters the content memory, so every later draft of the same text reuses it.
+The fix sheet is therefore the main path for a translation that is not right.
+
+1. **Why:** one tap on a reason chip (wrong term, meaning, tone, placeholder,
+   grammar). The reason filters and orders the fixes below.
+2. **Ready-made fixes,** each a diff against the draft, each one tap to apply:
+   the term fix (the draft with a term rule's replacement applied), the
+   content-memory alternatives the review context finds, and an AI rewrite
+   that addresses the chosen reason. The server computes them (below), so
+   Bowrain web and Kapi Desktop offer the same fixes.
+3. **Edit:** a text field where placeholders and inline codes are locked
+   chips that cannot be broken, with the diff shown before confirming.
+4. **Reject with the reason:** when no fix fits. The decision carries the
+   reason and an optional note, and the next draft reads them.
+
+A fix is one change set: `set_content` with the corrected runs, then `decide`
+with outcome `establish`, both with `if_match` on the revisions the card
+showed. The server validates the content: a fix that breaks a placeholder is
+refused as a guard failure, and the sheet shows why. Under the workspace's
+separation-of-duties policy a reviewer approving their own correction is
+self-approval: with `off` or `warn` the block settles at once; with `block`
+the correction is kept and the block waits for a second reviewer, which is
+still faster than a redraft. Corrections are sampled in quality review like
+any other decision.
 
 ## The deck
 
@@ -208,13 +233,17 @@ against a small sender interface so the switch stays local.
    `target_revisions`, so a decision can bind both halves.
 3. **Lot sampling** for the backlog policy: lots, samples, the threshold, and
    `approve-passing` over a lot that passed.
-4. **Device registration:** `POST`/`DELETE` a push token per device, with the
+4. **Fix candidates:** for one block and language, the term fix, the
+   content-memory alternatives and, on request, an AI rewrite for a reason,
+   each as runs with a diff against the draft. The computation lives in host,
+   so Kapi Desktop and the CLI get the same candidates; the server exposes it.
+5. **Device registration:** `POST`/`DELETE` a push token per device, with the
    person's digest period and quiet hours.
-5. **A notification job** in the worker: digests and event pushes through the
+6. **A notification job** in the worker: digests and event pushes through the
    Expo push service, behind a sender interface.
-6. **Known-bad cards and pace:** a seeded, rotating set per language, and the
+7. **Known-bad cards and pace:** a seeded, rotating set per language, and the
    session report, both server-side.
-7. **Reject reasons that reach the next draft.** The `decide` operation
+8. **Reject reasons that reach the next draft.** The `decide` operation
    already carries `reasons`; the server keeps them with the decision, and the
    drafting step reads them as guidance when it drafts the block again.
 
@@ -346,12 +375,13 @@ The push service is stubbed at the sender interface.
 
 ## Phases
 
-1. **First build:** sign-in, language list, deck, card, gestures, decisions
-   through the change contract, offline queue, TestFlight and the Play
-   internal track.
-2. **Server:** the deck endpoint, the source revision on entries, lot
-   sampling, reject reasons read by the next draft. Bowrain web's focused
-   reviewer moves to the deck endpoint.
+1. **First version:** on the server, the deck endpoint (with source and
+   target revisions) and fix candidates from host; in the app, sign-in,
+   language list, deck, card, gestures, the fix sheet, decisions and fixes
+   through the change contract, the offline queue; then TestFlight and the
+   Play internal track.
+2. **Server:** lot sampling, reject reasons read by the next draft. Bowrain
+   web's focused reviewer moves to the deck endpoint and gains the fix sheet.
 3. **Notifications:** device registration, the worker job, digests and
    assignment pushes.
 4. **Safeguards:** known-bad cards, pace, session reports.
@@ -371,8 +401,11 @@ The push service is stubbed at the sender interface.
 3. **Pace and known-bad cards:** warn below about 0.25 seconds per word over
    the source and the translation; 3 to 5 percent known-bad cards, spread
    evenly, from a rotating pool.
-4. **"Approve with a one-line correction":** not in the first version; the
-   reject note carries the correction.
+4. **Corrections:** in the first version, as the fix sheet: ready-made fixes
+   first, editing second, reject with a reason last. A correction settles the
+   block and teaches the content memory; a reject only asks for another
+   draft. (The founder reversed the earlier "not in the first version" on
+   2026-11-12.)
 5. **The app's name:** decided: Bowrain. Review is the first feature, so
    the store subtitle and screenshots lead with it. Before submission, check
    that the name is free in both stores and that the trademark position
