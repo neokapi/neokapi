@@ -501,6 +501,7 @@ holds by `block_id` and `locale`.
       "target_runs": [{"text": "Lagre "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
       "source_text": "Save {name}",
       "target_text": "Lagre {name}",
+      "target_edit_text": "Lagre <x id=\"1/\"/>",
       "source_revision": "r:0a1b2c3d4e5f6a7b",
       "target_revision": "r:74dbfac2ed1c9d6e",
       "target_status": "translated",
@@ -511,7 +512,7 @@ holds by `block_id` and `locale`.
       "voice_score": 88,
       "voice_bar": 75,
       "notes": [
-        {"kind": "term", "text": "Term rule \"workspace\": use \"arbeidsområde\""}
+        {"kind": "term", "text": "term \"workspace\": \"arbeidsområde\""}
       ],
       "own_work": false,
       "group": "fast",
@@ -526,6 +527,9 @@ holds by `block_id` and `locale`.
 
 - `source_revision` and `target_revision` are the tokens a change set's
   `basis` and `if_match` take (below).
+- `source_runs` and `target_runs` are for drawing the card, codes with their
+  data. `target_edit_text` is the translation in the placeholder form a
+  `set_content` sends as `text`, which the edit field starts from.
 - `pre_review` is absent when no agent has scored the translation as it
   stands. `voice_score` is absent for an unscored block, and `voice_bar`
   where no voice profile governs the language. `term_compliance` is
@@ -569,12 +573,14 @@ credit gate applies (`402` when the workspace is out of credits).
   "target_revision": "r:74dbfac2ed1c9d6e",
   "current_runs": [{"text": "Lagre arbeidsrommet "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
   "current_text": "Lagre arbeidsrommet {name}",
+  "current_edit_text": "Lagre arbeidsrommet <x id=\"1/\"/>",
   "candidates": [
     {
       "kind": "term",
       "label": "Use \"arbeidsområdet\" for \"arbeidsrommet\"",
       "runs": [{"text": "Lagre arbeidsområdet "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
       "text": "Lagre arbeidsområdet {name}",
+      "edit_text": "Lagre arbeidsområdet <x id=\"1/\"/>",
       "diff": {
         "kind": "substantive",
         "prior": [{"text": "Lagre", "op": "same"}, {"text": " ", "op": "same"}, {"text": "arbeidsrommet", "op": "removed"}, {"text": " {name}", "op": "same"}],
@@ -588,6 +594,7 @@ credit gate applies (`402` when the workspace is out of credits).
       "label": "Content memory, 96% match",
       "runs": [{"text": "Lagre arbeidsområdet "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
       "text": "Lagre arbeidsområdet {name}",
+      "edit_text": "Lagre arbeidsområdet <x id=\"1/\"/>",
       "diff": {"kind": "substantive", "prior": [], "current": []},
       "reasons": ["wrong_term", "meaning", "placeholder"],
       "score": 96
@@ -603,10 +610,14 @@ credit gate applies (`402` when the workspace is out of credits).
 - `kind` is `term` (the draft with the term rules for the target language
   applied), `memory` (a content-memory alternative for the source, never one
   identical to the draft) or `ai` (a rewrite for the given reason).
-- `runs` is what a fix sends as `set_content`, as it stands. Every
-  candidate passes the placeholder guard the change service applies; one
-  that does not is listed under `dropped` with the reason and is never
-  offered.
+- `runs` is the corrected translation for drawing, codes with their data.
+  `edit_text` is the same content in the placeholder form a `set_content`
+  sends as `text`, each code an `<x id="…"/>`. A change set's runs never
+  carry a code's `data`: send `edit_text`, or `runs` with every `data`
+  removed.
+- Every candidate keeps the source's placeholders and passes the
+  inline-code guard the change service applies. One that does not is listed
+  under `dropped` with the reason and is never offered.
 - `diff` is a word diff of `current_text` against `text`: `prior` holds
   `same`, `cosmetic` and `removed` spans, `current` holds `same`, `cosmetic`
   and `added`. Joining either side's spans gives that text back.
@@ -652,7 +663,7 @@ the decision binds to the content the change set lands.
       "at": {"doc": "web/i18n/en.json", "block": "b-01J...", "edition": "nb"},
       "if_match": "r:74dbfac2ed1c9d6e",
       "basis": "r:0a1b2c3d4e5f6a7b",
-      "runs": [{"text": "Lagre arbeidsområdet "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}]
+      "text": "Lagre arbeidsområdet <x id=\"1/\"/>"
     },
     {
       "op": "decide",
@@ -666,8 +677,10 @@ the decision binds to the content the change set lands.
 }
 ```
 
-Text typed in the edit field may go as `"text"` instead of `"runs"`, with
-each code written as the `<x id="1"/>` placeholder a read shows.
+`text` is the candidate's `edit_text`, or the edit field's text with each
+code kept as the `<x id="…"/>` it started with. The content may go as
+`"runs"` instead, with no code carrying `data` (`{"ph": {"id": "1"}}`):
+the server takes each code's data from the translation it replaces.
 
 ### Reject with reasons
 
@@ -698,7 +711,9 @@ The response is a `kapi.change-result/v1` object: `status` for the set,
 | it landed | 200 | `applied` | every operation `applied` |
 | the translation moved after the card was read | 409 | `refused` | `error.code` `stale`, `error.field` `if_match`; `current` holds the text as it stands |
 | the source moved after the card was read | 409 | `refused` | `error.code` `stale`, `error.field` `basis` |
-| a fix drops, adds or breaks a placeholder | 422 | `refused` | `set_content` with `error.code` `guard`, `error.subcode` `codes_changed` |
+| a fix drops a placeholder the source holds | 422 | `refused` | `set_content` with `error.code` `gate_failed`: the placeholder check fails on the new wording |
+| a fix names a code neither edition holds, or unbalances a paired code | 422 | `refused` | `set_content` with `error.code` `guard`, `error.subcode` `codes_changed` |
+| a code in `runs` carries `data` | 400 | `refused` | the set's `error.code` `invalid`, with `error.pointer` naming the run |
 | a fix under separation of duties `off` or `warn` | 200 | `applied` | both `applied`; the block is approved |
 | a fix under separation of duties `block` | 200 | `partial` | `set_content` `applied`; `decide` `refused` with `error.code` `not_permitted` and the policy's message. The correction is kept, and the block waits for a second reviewer |
 | an approval of your own work under `block` | 403 | `refused` | `decide` with `error.code` `not_permitted` |
