@@ -362,7 +362,7 @@ func fixRefusal(b *model.Block, target model.LocaleID, runs []model.Run) string 
 		Kind:    change.KindSetContent,
 		At:      change.Ref{Block: b.ID, Edition: key},
 		IfMatch: model.EditionRevision(work, key),
-		Body:    &change.SetContent{Content: change.Content{Runs: copyRuns(runs)}},
+		Body:    &change.SetContent{Runs: copyRuns(runs)},
 	}
 	res := change.ApplyBlock(work, []change.Op{op}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}, Preview: true})
 	if len(res) == 1 && res[0].Error != nil {

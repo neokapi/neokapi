@@ -286,7 +286,7 @@ func TestFixCandidates_TermMemoryAndAI(t *testing.T) {
 	assert.Equal(t, `Ouvrez votre espace de travail <x id="1/"/>`, fixText)
 	rec, out := sendChanges(t, s, projID, reviewer, change.Set{RequireBasis: true, Ops: []change.Op{
 		{Kind: change.KindSetContent, At: fr, IfMatch: res.TargetRevision, Basis: res.SourceRevision,
-			Body: &change.SetContent{Content: change.Content{Text: &fixText}}},
+			Body: &change.SetContent{Text: &fixText}},
 		{Kind: change.KindDecide, At: fr, IfMatch: res.TargetRevision, Basis: res.SourceRevision,
 			Body: &change.Decide{Outcome: change.OutcomeEstablish, Reasons: []string{"wrong_term"}}},
 	}})
@@ -335,7 +335,7 @@ func TestReviewDeck_CardChangeSetsAreGuarded(t *testing.T) {
 			text := tc.text
 			rec, res := sendChanges(t, s, projID, reviewer, change.Set{RequireBasis: true, Ops: []change.Op{
 				{Kind: change.KindSetContent, At: fr, IfMatch: card.TargetRevision, Basis: card.SourceRevision,
-					Body: &change.SetContent{Content: change.Content{Text: &text}}},
+					Body: &change.SetContent{Text: &text}},
 				{Kind: change.KindDecide, At: fr, IfMatch: card.TargetRevision, Basis: card.SourceRevision,
 					Body: &change.Decide{Outcome: change.OutcomeEstablish}},
 			}})
@@ -354,7 +354,7 @@ func TestReviewDeck_CardChangeSetsAreGuarded(t *testing.T) {
 		owner := changeCaller{user: "owner-rc", perms: platauth.PermAll, ws: wsID}
 		rec, res := sendChanges(t, s, projID, owner, change.Set{Ops: []change.Op{
 			{Kind: change.KindSetContent, At: src, IfMatch: card.SourceRevision,
-				Body: &change.SetContent{Content: change.Content{Runs: []model.Run{model.TextR("Hello there "), model.PhR(model.PlaceholderRun{ID: "1"})}}}},
+				Body: &change.SetContent{Runs: []model.Run{model.TextR("Hello there "), model.PhR(model.PlaceholderRun{ID: "1"})}}},
 		}})
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)

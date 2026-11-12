@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -120,7 +121,7 @@ func decodeDeckCursor(s string) (deckCursor, error) {
 	}
 	parts := strings.Split(string(raw), "\x00")
 	if len(parts) != 3 || !slices.Contains(reviewdeck.DeckGroups, reviewdeck.DeckGroup(parts[0])) {
-		return deckCursor{}, fmt.Errorf("malformed cursor")
+		return deckCursor{}, errors.New("malformed cursor")
 	}
 	return deckCursor{group: reviewdeck.DeckGroup(parts[0]), blockID: parts[1], locale: parts[2]}, nil
 }
