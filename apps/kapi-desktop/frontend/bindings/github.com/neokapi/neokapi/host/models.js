@@ -3958,7 +3958,7 @@ export class ConvergeLocaleResult {
              */
             this["pct"] = undefined;
         }
-        if (!("shipState" in $$source)) {
+        if (!("ship_state" in $$source)) {
             /**
              * ShipState folds the locale's scopes into one standing: withheld when any
              * scope is withheld, shippable when every scope is gated and clears its gate,
@@ -3967,7 +3967,7 @@ export class ConvergeLocaleResult {
              * @member
              * @type {ShipState}
              */
-            this["shipState"] = convergence$0.ShipState.$zero;
+            this["ship_state"] = convergence$0.ShipState.$zero;
         }
         if (!("gated" in $$source)) {
             /**
@@ -3987,7 +3987,7 @@ export class ConvergeLocaleResult {
              * @member
              * @type {number | undefined}
              */
-            this["failingChecks"] = undefined;
+            this["failing_checks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4045,7 +4045,7 @@ export class ConvergeLocaleResult {
              * @member
              * @type {number | undefined}
              */
-            this["staleDrafts"] = undefined;
+            this["stale_drafts"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4055,7 +4055,7 @@ export class ConvergeLocaleResult {
              * @member
              * @type {output$0.UnstampedDrafts[] | undefined}
              */
-            this["unstampedDrafts"] = undefined;
+            this["unstamped_drafts"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -4073,8 +4073,8 @@ export class ConvergeLocaleResult {
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
-        if ("unstampedDrafts" in $$parsedSource) {
-            $$parsedSource["unstampedDrafts"] = $$createField12_0($$parsedSource["unstampedDrafts"]);
+        if ("unstamped_drafts" in $$parsedSource) {
+            $$parsedSource["unstamped_drafts"] = $$createField12_0($$parsedSource["unstamped_drafts"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }
@@ -4128,7 +4128,7 @@ export class ConvergeOutput {
              * @member
              * @type {ParkedScope[] | undefined}
              */
-            this["parkedScopes"] = undefined;
+            this["parked_scopes"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4138,7 +4138,7 @@ export class ConvergeOutput {
              * @member
              * @type {number | undefined}
              */
-            this["materializedFiles"] = undefined;
+            this["materialized_files"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4150,7 +4150,7 @@ export class ConvergeOutput {
              * @member
              * @type {number | undefined}
              */
-            this["blockedOnSource"] = undefined;
+            this["blocked_on_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4160,7 +4160,7 @@ export class ConvergeOutput {
              * @member
              * @type {string | undefined}
              */
-            this["translateAfter"] = undefined;
+            this["translate_after"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4171,7 +4171,7 @@ export class ConvergeOutput {
              * @member
              * @type {string | undefined}
              */
-            this["stallReason"] = undefined;
+            this["stall_reason"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4192,7 +4192,7 @@ export class ConvergeOutput {
              * @member
              * @type {boolean | undefined}
              */
-            this["noTargets"] = undefined;
+            this["no_targets"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4203,14 +4203,14 @@ export class ConvergeOutput {
              * @member
              * @type {number | undefined}
              */
-            this["extractedFiles"] = undefined;
+            this["extracted_files"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {number | undefined}
              */
-            this["extractedBlocks"] = undefined;
+            this["extracted_blocks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4227,21 +4227,21 @@ export class ConvergeOutput {
              * @member
              * @type {number | undefined}
              */
-            this["conceptsProposed"] = undefined;
+            this["concepts_proposed"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {string | undefined}
              */
-            this["changesetId"] = undefined;
+            this["changeset_id"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {string | undefined}
              */
-            this["changesetUrl"] = undefined;
+            this["changeset_url"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4292,8 +4292,8 @@ export class ConvergeOutput {
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
         }
-        if ("parkedScopes" in $$parsedSource) {
-            $$parsedSource["parkedScopes"] = $$createField4_0($$parsedSource["parkedScopes"]);
+        if ("parked_scopes" in $$parsedSource) {
+            $$parsedSource["parked_scopes"] = $$createField4_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
             $$parsedSource["warnings"] = $$createField16_0($$parsedSource["warnings"]);
@@ -4924,7 +4924,7 @@ export class UpPlanOutput {
              */
             this["flow"] = undefined;
         }
-        if (!("flowDrafts" in $$source)) {
+        if (!("flow_drafts" in $$source)) {
             /**
              * FlowDrafts reports whether the flow contains any step that produces a
              * target other than by content-memory recycling. False means the flow
@@ -4933,9 +4933,9 @@ export class UpPlanOutput {
              * @member
              * @type {boolean}
              */
-            this["flowDrafts"] = false;
+            this["flow_drafts"] = false;
         }
-        if (!("flowCallsProvider" in $$source)) {
+        if (!("flow_calls_provider" in $$source)) {
             /**
              * FlowCallsProvider reports whether producing a target under this flow
              * reaches an AI or machine-translation provider. False means the run makes
@@ -4944,7 +4944,7 @@ export class UpPlanOutput {
              * @member
              * @type {boolean}
              */
-            this["flowCallsProvider"] = false;
+            this["flow_calls_provider"] = false;
         }
         if (!("scopes" in $$source)) {
             /**
@@ -4997,7 +4997,7 @@ export class UpPlanOutput {
              * @member
              * @type {boolean | undefined}
              */
-            this["noTargets"] = undefined;
+            this["no_targets"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5094,16 +5094,16 @@ export class UpPlanScope {
              */
             this["collection"] = undefined;
         }
-        if (!("missingTarget" in $$source)) {
+        if (!("missing_target" in $$source)) {
             /**
              * MissingTarget is the count of translatable units with no committed
              * target for the locale.
              * @member
              * @type {number}
              */
-            this["missingTarget"] = 0;
+            this["missing_target"] = 0;
         }
-        if (!("memoryExact" in $$source)) {
+        if (!("memory_exact" in $$source)) {
             /**
              * MemoryExact is the count of counted units covered by an exact-hash
              * content-memory hit (the cheap leverage estimate — fuzzy leverage is not
@@ -5111,7 +5111,7 @@ export class UpPlanScope {
              * @member
              * @type {number}
              */
-            this["memoryExact"] = 0;
+            this["memory_exact"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5132,7 +5132,7 @@ export class UpPlanScope {
              */
             this["drafts"] = undefined;
         }
-        if (!("aiRemaining" in $$source)) {
+        if (!("ai_remaining" in $$source)) {
             /**
              * AIRemaining is the count of counted units left for AI translation after
              * content-memory leverage and stored drafts: the provider calls a run
@@ -5140,7 +5140,7 @@ export class UpPlanScope {
              * @member
              * @type {number}
              */
-            this["aiRemaining"] = 0;
+            this["ai_remaining"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5188,7 +5188,7 @@ export class UpPlanScope {
              * @member
              * @type {number | undefined}
              */
-            this["outOfReach"] = undefined;
+            this["out_of_reach"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5203,9 +5203,9 @@ export class UpPlanScope {
              * @member
              * @type {number | undefined}
              */
-            this["unreadTargets"] = undefined;
+            this["unread_targets"] = undefined;
         }
-        if (!("tokenEstimate" in $$source)) {
+        if (!("token_estimate" in $$source)) {
             /**
              * TokenEstimate approximates the input tokens for the remaining AI work:
              * source characters / 4 (a common chars-per-token heuristic — the
@@ -5214,7 +5214,7 @@ export class UpPlanScope {
              * @member
              * @type {number}
              */
-            this["tokenEstimate"] = 0;
+            this["token_estimate"] = 0;
         }
 
         Object.assign(this, $$source);

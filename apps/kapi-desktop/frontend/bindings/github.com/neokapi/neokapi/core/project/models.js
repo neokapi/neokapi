@@ -2041,7 +2041,7 @@ export class StoreDrift {
              * @member
              * @type {boolean | undefined}
              */
-            this["storeMissing"] = undefined;
+            this["store_missing"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -2051,7 +2051,7 @@ export class StoreDrift {
              * @member
              * @type {boolean | undefined}
              */
-            this["versionStale"] = undefined;
+            this["version_stale"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
