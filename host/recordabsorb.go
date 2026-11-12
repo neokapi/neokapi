@@ -86,7 +86,7 @@ type RecordAbsorbResult struct {
 	// look at it; the resolver's choices are only auditable if the choices are
 	// on the page.
 	Contested        int               `json:"contested,omitempty"`
-	ContestedSources []ContestedSource `json:"contestedSources,omitempty"`
+	ContestedSources []ContestedSource `json:"contested_sources,omitempty"`
 	// Superseded counts pairs the project's own record says do not go together:
 	// the committed target translates source wording that has since been
 	// rewritten, so it is not a translation of the sentence now beside it. Such

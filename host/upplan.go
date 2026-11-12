@@ -43,11 +43,11 @@ type UpPlanScope struct {
 	Collection string `json:"collection,omitempty"`
 	// MissingTarget is the count of translatable units with no committed
 	// target for the locale.
-	MissingTarget int `json:"missingTarget"`
+	MissingTarget int `json:"missing_target"`
 	// MemoryExact is the count of counted units covered by an exact-hash
 	// content-memory hit (the cheap leverage estimate — fuzzy leverage is not
 	// counted).
-	MemoryExact int `json:"memoryExact"`
+	MemoryExact int `json:"memory_exact"`
 	// Drafts is the count of counted units the pass serves from the project
 	// block store instead of a provider. The drafting step already holds a
 	// translation of the unit's current source, made under the configuration it
@@ -64,7 +64,7 @@ type UpPlanScope struct {
 	// AIRemaining is the count of counted units left for AI translation after
 	// content-memory leverage and stored drafts: the provider calls a run
 	// makes.
-	AIRemaining int `json:"aiRemaining"`
+	AIRemaining int `json:"ai_remaining"`
 	// Stale is the count of units that HAVE a committed target whose decision
 	// was recorded against source wording that has since changed. The run
 	// re-drafts them — recycle against the new wording, AI for the remainder —
@@ -94,7 +94,7 @@ type UpPlanScope struct {
 	// defect: a recipe whose flow is exact-match content-memory reuse and
 	// nothing else was quoted a provider bill for every unit the memory missed,
 	// then made zero provider calls (#1866).
-	OutOfReach int `json:"outOfReach,omitempty"`
+	OutOfReach int `json:"out_of_reach,omitempty"`
 	// UnreadTargets is the count of produced units the plan declines to judge:
 	// their committed translation has not been read into the project store yet,
 	// so the corpus is unfinished and its silence about them means "not asked",
@@ -103,12 +103,12 @@ type UpPlanScope struct {
 	// disclosure and not an axis of work: pricing them would quote a provider
 	// call for every translation the run is about to recycle, and quoting zero
 	// would promise a free run.
-	UnreadTargets int `json:"unreadTargets,omitempty"`
+	UnreadTargets int `json:"unread_targets,omitempty"`
 	// TokenEstimate approximates the input tokens for the remaining AI work:
 	// source characters / 4 (a common chars-per-token heuristic — the
 	// providers expose no tokenizer here, so this is an estimate, not a
 	// quote).
-	TokenEstimate int `json:"tokenEstimate"`
+	TokenEstimate int `json:"token_estimate"`
 }
 
 // UpPlanOutput is the structured result of `kapi up --plan`: the dry-run work
@@ -120,12 +120,12 @@ type UpPlanOutput struct {
 	// target other than by content-memory recycling. False means the flow
 	// recycles and nothing else, so every unit the corpus does not answer is
 	// out of reach of this run.
-	FlowDrafts bool `json:"flowDrafts"`
+	FlowDrafts bool `json:"flow_drafts"`
 	// FlowCallsProvider reports whether producing a target under this flow
 	// reaches an AI or machine-translation provider. False means the run makes
 	// no provider calls and spends nothing, whatever a default provider is
 	// configured to.
-	FlowCallsProvider bool          `json:"flowCallsProvider"`
+	FlowCallsProvider bool          `json:"flow_calls_provider"`
 	Scopes            []UpPlanScope `json:"scopes"`
 	Totals            UpPlanScope   `json:"totals"`
 	// Provider is the AI provider a converge run would use (the shared
@@ -142,7 +142,7 @@ type UpPlanOutput struct {
 	// NoTargets reports a project that declares target languages but has no
 	// collection with a target path, so a run writes no translation. An empty
 	// Scopes list then means there is nowhere to write, not that the work is done.
-	NoTargets bool `json:"noTargets,omitempty"`
+	NoTargets bool `json:"no_targets,omitempty"`
 	// Warnings name what the plan could not price, such as a declared file in a
 	// format no installed reader opens (check.WarningFormatNoReader). A run sets
 	// that content aside.

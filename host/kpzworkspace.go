@@ -491,8 +491,8 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 // with --json, as JSON — the latter drives the docs lab's inspection panel.
 type workspaceInfo struct {
 	Workspace   string         `json:"workspace"`
-	SourceLang  string         `json:"sourceLang,omitempty"`
-	TargetLangs []string       `json:"targetLangs,omitempty"`
+	SourceLang  string         `json:"source_lang,omitempty"`
+	TargetLangs []string       `json:"target_langs,omitempty"`
 	Out         string         `json:"out,omitempty"`
 	Documents   []string       `json:"documents"`
 	Overlays    map[string]int `json:"overlays"` // locale → translated-block count

@@ -60,7 +60,7 @@ type ConvergeLocaleResult struct {
 	// scope is withheld, shippable when every scope is gated and clears its gate,
 	// and not_gated otherwise. A locale with content no ship gate matches makes
 	// no shippable claim for it.
-	ShipState ShipState `json:"shipState"`
+	ShipState ShipState `json:"ship_state"`
 	// Gated reports whether a ship gate matches any of the locale's scopes.
 	Gated bool `json:"gated"`
 	// FailingChecks counts units that are produced but fail the project's bound
@@ -68,7 +68,7 @@ type ConvergeLocaleResult struct {
 	// translated — and hold the locale out of Shippable until fixed. It counts
 	// UNITS, which is not what `kapi check` counts: one unit can carry several
 	// findings, and `kapi check` lists findings.
-	FailingChecks int `json:"failingChecks,omitempty"`
+	FailingChecks int `json:"failing_checks,omitempty"`
 	// Stale counts units whose translation was decided against source wording
 	// that has since changed. They hold the locale out of Shippable whether or
 	// not a gate applies: the decision on record no longer describes the
@@ -96,11 +96,11 @@ type ConvergeLocaleResult struct {
 	// a decision whose basis moved, and Redrafted the units this run produced
 	// over; a stale draft is neither, and stays until a pass with a producing
 	// step drafts the block again.
-	StaleDrafts int `json:"staleDrafts,omitempty"`
+	StaleDrafts int `json:"stale_drafts,omitempty"`
 	// UnstampedDrafts names each file whose stored drafts in this locale an
 	// earlier kapi wrote (blockstore.TargetOverlay.Unstamped). StaleDrafts
 	// counts them too.
-	UnstampedDrafts []output.UnstampedDrafts `json:"unstampedDrafts,omitempty"`
+	UnstampedDrafts []output.UnstampedDrafts `json:"unstamped_drafts,omitempty"`
 }
 
 // ParkedScope identifies one gated (collection, locale) scope still short of
@@ -121,26 +121,26 @@ type ConvergeOutput struct {
 	// ParkedScopes lists the gated (collection, locale) scopes that remain
 	// short of their gate — per-scope detail under the per-locale rollup, so
 	// a UI can link each parked scope to its review queue.
-	ParkedScopes []ParkedScope `json:"parkedScopes,omitempty"`
+	ParkedScopes []ParkedScope `json:"parked_scopes,omitempty"`
 	// MaterializedFiles is the total count of target files written by the
 	// post-loop materialize step across every shippable locale (0 when the
 	// policy is manual and --materialize was not passed).
-	MaterializedFiles int `json:"materializedFiles,omitempty"`
+	MaterializedFiles int `json:"materialized_files,omitempty"`
 	// BlockedOnSource is how many translatable source blocks were held below the
 	// translate_after level this run: their translations were not produced
 	// because the source is un-settled. 0 when the level is `none` or the
 	// source is fully settled. It is source-scoped (deduped across locales, as
 	// a source block is shared by every target), mirroring the server's run row.
-	BlockedOnSource int `json:"blockedOnSource,omitempty"`
+	BlockedOnSource int `json:"blocked_on_source,omitempty"`
 	// TranslateAfter is the resolved defaults.translate_after level applied
 	// (none|written|established), for observability. Empty when no level
 	// was evaluated (no content).
-	TranslateAfter string `json:"translateAfter,omitempty"`
+	TranslateAfter string `json:"translate_after,omitempty"`
 	// StallReason is the machine-readable cause a run did not converge — set to
 	// source_not_ready when every pending locale had nothing producible because
 	// its source is held below the translate_after level. Empty on a
 	// clean/parked-on-target run.
-	StallReason string `json:"stallReason,omitempty"`
+	StallReason string `json:"stall_reason,omitempty"`
 	// Monolingual reports a run over a project that resolves no target locale at
 	// all: the source half of convergence ran and the per-locale fan-out was not
 	// applicable. Locales is empty for such a run, and a reader needs to tell
@@ -149,13 +149,13 @@ type ConvergeOutput struct {
 	// NoTargets reports a run over a project that declares target languages but
 	// has no collection with a target path: the source half ran, and no
 	// translation had anywhere to go.
-	NoTargets bool `json:"noTargets,omitempty"`
+	NoTargets bool `json:"no_targets,omitempty"`
 	// ExtractedFiles and ExtractedBlocks report the pre-pass re-extraction that
 	// brought the project store back in sync with the working tree. Both 0 when
 	// the store was already current. They are the "what moved" of a monolingual
 	// run, whose whole output is otherwise source-side.
-	ExtractedFiles  int `json:"extractedFiles,omitempty"`
-	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
+	ExtractedFiles  int `json:"extracted_files,omitempty"`
+	ExtractedBlocks int `json:"extracted_blocks,omitempty"`
 	// ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
 	// the run proposed rather than applied: edits that take effect only once a
 	// reviewer accepts them. They are venue-supplied — a run at a venue that
@@ -166,9 +166,9 @@ type ConvergeOutput struct {
 	// the venue could not name one. An id with no link is still worth reporting:
 	// it is the handle every other surface takes, so a reader who cannot click
 	// through can still ask for the change-set by name.
-	ConceptsProposed int    `json:"conceptsProposed,omitempty"`
-	ChangesetID      string `json:"changesetId,omitempty"`
-	ChangesetURL     string `json:"changesetUrl,omitempty"`
+	ConceptsProposed int    `json:"concepts_proposed,omitempty"`
+	ChangesetID      string `json:"changeset_id,omitempty"`
+	ChangesetURL     string `json:"changeset_url,omitempty"`
 	// Warnings name what the run could not take in, such as a declared file in
 	// a format no installed reader opens (check.WarningFormatNoReader). The run
 	// set that content aside and converged the rest.
