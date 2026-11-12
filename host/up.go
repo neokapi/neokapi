@@ -69,7 +69,7 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if t.Drafts > 0 {
 		drafts = fmt.Sprintf(" · %d drafts", t.Drafts)
 	}
-	line := fmt.Sprintf("plan: %s · %d exact-content memory%s · %d AI · ≈%s tokens",
+	line := fmt.Sprintf("plan: %s · %d recycled%s · %d AI · ≈%s tokens",
 		strings.Join(work, " · "), t.MemoryExact, drafts, t.AIRemaining, compactTokens(t.TokenEstimate))
 	if plan.Provider != "" {
 		if plan.Subscription {

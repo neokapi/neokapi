@@ -283,6 +283,11 @@ type openProject struct {
 	mapMu       sync.Mutex
 	storeReadAt time.Time
 	lastCheck   *mapCheckTally
+	// recycled is what the last recycle pass filled (recycle.go), and
+	// recycleChecked latches the first sync's pass, so a tab looks for exact
+	// matches once on opening and again after each extraction.
+	recycled       *RecycledNote
+	recycleChecked atomic.Bool
 
 	// The questions Decide last read (rulesdecide.go), with the blocks they
 	// were counted over, so what keeping a typed form does is stated without

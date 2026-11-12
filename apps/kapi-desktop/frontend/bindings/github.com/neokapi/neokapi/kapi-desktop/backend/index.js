@@ -132,6 +132,7 @@ export {
     ProviderTypeInfo,
     RecipeAxisDTO,
     RecipeGovernanceDTO,
+    RecycledNote,
     RelationDTO,
     ResourceInfo,
     ReviewAIActionResult,

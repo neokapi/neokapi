@@ -245,11 +245,16 @@ team](/kapi/desktop/recipes/share-context-with-your-team).
 To translate a project, open **Project Settings**, add the language under
 **Translate into**, and click **Save Changes**.
 
+When a source file changes, and when you open the project, the app fills
+every target the content memory holds an exact match for, with no run and
+no model. The Overview counts them, such as **12 blocks recycled**. A near
+match waits for a run.
+
 When there are blocks to translate, the Overview shows a button that names
-the work, such as **Translate 12 blocks**, with how many come from the
-content memory and how many from the AI model. It is the desktop form of
-`kapi up`: it reuses earlier translations from the content memory,
-translates the rest, and holds back for **Review** what needs a person. After
+the work, such as **Translate 12 blocks**, with how many are recycled and
+how many come from the AI model. It is the desktop form of `kapi up`: it
+recycles from the content memory, translates the rest, and holds back for
+**Review** what needs a person. After
 a failed run the button reads **Run again**, and when the project is up to
 date there is no button. **Plan…** shows the work
 to do and estimates the tokens it uses before anything runs. Next to it,

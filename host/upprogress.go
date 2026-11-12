@@ -160,9 +160,9 @@ func producedSuffix(viaMemory, viaDraft, viaAI int) string {
 		return ""
 	}
 	if viaDraft == 0 {
-		return fmt.Sprintf("  (content memory %d · AI %d)", viaMemory, viaAI)
+		return fmt.Sprintf("  (recycled %d · AI %d)", viaMemory, viaAI)
 	}
-	return fmt.Sprintf("  (content memory %d · drafts %d · AI %d)", viaMemory, viaDraft, viaAI)
+	return fmt.Sprintf("  (recycled %d · drafts %d · AI %d)", viaMemory, viaDraft, viaAI)
 }
 
 // printAbove writes a plain line above the live region.

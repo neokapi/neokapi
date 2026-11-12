@@ -275,7 +275,9 @@ export function ConvergenceHero({
         { count: planned },
       ),
       tone: planned > 0 ? "default" : "muted",
-      hint: t("Drafted from the content memory first, then by the AI model."),
+      hint: t(
+        "Exact content-memory matches are recycled as the files change. A run drafts the rest.",
+      ),
     },
     {
       id: "waiting-for-review",
@@ -326,6 +328,7 @@ export function ConvergenceHero({
         ? t("Run again", "the project home's run button after a failed run")
         : t("Catch up", "the project home's run button: the desktop form of kapi up");
   const fromMemory = totalsPlanned?.memoryExact ?? 0;
+  const recycled = plan?.recycled?.blocks ?? 0;
   const fromDrafts = totalsPlanned?.drafts ?? 0;
   const byAI = totalsPlanned?.aiRemaining ?? 0;
   const tokens = totalsPlanned?.tokenEstimate ?? 0;
@@ -399,7 +402,7 @@ export function ConvergenceHero({
                 <p className="text-xs text-muted-foreground" data-slot="hero-run-size">
                   {[
                     fromMemory > 0 &&
-                      t("{count} from the content memory", "how many blocks memory reuse fills", {
+                      t("{count} recycled", "how many blocks content-memory reuse fills", {
                         count: fromMemory,
                       }),
                     fromDrafts > 0 &&
@@ -421,6 +424,17 @@ export function ConvergenceHero({
                     .join(" · ")}
                 </p>
               )}
+            {/* What the last sync filled on its own, so a target that appeared
+                without a run has a visible source. */}
+            {recycled > 0 && loaded && !reading && (
+              <p className="text-xs text-muted-foreground" data-slot="hero-recycled">
+                {t(
+                  "{count, plural, one {# block recycled} other {# blocks recycled}}",
+                  "targets the app filled from exact content-memory matches when the files changed",
+                  { count: recycled },
+                )}
+              </p>
+            )}
             {noTargets && !reading && loaded && (
               <p className="text-xs text-muted-foreground" data-slot="hero-no-targets">
                 {t("Set where each collection's translations go.")}
@@ -727,7 +741,7 @@ export function ConvergePlanDialog({
                   {t("Missing")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
-                  {t("Memory exact")}
+                  {t("Recycled")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
                   {t("Stored drafts")}
