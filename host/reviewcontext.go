@@ -358,14 +358,8 @@ func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *mo
 	return h
 }
 
-// reviewJudgement runs the checkers a translated unit is held to and folds in
-// the AI pre-review annotation the state store already holds: the voice
-// vocabulary on the source where a voice is bound, placeholder integrity
-// between the two sides, and do-not-translate over the terms the point marks.
-//
-// A checker that cannot RUN becomes a major "checks did not complete" finding
-// rather than being dropped. A review surface showing a clean unit because a
-// checker errored is wrong in the one direction that matters.
+// reviewJudgement runs the checkers a translated unit is held to (unitFindings)
+// and folds in the AI pre-review annotation the state store already holds.
 func reviewJudgement(
 	ctx context.Context,
 	entry reviewPointEntry,
@@ -375,48 +369,9 @@ func reviewJudgement(
 	unit *state.UnitState,
 ) ReviewJudgement {
 	j := ReviewJudgement{}
-	fail := func(what string, err error) {
-		j.Findings = append(j.Findings, check.Finding{
-			Category: "check",
-			Fails:    true,
-			Message:  fmt.Sprintf("checks did not complete: %s: %v", what, err),
-			Check:    what,
-		})
+	for _, f := range unitFindings(ctx, entry, b, sourceLang, loc) {
+		j.Findings = append(j.Findings, f.Finding)
 	}
-
-	if entry.voice != nil {
-		// InSourceLocale, like the Checks panel and the desktop's own review
-		// checkset: the vocabulary lookup asks in the source language for a
-		// block carrying no locale of its own, which is most of them. The terms
-		// store is keyed by language, so without it a rule resolved from the
-		// store matches here and not there.
-		vocab := coretools.NewVoiceVocabCheckTool(entry.voice, entry.terms).
-			InSourceLocale(model.LocaleID(ResolveSourceLocale(sourceLang, "")))
-		if err := RunCheckTool(ctx, vocab, b); err != nil {
-			fail("voice-vocab-check", err)
-		} else if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
-			j.Findings = append(j.Findings, ann.Findings...)
-			b.DelAnno("voice")
-		}
-	}
-
-	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc))
-	if err := RunCheckTool(ctx, placeholder, b); err != nil {
-		fail("placeholder-check", err)
-	} else {
-		j.Findings = append(j.Findings, FindingsFromBlock(b, true)...)
-	}
-
-	if dnt := doNotTranslateFromRules(entry.point.TermRules); len(dnt) > 0 {
-		cfg := coretools.NewDNTCheckConfig(loc)
-		cfg.Terms = dnt
-		if err := RunCheckTool(ctx, coretools.NewDNTCheckTool(cfg), b); err != nil {
-			fail("dnt-check", err)
-		} else {
-			j.Findings = append(j.Findings, FindingsFromBlock(b, true)...)
-		}
-	}
-
 	if unit != nil && unit.AIReview != nil {
 		score := unit.AIReview.Score
 		j.AIScore = &score
@@ -426,10 +381,90 @@ func reviewJudgement(
 	return j
 }
 
-// doNotTranslateFromRules names the terms the point says must survive verbatim:
-// a rule the terms store marks do-not-translate, and a rule whose required
-// rendering is the term itself.
-func doNotTranslateFromRules(rules []coreprofile.TermRule) []string {
+// UnitFinding is one finding of the checkset a translated unit is held to,
+// with the side of the unit it sits on.
+type UnitFinding struct {
+	check.Finding
+	// Target reports a finding on the translation (placeholder integrity, a
+	// protected term). A finding on the source comes from the terms and the
+	// voice.
+	Target bool
+}
+
+// UnitFindings runs the checkset a translated unit is held to over b, a block
+// of the source file at sourcePath with the locale's target overlaid, at the
+// point that file sits at. It is what a review surface shows for the unit and
+// what marks a review queue row as having findings.
+func (r *ReviewPointResolver) UnitFindings(ctx context.Context, collection, sourcePath, sourceLang, locale string, b *model.Block) []UnitFinding {
+	entry := r.entryAt(ctx, collection, sourcePath, locale)
+	return unitFindings(ctx, entry, b, sourceLang, model.LocaleID(locale))
+}
+
+// unitFindings runs the checkers a translated unit is held to: the terms and
+// the voice on the source where either is bound, placeholder integrity between
+// the two sides, and do-not-translate over the terms the point protects
+// (ProtectedTerms).
+//
+// A checker that cannot run becomes a failing "checks did not complete"
+// finding rather than being dropped, so a unit whose checker errored is never
+// shown as clean.
+func unitFindings(ctx context.Context, entry reviewPointEntry, b *model.Block, sourceLang string, loc model.LocaleID) []UnitFinding {
+	var out []UnitFinding
+	fail := func(what string, err error) {
+		out = append(out, UnitFinding{Finding: check.Finding{
+			Category: "check",
+			Fails:    true,
+			Message:  fmt.Sprintf("checks did not complete: %s: %v", what, err),
+			Check:    what,
+		}})
+	}
+
+	if entry.voice != nil || entry.terms != nil {
+		// InSourceLocale: the vocabulary lookup asks in the source language for
+		// a block carrying no locale of its own, which is most of them. The
+		// terms store is keyed by language, so without it a rule resolved from
+		// the store would match in a check of the file and not here.
+		vocab := coretools.NewVoiceVocabCheckTool(entry.voice, entry.terms).
+			InSourceLocale(model.LocaleID(ResolveSourceLocale(sourceLang, "")))
+		if err := RunCheckTool(ctx, vocab, b); err != nil {
+			fail("voice-vocab-check", err)
+		} else if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, model.AnnoVoice); ok {
+			for _, f := range ann.Findings {
+				out = append(out, UnitFinding{Finding: f})
+			}
+			b.DelAnno(model.AnnoVoice)
+		}
+	}
+
+	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc))
+	if err := RunCheckTool(ctx, placeholder, b); err != nil {
+		fail("placeholder-check", err)
+	} else {
+		for _, f := range FindingsFromBlock(b, true) {
+			out = append(out, UnitFinding{Finding: f, Target: true})
+		}
+	}
+
+	if dnt := ProtectedTerms(entry.point.TermRules); len(dnt) > 0 {
+		cfg := coretools.NewDNTCheckConfig(loc)
+		cfg.Terms = dnt
+		if err := RunCheckTool(ctx, coretools.NewDNTCheckTool(cfg), b); err != nil {
+			fail("dnt-check", err)
+		} else {
+			for _, f := range FindingsFromBlock(b, true) {
+				out = append(out, UnitFinding{Finding: f, Target: true})
+			}
+		}
+	}
+	return out
+}
+
+// ProtectedTerms names the terms that must survive translation verbatim at a
+// point, from the term rules resolved there (GateTermRules): a rule marked
+// do-not-translate, which a terms-store concept marked DoNotTranslate yields,
+// and a rule whose required rendering is the term itself. Every surface that
+// checks a translation for protected terms reads them here.
+func ProtectedTerms(rules []coreprofile.TermRule) []string {
 	var out []string
 	seen := map[string]bool{}
 	for _, r := range rules {

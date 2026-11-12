@@ -13,13 +13,10 @@ import (
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
-	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // ReviewUnitDetail is the full picture of one review-queue unit for the Review
@@ -126,70 +123,35 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 	return passBlocks, byKey, nil
 }
 
-// blockCheckFindings runs the registered content checkers over one block for a
-// locale — terms and the voice's patterns on the source, placeholder
-// integrity and do-not-translate on the target — the ChecksPanel checkset
-// scoped to a single unit.
-//
-// A checker that cannot RUN becomes a `major` "checks did not complete" finding
-// rather than being dropped. Dropping it made every caller fail unsafe: the
-// review pane showed a clean unit and HasFindings read false. A synthetic
-// blocking finding is honest at the panel, and keeps the signature usable from
-// the paths that legitimately continue past one bad unit.
-func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, doc, sourceLang string, locale model.LocaleID, profile *coreprofile.VoiceProfile, tb terms.Terminology, dntTerms []string) []DesktopFinding {
+// reviewPoints returns the host's point resolver for a review read over op's
+// project, or nil when the tab has no recipe on disk to resolve a point
+// against.
+func (a *App) reviewPoints(ctx context.Context, op *openProject) *host.ReviewPointResolver {
+	cmd, err := a.contextCommand(ctx, op)
+	if err != nil {
+		return nil
+	}
+	return a.hostEngine().NewReviewPointResolver(cmd, filepath.Dir(op.Path))
+}
+
+// blockCheckFindings flattens the checkset the host holds one translated unit
+// to (host.ReviewPointResolver.UnitFindings) for the panel: the terms and the
+// voice on the source, placeholder integrity and protected terms on the
+// target. collection and sourcePath name the unit's source file, and doc is
+// that file project-relative, which a source-side fix addresses.
+func (a *App) blockCheckFindings(ctx context.Context, points *host.ReviewPointResolver, b *model.Block, collection, sourcePath, doc, sourceLang string, locale model.LocaleID) []DesktopFinding {
 	findings := []DesktopFinding{}
 	// The review surface addresses a unit, and carries its own scope in the
 	// queue rather than on each finding, so the point stays unset here.
 	var point ContextPointDTO
-	fail := func(what string, err error) []DesktopFinding {
-		return append(findings, DesktopFinding{
-			Category: "check",
-			Fails:    true,
-			Message:  fmt.Sprintf("checks did not complete: %s: %v", what, err),
-			BlockID:  b.ID,
-		})
-	}
-
-	if profile != nil || tb != nil {
-		// One pass covers the terms (the store's and the ones the voice's file
-		// carries) and the voice's patterns. InSourceLocale, like the Checks
-		// panel: the terms lookup asks in the source language for a block
-		// carrying no locale of its own, which is most of them. Without it a
-		// term from the terms store (which is keyed by language) matches
-		// nothing here while matching in Checks, and the two panels disagree
-		// about the same unit.
-		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(sourceLang))
-		if err := host.RunCheckTool(ctx, vocab, b); err != nil {
-			return fail("terms and voice", err)
+	for _, uf := range points.UnitFindings(ctx, collection, sourcePath, sourceLang, string(locale), b) {
+		if uf.Target {
+			findings = append(findings, toDesktopFinding(uf.Finding, b, "target", string(locale), point))
+			continue
 		}
-		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
-			for _, f := range ann.Findings {
-				findings = append(findings, withFix(toDesktopFinding(f, b, "source", sourceLang, point), f, b, doc, model.LocaleID(sourceLang)))
-			}
-			b.DelAnno("voice")
-		}
+		df := toDesktopFinding(uf.Finding, b, "source", sourceLang, point)
+		findings = append(findings, withFix(df, uf.Finding, b, doc, model.LocaleID(sourceLang)))
 	}
-
-	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(locale))
-	if err := host.RunCheckTool(ctx, placeholder, b); err != nil {
-		return fail("placeholder", err)
-	}
-	for _, f := range host.FindingsFromBlock(b, true) {
-		findings = append(findings, toDesktopFinding(f, b, "target", string(locale), point))
-	}
-
-	if len(dntTerms) > 0 {
-		dntCfg := coretools.NewDNTCheckConfig(locale)
-		dntCfg.Terms = dntTerms
-		dnt := coretools.NewDNTCheckTool(dntCfg)
-		if err := host.RunCheckTool(ctx, dnt, b); err != nil {
-			return fail("do-not-translate", err)
-		}
-		for _, f := range host.FindingsFromBlock(b, true) {
-			findings = append(findings, toDesktopFinding(f, b, "target", string(locale), point))
-		}
-	}
-
 	sortDesktopFindings(findings)
 	return findings
 }
@@ -247,13 +209,11 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		detail.Status = ""
 	}
 
-	// Findings — the ChecksPanel checkset scoped to this block, judged by the
-	// voice governing the point this unit's source file sits at.
-	points := a.newPointResolver(op, false)
-	profile := points.at(ctx, rf.Collection, rf.Relative)
-	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	detail.Findings = a.blockCheckFindings(ctx, b, filepath.ToSlash(rf.Relative), sourceLang, loc, profile,
-		points.termsAt(ctx, rf.Collection, rf.Relative), dntTerms)
+	// Findings: the checkset the host holds a translated unit to, at the point
+	// this unit's source file sits at. The review context below reads the same
+	// resolver, so the point is resolved once.
+	points := a.reviewPoints(ctx, op)
+	detail.Findings = a.blockCheckFindings(ctx, points, b, rf.Collection, rf.Path, filepath.ToSlash(rf.Relative), sourceLang, loc)
 
 	// Recorded decision + provenance from the project state store, when the
 	// decision still judges the current translation.
@@ -320,6 +280,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 			Key:        key,
 			Memory:     tm,
 			Unit:       record,
+			Points:     points,
 		})
 	}
 
@@ -366,7 +327,7 @@ func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue,
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
 	queue, err := a.hostEngine().ReviewQueue(ctx, op.Path, sourceLang,
-		host.ReviewQueueOptions{Languages: langs})
+		host.ReviewQueueOptions{Languages: langs, MarkFindings: true})
 	if err != nil {
 		return host.ReviewQueue{}, err
 	}
@@ -390,49 +351,7 @@ func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue,
 		// shows, so an empty view is never taken for a finished queue.
 		Warnings: queue.Warnings,
 	}
-	a.markReviewFindings(ctx, op, sourceLang, out.Pending)
 	return out, nil
-}
-
-// markReviewFindings sets hasFindings on every translation row it can measure,
-// reading and overlaying each (file, locale) pair once. Source rows are left
-// alone: the checkers judge a translation against its source, and a source row
-// has no translation yet.
-func (a *App) markReviewFindings(ctx context.Context, op *openProject, sourceLang string, items []host.ReviewQueueItem) {
-	points := a.newPointResolver(op, false)
-	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-
-	// Group items by (file, locale) so each pair is read and overlaid once.
-	type scope struct{ file, locale string }
-	groups := map[scope][]int{}
-	for i, it := range items {
-		if it.IsSource {
-			continue
-		}
-		s := scope{file: it.File, locale: it.Locale}
-		groups[s] = append(groups[s], i)
-	}
-	for s, idxs := range groups {
-		rf, tgtPath, ferr := a.findReviewSource(op, s.locale, s.file)
-		if ferr != nil {
-			continue // best-effort: leave hasFindings unset
-		}
-		_, byKey, berr := a.reviewUnitBlocks(ctx, op, rf, tgtPath, s.locale)
-		if berr != nil {
-			continue
-		}
-		// Each file is judged by the voice and vocabulary governing its own point.
-		profile := points.at(ctx, rf.Collection, rf.Relative)
-		tb := points.termsAt(ctx, rf.Collection, rf.Relative)
-		for _, i := range idxs {
-			b, ok := byKey[items[i].Key]
-			if !ok {
-				continue
-			}
-			has := len(a.blockCheckFindings(ctx, b, filepath.ToSlash(rf.Relative), sourceLang, model.LocaleID(s.locale), profile, tb, dntTerms)) > 0
-			items[i].HasFindings = &has
-		}
-	}
 }
 
 // filterReviewItems narrows a review queue to the Active Filter: its languages,

@@ -148,7 +148,11 @@ func relativeToRoot(root, path string) string {
 // computeReviewQueue lists the translated units that are not yet approved — the
 // review queue. It is derived (recomputed from content + the project state store),
 // never tracked.
-func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) ([]ReviewQueueItem, error) {
+//
+// With marks set, each row in a language marks asks for carries HasFindings:
+// whether the checkset a reviewer is shown for the unit (UnitFindings) finds
+// anything in it.
+func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet, marks *findingMarks) ([]ReviewQueueItem, error) {
 	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err
@@ -206,6 +210,10 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 				item.AIScore = &score
 				item.AIModel = rev.model
 			}
+			if marks.wants(u.Locale) {
+				has := len(marks.points.UnitFindings(ctx, u.Collection, u.SourcePath, a.SourceLocale(), u.Locale, b)) > 0
+				item.HasFindings = &has
+			}
 			items = append(items, item)
 		}
 	}
@@ -229,6 +237,31 @@ type ReviewQueueOptions struct {
 	// Languages limits the listing to these language tags, the source language
 	// among them. Empty lists every language.
 	Languages []string
+	// MarkFindings sets HasFindings on every translation row: whether the
+	// checkset a reviewer is shown for the unit finds anything in it. A source
+	// row has no translation to check and is left unmarked.
+	MarkFindings bool
+}
+
+// findingMarks is what marks review queue rows with their findings: the
+// points the rows' files sit at, and the languages the listing keeps.
+type findingMarks struct {
+	points *ReviewPointResolver
+	opts   ReviewQueueOptions
+}
+
+// newFindingMarks returns the marks a queue listing over the project cmd binds
+// asks for, or nil when opts asks for none.
+func (a *App) newFindingMarks(cmd Command, root string, opts ReviewQueueOptions) *findingMarks {
+	if !opts.MarkFindings || cmd == nil {
+		return nil
+	}
+	return &findingMarks{points: a.NewReviewPointResolver(cmd, root), opts: opts}
+}
+
+// wants reports whether a translation row in lang is marked.
+func (m *findingMarks) wants(lang string) bool {
+	return m != nil && m.opts.wants(lang)
 }
 
 // wants reports whether a language belongs in the listing.
@@ -275,7 +308,7 @@ func (a *App) ReviewQueue(ctx context.Context, projectPath, sourceLang string, o
 
 	var queue ReviewQueue
 	cacheErr := a.withParseCache(root, func() error {
-		q, qerr := a.computeUnifiedReviewQueue(ctx, proj, root, units, srcUnits, opts, a.newUnreadSetFor("listed for review"))
+		q, qerr := a.computeUnifiedReviewQueue(ctx, proj, root, units, srcUnits, opts, a.newUnreadSetFor("listed for review"), a.newFindingMarks(reviewCommand(ctx, projectPath), root, opts))
 		queue = q
 		return qerr
 	})
@@ -283,6 +316,17 @@ func (a *App) ReviewQueue(ctx context.Context, projectPath, sourceLang string, o
 		return ReviewQueue{}, cacheErr
 	}
 	return queue, nil
+}
+
+// reviewCommand is a command bound to the project at projectPath, for the
+// point resolution a queue listing does outside a command a person ran.
+func reviewCommand(ctx context.Context, projectPath string) Command {
+	cmd := NewEnvCommand(ctx, "review")
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	AddProjectFlag(cmd)
+	_ = cmd.Flags().Set(projectFlagName, projectPath)
+	return cmd
 }
 
 // computeUnifiedReviewQueue merges the target queue and the source queue into
@@ -293,8 +337,8 @@ func (a *App) ReviewQueue(ctx context.Context, projectPath, sourceLang string, o
 // A unit whose source no installed reader opens is left out of the queue and
 // recorded in unread, and the queue names it in its warnings. With unread nil
 // such a unit fails the queue.
-func (a *App) computeUnifiedReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units, srcUnits []VerifyUnit, opts ReviewQueueOptions, unread *UnreadSet) (ReviewQueue, error) {
-	targets, err := a.computeReviewQueue(ctx, proj, root, units, unread)
+func (a *App) computeUnifiedReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units, srcUnits []VerifyUnit, opts ReviewQueueOptions, unread *UnreadSet, marks *findingMarks) (ReviewQueue, error) {
+	targets, err := a.computeReviewQueue(ctx, proj, root, units, unread, marks)
 	if err != nil {
 		return ReviewQueue{}, err
 	}
