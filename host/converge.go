@@ -180,7 +180,7 @@ type ConvergeOutput struct {
 	Findings *FindingsReport `json:"findings,omitempty"`
 	// PreReview counts what the AI pre-review scored after the run, nil when
 	// none was asked for (kapi up --pre-review).
-	PreReview *PreReviewResult `json:"preReview,omitempty"`
+	PreReview *PreReviewResult `json:"pre_review,omitempty"`
 }
 
 // StaleDraftUnits totals the blocks whose stored draft was made from an
