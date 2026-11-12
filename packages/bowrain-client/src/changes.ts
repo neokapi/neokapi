@@ -99,7 +99,7 @@ export function decideOp(
     if_match: card.targetRevision,
     outcome,
   };
-  if (card.sourceRevision) (op as DecideOp & { basis?: string }).basis = card.sourceRevision;
+  if (card.sourceRevision) op.basis = card.sourceRevision;
   if (reasons && reasons.length > 0) op.reasons = [...reasons];
   return op;
 }
