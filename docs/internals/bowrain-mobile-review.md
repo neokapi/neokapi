@@ -1,4 +1,4 @@
-# Bowrain mobile review: design note
+# Bowrain mobile, starting with review: design note
 
 Status: proposal for founder review. Nothing here is built. Versions and
 store rules were checked on 2026-11-12; items marked *unverified* were not
@@ -24,8 +24,11 @@ web's review session, and on the CLI `kapi status --review` with a `decide`
 operation sent to `kapi apply`.
 
 Short, clean strings take a second or two to judge. A phone suits that work,
-in the minutes a reviewer has between other things. This note proposes a
-Bowrain mobile app built around one card per block, swiped to decide.
+in the minutes a reviewer has between other things. This note proposes the
+Bowrain mobile app, named Bowrain in both stores. Review is its first
+feature: one card per block, swiped to decide. The app's structure (sign-in,
+workspaces and projects, notifications, the offline queue) is built for the
+features that follow review, and none of it is specific to review.
 
 ## Scope
 
@@ -351,7 +354,8 @@ The push service is stubbed at the sender interface.
 3. **Notifications:** device registration, the worker job, digests and
    assignment pushes.
 4. **Safeguards:** known-bad cards, pace, session reports.
-5. **Store release** and the entity-review card.
+5. **Store release** of Bowrain with review, then the entity-review card and
+   the next features.
 
 ## Recommended answers to the open questions
 
@@ -368,11 +372,10 @@ The push service is stubbed at the sender interface.
    evenly, from a rotating pool.
 4. **"Approve with a one-line correction":** not in the first version; the
    reject note carries the correction.
-5. **The app's name:** an App Store name has at most 30 characters
-   (*unverified*) and must be free in both stores and in trademark registers
-   (USPTO, EUIPO). Two shapes fit: "Bowrain" with a plain suffix that says
-   what the app does, or a plain functional name with "Bowrain" in the
-   subtitle. The choice is the founder's.
+5. **The app's name:** decided: Bowrain. Review is the first feature, so
+   the store subtitle and screenshots lead with it. Before submission, check
+   that the name is free in both stores and that the trademark position
+   (USPTO, EUIPO) covers the app category.
 
 ## Sources
 
