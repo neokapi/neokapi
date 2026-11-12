@@ -120,7 +120,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 		res, err = a.reviewAIExplain(ctx, op, unit, b, sourceLang)
 	case ReviewAIFixFindings:
 		findings := a.currentUnitFindings(ctx, op, scope, b, loc, sourceLang, key, rf.Collection, rf.Relative)
-		instruction = fixFindingsInstruction(b.TargetText(loc), findings, instruction)
+		instruction = host.FixInstruction(b.TargetText(loc), "", findings, instruction)
 		res, err = a.reviewAIPropose(ctx, op, unit, b, sourceLang, instruction)
 	case ReviewAIRetranslate:
 		if strings.TrimSpace(instruction) == "" {
@@ -139,8 +139,8 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 }
 
 // reviewAIPropose runs a one-block translate invocation and returns the
-// produced target as a proposal. The block is a fresh read-side copy — nothing
-// touches the target file.
+// produced target as a proposal, through host.ProposeRewrite, which the fix
+// candidates of every surface run. Nothing touches the target file.
 func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang, instruction string) (*ReviewAIActionResult, error) {
 	tl, release, err := a.newReviewAITool(ctx, op, "translate", unit, map[string]any{
 		"source_locale": sourceLang,
@@ -153,16 +153,13 @@ func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.Un
 		return nil, err
 	}
 	defer release()
-	if err := runReviewAITool(ctx, tl, b); err != nil {
-		return nil, fmt.Errorf("ai action: %w", err)
-	}
-	proposed := b.TargetText(model.LocaleID(unit.TargetLang))
-	if strings.TrimSpace(proposed) == "" {
-		return nil, errors.New("the model returned an empty translation. Try a more specific instruction")
+	runs, err := host.ProposeRewrite(ctx, tl, b, model.LocaleID(unit.TargetLang))
+	if err != nil {
+		return nil, err
 	}
 	return &ReviewAIActionResult{
-		ProposedTarget: proposed,
-		ProposedEdit:   model.RunsEditText(b.TargetRuns(model.LocaleID(unit.TargetLang))),
+		ProposedTarget: model.RunsText(runs),
+		ProposedEdit:   model.RunsEditText(runs),
 	}, nil
 }
 
@@ -236,27 +233,6 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 		}
 	}
 	return lines
-}
-
-// fixFindingsInstruction builds the translate instruction for fix-findings:
-// the current translation, the findings to resolve, and any extra reviewer
-// guidance.
-func fixFindingsInstruction(currentTarget string, findings []string, extra string) string {
-	var sb strings.Builder
-	sb.WriteString("Produce a corrected translation. The current translation is:\n")
-	sb.WriteString(currentTarget)
-	if len(findings) > 0 {
-		sb.WriteString("\n\nIt has these review findings; resolve every one of them while preserving the meaning of the source:\n")
-		for _, f := range findings {
-			sb.WriteString("- " + f + "\n")
-		}
-	} else {
-		sb.WriteString("\n\nImprove its accuracy and fluency while preserving the meaning of the source.\n")
-	}
-	if strings.TrimSpace(extra) != "" {
-		sb.WriteString("\nAdditional guidance: " + extra)
-	}
-	return sb.String()
 }
 
 // freshAIReview returns the unit's AI pre-review annotation from the state
