@@ -23,10 +23,8 @@ import (
 //
 //   - establish moves the translation to established, under the workspace's
 //     separation-of-duties policy. A change set that also writes the
-//     translation it establishes is judged as the sender's own work. When the
-//     policy refuses that approval, the correction still lands and the
-//     decision alone is refused (the set is partial), so the corrected
-//     wording waits for a second reviewer instead of being lost.
+//     translation it establishes is judged as the sender's own work.
+//     Refusing that approval keeps the correction.
 //   - reject moves it to draft, so it re-enters the work queue; withdraw moves
 //     it to translated. Moving an established translation takes the review
 //     permission for its language.

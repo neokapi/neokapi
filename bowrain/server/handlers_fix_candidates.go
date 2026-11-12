@@ -42,10 +42,11 @@ type fixCandidatesResponse struct {
 }
 
 // HandleGetFixCandidates answers the ready-made corrections for one block's
-// translation (reviewdeck.FixCandidates): the term fix from the workspace's
-// word rules for the language, the content memory's alternatives, and with
-// ai=true a rewrite for the reason given, drafted by the workspace's AI
-// provider under the governance a translation of the block is drafted under.
+// translation (reviewdeck.FixCandidates). They are the term fix from the
+// workspace's word rules for the language and the content memory's
+// alternatives. With ai=true they include a rewrite for the reason given,
+// drafted by the workspace's AI provider under the governance a translation
+// of the block is drafted under.
 //
 // GET /:ws/:id/blocks/:ref/:bid/fix-candidates?locale=nb&reason=wrong_term&ai=false
 func (s *Server) HandleGetFixCandidates(c echo.Context) error {
