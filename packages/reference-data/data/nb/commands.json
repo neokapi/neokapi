@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T17:16:50Z",
+  "generatedAt": "2026-11-12T17:39:19Z",
   "commands": [
     {
       "id": "add",
@@ -4103,8 +4103,8 @@
           "type": "string"
         },
         {
-          "name": "reg-ex",
-          "usage": "Aktiver regulæruttrykk-modus for alle søkemønstre",
+          "name": "regex",
+          "usage": "Enable regular expression mode for all search patterns",
           "default": "false",
           "type": "bool"
         },

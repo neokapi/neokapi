@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T17:16:50Z",
+  "generatedAt": "2026-11-12T17:39:19Z",
   "kind": "tool",
   "entries": [
     {
@@ -3476,7 +3476,7 @@
             "description": "Make ^ and $ match at the beginning and end of each line",
             "default": false
           },
-          "reg_ex": {
+          "regex": {
             "type": "boolean",
             "title": "Use Regular Expressions",
             "description": "Enable regular expression mode for all search patterns",

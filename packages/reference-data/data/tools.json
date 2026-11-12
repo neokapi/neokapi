@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T17:16:50Z",
+  "generatedAt": "2026-11-12T17:39:19Z",
   "kind": "tool",
   "entries": [
     {
@@ -3556,7 +3556,7 @@
             "description": "Make ^ and $ match at the beginning and end of each line",
             "default": false
           },
-          "reg_ex": {
+          "regex": {
             "type": "boolean",
             "title": "Use Regular Expressions",
             "description": "Enable regular expression mode for all search patterns",
@@ -3591,7 +3591,7 @@
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "reg_ex",
+                "property": "regex",
                 "condition": "applies in regular-expression mode"
               }
             ]
@@ -3607,12 +3607,12 @@
             "values": "`true` / `false` (default `false`)",
             "dependsOn": [
               {
-                "property": "reg_ex",
+                "property": "regex",
                 "condition": "applies in regular-expression mode"
               }
             ]
           },
-          "reg_ex": {
+          "regex": {
             "description": "Treat search patterns as regular expressions.",
             "help": "When enabled, every search pattern is compiled as a regular expression\nand the case, dot-all, and multiline flags below apply.\n",
             "values": "`true` / `false` (default `false`)"
@@ -3650,7 +3650,7 @@
           {
             "title": "Case-insensitive regex over both scopes",
             "description": "Enable regex mode with case folding across source and target.",
-            "config": "reg_ex: true\nignore_case: true\nsource: true\ntarget: true\n"
+            "config": "regex: true\nignore_case: true\nsource: true\ntarget: true\n"
           }
         ]
       }
