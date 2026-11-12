@@ -30,7 +30,7 @@ type Story = StoryObj<typeof ConvergenceRunView>;
 
 // A live run mid-pass: fr-FR done, de-DE still translating.
 const liveEvents: ConvergenceEvent[] = [
-  { type: "pass_start", pass: 1, maxPasses: 3, pending: ["fr-FR", "de-DE"] },
+  { type: "pass_start", pass: 1, max_passes: 3, pending: ["fr-FR", "de-DE"] },
   { type: "locale_start", pass: 1, locale: "fr-FR", units: 12 },
   {
     type: "locale_done",
@@ -38,12 +38,12 @@ const liveEvents: ConvergenceEvent[] = [
     locale: "fr-FR",
     units: 12,
     done: 12,
-    viaTM: 8,
-    viaAI: 4,
+    via_memory: 8,
+    via_ai: 4,
     state: "shippable",
   },
   { type: "locale_start", pass: 1, locale: "de-DE", units: 9 },
-  { type: "unit_progress", pass: 1, locale: "de-DE", done: 5, viaTM: 2, viaAI: 3 },
+  { type: "unit_progress", pass: 1, locale: "de-DE", done: 5, via_memory: 2, via_ai: 3 },
 ];
 
 const convergedEvents: ConvergenceEvent[] = [
@@ -54,25 +54,25 @@ const convergedEvents: ConvergenceEvent[] = [
     locale: "de-DE",
     units: 9,
     done: 9,
-    viaTM: 3,
-    viaAI: 6,
+    via_memory: 3,
+    via_ai: 6,
     state: "shippable",
   },
-  { type: "pass_done", pass: 1, produced: 21, producedDelta: 21, failingChecks: 0, pending: [] },
+  { type: "pass_done", pass: 1, produced: 21, produced_delta: 21, failing_checks: 0, pending: [] },
   { type: "materialized", files: 2 },
   { type: "done", state: "converged" },
 ];
 
 const parkedEvents: ConvergenceEvent[] = [
-  { type: "pass_start", pass: 1, maxPasses: 2, pending: ["ja-JP"] },
+  { type: "pass_start", pass: 1, max_passes: 2, pending: ["ja-JP"] },
   { type: "locale_start", pass: 1, locale: "ja-JP", units: 10 },
-  { type: "locale_done", pass: 1, locale: "ja-JP", units: 10, done: 6, viaAI: 6, state: "parked" },
+  { type: "locale_done", pass: 1, locale: "ja-JP", units: 10, done: 6, via_ai: 6, state: "parked" },
   {
     type: "pass_done",
     pass: 1,
     produced: 6,
-    producedDelta: 6,
-    failingChecks: 4,
+    produced_delta: 6,
+    failing_checks: 4,
     pending: ["ja-JP"],
   },
   { type: "log", message: "ja-JP short of ship gate after max passes" },

@@ -230,7 +230,7 @@ kapi apply <<<'{"ops":[{"op":"decide","at":{"doc":"src/en.json","block":"save.la
 ```
 
 One queue holds every language. A row carries `language` and, when the language
-is the project's source, `isSource: true` with a `status` on the authoring
+is the project's source, `is_source: true` with a `status` on the authoring
 ladder (`written`/`established`); `languages` in the JSON counts the
 pending blocks per language. A row's `relative` is the source document and its
 `key` the block a decision names. `kapi apply` records a person's decision on a
