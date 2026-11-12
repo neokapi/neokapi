@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strconv"
 
@@ -50,6 +51,22 @@ type PreReviewResult struct {
 	// Skipped counts the blocks left without an annotation: the model gave no
 	// usable score, or the block could not be read again.
 	Skipped int `json:"skipped,omitempty"`
+}
+
+// formatLine writes the one-line summary of a pre-review. A nil result
+// writes nothing.
+func (r *PreReviewResult) formatLine(w io.Writer) {
+	if r == nil {
+		return
+	}
+	line := fmt.Sprintf("AI pre-review: %s scored", pluralUnit(r.Reviewed, "block", "blocks"))
+	if r.Model != "" {
+		line += " by " + r.Model
+	}
+	if r.Skipped > 0 {
+		line += fmt.Sprintf(", %d without a usable score", r.Skipped)
+	}
+	fmt.Fprintln(w, line+". Review them with kapi status --review.")
 }
 
 // RunAIPreReview runs the AI review tool over the translations awaiting review

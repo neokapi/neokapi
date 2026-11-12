@@ -26,10 +26,6 @@ target locale, how much of the content is translated and whether it clears
 its ship gate. A locale that is behind is reported as pending rather than as
 an error, because target-language drift is normal, expected work.
 
-With --review, the blocks awaiting a person are listed instead. Add
---pre-review to have the AI review tool score each translation in that queue
-first; a score is advisory and never approves a block.
-
 This is the informational counterpart to 'kapi check --ship' (the quality
 gate), and it never fails.`,
 		Args: cobra.NoArgs,

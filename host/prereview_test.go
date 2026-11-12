@@ -1,8 +1,8 @@
 package host
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,46 +40,42 @@ collections:
 	return root
 }
 
-func TestStatusReviewPreReview_ScoresTheQueue(t *testing.T) {
+func TestRunUp_PreReviewScoresTheQueueAfterTheRun(t *testing.T) {
 	root := writePreReviewProject(t)
-	t.Chdir(root)
+	recipe := filepath.Join(root, "kapi.yaml")
 
 	a := &App{}
-	cmd := NewEnvCommand(context.Background(), "status")
-	AddProjectFlag(cmd)
-	AddStatusFlags(cmd)
-	require.NoError(t, cmd.Flags().Set("review", "true"))
-	require.NoError(t, cmd.Flags().Set("pre-review", "true"))
-	require.NoError(t, cmd.Flags().Set("json", "true"))
-	out, err := captureStdout(t, func() error { return a.RunStatus(cmd, nil) })
+	out, err := a.RunUp(context.Background(), recipe, "", UpOptions{MaxPasses: 1, NoChecks: true, PreReview: true})
 	require.NoError(t, err)
-
-	var q reviewQueueOutput
-	require.NoError(t, json.Unmarshal([]byte(out), &q), out)
-	require.NotNil(t, q.PreReview)
+	require.NotNil(t, out.PreReview)
 	// The demo provider answers a review in prose, with no score to record,
 	// so each block is counted as skipped and stays unscored.
-	assert.Equal(t, 0, q.PreReview.Reviewed)
-	assert.Equal(t, 2, q.PreReview.Skipped)
-	assert.Equal(t, "demo", q.PreReview.Model, "the reviewer is the provider the recipe presets")
-	require.Len(t, q.Pending, 2, "a pre-review never takes a block out of the queue")
-	for _, it := range q.Pending {
-		assert.Nil(t, it.AIScore, "%s has no score to show", it.Key)
-	}
+	assert.Equal(t, 0, out.PreReview.Reviewed)
+	assert.Equal(t, 2, out.PreReview.Skipped)
+	assert.Equal(t, "demo", out.PreReview.Model, "the reviewer is the provider the recipe presets")
+
+	var buf bytes.Buffer
+	require.NoError(t, out.FormatText(&buf))
+	assert.Contains(t, buf.String(), "AI pre-review: 0 blocks scored by demo, 2 without a usable score.")
+
+	plain, err := a.RunUp(context.Background(), recipe, "", UpOptions{MaxPasses: 1, NoChecks: true})
+	require.NoError(t, err)
+	assert.Nil(t, plain.PreReview, "a run that asks for none reports none")
 }
 
-func TestStatusPreReview_NeedsReview(t *testing.T) {
+func TestExecuteUp_PreReviewIsRefusedWithPlan(t *testing.T) {
 	root := writePreReviewProject(t)
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := NewEnvCommand(context.Background(), "status")
+	cmd := NewEnvCommand(context.Background(), "up")
 	AddProjectFlag(cmd)
-	AddStatusFlags(cmd)
+	AddUpFlags(cmd)
+	require.NoError(t, cmd.Flags().Set("plan", "true"))
 	require.NoError(t, cmd.Flags().Set("pre-review", "true"))
-	err := a.RunStatus(cmd, nil)
+	err := a.ExecuteUp(cmd, filepath.Join(root, "kapi.yaml"))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--pre-review needs --review")
+	assert.Contains(t, err.Error(), "--plan runs nothing")
 }
 
 func TestRunAIPreReview_ToolHookAndFilters(t *testing.T) {

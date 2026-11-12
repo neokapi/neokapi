@@ -27,6 +27,7 @@ type upMCPInput struct {
 	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing blocks then count as translated)"`
 	Local       bool   `json:"local,omitempty" jsonschema:"in a server-connected project, run the loop on this machine and push the results, instead of running it on the server"`
 	RecycleOnly bool   `json:"recycle_only,omitempty" jsonschema:"fill only the targets the content memory answers exactly, in one pass, with no provider calls; runs on this machine, so a server-connected project also needs local"`
+	PreReview   bool   `json:"pre_review,omitempty" jsonschema:"after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block; runs on this machine, so a server-connected project also needs local"`
 }
 
 // upPlanMCPInput is the input to the `up_plan` MCP tool.
@@ -63,6 +64,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 			UntilGate:   untilGate,
 			MaxPasses:   maxPasses,
 			RecycleOnly: in.RecycleOnly,
+			PreReview:   in.PreReview,
 			Jobs:        in.Jobs,
 			NoChecks:    in.NoChecks,
 			Materialize: in.Materialize,

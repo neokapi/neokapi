@@ -27,8 +27,6 @@ type reviewQueueOutput struct {
 	// Warnings name the declared files the queue could not read
 	// (check.WarningFormatNoReader).
 	Warnings []check.Warning `json:"warnings,omitempty"`
-	// PreReview counts what --pre-review scored before the listing.
-	PreReview *PreReviewResult `json:"pre_review,omitempty"`
 	// readNothing says every unit the queue resolved was set aside, so an empty
 	// queue is one over nothing it could read.
 	readNothing bool
@@ -73,17 +71,6 @@ func (o reviewQueueOutput) waitingElsewhere() string {
 // FormatText renders the review queue.
 func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	defer writeSetAside(w, o.Warnings)
-	if p := o.PreReview; p != nil {
-		line := fmt.Sprintf("AI pre-review: %s scored", pluralUnit(p.Reviewed, "block", "blocks"))
-		if p.Model != "" {
-			line += " by " + p.Model
-		}
-		if p.Skipped > 0 {
-			line += fmt.Sprintf(", %d without a usable score", p.Skipped)
-		}
-		fmt.Fprintln(w, line+".")
-		fmt.Fprintln(w)
-	}
 	elsewhere := o.waitingElsewhere()
 	if len(o.Pending) == 0 {
 		filtered := o.filterLabel()

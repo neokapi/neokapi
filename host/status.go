@@ -3,7 +3,6 @@ package host
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -708,12 +707,6 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 	sourceLang, _ := cmd.Flags().GetString(sourceLangFlag)
 	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
-	review, _ := cmd.Flags().GetBool("review")
-	preReview, _ := cmd.Flags().GetBool("pre-review")
-	if preReview && !review {
-		return errors.New("--pre-review needs --review: it scores the blocks the review queue lists")
-	}
-
 	localeFilter, _ := cmd.Flags().GetString("locale")
 	units, err := a.resolveVerifyUnits(cmd, proj, root, nil, localeFilter)
 	if err != nil {
@@ -725,21 +718,12 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		// project's languages: the translations not yet approved, and the source
 		// units translate_after holds. It is the review surface, the
 		// derived counterpart of the convergence loop's "parked" outcome.
-		if review {
+		if review, _ := cmd.Flags().GetBool("review"); review {
 			srcUnits, serr := a.SourceUnitsFromProject(proj, root)
 			if serr != nil {
 				return fmt.Errorf("resolve source content: %w", serr)
 			}
 			langs, _ := cmd.Flags().GetStringSlice("lang")
-			// --pre-review asks the AI review tool to score each translation
-			// awaiting review first, so the listing below carries the scores.
-			var pre *PreReviewResult
-			if preReview {
-				pre, err = a.RunAIPreReview(cmd.Context(), projectPath, a.SourceLang, PreReviewOptions{Languages: langs})
-				if err != nil {
-					return fmt.Errorf("ai pre-review: %w", err)
-				}
-			}
 			// A collection in a format with no installed reader is left out of
 			// the queue and named, never listed as having nothing to review.
 			unread := a.newUnreadSetFor("listed for review")
@@ -753,7 +737,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			_, readNothing := unread.unitsSkipped(root, append(append([]VerifyUnit{}, units...), srcUnits...))
 			return output.Print(cmd, reviewQueueOutput{
 				Project: proj.Name, Pending: queue.Pending, Languages: queue.Languages,
-				Warnings: queue.Warnings, PreReview: pre, readNothing: readNothing, filter: langs,
+				Warnings: queue.Warnings, readNothing: readNothing, filter: langs,
 			})
 		}
 
@@ -886,7 +870,6 @@ func AddStatusFlags(cmd Command) {
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
 	cmd.Flags().Bool("review", false, "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve one with a decide operation sent to `kapi apply`")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
-	cmd.Flags().Bool("pre-review", false, "with --review, have the AI review tool score each translation awaiting review before listing it; a score is advisory and never approves a block")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established (approved by a person), translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not approved as AI-translated")
 	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")

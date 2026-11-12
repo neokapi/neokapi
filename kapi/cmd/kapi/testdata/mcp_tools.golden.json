@@ -2260,6 +2260,10 @@
           "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)",
           "type": "integer"
         },
+        "pre_review": {
+          "description": "after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block; runs on this machine, so a server-connected project also needs local",
+          "type": "boolean"
+        },
         "project": {
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"

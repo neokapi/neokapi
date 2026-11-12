@@ -88,11 +88,16 @@ gates (e.g. before a release tag).
 --recycle-only fills the targets the content memory answers exactly and
 stops: one pass, no provider calls. Near matches and the rest of the work wait
 for a full run. Kapi Desktop runs the same pass when it reads a project's
-files.`,
+files.
+
+--pre-review, after the run, has the AI review tool score each translation
+awaiting review against the voice and terms that apply to its file. A score is
+advisory: it never approves a block, and 'kapi status --review' lists it.`,
 		Example: `  kapi up                # run the default flow; stop where a gate holds content back
   kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale
   kapi up --passes 1     # a single pass over every locale that needs work
   kapi up --recycle-only # fill exact content-memory matches only, with no provider
+  kapi up --pre-review   # then have the AI model score the translations awaiting review
   kapi up --materialize  # also write target-language files for the shippable locales
   kapi up --local        # connected project: run the loop on this machine, then push the results
   kapi up -p kapi.yaml   # bring an explicit project recipe up to date`,
@@ -149,6 +154,9 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 	if dec.Venue == host.UpVenueServer {
 		if BoolFlag(cmd, "recycle-only") {
 			return errors.New("--recycle-only runs on this machine; add --local to run it in a server-connected project")
+		}
+		if BoolFlag(cmd, "pre-review") {
+			return errors.New("--pre-review runs on this machine; add --local to run it in a server-connected project")
 		}
 		printUpVenue(a, cmd, local, dec.ServerURL)
 		return pluginhost.ExecPluginCommand(cmd.Context(), dec.Route, forwardedFlagArgs(cmd.Flags(), "server"))
