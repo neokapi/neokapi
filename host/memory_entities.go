@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -93,7 +94,7 @@ func (a *App) RunMemoryAnnotate(cmd Command, opts MemoryAnnotateOptions) error {
 		return fmt.Errorf("%q is not an entity type: use person, organization, product, location, date, time, currency, measurement or other", opts.Type)
 	}
 	if strings.TrimSpace(opts.Text) == "" {
-		return fmt.Errorf("name the text to mark as an entity")
+		return errors.New("name the text to mark as an entity")
 	}
 	ctx := CmdContext(cmd)
 	tm, label, release, err := a.OpenMemorySQLite(cmd)
