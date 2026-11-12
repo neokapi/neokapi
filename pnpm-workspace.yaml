@@ -23,6 +23,7 @@ packages:
   - bowrain/emails
   - bowrain/apps/*
   - bowrain/apps/bowrain/frontend
+  - bowrain/mobile
   - bowrain/web/landing
 
 # Link a local workspace package in place of a registry version whenever the
@@ -113,6 +114,7 @@ peerDependencyRules:
     vite: '*'
 
 allowBuilds:
+  '@parcel/watcher': false
   '@swc/core': true
   core-js: true
   esbuild: true
