@@ -155,19 +155,62 @@ func (s *Server) HandleOverviewSummary(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
-// mapRuleCount counts the rules in force at the project's own point: the
-// concepts in the workspace's terms store, the patterns of the voice bound
-// there, and the term rules and notes the ledger holds established.
+// mapRuleCount counts the rules in force across the project's places, as
+// `kapi look` and the desktop's Overview count them (rulesview.RuleTally): at
+// the project's own point and at each collection's, the word rules of the
+// terms, of the voice's file and of the ledger's established term rules, the
+// notes kept there, and the patterns of the voice bound there.
 func (s *Server) mapRuleCount(ctx context.Context, c echo.Context, st *decideState) (int, error) {
-	checks, err := jobs.ResolvePointChecks(ctx, s.checkBinding(c.Param("ws")), st.project.ID, st.stream, "", st.project.WorkspaceID, st.project.DefaultSourceLanguage)
-	if err != nil {
-		return 0, err
+	now := time.Now().UTC()
+	var tally rulesview.RuleTally
+	// The project's own point first, then one item from each collection.
+	type place struct{ item, path string }
+	places := []place{{}}
+	seen := map[string]bool{}
+	for _, it := range st.items {
+		path := itemSourcePath(it)
+		if col := st.collectionOf[path]; !seen[col] {
+			seen[col] = true
+			places = append(places, place{item: it.Name, path: path})
+		}
 	}
-	concepts, err := conceptsOf(ctx, checks.Terms)
-	if err != nil {
-		return 0, err
+	for _, pl := range places {
+		checks, err := jobs.ResolvePointChecks(ctx, s.checkBinding(c.Param("ws")), st.project.ID, st.stream, pl.item, st.project.WorkspaceID, st.project.DefaultSourceLanguage)
+		if err != nil {
+			return 0, err
+		}
+		concepts, err := conceptsOf(ctx, checks.Terms)
+		if err != nil {
+			return 0, err
+		}
+		var held []string
+		for _, cpt := range concepts {
+			for _, t := range cpt.Terms {
+				held = append(held, t.Text)
+			}
+		}
+		var point map[string]string
+		if pl.item != "" {
+			point = st.coordinates[pl.path]
+		}
+		resolved := contextop.Resolve(st.records, nil, contextop.ResolveRequest{
+			Project: st.key, Coordinates: point, Held: held, Space: st.places.Space, At: now,
+		})
+		hits, _ := rulesview.TermsInForce(concepts, "", now, 0)
+		words, _ := rulesview.SayThisNotThat(hits, resolved.Binding, checks.Voice, 1<<16)
+		tally.AddWordRules(words)
+		for _, r := range st.established() {
+			if r.Subject.Kind != contextop.SubjectNote || r.Kind != contextop.KindObserve {
+				continue
+			}
+			if r.Scope.Level != contextop.LevelWorkspace && !r.Scope.CoversIn(st.places.Space, point) {
+				continue
+			}
+			tally.AddNote(r.ID)
+		}
+		tally.AddVoice(checks.Voice)
 	}
-	return len(concepts) + voiceRuleCount(checks.Voice) + len(notInTerms(st.established(), concepts)), nil
+	return tally.Len(), nil
 }
 
 // conceptsOf reads every concept of a terms store; none when no store is
