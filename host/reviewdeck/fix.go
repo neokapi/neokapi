@@ -88,10 +88,15 @@ type FixCandidate struct {
 	Kind FixKind `json:"kind"`
 	// Label is the line a surface shows for the candidate.
 	Label string `json:"label"`
-	// Runs is the corrected translation, the content a set_content sends.
+	// Runs is the corrected translation in the content model, codes with
+	// their data, for a surface to draw.
 	Runs []model.Run `json:"runs"`
 	// Text is Runs as a reader reads it, each code as the data it holds.
 	Text string `json:"text"`
+	// EditText is Runs in the placeholder form a set_content's text takes,
+	// each code an <x id="…"/>. A change set's runs carry no code data, so
+	// a fix sends this, or Runs with each code's data removed.
+	EditText string `json:"edit_text"`
 	// Diff is a word diff of the draft against Text.
 	Diff editdiff.Diff `json:"diff"`
 	// Reasons are the reasons the candidate addresses.
@@ -179,6 +184,7 @@ func FixCandidates(ctx context.Context, req FixCandidatesRequest) (*FixCandidate
 		}
 		seen[key] = true
 		c.Text = model.RenderRunsWithData(c.Runs)
+		c.EditText = model.RunsEditText(c.Runs)
 		c.Diff = editdiff.Compare(model.RenderRunsWithData(draft), c.Text)
 		out.Candidates = append(out.Candidates, c)
 	}
