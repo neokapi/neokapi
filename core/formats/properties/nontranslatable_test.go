@@ -31,8 +31,8 @@ func readPartsWithConfig(t *testing.T, input string, cfg map[string]any) []*mode
 func TestExcludedEntry_SurfacesContentBlock_WhenOn(t *testing.T) {
 	input := "title.text=Hello\nbuild.number=42\n"
 	parts := readPartsWithConfig(t, input, map[string]any{
-		"useKeyCondition": true,
-		"keyCondition":    ".*text.*",
+		"use_key_condition": true,
+		"key_condition":     ".*text.*",
 	})
 	blocks := testutil.FilterBlocks(parts)
 
@@ -76,9 +76,9 @@ func TestExcludedEntry_SurfacesContentBlock_WhenOn(t *testing.T) {
 func TestExcludedEntry_StaysSkeletonData_WhenOff(t *testing.T) {
 	input := "title.text=Hello\nbuild.number=42\n"
 	parts := readPartsWithConfig(t, input, map[string]any{
-		"useKeyCondition":               true,
-		"keyCondition":                  ".*text.*",
-		"extractNonTranslatableContent": false,
+		"use_key_condition":                true,
+		"key_condition":                    ".*text.*",
+		"extract_non_translatable_content": false,
 	})
 	blocks := testutil.FilterBlocks(parts)
 
@@ -111,9 +111,9 @@ func TestExcludedEntry_ByteExactRoundtrip(t *testing.T) {
 			reader := properties.NewReader()
 			writer := properties.NewWriter()
 			require.NoError(t, reader.Config().ApplyMap(map[string]any{
-				"useKeyCondition":               true,
-				"keyCondition":                  ".*text.*",
-				"extractNonTranslatableContent": surface,
+				"use_key_condition":                true,
+				"key_condition":                    ".*text.*",
+				"extract_non_translatable_content": surface,
 			}))
 
 			store, err := format.NewSkeletonStore()

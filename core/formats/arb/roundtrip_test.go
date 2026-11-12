@@ -416,11 +416,11 @@ func TestConfigApplyMap(t *testing.T) {
 	cfg.Reset()
 	assert.True(t, cfg.DescriptionNotes, "default should be on")
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"descriptionNotes": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"description_notes": false}))
 	assert.False(t, cfg.DescriptionNotes)
 
 	// Wrong type and unknown key are rejected.
-	require.Error(t, cfg.ApplyMap(map[string]any{"descriptionNotes": "nope"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"description_notes": "nope"}))
 	require.Error(t, cfg.ApplyMap(map[string]any{"unknown": true}))
 
 	require.NoError(t, cfg.Validate())

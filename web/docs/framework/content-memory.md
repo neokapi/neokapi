@@ -130,9 +130,9 @@ kapi exec recycle input.html -o output.html --source-lang en --target-lang fr --
 steps:
   - tool: recycle
     config:
-      fuzzyThreshold: 70 # minimum score for fuzzy matches (0-100)
-      fillTarget: true # copy the best candidate into the target
-      fillTargetThreshold: 95 # minimum score required to fill the target
+      fuzzy_threshold: 70 # minimum score for fuzzy matches (0-100)
+      fill_target: true # copy the best candidate into the target
+      fill_target_threshold: 95 # minimum score required to fill the target
 ```
 
 The two thresholds default to 70 and 95. The fuzzy path below an exact match is

@@ -9,7 +9,7 @@
 # track the underlying Java field names where the spec key uses a
 # different label.
 #
-# The native reader honors processAllTargets and exitOnInvalid. The
+# The native reader honors process_all_targets and exit_on_invalid. The
 # remaining keys (segType, consolidateDpSkeleton, propValueSep, the
 # inlineCodes group, escapeGT) are documented for parity with Okapi
 # and the bridge schema; native examples that exercise them will be
@@ -28,7 +28,7 @@ description: |
 
 config:
   # ── Extraction (consumed by the native reader) ───────────────────
-  - key: processAllTargets
+  - key: process_all_targets
     type: boolean
     default: true
     description: |
@@ -37,7 +37,7 @@ config:
       target-language TUVs are skipped.
     okapi_param: processAllTargets
 
-  - key: exitOnInvalid
+  - key: exit_on_invalid
     type: boolean
     default: false
     description: |
@@ -79,7 +79,7 @@ config:
       tracked as a divergence in the duplicate_properties feature.
     okapi_param: propValueSep
 
-  - key: escapeGT
+  - key: escape_gt
     type: boolean
     default: false
     description: |
@@ -93,8 +93,8 @@ config:
     description: |
       Inline-code detection group (regex patterns and toggles) the
       bridge composite schema exposes under `inlineCodes`. Native
-      reader recognises the per-leaf flags `useCodeFinder` and
-      `codeFinderRules`; the parent `inlineCodes` map is declared
+      reader recognises the per-leaf flags `use_code_finder` and
+      `code_finder_rules`; the parent `inlineCodes` map is declared
       here so drift detection sees the grouping the bridge advertises.
     okapi_param: inlineCodes
 
@@ -143,7 +143,7 @@ features:
     description: |
       A `<tu>` with several non-source `<tuv>` children produces one
       Block whose Targets map carries every additional language. With
-      the default `processAllTargets: true` all targets are kept; the
+      the default `process_all_targets: true` all targets are kept; the
       block source is the TUV matching `srclang`.
     spec_refs:
       - "TMX 1.4b spec — multilingual <tu> with multiple <tuv> children"

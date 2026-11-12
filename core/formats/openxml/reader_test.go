@@ -353,8 +353,8 @@ func TestReaderConfig(t *testing.T) {
 	assert.Equal(t, "openxml", cfg.FormatName())
 
 	err := cfg.ApplyMap(map[string]any{
-		"translateDocProperties": false,
-		"aggressiveCleanup":      false,
+		"translate_doc_properties": false,
+		"aggressive_cleanup":       false,
 	})
 	require.NoError(t, err)
 
@@ -368,16 +368,16 @@ func TestReaderConfigListParams(t *testing.T) {
 	cfg.Reset()
 
 	err := cfg.ApplyMap(map[string]any{
-		"excludeColors":            []any{"FF0000", "00FF00"},
-		"excludeStyles":            []string{"CodeBlock", "Quote"},
-		"excludedColumns":          []any{"A", "C"},
-		"excludedSheets":           []any{"Sheet2"},
-		"includedSlides":           []any{float64(1), float64(3)},
-		"lineSeparatorReplacement": "\\n",
-		"replaceLineSeparator":     true,
-		"translateCharts":          true,
-		"translateDiagrams":        true,
-		"translateHiddenSlides":    true,
+		"exclude_colors":             []any{"FF0000", "00FF00"},
+		"exclude_styles":             []string{"CodeBlock", "Quote"},
+		"excluded_columns":           []any{"A", "C"},
+		"excluded_sheets":            []any{"Sheet2"},
+		"included_slides":            []any{float64(1), float64(3)},
+		"line_separator_replacement": "\\n",
+		"replace_line_separator":     true,
+		"translate_charts":           true,
+		"translate_diagrams":         true,
+		"translate_hidden_slides":    true,
 	})
 	require.NoError(t, err)
 
@@ -399,22 +399,22 @@ func TestReaderConfigAllBoolKeys(t *testing.T) {
 
 	// Set every boolean to the opposite of its default
 	err := cfg.ApplyMap(map[string]any{
-		"translateDocProperties":  false,
-		"translateHiddenText":     true,
-		"translateHeadersFooters": false,
-		"translateFootnotes":      false,
-		"translateComments":       true,
-		"translateHyperlinks":     false,
-		"aggressiveCleanup":       false,
-		"tabAsCharacter":          true,
-		"translateSlideNotes":     false,
-		"translateSlideMasters":   true,
-		"translateHiddenSlides":   true,
-		"translateCharts":         true,
-		"translateDiagrams":       true,
-		"translateSheetNames":     true,
-		"translateSharedStrings":  false,
-		"replaceLineSeparator":    true,
+		"translate_doc_properties":  false,
+		"translate_hidden_text":     true,
+		"translate_headers_footers": false,
+		"translate_footnotes":       false,
+		"translate_comments":        true,
+		"translate_hyperlinks":      false,
+		"aggressive_cleanup":        false,
+		"tab_as_character":          true,
+		"translate_slide_notes":     false,
+		"translate_slide_masters":   true,
+		"translate_hidden_slides":   true,
+		"translate_charts":          true,
+		"translate_diagrams":        true,
+		"translate_sheet_names":     true,
+		"translate_shared_strings":  false,
+		"replace_line_separator":    true,
 	})
 	require.NoError(t, err)
 
@@ -441,14 +441,14 @@ func TestReaderConfigAllListKeys(t *testing.T) {
 	cfg.Reset()
 
 	err := cfg.ApplyMap(map[string]any{
-		"excludeColors":          []any{"FF0000"},
-		"excludeHighlightColors": []any{"yellow", "red"},
-		"includeHighlightColors": []any{"green"},
-		"excludeStyles":          []any{"CodeBlock"},
-		"includeStyles":          []any{"Normal", "Heading1"},
-		"excludedSheets":         []any{"Sheet2", "Hidden"},
-		"excludedColumns":        []any{"A", "C", "AA"},
-		"includedSlides":         []any{float64(1), float64(5)},
+		"exclude_colors":           []any{"FF0000"},
+		"exclude_highlight_colors": []any{"yellow", "red"},
+		"include_highlight_colors": []any{"green"},
+		"exclude_styles":           []any{"CodeBlock"},
+		"include_styles":           []any{"Normal", "Heading1"},
+		"excluded_sheets":          []any{"Sheet2", "Hidden"},
+		"excluded_columns":         []any{"A", "C", "AA"},
+		"included_slides":          []any{float64(1), float64(5)},
 	})
 	require.NoError(t, err)
 
@@ -467,10 +467,10 @@ func TestReaderConfigToBoolStringValues(t *testing.T) {
 	cfg.Reset()
 
 	err := cfg.ApplyMap(map[string]any{
-		"translateDocProperties": "true",
-		"translateHiddenText":    "yes",
-		"translateComments":      "1",
-		"aggressiveCleanup":      "false",
+		"translate_doc_properties": "true",
+		"translate_hidden_text":    "yes",
+		"translate_comments":       "1",
+		"aggressive_cleanup":       "false",
 	})
 	require.NoError(t, err)
 
@@ -485,8 +485,8 @@ func TestReaderConfigNilListValues(t *testing.T) {
 	cfg.Reset()
 
 	err := cfg.ApplyMap(map[string]any{
-		"excludeColors":  nil,
-		"includedSlides": nil,
+		"exclude_colors":  nil,
+		"included_slides": nil,
 	})
 	require.NoError(t, err)
 	assert.Nil(t, cfg.ExcludeColors)
@@ -499,8 +499,8 @@ func TestReaderConfigDirectSliceTypes(t *testing.T) {
 
 	// Test direct []string and []int paths (not []any)
 	err := cfg.ApplyMap(map[string]any{
-		"excludeColors":  []string{"AABBCC"},
-		"includedSlides": []int{2, 4, 6},
+		"exclude_colors":  []string{"AABBCC"},
+		"included_slides": []int{2, 4, 6},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"AABBCC"}, cfg.ExcludeColors)
@@ -512,7 +512,7 @@ func TestReaderConfigUnknownKey(t *testing.T) {
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknownKey": true})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown config key")
+	assert.Contains(t, err.Error(), "unknown parameter")
 }
 
 func TestReaderConfigInvalidTypes(t *testing.T) {
@@ -522,11 +522,11 @@ func TestReaderConfigInvalidTypes(t *testing.T) {
 		val  any
 		msg  string
 	}{
-		{"string list gets int", "excludeColors", 42, "string list"},
-		{"string list item not string", "excludeStyles", []any{42}, "string"},
-		{"int list gets string", "includedSlides", "nope", "int list"},
-		{"int list item not int", "includedSlides", []any{"bad"}, "int"},
-		{"string key gets int", "lineSeparatorReplacement", 42, "string"},
+		{"string list gets int", "exclude_colors", 42, "string list"},
+		{"string list item not string", "exclude_styles", []any{42}, "string"},
+		{"int list gets string", "included_slides", "nope", "int list"},
+		{"int list item not int", "included_slides", []any{"bad"}, "int"},
+		{"string key gets int", "line_separator_replacement", 42, "string"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -584,7 +584,7 @@ func TestExtractMediaConfig(t *testing.T) {
 	cfg.Reset()
 	assert.False(t, cfg.ExtractMedia)
 
-	err := cfg.ApplyMap(map[string]any{"extractMedia": true})
+	err := cfg.ApplyMap(map[string]any{"extract_media": true})
 	require.NoError(t, err)
 	assert.True(t, cfg.ExtractMedia)
 }
@@ -594,7 +594,7 @@ func TestExtractMediaFromDocx(t *testing.T) {
 	docx := buildDocxWithMedia(t)
 
 	reader := NewReader()
-	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractMedia": true}))
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extract_media": true}))
 
 	doc := testutil.RawDocFromReader(docx, "test.docx", model.LocaleEnglish)
 	require.NoError(t, reader.Open(t.Context(), doc))

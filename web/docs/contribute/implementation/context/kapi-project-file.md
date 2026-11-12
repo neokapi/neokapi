@@ -746,7 +746,7 @@ flows:
     steps:
       - tool: recycle
         config:
-          fuzzyThreshold: 75
+          fuzzy_threshold: 75
       - tool: translate
         config:
           provider: anthropic
@@ -756,5 +756,5 @@ flows:
     steps:
       - tool: pseudo-translate
         config:
-          expansionPercent: 30
+          expansion_percent: 30
 ```

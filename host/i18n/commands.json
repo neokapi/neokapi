@@ -1715,7 +1715,7 @@
               "fail-on-unknown": {
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
-              "filter-by-i-ds": {
+              "filter-by-ids": {
                 "usage": "When true filter blocks by ID; when false filter by target locale"
               },
               "format": {
@@ -1766,7 +1766,7 @@
               "target-locale": {
                 "usage": "Target locale to remove (if empty all targets are removed)"
               },
-              "text-unit-i-ds": {
+              "text-unit-ids": {
                 "usage": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
               },
               "trace": {
@@ -1980,7 +1980,7 @@
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
-              "reg-ex": {
+              "regex": {
                 "usage": "Enable regular expression mode for all search patterns"
               },
               "replace-all": {
@@ -2619,10 +2619,10 @@
               "format": {
                 "usage": "override input format detection"
               },
-              "include-horizontal-w-s": {
+              "include-horizontal-ws": {
                 "usage": "Include horizontal tab characters in corrections"
               },
-              "include-vertical-w-s": {
+              "include-vertical-ws": {
                 "usage": "Include vertical whitespace (line feeds and carriage returns) in corrections"
               },
               "json": {

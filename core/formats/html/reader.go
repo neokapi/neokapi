@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-// inlineElements are HTML elements treated as inline (Spans, not block boundaries).
+// inline_elements are HTML elements treated as inline (Spans, not block boundaries).
 var inlineElements = map[atom.Atom]bool{
 	atom.A: true, atom.Abbr: true, atom.Acronym: true, atom.B: true,
 	atom.Bdo: true, atom.Big: true, atom.Br: true, atom.Button: true,
@@ -90,7 +90,7 @@ func nonTranslatableContentRole(a atom.Atom, scriptType string) (role string, ok
 	return "", false
 }
 
-// preserveWhitespaceElements preserve whitespace by default.
+// preserve_whitespace_elements preserve whitespace by default.
 var preserveWhitespaceElements = map[atom.Atom]bool{
 	atom.Pre: true, atom.Textarea: true,
 }

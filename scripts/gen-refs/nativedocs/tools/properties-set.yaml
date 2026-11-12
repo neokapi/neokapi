@@ -24,7 +24,7 @@ parameters:
       replaced. When disabled, existing properties are kept and only missing
       keys are added.
     values: "`true` / `false` (default `true`)"
-  onlyTranslatable:
+  only_translatable:
     description: Only set properties on translatable blocks.
     help: |
       When enabled, non-translatable blocks are skipped. Disable it to set

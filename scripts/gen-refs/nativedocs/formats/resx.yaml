@@ -18,14 +18,14 @@ overview: |
   through untouched. Round-trips are byte-faithful, and only changed `<value>`
   content is spliced back into the original document.
 parameters:
-  extractComments:
+  extract_comments:
     description: Attach each entry's <comment> as a translator note.
     help: |
       When enabled (the default), a string entry's sibling `<comment>` element
       is attached to the block as a translator note. Disable to ignore
       comments.
     values: "`true` / `false` (default `true`)"
-  skipNameDataReferences:
+  skip_name_data_references:
     description: Skip name-reference (>>name) data entries.
     help: |
       When enabled (the default), `<data>` entries whose name begins with `>`
@@ -40,4 +40,4 @@ examples:
   - title: Ignore comments
     description: Do not turn <comment> elements into translator notes.
     config: |
-      extractComments: false
+      extract_comments: false

@@ -15,7 +15,7 @@ import (
 // Both halves of the recipe's binding decide that: the format the item declares
 // (a `.md` bound to mdx, where an `import { … }` line is structure rather than a
 // paragraph of prose) and the reader config the project declares for the format
-// (keyPathPatterns, which say which YAML keys hold prose at all). Read under the
+// (key_path_patterns, which say which YAML keys hold prose at all). Read under the
 // extension's default format and reader defaults, the panel reports findings
 // against content no convergence run ever touches.
 
@@ -55,7 +55,7 @@ command: ksed -i 's/our seamless integration/our unified integration/' index.htm
 		Defaults: project.Defaults{
 			SourceLanguage: "en",
 			Formats: map[string]project.FormatDefaults{
-				"yaml": {Config: map[string]any{"keyPathPatterns": []any{"title"}}},
+				"yaml": {Config: map[string]any{"key_path_patterns": []any{"title"}}},
 			},
 		},
 		Collections: []project.Collection{

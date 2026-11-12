@@ -32,16 +32,16 @@ func TestOkapiOpenXMLTransform_DirectMappings(t *testing.T) {
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
 
-	assert.Equal(t, true, result["translateDocProperties"])
-	assert.Equal(t, true, result["translateHiddenText"])
-	assert.Equal(t, false, result["aggressiveCleanup"])
-	assert.Equal(t, true, result["tabAsCharacter"])
-	assert.Equal(t, false, result["translateSlideNotes"])
-	assert.Equal(t, []string{"FF0000", "00FF00"}, result["excludeColors"])
-	assert.Equal(t, []string{"CodeBlock"}, result["excludeStyles"])
-	assert.Equal(t, []string{"A", "B"}, result["excludedColumns"])
-	assert.Equal(t, []int{1, 3, 5}, result["includedSlides"])
-	assert.Equal(t, "\\n", result["lineSeparatorReplacement"])
+	assert.Equal(t, true, result["translate_doc_properties"])
+	assert.Equal(t, true, result["translate_hidden_text"])
+	assert.Equal(t, false, result["aggressive_cleanup"])
+	assert.Equal(t, true, result["tab_as_character"])
+	assert.Equal(t, false, result["translate_slide_notes"])
+	assert.Equal(t, []string{"FF0000", "00FF00"}, result["exclude_colors"])
+	assert.Equal(t, []string{"CodeBlock"}, result["exclude_styles"])
+	assert.Equal(t, []string{"A", "B"}, result["excluded_columns"])
+	assert.Equal(t, []int{1, 3, 5}, result["included_slides"])
+	assert.Equal(t, "\\n", result["line_separator_replacement"])
 }
 
 func TestOkapiOpenXMLTransform_RenamedKeys(t *testing.T) {
@@ -69,22 +69,22 @@ func TestOkapiOpenXMLTransform_RenamedKeys(t *testing.T) {
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
 
-	assert.Equal(t, true, result["translateDocProperties"])
-	assert.Equal(t, false, result["translateSlideNotes"])
-	assert.Equal(t, true, result["translateSlideMasters"])
-	assert.Equal(t, true, result["translateHiddenSlides"])
-	assert.Equal(t, true, result["translateSheetNames"])
-	assert.Equal(t, []string{"Heading1"}, result["excludeStyles"])
-	assert.Equal(t, []string{"Normal"}, result["includeStyles"])
-	assert.Equal(t, []string{"C"}, result["excludedColumns"])
-	assert.Equal(t, []string{"Sheet2"}, result["excludedSheets"])
-	assert.Equal(t, []any{float64(1), float64(2)}, result["includedSlides"])
-	assert.Equal(t, "\n", result["lineSeparatorReplacement"])
-	assert.Equal(t, true, result["replaceLineSeparator"])
-	assert.Equal(t, false, result["aggressiveCleanup"])
-	assert.Equal(t, true, result["tabAsCharacter"])
-	assert.Equal(t, true, result["translateCharts"])
-	assert.Equal(t, true, result["translateDiagrams"])
+	assert.Equal(t, true, result["translate_doc_properties"])
+	assert.Equal(t, false, result["translate_slide_notes"])
+	assert.Equal(t, true, result["translate_slide_masters"])
+	assert.Equal(t, true, result["translate_hidden_slides"])
+	assert.Equal(t, true, result["translate_sheet_names"])
+	assert.Equal(t, []string{"Heading1"}, result["exclude_styles"])
+	assert.Equal(t, []string{"Normal"}, result["include_styles"])
+	assert.Equal(t, []string{"C"}, result["excluded_columns"])
+	assert.Equal(t, []string{"Sheet2"}, result["excluded_sheets"])
+	assert.Equal(t, []any{float64(1), float64(2)}, result["included_slides"])
+	assert.Equal(t, "\n", result["line_separator_replacement"])
+	assert.Equal(t, true, result["replace_line_separator"])
+	assert.Equal(t, false, result["aggressive_cleanup"])
+	assert.Equal(t, true, result["tab_as_character"])
+	assert.Equal(t, true, result["translate_charts"])
+	assert.Equal(t, true, result["translate_diagrams"])
 }
 
 func TestOkapiOpenXMLTransform_AdvancedParams(t *testing.T) {
@@ -104,24 +104,24 @@ func TestOkapiOpenXMLTransform_AdvancedParams(t *testing.T) {
 	require.NoError(t, err)
 
 	// Kept / transformed
-	assert.Equal(t, true, result["translateDocProperties"])
-	assert.Equal(t, "HYPERLINK", result["complexFieldDefinitionsToExtract"]) // key dropped its ts- prefix
-	assert.Equal(t, "some-mapping", result["fontMappings"])                  // passed through
-	assert.Equal(t, true, result["extractRunFontsInfo"])                     // passed through
+	assert.Equal(t, true, result["translate_doc_properties"])
+	assert.Equal(t, "HYPERLINK", result["complex_field_definitions_to_extract"]) // key dropped its ts- prefix
+	assert.Equal(t, "some-mapping", result["font_mappings"])                     // passed through
+	assert.Equal(t, true, result["extract_run_fonts_info"])                      // passed through
 
 	// codeFinder composite object → extracted into flat params
-	assert.Equal(t, true, result["useCodeFinder"])
-	assert.Equal(t, []string{"<br>"}, result["codeFinderRules"])
-	assert.Nil(t, result["codeFinder"]) // composite object itself not passed through
+	assert.Equal(t, true, result["use_code_finder"])
+	assert.Equal(t, []string{"<br>"}, result["code_finder_rules"])
+	assert.Nil(t, result["code_finder"]) // composite object itself not passed through
 
 	// Dropped (Okapi-only, no native equivalent)
-	assert.Nil(t, result["translateExcelDrawings"])
+	assert.Nil(t, result["translate_excel_drawings"])
 	// Word Style Optimisation was removed (native is faithful); the Okapi
 	// param is dropped silently rather than passed through.
-	assert.Nil(t, result["optimiseWordStyles"])
+	assert.Nil(t, result["optimise_word_styles"])
 
 	// Renamed keys should not appear under old names
-	assert.Nil(t, result["tsComplexFieldDefinitionsToExtract"])
+	assert.Nil(t, result["ts_complex_field_definitions_to_extract"])
 }
 
 func TestOkapiOpenXMLTransform_CodeFinderWithExistingRules(t *testing.T) {
@@ -136,8 +136,8 @@ func TestOkapiOpenXMLTransform_CodeFinderWithExistingRules(t *testing.T) {
 
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
-	assert.Equal(t, true, result["useCodeFinder"])
-	assert.Equal(t, []string{"\\{[0-9]+\\}"}, result["codeFinderRules"])
+	assert.Equal(t, true, result["use_code_finder"])
+	assert.Equal(t, []string{"\\{[0-9]+\\}"}, result["code_finder_rules"])
 }
 
 func TestOkapiOpenXMLTransform_EmptySpec(t *testing.T) {
@@ -156,5 +156,5 @@ func TestOkapiOpenXMLTransform_UnknownKeysPassThrough(t *testing.T) {
 
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
-	assert.Equal(t, "someValue", result["futureParam"])
+	assert.Equal(t, "someValue", result["future_param"])
 }

@@ -50,7 +50,7 @@ func yamlCommentsProject(t *testing.T, comments, remembered bool) (*App, *EnvCom
 		}},
 		Flows: map[string]*flow.StepsSpec{
 			"recycle-only": {Steps: []flow.FlowStep{
-				{Tool: "recycle", Config: map[string]any{"fillTarget": true, "fillTargetThreshold": 100}},
+				{Tool: "recycle", Config: map[string]any{"fill_target": true, "fill_target_threshold": 100}},
 			}},
 		},
 	}

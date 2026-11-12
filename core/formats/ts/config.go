@@ -1,6 +1,6 @@
 package ts
 
-import "fmt"
+import "github.com/neokapi/neokapi/core/format"
 
 // Config holds configuration for the Qt TS format.
 type Config struct{}
@@ -17,7 +17,7 @@ func (c *Config) Validate() error { return nil }
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key := range values {
-		return fmt.Errorf("ts: unknown parameter: %s", key)
+		return format.UnknownParameterError(c, "ts", key)
 	}
 	return nil
 }

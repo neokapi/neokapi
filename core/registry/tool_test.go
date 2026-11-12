@@ -172,7 +172,7 @@ func TestSetConfigPreprocessor_TransformsConfig(t *testing.T) {
 	})
 	reg.SetConfigFactory("ai-tool", func(config map[string]any, targetLang string) (tool.Tool, error) {
 		// Verify the preprocessor ran before the factory.
-		assert.Equal(t, "injected-key", config["apiKey"])
+		assert.Equal(t, "injected-key", config["api_key"])
 		assert.Equal(t, "anthropic", config["provider"])
 		return &stubTool{}, nil
 	})
@@ -183,12 +183,12 @@ func TestSetConfigPreprocessor_TransformsConfig(t *testing.T) {
 		assert.Contains(t, requires, "credentials")
 		result := make(map[string]any)
 		maps.Copy(result, config)
-		result["apiKey"] = "injected-key"
+		result["api_key"] = "injected-key"
 		result["provider"] = "anthropic"
 		return result, nil
 	})
 
-	_, err := reg.NewToolWithConfig("ai-tool", map[string]any{"batchSize": 10}, "fr")
+	_, err := reg.NewToolWithConfig("ai-tool", map[string]any{"batch_size": 10}, "fr")
 	require.NoError(t, err)
 }
 

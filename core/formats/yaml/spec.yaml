@@ -11,19 +11,19 @@
 # (extractAll, includeIsolatedStrings, useAsName, useFullPath,
 # escapeNonAscii, wrap, subFilterProcessLiteralAsBlock) so drift
 # detection lines up against the okf_yaml v10 schema. okapi_param
-# carries the underlying Java field name (extractAllPairs,
-# extractIsolatedStrings, useKeyAsName, useFullKeyPath, …).
+# carries the underlying Java field name (extract_all_pairs,
+# extract_isolated_strings, use_key_as_name, use_full_key_path, …).
 #
 # The native YAML reader's ApplyMap currently accepts only its own
-# native parameter spellings (extractNonStrings, useCodeFinder,
-# keyPathPatterns, codeFinderRules, subfilter); none of those are in
-# the bridge composite top-level property set (useCodeFinder lives
+# native parameter spellings (extract_non_strings, use_code_finder,
+# key_path_patterns, code_finder_rules, subfilter); none of those are in
+# the bridge composite top-level property set (use_code_finder lives
 # under a `$ref` that the contract-audit walker doesn't follow, and
 # extractNonStrings / keyPathPatterns have no Okapi counterpart at
 # all). To keep drift detection at zero this initial spec demonstrates
 # only the always-on defaults — every example runs with the reader's
 # default config. Config-driven features (inline code finder,
-# extractNonStrings opt-in, key-path filtering) are tracked by the
+# extract_non_strings opt-in, key-path filtering) are tracked by the
 # always-on Go tests in reader_test.go and will land in the spec
 # alongside a follow-up bridge-name alias pass on Config.ApplyMap.
 
@@ -90,7 +90,7 @@ config:
     description: |
       Use the full nested path (e.g. `parent.child.leaf`) as the
       Block name instead of the immediate key. Mirrors Okapi's
-      useFullKeyPath parameter (also exposed by the bridge composite
+      use_full_key_path parameter (also exposed by the bridge composite
       schema). The native reader always emits full paths; legacy
       single-key naming is not currently implemented.
     okapi_param: useFullKeyPath

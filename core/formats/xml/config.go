@@ -400,13 +400,13 @@ func (c *Config) Validate() error {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "translatableElements":
+		case "translatable_elements":
 			arr, err := toStringSlice(val, key)
 			if err != nil {
 				return err
 			}
 			c.TranslatableElements = arr
-		case "translatableAttributes":
+		case "translatable_attributes":
 			arr, err := toStringSlice(val, key)
 			if err != nil {
 				return err
@@ -418,56 +418,56 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("xml: subfilters: %w", err)
 			}
 			c.Subfilters = sfs
-		case "preserveWhitespace":
+		case "preserve_whitespace":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("preserveWhitespace: expected bool, got %T", val)
+				return fmt.Errorf("preserve_whitespace: expected bool, got %T", val)
 			}
 			c.PreserveWhitespace = b
-		case "excludeByDefault":
+		case "exclude_by_default":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("excludeByDefault: expected bool, got %T", val)
+				return fmt.Errorf("exclude_by_default: expected bool, got %T", val)
 			}
 			c.ExcludeByDefault = b
-		case "inlineElements":
+		case "inline_elements":
 			arr, err := toStringSlice(val, key)
 			if err != nil {
 				return err
 			}
 			c.InlineElements = arr
-		case "excludedElements":
+		case "excluded_elements":
 			arr, err := toStringSlice(val, key)
 			if err != nil {
 				return err
 			}
 			c.ExcludedElements = arr
-		case "preserveWhitespaceElements":
+		case "preserve_whitespace_elements":
 			arr, err := toStringSlice(val, key)
 			if err != nil {
 				return err
 			}
 			c.PreserveWhitespaceElements = arr
-		case "groupElements":
+		case "group_elements":
 			arr, err := toStringSlice(val, key)
 			if err != nil {
 				return err
 			}
 			c.GroupElements = arr
-		case "blockTypeMap":
+		case "block_type_map":
 			m, ok := val.(map[string]any)
 			if !ok {
-				return fmt.Errorf("blockTypeMap: expected map, got %T", val)
+				return fmt.Errorf("block_type_map: expected map, got %T", val)
 			}
 			c.BlockTypeMap = make(map[string]string)
 			for k, v := range m {
 				s, ok := v.(string)
 				if !ok {
-					return fmt.Errorf("blockTypeMap[%s]: expected string, got %T", k, v)
+					return fmt.Errorf("block_type_map[%s]: expected string, got %T", k, v)
 				}
 				c.BlockTypeMap[k] = s
 			}
-		case "idAttributes":
+		case "id_attributes":
 			arr, err := toStringSlice(val, key)
 			if err != nil {
 				return err
@@ -485,21 +485,21 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("xml: attributes: %w", err)
 			}
 			c.AttributeRules = rules
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
 			c.compiledCodeFinder = nil
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			if v, ok := val.(bool); ok {
 				c.disableNonTranslatableContent = !v
 			}
@@ -510,20 +510,24 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 			for pk, pv := range m {
 				switch pk {
-				case "preserveWhitespace":
+				case "preserve_whitespace":
 					b, ok := pv.(bool)
 					if !ok {
-						return fmt.Errorf("parser.preserveWhitespace: expected bool, got %T", pv)
+						return fmt.Errorf("parser.preserve_whitespace: expected bool, got %T", pv)
 					}
 					c.PreserveWhitespace = b
-				case "assumeWellformed":
+				case "assume_wellformed":
 					// Ignored — Go XML parser always handles this
 				default:
 					// Silently ignore unknown parser params
 				}
 			}
 		default:
-			// Silently ignore unknown parameters for forward compat
+			// A camelCase spelling of a renamed key fails; any other
+			// unknown key is ignored for forward compatibility.
+			if err := format.RenamedParameterError(c, "xml", key); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -592,8 +596,8 @@ func parseElementRules(val any) ([]*ElementRule, error) {
 			rule.compiled = compiled
 		}
 
-		// Parse ruleTypes
-		if rt, ok := ruleMap["ruleTypes"]; ok {
+		// Parse rule_types
+		if rt, ok := ruleMap["rule_types"]; ok {
 			arr, ok := rt.([]string)
 			if ok {
 				for _, s := range arr {
@@ -616,8 +620,8 @@ func parseElementRules(val any) ([]*ElementRule, error) {
 			}
 		}
 
-		// Parse idAttributes
-		if idAttrs, ok := ruleMap["idAttributes"]; ok {
+		// Parse id_attributes
+		if idAttrs, ok := ruleMap["id_attributes"]; ok {
 			arr, ok := idAttrs.([]string)
 			if ok {
 				rule.IDAttributes = arr
@@ -630,8 +634,8 @@ func parseElementRules(val any) ([]*ElementRule, error) {
 			}
 		}
 
-		// Parse translatableAttributes
-		if ta, ok := ruleMap["translatableAttributes"]; ok {
+		// Parse translatable_attributes
+		if ta, ok := ruleMap["translatable_attributes"]; ok {
 			taMap, ok := ta.(map[string]any)
 			if ok {
 				rule.TranslatableAttributes = make(map[string]*TranslatableAttrCondition)
@@ -758,8 +762,8 @@ func parseAttributeRules(val any) ([]*AttributeRule, error) {
 			rule.compiled = compiled
 		}
 
-		// Parse ruleTypes
-		if rt, ok := ruleMap["ruleTypes"]; ok {
+		// Parse rule_types
+		if rt, ok := ruleMap["rule_types"]; ok {
 			arr, ok := rt.([]string)
 			if ok {
 				for _, s := range arr {
@@ -774,8 +778,8 @@ func parseAttributeRules(val any) ([]*AttributeRule, error) {
 			}
 		}
 
-		// Parse allElementsExcept
-		if exc, ok := ruleMap["allElementsExcept"]; ok {
+		// Parse all_elements_except
+		if exc, ok := ruleMap["all_elements_except"]; ok {
 			arr, ok := exc.([]string)
 			if ok {
 				rule.AllElementsExcept = arr
@@ -788,8 +792,8 @@ func parseAttributeRules(val any) ([]*AttributeRule, error) {
 			}
 		}
 
-		// Parse onlyTheseElements
-		if only, ok := ruleMap["onlyTheseElements"]; ok {
+		// Parse only_these_elements
+		if only, ok := ruleMap["only_these_elements"]; ok {
 			arr, ok := only.([]string)
 			if ok {
 				rule.OnlyTheseElements = arr

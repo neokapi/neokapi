@@ -22,33 +22,33 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"processAllTargets", "exitOnInvalid",
+					"process_all_targets", "exit_on_invalid",
 				},
 			},
 			{
 				ID:    "output",
 				Label: "Output",
 				Fields: []string{
-					"escapeGT",
+					"escape_gt",
 				},
 			},
 			{
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
 			// Extraction
-			"processAllTargets": schema.Prop(coreschema.PropertySchema{
+			"process_all_targets": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Read all target entries",
 				Description: "Read all target language TUVs from each TU. When false, only the first target is read.",
 			}),
-			"exitOnInvalid": schema.Prop(coreschema.PropertySchema{
+			"exit_on_invalid": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Exit on invalid TUs",
@@ -56,7 +56,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Output
-			"escapeGT": schema.Prop(coreschema.PropertySchema{
+			"escape_gt": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Escape greater-than characters",
@@ -64,18 +64,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Inline codes
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable inline code detection",
 				Description: "Enable regex-based inline code detection in translatable text",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code finder rules",
 				Description: "Regex patterns that match inline codes within translatable text",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

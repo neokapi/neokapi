@@ -108,7 +108,7 @@ Inside `process`, `emit()`, `skip()`, and `log()` behave exactly as in the impli
 | `null`                  | the part is dropped (equivalent to `skip()`)    |
 | nothing (`undefined`)   | the part passes through unchanged               |
 
-The function form works identically with `--code`, `--script-file`, and the YAML `code`/`scriptFile` config. It reads naturally for transforms that compute and return a result; the implicit-globals form is terser for simple filters. Source edits still require `allowSourceMutation` (see [Configuration reference](#configuration-reference)) in either form.
+The function form works identically with `--code`, `--script-file`, and the YAML `code`/`script_file` config. It reads naturally for transforms that compute and return a result; the implicit-globals form is terser for simple filters. Source edits still require `allow_source_mutation` (see [Configuration reference](#configuration-reference)) in either form.
 
 ## CLI usage
 
@@ -157,7 +157,7 @@ steps:
 
   - tool: pseudo-translate
     config:
-      targetLocale: fr
+      target_locale: fr
 ```
 
 Or reference an external file:
@@ -166,11 +166,11 @@ Or reference an external file:
 steps:
   - tool: script
     config:
-      scriptFile: ./scripts/filter.js
+      script_file: ./scripts/filter.js
 
   - tool: pseudo-translate
     config:
-      targetLocale: fr
+      target_locale: fr
 ```
 
 ## Examples
@@ -219,7 +219,7 @@ if (part.type !== "block") {
 
 Normalize whitespace in the source before translation. Source edits are
 **ignored by default**, because the source is read-only to the script
-(immutability contract). Opt in with `allowSourceMutation: true`, and place the
+(immutability contract). Opt in with `allow_source_mutation: true`, and place the
 step ahead of the steps that should observe the rewritten source, typically first (see
 [flow authoring](/contribute/flow-authoring)):
 
@@ -227,7 +227,7 @@ step ahead of the steps that should observe the rewritten source, typically firs
 steps:
   - tool: script
     config:
-      allowSourceMutation: true
+      allow_source_mutation: true
       code: |
         if (part.type === 'block') {
           var text = part.block.source[0].content.text;
@@ -255,19 +255,19 @@ if (part.type === "block") {
 | --------------------- | ------- | --------------------------------------------------------------------------------- |
 | `source`              | string  | Mode selector: `inline` (default) or `file`                                       |
 | `code`                | string  | Inline JavaScript code (ES5)                                                      |
-| `scriptFile`          | string  | Path to a `.js` file                                                              |
-| `allowSourceMutation` | boolean | Permit the script to modify the source text. Off by default: the source is read-only and source edits are ignored unless this is set. |
+| `script_file`          | string  | Path to a `.js` file                                                              |
+| `allow_source_mutation` | boolean | Permit the script to modify the source text. Off by default: the source is read-only and source edits are ignored unless this is set. |
 
-Provide either `code` or `scriptFile`. The optional `source` field selects the
+Provide either `code` or `script_file`. The optional `source` field selects the
 mode explicitly (`inline` or `file`) for UI and validation; when omitted, the
-mode is inferred from whichever of `code`/`scriptFile` is set.
+mode is inferred from whichever of `code`/`script_file` is set.
 
 ## Notes
 
 - The runtime is ES5 only (no `let`, `const`, arrow functions, or template literals). Use `var` for variable declarations.
 - Each tool instance gets its own goja runtime, so two script steps share no state.
 - The script runs synchronously for each Part. A long-running script blocks the flow.
-- Target text edits on block parts are read back. Source edits are read back only when `allowSourceMutation: true`; otherwise the source is read-only. Changes to other Part types are not persisted.
+- Target text edits on block parts are read back. Source edits are read back only when `allow_source_mutation: true`; otherwise the source is read-only. Changes to other Part types are not persisted.
 
 ## Related
 

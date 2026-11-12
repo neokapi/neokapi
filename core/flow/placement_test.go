@@ -130,8 +130,8 @@ func TestValidatePlacement_EntityRedactionExemptsItsProducer(t *testing.T) {
 	def := chain(
 		toolNode("n", "entity-extract", nil),
 		toolNode("r", "redact", map[string]any{
-			"detectors":   []string{"entities"},
-			"entityTypes": []string{"person"},
+			"detectors":    []string{"entities"},
+			"entity_types": []string{"person"},
 		}),
 	)
 	assert.NoError(t, def.CheckPlacement(reg))
@@ -236,8 +236,8 @@ func TestCheckRedactionCoverage(t *testing.T) {
 	entityDriven := chain(
 		toolNode("n", "entity-extract", nil),
 		toolNode("r", "redact", map[string]any{
-			"detectors":   []string{"entities"},
-			"entityTypes": []string{"person"},
+			"detectors":    []string{"entities"},
+			"entity_types": []string{"person"},
 		}),
 		toolNode("t", "translate", nil),
 	)
@@ -250,7 +250,7 @@ func TestCheckRedactionCoverage(t *testing.T) {
 func TestRedactionCoversExternalCommand(t *testing.T) {
 	t.Parallel()
 	reg := placementReg(t)
-	cmd := map[string]any{"command": "cat", "applySource": true}
+	cmd := map[string]any{"command": "cat", "apply_source": true}
 
 	alone := chain(toolNode("x", "external-command", cmd))
 	err := alone.CheckRedactionCoverage(reg, true)

@@ -17,7 +17,7 @@ import (
 // noTranslatedAlt turns off translateImageAlt, the okapi-faithful setting under
 // which an image's alt text is not offered to the translator.
 func noTranslatedAlt(c *markdown.Config) {
-	_ = c.ApplyMap(map[string]any{"translateImageAlt": false})
+	_ = c.ApplyMap(map[string]any{"translate_image_alt": false})
 }
 
 // TestImageAltSurvivesWithTranslationOff is the #2447 reproducer. buildImageRuns

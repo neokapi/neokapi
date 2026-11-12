@@ -406,7 +406,7 @@ teleportation:
   enabled: true
 `
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"extractNonStrings": true,
+		"extract_non_strings": true,
 	})
 	texts := blockTexts(blocks)
 	assert.Contains(t, texts, "false")
@@ -482,7 +482,7 @@ float_val: 3.14
 bool_val: true
 null_val: null
 `
-	params := map[string]any{"extractNonStrings": true}
+	params := map[string]any{"extract_non_strings": true}
 	blocks1 := readYAMLWithConfig(t, input, params)
 	blocks2 := readYAMLWithConfig(t, input, params)
 
@@ -698,7 +698,7 @@ func TestExtract_InlineCodeFinderNewLineCharacterDoubleQuotedString(t *testing.T
 	t.Parallel()
 	input := "key: \"Hello\\nWorld\"\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"useCodeFinder": true,
+		"use_code_finder": true,
 	})
 	require.NotEmpty(t, blocks)
 
@@ -712,7 +712,7 @@ func TestExtract_InlineCodeFinderNewLineCharacterSingleQuotedString(t *testing.T
 	t.Parallel()
 	input := "key: 'Hello\\nWorld'\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"useCodeFinder": true,
+		"use_code_finder": true,
 	})
 	require.NotEmpty(t, blocks)
 
@@ -726,7 +726,7 @@ func TestExtract_InlineCodeFinderNewLineCharacterStringWithoutQuotes(t *testing.
 	t.Parallel()
 	input := "key: Hello\\nWorld\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"useCodeFinder": true,
+		"use_code_finder": true,
 	})
 	require.NotEmpty(t, blocks)
 
@@ -740,7 +740,7 @@ func TestExtract_InlineCodeFinderWithQuoteInCode(t *testing.T) {
 	t.Parallel()
 	input := "key: \"Text with 'code' inside\"\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"useCodeFinder": true,
+		"use_code_finder": true,
 	})
 	require.NotEmpty(t, blocks)
 
@@ -1088,7 +1088,7 @@ func TestReadBooleanExtractedWhenConfigured(t *testing.T) {
 	t.Parallel()
 	input := "enabled: true\ndisabled: false\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"extractNonStrings": true,
+		"extract_non_strings": true,
 	})
 	texts := blockTexts(blocks)
 	assert.Contains(t, texts, "true")
@@ -1106,7 +1106,7 @@ func TestReadNumberExtractedWhenConfigured(t *testing.T) {
 	t.Parallel()
 	input := "count: 42\nprice: 9.99\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"extractNonStrings": true,
+		"extract_non_strings": true,
 	})
 	texts := blockTexts(blocks)
 	assert.Contains(t, texts, "42")
@@ -1169,7 +1169,7 @@ fr:
   body: French Body
 `
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"keyPathPatterns": []any{"en.*"},
+		"key_path_patterns": []any{"en.*"},
 	})
 	texts := blockTexts(blocks)
 	assert.Contains(t, texts, "English Title")
@@ -1191,7 +1191,7 @@ fr:
     greeting: Bonjour
 `
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"keyPathPatterns": []any{"en.**"},
+		"key_path_patterns": []any{"en.**"},
 	})
 	texts := blockTexts(blocks)
 	assert.Contains(t, texts, "Hello")
@@ -1204,7 +1204,7 @@ func TestReadKeyPathPatternNoMatch(t *testing.T) {
 	t.Parallel()
 	input := "title: Hello\nbody: World\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"keyPathPatterns": []any{"nonexistent.*"},
+		"key_path_patterns": []any{"nonexistent.*"},
 	})
 	assert.Empty(t, blocks)
 }
@@ -1219,7 +1219,7 @@ de:
   title: German
 `
 	blocks := readYAMLWithConfig(t, input, map[string]any{
-		"keyPathPatterns": []any{"en.*", "de.*"},
+		"key_path_patterns": []any{"en.*", "de.*"},
 	})
 	texts := blockTexts(blocks)
 	assert.Contains(t, texts, "English")
@@ -1270,10 +1270,10 @@ func TestConfigApplyMap(t *testing.T) {
 	cfg := &yamlfmt.Config{}
 
 	err := cfg.ApplyMap(map[string]any{
-		"extractNonStrings": true,
-		"useCodeFinder":     true,
-		"keyPathPatterns":   []any{"en.**"},
-		"subfilter":         "html",
+		"extract_non_strings": true,
+		"use_code_finder":     true,
+		"key_path_patterns":   []any{"en.**"},
+		"subfilter":           "html",
 	})
 	require.NoError(t, err)
 	assert.True(t, cfg.ExtractNonStrings)

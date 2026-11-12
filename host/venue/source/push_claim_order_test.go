@@ -27,7 +27,7 @@ func claimOrderConnector(t *testing.T, commentsFirst bool) *BowrainSourceConnect
 	collections := []coreproj.Collection{
 		{Name: "config", Content: []coreproj.ContentItem{{
 			Path:   "config/*.yaml",
-			Format: &coreproj.FormatSpec{Name: "yaml", Config: map[string]any{"keyPathPatterns": []any{"greeting"}}},
+			Format: &coreproj.FormatSpec{Name: "yaml", Config: map[string]any{"key_path_patterns": []any{"greeting"}}},
 		}}},
 		{Name: "comments", Content: []coreproj.ContentItem{
 			{Path: "config/**/*.yaml", Comments: only},

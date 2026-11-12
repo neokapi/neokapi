@@ -18,7 +18,7 @@ import (
 func TestValidatePlacement_EgressAfterRestoreNeedsARedactStep(t *testing.T) {
 	t.Parallel()
 	reg := placementReg(t)
-	cmd := map[string]any{"command": "cat", "applySource": true}
+	cmd := map[string]any{"command": "cat", "apply_source": true}
 
 	afterRestore := chain(
 		toolNode("r", "redact", nil),

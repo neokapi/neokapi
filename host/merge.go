@@ -43,7 +43,7 @@ import (
 // original under its document, block and token. A sidecar an earlier kapi
 // wrote is refused, and the refusal names the command that writes a new one.
 //
-// With checkPlaceholders set (a redacted .kpz), a restored translation that
+// With check_placeholders set (a redacted .kpz), a restored translation that
 // still holds a placeholder stops the merge: a translator changed it, and
 // the file would carry it.
 func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget, checkPlaceholders bool) error {

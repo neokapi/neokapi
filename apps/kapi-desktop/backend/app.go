@@ -1299,7 +1299,7 @@ func (a *App) injectCredentialPicker(schema map[string]any) {
 		"field": "credential",
 		"eq":    "",
 	}
-	for _, fieldName := range []string{"provider", "apiKey", "model"} {
+	for _, fieldName := range []string{"provider", "api_key", "model"} {
 		if prop, ok := props[fieldName].(map[string]any); ok {
 			prop["ui:visible"] = manualCondition
 		}

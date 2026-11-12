@@ -227,7 +227,7 @@ func TestCollectNativeDecoders(t *testing.T) {
 	env := &config.Envelope{
 		APIVersion: "v1",
 		Kind:       config.FormatConfigKind("json"),
-		Spec:       map[string]any{"extractAllPairs": false, "useFullKeyPath": true},
+		Spec:       map[string]any{"extract_all_pairs": false, "use_full_key_path": true},
 	}
 	result, err := configReg.Decode(env)
 	require.NoError(t, err)

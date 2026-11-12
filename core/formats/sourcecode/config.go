@@ -17,6 +17,7 @@ package sourcecode
 import (
 	"errors"
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // Config selects which prose a source file yields.
@@ -71,7 +72,7 @@ func (c *Config) Reset() {
 func (c *Config) Validate() error {
 	for i, p := range c.NodePathPatterns {
 		if p == "" {
-			return fmt.Errorf("sourcecode: nodePathPatterns[%d] is empty", i)
+			return fmt.Errorf("sourcecode: node_path_patterns[%d] is empty", i)
 		}
 	}
 	return nil
@@ -81,14 +82,14 @@ func (c *Config) Validate() error {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "nodePathPatterns":
+		case "node_path_patterns":
 			switch v := val.(type) {
 			case []any:
 				paths := make([]string, len(v))
 				for i, p := range v {
 					s, ok := p.(string)
 					if !ok {
-						return errors.New("sourcecode: nodePathPatterns items must be strings")
+						return errors.New("sourcecode: node_path_patterns items must be strings")
 					}
 					paths[i] = s
 				}
@@ -96,7 +97,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			case []string:
 				c.NodePathPatterns = v
 			default:
-				return errors.New("sourcecode: nodePathPatterns must be a string array")
+				return errors.New("sourcecode: node_path_patterns must be a string array")
 			}
 		case "language":
 			s, ok := val.(string)
@@ -111,7 +112,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 			c.Comments = b
 		default:
-			return fmt.Errorf("sourcecode: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "sourcecode", key)
 		}
 	}
 	return c.Validate()

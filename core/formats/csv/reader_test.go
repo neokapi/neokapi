@@ -209,7 +209,7 @@ func TestReadSpecificColumns(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "A useful widget", blocks[0].SourceText())
 
-	// With extractNonTranslatableContent on (default), columns 0 and 2 surface
+	// With extract_non_translatable_content on (default), columns 0 and 2 surface
 	// as non-translatable RoleTableCell content blocks (visible to ingestion,
 	// skipped by MT) rather than opaque Data parts.
 	var nonTrans []*model.Block
@@ -743,14 +743,14 @@ func TestConfig_ApplyMap(t *testing.T) {
 	cfg.Reset()
 
 	err := cfg.ApplyMap(map[string]any{
-		"separator":           "\t",
-		"hasHeader":           false,
-		"translatableColumns": []any{float64(0), float64(2)},
-		"keyColumns":          []any{float64(1)},
-		"commentColumns":      []any{float64(3)},
-		"trimValues":          true,
-		"valuesStartRow":      float64(2),
-		"columnNamesRow":      float64(1),
+		"separator":            "\t",
+		"has_header":           false,
+		"translatable_columns": []any{float64(0), float64(2)},
+		"key_columns":          []any{float64(1)},
+		"comment_columns":      []any{float64(3)},
+		"trim_values":          true,
+		"values_start_row":     float64(2),
+		"column_names_row":     float64(1),
 	})
 	require.NoError(t, err)
 
@@ -805,11 +805,11 @@ func TestConfig_ApplyMap_InvalidTypes(t *testing.T) {
 	cfg.Reset()
 
 	require.Error(t, cfg.ApplyMap(map[string]any{"separator": 42}))
-	require.Error(t, cfg.ApplyMap(map[string]any{"hasHeader": "yes"}))
-	require.Error(t, cfg.ApplyMap(map[string]any{"translatableColumns": "not array"}))
-	require.Error(t, cfg.ApplyMap(map[string]any{"trimValues": "yes"}))
-	require.Error(t, cfg.ApplyMap(map[string]any{"valuesStartRow": "one"}))
-	require.Error(t, cfg.ApplyMap(map[string]any{"columnNamesRow": "one"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"has_header": "yes"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"translatable_columns": "not array"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"trim_values": "yes"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"values_start_row": "one"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"column_names_row": "one"}))
 }
 
 func TestConfig_ApplyMap_SeparatorLength(t *testing.T) {
@@ -2069,13 +2069,13 @@ func TestCSV_Schema(t *testing.T) {
 	require.NotNil(t, s)
 	assert.Equal(t, "csv", s.FormatMeta.ID)
 	assert.Contains(t, s.Properties, "separator")
-	assert.Contains(t, s.Properties, "hasHeader")
-	assert.Contains(t, s.Properties, "translatableColumns")
-	assert.Contains(t, s.Properties, "keyColumns")
-	assert.Contains(t, s.Properties, "commentColumns")
-	assert.Contains(t, s.Properties, "trimValues")
-	assert.Contains(t, s.Properties, "columnNamesRow")
-	assert.Contains(t, s.Properties, "valuesStartRow")
+	assert.Contains(t, s.Properties, "has_header")
+	assert.Contains(t, s.Properties, "translatable_columns")
+	assert.Contains(t, s.Properties, "key_columns")
+	assert.Contains(t, s.Properties, "comment_columns")
+	assert.Contains(t, s.Properties, "trim_values")
+	assert.Contains(t, s.Properties, "column_names_row")
+	assert.Contains(t, s.Properties, "values_start_row")
 }
 
 // --- Java-internal API tests ---

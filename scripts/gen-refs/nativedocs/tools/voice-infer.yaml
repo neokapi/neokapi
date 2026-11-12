@@ -28,7 +28,7 @@ parameters:
     help: |
       Selects which model backend performs the inference.
     values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
-  apiKey:
+  api_key:
     description: API key for the AI provider.
     help: |
       Credential for the selected provider. A local provider such as Ollama may
@@ -41,7 +41,7 @@ parameters:
       The provider-specific model identifier. Omitted, the provider's default
       model is used.
     values: "string"
-  profileName:
+  profile_name:
     description: Name for the drafted profile.
     help: |
       The name the draft carries. Omitted, the draft is named "Inferred Voice".
@@ -53,7 +53,7 @@ parameters:
       sector") which steers the register the model reads the corpus as. Omitted,
       the corpus speaks for itself.
     values: "string"
-  maxExamples:
+  max_examples:
     description: How many before/after examples the draft may carry.
     help: |
       Caps the rewrite examples requested from the model and kept out of its
@@ -72,5 +72,5 @@ examples:
     description: Name the draft and hint at the subject domain; the corpus is whatever the flow reads.
     config: |
       provider: anthropic
-      profileName: House Style
+      profile_name: House Style
       domain: developer tools

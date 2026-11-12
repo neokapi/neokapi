@@ -21,32 +21,32 @@ overview: |
   before extraction.
 parameters:
   # ── Word options ──────────────────────────────────────────────────
-  translateDocProperties:
+  translate_doc_properties:
     description: Extract document properties (title, subject, keywords).
     help: |
       When enabled (the default), the metadata in `docProps/core.xml`
       (title, subject, keywords) is extracted for translation. Disable it
       to leave document properties untouched.
     values: "`true` / `false` (default `true`)"
-  translateHiddenText:
+  translate_hidden_text:
     description: Extract text marked with the hidden (vanish) property.
     help: |
       When enabled, runs carrying the `w:vanish` (hidden) property are
       extracted. When disabled (the default), hidden text is skipped.
     values: "`true` / `false` (default `false`)"
-  translateHeadersFooters:
+  translate_headers_footers:
     description: Extract text from headers and footers.
     help: |
       When enabled (the default), header and footer text in Word documents
       is extracted. Disable it to leave headers and footers untranslated.
     values: "`true` / `false` (default `true`)"
-  translateFootnotes:
+  translate_footnotes:
     description: Extract footnotes and endnotes.
     help: |
       When enabled (the default), footnote and endnote text in Word
       documents is extracted. Disable it to skip them.
     values: "`true` / `false` (default `true`)"
-  translateComments:
+  translate_comments:
     description: Extract comment text from Word documents.
     help: |
       When enabled (the default), the text of Word review comments is
@@ -54,15 +54,15 @@ parameters:
       styled-text part alongside the main document. Disable it to leave
       comments untranslated.
     values: "`true` / `false` (default `true`)"
-  translateHyperlinks:
+  translate_hyperlinks:
     description: Extract the display text of hyperlinks.
     help: |
       When enabled (the default), the visible anchor text of hyperlinks is
       extracted for translation. Disable it to leave hyperlink text
       untouched. (The HYPERLINK field's cached display text is governed
-      separately by `complexFieldDefinitionsToExtract`.)
+      separately by `complex_field_definitions_to_extract`.)
     values: "`true` / `false` (default `true`)"
-  automaticallyAcceptRevisions:
+  automatically_accept_revisions:
     description: Accept tracked changes before extracting text.
     help: |
       When enabled (the default, matching Okapi), tracked changes are
@@ -73,20 +73,20 @@ parameters:
       document as authored, with revision markup intact.
     values: "`true` / `false` (default `true`)"
   # ── Excel options ─────────────────────────────────────────────────
-  translateSharedStrings:
+  translate_shared_strings:
     description: Extract shared strings from Excel workbooks.
     help: |
       When enabled (the default), the cell text held in the workbook's
       shared-strings table is extracted, which is where most Excel text
       lives. Disable it to skip cell content.
     values: "`true` / `false` (default `true`)"
-  translateSheetNames:
+  translate_sheet_names:
     description: Extract worksheet (tab) names.
     help: |
       When enabled, worksheet names are extracted for translation. When
       disabled (the default), sheet names are left as-is.
     values: "`true` / `false` (default `false`)"
-  excludedSheets:
+  excluded_sheets:
     description: Worksheet names to exclude from extraction.
     help: |
       A list of worksheet names whose content is skipped entirely. Use it
@@ -94,7 +94,7 @@ parameters:
     values: "Array of sheet-name strings"
     examples:
       - "`[\"Data\", \"Lookups\"]`"
-  excludedColumns:
+  excluded_columns:
     description: Column letters to exclude from extraction.
     help: |
       A list of column letters whose cells are skipped. Use it to leave
@@ -103,38 +103,38 @@ parameters:
     examples:
       - "`[\"A\", \"C\"]`"
   # ── PowerPoint options ────────────────────────────────────────────
-  translateSlideNotes:
+  translate_slide_notes:
     description: Extract speaker notes from PowerPoint presentations.
     help: |
       When enabled (the default), the speaker-notes text of slides is
       extracted. Disable it to leave notes untranslated.
     values: "`true` / `false` (default `true`)"
-  translateSlideMasters:
+  translate_slide_masters:
     description: Extract text from slide masters.
     help: |
       When enabled, text held on slide masters and layouts is extracted.
       When disabled (the default), master-slide text is skipped.
     values: "`true` / `false` (default `false`)"
-  translateHiddenSlides:
+  translate_hidden_slides:
     description: Extract content from hidden slides.
     help: |
       When enabled, the content of slides marked hidden is extracted. When
       disabled (the default), hidden slides are skipped.
     values: "`true` / `false` (default `false`)"
-  translateCharts:
+  translate_charts:
     description: Extract text from embedded charts.
     help: |
       When enabled, strings inside embedded charts (titles, axis labels,
       data labels) are extracted. When disabled (the default), chart text
       is skipped.
     values: "`true` / `false` (default `false`)"
-  translateDiagrams:
+  translate_diagrams:
     description: Extract text from SmartArt diagrams.
     help: |
       When enabled, the text held in SmartArt diagram data is extracted.
       When disabled (the default), diagram text is skipped.
     values: "`true` / `false` (default `false`)"
-  includedSlides:
+  included_slides:
     description: Restrict extraction to specific slide numbers.
     help: |
       When non-empty, only the listed slide numbers (1-based) are
@@ -144,7 +144,7 @@ parameters:
     examples:
       - "`[1, 2, 5]`"
   # ── General ───────────────────────────────────────────────────────
-  aggressiveCleanup:
+  aggressive_cleanup:
     description: Strip revision ids and proofing noise before merging runs.
     help: |
       When enabled (the default), noise such as revision ids (`w:rsid*`),
@@ -152,20 +152,20 @@ parameters:
       before adjacent runs are merged, which yields cleaner, fewer inline
       codes. Disable it to keep that markup.
     values: "`true` / `false` (default `true`)"
-  tabAsCharacter:
+  tab_as_character:
     description: Treat tab elements as tab characters instead of placeholder spans.
     help: |
       When enabled, `<w:tab/>` elements are extracted as literal tab
       characters in the text. When disabled (the default), they are
       represented as inline placeholder spans.
     values: "`true` / `false` (default `false`)"
-  ignoreSoftHyphenTag:
+  ignore_soft_hyphen_tag:
     description: Ignore soft-hyphen tags in the document.
     help: |
       When enabled, soft-hyphen tags are ignored during extraction. When
       disabled (the default), they are retained.
     values: "`true` / `false` (default `false`)"
-  replaceNoBreakHyphenTag:
+  replace_no_break_hyphen_tag:
     description: Replace no-break hyphen tags with the non-breaking hyphen character.
     help: |
       When enabled, no-break hyphen tags are replaced with the actual
@@ -173,7 +173,7 @@ parameters:
       default), the tag representation is kept.
     values: "`true` / `false` (default `false`)"
   # ── Style & colour filtering ──────────────────────────────────────
-  excludeColors:
+  exclude_colors:
     description: Font colours to exclude from extraction.
     help: |
       A list of font colours (hex RGB) whose runs are skipped. Use it to
@@ -182,7 +182,7 @@ parameters:
     values: "Array of hex-RGB strings (e.g. `FF0000` for red)"
     examples:
       - "`[\"FF0000\"]`"
-  excludeHighlightColors:
+  exclude_highlight_colors:
     description: Highlight colours to exclude from extraction.
     help: |
       A list of highlight colour names whose runs are skipped. Use it to
@@ -190,7 +190,7 @@ parameters:
     values: "Array of highlight-colour names (e.g. `yellow`, `red`)"
     examples:
       - "`[\"yellow\"]`"
-  includeHighlightColors:
+  include_highlight_colors:
     description: Restrict extraction to text with these highlight colours.
     help: |
       When non-empty, only runs with one of the listed highlight colours
@@ -199,7 +199,7 @@ parameters:
     values: "Array of highlight-colour names (default: no restriction)"
     examples:
       - "`[\"green\"]`"
-  excludeStyles:
+  exclude_styles:
     description: Paragraph or character styles to exclude from extraction.
     help: |
       A list of paragraph or character style names whose text is skipped.
@@ -207,7 +207,7 @@ parameters:
     values: "Array of style-name strings"
     examples:
       - "`[\"Code\", \"Caption\"]`"
-  includeStyles:
+  include_styles:
     description: Restrict extraction to text in these styles.
     help: |
       When non-empty, only text in one of the listed styles is extracted;
@@ -217,28 +217,28 @@ parameters:
     examples:
       - "`[\"Heading 1\", \"Normal\"]`"
   # ── Inline codes ──────────────────────────────────────────────────
-  useCodeFinder:
+  use_code_finder:
     description: Detect inline codes inside text using regular expressions.
     help: |
       Enables pattern-based detection of inline codes (placeholders,
       variables, tags) within extracted text, using the patterns in
-      `codeFinderRules`. When disabled (the default), no pattern-based
+      `code_finder_rules`. When disabled (the default), no pattern-based
       inline codes are detected.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regular-expression patterns that match inline codes in text.
     help: |
       A list of regular expressions; each match within extracted text is
       protected as an inline code rather than translated. Only takes effect
-      when `useCodeFinder` is enabled.
+      when `use_code_finder` is enabled.
     values: "Array of regular-expression strings"
     examples:
       - "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for the rules to take effect
   # ── Advanced ──────────────────────────────────────────────────────
-  complexFieldDefinitionsToExtract:
+  complex_field_definitions_to_extract:
     description: Field-instruction prefixes whose cached display text is extracted.
     help: |
       A list of complex-field instruction prefixes whose cached display
@@ -249,7 +249,7 @@ parameters:
     values: "Array of field-prefix strings (default `[\"HYPERLINK\"]`)"
     examples:
       - "`[\"HYPERLINK\", \"REF\"]`"
-  fontMappings:
+  font_mappings:
     description: Map font names to script groups.
     help: |
       A map from font name to script group, used to associate runs with a
@@ -257,28 +257,28 @@ parameters:
     values: "Object mapping font name to script-group code"
     examples:
       - "`{\"MS Gothic\": \"ja\"}`"
-  extractRunFontsInfo:
+  extract_run_fonts_info:
     description: Emit font metadata as annotations on blocks.
     help: |
       When enabled, font information for each run is attached to the
       extracted block as annotations. When disabled (the default), no font
       metadata is emitted.
     values: "`true` / `false` (default `false`)"
-  replaceLineSeparator:
+  replace_line_separator:
     description: Replace the Unicode line separator (U+2028) in output.
     help: |
       When enabled, the Unicode line-separator character (U+2028) is
-      replaced in the output by `lineSeparatorReplacement`. When disabled
+      replaced in the output by `line_separator_replacement`. When disabled
       (the default), it is left as-is.
     values: "`true` / `false` (default `false`)"
-  lineSeparatorReplacement:
+  line_separator_replacement:
     description: The replacement string for line-separator characters.
     help: |
       The string substituted for the Unicode line separator when
-      `replaceLineSeparator` is enabled. The default is a newline (`\n`).
+      `replace_line_separator` is enabled. The default is a newline (`\n`).
     values: "String (default `\\n`)"
     dependsOn:
-      - property: replaceLineSeparator
+      - property: replace_line_separator
         condition: applied only when line-separator replacement is enabled
 limitations:
   - One filter covers Word, Excel, and PowerPoint; some options apply only to the relevant variant (for example, the slide options affect PowerPoint only).
@@ -289,18 +289,18 @@ examples:
   - title: Translate everything in a Word document
     description: Include comments, hidden text, and slide masters that are off by default.
     config: |
-      translateHiddenText: true
-      translateComments: true
+      translate_hidden_text: true
+      translate_comments: true
   - title: Limit an Excel workbook to selected sheets
     description: Skip data and lookup sheets during extraction.
     config: |
-      excludedSheets:
+      excluded_sheets:
         - Data
         - Lookups
   - title: Extract only specific PowerPoint slides
     description: Translate slides 1, 2, and 5 and skip the rest.
     config: |
-      includedSlides:
+      included_slides:
         - 1
         - 2
         - 5

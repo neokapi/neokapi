@@ -64,21 +64,21 @@ func (c *Config) Validate() error { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractDescriptions":
+		case "extract_descriptions":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractDescriptions: expected bool, got %T", val)
+				return fmt.Errorf("extract_descriptions: expected bool, got %T", val)
 			}
 			c.ExtractDescriptions = b
 		default:
-			return fmt.Errorf("designtokens: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "designtokens", key)
 		}
 	}
 	return nil
 }
 
 // descriptionExtractionRule is the regex handed to the JSON reader's
-// extractionRules. With UseFullKeyPath enabled the reader matches against the
+// extraction_rules. With UseFullKeyPath enabled the reader matches against the
 // slash-joined full key path (always leading-slash for the match target, e.g.
 // "/color/primary/$description"), so anchoring on a path boundary ((^|/))
 // before the literal "$description" segment and the end of the path selects
@@ -91,9 +91,9 @@ const descriptionExtractionRule = `(^|/)\$description$`
 // configuration. The passed config is reset first so callers can hand in a live
 // reader/writer config.
 //
-// The key move is extractAllPairs=false combined with an extractionRules regex
+// The key move is extract_all_pairs=false combined with an extraction_rules regex
 // that targets only the $description segment of the full key path. The JSON
-// reader's shouldExtract treats a set extractionRules as the *sole* inclusion
+// reader's shouldExtract treats a set extraction_rules as the *sole* inclusion
 // filter (see core/formats/json/config.go shouldExtract): every string whose
 // path does not match becomes non-translatable Data, so all $value strings
 // (font names, colour hex, …), $type, $extensions content, $deprecated

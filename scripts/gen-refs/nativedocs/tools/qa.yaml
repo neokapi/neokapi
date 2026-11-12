@@ -1,7 +1,7 @@
 # Native reference doc for the built-in `qa` tool.
 # Schema source: core/ai/tools/unified.go (checkGroup: the `mode` selector over
 # core/tools RuleCheckConfig and AICheckConfig). `mode` selects the backend;
-# `provider`, `apiKey`, `model` and `checks` apply only in `ai` mode.
+# `provider`, `api_key`, `model` and `checks` apply only in `ai` mode.
 description: Check each translation against its source, with deterministic rules or an AI review.
 overview: |
   The **Quality Check** tool compares each block's source with its translation
@@ -29,7 +29,7 @@ parameters:
     help: |
       `rules` runs the deterministic checks below locally and calls no model.
       `ai` asks an AI provider to review each translation, using `provider`,
-      `apiKey`, `model` and `checks`. The rule toggles apply only to `rules`.
+      `api_key`, `model` and `checks`. The rule toggles apply only to `rules`.
     values: "`rules` / `ai` (default `rules`)"
   provider:
     description: AI provider for the review (`ai` mode).
@@ -41,7 +41,7 @@ parameters:
     dependsOn:
       - property: mode
         condition: applies only when `mode` is `ai`
-  apiKey:
+  api_key:
     description: API key for the AI provider (`ai` mode).
     help: |
       Credential for a hosted provider. A saved credential (`--credential`) is
@@ -60,93 +60,93 @@ parameters:
       accuracy and consistency. The review reports a finding as failing when the
       provider rates it an error.
     values: "list of strings (default `terminology`, `fluency`, `accuracy`)"
-  checkLeadingWhitespace:
+  check_leading_whitespace:
     description: Check for leading-whitespace mismatches between source and target.
     help: |
       Reports a finding when the leading whitespace of the target differs from
       that of the source.
     values: "`true` / `false` (default `true`)"
-  checkTrailingWhitespace:
+  check_trailing_whitespace:
     description: Check for trailing-whitespace mismatches between source and target.
     help: |
       Reports a finding when the trailing whitespace of the target differs from
       that of the source.
     values: "`true` / `false` (default `true`)"
-  checkEmptyTarget:
+  check_empty_target:
     description: Fail when the target is empty but the source has content.
     help: |
       Fails a block that has source content and no target, or an empty one. A
       block with no translation in the target language gets this check and no
       other.
     values: "`true` / `false` (default `true`)"
-  checkEmptySource:
+  check_empty_source:
     description: Report a non-empty target whose source is empty.
     help: |
       Reports a finding when the target has content but the source is empty.
     values: "`true` / `false` (default `true`)"
-  checkTargetSameAsSource:
+  check_target_same_as_source:
     description: Report a target identical to its source.
     help: |
       Reports a finding when the target equals the source and contains at least
       one letter or digit. Number-only blocks are governed by
-      `targetSameAsSourceWithNumbers`.
+      `target_same_as_source_with_numbers`.
     values: "`true` / `false` (default `true`)"
-  targetSameAsSourceWithCodes:
+  target_same_as_source_with_codes:
     description: Include inline codes when comparing source and target for identity.
     help: |
       Controls whether inline codes are taken into account in the
       same-as-source comparison.
     values: "`true` / `false` (default `true`)"
-  targetSameAsSourceWithNumbers:
+  target_same_as_source_with_numbers:
     description: Include number-only blocks in the same-as-source comparison.
     help: |
       When enabled, blocks containing only numbers and punctuation are included
       in the same-as-source check. Disable it to ignore them, since they are
       often legitimately identical.
     values: "`true` / `false` (default `true`)"
-  checkDoubleSpaces:
+  check_double_spaces:
     description: Check for double spaces in the target.
     help: |
       Reports a finding when the target contains two consecutive spaces.
     values: "`true` / `false` (default `true`)"
-  checkDoubledWord:
+  check_doubled_word:
     description: Check for consecutive repeated words in the target.
     help: |
       Reports a finding when the same word appears twice in a row in the target,
-      unless the word is listed in `doubledWordExceptions`.
+      unless the word is listed in `doubled_word_exceptions`.
     values: "`true` / `false` (default `true`)"
-  doubledWordExceptions:
+  doubled_word_exceptions:
     description: Words allowed to repeat consecutively.
     help: |
       A semicolon-separated list of words that may legitimately appear twice in a
       row (for example certain pronouns), so the doubled-word check passes them.
     values: "string (default `sie;vous;nous`)"
     dependsOn:
-      - property: checkDoubledWord
+      - property: check_doubled_word
         condition: only consulted when the doubled-word check is enabled
-  checkSpanConstraints:
+  check_span_constraints:
     description: Check non-deletable and non-cloneable span constraint violations.
     help: |
       Fails a block when a non-deletable inline code is missing from the target,
       or a non-cloneable inline code is duplicated in it, according to the
       per-code constraints carried on the source runs.
     values: "`true` / `false` (default `true`)"
-  checkCodeDifference:
+  check_code_difference:
     description: Verify that the target has the same inline codes as the source.
     help: |
       Reports findings when inline codes are missing from or extra in the target
       compared with the source, counted by code type.
     values: "`true` / `false` (default `true`)"
-  strictCodeOrder:
+  strict_code_order:
     description: Report codes that appear in a different order.
     help: |
       When enabled, and no count differences were found, the target is reported
       if its inline codes appear in a different order than in the source.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: checkCodeDifference
+      - property: check_code_difference
         condition: the order check runs alongside code-difference checking
-  checkPatterns:
+  check_patterns:
     description: Verify that source patterns have expected corresponding content in the target.
     help: |
       When enabled, configured source/target regex pattern pairs are checked so
@@ -154,27 +154,27 @@ parameters:
       forbidden patterns fail the block. The pattern pairs themselves are
       supplied programmatically.
     values: "`true` / `false` (default `true`)"
-  checkCorruptedCharacters:
+  check_corrupted_characters:
     description: Fail a target that shows encoding corruption.
     help: |
       Fails a block whose target contains signs of encoding corruption: UTF-8
       misread as ISO-8859-1, the Unicode replacement character, or stray control
       characters.
     values: "`true` / `false` (default `true`)"
-  forbiddenChars:
+  forbidden_chars:
     description: Characters that must not appear in the target.
     help: |
       Each character listed here fails a block whose target contains it.
     values: "string (default empty)"
     examples:
       - "`{}[]` fails any target that contains a brace or a bracket"
-  requiredChars:
+  required_chars:
     description: Characters the target must keep when the source has them.
     help: |
       Reports a finding for each listed character that occurs in the source and
       is missing from the target.
     values: "string (default empty)"
-  checkCharset:
+  check_charset:
     description: Report target characters outside a character set encoding.
     help: |
       Reports a finding when the target contains a character that the encoding
@@ -186,108 +186,108 @@ parameters:
       An IANA character set name, such as `ISO-8859-1` or `US-ASCII`.
     values: "string (default `ISO-8859-1`)"
     dependsOn:
-      - property: checkCharset
+      - property: check_charset
         condition: only consulted when the charset check is enabled
-  checkTargetInconsistency:
+  check_target_inconsistency:
     description: Fail a source translated differently across the run.
     help: |
       Fails a block whose source occurs earlier in the run with a different
       translation, and names the other translations.
     values: "`true` / `false` (default `false`)"
-  checkSourceInconsistency:
+  check_source_inconsistency:
     description: Fail a translation shared by different sources.
     help: |
       Fails a block whose translation occurs earlier in the run for a different
       source, and names the other sources.
     values: "`true` / `false` (default `false`)"
-  consistencyCaseSensitive:
+  consistency_case_sensitive:
     description: Whether the consistency checks compare letter case.
     help: |
       When disabled, two blocks that differ only in letter case count as the
       same for the two consistency checks.
     values: "`true` / `false` (default `true`)"
-  checkMaxCharLength:
+  check_max_char_length:
     description: Report targets longer than a percentage of source character length.
     help: |
       Enables the maximum length-ratio check, using a long/short model: the
       allowed percentage depends on whether the source is above or below the
       maximum breakpoint.
     values: "`true` / `false` (default `true`)"
-  maxCharLengthBreak:
+  max_char_length_break:
     description: Character count above which a source is considered long (max check).
     help: |
       A source longer than this is treated as long for the maximum-ratio check;
       a shorter one is treated as short.
     values: "integer (default `20`)"
-  maxCharLengthAbove:
+  max_char_length_above:
     description: Maximum allowed percentage of source length for a long source.
     help: |
       The maximum target/source ratio applied when the source is long.
     values: "integer (default `200`)"
-  maxCharLengthBelow:
+  max_char_length_below:
     description: Maximum allowed percentage of source length for a short source.
     help: |
       The maximum target/source ratio applied when the source is short.
     values: "integer (default `350`)"
-  checkMinCharLength:
+  check_min_char_length:
     description: Report targets shorter than a percentage of source character length.
     help: |
       Enables the minimum length-ratio check, using a long/short model: the
       required percentage depends on whether the source is above or below the
       minimum breakpoint.
     values: "`true` / `false` (default `true`)"
-  minCharLengthBreak:
+  min_char_length_break:
     description: Character count above which a source is considered long (min check).
     help: |
       A source longer than this is treated as long for the minimum-ratio check;
       a shorter one is treated as short.
     values: "integer (default `20`)"
-  minCharLengthAbove:
+  min_char_length_above:
     description: Minimum required percentage of source length for a long source.
     help: |
       The minimum target/source ratio applied when the source is long.
     values: "integer (default `45`)"
-  minCharLengthBelow:
+  min_char_length_below:
     description: Minimum required percentage of source length for a short source.
     help: |
       The minimum target/source ratio applied when the source is short.
     values: "integer (default `30`)"
-  checkAbsoluteMaxCharLength:
+  check_absolute_max_char_length:
     description: Report a target that exceeds an absolute character count.
     help: |
-      When enabled, a target longer than `absoluteMaxCharLength` characters is
+      When enabled, a target longer than `absolute_max_char_length` characters is
       reported, whatever the length of its source.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: absoluteMaxCharLength
+      - property: absolute_max_char_length
         condition: sets the limit applied when this check is enabled
-  absoluteMaxCharLength:
+  absolute_max_char_length:
     description: Maximum number of characters allowed in a target.
     help: |
       The absolute character cap used by the absolute-maximum-length check.
     values: "integer (default `255`)"
     dependsOn:
-      - property: checkAbsoluteMaxCharLength
+      - property: check_absolute_max_char_length
         condition: must be enabled for this limit to take effect
-  checkMaxWords:
+  check_max_words:
     description: Report a target that exceeds an absolute word count.
     help: |
-      When enabled, a target with more words than `maxWords` is reported.
+      When enabled, a target with more words than `max_words` is reported.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: maxWords
+      - property: max_words
         condition: sets the limit; `0` leaves the check without effect
-  maxWords:
+  max_words:
     description: Maximum number of words allowed in a target.
     help: |
       The word limit used by the maximum-words check.
     values: "integer (default `0`)"
     dependsOn:
-      - property: checkMaxWords
+      - property: check_max_words
         condition: must be enabled for this limit to take effect
 limitations:
   - Length and ratio checks compare character lengths only when source and target are both non-empty.
-  - The regex pattern pairs used by `checkPatterns` are supplied programmatically, not as schema parameters.
+  - The regex pattern pairs used by `check_patterns` are supplied programmatically, not as schema parameters.
   - Requires a target language. The tool compares translations in that one language per run.
   - Run on a translation file alone, the `rules` mode reads each block as untranslated and reports it as an empty target. Name the source file and pass the translation with `--target`.
   - A run with `--target` pairs one source file with one translation and refuses `-o` and `--output-dir`.
@@ -300,16 +300,16 @@ examples:
   - title: Inline-code and whitespace checks only
     description: Focus on code preservation and whitespace, disabling the length-ratio checks.
     config: |
-      checkCodeDifference: true
-      checkLeadingWhitespace: true
-      checkTrailingWhitespace: true
-      checkMaxCharLength: false
-      checkMinCharLength: false
+      check_code_difference: true
+      check_leading_whitespace: true
+      check_trailing_whitespace: true
+      check_max_char_length: false
+      check_min_char_length: false
   - title: Enforce an absolute character cap
     description: Report any target longer than 200 characters.
     config: |
-      checkAbsoluteMaxCharLength: true
-      absoluteMaxCharLength: 200
+      check_absolute_max_char_length: true
+      absolute_max_char_length: 200
   - title: Review with an AI provider
     description: Ask the provider to review fluency and accuracy.
     config: |

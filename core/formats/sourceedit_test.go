@@ -753,7 +753,7 @@ type targetSlotCase struct {
 }
 
 func targetSlotMatrix() []targetSlotCase {
-	bilingualCSV := map[string]any{"sourceColumn": 1, "targetColumn": 2, "hasHeader": true}
+	bilingualCSV := map[string]any{"source_column": 1, "target_column": 2, "has_header": true}
 	return []targetSlotCase{
 		{
 			format: "po", locale: "fr",

@@ -10,18 +10,18 @@ import (
 type Config struct {
 	// MaxCharsPerLine sets the maximum characters per line in output.
 	// 0 means no limit.
-	MaxCharsPerLine int `json:"maxCharsPerLine"`
+	MaxCharsPerLine int `json:"max_chars_per_line"`
 
 	// MaxLinesPerCaption sets the maximum lines per caption in output.
 	// 0 means no limit.
-	MaxLinesPerCaption int `json:"maxLinesPerCaption"`
+	MaxLinesPerCaption int `json:"max_lines_per_caption"`
 
 	// CJKCharsPerLine sets the maximum characters per line for CJK languages.
 	// 0 means no limit (falls back to MaxCharsPerLine).
-	CJKCharsPerLine int `json:"cjkCharsPerLine"`
+	CJKCharsPerLine int `json:"cjk_chars_per_line"`
 
 	// SplitWords allows splitting words to enforce the character limit per line.
-	SplitWords bool `json:"splitWords"`
+	SplitWords bool `json:"split_words"`
 
 	// disableNonTranslatableContent, when set, keeps non-translatable contextual
 	// content (the embedded CSS of a WebVTT STYLE block) in the legacy
@@ -62,18 +62,18 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
-	// extractNonTranslatableContent maps to the inverted private field, which
+	// extract_non_translatable_content maps to the inverted private field, which
 	// JSON (un)marshalling cannot reach. Pull it out and apply the remaining
 	// keys via the JSON path.
-	if raw, ok := values["extractNonTranslatableContent"]; ok {
+	if raw, ok := values["extract_non_translatable_content"]; ok {
 		v, ok := raw.(bool)
 		if !ok {
-			return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", raw)
+			return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", raw)
 		}
 		c.disableNonTranslatableContent = !v
 		rest := make(map[string]any, len(values))
 		for k, val := range values {
-			if k == "extractNonTranslatableContent" {
+			if k == "extract_non_translatable_content" {
 				continue
 			}
 			rest[k] = val

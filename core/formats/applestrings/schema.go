@@ -24,18 +24,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extractComments", "protectPlaceholders",
+					"extract_comments", "protect_placeholders",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractComments": schema.Prop(coreschema.PropertySchema{
+			"extract_comments": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract comments as notes",
 				Default:     true,
 				Description: "Surface a /* ... */ or // ... comment preceding a .strings entry as a translator note on the emitted block.",
 			}),
-			"protectPlaceholders": schema.Prop(coreschema.PropertySchema{
+			"protect_placeholders": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Protect format placeholders",
 				Default:     true,

@@ -52,12 +52,12 @@ const aiTranslateWithCredentials: ComponentSchema = {
     {
       id: "provider",
       label: "Provider",
-      fields: ["credential", "provider", "apiKey", "model"],
+      fields: ["credential", "provider", "api_key", "model"],
     },
     {
       id: "other",
       label: "Other",
-      fields: ["batchConcurrency", "batchSize", "skipMatched"],
+      fields: ["batch_concurrency", "batch_size", "skip_matched"],
     },
   ],
   properties: {
@@ -88,7 +88,7 @@ const aiTranslateWithCredentials: ComponentSchema = {
       ],
       "ui:visible": { field: "credential", eq: "" },
     },
-    apiKey: {
+    api_key: {
       type: "string",
       title: "API Key",
       description: "API key for the AI provider",
@@ -100,19 +100,19 @@ const aiTranslateWithCredentials: ComponentSchema = {
       description: "AI model name",
       "ui:visible": { field: "credential", eq: "" },
     },
-    batchConcurrency: {
+    batch_concurrency: {
       type: "integer",
       title: "Batch Concurrency",
       default: 1,
       minimum: 1,
     },
-    batchSize: {
+    batch_size: {
       type: "integer",
       title: "Batch Size",
       default: 100,
       minimum: 1,
     },
-    skipMatched: {
+    skip_matched: {
       type: "boolean",
       title: "Skip Matched",
       description: "Skip blocks that already have a target translation",
@@ -158,7 +158,7 @@ const meta: Meta<typeof SchemaForm> = {
       description: {
         component:
           "Demonstrates the credential picker widget injected by the desktop backend for AI tools. " +
-          "When a saved credential is selected, manual provider/apiKey/model fields are hidden via conditional visibility. " +
+          "When a saved credential is selected, manual provider/api_key/model fields are hidden via conditional visibility. " +
           'Selecting "Custom (manual entry)" reveals the manual fields.',
       },
     },
@@ -187,7 +187,12 @@ export const CustomManualEntry: Story = {
   render: () => (
     <Wrapper
       schema={aiTranslateWithCredentials}
-      initialValues={{ credential: "", provider: "openai", apiKey: "sk-test-key", model: "gpt-4o" }}
+      initialValues={{
+        credential: "",
+        provider: "openai",
+        api_key: "sk-test-key",
+        model: "gpt-4o",
+      }}
     />
   ),
 };

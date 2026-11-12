@@ -63,26 +63,26 @@ func (c *Config) Validate() error { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractNonStrings":
+		case "extract_non_strings":
 			b, ok := val.(bool)
 			if !ok {
-				return errors.New("yaml: extractNonStrings must be bool")
+				return errors.New("yaml: extract_non_strings must be bool")
 			}
 			c.ExtractNonStrings = b
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return errors.New("yaml: useCodeFinder must be bool")
+				return errors.New("yaml: use_code_finder must be bool")
 			}
 			c.UseCodeFinder = b
-		case "keyPathPatterns":
+		case "key_path_patterns":
 			switch v := val.(type) {
 			case []any:
 				patterns := make([]string, len(v))
 				for i, p := range v {
 					s, ok := p.(string)
 					if !ok {
-						return errors.New("yaml: keyPathPatterns items must be strings")
+						return errors.New("yaml: key_path_patterns items must be strings")
 					}
 					patterns[i] = s
 				}
@@ -90,12 +90,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			case []string:
 				c.KeyPathPatterns = v
 			default:
-				return errors.New("yaml: keyPathPatterns must be a string array")
+				return errors.New("yaml: key_path_patterns must be a string array")
 			}
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
@@ -106,7 +106,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 			c.Subfilter = s
 		default:
-			return fmt.Errorf("yaml: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "yaml", key)
 		}
 	}
 	return nil

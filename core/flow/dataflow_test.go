@@ -119,7 +119,7 @@ func TestValidateDataFlow_RedactEntitiesRequiresNER(t *testing.T) {
 	redactEntities := flow.FlowNode{
 		ID: "r", Type: flow.NodeTool, Name: "redact",
 		Position: flow.NodePosition{X: 250},
-		Config:   map[string]any{"detectors": []string{"entities"}, "entityTypes": []string{"person"}},
+		Config:   map[string]any{"detectors": []string{"entities"}, "entity_types": []string{"person"}},
 	}
 
 	bad := flow.FlowDefinition{

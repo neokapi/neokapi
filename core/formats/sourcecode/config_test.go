@@ -23,13 +23,13 @@ func TestNodePathPatternsAcceptsBothShapes(t *testing.T) {
 	// in Go hands over []string. Both are the same declaration.
 	var fromYAML sourcecode.Config
 	require.NoError(t, fromYAML.ApplyMap(map[string]any{
-		"nodePathPatterns": []any{"desc", "caveats"},
+		"node_path_patterns": []any{"desc", "caveats"},
 	}))
 	assert.Equal(t, []string{"desc", "caveats"}, fromYAML.NodePathPatterns)
 
 	var fromGo sourcecode.Config
 	require.NoError(t, fromGo.ApplyMap(map[string]any{
-		"nodePathPatterns": []string{"desc"},
+		"node_path_patterns": []string{"desc"},
 	}))
 	assert.Equal(t, []string{"desc"}, fromGo.NodePathPatterns)
 }
@@ -39,15 +39,15 @@ func TestNodePathPatternsAcceptsBothShapes(t *testing.T) {
 // failure mode where a check reports a pass over content it never read.
 func TestEmptyNodePathIsRefusedRatherThanIgnored(t *testing.T) {
 	var c sourcecode.Config
-	err := c.ApplyMap(map[string]any{"nodePathPatterns": []any{"desc", ""}})
+	err := c.ApplyMap(map[string]any{"node_path_patterns": []any{"desc", ""}})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nodePathPatterns[1]")
+	assert.Contains(t, err.Error(), "node_path_patterns[1]")
 }
 
 func TestWrongTypesAreRefused(t *testing.T) {
 	var c sourcecode.Config
-	require.Error(t, c.ApplyMap(map[string]any{"nodePathPatterns": "desc"}))
-	require.Error(t, c.ApplyMap(map[string]any{"nodePathPatterns": []any{1}}))
+	require.Error(t, c.ApplyMap(map[string]any{"node_path_patterns": "desc"}))
+	require.Error(t, c.ApplyMap(map[string]any{"node_path_patterns": []any{1}}))
 	require.Error(t, c.ApplyMap(map[string]any{"comments": "true"}))
 }
 

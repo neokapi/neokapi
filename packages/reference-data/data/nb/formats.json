@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T21:39:04Z",
+  "generatedAt": "2026-11-12T17:16:50Z",
   "kind": "format",
   "entries": [
     {
@@ -39,22 +39,22 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "extractComments",
-              "skipNameDataReferences"
+              "extract_comments",
+              "skip_name_data_references"
             ]
           }
         ],
         "properties": {
-          "extractComments": {
+          "extract_comments": {
             "type": "boolean",
-            "title": "Trekk ut kommentarer som notater",
-            "description": "Vis hvert \u003cdata\u003e-oppførings tilhørende \u003ccomment\u003e-element som en oversetternote på den emitterte blokken. Kommentarer gjennomgår alltid uendret tur-retur uavhengig av denne innstillingen.",
+            "title": "Extract comments as notes",
+            "description": "Surface each string \u003cdata\u003e entry's sibling \u003ccomment\u003e element as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.",
             "default": true
           },
-          "skipNameDataReferences": {
+          "skip_name_data_references": {
             "type": "boolean",
-            "title": "Hopp over navnereferanseoppføringer",
-            "description": "Utelat oppføringer med designerreferanser (de hvis navn starter med \"\u003e\", f.eks. \"\u003e\u003econtrol.Name\") fra uttrekk. Disse inneholder WinForms-feltnavn, ikke UI-strenger.",
+            "title": "Skip name-reference entries",
+            "description": "Exclude designer name-reference entries (those whose name starts with \"\u003e\", e.g. \"\u003e\u003econtrol.Name\") from extraction. These carry WinForms field names, not UI strings.",
             "default": true
           }
         }
@@ -117,36 +117,36 @@
             "id": "extraction",
             "label": "Uttrekking",
             "fields": [
-              "extractComments",
-              "skipNonTranslatable",
-              "skipResourceReferences",
-              "extractNonTranslatableContent"
+              "extract_comments",
+              "skip_non_translatable",
+              "skip_resource_references",
+              "extract_non_translatable_content"
             ]
           }
         ],
         "properties": {
-          "extractComments": {
+          "extract_comments": {
             "type": "boolean",
-            "title": "Pakk ut kommentarer som notater",
-            "description": "Vis en XML-kommentar som umiddelbart forekommer før en oppføring, som en oversetternotat på den emitterte blokken. Kommentarer bevares alltid ordrett uavhengig av denne innstillingen.",
+            "title": "Extract comments as notes",
+            "description": "Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.",
             "default": true
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Vis ikke-oversettbart innhold",
-            "description": "Vis \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e-oppføringer merket med translatable=\"false\" som ikke-oversettbart innholdsblokker (synlig for innhenting, hoppes over av MT). Når av, forblir slike oppføringer i ugjennomsiktig skjelett og gjennomgår rundtur ordrett. Bare ressursreferanser er alltid skjelett.",
+            "title": "Surface non-translatable content",
+            "description": "Surface \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" as non-translatable content blocks (visible to ingestion, skipped by MT). When off, such entries stay in opaque skeleton and round-trip verbatim. Bare resource references are always skeleton.",
             "default": true
           },
-          "skipNonTranslatable": {
+          "skip_non_translatable": {
             "type": "boolean",
-            "title": "Hopp over translatable=\"false\"-oppføringer",
-            "description": "Utelat \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e-oppføringer merket med translatable=\"false\" fra uttrekk. Slike ressurser eies av utviklere og overføres uendret.",
+            "title": "Skip translatable=\"false\" entries",
+            "description": "Exclude \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" from extraction. Such resources are developer-owned and round-trip verbatim.",
             "default": true
           },
-          "skipResourceReferences": {
+          "skip_resource_references": {
             "type": "boolean",
-            "title": "Hopp over ressursreferanser",
-            "description": "Ekskluder \u003cstring\u003e-verdier som er en ren ressursreferanse (f.eks. @string/foo, ?attr/bar). En referanse er et alias, ikke oversettbar UI-tekst.",
+            "title": "Skip resource references",
+            "description": "Exclude \u003cstring\u003e values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text.",
             "default": true
           }
         }
@@ -219,29 +219,29 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "extractStale",
-              "markTranslatedState",
-              "extractNonTranslatableContent"
+              "extract_stale",
+              "mark_translated_state",
+              "extract_non_translatable_content"
             ]
           }
         ],
         "properties": {
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Vis ikke-oversettbart innhold",
-            "description": "Vis en oppføringens utviklerkommentar via en ikke-oversettbar reserveblokk når oppføringen ikke har noen oversettbar løvnode (ingen lokaliseringer, et tomt lokaliseringsobjekt, eller en foreldet oppføring som hoppes over fordi extractStale er av). Når dette er av, er delstrømmen byte-identisk med den tidligere oppførselen.",
+            "title": "Surface non-translatable content",
+            "description": "Surface an entry's developer comment via a non-translatable fallback block when the entry has no translatable leaf (no localizations, an empty localizations object, or a stale entry skipped because extract_stale is off). When off, the part stream is byte-identical to the prior behavior.",
             "default": true
           },
-          "extractStale": {
+          "extract_stale": {
             "type": "boolean",
-            "title": "Trekk ut utdaterte oppføringer",
-            "description": "Emit oppføringer hvis extractionState er \"stale\" (kildeteksten vises ikke lenger i kodebasen) som oversettbare blokker.",
+            "title": "Extract stale entries",
+            "description": "Emit entries whose extractionState is \"stale\" (the source string no longer appears in the code base) as translatable blocks.",
             "default": true
           },
-          "markTranslatedState": {
+          "mark_translated_state": {
             "type": "string",
-            "title": "Tilstand for nye oversettelser",
-            "description": "Tilstandsverdien for stringUnit som skrives for en lokalisering som fylles ut for første gang. Eksisterende tilstander bevares uendret ved tur-retur.",
+            "title": "State for new translations",
+            "description": "The stringUnit state value written for a localization populated for the first time. Existing states are preserved verbatim on round-trip.",
             "default": "translated"
           }
         }
@@ -317,22 +317,22 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "extractComments",
-              "protectPlaceholders"
+              "extract_comments",
+              "protect_placeholders"
             ]
           }
         ],
         "properties": {
-          "extractComments": {
+          "extract_comments": {
             "type": "boolean",
-            "title": "Trekk ut kommentarer som notater",
-            "description": "Vis en /* ... */ eller // ... kommentar som kommer før en .strings-oppføring som en oversetternotat på den emitterte blokken.",
+            "title": "Extract comments as notes",
+            "description": "Surface a /* ... */ or // ... comment preceding a .strings entry as a translator note on the emitted block.",
             "default": true
           },
-          "protectPlaceholders": {
+          "protect_placeholders": {
             "type": "boolean",
-            "title": "Beskytt formatplassholdere",
-            "description": "Løft printf-stil-spesifikatorer (%@, %lld, %1$@) og .stringsdict %#@var@-token til innebygde koder slik at de aldri oversettes.",
+            "title": "Protect format placeholders",
+            "description": "Lift printf-style specifiers (%@, %lld, %1$@) and .stringsdict %#@var@ tokens into inline codes so they are never translated.",
             "default": true
           }
         }
@@ -441,22 +441,22 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "extractBlockTitles",
-              "extractTableCells"
+              "extract_block_titles",
+              "extract_table_cells"
             ]
           }
         ],
         "properties": {
-          "extractBlockTitles": {
+          "extract_block_titles": {
             "type": "boolean",
-            "title": "Ekstraher blokktitler",
-            "description": "Send ut AsciiDoc-blokktitler (`.Title`) som oversettbare blokker. Når usann, bevares de ordrett som skjelett.",
+            "title": "Extract block titles",
+            "description": "Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false they are preserved verbatim as skeleton.",
             "default": true
           },
-          "extractTableCells": {
+          "extract_table_cells": {
             "type": "boolean",
-            "title": "Trekk ut tabellceller",
-            "description": "Send `|===` tabellceller som oversettbare blokker gruppert i tabell-/tabellrad-grupper. Når denne er falsk, bevares tabellen uendret.",
+            "title": "Extract table cells",
+            "description": "Emit `|===` table cells as translatable blocks grouped into table / table-row groups. When false the table is preserved verbatim.",
             "default": true
           }
         }
@@ -557,48 +557,48 @@
             "label": "CSV-formatinnstillinger",
             "fields": [
               "separator",
-              "textQualifier",
-              "hasHeader",
-              "columnNamesRow",
-              "valuesStartRow"
+              "text_qualifier",
+              "has_header",
+              "column_names_row",
+              "values_start_row"
             ]
           },
           {
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "translatableColumns",
-              "keyColumns",
-              "commentColumns",
+              "translatable_columns",
+              "key_columns",
+              "comment_columns",
               "columns",
-              "trimValues",
-              "extractNonTranslatableContent"
+              "trim_values",
+              "extract_non_translatable_content"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodefinner",
-            "description": "Regex-mønstre som samsvarer med innebygde koder i oversettbar tekst",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "columnNamesRow": {
+          "column_names_row": {
             "type": "integer",
-            "title": "Rad for kolonnenavn",
-            "description": "1-basert radnummer som inneholder kolonnenavn. 0 betyr automatisk gjenkjenning.",
+            "title": "Column Names Row",
+            "description": "1-based row number containing column names. 0 means auto-detect.",
             "default": 0
           },
           "columns": {
@@ -606,27 +606,27 @@
             "title": "Kolonneroller",
             "description": "Kolonnerolletilordning for tospråklige oversettingstabeller: et objekt med 0-baserte kolonneindekser for nøkkel, kilde og mål (f.eks. {key: 0, source: 1, target: 2}). Ved fletteoperasjoner skrives bare målkolonnen om."
           },
-          "commentColumns": {
+          "comment_columns": {
             "type": "array",
-            "title": "Kommentarkolonner",
-            "description": "Kolonneindekser (0-basert) som inneholder kommentarer eller notater"
+            "title": "Comment Columns",
+            "description": "Column indices (0-based) that contain comments or notes"
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Trekk ut ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), vises ikke-oversettbart kontekstuelt innhold – som innledningsrader og ikke-oversettbare kolonnceller – som innholdsblokker (synlig for inntak/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for ugjennomsiktige datadeler. Deaktiver for å beholde det som vanlige datadeler.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts.",
             "default": true
           },
-          "hasHeader": {
+          "has_header": {
             "type": "boolean",
-            "title": "Har headerrad",
-            "description": "Hvis sann, behandles første rad som overskrifter (ikke oversettbare)",
+            "title": "Has Header Row",
+            "description": "If true, the first row is treated as headers (non-translatable)",
             "default": true
           },
-          "keyColumns": {
+          "key_columns": {
             "type": "array",
-            "title": "Nøkkelkolonner",
-            "description": "Kolonneindekser (0-basert) som angir blokk-ID (kilde-ID / post-ID)"
+            "title": "Key Columns",
+            "description": "Column indices (0-based) that provide the block ID (source ID / record ID)"
           },
           "separator": {
             "type": "string",
@@ -634,33 +634,33 @@
             "description": "Feltavgrensingstegn (komma for CSV, tabulator for TSV)",
             "default": ","
           },
-          "textQualifier": {
+          "text_qualifier": {
             "type": "string",
-            "title": "Tekstkvalifikator",
-            "description": "Tegn brukt til å omslutte feltverdier som inneholder skilletegn eller linjeskift",
+            "title": "Text Qualifier",
+            "description": "Character used to quote field values containing delimiters or newlines",
             "default": "\""
           },
-          "translatableColumns": {
+          "translatable_columns": {
             "type": "array",
-            "title": "Oversettbare kolonner",
-            "description": "Kolonneindekser (0-basert) som skal trekkes ut som innhold. Hvis tom, trekkes alle kolonner ut."
+            "title": "Translatable Columns",
+            "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
           },
-          "trimValues": {
+          "trim_values": {
             "type": "boolean",
-            "title": "Trim verdier",
-            "description": "Hvis true, fjernes ledende og etterfølgende blanktegn fra celleverdier",
+            "title": "Trim Values",
+            "description": "If true, leading and trailing whitespace is removed from cell values",
             "default": false
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av inline-kode i celleverdier",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within cell values",
             "default": false
           },
-          "valuesStartRow": {
+          "values_start_row": {
             "type": "integer",
-            "title": "Startrad for verdier",
-            "description": "1-basert radnummer der dataverdier begynner. 0 betyr automatisk gjenkjenning.",
+            "title": "Values Start Row",
+            "description": "1-based row number where data values begin. 0 means auto-detect.",
             "default": 0
           }
         }
@@ -787,15 +787,15 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "extractDescriptions"
+              "extract_descriptions"
             ]
           }
         ],
         "properties": {
-          "extractDescriptions": {
+          "extract_descriptions": {
             "type": "boolean",
-            "title": "Trekk ut $description-dokumentasjon",
-            "description": "Pakk ut $description-verdier (lesbar token- og gruppedokumentasjon) som oversettbare blokker. Dette er det eneste naturlige språkfeltet i DTCG; $value er alltid en typet designverdi (farge, dimensjon, skriftnavn, …) og pakkes aldri ut. Deaktiver for å lese filen som en fullstendig ikke-oversettbar struktur.",
+            "title": "Extract $description documentation",
+            "description": "Extract $description values (human-readable token and group documentation) as translatable blocks. This is the only natural-language field in DTCG; $value is always a typed design value (colour, dimension, font name, …) and is never extracted. Disable to read the file as fully non-translatable structure.",
             "default": true
           }
         }
@@ -915,15 +915,15 @@
             "id": "extraction",
             "label": "Uttrekk av innhold",
             "fields": [
-              "extractNonTranslatableContent"
+              "extract_non_translatable_content"
             ]
           }
         ],
         "properties": {
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Ekstraher ikke-oversettbart innhold",
-            "description": "Hvis true (standard), vises ikke-oversettbart kontekstuelt innhold – som ordrett kodelister (\u003cpre\u003e/\u003ccode\u003e/\u003ckbd\u003e/\u003csamp\u003e) i den direkte XHTML-tilbakefallsekstraktoren – som innholdsblokker (synlige for inntak/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for å skjules i skjelettet. Deaktiver for å beholde det i skjelettet.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as verbatim code listings (\u003cpre\u003e/\u003ccode\u003e/\u003ckbd\u003e/\u003csamp\u003e) in the direct-XHTML fallback extractor is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           }
         }
@@ -1006,15 +1006,15 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "descriptionNotes"
+              "description_notes"
             ]
           }
         ],
         "properties": {
-          "descriptionNotes": {
+          "description_notes": {
             "type": "boolean",
-            "title": "Vis beskrivelser som notater",
-            "description": "Vis den menneskevendte konteksten i en ressurs' tilhørende \"@\u003cid\u003e\"-attributtobjekt som utviklernotater: ressursens \"description\" pluss hver plassholder's \"example\"/\"description\"-hint. Attributtobjektet bevares alltid byte-trofast ved rundtur uavhengig av denne innstillingen.",
+            "title": "Surface descriptions as notes",
+            "description": "Surface the human-facing context in a resource's sibling \"@\u003cid\u003e\" attributes object as developer notes: the resource \"description\" plus each placeholder's \"example\"/\"description\" hint. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting.",
             "default": true
           }
         }
@@ -1088,7 +1088,7 @@
             "id": "extraction",
             "label": "Uttrekksregler",
             "fields": [
-              "extractNonTranslatableContent",
+              "extract_non_translatable_content",
               "elements",
               "attributes"
             ]
@@ -1097,8 +1097,8 @@
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
@@ -1109,16 +1109,16 @@
             "description": "Globale regler for attributtuttrekk -- tilordner attributtnavn til regelkonfigurasjon (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
             "x-okapi-flatten-path": "attributes"
           },
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodefinner",
-            "description": "Regex-mønstre som samsvarer med inline-kode i tekst",
+            "title": "Code finder rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             },
-            "x-okapi-flatten-path": "codeFinderRules"
+            "x-okapi-flatten-path": "code_finder_rules"
           },
           "elements": {
             "type": "object",
@@ -1126,33 +1126,33 @@
             "description": "Regler for elementutvinning -- tilordner elementnavn til regelkonfigurasjon (ruleTypes, conditions, idAttributes, translatableAttributes)",
             "x-okapi-flatten-path": "elements"
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Pakk ut ikke-oversettbart innhold",
-            "description": "Hvis true (standard), vil gjengivbart ikke-oversettbart kontekstuelt innhold — \u003cnoscript\u003e-reserveundertreet og JSON-dataøyer (\u003cscript type=\"application/ld+json\"|\"application/json\"\u003e) — vises som innholdsblokker (synlig for innhenting/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for å skjules i skjelett. Generiske kjørbare \u003cscript\u003e- og \u003cstyle\u003e-elementer forblir alltid ugjennomsiktige.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), renderable non-translatable contextual content -- the \u003cnoscript\u003e fallback subtree and JSON data islands (\u003cscript type=\"application/ld+json\"|\"application/json\"\u003e) -- is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Generic executable \u003cscript\u003e and \u003cstyle\u003e always stay opaque.",
             "default": true,
-            "x-okapi-flatten-path": "extractNonTranslatableContent"
+            "x-okapi-flatten-path": "extract_non_translatable_content"
           },
           "parser": {
             "type": "object",
             "title": "Parseatferd",
             "description": "Innstillinger som styrer hvordan HTML-parseren leser inndata",
             "properties": {
-              "preserveWhitespace": {
+              "preserve_whitespace": {
                 "type": "boolean",
-                "title": "Bevar blanktegn",
-                "description": "Bevar originale blanktegn i uttrukket tekst i stedet for å komprimere dem",
+                "title": "Preserve whitespace",
+                "description": "Preserve original whitespace in extracted text instead of collapsing it",
                 "default": false,
-                "x-okapi-flatten-path": "preserveWhitespace"
+                "x-okapi-flatten-path": "preserve_whitespace"
               }
             }
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av innebygde koder (plassholdere, variabler, tagger) i oversettbar tekst",
+            "title": "Enable inline code detection",
+            "description": "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text",
             "default": false,
-            "x-okapi-flatten-path": "useCodeFinder"
+            "x-okapi-flatten-path": "use_code_finder"
           }
         }
       },
@@ -1243,29 +1243,29 @@
             "id": "i18next",
             "label": "i18next",
             "fields": [
-              "protectInterpolation",
-              "subfilterHtmlValues",
-              "legacyPluralForms"
+              "protect_interpolation",
+              "subfilter_html_values",
+              "legacy_plural_forms"
             ]
           }
         ],
         "properties": {
-          "legacyPluralForms": {
+          "legacy_plural_forms": {
             "type": "boolean",
-            "title": "Gjenkjenn gamle flertallsformer",
-            "description": "Gjenkjenn de gamle v1–v3 flertalls-søskennøklene (key_plural og de numeriske formene key_0 / key_1 / key_2 …) i tillegg til v4 CLDR-suffiksene (_zero / _one / _two / _few / _many / _other).",
+            "title": "Recognise legacy plural forms",
+            "description": "Recognise the legacy v1–v3 plural sibling keys (key_plural and the numeric key_0 / key_1 / key_2 … forms) in addition to the v4 CLDR suffixes (_zero / _one / _two / _few / _many / _other).",
             "default": true
           },
-          "protectInterpolation": {
+          "protect_interpolation": {
             "type": "boolean",
-            "title": "Beskytt interpolering og nesting",
-            "description": "Oppdager i18next-interpolasjon ({{var}}, {{var, format}}) og nesting ($t(key)) og beskytter dem som innebygde koder slik at de aldri oversettes.",
+            "title": "Protect interpolation and nesting",
+            "description": "Detect i18next interpolation ({{var}}, {{var, format}}) and nesting ($t(key)) and protect them as inline codes so they are never translated.",
             "default": true
           },
-          "subfilterHtmlValues": {
+          "subfilter_html_values": {
             "type": "boolean",
-            "title": "Underfilter HTML-verdier (_html-nøkler)",
-            "description": "Send verdier hvis nøkkel slutter på \"_html\" (i18next-konvensjonen for markup) til HTML-underfilteret slik at tagger beskyttes og tekst forblir oversettbar. Av som standard: HTML-underfilteret er ikke byte-trofast for rene markup-fragmenter.",
+            "title": "Subfilter HTML values (_html keys)",
+            "description": "Hand values whose key ends in \"_html\" (the i18next convention for markup) to the HTML subfilter so tags are protected and text remains translatable. Off by default: the HTML subfilter is not byte-faithful for bare markup fragments.",
             "default": false
           }
         }
@@ -1330,15 +1330,15 @@
             "id": "extraction",
             "label": "Innholdsuttrekk",
             "fields": [
-              "extractNonTranslatableContent"
+              "extract_non_translatable_content"
             ]
           }
         ],
         "properties": {
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Trekk ut ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), blir litterær prosatekst som rammer inn en plural/select-gren (setningsrammen rundt en velger), presentert som en ikke-oversettbar innholdsblokk (synlig for innlesning/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for å bli skjult i skjelettet. Deaktiver for å beholde den i skjelettet.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), literal prose that frames a plural/select branch (the sentence frame around a picker) is surfaced as a non-translatable content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           }
         }
@@ -1472,90 +1472,90 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "useKeyCondition",
-              "extractOnlyMatchingKey",
-              "keyCondition",
-              "extraComments",
-              "extractNonTranslatableContent"
+              "use_key_condition",
+              "extract_only_matching_key",
+              "key_condition",
+              "extra_comments",
+              "extract_non_translatable_content"
             ]
           },
           {
             "id": "notes",
             "label": "Notater",
             "fields": [
-              "commentsAreNotes"
+              "comments_are_notes"
             ]
           },
           {
             "id": "output",
             "label": "Utdata",
             "fields": [
-              "useJavaEscapes",
-              "escapeExtendedChars"
+              "use_java_escapes",
+              "escape_extended_chars"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodefinner",
-            "description": "Regex-mønstre som matcher innebygde koder i oversettbar tekst",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "commentsAreNotes": {
+          "comments_are_notes": {
             "type": "boolean",
-            "title": "Kommentarer som notater",
-            "description": "Behandle kommentarer som oversetternotater knyttet til den følgende oppføringen",
+            "title": "Comments as Notes",
+            "description": "Treat comments as translator notes attached to the following entry",
             "default": true
           },
-          "escapeExtendedChars": {
+          "escape_extended_chars": {
             "type": "boolean",
-            "title": "Escape utvidede tegn",
-            "description": "Escape utvidede Unicode-tegn (ikke-ASCII) i utdata ved hjelp av \\uXXXX-notasjon",
+            "title": "Escape Extended Characters",
+            "description": "Escape extended Unicode characters (non-ASCII) in output using \\uXXXX notation",
             "default": true
           },
-          "extraComments": {
+          "extra_comments": {
             "type": "boolean",
-            "title": "Ytterligere kommentarmarkører",
-            "description": "Gjenkjenn kommentstiler med semikolon og dobbelt skråstrek i tillegg til standard #- og !-markører",
+            "title": "Additional Comment Markers",
+            "description": "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers",
             "default": false
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Vis ekskluderte verdier",
-            "description": "Vis verditeksten til ekskluderte oppføringer (nøkler filtrert ut, eller under #_skip / #_bskip) som ikke-oversettbart innhold som er synlig for innlasting, men hoppes over av oversettelsen",
+            "title": "Surface Excluded Values",
+            "description": "Surface the value text of excluded entries (keys filtered out, or under #_skip / #_bskip) as non-translatable content blocks visible to ingestion but skipped by translation",
             "default": true
           },
-          "extractOnlyMatchingKey": {
+          "extract_only_matching_key": {
             "type": "boolean",
-            "title": "Ekstraher kun samsvarende nøkler",
-            "description": "Når aktivert, ekstraheres bare oppføringer hvis nøkler samsvarer med betingelsen; ellers utelates samsvarende nøkler",
+            "title": "Extract Only Matching Keys",
+            "description": "When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys",
             "default": true,
             "ui:visible": {
-              "field": "useKeyCondition",
+              "field": "use_key_condition",
               "eq": true
             }
           },
-          "keyCondition": {
+          "key_condition": {
             "type": "string",
-            "title": "Nøkkelbetingelsesmønster",
-            "description": "Regulært uttrykksmønster som testes mot egenskapsnøkler for ekstraksjonsfiltreringen",
+            "title": "Key Condition Pattern",
+            "description": "Regular expression pattern to test against property keys for extraction filtering",
             "default": ".*text.*",
             "ui:widget": "regex",
             "ui:visible": {
-              "field": "useKeyCondition",
+              "field": "use_key_condition",
               "eq": true
             }
           },
@@ -1565,22 +1565,22 @@
             "description": "Nøkkel-verdi-skilletegn (vanligvis «=» eller «:»)",
             "default": "="
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av innebygd kode i egenskapsverdier",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within property values",
             "default": false
           },
-          "useJavaEscapes": {
+          "use_java_escapes": {
             "type": "boolean",
-            "title": "Behold Java-escape-sekvenser",
-            "description": "Behold Java-egenskapens escape-sekvenser (\\: \\= \\# \\!) i ekstrahert tekst i stedet for å løse dem opp",
+            "title": "Retain Java Escapes",
+            "description": "Keep Java property escape sequences (\\: \\= \\# \\!) in extracted text instead of resolving them",
             "default": false
           },
-          "useKeyCondition": {
+          "use_key_condition": {
             "type": "boolean",
-            "title": "Aktiver nøkkelbetingelse",
-            "description": "Filtrer oppføringer for uttrekk basert på en regex-betingelse anvendt på nøklene deres",
+            "title": "Enable Key Condition",
+            "description": "Filter entries for extraction based on a regex condition applied to their keys",
             "default": false
           }
         }
@@ -1714,13 +1714,13 @@
         "presets": {
           "Chrome Extension": {
             "exceptions": "^message$",
-            "extractAllPairs": false,
-            "noteRules": "^description$"
+            "extract_all_pairs": false,
+            "note_rules": "^description$"
           },
           "i18next": {
             "subfilter": "html",
-            "subfilterRules": "_html$",
-            "useFullKeyPath": true
+            "subfilter_rules": "_html$",
+            "use_full_key_path": true
           }
         },
         "ui:groups": [
@@ -1728,22 +1728,22 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "extractAllPairs",
+              "extract_all_pairs",
               "exceptions",
-              "extractIsolatedStrings",
-              "extractNonTranslatableContent",
-              "extractionRules"
+              "extract_isolated_strings",
+              "extract_non_translatable_content",
+              "extraction_rules"
             ]
           },
           {
             "id": "naming",
             "label": "Blokknavn",
             "fields": [
-              "useKeyAsName",
-              "useFullKeyPath",
-              "useLeadingSlashOnKeyPath",
-              "idRules",
-              "useIdStack"
+              "use_key_as_name",
+              "use_full_key_path",
+              "use_leading_slash_on_key_path",
+              "id_rules",
+              "use_id_stack"
             ]
           },
           {
@@ -1752,50 +1752,50 @@
             "fields": [
               "subfilters",
               "subfilter",
-              "subfilterRules"
+              "subfilter_rules"
             ]
           },
           {
             "id": "metadata",
             "label": "Metadata",
             "fields": [
-              "noteRules",
-              "genericMetaRules",
-              "maxwidthRules",
-              "maxwidthSizeUnit"
+              "note_rules",
+              "generic_meta_rules",
+              "maxwidth_rules",
+              "maxwidth_size_unit"
             ]
           },
           {
             "id": "output",
             "label": "Utdata",
             "fields": [
-              "escapeForwardSlashes"
+              "escape_forward_slashes"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Kodegjenkjenningsregler",
-            "description": "Regex-mønstre som samsvarer med innebygde koder i oversettbar tekst.",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text.",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "escapeForwardSlashes": {
+          "escape_forward_slashes": {
             "type": "boolean",
-            "title": "Escape skråstreker fremover",
-            "description": "Escape skråstreker fremover i utdata-JSON (\\/).",
+            "title": "Escape forward slashes",
+            "description": "Escape forward slashes (\\/) in translated values, and in edited values of a document that spells no slash.",
             "default": true
           },
           "exceptions": {
@@ -1804,70 +1804,70 @@
             "description": "Regex-mønster for nøkkelnavn. Når extractAllPairs er sann, utelates samsvarende nøkler. Når den er usann, inkluderes samsvarende nøkler.",
             "ui:widget": "regex"
           },
-          "extractAllPairs": {
+          "extract_all_pairs": {
             "type": "boolean",
-            "title": "Ekstraher alle nøkkel/streng-par",
-            "description": "Trekk ut alle nøkkel-verdi-par for oversettelse. Når false, bruk extractionRules for å angi hvilke baner som skal trekkes ut.",
+            "title": "Extract all key/string pairs",
+            "description": "Extract all key-value pairs for translation. When false, use extraction_rules to specify which paths to extract.",
             "default": true
           },
-          "extractIsolatedStrings": {
+          "extract_isolated_strings": {
             "type": "boolean",
-            "title": "Ekstraher strenger uten tilknyttet nøkkel",
-            "description": "Ekstraher strengverdier i matriser (uten nøkler) som oversettbare blokker.",
+            "title": "Extract strings without associated key",
+            "description": "Extract string values in arrays (without keys) as translatable blocks.",
             "default": false
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Trekk ut ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), vises ikke-oversettbart strenginnhold (isolerte matrisestrengar og verdier ekskludert av uttrekksreglene) som innholdsblokker (synlig for inntak/LLM-konsumenter, hoppes over av maskinoversettelse), i stedet for å skjules i skjelettet. Deaktiver for å holde det i skjelettet.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable string content (isolated array strings and values excluded by the extraction rules) is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
-          "extractionRules": {
+          "extraction_rules": {
             "type": "string",
-            "title": "Uttrekkingsregler",
-            "description": "Regex-mønster for JSON-stier som skal ekstraheres. Overstyrer extractAllPairs når det er angitt.",
+            "title": "Extraction rules",
+            "description": "Regex pattern for JSON paths to extract. Overrides extract_all_pairs when specified.",
             "ui:widget": "regex",
             "ui:placeholder": "/messages/.*|/labels/.*"
           },
-          "genericMetaRules": {
+          "generic_meta_rules": {
             "type": "string",
-            "title": "Generiske metadataregler",
-            "description": "Regex for nøkler hvis verdier blir generiske metadata.",
+            "title": "Generic metadata rules",
+            "description": "Regex for keys whose values become generic metadata.",
             "ui:widget": "regex"
           },
-          "idRules": {
+          "id_rules": {
             "type": "string",
-            "title": "ID-regler",
-            "description": "Regex for nøkler hvis verdier blir blokk-ID-er (overstyrer useKeyAsName).",
+            "title": "ID rules",
+            "description": "Regex for keys whose values become Block IDs (overrides use_key_as_name).",
             "ui:widget": "regex",
             "ui:placeholder": "/id|/key"
           },
-          "maxwidthRules": {
+          "maxwidth_rules": {
             "type": "string",
-            "title": "Regler for maksimumsbredde",
-            "description": "Regex for nøkler hvis verdier angir begrensninger for maksimumsbredde.",
+            "title": "Maxwidth rules",
+            "description": "Regex for keys whose values set max width constraints.",
             "ui:widget": "regex"
           },
-          "maxwidthSizeUnit": {
+          "maxwidth_size_unit": {
             "type": "string",
-            "title": "Størrelsesenheter for maksimal bredde",
-            "description": "Størrelsesenheten for maxwidth.",
+            "title": "Maxwidth size unit",
+            "description": "Size unit for maxwidth.",
             "default": "pixel",
             "options": [
               {
                 "value": "pixel",
-                "label": "Piksel"
+                "label": "Pixel"
               },
               {
                 "value": "char",
-                "label": "Tegn"
+                "label": "Character"
               }
             ]
           },
-          "noteRules": {
+          "note_rules": {
             "type": "string",
-            "title": "Noteregler",
-            "description": "Regex for nøkler hvis verdier blir oversetternotater.",
+            "title": "Note rules",
+            "description": "Regex for keys whose values become translator notes.",
             "ui:widget": "regex",
             "ui:placeholder": "/description|/comment"
           },
@@ -1876,10 +1876,10 @@
             "title": "Underfilterformat",
             "description": "Globalt delfilterformatnavn (f.eks. 'html') brukt på alle eller samsvarende ekstraherte strenger."
           },
-          "subfilterRules": {
+          "subfilter_rules": {
             "type": "string",
-            "title": "Delfilterregler",
-            "description": "Regex-samsvar for nøkler hvis verdier skal behandles med delfilter.",
+            "title": "Sub-filter rules",
+            "description": "Regex matching keys for which values should be processed with the sub-filter.",
             "ui:widget": "regex",
             "ui:visible": {
               "field": "subfilter",
@@ -1891,34 +1891,34 @@
             "title": "Delfilter-tilordninger",
             "description": "Matrise av {pattern, format}-tilordninger for innebygd innhold i spesifikke nøkler."
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver gjenkjenning av innebygde koder",
-            "description": "Aktiver mønsterbasert deteksjon av innebygde koder (plassholdere, tagger osv.).",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.).",
             "default": false
           },
-          "useFullKeyPath": {
+          "use_full_key_path": {
             "type": "boolean",
-            "title": "Bruk den fullstendige nøkkelstien",
-            "description": "Bruk full bane (/nøkkel1/nøkkel2) i stedet for umiddelbar nøkkel som navn.",
+            "title": "Use the full key path",
+            "description": "Use full path (/key1/key2) instead of immediate key as name.",
             "default": false
           },
-          "useIdStack": {
+          "use_id_stack": {
             "type": "boolean",
-            "title": "Bruk den fullstendige stien til ID-er for resname",
-            "description": "Bygg TextUnit-IDer fra nestet nøkkelstabel.",
+            "title": "Use the full path of IDs for resname",
+            "description": "Build TextUnit IDs from nested key stack.",
             "default": false
           },
-          "useKeyAsName": {
+          "use_key_as_name": {
             "type": "boolean",
-            "title": "Bruk nøkkelen som resname",
-            "description": "Bruk JSON-nøkkel som blokk (TextUnit)-navn for referanse.",
+            "title": "Use the key as the resname",
+            "description": "Use JSON key as the Block (TextUnit) name for reference.",
             "default": true
           },
-          "useLeadingSlashOnKeyPath": {
+          "use_leading_slash_on_key_path": {
             "type": "boolean",
-            "title": "Inkluder ledende \"/\" i nøkkelbane",
-            "description": "Inkluder ledende skråstrek i nøkkelbanenavnene.",
+            "title": "Include leading \"/\" on key path",
+            "description": "Include leading slash in key path names.",
             "default": true
           }
         }
@@ -2098,13 +2098,13 @@
       "presets": {
         "Chrome Extension": {
           "exceptions": "^message$",
-          "extractAllPairs": false,
-          "noteRules": "^description$"
+          "extract_all_pairs": false,
+          "note_rules": "^description$"
         },
         "i18next": {
           "subfilter": "html",
-          "subfilterRules": "_html$",
-          "useFullKeyPath": true
+          "subfilter_rules": "_html$",
+          "use_full_key_path": true
         }
       }
     },
@@ -2183,21 +2183,21 @@
             "id": "extraction",
             "label": "Innholdsuttrekk",
             "fields": [
-              "translateCodeBlocks",
-              "extractNonTranslatableContent",
-              "translateFrontMatter",
-              "frontMatterKeys",
-              "translateImageAlt",
-              "translateURLs",
-              "translateBlockQuotes",
-              "translateHTMLBlocks"
+              "translate_code_blocks",
+              "extract_non_translatable_content",
+              "translate_front_matter",
+              "front_matter_keys",
+              "translate_image_alt",
+              "translate_urls",
+              "translate_block_quotes",
+              "translate_html_blocks"
             ]
           },
           {
             "id": "output",
             "label": "Utdata",
             "fields": [
-              "unescapeBackslashCharacters"
+              "unescape_backslash_characters"
             ]
           },
           {
@@ -2211,34 +2211,34 @@
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodesøk",
-            "description": "Regex-mønstre som samsvarer med innebygde koder i oversettbar tekst",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Trekk ut ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), vises ikke-oversettbart kontekstuelt innhold som kodeblokker som innholdsblokker (synlig for innlesing/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for å være skjult i skjelett. Deaktiver for å beholde det i skjelett.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
-          "frontMatterKeys": {
+          "front_matter_keys": {
             "type": "array",
-            "title": "Front Matter-nøkler",
-            "description": "Nøkler i frontmatter som skal trekkes ut når translateFrontMatter er på (tom = alle skalarverdier). Angi nøklene som inneholder prosa, f.eks. title og description.",
+            "title": "Front Matter Keys",
+            "description": "Front matter keys to extract when translate_front_matter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description.",
             "ui:visible": {
-              "field": "translateFrontMatter",
+              "field": "translate_front_matter",
               "eq": true
             }
           },
@@ -2247,52 +2247,52 @@
             "title": "HTML-underfilter",
             "description": "Underfilterformat som skal brukes på HTML-innhold i Markdown (f.eks. 'html')"
           },
-          "translateBlockQuotes": {
+          "translate_block_quotes": {
             "type": "boolean",
-            "title": "Oversett blokksitatetekst",
-            "description": "Hvis sann, er blokksitatinnhold oversettbart.",
+            "title": "Translate Block Quotes",
+            "description": "If true, blockquote content is translatable.",
             "default": true
           },
-          "translateCodeBlocks": {
+          "translate_code_blocks": {
             "type": "boolean",
-            "title": "Oversett kodeblokker",
-            "description": "Hvis sann, er gjerdet og innrykket kodeblokker oversettbare. Hvis usann, sendes de ut som ikke-oversettbare data.",
+            "title": "Translate Code Blocks",
+            "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data.",
             "default": false
           },
-          "translateFrontMatter": {
+          "translate_front_matter": {
             "type": "boolean",
-            "title": "Oversett YAML Front Matter",
-            "description": "Hvis sann, er YAML front matter-verdier oversettbare. Hvis usann, sendes de ut som ikke-oversettbare data.",
+            "title": "Translate YAML Front Matter",
+            "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
             "default": false
           },
-          "translateHTMLBlocks": {
+          "translate_html_blocks": {
             "type": "boolean",
-            "title": "Oversett HTML-blokker",
-            "description": "Hvis sann, er rå HTML-blokker oversettbare. Hvis usann, sendes de ut som ikke-oversettbare data.",
+            "title": "Translate HTML Blocks",
+            "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.",
             "default": false
           },
-          "translateImageAlt": {
+          "translate_image_alt": {
             "type": "boolean",
-            "title": "Oversett alternativ tekst for bilder",
-            "description": "Hvis sann, inkluderes alt-tekst for bilder i det oversettbare innholdet.",
+            "title": "Translate Image Alt Text",
+            "description": "If true, image alt text is included in translatable content.",
             "default": true
           },
-          "translateURLs": {
+          "translate_urls": {
             "type": "boolean",
-            "title": "Oversett hyperkoblings-URL-er",
-            "description": "Hvis sann, er lenke- og bilde-URL-er oversettbare.",
+            "title": "Translate Hyperlink URLs",
+            "description": "If true, link and image URLs are translatable.",
             "default": false
           },
-          "unescapeBackslashCharacters": {
+          "unescape_backslash_characters": {
             "type": "boolean",
-            "title": "Støtt omvendt skråstrek-escapering",
-            "description": "Analyser omvendt skråstrek-escaped tegnsetting i kildedokumenter",
+            "title": "Support Backslash Escaping",
+            "description": "Parse backslash-escaped punctuation in source documents",
             "default": false
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver registrering av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av innebygd kode i oversettbar tekst",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within translatable text",
             "default": false
           }
         }
@@ -2416,91 +2416,91 @@
             "id": "extraction",
             "label": "Innholdsuttrekk",
             "fields": [
-              "extractNonTranslatableContent",
-              "translateCodeBlocks",
-              "translateFrontMatter",
-              "frontMatterKeys",
-              "translateImageAlt",
-              "translateURLs",
-              "translateBlockQuotes",
-              "translateHTMLBlocks"
+              "extract_non_translatable_content",
+              "translate_code_blocks",
+              "translate_front_matter",
+              "front_matter_keys",
+              "translate_image_alt",
+              "translate_urls",
+              "translate_block_quotes",
+              "translate_html_blocks"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Kodesøkerregler",
-            "description": "Regex-mønstre som matcher innebygde koder i oversettbar tekst.",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text.",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Vis ikke-oversettbart innhold",
-            "description": "Hvis true, vises MDX-spesifikt ikke-oversettbart innhold (JSX-tekstbarn på blokknivå, GFM-tabellcelleprose og markdown-spenn som ikke kan rekonstrueres trofast) som ikke-oversettbare innholdsblokker (synlige for innhenting, hoppes over av MT) samtidig som de forblir byte-tro ved rundtur. Hvis false, forblir disse konstruksjonene ugjennomsiktige.",
+            "title": "Surface Non-Translatable Content",
+            "description": "If true, MDX-specific non-translatable content (block-level JSX text children, GFM table cell prose, and markdown spans that cannot be reconstructed faithfully) is surfaced as non-translatable content blocks (visible to ingestion, skipped by MT) while staying byte-faithful on round-trip. If false, those constructs stay opaque.",
             "default": true
           },
-          "frontMatterKeys": {
+          "front_matter_keys": {
             "type": "array",
-            "title": "Front Matter-nøkler",
-            "description": "Frontmatternøkler som skal ekstraheres når translateFrontMatter er på (tom = hver skalarverdi). Angi nøklene med prosainnhold, f.eks. title og description.",
+            "title": "Front Matter Keys",
+            "description": "Front matter keys to extract when translate_front_matter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description.",
             "ui:visible": {
-              "field": "translateFrontMatter",
+              "field": "translate_front_matter",
               "eq": true
             }
           },
-          "translateBlockQuotes": {
+          "translate_block_quotes": {
             "type": "boolean",
-            "title": "Oversett blokksitatene",
-            "description": "Hvis sann, er blokksitatinnhold oversettbart.",
+            "title": "Translate Block Quotes",
+            "description": "If true, blockquote content is translatable.",
             "default": true
           },
-          "translateCodeBlocks": {
+          "translate_code_blocks": {
             "type": "boolean",
-            "title": "Oversett kodeblokker",
-            "description": "Hvis sann, er avgrensede og innrykket kodeblokker oversettbare. Hvis usann, sendes de ut som ikke-oversettbare data.",
+            "title": "Translate Code Blocks",
+            "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data.",
             "default": false
           },
-          "translateFrontMatter": {
+          "translate_front_matter": {
             "type": "boolean",
-            "title": "Oversett YAML Front Matter",
-            "description": "Hvis sann, er YAML front matter-verdier oversettbare. Hvis usann, sendes de ut som ikke-oversettbare data.",
+            "title": "Translate YAML Front Matter",
+            "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
             "default": false
           },
-          "translateHTMLBlocks": {
+          "translate_html_blocks": {
             "type": "boolean",
-            "title": "Oversett HTML-blokker",
-            "description": "Hvis true, er rå HTML-blokker oversettbare. Hvis false, emitteres de som ikke-oversettbare data.",
+            "title": "Translate HTML Blocks",
+            "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.",
             "default": false
           },
-          "translateImageAlt": {
+          "translate_image_alt": {
             "type": "boolean",
-            "title": "Oversett alternativ tekst for bilde",
-            "description": "Hvis sann, inkluderes alt-tekst for bilder i oversettbart innhold.",
+            "title": "Translate Image Alt Text",
+            "description": "If true, image alt text is included in translatable content.",
             "default": true
           },
-          "translateURLs": {
+          "translate_urls": {
             "type": "boolean",
-            "title": "Oversett hyperkoblingsadresser",
-            "description": "Hvis sann, er lenke- og bilde-URL-er oversettbare.",
+            "title": "Translate Hyperlink URLs",
+            "description": "If true, link and image URLs are translatable.",
             "default": false
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av inline-kode",
-            "description": "Aktiver regex-basert deteksjon av innebygd kode i oversettbar tekst.",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within translatable text.",
             "default": false
           }
         }
@@ -2608,29 +2608,29 @@
             "id": "extraction",
             "label": "Innholdsuttrekk",
             "fields": [
-              "translateNotes",
-              "translateHiddenContent",
-              "extractNonTranslatableContent"
+              "translate_notes",
+              "translate_hidden_content",
+              "extract_non_translatable_content"
             ]
           }
         ],
         "properties": {
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Trekk ut ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), blir ikke-oversettbart kontekstuelt innhold – det vil si tilgjengelighetstekst for bilder (svg:title/svg:desc alt-tekst og lange beskrivelser) og visningsstrenger for skjemakontroller (form:label/form:title/form:help-text) – presentert som innholdsblokkjer (synlige for innlesning/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for å bli skjult i skjelettet. Deaktiver for å beholde dem i skjelettet.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content, namely image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text), is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
-          "translateHiddenContent": {
+          "translate_hidden_content": {
             "type": "boolean",
-            "title": "Oversett skjult innhold",
-            "description": "Hvis true, trekkes skjult innhold ut som oversettbart innhold.",
+            "title": "Translate Hidden Content",
+            "description": "If true, hidden content is extracted as translatable content.",
             "default": false
           },
-          "translateNotes": {
+          "translate_notes": {
             "type": "boolean",
-            "title": "Oversett presentasjonsnotater",
-            "description": "Hvis sann, trekkes foredragsholdernotater ut som tekst som skal oversettes.",
+            "title": "Translate Presentation Notes",
+            "description": "If true, presentation speaker notes are extracted as translatable content.",
             "default": true
           }
         }
@@ -2701,46 +2701,46 @@
             "id": "word",
             "label": "Word-alternativer",
             "fields": [
-              "translateDocProperties",
-              "translateHiddenText",
-              "translateHeadersFooters",
-              "translateFootnotes",
-              "translateComments",
-              "translateHyperlinks",
-              "automaticallyAcceptRevisions"
+              "translate_doc_properties",
+              "translate_hidden_text",
+              "translate_headers_footers",
+              "translate_footnotes",
+              "translate_comments",
+              "translate_hyperlinks",
+              "automatically_accept_revisions"
             ]
           },
           {
             "id": "excel",
             "label": "Excel-alternativer",
             "fields": [
-              "translateSheetNames",
-              "translateSharedStrings",
-              "excludedSheets",
-              "excludedColumns"
+              "translate_sheet_names",
+              "translate_shared_strings",
+              "excluded_sheets",
+              "excluded_columns"
             ]
           },
           {
             "id": "powerpoint",
             "label": "PowerPoint-innstillinger",
             "fields": [
-              "translateSlideNotes",
-              "translateSlideMasters",
-              "translateHiddenSlides",
-              "translateCharts",
-              "translateDiagrams",
-              "includedSlides"
+              "translate_slide_notes",
+              "translate_slide_masters",
+              "translate_hidden_slides",
+              "translate_charts",
+              "translate_diagrams",
+              "included_slides"
             ]
           },
           {
             "id": "general",
             "label": "Generelt",
             "fields": [
-              "aggressiveCleanup",
-              "tabAsCharacter",
-              "ignoreSoftHyphenTag",
-              "replaceNoBreakHyphenTag",
-              "extractNonTranslatableContent"
+              "aggressive_cleanup",
+              "tab_as_character",
+              "ignore_soft_hyphen_tag",
+              "replace_no_break_hyphen_tag",
+              "extract_non_translatable_content"
             ]
           },
           {
@@ -2748,11 +2748,11 @@
             "label": "Stil- og fargefiltrering",
             "collapsed": true,
             "fields": [
-              "excludeColors",
-              "excludeHighlightColors",
-              "includeHighlightColors",
-              "excludeStyles",
-              "includeStyles"
+              "exclude_colors",
+              "exclude_highlight_colors",
+              "include_highlight_colors",
+              "exclude_styles",
+              "include_styles"
             ]
           },
           {
@@ -2760,8 +2760,8 @@
             "label": "Inline-koder",
             "collapsed": true,
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           },
           {
@@ -2769,215 +2769,215 @@
             "label": "Avansert",
             "collapsed": true,
             "fields": [
-              "complexFieldDefinitionsToExtract",
-              "fontMappings",
-              "extractRunFontsInfo",
-              "replaceLineSeparator",
-              "lineSeparatorReplacement"
+              "complex_field_definitions_to_extract",
+              "font_mappings",
+              "extract_run_fonts_info",
+              "replace_line_separator",
+              "line_separator_replacement"
             ]
           }
         ],
         "properties": {
-          "aggressiveCleanup": {
+          "aggressive_cleanup": {
             "type": "boolean",
-            "title": "Aggressiv kodeopprydding",
-            "description": "Fjern revisjons-ID-er, korrekturleserfeil og annet støy før sammenslåing av kjøringer.",
+            "title": "Aggressive code cleanup",
+            "description": "Strip revision IDs, proofing errors, and other noise before merging runs.",
             "default": true
           },
-          "automaticallyAcceptRevisions": {
+          "automatically_accept_revisions": {
             "type": "boolean",
-            "title": "Godta revisjoner automatisk",
-            "description": "Aksepter automatisk sporede endringer før uttrekking. Når sann (standard, tilsvarer Okapi), beholdes innsatte kjøringer og slettede kjøringer fjernes; rader merket med \u003cw:trPr\u003e\u003cw:del/\u003e (ECMA-376 §17.13.5.13) fjernes helt; rader merket med \u003cw:trPr\u003e\u003cw:ins/\u003e (§17.13.5.16) beholdes.",
+            "title": "Accept revisions automatically",
+            "description": "Automatically accept tracked changes before extraction. When true (default, matching Okapi), inserted runs are kept and deleted runs are dropped; rows marked with \u003cw:trPr\u003e\u003cw:del/\u003e (ECMA-376 §17.13.5.13) are removed entirely; rows marked with \u003cw:trPr\u003e\u003cw:ins/\u003e (§17.13.5.16) are kept.",
             "default": true
           },
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodesøk",
-            "description": "Regex-mønstre som samsvarer med innebygde koder i oversettbar tekst.",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text.",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "complexFieldDefinitionsToExtract": {
+          "complex_field_definitions_to_extract": {
             "type": "array",
-            "title": "Komplekse feltdefinisjoner som skal ekstraheres",
-            "description": "Feltinstruksprefikser som skal trekkes ut (f.eks. «HYPERLINK», «REF»)."
+            "title": "Complex field definitions to extract",
+            "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\")."
           },
-          "excludeColors": {
+          "exclude_colors": {
             "type": "array",
-            "title": "Ekskluder bestemte skriftfarger",
-            "description": "Skriftfarger som skal utelates (hex RGB, f.eks. \"FF0000\" for rød)."
+            "title": "Exclude specific font colors",
+            "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red)."
           },
-          "excludeHighlightColors": {
+          "exclude_highlight_colors": {
             "type": "array",
-            "title": "Ekskluder uthevingsfarger",
-            "description": "Uthevingsfarger som skal ekskluderes (f.eks. «yellow», «red»)."
+            "title": "Exclude highlight colors",
+            "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\")."
           },
-          "excludeStyles": {
+          "exclude_styles": {
             "type": "array",
-            "title": "Ekskluder stiler",
-            "description": "Avsnitt-/tegnstilnavn som skal utelates."
+            "title": "Exclude styles",
+            "description": "Paragraph/character style names to exclude."
           },
-          "excludedColumns": {
+          "excluded_columns": {
             "type": "array",
-            "title": "Ekskluderte kolonner",
-            "description": "Kolonnebokstaver som skal utelates (f.eks. «A», «C», «AA»)."
+            "title": "Excluded columns",
+            "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\")."
           },
-          "excludedSheets": {
+          "excluded_sheets": {
             "type": "array",
-            "title": "Utelatte ark",
-            "description": "Arknavn som skal utelates fra uttrekk."
+            "title": "Excluded sheets",
+            "description": "Sheet names to exclude from extraction."
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Trekk ut ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), vises ikke-oversettbart kontekstuelt innhold: alt-tekst for bilder/figurer (descr/title på docPr/cNvPr) som innholdsblokker (synlig for inntak/LLM-konsumenter, hoppes over av maskinoversettelse), og PowerPoint/Excel-kommentartekst som datadeler, i stedet for å skjules i et ugjennomsiktig skjelett. Deaktiver for å holde det ugjennomsiktig.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content is surfaced: image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts, instead of being hidden in opaque skeleton. Disable to keep it opaque.",
             "default": true
           },
-          "extractRunFontsInfo": {
+          "extract_run_fonts_info": {
             "type": "boolean",
-            "title": "Trekk ut skriftinformasjon for kjøring",
-            "description": "Emit skriftmetadata som merknader på blokker.",
+            "title": "Extract run fonts info",
+            "description": "Emit font metadata as annotations on blocks.",
             "default": false
           },
-          "fontMappings": {
+          "font_mappings": {
             "type": "object",
-            "title": "Skrifttypetilordninger",
-            "description": "Tilordning av fontnavn til skriptgruppe (f.eks. \"MS Gothic\": \"ja\")."
+            "title": "Font mappings",
+            "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\")."
           },
-          "ignoreSoftHyphenTag": {
+          "ignore_soft_hyphen_tag": {
             "type": "boolean",
-            "title": "Ignorer myke bindestrek-tagger",
-            "description": "Ignorer myke bindestrek-tagger i dokumentet.",
+            "title": "Ignore soft hyphen tags",
+            "description": "Ignore soft hyphen tags in the document.",
             "default": false
           },
-          "includeHighlightColors": {
+          "include_highlight_colors": {
             "type": "array",
-            "title": "Inkluder uthevingsfarger",
-            "description": "Hvis ikke tom, trekk bare ut tekst med disse uthevingsfargene."
+            "title": "Include highlight colors",
+            "description": "If non-empty, only extract text with these highlight colors."
           },
-          "includeStyles": {
+          "include_styles": {
             "type": "array",
-            "title": "Inkluder stiler",
-            "description": "Hvis ikke tom, hentes kun tekst med disse stilene."
+            "title": "Include styles",
+            "description": "If non-empty, only extract text with these styles."
           },
-          "includedSlides": {
+          "included_slides": {
             "type": "array",
-            "title": "Inkluderte lysbildenumre",
-            "description": "Hvis ikke-tom, hent bare disse lysbilde-numrene (1-basert)."
+            "title": "Included slide numbers",
+            "description": "If non-empty, only extract these slide numbers (1-based)."
           },
-          "lineSeparatorReplacement": {
+          "line_separator_replacement": {
             "type": "string",
-            "title": "Erstatningsstreng for linjeskille",
-            "description": "Erstatningsstreng for linjeskillertegn.",
+            "title": "Line separator replacement string",
+            "description": "Replacement string for line separator characters.",
             "default": "\n",
             "ui:visible": {
-              "field": "replaceLineSeparator",
+              "field": "replace_line_separator",
               "eq": true
             }
           },
-          "replaceLineSeparator": {
+          "replace_line_separator": {
             "type": "boolean",
-            "title": "Legg til linjeskiller som tegn",
-            "description": "Erstatt Unicode-linjeskiller (U+2028) i utdata.",
+            "title": "Add line separator as character",
+            "description": "Replace Unicode line separator (U+2028) in output.",
             "default": false
           },
-          "replaceNoBreakHyphenTag": {
+          "replace_no_break_hyphen_tag": {
             "type": "boolean",
-            "title": "Erstatt tagger for bindestrek uten linjeskift",
-            "description": "Erstatt ikke-brytende bindestrek-tagger med det ikke-brytende bindestrek-tegnet.",
+            "title": "Replace no-break hyphen tags",
+            "description": "Replace no-break hyphen tags with the non-breaking hyphen character.",
             "default": false
           },
-          "tabAsCharacter": {
+          "tab_as_character": {
             "type": "boolean",
-            "title": "Legg til tabulator som tegn",
-            "description": "Behandle tabulatorelementer som tabulatortegn i stedet for plassholderspenn.",
+            "title": "Add tab as character",
+            "description": "Treat tab elements as tab characters instead of placeholder spans.",
             "default": false
           },
-          "translateCharts": {
+          "translate_charts": {
             "type": "boolean",
-            "title": "Oversett diagramtekst",
-            "description": "Trekk ut strenger fra innebygde diagrammer.",
+            "title": "Translate chart text",
+            "description": "Extract strings from embedded charts.",
             "default": false
           },
-          "translateComments": {
+          "translate_comments": {
             "type": "boolean",
-            "title": "Oversett kommentarer",
-            "description": "Trekk ut kommentartekst fra Word-dokumenter.",
+            "title": "Translate comments",
+            "description": "Extract comment text from Word documents.",
             "default": false
           },
-          "translateDiagrams": {
+          "translate_diagrams": {
             "type": "boolean",
-            "title": "Oversett diagramdata",
-            "description": "Trekk ut tekst fra SmartArt-diagrammer.",
+            "title": "Translate diagram data",
+            "description": "Extract text from SmartArt diagrams.",
             "default": false
           },
-          "translateDocProperties": {
+          "translate_doc_properties": {
             "type": "boolean",
-            "title": "Oversett dokumentegenskaper",
-            "description": "Hent ut tittel, emne og nøkkelord fra dokumentegenskaper.",
+            "title": "Translate document properties",
+            "description": "Extract title, subject, keywords from document properties.",
             "default": true
           },
-          "translateFootnotes": {
+          "translate_footnotes": {
             "type": "boolean",
-            "title": "Oversett fotnoter og sluttnoter",
-            "description": "Hent ut fotnoter og sluttnoter fra Word-dokumenter.",
+            "title": "Translate footnotes and endnotes",
+            "description": "Extract footnotes and endnotes from Word documents.",
             "default": true
           },
-          "translateHeadersFooters": {
+          "translate_headers_footers": {
             "type": "boolean",
-            "title": "Oversett topp- og bunntekster",
-            "description": "Trekk ut tekst fra topp- og bunntekster i Word-dokumenter.",
+            "title": "Translate headers and footers",
+            "description": "Extract text from headers and footers in Word documents.",
             "default": true
           },
-          "translateHiddenSlides": {
+          "translate_hidden_slides": {
             "type": "boolean",
-            "title": "Oversett skjulte lysbilder",
-            "description": "Hent innhold fra skjulte lysbilder i PowerPoint.",
+            "title": "Translate hidden slides",
+            "description": "Extract content from hidden slides in PowerPoint.",
             "default": false
           },
-          "translateHiddenText": {
+          "translate_hidden_text": {
             "type": "boolean",
-            "title": "Oversett skjult tekst",
-            "description": "Trekk ut tekst med vanish-egenskapen (skjult) i Word-dokumenter.",
+            "title": "Translate hidden text",
+            "description": "Extract text with the vanish (hidden) property in Word documents.",
             "default": false
           },
-          "translateHyperlinks": {
+          "translate_hyperlinks": {
             "type": "boolean",
-            "title": "Trekk ut eksterne hyperkoblinger",
-            "description": "Hent ut hyperkoblingtekst for oversettelse.",
+            "title": "Extract external hyperlinks",
+            "description": "Extract hyperlink text for translation.",
             "default": true
           },
-          "translateSharedStrings": {
+          "translate_shared_strings": {
             "type": "boolean",
-            "title": "Oversett delte strenger",
-            "description": "Hent ut delte strenger fra Excel-arbeidsbøker.",
+            "title": "Translate shared strings",
+            "description": "Extract shared strings from Excel workbooks.",
             "default": true
           },
-          "translateSheetNames": {
+          "translate_sheet_names": {
             "type": "boolean",
-            "title": "Oversett arknavn",
-            "description": "Hent ut arknavn i Excel-arbeidsbøker.",
+            "title": "Translate sheet names",
+            "description": "Extract sheet names in Excel workbooks.",
             "default": false
           },
-          "translateSlideMasters": {
+          "translate_slide_masters": {
             "type": "boolean",
-            "title": "Oversett masterlysbilde",
-            "description": "Trekk ut tekst fra lysbildemaler i PowerPoint.",
+            "title": "Translate master slides",
+            "description": "Extract text from slide masters in PowerPoint.",
             "default": false
           },
-          "translateSlideNotes": {
+          "translate_slide_notes": {
             "type": "boolean",
-            "title": "Oversett lysbildenotater",
-            "description": "Hent ut foredragsholdernotater i PowerPoint-presentasjoner.",
+            "title": "Translate slide notes",
+            "description": "Extract speaker notes in PowerPoint presentations.",
             "default": true
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver innebygd kodegjenkjenning",
-            "description": "Aktiver mønsterbasert deteksjon av innebygde koder (plassholdere, tagger osv.).",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.).",
             "default": false
           }
         }
@@ -3300,10 +3300,10 @@
             "id": "segmentation",
             "label": "Segmentering",
             "fields": [
-              "segmentByLine",
+              "segment_by_line",
               "paragraphs",
-              "spliceLines",
-              "spliceMarker"
+              "splice_lines",
+              "splice_marker"
             ]
           }
         ],
@@ -3314,24 +3314,24 @@
             "description": "Hvis sann, blir avsnitt atskilt med tomme linjer til blokker i stedet for enkeltlinjer.",
             "default": false
           },
-          "segmentByLine": {
+          "segment_by_line": {
             "type": "boolean",
-            "description": "Hvis sann, blir hver linje en separat blokk. Hvis usann, er avsnitt (atskilt med blanke linjer) blokker.",
+            "description": "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks.",
             "default": true
           },
-          "spliceLines": {
+          "splice_lines": {
             "type": "boolean",
-            "title": "Spleис linjer",
-            "description": "Hvis sann, blir linjer som slutter med skjøtmarkøren slått sammen med neste linje til én enkelt blokk.",
+            "title": "Splice Lines",
+            "description": "If true, lines ending with the splice marker are joined with the next line into a single block.",
             "default": false
           },
-          "spliceMarker": {
+          "splice_marker": {
             "type": "string",
-            "title": "Skjøtingsmarkør",
-            "description": "Fortsettelsesmarkør som gjenkjennes på slutten av en linje i sammenslåingsmodus.",
+            "title": "Splice Marker",
+            "description": "Continuation marker recognized at the end of a line in splice mode.",
             "default": "\\",
             "ui:visible": {
-              "field": "spliceLines",
+              "field": "splice_lines",
               "eq": true
             }
           }
@@ -3396,72 +3396,72 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "preserveUntranslated"
+              "preserve_untranslated"
             ]
           },
           {
             "id": "mode",
             "label": "Behandlingsmodus",
             "fields": [
-              "bilingualMode"
+              "bilingual_mode"
             ]
           },
           {
             "id": "output",
             "label": "Utdata",
             "fields": [
-              "wrapContent",
-              "allowEmptyOutputTarget"
+              "wrap_content",
+              "allow_empty_output_target"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-kode",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "allowEmptyOutputTarget": {
+          "allow_empty_output_target": {
             "type": "boolean",
-            "title": "Tillat tom målutdata",
-            "description": "Tillat tomt mål i utdata når ingen oversettelse er tilgjengelig",
+            "title": "Allow Empty Target Output",
+            "description": "Allow empty target in output when no translation is available",
             "default": false
           },
-          "bilingualMode": {
+          "bilingual_mode": {
             "type": "boolean",
-            "title": "Tospråklig modus",
-            "description": "I tospråklig modus (standard) er msgid kildeteksten og msgstr er målet. I enspråklig modus behandles msgid som en ID.",
+            "title": "Bilingual Mode",
+            "description": "In bilingual mode (default), msgid is the source text and msgstr is the target. In monolingual mode, msgid is treated as an ID.",
             "default": true
           },
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodefinner",
-            "description": "Regex-mønstre som samsvarer med innebygde koder i oversettbar tekst",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "preserveUntranslated": {
+          "preserve_untranslated": {
             "type": "boolean",
-            "title": "Bevar uoversatte oppføringer",
-            "description": "Hvis sann, sendes oppføringer med tom msgstr ut som blokker. Hvis usann, hoppes de over.",
+            "title": "Preserve Untranslated Entries",
+            "description": "If true, entries with empty msgstr are emitted as blocks. If false, they are skipped.",
             "default": true
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver innebygd kodegjenkjenning",
-            "description": "Aktiver regex-basert gjenkjenning av innebygd kode i PO-meldingstekst",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within PO message text",
             "default": false
           },
-          "wrapContent": {
+          "wrap_content": {
             "type": "boolean",
-            "title": "Bryt lange innholdslinjer",
-            "description": "Bryt lange innholdslinjer i utdata ved omtrent 80 tegn",
+            "title": "Wrap Long Content Lines",
+            "description": "Wrap long content lines in output at approximately 80 characters",
             "default": true
           }
         }
@@ -3589,7 +3589,7 @@
             "description": "The grammar to parse with, by name (for example \"ruby\"). Empty picks the grammar from the file's extension, which is the usual case; set it when the file reaches the reader without a name or the extension is ambiguous.",
             "default": ""
           },
-          "nodePathPatterns": {
+          "node_path_patterns": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3695,59 +3695,59 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "processAllTargets",
-              "exitOnInvalid"
+              "process_all_targets",
+              "exit_on_invalid"
             ]
           },
           {
             "id": "output",
             "label": "Utdata",
             "fields": [
-              "escapeGT"
+              "escape_gt"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodesøk",
-            "description": "Regex-mønstre som matcher innebygde koder i oversettbar tekst",
+            "title": "Code finder rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "escapeGT": {
+          "escape_gt": {
             "type": "boolean",
-            "title": "Escape større-enn-tegn",
-            "description": "Escape \u003e som \u0026gt; i XML-utdata",
+            "title": "Escape greater-than characters",
+            "description": "Escape \u003e as \u0026gt; in output XML",
             "default": false
           },
-          "exitOnInvalid": {
+          "exit_on_invalid": {
             "type": "boolean",
-            "title": "Avslutt ved ugyldige TU-er",
-            "description": "Stopp behandlingen når ugyldige TU-er oppdages. Når false hoppes ugyldige TU-er over.",
+            "title": "Exit on invalid TUs",
+            "description": "Stop processing when encountering invalid TUs. When false, invalid TUs are skipped.",
             "default": false
           },
-          "processAllTargets": {
+          "process_all_targets": {
             "type": "boolean",
-            "title": "Les alle måloppføringer",
-            "description": "Les alle målspråks-TUV-er fra hver TU. Når false, leses bare det første målet.",
+            "title": "Read all target entries",
+            "description": "Read all target language TUVs from each TU. When false, only the first target is read.",
             "default": true
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver gjenkjenning av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av innebygd kode i oversettbar tekst",
+            "title": "Enable inline code detection",
+            "description": "Enable regex-based inline code detection in translatable text",
             "default": false
           }
         }
@@ -3846,48 +3846,48 @@
             "label": "Innstillinger for CSV-format",
             "fields": [
               "separator",
-              "textQualifier",
-              "hasHeader",
-              "columnNamesRow",
-              "valuesStartRow"
+              "text_qualifier",
+              "has_header",
+              "column_names_row",
+              "values_start_row"
             ]
           },
           {
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "translatableColumns",
-              "keyColumns",
-              "commentColumns",
+              "translatable_columns",
+              "key_columns",
+              "comment_columns",
               "columns",
-              "trimValues",
-              "extractNonTranslatableContent"
+              "trim_values",
+              "extract_non_translatable_content"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodesøk",
-            "description": "Regex-mønstre som samsvarer med innebygde koder i oversettbar tekst",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "columnNamesRow": {
+          "column_names_row": {
             "type": "integer",
-            "title": "Rad for kolonnenavn",
-            "description": "1-basert radnummer som inneholder kolonnenavn. 0 betyr automatisk deteksjon.",
+            "title": "Column Names Row",
+            "description": "1-based row number containing column names. 0 means auto-detect.",
             "default": 0
           },
           "columns": {
@@ -3895,27 +3895,27 @@
             "title": "Kolonneroller",
             "description": "Kolonnerolletilordning for tospråklige oversettelsetabeller: et objekt med 0-baserte kolonneindekser for nøkkel, kilde og mål (f.eks. {key: 0, source: 1, target: 2}). Ved sammenslåing skrives bare målkolonnen om."
           },
-          "commentColumns": {
+          "comment_columns": {
             "type": "array",
-            "title": "Kommentarkolonner",
-            "description": "Kolonneindekser (0-basert) som inneholder kommentarer eller notater"
+            "title": "Comment Columns",
+            "description": "Column indices (0-based) that contain comments or notes"
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Hent ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), vises ikke-oversettbart kontekstuelt innhold som innledningsrader og ikke-oversettbare kolonnceller som innholdsblokker (synlig for innlesing/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for ugjennomsiktige datadeler. Deaktiver for å beholde det som vanlige datadeler.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts.",
             "default": true
           },
-          "hasHeader": {
+          "has_header": {
             "type": "boolean",
-            "title": "Har topptekstrad",
-            "description": "Hvis sann, behandles første rad som overskrifter (ikke-oversettbar)",
+            "title": "Has Header Row",
+            "description": "If true, the first row is treated as headers (non-translatable)",
             "default": true
           },
-          "keyColumns": {
+          "key_columns": {
             "type": "array",
-            "title": "Nøkkelkolonner",
-            "description": "Kolonneindekser (0-basert) som angir blokk-ID (kilde-ID / post-ID)"
+            "title": "Key Columns",
+            "description": "Column indices (0-based) that provide the block ID (source ID / record ID)"
           },
           "separator": {
             "type": "string",
@@ -3923,33 +3923,33 @@
             "description": "Feltavgrensertegn (komma for CSV, tabulator for TSV)",
             "default": ","
           },
-          "textQualifier": {
+          "text_qualifier": {
             "type": "string",
-            "title": "Tekstkvalifikator",
-            "description": "Tegn som brukes til å sette anførselstegn rundt feltverdier som inneholder skilletegn eller linjeskift",
+            "title": "Text Qualifier",
+            "description": "Character used to quote field values containing delimiters or newlines",
             "default": "\""
           },
-          "translatableColumns": {
+          "translatable_columns": {
             "type": "array",
-            "title": "Kolonner som skal oversettes",
-            "description": "Kolonneindekser (0-basert) som skal trekkes ut som oversettbart innhold. Hvis tom, er alle kolonner oversettbare."
+            "title": "Translatable Columns",
+            "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
           },
-          "trimValues": {
+          "trim_values": {
             "type": "boolean",
-            "title": "Trim verdier",
-            "description": "Hvis sant, fjernes innledende og avsluttende mellomrom fra celleverdier",
+            "title": "Trim Values",
+            "description": "If true, leading and trailing whitespace is removed from cell values",
             "default": false
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av innebygde koder",
-            "description": "Aktiver regex-basert gjenkjenning av innebygd kode i celleverdier",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within cell values",
             "default": false
           },
-          "valuesStartRow": {
+          "values_start_row": {
             "type": "integer",
-            "title": "Verdier startrad",
-            "description": "1-basert radnummer der dataverdier begynner. 0 betyr automatisk gjenkjenning.",
+            "title": "Values Start Row",
+            "description": "1-based row number where data values begin. 0 means auto-detect.",
             "default": 0
           }
         }
@@ -4105,49 +4105,49 @@
             "id": "extraction",
             "label": "Innholdsuttrekk",
             "fields": [
-              "extractNonTranslatableContent"
+              "extract_non_translatable_content"
             ]
           },
           {
             "id": "output",
             "label": "Utdatainnstillinger",
             "fields": [
-              "maxCharsPerLine",
-              "maxLinesPerCaption",
-              "cjkCharsPerLine",
-              "splitWords"
+              "max_chars_per_line",
+              "max_lines_per_caption",
+              "cjk_chars_per_line",
+              "split_words"
             ]
           }
         ],
         "properties": {
-          "cjkCharsPerLine": {
+          "cjk_chars_per_line": {
             "type": "integer",
-            "title": "Maks tegn per linje for CJK",
-            "description": "Maksimalt antall tegn per linje for CJK-språk. Sett til 0 for å deaktivere.",
+            "title": "Max characters per line for CJK",
+            "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable.",
             "default": 0
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Trekk ut ikke-oversettbart innhold",
-            "description": "Hvis true (standard), vises ikke-oversettbart kontekstuelt innhold, for eksempel innebygd CSS i en STYLE-blokk, som en innholdsblokk (synlig for innhenting/LLM-forbrukere, hoppes over av maskinoversettelse) i stedet for å skjules. Deaktiver for å beholde den eldre ugjennomsiktige virkemåten.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as a STYLE block's embedded CSS is surfaced as a content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden. Disable to keep the legacy opaque behavior.",
             "default": true
           },
-          "maxCharsPerLine": {
+          "max_chars_per_line": {
             "type": "integer",
-            "title": "Maks tegn per linje",
-            "description": "Maksimalt antall tegn per linje i utdata. Sett til 0 for å deaktivere.",
+            "title": "Max characters per line",
+            "description": "Maximum number of characters per line in output. Set to 0 to disable.",
             "default": 0
           },
-          "maxLinesPerCaption": {
+          "max_lines_per_caption": {
             "type": "integer",
-            "title": "Maks linjer per teksting",
-            "description": "Maksimalt antall linjer per bildetekst i utdata. Sett til 0 for å deaktivere.",
+            "title": "Max lines per caption",
+            "description": "Maximum number of lines per caption in output. Set to 0 to disable.",
             "default": 0
           },
-          "splitWords": {
+          "split_words": {
             "type": "boolean",
-            "title": "Del ord ved tegngrense",
-            "description": "Del opp ord slik at de ikke overskrider tegngrensen per linje.",
+            "title": "Split words at character limit",
+            "description": "Split words so that they don't go over the character limit per line.",
             "default": false
           }
         }
@@ -4243,142 +4243,142 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "preserveSpaceByDefault",
-              "includeExtensions",
-              "includeIts",
-              "ignoreInputSegmentation",
-              "fallbackToID",
-              "forceUniqueIds"
+              "preserve_space_by_default",
+              "include_extensions",
+              "include_its",
+              "ignore_input_segmentation",
+              "fallback_to_id",
+              "force_unique_ids"
             ]
           },
           {
             "id": "states",
             "label": "Håndtering av oversettelsesstatus",
             "fields": [
-              "useTranslationTargetState",
-              "targetStateValue",
-              "editAltTrans",
-              "addAltTrans"
+              "use_translation_target_state",
+              "target_state_value",
+              "edit_alt_trans",
+              "add_alt_trans"
             ]
           },
           {
             "id": "output",
             "label": "Utdata",
             "fields": [
-              "addTargetLanguage",
-              "overrideTargetLanguage",
-              "allowEmptyTargets",
-              "alwaysAddTargets"
+              "add_target_language",
+              "override_target_language",
+              "allow_empty_targets",
+              "always_add_targets"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "addAltTrans": {
+          "add_alt_trans": {
             "type": "boolean",
-            "title": "Legg til alt-trans-elementer",
-            "description": "Tillat tillegg av nye alt-trans-elementer",
+            "title": "Add alt-trans elements",
+            "description": "Allow addition of new alt-trans elements",
             "default": false
           },
-          "addTargetLanguage": {
+          "add_target_language": {
             "type": "boolean",
-            "title": "Legg til målspråkattributt",
-            "description": "Legg til målspråkattributtet i filelementer hvis det ikke allerede er til stede",
+            "title": "Add target-language attribute",
+            "description": "Add the target-language attribute to file elements if not already present",
             "default": true
           },
-          "allowEmptyTargets": {
+          "allow_empty_targets": {
             "type": "boolean",
-            "title": "Tillat tomme mål",
-            "description": "Tillat at målelementer med tomt innhold skrives",
+            "title": "Allow empty targets",
+            "description": "Allow target elements with empty content to be written",
             "default": false
           },
-          "alwaysAddTargets": {
+          "always_add_targets": {
             "type": "boolean",
-            "title": "Legg til mål for enspråklig XLIFF",
-            "description": "Legg til målelementer for enspråklige XLIFF-filer som ikke har noe mål i kilden",
+            "title": "Add targets for monolingual XLIFF",
+            "description": "Add target elements for monolingual XLIFF files that have no target in the source",
             "default": false
           },
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodefinner",
-            "description": "Regex-mønstre som matcher innebygde koder i oversettbar tekst",
+            "title": "Code finder rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "editAltTrans": {
+          "edit_alt_trans": {
             "type": "boolean",
-            "title": "Rediger alt-trans-elementer",
-            "description": "Tillat redigering av eksisterende alt-trans-elementer",
+            "title": "Edit alt-trans elements",
+            "description": "Allow editing of existing alt-trans elements",
             "default": false
           },
-          "fallbackToID": {
+          "fallback_to_id": {
             "type": "boolean",
-            "title": "Bruk trans-unit-ID som navn hvis det ikke finnes resname",
-            "description": "Bruk trans-unit id-attributtet som blokknavn når resname-attributtet ikke er til stede",
+            "title": "Use trans-unit ID as name if no resname",
+            "description": "Use the trans-unit id attribute as the block name when no resname attribute is present",
             "default": false
           },
-          "forceUniqueIds": {
+          "force_unique_ids": {
             "type": "boolean",
-            "title": "Håndhev unike trans-unit-IDer",
-            "description": "Skriv om trans-unit-IDer for å håndheve unikhet på tvers av filen",
+            "title": "Enforce unique trans-unit IDs",
+            "description": "Rewrite trans-unit IDs to enforce uniqueness across the file",
             "default": false
           },
-          "ignoreInputSegmentation": {
+          "ignore_input_segmentation": {
             "type": "boolean",
-            "title": "Ignorer inndatasegmentering",
-            "description": "Ignorer seg-source/mrk-segmentering fra inndata-XLIFF og behandle hele kilden som ett enkelt segment",
+            "title": "Ignore input segmentation",
+            "description": "Ignore seg-source/mrk segmentation from the input XLIFF and treat the full source as a single segment",
             "default": false
           },
-          "includeExtensions": {
+          "include_extensions": {
             "type": "boolean",
-            "title": "Inkluder XLIFF-utvidelseselementer",
-            "description": "Inkluder ikke-standard navneromutvidelserelementer i uttrukket innhold",
+            "title": "Include XLIFF extension elements",
+            "description": "Include non-standard namespace extension elements in extracted content",
             "default": true
           },
-          "includeIts": {
+          "include_its": {
             "type": "boolean",
-            "title": "Inkluder ITS-markup",
-            "description": "Inkluder ITS (Internationalization Tag Set)-markup i ekstrahert innhold",
+            "title": "Include ITS markup",
+            "description": "Include ITS (Internationalization Tag Set) markup in extracted content",
             "default": true
           },
-          "overrideTargetLanguage": {
+          "override_target_language": {
             "type": "boolean",
-            "title": "Overstyr målspråk",
-            "description": "Overstyr attributtet for målspråk i utdatadokumentet med rørledningens mållokal",
+            "title": "Override target language",
+            "description": "Override the target-language attribute in the output document with the pipeline target locale",
             "default": false
           },
-          "preserveSpaceByDefault": {
+          "preserve_space_by_default": {
             "type": "boolean",
-            "title": "Bevar mellomrom som standard",
-            "description": "Behandle alt innhold som xml:space=\"preserve\" med mindre det eksplisitt overstyres",
+            "title": "Preserve whitespace by default",
+            "description": "Treat all content as xml:space=\"preserve\" unless explicitly overridden",
             "default": false
           },
-          "targetStateValue": {
+          "target_state_value": {
             "type": "string",
-            "title": "Målstatusverd",
-            "description": "Tilstandsverdi som skal angis på målelementer når useTranslationTargetState er aktivert",
+            "title": "Target state value",
+            "description": "State value to set on target elements when use_translation_target_state is enabled",
             "default": "needs-translation"
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av innebygd kode i oversettbar tekst",
+            "title": "Enable inline code detection",
+            "description": "Enable regex-based inline code detection in translatable text",
             "default": false
           },
-          "useTranslationTargetState": {
+          "use_translation_target_state": {
             "type": "boolean",
-            "title": "Oppdater målstatusattributt",
-            "description": "Oppdater tilstandsattributtet på målelementer ved skriving av oversatt XLIFF",
+            "title": "Update target state attribute",
+            "description": "Update the state attribute on target elements when writing translated XLIFF",
             "default": true
           }
         }
@@ -4543,66 +4543,66 @@
             "label": "Utdata",
             "fields": [
               "version",
-              "writeOriginalData"
+              "write_original_data"
             ]
           },
           {
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "forceUniqueIds",
-              "ignoreTagTypeMatch"
+              "force_unique_ids",
+              "ignore_tag_type_match"
             ]
           },
           {
             "id": "states",
             "label": "Håndtering av oversettelsesstatus",
             "fields": [
-              "discardInvalidTargets"
+              "discard_invalid_targets"
             ]
           },
           {
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodefinner",
-            "description": "Regex-mønstre som matcher innebygde koder i oversettbar tekst",
+            "title": "Code finder rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "discardInvalidTargets": {
+          "discard_invalid_targets": {
             "type": "boolean",
-            "title": "Forkast ugyldige mål",
-            "description": "Forkast mål som ikke består validering i stedet for å avvise hele filen",
+            "title": "Discard invalid targets",
+            "description": "Discard targets that fail validation rather than rejecting the entire file",
             "default": false
           },
-          "forceUniqueIds": {
+          "force_unique_ids": {
             "type": "boolean",
-            "title": "Sikre unike tag-ID-er",
-            "description": "Sørg for at innebygde tagg-ID-er er unike innenfor hver enhet",
+            "title": "Ensure unique tag IDs",
+            "description": "Ensure inline tag IDs are unique within each unit",
             "default": false
           },
-          "ignoreTagTypeMatch": {
+          "ignore_tag_type_match": {
             "type": "boolean",
-            "title": "Ignorer typemismatch for tag",
-            "description": "Ignorer typemismatch for tagger mellom kilde- og målsegmenter",
+            "title": "Ignore tag type mismatch",
+            "description": "Ignore tag type mismatch between source and target segments",
             "default": false
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av innebygd kode i oversettbar tekst",
+            "title": "Enable inline code detection",
+            "description": "Enable regex-based inline code detection in translatable text",
             "default": false
           },
           "version": {
@@ -4629,10 +4629,10 @@
               }
             ]
           },
-          "writeOriginalData": {
+          "write_original_data": {
             "type": "boolean",
-            "title": "Inkluder originaldata i utdata",
-            "description": "Utdata inkluderer originaldata når tilgjengelig",
+            "title": "Include original data in output",
+            "description": "Output includes original data when available",
             "default": true
           }
         }
@@ -4745,22 +4745,22 @@
             "id": "parser",
             "label": "Parserinnstillinger",
             "fields": [
-              "preserveWhitespace"
+              "preserve_whitespace"
             ]
           },
           {
             "id": "extraction",
             "label": "Uttrekksregler",
             "fields": [
-              "translatableElements",
-              "translatableAttributes",
-              "excludeByDefault",
-              "inlineElements",
-              "excludedElements",
-              "preserveWhitespaceElements",
-              "groupElements",
-              "idAttributes",
-              "extractNonTranslatableContent"
+              "translatable_elements",
+              "translatable_attributes",
+              "exclude_by_default",
+              "inline_elements",
+              "excluded_elements",
+              "preserve_whitespace_elements",
+              "group_elements",
+              "id_attributes",
+              "extract_non_translatable_content"
             ]
           },
           {
@@ -4769,7 +4769,7 @@
             "fields": [
               "elements",
               "attributes",
-              "blockTypeMap"
+              "block_type_map"
             ]
           },
           {
@@ -4783,8 +4783,8 @@
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
@@ -4794,18 +4794,18 @@
             "title": "Attributtregler",
             "description": "Avanserte attributtspesifikke behandlingsregler med elementomfangsbegrensninger"
           },
-          "blockTypeMap": {
+          "block_type_map": {
             "type": "object",
-            "title": "Blokktype-tilordning",
-            "description": "Tilordning av elementnavn til blokktype-strenger for semantisk typeannotering"
+            "title": "Block type map",
+            "description": "Map of element names to block type strings for semantic type annotation"
           },
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodesøk",
-            "description": "Regex-mønstre som matcher innebygd kode i oversettbar tekst",
+            "title": "Code finder rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
@@ -4814,68 +4814,68 @@
             "title": "Elementregler",
             "description": "Avanserte elementspesifikke behandlingsregler med betingelser, innebygd merking og oversettbare attributttilordninger"
           },
-          "excludeByDefault": {
+          "exclude_by_default": {
             "type": "boolean",
-            "title": "Ekskluder som standard",
-            "description": "Ekskluder alle elementer med mindre de eksplisitt er inkludert av en elementregel med INCLUDE",
+            "title": "Exclude by default",
+            "description": "Exclude all elements unless explicitly included by an element rule with INCLUDE",
             "default": false
           },
-          "excludedElements": {
+          "excluded_elements": {
             "type": "array",
-            "title": "Ekskluderte elementer",
-            "description": "Elementnavn hvis innhold er utelatt fra uttrekk"
+            "title": "Excluded elements",
+            "description": "Element names whose content is excluded from extraction"
           },
-          "extractNonTranslatableContent": {
+          "extract_non_translatable_content": {
             "type": "boolean",
-            "title": "Hent ut ikke-oversettbart innhold",
-            "description": "Hvis sann (standard), vises ikke-oversettbart kontekstuelt innhold, som tekst i elementer utelukket fra hvitelisten og verbatim kode/pre-undertrær, som innholdsblokker (synlig for innhenting/LLM-konsumenter, hoppes over av maskinoversettelse) i stedet for å skjules i skjelettet. Deaktiver for å beholde det i skjelettet.",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as whitelist-excluded element text and verbatim code/pre subtrees is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
-          "groupElements": {
+          "group_elements": {
             "type": "array",
-            "title": "Gruppeelementer",
-            "description": "Elementnavn som produserer gruppe-/laggrenser i utdataene"
+            "title": "Group elements",
+            "description": "Element names that produce group/layer boundaries in the output"
           },
-          "idAttributes": {
+          "id_attributes": {
             "type": "array",
-            "title": "ID-attributter",
-            "description": "Attributtnavn brukt til å hente blokk-ID-er fra elementer"
+            "title": "ID attributes",
+            "description": "Attribute names used to extract block IDs from elements"
           },
-          "inlineElements": {
+          "inline_elements": {
             "type": "array",
-            "title": "Innebygde elementer",
-            "description": "Elementnavn behandlet som innebygde (spenn i tekst) i stedet for blokknivå"
+            "title": "Inline elements",
+            "description": "Element names treated as inline (spans within text) rather than block-level"
           },
-          "preserveWhitespace": {
+          "preserve_whitespace": {
             "type": "boolean",
-            "title": "Bevar mellomrom",
-            "description": "Bevar original mellomrom i tekstinnhold i stedet for å komprimere det",
+            "title": "Preserve whitespace",
+            "description": "Preserve original whitespace in text content instead of collapsing it",
             "default": false
           },
-          "preserveWhitespaceElements": {
+          "preserve_whitespace_elements": {
             "type": "array",
-            "title": "Bevar mellomromselementer",
-            "description": "Elementnavn som bevarer mellomrom uavhengig av den globale innstillingen"
+            "title": "Preserve whitespace elements",
+            "description": "Element names that preserve whitespace regardless of the global setting"
           },
           "subfilters": {
             "type": "array",
             "title": "Underfiltre",
             "description": "Array med {pattern, format}-tilordninger for innebygd innhold. Mønstre bruker punktseparerte elementstier med glob-støtte."
           },
-          "translatableAttributes": {
+          "translatable_attributes": {
             "type": "array",
-            "title": "Oversettbare attributter",
-            "description": "Attributtnavn som kan oversettes på tvers av alle elementer"
+            "title": "Translatable attributes",
+            "description": "Attribute names that are translatable across all elements"
           },
-          "translatableElements": {
+          "translatable_elements": {
             "type": "array",
-            "title": "Oversettbare elementer",
-            "description": "Elementnavn hvis tekstinnhold er oversettbart. Hvis tom, er alt tekstinnhold oversettbart."
+            "title": "Translatable elements",
+            "description": "Element names whose text content is translatable. If empty, all text content is translatable."
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver deteksjon av innebygde koder",
-            "description": "Aktiver regex-basert gjenkjenning av innebygde koder i oversettbar tekst",
+            "title": "Enable inline code detection",
+            "description": "Enable regex-based detection of inline codes within translatable text",
             "default": false
           }
         }
@@ -5059,8 +5059,8 @@
             "id": "extraction",
             "label": "Uttrekk",
             "fields": [
-              "extractNonStrings",
-              "keyPathPatterns"
+              "extract_non_strings",
+              "key_path_patterns"
             ]
           },
           {
@@ -5074,42 +5074,42 @@
             "id": "inlineCodes",
             "label": "Inline-koder",
             "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
+              "use_code_finder",
+              "code_finder_rules"
             ]
           }
         ],
         "properties": {
-          "codeFinderRules": {
+          "code_finder_rules": {
             "type": "array",
-            "title": "Regler for kodesøk",
-            "description": "Regex-mønstre som samsvarer med innebygde koder i oversettbar tekst",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text",
             "ui:widget": "code-finder",
             "ui:visible": {
-              "field": "useCodeFinder",
+              "field": "use_code_finder",
               "eq": true
             }
           },
-          "extractNonStrings": {
+          "extract_non_strings": {
             "type": "boolean",
-            "title": "Uttrekk ikke-strengverdier",
-            "description": "Pakk ut ikke-streng skalarverdier (boolske verdier, tall, null-verdier) som oversettbare blokker",
+            "title": "Extract Non-String Values",
+            "description": "Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks",
             "default": false
           },
-          "keyPathPatterns": {
+          "key_path_patterns": {
             "type": "array",
-            "title": "Nøkkelstimønstre",
-            "description": "Når den ikke er tom, pakkes kun nøkler som samsvarer med ett av disse glob-mønstrene ut. Støtter * (enkelt nøkkel) og ** (hvilken som helst dybde)."
+            "title": "Key Path Patterns",
+            "description": "When non-empty, only keys matching one of these glob patterns are extracted. Supports * (single key) and ** (any depth)."
           },
           "subfilter": {
             "type": "string",
             "title": "Delfilterformat",
             "description": "Delfilter som skal brukes på skalarverdier (f.eks. 'html' for å behandle HTML i YAML-verdier)"
           },
-          "useCodeFinder": {
+          "use_code_finder": {
             "type": "boolean",
-            "title": "Aktiver gjenkjenning av innebygd kode",
-            "description": "Aktiver regex-basert deteksjon av innebygd kode i strengverdier",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within string values",
             "default": false
           }
         }

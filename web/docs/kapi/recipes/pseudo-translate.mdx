@@ -48,7 +48,7 @@ One command; the output path is a name you choose:
 kapi pseudo-translate messages.json -o messages.pseudo.json
 ```
 
-To tune the markers and the padding, run the tool directly: `kapi exec pseudo-translate` takes `--prefix`, `--suffix`, and `--expansion-percent`, and the full flags are in the [`exec pseudo-translate` reference](/reference/commands/exec-pseudo-translate). The same keys go under a flow step's `config:` (`expansionPercent: 30`). In a project, run it with no file argument to cover the recipe's declared content, or as the gap-filler step after content-memory leverage; see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
+To tune the markers and the padding, run the tool directly: `kapi exec pseudo-translate` takes `--prefix`, `--suffix`, and `--expansion-percent`, and the full flags are in the [`exec pseudo-translate` reference](/reference/commands/exec-pseudo-translate). The same keys go under a flow step's `config:` (`expansion_percent: 30`). In a project, run it with no file argument to cover the recipe's declared content, or as the gap-filler step after content-memory leverage; see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
 
 </TabItem>
 </Tabs>

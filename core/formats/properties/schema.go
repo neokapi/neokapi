@@ -29,29 +29,29 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"useKeyCondition", "extractOnlyMatchingKey", "keyCondition",
-					"extraComments", "extractNonTranslatableContent",
+					"use_key_condition", "extract_only_matching_key", "key_condition",
+					"extra_comments", "extract_non_translatable_content",
 				},
 			},
 			{
 				ID:    "notes",
 				Label: "Notes",
 				Fields: []string{
-					"commentsAreNotes",
+					"comments_are_notes",
 				},
 			},
 			{
 				ID:    "output",
 				Label: "Output",
 				Fields: []string{
-					"useJavaEscapes", "escapeExtendedChars",
+					"use_java_escapes", "escape_extended_chars",
 				},
 			},
 			{
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
@@ -62,69 +62,69 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Separator",
 				Description: "Key-value separator character (typically '=' or ':')",
 			}),
-			"useKeyCondition": schema.Prop(coreschema.PropertySchema{
+			"use_key_condition": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable Key Condition",
 				Description: "Filter entries for extraction based on a regex condition applied to their keys",
 			}),
-			"extractOnlyMatchingKey": schema.Prop(coreschema.PropertySchema{
+			"extract_only_matching_key": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract Only Matching Keys",
 				Description: "When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys",
-				Visible:     &coreschema.ConditionExpr{Field: "useKeyCondition", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_key_condition", Eq: true},
 			}),
-			"keyCondition": schema.Prop(coreschema.PropertySchema{
+			"key_condition": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     ".*text.*",
 				Title:       "Key Condition Pattern",
 				Description: "Regular expression pattern to test against property keys for extraction filtering",
 				Widget:      "regex",
-				Visible:     &coreschema.ConditionExpr{Field: "useKeyCondition", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_key_condition", Eq: true},
 			}),
-			"extraComments": schema.Prop(coreschema.PropertySchema{
+			"extra_comments": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Additional Comment Markers",
 				Description: "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers",
 			}),
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Surface Excluded Values",
 				Description: "Surface the value text of excluded entries (keys filtered out, or under #_skip / #_bskip) as non-translatable content blocks visible to ingestion but skipped by translation",
 			}),
-			"commentsAreNotes": schema.Prop(coreschema.PropertySchema{
+			"comments_are_notes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Comments as Notes",
 				Description: "Treat comments as translator notes attached to the following entry",
 			}),
-			"useJavaEscapes": schema.Prop(coreschema.PropertySchema{
+			"use_java_escapes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Retain Java Escapes",
 				Description: "Keep Java property escape sequences (\\: \\= \\# \\!) in extracted text instead of resolving them",
 			}),
-			"escapeExtendedChars": schema.Prop(coreschema.PropertySchema{
+			"escape_extended_chars": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Escape Extended Characters",
 				Description: "Escape extended Unicode characters (non-ASCII) in output using \\uXXXX notation",
 			}),
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable Inline Code Detection",
 				Description: "Enable regex-based inline code detection within property values",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code Finder Rules",
 				Description: "Regex patterns that match inline codes within translatable text",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

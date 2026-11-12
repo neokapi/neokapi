@@ -208,7 +208,7 @@ flows:
     steps:
       - tool: recycle
         config:
-          fuzzyThreshold: 75
+          fuzzy_threshold: 75
       - tool: translate
       - tool: qa
 
@@ -231,7 +231,8 @@ happens at tool construction, and the data-flow and placement gates
 ([E-03](../engine/e-03-tool-system.md)) validate against the same merged config
 the runtime uses: a preset that enables the redact tool's entity detection makes
 the upstream `entity` port required exactly as an inline config would. A tool's
-config keys are its JSON field names, in camelCase.
+config keys are snake_case, like every other recipe key. A camelCase
+spelling of a key is refused at load with the key to write instead.
 
 Required fields: `version: v1`, which must equal the current schema version, and
 a non-empty `path` on each content item. Every flow contains at least one step

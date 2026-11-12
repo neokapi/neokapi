@@ -181,7 +181,7 @@ func TestVerifySourceOnlyHonorsReaderConfig(t *testing.T) {
 	data = append(data, []byte(`        format:
           name: json
           config:
-            extractionRules: '^title$'
+            extraction_rules: '^title$'
 `)...)
 	require.NoError(t, os.WriteFile(recipePath, data, 0o644))
 	require.NoError(t, os.WriteFile(path, []byte(`{"title":"Harbor is ready.","excluded":"Guaranteed safe."}`), 0o644))

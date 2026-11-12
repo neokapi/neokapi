@@ -13,7 +13,7 @@ describe("definitionToSpec", () => {
   it("reads the server's one-row built-in as an ordered chain", () => {
     const spec = definitionToSpec(builtInTranslate);
     expect(spec.steps.map((s) => s.tool)).toEqual(["recycle", "translate", "qa"]);
-    expect(spec.steps[1].config).toEqual({ skipMatched: true });
+    expect(spec.steps[1].config).toEqual({ skip_matched: true });
     expect(spec.description).toBe(builtInTranslate.description);
   });
 

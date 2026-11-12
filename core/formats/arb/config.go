@@ -55,14 +55,14 @@ func (c *Config) Validate() error {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "descriptionNotes":
+		case "description_notes":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("descriptionNotes: expected bool, got %T", val)
+				return fmt.Errorf("description_notes: expected bool, got %T", val)
 			}
 			c.DescriptionNotes = b
 		default:
-			return fmt.Errorf("arb: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "arb", key)
 		}
 	}
 	return nil

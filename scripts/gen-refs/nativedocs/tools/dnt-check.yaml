@@ -15,7 +15,7 @@ overview: |
   that locale are skipped. The only schema-level option controls whether a
   case-folded match in the target is accepted.
 parameters:
-  caseInsensitive:
+  case_insensitive:
     description: Accept a case-folded match in the target instead of requiring exact case.
     help: |
       Off by default, because do-not-translate is usually case-sensitive:
@@ -34,4 +34,4 @@ examples:
   - title: Case-insensitive preservation
     description: Accept a case-folded match for protected terms in the target.
     config: |
-      caseInsensitive: true
+      case_insensitive: true

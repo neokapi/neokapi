@@ -1472,7 +1472,7 @@ func convergeFlowSpec(proj *project.KapiProject, projectDir string) (convergeFlo
 // already runs the project's bound checks after each pass (#1078 G4). A fresh
 // spec is returned per call so callers can never mutate a shared instance.
 //
-// skipMatched is what makes the second step mean "the remainder", and it is not
+// skip_matched is what makes the second step mean "the remainder", and it is not
 // optional here. The translate tool's own default is to translate every
 // translatable block it is handed, which is right for `kapi exec translate` —
 // you pointed it at the content — and wrong for a convergence pass, where the
@@ -1486,7 +1486,7 @@ func convergeFlowSpec(proj *project.KapiProject, projectDir string) (convergeFlo
 func DefaultConvergeFlowSpec() *flow.StepsSpec {
 	return &flow.StepsSpec{Steps: []flow.FlowStep{
 		{Tool: "recycle"},
-		{Tool: "translate", Config: map[string]any{"skipMatched": true}},
+		{Tool: "translate", Config: map[string]any{"skip_matched": true}},
 	}}
 }
 
@@ -1501,8 +1501,8 @@ const recycleOnlyFlowName = "recycle"
 func RecycleOnlyFlowSpec() *flow.StepsSpec {
 	return &flow.StepsSpec{Steps: []flow.FlowStep{
 		{Tool: "recycle", Config: map[string]any{
-			"fuzzyThreshold":      100,
-			"fillTargetThreshold": 100,
+			"fuzzy_threshold":       100,
+			"fill_target_threshold": 100,
 		}},
 	}}
 }

@@ -244,7 +244,7 @@ tool's own configuration, illustrated by `translate` (`core/ai/tools/translate.g
 - **Batching intent rather than a magic number.** The user-facing knob is `--batching`
   with two values: `auto`, the default, hands sizing to a packer that fits blocks
   to the model's context and output ceilings from the catalog; `single` pins one
-  block per call. An explicit `batchSize` in a flow step's config overrides both.
+  block per call. An explicit `batch_size` in a flow step's config overrides both.
 - **Two automatic downgrades to per-block.** A *local* provider is forced to
   `single`, because a small on-device model tends to ignore the "return JSON"
   instruction and emit plain numbered text, and a very large prompt is a slow
@@ -349,7 +349,7 @@ Both provider families resolve credentials through one function,
 
 1. A tool that does not declare `credentials` in `Requires` is returned
    unchanged.
-2. An inline `apiKey`: the `--api-key` flag, or a step's own config.
+2. An inline `api_key`: the `--api-key` flag, or a step's own config.
 3. A saved credential named with `--credential`.
 4. Nothing at all, for a **keyless local provider** (Ollama, demo): a local run
    is never failed for want of a saved credential.
@@ -358,7 +358,7 @@ Both provider families resolve credentials through one function,
 
 Keys never appear in flow definitions or project files.
 
-**The endpoint travels with the key.** `baseURL` is part of the same decision as
+**The endpoint travels with the key.** `base_url` is part of the same decision as
 the secret sent to it, so it is stored alongside the credential (`kapi
 credentials add --base-url`) and injected during credential resolution. A flow
 step's `config:` cannot set it: `ResolveCredentials` clears the key on the way in,

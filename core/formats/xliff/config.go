@@ -2,6 +2,7 @@ package xliff
 
 import (
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 
 	"github.com/neokapi/neokapi/core/config"
 )
@@ -108,120 +109,120 @@ func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
 		// Extraction
-		case "preserveSpaceByDefault":
+		case "preserve_space_by_default":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("preserveSpaceByDefault: expected bool, got %T", val)
+				return fmt.Errorf("preserve_space_by_default: expected bool, got %T", val)
 			}
 			c.PreserveSpaceByDefault = b
-		case "includeExtensions":
+		case "include_extensions":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("includeExtensions: expected bool, got %T", val)
+				return fmt.Errorf("include_extensions: expected bool, got %T", val)
 			}
 			c.IncludeExtensions = b
-		case "includeIts":
+		case "include_its":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("includeIts: expected bool, got %T", val)
+				return fmt.Errorf("include_its: expected bool, got %T", val)
 			}
 			c.IncludeIts = b
-		case "ignoreInputSegmentation":
+		case "ignore_input_segmentation":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("ignoreInputSegmentation: expected bool, got %T", val)
+				return fmt.Errorf("ignore_input_segmentation: expected bool, got %T", val)
 			}
 			c.IgnoreInputSegmentation = b
-		case "fallbackToID":
+		case "fallback_to_id":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("fallbackToID: expected bool, got %T", val)
+				return fmt.Errorf("fallback_to_id: expected bool, got %T", val)
 			}
 			c.FallbackToID = b
-		case "forceUniqueIds":
+		case "force_unique_ids":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("forceUniqueIds: expected bool, got %T", val)
+				return fmt.Errorf("force_unique_ids: expected bool, got %T", val)
 			}
 			c.ForceUniqueIds = b
 
 		// States
-		case "useTranslationTargetState":
+		case "use_translation_target_state":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useTranslationTargetState: expected bool, got %T", val)
+				return fmt.Errorf("use_translation_target_state: expected bool, got %T", val)
 			}
 			c.UseTranslationTargetState = b
-		case "targetStateValue":
+		case "target_state_value":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("targetStateValue: expected string, got %T", val)
+				return fmt.Errorf("target_state_value: expected string, got %T", val)
 			}
 			c.TargetStateValue = s
-		case "editAltTrans":
+		case "edit_alt_trans":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("editAltTrans: expected bool, got %T", val)
+				return fmt.Errorf("edit_alt_trans: expected bool, got %T", val)
 			}
 			c.EditAltTrans = b
-		case "addAltTrans":
+		case "add_alt_trans":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("addAltTrans: expected bool, got %T", val)
+				return fmt.Errorf("add_alt_trans: expected bool, got %T", val)
 			}
 			c.AddAltTrans = b
 
 		// Output
-		case "addTargetLanguage":
+		case "add_target_language":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("addTargetLanguage: expected bool, got %T", val)
+				return fmt.Errorf("add_target_language: expected bool, got %T", val)
 			}
 			c.AddTargetLanguage = b
-		case "overrideTargetLanguage":
+		case "override_target_language":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("overrideTargetLanguage: expected bool, got %T", val)
+				return fmt.Errorf("override_target_language: expected bool, got %T", val)
 			}
 			c.OverrideTargetLanguage = b
-		case "allowEmptyTargets":
+		case "allow_empty_targets":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("allowEmptyTargets: expected bool, got %T", val)
+				return fmt.Errorf("allow_empty_targets: expected bool, got %T", val)
 			}
 			c.AllowEmptyTargets = b
-		case "alwaysAddTargets":
+		case "always_add_targets":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("alwaysAddTargets: expected bool, got %T", val)
+				return fmt.Errorf("always_add_targets: expected bool, got %T", val)
 			}
 			c.AlwaysAddTargets = b
 
 		// Inline codes
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 
-		case "okapiCompat":
+		case "okapi_compat":
 			m, ok := val.(map[string]any)
 			if !ok {
-				return fmt.Errorf("okapiCompat: expected map, got %T", val)
+				return fmt.Errorf("okapi_compat: expected map, got %T", val)
 			}
 			if err := applyOkapiCompatMap(&c.OkapiCompat, m); err != nil {
-				return fmt.Errorf("okapiCompat: %w", err)
+				return fmt.Errorf("okapi_compat: %w", err)
 			}
 
 		default:
-			return fmt.Errorf("xliff: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "xliff", key)
 		}
 	}
 	return nil
@@ -237,27 +238,27 @@ func applyOkapiCompatMap(o *OkapiCompatConfig, m map[string]any) error {
 			return fmt.Errorf("%s: expected bool, got %T", key, val)
 		}
 		switch key {
-		case "lowercaseLangSubtag":
+		case "lowercase_lang_subtag":
 			o.LowercaseLangSubtag = b
-		case "unwrapSingleSegMrk":
+		case "unwrap_single_seg_mrk":
 			o.UnwrapSingleSegMrk = b
-		case "stripTransUnitApprovedAttr":
+		case "strip_trans_unit_approved_attr":
 			o.StripTransUnitApprovedAttr = b
-		case "stripApprovedWhenNoSourceTarget":
+		case "strip_approved_when_no_source_target":
 			o.StripApprovedWhenNoSourceTarget = b
-		case "stripPhaseDateAttr":
+		case "strip_phase_date_attr":
 			o.StripPhaseDateAttr = b
-		case "stripCDataCREntities":
+		case "strip_c_data_cr_entities":
 			o.StripCDataCREntities = b
-		case "hoistAltTransNotes":
+		case "hoist_alt_trans_notes":
 			o.HoistAltTransNotes = b
-		case "stripAltTransSegSource":
+		case "strip_alt_trans_seg_source":
 			o.StripAltTransSegSource = b
-		case "escapeBeyondLatin1AsEntities":
+		case "escape_beyond_latin1_as_entities":
 			o.EscapeBeyondLatin1AsEntities = b
-		case "simulateBrokenWindows1252Read":
+		case "simulate_broken_windows1252_read":
 			o.SimulateBrokenWindows1252Read = b
-		case "reorderHeaderToolToEnd":
+		case "reorder_header_tool_to_end":
 			o.ReorderHeaderToolToEnd = b
 		default:
 			return fmt.Errorf("unknown flag: %s", key)

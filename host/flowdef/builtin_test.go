@@ -59,7 +59,7 @@ func TestTranslateFlowTranslatesOnlyTheRemainder(t *testing.T) {
 		}
 	}
 	require.NotNil(t, node, "translate node in the translate flow")
-	assert.Equal(t, true, node.Config["skipMatched"])
+	assert.Equal(t, true, node.Config["skip_matched"])
 }
 
 // builtinGateReg builds a registry with the built-in and AI tools — the same

@@ -239,7 +239,7 @@ func TestCollectionPointFallsBackToTheGovernanceKey(t *testing.T) {
 // The flow carries its bindings as a config map and applies it through
 // core/schema (host/flow.go: applyBindings writes "profile", "point" and
 // "term_rules"; grantMemory writes the content memory under its own key; the
-// recipe writes "context" and "contextWindow"). Building that map for this
+// recipe writes "context" and "context_window"). Building that map for this
 // unit's governance and applying it the way the flow does gives the config a
 // flow run would hand the tool, and the platform must hand it the same one.
 func TestPlatformConfigMatchesAFlowRunConfig(t *testing.T) {
@@ -251,12 +251,12 @@ func TestPlatformConfigMatchesAFlowRunConfig(t *testing.T) {
 
 	var flow tools.AITranslateConfig
 	require.NoError(t, schema.ApplyConfig(map[string]any{
-		"point":         memory.NewPoint("acme", "web", "docs"),
-		"term_rules":    []coreprofile.TermRule{{Term: "software", Replacement: "logiciel", ConceptID: "c1"}},
-		"dnt":           []string{"Kapi"},
-		"context":       tools.ContextNeighbours,
-		"contextWindow": tools.DefaultContextWindow,
-		"reuse":         tools.ReusePrior,
+		"point":          memory.NewPoint("acme", "web", "docs"),
+		"term_rules":     []coreprofile.TermRule{{Term: "software", Replacement: "logiciel", ConceptID: "c1"}},
+		"dnt":            []string{"Kapi"},
+		"context":        tools.ContextNeighbours,
+		"context_window": tools.DefaultContextWindow,
+		"reuse":          tools.ReusePrior,
 	}, &flow))
 
 	assert.Equal(t, flow.Point, platform.Point)

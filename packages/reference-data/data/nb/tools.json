@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T03:48:40Z",
+  "generatedAt": "2026-11-12T17:39:19Z",
   "kind": "tool",
   "entries": [
     {
@@ -61,7 +61,7 @@
             "fields": [
               "engine",
               "locale",
-              "knownTerms"
+              "known_terms"
             ]
           },
           {
@@ -69,7 +69,7 @@
             "label": "Leverandør",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ],
             "ui:visible": {
@@ -89,8 +89,8 @@
             "id": "llm",
             "label": "LLM (AI-leverandør)",
             "fields": [
-              "batchConcurrency",
-              "batchSize"
+              "batch_concurrency",
+              "batch_size"
             ],
             "ui:visible": {
               "any": [
@@ -107,20 +107,20 @@
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for KI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
-          "batchConcurrency": {
+          "batch_concurrency": {
             "type": "integer",
-            "description": "Antall samtidige batchkall (0 eller 1 = sekvensielt)",
+            "description": "Number of concurrent batch calls (0 or 1 = sequential)",
             "default": 1,
             "minimum": 1
           },
-          "batchSize": {
+          "batch_size": {
             "type": "integer",
-            "description": "Antall blokker per LLM-kall (0 eller 1 = én blokk per kall)",
+            "description": "Number of blocks per LLM call (0 or 1 = one block per call)",
             "default": 1,
             "minimum": 1
           },
@@ -150,9 +150,9 @@
               "ner": "On-device model: no credentials, nothing leaves the machine."
             }
           },
-          "knownTerms": {
+          "known_terms": {
             "type": "array",
-            "description": "Termer som skal utelates fra utpakking (allerede i termlageret)",
+            "description": "Terms to exclude from extraction (already in the terms store)",
             "items": {
               "type": "string"
             }
@@ -349,16 +349,16 @@
             "label": "Leverandør",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for AI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
           "domain": {
             "type": "string",
@@ -513,26 +513,26 @@
             "label": "Leverandør",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for KI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
           "model": {
             "type": "string",
             "title": "Modell",
             "description": "AI-modellnavn"
           },
-          "profileId": {
+          "profile_id": {
             "type": "string",
-            "title": "Profil-ID",
-            "description": "Stemprofil som skal hentes fra lageret"
+            "title": "Profile ID",
+            "description": "Voice profile to resolve from the store"
           },
           "provider": {
             "type": "string",
@@ -663,26 +663,26 @@
             "label": "Leverandør",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for KI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
           "domain": {
             "type": "string",
             "title": "Domene",
             "description": "Fagdomene-hint for analysen (f.eks. medisin jus teknologi)"
           },
-          "maxExamples": {
+          "max_examples": {
             "type": "integer",
-            "title": "Maks eksempler",
-            "description": "Maksimalt antall før/etter-eksempler å utlede",
+            "title": "Max Examples",
+            "description": "Maximum before/after examples to infer",
             "default": 3,
             "minimum": 1
           },
@@ -691,10 +691,10 @@
             "title": "Modell",
             "description": "AI-modellnavn"
           },
-          "profileName": {
+          "profile_name": {
             "type": "string",
-            "title": "Profilnavn",
-            "description": "Navn på det utledede utkastprofilen"
+            "title": "Profile Name",
+            "description": "Name for the inferred draft profile"
           },
           "provider": {
             "type": "string",
@@ -877,16 +877,16 @@
           "writesOutput": true
         },
         "properties": {
-          "applySource": {
+          "apply_source": {
             "type": "boolean",
-            "title": "Bruk på kilde",
-            "description": "Bruk på kildetekst",
+            "title": "Apply to Source",
+            "description": "Apply to source text",
             "default": true
           },
-          "applyTarget": {
+          "apply_target": {
             "type": "boolean",
-            "title": "Bruk på mål",
-            "description": "Bruk på måltekst",
+            "title": "Apply to Target",
+            "description": "Apply to target text",
             "default": false
           },
           "mode": {
@@ -992,16 +992,16 @@
           "writesOutput": true
         },
         "properties": {
-          "copySource": {
+          "copy_source": {
             "type": "boolean",
-            "title": "Kopier kilde",
-            "description": "Kopier kildesekvensene inn i det nye målet",
+            "title": "Copy Source",
+            "description": "Copy the source runs into the new target",
             "default": false
           },
-          "createOnNonTranslatable": {
+          "create_on_non_translatable": {
             "type": "boolean",
-            "title": "Opprett ved ikke-oversettbar",
-            "description": "Opprett et mål selv for ikke-oversettbare tekstenheter",
+            "title": "Create on Non-Translatable",
+            "description": "Create a target even for non-translatable blocks",
             "default": true
           },
           "overwrite": {
@@ -1010,10 +1010,10 @@
             "description": "Overskriv det eksisterende målet hvis ett allerede finnes",
             "default": false
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
-            "title": "Målspråk",
-            "description": "Målspråk som skal opprettes"
+            "title": "Target Locale",
+            "description": "Target locale to create"
           }
         }
       },
@@ -1099,16 +1099,16 @@
           "writesOutput": true
         },
         "properties": {
-          "caseSensitive": {
+          "case_sensitive": {
             "type": "boolean",
-            "title": "Skille mellom store og små bokstaver",
-            "description": "Om sammenligningen skiller mellom store og små bokstaver",
+            "title": "Case Sensitive",
+            "description": "Whether comparison is case-sensitive",
             "default": true
           },
-          "fuzzyMatch": {
+          "fuzzy_match": {
             "type": "boolean",
-            "title": "Omtrentlig treff",
-            "description": "Aktiver uskarpt samsvar for lignende tekster",
+            "title": "Fuzzy Match",
+            "description": "Enable fuzzy matching for similar texts",
             "default": false
           }
         }
@@ -1206,10 +1206,10 @@
           ]
         },
         "properties": {
-          "caseInsensitive": {
+          "case_insensitive": {
             "type": "boolean",
-            "title": "Bevaring uten skille mellom store og små bokstaver",
-            "description": "Godta et treff uten skille mellom store og små bokstaver i målet, i stedet for å kreve nøyaktig samsvar",
+            "title": "Case-insensitive preservation",
+            "description": "Accept a case-folded match in the target instead of requiring exact case",
             "default": false
           },
           "terms": {
@@ -1323,16 +1323,16 @@
           "writesOutput": true
         },
         "properties": {
-          "applySource": {
+          "apply_source": {
             "type": "boolean",
-            "title": "Bruk på kilde",
-            "description": "Behandle kildetekst",
+            "title": "Apply to Source",
+            "description": "Process source text",
             "default": false
           },
-          "applyTarget": {
+          "apply_target": {
             "type": "boolean",
-            "title": "Bruk på mål",
-            "description": "Behandle måltekst",
+            "title": "Apply to Target",
+            "description": "Process target text",
             "default": true
           },
           "args": {
@@ -1348,16 +1348,16 @@
             "title": "Kommandolinje",
             "description": "Kommandoen som skal kjøres"
           },
-          "sendAsStdin": {
+          "send_as_stdin": {
             "type": "boolean",
-            "title": "Send som Stdin",
-            "description": "Send tekst via stdin i stedet for kommandobargumenter",
+            "title": "Send as Stdin",
+            "description": "Send text via stdin instead of command arguments",
             "default": true
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
-            "title": "Mållokal",
-            "description": "Mållokal for behandling",
+            "title": "Target Locale",
+            "description": "Target locale for processing",
             "ui:visible": {
               "field": "ApplyTarget",
               "empty": false
@@ -1475,34 +1475,34 @@
           "writesOutput": true
         },
         "properties": {
-          "applySource": {
+          "apply_source": {
             "type": "boolean",
-            "title": "Bruk på kilde",
-            "description": "Bruk på kildeteksten",
+            "title": "Apply to Source",
+            "description": "Apply to the source text",
             "default": false
           },
-          "applyTarget": {
+          "apply_target": {
             "type": "boolean",
-            "title": "Bruk på mål",
-            "description": "Bruk på målteksten",
+            "title": "Apply to Target",
+            "description": "Apply to the target text",
             "default": true
           },
-          "includeNonTranslatable": {
+          "include_non_translatable": {
             "type": "boolean",
-            "title": "Inkluder ikke-oversettbare",
-            "description": "Bruk fjerningshandlingen selv på tekstenheter merket som ikke-oversettbare",
+            "title": "Include Non-Translatable",
+            "description": "Apply the removal action even to blocks marked as non-translatable",
             "default": true
           },
-          "replaceWithSpace": {
+          "replace_with_space": {
             "type": "boolean",
-            "title": "Erstatt med mellomrom",
-            "description": "Erstatt linjeskift-innebygde koder med mellomrom i stedet for å fjerne dem helt",
+            "title": "Replace With Space",
+            "description": "Replace line-break inline codes with spaces instead of removing them entirely",
             "default": false
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
-            "title": "Målspråk",
-            "description": "Målspråk for behandling",
+            "title": "Target Locale",
+            "description": "Target locale for processing",
             "ui:visible": {
               "field": "ApplyTarget",
               "empty": false
@@ -1653,16 +1653,16 @@
             "label": "Leverandør",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for AI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
           "model": {
             "type": "string",
@@ -1765,10 +1765,10 @@
           ]
         },
         "properties": {
-          "flagExtra": {
+          "flag_extra": {
             "type": "boolean",
-            "title": "Flagg ekstra plassholdere",
-            "description": "Rapporter plassholdere som finnes i målet, men mangler i kilden",
+            "title": "Flag extra placeholders",
+            "description": "Report placeholders present in the target but absent from the source",
             "default": true
           }
         }
@@ -1826,10 +1826,10 @@
           "internal": true
         },
         "properties": {
-          "onlyTranslatable": {
+          "only_translatable": {
             "type": "boolean",
-            "title": "Bare tekst",
-            "description": "Sett bare egenskaper på blokker som skal oversettes",
+            "title": "Only Translatable",
+            "description": "Only set properties on translatable blocks",
             "default": true
           },
           "overwrite": {
@@ -1928,10 +1928,10 @@
           ]
         },
         "properties": {
-          "expansionPercent": {
+          "expansion_percent": {
             "type": "integer",
-            "title": "Utvidelsesprosent",
-            "description": "Ekstra utfyllingsprosentandel lagt til for å simulere oversettelsesutvidelse (0 = ingen utfylling)",
+            "title": "Expansion Percent",
+            "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)",
             "default": 0,
             "minimum": 0
           },
@@ -2069,17 +2069,17 @@
             "id": "rules:general",
             "label": "Generelt",
             "fields": [
-              "checkLeadingWhitespace",
-              "checkTrailingWhitespace",
-              "checkEmptyTarget",
-              "checkEmptySource",
-              "checkTargetSameAsSource",
-              "targetSameAsSourceWithCodes",
-              "targetSameAsSourceWithNumbers",
-              "checkDoubleSpaces",
-              "checkDoubledWord",
-              "doubledWordExceptions",
-              "checkSpanConstraints"
+              "check_leading_whitespace",
+              "check_trailing_whitespace",
+              "check_empty_target",
+              "check_empty_source",
+              "check_target_same_as_source",
+              "target_same_as_source_with_codes",
+              "target_same_as_source_with_numbers",
+              "check_double_spaces",
+              "check_doubled_word",
+              "doubled_word_exceptions",
+              "check_span_constraints"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2090,8 +2090,8 @@
             "id": "rules:inlineCodes",
             "label": "InlineCodes",
             "fields": [
-              "checkCodeDifference",
-              "strictCodeOrder"
+              "check_code_difference",
+              "strict_code_order"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2102,7 +2102,7 @@
             "id": "rules:patterns",
             "label": "Mønstre",
             "fields": [
-              "checkPatterns"
+              "check_patterns"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2113,10 +2113,10 @@
             "id": "rules:characters",
             "label": "Tegn",
             "fields": [
-              "checkCorruptedCharacters",
-              "forbiddenChars",
-              "requiredChars",
-              "checkCharset",
+              "check_corrupted_characters",
+              "forbidden_chars",
+              "required_chars",
+              "check_charset",
               "charset"
             ],
             "ui:visible": {
@@ -2128,9 +2128,9 @@
             "id": "rules:consistency",
             "label": "Konsistens",
             "fields": [
-              "checkTargetInconsistency",
-              "checkSourceInconsistency",
-              "consistencyCaseSensitive"
+              "check_target_inconsistency",
+              "check_source_inconsistency",
+              "consistency_case_sensitive"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2141,18 +2141,18 @@
             "id": "rules:length",
             "label": "Lengde",
             "fields": [
-              "checkMaxCharLength",
-              "maxCharLengthBreak",
-              "maxCharLengthAbove",
-              "maxCharLengthBelow",
-              "checkMinCharLength",
-              "minCharLengthBreak",
-              "minCharLengthAbove",
-              "minCharLengthBelow",
-              "checkAbsoluteMaxCharLength",
-              "absoluteMaxCharLength",
-              "checkMaxWords",
-              "maxWords"
+              "check_max_char_length",
+              "max_char_length_break",
+              "max_char_length_above",
+              "max_char_length_below",
+              "check_min_char_length",
+              "min_char_length_break",
+              "min_char_length_above",
+              "min_char_length_below",
+              "check_absolute_max_char_length",
+              "absolute_max_char_length",
+              "check_max_words",
+              "max_words"
             ],
             "ui:visible": {
               "field": "mode",
@@ -2164,7 +2164,7 @@
             "label": "Leverandør",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ],
             "ui:visible": {
@@ -2185,16 +2185,16 @@
           }
         ],
         "properties": {
-          "absoluteMaxCharLength": {
+          "absolute_max_char_length": {
             "type": "integer",
-            "title": "Absolutt maksimalt antall tegn",
-            "description": "Maksimalt antall tegn tillatt i et målsegment",
+            "title": "Absolute Maximum Characters",
+            "description": "Maximum number of characters allowed in any target segment",
             "default": 255
           },
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for AI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
           "charset": {
             "type": "string",
@@ -2202,112 +2202,112 @@
             "description": "Navn på tegnsettkodingen det skal kontrolleres mot (f.eks. ISO-8859-1)",
             "default": "ISO-8859-1"
           },
-          "checkAbsoluteMaxCharLength": {
+          "check_absolute_max_char_length": {
             "type": "boolean",
-            "title": "Kontroller absolutt maksimal lengde",
-            "description": "Flagg målsegmenter som overskrider en absolutt tegnantallsgrense",
+            "title": "Check Absolute Maximum Length",
+            "description": "Flag target segments that exceed an absolute character count limit",
             "default": false
           },
-          "checkCharset": {
+          "check_charset": {
             "type": "boolean",
-            "title": "Sjekk mot tegnsetkoding",
-            "description": "Advar hvis et måltegn ikke er inkludert i den angitte tegnsettkodingen",
+            "title": "Check Against Charset Encoding",
+            "description": "Warn if a target character is not included in the specified character set encoding",
             "default": false
           },
-          "checkCodeDifference": {
+          "check_code_difference": {
             "type": "boolean",
-            "title": "Sjekk kodeforskjeller",
-            "description": "Kontroller at målsegmenter har de samme innebygde kodene som kildesegmenter",
+            "title": "Check Code Differences",
+            "description": "Verify that target segments have the same inline codes as source segments",
             "default": true
           },
-          "checkCorruptedCharacters": {
+          "check_corrupted_characters": {
             "type": "boolean",
-            "title": "Kontroller ødelagte tegn",
-            "description": "Se etter mønstre som indikerer kodingskorrupsjon (mojibake",
+            "title": "Check Corrupted Characters",
+            "description": "Check for patterns indicating encoding corruption (mojibake",
             "default": true
           },
-          "checkDoubleSpaces": {
+          "check_double_spaces": {
             "type": "boolean",
-            "title": "Sjekk doble mellomrom",
-            "description": "Sjekk for doble mellomrom i måltekst",
+            "title": "Check Double Spaces",
+            "description": "Check for double spaces in target text",
             "default": true
           },
-          "checkDoubledWord": {
+          "check_doubled_word": {
             "type": "boolean",
-            "title": "Advar om doble ord",
-            "description": "Kontroller for påfølgende gjentatte ord i målteksten",
+            "title": "Warn on Doubled Words",
+            "description": "Check for consecutive repeated words in target text",
             "default": true
           },
-          "checkEmptySource": {
+          "check_empty_source": {
             "type": "boolean",
-            "title": "Advar om ikke-tomt mål med tom kilde",
-            "description": "Kontroller om målet ikke er tomt når kilden er tom",
+            "title": "Warn on Non-Empty Target with Empty Source",
+            "description": "Check for non-empty target when source is empty",
             "default": true
           },
-          "checkEmptyTarget": {
+          "check_empty_target": {
             "type": "boolean",
-            "title": "Advar ved tomt mål",
-            "description": "Sjekk for tomt mål når kilden har innhold",
+            "title": "Warn on Empty Target",
+            "description": "Check for empty target when source has content",
             "default": true
           },
-          "checkLeadingWhitespace": {
+          "check_leading_whitespace": {
             "type": "boolean",
-            "title": "Kontroller innledende mellomrom",
-            "description": "Sjekk for avvik i innledende mellomrom mellom kilde og mål",
+            "title": "Check Leading Whitespace",
+            "description": "Check for leading whitespace mismatches between source and target",
             "default": true
           },
-          "checkMaxCharLength": {
+          "check_max_char_length": {
             "type": "boolean",
-            "title": "Kontroller maksimal lengdeforhold",
-            "description": "Flagg mål som er lengre enn en prosentandel av kildetegnlengden",
+            "title": "Check Maximum Length Ratio",
+            "description": "Flag targets longer than a percentage of source character length",
             "default": true
           },
-          "checkMaxWords": {
+          "check_max_words": {
             "type": "boolean",
-            "title": "Kontroll av maksimalt antall ord",
-            "description": "Flagg målsegmenter som overskrider en absolutt grense for antall ord",
+            "title": "Check Maximum Number of Words",
+            "description": "Flag target segments that exceed an absolute limit on the number of words",
             "default": false
           },
-          "checkMinCharLength": {
+          "check_min_char_length": {
             "type": "boolean",
-            "title": "Sjekk minimumsforhold for lengde",
-            "description": "Flagg mål som er kortere enn en prosentandel av kildetegnlengden",
+            "title": "Check Minimum Length Ratio",
+            "description": "Flag targets shorter than a percentage of source character length",
             "default": true
           },
-          "checkPatterns": {
+          "check_patterns": {
             "type": "boolean",
-            "title": "Kontroller mønstre",
-            "description": "Kontroller at kildemønstre har forventet tilsvarende innhold i målet",
+            "title": "Check Patterns",
+            "description": "Verify that source patterns have expected corresponding content in the target",
             "default": true
           },
-          "checkSourceInconsistency": {
+          "check_source_inconsistency": {
             "type": "boolean",
-            "title": "Sjekk kildeinkonsistens",
-            "description": "Marker når ulike kildetekster deler samme oversettelse",
+            "title": "Check Source Inconsistency",
+            "description": "Flag when different source texts share the same translation",
             "default": false
           },
-          "checkSpanConstraints": {
+          "check_span_constraints": {
             "type": "boolean",
-            "title": "Kontroller span-begrensninger",
-            "description": "Kontroller brudd på restriksjoner for ikke-slettbare og ikke-klonerbare span-elementer",
+            "title": "Check Span Constraints",
+            "description": "Check non-deletable and non-cloneable span constraint violations",
             "default": true
           },
-          "checkTargetInconsistency": {
+          "check_target_inconsistency": {
             "type": "boolean",
-            "title": "Kontroller inkonsistens i mål",
-            "description": "Marker når den samme kildeteksten er oversatt forskjellig gjennom kjøringen",
+            "title": "Check Target Inconsistency",
+            "description": "Flag when the same source text is translated differently across the run",
             "default": false
           },
-          "checkTargetSameAsSource": {
+          "check_target_same_as_source": {
             "type": "boolean",
-            "title": "Advar når mål er lik kilde",
-            "description": "Kontroller når målteksten er identisk med kildeteksten",
+            "title": "Warn on Target Same as Source",
+            "description": "Check when target text is identical to source text",
             "default": true
           },
-          "checkTrailingWhitespace": {
+          "check_trailing_whitespace": {
             "type": "boolean",
-            "title": "Kontroller etterfølgende mellomrom",
-            "description": "Kontroller for avvikende mellomrom på slutten mellom kilde og mål",
+            "title": "Check Trailing Whitespace",
+            "description": "Check for trailing whitespace mismatches between source and target",
             "default": true
           },
           "checks": {
@@ -2318,63 +2318,63 @@
               "type": "string"
             }
           },
-          "consistencyCaseSensitive": {
+          "consistency_case_sensitive": {
             "type": "boolean",
-            "title": "Konsistens med store/små bokstaver",
-            "description": "Om konsistenssammenligningen skiller mellom store og små bokstaver",
+            "title": "Case-Sensitive Consistency",
+            "description": "Whether consistency comparison is case-sensitive",
             "default": true
           },
-          "doubledWordExceptions": {
+          "doubled_word_exceptions": {
             "type": "string",
-            "title": "Unntak for doble ord",
-            "description": "Semikolonseparert liste over ord som er tillatt å gjenta (f.eks. sie;vous;nous)",
+            "title": "Doubled Word Exceptions",
+            "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
             "default": "sie;vous;nous"
           },
-          "forbiddenChars": {
+          "forbidden_chars": {
             "type": "string",
-            "title": "Forbudte tegn",
-            "description": "Tegn som ikke må forekomme i måltekst (f.eks. {}[])"
+            "title": "Forbidden Characters",
+            "description": "Characters that must not appear in target text (e.g. {}[])"
           },
-          "maxCharLengthAbove": {
+          "max_char_length_above": {
             "type": "integer",
-            "title": "Prosentandel for lang tekst (maks)",
-            "description": "Maksimalt tillatt prosentandel av kildelengde for lang tekst",
+            "title": "Percentage for Long Text (Max)",
+            "description": "Maximum allowed percentage of source length for long text",
             "default": 200
           },
-          "maxCharLengthBelow": {
+          "max_char_length_below": {
             "type": "integer",
-            "title": "Prosentandel for kort tekst (maks)",
-            "description": "Maksimalt tillatt prosentandel av kildelengde for kort tekst",
+            "title": "Percentage for Short Text (Max)",
+            "description": "Maximum allowed percentage of source length for short text",
             "default": 350
           },
-          "maxCharLengthBreak": {
+          "max_char_length_break": {
             "type": "integer",
-            "title": "Kort/lang-terskel (maks)",
-            "description": "Antall tegn som avgjør at tekst anses som lang ved kontroll av maksimal lengde",
+            "title": "Short/Long Threshold (Max)",
+            "description": "Character count above which text is considered long for the maximum length check",
             "default": 20
           },
-          "maxWords": {
+          "max_words": {
             "type": "integer",
-            "title": "Maksimalt antall ord",
-            "description": "Maksimalt antall ord tillatt i et enkelt målsegment",
+            "title": "Maximum Words",
+            "description": "Maximum number of words allowed in any target segment",
             "default": 0
           },
-          "minCharLengthAbove": {
+          "min_char_length_above": {
             "type": "integer",
-            "title": "Prosentandel for lang tekst (min)",
-            "description": "Minimum påkrevd prosentandel av kildelengden for lang tekst",
+            "title": "Percentage for Long Text (Min)",
+            "description": "Minimum required percentage of source length for long text",
             "default": 45
           },
-          "minCharLengthBelow": {
+          "min_char_length_below": {
             "type": "integer",
-            "title": "Prosentandel for kort tekst (min)",
-            "description": "Minimum påkrevd prosentandel av kildelengden for kort tekst",
+            "title": "Percentage for Short Text (Min)",
+            "description": "Minimum required percentage of source length for short text",
             "default": 30
           },
-          "minCharLengthBreak": {
+          "min_char_length_break": {
             "type": "integer",
-            "title": "Kort/lang terskel (min)",
-            "description": "Antall tegn over hvilket tekst anses som lang for minimumlengdekontrollen",
+            "title": "Short/Long Threshold (Min)",
+            "description": "Character count above which text is considered long for the minimum length check",
             "default": 20
           },
           "mode": {
@@ -2439,27 +2439,27 @@
               }
             ]
           },
-          "requiredChars": {
+          "required_chars": {
             "type": "string",
-            "title": "Påkrevde tegn",
-            "description": "Tegn som må forekomme i måltekst hvis de finnes i kildetekst (f.eks. tegnsetting)"
+            "title": "Required Characters",
+            "description": "Characters that must appear in target if present in source (e.g. punctuation)"
           },
-          "strictCodeOrder": {
+          "strict_code_order": {
             "type": "boolean",
-            "title": "Håndhev streng koderekkefølge",
-            "description": "Flagg forskjeller når koder vises i en annen rekkefølge mellom kilde og mål",
+            "title": "Enforce Strict Code Order",
+            "description": "Flag differences when codes appear in a different order between source and target",
             "default": false
           },
-          "targetSameAsSourceWithCodes": {
+          "target_same_as_source_with_codes": {
             "type": "boolean",
-            "title": "Inkluder koder i sammenligning",
-            "description": "Inkluder innebygde koder ved sammenligning av kilde og mål for identitet",
+            "title": "Include Codes in Comparison",
+            "description": "Include inline codes when comparing source and target for identity",
             "default": true
           },
-          "targetSameAsSourceWithNumbers": {
+          "target_same_as_source_with_numbers": {
             "type": "boolean",
-            "title": "Inkluder segmenter med kun tall",
-            "description": "Inkluder segmenter med bare tall i sammenligning der kilde er lik mål",
+            "title": "Include Number-Only Segments",
+            "description": "Include number-only segments in same-as-source comparison",
             "default": true
           }
         }
@@ -2752,58 +2752,58 @@
           "writesOutput": true
         },
         "properties": {
-          "downgradeIdenticalBestMatches": {
+          "downgrade_identical_best_matches": {
             "type": "boolean",
-            "title": "Nedgrader identiske eksakte treff",
-            "description": "Reduser poengsum med 1%% når flere identiske eksakte treff returneres",
+            "title": "Downgrade Identical Exact Matches",
+            "description": "Reduce score by 1%% when multiple identical exact matches are returned",
             "default": false
           },
-          "fillIfTargetIsEmpty": {
+          "fill_if_target_is_empty": {
             "type": "boolean",
-            "title": "Kun hvis mål er tomt",
-            "description": "Fyll inn målet kun når det ikke har eksisterende innhold",
+            "title": "Only If Target Is Empty",
+            "description": "Fill the target only when it has no existing content",
             "default": false
           },
-          "fillTarget": {
+          "fill_target": {
             "type": "boolean",
-            "title": "Fyll mål med oversettelse",
-            "description": "Kopier den beste oversettelseskandidaten inn i målinnholdet",
+            "title": "Fill Target with Translation",
+            "description": "Copy the best translation candidate into the target content",
             "default": true
           },
-          "fillTargetThreshold": {
+          "fill_target_threshold": {
             "type": "integer",
-            "title": "Terskel for målfylling",
-            "description": "Minimum matchpoengsum som kreves for å fylle ut målet (100 = kun eksakt treff)",
+            "title": "Fill Target Threshold",
+            "description": "Minimum match score required to fill the target (100 = exact only)",
             "default": 95,
             "minimum": 0,
             "maximum": 100
           },
-          "fuzzyThreshold": {
+          "fuzzy_threshold": {
             "type": "integer",
-            "title": "Terskel for uskarpe treff",
-            "description": "Minimumspoengsum for et treff; fuzzy-treff under 100 avvikles",
+            "title": "Fuzzy Match Threshold",
+            "description": "Minimum score for a match; the fuzzy path below 100 is retiring",
             "default": 70,
             "minimum": 0,
             "maximum": 100
           },
-          "makeTmx": {
+          "make_tmx": {
             "type": "boolean",
-            "title": "Generer TMX-dokument",
-            "description": "Opprett en TMX-fil med alle gjenbrukte treff",
+            "title": "Generate TMX Document",
+            "description": "Create a TMX file with all leveraged matches",
             "default": false
           },
-          "noQueryThreshold": {
+          "no_query_threshold": {
             "type": "integer",
-            "title": "Terskel for ingen spørring",
-            "description": "Hopp over innholds-minnespørring hvis eksisterende kandidat scorer på eller over denne verdien (101 = alltid spør)",
+            "title": "No-Query Threshold",
+            "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)",
             "default": 101,
             "minimum": 0,
             "maximum": 101
           },
-          "tmxPath": {
+          "tmx_path": {
             "type": "string",
-            "title": "TMX-utdatasti",
-            "description": "Filbane for det genererte TMX-dokumentet"
+            "title": "TMX Output Path",
+            "description": "File path for the generated TMX document"
           }
         }
       },
@@ -2954,10 +2954,10 @@
               "type": "string"
             }
           },
-          "entityTypes": {
+          "entity_types": {
             "type": "array",
-            "title": "Enhetskategorier",
-            "description": "Enhetskategorier som skal redigeres: person",
+            "title": "Entity Categories",
+            "description": "Entity categories to redact: person",
             "items": {
               "type": "string"
             }
@@ -2967,10 +2967,10 @@
             "title": "Plassholdermall",
             "description": "Synlig plassholder-mal; støtter {category} og {n}"
           },
-          "rulesPath": {
+          "rules_path": {
             "type": "string",
-            "title": "Regelfil",
-            "description": "Bane til en YAML-fil med redigeringsregler"
+            "title": "Rules File",
+            "description": "Path to a redaction rules YAML file"
           }
         }
       },
@@ -3066,27 +3066,27 @@
           "writesOutput": true
         },
         "properties": {
-          "filterByIDs": {
+          "filter_by_ids": {
             "type": "boolean",
-            "title": "Filtrer etter ID-er",
-            "description": "Når sann filtreres tekstenheter etter ID; når usann filtreres de etter målspråk",
+            "title": "Filter by IDs",
+            "description": "When true filter blocks by ID; when false filter by target locale",
             "default": true
           },
-          "removeBlockIfEmpty": {
+          "remove_block_if_empty": {
             "type": "boolean",
-            "title": "Fjern tomme tekstenheter",
-            "description": "Fjern tekstenheten helt hvis den ikke har gjenværende mål etter fjerning",
+            "title": "Remove Empty Blocks",
+            "description": "Remove the block entirely if it has no remaining targets after removal",
             "default": false
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
-            "title": "Målspråk",
-            "description": "Målspråk som skal fjernes (hvis tomt fjernes alle mål)"
+            "title": "Target Locale",
+            "description": "Target locale to remove (if empty all targets are removed)"
           },
-          "textUnitIDs": {
+          "text_unit_ids": {
             "type": "string",
-            "title": "Tekstenhet-ID-er for fjerning",
-            "description": "Kommaseparert liste over tekstenhets-IDer hvis mål skal fjernes; tom fjerner alle mål"
+            "title": "Block IDs for Removal",
+            "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
           }
         }
       },
@@ -3205,16 +3205,16 @@
             "label": "Leverandør",
             "fields": [
               "provider",
-              "apiKey",
+              "api_key",
               "model"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for KI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
           "model": {
             "type": "string",
@@ -3328,10 +3328,10 @@
           "writesOutput": true
         },
         "properties": {
-          "allowSourceMutation": {
+          "allow_source_mutation": {
             "type": "boolean",
-            "title": "Tillat kildemutasjon",
-            "description": "Tillat at skriptet endrer kildeteksten (av som standard; kilden er skrivebeskyttet)",
+            "title": "Allow Source Mutation",
+            "description": "Permit the script to modify the source text (off by default; source is read-only)",
             "default": false
           },
           "code": {
@@ -3344,10 +3344,10 @@
               "eq": "inline"
             }
           },
-          "scriptFile": {
+          "script_file": {
             "type": "string",
-            "title": "Skriptfil",
-            "description": "Bane til en .js-fil",
+            "title": "Script File",
+            "description": "Path to a .js file",
             "ui:widget": "file-picker",
             "ui:visible": {
               "field": "source",
@@ -3458,34 +3458,34 @@
           "writesOutput": true
         },
         "properties": {
-          "dotAll": {
+          "dot_all": {
             "type": "boolean",
-            "title": "Punktum matcher også linjeskift",
-            "description": "Få punktumtegnet til å samsvare med alle tegn, inkludert linjeskift",
+            "title": "Dot Also Matches Line-Feed",
+            "description": "Make the period character match every character including line-feed",
             "default": false
           },
-          "ignoreCase": {
+          "ignore_case": {
             "type": "boolean",
-            "title": "Ignorer forskjeller i store/små bokstaver",
-            "description": "Ignorer store/små bokstaver ved matching av søkemønstre",
+            "title": "Ignore Case Differences",
+            "description": "Ignore case when matching search patterns",
             "default": false
           },
-          "multiLine": {
+          "multi_line": {
             "type": "boolean",
-            "title": "Flerlinjemodus",
-            "description": "Gjør at ^ og $ samsvarer ved begynnelsen og slutten av hver linje",
+            "title": "Multiline Mode",
+            "description": "Make ^ and $ match at the beginning and end of each line",
             "default": false
           },
-          "regEx": {
+          "regex": {
             "type": "boolean",
-            "title": "Bruk regulære uttrykk",
-            "description": "Aktiver modus for regulære uttrykk for alle søkemønstre",
+            "title": "Use Regular Expressions",
+            "description": "Enable regular expression mode for all search patterns",
             "default": false
           },
-          "replaceAll": {
+          "replace_all": {
             "type": "boolean",
-            "title": "Erstatt alle forekomster",
-            "description": "Erstatt alle treff i stedet for bare det første",
+            "title": "Replace All Instances",
+            "description": "Replace all matches instead of only the first",
             "default": true
           },
           "source": {
@@ -3631,15 +3631,15 @@
             "fields": [
               "engine",
               "layer",
-              "segmentSource",
-              "segmentTarget"
+              "segment_source",
+              "segment_target"
             ]
           },
           {
             "id": "srx",
             "label": "Regelbasert (hybrid SRX/UAX-29)",
             "fields": [
-              "rulesPath"
+              "rules_path"
             ],
             "ui:visible": {
               "field": "engine",
@@ -3654,7 +3654,7 @@
               "model",
               "credential",
               "instruction",
-              "maxChunkRunes"
+              "max_chunk_runes"
             ],
             "ui:visible": {
               "field": "engine",
@@ -3667,11 +3667,11 @@
             "collapsible": true,
             "collapsed": true,
             "fields": [
-              "overwriteSegmentation",
-              "treatIsolatedCodesAsWhitespace",
-              "trimLeadingWhitespace",
-              "trimTrailingWhitespace",
-              "renumberCodes"
+              "overwrite_segmentation",
+              "treat_isolated_codes_as_whitespace",
+              "trim_leading_whitespace",
+              "trim_trailing_whitespace",
+              "renumber_codes"
             ]
           }
         ],
@@ -3723,10 +3723,10 @@
             "description": "Navn på segmenteringsoverleggslag; tomt bruker motorens naturlige lag",
             "ui:order": 10
           },
-          "maxChunkRunes": {
+          "max_chunk_runes": {
             "type": "integer",
-            "title": "Maks segmentstørrelse",
-            "description": "Myk øvre grense for del-størrelse i tegn (0 = modellstandard)",
+            "title": "Max Chunk Size",
+            "description": "Soft upper bound on chunk size in characters (0 = model default)",
             "minimum": 0,
             "ui:order": 50
           },
@@ -3736,10 +3736,10 @@
             "description": "Modellnavn",
             "ui:order": 20
           },
-          "overwriteSegmentation": {
+          "overwrite_segmentation": {
             "type": "boolean",
-            "title": "Overskriv eksisterende segmentering",
-            "description": "Segmenter allerede segmenterte blokker på nytt og erstatt tidligere segmentering",
+            "title": "Overwrite Existing Segmentation",
+            "description": "Re-segment already-segmented blocks replacing previous segmentation",
             "default": false,
             "ui:order": 10
           },
@@ -3749,52 +3749,52 @@
             "description": "AI-leverandør-ID (anthropic",
             "ui:order": 10
           },
-          "renumberCodes": {
+          "renumber_codes": {
             "type": "boolean",
-            "title": "Nummerer kode-ID-er på nytt",
-            "description": "Omnummerer innebygde kode-ID-er ved materialisering av segmenter til et tospråklig format",
+            "title": "Renumber Code IDs",
+            "description": "Renumber inline code IDs when materializing segments to a bilingual format",
             "default": false,
             "ui:order": 50
           },
-          "rulesPath": {
+          "rules_path": {
             "type": "string",
-            "title": "SRX-regelfil",
-            "description": "Bane til en egendefinert SRX 2.0-regelfil (overstyrer det innebygde regelsettet)",
+            "title": "SRX Rules File",
+            "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
             "ui:widget": "file-picker",
             "ui:order": 10
           },
-          "segmentSource": {
+          "segment_source": {
             "type": "boolean",
-            "title": "Segmenter kildetekst",
-            "description": "Segmenter kildeteksten",
+            "title": "Segment Source Text",
+            "description": "Segment the source text",
             "default": true,
             "ui:order": 20
           },
-          "segmentTarget": {
+          "segment_target": {
             "type": "boolean",
-            "title": "Segmenter måltekst",
-            "description": "Segmenter eksisterende måltekst",
+            "title": "Segment Target Text",
+            "description": "Segment existing target text",
             "default": false,
             "ui:order": 30
           },
-          "treatIsolatedCodesAsWhitespace": {
+          "treat_isolated_codes_as_whitespace": {
             "type": "boolean",
-            "title": "Behandle isolerte koder som mellomrom",
-            "description": "Behandle isolerte innebygde koder som mellomrom under segmentering",
+            "title": "Treat Isolated Codes as Whitespace",
+            "description": "Treat isolated inline codes as whitespace during segmentation",
             "default": false,
             "ui:order": 20
           },
-          "trimLeadingWhitespace": {
+          "trim_leading_whitespace": {
             "type": "boolean",
-            "title": "Fjern innledende mellomrom",
-            "description": "Ekskluder innledende mellomrom fra hvert segmentspenn",
+            "title": "Trim Leading Whitespace",
+            "description": "Exclude leading whitespace from each segment span",
             "default": true,
             "ui:order": 30
           },
-          "trimTrailingWhitespace": {
+          "trim_trailing_whitespace": {
             "type": "boolean",
-            "title": "Fjern etterfølgende mellomrom",
-            "description": "Utelat etterfølgende mellomrom fra hvert segmentspenn",
+            "title": "Trim Trailing Whitespace",
+            "description": "Exclude trailing whitespace from each segment span",
             "default": true,
             "ui:order": 40
           }
@@ -4055,10 +4055,10 @@
           ]
         },
         "properties": {
-          "caseSensitive": {
+          "case_sensitive": {
             "type": "boolean",
-            "title": "Skiller mellom store og små bokstaver",
-            "description": "Om termsamsvar skiller mellom store og små bokstaver",
+            "title": "Case Sensitive",
+            "description": "Whether term matching is case-sensitive",
             "default": false
           }
         }
@@ -4155,7 +4155,7 @@
             "fields": [
               "engine",
               "provider",
-              "apiKey",
+              "api_key",
               "model",
               "batching"
             ]
@@ -4167,20 +4167,20 @@
               "instruction",
               "reuse",
               "context",
-              "contextWindow"
+              "context_window"
             ]
           }
         ],
         "properties": {
-          "apiKey": {
+          "api_key": {
             "type": "string",
-            "title": "API-nøkkel",
-            "description": "API-nøkkel for AI-leverandøren"
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
-          "batchConcurrency": {
+          "batch_concurrency": {
             "type": "integer",
-            "title": "Batch-samtidighet",
-            "description": "Antall samtidige batchkall (0 eller 1 = sekvensielt)",
+            "title": "Batch Concurrency",
+            "description": "Number of concurrent batch calls (0 or 1 = sequential)",
             "default": 1,
             "minimum": 1
           },
@@ -4220,10 +4220,10 @@
               }
             ]
           },
-          "contextWindow": {
+          "context_window": {
             "type": "integer",
-            "title": "Kontekstvindu",
-            "description": "Blokker på hver side som sendes som referanse (med kontekst: naboer)",
+            "title": "Context Window",
+            "description": "Blocks either side to send as reference (with context: neighbours)",
             "default": 2,
             "minimum": 1,
             "maximum": 10
@@ -4359,10 +4359,10 @@
               }
             ]
           },
-          "skipMatched": {
+          "skip_matched": {
             "type": "boolean",
-            "title": "Hopp over treff",
-            "description": "Hopp over blokker som allerede har en måloversettelse",
+            "title": "Skip Matched",
+            "description": "Skip blocks that already have a target translation",
             "default": false
           }
         }
@@ -4649,91 +4649,91 @@
             "id": "punctuation",
             "label": "Tegnsetting",
             "fields": [
-              "correctFullStop",
-              "correctComma",
-              "correctExclamation",
-              "correctQuestion"
+              "correct_full_stop",
+              "correct_comma",
+              "correct_exclamation",
+              "correct_question"
             ]
           },
           {
             "id": "whitespace-types",
             "label": "Mellomromtyper",
             "fields": [
-              "includeVerticalWS",
-              "includeHorizontalWS"
+              "include_vertical_ws",
+              "include_horizontal_ws"
             ]
           }
         ],
         "properties": {
-          "correctComma": {
+          "correct_comma": {
             "type": "boolean",
-            "title": "Komma",
-            "description": "Korriger mellomrom etter kommaer",
+            "title": "Comma",
+            "description": "Correct whitespace after commas",
             "default": true
           },
-          "correctExclamation": {
+          "correct_exclamation": {
             "type": "boolean",
-            "title": "Utropstegn",
-            "description": "Korriger mellomrom etter utropstegn",
+            "title": "Exclamation Point",
+            "description": "Correct whitespace after exclamation marks",
             "default": true
           },
-          "correctFullStop": {
+          "correct_full_stop": {
             "type": "boolean",
-            "title": "Punktum",
-            "description": "Korriger mellomrom etter punktum",
+            "title": "Full Stop",
+            "description": "Correct whitespace after full stops (periods)",
             "default": true
           },
-          "correctQuestion": {
+          "correct_question": {
             "type": "boolean",
-            "title": "Spørsmålstegn",
-            "description": "Korriger mellomrom etter spørsmålstegn",
+            "title": "Question Mark",
+            "description": "Correct whitespace after question marks",
             "default": true
           },
-          "includeHorizontalWS": {
+          "include_horizontal_ws": {
             "type": "boolean",
-            "title": "Horisontale tabulatorer",
-            "description": "Inkluder horisontale tabulatortegn i rettelser",
+            "title": "Horizontal Tabs",
+            "description": "Include horizontal tab characters in corrections",
             "default": true
           },
-          "includeVerticalWS": {
+          "include_vertical_ws": {
             "type": "boolean",
-            "title": "Vertikalt mellomrom",
-            "description": "Inkluder vertikale mellomrom (linjeskift og vognretur) i rettelsene",
+            "title": "Vertical White Space",
+            "description": "Include vertical whitespace (line feeds and carriage returns) in corrections",
             "default": true
           },
-          "matchSourceWhitespace": {
+          "match_source_whitespace": {
             "type": "boolean",
-            "title": "Samsvar med kildehvitrom",
-            "description": "Kopier innledende/avsluttende mellomrom fra kilde til mål",
+            "title": "Match Source Whitespace",
+            "description": "Copy source leading/trailing whitespace to target",
             "default": true
           },
-          "normalizeSpaces": {
+          "normalize_spaces": {
             "type": "boolean",
-            "title": "Normaliser mellomrom",
-            "description": "Slå sammen flere mellomrom til ett enkelt mellomrom",
+            "title": "Normalize Spaces",
+            "description": "Collapse multiple spaces to a single space",
             "default": true
           },
-          "removeZeroWidthChars": {
+          "remove_zero_width_chars": {
             "type": "boolean",
-            "title": "Fjern tegn med null bredde",
-            "description": "Fjern mellomrom med nullbredde og sammenbindere",
+            "title": "Remove Zero-Width Characters",
+            "description": "Remove zero-width spaces and joiners",
             "default": true
           },
-          "targetLocale": {
+          "target_locale": {
             "type": "string",
-            "title": "Målspråk",
-            "description": "Målspråk for behandling"
+            "title": "Target Locale",
+            "description": "Target locale for processing"
           },
-          "trimLeading": {
+          "trim_leading": {
             "type": "boolean",
-            "title": "Fjern ledende mellomrom",
-            "description": "Fjern innledende mellomrom fra måltekst",
+            "title": "Trim Leading Whitespace",
+            "description": "Remove leading whitespace from target text",
             "default": false
           },
-          "trimTrailing": {
+          "trim_trailing": {
             "type": "boolean",
-            "title": "Fjern etterfølgende mellomrom",
-            "description": "Fjern etterfølgende mellomrom fra målteksten",
+            "title": "Trim Trailing Whitespace",
+            "description": "Remove trailing whitespace from target text",
             "default": false
           }
         }
@@ -4857,16 +4857,16 @@
           ]
         },
         "properties": {
-          "checkSource": {
+          "check_source": {
             "type": "boolean",
-            "title": "Kontroller kilde",
-            "description": "Valider kildetekst for XML-velformerthet",
+            "title": "Check Source",
+            "description": "Validate source text for XML well-formedness",
             "default": true
           },
-          "checkTarget": {
+          "check_target": {
             "type": "boolean",
-            "title": "Kontroller mål",
-            "description": "Valider måltekst for XML-velformethet",
+            "title": "Check Target",
+            "description": "Validate target text for XML well-formedness",
             "default": false
           },
           "locale": {
@@ -4878,10 +4878,10 @@
               "empty": false
             }
           },
-          "wrapRoot": {
+          "wrap_root": {
             "type": "boolean",
-            "title": "Pakk inn i rotelement",
-            "description": "Pakk tekst inn i et rotelement før validering",
+            "title": "Wrap in Root Element",
+            "description": "Wrap text in a root element before validating",
             "default": true
           }
         }

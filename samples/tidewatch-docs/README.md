@@ -63,8 +63,8 @@ front-matter key is configuration and is left alone.
 format:
   name: markdown
   config:
-    translateFrontMatter: true
-    frontMatterKeys: [title, description, sidebar_label]
+    translate_front_matter: true
+    front_matter_keys: [title, description, sidebar_label]
 ```
 
 The target path is Docusaurus's own default translation path, so there is no copy

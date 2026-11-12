@@ -143,23 +143,8 @@ func ReadAllSchemaFlags(cmd *cobra.Command, s *schema.ComponentSchema) map[strin
 	return result
 }
 
-// toKebabCase converts a camelCase name to kebab-case for CLI flags.
-// "fuzzyThreshold" -> "fuzzy-threshold"
-// "applyTarget" -> "apply-target"
+// toKebabCase spells a config key as a CLI flag name:
+// "fuzzy_threshold" -> "fuzzy-threshold", "text_unit_ids" -> "text-unit-ids".
 func toKebabCase(s string) string {
-	if s == "" {
-		return s
-	}
-	var result []rune
-	for i, r := range s {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result = append(result, '-')
-		}
-		if r >= 'A' && r <= 'Z' {
-			result = append(result, r+('a'-'A'))
-		} else {
-			result = append(result, r)
-		}
-	}
-	return string(result)
+	return strings.ReplaceAll(schema.SnakeCase(s), "_", "-")
 }

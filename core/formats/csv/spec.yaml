@@ -27,9 +27,9 @@
 #     parity contract is "same semantic config → same results", not
 #     "same defaults"). Spec assertions reflect native behavior — the
 #     authoritative neokapi contract.
-#   - The native reader uses neokapi-style camelCase config keys
-#     (`separator`, `hasHeader`, `translatableColumns`, `keyColumns`,
-#     `commentColumns`) while the upstream Okapi filter uses
+#   - The native reader uses snake_case config keys
+#     (`separator`, `has_header`, `translatable_columns`, `key_columns`,
+#     `comment_columns`) while the upstream Okapi filter uses
 #     `fieldDelimiter`, `columnNamesLineNum`, `sourceColumns`, etc.
 #     The `okapi_param:` field on each ConfigKey records the upstream
 #     name for drift detection. Examples that set an EXPLICIT config
@@ -37,8 +37,8 @@
 #     (okapi-bridge/parity/formats/csv_bridge_config.go) translates the
 #     neokapi-keyed config into a single Okapi ParametersString
 #     (`fprmContent`) blob the upstream filter loads via fromString,
-#     so a tab/semicolon delimiter, hasHeader=false, translatableColumns,
-#     keyColumns, commentColumns, etc. all produce identical Blocks on
+#     so a tab/semicolon delimiter, has_header=false, translatable_columns,
+#     key_columns, comment_columns, etc. all produce identical Blocks on
 #     both sides.
 
 format: okf_commaseparatedvalues
@@ -76,10 +76,10 @@ description: |
   path and is byte-exact: there the header is emitted as a `header-row`
   Data part and only translatable cells become Blocks.
 
-  Configuration knobs cover header detection (`hasHeader`,
-  `columnNamesRow`, `valuesStartRow`), per-column roles
-  (`translatableColumns` for source-only extraction, `keyColumns` for
-  composite block IDs, `commentColumns` for translator-note
+  Configuration knobs cover header detection (`has_header`,
+  `column_names_row`, `values_start_row`), per-column roles
+  (`translatable_columns` for source-only extraction, `key_columns` for
+  composite block IDs, `comment_columns` for translator-note
   metadata), and the active delimiter / quote characters.
 
 config:
@@ -93,7 +93,7 @@ config:
       separator is the only config knob distinguishing them.
     okapi_param: fieldDelimiter
 
-  - key: textQualifier
+  - key: text_qualifier
     type: string
     default: "\""
     description: |
@@ -104,7 +104,7 @@ config:
     okapi_param: textQualifier
 
   # ── Header / start-of-data ────────────────────────────────────────
-  - key: hasHeader
+  - key: has_header
     type: boolean
     default: true
     description: |
@@ -113,28 +113,28 @@ config:
       on the next row. When false every row is a data row.
     okapi_param: columnNamesLineNum
 
-  - key: columnNamesRow
+  - key: column_names_row
     type: int
     default: 0
     description: |
       1-based row number that contains column names. Default 0 means
-      "auto: row 1 when hasHeader is true". Set explicitly when one
+      "auto: row 1 when has_header is true". Set explicitly when one
       or more preamble rows precede the header (each preamble row is
       emitted as Data with name `preamble-rowN`).
     okapi_param: columnNamesLineNum
 
-  - key: valuesStartRow
+  - key: values_start_row
     type: int
     default: 0
     description: |
       1-based row number where data values begin. Default 0 means
-      "auto: row after the header row, or row 1 when hasHeader is
+      "auto: row after the header row, or row 1 when has_header is
       false". Set explicitly to skip additional comment / preamble
       rows after the header.
     okapi_param: valuesStartLineNum
 
   # ── Per-column roles ──────────────────────────────────────────────
-  - key: translatableColumns
+  - key: translatable_columns
     type: string_list
     default: []
     description: |
@@ -143,7 +143,7 @@ config:
       non-listed columns are emitted as Data.
     okapi_param: sourceColumns
 
-  - key: keyColumns
+  - key: key_columns
     type: string_list
     default: []
     description: |
@@ -153,7 +153,7 @@ config:
       ID'd by sequential `tu1`, `tu2`, … numbering.
     okapi_param: sourceIdColumns
 
-  - key: commentColumns
+  - key: comment_columns
     type: string_list
     default: []
     description: |
@@ -163,7 +163,7 @@ config:
     okapi_param: commentColumns
 
   # ── Whitespace / output ───────────────────────────────────────────
-  - key: trimValues
+  - key: trim_values
     type: boolean
     default: false
     description: |
@@ -286,11 +286,11 @@ features:
         origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/csv_test2.txt — single row with empty fields at positions 1, 3 and 4"
         input_file: okapi:okapi/filters/table/src/test/resources/csv_test2.txt
         # csv_test2.txt is a single row with empty fields. Pinning
-        # hasHeader: true makes the first row the header → 0 data Blocks
+        # has_header: true makes the first row the header → 0 data Blocks
         # expected on both sides. Bridge has a known edge-case for
         # header-only files: it still emits 1 block (#533).
         config:
-          hasHeader: true
+          has_header: true
         expected_fail: |
           bridge edge-case (#533) — for header-only single-line files
           the bridge emits 1 spurious Block even with sendHeaderMode=0;
@@ -440,19 +440,19 @@ features:
 
   # ── No header row ─────────────────────────────────────────────────
   - id: no_header_row
-    name: hasHeader=false treats the first row as data
+    name: has_header=false treats the first row as data
     description: |
-      With `hasHeader=false` no row is reserved for column names;
+      With `has_header=false` no row is reserved for column names;
       every row contributes Blocks. Block names fall back to
       positional `colN.rowM` form (instead of `<header>.rowM`).
     spec_refs:
       - "RFC 4180 §2.3 — There maybe an optional header line appearing as the first line (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
     examples:
       - name: two_rows_no_header
-        origin: "authored: hasHeader=false — first row is data, not header"
+        origin: "authored: has_header=false — first row is data, not header"
         input_xml: "Widget,A useful widget\nGadget,A cool gadget\n"
         config:
-          hasHeader: false
+          has_header: false
         block_count: 4
         block_texts:
           - "Widget"
@@ -465,11 +465,11 @@ features:
       - csv.TestReadNoHeader
       - csv.TestCSV_BlockNamesWithoutHeaders
 
-  # ── Per-column extraction (translatableColumns) ───────────────────
+  # ── Per-column extraction (translatable_columns) ───────────────────
   - id: column_selection
-    name: translatableColumns restricts extraction to listed columns
+    name: translatable_columns restricts extraction to listed columns
     description: |
-      When `translatableColumns` is non-empty, only cells in the
+      When `translatable_columns` is non-empty, only cells in the
       listed (0-based) column indices are extracted as Blocks; cells
       in other columns are emitted as Data. Lets a single CSV file
       carry source / target / metadata columns in arbitrary positions
@@ -479,7 +479,7 @@ features:
         origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/CSVTest_96.txt — 3-column source/target/data; only column 0 translatable"
         input_file: okapi:okapi/filters/table/src/test/resources/CSVTest_96.txt
         config:
-          translatableColumns: [0]
+          translatable_columns: [0]
         block_count: 2
         block_texts:
           - "Source text 1"
@@ -491,7 +491,7 @@ features:
         origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/CSVTest_97.txt — two source/target column pairs"
         input_file: okapi:okapi/filters/table/src/test/resources/CSVTest_97.txt
         config:
-          translatableColumns: [0, 3]
+          translatable_columns: [0, 3]
         block_count: 4
         has_block_with_text:
           - "Source text 1"
@@ -513,9 +513,9 @@ features:
 
   # ── Per-column key (block ID composition) ─────────────────────────
   - id: key_columns
-    name: keyColumns compose Block IDs from row data
+    name: key_columns compose Block IDs from row data
     description: |
-      0-based column indices listed in `keyColumns` contribute their
+      0-based column indices listed in `key_columns` contribute their
       cell values (joined by `.`) as the row's Block ID; cells in
       key columns are not themselves extracted as Blocks. Multiple
       key columns concatenate in spec order. Lets content memory
@@ -526,8 +526,8 @@ features:
         origin: "authored: id column → Block ID; value column → Block source"
         input_xml: "id,value\n01,one\n02,two\n03,three\n"
         config:
-          translatableColumns: [1]
-          keyColumns: [0]
+          translatable_columns: [1]
+          key_columns: [0]
         block_count: 3
         block_texts:
           - "one"
@@ -541,8 +541,8 @@ features:
         origin: "authored: two key columns concatenate with `.` separator"
         input_xml: "group,key,text\nui,btn.save,Save\nui,btn.cancel,Cancel\n"
         config:
-          translatableColumns: [2]
-          keyColumns: [0, 1]
+          translatable_columns: [2]
+          key_columns: [0, 1]
         block_count: 2
         block_texts:
           - "Save"
@@ -561,11 +561,11 @@ features:
 
   # ── Comment columns ───────────────────────────────────────────────
   - id: comment_columns
-    name: commentColumns attach metadata, not Blocks
+    name: comment_columns attach metadata, not Blocks
     description: |
-      0-based column indices listed in `commentColumns` contribute
+      0-based column indices listed in `comment_columns` contribute
       their cell values (joined by `; `) as the row's Block
-      `comment` property. Like keyColumns, cells in comment columns
+      `comment` property. Like key_columns, cells in comment columns
       are not themselves extracted as Blocks — they're metadata
       attached to the surrounding row's translatable Blocks.
     examples:
@@ -573,8 +573,8 @@ features:
         origin: "authored: 3-column source/comment/value with comment column 1"
         input_xml: "source,note,extra\nHello,greeting note,world\nGoodbye,farewell note,everyone\n"
         config:
-          translatableColumns: [0, 2]
-          commentColumns: [1]
+          translatable_columns: [0, 2]
+          comment_columns: [1]
         block_count: 4
         block_texts:
           - "Hello"

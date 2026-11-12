@@ -9,7 +9,7 @@ import (
 
 // TestSchemaMatchesApplyMap verifies that every flat parameter accepted by
 // ApplyMap has a corresponding entry in the schema's FlatProperties, and
-// vice versa. The schema uses a hierarchical structure (e.g., parser.preserveWhitespace)
+// vice versa. The schema uses a hierarchical structure (e.g., parser.preserve_whitespace)
 // that maps to flat ApplyMap keys via x-flattenPath.
 func TestSchemaMatchesApplyMap(t *testing.T) {
 	cfg := &Config{}
@@ -17,16 +17,16 @@ func TestSchemaMatchesApplyMap(t *testing.T) {
 	s := cfg.Schema()
 	require.NotNil(t, s)
 
-	// All flat parameter names accepted by the config. "preserveWhitespace"
+	// All flat parameter names accepted by the config. "preserve_whitespace"
 	// lives under the "parser" section but its flat name is still used here
 	// because the schema uses x-flattenPath to map it.
 	applyMapKeys := map[string]bool{
-		"preserveWhitespace":            true,
-		"extractNonTranslatableContent": true,
-		"useCodeFinder":                 true,
-		"codeFinderRules":               true,
-		"elements":                      true,
-		"attributes":                    true,
+		"preserve_whitespace":              true,
+		"extract_non_translatable_content": true,
+		"use_code_finder":                  true,
+		"code_finder_rules":                true,
+		"elements":                         true,
+		"attributes":                       true,
 	}
 
 	// Build flat properties the same way SchemaRegistry.RegisterSchema does.
@@ -67,7 +67,7 @@ func TestApplyMapHierarchicalParser(t *testing.T) {
 	// Bridge-style hierarchical params.
 	err := cfg.ApplyMap(map[string]any{
 		"parser": map[string]any{
-			"preserveWhitespace": true,
+			"preserve_whitespace": true,
 		},
 	})
 	require.NoError(t, err)

@@ -22,7 +22,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extractNonStrings", "keyPathPatterns",
+					"extract_non_strings", "key_path_patterns",
 				},
 			},
 			{
@@ -36,18 +36,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractNonStrings": schema.Prop(coreschema.PropertySchema{
+			"extract_non_strings": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Extract Non-String Values",
 				Description: "Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks",
 			}),
-			"keyPathPatterns": schema.Prop(coreschema.PropertySchema{
+			"key_path_patterns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Key Path Patterns",
 				Description: "When non-empty, only keys matching one of these glob patterns are extracted. Supports * (single key) and ** (any depth).",
@@ -57,18 +57,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Subfilter Format",
 				Description: "Sub-filter to apply to scalar values (e.g., 'html' to process HTML within YAML values)",
 			}),
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable Inline Code Detection",
 				Description: "Enable regex-based inline code detection within string values",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code Finder Rules",
 				Description: "Regex patterns that match inline codes within translatable text",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

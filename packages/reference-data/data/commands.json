@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T16:17:29Z",
+  "generatedAt": "2026-11-12T17:39:19Z",
   "commands": [
     {
       "id": "add",
@@ -3575,7 +3575,7 @@
           "type": "bool"
         },
         {
-          "name": "filter-by-i-ds",
+          "name": "filter-by-ids",
           "usage": "When true filter blocks by ID; when false filter by target locale",
           "default": "true",
           "type": "bool"
@@ -3674,7 +3674,7 @@
           "type": "string"
         },
         {
-          "name": "text-unit-i-ds",
+          "name": "text-unit-ids",
           "usage": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets",
           "type": "string"
         },
@@ -4103,7 +4103,7 @@
           "type": "string"
         },
         {
-          "name": "reg-ex",
+          "name": "regex",
           "usage": "Enable regular expression mode for all search patterns",
           "default": "false",
           "type": "bool"
@@ -5388,13 +5388,13 @@
           "type": "string"
         },
         {
-          "name": "include-horizontal-w-s",
+          "name": "include-horizontal-ws",
           "usage": "Include horizontal tab characters in corrections",
           "default": "true",
           "type": "bool"
         },
         {
-          "name": "include-vertical-w-s",
+          "name": "include-vertical-ws",
           "usage": "Include vertical whitespace (line feeds and carriage returns) in corrections",
           "default": "true",
           "type": "bool"

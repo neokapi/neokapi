@@ -128,13 +128,13 @@ func (s *server) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.Shutdow
 
 // Segment runs the SaT model over the request text and returns the interior
 // sentence-break offsets (rune indices). The model name and boundary threshold
-// ride in params (satModel / threshold), matching the engine's segment schema.
+// ride in params (sat_model / threshold), matching the engine's segment schema.
 func (s *server) Segment(_ context.Context, req *pb.SegmentRequest) (*pb.SegmentResponse, error) {
 	if s.engine == nil {
 		return &pb.SegmentResponse{Error: fmt.Sprintf("engine unavailable: %v", s.initErr)}, nil
 	}
 	params := req.GetParams()
-	modelName := params["satModel"]
+	modelName := params["sat_model"]
 	var threshold float64
 	if t := params["threshold"]; t != "" {
 		threshold, _ = strconv.ParseFloat(t, 64)

@@ -229,7 +229,7 @@ func (p *preReview) group(ctx context.Context, units []VerifyUnit, file, locale 
 func (p *preReview) reviewTool(ctx context.Context, ref UnitRef, file string) ([]tool.Tool, string, func(), error) {
 	noop := func() {}
 	const name = "review"
-	cfg, release, err := p.app.ToolConfigForUnit(ctx, p.proj, p.recipe, name, ref, map[string]any{"sourceLocale": p.source})
+	cfg, release, err := p.app.ToolConfigForUnit(ctx, p.proj, p.recipe, name, ref, map[string]any{"source_locale": p.source})
 	if err != nil {
 		return nil, "", noop, err
 	}

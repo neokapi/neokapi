@@ -1528,7 +1528,7 @@ func runFlagToolConfig(cmd Command) map[string]any {
 		}
 	}
 	if v, _ := cmd.Flags().GetString("api-key"); v != "" {
-		config["apiKey"] = v
+		config["api_key"] = v
 	}
 	if v, _ := cmd.Flags().GetString("model"); v != "" {
 		config["model"] = v
@@ -2479,7 +2479,7 @@ func (a *App) flowRedactionPolicy() project.ResolvedRedaction {
 // applyFlowRedaction gives a project flow's redact step the redaction policy
 // that governs the files its chain is built for (flowRedactionPolicy). The
 // step detects with its own detectors and the policy's together. A step that
-// names no rules of its own (no rulesPath, no rules) takes the policy's rules
+// names no rules of its own (no rules_path, no rules) takes the policy's rules
 // file; one that names rules keeps them. Every other step is returned as it
 // is. A rule-less step under a policy with no rules file and no entity
 // detection would withhold nothing, so it is refused.
@@ -2517,7 +2517,7 @@ func (a *App) applyFlowRedaction(toolName string, config map[string]any, rCtx *f
 	}
 	out["detectors"] = detectors
 	if !ownRules && rcfg.RulesPath != "" {
-		out["rulesPath"] = rcfg.RulesPath
+		out["rules_path"] = rcfg.RulesPath
 	}
 	if rcfg.Placeholder != "" {
 		if _, set := config["placeholder"]; !set {
@@ -2549,9 +2549,9 @@ func stepDetectors(config map[string]any) []string {
 }
 
 // stepNamesRedactRules reports whether a redact step's config names rules of
-// its own: a rulesPath or inline rules.
+// its own: a rules_path or inline rules.
 func stepNamesRedactRules(config map[string]any) bool {
-	if p, ok := config["rulesPath"].(string); ok && p != "" {
+	if p, ok := config["rules_path"].(string); ok && p != "" {
 		return true
 	}
 	switch rules := config["rules"].(type) {

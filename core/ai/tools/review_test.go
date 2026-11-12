@@ -286,11 +286,11 @@ func TestAIReviewTool_JudgesAgainstTheGovernance(t *testing.T) {
 // leave the judge scoring a bare pair again.
 func TestAIReviewFromConfig_TakesTheProfileHandle(t *testing.T) {
 	cfg := map[string]any{
-		"sourceLocale": string(model.LocaleEnglish),
-		"provider":     "anthropic",
-		"apiKey":       "test-key",
-		"profile":      &profile.VoiceProfile{ID: "house", Name: "House Style", Tone: profile.ToneProfile{Formality: "formal"}},
-		"term_rules":   []profile.TermRule{{Term: "content memory", Replacement: "mémoire de contenu"}},
+		"source_locale": string(model.LocaleEnglish),
+		"provider":      "anthropic",
+		"api_key":       "test-key",
+		"profile":       &profile.VoiceProfile{ID: "house", Name: "House Style", Tone: profile.ToneProfile{Formality: "formal"}},
+		"term_rules":    []profile.TermRule{{Term: "content memory", Replacement: "mémoire de contenu"}},
 	}
 	built, err := tools.NewAIReviewFromConfig(cfg, string(model.LocaleFrench))
 	require.NoError(t, err)

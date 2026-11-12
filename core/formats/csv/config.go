@@ -3,6 +3,7 @@ package csv
 import (
 	"errors"
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"regexp"
 )
 
@@ -127,29 +128,29 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("separator: expected single character, got %q", s)
 			}
 			c.Separator = runes[0]
-		case "textQualifier":
+		case "text_qualifier":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("textQualifier: expected string, got %T", val)
+				return fmt.Errorf("text_qualifier: expected string, got %T", val)
 			}
 			runes := []rune(s)
 			if len(runes) != 1 {
-				return fmt.Errorf("textQualifier: expected single character, got %q", s)
+				return fmt.Errorf("text_qualifier: expected single character, got %q", s)
 			}
 			c.TextQualifier = runes[0]
-		case "hasHeader":
+		case "has_header":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("hasHeader: expected bool, got %T", val)
+				return fmt.Errorf("has_header: expected bool, got %T", val)
 			}
 			c.HasHeader = b
-		case "translatableColumns":
+		case "translatable_columns":
 			cols, err := parseIntSlice(val, key)
 			if err != nil {
 				return err
 			}
 			c.TranslatableColumns = cols
-		case "keyColumns":
+		case "key_columns":
 			cols, err := parseIntSlice(val, key)
 			if err != nil {
 				return err
@@ -176,52 +177,52 @@ func (c *Config) ApplyMap(values map[string]any) error {
 					return fmt.Errorf("columns: unknown role %q (want key, source, target)", role)
 				}
 			}
-		case "commentColumns":
+		case "comment_columns":
 			cols, err := parseIntSlice(val, key)
 			if err != nil {
 				return err
 			}
 			c.CommentColumns = cols
-		case "trimValues":
+		case "trim_values":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("trimValues: expected bool, got %T", val)
+				return fmt.Errorf("trim_values: expected bool, got %T", val)
 			}
 			c.TrimValues = b
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+				return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !b
-		case "valuesStartRow":
+		case "values_start_row":
 			n, err := parseIntValue(val, key)
 			if err != nil {
 				return err
 			}
 			c.ValuesStartRow = n
-		case "columnNamesRow":
+		case "column_names_row":
 			n, err := parseIntValue(val, key)
 			if err != nil {
 				return err
 			}
 			c.ColumnNamesRow = n
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
 			c.compiledCodeFinder = nil
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
 		default:
-			return fmt.Errorf("csv: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "csv", key)
 		}
 	}
 	return nil

@@ -52,39 +52,39 @@ func (okapiCSVTransformer) Transform(spec map[string]any) (map[string]any, error
 
 		case "columnNamesLineNum":
 			if n, err := toInt(val); err == nil {
-				result["columnNamesRow"] = n
+				result["column_names_row"] = n
 				if n > 0 {
-					result["hasHeader"] = true
+					result["has_header"] = true
 				}
 			}
 
 		case "valuesStartLineNum":
 			if n, err := toInt(val); err == nil {
-				result["valuesStartRow"] = n
+				result["values_start_row"] = n
 			}
 
 		case "sourceColumns":
 			cols, err := parseOkapiColumns(val)
 			if err == nil && len(cols) > 0 {
-				result["translatableColumns"] = intsToAny(cols)
+				result["translatable_columns"] = intsToAny(cols)
 			}
 
 		case "sourceIdColumns":
 			cols, err := parseOkapiColumns(val)
 			if err == nil && len(cols) > 0 {
-				result["keyColumns"] = intsToAny(cols)
+				result["key_columns"] = intsToAny(cols)
 			}
 
 		case "commentColumns":
 			cols, err := parseOkapiColumns(val)
 			if err == nil && len(cols) > 0 {
-				result["commentColumns"] = intsToAny(cols)
+				result["comment_columns"] = intsToAny(cols)
 			}
 
 		case "trimMode":
 			s, ok := val.(string)
 			if ok && s != "NONE" && s != "" {
-				result["trimValues"] = true
+				result["trim_values"] = true
 			}
 
 		// Okapi-only params — drop silently

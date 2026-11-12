@@ -77,8 +77,8 @@ while IFS= read -r f; do
   #
   #     mdx:
   #       config:
-  #         translateFrontMatter: true
-  #         frontMatterKeys: [title, description, sidebar_label]
+  #         translate_front_matter: true
+  #         front_matter_keys: [title, description, sidebar_label]
   #
   # Without it the frontmatter passes through verbatim, so every sidebar entry,
   # page title and meta description renders English in the pseudo build and

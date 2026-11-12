@@ -14,12 +14,12 @@ const sampleSchemas: Record<string, ComponentSchema> = {
     type: "object",
     toolMeta: { id: "pseudo-translate", category: "transform" },
     "ui:groups": [
-      { id: "output", label: "Output Format", fields: ["prefix", "suffix", "expansionPercent"] },
+      { id: "output", label: "Output Format", fields: ["prefix", "suffix", "expansion_percent"] },
     ],
     properties: {
       prefix: { type: "string", default: "[", description: "Prefix added to translations" },
       suffix: { type: "string", default: "]", description: "Suffix added to translations" },
-      expansionPercent: {
+      expansion_percent: {
         type: "integer",
         default: 30,
         minimum: 0,
@@ -47,26 +47,26 @@ const sampleSchemas: Record<string, ComponentSchema> = {
         id: "checks",
         label: "Enabled Checks",
         fields: [
-          "checkLeadingWhitespace",
-          "checkTrailingWhitespace",
-          "checkDoubleSpaces",
+          "check_leading_whitespace",
+          "check_trailing_whitespace",
+          "check_double_spaces",
           "checkMissingTranslation",
         ],
       },
-      { id: "codes", label: "Code Checks", fields: ["checkInlineCodes", "checkPatterns"] },
+      { id: "codes", label: "Code Checks", fields: ["checkInlineCodes", "check_patterns"] },
     ],
     properties: {
-      checkLeadingWhitespace: {
+      check_leading_whitespace: {
         type: "boolean",
         default: true,
         description: "Check for leading whitespace mismatches",
       },
-      checkTrailingWhitespace: {
+      check_trailing_whitespace: {
         type: "boolean",
         default: true,
         description: "Check trailing whitespace",
       },
-      checkDoubleSpaces: {
+      check_double_spaces: {
         type: "boolean",
         default: true,
         description: "Flag double spaces in target",
@@ -81,7 +81,7 @@ const sampleSchemas: Record<string, ComponentSchema> = {
         default: true,
         description: "Verify inline codes are preserved",
       },
-      checkPatterns: {
+      check_patterns: {
         type: "boolean",
         default: false,
         description: "Check for pattern mismatches",
@@ -101,10 +101,10 @@ const sampleSchemas: Record<string, ComponentSchema> = {
     properties: {
       search: { type: "string", description: "Search pattern" },
       replace: { type: "string", description: "Replacement text" },
-      regEx: { type: "boolean", default: false, description: "Use regular expressions" },
+      regex: { type: "boolean", default: false, description: "Use regular expressions" },
       target: { type: "boolean", default: true, description: "Apply to target text" },
       source: { type: "boolean", default: false, description: "Apply to source text" },
-      dotAll: { type: "boolean", default: false, description: "Dot matches newlines" },
+      dot_all: { type: "boolean", default: false, description: "Dot matches newlines" },
     },
   },
 };
@@ -124,7 +124,7 @@ const sampleDocs: Record<string, ToolDoc> = {
           "Character(s) prepended to each translated string. Helps identify translated vs untranslated strings in the UI.",
       },
       suffix: { description: "Character(s) appended to each translated string." },
-      expansionPercent: {
+      expansion_percent: {
         description:
           "Percentage to expand text length to simulate longer translations (e.g. German is ~30% longer than English).",
         notes: ["Set to 0 to disable expansion. Values above 100% double the original length."],
@@ -152,7 +152,7 @@ const sampleDocs: Record<string, ToolDoc> = {
     overview:
       "Runs rule-based checks over translations. Detects whitespace mismatches, missing translations, broken inline codes, and pattern inconsistencies between source and target.",
     parameters: {
-      checkLeadingWhitespace: {
+      check_leading_whitespace: {
         description: "Verify that leading whitespace in target matches source.",
       },
       checkInlineCodes: {
@@ -177,7 +177,7 @@ const sampleDocs: Record<string, ToolDoc> = {
       replace: {
         description: "The replacement text. Supports $1, $2 backreferences when regex is enabled.",
       },
-      regEx: {
+      regex: {
         description: "When enabled, the search pattern is treated as a Java regular expression.",
         notes: ["Use \\\\n for newline, \\\\t for tab in regex mode."],
       },
@@ -476,9 +476,9 @@ export const WithConfiguration: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "pseudo-translate", config: { prefix: ">>", suffix: "<<", expansionPercent: 40 } },
-        { tool: "qa", config: { checkLeadingWhitespace: false } },
-        { tool: "search-replace", config: { search: "foo", replace: "bar", regEx: false } },
+        { tool: "pseudo-translate", config: { prefix: ">>", suffix: "<<", expansion_percent: 40 } },
+        { tool: "qa", config: { check_leading_whitespace: false } },
+        { tool: "search-replace", config: { search: "foo", replace: "bar", regex: false } },
       ],
     },
     tools,

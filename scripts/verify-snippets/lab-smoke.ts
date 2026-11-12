@@ -134,7 +134,7 @@ flows:
     steps:
       - tool: script
         config:
-          allowSourceMutation: true
+          allow_source_mutation: true
           code: "if (part.type === 'block') { part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase(); } emit(part);"
 `;
 mem.vol.writeFile("/project/kapi.yaml", enc.encode(SCRIPT_RECIPE));
@@ -175,7 +175,7 @@ flows:
     steps:
       - tool: script
         config:
-          allowSourceMutation: true
+          allow_source_mutation: true
           code: "function process(part) { if (part.type === 'block') { part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase(); } return part; }"
 `;
 mem.vol.writeFile("/project/kapi.yaml", enc.encode(FN_RECIPE));

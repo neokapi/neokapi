@@ -226,7 +226,7 @@ func (w *Writer) collectPart(part *model.Part) error {
 			return errors.New("csv writer: expected Block resource")
 		}
 		// Preamble rows surfaced as non-translatable content blocks
-		// (extractNonTranslatableContent on) rebuild the preamble exactly like
+		// (extract_non_translatable_content on) rebuild the preamble exactly like
 		// the legacy Data path.
 		if !block.Translatable && strings.HasPrefix(block.Name, "preamble-row") {
 			w.preambleRows = append(w.preambleRows, strings.Split(w.blockText(block), string(w.separator)))

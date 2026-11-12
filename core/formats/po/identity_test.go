@@ -297,7 +297,7 @@ msgstr "Ouvrir"
 // a pure identifier and the msgstr carries the source text, so name and content
 // are independent and an edited string keeps its history.
 func TestIdentity_MonolingualEditedTextGradesEdited(t *testing.T) {
-	cfg := map[string]any{"bilingualMode": false}
+	cfg := map[string]any{"bilingual_mode": false}
 	grades := gradePO(t, `msgid "greeting"
 msgstr "Hello"
 `, `msgid "greeting"

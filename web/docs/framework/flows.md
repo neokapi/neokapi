@@ -71,7 +71,7 @@ steps:
   - tool: recycle
     label: Apply memory matches
     config:
-      fuzzyThreshold: 70
+      fuzzy_threshold: 70
   - tool: translate
     label: Translate the rest
     config:
@@ -113,7 +113,7 @@ To run several checks, list them in order:
 ```yaml
 steps:
   - tool: create-target
-    config: { copySource: true }
+    config: { copy_source: true }
   - tool: qa
   - tool: term-check
   - tool: xml-validation
