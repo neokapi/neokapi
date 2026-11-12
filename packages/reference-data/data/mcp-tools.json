@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T17:00:33Z",
+  "generatedAt": "2026-11-12T17:45:07Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -67,13 +67,13 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "applySource",
+          "name": "apply_source",
           "type": "boolean",
           "required": false,
           "description": "Apply to source text"
         },
         {
-          "name": "applyTarget",
+          "name": "apply_target",
           "type": "boolean",
           "required": false,
           "description": "Apply to target text"
@@ -470,13 +470,13 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "copySource",
+          "name": "copy_source",
           "type": "boolean",
           "required": false,
           "description": "Copy the source runs into the new target"
         },
         {
-          "name": "createOnNonTranslatable",
+          "name": "create_on_non_translatable",
           "type": "boolean",
           "required": false,
           "description": "Create a target even for non-translatable blocks"
@@ -494,16 +494,16 @@
           "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
         },
         {
-          "name": "targetLocale",
-          "type": "string",
-          "required": false,
-          "description": "Target locale to create"
-        },
-        {
           "name": "target_lang",
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "target_locale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale to create"
         }
       ]
     },
@@ -557,13 +557,13 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "caseSensitive",
+          "name": "case_sensitive",
           "type": "boolean",
           "required": false,
           "description": "Whether comparison is case-sensitive"
         },
         {
-          "name": "fuzzyMatch",
+          "name": "fuzzy_match",
           "type": "boolean",
           "required": false,
           "description": "Enable fuzzy matching for similar texts"
@@ -600,7 +600,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "caseInsensitive",
+          "name": "case_insensitive",
           "type": "boolean",
           "required": false,
           "description": "Accept a case-folded match in the target instead of requiring exact case"
@@ -662,19 +662,19 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
         },
         {
-          "name": "batchConcurrency",
+          "name": "batch_concurrency",
           "type": "integer",
           "required": false,
           "description": "Number of concurrent batch calls (0 or 1 = sequential)"
         },
         {
-          "name": "batchSize",
+          "name": "batch_size",
           "type": "integer",
           "required": false,
           "description": "Number of blocks per LLM call (0 or 1 = one block per call)"
@@ -686,7 +686,7 @@
           "description": "llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both)"
         },
         {
-          "name": "knownTerms",
+          "name": "known_terms",
           "type": "array",
           "required": false,
           "description": "Terms to exclude from extraction (already in the terms store)"
@@ -735,19 +735,19 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "applySource",
+          "name": "apply_source",
           "type": "boolean",
           "required": false,
           "description": "Apply to the source text"
         },
         {
-          "name": "applyTarget",
+          "name": "apply_target",
           "type": "boolean",
           "required": false,
           "description": "Apply to the target text"
         },
         {
-          "name": "includeNonTranslatable",
+          "name": "include_non_translatable",
           "type": "boolean",
           "required": false,
           "description": "Apply the removal action even to blocks marked as non-translatable"
@@ -759,22 +759,22 @@
           "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
         },
         {
-          "name": "replaceWithSpace",
+          "name": "replace_with_space",
           "type": "boolean",
           "required": false,
           "description": "Replace line-break inline codes with spaces instead of removing them entirely"
-        },
-        {
-          "name": "targetLocale",
-          "type": "string",
-          "required": false,
-          "description": "Target locale for processing"
         },
         {
           "name": "target_lang",
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "target_locale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale for processing"
         }
       ]
     },
@@ -813,7 +813,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
@@ -868,7 +868,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "flagExtra",
+          "name": "flag_extra",
           "type": "boolean",
           "required": false,
           "description": "Report placeholders present in the target but absent from the source"
@@ -899,7 +899,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "expansionPercent",
+          "name": "expansion_percent",
           "type": "integer",
           "required": false,
           "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)"
@@ -973,13 +973,13 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "absoluteMaxCharLength",
+          "name": "absolute_max_char_length",
           "type": "integer",
           "required": false,
           "description": "Maximum number of characters allowed in any target segment"
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
@@ -991,109 +991,109 @@
           "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)"
         },
         {
-          "name": "checkAbsoluteMaxCharLength",
+          "name": "check_absolute_max_char_length",
           "type": "boolean",
           "required": false,
           "description": "Flag target segments that exceed an absolute character count limit"
         },
         {
-          "name": "checkCharset",
+          "name": "check_charset",
           "type": "boolean",
           "required": false,
           "description": "Warn if a target character is not included in the specified character set encoding"
         },
         {
-          "name": "checkCodeDifference",
+          "name": "check_code_difference",
           "type": "boolean",
           "required": false,
           "description": "Verify that target segments have the same inline codes as source segments"
         },
         {
-          "name": "checkCorruptedCharacters",
+          "name": "check_corrupted_characters",
           "type": "boolean",
           "required": false,
           "description": "Check for patterns indicating encoding corruption (mojibake"
         },
         {
-          "name": "checkDoubleSpaces",
+          "name": "check_double_spaces",
           "type": "boolean",
           "required": false,
           "description": "Check for double spaces in target text"
         },
         {
-          "name": "checkDoubledWord",
+          "name": "check_doubled_word",
           "type": "boolean",
           "required": false,
           "description": "Check for consecutive repeated words in target text"
         },
         {
-          "name": "checkEmptySource",
+          "name": "check_empty_source",
           "type": "boolean",
           "required": false,
           "description": "Check for non-empty target when source is empty"
         },
         {
-          "name": "checkEmptyTarget",
+          "name": "check_empty_target",
           "type": "boolean",
           "required": false,
           "description": "Check for empty target when source has content"
         },
         {
-          "name": "checkLeadingWhitespace",
+          "name": "check_leading_whitespace",
           "type": "boolean",
           "required": false,
           "description": "Check for leading whitespace mismatches between source and target"
         },
         {
-          "name": "checkMaxCharLength",
+          "name": "check_max_char_length",
           "type": "boolean",
           "required": false,
           "description": "Flag targets longer than a percentage of source character length"
         },
         {
-          "name": "checkMaxWords",
+          "name": "check_max_words",
           "type": "boolean",
           "required": false,
           "description": "Flag target segments that exceed an absolute limit on the number of words"
         },
         {
-          "name": "checkMinCharLength",
+          "name": "check_min_char_length",
           "type": "boolean",
           "required": false,
           "description": "Flag targets shorter than a percentage of source character length"
         },
         {
-          "name": "checkPatterns",
+          "name": "check_patterns",
           "type": "boolean",
           "required": false,
           "description": "Verify that source patterns have expected corresponding content in the target"
         },
         {
-          "name": "checkSourceInconsistency",
+          "name": "check_source_inconsistency",
           "type": "boolean",
           "required": false,
           "description": "Flag when different source texts share the same translation"
         },
         {
-          "name": "checkSpanConstraints",
+          "name": "check_span_constraints",
           "type": "boolean",
           "required": false,
           "description": "Check non-deletable and non-cloneable span constraint violations"
         },
         {
-          "name": "checkTargetInconsistency",
+          "name": "check_target_inconsistency",
           "type": "boolean",
           "required": false,
           "description": "Flag when the same source text is translated differently across the run"
         },
         {
-          "name": "checkTargetSameAsSource",
+          "name": "check_target_same_as_source",
           "type": "boolean",
           "required": false,
           "description": "Check when target text is identical to source text"
         },
         {
-          "name": "checkTrailingWhitespace",
+          "name": "check_trailing_whitespace",
           "type": "boolean",
           "required": false,
           "description": "Check for trailing whitespace mismatches between source and target"
@@ -1105,61 +1105,61 @@
           "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)"
         },
         {
-          "name": "consistencyCaseSensitive",
+          "name": "consistency_case_sensitive",
           "type": "boolean",
           "required": false,
           "description": "Whether consistency comparison is case-sensitive"
         },
         {
-          "name": "doubledWordExceptions",
+          "name": "doubled_word_exceptions",
           "type": "string",
           "required": false,
           "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)"
         },
         {
-          "name": "forbiddenChars",
+          "name": "forbidden_chars",
           "type": "string",
           "required": false,
           "description": "Characters that must not appear in target text (e.g. {}[])"
         },
         {
-          "name": "maxCharLengthAbove",
+          "name": "max_char_length_above",
           "type": "integer",
           "required": false,
           "description": "Maximum allowed percentage of source length for long text"
         },
         {
-          "name": "maxCharLengthBelow",
+          "name": "max_char_length_below",
           "type": "integer",
           "required": false,
           "description": "Maximum allowed percentage of source length for short text"
         },
         {
-          "name": "maxCharLengthBreak",
+          "name": "max_char_length_break",
           "type": "integer",
           "required": false,
           "description": "Character count above which text is considered long for the maximum length check"
         },
         {
-          "name": "maxWords",
+          "name": "max_words",
           "type": "integer",
           "required": false,
           "description": "Maximum number of words allowed in any target segment"
         },
         {
-          "name": "minCharLengthAbove",
+          "name": "min_char_length_above",
           "type": "integer",
           "required": false,
           "description": "Minimum required percentage of source length for long text"
         },
         {
-          "name": "minCharLengthBelow",
+          "name": "min_char_length_below",
           "type": "integer",
           "required": false,
           "description": "Minimum required percentage of source length for short text"
         },
         {
-          "name": "minCharLengthBreak",
+          "name": "min_char_length_break",
           "type": "integer",
           "required": false,
           "description": "Character count above which text is considered long for the minimum length check"
@@ -1189,34 +1189,34 @@
           "description": "AI provider"
         },
         {
-          "name": "requiredChars",
+          "name": "required_chars",
           "type": "string",
           "required": false,
           "description": "Characters that must appear in target if present in source (e.g. punctuation)"
         },
         {
-          "name": "strictCodeOrder",
+          "name": "strict_code_order",
           "type": "boolean",
           "required": false,
           "description": "Flag differences when codes appear in a different order between source and target"
-        },
-        {
-          "name": "targetSameAsSourceWithCodes",
-          "type": "boolean",
-          "required": false,
-          "description": "Include inline codes when comparing source and target for identity"
-        },
-        {
-          "name": "targetSameAsSourceWithNumbers",
-          "type": "boolean",
-          "required": false,
-          "description": "Include number-only segments in same-as-source comparison"
         },
         {
           "name": "target_lang",
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "target_same_as_source_with_codes",
+          "type": "boolean",
+          "required": false,
+          "description": "Include inline codes when comparing source and target for identity"
+        },
+        {
+          "name": "target_same_as_source_with_numbers",
+          "type": "boolean",
+          "required": false,
+          "description": "Include number-only segments in same-as-source comparison"
         }
       ]
     },
@@ -1275,43 +1275,43 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "downgradeIdenticalBestMatches",
+          "name": "downgrade_identical_best_matches",
           "type": "boolean",
           "required": false,
           "description": "Reduce score by 1%% when multiple identical exact matches are returned"
         },
         {
-          "name": "fillIfTargetIsEmpty",
+          "name": "fill_if_target_is_empty",
           "type": "boolean",
           "required": false,
           "description": "Fill the target only when it has no existing content"
         },
         {
-          "name": "fillTarget",
+          "name": "fill_target",
           "type": "boolean",
           "required": false,
           "description": "Copy the best translation candidate into the target content"
         },
         {
-          "name": "fillTargetThreshold",
+          "name": "fill_target_threshold",
           "type": "integer",
           "required": false,
           "description": "Minimum match score required to fill the target (100 = exact only)"
         },
         {
-          "name": "fuzzyThreshold",
+          "name": "fuzzy_threshold",
           "type": "integer",
           "required": false,
           "description": "Minimum score for a match; the fuzzy path below 100 is retiring"
         },
         {
-          "name": "makeTmx",
+          "name": "make_tmx",
           "type": "boolean",
           "required": false,
           "description": "Create a TMX file with all leveraged matches"
         },
         {
-          "name": "noQueryThreshold",
+          "name": "no_query_threshold",
           "type": "integer",
           "required": false,
           "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)"
@@ -1329,7 +1329,7 @@
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
         },
         {
-          "name": "tmxPath",
+          "name": "tmx_path",
           "type": "string",
           "required": false,
           "description": "File path for the generated TMX document"
@@ -1354,7 +1354,7 @@
           "description": "Detection backends to run: rules and/or entities"
         },
         {
-          "name": "entityTypes",
+          "name": "entity_types",
           "type": "array",
           "required": false,
           "description": "Entity categories to redact: person"
@@ -1372,7 +1372,7 @@
           "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
         },
         {
-          "name": "rulesPath",
+          "name": "rules_path",
           "type": "string",
           "required": false,
           "description": "Path to a redaction rules YAML file"
@@ -1397,7 +1397,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "filterByIDs",
+          "name": "filter_by_ids",
           "type": "boolean",
           "required": false,
           "description": "When true filter blocks by ID; when false filter by target locale"
@@ -1409,7 +1409,7 @@
           "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
         },
         {
-          "name": "removeBlockIfEmpty",
+          "name": "remove_block_if_empty",
           "type": "boolean",
           "required": false,
           "description": "Remove the block entirely if it has no remaining targets after removal"
@@ -1421,19 +1421,19 @@
           "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
         },
         {
-          "name": "targetLocale",
-          "type": "string",
-          "required": false,
-          "description": "Target locale to remove (if empty all targets are removed)"
-        },
-        {
           "name": "target_lang",
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
         },
         {
-          "name": "textUnitIDs",
+          "name": "target_locale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale to remove (if empty all targets are removed)"
+        },
+        {
+          "name": "text_unit_ids",
           "type": "string",
           "required": false,
           "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
@@ -1458,7 +1458,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
@@ -1594,19 +1594,19 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "dotAll",
+          "name": "dot_all",
           "type": "boolean",
           "required": false,
           "description": "Make the period character match every character including line-feed"
         },
         {
-          "name": "ignoreCase",
+          "name": "ignore_case",
           "type": "boolean",
           "required": false,
           "description": "Ignore case when matching search patterns"
         },
         {
-          "name": "multiLine",
+          "name": "multi_line",
           "type": "boolean",
           "required": false,
           "description": "Make ^ and $ match at the beginning and end of each line"
@@ -1618,13 +1618,13 @@
           "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
         },
         {
-          "name": "regEx",
+          "name": "regex",
           "type": "boolean",
           "required": false,
           "description": "Enable regular expression mode for all search patterns"
         },
         {
-          "name": "replaceAll",
+          "name": "replace_all",
           "type": "boolean",
           "required": false,
           "description": "Replace all matches instead of only the first"
@@ -1685,7 +1685,7 @@
           "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
         },
         {
-          "name": "maxChunkRunes",
+          "name": "max_chunk_runes",
           "type": "integer",
           "required": false,
           "description": "Soft upper bound on chunk size in characters (0 = model default)"
@@ -1697,7 +1697,7 @@
           "description": "Model name"
         },
         {
-          "name": "overwriteSegmentation",
+          "name": "overwrite_segmentation",
           "type": "boolean",
           "required": false,
           "description": "Re-segment already-segmented blocks replacing previous segmentation"
@@ -1715,25 +1715,25 @@
           "description": "AI provider id (anthropic"
         },
         {
-          "name": "renumberCodes",
+          "name": "renumber_codes",
           "type": "boolean",
           "required": false,
           "description": "Renumber inline code IDs when materializing segments to a bilingual format"
         },
         {
-          "name": "rulesPath",
+          "name": "rules_path",
           "type": "string",
           "required": false,
           "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)"
         },
         {
-          "name": "segmentSource",
+          "name": "segment_source",
           "type": "boolean",
           "required": false,
           "description": "Segment the source text"
         },
         {
-          "name": "segmentTarget",
+          "name": "segment_target",
           "type": "boolean",
           "required": false,
           "description": "Segment existing target text"
@@ -1745,19 +1745,19 @@
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
         },
         {
-          "name": "treatIsolatedCodesAsWhitespace",
+          "name": "treat_isolated_codes_as_whitespace",
           "type": "boolean",
           "required": false,
           "description": "Treat isolated inline codes as whitespace during segmentation"
         },
         {
-          "name": "trimLeadingWhitespace",
+          "name": "trim_leading_whitespace",
           "type": "boolean",
           "required": false,
           "description": "Exclude leading whitespace from each segment span"
         },
         {
-          "name": "trimTrailingWhitespace",
+          "name": "trim_trailing_whitespace",
           "type": "boolean",
           "required": false,
           "description": "Exclude trailing whitespace from each segment span"
@@ -1801,7 +1801,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "caseSensitive",
+          "name": "case_sensitive",
           "type": "boolean",
           "required": false,
           "description": "Whether term matching is case-sensitive"
@@ -1832,7 +1832,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
@@ -1881,13 +1881,13 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
         },
         {
-          "name": "batchConcurrency",
+          "name": "batch_concurrency",
           "type": "integer",
           "required": false,
           "description": "Number of concurrent batch calls (0 or 1 = sequential)"
@@ -1905,7 +1905,7 @@
           "description": "What the model is told about a block besides the block itself"
         },
         {
-          "name": "contextWindow",
+          "name": "context_window",
           "type": "integer",
           "required": false,
           "description": "Blocks either side to send as reference (with context: neighbours)"
@@ -1947,7 +1947,7 @@
           "description": "Offer a block's previously approved translation to the model as reference"
         },
         {
-          "name": "skipMatched",
+          "name": "skip_matched",
           "type": "boolean",
           "required": false,
           "description": "Skip blocks that already have a target translation"
@@ -2102,7 +2102,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
@@ -2114,7 +2114,7 @@
           "description": "AI model name"
         },
         {
-          "name": "profileId",
+          "name": "profile_id",
           "type": "string",
           "required": false,
           "description": "Voice profile to resolve from the store"
@@ -2151,7 +2151,7 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "apiKey",
+          "name": "api_key",
           "type": "string",
           "required": false,
           "description": "API key for the AI provider"
@@ -2163,7 +2163,7 @@
           "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
         },
         {
-          "name": "maxExamples",
+          "name": "max_examples",
           "type": "integer",
           "required": false,
           "description": "Maximum before/after examples to infer"
@@ -2175,7 +2175,7 @@
           "description": "AI model name"
         },
         {
-          "name": "profileName",
+          "name": "profile_name",
           "type": "string",
           "required": false,
           "description": "Name for the inferred draft profile"
@@ -2262,49 +2262,49 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "correctComma",
+          "name": "correct_comma",
           "type": "boolean",
           "required": false,
           "description": "Correct whitespace after commas"
         },
         {
-          "name": "correctExclamation",
+          "name": "correct_exclamation",
           "type": "boolean",
           "required": false,
           "description": "Correct whitespace after exclamation marks"
         },
         {
-          "name": "correctFullStop",
+          "name": "correct_full_stop",
           "type": "boolean",
           "required": false,
           "description": "Correct whitespace after full stops (periods)"
         },
         {
-          "name": "correctQuestion",
+          "name": "correct_question",
           "type": "boolean",
           "required": false,
           "description": "Correct whitespace after question marks"
         },
         {
-          "name": "includeHorizontalWS",
+          "name": "include_horizontal_ws",
           "type": "boolean",
           "required": false,
           "description": "Include horizontal tab characters in corrections"
         },
         {
-          "name": "includeVerticalWS",
+          "name": "include_vertical_ws",
           "type": "boolean",
           "required": false,
           "description": "Include vertical whitespace (line feeds and carriage returns) in corrections"
         },
         {
-          "name": "matchSourceWhitespace",
+          "name": "match_source_whitespace",
           "type": "boolean",
           "required": false,
           "description": "Copy source leading/trailing whitespace to target"
         },
         {
-          "name": "normalizeSpaces",
+          "name": "normalize_spaces",
           "type": "boolean",
           "required": false,
           "description": "Collapse multiple spaces to a single space"
@@ -2316,7 +2316,7 @@
           "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
         },
         {
-          "name": "removeZeroWidthChars",
+          "name": "remove_zero_width_chars",
           "type": "boolean",
           "required": false,
           "description": "Remove zero-width spaces and joiners"
@@ -2328,25 +2328,25 @@
           "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
         },
         {
-          "name": "targetLocale",
-          "type": "string",
-          "required": false,
-          "description": "Target locale for processing"
-        },
-        {
           "name": "target_lang",
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
         },
         {
-          "name": "trimLeading",
+          "name": "target_locale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale for processing"
+        },
+        {
+          "name": "trim_leading",
           "type": "boolean",
           "required": false,
           "description": "Remove leading whitespace from target text"
         },
         {
-          "name": "trimTrailing",
+          "name": "trim_trailing",
           "type": "boolean",
           "required": false,
           "description": "Remove trailing whitespace from target text"
@@ -2365,13 +2365,13 @@
           "description": "The content (text) to run the tool over."
         },
         {
-          "name": "checkSource",
+          "name": "check_source",
           "type": "boolean",
           "required": false,
           "description": "Validate source text for XML well-formedness"
         },
         {
-          "name": "checkTarget",
+          "name": "check_target",
           "type": "boolean",
           "required": false,
           "description": "Validate target text for XML well-formedness"
@@ -2395,7 +2395,7 @@
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
         },
         {
-          "name": "wrapRoot",
+          "name": "wrap_root",
           "type": "boolean",
           "required": false,
           "description": "Wrap text in a root element before validating"
