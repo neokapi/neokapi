@@ -25,6 +25,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/credentials"
+	"github.com/neokapi/neokapi/host/reviewdeck"
 )
 
 // Review AI actions.
@@ -120,7 +121,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 		res, err = a.reviewAIExplain(ctx, op, unit, b, sourceLang)
 	case ReviewAIFixFindings:
 		findings := a.currentUnitFindings(ctx, op, scope, b, loc, sourceLang, key, rf.Collection, rf.Relative)
-		instruction = host.FixInstruction(b.TargetText(loc), "", findings, instruction)
+		instruction = reviewdeck.FixInstruction(b.TargetText(loc), "", findings, instruction)
 		res, err = a.reviewAIPropose(ctx, op, unit, b, sourceLang, instruction)
 	case ReviewAIRetranslate:
 		if strings.TrimSpace(instruction) == "" {
@@ -139,7 +140,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 }
 
 // reviewAIPropose runs a one-block translate invocation and returns the
-// produced target as a proposal, through host.ProposeRewrite, which the fix
+// produced target as a proposal, through reviewdeck.ProposeRewrite, which the fix
 // candidates of every surface run. Nothing touches the target file.
 func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang, instruction string) (*ReviewAIActionResult, error) {
 	tl, release, err := a.newReviewAITool(ctx, op, "translate", unit, map[string]any{
@@ -153,7 +154,7 @@ func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.Un
 		return nil, err
 	}
 	defer release()
-	runs, err := host.ProposeRewrite(ctx, tl, b, model.LocaleID(unit.TargetLang))
+	runs, err := reviewdeck.ProposeRewrite(ctx, tl, b, model.LocaleID(unit.TargetLang))
 	if err != nil {
 		return nil, err
 	}

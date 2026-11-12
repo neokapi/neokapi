@@ -1,10 +1,9 @@
-package host
+package reviewdeck
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 
@@ -399,8 +398,8 @@ func FixInstruction(current string, reason FixReason, findings []string, extra s
 // left as it was. An empty translation is an error.
 func ProposeRewrite(ctx context.Context, chain []tool.Tool, b *model.Block, target model.LocaleID) ([]model.Run, error) {
 	work := snapshotBlock(b)
-	work.Annotations = maps.Clone(b.Annotations)
-	if err := RunTools(ctx, chain, work); err != nil {
+
+	if err := runTools(ctx, chain, work); err != nil {
 		return nil, fmt.Errorf("ai rewrite: %w", err)
 	}
 	runs := work.TargetRuns(target)
