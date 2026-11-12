@@ -218,11 +218,7 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	var lines []string
 	// The findings a fix is asked to address are the ones this unit's own
 	// point produces, so the voice is resolved there.
-	points := a.newPointResolver(op, false)
-	profile := points.at(ctx, collection, relPath)
-	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	for _, f := range a.blockCheckFindings(ctx, b, relPath, sourceLang, loc, profile,
-		points.termsAt(ctx, collection, relPath), dntTerms) {
+	for _, f := range a.blockCheckFindings(ctx, a.reviewPoints(ctx, op), b, collection, relPath, filepath.ToSlash(relPath), sourceLang, loc) {
 		outcome := "reports"
 		if f.Fails {
 			outcome = "fails"

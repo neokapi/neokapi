@@ -119,7 +119,7 @@ func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) 
 	if input.Language != "" {
 		langs = []string{input.Language}
 	}
-	queue, err := a.ReviewQueue(ctx, projectPath, "", cli.ReviewQueueOptions{Languages: langs})
+	queue, err := a.ReviewQueue(ctx, projectPath, "", cli.ReviewQueueOptions{Languages: langs, MarkFindings: true})
 	if err != nil {
 		return nil, ReviewQueueOutput{}, fmt.Errorf("derive review queue: %w", err)
 	}

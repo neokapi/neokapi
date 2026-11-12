@@ -7265,9 +7265,10 @@ export class OriginDTO {
 /**
  * OutputFileInfo describes a single generated output file for a source file in
  * a content collection. Output paths are resolved from each collection item's
- * `target` template via the shared core resolver (project.ResolveTargetPath),
- * then stat-ed on disk so the UI can show which target files exist and let the
- * user inspect them.
+ * `target` template via the shared core resolver (ProjectContext.TargetFile),
+ * with the locale spelled as the project's locale_format writes it, then
+ * stat-ed on disk so the UI can show which target files exist and let the user
+ * inspect them.
  */
 export class OutputFileInfo {
     /**
@@ -9294,9 +9295,9 @@ export class ReviewUnitDetail {
         }
         if (!("findings" in $$source)) {
             /**
-             * Findings are the unit's current check findings (placeholder integrity,
-             * do-not-translate, terms and voice patterns — the same checkers the Checks panel
-             * runs, scoped to this one block).
+             * Findings are the unit's current check findings: the checkset the host
+             * holds a translated unit to (host.ReviewPointResolver.UnitFindings), which
+             * also marks the unit's review queue row.
              * @member
              * @type {DesktopFinding[]}
              */

@@ -9,14 +9,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
 
 // OutputFileInfo describes a single generated output file for a source file in
 // a content collection. Output paths are resolved from each collection item's
-// `target` template via the shared core resolver (project.ResolveTargetPath),
-// then stat-ed on disk so the UI can show which target files exist and let the
-// user inspect them.
+// `target` template via the shared core resolver (ProjectContext.TargetFile),
+// with the locale spelled as the project's locale_format writes it, then
+// stat-ed on disk so the UI can show which target files exist and let the user
+// inspect them.
 type OutputFileInfo struct {
 	Lang     string `json:"lang"`
 	Path     string `json:"path"`     // absolute path on disk
@@ -37,7 +39,7 @@ type OutputFileInfo struct {
 // so a file claimed by an earlier item is listed under that item's target
 // alone, and a pattern that cannot be expanded fails the listing rather than
 // shortening it. Output paths come from the shared resolver
-// (project.ResolveTargetPath), the same one the flow runner, merge, and the
+// (ProjectContext.TargetFile), the same one the flow runner, merge, and the
 // CLI use, so the desktop, CLI, and `kapi merge` agree exactly.
 func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 	op := a.getOpenProject(tabID)
@@ -66,8 +68,11 @@ func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 		}
 		rel := filepath.ToSlash(rf.Relative)
 		ofiFor := func(lang string) OutputFileInfo {
-			outRel := project.ResolveTargetPath(item.Path, item.Base, item.Target, rel, lang)
-			outPath := filepath.Join(basePath, outRel)
+			outPath := ctx.TargetFile(item, rel, model.LocaleID(lang))
+			outRel, rerr := filepath.Rel(ctx.ProjectDir, outPath)
+			if rerr != nil {
+				outRel = outPath
+			}
 			ofi := OutputFileInfo{
 				Lang:     lang,
 				Path:     outPath,

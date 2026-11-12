@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 )
 
 // The context panes answer for a file's content: an item that claims only the
@@ -78,7 +79,11 @@ func TestChecksPanelReadsOnlyTheCommentsOfACommentsOnlyFile(t *testing.T) {
 	files := slices.DeleteFunc(resolved, func(rf project.ResolvedFile) bool { return !rf.CommentsOnly() })
 	require.Len(t, files, 1)
 
-	out, err := checkComments(t.Context(), capp, op.Path, files, "en-US")
+	run, err := capp.ComputeProjectCheck(t.Context(), host.ProjectCheckRequest{
+		Recipe:     op.Path,
+		SourceLang: "en-US",
+		Files:      []host.ProjectCheckFileRef{{Path: files[0].Path}},
+	})
 	require.NoError(t, err)
-	assert.Equal(t, 1, out.blocks, "the one comment, and no value")
+	assert.Equal(t, 1, run.Report.Target.Blocks, "the one comment, and no value")
 }
