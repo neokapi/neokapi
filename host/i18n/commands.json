@@ -1980,7 +1980,7 @@
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
-              "reg-ex": {
+              "regex": {
                 "usage": "Enable regular expression mode for all search patterns"
               },
               "replace-all": {

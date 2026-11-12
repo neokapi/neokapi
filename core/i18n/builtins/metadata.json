@@ -742,7 +742,7 @@
           "title": "Multiline Mode",
           "description": "Make ^ and $ match at the beginning and end of each line"
         },
-        "reg_ex": {
+        "regex": {
           "title": "Use Regular Expressions",
           "description": "Enable regular expression mode for all search patterns"
         },

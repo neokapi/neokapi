@@ -12,7 +12,7 @@ overview: |
   àþþļîéđ ţö éṽéŕý þàţţéŕñ. Ƃý đéƒàüļţ ţĥé ţööļ ŕéþļàçéš àļļ ḿàţçĥéš îñ ţàŕĝéţ
   ţéẋţ öñļý.
 parameters:
-  reg_ex:
+  regex:
     description: Ţŕéàţ šéàŕçĥ þàţţéŕñš àš ŕéĝüļàŕ éẋþŕéššîöñš.
     help: |
       Ŵĥéñ éñàƃļéđ, éṽéŕý šéàŕçĥ þàţţéŕñ îš çöḿþîļéđ àš à ŕéĝüļàŕ éẋþŕéššîöñ
@@ -31,7 +31,7 @@ parameters:
       çĥàŕàçţéŕš, šö à þàţţéŕñ çàñ šþàñ ļîñéš.
     values: "`ţŕüé` / `ƒàļšé` (đéƒàüļţ `ƒàļšé`)"
     dependsOn:
-      - property: reg_ex
+      - property: regex
         condition: àþþļîéš îñ ŕéĝüļàŕ-éẋþŕéššîöñ ḿöđé
   multi_line:
     description: Ḿàķé àñçĥöŕš ḿàţçĥ àţ éàçĥ ļîñé ƃöüñđàŕý.
@@ -40,7 +40,7 @@ parameters:
       ļîñé ŕàţĥéŕ ţĥàñ öñļý ţĥé ŵĥöļé ţéẋţ.
     values: "`ţŕüé` / `ƒàļšé` (đéƒàüļţ `ƒàļšé`)"
     dependsOn:
-      - property: reg_ex
+      - property: regex
         condition: àþþļîéš îñ ŕéĝüļàŕ-éẋþŕéššîöñ ḿöđé
   source:
     description: Àþþļý ŕéþļàçéḿéñţš ţö šöüŕçé çöñţéñţ.
@@ -73,7 +73,7 @@ examples:
   - title: Çàšé-îñšéñšîţîṽé ŕéĝéẋ öṽéŕ ƃöţĥ šçöþéš
     description: Éñàƃļé ŕéĝéẋ ḿöđé ŵîţĥ çàšé ƒöļđîñĝ àçŕöšš šöüŕçé àñđ ţàŕĝéţ.
     config: |
-      reg_ex: true
+      regex: true
       ignore_case: true
       source: true
       target: true
