@@ -67,7 +67,7 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
         result={{
           converged: false,
           passes: 2,
-          parkedScopes: [{ locale: "de-DE", collection: "docs" }],
+          parked_scopes: [{ locale: "de-DE", collection: "docs" }],
         }}
         onOpenReview={onOpenReview}
       />,
@@ -82,7 +82,7 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
     render(
       <ConvergenceRunView
         model={liveModel}
-        result={{ converged: true, passes: 1, materializedFiles: 4 }}
+        result={{ converged: true, passes: 1, materialized_files: 4 }}
       />,
     );
     expect(
@@ -149,9 +149,9 @@ describe("ConvergenceRunView — source hold", () => {
         result={{
           converged: false,
           passes: 1,
-          blockedOnSource: 12,
-          translateAfter: "established",
-          stallReason: "source_not_ready",
+          blocked_on_source: 12,
+          translate_after: "established",
+          stall_reason: "source_not_ready",
         }}
       />,
     );
@@ -168,7 +168,7 @@ describe("ConvergenceRunView — source hold", () => {
     render(
       <ConvergenceRunView
         model={model}
-        result={{ converged: false, passes: 1, blockedOnSource: 3 }}
+        result={{ converged: false, passes: 1, blocked_on_source: 3 }}
       />,
     );
     const hold = document.querySelector('[data-slot="convergence-source-hold"]');

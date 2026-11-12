@@ -36,14 +36,14 @@ func newStreamingServerUpStub(t *testing.T) *serverUpStub {
 	lines := []string{
 		`{"type":"changeset","concepts_proposed":2,"changeset_id":"EMezX9AS"}`,
 		`{"type":"voice_profile","voice_profile":"house","voice_profile_action":"pushed"}`,
-		`{"type":"pass_start","pass":1,"maxPasses":5,"pending":["nb"]}`,
+		`{"type":"pass_start","pass":1,"max_passes":5,"pending":["nb"]}`,
 		`{"type":"locale_start","locale":"nb","units":12,"pass":1}`,
-		`{"type":"unit_progress","locale":"nb","done":6,"viaTM":4,"viaAI":2,"pass":1}`,
-		`{"type":"locale_done","locale":"nb","done":12,"viaTM":8,"viaAI":4,"pass":1}`,
-		`{"type":"pass_done","pass":1,"produced":12,"producedDelta":12}`,
+		`{"type":"unit_progress","locale":"nb","done":6,"via_memory":4,"via_ai":2,"pass":1}`,
+		`{"type":"locale_done","locale":"nb","done":12,"via_memory":8,"via_ai":4,"pass":1}`,
+		`{"type":"pass_done","pass":1,"produced":12,"produced_delta":12}`,
 		`{"type":"materialized","files":3}`,
 		`{"type":"done","state":"converged"}`,
-		`{"type":"result","flow":"server-venue","passes":1,"converged":true,"materializedFiles":3}`,
+		`{"type":"result","flow":"server-venue","passes":1,"converged":true,"materialized_files":3}`,
 	}
 	var script strings.Builder
 	script.WriteString("#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argsFile + "\n")
