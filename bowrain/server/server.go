@@ -1249,6 +1249,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authGroup.POST("/callback", s.HandleAuthCallback)
 		authGroup.GET("/desktop/login", s.HandleDesktopLogin)
 		authGroup.GET("/desktop/callback", s.HandleDesktopCallback)
+		// A native client redeems its one-time sign-in code here with the PKCE
+		// verifier; the tokens travel only in this response body.
+		authGroup.POST("/desktop/token", s.HandleDesktopTokenExchange, authLimit)
 
 		// Device verification page (user opens in browser)
 		authGroup.GET("/device/verify", s.HandleAuthCallback, authLimit)

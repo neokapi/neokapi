@@ -52,6 +52,11 @@ type desktopAuthEntry struct {
 	CodeChallenge string `json:"code_challenge"` // PKCE code_challenge from the desktop
 	CodeVerifier  string `json:"code_verifier"`  // server-side PKCE verifier for OIDC exchange
 	Nonce         string `json:"nonce"`          // OIDC nonce for ID token replay protection
+	// ResponseMode is "code" when the client asked for a one-time code in the
+	// redirect instead of the tokens; empty is the token redirect.
+	ResponseMode string `json:"response_mode,omitempty"`
+	// ClientState is the client's own state, returned with the code.
+	ClientState string `json:"client_state,omitempty"`
 }
 
 // deviceVerifyEntry maps an OIDC state to a pending device code during
@@ -373,19 +378,33 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 		return apiErr(c, http.StatusBadRequest, "redirect_uri and code_challenge required")
 	}
 
-	// Security: only allow localhost or bowrain:// redirect URIs.
-	parsedURI, err := url.Parse(redirectURI)
-	if err != nil {
-		return apiErr(c, http.StatusBadRequest, "invalid redirect_uri")
-	}
-	isLocalhost := parsedURI.Hostname() == "127.0.0.1" || parsedURI.Hostname() == "localhost"
-	isCustomScheme := parsedURI.Scheme == "bowrain"
-	if !isLocalhost && !isCustomScheme {
-		return apiErr(c, http.StatusBadRequest, "redirect_uri must be http://127.0.0.1:... or bowrain://...")
+	if err := checkDesktopRedirect(redirectURI); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	if challengeMethod != "" && challengeMethod != "S256" {
 		return apiErr(c, http.StatusBadRequest, "only S256 code_challenge_method is supported")
+	}
+
+	// response_mode=code: the redirect carries a one-time code bound to the
+	// PKCE challenge, which the client redeems at /auth/desktop/token. Without
+	// it the redirect carries the tokens, as the desktop app reads them today.
+	responseMode := c.QueryParam("response_mode")
+	clientState := c.QueryParam("state")
+	switch responseMode {
+	case "":
+	case desktopResponseModeCode:
+		if challengeMethod != "S256" {
+			return apiErr(c, http.StatusBadRequest, "response_mode=code requires code_challenge_method=S256")
+		}
+		if !validS256Challenge(codeChallenge) {
+			return apiErr(c, http.StatusBadRequest, "code_challenge must be an S256 challenge")
+		}
+		if clientState == "" || len(clientState) > 256 {
+			return apiErr(c, http.StatusBadRequest, "response_mode=code requires a state")
+		}
+	default:
+		return apiErr(c, http.StatusBadRequest, "unsupported response_mode")
 	}
 
 	// Discover the authorization endpoint from the OIDC provider.
@@ -417,6 +436,8 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 		CodeChallenge: codeChallenge,
 		CodeVerifier:  ap.CodeVerifier,
 		Nonce:         ap.Nonce,
+		ResponseMode:  responseMode,
+		ClientState:   clientState,
 	}
 	if err := sessionSet(ctx, s.SessionStore, prefixDesktopAuth, ap.State, desktopEntry, authStateTTL); err != nil {
 		return serverErr(c, fmt.Errorf("store auth state: %w", err))
@@ -528,6 +549,10 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	}
 	s.trackUserLogin(c, user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
+
+	if entry.ResponseMode == desktopResponseModeCode {
+		return s.redirectWithLoginCode(c, entry, user.ID)
+	}
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
