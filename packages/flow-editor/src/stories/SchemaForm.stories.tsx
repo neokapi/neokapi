@@ -166,7 +166,7 @@ const searchReplaceSchema: ComponentSchema = {
   properties: {
     search: { type: "string", title: "Search", description: "Search pattern or literal text" },
     replace: { type: "string", title: "Replace", description: "Replacement text" },
-    reg_ex: {
+    regex: {
       type: "boolean",
       title: "Regular Expression",
       default: false,

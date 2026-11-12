@@ -106,7 +106,7 @@ func camelCaseKeyError(names []string, keys string) error {
 		if schema.IsSnakeCase(k) {
 			continue
 		}
-		return fmt.Errorf("%s: %s is now %s", keys, k, schema.SnakeCase(k))
+		return fmt.Errorf("%s: %s is now %s", keys, k, schema.ReplacementKey(k))
 	}
 	return nil
 }

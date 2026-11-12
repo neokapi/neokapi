@@ -101,7 +101,7 @@ const sampleSchemas: Record<string, ComponentSchema> = {
     properties: {
       search: { type: "string", description: "Search pattern" },
       replace: { type: "string", description: "Replacement text" },
-      reg_ex: { type: "boolean", default: false, description: "Use regular expressions" },
+      regex: { type: "boolean", default: false, description: "Use regular expressions" },
       target: { type: "boolean", default: true, description: "Apply to target text" },
       source: { type: "boolean", default: false, description: "Apply to source text" },
       dot_all: { type: "boolean", default: false, description: "Dot matches newlines" },
@@ -177,7 +177,7 @@ const sampleDocs: Record<string, ToolDoc> = {
       replace: {
         description: "The replacement text. Supports $1, $2 backreferences when regex is enabled.",
       },
-      reg_ex: {
+      regex: {
         description: "When enabled, the search pattern is treated as a Java regular expression.",
         notes: ["Use \\\\n for newline, \\\\t for tab in regex mode."],
       },
@@ -478,7 +478,7 @@ export const WithConfiguration: Story = {
       steps: [
         { tool: "pseudo-translate", config: { prefix: ">>", suffix: "<<", expansion_percent: 40 } },
         { tool: "qa", config: { check_leading_whitespace: false } },
-        { tool: "search-replace", config: { search: "foo", replace: "bar", reg_ex: false } },
+        { tool: "search-replace", config: { search: "foo", replace: "bar", regex: false } },
       ],
     },
     tools,

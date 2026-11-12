@@ -57,13 +57,29 @@ func IsSnakeCase(key string) bool {
 	return !strings.ContainsFunc(key, unicode.IsUpper)
 }
 
+// renamedKeys holds the camelCase keys whose replacement is not their
+// mechanical snake_case spelling: search-replace's regEx became regex, not
+// reg_ex.
+var renamedKeys = map[string]string{
+	"regEx": "regex",
+}
+
+// ReplacementKey returns the key that replaces a camelCase key: the entry in
+// renamedKeys when it has one, and its snake_case spelling otherwise.
+func ReplacementKey(key string) string {
+	if k, ok := renamedKeys[key]; ok {
+		return k
+	}
+	return SnakeCase(key)
+}
+
 // RenamedKey returns the snake_case key that replaced key, and true, when key
 // is a camelCase spelling of a name known accepts.
 func RenamedKey(key string, known func(string) bool) (string, bool) {
 	if IsSnakeCase(key) {
 		return "", false
 	}
-	snake := SnakeCase(key)
+	snake := ReplacementKey(key)
 	if snake == key || !known(snake) {
 		return "", false
 	}

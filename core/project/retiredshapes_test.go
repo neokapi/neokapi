@@ -41,6 +41,18 @@ func TestLoad_RefusesRetiredAndIncompleteShapes(t *testing.T) {
 			fixed: head + coll + "flows:\n  review:\n    steps:\n      - parallel:\n          - tool: word-count\n          - tool: qa\n",
 		},
 		{
+			name:  "camelCase step config key",
+			body:  head + coll + "flows:\n  translate:\n    steps:\n      - tool: recycle\n      - tool: recycle\n        config:\n          fillTargetThreshold: 100\n",
+			want:  "flows.translate.steps[1].config: fillTargetThreshold is now fill_target_threshold",
+			fixed: head + coll + "flows:\n  translate:\n    steps:\n      - tool: recycle\n      - tool: recycle\n        config:\n          fill_target_threshold: 100\n",
+		},
+		{
+			name:  "search-replace regEx",
+			body:  head + coll + "flows:\n  fix:\n    steps:\n      - tool: search-replace\n        config:\n          regEx: true\n",
+			want:  "flows.fix.steps[0].config: regEx is now regex",
+			fixed: head + coll + "flows:\n  fix:\n    steps:\n      - tool: search-replace\n        config:\n          regex: true\n",
+		},
+		{
 			name:  "checkTerminology in a qa preset",
 			body:  head + "  tools:\n    qa:\n      checkTerminology: true\n" + coll,
 			want:  "defaults.tools.qa.checkTerminology is retired and nothing reads it. Remove the key",

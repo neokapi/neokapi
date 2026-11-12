@@ -44,7 +44,7 @@ const searchReplaceSchema: ComponentSchema = {
   type: "object",
   toolMeta: { id: "search-and-replace" },
   properties: {
-    reg_ex: {
+    regex: {
       type: "boolean",
       description: "Use regular expressions",
       default: false,

@@ -12,7 +12,7 @@ overview: |
   applied to every pattern. By default the tool replaces all matches in target
   text only.
 parameters:
-  reg_ex:
+  regex:
     description: Treat search patterns as regular expressions.
     help: |
       When enabled, every search pattern is compiled as a regular expression
@@ -31,7 +31,7 @@ parameters:
       characters, so a pattern can span lines.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: reg_ex
+      - property: regex
         condition: applies in regular-expression mode
   multi_line:
     description: Make anchors match at each line boundary.
@@ -40,7 +40,7 @@ parameters:
       line rather than only the whole text.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: reg_ex
+      - property: regex
         condition: applies in regular-expression mode
   source:
     description: Apply replacements to source content.
@@ -73,7 +73,7 @@ examples:
   - title: Case-insensitive regex over both scopes
     description: Enable regex mode with case folding across source and target.
     config: |
-      reg_ex: true
+      regex: true
       ignore_case: true
       source: true
       target: true

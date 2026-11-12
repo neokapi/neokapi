@@ -24,16 +24,16 @@ describe("buildSearchReplaceRecipe", () => {
     // The pair appears as JSON with the engine's JSON field names.
     expect(recipe).toContain('"search":"color"');
     expect(recipe).toContain('"replace":"colour"');
-    expect(recipe).toContain('"isRegex":false');
+    expect(recipe).toContain('"is_regex":false');
     expect(recipe).toContain("source: true");
     expect(recipe).toContain("target: false");
-    expect(recipe).toContain("reg_ex: false");
+    expect(recipe).toContain("regex: false");
   });
 
-  it("sets reg_ex true when regex mode is on", () => {
+  it("sets regex true when regex mode is on", () => {
     const recipe = buildSearchReplaceRecipe("colou?r", "color", true);
-    expect(recipe).toContain('"isRegex":true');
-    expect(recipe).toContain("reg_ex: true");
+    expect(recipe).toContain('"is_regex":true');
+    expect(recipe).toContain("regex: true");
   });
 
   it("JSON-escapes find/replace strings so quotes survive", () => {

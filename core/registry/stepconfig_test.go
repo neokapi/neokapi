@@ -45,5 +45,7 @@ func TestStepConfigErrorRefusesCamelCaseKeys(t *testing.T) {
 		keys+": checkDoubleSpaces is now check_double_spaces")
 	require.EqualError(t, StepConfigError("remove-target", map[string]any{"textUnitIDs": []any{"a"}}, at, keys),
 		keys+": textUnitIDs is now text_unit_ids")
+	require.EqualError(t, StepConfigError("search-replace", map[string]any{"regEx": true}, at, keys),
+		keys+": regEx is now regex")
 	require.NoError(t, StepConfigError("recycle", map[string]any{"fill_target_threshold": 100}, at, keys))
 }
