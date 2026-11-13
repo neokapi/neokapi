@@ -3,7 +3,7 @@
 // path data with a per-shape soft-focus filter), too heavy to embed on every
 // page. mark.png is a 256px transparent render of it, regenerated alongside
 // every other derived asset by scripts/generate-bowrain-brand-assets.sh from
-// the canonical bowrain/assets/brand/mark.svg: update that file and re-run
+// the canonical assets/brand/bowrain/mark.svg: update that file and re-run
 // rather than editing mark.png directly.
 export function Logo({ className = "h-7 w-7" }: { className?: string }) {
   return <img src="/mark.png" alt="" className={className} aria-hidden="true" />;

@@ -44,7 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: "cloud.bowrain.app",
     adaptiveIcon: {
-      backgroundColor: "#1d4ed8",
+      backgroundColor: "#f8fafc",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -61,7 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         backgroundColor: "#ffffff",
         image: "./assets/images/splash-icon.png",
-        imageWidth: 76,
+        imageWidth: 200,
         dark: { backgroundColor: "#0b0f19" },
       },
     ],
