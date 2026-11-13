@@ -39,7 +39,7 @@ type TranslationJob struct {
 	DoneBlocks  int       `json:"done_blocks"`
 	// ViaMemory and ViaAI count blocks reused from content memory and sent to AI.
 	// Convergence sums them across jobs for each locale.
-	ViaMemory   int       `json:"via_tm"`
+	ViaMemory   int       `json:"via_memory"`
 	ViaAI       int       `json:"via_ai"`
 	BatchSize   int       `json:"batch_size,omitempty"`
 	Concurrency int       `json:"concurrency,omitempty"`

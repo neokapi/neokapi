@@ -1652,7 +1652,7 @@ export interface ConvergenceSourceReadiness {
 export interface ConvergenceEstimateLocale {
   locale: string;
   pending: number;
-  via_tm: number;
+  via_memory: number;
   via_ai: number;
   token_estimate: number;
 }
@@ -1660,7 +1660,7 @@ export interface ConvergenceEstimateLocale {
 /** Cross-locale rollup of the estimate. */
 export interface ConvergenceEstimateTotals {
   pending: number;
-  via_tm: number;
+  via_memory: number;
   via_ai: number;
   token_estimate: number;
 }

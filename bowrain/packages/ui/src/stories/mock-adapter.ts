@@ -1975,7 +1975,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     // --- Convergence --------------------------------------------------------
     estimateConvergence: async () => ({
       source: { gate: "none", total: 0, ready: 0, held: 0 },
-      totals: { pending: 0, via_tm: 0, via_ai: 0, token_estimate: 0 },
+      totals: { pending: 0, via_memory: 0, via_ai: 0, token_estimate: 0 },
     }),
 
     // --- Concepts -----------------------------------------------------------

@@ -109,11 +109,12 @@ const (
 	// spent, from the token usage its translation jobs recorded (CreditBucket).
 	PropConsumedCreditsBucket = "consumed_credits_bucket"
 	// PropAIUnitsBucket buckets how many units (blocks) are left for paid AI
-	// after TM recycling (CountBucket).
+	// after content memory recycling (CountBucket).
 	PropAIUnitsBucket = "ai_units_bucket"
-	// PropTMLeveragePctBucket bands the TM share of the work — how much of the
-	// pending/produced work TM covers for free (PercentBucket).
-	PropTMLeveragePctBucket = "tm_leverage_pct_bucket"
+	// PropMemoryLeveragePctBucket bands the content memory share of the work:
+	// how much of the pending/produced work content memory covers for free
+	// (PercentBucket).
+	PropMemoryLeveragePctBucket = "memory_leverage_pct_bucket"
 	// PropFirstRun marks the cold-start cohort: true when no earlier convergence
 	// run exists for the workspace, i.e. this is its FIRST project run — the
 	// cohort the one-time grant has to cover.

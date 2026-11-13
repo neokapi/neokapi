@@ -1048,7 +1048,7 @@ translation_jobs.tokens_used integer NOT NULL DEFAULT 0
 translation_jobs.total_blocks integer NOT NULL DEFAULT 0
 translation_jobs.updated_at timestamp with time zone NOT NULL DEFAULT now()
 translation_jobs.via_ai integer NOT NULL DEFAULT 0
-translation_jobs.via_tm integer NOT NULL DEFAULT 0
+translation_jobs.via_memory integer NOT NULL DEFAULT 0
 translation_jobs.workspace_id text NOT NULL DEFAULT ''::text
 translation_jobs.workspace_slug text NOT NULL
 translations.block_id text NOT NULL

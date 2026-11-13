@@ -705,7 +705,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				recordDraftMarks(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, filled, tgtLocale)
 				emitLog(deps, job.StepID, "info",
 					fmt.Sprintf("Recycled %d block(s) from content memory (skipping AI)", memoryFilled),
-					map[string]string{"via_tm": strconv.Itoa(memoryFilled)})
+					map[string]string{"via_memory": strconv.Itoa(memoryFilled)})
 				// Score the recycled drafts against the standing voice profile
 				// (deterministic vocabulary check, zero AI) so the compliant
 				// rate covers content memory output too.

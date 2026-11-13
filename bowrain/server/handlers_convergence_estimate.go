@@ -168,7 +168,7 @@ func estimateComputedProps(proj *platstore.Project, view convergenceEstimateView
 	props[analytics.PropEstimatedCreditsBucket] =
 		analytics.CreditBucket(billing.TokensToCredits(view.Totals.TokenEstimate))
 	props[analytics.PropAIUnitsBucket] = analytics.CountBucket(view.Totals.ViaAI)
-	props[analytics.PropTMLeveragePctBucket] =
+	props[analytics.PropMemoryLeveragePctBucket] =
 		analytics.SharePercentBucket(view.Totals.ViaMemory, view.Totals.ViaMemory+view.Totals.ViaAI)
 	if view.Credits != nil {
 		props[analytics.PropCoversAllAI] = view.Credits.CoversAllAI
