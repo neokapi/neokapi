@@ -25,6 +25,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: "bowrain",
   owner: easOwner || undefined,
   version: "0.1.0",
+  // EAS Update: the production and preview build profiles publish to channels
+  // of the same name. A build only takes updates made for its app version.
+  runtimeVersion: { policy: "appVersion" },
+  updates: easProjectId ? { url: `https://u.expo.dev/${easProjectId}` } : undefined,
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   // The server's sign-in route accepts a bowrain:// redirect.
