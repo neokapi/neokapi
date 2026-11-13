@@ -560,6 +560,10 @@ The grouping rule is `reviewdeck.ClassifyDeckCard` (`host/reviewdeck`):
 | `fast` | no finding of any kind and a pre-review score of at least `fast_min_score` | the score |
 | `closer` | every other card: a low or missing score, or a finding that does not fail (such as a voice score under the bar) | the first that applies |
 
+A translation rejected at the wording it holds is in no group. It waits for a
+new draft, and the deck and its counts leave it out until one lands; the new
+draft then goes to the desk.
+
 ### Fix candidates
 
 `GET /:ws/:id/blocks/:ref/:bid/fix-candidates?locale=nb&reason=wrong_term&ai=false`

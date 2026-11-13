@@ -9,9 +9,10 @@ import { useTranslation } from "react-i18next";
 
 import { QueryState, Row } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
+import { localeName } from "../../../lib/localeName";
 
 export default function Languages() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { ws, project } = useLocalSearchParams<{ ws: string; project: string }>();
   const { client } = useAuth();
   const qc = useQueryClient();
@@ -65,15 +66,16 @@ export default function Languages() {
         }
         renderItem={({ item, index }) => {
           const c = counts[index]?.data;
+          const name = localeName(item, i18n.language);
+          const groups =
+            c?.fast !== undefined
+              ? t("languages.groups", { fast: c.fast, desk: c.desk ?? 0 })
+              : undefined;
           return (
             <Row
               testID={`language-${item}`}
-              title={item}
-              detail={
-                c?.fast !== undefined
-                  ? t("languages.groups", { fast: c.fast, desk: c.desk ?? 0 })
-                  : undefined
-              }
+              title={name ?? item}
+              detail={[name ? item : undefined, groups].filter(Boolean).join(" · ") || undefined}
               trailing={c ? String(c.total) : "…"}
               onPress={() =>
                 router.push({

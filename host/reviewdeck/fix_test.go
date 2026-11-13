@@ -178,6 +178,8 @@ func TestClassifyDeckCard(t *testing.T) {
 		{"a failing finding", DeckFacts{Findings: 1, FailingFindings: 1, Score: score(95)}, DeckDesk},
 		{"stale", DeckFacts{Stale: true, Score: score(95)}, DeckDesk},
 		{"redraft", DeckFacts{RejectedRedraft: true, Score: score(95)}, DeckDesk},
+		{"rejected as it stands", DeckFacts{Rejected: true, Score: score(95)}, DeckAside},
+		{"rejected with a failing finding", DeckFacts{Rejected: true, FailingFindings: 1}, DeckAside},
 		{"long source", DeckFacts{SourceChars: 281, Score: score(95)}, DeckDesk},
 	}
 	for _, tc := range tests {

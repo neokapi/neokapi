@@ -141,6 +141,9 @@ func deckPolicyKey(p reviewdeck.DeckPolicy) string {
 	return fmt.Sprintf("long=%d;fast=%d", p.LongSourceChars, p.FastMinScore)
 }
 
+// deckRank is a group's place in deck order. A card set aside
+// (reviewdeck.DeckAside) ranks below 0, which keeps it out of the deck's
+// pages and counts until its facts no longer hold.
 func deckRank(g reviewdeck.DeckGroup) int { return slices.Index(reviewdeck.DeckGroups, g) }
 
 // HandleGetReviewDeck answers the review deck for one language.
@@ -349,7 +352,9 @@ func deckFactsFor(
 	case venue.ReviewStateApproved:
 		facts.Stale = e.DecisionBasis != "" && sb.SourceRevision != "" && e.DecisionBasis != sb.SourceRevision
 	case venue.ReviewStateRejected:
-		facts.RejectedRedraft = e.DecisionRevision != "" && e.DecisionRevision != model.TargetRevision(b, loc)
+		current := model.TargetRevision(b, loc)
+		facts.Rejected = e.DecisionRevision == current
+		facts.RejectedRedraft = e.DecisionRevision != "" && e.DecisionRevision != current
 	}
 	group, reason := reviewdeck.ClassifyDeckCard(facts, policy)
 	out.Group, out.GroupRank, out.Reason = string(group), deckRank(group), reason

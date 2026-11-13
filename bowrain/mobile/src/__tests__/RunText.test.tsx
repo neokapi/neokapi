@@ -1,6 +1,7 @@
 import type { Run } from "@neokapi/kapi-format";
 import { render, screen } from "@testing-library/react-native";
 
+import { toSegments } from "../components/RunEditor";
 import { RunText } from "../components/RunText";
 
 const name: Run = { ph: { id: "1", type: "x-var", data: "{{name}}", equiv: "{{name}}" } };
@@ -31,5 +32,26 @@ describe("RunText", () => {
     expect(screen.getAllByTestId("run-chip")).toHaveLength(3);
     expect(screen.getByTestId("runs")).toHaveTextContent(/one: one file/);
     expect(screen.getByTestId("runs")).toHaveTextContent(/other: many files/);
+  });
+
+  it("labels a paired code's two halves with one name, and placeholders in the same notation", async () => {
+    // A link as the markdown reader writes it: a bracketed display label on
+    // the opening half, nothing but the id on the closing half.
+    const runs: Run[] = [
+      { text: "Read " },
+      { pcOpen: { id: "1", type: "link:hyperlink", data: "[", equiv: "", disp: "[l]" } },
+      { text: "the guide" },
+      { pcClose: { id: "1", type: "link:hyperlink", data: "](u)" } },
+      { ph: { id: "2", type: "struct:break", data: "<br/>", equiv: "\n", disp: "[br]" } },
+      { pcOpen: { id: "3", type: "fmt:bold", data: "<b>", equiv: "b", disp: "[B]" } },
+      { text: "now" },
+      { pcClose: { id: "3", type: "fmt:bold", data: "</b>", equiv: "b" } },
+    ];
+    await render(<RunText runs={runs} testID="runs" />);
+    const labels = screen.getAllByTestId("run-chip").map((c) => c.props.accessibilityLabel);
+    expect(labels).toEqual(["<l>", "</l>", "<br/>", "<B>", "</B>"]);
+
+    const locked = toSegments(runs).flatMap((s) => (s.kind === "locked" ? [s.label] : []));
+    expect(locked).toEqual(labels);
   });
 });

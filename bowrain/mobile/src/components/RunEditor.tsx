@@ -7,28 +7,28 @@ import { useMemo } from "react";
 import { TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { Chip, codeLabel } from "./RunText";
+import { codeLabels } from "./codeLabels";
+import { Chip } from "./RunText";
 
 /** One segment of the editor. */
 export type Segment = { kind: "text"; text: string } | { kind: "locked"; run: Run; label: string };
 
-const SEGMENTS: ModelRunSpec<Segment> = {
-  text: (r) =>
-    r.noTranslate ? { kind: "locked", run: r, label: r.text } : { kind: "text", text: r.text },
-  ph: (r) => ({ kind: "locked", run: r, label: codeLabel(r.ph) }),
-  pcOpen: (r) => ({ kind: "locked", run: r, label: `<${codeLabel(r.pcOpen)}>` }),
-  pcClose: (r) => ({
-    kind: "locked",
-    run: r,
-    label: `</${codeLabel({ id: r.pcClose.id, equiv: r.pcClose.equiv })}>`,
-  }),
-  sub: (r) => ({ kind: "locked", run: r, label: `[${codeLabel(r.sub)}]` }),
-  // A plural or select has forms of its own, which a single field cannot hold.
-  // It stays as it is, and the editor reports that it cannot change it.
-  plural: (r) => ({ kind: "locked", run: r, label: `{${r.plural.pivot}, plural}` }),
-  select: (r) => ({ kind: "locked", run: r, label: `{${r.select.pivot}, select}` }),
-  fallback: (kind) => ({ kind: "locked", run: { text: "" }, label: `{${kind}}` }),
-};
+function segmentSpec(runs: readonly Run[]): ModelRunSpec<Segment> {
+  const label = codeLabels(runs);
+  return {
+    text: (r) =>
+      r.noTranslate ? { kind: "locked", run: r, label: r.text } : { kind: "text", text: r.text },
+    ph: (r) => ({ kind: "locked", run: r, label: label.ph(r.ph) }),
+    pcOpen: (r) => ({ kind: "locked", run: r, label: label.pcOpen(r.pcOpen) }),
+    pcClose: (r) => ({ kind: "locked", run: r, label: label.pcClose(r.pcClose) }),
+    sub: (r) => ({ kind: "locked", run: r, label: label.sub(r.sub) }),
+    // A plural or select has forms of its own, which a single field cannot hold.
+    // It stays as it is, and the editor reports that it cannot change it.
+    plural: (r) => ({ kind: "locked", run: r, label: `{${r.plural.pivot}, plural}` }),
+    select: (r) => ({ kind: "locked", run: r, label: `{${r.select.pivot}, select}` }),
+    fallback: (kind) => ({ kind: "locked", run: { text: "" }, label: `{${kind}}` }),
+  };
+}
 
 /**
  * The segments of a run sequence: adjacent text joined into one field, and an
@@ -36,7 +36,7 @@ const SEGMENTS: ModelRunSpec<Segment> = {
  */
 export function toSegments(runs: readonly Run[]): Segment[] {
   const out: Segment[] = [];
-  for (const s of projectRuns(runs, SEGMENTS)) {
+  for (const s of projectRuns(runs, segmentSpec(runs))) {
     const prev = out[out.length - 1];
     if (s.kind === "text" && prev?.kind === "text") {
       out[out.length - 1] = { kind: "text", text: prev.text + s.text };

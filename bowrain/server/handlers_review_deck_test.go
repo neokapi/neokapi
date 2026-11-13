@@ -369,3 +369,47 @@ func TestReviewDeck_CardChangeSetsAreGuarded(t *testing.T) {
 		assert.Equal(t, "basis", res.Ops[0].Error.Field)
 	})
 }
+
+// A rejected translation goes back for a new draft. It leaves the deck and its
+// counts until the new draft lands, and then returns at the desk.
+func TestReviewDeck_RejectedTranslationWaitsForANewDraft(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
+		pendingFrBlock("b1", "Hello", "Bonjour"),
+		pendingFrBlock("b2", "Bye", "Au revoir"),
+	})
+	q := url.Values{"locale": {"fr"}}
+	deck := readDeck(t, s, wsID, projID, q)
+	require.Equal(t, 2, deck.Counts.Total, "%+v", deck.Cards)
+
+	var card deckCard
+	for _, c := range deck.Cards {
+		if c.BlockID == ids["Hello"] {
+			card = c
+		}
+	}
+	require.NotEmpty(t, card.BlockID)
+	reviewer := changeCaller{user: "u-reviewer", perms: testReviewer, ws: wsID}
+	rec, res := sendChanges(t, s, projID, reviewer, change.Set{RequireBasis: true, Ops: []change.Op{
+		{Kind: change.KindDecide, At: at(card.ItemName, card.BlockID, "fr"), IfMatch: card.TargetRevision,
+			Basis: card.SourceRevision, Body: &change.Decide{Outcome: change.OutcomeReject}},
+	}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	deck = readDeck(t, s, wsID, projID, q)
+	assert.Equal(t, 1, deck.Counts.Total, "a rejected translation is not waiting for review")
+	assert.Zero(t, deck.Counts.Unclassified)
+	require.Len(t, deck.Cards, 1)
+	assert.Equal(t, ids["Bye"], deck.Cards[0].BlockID)
+
+	// The new draft brings it back, at the desk.
+	attributeTarget(t, s, projID, ids["Hello"], "fr", "u-translator", "Salut")
+	deck = readDeck(t, s, wsID, projID, q)
+	assert.Equal(t, 2, deck.Counts.Total, "%+v", deck.Cards)
+	groupOf := map[string]reviewdeck.DeckGroup{}
+	for _, c := range deck.Cards {
+		groupOf[c.BlockID] = c.Group
+	}
+	assert.Equal(t, reviewdeck.DeckDesk, groupOf[ids["Hello"]], "a new draft after a rejection needs the desk")
+}
