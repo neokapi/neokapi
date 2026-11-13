@@ -1,6 +1,8 @@
 package openxml
 
 import (
+	"encoding/xml"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/internal/testutil"
@@ -124,33 +126,36 @@ func TestDocxVMergeRowspan(t *testing.T) {
 	assert.Equal(t, 2, table.Children[0].Children[0].RowSpan, "projected merged cell rowspan")
 }
 
-// A prior document binding the markup-compatibility namespace to a non-canonical
-// prefix (ve:) must not leak into a later drawing extraction — it resolves the
-// canonical mc: deterministically, and restores the document registry after.
-// Regression for the -shuffle-exposed global nsRegistry leak.
+// A document binding the markup-compatibility namespace to a non-canonical
+// prefix (ve:) must not leak into its drawing extraction. The drawing resolves
+// the canonical mc: deterministically, and the document's scope is restored
+// after.
 func TestExtractDrawingTranslations_NamespaceIsolation(t *testing.T) {
 	const mcURI = "http://schemas.openxmlformats.org/markup-compatibility/2006"
-	nsRegistry.Lock()
-	nsRegistry.m[mcURI] = "ve" // pollute, as a prior ve:-binding document would
-	nsRegistry.Unlock()
-	defer func() {
-		nsRegistry.Lock()
-		delete(nsRegistry.m, mcURI)
-		nsRegistry.Unlock()
-	}()
+	ns := newNSScope()
+	ns.m[mcURI] = "ve" // as a ve:-binding document's root would register
 
 	counter := 0
 	cfg := &Config{}
 	cfg.Reset()
-	p := &wmlParser{blockCounter: &counter, cfg: cfg}
+	p := &wmlParser{blockCounter: &counter, cfg: cfg, ns: ns}
 	in := `<mc:AlternateContent><mc:Choice Requires="wpg"><w:t xml:space="preserve">Grouping options</w:t></mc:Choice></mc:AlternateContent>`
 	out := p.extractDrawingTranslations(in, "word/document.xml", func(*model.Block) {})
 
 	assert.Contains(t, out, "<mc:AlternateContent>", "drawing must emit canonical mc:, not leaked ve:")
 	assert.NotContains(t, out, "ve:", "leaked prefix must not surface")
+	assert.Equal(t, "ve", ns.m[mcURI], "the surrounding document's scope must be restored after isolation")
+}
 
-	nsRegistry.RLock()
-	got := nsRegistry.m[mcURI]
-	nsRegistry.RUnlock()
-	assert.Equal(t, "ve", got, "the surrounding document's registry must be restored after isolation")
+// Two parsers reading different packages hold separate scopes, so one
+// document's non-canonical prefix never reaches the other's output.
+func TestNamespaceScope_PerRead(t *testing.T) {
+	const mcURI = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+	a, b := newNSScope(), newNSScope()
+	a.register([]xml.Attr{{Name: xml.Name{Space: "xmlns", Local: "ve"}, Value: mcURI}})
+
+	var out strings.Builder
+	b.writeRawStartElementTo(&out, xml.StartElement{Name: xml.Name{Space: mcURI, Local: "AlternateContent"}})
+	assert.Equal(t, "<mc:AlternateContent>", out.String())
+	assert.Equal(t, "ve", a.resolvePrefix(mcURI))
 }

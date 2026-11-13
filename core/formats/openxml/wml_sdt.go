@@ -190,7 +190,7 @@ func (p *wmlParser) parseInlineSDT(d *rawDecoder, runs *[]textRun, rawStart stri
 					wrapperOpen.WriteString(raw)
 				}
 			case "sdtContent":
-				wrapperOpen.WriteString(startElementToRaw(t))
+				wrapperOpen.WriteString(p.names().startElementToRaw(t))
 				inSdtContent = true
 			default:
 				// Unknown SDT child outside sdtContent — skip the
@@ -227,7 +227,7 @@ func (p *wmlParser) parseInlineSDT(d *rawDecoder, runs *[]textRun, rawStart stri
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "r":
-				rawRStart := startElementToRaw(t)
+				rawRStart := p.names().startElementToRaw(t)
 				r, err := p.parseRunWithFieldState(d, &cfs, rawRStart)
 				if err != nil {
 					return err
@@ -246,7 +246,7 @@ func (p *wmlParser) parseInlineSDT(d *rawDecoder, runs *[]textRun, rawStart stri
 				// :97-176 where SDT is part of RUN_CONTAINER_TYPES
 				// and the parent RunContainer re-enters the same
 				// parser for nested run-containers.
-				rawNested := startElementToRaw(t)
+				rawNested := p.names().startElementToRaw(t)
 				if err := p.parseInlineSDT(d, runs, rawNested); err != nil {
 					return err
 				}

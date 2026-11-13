@@ -335,6 +335,11 @@ func (a *App) computeCheck(cmd Command, args []string, req checkRequest) (check.
 	declared := req.declared
 	execution := newCheckExecution()
 	a.InitRegistries()
+	// A check writes no terms, so each terms store is read once for the run
+	// however many files, languages and points ask for its concepts.
+	prevCtx := cmd.Context()
+	cmd.SetContext(withConceptMemo(CmdContext(cmd)))
+	defer cmd.SetContext(prevCtx)
 	// Every read under this context records the plugin it reaches, for the
 	// evaluation record the report carries.
 	ctx := observePlugins(CmdContext(cmd))
@@ -622,7 +627,7 @@ func (a *App) newCheckResolution(cmd Command, execution *checkExecution) (*check
 		voice.close()
 		return nil, err
 	}
-	opts := checkRunOptions{formats: formats, execution: execution, sourceLocale: a.SourceLocale()}
+	opts := checkRunOptions{formats: formats, execution: execution, sourceLocale: a.SourceLocale(), identity: &targetIdentity{}}
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -825,6 +830,10 @@ type checkRunOptions struct {
 	// the blocks are no document, and a rule over a whole document (a voice's
 	// required patterns) is left to `kapi check`.
 	editionsOnly bool
+	// identity is the rule that settles a target identical to its source,
+	// resolved once for the run and shared by every translation it checks.
+	// nil resolves one per translation.
+	identity *targetIdentity
 }
 
 // source is the language the run reads content in: the one it resolved for

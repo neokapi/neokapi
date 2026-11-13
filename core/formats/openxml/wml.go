@@ -122,7 +122,9 @@ type textRun struct {
 
 // wmlParser parses WordprocessingML XML parts (document.xml, headers, footers, etc.).
 type wmlParser struct {
-	cfg           *Config
+	cfg *Config
+	// ns is the namespace prefixes of the package being read (nsScope).
+	ns            *nsScope
 	blockCounter  *int
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
@@ -832,7 +834,7 @@ func (p *wmlParser) skelWriteStartElement(d *rawDecoder, t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
-	registerNamespaces(t.Attr)
+	p.names().register(t.Attr)
 	p.skelBuf.Write(d.Raw())
 }
 

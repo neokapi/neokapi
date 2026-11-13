@@ -18,7 +18,9 @@ const dmlNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 // dmlParser parses DrawingML XML parts (PPTX slides, notes, masters).
 type dmlParser struct {
-	cfg           *Config
+	cfg *Config
+	// ns is the namespace prefixes of the package being read (nsScope).
+	ns            *nsScope
 	blockCounter  *int
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
@@ -764,7 +766,7 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 // reads), but the alt-text blocks are still emitted so an in-memory consumer
 // sees them.
 func (p *dmlParser) skelWriteDrawingPropElement(d *rawDecoder, t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
-	registerNamespaces(t.Attr)
+	p.names().register(t.Attr)
 	raw := d.Raw()
 
 	// Every byte outside the extracted attribute values is replayed from the
@@ -889,7 +891,7 @@ func (p *dmlParser) skelWriteStartElement(d *rawDecoder, t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
-	registerNamespaces(t.Attr)
+	p.names().register(t.Attr)
 	p.skelBuf.Write(d.Raw())
 }
 

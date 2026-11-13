@@ -311,6 +311,11 @@ func (a *App) ProjectRuleCount(ctx context.Context, recipe string) (int, error) 
 // one rulesview.RuleTally so each rule counts once however many points hold
 // it.
 func (a *App) lookRuleCount(cmd Command, proj *project.KapiProject, root string, files []string) int {
+	// Counting writes no terms, so each terms store is read once for the
+	// count, however many points ask for its concepts.
+	prevCtx := cmd.Context()
+	cmd.SetContext(withConceptMemo(CmdContext(cmd)))
+	defer cmd.SetContext(prevCtx)
 	at := a.GovernanceInstant()
 	points := map[string]bool{}
 	var tally rulesview.RuleTally

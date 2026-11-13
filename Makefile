@@ -1398,8 +1398,13 @@ regen-kapimart-sample: build ## Regenerate the KapiMart sample's history (target
 regen-compass-sample: build ## Regenerate the Compass sample's decision record so each decision carries its source basis
 	@./scripts/regen-compass-state.sh
 
+# The timeout covers the KapiMart tests under -race: each one syncs the sample's
+# store, and a sync runs a recycle pass (a convergence pass over every file and
+# target language) before the checks run over the targets it wrote. That pass
+# is goroutine- and SQLite-heavy, which the race detector slows several times
+# over, so the package needs well over two minutes on a CI runner.
 kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
-	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 180s
+	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 300s
 
 # `go test ./backend/...` compiles only the backend, but golangci-lint compiles
 # the whole module — including main.go, whose `//go:embed all:frontend/dist`
