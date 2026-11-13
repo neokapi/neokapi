@@ -7,64 +7,64 @@
     { "id": "pseudo", "type": "tool", "name": "pseudo-translate", "label": "Pseudo-Translate" },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }
   ],
-  "channelSize": 64,
+  "channel_size": 64,
   "events": [
-    { "ts": 50, "type": "exit", "nodeId": "reader", "partId": "layer-1" },
-    { "ts": 100, "type": "exit", "nodeId": "reader", "partId": "block-title" },
-    { "ts": 120, "type": "enter", "nodeId": "tm", "partId": "layer-1" },
-    { "ts": 140, "type": "exit", "nodeId": "tm", "partId": "layer-1" },
-    { "ts": 170, "type": "exit", "nodeId": "reader", "partId": "block-subtitle" },
-    { "ts": 180, "type": "enter", "nodeId": "pseudo", "partId": "layer-1" },
-    { "ts": 190, "type": "enter", "nodeId": "tm", "partId": "block-title" },
-    { "ts": 200, "type": "exit", "nodeId": "pseudo", "partId": "layer-1" },
-    { "ts": 230, "type": "exit", "nodeId": "reader", "partId": "block-body1" },
-    { "ts": 240, "type": "enter", "nodeId": "writer", "partId": "layer-1" },
-    { "ts": 260, "type": "exit", "nodeId": "writer", "partId": "layer-1" },
-    { "ts": 300, "type": "exit", "nodeId": "reader", "partId": "block-body2" },
-    { "ts": 350, "type": "exit", "nodeId": "tm", "partId": "block-title" },
-    { "ts": 360, "type": "enter", "nodeId": "tm", "partId": "block-subtitle" },
-    { "ts": 370, "type": "exit", "nodeId": "reader", "partId": "block-body3" },
-    { "ts": 390, "type": "enter", "nodeId": "pseudo", "partId": "block-title" },
-    { "ts": 420, "type": "exit", "nodeId": "reader", "partId": "data-1" },
-    { "ts": 450, "type": "exit", "nodeId": "reader", "partId": "layer-1-end" },
-    { "ts": 500, "type": "exit", "nodeId": "tm", "partId": "block-subtitle" },
-    { "ts": 510, "type": "enter", "nodeId": "tm", "partId": "block-body1" },
-    { "ts": 550, "type": "exit", "nodeId": "pseudo", "partId": "block-title" },
-    { "ts": 560, "type": "enter", "nodeId": "pseudo", "partId": "block-subtitle" },
-    { "ts": 590, "type": "enter", "nodeId": "writer", "partId": "block-title" },
-    { "ts": 630, "type": "exit", "nodeId": "writer", "partId": "block-title" },
-    { "ts": 650, "type": "exit", "nodeId": "tm", "partId": "block-body1" },
-    { "ts": 660, "type": "enter", "nodeId": "tm", "partId": "block-body2" },
-    { "ts": 700, "type": "exit", "nodeId": "pseudo", "partId": "block-subtitle" },
-    { "ts": 710, "type": "enter", "nodeId": "pseudo", "partId": "block-body1" },
-    { "ts": 740, "type": "enter", "nodeId": "writer", "partId": "block-subtitle" },
-    { "ts": 770, "type": "exit", "nodeId": "writer", "partId": "block-subtitle" },
-    { "ts": 800, "type": "exit", "nodeId": "tm", "partId": "block-body2" },
-    { "ts": 810, "type": "enter", "nodeId": "tm", "partId": "block-body3" },
-    { "ts": 850, "type": "exit", "nodeId": "pseudo", "partId": "block-body1" },
-    { "ts": 860, "type": "enter", "nodeId": "pseudo", "partId": "block-body2" },
-    { "ts": 890, "type": "enter", "nodeId": "writer", "partId": "block-body1" },
-    { "ts": 930, "type": "exit", "nodeId": "writer", "partId": "block-body1" },
-    { "ts": 950, "type": "exit", "nodeId": "tm", "partId": "block-body3" },
-    { "ts": 960, "type": "enter", "nodeId": "tm", "partId": "data-1" },
-    { "ts": 980, "type": "exit", "nodeId": "tm", "partId": "data-1" },
-    { "ts": 990, "type": "enter", "nodeId": "tm", "partId": "layer-1-end" },
-    { "ts": 1000, "type": "exit", "nodeId": "pseudo", "partId": "block-body2" },
-    { "ts": 1010, "type": "exit", "nodeId": "tm", "partId": "layer-1-end" },
-    { "ts": 1010, "type": "enter", "nodeId": "pseudo", "partId": "block-body3" },
-    { "ts": 1040, "type": "enter", "nodeId": "writer", "partId": "block-body2" },
-    { "ts": 1080, "type": "exit", "nodeId": "writer", "partId": "block-body2" },
-    { "ts": 1150, "type": "exit", "nodeId": "pseudo", "partId": "block-body3" },
-    { "ts": 1160, "type": "enter", "nodeId": "pseudo", "partId": "data-1" },
-    { "ts": 1180, "type": "exit", "nodeId": "pseudo", "partId": "data-1" },
-    { "ts": 1190, "type": "enter", "nodeId": "pseudo", "partId": "layer-1-end" },
-    { "ts": 1190, "type": "enter", "nodeId": "writer", "partId": "block-body3" },
-    { "ts": 1200, "type": "exit", "nodeId": "pseudo", "partId": "layer-1-end" },
-    { "ts": 1240, "type": "exit", "nodeId": "writer", "partId": "block-body3" },
-    { "ts": 1260, "type": "enter", "nodeId": "writer", "partId": "data-1" },
-    { "ts": 1280, "type": "exit", "nodeId": "writer", "partId": "data-1" },
-    { "ts": 1290, "type": "enter", "nodeId": "writer", "partId": "layer-1-end" },
-    { "ts": 1330, "type": "exit", "nodeId": "writer", "partId": "layer-1-end" }
+    { "ts": 50, "type": "exit", "node_id": "reader", "part_id": "layer-1" },
+    { "ts": 100, "type": "exit", "node_id": "reader", "part_id": "block-title" },
+    { "ts": 120, "type": "enter", "node_id": "tm", "part_id": "layer-1" },
+    { "ts": 140, "type": "exit", "node_id": "tm", "part_id": "layer-1" },
+    { "ts": 170, "type": "exit", "node_id": "reader", "part_id": "block-subtitle" },
+    { "ts": 180, "type": "enter", "node_id": "pseudo", "part_id": "layer-1" },
+    { "ts": 190, "type": "enter", "node_id": "tm", "part_id": "block-title" },
+    { "ts": 200, "type": "exit", "node_id": "pseudo", "part_id": "layer-1" },
+    { "ts": 230, "type": "exit", "node_id": "reader", "part_id": "block-body1" },
+    { "ts": 240, "type": "enter", "node_id": "writer", "part_id": "layer-1" },
+    { "ts": 260, "type": "exit", "node_id": "writer", "part_id": "layer-1" },
+    { "ts": 300, "type": "exit", "node_id": "reader", "part_id": "block-body2" },
+    { "ts": 350, "type": "exit", "node_id": "tm", "part_id": "block-title" },
+    { "ts": 360, "type": "enter", "node_id": "tm", "part_id": "block-subtitle" },
+    { "ts": 370, "type": "exit", "node_id": "reader", "part_id": "block-body3" },
+    { "ts": 390, "type": "enter", "node_id": "pseudo", "part_id": "block-title" },
+    { "ts": 420, "type": "exit", "node_id": "reader", "part_id": "data-1" },
+    { "ts": 450, "type": "exit", "node_id": "reader", "part_id": "layer-1-end" },
+    { "ts": 500, "type": "exit", "node_id": "tm", "part_id": "block-subtitle" },
+    { "ts": 510, "type": "enter", "node_id": "tm", "part_id": "block-body1" },
+    { "ts": 550, "type": "exit", "node_id": "pseudo", "part_id": "block-title" },
+    { "ts": 560, "type": "enter", "node_id": "pseudo", "part_id": "block-subtitle" },
+    { "ts": 590, "type": "enter", "node_id": "writer", "part_id": "block-title" },
+    { "ts": 630, "type": "exit", "node_id": "writer", "part_id": "block-title" },
+    { "ts": 650, "type": "exit", "node_id": "tm", "part_id": "block-body1" },
+    { "ts": 660, "type": "enter", "node_id": "tm", "part_id": "block-body2" },
+    { "ts": 700, "type": "exit", "node_id": "pseudo", "part_id": "block-subtitle" },
+    { "ts": 710, "type": "enter", "node_id": "pseudo", "part_id": "block-body1" },
+    { "ts": 740, "type": "enter", "node_id": "writer", "part_id": "block-subtitle" },
+    { "ts": 770, "type": "exit", "node_id": "writer", "part_id": "block-subtitle" },
+    { "ts": 800, "type": "exit", "node_id": "tm", "part_id": "block-body2" },
+    { "ts": 810, "type": "enter", "node_id": "tm", "part_id": "block-body3" },
+    { "ts": 850, "type": "exit", "node_id": "pseudo", "part_id": "block-body1" },
+    { "ts": 860, "type": "enter", "node_id": "pseudo", "part_id": "block-body2" },
+    { "ts": 890, "type": "enter", "node_id": "writer", "part_id": "block-body1" },
+    { "ts": 930, "type": "exit", "node_id": "writer", "part_id": "block-body1" },
+    { "ts": 950, "type": "exit", "node_id": "tm", "part_id": "block-body3" },
+    { "ts": 960, "type": "enter", "node_id": "tm", "part_id": "data-1" },
+    { "ts": 980, "type": "exit", "node_id": "tm", "part_id": "data-1" },
+    { "ts": 990, "type": "enter", "node_id": "tm", "part_id": "layer-1-end" },
+    { "ts": 1000, "type": "exit", "node_id": "pseudo", "part_id": "block-body2" },
+    { "ts": 1010, "type": "exit", "node_id": "tm", "part_id": "layer-1-end" },
+    { "ts": 1010, "type": "enter", "node_id": "pseudo", "part_id": "block-body3" },
+    { "ts": 1040, "type": "enter", "node_id": "writer", "part_id": "block-body2" },
+    { "ts": 1080, "type": "exit", "node_id": "writer", "part_id": "block-body2" },
+    { "ts": 1150, "type": "exit", "node_id": "pseudo", "part_id": "block-body3" },
+    { "ts": 1160, "type": "enter", "node_id": "pseudo", "part_id": "data-1" },
+    { "ts": 1180, "type": "exit", "node_id": "pseudo", "part_id": "data-1" },
+    { "ts": 1190, "type": "enter", "node_id": "pseudo", "part_id": "layer-1-end" },
+    { "ts": 1190, "type": "enter", "node_id": "writer", "part_id": "block-body3" },
+    { "ts": 1200, "type": "exit", "node_id": "pseudo", "part_id": "layer-1-end" },
+    { "ts": 1240, "type": "exit", "node_id": "writer", "part_id": "block-body3" },
+    { "ts": 1260, "type": "enter", "node_id": "writer", "part_id": "data-1" },
+    { "ts": 1280, "type": "exit", "node_id": "writer", "part_id": "data-1" },
+    { "ts": 1290, "type": "enter", "node_id": "writer", "part_id": "layer-1-end" },
+    { "ts": 1330, "type": "exit", "node_id": "writer", "part_id": "layer-1-end" }
   ],
   "parts": {
     "layer-1": {
@@ -75,21 +75,21 @@
         "id": "block-title",
         "type": "Block",
         "summary": "title: Getting Started",
-        "sourceText": "Getting Started"
+        "source_text": "Getting Started"
       },
-      "afterNode": {
+      "after_node": {
         "tm": {
           "id": "block-title",
           "type": "Block",
           "summary": "title: Getting Started (no content-memory match)",
-          "sourceText": "Getting Started"
+          "source_text": "Getting Started"
         },
         "pseudo": {
           "id": "block-title",
           "type": "Block",
           "summary": "title: [\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]",
-          "sourceText": "Getting Started",
-          "targetText": "[\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]"
+          "source_text": "Getting Started",
+          "target_text": "[\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]"
         }
       }
     },
@@ -98,21 +98,21 @@
         "id": "block-subtitle",
         "type": "Block",
         "summary": "subtitle: Quick Setup Guide",
-        "sourceText": "Quick Setup Guide"
+        "source_text": "Quick Setup Guide"
       },
-      "afterNode": {
+      "after_node": {
         "tm": {
           "id": "block-subtitle",
           "type": "Block",
           "summary": "subtitle: Quick Setup Guide (85% content-memory match)",
-          "sourceText": "Quick Setup Guide"
+          "source_text": "Quick Setup Guide"
         },
         "pseudo": {
           "id": "block-subtitle",
           "type": "Block",
           "summary": "subtitle: [\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]",
-          "sourceText": "Quick Setup Guide",
-          "targetText": "[\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]"
+          "source_text": "Quick Setup Guide",
+          "target_text": "[\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]"
         }
       }
     },
@@ -121,22 +121,22 @@
         "id": "block-body1",
         "type": "Block",
         "summary": "body1: Install the package",
-        "sourceText": "Install the package"
+        "source_text": "Install the package"
       },
-      "afterNode": {
+      "after_node": {
         "tm": {
           "id": "block-body1",
           "type": "Block",
           "summary": "body1: Install the package (100% content-memory match)",
-          "sourceText": "Install the package",
-          "targetText": "Installez le paquet"
+          "source_text": "Install the package",
+          "target_text": "Installez le paquet"
         },
         "pseudo": {
           "id": "block-body1",
           "type": "Block",
           "summary": "body1: Installez le paquet (Memory applied)",
-          "sourceText": "Install the package",
-          "targetText": "Installez le paquet"
+          "source_text": "Install the package",
+          "target_text": "Installez le paquet"
         }
       }
     },
@@ -145,21 +145,21 @@
         "id": "block-body2",
         "type": "Block",
         "summary": "body2: Configure your settings",
-        "sourceText": "Configure your settings"
+        "source_text": "Configure your settings"
       },
-      "afterNode": {
+      "after_node": {
         "tm": {
           "id": "block-body2",
           "type": "Block",
           "summary": "body2: Configure your settings (no content-memory match)",
-          "sourceText": "Configure your settings"
+          "source_text": "Configure your settings"
         },
         "pseudo": {
           "id": "block-body2",
           "type": "Block",
           "summary": "body2: [\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]",
-          "sourceText": "Configure your settings",
-          "targetText": "[\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]"
+          "source_text": "Configure your settings",
+          "target_text": "[\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]"
         }
       }
     },
@@ -168,21 +168,21 @@
         "id": "block-body3",
         "type": "Block",
         "summary": "body3: Run the application",
-        "sourceText": "Run the application"
+        "source_text": "Run the application"
       },
-      "afterNode": {
+      "after_node": {
         "tm": {
           "id": "block-body3",
           "type": "Block",
           "summary": "body3: Run the application (no content-memory match)",
-          "sourceText": "Run the application"
+          "source_text": "Run the application"
         },
         "pseudo": {
           "id": "block-body3",
           "type": "Block",
           "summary": "body3: [\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]",
-          "sourceText": "Run the application",
-          "targetText": "[\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]"
+          "source_text": "Run the application",
+          "target_text": "[\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]"
         }
       }
     },
@@ -193,14 +193,14 @@
       "initial": { "id": "layer-1-end", "type": "LayerEnd", "summary": "Document root end" }
     }
   },
-  "inputFile": {
+  "input_file": {
     "name": "guide.json",
     "format": "json",
     "preview": "{\n  \"title\": \"Getting Started\",\n  \"subtitle\": \"Quick Setup Guide\",\n  \"steps\": [\n    \"Install the package\",\n    \"Configure your settings\",\n    \"Run the application\"\n  ]\n}"
   },
-  "outputFile": {
+  "output_file": {
     "name": "guide_qps.json",
     "preview": "{\n  \"title\": \"[\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]\",\n  \"subtitle\": \"[\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]\",\n  \"steps\": [\n    \"Installez le paquet\",\n    \"[\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]\",\n    \"[\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]\"\n  ]\n}"
   },
-  "durationUs": 1330
+  "duration_us": 1330
 }

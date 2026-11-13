@@ -3,8 +3,8 @@
 export interface TraceEvent {
   ts: number; // microseconds from flow start
   type: string; // "enter", "exit", "error"
-  nodeId: string;
-  partId?: string;
+  node_id: string;
+  part_id?: string;
   meta?: Record<string, unknown>;
 }
 
@@ -37,7 +37,7 @@ export interface PartDetail {
   name?: string;
   translatable?: boolean;
   properties?: Record<string, string>;
-  hasSkeleton?: boolean;
+  has_skeleton?: boolean;
   overlays?: OverlaySnapshot[];
   annotations?: AnnotationSnapshot[];
 }
@@ -46,14 +46,14 @@ export interface PartSnapshot {
   id: string;
   type: string; // "Block", "Data", "Media", etc.
   summary: string;
-  sourceText?: string;
-  targetText?: string;
+  source_text?: string;
+  target_text?: string;
   detail?: PartDetail;
 }
 
 export interface PartSnapshotSet {
   initial: PartSnapshot;
-  afterNode?: Record<string, PartSnapshot>;
+  after_node?: Record<string, PartSnapshot>;
 }
 
 export interface FlowTrace {
@@ -62,7 +62,7 @@ export interface FlowTrace {
   nodes: TraceNode[];
   events: TraceEvent[];
   parts: Record<string, PartSnapshotSet>;
-  durationUs: number;
+  duration_us: number;
   /** Set when a recording budget dropped parts: the trace is the first parts of the run. */
   truncated?: boolean;
 }
@@ -91,21 +91,21 @@ export function computeNodeStats(events: TraceEvent[]): Map<string, NodeTraceSta
   const enterTimes = new Map<string, number>(); // key: `${nodeId}:${partId}`
 
   for (const evt of events) {
-    if (!stats.has(evt.nodeId)) {
-      stats.set(evt.nodeId, {
-        nodeId: evt.nodeId,
+    if (!stats.has(evt.node_id)) {
+      stats.set(evt.node_id, {
+        nodeId: evt.node_id,
         partsProcessed: 0,
         durationUs: 0,
         hasError: false,
       });
     }
-    const s = stats.get(evt.nodeId)!;
+    const s = stats.get(evt.node_id)!;
 
     if (evt.type === "enter") {
-      enterTimes.set(`${evt.nodeId}:${evt.partId}`, evt.ts);
+      enterTimes.set(`${evt.node_id}:${evt.part_id}`, evt.ts);
     } else if (evt.type === "exit") {
       s.partsProcessed++;
-      const key = `${evt.nodeId}:${evt.partId}`;
+      const key = `${evt.node_id}:${evt.part_id}`;
       const enterTs = enterTimes.get(key);
       if (enterTs !== undefined) {
         s.durationUs += evt.ts - enterTs;

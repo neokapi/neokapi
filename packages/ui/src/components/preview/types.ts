@@ -44,8 +44,8 @@ export type TraceEventType =
 export interface TraceEvent {
   ts: number;
   type: TraceEventType;
-  nodeId: string;
-  partId?: string;
+  node_id: string;
+  part_id?: string;
   meta?: Record<string, unknown>;
 }
 
@@ -53,8 +53,8 @@ export interface PartSnapshot {
   id: string;
   type: "LayerStart" | "LayerEnd" | "Block" | "Data" | "Media" | "GroupStart" | "GroupEnd";
   summary: string;
-  sourceText?: string;
-  targetText?: string;
+  source_text?: string;
+  target_text?: string;
   /** Full part structure at this point — run sequences, every locale, properties. */
   detail?: PartDetail;
 }
@@ -66,12 +66,12 @@ export interface PartDetail {
   source?: Run[];
   targets?: Record<string, Run[]>;
   properties?: Record<string, string>;
-  hasSkeleton?: boolean;
+  has_skeleton?: boolean;
 }
 
 export interface PartSnapshotSet {
   initial: PartSnapshot;
-  afterNode?: Record<string, PartSnapshot>;
+  after_node?: Record<string, PartSnapshot>;
 }
 
 export interface TraceFile {
@@ -84,12 +84,12 @@ export interface FlowTrace {
   name: string;
   description: string;
   nodes: FlowNode[];
-  channelSize: number;
+  channel_size: number;
   events: TraceEvent[];
   parts: Record<string, PartSnapshotSet>;
-  inputFile: TraceFile;
-  outputFile: TraceFile;
-  durationUs: number;
+  input_file: TraceFile;
+  output_file: TraceFile;
+  duration_us: number;
 }
 
 // ── Particle (player animation) ──────────────────────────────────────────────

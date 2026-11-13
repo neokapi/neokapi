@@ -99,14 +99,14 @@ export const runReviewTrace: FlowTrace = {
     { id: "writer", type: "writer", name: "write" },
   ],
   events: [
-    { ts: 120, type: "enter", nodeId: "tool-1", partId: "b1" },
-    { ts: 480, type: "exit", nodeId: "tool-1", partId: "b1" },
-    { ts: 510, type: "enter", nodeId: "tool-2", partId: "b1" },
-    { ts: 2200, type: "exit", nodeId: "tool-2", partId: "b1" },
-    { ts: 2300, type: "enter", nodeId: "tool-1", partId: "b2" },
-    { ts: 2350, type: "exit", nodeId: "tool-1", partId: "b2" },
-    { ts: 2400, type: "enter", nodeId: "tool-2", partId: "b2" },
-    { ts: 3100, type: "exit", nodeId: "tool-2", partId: "b2" },
+    { ts: 120, type: "enter", node_id: "tool-1", part_id: "b1" },
+    { ts: 480, type: "exit", node_id: "tool-1", part_id: "b1" },
+    { ts: 510, type: "enter", node_id: "tool-2", part_id: "b1" },
+    { ts: 2200, type: "exit", node_id: "tool-2", part_id: "b1" },
+    { ts: 2300, type: "enter", node_id: "tool-1", part_id: "b2" },
+    { ts: 2350, type: "exit", node_id: "tool-1", part_id: "b2" },
+    { ts: 2400, type: "enter", node_id: "tool-2", part_id: "b2" },
+    { ts: 3100, type: "exit", node_id: "tool-2", part_id: "b2" },
   ],
   parts: {
     b1: {
@@ -114,7 +114,7 @@ export const runReviewTrace: FlowTrace = {
         id: "b1",
         type: "Block",
         summary: "Contact Jane Doe at Acme Corp",
-        sourceText: "Contact Jane Doe at Acme Corp",
+        source_text: "Contact Jane Doe at Acme Corp",
         detail: {
           overlays: [
             {
@@ -128,12 +128,12 @@ export const runReviewTrace: FlowTrace = {
           ],
         },
       },
-      afterNode: {
+      after_node: {
         "tool-1": {
           id: "b1",
           type: "Block",
           summary: "Contact Jane Doe at Acme Corp",
-          sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
+          source_text: "Contact [REDACTED:Person] at [REDACTED:Org]",
           detail: {
             annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }],
           },
@@ -142,8 +142,8 @@ export const runReviewTrace: FlowTrace = {
           id: "b1",
           type: "Block",
           summary: "Contact Jane Doe at Acme Corp",
-          sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
-          targetText: "Contactez [REDACTED:Person] chez [REDACTED:Org]",
+          source_text: "Contact [REDACTED:Person] at [REDACTED:Org]",
+          target_text: "Contactez [REDACTED:Person] chez [REDACTED:Org]",
           detail: {
             annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }],
           },
@@ -155,24 +155,24 @@ export const runReviewTrace: FlowTrace = {
         id: "b2",
         type: "Block",
         summary: "Thanks for reaching out!",
-        sourceText: "Thanks for reaching out!",
+        source_text: "Thanks for reaching out!",
       },
-      afterNode: {
+      after_node: {
         "tool-1": {
           id: "b2",
           type: "Block",
           summary: "Thanks for reaching out!",
-          sourceText: "Thanks for reaching out!",
+          source_text: "Thanks for reaching out!",
         },
         "tool-2": {
           id: "b2",
           type: "Block",
           summary: "Thanks for reaching out!",
-          sourceText: "Thanks for reaching out!",
-          targetText: "Merci de nous avoir contactés !",
+          source_text: "Thanks for reaching out!",
+          target_text: "Merci de nous avoir contactés !",
         },
       },
     },
   },
-  durationUs: 3200,
+  duration_us: 3200,
 };

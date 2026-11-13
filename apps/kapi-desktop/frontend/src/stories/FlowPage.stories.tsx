@@ -21,20 +21,20 @@ const recordedTrace: FlowTrace = {
     { id: "writer", type: "writer", name: "markdown", label: "markdown writer" },
   ],
   events: [
-    { ts: 40, type: "exit", nodeId: "reader", partId: "b1" },
-    { ts: 120, type: "enter", nodeId: "tool-0", partId: "b1" },
-    { ts: 480, type: "exit", nodeId: "tool-0", partId: "b1" },
-    { ts: 510, type: "enter", nodeId: "tool-1", partId: "b1" },
-    { ts: 2200, type: "exit", nodeId: "tool-1", partId: "b1" },
-    { ts: 2210, type: "enter", nodeId: "writer", partId: "b1" },
-    { ts: 2230, type: "exit", nodeId: "writer", partId: "b1" },
-    { ts: 2250, type: "exit", nodeId: "reader", partId: "b2" },
-    { ts: 2300, type: "enter", nodeId: "tool-0", partId: "b2" },
-    { ts: 2350, type: "exit", nodeId: "tool-0", partId: "b2" },
-    { ts: 2400, type: "enter", nodeId: "tool-1", partId: "b2" },
-    { ts: 3100, type: "exit", nodeId: "tool-1", partId: "b2" },
-    { ts: 3110, type: "enter", nodeId: "writer", partId: "b2" },
-    { ts: 3140, type: "exit", nodeId: "writer", partId: "b2" },
+    { ts: 40, type: "exit", node_id: "reader", part_id: "b1" },
+    { ts: 120, type: "enter", node_id: "tool-0", part_id: "b1" },
+    { ts: 480, type: "exit", node_id: "tool-0", part_id: "b1" },
+    { ts: 510, type: "enter", node_id: "tool-1", part_id: "b1" },
+    { ts: 2200, type: "exit", node_id: "tool-1", part_id: "b1" },
+    { ts: 2210, type: "enter", node_id: "writer", part_id: "b1" },
+    { ts: 2230, type: "exit", node_id: "writer", part_id: "b1" },
+    { ts: 2250, type: "exit", node_id: "reader", part_id: "b2" },
+    { ts: 2300, type: "enter", node_id: "tool-0", part_id: "b2" },
+    { ts: 2350, type: "exit", node_id: "tool-0", part_id: "b2" },
+    { ts: 2400, type: "enter", node_id: "tool-1", part_id: "b2" },
+    { ts: 3100, type: "exit", node_id: "tool-1", part_id: "b2" },
+    { ts: 3110, type: "enter", node_id: "writer", part_id: "b2" },
+    { ts: 3140, type: "exit", node_id: "writer", part_id: "b2" },
   ],
   parts: {
     b1: {
@@ -42,7 +42,7 @@ const recordedTrace: FlowTrace = {
         id: "b1",
         type: "Block",
         summary: "Contact Jane Doe at Acme Corp",
-        sourceText: "Contact Jane Doe at Acme Corp",
+        source_text: "Contact Jane Doe at Acme Corp",
         detail: {
           overlays: [
             {
@@ -56,20 +56,20 @@ const recordedTrace: FlowTrace = {
           ],
         },
       },
-      afterNode: {
+      after_node: {
         "tool-0": {
           id: "b1",
           type: "Block",
           summary: "Contact Jane Doe at Acme Corp",
-          sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
+          source_text: "Contact [REDACTED:Person] at [REDACTED:Org]",
           detail: { annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }] },
         },
         "tool-1": {
           id: "b1",
           type: "Block",
           summary: "Contact Jane Doe at Acme Corp",
-          sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
-          targetText: "Contactez [REDACTED:Person] chez [REDACTED:Org]",
+          source_text: "Contact [REDACTED:Person] at [REDACTED:Org]",
+          target_text: "Contactez [REDACTED:Person] chez [REDACTED:Org]",
           detail: { annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }] },
         },
       },
@@ -79,26 +79,26 @@ const recordedTrace: FlowTrace = {
         id: "b2",
         type: "Block",
         summary: "Thanks for reaching out!",
-        sourceText: "Thanks for reaching out!",
+        source_text: "Thanks for reaching out!",
       },
-      afterNode: {
+      after_node: {
         "tool-0": {
           id: "b2",
           type: "Block",
           summary: "Thanks for reaching out!",
-          sourceText: "Thanks for reaching out!",
+          source_text: "Thanks for reaching out!",
         },
         "tool-1": {
           id: "b2",
           type: "Block",
           summary: "Thanks for reaching out!",
-          sourceText: "Thanks for reaching out!",
-          targetText: "Merci de nous avoir contactés !",
+          source_text: "Thanks for reaching out!",
+          target_text: "Merci de nous avoir contactés !",
         },
       },
     },
   },
-  durationUs: 3200,
+  duration_us: 3200,
 };
 
 const recordedRun: RunTraces = {

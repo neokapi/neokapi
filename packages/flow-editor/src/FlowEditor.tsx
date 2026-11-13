@@ -1214,7 +1214,7 @@ export function FlowEditor({
             onCursorChange={setTraceCursor}
             playing={tracePlaying}
             onPlayingChange={setTracePlaying}
-            durationUs={trace?.durationUs}
+            durationUs={trace?.duration_us}
             onClose={() => {
               setTraceDismissed(true);
               setTracePlaying(false);

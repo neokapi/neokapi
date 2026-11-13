@@ -40,16 +40,16 @@ const TRACE: FlowTrace = {
     { id: "writer", type: "writer", name: "json" },
   ],
   events: [
-    { ts: 1, type: "enter", nodeId: "tool-0", partId: "b1" },
-    { ts: 2, type: "exit", nodeId: "tool-0", partId: "b1" },
+    { ts: 1, type: "enter", node_id: "tool-0", part_id: "b1" },
+    { ts: 2, type: "exit", node_id: "tool-0", part_id: "b1" },
   ],
   parts: {
     b1: {
-      initial: { id: "b1", type: "Block", summary: "Hello", sourceText: "Hello" },
-      afterNode: {},
+      initial: { id: "b1", type: "Block", summary: "Hello", source_text: "Hello" },
+      after_node: {},
     },
   },
-  durationUs: 2,
+  duration_us: 2,
 };
 
 function renderPage(flow: FlowSpec = LINEAR, flowName = "translate") {

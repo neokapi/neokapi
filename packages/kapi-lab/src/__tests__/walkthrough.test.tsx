@@ -153,7 +153,7 @@ describe("specFromTrace", () => {
       ],
       events: [],
       parts: {},
-      durationUs: 0,
+      duration_us: 0,
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const spec = specFromTrace(trace as any);
@@ -161,5 +161,24 @@ describe("specFromTrace", () => {
       { tool: "pseudo-translate", label: "Pseudo-Translate" },
       { tool: "qa" },
     ]);
+  });
+
+  it("refuses a trace written with the earlier camelCase field names", async () => {
+    const { parseTrace } = await import("../traceImport");
+    const current = {
+      nodes: [],
+      events: [{ ts: 0, type: "enter", node_id: "tool-0" }],
+      parts: {},
+      duration_us: 1,
+    };
+    expect(parseTrace(current, "new.json")).toBe(current);
+    const legacy = {
+      nodes: [],
+      events: [{ ts: 0, type: "enter", nodeId: "tool-0" }],
+      parts: {},
+      durationUs: 1,
+    };
+    expect(() => parseTrace(legacy, "old.json")).toThrow(/kapi run --trace/);
+    expect(() => parseTrace({ hello: 1 }, "x.json")).toThrow(/not a kapi trace JSON/);
   });
 });

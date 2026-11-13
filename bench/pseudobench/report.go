@@ -343,17 +343,17 @@ const htmlTemplate = `<!DOCTYPE html>
         var chartIndex = 0;
 
         experiments.forEach(function(exp, expIdx) {
-            if (!exp.batchTrace || !exp.batchTrace.fileTraces || exp.batchTrace.fileTraces.length === 0) return;
+            if (!exp.batchTrace || !exp.batchTrace.file_traces || exp.batchTrace.file_traces.length === 0) return;
 
             var bt = exp.batchTrace;
-            var traces = bt.fileTraces;
+            var traces = bt.file_traces;
 
             // Compute max lane and max time.
             var maxLane = 0;
             var maxTimeUs = 0;
             traces.forEach(function(ft) {
                 if (ft.lane > maxLane) maxLane = ft.lane;
-                if (ft.endUs > maxTimeUs) maxTimeUs = ft.endUs;
+                if (ft.end_us > maxTimeUs) maxTimeUs = ft.end_us;
             });
             var numLanes = maxLane + 1;
 
@@ -366,9 +366,9 @@ const htmlTemplate = `<!DOCTYPE html>
             // Build one dataset per file trace (each is a single floating bar).
             var datasets = traces.map(function(ft) {
                 var color = FORMAT_COLORS[ft.format] || "#999";
-                var startMs = ft.startUs / 1000;
-                var endMs = ft.endUs / 1000;
-                var durationMs = (ft.endUs - ft.startUs) / 1000;
+                var startMs = ft.start_us / 1000;
+                var endMs = ft.end_us / 1000;
+                var durationMs = (ft.end_us - ft.start_us) / 1000;
 
                 // Create data array with null for all lanes except this file's lane.
                 var data = [];
@@ -401,7 +401,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
             var stats = document.createElement("span");
             stats.className = "batch-trace-stats";
-            var totalMs = (bt.durationUs / 1000).toFixed(0);
+            var totalMs = (bt.duration_us / 1000).toFixed(0);
             var rssKB = exp.peakRssKB.max.toFixed(0);
             var rssMB = (exp.peakRssKB.max / 1024).toFixed(1);
             var statsText = totalMs + " ms total \u00b7 " + rssMB + " MB RSS \u00b7 " + bt.concurrency + " lanes \u00b7 " + traces.length + " files";

@@ -24,11 +24,11 @@ const (
 
 // TraceEvent represents a single timestamped event during flow execution.
 type TraceEvent struct {
-	TS     int64          `json:"ts"`               // microseconds from flow start
-	Type   TraceEventType `json:"type"`             // TraceEnter or TraceExit
-	NodeID string         `json:"nodeId"`           // which node
-	PartID string         `json:"partId,omitempty"` // which Part
-	Meta   map[string]any `json:"meta,omitempty"`   // extra data
+	TS     int64          `json:"ts"`                // microseconds from flow start
+	Type   TraceEventType `json:"type"`              // TraceEnter or TraceExit
+	NodeID string         `json:"node_id"`           // which node
+	PartID string         `json:"part_id,omitempty"` // which Part
+	Meta   map[string]any `json:"meta,omitempty"`    // extra data
 }
 
 // PartSnapshot captures the state of a Part at a point in time.
@@ -37,10 +37,10 @@ type PartSnapshot struct {
 	// trace holds the part under PartKey instead, so a layer's start and end,
 	// which share one resource, stay apart.
 	ID         string `json:"id"`
-	Type       string `json:"type"`                 // "LayerStart", "LayerEnd", "Block", "Data", "Media", "GroupStart", "GroupEnd"
-	Summary    string `json:"summary"`              // short description
-	SourceText string `json:"sourceText,omitempty"` // source text for blocks
-	TargetText string `json:"targetText,omitempty"` // target text for blocks
+	Type       string `json:"type"`                  // "LayerStart", "LayerEnd", "Block", "Data", "Media", "GroupStart", "GroupEnd"
+	Summary    string `json:"summary"`               // short description
+	SourceText string `json:"source_text,omitempty"` // source text for blocks
+	TargetText string `json:"target_text,omitempty"` // target text for blocks
 	// Detail carries the full part structure for a rich inspector — run
 	// sequences (inline codes preserved), every target locale, and properties.
 	// Populated for Block parts; nil for structural parts.
@@ -61,7 +61,7 @@ type PartDetail struct {
 	Source       []model.Run            `json:"source,omitempty"`
 	Targets      map[string][]model.Run `json:"targets,omitempty"`
 	Properties   map[string]string      `json:"properties,omitempty"`
-	HasSkeleton  bool                   `json:"hasSkeleton,omitempty"`
+	HasSkeleton  bool                   `json:"has_skeleton,omitempty"`
 	Overlays     []OverlaySnapshot      `json:"overlays,omitempty"`
 	Annotations  []AnnotationSnapshot   `json:"annotations,omitempty"`
 }
@@ -94,7 +94,7 @@ type AnnotationSnapshot struct {
 // PartSnapshotSet holds the initial snapshot and snapshots after each node.
 type PartSnapshotSet struct {
 	Initial   PartSnapshot            `json:"initial"`
-	AfterNode map[string]PartSnapshot `json:"afterNode,omitempty"`
+	AfterNode map[string]PartSnapshot `json:"after_node,omitempty"`
 }
 
 // FlowTrace is the top-level output of a traced flow execution.
@@ -102,12 +102,12 @@ type FlowTrace struct {
 	Name        string                      `json:"name"`
 	Description string                      `json:"description"`
 	Nodes       []TraceNode                 `json:"nodes"`
-	ChannelSize int                         `json:"channelSize"`
+	ChannelSize int                         `json:"channel_size"`
 	Events      []TraceEvent                `json:"events"`
 	Parts       map[string]*PartSnapshotSet `json:"parts"`
-	InputFile   TraceFile                   `json:"inputFile"`
-	OutputFile  TraceFile                   `json:"outputFile"`
-	DurationUs  int64                       `json:"durationUs"`
+	InputFile   TraceFile                   `json:"input_file"`
+	OutputFile  TraceFile                   `json:"output_file"`
+	DurationUs  int64                       `json:"duration_us"`
 	// Truncated is set when a TraceLimits budget dropped parts or events: the
 	// trace is the first parts of the run, not the whole of it.
 	Truncated bool `json:"truncated,omitempty"`
@@ -601,18 +601,18 @@ func NewTraceRecorderWithStart(start time.Time) *TraceRecorder {
 type BatchFlowTrace struct {
 	Name        string          `json:"name"`
 	Concurrency int             `json:"concurrency"`
-	FileTraces  []FileFlowTrace `json:"fileTraces"`
-	DurationUs  int64           `json:"durationUs"`
+	FileTraces  []FileFlowTrace `json:"file_traces"`
+	DurationUs  int64           `json:"duration_us"`
 }
 
 // FileFlowTrace captures tracing data for a single file within a batch.
 type FileFlowTrace struct {
 	File       string       `json:"file"`
 	Format     string       `json:"format"`
-	StartUs    int64        `json:"startUs"`
-	EndUs      int64        `json:"endUs"`
+	StartUs    int64        `json:"start_us"`
+	EndUs      int64        `json:"end_us"`
 	Lane       int          `json:"lane"`
 	Nodes      []TraceNode  `json:"nodes"`
 	Events     []TraceEvent `json:"events"`
-	DurationUs int64        `json:"durationUs"`
+	DurationUs int64        `json:"duration_us"`
 }

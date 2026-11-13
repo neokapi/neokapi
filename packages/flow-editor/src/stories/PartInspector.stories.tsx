@@ -20,14 +20,14 @@ type Story = StoryObj<typeof PartInspector>;
 
 const singleBlockParts: Record<string, PartSnapshotSet> = {
   p1: {
-    initial: { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world" },
-    afterNode: {
+    initial: { id: "p1", type: "Block", summary: "Hello world", source_text: "Hello world" },
+    after_node: {
       "tool-0": {
         id: "p1",
         type: "Block",
         summary: "Hello world",
-        sourceText: "Hello world",
-        targetText: "Bonjour le monde",
+        source_text: "Hello world",
+        target_text: "Bonjour le monde",
       },
     },
   },
@@ -35,14 +35,14 @@ const singleBlockParts: Record<string, PartSnapshotSet> = {
 
 const multiBlockParts: Record<string, PartSnapshotSet> = {
   p1: {
-    initial: { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world" },
-    afterNode: {
+    initial: { id: "p1", type: "Block", summary: "Hello world", source_text: "Hello world" },
+    after_node: {
       "tool-0": {
         id: "p1",
         type: "Block",
         summary: "Hello world",
-        sourceText: "Hello world",
-        targetText: "Bonjour le monde",
+        source_text: "Hello world",
+        target_text: "Bonjour le monde",
       },
     },
   },
@@ -51,28 +51,28 @@ const multiBlockParts: Record<string, PartSnapshotSet> = {
       id: "p2",
       type: "Block",
       summary: "Click here",
-      sourceText: "Click here",
-      targetText: "Click here",
+      source_text: "Click here",
+      target_text: "Click here",
     },
-    afterNode: {
+    after_node: {
       "tool-0": {
         id: "p2",
         type: "Block",
         summary: "Click here",
-        sourceText: "Click here",
-        targetText: "Cliquez ici",
+        source_text: "Click here",
+        target_text: "Cliquez ici",
       },
     },
   },
   p3: {
-    initial: { id: "p3", type: "Block", summary: "Submit form", sourceText: "Submit form" },
-    afterNode: {
+    initial: { id: "p3", type: "Block", summary: "Submit form", source_text: "Submit form" },
+    after_node: {
       "tool-0": {
         id: "p3",
         type: "Block",
         summary: "Submit form",
-        sourceText: "Submit form",
-        targetText: "Soumettre le formulaire",
+        source_text: "Submit form",
+        target_text: "Soumettre le formulaire",
       },
     },
   },
