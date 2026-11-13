@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_BOWRAIN_SERVER_URL": "https://dev.bowrain.cloud"
+        "EXPO_PUBLIC_BOWRAIN_SERVER_URL": "http://localhost:8080"
       },
       "ios": {
         "simulator": true
@@ -28,6 +28,7 @@
       }
     },
     "production": {
+      "distribution": "store",
       "channel": "production",
       "autoIncrement": true,
       "env": {
@@ -36,6 +37,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "FOUNDER_FILL_IN_APP_STORE_CONNECT_APPLE_ID",
+        "appleTeamId": "FOUNDER_FILL_IN_APPLE_TEAM_ID"
+      }
+    }
   }
 }

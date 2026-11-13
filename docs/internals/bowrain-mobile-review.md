@@ -254,11 +254,12 @@ app.
   in the query, for installed desktop releases that predate the code redirect.
 - In production the redirect should be an `https` URL on the Bowrain web
   domain (Universal Links on iOS, App Links on Android), so no other app can
-  claim it. That is a founder step: publish
-  `/.well-known/apple-app-site-association` (the team ID and bundle ID
-  `cloud.bowrain.app`, path `/auth/callback`) and `/.well-known/assetlinks.json`
+  claim it. The iOS half is in the tree with the team ID left as a placeholder
+  (`bowrain/apps/web/public/.well-known/apple-app-site-association`, the
+  app's `associatedDomains`); [bowrain-mobile-testflight.md](bowrain-mobile-testflight.md)
+  lists what remains. Still to do: publish `/.well-known/assetlinks.json`
   (package `cloud.bowrain.app` and the signing certificate's SHA-256) on the
-  web domain, add the associated domain to the app's config, and add that
+  web domain, add the Android intent filter to the app's config, and add the
   `https` URL to the server's redirect allowlist. Development builds keep the
   `bowrain://` redirect.
 - The review permission is language-scoped (`PermReview`); the app shows only
