@@ -1,0 +1,34 @@
+# End-to-end overlay for the full local stack (compose.full.yaml). Use it only
+# for automated UI runs, such as the Bowrain mobile app's Maestro flows:
+#
+#   make -C bowrain stack-up-e2e
+#
+# The "bowrain" realm signs in with passkeys only, which a UI test cannot
+# complete. The one-shot keycloak-e2e service switches that realm's browser
+# flow to username and password and seeds a test user with a password
+# (docker/keycloak/e2e-init.sh). Nothing about sign-in is mocked: the app
+# still goes through the real Keycloak and the real server.
+#
+# The default stack is unchanged. `make -C bowrain stack-down` removes the
+# volumes, and the next `stack-up` imports the passkey-only realm again.
+
+services:
+  keycloak-e2e:
+    profiles: ["e2e"]
+    build:
+      context: .
+      dockerfile: docker/keycloak/Dockerfile.dev
+    entrypoint: ["/bin/bash", "/e2e-init.sh"]
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      E2E_REALM: bowrain
+      E2E_USERNAME: ${E2E_USERNAME:-e2e-reviewer@example.com}
+      E2E_PASSWORD: ${E2E_PASSWORD:-e2e-password}
+    volumes:
+      - ./docker/keycloak/e2e-init.sh:/e2e-init.sh:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: "no"

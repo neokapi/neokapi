@@ -77,3 +77,17 @@ From the repo root: `vp install`, `vp check`, and
 Sign-in against the local stack (`make -C bowrain stack-up`) uses
 `EXPO_PUBLIC_BOWRAIN_SERVER_URL`, default `http://localhost:8080`. On the
 Android emulator the host machine is `http://10.0.2.2:8080`.
+
+## End-to-end flows
+
+The Maestro flows in `e2e/` sign in with a password, which the local
+`bowrain` realm does not offer: it signs in with passkeys only. Start the
+stack with `make -C bowrain stack-up-e2e` (`compose.e2e.yaml`). It turns on
+password sign-in for that realm and seeds the test user
+`e2e-reviewer@example.com` / `e2e-password` (set `E2E_USERNAME` and
+`E2E_PASSWORD` to change them). Use it for e2e runs only, and restore the
+passkey-only realm with `make -C bowrain stack-down stack-up`.
+
+The decision flows (`approve.yaml`, `reject.yaml`, `fix.yaml`) open a deck
+through `open-deck.yaml`, so the test user needs review permission in the
+project they name (`-e WORKSPACE=… -e PROJECT=… -e LOCALE=…`).
