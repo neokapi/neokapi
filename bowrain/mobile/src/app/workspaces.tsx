@@ -34,6 +34,7 @@ export default function Workspaces() {
   return (
     <View className="bg-background flex-1">
       <FlatList
+        contentInsetAdjustmentBehavior="automatic"
         data={workspaces.data ?? []}
         keyExtractor={(w) => w.id}
         renderItem={({ item }) => (

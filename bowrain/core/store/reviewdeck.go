@@ -100,3 +100,21 @@ type ReviewDeckStore interface {
 	// CountReviewDeck counts the deck by group, and what is not classified.
 	CountReviewDeck(ctx context.Context, q ReviewDeckQuery) (ReviewDeckCounts, error)
 }
+
+// ReviewDeckStores finds the review deck store behind a content store,
+// looking through any decorator that names what it wraps, as ContextObjects
+// does. The server's content store is wrapped for event emission, so a plain
+// type assertion on it never finds the deck.
+func ReviewDeckStores(cs ContentStore) (ReviewDeckStore, bool) {
+	for cs != nil {
+		if s, ok := cs.(ReviewDeckStore); ok {
+			return s, true
+		}
+		inner, ok := cs.(interface{ Unwrap() ContentStore })
+		if !ok {
+			return nil, false
+		}
+		cs = inner.Unwrap()
+	}
+	return nil, false
+}
