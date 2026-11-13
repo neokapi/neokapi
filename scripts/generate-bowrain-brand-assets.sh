@@ -3,8 +3,8 @@
 # Regenerate every bowrain-branded asset from the canonical vector mark.
 #
 # The bowrain mark (rainbow arc dripping into rain) lives at:
-#   bowrain/assets/brand/mark.svg           (full illustration, >=48px)
-#   bowrain/assets/brand/mark-favicon.svg   (simplified companion, <=32px)
+#   assets/brand/bowrain/mark.svg           (full illustration, >=48px)
+#   assets/brand/bowrain/mark-favicon.svg   (simplified companion, <=32px)
 #
 # This script is fully deterministic — drop in an updated mark.svg/
 # mark-favicon.svg and re-run; every derived asset is rebuilt the same way.
@@ -17,7 +17,7 @@
 #
 # Generated:
 #   masters:
-#     bowrain/assets/brand/mark-1024.png                (transparent, full-bleed)
+#     assets/brand/bowrain/mark-1024.png                (transparent, full-bleed)
 #   landing (bowrain/web/landing/public/):
 #     favicon.svg  favicon.ico (16/32/48)  og.png (1200x630)
 #     mark.png (256, transparent — inline navbar/UI mark, src/components/Logo.tsx)
@@ -32,16 +32,19 @@
 #     apple-touch-icon.png (180, tile)
 #   keycloak theme (bowrain/apps/keycloak-theme/):
 #     public/logo.png (512)  src/login/assets/logo.png (512)
+#   mobile app (bowrain/mobile/assets/images/):
+#     icon.png (1024, opaque tile)  splash-icon.png (1024, transparent)
+#     android-icon-{foreground,background,monochrome}.png (1024, adaptive icon)
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MARK="$REPO_ROOT/bowrain/assets/brand/mark.svg"
+MARK="$REPO_ROOT/assets/brand/bowrain/mark.svg"
 [[ -f "$MARK" ]] || { echo "Error: $MARK not found" >&2; exit 1; }
 
 # Simplified glyph for tiny sizes (≤32px): the full mark's fine rain blurs
 # into the arch below ~32px, so favicons render this bolder companion instead.
-GLYPH="$REPO_ROOT/bowrain/assets/brand/mark-favicon.svg"
+GLYPH="$REPO_ROOT/assets/brand/bowrain/mark-favicon.svg"
 [[ -f "$GLYPH" ]] || { echo "Error: $GLYPH not found" >&2; exit 1; }
 
 # Solid tile background for surfaces that need one (app icons, touch icons).
@@ -54,7 +57,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 echo "Generating bowrain brand assets from: $MARK"
 
 # --- Masters ---------------------------------------------------------------
-MASTER="$REPO_ROOT/bowrain/assets/brand/mark-1024.png"
+MASTER="$REPO_ROOT/assets/brand/bowrain/mark-1024.png"
 rsvg-convert -w 1024 -h 1024 "$MARK" -o "$MASTER"
 
 # Tile master: mark at 72% centered on a solid tile (for app/touch icons).
@@ -177,5 +180,26 @@ resize "$TILE" 180 "$DOCS/apple-touch-icon.png"
 echo "  keycloak theme logos"
 resize "$MASTER" 512 "$REPO_ROOT/bowrain/apps/keycloak-theme/public/logo.png"
 resize "$MASTER" 512 "$REPO_ROOT/bowrain/apps/keycloak-theme/src/login/assets/logo.png"
+
+# --- Mobile app (Expo) -------------------------------------------------------
+# app.config.ts points icon, adaptiveIcon and the expo-splash-screen plugin at
+# these files; `expo prebuild` derives every native size from them.
+echo "  mobile app icon + splash"
+MOBILE="$REPO_ROOT/bowrain/mobile/assets/images"
+# iOS rejects an app icon with an alpha channel: flatten the tile onto its
+# own background and write it as opaque RGB.
+magick "$TILE" -background "$TILE_BG" -alpha remove -alpha off -strip "PNG24:$MOBILE/icon.png"
+# Splash: the transparent mark, drawn on the light and dark splash
+# backgrounds set in app.config.ts. The mark's colours carry on both.
+rsvg-convert -w 1024 -h 1024 "$MARK" -o "$MOBILE/splash-icon.png"
+# Android adaptive icon: 108dp canvas, launcher masks keep the inner 66%, so
+# the mark sits at 60% to stay clear of the mask on every launcher shape.
+rsvg-convert -w 614 -h 614 "$MARK" -o "$TMPDIR/mark-614.png"
+magick -size 1024x1024 xc:none "$TMPDIR/mark-614.png" -gravity center -composite \
+  -strip "$MOBILE/android-icon-foreground.png"
+magick -size 1024x1024 "xc:$TILE_BG" -strip "PNG24:$MOBILE/android-icon-background.png"
+# Monochrome (Android 13 themed icons): the mark's silhouette in white.
+magick "$MOBILE/android-icon-foreground.png" -alpha extract -threshold 30% -background white \
+  -alpha shape -strip "$MOBILE/android-icon-monochrome.png"
 
 echo "Done."

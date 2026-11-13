@@ -2731,7 +2731,7 @@ logo: ## Regenerate all neokapi logo/icon/favicon assets from the source pair
 	@bash scripts/generate-neokapi-logo.sh
 
 # Regenerate every bowrain-branded logo/icon/favicon from the canonical vector
-# mark (bowrain/assets/brand/mark.svg + mark-favicon.svg). Fully scripted —
+# mark (assets/brand/bowrain/mark.svg + mark-favicon.svg). Fully scripted —
 # drop in an updated mark and re-run.
 bowrain-logo: ## Regenerate all bowrain logo/icon/favicon assets from the vector mark
 	@bash scripts/generate-bowrain-brand-assets.sh
