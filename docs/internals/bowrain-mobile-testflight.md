@@ -27,7 +27,6 @@ Search for `FOUNDER` to find them all.
 
 | Where | Value | Comes from |
 | --- | --- | --- |
-| `bowrain/mobile/eas.json`, `submit.production.ios.ascAppId` | The app's Apple ID, a number | App Store Connect, App Information |
 | `bowrain/mobile/eas.json`, `submit.production.ios.appleTeamId` | Team ID, 10 characters | developer.apple.com, Membership details |
 | `bowrain/apps/web/public/.well-known/apple-app-site-association`, both `appIDs` entries | Team ID, as `<TEAM_ID>.cloud.bowrain.app` | Same as above |
 
