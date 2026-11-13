@@ -5,7 +5,9 @@ import {
   currentServer,
   loadServerChoice,
   normalizeServerUrl,
+  optionServer,
   serverHost,
+  serverOption,
   setServerChoice,
 } from "../lib/serverChoice";
 
@@ -27,6 +29,27 @@ describe("normalizeServerUrl", () => {
       expect(normalizeServerUrl(input)).toBeNull();
     },
   );
+});
+
+describe("serverOption", () => {
+  it("selects Bowrain Cloud for its URL in every build", () => {
+    expect(serverOption("https://app.bowrain.cloud", false)).toBe("cloud");
+    expect(serverOption("https://app.bowrain.cloud", true)).toBe("cloud");
+  });
+
+  it("offers the local stack only in a development build", () => {
+    expect(serverOption("http://localhost:8080", true)).toBe("local");
+    expect(serverOption("http://localhost:8080", false)).toBe("custom");
+  });
+
+  it("selects the custom row for any other server", () => {
+    expect(serverOption("https://bowrain.example.com", true)).toBe("custom");
+  });
+
+  it("maps the fixed rows back to their servers", () => {
+    expect(optionServer("cloud")).toBe("https://app.bowrain.cloud");
+    expect(optionServer("local")).toBe("http://localhost:8080");
+  });
 });
 
 describe("server choice", () => {

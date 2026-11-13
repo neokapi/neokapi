@@ -64,7 +64,7 @@ function Screens() {
         options={{
           headerShown: false,
           presentation: "formSheet",
-          sheetAllowedDetents: [0.5, 1],
+          sheetAllowedDetents: [0.6, 1],
           sheetGrabberVisible: true,
         }}
       />

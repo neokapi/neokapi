@@ -14,8 +14,10 @@
   },
   "server": {
     "title": "Server",
+    "cloud": "Use Bowrain Cloud",
+    "local": "Local stack",
+    "custom": "Specify a different server",
     "save": "Use this server",
-    "reset": "Use {{host}}",
     "invalid": "Enter a web address, such as https://bowrain.example.com."
   },
   "signOut": {

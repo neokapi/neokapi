@@ -8,8 +8,9 @@
 # e2e-reviewer@example.com / e2e-password, which this flow uses unless
 # USERNAME and PASSWORD are passed with -e. SERVER_URL defaults to
 # http://localhost:8080 (http://10.0.2.2:8080 on the Android emulator) and is
-# entered in the server sheet behind the cog. On iOS the sign-in session is
-# ephemeral, so iOS asks no question before it opens.
+# entered in the server sheet behind the cog, under "Specify a different
+# server". On iOS the sign-in session is ephemeral, so iOS asks no question
+# before it opens.
 #
 # Runs against a development build on a simulator and the real local stack;
 # nothing here is mocked.
@@ -22,6 +23,8 @@ appId: cloud.bowrain.app
     id: sign-in
 - tapOn:
     id: server-settings
+- tapOn:
+    id: server-option-custom
 - tapOn:
     id: server-url
 - eraseText

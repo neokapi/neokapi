@@ -78,7 +78,8 @@ The default server is `EXPO_PUBLIC_BOWRAIN_SERVER_URL` (set per profile in
 `eas.json`). Unset, a development build signs in to the local stack
 (`make -C bowrain stack-up`, `http://localhost:8080`) and a release build to
 `https://app.bowrain.cloud`. The cog on the sign-in screen opens the server
-sheet for any other server; on the Android emulator the host machine is
+sheet: Bowrain Cloud, the local stack (development builds only), or another
+server by address. On the Android emulator the host machine is
 `http://10.0.2.2:8080`.
 
 ## End-to-end flows

@@ -4,7 +4,25 @@
 import * as SecureStore from "expo-secure-store";
 import { useSyncExternalStore } from "react";
 
-import { defaultServerUrl } from "./config";
+import { cloudServerUrl, defaultServerUrl, localServerUrl } from "./config";
+
+/**
+ * The rows of the server sheet. `local` is offered only in development
+ * builds, where the local stack is the default.
+ */
+export type ServerOption = "cloud" | "local" | "custom";
+
+/** Which row of the server sheet a server URL selects. */
+export function serverOption(server: string, dev: boolean): ServerOption {
+  if (server === cloudServerUrl) return "cloud";
+  if (dev && server === localServerUrl) return "local";
+  return "custom";
+}
+
+/** The server a fixed row stands for. */
+export function optionServer(option: Exclude<ServerOption, "custom">): string {
+  return option === "cloud" ? cloudServerUrl : localServerUrl;
+}
 
 const SERVER_KEY = "bowrain.server";
 
