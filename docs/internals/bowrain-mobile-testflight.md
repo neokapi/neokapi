@@ -21,33 +21,17 @@ The app's design is in [bowrain-mobile-review.md](bowrain-mobile-review.md).
   app for `https://app.bowrain.cloud/auth/callback`. The web deploy uploads it
   as `application/json`.
 
-## Placeholders you fill
+## Identifiers
 
-Search for `FOUNDER` to find them all.
+| Value | Where it is set |
+| --- | --- |
+| EAS project `@neokapi/bowrain`, ID `37119e10-8ed7-40c2-b1ea-c1fad898d0b4` | `easProjectId` and `easOwner` in `bowrain/mobile/app.config.ts` |
+| App Store Connect app ID `6834545030` | `submit.production.ios.ascAppId` in `bowrain/mobile/eas.json` |
+| Apple Team ID `8X6GKF24MG` | `submit.production.ios.appleTeamId` in `eas.json`, and both entries in `bowrain/apps/web/public/.well-known/apple-app-site-association` |
 
-| Where | Value | Comes from |
-| --- | --- | --- |
-| `bowrain/mobile/app.config.ts`, `easProjectId` | EAS project ID | `eas init` |
-| `bowrain/mobile/app.config.ts`, `easOwner` | Expo account or organisation | `eas init` |
-| `bowrain/mobile/eas.json`, `submit.production.ios.ascAppId` | The app's Apple ID, a number | App Store Connect, App Information |
-| `bowrain/mobile/eas.json`, `submit.production.ios.appleTeamId` | Team ID, 10 characters | developer.apple.com, Membership details |
-| `bowrain/apps/web/public/.well-known/apple-app-site-association`, both `appIDs` entries | Team ID, as `<TEAM_ID>.cloud.bowrain.app` | Same as above |
-
-## Before the first build
-
-1. **Replace the icon and splash artwork.** `assets/images/icon.png` and
-   `splash-icon.png` are still the Expo template's images. The Bowrain mark
-   is at `bowrain/assets/brand/mark-1024.png`, but that directory is under the
-   AGPL licence and `bowrain/mobile/` is Apache-2.0, so copying it is your
-   call. The icon must be a 1024 by 1024 PNG. Transparency is flattened onto
-   white at build time.
-2. **Fix the web host for the association file.** CloudFront rewrites every
-   path without a file extension to `index.html`, so today
-   `https://app.bowrain.cloud/.well-known/apple-app-site-association` returns
-   the web app as `text/html`. The `spa_router` function in
-   `bowrain-infra/modules/spa-site/main.tf` has to pass `/.well-known/` paths
-   through to S3. Until that ships, universal links do not work. Sign-in
-   still works through the `bowrain://` redirect.
+The association file is served at
+`https://app.bowrain.cloud/.well-known/apple-app-site-association` as
+`application/json`.
 
 ## Steps
 
@@ -63,12 +47,12 @@ Search for `FOUNDER` to find them all.
    `cloud.bowrain.app` (register it under Identifiers first if it is not in
    the list), and any SKU. Open App Information and copy the Apple ID number.
 
-3. **Install the EAS CLI and sign in to Expo.**
+3. **Sign in to Expo.** Run the EAS CLI through `vpx`, or install it
+   globally and drop the `vpx eas-cli@latest` prefix.
 
    ```bash
-   npm install --global eas-cli
-   eas login
-   eas whoami
+   vpx eas-cli@latest login
+   vpx eas-cli@latest whoami
    ```
 
 4. **Link the project.** From `bowrain/mobile/`:
@@ -77,15 +61,12 @@ Search for `FOUNDER` to find them all.
    eas init
    ```
 
-   `app.config.ts` is dynamic, so `eas init` cannot write to it. It prints
-   the values to add instead. Put the project ID in `easProjectId` and the
-   owner in `easOwner`.
+   The project is `@neokapi/bowrain`, and its ID and owner are set in
+   `easProjectId` and `easOwner` in `app.config.ts`. `app.config.ts` is
+   dynamic, so `eas init` cannot write to it; on a new project, copy the
+   values it prints into those two constants.
 
-5. **Fill the remaining placeholders** from the table above: `ascAppId` and
-   `appleTeamId` in `eas.json`, and the Team ID in the association file.
-   Commit the change and deploy the web app so the file is live.
-
-6. **Build for the store.** From `bowrain/mobile/`:
+5. **Build for the store.** From `bowrain/mobile/`:
 
    ```bash
    eas build --platform ios --profile production
@@ -96,31 +77,31 @@ Search for `FOUNDER` to find them all.
    also turns on the Associated Domains capability for the bundle ID because
    the config declares it.
 
-7. **Submit the build.**
+6. **Submit the build.**
 
    ```bash
    eas submit --platform ios --profile production
    ```
 
-   Choose the build from step 6 when asked. Apple processes it in about 10 to
+   Choose the build from step 5 when asked. Apple processes it in about 10 to
    15 minutes, then it shows under TestFlight in App Store Connect. Later you
    can build and submit in one step with
    `eas build --platform ios --profile production --auto-submit`.
 
-8. **Add internal testers.** In App Store Connect, open TestFlight, create an
+7. **Add internal testers.** In App Store Connect, open TestFlight, create an
    internal group, and add people. Internal testers must be users of your App
    Store Connect team, up to 100 of them, and their builds need no Beta App
    Review. Testers install the TestFlight app and accept the invitation. To
    add each new build to the group automatically, put its name in
    `submit.production.ios.groups` in `eas.json`.
 
-9. **Answer the export compliance question.** The app sets
+8. **Answer the export compliance question.** The app sets
    `ITSAppUsesNonExemptEncryption` to `false`: it uses only the encryption
    the operating system provides for HTTPS and the keychain. App Store Connect
    then marks each build as compliant without asking. If it does ask, answer
    that the app uses no non-exempt encryption.
 
-10. **Fill in the privacy nutrition labels** under App Privacy before external
+9. **Fill in the privacy nutrition labels** under App Privacy before external
     testing or release. A starting point, which you confirm against what the
     server stores:
     - Data used to track you: none. The app carries no analytics or
