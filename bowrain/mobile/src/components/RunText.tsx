@@ -19,10 +19,12 @@ export function codeLabel(code: { id: string; equiv?: string; disp?: string }): 
 
 export function Chip({ label, testID }: { label: string; testID?: string }) {
   return (
+    // A nested Text takes the size of the text around it. Uniwind resolves
+    // an em size by recursing until the stack overflows, so none is set.
     <Text
       testID={testID}
       accessibilityLabel={label}
-      className="bg-chip text-chip-foreground rounded-md px-1 font-mono text-[0.9em]"
+      className="bg-chip text-chip-foreground rounded-md px-1 font-mono"
     >
       {label}
     </Text>

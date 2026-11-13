@@ -94,7 +94,12 @@ export function FixSheetBody({
           <Text className="text-primary text-base">{t("common.cancel")}</Text>
         </Pressable>
       </View>
-      <ScrollView contentContainerClassName="gap-6 p-4" keyboardShouldPersistTaps="handled">
+      {/* Inset for the keyboard, so the editor and its buttons stay reachable. */}
+      <ScrollView
+        contentContainerClassName="gap-6 p-4"
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <View className="gap-1">
           <RunText runs={card.target} testID="fix-draft" />
         </View>

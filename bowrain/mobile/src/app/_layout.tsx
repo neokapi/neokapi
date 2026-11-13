@@ -62,7 +62,13 @@ function Screens() {
       <Stack.Screen name="workspaces" options={{ title: t("workspaces.title") }} />
       <Stack.Screen name="[ws]/index" options={{ title: t("projects.title") }} />
       <Stack.Screen name="[ws]/[project]/index" options={{ title: t("languages.title") }} />
-      <Stack.Screen name="[ws]/[project]/[locale]" options={{ title: t("deck.title") }} />
+      {/* On iOS 26 expo-router makes headers transparent, and scrolling
+          lists inset themselves below one. The deck is a fixed layout, so
+          it takes an opaque header and starts below it. */}
+      <Stack.Screen
+        name="[ws]/[project]/[locale]"
+        options={{ title: t("deck.title"), headerTransparent: false }}
+      />
     </Stack>
   );
 }

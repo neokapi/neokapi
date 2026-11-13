@@ -2,7 +2,15 @@
 // workspace's identity provider and back to the app.
 import { router } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "../components/SafeArea";
 
@@ -32,7 +40,11 @@ export default function SignIn() {
 
   return (
     <SafeAreaView className="bg-background flex-1">
-      <View className="flex-1 justify-center gap-8 px-6">
+      {/* The keyboard would otherwise cover the sign-in button. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1 justify-center gap-8 px-6"
+      >
         <View className="gap-2">
           <Text className="text-foreground text-3xl font-bold">{t("signIn.title")}</Text>
           <Text className="text-muted-foreground text-base">{t("signIn.lead")}</Text>
@@ -50,6 +62,10 @@ export default function SignIn() {
             autoCorrect={false}
             keyboardType="url"
             inputMode="url"
+            returnKeyType="go"
+            onSubmitEditing={() => {
+              if (!busy && server.trim() !== "") void start();
+            }}
           />
         </View>
         <Pressable
@@ -72,7 +88,7 @@ export default function SignIn() {
             {error}
           </Text>
         ) : null}
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

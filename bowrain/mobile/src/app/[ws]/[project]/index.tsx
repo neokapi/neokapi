@@ -51,6 +51,7 @@ export default function Languages() {
   return (
     <View className="bg-background flex-1">
       <FlatList
+        contentInsetAdjustmentBehavior="automatic"
         data={languages}
         keyExtractor={(l) => l}
         refreshing={false}

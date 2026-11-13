@@ -150,7 +150,7 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-	decks, ok := s.ContentStore.(store.ReviewDeckStore)
+	decks, ok := store.ReviewDeckStores(s.ContentStore)
 	if !ok {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "the review deck needs the PostgreSQL content store"})
 	}

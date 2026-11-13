@@ -16,6 +16,7 @@ export default function Projects() {
   return (
     <View className="bg-background flex-1">
       <FlatList
+        contentInsetAdjustmentBehavior="automatic"
         data={projects.data ?? []}
         keyExtractor={(p) => p.id}
         renderItem={({ item }) => (
