@@ -244,7 +244,7 @@ func (a *App) checkTranslation(ctx context.Context, cmd Command, blocks []*model
 	if err != nil {
 		return nil, err
 	}
-	ruleDiags, err := a.collectTargetRuleDiagnostics(ctx, cmd, blocks, sourcePath, loc, opts.execution)
+	ruleDiags, err := a.collectTargetRuleDiagnostics(ctx, cmd, blocks, sourcePath, loc, opts.execution, opts.identity)
 	if err != nil {
 		return nil, err
 	}

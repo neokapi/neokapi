@@ -77,7 +77,7 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string, extraAttrs [
 	}
 	for _, a := range extraAttrs {
 		b.WriteString(" ")
-		writeAttrName(&b, a.Name)
+		p.names().writeAttrName(&b, a.Name)
 		b.WriteString(`="`)
 		b.WriteString(xmlesc.Attr(a.Value))
 		b.WriteString(`"`)

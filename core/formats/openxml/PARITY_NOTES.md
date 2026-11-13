@@ -154,9 +154,9 @@ fixture `1311.docx`), and all faithful-path + parity tests stayed green.
 - `dml_style_optimization.go` (`optimiseDMLBlockProperties`) — NOT WSO; it
   runs unconditionally during the always-on post-skeleton flush
   (`postNonWSOForName` → `stripDMLRunPropertyAttrs`) for captured DrawingML.
-- `extractDocDefaultsToggleExplicitOff` + the two `currentDocDefaults*ExplicitOff`
-  globals — moved to `writer.go`; the faithful `stripToggleMirrorChildren` /
-  `stripBCsBlockedByPairing` consume them.
+- `extractDocDefaultsToggleExplicitOff` + the per-Write `docDefaultsToggles`
+  it fills on the `Writer` — in `writer.go`; the faithful
+  `stripToggleMirrorChildren` / `stripBCsBlockedByPairing` consume them.
 - The `styleMap` resolution methods (`effectiveProps`, `resolveProps`,
   `effectiveRPrChild*`, `mergeProps`, `subtractProps`, …) — still used by
   `wml.go`/`runprops.go` when a styleMap is supplied, and by unit tests.

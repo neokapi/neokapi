@@ -158,7 +158,7 @@ func (p *wmlParser) extractDrawingTranslations(xmlData, partPath string, emitBlo
 	// Resolve the drawing fragment's prefixes from the canonical wrapper
 	// namespaces, isolated from (and not leaking into) the surrounding
 	// document's registry.
-	defer isolateNamespaces()()
+	defer p.names().isolate()()
 	var out strings.Builder
 	out.Grow(len(xmlData))
 	wrapped := wrapDrawingXMLForDecode(xmlData)
@@ -193,7 +193,7 @@ func (p *wmlParser) copyAndExtractDrawing(dec *rawDecoder, out *strings.Builder,
 			case t.Name.Local == "textpath":
 				p.writeStartElementWithTranslatableAttrTo(out, t, "string", "vml-textpath-string", partPath, emitBlock)
 			case t.Name.Local == "txbxContent":
-				writeRawStartElementTo(out, t)
+				p.names().writeRawStartElementTo(out, t)
 				// Each <w:txbxContent> is its own logical scope for
 				// complex fields: an open `<w:fldChar>` started inside
 				// the textbox body cannot straddle the surrounding
@@ -244,13 +244,13 @@ func (p *wmlParser) copyAndExtractDrawing(dec *rawDecoder, out *strings.Builder,
 					return err
 				}
 			default:
-				writeRawStartElementTo(out, t)
+				p.names().writeRawStartElementTo(out, t)
 			}
 		case xml.EndElement:
 			if t.Name.Local == drawingDecodeWrapperLocal {
 				return nil
 			}
-			writeRawEndElementTo(out, t)
+			p.names().writeRawEndElementTo(out, t)
 		case xml.CharData:
 			out.WriteString(xmlesc.Text(string(t)))
 		case xml.Comment:
@@ -335,7 +335,7 @@ func (p *wmlParser) extractTxbxContent(
 					return err
 				}
 			} else if t.Name.Local == "tbl" || t.Name.Local == "tr" || t.Name.Local == "tc" {
-				writeRawStartElementTo(out, t)
+				p.names().writeRawStartElementTo(out, t)
 				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock, txbxCfs); err != nil {
 					return err
 				}
@@ -347,7 +347,7 @@ func (p *wmlParser) extractTxbxContent(
 				out.WriteString(raw)
 			}
 		case xml.EndElement:
-			writeRawEndElementTo(out, t)
+			p.names().writeRawEndElementTo(out, t)
 			if t.Name.Local == start.Name.Local {
 				return nil
 			}
@@ -413,7 +413,7 @@ func (p *wmlParser) extractTxbxParagraph(dec *rawDecoder, out *strings.Builder, 
 					p.currentStyleChainNames = p.styles.effectiveRPrChildNames(paraStyleID)
 				}
 			case "r":
-				rawStart := startElementToRaw(t)
+				rawStart := p.names().startElementToRaw(t)
 				rs, err := p.parseRunWithFieldState(dec, cfs, rawStart)
 				if err != nil {
 					return err
@@ -447,7 +447,7 @@ func (p *wmlParser) extractTxbxParagraph(dec *rawDecoder, out *strings.Builder, 
 				// See parseParagraph for the smartTag rationale —
 				// transparent run-container unwrap per ECMA-376
 				// Part 1 §17.5.1.9 and upstream Okapi RunContainer.
-				rawStart := startElementToRaw(t)
+				rawStart := p.names().startElementToRaw(t)
 				if err := p.parseSmartTag(dec, &runs, cfs, rawStart); err != nil {
 					return err
 				}
@@ -651,10 +651,10 @@ func (p *wmlParser) writeDrawingPropertyElementTo(
 	nameDone := false
 
 	out.WriteString("<")
-	writeElementName(out, t.Name)
+	p.names().writeElementName(out, t.Name)
 	for _, a := range t.Attr {
 		out.WriteString(" ")
-		writeAttrName(out, a.Name)
+		p.names().writeAttrName(out, a.Name)
 		out.WriteString(`="`)
 		switch {
 		case !nameDone && a.Name.Local == "name" && a.Name.Space == "" && strings.TrimSpace(a.Value) != "":
@@ -725,11 +725,11 @@ func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
 	emitBlock func(*model.Block),
 ) {
 	out.WriteString("<")
-	writeElementName(out, t.Name)
+	p.names().writeElementName(out, t.Name)
 	emittedRef := false
 	for _, a := range t.Attr {
 		out.WriteString(" ")
-		writeAttrName(out, a.Name)
+		p.names().writeAttrName(out, a.Name)
 		out.WriteString(`="`)
 		if !emittedRef && a.Name.Local == attrLocal && a.Name.Space == "" && strings.TrimSpace(a.Value) != "" {
 			*p.blockCounter++
@@ -774,7 +774,7 @@ func (p *wmlParser) extractBareTextElement(
 	partPath string,
 	emitBlock func(*model.Block),
 ) error {
-	writeRawStartElementTo(out, start)
+	p.names().writeRawStartElementTo(out, start)
 	var text strings.Builder
 	depth := 1
 	for depth > 0 {
@@ -790,7 +790,7 @@ func (p *wmlParser) extractBareTextElement(
 			// child verbatim so malformed inputs round-trip
 			// rather than corrupt.
 			depth++
-			writeRawStartElementTo(out, tt)
+			p.names().writeRawStartElementTo(out, tt)
 		case xml.EndElement:
 			depth--
 			if depth == 0 {
@@ -808,10 +808,10 @@ func (p *wmlParser) extractBareTextElement(
 					block.Properties["element"] = "alt-content-text"
 					emitBlock(block)
 				}
-				writeRawEndElementTo(out, tt)
+				p.names().writeRawEndElementTo(out, tt)
 				return nil
 			}
-			writeRawEndElementTo(out, tt)
+			p.names().writeRawEndElementTo(out, tt)
 		case xml.CharData:
 			text.WriteString(string(tt))
 		case xml.Comment:

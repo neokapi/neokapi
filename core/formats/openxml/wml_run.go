@@ -328,10 +328,10 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// xml:space="preserve" attribute that field codes
 				// commonly carry (e.g. ` PAGE \* MERGEFORMAT `).
 				rawBuf.WriteString("<")
-				writeElementName(&rawBuf, t.Name)
+				p.names().writeElementName(&rawBuf, t.Name)
 				for _, a := range t.Attr {
 					rawBuf.WriteString(" ")
-					writeAttrName(&rawBuf, a.Name)
+					p.names().writeAttrName(&rawBuf, a.Name)
 					rawBuf.WriteString(`="`)
 					rawBuf.WriteString(xmlesc.Attr(a.Value))
 					rawBuf.WriteString(`"`)
@@ -344,7 +344,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				}
 				rawBuf.WriteString(xmlesc.Text(text))
 				rawBuf.WriteString("</")
-				writeElementName(&rawBuf, t.Name)
+				p.names().writeElementName(&rawBuf, t.Name)
 				rawBuf.WriteString(">")
 				// The fieldCode / extractable update applies to whichever
 				// frame is currently innermost — nested fields run with
@@ -395,10 +395,10 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// xml:space="preserve" when present).
 				if rawCaptured {
 					rawBuf.WriteString("<")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					for _, a := range t.Attr {
 						rawBuf.WriteString(" ")
-						writeAttrName(&rawBuf, a.Name)
+						p.names().writeAttrName(&rawBuf, a.Name)
 						rawBuf.WriteString(`="`)
 						rawBuf.WriteString(xmlesc.Attr(a.Value))
 						rawBuf.WriteString(`"`)
@@ -412,7 +412,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				if rawCaptured {
 					rawBuf.WriteString(xmlesc.Text(text))
 					rawBuf.WriteString("</")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString(">")
 				}
 				// Tag display-text runs inside an extractable complex
@@ -462,10 +462,10 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// by the previous reader path's hardcoded `<w:br/>`).
 				var brXML strings.Builder
 				brXML.WriteString("<")
-				writeElementName(&brXML, t.Name)
+				p.names().writeElementName(&brXML, t.Name)
 				for _, a := range t.Attr {
 					brXML.WriteString(" ")
-					writeAttrName(&brXML, a.Name)
+					p.names().writeAttrName(&brXML, a.Name)
 					brXML.WriteString(`="`)
 					brXML.WriteString(xmlesc.Attr(a.Value))
 					brXML.WriteString(`"`)
@@ -500,7 +500,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 			case "tab":
 				if rawCaptured {
 					rawBuf.WriteString("<")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString("/>")
 				}
 				if p.cfg.TabAsCharacter {
@@ -545,7 +545,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// to capture.
 				if rawCaptured {
 					rawBuf.WriteString("<")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString("/>")
 				}
 				runs = append(runs, textRun{text: "\uE10D:<w:cr/>", props: props})
@@ -580,7 +580,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// carries attributes (relativeTo / alignment / leader), so
 				// we capture the full start-element raw rather than
 				// hard-coding a literal `<w:ptab/>`.
-				ptabRaw := startElementToRaw(t)
+				ptabRaw := p.names().startElementToRaw(t)
 				if strings.HasSuffix(ptabRaw, ">") {
 					ptabRaw = ptabRaw[:len(ptabRaw)-1] + "/>"
 				}
@@ -617,7 +617,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				localName := t.Name.Local
 				if rawCaptured {
 					rawBuf.WriteString("<")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString("/>")
 				}
 				if localName == "noBreakHyphen" && p.cfg.ReplaceNoBreakHyphenTag {
@@ -669,7 +669,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// the attribute) so 1 vs 0 vs absent are all round-
 				// tripped exactly. The element has no children per
 				// the CT_OnOff schema.
-				bidiRaw := startElementToRaw(t)
+				bidiRaw := p.names().startElementToRaw(t)
 				if strings.HasSuffix(bidiRaw, ">") {
 					bidiRaw = bidiRaw[:len(bidiRaw)-1] + "/>"
 				}
@@ -766,10 +766,10 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				noteID := attrVal(t, "id")
 				if rawCaptured {
 					rawBuf.WriteString("<")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					for _, a := range t.Attr {
 						rawBuf.WriteString(" ")
-						writeAttrName(&rawBuf, a.Name)
+						p.names().writeAttrName(&rawBuf, a.Name)
 						rawBuf.WriteString(`="`)
 						rawBuf.WriteString(xmlesc.Attr(a.Value))
 						rawBuf.WriteString(`"`)
@@ -832,7 +832,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				// the attributes that were actually present.
 				for _, a := range t.Attr {
 					rawBuf.WriteString(" ")
-					writeAttrName(&rawBuf, a.Name)
+					p.names().writeAttrName(&rawBuf, a.Name)
 					rawBuf.WriteString(`="`)
 					rawBuf.WriteString(xmlesc.Attr(a.Value))
 					rawBuf.WriteString(`"`)
@@ -846,10 +846,10 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				char := attrVal(t, "char")
 				if rawCaptured {
 					rawBuf.WriteString("<")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					for _, a := range t.Attr {
 						rawBuf.WriteString(" ")
-						writeAttrName(&rawBuf, a.Name)
+						p.names().writeAttrName(&rawBuf, a.Name)
 						rawBuf.WriteString(`="`)
 						rawBuf.WriteString(xmlesc.Attr(a.Value))
 						rawBuf.WriteString(`"`)
@@ -904,7 +904,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 				}
 				if hasFieldMarkup {
 					rawBuf.WriteString("</")
-					writeElementName(&rawBuf, t.Name)
+					p.names().writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString(">")
 					// Pre-fldChar translatable content preservation.
 					// Source shape `<w:r><w:rPr>...</w:rPr><w:t>text</w:t>
@@ -1000,7 +1000,7 @@ func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState
 					rb.WriteString(rawStart)
 					rb.WriteString(backLog.String())
 					rb.WriteString("</")
-					writeElementName(&rb, t.Name)
+					p.names().writeElementName(&rb, t.Name)
 					rb.WriteString(">")
 					return []textRun{{
 						text:        "\uE108:fldChar",

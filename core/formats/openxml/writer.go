@@ -1036,6 +1036,10 @@ type Writer struct {
 	// prefix before its first block renders.
 	partStrict bool
 
+	// docDefaults is the package's docDefaultsToggles, loaded by
+	// writeFromSkeleton and reset at the end of each Write.
+	docDefaults docDefaultsToggles
+
 	// fromSource makes preferredRuns answer with a block's source runs, so a
 	// block can be rendered as it would be with nothing translated and
 	// compared with its rendering for the target.
@@ -1227,23 +1231,16 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	info *containerInfo, blocks map[string]*model.Block) error {
 
-	// Pre-load source styles.xml flags BEFORE the per-block renderBlock
-	// loop below — adjustRPrForRunText / stripToggleMirrorChildren are
-	// invoked during renderBlock and consult these module-level flags
-	// to gate per-run bCs/iCs preservation against the docDefaults'
-	// explicit-off form. Per ECMA-376-1 §17.7.5.5 (docDefaults) the
-	// preCombined rPr a run inherits via the default chain comes from
-	// docDefaults' rPrDefault; when docDefaults declares `<w:bCs val="0"/>`
-	// and a run authors a bare-on `<w:bCs/>`, upstream's
-	// RunParser.canBeSkipped (RunParser.java:240-250) refuses the strip
-	// because pcrp.equals(rp) is false. Native must mirror that gate
-	// at write time.
+	// Load the docDefaults toggles before the render loop below reads them.
+	w.docDefaults = docDefaultsToggles{}
 	for _, f := range origZR.File {
 		if f.Name == "word/styles.xml" {
 			data, err := readZipFile(f)
 			if err == nil {
-				currentDocDefaultsBCsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "bCs")
-				currentDocDefaultsICsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "iCs")
+				w.docDefaults = docDefaultsToggles{
+					bCsExplicitOff: extractDocDefaultsToggleExplicitOff(data, "bCs"),
+					iCsExplicitOff: extractDocDefaultsToggleExplicitOff(data, "iCs"),
+				}
 			}
 			break
 		}
@@ -1366,14 +1363,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	// and substitute locale-variant media files (Bowrain AD-007).
 	isDOCX := info.docType == docTypeDOCX
 
-	// Reset the docDefaults toggle flags after this Write so they don't
-	// leak into another Writer's invocation. They are loaded from
-	// word/styles.xml above (before the per-block render loop) and
-	// consumed by stripToggleMirrorChildren / stripBCsBlockedByPairing.
-	defer func() {
-		currentDocDefaultsBCsExplicitOff = false
-		currentDocDefaultsICsExplicitOff = false
-	}()
+	defer func() { w.docDefaults = docDefaultsToggles{} }()
 
 	// decompressedParts memoizes readZipFile(f) per ZIP entry name so a
 	// part is decompressed at most once even when both a strip pass and
@@ -2005,34 +1995,19 @@ func blockPerRunSourceHadRPrFlags(block *model.Block) []bool {
 	return v
 }
 
-// currentDocDefaultsBCsExplicitOff reports whether the source
-// styles.xml docDefaults rPr authors `<w:bCs w:val="0"/>` (or
-// "false" / "off"). Consulted by stripToggleMirrorChildren /
-// stripBCsBlockedByPairing to decide whether a run-level bare-on
-// `<w:bCs/>` must be preserved (because preCombined's bCs value
-// differs from the run's, so upstream RunParser.canBeSkipped at
-// RunParser.java:240-250 refuses the strip).
-//
-// Module-level state instead of a threaded parameter to keep the
-// renderBlock → adjustRPrForRunText → stripToggleMirrorChildren
-// signature chain stable; it is loaded once per Write from
-// word/styles.xml before the per-block render loop.
-var currentDocDefaultsBCsExplicitOff bool
-
-// currentDocDefaultsICsExplicitOff is the iCs counterpart of
-// currentDocDefaultsBCsExplicitOff. See its doc for the rationale.
-var currentDocDefaultsICsExplicitOff bool
+// docDefaultsToggles records which complex-script toggle mirrors (bCs, iCs)
+// the package's styles.xml docDefaults rPr authors in explicit-off form. It is
+// per-Write state: stripToggleMirrorChildren reads it to keep a run's bare-on
+// mirror that upstream RunParser.canBeSkipped (RunParser.java:240-250) keeps.
+type docDefaultsToggles struct {
+	bCsExplicitOff bool
+	iCsExplicitOff bool
+}
 
 // extractDocDefaultsToggleExplicitOff reports whether
 // <w:docDefaults><w:rPrDefault><w:rPr> in stylesXML authors an
 // explicit-off form of `<w:NAME w:val="0"/>` (or "false" / "off").
-// Used by the writer to populate currentDocDefaultsBCsExplicitOff /
-// currentDocDefaultsICsExplicitOff — consulted by the per-run sidecar
-// strip (stripToggleMirrorChildren / stripBCsBlockedByPairing) to
-// decide whether a bare-on `<w:bCs/>` / `<w:iCs/>` must be preserved
-// on the run (because the run-side value differs from the preCombined
-// value coming from docDefaults, blocking upstream's
-// RunParser.canBeSkipped strip).
+// The writer fills docDefaultsToggles from it (see that type).
 //
 // Per ECMA-376-1 §17.7.5.5 (CT_DocDefaults) the docDefaults rPr
 // applies to every run unless overridden by a paragraph style /
@@ -2051,7 +2026,7 @@ var currentDocDefaultsICsExplicitOff bool
 //
 // large-attribute.docx counter-example: docDefaults has NO bCs/iCs,
 // so upstream's canBeSkipped takes the `else { v = true; }` branch
-// and bCs/iCs ARE stripped — the docDefaults-flag-false path
+// and bCs/iCs ARE stripped. The docDefaults-flag-false path
 // preserves that behaviour.
 func extractDocDefaultsToggleExplicitOff(stylesXML []byte, name string) bool {
 	if len(stylesXML) == 0 {
@@ -2143,7 +2118,7 @@ func extractDocDefaultsToggleExplicitOff(stylesXML []byte, name string) bool {
 // Arabic/Hebrew injects complex-script content a read-time decision would
 // miss. This is the sanctioned faithful-Okapi-reproduction exception, not
 // write-side compensation.
-func stripToggleMirrorChildren(s string) string {
+func stripToggleMirrorChildren(s string, dd docDefaultsToggles) string {
 	if s == "" {
 		return s
 	}
@@ -2154,7 +2129,7 @@ func stripToggleMirrorChildren(s string) string {
 	// disagreement:
 	//
 	//   (a) Explicit-off pair authored on the run rPr:
-	//       `<w:b w:val="0"/><w:bCs w:val="0"/>` — paragraph clears
+	//       `<w:b w:val="0"/><w:bCs w:val="0"/>`: the paragraph clears
 	//       an inherited bold AND its complex-script mirror
 	//       (1311.docx Heading2 / highlights_block.docx Caption).
 	//   (b) Bare-on pair authored on the run rPr against a
@@ -2165,16 +2140,16 @@ func stripToggleMirrorChildren(s string) string {
 	//
 	// Native consults two signals:
 	//   - The pairing in the rPr itself (always available).
-	//   - currentDocDefaultsBCsExplicitOff / *ICsExplicitOff loaded by
-	//     the writer from styles.xml before the render loop.
+	//   - dd, the docDefaults toggles the writer loaded from
+	//     styles.xml before the render loop.
 	//
 	// Bare-on pair only preserves when docDefaults has the explicit-
-	// off form — otherwise the strip is correct (large-attribute.docx
+	// off form. Otherwise the strip is correct (large-attribute.docx
 	// has no docDefaults bCs, so its bare-on `<w:b/><w:bCs/>` runs
 	// hit upstream's `else { v = true; }` branch at RunParser.java:
 	// 247-248 and ARE stripped).
-	keepBCs := stripBCsBlockedByPairing(s, "b", "bCs", currentDocDefaultsBCsExplicitOff)
-	keepICs := stripBCsBlockedByPairing(s, "i", "iCs", currentDocDefaultsICsExplicitOff)
+	keepBCs := stripBCsBlockedByPairing(s, "b", "bCs", dd.bCsExplicitOff)
+	keepICs := stripBCsBlockedByPairing(s, "i", "iCs", dd.iCsExplicitOff)
 	if !keepBCs {
 		s = stripWMLElement(s, "bCs")
 	}
@@ -2343,7 +2318,7 @@ func containsComplexScriptText(s string) bool {
 // !runFonts.containsDetectedComplexScriptContentCategories. We
 // apply it at write time because the post-pseudo run text is what
 // upstream's ContentCategoriesDetection runs against
-// (ContentCategoriesDetection.java:111 — performFor receives the
+// (ContentCategoriesDetection.java:111: performFor receives the
 // run's effective text).
 //
 // Per ECMA-376-1 §17.3.2.16 (bCs) and §17.3.2.17 (iCs) the
@@ -2351,14 +2326,16 @@ func containsComplexScriptText(s string) bool {
 // independently to complex-script runs of the run's text. When
 // none of the text classifies as complex-script the toggle mirror
 // is a no-op by definition and gets stripped.
-func adjustRPrForRunText(fragment, text string) string {
+//
+// dd is the docDefaults toggles of the package being written.
+func adjustRPrForRunText(fragment, text string, dd docDefaultsToggles) string {
 	if fragment == "" {
 		return fragment
 	}
 	if containsComplexScriptText(text) {
 		return fragment
 	}
-	return stripToggleMirrorChildren(fragment)
+	return stripToggleMirrorChildren(fragment, dd)
 }
 
 // stripWMLElement removes every occurrence of <w:NAME ...?/> (self-
@@ -2523,7 +2500,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		if idx >= 0 && idx < len(textRunTexts) {
 			text = textRunTexts[idx]
 		}
-		return adjustRPrForRunText(base, text)
+		return adjustRPrForRunText(base, text, w.docDefaults)
 	}
 
 	// textSrcStart returns true iff the text-run at idx began a fresh
@@ -3034,7 +3011,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				if textRunIdx >= 0 && textRunIdx < len(textRunTexts) {
 					text = textRunTexts[textRunIdx]
 				}
-				adjSrc := adjustRPrForRunText(sourceRPr, text)
+				adjSrc := adjustRPrForRunText(sourceRPr, text, w.docDefaults)
 				// Also accept inline when the Ph carries an embedded
 				// source-`<w:r>` rPr (encoded as a `<w:rPr>...</w:rPr>`
 				// prefix on Ph.Data) and that rPr matches the open run's

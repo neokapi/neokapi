@@ -2283,6 +2283,7 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 		return nil, StoreSelection{}, err
 	}
 	ctx := CmdContext(cmd)
+	memo := conceptMemoOf(ctx)
 	if sel.InProject() {
 		db, err := a.ProjectDB(ctx, sel.Root)
 		if errors.Is(err, errNoProjectStore) {
@@ -2294,10 +2295,15 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 		if db.Terms() == nil {
 			return nil, sel, nil
 		}
+		key := "project\x00" + sel.Root
+		if concepts, ok := memo.get(key); ok {
+			return concepts, sel, nil
+		}
 		concepts, err := db.Terms().Concepts(ctx)
 		if err != nil {
 			return nil, sel, fmt.Errorf("list terms concepts: %w", err)
 		}
+		memo.put(key, concepts)
 		return concepts, sel, nil
 	}
 	if err := requireNamedTermsStore(cmd, sel); err != nil {
@@ -2305,6 +2311,10 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 	}
 	if sel.Path != "" {
 		if held, _ := storage.Exists(sel.Path); held {
+			key := "path\x00" + sel.Path
+			if concepts, ok := memo.get(key); ok {
+				return concepts, sel, nil
+			}
 			tb, err := sqlterms.NewSQLiteStore(sel.Path)
 			if err != nil {
 				return nil, sel, fmt.Errorf("open terms %q: %w", sel.Path, err)
@@ -2314,10 +2324,61 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 			if err != nil {
 				return nil, sel, fmt.Errorf("list terms concepts: %w", err)
 			}
+			memo.put(key, concepts)
 			return concepts, sel, nil
 		}
 	}
 	return nil, sel, nil
+}
+
+// conceptMemoKey is the context key of a conceptMemo.
+type conceptMemoKey struct{}
+
+// conceptMemo holds the concepts each terms store answered within one read
+// of a project, such as a check run or an Overview rule count. Those reads
+// ask for the concepts once per file, language and point, and a store does not
+// change while they run, so each store is loaded once and its concepts are
+// shared. The concepts are read-only to every holder.
+type conceptMemo struct {
+	mu      sync.Mutex
+	byStore map[string][]sqlterms.Concept
+}
+
+// withConceptMemo returns ctx carrying a conceptMemo, keeping one ctx already
+// carries. Mark only an operation that writes no terms while it runs.
+func withConceptMemo(ctx context.Context) context.Context {
+	if conceptMemoOf(ctx) != nil {
+		return ctx
+	}
+	return context.WithValue(ctx, conceptMemoKey{}, &conceptMemo{byStore: map[string][]sqlterms.Concept{}})
+}
+
+// conceptMemoOf returns the conceptMemo ctx carries, nil when it carries none.
+func conceptMemoOf(ctx context.Context) *conceptMemo {
+	m, _ := ctx.Value(conceptMemoKey{}).(*conceptMemo)
+	return m
+}
+
+// get returns the concepts recorded for the store key names. A nil memo
+// records nothing.
+func (m *conceptMemo) get(key string) ([]sqlterms.Concept, bool) {
+	if m == nil {
+		return nil, false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	concepts, ok := m.byStore[key]
+	return concepts, ok
+}
+
+// put records the concepts of the store key names. A nil memo drops them.
+func (m *conceptMemo) put(key string, concepts []sqlterms.Concept) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.byStore[key] = concepts
 }
 
 // runProjectStepsOver runs a project flow's steps over an explicit input set.

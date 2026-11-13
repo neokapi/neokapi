@@ -16,7 +16,9 @@ import (
 
 // smlParser parses SpreadsheetML XML parts (XLSX worksheets, shared strings).
 type smlParser struct {
-	cfg          *Config
+	cfg *Config
+	// ns is the namespace prefixes of the package being read (nsScope).
+	ns           *nsScope
 	blockCounter *int
 	// ids separates the ids this document repeats. A cell anchor is identified
 	// by its `r` reference, which the worksheet supplies: OOXML says a reference
@@ -477,7 +479,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 					inlinePhonetic = ""
 					cellOff = d.Offset()
 					d.Pin(cellOff)
-					registerNamespaces(t.Attr)
+					p.names().register(t.Attr)
 					cellStartRaw = d.RawString()
 					cellChildren.Reset()
 					cellTail.Reset()
@@ -1273,7 +1275,7 @@ func (p *smlParser) parseTable(data []byte, partPath string, emitBlock func(*mod
 // element other than the name value is replayed from the source, so the
 // element keeps its self-closing form, its attribute order and its quoting.
 func (p *smlParser) skelWriteTableColumn(d *rawDecoder, t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
-	registerNamespaces(t.Attr)
+	p.names().register(t.Attr)
 
 	var nameVal string
 	var colID string
@@ -1449,7 +1451,7 @@ func (p *smlParser) skelWriteStartElement(d *rawDecoder, t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
-	registerNamespaces(t.Attr)
+	p.names().register(t.Attr)
 	p.skelBuf.Write(d.Raw())
 }
 

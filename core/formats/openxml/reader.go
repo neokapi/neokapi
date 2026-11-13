@@ -157,6 +157,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// One per document, like the counter beside it: an id has to be an identity
 	// across the whole archive, because that is the unit the block store keys on.
 	var ids model.IDBuilder
+	// ns holds the namespace prefixes this read discovers, shared by the
+	// archive's parts and by no other read (nsScope).
+	ns := newNSScope()
 
 	// Initialize code finder if configured
 	var cf *codeFinder
@@ -271,7 +274,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		// DocProps/core.xml is format-independent
 		if partPath == "docProps/core.xml" {
-			parseCoreProperties(partData, partPath, &blockCounter, emitBlock, r.skeletonStore)
+			parseCoreProperties(partData, partPath, &blockCounter, emitBlock, r.skeletonStore, ns)
 			r.skelPartEnd(partPath)
 			r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 			continue
@@ -290,6 +293,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// (DIAGRAM_DATA_TYPE / CHART_TYPE → StyledTextPart).
 			if isChartPartPath(partPath) || isDiagramDataPartPath(partPath) {
 				parser := &dmlParser{
+					ns:                  ns,
 					cfg:                 r.cfg,
 					blockCounter:        &blockCounter,
 					skeletonStore:       r.skeletonStore,
@@ -305,6 +309,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				break
 			}
 			parser := &wmlParser{
+				ns:            ns,
 				cfg:           r.cfg,
 				blockCounter:  &blockCounter,
 				skeletonStore: r.skeletonStore,
@@ -336,6 +341,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		case docTypePPTX:
 			parser := &dmlParser{
+				ns:            ns,
 				cfg:           r.cfg,
 				blockCounter:  &blockCounter,
 				skeletonStore: r.skeletonStore,
@@ -360,6 +366,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		case docTypeXLSX:
 			parser := &smlParser{
+				ns:            ns,
 				cfg:           r.cfg,
 				blockCounter:  &blockCounter,
 				ids:           &ids,
@@ -635,6 +642,8 @@ func readZipFile(f *zip.File) ([]byte, error) {
 
 // corePropsParser parses docProps/core.xml with skeleton support.
 type corePropsParser struct {
+	// ns is the namespace prefixes of the package being read (nsScope).
+	ns            *nsScope
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 }
@@ -655,8 +664,8 @@ type corePropsParser struct {
 // Core and cp:* element of the part optional, so both packages are valid; the
 // parity canonicaliser drops an empty core property on both sides
 // (XMLCanonical.StripEmptyCoreProperties).
-func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBlock func(*model.Block), skelStore *format.SkeletonStore) {
-	p := &corePropsParser{skeletonStore: skelStore}
+func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBlock func(*model.Block), skelStore *format.SkeletonStore, ns *nsScope) {
+	p := &corePropsParser{skeletonStore: skelStore, ns: ns}
 	// Go's encoding/xml reports a leading UTF-8 BOM as character data in the
 	// prolog rather than taking it as encoding metadata, so it is held back
 	// from the decoder and written to the skeleton as it was: the part goes
@@ -705,7 +714,7 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 			if translatableElements[t.Name.Local] {
 				inTranslatable = true
 				currentElement = t.Name.Local
-				registerNamespaces(t.Attr)
+				p.names().register(t.Attr)
 				currentStartRaw = d.RawString()
 				startOffsetAfter = curOffset
 				d.Pin(curOffset)
@@ -803,7 +812,7 @@ func (p *corePropsParser) skelWriteStartElement(d *rawDecoder, t xml.StartElemen
 	if p.skeletonStore == nil {
 		return
 	}
-	registerNamespaces(t.Attr)
+	p.names().register(t.Attr)
 	p.skelBuf.Write(d.Raw())
 }
 

@@ -120,7 +120,7 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				// a single SubTypeFieldChar sentinel carrying the raw
 				// <w:r>...</w:r>; surface them through the field-aware
 				// keep/drop logic below.
-				rawStart := startElementToRaw(t)
+				rawStart := p.names().startElementToRaw(t)
 				run, err := p.parseRunWithFieldState(d, cfs, rawStart)
 				if err != nil {
 					return err
@@ -270,7 +270,7 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				// upstream Okapi RunContainer.java:97-176 preserves the
 				// outer markup as paired startMarkup / endMarkup events
 				// around the extracted inner content.
-				rawStart := startElementToRaw(t)
+				rawStart := p.names().startElementToRaw(t)
 				target := &runs
 				if inHyperlink {
 					target = &hyperlinkRuns
@@ -287,7 +287,7 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				// runs as if they were direct children of <w:p>;
 				// the start/end tags are preserved verbatim as
 				// paired-code sentinels around the inner runs.
-				rawStart := startElementToRaw(t)
+				rawStart := p.names().startElementToRaw(t)
 				target := &runs
 				if inHyperlink {
 					target = &hyperlinkRuns
@@ -1398,7 +1398,7 @@ func (p *wmlParser) parseRevisionInsertion(d *rawDecoder, wrapperName string, ru
 	// element verbatim around the inner runs.
 	strictWrapper := p.strict && wrapperStart.Name.Space == wmlStrictNamespace
 	if strictWrapper {
-		rawStart := startElementToRaw(wrapperStart)
+		rawStart := p.names().startElementToRaw(wrapperStart)
 		*runs = append(*runs, textRun{text: "\uE10E:" + wrapperName + ":" + rawStart, props: runProps{}})
 	}
 	for {
@@ -1410,7 +1410,7 @@ func (p *wmlParser) parseRevisionInsertion(d *rawDecoder, wrapperName string, ru
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "r":
-				rawStart := startElementToRaw(t)
+				rawStart := p.names().startElementToRaw(t)
 				run, err := p.parseRunWithFieldState(d, cfs, rawStart)
 				if err != nil {
 					return err
@@ -1500,7 +1500,7 @@ func (p *wmlParser) parseSmartTag(d *rawDecoder, runs *[]textRun, cfs *complexFi
 					return err
 				}
 			case "r":
-				rawRStart := startElementToRaw(t)
+				rawRStart := p.names().startElementToRaw(t)
 				run, err := p.parseRunWithFieldState(d, cfs, rawRStart)
 				if err != nil {
 					return err
@@ -1521,7 +1521,7 @@ func (p *wmlParser) parseSmartTag(d *rawDecoder, runs *[]textRun, cfs *complexFi
 				// wrapping <smartTag element="country-region"> in
 				// 952-3.docx). Recurse so the nested wrapper emits
 				// its own paired-code sentinels.
-				nestedRaw := startElementToRaw(t)
+				nestedRaw := p.names().startElementToRaw(t)
 				if err := p.parseSmartTag(d, runs, cfs, nestedRaw); err != nil {
 					return err
 				}
