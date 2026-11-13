@@ -8,12 +8,11 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 // production URL. On an Android emulator the host machine is 10.0.2.2.
 const serverUrl = process.env.EXPO_PUBLIC_BOWRAIN_SERVER_URL ?? "http://localhost:8080";
 
-// FOUNDER: fill both from the output of `eas init`. The config is dynamic, so
-// `eas init` prints the values instead of writing them here. Both are public
-// identifiers and safe to commit; the environment variables override them.
-// Steps: docs/internals/bowrain-mobile-testflight.md.
-const easProjectId = process.env.EAS_PROJECT_ID ?? "";
-const easOwner = process.env.EXPO_OWNER ?? "";
+// The EAS project @neokapi/bowrain, from `eas init`. The config is dynamic, so
+// `eas init` prints these instead of writing them here. Both are public
+// identifiers; the environment variables override them.
+const easProjectId = process.env.EAS_PROJECT_ID ?? "37119e10-8ed7-40c2-b1ea-c1fad898d0b4";
+const easOwner = process.env.EXPO_OWNER ?? "neokapi";
 
 // The web domain whose apple-app-site-association file lists this app
 // (bowrain/apps/web/public/.well-known/). Universal links and the https

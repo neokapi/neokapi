@@ -27,8 +27,6 @@ Search for `FOUNDER` to find them all.
 
 | Where | Value | Comes from |
 | --- | --- | --- |
-| `bowrain/mobile/app.config.ts`, `easProjectId` | EAS project ID | `eas init` |
-| `bowrain/mobile/app.config.ts`, `easOwner` | Expo account or organisation | `eas init` |
 | `bowrain/mobile/eas.json`, `submit.production.ios.ascAppId` | The app's Apple ID, a number | App Store Connect, App Information |
 | `bowrain/mobile/eas.json`, `submit.production.ios.appleTeamId` | Team ID, 10 characters | developer.apple.com, Membership details |
 | `bowrain/apps/web/public/.well-known/apple-app-site-association`, both `appIDs` entries | Team ID, as `<TEAM_ID>.cloud.bowrain.app` | Same as above |
@@ -77,9 +75,10 @@ Search for `FOUNDER` to find them all.
    eas init
    ```
 
-   `app.config.ts` is dynamic, so `eas init` cannot write to it. It prints
-   the values to add instead. Put the project ID in `easProjectId` and the
-   owner in `easOwner`.
+   The project is `@neokapi/bowrain`, and its ID and owner are set in
+   `easProjectId` and `easOwner` in `app.config.ts`. `app.config.ts` is
+   dynamic, so `eas init` cannot write to it; on a new project, copy the
+   values it prints into those two constants.
 
 5. **Fill the remaining placeholders** from the table above: `ascAppId` and
    `appleTeamId` in `eas.json`, and the Team ID in the association file.
