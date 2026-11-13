@@ -5,16 +5,13 @@ import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 import { Fragment, type ReactNode } from "react";
 import { Text } from "react-native";
 
+import { codeLabels } from "./codeLabels";
+
 export interface RunTextProps {
   runs: readonly Run[];
   /** Larger text for the card's main reading. */
   size?: "base" | "lg";
   testID?: string;
-}
-
-/** The label a code chip shows: what a person reads for it, never its native data. */
-export function codeLabel(code: { id: string; equiv?: string; disp?: string }): string {
-  return code.disp || code.equiv || code.id;
 }
 
 export function Chip({ label, testID }: { label: string; testID?: string }) {
@@ -41,21 +38,16 @@ function branchList(prefix: string, branches: Record<string, Run[] | undefined>)
   ));
 }
 
-function spec(prefix: string): ModelRunSpec<ReactNode> {
+function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
+  const label = codeLabels(runs);
   let i = 0;
   const key = () => `${prefix}-${i++}`;
   return {
     text: (r) => <Text key={key()}>{r.text}</Text>,
-    ph: ({ ph }) => <Chip key={key()} label={codeLabel(ph)} testID="run-chip" />,
-    pcOpen: ({ pcOpen }) => <Chip key={key()} label={`<${codeLabel(pcOpen)}>`} testID="run-chip" />,
-    pcClose: ({ pcClose }) => (
-      <Chip
-        key={key()}
-        label={`</${codeLabel({ id: pcClose.id, equiv: pcClose.equiv })}>`}
-        testID="run-chip"
-      />
-    ),
-    sub: ({ sub }) => <Chip key={key()} label={`[${codeLabel(sub)}]`} testID="run-chip" />,
+    ph: ({ ph }) => <Chip key={key()} label={label.ph(ph)} testID="run-chip" />,
+    pcOpen: ({ pcOpen }) => <Chip key={key()} label={label.pcOpen(pcOpen)} testID="run-chip" />,
+    pcClose: ({ pcClose }) => <Chip key={key()} label={label.pcClose(pcClose)} testID="run-chip" />,
+    sub: ({ sub }) => <Chip key={key()} label={label.sub(sub)} testID="run-chip" />,
     plural: ({ plural }) => {
       const k = key();
       return (
@@ -79,7 +71,7 @@ function spec(prefix: string): ModelRunSpec<ReactNode> {
 }
 
 function renderRuns(runs: readonly Run[], prefix: string): ReactNode[] {
-  return projectRuns(runs, spec(prefix));
+  return projectRuns(runs, spec(runs, prefix));
 }
 
 export function RunText({ runs, size = "base", testID }: RunTextProps) {

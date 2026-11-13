@@ -20,9 +20,12 @@ const (
 	// DeckDesk is a card that needs the desk: a failing finding, a stale
 	// approval, a redraft after a rejection, or a long source.
 	DeckDesk DeckGroup = "desk"
+	// DeckAside is a translation rejected as it stands. It waits for a new
+	// draft and is not in the deck. It is not one of DeckGroups.
+	DeckAside DeckGroup = "aside"
 )
 
-// DeckGroups lists the groups in deck order.
+// DeckGroups lists the groups of the deck, in deck order.
 var DeckGroups = []DeckGroup{DeckFast, DeckCloser, DeckDesk}
 
 // DeckPolicy holds the deck's thresholds. The zero value is the default
@@ -60,6 +63,9 @@ type DeckFacts struct {
 	Score *int
 	// Stale is an approval whose source has moved since.
 	Stale bool
+	// Rejected is a translation rejected at the wording it holds, which
+	// waits for a new draft.
+	Rejected bool
 	// RejectedRedraft is a translation drafted again after a rejection.
 	RejectedRedraft bool
 	// SourceChars is the length of the source, in characters.
@@ -68,6 +74,8 @@ type DeckFacts struct {
 
 // ClassifyDeckCard places one translation in a deck group and says why.
 //
+// A translation rejected at the wording it holds is set aside (DeckAside)
+// until a new draft lands.
 // The desk takes a failing finding, a stale approval, a redraft after a
 // rejection, and a source longer than the policy's limit, in that order. A
 // card with no finding and a score at or above the policy's bar is fast.
@@ -75,6 +83,8 @@ type DeckFacts struct {
 func ClassifyDeckCard(f DeckFacts, p DeckPolicy) (DeckGroup, string) {
 	p = p.WithDefaults()
 	switch {
+	case f.Rejected:
+		return DeckAside, "rejected, waiting for a new draft"
 	case f.FailingFindings > 0:
 		return DeckDesk, plural(f.FailingFindings, "failing finding", "failing findings")
 	case f.Stale:

@@ -52,6 +52,8 @@ type ReviewDeckFacts struct {
 	Basis   ReviewDeckBasis
 	Policy  string
 	// GroupRank orders the groups; Group and Reason are what the deck shows.
+	// A rank below 0 sets the translation aside: it is in neither the deck's
+	// pages nor its counts while the facts hold.
 	GroupRank      int
 	Group          string
 	Reason         string
@@ -95,9 +97,10 @@ type ReviewDeckStore interface {
 	RecordReviewDeckFacts(ctx context.Context, projectID, stream string, facts []ReviewDeckFacts) error
 	// ListReviewDeck returns up to limit classified translations after the
 	// key, ordered by group, item, position and block. A group rank below 0
-	// reads every group.
+	// reads every group of the deck; a translation set aside is never read.
 	ListReviewDeck(ctx context.Context, q ReviewDeckQuery, groupRank int, after *ReviewDeckKey, limit int) ([]ReviewDeckRow, error)
 	// CountReviewDeck counts the deck by group, and what is not classified.
+	// A translation set aside is not counted.
 	CountReviewDeck(ctx context.Context, q ReviewDeckQuery) (ReviewDeckCounts, error)
 }
 

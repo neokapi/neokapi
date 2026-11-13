@@ -131,6 +131,8 @@ func (s *PostgresStore) ListReviewDeck(ctx context.Context, q platstore.ReviewDe
 	if groupRank >= 0 {
 		args = append(args, groupRank)
 		scope += fmt.Sprintf(` AND f.group_rank = $%d`, len(args))
+	} else {
+		scope += ` AND f.group_rank >= 0`
 	}
 	if after != nil {
 		n := len(args)
@@ -183,8 +185,9 @@ func (s *PostgresStore) CountReviewDeck(ctx context.Context, q platstore.ReviewD
 	scope, args := reviewDeckArgs(q)
 	out := platstore.ReviewDeckCounts{ByRank: map[int]int{}}
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
+	// A fresh row ranked below 0 is set aside and is not in the deck.
 	query := `SELECT CASE WHEN ` + reviewDeckFresh + ` THEN f.group_rank ELSE -1 END AS rank, count(*)` +
-		reviewDeckFrom + scope + ` GROUP BY rank`
+		reviewDeckFrom + scope + ` AND NOT (` + reviewDeckFresh + ` AND f.group_rank < 0) GROUP BY rank`
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return out, fmt.Errorf("count review deck: %w", err)
