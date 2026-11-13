@@ -130,7 +130,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
         dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
-        stack-up stack-up-web stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
+        stack-up stack-up-web stack-up-e2e stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         test-images pull-test-images \
@@ -413,6 +413,16 @@ stack-up: ## Build + start the full local stack (server+worker+deps) in Docker
 
 stack-up-web: ## Full local stack including the web UI (served at http://localhost:8080)
 	$(COMPOSE_FULL) --profile web up -d --build --wait
+
+COMPOSE_E2E := docker compose -f compose.full.yaml -f compose.e2e.yaml
+E2E_USERNAME ?= e2e-reviewer@example.com
+E2E_PASSWORD ?= e2e-password
+
+stack-up-e2e: ## stack-up, then password sign-in and a test user on the bowrain realm (e2e runs only)
+	$(COMPOSE_E2E) up -d --build --wait
+	E2E_USERNAME='$(E2E_USERNAME)' E2E_PASSWORD='$(E2E_PASSWORD)' $(COMPOSE_E2E) run --rm --build keycloak-e2e
+	@echo "Test user:       $(E2E_USERNAME) / $(E2E_PASSWORD)  (password sign-in on the bowrain realm)"
+	@echo "Restore passkey-only sign-in with: make -C bowrain stack-down stack-up"
 
 COMPOSE_SHARED := docker compose -f compose.yaml -f compose.override.yaml -f compose.app.yaml
 

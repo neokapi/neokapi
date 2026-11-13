@@ -1,10 +1,16 @@
 # Sign in to the local stack through Keycloak, from a clean install.
 #
-#   maestro test -e SERVER_URL=http://localhost:8080 \
-#     -e USERNAME=admin@bowrain.cloud -e PASSWORD=admin e2e/sign-in.yaml
+#   make -C bowrain stack-up-e2e
+#   maestro test e2e/sign-in.yaml
 #
-# Runs against a development build on a simulator and the real local stack
-# (make -C bowrain stack-up); nothing here is mocked.
+# The local "bowrain" realm signs in with passkeys only. `stack-up-e2e` turns on
+# password sign-in for that realm and seeds the test user
+# e2e-reviewer@example.com / e2e-password, which this flow uses unless
+# USERNAME and PASSWORD are passed with -e. SERVER_URL defaults to
+# http://localhost:8080 (http://10.0.2.2:8080 on the Android emulator).
+#
+# Runs against a development build on a simulator and the real local stack;
+# nothing here is mocked.
 appId: cloud.bowrain.app
 ---
 - launchApp:
@@ -15,7 +21,7 @@ appId: cloud.bowrain.app
 - tapOn:
     id: server-url
 - eraseText
-- inputText: ${SERVER_URL}
+- inputText: ${SERVER_URL || 'http://localhost:8080'}
 - tapOn:
     id: sign-in
 # iOS asks before the app opens a browser sign-in session.
@@ -28,10 +34,10 @@ appId: cloud.bowrain.app
     timeout: 20000
 - tapOn:
     id: username
-- inputText: ${USERNAME}
+- inputText: ${USERNAME || 'e2e-reviewer@example.com'}
 - tapOn:
     id: password
-- inputText: ${PASSWORD}
+- inputText: ${PASSWORD || 'e2e-password'}
 - tapOn:
     id: kc-login
 - extendedWaitUntil:
