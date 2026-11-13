@@ -36,11 +36,15 @@ function toPlain(p: KapiProject): KapiProject {
   return JSON.parse(JSON.stringify(p));
 }
 
-function makeTravels(initial: KapiProject) {
+/** A tab's timeline: manual archive mode, so undo steps are the debounced
+ *  batches committed by archive(). */
+type ProjectTravels = Travels<KapiProject, false, false>;
+
+function makeTravels(initial: KapiProject): ProjectTravels {
   return createTravels(toPlain(initial), {
     maxHistory: MAX_UNDO,
     autoArchive: false,
-  }) as unknown as Travels<KapiProject, false, true>;
+  });
 }
 
 /**
@@ -56,7 +60,7 @@ export function useProjectHistory(
   tabId: string | null,
 ): ProjectHistory {
   // Persistent map of Travels instances and saved snapshots per tab.
-  const instancesRef = useRef(new Map<string, Travels<KapiProject, false, true>>());
+  const instancesRef = useRef(new Map<string, ProjectTravels>());
   const savedMapRef = useRef(new Map<string, string>());
   const tabIdRef = useRef(tabId);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,12 +85,8 @@ export function useProjectHistory(
     setActiveInstance(instancesRef.current.get(key)!);
   }
 
-  const [state, setState, rawControls] = useTravelStore(activeInstance);
-  // Cast to manual controls — autoArchive is false so canArchive/archive are available.
-  const controls = rawControls as typeof rawControls & {
-    canArchive: () => boolean;
-    archive: () => void;
-  };
+  // Manual archive mode types the controls with canArchive/archive.
+  const [state, setState, controls] = useTravelStore<KapiProject, false, false>(activeInstance);
 
   const scheduleArchive = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -154,8 +154,8 @@ export function useProjectHistory(
     redo,
     markSaved,
     isDirty,
-    canUndo: controls.canBack(),
-    canRedo: controls.canForward(),
+    canUndo: controls.canUndo,
+    canRedo: controls.canRedo,
     /** @internal Remove a closed tab's history. */
     cleanup,
   } as ProjectHistory & { cleanup: (id: string) => void };
