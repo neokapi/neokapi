@@ -38,8 +38,8 @@ export function remapEventsToEditor(trace: FlowTrace, stepToolCounts: number[]):
   const map = traceNodeToEditorNode(trace, stepToolCounts);
   const out: TraceEvent[] = [];
   for (const e of trace.events) {
-    const nodeId = map.get(e.nodeId);
-    if (nodeId) out.push({ ...e, nodeId });
+    const nodeId = map.get(e.node_id);
+    if (nodeId) out.push({ ...e, node_id: nodeId });
   }
   return out;
 }
@@ -48,7 +48,7 @@ export function remapEventsToEditor(trace: FlowTrace, stepToolCounts: number[]):
 export function activeEditorNodes(events: TraceEvent[], cursor: number): Set<string> {
   const inFlight = new Map<string, number>();
   for (const e of events.slice(0, cursor)) {
-    const key = `${e.nodeId}:${e.partId ?? ""}`;
+    const key = `${e.node_id}:${e.part_id ?? ""}`;
     if (e.type === "enter") inFlight.set(key, (inFlight.get(key) ?? 0) + 1);
     else if (e.type === "exit") {
       const n = (inFlight.get(key) ?? 0) - 1;
@@ -71,8 +71,8 @@ export function nodeSpans(events: TraceEvent[], cursor: number): Map<string, num
   const first = new Map<string, number>();
   const last = new Map<string, number>();
   for (const e of events.slice(0, cursor)) {
-    if (e.type === "enter" && !first.has(e.nodeId)) first.set(e.nodeId, e.ts);
-    if (e.type === "exit") last.set(e.nodeId, e.ts);
+    if (e.type === "enter" && !first.has(e.node_id)) first.set(e.node_id, e.ts);
+    if (e.type === "exit") last.set(e.node_id, e.ts);
   }
   const spans = new Map<string, number>();
   for (const [nodeId, start] of first) {
@@ -98,8 +98,8 @@ export function edgeTransits(
   const upTo = Math.min(cursor, events.length);
   for (let i = 0; i < upTo; i++) {
     const e = events[i];
-    if (!e.partId) continue;
-    lastApplied.set(e.partId, { idx: i, type: e.type, nodeId: e.nodeId });
+    if (!e.part_id) continue;
+    lastApplied.set(e.part_id, { idx: i, type: e.type, nodeId: e.node_id });
   }
 
   const transits = new Map<string, number>();
@@ -109,8 +109,8 @@ export function edgeTransits(
     let target = sinkId;
     for (let i = last.idx + 1; i < events.length; i++) {
       const e = events[i];
-      if (e.partId === partId && e.type === "enter") {
-        target = e.nodeId;
+      if (e.part_id === partId && e.type === "enter") {
+        target = e.node_id;
         break;
       }
     }
@@ -155,14 +155,14 @@ export function partsThroughStep(
     // After: the snapshot from this step's (last) trace node.
     let after: PartSnapshot | undefined;
     for (const id of stepNodeIds) {
-      after = set.afterNode?.[id] ?? after;
+      after = set.after_node?.[id] ?? after;
     }
     if (!after) continue;
     // Before: the nearest earlier tool node with a snapshot, else initial.
     let before: PartSnapshot = set.initial;
     for (const n of tools) {
       if (stepNodeIds.includes(n.id)) break;
-      const snap = set.afterNode?.[n.id];
+      const snap = set.after_node?.[n.id];
       if (snap) before = snap;
     }
     out.push({ partId, before, after });
@@ -218,8 +218,8 @@ export function snapshotDelta(before: PartSnapshot, after: PartSnapshot): Snapsh
   const removedAnnotations = [...beforeAnno].filter((k) => !afterAnno.has(k));
 
   return {
-    sourceChanged: before.sourceText !== after.sourceText,
-    targetChanged: before.targetText !== after.targetText,
+    sourceChanged: before.source_text !== after.source_text,
+    targetChanged: before.target_text !== after.target_text,
     addedOverlays,
     removedOverlays,
     addedAnnotations,

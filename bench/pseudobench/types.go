@@ -73,18 +73,18 @@ type ExperimentResult struct {
 type BatchTrace struct {
 	Name        string      `json:"name"`
 	Concurrency int         `json:"concurrency"`
-	FileTraces  []FileTrace `json:"fileTraces"`
-	DurationUs  int64       `json:"durationUs"`
+	FileTraces  []FileTrace `json:"file_traces"`
+	DurationUs  int64       `json:"duration_us"`
 }
 
 // FileTrace holds per-file timing from a batch flow trace.
 type FileTrace struct {
 	File       string `json:"file"`
 	Format     string `json:"format"`
-	StartUs    int64  `json:"startUs"`
-	EndUs      int64  `json:"endUs"`
+	StartUs    int64  `json:"start_us"`
+	EndUs      int64  `json:"end_us"`
 	Lane       int    `json:"lane"`
-	DurationUs int64  `json:"durationUs"`
+	DurationUs int64  `json:"duration_us"`
 }
 
 // FileResult tracks per-file success/failure within an experiment.

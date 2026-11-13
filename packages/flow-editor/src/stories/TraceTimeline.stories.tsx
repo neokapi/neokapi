@@ -19,18 +19,18 @@ export default meta;
 type Story = StoryObj<typeof TraceTimeline>;
 
 const completedEvents: TraceEvent[] = [
-  { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
-  { ts: 500, type: "exit", nodeId: "tool-0", partId: "p1" },
-  { ts: 600, type: "enter", nodeId: "tool-0", partId: "p2" },
-  { ts: 900, type: "exit", nodeId: "tool-0", partId: "p2" },
-  { ts: 550, type: "enter", nodeId: "tool-1", partId: "p1" },
-  { ts: 1200, type: "exit", nodeId: "tool-1", partId: "p1" },
-  { ts: 950, type: "enter", nodeId: "tool-1", partId: "p2" },
-  { ts: 1800, type: "exit", nodeId: "tool-1", partId: "p2" },
-  { ts: 1250, type: "enter", nodeId: "tool-2", partId: "p1" },
-  { ts: 1400, type: "exit", nodeId: "tool-2", partId: "p1" },
-  { ts: 1850, type: "enter", nodeId: "tool-2", partId: "p2" },
-  { ts: 2000, type: "exit", nodeId: "tool-2", partId: "p2" },
+  { ts: 0, type: "enter", node_id: "tool-0", part_id: "p1" },
+  { ts: 500, type: "exit", node_id: "tool-0", part_id: "p1" },
+  { ts: 600, type: "enter", node_id: "tool-0", part_id: "p2" },
+  { ts: 900, type: "exit", node_id: "tool-0", part_id: "p2" },
+  { ts: 550, type: "enter", node_id: "tool-1", part_id: "p1" },
+  { ts: 1200, type: "exit", node_id: "tool-1", part_id: "p1" },
+  { ts: 950, type: "enter", node_id: "tool-1", part_id: "p2" },
+  { ts: 1800, type: "exit", node_id: "tool-1", part_id: "p2" },
+  { ts: 1250, type: "enter", node_id: "tool-2", part_id: "p1" },
+  { ts: 1400, type: "exit", node_id: "tool-2", part_id: "p1" },
+  { ts: 1850, type: "enter", node_id: "tool-2", part_id: "p2" },
+  { ts: 2000, type: "exit", node_id: "tool-2", part_id: "p2" },
 ];
 
 const nodeNames = new Map([
@@ -51,12 +51,12 @@ export const WithError: Story = {
   args: {
     events: [
       ...completedEvents.slice(0, 4),
-      { ts: 550, type: "enter", nodeId: "tool-1", partId: "p1" },
+      { ts: 550, type: "enter", node_id: "tool-1", part_id: "p1" },
       {
         ts: 800,
         type: "error",
-        nodeId: "tool-1",
-        partId: "p1",
+        node_id: "tool-1",
+        part_id: "p1",
         meta: { error: "check failed: missing translation" },
       },
     ],
@@ -68,8 +68,8 @@ export const WithError: Story = {
 export const SingleNode: Story = {
   args: {
     events: [
-      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
-      { ts: 300, type: "exit", nodeId: "tool-0", partId: "p1" },
+      { ts: 0, type: "enter", node_id: "tool-0", part_id: "p1" },
+      { ts: 300, type: "exit", node_id: "tool-0", part_id: "p1" },
     ],
     nodeNames: new Map([["tool-0", "pseudo-translate"]]),
     totalDurationUs: 300,

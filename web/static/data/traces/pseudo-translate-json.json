@@ -6,38 +6,38 @@
     { "id": "pseudo", "type": "tool", "name": "pseudo-translate", "label": "Pseudo-Translate" },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }
   ],
-  "channelSize": 64,
+  "channel_size": 64,
   "events": [
-    { "ts": 100, "type": "exit", "nodeId": "reader", "partId": "layer-1" },
-    { "ts": 200, "type": "exit", "nodeId": "reader", "partId": "block-greeting" },
-    { "ts": 250, "type": "enter", "nodeId": "pseudo", "partId": "layer-1" },
-    { "ts": 280, "type": "exit", "nodeId": "pseudo", "partId": "layer-1" },
-    { "ts": 320, "type": "enter", "nodeId": "writer", "partId": "layer-1" },
-    { "ts": 340, "type": "exit", "nodeId": "writer", "partId": "layer-1" },
-    { "ts": 350, "type": "exit", "nodeId": "reader", "partId": "block-farewell" },
-    { "ts": 350, "type": "enter", "nodeId": "pseudo", "partId": "block-greeting" },
-    { "ts": 500, "type": "exit", "nodeId": "reader", "partId": "block-description" },
-    { "ts": 550, "type": "exit", "nodeId": "pseudo", "partId": "block-greeting" },
-    { "ts": 560, "type": "enter", "nodeId": "pseudo", "partId": "block-farewell" },
-    { "ts": 600, "type": "exit", "nodeId": "reader", "partId": "data-1" },
-    { "ts": 600, "type": "enter", "nodeId": "writer", "partId": "block-greeting" },
-    { "ts": 680, "type": "exit", "nodeId": "writer", "partId": "block-greeting" },
-    { "ts": 700, "type": "exit", "nodeId": "reader", "partId": "layer-1-end" },
-    { "ts": 750, "type": "exit", "nodeId": "pseudo", "partId": "block-farewell" },
-    { "ts": 760, "type": "enter", "nodeId": "pseudo", "partId": "block-description" },
-    { "ts": 800, "type": "enter", "nodeId": "writer", "partId": "block-farewell" },
-    { "ts": 880, "type": "exit", "nodeId": "writer", "partId": "block-farewell" },
-    { "ts": 1050, "type": "exit", "nodeId": "pseudo", "partId": "block-description" },
-    { "ts": 1060, "type": "enter", "nodeId": "pseudo", "partId": "data-1" },
-    { "ts": 1090, "type": "exit", "nodeId": "pseudo", "partId": "data-1" },
-    { "ts": 1100, "type": "enter", "nodeId": "pseudo", "partId": "layer-1-end" },
-    { "ts": 1100, "type": "enter", "nodeId": "writer", "partId": "block-description" },
-    { "ts": 1120, "type": "exit", "nodeId": "pseudo", "partId": "layer-1-end" },
-    { "ts": 1200, "type": "exit", "nodeId": "writer", "partId": "block-description" },
-    { "ts": 1210, "type": "enter", "nodeId": "writer", "partId": "data-1" },
-    { "ts": 1240, "type": "exit", "nodeId": "writer", "partId": "data-1" },
-    { "ts": 1250, "type": "enter", "nodeId": "writer", "partId": "layer-1-end" },
-    { "ts": 1300, "type": "exit", "nodeId": "writer", "partId": "layer-1-end" }
+    { "ts": 100, "type": "exit", "node_id": "reader", "part_id": "layer-1" },
+    { "ts": 200, "type": "exit", "node_id": "reader", "part_id": "block-greeting" },
+    { "ts": 250, "type": "enter", "node_id": "pseudo", "part_id": "layer-1" },
+    { "ts": 280, "type": "exit", "node_id": "pseudo", "part_id": "layer-1" },
+    { "ts": 320, "type": "enter", "node_id": "writer", "part_id": "layer-1" },
+    { "ts": 340, "type": "exit", "node_id": "writer", "part_id": "layer-1" },
+    { "ts": 350, "type": "exit", "node_id": "reader", "part_id": "block-farewell" },
+    { "ts": 350, "type": "enter", "node_id": "pseudo", "part_id": "block-greeting" },
+    { "ts": 500, "type": "exit", "node_id": "reader", "part_id": "block-description" },
+    { "ts": 550, "type": "exit", "node_id": "pseudo", "part_id": "block-greeting" },
+    { "ts": 560, "type": "enter", "node_id": "pseudo", "part_id": "block-farewell" },
+    { "ts": 600, "type": "exit", "node_id": "reader", "part_id": "data-1" },
+    { "ts": 600, "type": "enter", "node_id": "writer", "part_id": "block-greeting" },
+    { "ts": 680, "type": "exit", "node_id": "writer", "part_id": "block-greeting" },
+    { "ts": 700, "type": "exit", "node_id": "reader", "part_id": "layer-1-end" },
+    { "ts": 750, "type": "exit", "node_id": "pseudo", "part_id": "block-farewell" },
+    { "ts": 760, "type": "enter", "node_id": "pseudo", "part_id": "block-description" },
+    { "ts": 800, "type": "enter", "node_id": "writer", "part_id": "block-farewell" },
+    { "ts": 880, "type": "exit", "node_id": "writer", "part_id": "block-farewell" },
+    { "ts": 1050, "type": "exit", "node_id": "pseudo", "part_id": "block-description" },
+    { "ts": 1060, "type": "enter", "node_id": "pseudo", "part_id": "data-1" },
+    { "ts": 1090, "type": "exit", "node_id": "pseudo", "part_id": "data-1" },
+    { "ts": 1100, "type": "enter", "node_id": "pseudo", "part_id": "layer-1-end" },
+    { "ts": 1100, "type": "enter", "node_id": "writer", "part_id": "block-description" },
+    { "ts": 1120, "type": "exit", "node_id": "pseudo", "part_id": "layer-1-end" },
+    { "ts": 1200, "type": "exit", "node_id": "writer", "part_id": "block-description" },
+    { "ts": 1210, "type": "enter", "node_id": "writer", "part_id": "data-1" },
+    { "ts": 1240, "type": "exit", "node_id": "writer", "part_id": "data-1" },
+    { "ts": 1250, "type": "enter", "node_id": "writer", "part_id": "layer-1-end" },
+    { "ts": 1300, "type": "exit", "node_id": "writer", "part_id": "layer-1-end" }
   ],
   "parts": {
     "layer-1": {
@@ -48,15 +48,15 @@
         "id": "block-greeting",
         "type": "Block",
         "summary": "greeting: Hello, World!",
-        "sourceText": "Hello, World!"
+        "source_text": "Hello, World!"
       },
-      "afterNode": {
+      "after_node": {
         "pseudo": {
           "id": "block-greeting",
           "type": "Block",
           "summary": "greeting: [\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]",
-          "sourceText": "Hello, World!",
-          "targetText": "[\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]"
+          "source_text": "Hello, World!",
+          "target_text": "[\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]"
         }
       }
     },
@@ -65,15 +65,15 @@
         "id": "block-farewell",
         "type": "Block",
         "summary": "farewell: Goodbye!",
-        "sourceText": "Goodbye!"
+        "source_text": "Goodbye!"
       },
-      "afterNode": {
+      "after_node": {
         "pseudo": {
           "id": "block-farewell",
           "type": "Block",
           "summary": "farewell: [\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]",
-          "sourceText": "Goodbye!",
-          "targetText": "[\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]"
+          "source_text": "Goodbye!",
+          "target_text": "[\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]"
         }
       }
     },
@@ -82,15 +82,15 @@
         "id": "block-description",
         "type": "Block",
         "summary": "description: Welcome to our application",
-        "sourceText": "Welcome to our application"
+        "source_text": "Welcome to our application"
       },
-      "afterNode": {
+      "after_node": {
         "pseudo": {
           "id": "block-description",
           "type": "Block",
           "summary": "description: [\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]",
-          "sourceText": "Welcome to our application",
-          "targetText": "[\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]"
+          "source_text": "Welcome to our application",
+          "target_text": "[\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]"
         }
       }
     },
@@ -101,14 +101,14 @@
       "initial": { "id": "layer-1-end", "type": "LayerEnd", "summary": "Document root end" }
     }
   },
-  "inputFile": {
+  "input_file": {
     "name": "messages.json",
     "format": "json",
     "preview": "{\n  \"greeting\": \"Hello, World!\",\n  \"farewell\": \"Goodbye!\",\n  \"description\": \"Welcome to our application\"\n}"
   },
-  "outputFile": {
+  "output_file": {
     "name": "messages_qps.json",
     "preview": "{\n  \"greeting\": \"[\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]\",\n  \"farewell\": \"[\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]\",\n  \"description\": \"[\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]\"\n}"
   },
-  "durationUs": 1300
+  "duration_us": 1300
 }

@@ -148,7 +148,7 @@ export function PreviewPanel({
           {/* Initial state */}
           <PreviewSegment
             label="Input"
-            sourceText={snapshots.initial.sourceText ?? ""}
+            sourceText={snapshots.initial.source_text ?? ""}
             targetText=""
             isFirst
             index={0}
@@ -156,21 +156,21 @@ export function PreviewPanel({
 
           {/* After each node */}
           {result!.nodeOrder.map((nodeId, i) => {
-            const after = snapshots.afterNode?.[nodeId];
+            const after = snapshots.after_node?.[nodeId];
             if (!after) return null;
             const prevNodeId = result!.nodeOrder[result!.nodeOrder.indexOf(nodeId) - 1];
             const prevTarget = prevNodeId
-              ? (snapshots.afterNode?.[prevNodeId]?.targetText ?? "")
+              ? (snapshots.after_node?.[prevNodeId]?.target_text ?? "")
               : "";
-            const changed = after.targetText !== prevTarget;
+            const changed = after.target_text !== prevTarget;
 
             return (
               <div key={nodeId} className="flex items-center gap-0">
                 <span className="shrink-0 px-1 text-sm text-muted-foreground">&rarr;</span>
                 <PreviewSegment
                   label={nodeNames.get(nodeId) ?? nodeId}
-                  sourceText={after.sourceText ?? ""}
-                  targetText={after.targetText ?? ""}
+                  sourceText={after.source_text ?? ""}
+                  targetText={after.target_text ?? ""}
                   changed={changed}
                   index={i + 1}
                 />

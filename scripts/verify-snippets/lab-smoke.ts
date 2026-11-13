@@ -74,11 +74,11 @@ ok("trace has reader/tool/writer nodes", trace.nodes?.length === 3, `nodes=${JSO
 ok("trace native json reader (not bridge)", trace.nodes?.[0]?.name === "json", `reader=${trace.nodes?.[0]?.name}`);
 ok("trace has events", trace.events?.length > 0, `events=${trace.events?.length}`);
 ok("trace has part snapshots", Object.keys(trace.parts ?? {}).length > 0, `parts=${Object.keys(trace.parts ?? {}).length}`);
-const withAfter = Object.entries(trace.parts ?? {}).find(([, v]: any) => v.afterNode && Object.keys(v.afterNode).length);
+const withAfter = Object.entries(trace.parts ?? {}).find(([, v]: any) => v.after_node && Object.keys(v.after_node).length);
 ok("a part has before/after snapshots", !!withAfter);
 if (withAfter) {
   const [pid, set]: any = withAfter;
-  console.log(`   part ${pid}: source="${set.initial.sourceText}" → after tool target="${Object.values(set.afterNode)[0]?.targetText ?? "(none)"}"`);
+  console.log(`   part ${pid}: source="${set.initial.source_text}" → after tool target="${Object.values(set.after_node)[0]?.target_text ?? "(none)"}"`);
 }
 
 // ── 3. recipe-based custom flow → trace (the ToolLab / FlowBuilder path) ─────

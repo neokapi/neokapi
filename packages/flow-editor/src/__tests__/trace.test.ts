@@ -5,10 +5,10 @@ import type { TraceEvent } from "../traceTypes";
 describe("computeNodeStats", () => {
   it("counts parts processed per node", () => {
     const events: TraceEvent[] = [
-      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
-      { ts: 100, type: "exit", nodeId: "tool-0", partId: "p1" },
-      { ts: 200, type: "enter", nodeId: "tool-0", partId: "p2" },
-      { ts: 300, type: "exit", nodeId: "tool-0", partId: "p2" },
+      { ts: 0, type: "enter", node_id: "tool-0", part_id: "p1" },
+      { ts: 100, type: "exit", node_id: "tool-0", part_id: "p1" },
+      { ts: 200, type: "enter", node_id: "tool-0", part_id: "p2" },
+      { ts: 300, type: "exit", node_id: "tool-0", part_id: "p2" },
     ];
     const stats = computeNodeStats(events);
     expect(stats.get("tool-0")!.partsProcessed).toBe(2);
@@ -16,10 +16,10 @@ describe("computeNodeStats", () => {
 
   it("computes duration from enter/exit pairs", () => {
     const events: TraceEvent[] = [
-      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
-      { ts: 500, type: "exit", nodeId: "tool-0", partId: "p1" },
-      { ts: 600, type: "enter", nodeId: "tool-0", partId: "p2" },
-      { ts: 900, type: "exit", nodeId: "tool-0", partId: "p2" },
+      { ts: 0, type: "enter", node_id: "tool-0", part_id: "p1" },
+      { ts: 500, type: "exit", node_id: "tool-0", part_id: "p1" },
+      { ts: 600, type: "enter", node_id: "tool-0", part_id: "p2" },
+      { ts: 900, type: "exit", node_id: "tool-0", part_id: "p2" },
     ];
     const stats = computeNodeStats(events);
     // Duration = (500-0) + (900-600) = 800
@@ -28,10 +28,10 @@ describe("computeNodeStats", () => {
 
   it("tracks multiple nodes independently", () => {
     const events: TraceEvent[] = [
-      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
-      { ts: 50, type: "enter", nodeId: "tool-1", partId: "p1" },
-      { ts: 100, type: "exit", nodeId: "tool-0", partId: "p1" },
-      { ts: 200, type: "exit", nodeId: "tool-1", partId: "p1" },
+      { ts: 0, type: "enter", node_id: "tool-0", part_id: "p1" },
+      { ts: 50, type: "enter", node_id: "tool-1", part_id: "p1" },
+      { ts: 100, type: "exit", node_id: "tool-0", part_id: "p1" },
+      { ts: 200, type: "exit", node_id: "tool-1", part_id: "p1" },
     ];
     const stats = computeNodeStats(events);
     expect(stats.get("tool-0")!.partsProcessed).toBe(1);
@@ -42,8 +42,8 @@ describe("computeNodeStats", () => {
 
   it("detects error events", () => {
     const events: TraceEvent[] = [
-      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
-      { ts: 100, type: "error", nodeId: "tool-0", partId: "p1", meta: { error: "boom" } },
+      { ts: 0, type: "enter", node_id: "tool-0", part_id: "p1" },
+      { ts: 100, type: "error", node_id: "tool-0", part_id: "p1", meta: { error: "boom" } },
     ];
     const stats = computeNodeStats(events);
     expect(stats.get("tool-0")!.hasError).toBe(true);
@@ -56,7 +56,7 @@ describe("computeNodeStats", () => {
   });
 
   it("handles enter without exit (in-progress)", () => {
-    const events: TraceEvent[] = [{ ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" }];
+    const events: TraceEvent[] = [{ ts: 0, type: "enter", node_id: "tool-0", part_id: "p1" }];
     const stats = computeNodeStats(events);
     expect(stats.get("tool-0")!.partsProcessed).toBe(0);
     expect(stats.get("tool-0")!.durationUs).toBe(0);

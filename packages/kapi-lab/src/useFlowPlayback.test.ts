@@ -12,18 +12,18 @@ const nodes: FlowNode[] = [
 
 const parts: Record<string, PartSnapshotSet> = {
   b1: {
-    initial: { id: "b1", type: "Block", summary: "Hello", sourceText: "Hello" },
-    afterNode: { "tool-0": { id: "b1", type: "Block", summary: "Ħëłłö", targetText: "Ħëłłö" } },
+    initial: { id: "b1", type: "Block", summary: "Hello", source_text: "Hello" },
+    after_node: { "tool-0": { id: "b1", type: "Block", summary: "Ħëłłö", target_text: "Ħëłłö" } },
   },
 };
 
 // reader exits b1 at 10, tool enters at 20, tool exits (translated) at 30,
 // writer enters at 40. Distinct timestamps: 10,20,30,40 → frames [0,10,20,30,40].
 const events: TraceEvent[] = [
-  { ts: 10, type: "exit", nodeId: "reader", partId: "b1" },
-  { ts: 20, type: "enter", nodeId: "tool-0", partId: "b1" },
-  { ts: 30, type: "exit", nodeId: "tool-0", partId: "b1" },
-  { ts: 40, type: "enter", nodeId: "writer", partId: "b1" },
+  { ts: 10, type: "exit", node_id: "reader", part_id: "b1" },
+  { ts: 20, type: "enter", node_id: "tool-0", part_id: "b1" },
+  { ts: 30, type: "exit", node_id: "tool-0", part_id: "b1" },
+  { ts: 40, type: "enter", node_id: "writer", part_id: "b1" },
 ];
 
 describe("useFlowPlayback", () => {

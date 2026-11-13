@@ -51,33 +51,33 @@ const TRACE: FlowTrace = {
     { id: "tool-2", type: "tool", name: "qa" },
   ],
   events: [
-    { ts: 1, type: "enter", nodeId: "tool-1", partId: "b1" },
-    { ts: 2, type: "exit", nodeId: "tool-1", partId: "b1" },
-    { ts: 3, type: "enter", nodeId: "tool-2", partId: "b1" },
-    { ts: 4, type: "exit", nodeId: "tool-2", partId: "b1" },
+    { ts: 1, type: "enter", node_id: "tool-1", part_id: "b1" },
+    { ts: 2, type: "exit", node_id: "tool-1", part_id: "b1" },
+    { ts: 3, type: "enter", node_id: "tool-2", part_id: "b1" },
+    { ts: 4, type: "exit", node_id: "tool-2", part_id: "b1" },
   ],
   parts: {
     b1: {
-      initial: { id: "b1", type: "Block", summary: "Hello", sourceText: "Hello" },
-      afterNode: {
+      initial: { id: "b1", type: "Block", summary: "Hello", source_text: "Hello" },
+      after_node: {
         "tool-1": {
           id: "b1",
           type: "Block",
           summary: "Hello",
-          sourceText: "Hello",
-          targetText: "Bonjour",
+          source_text: "Hello",
+          target_text: "Bonjour",
         },
         "tool-2": {
           id: "b1",
           type: "Block",
           summary: "Hello",
-          sourceText: "Hello",
-          targetText: "Bonjour",
+          source_text: "Hello",
+          target_text: "Bonjour",
         },
       },
     },
   },
-  durationUs: 4,
+  duration_us: 4,
 };
 
 describe("FlowDiagramView", () => {

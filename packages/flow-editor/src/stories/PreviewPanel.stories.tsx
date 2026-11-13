@@ -9,21 +9,21 @@ const nodeNames = new Map([
 const mockResult: PreviewResult = {
   parts: {
     p1: {
-      initial: { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world" },
-      afterNode: {
+      initial: { id: "p1", type: "Block", summary: "Hello world", source_text: "Hello world" },
+      after_node: {
         "tool-0": {
           id: "p1",
           type: "Block",
           summary: "Hello world",
-          sourceText: "Hello world",
-          targetText: "Bonjour le monde",
+          source_text: "Hello world",
+          target_text: "Bonjour le monde",
         },
         "tool-1": {
           id: "p1",
           type: "Block",
           summary: "Hello world",
-          sourceText: "Hello world",
-          targetText: "Bonjour le monde",
+          source_text: "Hello world",
+          target_text: "Bonjour le monde",
         },
       },
     },
