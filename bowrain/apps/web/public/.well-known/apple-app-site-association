@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["FOUNDER_FILL_IN_APPLE_TEAM_ID.cloud.bowrain.app"],
+        "appIDs": ["8X6GKF24MG.cloud.bowrain.app"],
         "components": [
           {
             "/": "/auth/callback",
@@ -13,6 +13,6 @@
     ]
   },
   "webcredentials": {
-    "apps": ["FOUNDER_FILL_IN_APPLE_TEAM_ID.cloud.bowrain.app"]
+    "apps": ["8X6GKF24MG.cloud.bowrain.app"]
   }
 }
