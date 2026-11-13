@@ -190,7 +190,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 		return apiErr(c, http.StatusBadRequest, "authorization_pending")
 	}
 
-	// User authorized — create or retrieve user and generate token.
+	// User authorized: create or retrieve user and generate token.
 	user, err := s.Services.Auth.GetOrCreateUser(ctx, entry.UserEmail, entry.UserName, "", entry.OIDCSub, requestLocale(c))
 	if err != nil {
 		return serverErr(c, fmt.Errorf("create user: %w", err))
@@ -210,7 +210,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	}
 	rtHash := sha256.Sum256([]byte(refreshToken))
 	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
-		// Never hand the client a refresh token that was not persisted —
+		// Never hand the client a refresh token that was not persisted:
 		// it would be unredeemable (silent forced re-login).
 		return apiErr(c, http.StatusInternalServerError, "failed to store refresh token")
 	}
@@ -387,8 +387,10 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 	}
 
 	// response_mode=code: the redirect carries a one-time code bound to the
-	// PKCE challenge, which the client redeems at /auth/desktop/token. Without
-	// it the redirect carries the tokens, as the desktop app reads them today.
+	// PKCE challenge, which the client redeems at /auth/desktop/token. The
+	// desktop and mobile apps both ask for it. Without it the redirect carries
+	// the tokens, which installed desktop releases that predate the code
+	// redirect still read.
 	responseMode := c.QueryParam("response_mode")
 	clientState := c.QueryParam("state")
 	switch responseMode {
@@ -421,7 +423,7 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 		authURL = strings.Replace(authURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
 	}
 
-	// The server's own callback URL — the OIDC provider redirects here.
+	// The server's own callback URL; the OIDC provider redirects here.
 	serverCallbackURI := requestBaseURL(c) + "/api/v1/auth/desktop/callback"
 
 	ap, err := newOIDCAuthParams()
@@ -458,9 +460,11 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 }
 
 // HandleDesktopCallback handles the OIDC provider's redirect after the user
-// authenticates. It exchanges the authorization code for tokens, creates/gets
-// the user, generates a Bowrain JWT + refresh token, and redirects to the
-// desktop app's localhost callback URI with the tokens as query parameters.
+// authenticates. It exchanges the authorization code for tokens and creates or
+// gets the user. In code mode it redirects to the client with a one-time code
+// (see redirectWithLoginCode). Otherwise it generates a Bowrain JWT and refresh
+// token and redirects with them as query parameters, for installed desktop
+// releases that predate the code redirect.
 func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
@@ -479,7 +483,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		}
 		// The identity provider's message is shown to the user, but it arrives
 		// in the query string of an unauthenticated GET, so whoever sends the
-		// link chooses it. Escaped on the way into the document — the sibling
+		// link chooses it. Escaped on the way into the document. The sibling
 		// device-flow callback already routes the same two parameters through
 		// url.QueryEscape, and this page was the one that did not.
 		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
@@ -566,7 +570,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	}
 	rtHash := sha256.Sum256([]byte(refreshToken))
 	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
-		// Never hand the client a refresh token that was not persisted —
+		// Never hand the client a refresh token that was not persisted:
 		// it would be unredeemable (silent forced re-login).
 		return apiErr(c, http.StatusInternalServerError, "failed to store refresh token")
 	}
@@ -589,7 +593,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 // the browser to the identity provider to establish who is authorizing it.
 //
 // Which path runs is decided by server configuration alone. Nothing in the
-// request selects it — in particular the identity the caller names is an input
+// request selects it. In particular the identity the caller names is an input
 // to the direct path, never a reason to take it. The direct path (approve the
 // device from the request itself, no identity provider involved) is reachable
 // only when the operator set [Config.AllowInsecureDeviceAuth]; see that field
@@ -830,7 +834,7 @@ const refreshCookieName = "bowrain_refresh"
 
 // signedInHintCookie is a NON-HttpOnly, non-sensitive hint cookie set on the
 // PARENT domain (e.g. ".bowrain.cloud") alongside the session. It carries no
-// secret — just "1" — and exists so the same-site marketing landing can render
+// secret (just "1") and exists so the same-site marketing landing can render
 // the correct CTA ("Go to app" vs "Sign in") on first paint, before its
 // credentialed whoami fetch resolves. whoami remains the source of truth; the
 // hint only removes the flash.
@@ -839,8 +843,8 @@ const signedInHintCookie = "bowrain_signed_in"
 // parentCookieDomain derives the registrable parent domain for the cross-
 // subdomain hint cookie by stripping the first DNS label from the request host
 // (app.bowrain.cloud → ".bowrain.cloud"), so a cookie set by the app is
-// readable by the landing on the parent domain. It returns "" — meaning "omit
-// the Domain attribute" (a host-only cookie) — for localhost, IP hosts, or any
+// readable by the landing on the parent domain. It returns "", meaning "omit
+// the Domain attribute" (a host-only cookie), for localhost, IP hosts, or any
 // host with fewer than three labels, where a parent Domain would either be
 // rejected by the browser (public suffix) or be pointless.
 func parentCookieDomain(c echo.Context) string {
@@ -886,7 +890,7 @@ func (s *Server) setSessionCookies(c echo.Context, accessToken, refreshToken str
 		Name:     sessionCookieName,
 		Value:    accessToken,
 		Path:     "/api/",
-		MaxAge:   900, // 15 minutes — matches access token lifetime
+		MaxAge:   900, // 15 minutes, matches access token lifetime
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
@@ -905,14 +909,14 @@ func (s *Server) setSessionCookies(c echo.Context, accessToken, refreshToken str
 	}
 
 	// No-flash hint for the landing (parent-domain, readable by JS, non-secret).
-	// MaxAge tracks the session cookie so hint and whoami expire together — a
+	// MaxAge tracks the session cookie so hint and whoami expire together: a
 	// stale hint would otherwise flash the wrong CTA.
 	c.SetCookie(&http.Cookie{
 		Name:     signedInHintCookie,
 		Value:    "1",
 		Path:     "/",
 		Domain:   parentCookieDomain(c),
-		MaxAge:   900, // 15 minutes — matches the session cookie
+		MaxAge:   900, // 15 minutes, matches the session cookie
 		HttpOnly: false,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
@@ -1042,7 +1046,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	}
 	rtHash := sha256.Sum256([]byte(refreshToken))
 	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
-		// Never hand the client a refresh token that was not persisted —
+		// Never hand the client a refresh token that was not persisted:
 		// it would be unredeemable (silent forced re-login).
 		return apiErr(c, http.StatusInternalServerError, "failed to store refresh token")
 	}
@@ -1107,7 +1111,7 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 
 	// The cookie path is a state-changing, ambient-credential request, so it
 	// must present the CSRF header the SPA sends on every cookie-authenticated
-	// call — otherwise a cross-site page could silently rotate the victim's
+	// call; otherwise a cross-site page could silently rotate the victim's
 	// session. The body path carries no ambient credential and is exempt.
 	if fromCookie {
 		if err := enforceCSRFForCookie(c); err != nil {
@@ -1198,8 +1202,8 @@ func (s *Server) HandleAuthMe(c echo.Context) error {
 
 // WhoAmIResponse is the trimmed, display-only body returned by
 // GET /api/v1/auth/whoami. It intentionally carries ONLY fields safe to expose
-// to a cross-origin caller (the marketing landing) — a name, an email, and an
-// avatar URL — and never a token, an internal user id, or the OIDC subject.
+// to a cross-origin caller (the marketing landing): a name, an email, and an
+// avatar URL, and never a token, an internal user id, or the OIDC subject.
 type WhoAmIResponse struct {
 	Authenticated bool   `json:"authenticated"`
 	Name          string `json:"name"`
@@ -1217,7 +1221,7 @@ type WhoAmIResponse struct {
 //
 // The same-site marketing landing calls this cross-origin with credentials to
 // decide between a "Sign in" and a "Go to app" CTA. The response is display-only
-// by construction (WhoAmIResponse) — it never leaks a token or the full user
+// by construction (WhoAmIResponse); it never leaks a token or the full user
 // record across origins.
 func (s *Server) HandleAuthWhoami(c echo.Context) error {
 	claims := validateSessionCookie(c, s.Config.JWTSecret)
@@ -1288,8 +1292,8 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 //
 // Cognito's /logout is NOT OIDC-RP-initiated-logout compatible: it requires
 // client_id + logout_uri (a registered sign-out URL) and rejects the standard
-// id_token_hint/post_logout_redirect_uri pair — including any expired
-// id_token_hint (its ID tokens live only 15 min) — by bouncing to /login with a
+// id_token_hint/post_logout_redirect_uri pair, including any expired
+// id_token_hint (its ID tokens live only 15 min), by bouncing to /login with a
 // 400. Keycloak uses the standard pair. Branch on the provider so both work.
 func (s *Server) buildEndSessionURL(ctx context.Context, c echo.Context, rawIDToken string) string {
 	endSession := s.discoverEndSessionEndpoint(ctx)
@@ -1435,7 +1439,7 @@ func (s *Server) HandleBackChannelLogout(c echo.Context) error {
 	if logoutClaims.Sub != "" {
 		user, err := s.AuthStore.GetUserByOIDCSub(ctx, logoutClaims.Sub)
 		if err != nil {
-			// User not found — nothing to revoke. Still return 200 per spec.
+			// User not found: nothing to revoke. Still return 200 per spec.
 			slog.InfoContext(ctx, "back-channel logout: no user found for subject", "oidc_sub", logoutClaims.Sub)
 			return c.NoContent(http.StatusOK)
 		}

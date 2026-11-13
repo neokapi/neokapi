@@ -993,7 +993,7 @@ export function GetWordCount(projectID, itemName) {
 
 /**
  * HandleAuthURL processes a bowrain:// URL received via the OS protocol handler.
- * Expected format: bowrain://auth/callback?token=...&refresh_token=...&user=...&name=...
+ * Expected format: bowrain://auth/callback?code=...&state=...
  * @param {string} rawURL
  * @returns {$CancellablePromise<void>}
  */
@@ -1703,11 +1703,12 @@ export function SetApplication(app) {
 }
 
 /**
- * StartLogin begins an authorization code + PKCE flow against the server.
- * It starts a local HTTP server to receive the callback, generates PKCE
- * parameters, and opens the system browser to the server's desktop login
- * endpoint. The frontend should call WaitForLogin to block until the
- * callback is received.
+ * StartLogin begins an authorization code + PKCE flow against the server and
+ * opens the system browser at the server's desktop sign-in endpoint. The
+ * redirect back to the app carries a one-time code, never a token: any app can
+ * register the bowrain:// scheme, so the code is useless without the PKCE
+ * verifier this app holds. The frontend calls WaitForLogin to block until the
+ * redirect arrives and the code is redeemed.
  * @param {string} serverURL
  * @returns {$CancellablePromise<void>}
  */
@@ -1865,8 +1866,9 @@ export function UpdatePresence(projectID, itemName, blockID) {
 }
 
 /**
- * WaitForLogin blocks until the PKCE callback is received or a timeout occurs.
- * Returns true when authentication succeeds.
+ * WaitForLogin blocks until the sign-in redirect is received or a timeout
+ * occurs, then redeems the one-time code for tokens. Returns true when
+ * authentication succeeds.
  * @returns {$CancellablePromise<boolean>}
  */
 export function WaitForLogin() {

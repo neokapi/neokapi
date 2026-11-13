@@ -1,9 +1,15 @@
 package backend
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -54,14 +60,16 @@ type ConnectionInfo struct {
 	Workspace string          `json:"workspace,omitempty"`
 }
 
-// pkceResult is the result received from the local PKCE callback server.
+// pkceResult is what the sign-in redirect delivered: a one-time code to redeem
+// with the PKCE verifier, or the reason the sign-in failed.
 type pkceResult struct {
-	AccessToken  string
-	RefreshToken string
-	UserEmail    string
-	UserName     string
-	Err          error
+	Code string
+	Err  error
 }
+
+// loginRedirectURI is where the server sends the browser after sign-in. The OS
+// routes bowrain:// URLs to this app through the registered protocol handler.
+const loginRedirectURI = "bowrain://auth/callback"
 
 // GetConnectionState returns the current connection info.
 // If BOWRAIN_TOKEN is set and no connection exists, auto-connects to the
@@ -115,7 +123,7 @@ func (a *App) connectWithToken(serverURL, token string) error {
 	a.serverURL = serverURL
 	a.mu.Unlock()
 
-	// Don't auto-select workspace — the test seeder creates the workspace
+	// Don't auto-select workspace: the test seeder creates the workspace
 	// after the binary starts, so it may not exist yet. The frontend's
 	// setupServerApp helper handles workspace selection after seeding.
 	slog.Info("bowrain: auto-connected via BOWRAIN_TOKEN", "server_url", serverURL)
@@ -305,11 +313,12 @@ func (a *App) wireRemoteRefresh(c *editorclient.EditorClient, serverURL string, 
 	})
 }
 
-// StartLogin begins an authorization code + PKCE flow against the server.
-// It starts a local HTTP server to receive the callback, generates PKCE
-// parameters, and opens the system browser to the server's desktop login
-// endpoint. The frontend should call WaitForLogin to block until the
-// callback is received.
+// StartLogin begins an authorization code + PKCE flow against the server and
+// opens the system browser at the server's desktop sign-in endpoint. The
+// redirect back to the app carries a one-time code, never a token: any app can
+// register the bowrain:// scheme, so the code is useless without the PKCE
+// verifier this app holds. The frontend calls WaitForLogin to block until the
+// redirect arrives and the code is redeemed.
 func (a *App) StartLogin(serverURL string) error {
 	serverURL = strings.TrimRight(serverURL, "/")
 
@@ -328,100 +337,155 @@ func (a *App) StartLogin(serverURL string) error {
 		return fmt.Errorf("not a valid Bowrain server (health check returned %d)", resp.StatusCode)
 	}
 
-	// Generate PKCE code verifier + challenge.
 	verifier, err := venueauth.GenerateCodeVerifier()
 	if err != nil {
 		return fmt.Errorf("generate PKCE verifier: %w", err)
 	}
-	challenge := venueauth.ComputeCodeChallenge(verifier)
+	state, err := randomState()
+	if err != nil {
+		return fmt.Errorf("generate sign-in state: %w", err)
+	}
 
 	resultCh := make(chan *pkceResult, 1)
 
 	a.mu.Lock()
 	a.serverURL = serverURL
 	a.pkceVerifier = verifier
+	a.pkceState = state
 	a.pkceResultCh = resultCh
 	a.mu.Unlock()
 
-	// Build the desktop login URL with bowrain:// as the redirect URI.
-	loginURL := fmt.Sprintf("%s/api/v1/auth/desktop/login?redirect_uri=%s&code_challenge=%s&code_challenge_method=S256",
-		serverURL,
-		url.QueryEscape("bowrain://auth/callback"),
-		url.QueryEscape(challenge),
-	)
-
-	// Open the system browser for OIDC login.
-	// After authentication, the server redirects to bowrain://auth/callback?token=...
-	// which the OS routes back to this app via the registered URL protocol handler.
 	if a.app != nil {
-		_ = a.app.Browser.OpenURL(loginURL)
+		_ = a.app.Browser.OpenURL(desktopLoginURL(serverURL, venueauth.ComputeCodeChallenge(verifier), state))
 	}
 
 	return nil
 }
 
-// WaitForLogin blocks until the PKCE callback is received or a timeout occurs.
-// Returns true when authentication succeeds.
+// desktopLoginURL is the server's sign-in endpoint, asking for the one-time
+// code redirect (response_mode=code) bound to the PKCE challenge and state.
+func desktopLoginURL(serverURL, challenge, state string) string {
+	q := url.Values{
+		"redirect_uri":          {loginRedirectURI},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {state},
+		"response_mode":         {"code"},
+	}
+	return serverURL + "/api/v1/auth/desktop/login?" + q.Encode()
+}
+
+// randomState returns an unguessable value for the sign-in state parameter.
+func randomState() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// WaitForLogin blocks until the sign-in redirect is received or a timeout
+// occurs, then redeems the one-time code for tokens. Returns true when
+// authentication succeeds.
 func (a *App) WaitForLogin() (bool, error) {
 	a.mu.RLock()
 	resultCh := a.pkceResultCh
 	serverURL := a.serverURL
+	verifier := a.pkceVerifier
 	a.mu.RUnlock()
 
 	if resultCh == nil {
 		return false, errors.New("no active login flow. Call StartLogin first")
 	}
 
-	// Wait for the callback with a 10-minute timeout.
+	var result *pkceResult
 	select {
-	case result := <-resultCh:
-		// Shut down the local server.
+	case result = <-resultCh:
 		a.cleanupPKCE()
-
-		if result.Err != nil {
-			return false, result.Err
-		}
-
-		// Save tokens to the shared host/venue/config store (OS keychain +
-		// non-secret metadata), so a desktop login and a kapi CLI login share
-		// one set of credentials.
-		stored := &config.StoredAuth{
-			ServerURL:    serverURL,
-			AccessToken:  result.AccessToken,
-			RefreshToken: result.RefreshToken,
-			Expiry:       time.Now().Add(24 * time.Hour),
-			User: config.StoredUser{
-				Email: result.UserEmail,
-				Name:  result.UserName,
-			},
-		}
-
-		// Fetch full user info (including ID) from the server.
-		if user, err := apiclient.FetchUser(context.Background(), serverURL, result.AccessToken); err == nil {
-			stored.User = config.StoredUser{ID: user.ID, Email: user.Email, Name: user.Name}
-		}
-
-		if err := config.SaveAuth(*stored); err != nil {
-			return true, fmt.Errorf("save auth: %w", err)
-		}
-
-		a.mu.Lock()
-		a.authInfo = stored
-		a.mu.Unlock()
-
-		return true, nil
-
 	case <-time.After(10 * time.Minute):
 		a.cleanupPKCE()
 		return false, errors.New("login timed out")
 	}
+	if result.Err != nil {
+		return false, result.Err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	tokens, err := exchangeLoginCode(ctx, serverURL, result.Code, verifier)
+	if err != nil {
+		return false, err
+	}
+
+	// Save tokens to the shared host/venue/config store (OS keychain +
+	// non-secret metadata), so a desktop login and a kapi CLI login share
+	// one set of credentials.
+	stored := &config.StoredAuth{
+		ServerURL:    serverURL,
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		Expiry:       time.Now().Add(24 * time.Hour),
+	}
+
+	// The redirect carries no identity, so the user comes from the server.
+	if user, err := apiclient.FetchUser(ctx, serverURL, tokens.AccessToken); err == nil {
+		stored.User = config.StoredUser{ID: user.ID, Email: user.Email, Name: user.Name}
+	}
+
+	if err := config.SaveAuth(*stored); err != nil {
+		return true, fmt.Errorf("save auth: %w", err)
+	}
+
+	a.mu.Lock()
+	a.authInfo = stored
+	a.mu.Unlock()
+
+	return true, nil
+}
+
+// exchangeLoginCode redeems a one-time sign-in code at the server's desktop
+// token endpoint. The tokens travel only in the response body.
+func exchangeLoginCode(ctx context.Context, serverURL, code, verifier string) (*venueauth.TokenResponse, error) {
+	body, err := json.Marshal(map[string]string{
+		"code":          code,
+		"code_verifier": verifier,
+		"redirect_uri":  loginRedirectURI,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode sign-in code: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL+"/api/v1/auth/desktop/token", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("build token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("redeem sign-in code: %w", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return nil, apiclient.NewStatusError("redeem sign-in code", resp.StatusCode, respBody)
+	}
+	var tokens venueauth.TokenResponse
+	if err := json.Unmarshal(respBody, &tokens); err != nil {
+		return nil, fmt.Errorf("decode token response: %w", err)
+	}
+	if tokens.AccessToken == "" {
+		return nil, errors.New("redeem sign-in code: the server returned no access token")
+	}
+	return &tokens, nil
 }
 
 // HandleAuthURL processes a bowrain:// URL received via the OS protocol handler.
-// Expected format: bowrain://auth/callback?token=...&refresh_token=...&user=...&name=...
+// Expected format: bowrain://auth/callback?code=...&state=...
 func (a *App) HandleAuthURL(rawURL string) {
 	a.mu.RLock()
 	resultCh := a.pkceResultCh
+	wantState := a.pkceState
 	a.mu.RUnlock()
 
 	if resultCh == nil {
@@ -429,29 +493,38 @@ func (a *App) HandleAuthURL(rawURL string) {
 		return
 	}
 
+	deliver := func(r *pkceResult) {
+		// The channel holds one result; a second redirect for the same flow
+		// is dropped rather than blocking the protocol handler.
+		select {
+		case resultCh <- r:
+		default:
+			slog.Info("bowrain: ignored a second auth URL for the active login flow")
+		}
+	}
+
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		resultCh <- &pkceResult{Err: fmt.Errorf("invalid auth URL: %w", err)}
+		deliver(&pkceResult{Err: fmt.Errorf("invalid auth URL: %w", err)})
 		return
 	}
 
 	q := parsed.Query()
-	token := q.Get("token")
-	if token == "" {
-		errMsg := q.Get("error")
-		if errMsg == "" {
-			errMsg = "no token received"
-		}
-		resultCh <- &pkceResult{Err: fmt.Errorf("auth failed: %s", errMsg)}
+	if errMsg := q.Get("error"); errMsg != "" {
+		deliver(&pkceResult{Err: fmt.Errorf("auth failed: %s", errMsg)})
 		return
 	}
-
-	resultCh <- &pkceResult{
-		AccessToken:  token,
-		RefreshToken: q.Get("refresh_token"),
-		UserEmail:    q.Get("user"),
-		UserName:     q.Get("name"),
+	if wantState == "" || subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(wantState)) != 1 {
+		// A redirect this flow did not start: ignore it and keep waiting.
+		slog.Info("bowrain: ignored an auth URL whose state does not match the active login flow")
+		return
 	}
+	code := q.Get("code")
+	if code == "" {
+		deliver(&pkceResult{Err: errors.New("auth failed: no sign-in code received")})
+		return
+	}
+	deliver(&pkceResult{Code: code})
 }
 
 // HandleDeepLink processes a deep link web URL (after stripping the "bowrain:" prefix).
@@ -501,6 +574,7 @@ func (a *App) CancelLogin() {
 func (a *App) cleanupPKCE() {
 	a.mu.Lock()
 	a.pkceVerifier = ""
+	a.pkceState = ""
 	a.pkceResultCh = nil
 	a.mu.Unlock()
 }
@@ -533,7 +607,7 @@ func (a *App) Disconnect() {
 	a.activeWS = ""
 	a.mu.Unlock()
 
-	// A disconnect is a state change the gate must observe — sign-out and a
+	// A disconnect is a state change the gate must observe: sign-out and a
 	// rejected session demote to the connect screen. emitConnectionState takes
 	// the lock, so emit after releasing it.
 	a.emitConnectionState()
@@ -570,7 +644,7 @@ func (a *App) SelectWorkspace(slug string) error {
 
 // --- Auth persistence ---
 //
-// Desktop credentials live in the shared host/venue/config store — the same
+// Desktop credentials live in the shared host/venue/config store, the same
 // OS keychain scheme (service "kapi", URL-namespaced keys) and metadata file
 // (~/.config/bowrain/auth.json) the kapi CLI + kapi-bowrain plugin use. This is
 // what makes a desktop login and a CLI login mutually visible. loadDesktopAuth

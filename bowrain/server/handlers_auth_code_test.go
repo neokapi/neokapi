@@ -191,12 +191,61 @@ func TestDesktopLoginCodeModeRequiresS256AndState(t *testing.T) {
 
 func TestDesktopLoginWithoutResponseModeKeepsTheTokenRedirect(t *testing.T) {
 	srv, _ := newCodeTestServer(t)
-	// The desktop app's request: no response_mode and no state. It passes
-	// validation as before.
+	// The request of desktop releases that predate the code redirect: no
+	// response_mode and no state. It still passes validation.
 	rec := desktopLogin(t, srv, url.Values{
 		"redirect_uri":          {"http://127.0.0.1:12345/callback"},
 		"code_challenge":        {"test-challenge"},
 		"code_challenge_method": {"S256"},
 	})
 	assert.NotEqual(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+}
+
+// The Bowrain desktop app's request since it moved to the code redirect: the
+// session entry the callback reads must carry the mode, the client's state and
+// the PKCE challenge, and the identity provider must see the server's own state.
+func TestDesktopLoginCodeModeStoresTheClientRequest(t *testing.T) {
+	var oidcURL string
+	mockOIDC := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/.well-known/openid-configuration" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"issuer":"` + oidcURL + `","authorization_endpoint":"` + oidcURL +
+			`/auth","token_endpoint":"` + oidcURL + `/token","jwks_uri":"` + oidcURL + `/certs"}`))
+	}))
+	defer mockOIDC.Close()
+	oidcURL = mockOIDC.URL
+
+	cfg := DefaultConfig()
+	cfg.JWTSecret = "test-secret"
+	cfg.OIDCIssuerURL = oidcURL
+	cfg.OIDCClientID = "test-client"
+	srv := shutdownOnCleanup(t, NewServer(cfg))
+	initTestStores(t, srv)
+
+	challenge := venueauth.ComputeCodeChallenge(codeTestVerifier)
+	rec := desktopLogin(t, srv, url.Values{
+		"redirect_uri":          {codeTestRedirect},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {"client-state-1"},
+		"response_mode":         {"code"},
+	})
+	require.Equal(t, http.StatusFound, rec.Code, rec.Body.String())
+
+	loc, err := url.Parse(rec.Header().Get("Location"))
+	require.NoError(t, err)
+	upstreamState := loc.Query().Get("state")
+	require.NotEmpty(t, upstreamState)
+	assert.NotEqual(t, "client-state-1", upstreamState, "the identity provider sees the server's state, not the client's")
+	assert.NotEqual(t, challenge, loc.Query().Get("code_challenge"), "the server runs its own PKCE with the identity provider")
+
+	entry, err := sessionGet[desktopAuthEntry](t.Context(), srv.SessionStore, prefixDesktopAuth, upstreamState)
+	require.NoError(t, err)
+	assert.Equal(t, desktopResponseModeCode, entry.ResponseMode)
+	assert.Equal(t, "client-state-1", entry.ClientState)
+	assert.Equal(t, codeTestRedirect, entry.RedirectURI)
+	assert.Equal(t, challenge, entry.CodeChallenge)
 }
