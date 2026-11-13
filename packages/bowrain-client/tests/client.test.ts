@@ -226,4 +226,39 @@ describe("client", () => {
     });
     expect(await client.workspaces()).toHaveLength(1);
   });
+
+  it("signs out with the app's redirect and returns the provider's sign-out URL", async () => {
+    const sent: { url: string; body?: string }[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string, init: RequestInit) => {
+        sent.push({ url, body: init.body as string | undefined });
+        return new Response(
+          JSON.stringify({ status: "logged out", end_session_url: "http://idp/logout?x=1" }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const res = await client.logout({ postLogoutRedirectUri: "bowrain://auth/signed-out" });
+    expect(res.endSessionUrl).toBe("http://idp/logout?x=1");
+    expect(sent[0].url).toBe("http://server/api/v1/auth/logout");
+    expect(JSON.parse(sent[0].body ?? "")).toEqual({
+      post_logout_redirect_uri: "bowrain://auth/signed-out",
+    });
+  });
+
+  it("signs out without a body, and with no URL when the server refuses", async () => {
+    const bodies: unknown[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (_url: string, init: RequestInit) => {
+        bodies.push(init.body);
+        return new Response(JSON.stringify({ error: "bad" }), { status: 400 });
+      }) as typeof fetch,
+    });
+    expect(await client.logout()).toEqual({});
+    expect(bodies).toEqual([undefined]);
+  });
 });

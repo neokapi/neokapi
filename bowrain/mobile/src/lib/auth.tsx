@@ -8,11 +8,16 @@
 // identity provider; the server redirects to bowrain://auth/callback with a
 // one-time code and the state. The app checks the state and redeems the code
 // with the PKCE verifier by POST, so the tokens arrive only in a response body.
+//
+// Sign-out revokes the session on the server and, where the platform keeps the
+// identity provider's cookie, ends the provider's session too, so the next
+// sign-in can be another account (authSession.ts).
 import { createBowrainClient, type BowrainClient } from "@neokapi/bowrain-client";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 import {
   createContext,
   useCallback,
@@ -24,9 +29,11 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 
+import { authSessionOptions, endProviderSession } from "./authSession";
 import { readCallback } from "./callback";
-import { authRedirectPath, defaultServerUrl } from "./config";
+import { authRedirectPath, defaultServerUrl, signedOutRedirectUri } from "./config";
 import { createPkce } from "./pkce";
+import { loadServerChoice } from "./serverChoice";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -73,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const refreshing = useRef<Promise<string | null> | null>(null);
+  const signingOut = useRef<Promise<void> | null>(null);
   const serverUrl = session?.serverUrl;
 
   const update = useCallback(async (s: Session | null) => {
@@ -82,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void loadSession().then((s) => {
+    void Promise.all([loadSession(), loadServerChoice()]).then(([s]) => {
       sessionRef.current = s;
       setSession(s);
       setReady(true);
@@ -136,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await WebBrowser.openAuthSessionAsync(
         anon.loginUrl(redirectUri, pkce.challenge, state),
         redirectUri,
+        authSessionOptions(Platform.OS),
       );
       if (result.type !== "success") return { ok: false, reason: "cancelled" };
       const cb = readCallback(result.url, state);
@@ -163,13 +172,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [update],
   );
 
-  const signOut = useCallback(async () => {
-    try {
-      await client.logout();
-    } catch {
-      // Signing out on the device does not depend on reaching the server.
-    }
-    await update(null);
+  // One sign-out at a time: a second tap waits for the first rather than
+  // opening a second browser session over it.
+  const signOut = useCallback((): Promise<void> => {
+    if (signingOut.current) return signingOut.current;
+    const run = (async () => {
+      let endSessionUrl: string | undefined;
+      try {
+        ({ endSessionUrl } = await client.logout({ postLogoutRedirectUri: signedOutRedirectUri }));
+      } catch {
+        // Signing out on the device does not depend on reaching the server.
+      }
+      await update(null);
+      await endProviderSession({
+        platform: Platform.OS,
+        endSessionUrl,
+        redirectUri: signedOutRedirectUri,
+        open: WebBrowser.openAuthSessionAsync,
+      });
+    })().finally(() => {
+      signingOut.current = null;
+    });
+    signingOut.current = run;
+    return run;
   }, [client, update]);
 
   const value = useMemo(

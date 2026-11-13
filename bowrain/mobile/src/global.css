@@ -3,6 +3,12 @@
  * names Bowrain web uses (background, foreground, card, muted, border,
  * primary), so a class reads the same on both. Approve is the primary blue;
  * the corrective action (fix, reject) is orange.
+ *
+ * The neutrals, the primary and the prism ramp are Bowrain's "Rainlight"
+ * palette (packages/ui/src/styles/theme-colors.css), converted from OKLCH to
+ * sRGB hex because React Native reads no OKLCH. The prism ramp is the
+ * restrained rainbow of the Bowrain mark, used for the sign-in atmosphere and
+ * nowhere a colour carries meaning.
  */
 @import "tailwindcss";
 @import "uniwind";
@@ -11,14 +17,14 @@
   :root {
     @variant light {
       --color-background: #f8fafc;
-      --color-foreground: #0f172a;
+      --color-foreground: #192029;
       --color-card: #ffffff;
-      --color-card-foreground: #0f172a;
-      --color-muted: #f1f5f9;
-      --color-muted-foreground: #64748b;
-      --color-border: #e2e8f0;
-      --color-primary: #1d4ed8;
-      --color-primary-foreground: #ffffff;
+      --color-card-foreground: #192029;
+      --color-muted: #ecf1f5;
+      --color-muted-foreground: #606a74;
+      --color-border: #dde4e9;
+      --color-primary: #0060c1;
+      --color-primary-foreground: #f8fafc;
       --color-corrective: #c2410c;
       --color-corrective-foreground: #ffffff;
       --color-chip: #e0e7ff;
@@ -27,17 +33,22 @@
       --color-removed: #fee2e2;
       --color-warning: #fef3c7;
       --color-warning-foreground: #92400e;
+      --color-prism-1: #d26b75;
+      --color-prism-2: #dbb155;
+      --color-prism-3: #5dad70;
+      --color-prism-4: #398ad6;
+      --color-prism-5: #8e6ac7;
     }
     @variant dark {
-      --color-background: #0b0f19;
-      --color-foreground: #f1f5f9;
-      --color-card: #151b2b;
-      --color-card-foreground: #f1f5f9;
-      --color-muted: #1e2638;
-      --color-muted-foreground: #94a3b8;
-      --color-border: #2a3347;
-      --color-primary: #3b6ff0;
-      --color-primary-foreground: #ffffff;
+      --color-background: #11161d;
+      --color-foreground: #eaeff3;
+      --color-card: #181d24;
+      --color-card-foreground: #eaeff3;
+      --color-muted: #21272f;
+      --color-muted-foreground: #9199a1;
+      --color-border: #272e38;
+      --color-primary: #53a3f2;
+      --color-primary-foreground: #091018;
       --color-corrective: #ea6a2e;
       --color-corrective-foreground: #ffffff;
       --color-chip: #312e81;
@@ -46,6 +57,11 @@
       --color-removed: #7f1d1d;
       --color-warning: #451a03;
       --color-warning-foreground: #fde68a;
+      --color-prism-1: #e37a84;
+      --color-prism-2: #e8be62;
+      --color-prism-3: #6fc082;
+      --color-prism-4: #5aa3ec;
+      --color-prism-5: #a584dc;
     }
   }
 }

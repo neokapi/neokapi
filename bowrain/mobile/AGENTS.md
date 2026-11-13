@@ -74,9 +74,13 @@ vpr start         # Metro for an installed development build
 From the repo root: `vp install`, `vp check`, and
 `scripts/check-ts-license-boundary.sh`.
 
-Sign-in against the local stack (`make -C bowrain stack-up`) uses
-`EXPO_PUBLIC_BOWRAIN_SERVER_URL`, default `http://localhost:8080`. On the
-Android emulator the host machine is `http://10.0.2.2:8080`.
+The default server is `EXPO_PUBLIC_BOWRAIN_SERVER_URL` (set per profile in
+`eas.json`). Unset, a development build signs in to the local stack
+(`make -C bowrain stack-up`, `http://localhost:8080`) and a release build to
+`https://app.bowrain.cloud`. The cog on the sign-in screen opens the server
+sheet: Bowrain Cloud, the local stack (development builds only), or another
+server by address. On the Android emulator the host machine is
+`http://10.0.2.2:8080`.
 
 ## End-to-end flows
 

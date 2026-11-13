@@ -16,6 +16,7 @@
     "doctor": "expo-doctor"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@neokapi/bowrain-client": "*",
     "@neokapi/contract-types": "*",
     "@neokapi/kapi-format": "*",

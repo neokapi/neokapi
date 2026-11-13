@@ -3,10 +3,11 @@
 // is not here belongs in a config plugin.
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
-// The Bowrain server the app signs in to and reads from. A development build
-// points at the local stack (`make -C bowrain stack-up`); EAS profiles set the
-// production URL. On an Android emulator the host machine is 10.0.2.2.
-const serverUrl = process.env.EXPO_PUBLIC_BOWRAIN_SERVER_URL ?? "http://localhost:8080";
+// The Bowrain server the app signs in to by default. EAS profiles set it.
+// Unset, src/lib/config.ts picks the local stack (`make -C bowrain stack-up`)
+// for a development build and Bowrain cloud for a release build. On an
+// Android emulator the host machine is 10.0.2.2.
+const serverUrl = process.env.EXPO_PUBLIC_BOWRAIN_SERVER_URL || undefined;
 
 // The EAS project @neokapi/bowrain, from `eas init`. The config is dynamic, so
 // `eas init` prints these instead of writing them here. Both are public
@@ -62,10 +63,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-splash-screen",
       {
-        backgroundColor: "#ffffff",
+        // The page background of src/global.css, light and dark.
+        backgroundColor: "#f8fafc",
         image: "./assets/images/splash-icon.png",
         imageWidth: 200,
-        dark: { backgroundColor: "#0b0f19" },
+        dark: { backgroundColor: "#11161d" },
       },
     ],
   ],
