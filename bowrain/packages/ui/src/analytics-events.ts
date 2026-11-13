@@ -51,7 +51,7 @@ export const AnalyticsEvents = {
   /**
    * The run-now consent dialog opened and the pre-flight estimate was shown
    * ({source_held?, covers_all_ai?, estimated_credits_bucket, ai_units_bucket,
-   * tm_leverage_pct_bucket}) — the source-readiness-first gate (epic 019).
+   * memory_leverage_pct_bucket}) — the source-readiness-first gate (epic 019).
    * Fired before any run is started.
    *
    * The bucketed magnitudes (see `analytics-buckets.ts`) are what size the

@@ -114,10 +114,10 @@ func TestRunCompletedProps(t *testing.T) {
 	assert.Equal(t, "ws1", props[analytics.PropWorkspaceID])
 	assert.Equal(t, "p1", props[analytics.PropProjectID])
 	assert.Equal(t, "50k_100k", props[analytics.PropConsumedCreditsBucket])
-	assert.Equal(t, "51_75", props[analytics.PropTMLeveragePctBucket])
+	assert.Equal(t, "51_75", props[analytics.PropMemoryLeveragePctBucket])
 	assert.Equal(t, true, props[analytics.PropFirstRun])
 	// The pre-existing taxonomy is untouched.
-	assert.Equal(t, "11_100", props["via_tm"])
+	assert.Equal(t, "11_100", props["via_memory"])
 	assert.Equal(t, "11_100", props["via_ai"])
 	assert.Equal(t, "30s_2m", props["duration_bucket"])
 	assert.Equal(t, bstore.ConvergenceRunConverged, props["outcome"])
@@ -129,7 +129,7 @@ func TestRunCompletedProps(t *testing.T) {
 	})
 	props = runCompletedProps(run, tmOnly, "ws1", 0, false)
 	assert.Equal(t, "0", props[analytics.PropConsumedCreditsBucket])
-	assert.Equal(t, "100", props[analytics.PropTMLeveragePctBucket])
+	assert.Equal(t, "100", props[analytics.PropMemoryLeveragePctBucket])
 	assert.Equal(t, false, props[analytics.PropFirstRun])
 
 	// No magnitude is ever exact: the payload carries no raw credit/token value.
@@ -174,7 +174,7 @@ func TestEstimateComputedProps(t *testing.T) {
 	// 250K credits of demand does NOT fit the 200K grant — the band above it.
 	assert.Equal(t, "200k_500k", props[analytics.PropEstimatedCreditsBucket])
 	assert.Equal(t, "11_100", props[analytics.PropAIUnitsBucket])
-	assert.Equal(t, "1_25", props[analytics.PropTMLeveragePctBucket])
+	assert.Equal(t, "1_25", props[analytics.PropMemoryLeveragePctBucket])
 	assert.Equal(t, false, props[analytics.PropCoversAllAI])
 	assert.Equal(t, true, props[analytics.PropFirstRun])
 

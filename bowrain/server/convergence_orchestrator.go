@@ -1258,7 +1258,7 @@ func runCompletedProps(run *bstore.ConvergenceRun, standing *convergence.Standin
 	props["outcome"] = run.State
 	props["stall_reason"] = run.StallReason
 	props["passes"] = run.Passes
-	props["via_tm"] = analytics.CountBucket(viaMemory)
+	props["via_memory"] = analytics.CountBucket(viaMemory)
 	props["via_ai"] = analytics.CountBucket(viaAI)
 	props["duration_bucket"] = analytics.DurationBucket(duration)
 	// Source-first: bucket how many blocks the run held on source, so the
@@ -1271,7 +1271,7 @@ func runCompletedProps(run *bstore.ConvergenceRun, standing *convergence.Standin
 	// balance — a run that ran out parks with needs_credits — so it is read
 	// together with the uncensored demand on convergence_estimate_computed.
 	props[analytics.PropConsumedCreditsBucket] = analytics.CreditBucket(billing.TokensToCredits(tokens))
-	props[analytics.PropTMLeveragePctBucket] = analytics.SharePercentBucket(viaMemory, viaMemory+viaAI)
+	props[analytics.PropMemoryLeveragePctBucket] = analytics.SharePercentBucket(viaMemory, viaMemory+viaAI)
 	props[analytics.PropFirstRun] = firstRun
 	return props
 }

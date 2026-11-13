@@ -94,7 +94,7 @@ type ConvergenceSourceReadiness struct {
 type ConvergenceEstimateLocale struct {
 	Locale        string `json:"locale"`
 	Pending       int    `json:"pending"`
-	ViaMemory     int    `json:"via_tm"`
+	ViaMemory     int    `json:"via_memory"`
 	ViaAI         int    `json:"via_ai"`
 	TokenEstimate int    `json:"token_estimate"`
 }
@@ -102,7 +102,7 @@ type ConvergenceEstimateLocale struct {
 // ConvergenceEstimateTotals rolls the per-locale work up across locales.
 type ConvergenceEstimateTotals struct {
 	Pending       int `json:"pending"`
-	ViaMemory     int `json:"via_tm"`
+	ViaMemory     int `json:"via_memory"`
 	ViaAI         int `json:"via_ai"`
 	TokenEstimate int `json:"token_estimate"`
 }
