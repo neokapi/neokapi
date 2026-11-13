@@ -249,9 +249,9 @@ app.
    server rotates the refresh token on every use.
 
 - The refresh token is held in the platform keychain (`expo-secure-store`).
-- Without `response_mode` the sign-in route keeps redirecting with the tokens
-  in the query, which is what the Bowrain desktop app reads today. Moving the
-  desktop app to `response_mode=code` is a follow-up.
+- The Bowrain desktop app signs in the same way, with the same redirect URI.
+  Without `response_mode` the sign-in route still redirects with the tokens
+  in the query, for installed desktop releases that predate the code redirect.
 - In production the redirect should be an `https` URL on the Bowrain web
   domain (Universal Links on iOS, App Links on Android), so no other app can
   claim it. That is a founder step: publish

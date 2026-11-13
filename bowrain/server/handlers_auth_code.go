@@ -18,7 +18,7 @@ import (
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
 )
 
-// The one-time code sign-in for native clients (the Bowrain mobile app).
+// The one-time code sign-in for native clients (the Bowrain desktop and mobile apps).
 //
 // The server brokers the OIDC flow with the identity provider, because the API
 // accepts only the tokens the server issues. With response_mode=code the

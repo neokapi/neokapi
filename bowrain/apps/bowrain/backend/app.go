@@ -51,6 +51,7 @@ type App struct {
 	activeWS        string                     // selected workspace slug
 	authInfo        *config.StoredAuth         // cached auth info (shared host/venue/config store)
 	pkceVerifier    string                     // PKCE code_verifier
+	pkceState       string                     // state the sign-in redirect must return
 	pkceResultCh    chan *pkceResult           // result from URL protocol callback
 	watcher         *ProjectWatcher            // active change-event (SSE) subscription
 	watchedProject  string                     // project the watcher subscribes to, kept across an outage so reconnect can restore it
