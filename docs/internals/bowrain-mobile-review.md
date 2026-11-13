@@ -248,6 +248,23 @@ app.
    `POST /api/v1/auth/refresh` and `{"refresh_token"}` in the body; the
    server rotates the refresh token on every use.
 
+5. Sign-out sends `POST /api/v1/auth/logout` with
+   `{"post_logout_redirect_uri": "bowrain://auth/signed-out"}`. The server
+   revokes the person's refresh tokens and answers with the identity
+   provider's `end_session_url`, built to return to that redirect. The
+   redirect passes the same allowlist as the sign-in redirect, and the
+   provider must list it too: the local Keycloak client's post-logout
+   redirect URIs (`bowrain/docker/keycloak/realm.json`) and, in production,
+   the Cognito app client's sign-out URLs.
+
+   On iOS the sign-in session is ephemeral (`preferEphemeralSession`): it
+   shares no cookies with Safari and keeps none, so the next sign-in always
+   asks for an account and sign-out opens no browser. Android's Custom Tabs
+   share the browser's cookies and have no ephemeral mode, so there the app
+   opens the `end_session_url` in an auth session and waits for the
+   redirect. Either way the device is signed out first, so a provider that
+   refuses the redirect leaves nobody signed in.
+
 - The refresh token is held in the platform keychain (`expo-secure-store`).
 - The Bowrain desktop app signs in the same way, with the same redirect URI.
   Without `response_mode` the sign-in route still redirects with the tokens

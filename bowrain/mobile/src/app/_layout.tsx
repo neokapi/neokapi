@@ -59,6 +59,15 @@ function Screens() {
     <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="server"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.5, 1],
+          sheetGrabberVisible: true,
+        }}
+      />
       <Stack.Screen name="workspaces" options={{ title: t("workspaces.title") }} />
       <Stack.Screen name="[ws]/index" options={{ title: t("projects.title") }} />
       <Stack.Screen name="[ws]/[project]/index" options={{ title: t("languages.title") }} />

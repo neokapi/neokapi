@@ -7,11 +7,16 @@
   },
   "signIn": {
     "title": "Bowrain",
-    "lead": "Review translations in the minutes between other work.",
-    "server": "Server",
+    "serverSettings": "Server settings",
     "button": "Sign in",
     "failed": "Sign-in did not finish. Try again.",
     "unreachable": "Could not reach the server."
+  },
+  "server": {
+    "title": "Server",
+    "save": "Use this server",
+    "reset": "Use {{host}}",
+    "invalid": "Enter a web address, such as https://bowrain.example.com."
   },
   "signOut": {
     "button": "Sign out",

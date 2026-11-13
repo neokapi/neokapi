@@ -79,7 +79,13 @@ export interface BowrainClient {
   /** Redeem the one-time code with the PKCE verifier; the tokens arrive in the response body. */
   exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<AuthTokens>;
   refresh(refreshToken: string): Promise<AuthTokens>;
-  logout(): Promise<void>;
+  /**
+   * End the session on the server. The answer carries the identity provider's
+   * sign-out URL when it has one; opening it ends the provider's own session,
+   * so the next sign-in asks for an account again. A native app passes the
+   * redirect its browser session waits for.
+   */
+  logout(opts?: { postLogoutRedirectUri?: string }): Promise<{ endSessionUrl?: string }>;
   me(): Promise<User>;
   workspaces(): Promise<Workspace[]>;
   projects(workspace: string): Promise<Project[]>;
@@ -217,8 +223,14 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       );
     },
 
-    async logout() {
-      await send("/auth/logout", { method: "POST" }, () => true);
+    async logout(o = {}) {
+      const init: RequestInit = { method: "POST" };
+      if (o.postLogoutRedirectUri) {
+        init.body = JSON.stringify({ post_logout_redirect_uri: o.postLogoutRedirectUri });
+      }
+      const { status, body } = await send("/auth/logout", init, () => true);
+      const url = (body as { end_session_url?: unknown } | undefined)?.end_session_url;
+      return status === 200 && typeof url === "string" && url !== "" ? { endSessionUrl: url } : {};
     },
 
     me: () => get<User>("/auth/me"),

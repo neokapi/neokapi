@@ -1252,11 +1252,37 @@ func (s *Server) HandleAuthWhoami(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+// logoutRequest is the optional body of POST /api/v1/auth/logout. Bowrain web
+// sends none and returns to the app origin. A native app names its own
+// redirect, because its sign-out browser session closes only when the identity
+// provider redirects to the app's scheme.
+type logoutRequest struct {
+	PostLogoutRedirectURI string `json:"post_logout_redirect_uri"`
+}
+
 // HandleAuthLogout invalidates the current session by revoking all refresh
 // tokens, clearing cookies, and returning the OIDC end_session_url so the
-// frontend can terminate the Keycloak SSO session.
+// client can end the identity provider's session.
+//
+// The end_session_url returns to the app origin, or to post_logout_redirect_uri
+// when the body names one. That redirect passes the same allowlist as the
+// native sign-in redirect (a bowrain:// or loopback URL) and must also be
+// registered with the identity provider: a Keycloak client's post-logout
+// redirect URIs, a Cognito app client's sign-out URLs.
 func (s *Server) HandleAuthLogout(c echo.Context) error {
 	ctx := c.Request().Context()
+
+	var req logoutRequest
+	if c.Request().ContentLength != 0 {
+		if err := c.Bind(&req); err != nil {
+			return apiErr(c, http.StatusBadRequest, "invalid logout request")
+		}
+	}
+	if req.PostLogoutRedirectURI != "" {
+		if err := checkDesktopRedirect(req.PostLogoutRedirectURI); err != nil {
+			return apiErr(c, http.StatusBadRequest, "post_logout_redirect_uri must be a loopback http URL or a bowrain:// URL")
+		}
+	}
 
 	var rawIDToken string
 
@@ -1280,7 +1306,7 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 
 	// Fully-formed, provider-appropriate logout URL (terminates upstream SSO,
 	// returns to the app origin). The frontend redirects to it verbatim.
-	if endSessionURL := s.buildEndSessionURL(ctx, c, rawIDToken); endSessionURL != "" {
+	if endSessionURL := s.buildEndSessionURL(ctx, c, rawIDToken, req.PostLogoutRedirectURI); endSessionURL != "" {
 		resp["end_session_url"] = endSessionURL
 	}
 
@@ -1295,13 +1321,19 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 // id_token_hint/post_logout_redirect_uri pair, including any expired
 // id_token_hint (its ID tokens live only 15 min), by bouncing to /login with a
 // 400. Keycloak uses the standard pair. Branch on the provider so both work.
-func (s *Server) buildEndSessionURL(ctx context.Context, c echo.Context, rawIDToken string) string {
+//
+// postLogout is where the provider sends the browser afterwards. Empty means
+// the app origin, which matches the web client's registered sign-out URL
+// (trailing /).
+func (s *Server) buildEndSessionURL(ctx context.Context, c echo.Context, rawIDToken, postLogout string) string {
 	endSession := s.discoverEndSessionEndpoint(ctx)
 	if endSession == "" {
 		return ""
 	}
-	// The app origin, matching the client's registered sign-out URL (trailing /).
-	return composeEndSessionURL(endSession, s.Config.AuthProvider, s.Config.OIDCClientID, requestBaseURL(c)+"/", rawIDToken)
+	if postLogout == "" {
+		postLogout = requestBaseURL(c) + "/"
+	}
+	return composeEndSessionURL(endSession, s.Config.AuthProvider, s.Config.OIDCClientID, postLogout, rawIDToken)
 }
 
 // composeEndSessionURL adds the provider-appropriate query params to an
