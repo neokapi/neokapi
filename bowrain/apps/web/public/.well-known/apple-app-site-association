@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["FOUNDER_FILL_IN_APPLE_TEAM_ID.cloud.bowrain.app"],
+        "components": [
+          {
+            "/": "/auth/callback",
+            "comment": "Sign-in redirect for the Bowrain mobile app"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["FOUNDER_FILL_IN_APPLE_TEAM_ID.cloud.bowrain.app"]
+  }
+}

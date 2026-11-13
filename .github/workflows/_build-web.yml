@@ -47,4 +47,7 @@ jobs:
         with:
           name: web-dist
           path: bowrain/apps/web/dist
+          # dist/.well-known/apple-app-site-association is a hidden path, which
+          # upload-artifact leaves out by default.
+          include-hidden-files: true
           retention-days: 7

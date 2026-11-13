@@ -8,11 +8,23 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 // production URL. On an Android emulator the host machine is 10.0.2.2.
 const serverUrl = process.env.EXPO_PUBLIC_BOWRAIN_SERVER_URL ?? "http://localhost:8080";
 
+// FOUNDER: fill both from the output of `eas init`. The config is dynamic, so
+// `eas init` prints the values instead of writing them here. Both are public
+// identifiers and safe to commit; the environment variables override them.
+// Steps: docs/internals/bowrain-mobile-testflight.md.
+const easProjectId = process.env.EAS_PROJECT_ID ?? "";
+const easOwner = process.env.EXPO_OWNER ?? "";
+
+// The web domain whose apple-app-site-association file lists this app
+// (bowrain/apps/web/public/.well-known/). Universal links and the https
+// sign-in redirect resolve against it.
+const webDomain = "app.bowrain.cloud";
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "Bowrain",
   slug: "bowrain",
-  owner: process.env.EXPO_OWNER,
+  owner: easOwner || undefined,
   version: "0.1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
@@ -22,6 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     bundleIdentifier: "cloud.bowrain.app",
     supportsTablet: false,
+    associatedDomains: [`applinks:${webDomain}`, `webcredentials:${webDomain}`],
     infoPlist: {
       // The local stack is plain HTTP; production is HTTPS only.
       NSAppTransportSecurity: { NSAllowsLocalNetworking: true },
@@ -59,6 +72,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     serverUrl,
-    eas: process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : undefined,
+    eas: easProjectId ? { projectId: easProjectId } : undefined,
   },
 });
