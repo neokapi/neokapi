@@ -57,6 +57,7 @@ describe("project section destinations", () => {
     onStreamChange: noop,
     onOpenAutomations: noop,
     onOpenRuns: noop,
+    onOpenFeed: noop,
     onOpenConnectors: noop,
   }).map((item) => item.id);
 

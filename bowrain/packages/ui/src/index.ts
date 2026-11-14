@@ -728,6 +728,16 @@ export type {
   CollectionTranslationStats,
   ActivityInfo,
   ActivityPage,
+  FeedActor,
+  FeedActorKind,
+  FeedEntry,
+  FeedKind,
+  FeedLink,
+  FeedMember,
+  FeedPage,
+  FeedQuery,
+  FeedRecipeDiff,
+  FeedScreen,
   ConvergenceRun,
   ConvergenceRunState,
   ConvergenceLocaleStanding,
@@ -1318,3 +1328,7 @@ export {
   ActivityHeatmap,
 } from "./components/pulse";
 export type { PulseSettingsProps } from "./components/pulse";
+
+// The project feed (GET /:ws/:id/feed): list and detail of how a project changes.
+export { ProjectFeedView, FeedEntryDetail, projectFeedKey } from "./project-feed/ProjectFeedView";
+export type { ProjectFeedViewProps } from "./project-feed/ProjectFeedView";

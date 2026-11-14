@@ -58,11 +58,22 @@ export default function Languages() {
         refreshing={false}
         onRefresh={() => void qc.invalidateQueries({ queryKey: ["counts", ws, project] })}
         ListHeaderComponent={
-          info ? (
-            <View className="px-4 pt-4 pb-2">
-              <Text className="text-muted-foreground text-sm">{info.name}</Text>
-            </View>
-          ) : undefined
+          <View>
+            {info ? (
+              <View className="px-4 pt-4 pb-2">
+                <Text className="text-muted-foreground text-sm">{info.name}</Text>
+              </View>
+            ) : null}
+            <Row
+              testID="project-feed"
+              title={t("feed.open")}
+              trailing="›"
+              onPress={() =>
+                router.push({ pathname: "/[ws]/[project]/feed", params: { ws, project } })
+              }
+            />
+            <View className="h-4" />
+          </View>
         }
         renderItem={({ item, index }) => {
           const c = counts[index]?.data;

@@ -1732,6 +1732,23 @@ export interface ActivityPage {
   new_count?: number;
 }
 
+/**
+ * The project feed (`GET /:ws/:id/feed`). The shapes are the shared API
+ * client's, which mirror the server's FeedResponse.
+ */
+export type {
+  FeedActor,
+  FeedActorKind,
+  FeedEntry,
+  FeedKind,
+  FeedLink,
+  FeedMember,
+  FeedPage,
+  FeedQuery,
+  FeedRecipeDiff,
+  FeedScreen,
+} from "@neokapi/bowrain-client";
+
 /** Task type discriminator */
 export type TaskType =
   | "translate"

@@ -523,6 +523,7 @@ export function WorkspaceLayout() {
       onStreamChange: handleStreamChange,
       onOpenAutomations: openSection("automations"),
       onOpenRuns: openSection("runs"),
+      onOpenFeed: openSection("feed"),
       onOpenConnectors: openSection("connectors"),
     };
   }, [
