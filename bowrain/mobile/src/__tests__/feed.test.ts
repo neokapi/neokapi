@@ -68,12 +68,12 @@ describe("feed card sentences", () => {
         entry({
           kind: "review_summary",
           locales: ["nb"],
-          counts: { approved: 120, rejected: 14 },
+          counts: { approved: 120, bulk_approved: 1000, rejected: 14 },
         }),
         t,
         "en",
       ),
-    ).toBe("approved 120 and rejected 14 in Norwegian Bokmål");
+    ).toBe("approved 1,120 and rejected 14 in Norwegian Bokmål");
     expect(
       actionOf(entry({ kind: "change_set", state: "merged", name: "Checkout terms" }), t, "en"),
     ).toBe("merged Checkout terms");
