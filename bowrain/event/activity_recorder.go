@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -212,7 +213,10 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		if a.Stream == "" {
 			a.Stream = ev.Data["branch"]
 		}
-		a.Counts = countsOf(ev.Data, map[string]string{"files": "files_count", "blocks": "blocks_count"})
+		a.Counts = countsOf(ev.Data, map[string]string{
+			"files": "files_count", "blocks": "blocks_count",
+			"files_removed": "files_removed", "collections": "collections_count",
+		})
 	case platev.EventPullCompleted:
 		a.Type = bstore.ActivityItemPulled
 		a.EntityType = "item"
@@ -525,6 +529,13 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 			a.Data = map[string]string{}
 		}
 		a.Data["state"] = strings.TrimPrefix(string(ev.Type), changeSetEventPrefix)
+		// The set's ops by type, when the event carries them.
+		if raw := ev.Data["changeset_ops"]; raw != "" {
+			ops := map[string]int{}
+			if json.Unmarshal([]byte(raw), &ops) == nil {
+				a.Counts = ops
+			}
+		}
 	}
 	return a
 }

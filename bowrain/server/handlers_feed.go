@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"slices"
@@ -76,7 +77,24 @@ type FeedEntry struct {
 	State string `json:"state,omitempty"`
 	// Diff is a recipe change's values before and after.
 	Diff *platev.RecipeChange `json:"diff,omitempty"`
-	Link FeedLink             `json:"link"`
+	// Samples names the first few items a context change touched; counts
+	// holds the full number.
+	Samples []platev.ContextSample `json:"samples,omitempty"`
+	// Standing is a run's result per language, one entry per target
+	// language.
+	Standing []FeedStanding `json:"standing,omitempty"`
+	// Name is a change set's name.
+	Name string   `json:"name,omitempty"`
+	Link FeedLink `json:"link"`
+}
+
+// FeedStanding is one language's standing at the end of a run.
+type FeedStanding struct {
+	Locale string `json:"locale"`
+	// State is shippable, parked or pending.
+	State    string `json:"state"`
+	Units    int    `json:"units,omitempty"`
+	Produced int    `json:"produced,omitempty"`
 }
 
 // FeedResponse is one page of a project's feed, newest first. NextCursor is
@@ -222,6 +240,9 @@ func feedEntryOf(a *bstore.Activity, memberName func(string) string) FeedEntry {
 		e.Link = FeedLink{Screen: FeedScreenStream, ID: a.EntityID, Stream: a.Stream}
 	case bstore.FeedKindConvergenceRun:
 		e.State = a.Data["state"]
+		if raw := a.Data["standing"]; raw != "" {
+			_ = json.Unmarshal([]byte(raw), &e.Standing)
+		}
 		e.Link = FeedLink{Screen: FeedScreenRun, ID: a.EntityID}
 	case bstore.FeedKindReviewSummary:
 		locale := a.EntityID
@@ -232,6 +253,7 @@ func feedEntryOf(a *bstore.Activity, memberName func(string) string) FeedEntry {
 		e.Link = FeedLink{Screen: FeedScreenRecipeDiff, ID: a.ID}
 	case bstore.FeedKindContextChange:
 		change := platev.ParseContextChange(a.Data)
+		e.Samples = change.Samples
 		link := FeedLink{Screen: FeedScreenContextDeck, Mode: contextDeckMode(change)}
 		if change.ItemID != "" {
 			link.Items = []string{change.ItemID}
@@ -239,6 +261,7 @@ func feedEntryOf(a *bstore.Activity, memberName func(string) string) FeedEntry {
 		e.Link = link
 	case bstore.FeedKindChangeSet:
 		e.State = a.Data["state"]
+		e.Name = a.Data["changeset_name"]
 		e.Link = FeedLink{Screen: FeedScreenChangeSet, ID: a.EntityID}
 	case bstore.FeedKindCoverageMilestone:
 		locale := a.EntityID
