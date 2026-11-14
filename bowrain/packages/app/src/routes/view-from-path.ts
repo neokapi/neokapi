@@ -29,6 +29,7 @@ export type ProjectSection =
   | "source"
   | "automations"
   | "runs"
+  | "feed"
   | "connectors";
 
 /**
@@ -56,6 +57,7 @@ export function projectViewFromPath(
     case "source":
     case "automations":
     case "runs":
+    case "feed":
     case "connectors":
       return parts[3];
     default:
