@@ -18,8 +18,8 @@
 #              content to deliver, whatever the delivery step stages.
 #
 # The project store under .kapi/ is gitignored as a whole, so nothing a run
-# leaves there reaches either list. The context a run brought home travels on
-# refs/kapi/context, and the workflow's `kapi context sync` step reports it.
+# leaves there reaches either list. The context a run brought home travels to
+# the Bowrain project, and the workflow's `kapi context sync` step reports it.
 #
 # It then reads the derived artifacts themselves
 # (`scripts/check-derived-content.mjs`) and refuses — non-zero, naming every
@@ -51,7 +51,7 @@
 # A removal carries no content to read, so what excuses one is the context: an
 # owned artifact that disappeared is delivered only when the run brought
 # decisions home. `--decisions N` passes that count, which the nightly takes
-# from the operations its `kapi context sync` step shared on refs/kapi/context.
+# from the operations its `kapi context sync` step shared with Bowrain.
 # With the default of 0, a catalog or a sidecar the run removed is an erasure
 # and refuses the run. A sidecar that became identical to its source is dropped
 # by design, and it is dropped because a decision changed its wording.

@@ -1858,14 +1858,14 @@ check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go emb
 	@node scripts/format-ops/check-vocab-packs.mjs
 
 # The stages below read the project's context from the workspace store. The
-# recipe keeps it on refs/kapi/context in this repository, and this pulls what
-# the ref holds that the store does not, which is what lets a fresh clone
+# recipe keeps it on the Bowrain project its bowrain: block names, and this
+# pulls what that project holds that the store does not, which is what lets a fresh clone
 # converge, check and export. A second run pulls nothing, so every stage may
 # declare it.
-l10n-context-import: bin/kapi ## Pull the repository's context from refs/kapi/context into the workspace store the loop reads
+l10n-context-import: bin/kapi ## Pull the repository's context from Bowrain into the workspace store the loop reads
 	$(KAPI_LOOP_ENV) ./bin/kapi context sync --no-push
 
-l10n-context-push: bin/kapi ## Sync the context this machine recorded with refs/kapi/context
+l10n-context-push: bin/kapi ## Sync the context this machine recorded with the Bowrain project
 	$(KAPI_LOOP_ENV) ./bin/kapi context sync
 
 l10n-review-export: bin/kapi l10n-context-import ## Emit disposable TMX/CSV review views of the project store → l10n/review/
@@ -2929,10 +2929,12 @@ check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed referen
 # Distribution metadata is declared in kapi.yaml and checked under the project's
 # voice profile. scripts/check-vocabulary.sh covers surfaces kapi cannot read.
 #
-# The isolated store starts empty, so pull the repository's context from
-# refs/kapi/context before checking. Without it, checks have no voice profile or
-# term rules. A pull writes nothing to the ref.
-import-dogfood-context: build ## Pull the repository's context from refs/kapi/context into the isolated store the gates use
+# The isolated store starts empty, so pull the repository's context from the
+# Bowrain project before checking. Without it, checks have no voice profile or
+# term rules. A pull writes nothing there. The isolated config holds no
+# sign-in, so the pull authenticates with BOWRAIN_AUTH_TOKEN and
+# BOWRAIN_SERVER_URL, which CI sets from its secret.
+import-dogfood-context: build ## Pull the repository's context from Bowrain into the isolated store the gates use
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context sync --no-push -p $(CURDIR)/kapi.yaml
 
 # The commit check's cost on web/docs (docs/internals/evals.md): once in a
