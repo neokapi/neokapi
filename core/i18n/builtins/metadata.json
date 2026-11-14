@@ -1283,6 +1283,9 @@
       "displayName": "Android String Resources",
       "description": "Configuration for the native Android string-resources (res/values/strings.xml) reader/writer",
       "family": "catalog-keyvalue",
+      "extensions": [
+        ".xml"
+      ],
       "properties": {
         "extract_comments": {
           "title": "Extract comments as notes",
