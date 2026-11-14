@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -53,6 +54,10 @@ type contextReconcileResult struct {
 	// ProfileIDs maps collection name → the brand-hub profile id bound to it,
 	// so the caller can see what governance actually landed.
 	ProfileIDs map[string]string
+	// Changes lists the collections this push added and the ones whose
+	// coordinates it moved, with the coordinates before and after, for the
+	// recipe.changed event.
+	Changes []platev.CollectionChange
 }
 
 // total reports how many collections the reconcile touched or confirmed.
@@ -144,6 +149,9 @@ func reconcileContext(
 				return nil, fmt.Errorf("create collection %s: %w", e.Name, cerr)
 			}
 			result.Created = append(result.Created, e.Name)
+			result.Changes = append(result.Changes, platev.CollectionChange{
+				Name: e.Name, Change: platev.CollectionAdded, After: maps.Clone(e.Coordinates),
+			})
 			byName[e.Name] = col
 			continue
 		}
@@ -167,6 +175,12 @@ func reconcileContext(
 			continue
 		}
 
+		if !maps.Equal(current.Context, e.Coordinates) {
+			result.Changes = append(result.Changes, platev.CollectionChange{
+				Name: e.Name, Change: platev.CollectionCoordinates,
+				Before: maps.Clone(current.Context), After: maps.Clone(e.Coordinates),
+			})
+		}
 		current.Context = maps.Clone(e.Coordinates)
 		current.Owner = venue.ContextOwnerRecipe
 		current.ContextHash = e.ContentHash

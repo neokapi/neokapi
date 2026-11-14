@@ -31,10 +31,12 @@ func TestActivityRecorder_MapsContextChanges(t *testing.T) {
 	assert.Equal(t, "term_rule", a.EntityType)
 	assert.Equal(t, "op-1", a.EntityID)
 	assert.Equal(t, "kept 1 term rule · dropped 2 term rules", a.Summary)
-	assert.Equal(t, "context_change", a.Data["feed_kind"])
+	assert.Equal(t, bstore.FeedKindContextChange, a.Kind)
+	assert.Equal(t, map[string]int{"term_rule": 3, "keep": 1, "drop": 2}, a.Counts)
+	assert.Equal(t, "agent", a.ActorKind)
+	assert.Equal(t, "s1", a.Session)
 	assert.Equal(t, "agent", a.Data["actor_kind"])
 	assert.Equal(t, "s1", a.Data["session"])
-	assert.NotContains(t, ev.Data, "feed_kind", "the published event's data is shared and stays as it was")
 }
 
 // A voice event names the workspace as its project; its row names none. A
@@ -65,10 +67,11 @@ func TestActivityRecorder_ChangeSetFeedKind(t *testing.T) {
 		ev := knowledgeEvent(et, map[string]string{"changeset_id": "cs-1"})
 		a := mapEvent(ev)
 		require.NotNil(t, a, et)
-		assert.Equal(t, "change_set", a.Data["feed_kind"], et)
-		assert.NotContains(t, ev.Data, "feed_kind")
+		assert.Equal(t, bstore.FeedKindChangeSet, a.Kind, et)
+		assert.NotContains(t, ev.Data, "state", "the published event's data is shared and stays as it was")
+
 	}
 	a := mapEvent(knowledgeEvent(knowledge.EventPilotStarted, map[string]string{"changeset_id": "cs-1"}))
 	require.NotNil(t, a)
-	assert.NotContains(t, a.Data, "feed_kind")
+	assert.Empty(t, a.Kind)
 }

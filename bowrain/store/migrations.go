@@ -57,6 +57,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 47  the members a project's suggestions are assigned to
 // 48  the findings a project-wide check counted in each item
 // 49  the review deck's group for each translation waiting for review
+// 50  the project feed's columns on activities, and the events a roll-up row counts
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1786,6 +1787,33 @@ var Migrations = []storage.Migration{
 				voice_bar         INTEGER,
 				computed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, block_id, locale)
+			);
+		`,
+	},
+	{
+		Version:     50,
+		Description: "the project feed's columns on activities, and the events a roll-up row counts",
+		SQL: `
+			-- The project feed (GET /:ws/:id/feed) reads these. kind is one of
+			-- the feed's kinds and empty for a row outside the project feed;
+			-- counts holds the entry's typed counts. Rows written before this
+			-- version keep kind empty: no backfill.
+			ALTER TABLE activities ADD COLUMN IF NOT EXISTS kind        TEXT   NOT NULL DEFAULT '';
+			ALTER TABLE activities ADD COLUMN IF NOT EXISTS actor_kind  TEXT   NOT NULL DEFAULT '';
+			ALTER TABLE activities ADD COLUMN IF NOT EXISTS session     TEXT   NOT NULL DEFAULT '';
+			ALTER TABLE activities ADD COLUMN IF NOT EXISTS locales     TEXT[] NOT NULL DEFAULT '{}';
+			ALTER TABLE activities ADD COLUMN IF NOT EXISTS coordinates JSONB  NOT NULL DEFAULT '{}';
+			ALTER TABLE activities ADD COLUMN IF NOT EXISTS counts      JSONB  NOT NULL DEFAULT '{}';
+			CREATE INDEX IF NOT EXISTS idx_activities_feed
+				ON activities(workspace_id, project_id, created_at DESC, id DESC) WHERE kind <> '';
+
+			-- A roll-up row (one per project, actor, language and hour of
+			-- review decisions) counts many events. Each event it has counted
+			-- is listed here, so a redelivered event is counted once.
+			CREATE TABLE IF NOT EXISTS activity_rollup_events (
+				event_id    TEXT PRIMARY KEY,
+				activity_id TEXT NOT NULL,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 		`,
 	},

@@ -348,6 +348,7 @@ POST /api/v1/:ws/:id/review/approve-passing   # Bulk-approve every block passing
 POST /api/v1/:ws/:id/blocks/:ref/bulk-review  # One review decision on the translations of chosen blocks
 GET  /api/v1/projects/:id/ship.json           # Public per-locale ship manifest
 GET  /api/v1/:ws/audit-log/verify             # Verify the workspace audit chain
+GET  /api/v1/:ws/:id/feed                     # The project's feed: pushes, runs, reviews, recipe, context and change sets
 ```
 
 ### Webhooks (inbound)

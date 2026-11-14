@@ -17,6 +17,8 @@ import type {
   DeckCounts,
   DeckGroup,
   DeckNote,
+  FeedPage,
+  FeedQuery,
   FixCandidate,
   FixCandidates,
   FixReason,
@@ -111,6 +113,8 @@ export interface BowrainClient {
   ): Promise<FixCandidates | null>;
   /** Send a change set. A refusal answers with its result, not an exception. */
   applyChanges(scope: ProjectScope, set: ChangeSet): Promise<ChangeResult>;
+  /** One page of a project's feed, newest first. */
+  feed(workspace: string, project: string, query?: FeedQuery): Promise<FeedPage>;
 }
 
 const DEFAULT_STREAM = "main";
@@ -122,7 +126,26 @@ export const ROUTES = {
     `/${enc(s.workspace)}/${enc(s.project)}/blocks/${stream(s)}/${enc(blockId)}/fix-candidates`,
   changes: (s: ProjectScope) =>
     `/${enc(s.workspace)}/projects/${enc(s.project)}/streams/${stream(s)}/changes`,
+  feed: (workspace: string, project: string) => `/${enc(workspace)}/${enc(project)}/feed`,
 };
+
+/** The query string of a feed request; `coordinate` repeats once per axis. */
+export function feedQueryString(q: FeedQuery = {}): string {
+  const parts: string[] = [];
+  const add = (k: string, v: string | number | undefined) => {
+    if (v !== undefined && v !== "") parts.push(`${enc(k)}=${enc(String(v))}`);
+  };
+  add("kind", q.kinds?.join(","));
+  add("locale", q.locale);
+  for (const [axis, value] of Object.entries(q.coordinates ?? {}))
+    add("coordinate", `${axis}:${value}`);
+  add("actor", q.actor);
+  add("actor_kind", q.actorKind);
+  add("since", q.since);
+  add("cursor", q.cursor);
+  add("limit", q.limit);
+  return parts.length ? `?${parts.join("&")}` : "";
+}
 
 function enc(s: string): string {
   return encodeURIComponent(s);
@@ -316,6 +339,11 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         throw new ApiError(status, message, body);
       }
       return body;
+    },
+
+    async feed(ws, pid, q) {
+      const page = await get<FeedPage>(`${ROUTES.feed(ws, pid)}${feedQueryString(q)}`);
+      return { entries: page.entries ?? [], next_cursor: page.next_cursor || undefined };
     },
   };
   return client;

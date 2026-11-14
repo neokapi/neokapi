@@ -456,6 +456,23 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		})
 	}
 
+	// The collections this push added or moved, as one recipe change with
+	// the coordinates before and after.
+	if len(contextResult.Changes) > 0 && deps.EventBus != nil {
+		deps.EventBus.Publish(platev.Event{
+			Type:      platev.EventRecipeChanged,
+			Source:    "sync-worker",
+			ProjectID: projectID,
+			Actor:     manifest.ActorID,
+			Data: platev.RecipeChange{
+				WorkspaceSlug: manifest.WorkspaceSlug,
+				Source:        "push",
+				Stream:        stream,
+				Collections:   contextResult.Changes,
+			}.Data(),
+		})
+	}
+
 	// Fire-and-forget analytics after the push succeeded (epic 018 workstream
 	// D). Counts are bucketed; item names and content never leave the server.
 	if deps.Tracker != nil {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -115,6 +116,9 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 	first, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", entries())
 	require.NoError(t, err)
 	require.Equal(t, []string{"docs"}, first.Created)
+	assert.Equal(t, []platev.CollectionChange{{
+		Name: "docs", Change: platev.CollectionAdded, After: map[string]string{"product": "kapi"},
+	}}, first.Changes)
 
 	before, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
@@ -124,6 +128,7 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 	assert.Empty(t, second.Created, "the second push must not create a second row")
 	assert.Empty(t, second.Updated, "an unchanged recipe must not rewrite the row")
 	assert.Equal(t, []string{"docs"}, second.Unchanged)
+	assert.Empty(t, second.Changes, "an unchanged recipe records no recipe change")
 
 	all, err := deps.ContentStore.ListCollections(ctx, "p1", "main")
 	require.NoError(t, err)
@@ -160,6 +165,11 @@ func TestReconcileContext_ChangedRecipeUpdates(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"docs"}, res.Updated)
+	// The recipe change records the coordinates on both sides.
+	assert.Equal(t, []platev.CollectionChange{{
+		Name: "docs", Change: platev.CollectionCoordinates,
+		Before: map[string]string{"product": "kapi"}, After: map[string]string{"product": "bowrain"},
+	}}, res.Changes)
 
 	col, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
