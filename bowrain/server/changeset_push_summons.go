@@ -30,19 +30,26 @@ func (s *Server) subscribePushChangeSets() {
 		return
 	}
 	s.EventBus.SubscribeGroup(pushChangeSetGroup, func(ev platev.Event) error {
-		if ev.Source != pushWorkerSource {
-			return nil
-		}
-		switch ev.Type {
-		case knowledge.EventChangeSetSubmitted:
-			s.summonPushedChangeSet(ev)
-		case knowledge.EventChangeSetSuperseded:
-			if id := ev.Data["changeset_id"]; id != "" {
-				s.closeChangeSetReviewTasks(context.Background(), ev.WorkspaceID, id, ev.Actor)
-			}
-		}
+		s.handlePushedChangeSet(ev)
 		return nil
 	})
+}
+
+// handlePushedChangeSet acts on one event the push worker published about a
+// change-set. Events from any other source are the REST routes', which summon
+// in the request.
+func (s *Server) handlePushedChangeSet(ev platev.Event) {
+	if ev.Source != pushWorkerSource {
+		return
+	}
+	switch ev.Type {
+	case knowledge.EventChangeSetSubmitted:
+		s.summonPushedChangeSet(ev)
+	case knowledge.EventChangeSetSuperseded:
+		if id := ev.Data["changeset_id"]; id != "" {
+			s.closeChangeSetReviewTasks(context.Background(), ev.WorkspaceID, id, ev.Actor)
+		}
+	}
 }
 
 // summonPushedChangeSet opens the review task for a change-set a push

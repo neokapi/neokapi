@@ -17,6 +17,9 @@ import (
 // knowledge store and each workspace's terms store. All of them were built on
 // db, which is what lets one transaction cover them.
 //
+// voice and ks may be nil when their stores could not be opened; a push that
+// needs one then fails rather than writing outside the transaction.
+//
 // A workspace's terms store is opened on first use and kept; opening it
 // migrates its schema on the pool, once per workspace.
 func NewPostgresPushTransition(db *storage.PgDB, content *bstore.PostgresStore, voice *voicepg.PostgresVoiceStore, ks *knowledge.PostgresKnowledgeStore) PushTransitionFunc {
@@ -36,7 +39,6 @@ func NewPostgresPushTransition(db *storage.PgDB, content *bstore.PostgresStore, 
 		return db.Transition(ctx, func(tx storage.Runner) error {
 			st := PushStores{
 				Content: content.Bind(tx),
-				Voice:   voice.Bind(tx),
 				Terms: func(ctx context.Context, slug string) (terms.Store, error) {
 					tb, err := openTerms(ctx, slug)
 					if err != nil {
@@ -44,6 +46,9 @@ func NewPostgresPushTransition(db *storage.PgDB, content *bstore.PostgresStore, 
 					}
 					return tb.Bind(tx), nil
 				},
+			}
+			if voice != nil {
+				st.Voice = voice.Bind(tx)
 			}
 			if ks != nil {
 				st.Knowledge = ks.Bind(tx)

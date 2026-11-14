@@ -51,6 +51,21 @@ func (s *Server) acceptPushTerms(c echo.Context, m *pushCommitManifest) (bool, e
 	if m.WorkspaceSlug == "" {
 		return true, apiErr(c, http.StatusBadRequest, "terminology edits need the project to be in a workspace")
 	}
+	// The terms are the workspace's. The concept and change-set routes resolve
+	// permission on the workspace (/:ws/concepts carries no project), so a
+	// grant on this one project does not reach them through a push either.
+	if !s.workspaceAllows(c, m.ProjectID, platauth.PermManageTerms) {
+		s.emitAuthzDenied(c, platauth.PermManageTerms, "workspace_permission")
+		return true, deny(c, "terminology edits need manage_terms in the workspace")
+	}
+	// The worker applies the terms on the push's transaction over the content
+	// store's PostgreSQL pool. A server whose content store cannot do that
+	// refuses here rather than accept a push the worker would then fail.
+	if !appliesPushes(s.ContentStore) {
+		return true, c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error: "this server cannot apply terminology edits in a push's transaction",
+		})
+	}
 	if err := termspush.Validate(&edits); err != nil {
 		if errors.Is(err, termspush.ErrGoverned) {
 			return true, conceptGovernedConflict(c, err.Error())
@@ -130,4 +145,46 @@ func contextBatchOf(c echo.Context, objects []apiclient.ContextObjectWire) ([]pl
 		batch = append(batch, platstore.ContextObject{Name: obj.Name, Data: obj.Data})
 	}
 	return batch, false, nil
+}
+
+// workspaceAllows reports whether the caller holds perm on the workspace the
+// project belongs to, resolved as a workspace route resolves it: from the
+// workspace role, with workspace denies applied. An API token's scopes and a
+// session's grants narrow the request's own permissions, which the caller
+// checks beside this.
+func (s *Server) workspaceAllows(c echo.Context, projectID string, perm platauth.Permission) bool {
+	if s.AuthStore == nil || s.ContentStore == nil {
+		return false
+	}
+	userID, _ := c.Get("user_id").(string)
+	if userID == "" {
+		return false
+	}
+	ctx := c.Request().Context()
+	proj, err := s.ContentStore.GetProject(ctx, projectID)
+	if err != nil || proj == nil || proj.WorkspaceID == "" {
+		return false
+	}
+	m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID)
+	if err != nil || m == nil {
+		return false
+	}
+	access := s.resolveProjectAccess(ctx, accessRequest{userID: userID, workspaceID: proj.WorkspaceID, role: m.Role})
+	return access.permissions.Has(perm)
+}
+
+// appliesPushes reports whether the content store, through any wrappers,
+// applies a push on one transaction.
+func appliesPushes(cs platstore.ContentStore) bool {
+	for cs != nil {
+		if _, ok := cs.(platstore.PushApplyStore); ok {
+			return true
+		}
+		inner, ok := cs.(interface{ Unwrap() platstore.ContentStore })
+		if !ok {
+			return false
+		}
+		cs = inner.Unwrap()
+	}
+	return false
 }

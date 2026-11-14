@@ -20,6 +20,12 @@ import (
 // path and caller set as the router sets them.
 func commitWithParts(t *testing.T, s *Server, projectID string, perms platauth.Permission, body map[string]any) *httptest.ResponseRecorder {
 	t.Helper()
+	return commitWithPartsAs(t, s, projectID, "test-user", perms, body)
+}
+
+// commitWithPartsAs is commitWithParts signed in as user.
+func commitWithPartsAs(t *testing.T, s *Server, projectID, user string, perms platauth.Permission, body map[string]any) *httptest.ResponseRecorder {
+	t.Helper()
 	payload, err := json.Marshal(body)
 	require.NoError(t, err)
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(payload))
@@ -29,7 +35,7 @@ func commitWithParts(t *testing.T, s *Server, projectID string, perms platauth.P
 	c.SetParamNames("ws", "id", "ref")
 	c.SetParamValues("test", projectID, "main")
 	c.Set("workspace_id", "test-ws")
-	c.Set("user_id", "test-user")
+	c.Set("user_id", user)
 	c.Set("project_permissions", perms)
 	// A denial writes its 403 and returns the sentinel the router swallows.
 	if err := s.HandleSyncPushCommit(c); err != nil {
@@ -74,12 +80,24 @@ func TestSyncPushCommit_PartsPrecheck(t *testing.T) {
 		Domain: "ui", Terms: []apiclient.TermInfo{{Text: "Click here", Locale: "en", Status: "forbidden"}},
 	}}}
 
+	// A workspace member whose grant on this project carries manage_terms.
+	require.NoError(t, srv.AuthStore.CreateUser(t.Context(), &platauth.User{ID: "member", Email: "m@example.com", Name: "M"}))
+	require.NoError(t, srv.AuthStore.AddMember(t.Context(), "test-ws", "member", platauth.RoleMember))
+
 	for _, tc := range []struct {
 		name  string
+		user  string
 		perms platauth.Permission
 		body  map[string]any
 		code  int
 	}{
+		{
+			name:  "a project grant does not reach the workspace's terms",
+			user:  "member",
+			perms: manager,
+			body:  map[string]any{"terms": ordinary},
+			code:  http.StatusForbidden,
+		},
 		{
 			name:  "terminology edits need manage_terms",
 			perms: platauth.PermManageFiles | platauth.PermViewContent,
@@ -108,7 +126,11 @@ func TestSyncPushCommit_PartsPrecheck(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rec := commitWithParts(t, srv, pid, tc.perms, tc.body)
+			user := tc.user
+			if user == "" {
+				user = "test-user"
+			}
+			rec := commitWithPartsAs(t, srv, pid, user, tc.perms, tc.body)
 			assert.Equal(t, tc.code, rec.Code, rec.Body.String())
 			assert.NotContains(t, rec.Body.String(), "push_id", "a refused part queues nothing")
 		})

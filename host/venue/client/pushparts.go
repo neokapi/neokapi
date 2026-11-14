@@ -1,9 +1,41 @@
 package client
 
+import (
+	"errors"
+	"fmt"
+	"slices"
+)
+
 // The terminology and context ledger parts of a push travel in the commit
 // manifest beside the content. The venue applies the manifest in one
 // transaction, so a push lands whole or not at all: a refused terminology edit
 // or ledger object leaves the content where it was, and the other way round.
+
+// The parts a venue applies with a push, beside its content. A venue states
+// them in the init response (PushInitResponse.Parts); one that states neither
+// predates them, and its commit would drop them without a word, so a push
+// carrying a part the venue does not state is refused before anything is sent.
+const (
+	PartTerms          = "terms"
+	PartContextObjects = "context_objects"
+)
+
+// PushParts is what a venue that applies both parts states at init.
+var PushParts = []string{PartTerms, PartContextObjects}
+
+// ErrPartUnsupported refuses a push carrying a part its venue does not apply.
+var ErrPartUnsupported = errors.New("the server does not apply this part with a push")
+
+// checkParts refuses a push carrying a part the venue did not state at init.
+func (s *pushSettings) checkParts(stated []string) error {
+	if s.terms != nil && !slices.Contains(stated, PartTerms) {
+		return fmt.Errorf("%w: the server predates terminology edits travelling with a push, so this push would drop them; nothing was sent. Update the server, or push without terminology edits", ErrPartUnsupported)
+	}
+	if len(s.ledger) > 0 && !slices.Contains(stated, PartContextObjects) {
+		return fmt.Errorf("%w: the server predates the context ledger travelling with a push, so this push would drop it; nothing was sent. Update the server, or keep the context on another backend until it is", ErrPartUnsupported)
+	}
+	return nil
+}
 
 // TermsEdits is the terminology part of a push: the project's concept and
 // relation edits, classified against the workspace baseline it last pulled.

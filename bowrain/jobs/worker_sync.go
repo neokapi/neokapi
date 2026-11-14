@@ -8,8 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -153,6 +151,20 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	stream := manifest.Stream
 	if stream == "" {
 		stream = "main"
+	}
+
+	// A job redelivered after its transaction committed (the completion write
+	// failed, or the worker died) applies nothing again: it finishes from what
+	// the committed run recorded.
+	if applier, ok := deps.ContentStore.(store.PushApplyStore); ok {
+		raw, applied, err := applier.PushApplied(ctx, job.ID)
+		if err != nil {
+			markJobFailed(ctx, deps, job.ID, "push apply marker unreadable")
+			return err
+		}
+		if applied {
+			return finishReplayedPush(ctx, deps, job, &manifest, stream, manifestKey, raw)
+		}
 	}
 
 	// Auto-create non-main streams. A stream that already exists is the common
@@ -324,6 +336,13 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	var termsResult *termspush.Result
 	apply := func(st PushStores) error {
 		tx := st.Content
+		claimed, cerr := tx.ClaimPushApply(ctx, job.ID)
+		if cerr != nil {
+			return cerr
+		}
+		if !claimed {
+			return errPushAlreadyApplied
+		}
 		// Collections first, and on this transaction: an item naming a
 		// collection that does not exist yet falls to the project's default
 		// collection, and a reconcile that outlived a failed push would leave
@@ -354,23 +373,38 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if termsResult != nil {
 			parts.Terms = termsResult.Outcome
 		}
-		return nil
+		record, merr := json.Marshal(newPushApplyRecord(parts, outcome, contextResult, termsResult))
+		if merr != nil {
+			return fmt.Errorf("record the push apply: %w", merr)
+		}
+		return tx.RecordPushApply(ctx, job.ID, record)
 	}
 
+	var aerr error
 	if deps.PushTransition != nil {
-		if err := deps.PushTransition(ctx, apply); err != nil {
-			markJobFailed(ctx, deps, job.ID, err.Error())
-			return err
+		aerr = deps.PushTransition(ctx, apply)
+	} else {
+		aerr = applier.ApplyPush(ctx, func(tx store.PushApplier) error {
+			// No shared-pool transition: the voice store cannot join this
+			// transaction, so it is written through the pool and a rollback
+			// leaves it. Content, collections and the context ledger still land
+			// together; terminology edits are refused, as they cannot join it.
+			return apply(PushStores{Content: tx, Voice: deps.VoiceStore})
+		})
+	}
+	if errors.Is(aerr, errPushAlreadyApplied) {
+		// Another run of this job committed between the marker read above and
+		// this transaction. Finish from its record.
+		raw, _, rerr := applier.PushApplied(ctx, job.ID)
+		if rerr != nil {
+			markJobFailed(ctx, deps, job.ID, "push apply marker unreadable")
+			return rerr
 		}
-	} else if err := applier.ApplyPush(ctx, func(tx store.PushApplier) error {
-		// No shared-pool transition: the voice store cannot join this
-		// transaction, so it is written through the pool and a rollback leaves
-		// it. Content, collections and the context ledger still land together;
-		// terminology edits are refused, as they cannot join it either.
-		return apply(PushStores{Content: tx, Voice: deps.VoiceStore})
-	}); err != nil {
-		markJobFailed(ctx, deps, job.ID, err.Error())
-		return err
+		return finishReplayedPush(ctx, deps, job, &manifest, stream, manifestKey, raw)
+	}
+	if aerr != nil {
+		markJobFailed(ctx, deps, job.ID, aerr.Error())
+		return aerr
 	}
 	recordPushParts(ctx, deps, job.ID, parts)
 	if parts.Ledger != nil {
@@ -473,56 +507,10 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// failed delete orphans a blob rather than losing content, so it warns
 	// rather than failing the job. The bucket-lifecycle backstop (a TTL rule on
 	// the staging prefix) lives in bowrain-infra.
-	if err := deps.BlobStore.Delete(ctx, manifestKey); err != nil {
-		slog.Warn("could not delete sync push manifest blob",
-			"job_id", job.ID, "manifest_key", manifestKey, "error", err)
-	}
-	for _, chunkRef := range manifest.Chunks {
-		if err := deps.BlobStore.Delete(ctx, chunkRef.Hash); err != nil {
-			slog.Warn("could not delete sync push chunk blob",
-				"job_id", job.ID, "chunk_hash", chunkRef.Hash, "error", err)
-		}
-	}
+	reclaimPushBlobs(ctx, deps, job.ID, manifestKey, manifest.Chunks)
 
-	// Publish EventPushCompleted.
-	//
-	// A push that lands only context — a recipe declaring a new collection,
-	// moving a point, renaming a channel — stores no blocks, and gating the
-	// event on blocks alone left every such push silent. The consumers that
-	// care are exactly the ones a context change is FOR: the workspace context
-	// graph, and the channel-slug equivalence the workspace observes across its
-	// projects. Both then waited for a block-carrying push to come along.
-	if (totalStored > 0 || contextResult.total() > 0) && deps.EventBus != nil {
-		// The full item list still rides on "items" because downstream
-		// consumers (per-locale automations in server/automation.go) fan out by
-		// item name. The human-facing activity summary, however, is built from
-		// the structured counts below — never from the joined item string,
-		// which for a large push is an unreadable wall of paths.
-		deps.EventBus.Publish(platev.Event{
-			Type:      platev.EventPushCompleted,
-			Source:    "sync-worker",
-			ProjectID: projectID,
-			Actor:     manifest.ActorID,
-			Data: map[string]string{
-				"stream":       stream,
-				"items":        strings.Join(allItemNames, ","),
-				"items_sample": strings.Join(sampleItemNames(allItemNames, 3), ","),
-				"files_count":  strconv.Itoa(len(allItemNames)),
-				"blocks_count": strconv.Itoa(totalStored),
-				// Files the source no longer has, which the push removed,
-				// and the collections the recipe declared.
-				"files_removed":     strconv.Itoa(outcome.Removed),
-				"collections_count": strconv.Itoa(contextResult.total()),
-				"push_id":           pushID,
-				// Collections the recipe stopped declaring. They ride on the
-				// event rather than being acted on, which is the whole of the
-				// server's answer to a removed collection: say so, keep the
-				// content.
-				"undeclared_collections": strings.Join(contextResult.Undeclared, ","),
-				"workspace_slug":         manifest.WorkspaceSlug,
-			},
-		})
-	}
+	publishPushCompleted(deps, projectID, stream, pushID, &manifest,
+		newPushApplyRecord(parts, outcome, contextResult, termsResult))
 
 	// The concepts and change-set the terminology part touched, and the
 	// context change the ledger made, now that the push has committed.

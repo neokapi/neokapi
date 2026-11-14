@@ -163,6 +163,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"ref":                    currentRef,
 				"settings":               heldSettings,
 				"settings_refused":       refusedSettings,
+				"parts":                  apiclient.PushParts,
 			})
 		}
 	}
@@ -188,6 +189,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		"ref":                    currentRef,
 		"settings":               heldSettings,
 		"settings_refused":       refusedSettings,
+		"parts":                  apiclient.PushParts,
 	})
 }
 

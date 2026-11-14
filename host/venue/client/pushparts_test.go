@@ -26,7 +26,10 @@ func TestPushCarriesItsParts(t *testing.T) {
 		wantCommit bool
 		wantTerms  bool
 		wantLedger int
+		oldServer  bool
 	}{
+		{name: "a server that predates the parts refuses terms", opts: []PushOption{CarryTerms(terms)}, oldServer: true},
+		{name: "a server that predates the parts refuses the ledger", opts: []PushOption{CarryContextObjects(ledger)}, oldServer: true},
 		{name: "nothing beside an unchanged push", wantCommit: false},
 		{name: "terminology edits", opts: []PushOption{CarryTerms(terms)}, wantCommit: true, wantTerms: true},
 		{name: "ledger objects", opts: []PushOption{CarryContextObjects(ledger)}, wantCommit: true, wantLedger: 1},
@@ -37,7 +40,11 @@ func TestPushCarriesItsParts(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
 				case strings.HasSuffix(r.URL.Path, "/push/init"):
-					_ = json.NewEncoder(w).Encode(PushInitResponse{Status: "unchanged"})
+					resp := PushInitResponse{Status: "unchanged", Parts: PushParts}
+					if tc.oldServer {
+						resp.Parts = nil
+					}
+					_ = json.NewEncoder(w).Encode(resp)
 				case strings.HasSuffix(r.URL.Path, "/push/commit"):
 					commit = &PushCommitRequest{}
 					_ = json.NewDecoder(r.Body).Decode(commit)
@@ -51,6 +58,11 @@ func TestPushCarriesItsParts(t *testing.T) {
 			c := NewClaimTokenClient(srv.URL, "proj1", "tok")
 
 			resp, err := c.Push(context.Background(), nil, nil, nil, nil, tc.opts...)
+			if tc.oldServer {
+				require.ErrorIs(t, err, ErrPartUnsupported, "a part an older server would drop is never sent")
+				assert.Nil(t, commit)
+				return
+			}
 			require.NoError(t, err)
 			if !tc.wantCommit {
 				assert.Nil(t, commit, "nothing to land, nothing committed")

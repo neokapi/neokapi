@@ -58,6 +58,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 48  the findings a project-wide check counted in each item
 // 49  the review deck's group for each translation waiting for review
 // 50  the project feed's columns on activities, and the events a roll-up row counts
+// 51  the pushes a worker has applied, so a redelivered push job applies once
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1814,6 +1815,21 @@ var Migrations = []storage.Migration{
 				event_id    TEXT PRIMARY KEY,
 				activity_id TEXT NOT NULL,
 				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+		`,
+	},
+	{
+		Version:     51,
+		Description: "the pushes a worker has applied, so a redelivered push job applies once",
+		SQL: `
+			-- One row per applied push job, written in the transaction that
+			-- applies the push. A job redelivered after that transaction
+			-- committed finds its row, applies nothing again, and finishes
+			-- from the record: what the push stored and the events it owes.
+			CREATE TABLE IF NOT EXISTS push_applies (
+				job_id     TEXT PRIMARY KEY,
+				record     JSONB NOT NULL DEFAULT '{}',
+				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 		`,
 	},

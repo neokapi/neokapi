@@ -109,6 +109,10 @@ type PushInitResponse struct {
 	// project's default. The push leaves them out of the commit and reports
 	// them.
 	SettingsRefused []venue.SettingRefusal `json:"settings_refused,omitempty"`
+
+	// Parts names the parts beside content this venue applies with a push
+	// (PushParts). A venue that names none predates them.
+	Parts []string `json:"parts,omitempty"`
 }
 
 // PushCommitRequest finalizes the push.
@@ -479,6 +483,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push init: %w", err)
+	}
+	if err := settings.checkParts(initResp.Parts); err != nil {
+		return nil, err
 	}
 	// The recipe's project settings are compared with what the venue holds
 	// now, and the commit carries only a setting that differs and that the

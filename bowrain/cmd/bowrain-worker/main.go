@@ -251,24 +251,25 @@ func runWorker(dbURL string) error {
 	// every AI translation the worker runs, and the terms store resolver supplies
 	// the per-locale terminology. All optional — a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
-	if bs, err := voicepg.NewPostgresVoiceStore(pgdb); err != nil {
+	bs, err := voicepg.NewPostgresVoiceStore(pgdb)
+	if err != nil {
 		slog.Warn("voice store unavailable; translation jobs run without voice", "error", err)
+		bs = nil
 	} else {
 		translationDeps.VoiceStore = bs
-
-		// Every store a push writes came from this one PgDB, so one
-		// transaction covers them all: the collections and voice profiles the
-		// push declares, its content, its context ledger objects, and its
-		// terminology edits and change-set. Binding them to the same
-		// transition is what stops a failed push from leaving any of them
-		// behind.
-		ks, kerr := knowledge.NewPostgresKnowledgeStore(pgdb)
-		if kerr != nil {
-			slog.Warn("knowledge store unavailable; pushes that propose governed terminology are refused", "error", kerr)
-			ks = nil
-		}
-		translationDeps.PushTransition = jobs.NewPostgresPushTransition(pgdb, pgCS, bs, ks)
 	}
+
+	// Every store a push writes came from this one PgDB, so one transaction
+	// covers them all: the collections and voice profiles the push declares,
+	// its content, its context ledger objects, and its terminology edits and
+	// change-set. The transition is always wired, so a push the server
+	// accepted with terminology edits is never refused here for want of it.
+	ks, kerr := knowledge.NewPostgresKnowledgeStore(pgdb)
+	if kerr != nil {
+		slog.Warn("knowledge store unavailable; pushes that propose governed terminology fail", "error", kerr)
+		ks = nil
+	}
+	translationDeps.PushTransition = jobs.NewPostgresPushTransition(pgdb, pgCS, bs, ks)
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
 		// The platform is authoritative for review governance. A push can

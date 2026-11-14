@@ -341,6 +341,10 @@ func (s *failingItemStore) ApplyPush(ctx context.Context, fn func(store.PushAppl
 	})
 }
 
+func (s *failingItemStore) PushApplied(ctx context.Context, jobID string) ([]byte, bool, error) {
+	return s.ContentStore.(store.PushApplyStore).PushApplied(ctx, jobID)
+}
+
 type failingItemApplier struct {
 	store.PushApplier
 	err error
