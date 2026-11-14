@@ -53,7 +53,10 @@ func newStandInServer(t *testing.T) *standInServer {
 			CodeVerifier string `json:"code_verifier"`
 			RedirectURI  string `json:"redirect_uri"`
 		}
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "bad body", http.StatusBadRequest)
+			return
+		}
 		s.mu.Lock()
 		ok := req.Code == "one-time" && ComputeCodeChallenge(req.CodeVerifier) == s.challenge && req.RedirectURI == s.redirect
 		s.mu.Unlock()
@@ -94,21 +97,30 @@ func TestBrowserTokens_RedeemsTheCodeWithTheVerifier(t *testing.T) {
 
 func TestBrowserTokens_IgnoresARedirectWithAnotherState(t *testing.T) {
 	srv := newStandInServer(t)
-	var stray *http.Response
+	strayStatus := 0
 	open := func(ctx context.Context, target string) error {
 		u, err := url.Parse(target)
-		require.NoError(t, err)
+		if err != nil {
+			return err
+		}
 		redirect := u.Query().Get("redirect_uri")
 		// A request with the wrong state is answered and does not end the
 		// wait; the real redirect that follows does.
-		stray, err = http.Get(redirect + "?code=forged&state=other")
-		require.NoError(t, err)
-		_ = stray.Body.Close()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, redirect+"?code=forged&state=other", nil)
+		if err != nil {
+			return err
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		strayStatus = resp.StatusCode
+		_ = resp.Body.Close()
 		return visit(ctx, target)
 	}
 	tok, err := browserTokens(t.Context(), srv.URL, LoginOptions{Progress: &bytes.Buffer{}, OpenBrowser: open})
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, stray.StatusCode)
+	assert.Equal(t, http.StatusBadRequest, strayStatus)
 	assert.Equal(t, "access", tok.AccessToken)
 }
 

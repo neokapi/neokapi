@@ -67,7 +67,8 @@ func browserTokens(ctx context.Context, serverURL string, opts LoginOptions) (*T
 		return nil, err
 	}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("listen for the sign-in redirect: %w", err)
 	}
