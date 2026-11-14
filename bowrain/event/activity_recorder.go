@@ -17,14 +17,29 @@ import (
 // for human consumption. Unlike the AuditLogger (which records raw events),
 // the ActivityRecorder produces aggregated, human-readable activity records.
 type ActivityRecorder struct {
-	store *bstore.ActivityStore
-	bus   platev.EventBus
-	sub   *platev.Subscription
+	store    *bstore.ActivityStore
+	bus      platev.EventBus
+	sub      *platev.Subscription
+	projects ProjectWorkspaceResolver
+}
+
+// ActivityRecorderOption configures an ActivityRecorder.
+type ActivityRecorderOption func(*ActivityRecorder)
+
+// WithProjectWorkspaces files an event that names a project and no workspace
+// under the project's workspace id. Without it such an event is filed under
+// an empty workspace, where no feed lists it. The store-emitted project and
+// stream events are of this kind.
+func WithProjectWorkspaces(r ProjectWorkspaceResolver) ActivityRecorderOption {
+	return func(ar *ActivityRecorder) { ar.projects = r }
 }
 
 // NewActivityRecorder creates and starts an activity recorder.
-func NewActivityRecorder(store *bstore.ActivityStore, bus platev.EventBus) *ActivityRecorder {
+func NewActivityRecorder(store *bstore.ActivityStore, bus platev.EventBus, opts ...ActivityRecorderOption) *ActivityRecorder {
 	r := &ActivityRecorder{store: store, bus: bus}
+	for _, opt := range opts {
+		opt(r)
+	}
 	r.sub = bus.SubscribeGroup("activity-recorder", r.handleEvent)
 	return r
 }
@@ -51,6 +66,16 @@ func (r *ActivityRecorder) handleEvent(ev platev.Event) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	if a.WorkspaceID == "" && a.ProjectID != "" && r.projects != nil {
+		// A deleted project resolves to nothing, and redelivering its event
+		// would not change that, so a failed lookup files the entry as is.
+		wsID, err := r.projects.WorkspaceForProject(ctx, a.ProjectID)
+		if err != nil {
+			slog.Warn("activity recorder could not resolve the project's workspace", "event_id", ev.ID, "project_id", a.ProjectID, "error", err)
+		}
+		a.WorkspaceID = wsID
+	}
+
 	if err := r.store.Create(ctx, a); err != nil {
 		slog.Warn("activity recorder failed to persist activity", "event_id", ev.ID, "event_type", ev.Type, "error", err)
 		return err
@@ -64,13 +89,11 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		ActorID:   ev.Actor,
 		ActorName: ev.Data["actor_name"],
 		Data:      ev.Data,
-		// The feed lists by workspace *slug* (GET /:ws/activities), so an
-		// explicit slug on the event wins: the knowledge path sets
-		// Event.WorkspaceID to the workspace UUID and carries the slug here,
-		// and preferring the UUID filed those rows where no feed could list
-		// them. The event's own field is the fallback the sync path needs — it
-		// sets WorkspaceID and carries neither Data key, which once filed 17k
-		// activities under an empty workspace.
+		// An explicit slug on the event wins, then the event's workspace id,
+		// then (in handleEvent) the workspace of the project it names. Every
+		// feed reads a workspace by both its slug and its id, so a row under
+		// either is listed. A row under an empty workspace is listed nowhere,
+		// which is why the project fallback exists.
 		WorkspaceID: ev.Data["workspace_slug"],
 	}
 	if a.ActorID == "" {
@@ -112,7 +135,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.Summary = "pulled content"
 
 	// Block events never reach the feed: a push or converge touches
-	// thousands of blocks, and the feed is for people — the push- and
+	// thousands of blocks, and the feed is for people: the push- and
 	// run-level entries above are the readable record of that work.
 
 	// Streams
@@ -251,7 +274,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.Stream = ev.Data["stream"]
 		a.Summary = pilotSummary("stopped piloting a change", ev.Data)
 
-	// Concepts, evidence, and discussion — the ordinary (ungoverned) edits to
+	// Concepts, evidence, and discussion: the ordinary (ungoverned) edits to
 	// the graph, which are most of what a steward's day looks like.
 	case knowledge.EventConceptCreated:
 		a.Type = bstore.ActivityConceptCreated
@@ -300,7 +323,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "connector"
 		a.Summary = "connector sync completed"
 
-	// Convergence runs — the loop itself, and what the feed is read to answer
+	// Convergence runs: the loop itself, and what the feed is read to answer
 	// "did the loop run, and what came of it" with. Mapped for every terminal
 	// state, because a failed or parked run is the one worth scanning for; the
 	// summary carries the real outcome word.
@@ -431,7 +454,7 @@ func groupThousands(n int) string {
 // It says what the run did, not merely that it ended: the outcome word the run
 // row records (converged | parked | failed | canceled), the machine-readable
 // stall reason when one parked it, and the run's magnitude folded out of its
-// per-locale standing. It never enumerates the locales — the event's data
+// per-locale standing. It never enumerates the locales; the event's data
 // carries the list for a drill-down, the summary carries the count.
 func convergenceRunSummary(data map[string]string) string {
 	state := data["state"]
