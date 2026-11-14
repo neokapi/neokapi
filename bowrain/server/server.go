@@ -727,7 +727,11 @@ func NewServer(cfg Config) *Server {
 
 	// Wire up activity recorder (Bowrain AD-014).
 	if s.ActivityStore != nil {
-		s.ActivityRecorder = event.NewActivityRecorder(s.ActivityStore, s.EventBus)
+		var opts []event.ActivityRecorderOption
+		if s.ContentStore != nil {
+			opts = append(opts, event.WithProjectWorkspaces(&contentStoreWorkspaceResolver{store: s.ContentStore}))
+		}
+		s.ActivityRecorder = event.NewActivityRecorder(s.ActivityStore, s.EventBus, opts...)
 	}
 
 	// Wire up the unified change-event relay. It attaches to the bus per

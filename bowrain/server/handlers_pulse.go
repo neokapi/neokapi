@@ -17,7 +17,7 @@ import (
 )
 
 // registerPulseRoutes mounts the public Pulse dashboard routes on the given
-// group. Called only when Config.PulseEnabled is set (BOWRAIN_PULSE_ENABLED) —
+// group. Called only when Config.PulseEnabled is set (BOWRAIN_PULSE_ENABLED);
 // the surface is unmounted by default.
 func (s *Server) registerPulseRoutes(v1 *echo.Group) {
 	v1.GET("/pulse", s.HandlePulseFrontPage)
@@ -276,6 +276,7 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 	}
 
 	activities := make([]store.PulseActivity, 0)
+	var nextCursor string
 
 	if s.ActivityStore != nil {
 		ctx := c.Request().Context()
@@ -286,16 +287,25 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 			}
 		}
 
+		// Rows are filed under the slug or the id, whichever the event
+		// carried, so the query names both.
 		q := bstore.ActivityQuery{
-			WorkspaceID: ws.ID,
-			ProjectID:   c.QueryParam("project"),
-			ActorID:     c.QueryParam("contributor"),
-			Type:        c.QueryParam("type"),
-			Cursor:      c.QueryParam("cursor"),
-			Limit:       limit,
+			WorkspaceID:   ws.Slug,
+			WorkspaceKeys: []string{ws.ID},
+			ProjectID:     c.QueryParam("project"),
+			ActorID:       c.QueryParam("contributor"),
+			Type:          c.QueryParam("type"),
+			Cursor:        c.QueryParam("cursor"),
+			Limit:         limit,
 		}
 
 		result, err := s.ActivityStore.List(ctx, q)
+		if errors.Is(err, bstore.ErrInvalidActivityCursor) {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "cursor is not one this endpoint returned"})
+		}
+		if err == nil {
+			nextCursor = result.NextCursor
+		}
 		if err == nil && result.Activities != nil {
 			for _, a := range result.Activities {
 				activities = append(activities, store.PulseActivity{
@@ -311,10 +321,12 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 		}
 	}
 
+	resp := map[string]any{"activities": activities}
+	if nextCursor != "" {
+		resp["next_cursor"] = nextCursor
+	}
 	setCDNCacheHeaders(c, 30)
-	return c.JSON(http.StatusOK, map[string]any{
-		"activities": activities,
-	})
+	return c.JSON(http.StatusOK, resp)
 }
 
 // ---------------------------------------------------------------------------
@@ -333,7 +345,7 @@ func (s *Server) HandlePulseActivityHeatmap(c echo.Context) error {
 
 	if s.ActivityStore != nil {
 		since := time.Now().UTC().AddDate(-1, 0, 0)
-		counts, err := s.ActivityStore.DailyCounts(c.Request().Context(), ws.ID, since)
+		counts, err := s.ActivityStore.DailyCounts(c.Request().Context(), since, ws.Slug, ws.ID)
 		if err == nil {
 			for _, dc := range counts {
 				days = append(days, store.PulseHeatmapDay{Date: dc.Date, Count: dc.Count})

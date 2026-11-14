@@ -3,8 +3,11 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -109,15 +112,67 @@ type Activity struct {
 
 // ActivityQuery defines filters for listing activities.
 type ActivityQuery struct {
-	WorkspaceID string
-	ProjectID   string
-	Stream      string
-	ActorID     string
-	Type        string   // prefix match (e.g., "block" matches "block.*")
-	Types       []string // if set, matches any of these prefixes (overrides Type)
-	Since       time.Time
-	Limit       int
-	Cursor      string // created_at cursor for pagination
+	// WorkspaceID and WorkspaceKeys together name the workspace. Rows are
+	// filed under whichever key the event carried, the slug or the id, so a
+	// reader passes both and a row under either is listed.
+	WorkspaceID   string
+	WorkspaceKeys []string
+	ProjectID     string
+	Stream        string
+	ActorID       string
+	Type          string   // prefix match (e.g., "block" matches "block.*")
+	Types         []string // if set, matches any of these prefixes (overrides Type)
+	Since         time.Time
+	Limit         int
+	Cursor        string // opaque; a previous page's NextCursor
+}
+
+// ErrInvalidActivityCursor reports a cursor that no List call returned.
+var ErrInvalidActivityCursor = errors.New("activity cursor is not one this store returned")
+
+// encodeActivityCursor names the last row of a page by (created_at, id).
+// created_at alone cannot: several rows can share a timestamp, and paging
+// strictly before it would skip the ones the page did not reach.
+func encodeActivityCursor(a Activity) string {
+	raw := a.CreatedAt.UTC().Format(time.RFC3339Nano) + "|" + a.ID
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
+}
+
+func decodeActivityCursor(s string) (time.Time, string, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return time.Time{}, "", ErrInvalidActivityCursor
+	}
+	ts, rowID, ok := strings.Cut(string(raw), "|")
+	if !ok || rowID == "" {
+		return time.Time{}, "", ErrInvalidActivityCursor
+	}
+	t, err := time.Parse(time.RFC3339Nano, ts)
+	if err != nil {
+		return time.Time{}, "", ErrInvalidActivityCursor
+	}
+	return t, rowID, nil
+}
+
+// distinctKeys returns the distinct, non-empty keys of a workspace.
+func distinctKeys(keys ...string) []string {
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		if k != "" && !slices.Contains(out, k) {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// inClause renders "column IN ($n, ...)" for keys and appends them to args.
+func inClause(column string, keys []string, ph func() string, args *[]any) string {
+	marks := make([]string, len(keys))
+	for i, k := range keys {
+		marks[i] = ph()
+		*args = append(*args, k)
+	}
+	return column + " IN (" + strings.Join(marks, ", ") + ")"
 }
 
 // ActivityResult is a paginated result set.
@@ -142,8 +197,11 @@ func (s *ActivityStore) Create(ctx context.Context, a *Activity) error {
 		a.ID = id.New()
 	}
 	if a.CreatedAt.IsZero() {
-		a.CreatedAt = time.Now().UTC()
+		a.CreatedAt = time.Now()
 	}
+	// The column keeps microseconds. Truncating here makes the value the
+	// caller holds the value a later read returns.
+	a.CreatedAt = a.CreatedAt.UTC().Truncate(time.Microsecond)
 	if a.Data == nil {
 		a.Data = map[string]string{}
 	}
@@ -160,7 +218,7 @@ func (s *ActivityStore) Create(ctx context.Context, a *Activity) error {
 		 ON CONFLICT DO NOTHING`,
 		a.ID, a.EventID, a.WorkspaceID, a.ProjectID, a.Stream, a.ActorID, a.ActorName,
 		string(a.Type), a.EntityType, a.EntityID, a.Summary,
-		string(dataJSON), a.CreatedAt.UTC().Format(time.RFC3339))
+		string(dataJSON), a.CreatedAt)
 	return err
 }
 
@@ -175,9 +233,8 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 	n := 0
 	ph := func() string { n++; return fmt.Sprintf("$%d", n) }
 
-	if q.WorkspaceID != "" {
-		where = append(where, "workspace_id = "+ph())
-		args = append(args, q.WorkspaceID)
+	if keys := distinctKeys(append([]string{q.WorkspaceID}, q.WorkspaceKeys...)...); len(keys) > 0 {
+		where = append(where, inClause("workspace_id", keys, ph, &args))
 	}
 	if q.ProjectID != "" {
 		where = append(where, "project_id = "+ph())
@@ -211,11 +268,15 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 	}
 	if !q.Since.IsZero() {
 		where = append(where, "created_at > "+ph())
-		args = append(args, q.Since.UTC().Format(time.RFC3339))
+		args = append(args, q.Since.UTC())
 	}
 	if q.Cursor != "" {
-		where = append(where, "created_at < "+ph())
-		args = append(args, q.Cursor)
+		at, rowID, err := decodeActivityCursor(q.Cursor)
+		if err != nil {
+			return nil, err
+		}
+		where = append(where, fmt.Sprintf("(created_at, id) < (%s, %s)", ph(), ph()))
+		args = append(args, at, rowID)
 	}
 
 	whereClause := ""
@@ -226,7 +287,7 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 	query := fmt.Sprintf(
 		`SELECT id, workspace_id, project_id, stream, actor_id, actor_name,
 		 type, entity_type, entity_id, summary, data, created_at
-		 FROM activities %s ORDER BY created_at DESC LIMIT %s`, whereClause, ph())
+		 FROM activities %s ORDER BY created_at DESC, id DESC LIMIT %s`, whereClause, ph())
 	args = append(args, q.Limit+1)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -250,7 +311,7 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 	result := &ActivityResult{}
 	if len(activities) > q.Limit {
 		result.Activities = activities[:q.Limit]
-		result.NextCursor = activities[q.Limit-1].CreatedAt.Format(time.RFC3339Nano)
+		result.NextCursor = encodeActivityCursor(activities[q.Limit-1])
 	} else {
 		result.Activities = activities
 	}
@@ -258,14 +319,23 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 	return result, nil
 }
 
-// DailyCounts returns activity counts per day for a workspace since the given time.
-func (s *ActivityStore) DailyCounts(ctx context.Context, workspaceID string, since time.Time) ([]DailyCount, error) {
-	query := `SELECT DATE(created_at) AS day, COUNT(*) AS cnt FROM activities
-		 WHERE workspace_id = $1 AND created_at > $2
-		 GROUP BY day ORDER BY day`
+// DailyCounts returns activity counts per day for a workspace since the given
+// time. keys are the workspace's slug and id, as for ActivityQuery.
+func (s *ActivityStore) DailyCounts(ctx context.Context, since time.Time, keys ...string) ([]DailyCount, error) {
+	keys = distinctKeys(keys...)
+	if len(keys) == 0 {
+		return nil, nil
+	}
+	n := 0
+	ph := func() string { n++; return fmt.Sprintf("$%d", n) }
+	var args []any
+	keyClause := inClause("workspace_id", keys, ph, &args)
+	query := fmt.Sprintf(`SELECT DATE(created_at) AS day, COUNT(*) AS cnt FROM activities
+		 WHERE %s AND created_at > %s
+		 GROUP BY day ORDER BY day`, keyClause, ph())
+	args = append(args, since.UTC())
 
-	rows, err := s.db.QueryContext(ctx, query,
-		workspaceID, since.UTC().Format(time.RFC3339))
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -338,17 +408,23 @@ func (s *ActivityStore) SetActivitySeenAt(ctx context.Context, userID, workspace
 	return err
 }
 
-// CountNewActivities returns the number of activities newer than the user's last seen timestamp.
-func (s *ActivityStore) CountNewActivities(ctx context.Context, userID, workspaceID string) (int, error) {
+// CountNewActivities returns the number of activities newer than the user's
+// last seen timestamp. The seen marker is keyed on workspaceID. Activities are
+// matched on workspaceID and on any other key of the same workspace.
+func (s *ActivityStore) CountNewActivities(ctx context.Context, userID, workspaceID string, otherKeys ...string) (int, error) {
 	seenAt, _ := s.GetActivitySeenAt(ctx, userID, workspaceID)
 	if seenAt.IsZero() {
 		return 0, nil // never viewed = no indicator (avoid showing dot on first visit)
 	}
-	tsVal := seenAt.UTC().Format(time.RFC3339Nano)
+	keys := distinctKeys(append([]string{workspaceID}, otherKeys...)...)
+	n := 0
+	ph := func() string { n++; return fmt.Sprintf("$%d", n) }
+	var args []any
+	keyClause := inClause("workspace_id", keys, ph, &args)
+	query := fmt.Sprintf(`SELECT COUNT(*) FROM activities WHERE %s AND created_at > %s`, keyClause, ph())
+	args = append(args, seenAt.UTC())
 
 	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM activities WHERE workspace_id = $1 AND created_at > $2`,
-		workspaceID, tsVal).Scan(&count)
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(&count)
 	return count, err
 }
