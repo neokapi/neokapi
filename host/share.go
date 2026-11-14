@@ -413,8 +413,7 @@ func (a *App) readRung(ctx context.Context, recipe string, res *ShareResult) err
 		return err
 	}
 	info, err := ResolveContextBackend(recipe)
-	var split *ContextSplitError
-	if errors.As(err, &split) {
+	if split, ok := errors.AsType[*ContextSplitError](err); ok {
 		// The recipe connects to Bowrain and keeps its context elsewhere: the
 		// rung is Bowrain, and the problem says how to move the context.
 		res.Rung, res.Server, res.Problem = ShareRungBowrain, split.Venue, split.Error()
@@ -447,8 +446,7 @@ func RecipeRung(recipe string) (string, error) {
 		return "", err
 	}
 	info, err := ResolveContextBackend(recipe)
-	var split *ContextSplitError
-	if errors.As(err, &split) {
+	if _, ok := errors.AsType[*ContextSplitError](err); ok {
 		return ShareRungBowrain, nil
 	}
 	if err != nil {

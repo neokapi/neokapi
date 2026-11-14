@@ -3,7 +3,6 @@ package host
 import (
 	"bytes"
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,7 +62,7 @@ func TestResolveContextBackend_ASplitContextIsRefused(t *testing.T) {
 			recipe := writeRecipe(t, "version: v1\nsource_language: en\n"+tt.block+"bowrain:\n  url: https://bowrain.example/acme/p123\n")
 			_, err := ResolveContextBackend(recipe)
 			var split *ContextSplitError
-			require.True(t, errors.As(err, &split), "got %v", err)
+			require.ErrorAs(t, err, &split)
 			assert.Contains(t, err.Error(), "connects the project to Bowrain (https://bowrain.example/acme/p123)")
 			assert.Contains(t, err.Error(), "keeps its context on "+tt.where+".")
 			assert.Contains(t, err.Error(), "run `kapi share --via bowrain` to move it")
@@ -134,7 +133,7 @@ func TestShare_ViaBowrainStopsWhenTheContextCannotBeRead(t *testing.T) {
 	root := contextOpsProject(t, "move-unreadable")
 	recipe, err := os.ReadFile(recipeOf(root))
 	require.NoError(t, err)
-	before := append(recipe, []byte("context:\n  backend: git\n")...)
+	before := append(bytes.Clone(recipe), []byte("context:\n  backend: git\n")...)
 	require.NoError(t, os.WriteFile(recipeOf(root), before, 0o600))
 	proposeUtilise(t, app, root, person)
 
@@ -154,7 +153,7 @@ func TestShare_ABowrainProjectRefusesASecondPlace(t *testing.T) {
 	root := contextOpsProject(t, "split")
 	recipe, err := os.ReadFile(recipeOf(root))
 	require.NoError(t, err)
-	connected := append(recipe, []byte("bowrain:\n  url: https://bowrain.example/acme/site\n")...)
+	connected := append(bytes.Clone(recipe), []byte("bowrain:\n  url: https://bowrain.example/acme/site\n")...)
 	require.NoError(t, os.WriteFile(recipeOf(root), connected, 0o600))
 
 	_, err = app.Share(t.Context(), ShareRequest{Project: recipeOf(root), Via: ShareViaFolder, Location: t.TempDir()})
