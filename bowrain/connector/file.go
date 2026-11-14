@@ -133,14 +133,13 @@ func (c *FileConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) (
 }
 
 func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.ContentItem, error) {
-	ext := filepath.Ext(path)
-	detector := c.formatRegistry.Detector()
-	formatName, err := detector.DetectByExtension(ext)
+	formatID, err := c.formatRegistry.Detect(path, registry.DetectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("detect format for %s: %w", path, err)
 	}
+	formatName := string(formatID)
 
-	reader, err := c.formatRegistry.NewReader(registry.FormatID(formatName))
+	reader, err := c.formatRegistry.NewReader(formatID)
 	if err != nil {
 		return nil, fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
@@ -400,18 +399,17 @@ func deliveredRuns(b *model.Block, locale model.LocaleID) []model.Run {
 
 // List scans the base directory for files whose extensions match known formats.
 func (c *FileConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
-	detector := c.formatRegistry.Detector()
 	var items []*platconn.ContentItem
 
 	err := filepath.Walk(c.basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
 		}
-		ext := filepath.Ext(path)
-		formatName, detectErr := detector.DetectByExtension(ext)
+		formatID, detectErr := c.formatRegistry.Detect(path, registry.DetectOptions{})
 		if detectErr != nil {
 			return nil // Skip unrecognized files.
 		}
+		formatName := string(formatID)
 		relPath, _ := filepath.Rel(c.basePath, path)
 		items = append(items, &platconn.ContentItem{
 			ID:          relPath,

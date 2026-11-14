@@ -173,6 +173,19 @@ type FormatExplanation struct {
 	Error string `json:"error,omitempty"`
 }
 
+// engineClaimants counts the candidates of the chosen format's engine. More
+// than one means the file's content or the formats' priorities chose among
+// them.
+func (f FormatExplanation) engineClaimants() int {
+	n := 0
+	for _, c := range f.Candidates {
+		if c.Engine == f.Engine {
+			n++
+		}
+	}
+	return n
+}
+
 // FormatCandidate is one format claiming an extension.
 type FormatCandidate struct {
 	Format string `json:"format"`
@@ -191,8 +204,11 @@ func (f FormatExplainOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, T("formats.explain.chosen")+"\n", file.Path, s.Accent.Render(file.Format), file.Engine)
 		fmt.Fprintf(w, "  "+T("formats.explain.rule")+"\n", file.Rule)
-		if file.Content {
-			fmt.Fprintf(w, "  %s\n", T("formats.explain.content"))
+		switch {
+		case file.Content:
+			fmt.Fprintf(w, "  "+T("formats.explain.content")+"\n", file.Format)
+		case file.engineClaimants() > 1:
+			fmt.Fprintf(w, "  "+T("formats.explain.priority")+"\n", file.Format)
 		}
 		if len(file.Order) > 0 {
 			fmt.Fprintf(w, "  "+T("formats.explain.order")+"\n", s.Muted.Render(strings.Join(file.Order, ", ")))

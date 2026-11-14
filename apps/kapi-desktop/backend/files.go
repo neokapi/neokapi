@@ -75,7 +75,9 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 }
 
 // DetectFormat returns the format name for a file path outside any project:
-// the registry's resolver by extension, under the config's engine default.
+// the registry's resolver, under the config's engine default. When several
+// formats claim the extension, the file's head decides among them; a path
+// that cannot be read (an archive entry's name) resolves by extension.
 // A path in an open project goes through DetectProjectFormat, which adds the
 // recipe's sources, engine preference and pins.
 func (a *App) DetectFormat(path string) string {
@@ -83,7 +85,7 @@ func (a *App) DetectFormat(path string) string {
 	if ext == "" {
 		return ""
 	}
-	detected, err := a.formatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
+	detected, err := a.formatReg.Detect(path, registry.DetectOptions{})
 	if err != nil {
 		return ""
 	}

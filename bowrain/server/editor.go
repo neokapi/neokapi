@@ -640,13 +640,18 @@ func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatRe
 		}
 
 		ext := filepath.Ext(itemName)
-		fmtName, err := formatReg.Detector().DetectByExtension(ext)
+		// The resolver kapi push uses: by extension, and by the file's head
+		// when several formats claim it (an Android strings.xml, not XML).
+		fmtID, err := formatReg.Detect(itemName, registry.DetectOptions{
+			Content: func() (io.ReadSeeker, error) { return bytes.NewReader(data), nil },
+		})
 		if err != nil {
 			skip(itemName, fmt.Sprintf("unsupported file type %q: %s", ext, err))
 			continue
 		}
+		fmtName := string(fmtID)
 
-		reader, err := formatReg.NewReader(registry.FormatID(fmtName))
+		reader, err := formatReg.NewReader(fmtID)
 		if err != nil {
 			skip(itemName, fmt.Sprintf("no reader for format %q: %s", fmtName, err))
 			continue

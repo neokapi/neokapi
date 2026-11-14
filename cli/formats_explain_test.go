@@ -108,6 +108,50 @@ func TestFormats_ExplainReportsTheDecision(t *testing.T) {
 	require.Error(t, err, "a file is required")
 }
 
+// An Android string resources file is read by androidxml, chosen by its
+// content among the native formats claiming ".xml"; any other XML stays on
+// xml, and the text output says which of the two decided.
+func TestFormats_ExplainReportsAndroidXMLByContent(t *testing.T) {
+	t.Setenv(project.NoProjectEnvVar, "1")
+	a := &App{Config: config.NewAppConfig()}
+	a.InitRegistries()
+	dir := t.TempDir()
+	android := filepath.Join(dir, "strings.xml")
+	require.NoError(t, os.WriteFile(android, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pay_now">Pay %1$s with your saved card</string>
+</resources>
+`), 0o644))
+	plain := filepath.Join(dir, "catalog.xml")
+	require.NoError(t, os.WriteFile(plain, []byte(`<?xml version="1.0"?><catalog><title>Guide</title></catalog>`), 0o644))
+
+	out, err := runFormatsOn(t, a, "explain", "--json", android, plain)
+	require.NoError(t, err, out)
+	ex := decodeExplain(t, out)
+	require.Len(t, ex.Files, 2)
+	assert.Equal(t, "androidxml", ex.Files[0].Format)
+	assert.Equal(t, "native", ex.Files[0].Engine)
+	assert.Equal(t, registry.RuleNativeFirst, ex.Files[0].Rule)
+	assert.True(t, ex.Files[0].Content, "the file's content chose androidxml")
+	assert.Contains(t, ex.Files[0].Candidates, output.FormatCandidate{Format: "androidxml", Engine: "native"})
+	assert.Contains(t, ex.Files[0].Candidates, output.FormatCandidate{Format: "xml", Engine: "native"})
+	assert.Equal(t, "xml", ex.Files[1].Format)
+
+	text, err := runFormatsOn(t, a, "explain", android)
+	require.NoError(t, err, text)
+	assert.Contains(t, text, "strings.xml: androidxml (native)")
+	assert.Contains(t, text, "rule: "+registry.RuleNativeFirst)
+	assert.Contains(t, text, "content: the file's content identifies androidxml among the engine's formats")
+	assert.Contains(t, text, "androidxml (native), doclang (native), xml (native)")
+
+	// Without content to decide, priority does, and the output says so.
+	missing := filepath.Join(dir, "absent.xml")
+	text, err = runFormatsOn(t, a, "explain", missing)
+	require.NoError(t, err, text)
+	assert.Contains(t, text, "absent.xml: xml (native)")
+	assert.Contains(t, text, "priority: no content check matched, so xml")
+}
+
 // A path no format reads is reported on its line; the command still answers
 // for the others.
 func TestFormats_ExplainReportsAnUnreadPath(t *testing.T) {
