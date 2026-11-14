@@ -309,7 +309,32 @@ export interface FeedEntry {
   /** A run's outcome or a change set's step. */
   state?: string;
   diff?: FeedRecipeDiff;
+  /** The first few items a context change touched; `counts` holds the full number. */
+  samples?: FeedSample[];
+  /** A run's result per language. */
+  standing?: FeedStanding[];
+  /** A change set's name. */
+  name?: string;
   link: FeedLink;
+}
+
+/** One item a context change touched (event.ContextSample). */
+export interface FeedSample {
+  /** term_rule, note or voice_rule. */
+  kind: string;
+  operation?: string;
+  term?: string;
+  replacement?: string;
+  text?: string;
+}
+
+/** One language's standing at the end of a run (FeedStanding). */
+export interface FeedStanding {
+  locale: string;
+  /** shippable, parked or pending. */
+  state: string;
+  units?: number;
+  produced?: number;
 }
 
 /** A page of a project's feed (FeedResponse), newest first. */

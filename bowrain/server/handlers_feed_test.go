@@ -97,6 +97,7 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 		Data: map[string]string{
 			"run_id": "run-1", "state": "converged", "passes": "2", "locales": "nb,de",
 			"locales_count": "2", "produced_count": "40", "workspace_id": "test-ws", "workspace_slug": "test",
+			"standing": `[{"locale":"nb","state":"shippable","units":30,"produced":30},{"locale":"de","state":"pending","units":20,"produced":10}]`,
 		},
 	})
 	// Three decisions and a bulk pass in nb in one hour make one row; the
@@ -135,13 +136,17 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 		Data: platev.ContextChange{
 			WorkspaceSlug: "test", ActorKind: platev.ContextActorAgent, ActorName: "claude-code",
 			Session: "0ab4e399", Source: "push", Counts: counts,
-			Extra: map[string]string{"host": "laptop"},
+			Samples: []platev.ContextSample{{Kind: platev.ContextItemTermRule, Operation: platev.ContextOpAdd, Term: "translation memory", Replacement: "content memory"}},
+			Extra:   map[string]string{"host": "laptop"},
 		}.Data(),
 	})
 	bus.Publish(platev.Event{
 		ID: "ev-cs", Type: knowledge.EventChangeSetMerged, Source: "knowledge", WorkspaceID: "test-ws",
 		Actor: "test-user", Timestamp: at.Add(5 * time.Minute),
-		Data: map[string]string{"workspace_slug": "test", "changeset_id": "cs-1", "project_id": "p-feed"},
+		Data: map[string]string{
+			"workspace_slug": "test", "changeset_id": "cs-1", "project_id": "p-feed",
+			"changeset_name": "Checkout terms", "changeset_ops": `{"term.add":3,"term.status":1}`,
+		},
 	})
 	// A row outside the project feed: listed by the workspace feed only.
 	bus.Publish(platev.Event{
@@ -176,6 +181,7 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 	assert.Equal(t, []string{"nb", "de"}, run.Locales)
 	assert.Equal(t, map[string]int{"passes": 2, "locales": 2, "produced": 40}, run.Counts)
 	assert.Equal(t, FeedLink{Screen: FeedScreenRun, ID: "run-1"}, run.Link)
+	assert.Equal(t, []FeedStanding{{Locale: "nb", State: "shippable", Units: 30, Produced: 30}, {Locale: "de", State: "pending", Units: 20, Produced: 10}}, run.Standing)
 
 	require.Len(t, by["review_summary"], 2)
 	reviews := map[string]FeedEntry{}
@@ -199,9 +205,13 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 	assert.Equal(t, &FeedMember{ID: "test-user", Name: "Test"}, ctxEntry.OnBehalfOf)
 	assert.Equal(t, map[string]int{"term_rule": 6, "add": 6}, ctxEntry.Counts)
 	assert.Equal(t, FeedLink{Screen: FeedScreenContextDeck, Mode: "pending"}, ctxEntry.Link)
+	require.Len(t, ctxEntry.Samples, 1)
+	assert.Equal(t, "content memory", ctxEntry.Samples[0].Replacement)
 
 	cs := by["change_set"][0]
 	assert.Equal(t, "merged", cs.State)
+	assert.Equal(t, "Checkout terms", cs.Name)
+	assert.Equal(t, map[string]int{"term.add": 3, "term.status": 1}, cs.Counts)
 	assert.Equal(t, FeedLink{Screen: FeedScreenChangeSet, ID: "cs-1"}, cs.Link)
 
 	ms := by["coverage_milestone"][0]
