@@ -229,6 +229,7 @@ func TestShare_JSON(t *testing.T) {
 // binary without the plugin keeps as an unknown key, as the third rung.
 func TestShare_ARecipeConnectedToBowrain(t *testing.T) {
 	app, _ := contextOpsApp(t)
+	standInBowrainRemote(t)
 	root := contextOpsProject(t, "share-bowrain")
 	recipe, err := os.ReadFile(recipeOf(root))
 	require.NoError(t, err)
@@ -242,6 +243,7 @@ func TestShare_ARecipeConnectedToBowrain(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ShareRungBowrain, rung)
 	assert.Equal(t, "Managed on Bowrain · https://bowrain.example/acme/site\n"+
+		"  pushed none · pulled none · last sync just now\n"+
 		"  send with kapi push · bring back with kapi pull\n", shareText(t, res))
 }
 

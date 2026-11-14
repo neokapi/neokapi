@@ -58,8 +58,10 @@ type ContextBackendInfo struct {
 	Kind string `json:"kind"`
 	// Location is where a shared backend keeps the context.
 	Location string `json:"location,omitempty"`
-	// From is "recipe" when kapi.yaml declares the backend, "default" when it
-	// declares none and the context stays on this machine.
+	// From is "recipe" when kapi.yaml declares the backend, "venue" when it
+	// declares none and connects the project to Bowrain, which then keeps the
+	// context, and "default" when it declares neither and the context stays on
+	// this machine.
 	From string `json:"from"`
 	// Status is how far apart this machine and the backend were at the last
 	// contact. Empty for a local backend.
@@ -75,6 +77,8 @@ func (b ContextBackendInfo) FormatText(w io.Writer) error {
 		where += " (" + b.Location + ")"
 	}
 	switch {
+	case b.Kind == project.ContextBackendBowrain && b.From == "venue":
+		fmt.Fprintf(w, "Context: %s (%s), where the recipe connects the project.\n", ShareLabelBowrain, b.Location)
 	case b.Kind == project.ContextBackendBowrain:
 		fmt.Fprintf(w, "Context: %s (%s), declared in the recipe.\n", ShareLabelBowrain, b.Location)
 	case b.From == "recipe":
@@ -176,18 +180,52 @@ func ResolveContextBackend(recipePath string) (ContextBackendInfo, error) {
 	return resolveBackend(layout)
 }
 
-// resolveBackend reads the backend the recipe declares.
+// resolveBackend reads the backend the recipe declares. A recipe connected
+// to Bowrain keeps its context there: with no `context:` block the backend is
+// bowrain, and a block naming any other backend is refused with the command
+// that moves the context.
 func resolveBackend(layout project.Layout) (ContextBackendInfo, error) {
 	declared, err := recipeContextBackend(layout.RecipePath)
 	if err != nil {
 		return ContextBackendInfo{}, err
 	}
-	info := ContextBackendInfo{From: "default"}
-	spec := project.ContextBackend{}
-	if declared != nil {
-		spec, info.From = *declared, "recipe"
+	venue, onBowrain, err := project.RecipeVenue(layout.RecipePath)
+	if err != nil {
+		return ContextBackendInfo{}, err
 	}
-	info.Kind, info.spec = spec.Kind(), spec
+	from := "recipe"
+	switch {
+	case onBowrain && declared == nil:
+		declared, from = &project.ContextBackend{Backend: project.ContextBackendBowrain}, "venue"
+	case onBowrain && declared.Kind() != project.ContextBackendBowrain:
+		info, err := describeBackend(layout, *declared, from)
+		if err != nil {
+			return ContextBackendInfo{}, err
+		}
+		return ContextBackendInfo{}, &ContextSplitError{Recipe: layout.RecipePath, Venue: venue.URL, Backend: info.Kind, Location: info.Location}
+	case declared == nil:
+		declared, from = &project.ContextBackend{}, "default"
+	}
+	return describeBackend(layout, *declared, from)
+}
+
+// declaredBackend reads the backend the recipe's `context:` block names,
+// local when it names none, without the Bowrain rule resolveBackend applies.
+// Moving the context to Bowrain reads the place it moves from through it.
+func declaredBackend(layout project.Layout) (ContextBackendInfo, error) {
+	declared, err := recipeContextBackend(layout.RecipePath)
+	if err != nil {
+		return ContextBackendInfo{}, err
+	}
+	if declared == nil {
+		return describeBackend(layout, project.ContextBackend{}, "default")
+	}
+	return describeBackend(layout, *declared, "recipe")
+}
+
+// describeBackend fills in where a backend spec keeps the context.
+func describeBackend(layout project.Layout, spec project.ContextBackend, from string) (ContextBackendInfo, error) {
+	info := ContextBackendInfo{From: from, Kind: spec.Kind(), spec: spec}
 	if spec.Kind() == project.ContextBackendFile && !filepath.IsAbs(spec.Path) {
 		info.spec.Path = filepath.Join(layout.Root, spec.Path)
 	}
@@ -207,6 +245,49 @@ func resolveBackend(layout project.Layout) (ContextBackendInfo, error) {
 		info.Location = venue.URL
 	}
 	return info, nil
+}
+
+// RefuseSplitContext refuses writing a `context:` block that keeps the
+// context away from the Bowrain project the recipe connects to. A recipe with
+// no `bowrain:` block takes any backend.
+func RefuseSplitContext(recipe string, spec project.ContextBackend) error {
+	venue, onBowrain, err := project.RecipeVenue(recipe)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil || !onBowrain {
+		return err
+	}
+	if !spec.Shared() || spec.Kind() == project.ContextBackendBowrain {
+		// A local spec removes the block, and a recipe connected to Bowrain
+		// with no block keeps its context there.
+		return nil
+	}
+	return fmt.Errorf("%s connects the project to Bowrain (%s), which keeps its context; it cannot be shared through %s as well",
+		filepath.Base(recipe), venue.URL, spec.Kind())
+}
+
+// ContextSplitError refuses a recipe that connects its project to Bowrain and
+// keeps the context somewhere else. Bowrain reviews content against the
+// project's context, so a project on Bowrain keeps its context there.
+type ContextSplitError struct {
+	Recipe   string
+	Venue    string
+	Backend  string
+	Location string
+}
+
+func (e *ContextSplitError) Error() string {
+	where := e.Backend
+	if e.Location != "" {
+		where += " (" + e.Location + ")"
+	}
+	if e.Backend == project.ContextBackendLocal {
+		where = "this machine"
+	}
+	return fmt.Sprintf("%s connects the project to Bowrain (%s) and keeps its context on %s. "+
+		"A project on Bowrain keeps its context there: run `kapi share --via bowrain` to move it.",
+		filepath.Base(e.Recipe), e.Venue, where)
 }
 
 // openRemote builds the remote a backend names.

@@ -150,6 +150,31 @@ type ContextVenue struct {
 	Stream string `yaml:"stream"`
 }
 
+// RecipeVenue reads the recipe's top-level `bowrain:` block: the Bowrain
+// project the recipe connects to. ok is false for a recipe with no such block,
+// or a block with no url, since neither connects the project to anything.
+func RecipeVenue(recipePath string) (v ContextVenue, ok bool, err error) {
+	data, err := os.ReadFile(recipePath)
+	if err != nil {
+		return ContextVenue{}, false, err
+	}
+	var head map[string]yaml.Node
+	if err := yaml.Unmarshal(data, &head); err != nil {
+		return ContextVenue{}, false, fmt.Errorf("%s: %w", recipePath, err)
+	}
+	node, found := head[ContextBackendBowrain]
+	if !found {
+		return ContextVenue{}, false, nil
+	}
+	if err := node.Decode(&v); err != nil {
+		return ContextVenue{}, false, fmt.Errorf("%s: %s: %w", recipePath, ContextBackendBowrain, err)
+	}
+	if strings.TrimSpace(v.URL) == "" {
+		return ContextVenue{}, false, nil
+	}
+	return v, true, nil
+}
+
 // ReadContextVenue reads the project a bowrain backend shares the context
 // with from the recipe's top-level `bowrain:` block. A recipe with no such
 // block, or a block with no url, is refused with the key to add.

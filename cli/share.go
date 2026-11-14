@@ -46,6 +46,13 @@ A folder with no kapi.yaml gets the one kapi init writes. Commit kapi.yaml so
 every checkout names the same place. --via bowrain runs the plugin's connect,
 which prints what it prints, so its output is not JSON under --json.
 
+A project on Bowrain keeps its context there. --via bowrain reads everything
+the place kapi.yaml named before holds, writes context: {backend: bowrain},
+and syncs, so the context moves with the project. A project already connected
+moves its context with kapi share --via bowrain and no server. A recipe
+connected to Bowrain that keeps its context anywhere else is refused, and so
+is --via git, folder or s3 on a project on Bowrain.
+
 --status prints the rung and the last sync without syncing. --no-push,
 --files-only, --merged, --pr and --merger mean what they mean for
 kapi context sync, the spelling an assistant or a CI job uses.

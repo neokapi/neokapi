@@ -45,11 +45,11 @@ bowrain:
 
 To connect a checkout:
 
-1. `kapi share --via bowrain <server-url>` connects the project and writes the
-   `bowrain:` block. It leaves the context where it is.
-2. Add `context: {backend: bowrain}` to `kapi.yaml`.
-3. `kapi context sync` reads what the team decided and sends what this machine
-   recorded. `kapi share` then reports the place as *Managed on Bowrain*.
+1. `kapi share --via bowrain <server-url>` connects the project, moves its
+   context to Bowrain from wherever it was kept, and syncs. `kapi share` then
+   reports the place as *Managed on Bowrain*.
+2. `kapi context sync` reads what the team decided and sends what this machine
+   recorded.
 
 The fields and the sign-in rules are in
 [The project model](/cli/project-model#sharing-the-projects-context-on-bowrain).

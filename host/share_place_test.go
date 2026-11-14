@@ -93,6 +93,7 @@ func TestShare_ViaBowrain(t *testing.T) {
 	})
 
 	t.Run("the connect writes its block", func(t *testing.T) {
+		standInBowrainRemote(t)
 		standInBowrain(t, app, `printf 'bowrain:\n  url: %s\n' "$4" >> kapi.yaml`)
 		root := contentFolder(t)
 		res, err := app.Share(t.Context(), ShareRequest{Project: recipeOf(root), Via: ShareViaBowrain, Location: "https://bowrain.example/acme/site"})

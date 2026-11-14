@@ -166,9 +166,12 @@ browser and in Kapi Desktop, Rules shows that record (see
 `kapi context sync` keeps it in step with the Bowrain project the `bowrain:`
 block connects to.
 
-`kapi share --via bowrain` connects the project and leaves the context where
-it is, so name the `bowrain` backend in the recipe's `context:` block
-yourself:
+A project on Bowrain keeps its context there. `kapi share --via bowrain
+<server-url>` connects the project and moves its context in one step: it reads
+everything the earlier backend holds (git, a folder, S3 or this machine),
+writes the `bowrain` backend into the recipe and syncs. A project that is
+already connected moves its context with `kapi share --via bowrain` and no
+server. The recipe then reads:
 
 ```yaml
 context:
@@ -176,6 +179,13 @@ context:
 bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
 ```
+
+A recipe with a `bowrain:` block and no `context:` block keeps its context on
+Bowrain too. A recipe that connects to Bowrain and names another backend is
+refused, with the command that moves the context, and so is
+`kapi share --via git`, `folder` or `s3` on a project on Bowrain. Content and
+context stay together, so reviewers read the same terms and rules the
+project's agents recorded.
 
 The `context:` block takes no other field for this backend. The project comes
 from `bowrain.url`, and the URL must name a workspace project
