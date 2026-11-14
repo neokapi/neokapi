@@ -130,6 +130,23 @@ const (
 	EventVoiceCorrected      EventType = "voice.corrected"
 	EventVoiceProfileUpdated EventType = "voice.profile.updated"
 
+	// The correction-learning loop's rule decisions. A correction-derived rule
+	// is promoted by a reviewer, promoted by the profile's autonomy setting,
+	// or rejected; a promoted rule can be demoted. Each carries the context
+	// change it makes (ContextChange). The demotion's value predates the
+	// voice vocabulary and stays, because the audit log holds events under it.
+	EventVoiceRulePromoted     EventType = "voice.rule_promoted"
+	EventVoiceRuleAutoPromoted EventType = "voice.rule_auto_promoted"
+	EventVoiceRuleRejected     EventType = "voice.rule_rejected"
+	EventVoiceRuleDemoted      EventType = "brand.rule.demoted"
+
+	// EventContextRecorded records one write to a project's context ledger
+	// on the server: a push of context objects that carries new operations,
+	// or one answer given through Decide. One event covers the whole write,
+	// and its counts say what the write held. Data carries the fields of
+	// ContextChange.
+	EventContextRecorded EventType = "context.recorded"
+
 	// Workflow events (Bowrain AD-014)
 	EventPushAutomationsCompleted EventType = "push.automations.completed"
 	EventSourceReviewCompleted    EventType = "source.review.completed"

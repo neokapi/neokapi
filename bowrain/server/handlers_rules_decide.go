@@ -584,7 +584,8 @@ func (s *Server) HandleDecideRule(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
-	if err := s.recordPlan(ctx, st, plan); err != nil {
+	recorded, err := s.recordPlan(ctx, st, plan)
+	if err != nil {
 		if errors.Is(err, ErrOutsideReach) {
 			return c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 		}
@@ -598,6 +599,7 @@ func (s *Server) HandleDecideRule(c echo.Context) error {
 			out.Dropped++
 		}
 	}
+	s.emitDecidedContext(c, st, req.ID, recorded)
 	return c.JSON(http.StatusOK, out)
 }
 
@@ -943,11 +945,11 @@ func (s *Server) canViewProject(c echo.Context, projectID string) bool {
 // operations go to the project's log in one Record call. That call checks
 // every operation against the member's permissions and reach before it
 // writes, and writes them as one segment, so a refusal of any record writes
-// none.
-func (s *Server) recordPlan(ctx context.Context, st *decideState, plan []contextop.Record) error {
+// none. It returns the operations the write recorded.
+func (s *Server) recordPlan(ctx context.Context, st *decideState, plan []contextop.Record) ([]workspace.Op, error) {
 	objects, ok := s.contextObjects()
 	if !ok {
-		return errors.New("context objects not configured")
+		return nil, errors.New("context objects not configured")
 	}
 	log := &contextLog{
 		objects: objects,
@@ -960,11 +962,10 @@ func (s *Server) recordPlan(ctx context.Context, st *decideState, plan []context
 	ledger := contextop.NewLedger(staged, contextop.PersonDecides)
 	for _, r := range plan {
 		if _, err := ledger.Append(ctx, r); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	_, err := log.Record(ctx, staged.ops...)
-	return err
+	return log.Record(ctx, staged.ops...)
 }
 
 // stagedLog is a project's log with the operations recorded through it held
