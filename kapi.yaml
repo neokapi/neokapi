@@ -65,16 +65,16 @@
 # extraction and catalog-compilation stages a recipe may not name itself
 # (AD-038). Adding a collection here needs no Makefile change — see
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
-# voice profile, terms, reviewed content memory — is shared on the
-# refs/kapi/context ref of this repository: `kapi context sync` reads it and
-# shares what you recorded.
+# voice profile, terms, reviewed content memory — is kept on the Bowrain project
+# the bowrain: block below names: `kapi context sync` reads it and shares what
+# you recorded.
 version: v1
 # This project's stable identity. It survives a rename, a move and a clone,
 # and everything kapi records about the project is keyed on it. Keep it.
 id: prj_6x7ttpbbrhisq4m63uqjrm7uki
 name: neokapi
 context:
-  backend: git
+  backend: bowrain
 defaults:
   source_language: en
   target_languages: [nb]
@@ -104,8 +104,7 @@ defaults:
   # missing provider credential having recycled nothing.
   flow: memory-recycle
   # The voice is bound by name: the profile the project's context holds, which
-  # `kapi context sync` reads from refs/kapi/context (the `context.backend`
-  # above). The terms need no binding: the project has one terms store, and it
+  # `kapi context sync` reads from Bowrain (the `context.backend` above). The terms need no binding: the project has one terms store, and it
   # governs every collection.
   voice:
     profile: neokapi-documentation
@@ -637,7 +636,7 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue, and
-# the decisions made there come home on refs/kapi/context.
+# the decisions made there come home with `kapi context sync`.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole
@@ -655,7 +654,8 @@ flows:
 # nightly + manual sync runs in .github/workflows/dogfood-sync.yml (gated on the
 # DOGFOOD_SYNC_ENABLED repo variable, token in BOWRAIN_AUTH_TOKEN).
 #
-# To disconnect: re-comment this block and unset DOGFOOD_SYNC_ENABLED.
+# To disconnect: re-comment this block, set context.backend back to git, and
+# unset DOGFOOD_SYNC_ENABLED.
 bowrain:
   url: "https://app.bowrain.cloud/bowrain-hq/uek630Q5"   # <server>/<workspace>/<project-id>
   converge: manual     # push never auto-converges; start the loop deliberately

@@ -140,12 +140,18 @@ jobs:
 
       - name: Check reference dossier prose
         run: make check-reference-prose
+        env:
+          BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          BOWRAIN_SERVER_URL: https://app.bowrain.cloud
 
       # Check package and Homebrew descriptions through their governed
       # collections. The target builds and stages the kapi-sourcecode plugin
       # needed to read the cask.
       - name: Check the prose kapi governs
         run: make check-governed-prose
+        env:
+          BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          BOWRAIN_SERVER_URL: https://app.bowrain.cloud
 
       # The documentation, gated per-PR for the first time. It was governed by
       # the voice profile and checked by nothing on a PR: dogfood-sync.yml runs
@@ -154,6 +160,9 @@ jobs:
       # a second copy of the rule for these surfaces.
       - name: Check the documentation prose
         run: make check-docs-prose
+        env:
+          BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          BOWRAIN_SERVER_URL: https://app.bowrain.cloud
 
       - name: Check shared TS contract types for drift
         run: make check-contract-types

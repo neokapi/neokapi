@@ -1379,7 +1379,7 @@ documentation into a scratch project with the Tidewatch sample's context
 (`samples/tidewatch-docs/context`: one voice with two constraints, five
 concepts). The second checks the documentation in place under this
 repository's `kapi.yaml`, with the context `make import-dogfood-context` pulls
-from `refs/kapi/context` into the isolated data root: the project's terms, its
+from the Bowrain project into the isolated data root: the project's terms, its
 context log, and the documentation voice at the points the docs collections
 declare. The benchmark reads that root from `KAPI_COMMIT_COST_DATA_DIR`,
 because the host package's tests clear `KAPI_DATA_DIR`.

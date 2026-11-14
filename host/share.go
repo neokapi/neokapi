@@ -113,6 +113,13 @@ type ShareResult struct {
 	Server string `json:"server,omitempty"`
 	// Files are the files the share wrote or kept, kapi.yaml first.
 	Files []ShareFile `json:"files,omitempty"`
+	// Problem says what keeps the share from working as the recipe stands,
+	// such as a recipe connected to Bowrain that keeps its context elsewhere,
+	// and the command that fixes it. Empty when nothing does.
+	Problem string `json:"problem,omitempty"`
+	// Moved is the context a connect to Bowrain carried there, nil when the
+	// share moved none.
+	Moved *ContextMove `json:"moved,omitempty"`
 	// Sync is what the sync did, nil when none ran.
 	Sync *ContextSyncResult `json:"sync,omitempty"`
 	// Status is how far apart this machine and the shared copy were at the
@@ -170,16 +177,42 @@ func (r *ShareResult) FormatText(w io.Writer) error {
 		return nil
 	}
 	fmt.Fprintln(w, r.rungLine())
-	if r.Sync != nil {
-		return r.formatSync(w)
+	if r.Problem != "" {
+		fmt.Fprintf(w, "  %s\n", r.Problem)
+		return nil
 	}
-	if r.Backend != nil && r.Backend.Kind != project.ContextBackendLocal {
+	if line := r.movedLine(); line != "" {
+		fmt.Fprintf(w, "  %s\n", line)
+	}
+	if r.Sync != nil {
+		if err := r.formatSync(w); err != nil {
+			return err
+		}
+	} else if r.Backend != nil && r.Backend.Kind != project.ContextBackendLocal {
 		fmt.Fprintf(w, "  %s\n", r.statusLine())
 	}
 	if r.Rung == ShareRungBowrain {
 		fmt.Fprintln(w, "  send with kapi push · bring back with kapi pull")
 	}
 	return nil
+}
+
+// movedLine says where the context came from when the share moved it to
+// Bowrain, such as "context moved from git (origin refs/kapi/context), 12
+// operations read from there".
+func (r *ShareResult) movedLine() string {
+	if r.Moved == nil {
+		return ""
+	}
+	if r.Moved.From == project.ContextBackendLocal {
+		return "context moved from this machine"
+	}
+	where := r.Moved.From
+	if r.Moved.Location != "" {
+		where += " (" + r.Moved.Location + ")"
+	}
+	return fmt.Sprintf("context moved from %s, %s read from there", where,
+		pluralUnit(r.Moved.Pulled, "operation", "operations"))
 }
 
 // rungLine names the rung and the place, such as
@@ -380,6 +413,12 @@ func (a *App) readRung(ctx context.Context, recipe string, res *ShareResult) err
 		return err
 	}
 	info, err := ResolveContextBackend(recipe)
+	if split, ok := errors.AsType[*ContextSplitError](err); ok {
+		// The recipe connects to Bowrain and keeps its context elsewhere: the
+		// rung is Bowrain, and the problem says how to move the context.
+		res.Rung, res.Server, res.Problem = ShareRungBowrain, split.Venue, split.Error()
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -407,6 +446,9 @@ func RecipeRung(recipe string) (string, error) {
 		return "", err
 	}
 	info, err := ResolveContextBackend(recipe)
+	if _, ok := errors.AsType[*ContextSplitError](err); ok {
+		return ShareRungBowrain, nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -466,6 +508,9 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 	spec, err := a.ShareBlock(ctx, req)
 	if err != nil {
 		return err
+	}
+	if err := RefuseSplitContext(req.Project, spec); err != nil {
+		return WithExitCode(ExitUsage, err)
 	}
 	file, err := a.ensureRecipe(req.Project)
 	if err != nil {
@@ -616,9 +661,122 @@ func (a *App) shareViaBowrain(ctx context.Context, req ShareRequest, res *ShareR
 			"sharing on Bowrain needs the kapi-bowrain plugin, which is not installed: install it with `kapi plugin install %s` or `brew install %s`, then run kapi share --via bowrain <server-url>",
 			hint.Plugin, hint.Formula))
 	}
-	if req.Location == "" {
+	// A project already connected moves its context and needs no server.
+	connected := false
+	if _, err := os.Stat(req.Project); err == nil {
+		if _, ok, err := project.RecipeVenue(req.Project); err != nil {
+			return err
+		} else if ok {
+			connected = true
+		}
+	}
+	if req.Location == "" && !connected {
 		return WithExitCode(ExitUsage, errors.New("--via bowrain needs the server: kapi share --via bowrain <server-url>"))
 	}
+	// The context moves with the project. Everything the place it was shared
+	// through holds is read first, so a place that cannot be reached stops the
+	// share before anything is written.
+	move, err := a.readContextToMove(ctx, req.Project)
+	if err != nil {
+		return err
+	}
+	if !connected {
+		if err := a.connectBowrain(ctx, plugin, req, res); err != nil {
+			return err
+		}
+	}
+	if err := setBowrainBackend(req.Project, res); err != nil {
+		return err
+	}
+	res.Moved = move
+	return nil
+}
+
+// ContextMove reports the context a project carried to Bowrain when it was
+// connected: where it was kept before, and how many operations were read
+// from there that this machine did not hold. The sync that follows the share
+// pushes everything this machine holds to Bowrain.
+type ContextMove struct {
+	// From is the backend the context was kept on: local, file, git or s3.
+	From string `json:"from"`
+	// Location is where that backend kept it; empty for local.
+	Location string `json:"location,omitempty"`
+	// Pulled counts the operations read from there that this machine lacked.
+	Pulled int `json:"pulled"`
+}
+
+// readContextToMove pulls everything the recipe's current backend holds onto
+// this machine, so the sync to Bowrain carries it all. It answers nil when
+// the context is already on Bowrain or there is no recipe yet.
+func (a *App) readContextToMove(ctx context.Context, recipe string) (*ContextMove, error) {
+	if _, err := os.Stat(recipe); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	layout, err := project.LayoutFor(recipe)
+	if err != nil {
+		return nil, err
+	}
+	prev, err := declaredBackend(layout)
+	if err != nil {
+		return nil, err
+	}
+	if prev.Kind == project.ContextBackendBowrain {
+		return nil, nil
+	}
+	move := &ContextMove{From: prev.Kind, Location: prev.Location}
+	if prev.Kind == project.ContextBackendLocal {
+		return move, nil
+	}
+	w, err := a.Projector(ctx, layout.Root)
+	if err != nil {
+		return nil, err
+	}
+	s, err := a.contextSync(ctx, layout, prev, w)
+	if err != nil {
+		return nil, fmt.Errorf("read the context from %s %s before moving it to Bowrain: %w; nothing was changed", prev.Kind, prev.Location, err)
+	}
+	if s == nil {
+		return move, nil
+	}
+	rep, err := s.Pull(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read the context from %s %s before moving it to Bowrain: %w; nothing was changed", prev.Kind, prev.Location, err)
+	}
+	move.Pulled = rep.Merged
+	return move, nil
+}
+
+// setBowrainBackend writes `context: {backend: bowrain}` into the recipe.
+func setBowrainBackend(recipe string, res *ShareResult) error {
+	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return fmt.Errorf("load project: %w", err)
+	}
+	want := project.ContextBackend{Backend: project.ContextBackendBowrain}
+	if proj.Context != nil && *proj.Context == want {
+		return nil
+	}
+	proj.Context = &want
+	if err := project.Save(recipe, proj); err != nil {
+		return err
+	}
+	for i := range res.Files {
+		if res.Files[i].Path == project.RecipeFileName {
+			if res.Files[i].Action == ShareFileKept {
+				res.Files[i].Action = ShareFileUpdated
+			}
+			return nil
+		}
+	}
+	res.Files = append(res.Files, ShareFile{Path: project.RecipeFileName, Action: ShareFileUpdated})
+	return nil
+}
+
+// connectBowrain runs the plugin's connect handler on the project.
+func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req ShareRequest, res *ShareResult) error {
 	// The plugin's handler connects the project its recipe describes, so the
 	// recipe is written first. A recipe this share wrote is taken away again
 	// when the connect fails, and the folder is left as it was.

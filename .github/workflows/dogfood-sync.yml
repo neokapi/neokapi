@@ -2,9 +2,9 @@
 #
 # This is the workflow the product tells everyone else to write, run against the
 # repository that builds the product: install the CLI with setup-kapi, sync the
-# project's context from its git ref, run the convergence verb with kapi-action,
-# sync the decisions the run recorded back to the ref, and open a pull request
-# with the content that came back.
+# project's context from the Bowrain project, run the convergence verb with
+# kapi-action, sync the decisions the run recorded back there, and open a pull
+# request with the content that came back.
 # Nothing in it is bespoke: a step here that a customer could not copy is a step
 # the product is missing.
 #
@@ -50,6 +50,9 @@ jobs:
       # ran on, and opens the pull request that proposes it.
       contents: write
       pull-requests: write
+    env:
+      # The context remote reads the CI token only beside the server it names.
+      BOWRAIN_SERVER_URL: https://app.bowrain.cloud
     steps:
       - uses: actions/checkout@v7
 
@@ -140,9 +143,9 @@ jobs:
 
       # The context this repository governs its content by lives in the
       # workspace store, and a runner's store starts empty. The recipe keeps it
-      # on refs/kapi/context in this repository (`context: {backend: git}`), so
-      # the run reads it from there: the terms, the voice profiles, the wording
-      # already approved and the record of who approved it. --no-push shares
+      # on the Bowrain project (`context: {backend: bowrain}`), so the run reads
+      # it from there: the terms, the voice profiles, the wording already
+      # approved and the record of who approved it. --no-push shares
       # nothing back, so this step only reads. Every gate and every retrieval
       # below answers from the store.
       - name: Read the project's context
@@ -160,11 +163,11 @@ jobs:
           plan: ${{ inputs.plan || 'false' }}
 
       # The loop's return leg. `kapi up` pulls the server's ledger into the
-      # project's decision ledger, and `kapi context sync` writes the operations
-      # the run recorded to refs/kapi/context, where the next run and every
-      # checkout's `kapi context sync` read them. The job's `contents: write`
-      # covers the ref. A sync that cannot reach the remote exits 5 and changes
-      # nothing, so the next run shares what this one could not.
+      # project's decision ledger, and `kapi context sync` sends the operations
+      # the run recorded to the Bowrain project, where the next run and every
+      # checkout's `kapi context sync` read them. A sync that cannot reach the
+      # server exits 5 and changes nothing, so the next run shares what this one
+      # could not.
       - name: Push the decisions the run brought home
         id: record
         if: ${{ !inputs.plan }}
@@ -178,7 +181,7 @@ jobs:
           # The count is also what the gate below takes as the decisions that
           # account for a removed artifact.
           echo "pushed=${pushed:-0}" >> "$GITHUB_OUTPUT"
-          echo "note=\`kapi context sync\` shared ${pushed:-0} context operation(s) on refs/kapi/context." >> "$GITHUB_OUTPUT"
+          echo "note=\`kapi context sync\` shared ${pushed:-0} context operation(s) with Bowrain." >> "$GITHUB_OUTPUT"
 
       # The pipeline's third stage, the other thing kapi cannot do for itself. A
       # catalog is not what a product loads: the SPAs and the landing page load

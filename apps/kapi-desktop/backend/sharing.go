@@ -143,6 +143,9 @@ func (a *App) ShareView(tabID string) (*ShareView, error) {
 		return out, nil
 	}
 	out.Rung, out.BowrainPlugin = res.Rung, res.BowrainPlugin
+	if res.Problem != "" {
+		out.Error = res.Problem
+	}
 	if b := res.Backend; b != nil {
 		out.Sharing.Kind, out.Sharing.Location, out.Sharing.From = b.Kind, b.Location, b.From
 	}
@@ -181,6 +184,10 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 	if op.contextOnly || op.Project == nil || op.Path == "" {
 		a.mu.Unlock()
 		return nil, errNoCheckout
+	}
+	if err := host.RefuseSplitContext(op.Path, spec); err != nil {
+		a.mu.Unlock()
+		return nil, err
 	}
 	if spec.Shared() {
 		block := spec

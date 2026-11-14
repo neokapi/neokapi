@@ -14,16 +14,21 @@ target-drift rule; the recipe itself (`kapi.yaml`) for what each collection is.
 The loop uses the **system-installed** released kapi. Project context is stored
 in the user's workspace: terms, voice profiles, approved wording and decisions.
 
-The recipe declares `context: {backend: git}`, so the project's context is
-shared on `refs/kapi/context` in this repository. A CI runner starts with an
-empty workspace; before `kapi up` the job runs `kapi context sync --no-push`,
-which reads the ref and shares nothing, and after it `kapi context sync` shares
-the decisions the run recorded. The job's
-`contents: write` covers the ref.
+The recipe connects the project to Bowrain and declares
+`context: {backend: bowrain}`, so the project's context is kept on the Bowrain
+project, beside the content. A CI runner starts with an empty workspace; before
+`kapi up` the job runs `kapi context sync --no-push`, which reads the context
+and shares nothing, and after it `kapi context sync` shares the decisions the
+run recorded. Both authenticate with the `BOWRAIN_AUTH_TOKEN` secret and
+`BOWRAIN_SERVER_URL`.
 
-`make import-dogfood-context` pulls the ref into the isolated store used by
-prose checks, and `make l10n-context-import` pulls it for the convergence loop.
-`make l10n-context-push` shares what a local run recorded.
+`make import-dogfood-context` pulls the context into the isolated store used by
+the prose checks, and `make l10n-context-import` pulls it for the convergence
+loop. `make l10n-context-push` shares what a local run recorded. The isolated
+store has no sign-in, so a local run of the prose checks needs
+`BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` exported; the *Reference data*
+workflow sets both from the secret, which Dependabot pull requests read from
+the Dependabot secret of the same name.
 The isolation contract in [CLAUDE.md](../../CLAUDE.md) prevents other in-repo
 invocations from accessing the developer's project context.
 
@@ -337,8 +342,8 @@ Three steps sit between `kapi up` and delivery, in this order.
 
 `kapi context sync` is the loop's return leg for unit decisions. `kapi up`
 records the server's approved decisions in the project's decision ledger, and
-the sync shares those operations on `refs/kapi/context`, where the next run and
-every checkout's sync read them. A sync that cannot reach the remote exits 5
+the sync shares those operations with the Bowrain project, where the next run
+and every checkout's sync read them. A sync that cannot reach the remote exits 5
 and changes nothing, so the next run shares what this one could not.
 
 The terminology return leg needs no step: the concept pull merges approved term
@@ -377,7 +382,7 @@ The gate does not require the run to have decided anything. A night that
 converged and approved nothing is the ordinary night for a repository whose
 source moves daily and whose reviewers approve in batches. What the run brought
 home to the context is reported by the `kapi context sync` step, which names the
-operations it shared on `refs/kapi/context`.
+operations it shared with Bowrain.
 
 It does require a decision behind a **removal**. A rewrite carries content to
 read; a deletion carries none. The nightly passes the number of operations
