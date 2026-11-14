@@ -128,6 +128,7 @@ export function registerDecisionDefaults(qc: QueryClient): void {
       }
       void qc.invalidateQueries({ queryKey: ["deck", v.scope.workspace, v.scope.project] });
       void qc.invalidateQueries({ queryKey: ["counts", v.scope.workspace, v.scope.project] });
+      void qc.invalidateQueries({ queryKey: ["review-inbox"] });
     },
     onError: (err: unknown, v: DecisionVars) => {
       addNotice(qc, {
@@ -157,6 +158,7 @@ export function registerDecisionDefaults(qc: QueryClient): void {
       if (!v) return;
       void qc.invalidateQueries({ queryKey: ["deck", v.scope.workspace, v.scope.project] });
       void qc.invalidateQueries({ queryKey: ["counts", v.scope.workspace, v.scope.project] });
+      void qc.invalidateQueries({ queryKey: ["review-inbox"] });
     },
   });
 }

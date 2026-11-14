@@ -48,12 +48,25 @@ reads. Read that note before changing a screen.
 
 ## Layout
 
-- `src/app/`: expo-router screens. Sign-in, workspaces, projects, languages,
-  and the deck (`[ws]/[project]/[locale].tsx`).
+- `src/app/`: expo-router screens. The root stack holds sign-in and its
+  server sheet, the tabs, and the deck (`[ws]/[project]/[locale].tsx`),
+  which opens over the tabs. `(tabs)/_layout.tsx` is the native tab bar;
+  each tab is a stack:
+  - `(tabs)/(home)/`: workspaces, projects, languages. The group keeps the
+    paths `/workspaces`, `/:ws` and `/:ws/:project`.
+  - `(tabs)/review/`: the languages waiting across projects
+    (`GET /auth/me/review`).
+  - `(tabs)/activity/`: the feed of the last project opened, the entry
+    detail, and the sheet that picks the project.
+  - `(tabs)/account/`: the grouped account screen.
 - `src/components/`: the card, the swipe gesture, the action bar, the fix
-  sheet, the run renderer and the run editor.
+  sheet, the run renderer and the run editor; the list rows (`List.tsx`),
+  the grouped settings list (`Grouped.tsx`), the avatar button and the feed
+  cards.
 - `src/lib/`: the session (`auth.tsx`, `callback.ts`), the query client and
-  its on-device persistence, and the offline decision queue (`decisions.ts`).
+  its on-device persistence, the offline decision queue (`decisions.ts`),
+  and what the device keeps for the person: appearance, the last project
+  opened, and the profile.
 - `i18n/en.json`: the English UI catalog. The dogfood recipe's
   `bowrain-mobile` collection writes the other languages beside it. Never
   write a target catalog by hand.

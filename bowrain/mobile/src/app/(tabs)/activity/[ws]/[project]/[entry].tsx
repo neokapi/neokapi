@@ -11,7 +11,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
-import { actorIcon, kindIcon } from "../../../../components/feed/icons";
+import { actorIcon, kindIcon } from "../../../../../components/feed/icons";
 import {
   actorLabel,
   countLabel,
@@ -21,7 +21,7 @@ import {
   feedKey,
   languageLabel,
   timeOf,
-} from "../../../../lib/feed";
+} from "../../../../../lib/feed";
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (

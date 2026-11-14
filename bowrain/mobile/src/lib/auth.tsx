@@ -43,6 +43,7 @@ export interface Session {
   serverUrl: string;
   accessToken: string;
   refreshToken?: string;
+  userId?: string;
   email?: string;
   name?: string;
 }
@@ -161,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           baseUrl: base,
           getAccessToken: () => next.accessToken,
         }).me();
+        next.userId = me.id;
         next.email = me.email;
         next.name = me.name;
       } catch {

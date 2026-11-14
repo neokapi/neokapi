@@ -1,6 +1,7 @@
-// The server sheet, opened from the cog on the sign-in screen. A choice of
-// rows: Bowrain Cloud, the local stack (development builds only), or a
-// server the person types in. A fixed row applies at once and closes the
+// The server sheet, opened from the cog on the sign-in screen and from the
+// account screen. A choice of rows: Bowrain Cloud, the local stack
+// (development builds only), or a server the person types in. The choice is
+// the server the next sign-in uses; a signed-in session stays on its own. A fixed row applies at once and closes the
 // sheet; the custom row reveals the address field and its confirm button.
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -9,6 +10,7 @@ import { Platform, Pressable, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
+import { useAuth } from "../lib/auth";
 import { cloudServerUrl, localServerUrl } from "../lib/config";
 import {
   normalizeServerUrl,
@@ -72,6 +74,7 @@ function OptionRow({
 export default function Server() {
   const { t } = useTranslation();
   const { server } = useServerChoice();
+  const { session } = useAuth();
   const current = serverOption(server, __DEV__);
   const [selected, setSelected] = useState<ServerOption>(current);
   const [value, setValue] = useState(current === "custom" ? server : "");
@@ -123,6 +126,11 @@ export default function Server() {
           last
         />
       </View>
+      {session ? (
+        <Text testID="server-signed-in" className="text-muted-foreground px-2 text-sm">
+          {t("server.signedInNote", { host: serverHost(session.serverUrl) })}
+        </Text>
+      ) : null}
       {selected === "custom" ? (
         <View className="gap-3">
           <TextInput

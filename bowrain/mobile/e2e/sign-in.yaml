@@ -47,5 +47,5 @@ appId: cloud.bowrain.app
     id: kc-login
 - extendedWaitUntil:
     visible:
-      id: sign-out
+      id: account-button
     timeout: 20000

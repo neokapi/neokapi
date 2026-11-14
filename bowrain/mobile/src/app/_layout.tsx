@@ -1,24 +1,35 @@
 // The app shell: gestures, the session, the persisted query cache with the
-// offline decision queue, and the screen stack.
+// offline decision queue, and the screen stack. The stack holds the tabs
+// ((tabs)/_layout.tsx), the sign-in screen and its server sheet, and the
+// review deck, which opens over the tabs from Home, Review or Activity so a
+// reviewer has the whole screen.
 import "../global.css";
 import "../lib/i18n";
 
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { Stack } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 
+import { loadAppearance } from "../lib/appearance";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { setDecisionClient } from "../lib/decisions";
 import { CACHE_MAX_AGE, createQueryClient, persister, wireAppSignals } from "../lib/queryClient";
+import { loadRecentProject, setRecentProject } from "../lib/recentProject";
 
 void SplashScreen.preventAutoHideAsync();
 wireAppSignals();
+void loadAppearance();
+void loadRecentProject();
+
+// A deep link to the deck opens it over the tabs, so Back leads into the app.
+export const unstable_settings = { anchor: "(tabs)" };
 
 function QueryProvider({ children }: { children: ReactNode }) {
   const { ready, client, session } = useAuth();
@@ -31,13 +42,15 @@ function QueryProvider({ children }: { children: ReactNode }) {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
 
-  // Signing out drops the cache and any decision still queued, so the next
-  // person on the device starts from nothing.
+  // Signing out drops the cache, any decision still queued and the project
+  // the Activity tab remembers, so the next person on the device starts from
+  // nothing.
   const signedOut = ready && !session;
   useEffect(() => {
     if (!signedOut) return;
     queryClient.clear();
     void persister.removeClient();
+    setRecentProject(null);
   }, [signedOut, queryClient]);
 
   if (!ready) return null;
@@ -54,11 +67,43 @@ function QueryProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The navigation theme in the app's colours, so a screen's background, the
+ * headers and the tab bar's glass match the page in light and dark.
+ */
+function useNavigationTheme() {
+  const scheme = useColorScheme();
+  const [background, card, foreground, border, primary] = useCSSVariable([
+    "--color-background",
+    "--color-card",
+    "--color-foreground",
+    "--color-border",
+    "--color-primary",
+  ]);
+  return useMemo(() => {
+    const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        background: String(background),
+        card: String(card),
+        text: String(foreground),
+        border: String(border),
+        primary: String(primary),
+      },
+    };
+  }, [scheme, background, card, foreground, border, primary]);
+}
+
 function Screens() {
   const { t } = useTranslation();
   // The transparent iOS header keeps a dark title in dark mode unless it is
   // given the foreground colour.
   const foreground = useCSSVariable("--color-foreground");
+  // The tabs and the deck exist only while signed in, and the sign-in screen
+  // only while signed out, so neither mounts beneath the other.
+  const signedIn = !!useAuth().session;
   return (
     <Stack
       screenOptions={{
@@ -67,7 +112,19 @@ function Screens() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      <Stack.Protected guard={signedIn}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* On iOS 26 expo-router makes headers transparent, and scrolling
+            lists inset themselves below one. The deck is a fixed layout, so
+            it takes an opaque header and starts below it. */}
+        <Stack.Screen
+          name="[ws]/[project]/[locale]"
+          options={{ title: t("deck.title"), headerTransparent: false }}
+        />
+      </Stack.Protected>
+      <Stack.Protected guard={!signedIn}>
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      </Stack.Protected>
       <Stack.Screen
         name="server"
         options={{
@@ -77,20 +134,12 @@ function Screens() {
           sheetGrabberVisible: true,
         }}
       />
-      <Stack.Screen name="workspaces" options={{ title: t("workspaces.title") }} />
-      <Stack.Screen name="[ws]/index" options={{ title: t("projects.title") }} />
-      <Stack.Screen name="[ws]/[project]/index" options={{ title: t("languages.title") }} />
-      <Stack.Screen name="[ws]/[project]/feed/index" options={{ title: t("feed.title") }} />
-      <Stack.Screen name="[ws]/[project]/feed/[entry]" options={{ title: t("feed.title") }} />
-      {/* On iOS 26 expo-router makes headers transparent, and scrolling
-          lists inset themselves below one. The deck is a fixed layout, so
-          it takes an opaque header and starts below it. */}
-      <Stack.Screen
-        name="[ws]/[project]/[locale]"
-        options={{ title: t("deck.title"), headerTransparent: false }}
-      />
     </Stack>
   );
+}
+
+function Themed({ children }: { children: ReactNode }) {
+  return <ThemeProvider value={useNavigationTheme()}>{children}</ThemeProvider>;
 }
 
 export default function RootLayout() {
@@ -99,8 +148,10 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <QueryProvider>
-            <StatusBar style="auto" />
-            <Screens />
+            <Themed>
+              <StatusBar style="auto" />
+              <Screens />
+            </Themed>
           </QueryProvider>
         </AuthProvider>
       </SafeAreaProvider>

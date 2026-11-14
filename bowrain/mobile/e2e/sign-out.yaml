@@ -1,0 +1,26 @@
+# Open the account screen from the avatar on Home, check what it shows, and
+# sign out from it. Nothing is queued, so the plain confirmation appears.
+appId: cloud.bowrain.app
+---
+- runFlow: sign-in.yaml
+- tapOn:
+    id: account-button
+- assertVisible:
+    id: account-profile
+- assertVisible:
+    id: account-server
+- assertVisible:
+    id: about-version
+- scrollUntilVisible:
+    element:
+      id: sign-out
+- tapOn:
+    id: sign-out
+- assertVisible: "Sign out of Bowrain?"
+- tapOn:
+    text: "Sign out"
+    rightOf: "Cancel"
+- extendedWaitUntil:
+    visible:
+      id: sign-in
+    timeout: 20000

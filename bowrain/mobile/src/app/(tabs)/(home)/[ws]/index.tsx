@@ -4,8 +4,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { FlatList, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { QueryState, Row } from "../../components/List";
-import { useAuth } from "../../lib/auth";
+import { QueryState, Row } from "../../../../components/List";
+import { useAuth } from "../../../../lib/auth";
 
 export default function Projects() {
   const { t } = useTranslation();
@@ -14,11 +14,13 @@ export default function Projects() {
   const projects = useQuery({ queryKey: ["projects", ws], queryFn: () => client.projects(ws) });
 
   return (
-    <View className="bg-background flex-1">
+    <View collapsable={false} className="bg-background flex-1">
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         data={projects.data ?? []}
         keyExtractor={(p) => p.id}
+        refreshing={projects.isRefetching}
+        onRefresh={() => void projects.refetch()}
         renderItem={({ item }) => (
           <Row
             testID={`project-${item.id}`}
