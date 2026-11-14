@@ -12,22 +12,27 @@ workspace-scoped resources, and manage the tokens a machine uses in your place.
 
 ### auth login
 
-Start an interactive login using the OAuth device flow:
+Sign in from the terminal:
 
 ```bash
 kapi auth login
 ```
 
-The CLI displays a URL and a one-time code. Open the URL in your browser,
-enter the code, and authorize the application. The CLI polls automatically and
-stores your token on success.
+The CLI opens your browser at the sign-in page. Once you sign in, the browser
+returns you to the terminal and the CLI stores your token.
 
 ```
 $ kapi auth login
-Open https://app.bowrain.cloud/auth/device and enter code: ABCD-1234
-Waiting for authorization...
+Opening your browser to sign in to https://app.bowrain.cloud.
+Waiting for the sign-in to finish in the browser...
 Logged in as reviewer@example.com
 ```
+
+On a machine without a browser of its own, such as an SSH session or a CI
+container, the CLI prints a URL and a one-time code instead. Open the URL in a
+browser on any device and enter the code. `--use-device-code` asks for this
+directly. `--no-browser` prints the sign-in URL without opening it; open it in
+a browser on the same machine.
 
 The server is resolved from (first match wins):
 
@@ -102,21 +107,30 @@ pairs it with `BOWRAIN_SERVER_URL` on a self-hosted server. See
 
 ## How it works
 
-The login flow uses the [OAuth 2.0 Device Authorization Grant](https://www.rfc-editor.org/rfc/rfc8628)
-(RFC 8628), the same flow used by tools like `gh auth login` and `gcloud auth login`.
-It works in headless environments, such as SSH sessions and CI containers,
-where a browser redirect is unavailable.
+On a machine with a browser, login uses the authorization code grant with
+PKCE and a loopback redirect ([RFC 8252](https://www.rfc-editor.org/rfc/rfc8252)):
 
-1. CLI requests a device code from the server
-2. User opens the verification URL in any browser and enters the code
-3. CLI polls the server until the user authorizes
-4. Server issues a JWT token, CLI stores it locally
+1. The CLI listens on a local port and opens the server's sign-in page with a
+   PKCE challenge.
+2. You sign in with the identity provider.
+3. The server redirects the browser to the local port with a one-time code.
+4. The CLI redeems the code with its PKCE verifier, and the server issues the
+   tokens in that response.
+
+The redirect carries a one-time code, never a token, and only the CLI that
+started the login holds the verifier that redeems it.
+
+Without a browser, login uses the
+[device authorization grant](https://www.rfc-editor.org/rfc/rfc8628): the CLI
+shows a code, you enter it on any device, and the CLI polls until you approve.
 
 ## Options
 
 | Flag       | Applies to | Description                                             |
 | ---------- | ---------- | ------------------------------------------------------- |
 | `--server` | `login`    | Server URL to authenticate against; the hosted service when omitted |
+| `--use-device-code` | `login` | Sign in with a code entered on any device |
+| `--no-browser` | `login` | Print the sign-in URL instead of opening the browser |
 | `--name`   | `token create` | A label for where the token is used                  |
 | `--expire-days` | `token create` | Days until the token expires                    |
 
