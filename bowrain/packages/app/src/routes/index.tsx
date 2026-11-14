@@ -768,6 +768,18 @@ const runsRoute = createRoute({
   },
 });
 
+const projectFeedRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/feed",
+  component: lazyRouteComponent(() => import("./workspace/project-feed"), "ProjectFeedRoute"),
+  pendingComponent: TablePageSkeleton,
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
+  },
+});
+
 const connectorsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/connectors",
@@ -1205,6 +1217,7 @@ const routeTree = rootRoute.addChildren([
     preProcessRoute,
     automationsRoute,
     runsRoute,
+    projectFeedRoute,
     connectorsRoute,
     contextRoute.addChildren([
       contextIndexRoute,

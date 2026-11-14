@@ -1,3 +1,4 @@
+import { ROUTES as BOWRAIN_ROUTES, feedQueryString } from "@neokapi/bowrain-client";
 import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
@@ -86,6 +87,8 @@ import type {
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
   ActivityPage,
+  FeedPage,
+  FeedQuery,
   ConvergenceRun,
   ConvergenceEstimate,
   LoopRollup,
@@ -2900,6 +2903,17 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/activities/seen`, {
       method: "POST",
     });
+  }
+
+  async listProjectFeed(
+    workspaceSlug: string,
+    projectId: string,
+    query?: FeedQuery,
+  ): Promise<FeedPage> {
+    const page = await this.fetchJSON<FeedPage>(
+      `/api/v1${BOWRAIN_ROUTES.feed(workspaceSlug, projectId)}${feedQueryString(query)}`,
+    );
+    return { entries: page.entries ?? [], next_cursor: page.next_cursor || undefined };
   }
 
   // ── Convergence runs (server-side `kapi up`) — Bowrain AD-022 ────────────

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { isFeedSourceEvent } from "@neokapi/bowrain-client";
 import { useApi } from "@neokapi/ui";
 
 /**
@@ -59,6 +60,12 @@ export function planInvalidations(ws: string, ev: WorkspaceChangeEvent): Invalid
   // them fall through to the generic branch would thrash every query).
   if (t.startsWith("editor.presence.")) {
     return plan;
+  }
+
+  // An event the project feed is filed from → that project's feed. The
+  // recorder files the entry just after the event, so the read is debounced.
+  if (isFeedSourceEvent(t)) {
+    debounced(id ? ["projectFeed", ws, id] : ["projectFeed", ws]);
   }
 
   // Block + per-block editor changes → the open project's blocks and the

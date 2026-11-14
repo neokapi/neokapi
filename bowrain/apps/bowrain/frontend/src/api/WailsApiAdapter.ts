@@ -81,6 +81,7 @@ import type {
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
   ActivityPage,
+  FeedPage,
   TaskInfo,
   TaskPage,
   CreateTaskRequest,
@@ -1557,6 +1558,11 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   async markActivitiesSeen(_ws: string): Promise<void> {}
+
+  // The project feed is a server surface; the desktop lists none.
+  async listProjectFeed(_ws: string, _projectId: string): Promise<FeedPage> {
+    return { entries: [] };
+  }
 
   // --- Convergence runs (AD-022; the desktop's Runs surface arrives with the
   // web-frontend consolidation — list reads as empty until then) ---

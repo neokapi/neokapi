@@ -81,6 +81,8 @@ import type {
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
   ActivityPage,
+  FeedPage,
+  FeedQuery,
   ConvergenceRun,
   ConvergenceEstimate,
   LoopRollup,
@@ -1224,6 +1226,9 @@ export interface ApiAdapter {
   ): Promise<ActivityPage>;
 
   markActivitiesSeen(workspaceSlug: string): Promise<void>;
+
+  /** One page of a project's feed, newest first (GET /:ws/:id/feed). */
+  listProjectFeed(workspaceSlug: string, projectId: string, query?: FeedQuery): Promise<FeedPage>;
 
   // Convergence runs (server-side `kapi up`) — Bowrain AD-022
   listConvergenceRuns(
