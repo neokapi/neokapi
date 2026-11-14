@@ -462,7 +462,8 @@ export function DeleteProviderConfig(id) {
 }
 
 /**
- * DetectFormat detects the format of a file by its extension.
+ * DetectFormat detects the format of a file through the registry's resolver:
+ * by its extension, and by its head when several formats claim the extension.
  * @param {string} filePath
  * @returns {$CancellablePromise<string>}
  */

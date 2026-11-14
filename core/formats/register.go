@@ -296,16 +296,19 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("i18next", func() format.DataFormatWriter { return i18next.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "i18next", func() format.DataFormatReader { return i18next.NewReader() })
 
-	// Android String Resources (res/values/strings.xml). The .xml extension and
-	// XML MIME are owned by the generic xml format, so detection is Sniff-only:
-	// the file must have a <resources> root carrying at least one <string>,
-	// <string-array>, or <plurals>.
+	// Android String Resources (res/values/strings.xml). Co-claims ".xml" with
+	// the generic XML reader so it is a candidate for every .xml file, and the
+	// content sniff decides: a <resources> root with a <string>, <string-array>
+	// or <plurals> child. The below-default priority keeps any other .xml on
+	// the generic reader when the sniff misses.
 	reg.RegisterReader("androidxml",
 		func() format.DataFormatReader { return androidxml.NewReader() },
 		format.FormatSignature{
-			Sniff: androidxml.Sniff,
+			Extensions: []string{".xml"},
+			Sniff:      androidxml.Sniff,
 		}, "Android String Resources")
 	reg.RegisterWriter("androidxml", func() format.DataFormatWriter { return androidxml.NewWriter() })
+	reg.SetFormatPriority("androidxml", format.DefaultBuiltInPriority-10)
 	registerSchemaAndDecoder(o, reg, "androidxml", func() format.DataFormatReader { return androidxml.NewReader() })
 
 	// W3C DTCG Design Tokens (.tokens / .tokens.json). Claims the unique

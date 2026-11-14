@@ -500,8 +500,9 @@ func defaultStorePath() string {
 	return filepath.Join(dir, "bowrain.db")
 }
 
-// DetectFormat detects the format of a file by its extension.
+// DetectFormat detects the format of a file through the registry's resolver:
+// by its extension, and by its head when several formats claim the extension.
 func (a *App) DetectFormat(filePath string) (string, error) {
-	ext := filepath.Ext(filePath)
-	return a.formatReg.Detector().DetectByExtension(ext)
+	id, err := a.formatReg.Detect(filePath, registry.DetectOptions{})
+	return string(id), err
 }
