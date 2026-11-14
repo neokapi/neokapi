@@ -192,11 +192,12 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	} else if err != nil {
 		return serverErr(c, err)
 	}
-	if refused, err := s.acceptContextBatch(c, cos, batch); refused || err != nil {
+	accepted, refused, err := s.acceptContextBatch(c, cos, batch)
+	if refused || err != nil {
 		return err
 	}
 	pushedBy, _ := c.Get("user_id").(string)
-	err := cos.PutContextObjects(ctx, projectID, pushedBy, batch)
+	err = cos.PutContextObjects(ctx, projectID, pushedBy, batch)
 	if exists, ok := errors.AsType[*platstore.ContextObjectExistsError](err); ok {
 		return c.JSON(http.StatusConflict, ErrorResponse{
 			Error: "the project already holds that context object with other bytes", Details: exists.Name, Code: contextObjectExistsCode,
@@ -205,7 +206,17 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	s.emitPushedContext(c, projectID, accepted)
 	return c.NoContent(http.StatusNoContent)
+}
+
+// acceptedContext is what a push accepted by acceptContextBatch carries: the
+// operations the project did not hold, every operation by id, and whether
+// the push bound the project's context to its key.
+type acceptedContext struct {
+	fresh []workspace.Op
+	byID  map[string]workspace.Op
+	bound bool
 }
 
 // acceptContextBatch reads the segments of a push before any of it is
@@ -224,16 +235,16 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 //     outside_reach, see checkReach).
 //
 // refused reports that the answer has been written.
-func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (refused bool, err error) {
+func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (accepted acceptedContext, refused bool, err error) {
 	ctx := c.Request().Context()
 	projectID := c.Param("id")
 	member := ledgerMemberOf(c)
 	if err := checkPushObjects(member, batch); err != nil {
-		return true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+		return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 	}
 	held, err := cos.DigestContextObjects(ctx, projectID, workspace.RemoteLogDir)
 	if err != nil {
-		return true, serverErr(c, err)
+		return accepted, true, serverErr(c, err)
 	}
 	// A segment the project holds already is not read again: the same bytes
 	// change nothing, and other bytes are refused as the store refuses them.
@@ -248,7 +259,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 			continue
 		}
 		if digest != contextObjectDigest(obj.Data) {
-			return true, c.JSON(http.StatusConflict, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusConflict, ErrorResponse{
 				Error: "the project already holds that context object with other bytes", Details: obj.Name, Code: contextObjectExistsCode,
 			})
 		}
@@ -257,7 +268,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	for _, obj := range segments {
 		named := segmentKeys(obj.Data)
 		if len(named) == 0 {
-			return true, c.JSON(http.StatusBadRequest, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusBadRequest, ErrorResponse{
 				Error: "the segment holds no operations of a project", Details: obj.Name, Code: contextInvalidSegmentCode,
 			})
 		}
@@ -268,17 +279,17 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 		}
 	}
 	if len(keys) == 0 {
-		return false, nil
+		return accepted, false, nil
 	}
 	if len(keys) > 1 {
-		return true, c.JSON(http.StatusConflict, ErrorResponse{
+		return accepted, true, c.JSON(http.StatusConflict, ErrorResponse{
 			Error: fmt.Sprintf("the push carries the context of two projects, project key %s and project key %s", keys[0], keys[1]),
 			Code:  contextKeyMismatchCode,
 		})
 	}
 	key := keys[0]
 	if workspace.IsCheckoutKey(key) {
-		return true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+		return accepted, true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
 			Error:   checkoutKeyRefusal(key),
 			Message: checkoutKeyRemedy,
 			Details: string(key),
@@ -287,20 +298,20 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	}
 	bound, err := cos.ContextKey(ctx, projectID)
 	if errors.Is(err, platstore.ErrNoContextProject) {
-		return true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
+		return accepted, true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
 	}
 	if err != nil {
-		return true, serverErr(c, err)
+		return accepted, true, serverErr(c, err)
 	}
 	if bound != "" && bound != string(key) {
-		return true, keyMismatch(c, workspace.ProjectKey(bound), key)
+		return accepted, true, keyMismatch(c, workspace.ProjectKey(bound), key)
 	}
 
 	var pushed []workspace.Op
 	for _, obj := range segments {
 		ops, err := workspace.DecodeSegment(obj.Data, key)
 		if err != nil {
-			return true, c.JSON(http.StatusBadRequest, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusBadRequest, ErrorResponse{
 				Error: fmt.Sprintf("the segment does not read as operations of project key %s: %v", key, err), Details: obj.Name, Code: contextInvalidSegmentCode,
 			})
 		}
@@ -310,7 +321,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	var log []workspace.Op
 	if bound != "" {
 		if _, log, err = s.contextLogs.project(projectID).read(ctx, cos, projectID); err != nil {
-			return true, serverErr(c, err)
+			return accepted, true, serverErr(c, err)
 		}
 	}
 	byID := make(map[string]workspace.Op, len(log)+len(pushed))
@@ -321,7 +332,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	for _, op := range pushed {
 		if have, ok := byID[op.ID]; ok {
 			if !sameOperation(have, op) {
-				return true, c.JSON(http.StatusConflict, ErrorResponse{
+				return accepted, true, c.JSON(http.StatusConflict, ErrorResponse{
 					Error:   fmt.Sprintf("operation %s is held with other content", workspace.ShortOpID(op.ID)),
 					Details: op.ID, Code: contextOperationConflictCode,
 				})
@@ -333,7 +344,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	}
 
 	if err := checkPushContent(member, fresh, byID); err != nil {
-		return true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+		return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 	}
 	// Permission.Has tests every bit, so the coordinate check is skipped
 	// only for a member holding all three permissions over an unbounded
@@ -345,7 +356,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 			err = checkPoints(ctx, member, op, byID)
 		}
 		if err != nil {
-			return true, c.JSON(http.StatusForbidden, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{
 				Error: err.Error(), Details: op.ID, Code: contextOutsideReachCode,
 			})
 		}
@@ -354,16 +365,18 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	if bound == "" {
 		now, err := cos.BindContextKey(ctx, projectID, string(key))
 		if errors.Is(err, platstore.ErrNoContextProject) {
-			return true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
+			return accepted, true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
 		}
 		if err != nil {
-			return true, serverErr(c, err)
+			return accepted, true, serverErr(c, err)
 		}
 		if now != string(key) {
-			return true, keyMismatch(c, workspace.ProjectKey(now), key)
+			return accepted, true, keyMismatch(c, workspace.ProjectKey(now), key)
 		}
+		accepted.bound = true
 	}
-	return false, nil
+	accepted.fresh, accepted.byID = fresh, byID
+	return accepted, false, nil
 }
 
 // sameOperation reports whether two readings of one operation id say the

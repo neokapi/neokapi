@@ -16,7 +16,11 @@ import (
 // EventVoiceRulePromoted fires when a correction-derived rule is promoted
 // into a voice profile (it carries the "voice." prefix so voice automations and
 // notifications react to it). The closed loop becomes observable here.
-const EventVoiceRulePromoted platev.EventType = "voice.rule_promoted"
+const EventVoiceRulePromoted = platev.EventVoiceRulePromoted
+
+// EventVoiceRuleDemoted fires when a promoted rule is removed from the
+// workspace terms store.
+const EventVoiceRuleDemoted = platev.EventVoiceRuleDemoted
 
 // VoiceCorrectionRequest is the request body for creating a voice correction.
 type VoiceCorrectionRequest struct {
@@ -161,7 +165,8 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 			DecidedBy:       userID,
 			DecidedAt:       time.Now().UTC(),
 		})
-		s.publishVoiceRuleEvent(EventVoiceRulePromoted, wsID, userID, profileID, req.Term, req.Replacement, 0)
+		actor, _ := requestSession(c)
+		s.publishVoiceRuleEvent(c, EventVoiceRulePromoted, actor, platev.ContextOpKeep, wsID, userID, profileID, req.Term, req.Replacement)
 	}
 	// Announce the concept the promotion created or joined.
 	s.publishKnowledgeEvents(c, kgEvents)
@@ -207,11 +212,14 @@ func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
 	}
 
 	if changed {
+		actor, _ := requestSession(c)
+		change := voiceRuleChange(c, actor, platev.ContextOpRetire, req.Term)
+		change.Extra = map[string]string{"term": req.Term, "profile_id": profileID}
 		s.emitAudit(c, auditEvent{
-			Type:         platev.EventType("brand.rule.demoted"),
+			Type:         EventVoiceRuleDemoted,
 			ResourceType: "voice_profile",
 			ResourceID:   profileID,
-			Data:         map[string]string{"term": req.Term},
+			Data:         change.Data(),
 		})
 	}
 

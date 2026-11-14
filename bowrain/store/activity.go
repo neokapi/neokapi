@@ -89,6 +89,20 @@ const (
 
 	// Progress
 	ActivityProgressMilestone ActivityType = "progress.milestone"
+
+	// Context: a change to a project's context ledger, or a decision about a
+	// voice rule or profile. Data carries the fields of event.ContextChange.
+	ActivityContextChanged ActivityType = "context.changed"
+)
+
+// FeedKind is the project feed kind an activity belongs to, carried in its
+// Data under "feed_kind".
+type FeedKind string
+
+// The feed kinds the activity recorder stamps.
+const (
+	FeedKindContextChange FeedKind = "context_change"
+	FeedKindChangeSet     FeedKind = "change_set"
 )
 
 // Activity is an immutable record of something that happened.

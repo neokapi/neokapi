@@ -185,7 +185,7 @@ func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
 			Type:         platev.EventVoiceProfileUpdated,
 			ResourceType: "voice_profile",
 			ResourceID:   result.Profile.ID,
-			Data:         map[string]string{"name": result.Profile.Name, "via": "push"},
+			Data:         voiceProfileData(c, result.Profile.ID, map[string]string{"name": result.Profile.Name, "via": "push"}),
 			Before:       map[string]string{"version": strconv.Itoa(result.BeforeVersion)},
 			After:        map[string]string{"version": strconv.Itoa(result.Profile.Version)},
 		})
@@ -411,7 +411,7 @@ func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
 		Type:         platev.EventVoiceProfileUpdated,
 		ResourceType: "voice_profile",
 		ResourceID:   profile.ID,
-		Data:         map[string]string{"name": profile.Name},
+		Data:         voiceProfileData(c, profile.ID, map[string]string{"name": profile.Name}),
 		Before:       map[string]string{"version": beforeVersion},
 		After:        map[string]string{"version": strconv.Itoa(profile.Version)},
 	})

@@ -21,8 +21,8 @@ import (
 // correction handlers; rejection and autonomy-driven promotion are their
 // counterparts. All carry the "voice." prefix so voice automations react.
 const (
-	EventVoiceRuleRejected     platev.EventType = "voice.rule_rejected"
-	EventVoiceRuleAutoPromoted platev.EventType = "voice.rule_auto_promoted"
+	EventVoiceRuleRejected     = platev.EventVoiceRuleRejected
+	EventVoiceRuleAutoPromoted = platev.EventVoiceRuleAutoPromoted
 )
 
 // HandleListCandidates returns the correction-derived candidate rules for a
@@ -93,7 +93,7 @@ func (s *Server) HandleRejectSuggestedRule(c echo.Context) error {
 	if err := s.VoiceStore.RecordRuleDecision(c.Request().Context(), decision); err != nil {
 		return serverErr(c, err)
 	}
-	s.publishVoiceRuleEvent(EventVoiceRuleRejected, wsID, userID, profileID, req.Term, req.Replacement, 0)
+	s.publishVoiceRuleEvent(c, EventVoiceRuleRejected, platev.ContextActorPerson, platev.ContextOpDrop, wsID, userID, profileID, req.Term, req.Replacement)
 	return c.JSON(http.StatusOK, decision)
 }
 
@@ -168,28 +168,35 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	return c.JSON(http.StatusOK, radius)
 }
 
-// publishVoiceRuleEvent emits a brand rule lifecycle event, if an event bus is
-// configured. Shared by the reject/promote/auto-promote paths.
-func (s *Server) publishVoiceRuleEvent(t platev.EventType, wsID, userID, profileID, term, replacement string, version int) {
+// publishVoiceRuleEvent emits a voice rule lifecycle event, if an event bus is
+// configured. Shared by the reject/promote/auto-promote paths. The event
+// carries the context change it makes (platev.ContextChange), so the activity
+// recorder files it as one.
+func (s *Server) publishVoiceRuleEvent(c echo.Context, t platev.EventType, actor platev.ContextActorKind, op platev.ContextOperation, wsID, userID, profileID, term, replacement string) {
 	if s.EventBus == nil {
 		return
 	}
-	data := map[string]string{
+	change := voiceRuleChange(c, actor, op, term)
+	change.Extra = map[string]string{
 		"profile_id":  profileID,
 		"term":        term,
 		"replacement": replacement,
 	}
-	if version > 0 {
-		data["version"] = strconv.Itoa(version)
-	}
+	meta := requestMeta(c)
 	s.EventBus.Publish(platev.Event{
-		ID:        id.New(),
-		Type:      t,
-		Source:    "brand",
-		ProjectID: wsID,
-		Actor:     userID,
-		Data:      data,
-		Timestamp: time.Now().UTC(),
+		ID:           id.New(),
+		Type:         t,
+		Source:       "brand",
+		ProjectID:    wsID,
+		WorkspaceID:  wsID,
+		Actor:        userID,
+		Data:         change.Data(),
+		ResourceType: "voice_profile",
+		ResourceID:   profileID,
+		Timestamp:    time.Now().UTC(),
+		RequestID:    meta.RequestID,
+		IP:           meta.IP,
+		UserAgent:    meta.UserAgent,
 	})
 }
 
@@ -323,7 +330,7 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoicePr
 			ConceptID:       conceptID,
 			DecidedAt:       time.Now().UTC(),
 		})
-		s.publishVoiceRuleEvent(EventVoiceRuleAutoPromoted, wsID, userID, profile.ID, sug.Term, sug.Replacement, 0)
+		s.publishVoiceRuleEvent(ctx, EventVoiceRuleAutoPromoted, platev.ContextActorTool, platev.ContextOpKeep, wsID, userID, profile.ID, sug.Term, sug.Replacement)
 		s.publishKnowledgeEvents(ctx, kgEvents)
 		return sug.Term, true
 	}

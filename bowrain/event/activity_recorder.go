@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -336,12 +337,54 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityID = ev.Data["run_id"]
 		a.Summary = convergenceRunSummary(ev.Data)
 
+	// Context changes: writes to a project's context ledger and decisions
+	// about voice rules and profiles. An event that counts no item carries no
+	// context change and stays out of the feed.
+	case platev.EventContextRecorded, platev.EventVoiceProfileUpdated,
+		platev.EventVoiceRulePromoted, platev.EventVoiceRuleAutoPromoted,
+		platev.EventVoiceRuleRejected, platev.EventVoiceRuleDemoted:
+		change := platev.ParseContextChange(ev.Data)
+		if change.Counts.Total() == 0 {
+			return nil
+		}
+		a.Type = bstore.ActivityContextChanged
+		a.EntityType = string(change.ItemKind)
+		if a.EntityType == "" {
+			a.EntityType = "context"
+		}
+		a.EntityID = change.ItemID
+		a.Summary = change.Counts.Describe()
+		a.Data = withFeedKind(ev.Data, bstore.FeedKindContextChange)
+		// A voice event names the workspace as its project; a voice profile
+		// belongs to the workspace, so the row names no project.
+		if ev.ProjectID != "" && ev.ProjectID == ev.WorkspaceID {
+			a.ProjectID = ""
+		}
+
 	default:
 		// Skip events we don't map to activities.
 		return nil
 	}
 
+	if strings.HasPrefix(string(ev.Type), changeSetEventPrefix) {
+		a.Data = withFeedKind(ev.Data, bstore.FeedKindChangeSet)
+	}
 	return a
+}
+
+// changeSetEventPrefix marks the governed change-set events
+// (knowledge.EventChangeSet*), the project feed's change_set kind.
+const changeSetEventPrefix = "changeset."
+
+// withFeedKind returns a copy of data with the feed kind set. The event's own
+// map is shared with every other subscriber, so it is never written.
+func withFeedKind(data map[string]string, kind bstore.FeedKind) map[string]string {
+	out := maps.Clone(data)
+	if out == nil {
+		out = map[string]string{}
+	}
+	out["feed_kind"] = string(kind)
+	return out
 }
 
 // pilotSummary names where a pilot runs when the event says, because "started
