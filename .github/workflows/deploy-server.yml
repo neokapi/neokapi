@@ -111,7 +111,20 @@ jobs:
       id-token: write
       contents: read
     environment: ${{ inputs.environment || 'prod' }}
+    # One deploy per environment at a time. Two pushes merged seconds apart
+    # otherwise run update-service together, the first one's services-stable
+    # wait fails on the second's rollout, and a slower build can finish last
+    # and put the older commit back. A deploy that arrives while one runs
+    # waits; GitHub keeps only the newest waiting one, which carries the
+    # commits of any it replaced.
+    concurrency:
+      group: deploy-ecs-${{ inputs.environment || 'prod' }}
+      cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -130,7 +143,31 @@ jobs:
       # close together can each start tasks from the other's image. A
       # commit-tagged revision answers all of it — `describe-services` names the
       # commit, and rollback is `update-service --task-definition <revision>`.
+      # A deploy that waited behind a newer one must not roll production
+      # back: when the running server image is built from a commit that
+      # already contains this one, there is nothing to deploy.
+      - name: Skip when production already runs a newer commit
+        id: newer
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          PREFIX: bowrain-${{ inputs.environment || 'prod' }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          td=$(aws ecs describe-services --cluster "$CLUSTER" --services "$PREFIX-server" \
+                 --query 'services[0].taskDefinition' --output text)
+          image=$(aws ecs describe-task-definition --task-definition "$td" \
+                    --query "taskDefinition.containerDefinitions[?name=='bowrain-server'].image | [0]" --output text)
+          running=$(printf '%s' "${image##*:}" | grep -oE '^[0-9a-f]{40}' || true)
+          echo "running: ${running:-unknown} (from $image)"
+          if [ -n "$running" ] && [ "$running" != "$GH_SHA" ] \
+             && git merge-base --is-ancestor "$GH_SHA" "$running" 2>/dev/null; then
+            echo "Production runs $running, which already contains $GH_SHA; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy server + worker at this commit
+        if: steps.newer.outputs.skip != 'true'
         env:
           CLUSTER: ${{ vars.ECS_CLUSTER }}
           PREFIX: bowrain-${{ inputs.environment || 'prod' }}
