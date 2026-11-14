@@ -27,6 +27,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	sqlmemory "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
@@ -37,7 +38,6 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 	fwmemory "github.com/neokapi/neokapi/memory"
@@ -251,22 +251,25 @@ func runWorker(dbURL string) error {
 	// every AI translation the worker runs, and the terms store resolver supplies
 	// the per-locale terminology. All optional — a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
-	if bs, err := voicepg.NewPostgresVoiceStore(pgdb); err != nil {
+	bs, err := voicepg.NewPostgresVoiceStore(pgdb)
+	if err != nil {
 		slog.Warn("voice store unavailable; translation jobs run without voice", "error", err)
+		bs = nil
 	} else {
 		translationDeps.VoiceStore = bs
-
-		// Both stores came from this one PgDB, so one transaction covers both.
-		// A push reconciles collections and writes voice profiles before its
-		// content lands; binding them to the same transition is what stops a
-		// failed push from leaving the workspace governed by a declaration
-		// whose content never arrived.
-		translationDeps.PushTransition = func(ctx context.Context, fn func(store.PushApplier, coreprofile.Store) error) error {
-			return pgdb.Transition(ctx, func(tx storage.Runner) error {
-				return fn(pgCS.Bind(tx), bs.Bind(tx))
-			})
-		}
 	}
+
+	// Every store a push writes came from this one PgDB, so one transaction
+	// covers them all: the collections and voice profiles the push declares,
+	// its content, its context ledger objects, and its terminology edits and
+	// change-set. The transition is always wired, so a push the server
+	// accepted with terminology edits is never refused here for want of it.
+	ks, kerr := knowledge.NewPostgresKnowledgeStore(pgdb)
+	if kerr != nil {
+		slog.Warn("knowledge store unavailable; pushes that propose governed terminology fail", "error", kerr)
+		ks = nil
+	}
+	translationDeps.PushTransition = jobs.NewPostgresPushTransition(pgdb, pgCS, bs, ks)
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
 		// The platform is authoritative for review governance. A push can

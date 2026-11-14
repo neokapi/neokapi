@@ -2,9 +2,9 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,17 +16,11 @@ import (
 )
 
 // TestConceptSync_DoNotTranslateTravelsGoverned pulls a do-not-translate
-// concept, then pushes a new concept carrying the flag and a local change that
-// clears it on the pulled one. The pull keeps the flag. The push proposes both
-// changes as governed change-set ops, and no direct create or update carries
-// the flag.
+// concept, then plans a push of a new concept carrying the flag and a local
+// change that clears it on the pulled one. The pull keeps the flag. The plan
+// proposes both changes as governed change-set ops, and no direct create or
+// update carries the flag.
 func TestConceptSync_DoNotTranslateTravelsGoverned(t *testing.T) {
-	var mu sync.Mutex
-	var creates []map[string]any
-	updates := map[string]map[string]any{}
-	var ops []recordedOp
-	submitted := 0
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/{ws}/concepts", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"concepts": [{"id": "c-kapi", "domain": "product", "definition": "The command-line tool.",
@@ -36,42 +30,6 @@ func TestConceptSync_DoNotTranslateTravelsGoverned(t *testing.T) {
 	})
 	mux.HandleFunc("GET /api/v1/{ws}/concepts/{cid}/relations", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`[]`))
-	})
-	mux.HandleFunc("POST /api/v1/{ws}/concepts", func(w http.ResponseWriter, r *http.Request) {
-		body := decodeBody(r)
-		mu.Lock()
-		creates = append(creates, body)
-		mu.Unlock()
-		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"id": "c-created"}`))
-	})
-	mux.HandleFunc("PUT /api/v1/{ws}/concepts/{cid}", func(w http.ResponseWriter, r *http.Request) {
-		body := decodeBody(r)
-		mu.Lock()
-		updates[r.PathValue("cid")] = body
-		mu.Unlock()
-		w.WriteHeader(http.StatusNoContent)
-	})
-	mux.HandleFunc("POST /api/v1/{ws}/changesets", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"id": "cs-1", "name": "kapi push", "status": "draft"}`))
-	})
-	mux.HandleFunc("POST /api/v1/{ws}/changesets/{id}/ops", func(w http.ResponseWriter, r *http.Request) {
-		body := decodeBody(r)
-		op := recordedOp{csID: r.PathValue("id")}
-		op.op, _ = body["op"].(string)
-		op.payload, _ = body["payload"].(map[string]any)
-		mu.Lock()
-		ops = append(ops, op)
-		mu.Unlock()
-		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"seq": 1}`))
-	})
-	mux.HandleFunc("POST /api/v1/{ws}/changesets/{id}/submit", func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		submitted++
-		mu.Unlock()
-		_, _ = w.Write([]byte(`{"id": "cs-1", "status": "in_review"}`))
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -96,30 +54,32 @@ func TestConceptSync_DoNotTranslateTravelsGoverned(t *testing.T) {
 	pulled.DoNotTranslate = false
 	require.NoError(t, tb.AddConcept(ctx, pulled))
 
-	_, err = PushConcepts(ctx, client, tb, baseline, "", false)
+	edits, err := PlanConcepts(ctx, client, tb, baseline, "")
 	require.NoError(t, err)
+	require.NotNil(t, edits)
 
-	mu.Lock()
-	defer mu.Unlock()
-	assert.Empty(t, creates, "a concept carrying the flag is not created directly")
-	for cid, body := range updates {
-		assert.NotContains(t, body, "do_not_translate", "the direct update of %s does not carry the flag", cid)
+	assert.Empty(t, edits.Creates, "a concept carrying the flag is not created directly")
+	for _, u := range edits.Updates {
+		assert.Nil(t, u.Concept.DoNotTranslate, "the direct update of %s does not carry the flag", u.ConceptID)
 	}
 
+	require.NotNil(t, edits.Proposal, "the flag travels in the proposal")
 	var created, updated map[string]any
-	for _, op := range ops {
-		switch op.op {
+	for _, op := range edits.Proposal.Ops {
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(op.Payload, &payload))
+		switch op.Op {
 		case opConceptCreate:
-			created = op.payload
-		case "concept.update":
-			updated = op.payload
+			created = payload
+		case opConceptUpdate:
+			updated = payload
 		}
 	}
-	require.NotNil(t, created, "the new concept is proposed as a governed create: %+v", ops)
+	require.NotNil(t, created, "the new concept is proposed as a governed create: %+v", edits.Proposal.Ops)
 	concept, _ := created["concept"].(map[string]any)
 	assert.Equal(t, true, concept["do_not_translate"])
-	require.NotNil(t, updated, "clearing the flag is proposed as a governed update: %+v", ops)
+	require.NotNil(t, updated, "clearing the flag is proposed as a governed update: %+v", edits.Proposal.Ops)
 	assert.Equal(t, "c-kapi", updated["concept_id"])
 	assert.Equal(t, false, updated["do_not_translate"])
-	assert.Equal(t, 1, submitted, "the proposal is submitted for review")
+	assert.Equal(t, conceptPushOrigin, edits.Proposal.Origin)
 }

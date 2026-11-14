@@ -443,6 +443,42 @@ func (a *App) PushProjectContext(ctx context.Context, projectPath string) (Conte
 	return res, syncError(err, "push", res.ToPush)
 }
 
+// StageVenueContextPush computes the context ledger objects the project's
+// Bowrain backend does not hold, for `kapi push` to carry in the transaction
+// that stores the project's content. The caller confirms the staged push once
+// the venue reports the push applied; until then the operations count as
+// unpushed, and the next push stages them again.
+//
+// It returns nil when the recipe keeps its context anywhere but on the venue
+// (`context: {backend: bowrain}`), when the project's store keeps no log, and
+// when every operation is already on the venue.
+func (a *App) StageVenueContextPush(ctx context.Context, projectPath string) (*workspace.StagedPush, error) {
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return nil, err
+	}
+	info, err := resolveBackend(layout)
+	if err != nil {
+		return nil, err
+	}
+	if info.Kind != project.ContextBackendBowrain {
+		return nil, nil
+	}
+	w, err := a.Projector(ctx, layout.Root)
+	if err != nil {
+		return nil, err
+	}
+	s, err := a.contextSync(ctx, layout, info, w)
+	if err != nil || s == nil {
+		return nil, err
+	}
+	staged, err := s.StagePush(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read the context ledger the venue lacks: %w", err)
+	}
+	return staged, nil
+}
+
 // ContextSync reports a pull and a push through one remote; each is nil when
 // it was not asked for.
 type ContextSync struct {

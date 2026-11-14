@@ -788,6 +788,9 @@ provider_configs.type text NOT NULL DEFAULT ''::text
 provider_configs.updated_at timestamp with time zone NOT NULL DEFAULT now()
 provider_configs.workspace_id text NOT NULL
 provider_configs.workspace_slug text NOT NULL DEFAULT ''::text
+push_applies.applied_at timestamp with time zone NOT NULL DEFAULT now()
+push_applies.job_id text NOT NULL
+push_applies.record jsonb NOT NULL DEFAULT '{}'::jsonb
 quota_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 quota_schema_migrations.description text NOT NULL
 quota_schema_migrations.version integer NOT NULL
@@ -1045,6 +1048,7 @@ translation_jobs.governance_report text NOT NULL DEFAULT ''::text
 translation_jobs.id text NOT NULL
 translation_jobs.item_name text NOT NULL
 translation_jobs.model text NOT NULL DEFAULT ''::text
+translation_jobs.parts_report text NOT NULL DEFAULT ''::text
 translation_jobs.progress integer NOT NULL DEFAULT 0
 translation_jobs.project_id text NOT NULL
 translation_jobs.provider_config_id text NOT NULL DEFAULT ''::text
@@ -1440,6 +1444,7 @@ project_members project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES us
 projects projects_pkey PRIMARY KEY (id)
 proposed_source_changes proposed_source_changes_pkey PRIMARY KEY (id)
 provider_configs provider_configs_pkey PRIMARY KEY (id)
+push_applies push_applies_pkey PRIMARY KEY (job_id)
 quota_schema_migrations quota_schema_migrations_pkey PRIMARY KEY (version)
 refresh_tokens refresh_tokens_pkey PRIMARY KEY (id)
 refresh_tokens refresh_tokens_token_hash_key UNIQUE (token_hash)
@@ -1854,6 +1859,7 @@ CREATE UNIQUE INDEX project_members_pkey ON public.project_members USING btree (
 CREATE UNIQUE INDEX projects_pkey ON public.projects USING btree (id)
 CREATE UNIQUE INDEX proposed_source_changes_pkey ON public.proposed_source_changes USING btree (id)
 CREATE UNIQUE INDEX provider_configs_pkey ON public.provider_configs USING btree (id)
+CREATE UNIQUE INDEX push_applies_pkey ON public.push_applies USING btree (job_id)
 CREATE UNIQUE INDEX quota_schema_migrations_pkey ON public.quota_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX refresh_tokens_pkey ON public.refresh_tokens USING btree (id)
 CREATE UNIQUE INDEX refresh_tokens_token_hash_key ON public.refresh_tokens USING btree (token_hash)

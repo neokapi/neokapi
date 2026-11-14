@@ -297,6 +297,22 @@ type PushOutput struct {
 	// ChangesetID names it and nothing new was created.
 	ChangesetUnchanged bool `json:"changeset_unchanged,omitempty"`
 
+	// CollectionsDeclared counts the collections the push declared, the
+	// structure the content is stored into.
+	CollectionsDeclared int `json:"collections_declared,omitempty"`
+
+	// The context ledger part, when the recipe keeps the project's context on
+	// the server: the objects the push carried, the recorded operations the
+	// server did not hold, and whether the push bound the server project's
+	// context to this project's key.
+	ContextObjects    int  `json:"context_objects,omitempty"`
+	ContextOperations int  `json:"context_operations,omitempty"`
+	ContextBound      bool `json:"context_bound,omitempty"`
+
+	// PartsPending reports that the server has not yet confirmed applying the
+	// push, so the terms and context counts are what the push carried.
+	PartsPending bool `json:"parts_pending,omitempty"`
+
 	// Voice (the recipe-bound profile carried in the push's context
 	// content type and upserted by name on the server). VoiceAction is
 	// carried | skipped | would-push (dry run); VoiceVersion is the stored
@@ -352,9 +368,12 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	}
 	o.formatAssets(w)
 	o.formatIngest(w)
-	o.formatConcepts(w)
+	o.formatStructure(w)
 	o.FormatVoice(w)
 	o.formatUndeclared(w)
+	o.formatConcepts(w)
+	o.formatContextLedger(w)
+	o.formatPartsPending(w)
 	o.FormatGovernance(w)
 	o.FormatSettings(w)
 	o.formatLoopStatus(w)
@@ -501,22 +520,22 @@ func (o PushOutput) formatLoopStatus(w io.Writer) {
 // link).
 func (o PushOutput) formatConcepts(w io.Writer) {
 	if o.ConceptsApplied > 0 || o.RelationsApplied > 0 {
-		verb := "Applied"
+		verb := "applied"
 		if o.DryRun {
-			verb = "Would apply"
+			verb = "would apply"
 		}
-		fmt.Fprintf(w, "%s %d concept edit(s) and %d relation edit(s) directly\n",
+		fmt.Fprintf(w, "Terms: %s %d concept edit(s) and %d relation edit(s) directly\n",
 			verb, o.ConceptsApplied, o.RelationsApplied)
 	}
 	if o.ConceptsProposed > 0 {
-		verb := "Proposed"
+		verb := "proposed"
 		if o.DryRun {
-			verb = "Would propose"
+			verb = "would propose"
 		}
 		if o.ChangesetUnchanged {
-			verb = "Already proposed"
+			verb = "already proposed"
 		}
-		fmt.Fprintf(w, "%s %d governed edit(s) in a change-set", verb, o.ConceptsProposed)
+		fmt.Fprintf(w, "Terms: %s %d governed edit(s) in a change-set", verb, o.ConceptsProposed)
 		if o.ChangesetID != "" {
 			fmt.Fprintf(w, " (%s)", o.ChangesetID)
 		}
@@ -528,6 +547,43 @@ func (o PushOutput) formatConcepts(w io.Writer) {
 			fmt.Fprintf(w, "Review it at %s\n", o.ChangesetURL)
 		}
 	}
+}
+
+// formatStructure reports the collections the push declared.
+func (o PushOutput) formatStructure(w io.Writer) {
+	if o.CollectionsDeclared == 0 {
+		return
+	}
+	verb := "declared"
+	if o.DryRun {
+		verb = "would declare"
+	}
+	fmt.Fprintf(w, "Structure: %s %d collection(s)\n", verb, o.CollectionsDeclared)
+}
+
+// formatContextLedger reports the context ledger part.
+func (o PushOutput) formatContextLedger(w io.Writer) {
+	if o.ContextObjects == 0 {
+		return
+	}
+	verb := "stored"
+	if o.DryRun {
+		verb = "would store"
+	}
+	fmt.Fprintf(w, "Context: %s %d recorded operation(s) in %d object(s)", verb, o.ContextOperations, o.ContextObjects)
+	if o.ContextBound {
+		fmt.Fprint(w, ", and bound the server project's context to this project")
+	}
+	fmt.Fprintln(w)
+}
+
+// formatPartsPending says that the terms and context counts above are what
+// the push carried, not what the server confirmed.
+func (o PushOutput) formatPartsPending(w io.Writer) {
+	if !o.PartsPending {
+		return
+	}
+	fmt.Fprintln(w, "The server has not confirmed the terms and context above yet; they apply with the content or not at all")
 }
 
 // ConfigOutput represents the result of kapi config.

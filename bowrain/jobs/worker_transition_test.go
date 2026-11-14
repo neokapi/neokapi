@@ -1,12 +1,11 @@
 package jobs
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -17,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newTransitionDeps builds the worker the way bowrain-worker does: both stores
+// newTransitionDeps builds the worker the way bowrain-worker does: every store
 // from ONE pool, with the push transition wired over it.
 func newTransitionDeps(t *testing.T) (*WorkerDeps, *storage.PgDB) {
 	t.Helper()
@@ -26,13 +25,11 @@ func newTransitionDeps(t *testing.T) (*WorkerDeps, *storage.PgDB) {
 	require.NoError(t, err)
 	voice, err := voicestore.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
+	ks, err := knowledge.NewPostgresKnowledgeStore(db)
+	require.NoError(t, err)
 
 	deps := &WorkerDeps{ContentStore: cs, VoiceStore: voice}
-	deps.PushTransition = func(ctx context.Context, fn func(store.PushApplier, coreprofile.Store) error) error {
-		return db.Transition(ctx, func(tx storage.Runner) error {
-			return fn(cs.Bind(tx), voice.Bind(tx))
-		})
-	}
+	deps.PushTransition = NewPostgresPushTransition(db, cs, voice, ks)
 	return deps, db
 }
 
@@ -60,12 +57,12 @@ func TestPushTransition_ReconcileRollsBackWithTheContent(t *testing.T) {
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
 	boom := errors.New("the content stage failed")
-	err := deps.PushTransition(ctx, func(tx store.PushApplier, voice coreprofile.Store) error {
-		if _, rerr := reconcileContext(ctx, tx, voice, "p1", "main", "ws1", "user-1", transitionEntries(t)); rerr != nil {
+	err := deps.PushTransition(ctx, func(st PushStores) error {
+		if _, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1", transitionEntries(t)); rerr != nil {
 			return rerr
 		}
 		// Everything the reconcile wrote is visible inside the transition.
-		cols, lerr := tx.ListCollections(ctx, "p1", "main")
+		cols, lerr := st.Content.ListCollections(ctx, "p1", "main")
 		require.NoError(t, lerr)
 		assert.NotEmpty(t, cols, "the reconcile's own writes are readable within the transition")
 		return boom
@@ -89,8 +86,8 @@ func TestPushTransition_CommitLandsBoth(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	err := deps.PushTransition(ctx, func(tx store.PushApplier, voice coreprofile.Store) error {
-		_, rerr := reconcileContext(ctx, tx, voice, "p1", "main", "ws1", "user-1", transitionEntries(t))
+	err := deps.PushTransition(ctx, func(st PushStores) error {
+		_, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1", transitionEntries(t))
 		return rerr
 	})
 	require.NoError(t, err)

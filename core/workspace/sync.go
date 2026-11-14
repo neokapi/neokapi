@@ -861,19 +861,80 @@ func (s *Sync) Push(ctx context.Context) (PushReport, error) {
 }
 
 func (s *Sync) push(ctx context.Context, db *storage.DB, writer string, report *PushReport) error {
+	st, err := s.stage(ctx, db, writer)
+	if err != nil || st == nil {
+		return err
+	}
+	// Blobs go first, so a remote that writes object by object never shows a
+	// segment whose blobs are not there yet.
+	if err := s.remote.Put(ctx, st.Objects...); err != nil {
+		return err
+	}
+	if err := st.confirm(ctx, db); err != nil {
+		return err
+	}
+	report.written = append(report.written, st.segmentNames()...)
+	report.Blobs += st.Blobs
+	report.Pushed, report.PushedLogged, report.Segments = st.Pushed, st.PushedLogged, st.Segments
+	return nil
+}
+
+// StagedPush is a push of a project's operations, computed and not yet
+// written: the objects the remote does not hold, blobs first and then the
+// segments. It serves a caller that writes them itself, such as a venue push
+// that carries them in the transaction storing its content. Confirm records
+// them as pushed once the caller has written them; a push that never landed
+// is never confirmed, and the next push stages the same operations again.
+type StagedPush struct {
+	// Objects are what to write, in the order to write them.
+	Objects []Object
+	// Pushed counts the operations, PushedLogged the context operations among
+	// them, Segments the segments and Blobs the blobs.
+	Pushed, PushedLogged, Segments, Blobs int
+
+	s    *Sync
+	ops  []Op
+	segs []Object
+}
+
+// StagePush computes the push of the project's operations the remote is not
+// known to hold, writing nothing. It returns nil when there is nothing to
+// push.
+func (s *Sync) StagePush(ctx context.Context) (*StagedPush, error) {
+	db, err := s.w.sync()
+	if err != nil {
+		return nil, err
+	}
+	writer, err := s.w.WriterID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.stage(ctx, db, writer)
+}
+
+// Confirm records a staged push as written to the remote.
+func (p *StagedPush) Confirm(ctx context.Context) error {
+	db, err := p.s.w.sync()
+	if err != nil {
+		return err
+	}
+	return p.confirm(ctx, db)
+}
+
+func (s *Sync) stage(ctx context.Context, db *storage.DB, writer string) (*StagedPush, error) {
 	ops, err := s.opsToPush(ctx, db)
 	if err != nil || len(ops) == 0 {
-		return err
+		return nil, err
 	}
 	held, err := s.remote.List(ctx, RemoteBlobDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	onRemote := map[string]bool{}
 	for _, n := range held {
 		onRemote[n] = true
 	}
-	var objs []Object
+	st := &StagedPush{s: s, ops: ops}
 	for _, op := range ops {
 		for _, ref := range BlobRefs(op) {
 			name := BlobObjectName(ref)
@@ -882,30 +943,33 @@ func (s *Sync) push(ctx context.Context, db *storage.DB, writer string, report *
 			}
 			data, err := s.w.Blob(ctx, ref)
 			if err != nil {
-				return fmt.Errorf("workspace: %s %s names blob %s: %w", op.Kind, ShortOpID(op.ID), ref, err)
+				return nil, fmt.Errorf("workspace: %s %s names blob %s: %w", op.Kind, ShortOpID(op.ID), ref, err)
 			}
-			objs = append(objs, Object{Name: name, Data: data})
+			st.Objects = append(st.Objects, Object{Name: name, Data: data})
 			onRemote[name] = true
-			report.Blobs++
+			st.Blobs++
 		}
 	}
-	var segs []Object
 	for chunk := range slices.Chunk(ops, SegmentOps) {
 		data, err := EncodeSegment(chunk)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		segs = append(segs, Object{Name: SegmentName(writer, chunk[0].ID), Data: data})
+		st.segs = append(st.segs, Object{Name: SegmentName(writer, chunk[0].ID), Data: data})
 	}
-	// Blobs go first, so a remote that writes object by object never shows a
-	// segment whose blobs are not there yet.
-	if err := s.remote.Put(ctx, append(objs, segs...)...); err != nil {
+	st.Objects = append(st.Objects, st.segs...)
+	st.Pushed, st.PushedLogged, st.Segments = len(ops), countLogged(ops), len(st.segs)
+	return st, nil
+}
+
+// confirm records the staged operations as held by the remote and its
+// segments as written and applied here.
+func (p *StagedPush) confirm(ctx context.Context, db *storage.DB) error {
+	s := p.s
+	if err := s.noteKnown(ctx, db, p.ops); err != nil {
 		return err
 	}
-	if err := s.noteKnown(ctx, db, ops); err != nil {
-		return err
-	}
-	for _, seg := range segs {
+	for _, seg := range p.segs {
 		address, err := s.w.PutBlob(ctx, seg.Data)
 		if err != nil {
 			return err
@@ -914,10 +978,17 @@ func (s *Sync) push(ctx context.Context, db *storage.DB, writer string, report *
 VALUES (?, ?, 0, 1, ?) ON CONFLICT(remote, name) DO UPDATE SET applied = 1, pending = 0`, s.rid, seg.Name, address); err != nil {
 			return fmt.Errorf("workspace: record %s: %w", seg.Name, err)
 		}
-		report.written = append(report.written, seg.Name)
 	}
-	report.Pushed, report.PushedLogged, report.Segments = len(ops), countLogged(ops), len(segs)
 	return nil
+}
+
+// segmentNames lists the staged segments' names.
+func (p *StagedPush) segmentNames() []string {
+	names := make([]string, 0, len(p.segs))
+	for _, seg := range p.segs {
+		names = append(names, seg.Name)
+	}
+	return names
 }
 
 // maybeCheckpoint writes a checkpoint when the remote has gained enough

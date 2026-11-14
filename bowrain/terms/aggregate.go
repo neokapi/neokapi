@@ -71,7 +71,7 @@ func (tb *PostgresStore) ConceptCounts(ctx context.Context) (ConceptCounts, erro
 	}
 	out.Total = total
 
-	rows, err := tb.db.QueryContext(ctx,
+	rows, err := tb.run().QueryContext(ctx,
 		`SELECT status, COUNT(DISTINCT concept_id) FROM tb_terms
 		 WHERE workspace_id = $1 GROUP BY status`, tb.workspaceID)
 	if err != nil {
@@ -102,7 +102,7 @@ func (tb *PostgresStore) ConceptLocaleCoverage(ctx context.Context) ([]LocaleCov
 		return nil, nil
 	}
 
-	rows, err := tb.db.QueryContext(ctx,
+	rows, err := tb.run().QueryContext(ctx,
 		`SELECT t.locale, COUNT(DISTINCT t.concept_id) AS present
 		 FROM tb_terms t
 		 JOIN tb_concepts c ON c.workspace_id = t.workspace_id AND c.id = t.concept_id

@@ -109,6 +109,10 @@ type PushInitResponse struct {
 	// project's default. The push leaves them out of the commit and reports
 	// them.
 	SettingsRefused []venue.SettingRefusal `json:"settings_refused,omitempty"`
+
+	// Parts names the parts beside content this venue applies with a push
+	// (PushParts). A venue that names none predates them.
+	Parts []string `json:"parts,omitempty"`
 }
 
 // PushCommitRequest finalizes the push.
@@ -173,6 +177,15 @@ type PushCommitRequest struct {
 	// only those whose value differs from what the init negotiation reported
 	// the venue holds. The venue applies them when it accepts the commit.
 	Settings venue.ProjectSettings `json:"settings,omitempty"`
+
+	// Terms is the project's terminology edits (see TermsEdits). The venue
+	// applies them in the push's transaction.
+	Terms *TermsEdits `json:"terms,omitempty"`
+
+	// ContextObjects are the context ledger objects the venue does not hold,
+	// when the project's context lives on the venue. The venue stores them in
+	// the push's transaction.
+	ContextObjects []ContextObjectWire `json:"context_objects,omitempty"`
 }
 
 // PushUnchanged is the push id a push reports when the negotiation found
@@ -192,6 +205,8 @@ type pushSettings struct {
 	allowDowngrade bool
 	writes         []venue.EditionWrite
 	source         model.LocaleID
+	terms          *TermsEdits
+	ledger         []ContextObjectWire
 }
 
 // AssertRef makes the push a compare-and-swap over the governance it carries:
@@ -469,6 +484,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	if err != nil {
 		return nil, fmt.Errorf("push init: %w", err)
 	}
+	if err := settings.checkParts(initResp.Parts); err != nil {
+		return nil, err
+	}
 	// The recipe's project settings are compared with what the venue holds
 	// now, and the commit carries only a setting that differs and that the
 	// venue said this push may apply.
@@ -481,7 +499,8 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		// empty-chunk commit rather than returning here. The caller only
 		// passes decisions when they changed, and settings are sent only when
 		// they differ, so the common unchanged push still takes this exit.
-		if len(decisions) == 0 && len(settings.writes) == 0 && len(sendSettings) == 0 {
+		if len(decisions) == 0 && len(settings.writes) == 0 && len(sendSettings) == 0 &&
+			settings.terms == nil && len(settings.ledger) == 0 {
 			resp := &SyncPushResponse{
 				PushID:                PushUnchanged,
 				UndeclaredCollections: initResp.UndeclaredCollections,
@@ -491,14 +510,16 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			return resp, nil
 		}
 		commitResp, err := c.pushCommit(ctx, PushCommitRequest{
-			Stream:      c.stream,
-			Decisions:   decisions,
-			Writes:      settings.writes,
-			ExpectedRef: settings.expected,
-			Settings:    sendSettings,
+			Stream:         c.stream,
+			Decisions:      decisions,
+			Writes:         settings.writes,
+			ExpectedRef:    settings.expected,
+			Settings:       sendSettings,
+			Terms:          settings.terms,
+			ContextObjects: settings.ledger,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("push commit (decisions and settings): %w", err)
+			return nil, fmt.Errorf("push commit (records, terms and context): %w", err)
 		}
 		if commitResp != nil {
 			commitResp.UndeclaredCollections = initResp.UndeclaredCollections
@@ -649,6 +670,8 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		Tree:              settings.tree,
 		ContentModelEpoch: venue.ContentModelEpoch,
 		Settings:          sendSettings,
+		Terms:             settings.terms,
+		ContextObjects:    settings.ledger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push commit: %w", err)

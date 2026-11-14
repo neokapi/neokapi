@@ -163,6 +163,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"ref":                    currentRef,
 				"settings":               heldSettings,
 				"settings_refused":       refusedSettings,
+				"parts":                  apiclient.PushParts,
 			})
 		}
 	}
@@ -188,7 +189,76 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		"ref":                    currentRef,
 		"settings":               heldSettings,
 		"settings_refused":       refusedSettings,
+		"parts":                  apiclient.PushParts,
 	})
+}
+
+// pushCommitManifest is the body of POST /sync/push/commit, and the manifest
+// the push worker reads (jobs.syncPushManifest).
+type pushCommitManifest struct {
+	UploadID      string          `json:"upload_id"`
+	ProjectID     string          `json:"project_id"`
+	Stream        string          `json:"stream"`
+	Chunks        []chunkRef      `json:"chunks"`
+	Items         json.RawMessage `json:"items"`
+	ActorID       string          `json:"actor_id"`
+	WorkspaceSlug string          `json:"workspace_slug"`
+	ConnectorID   string          `json:"connector_id"`
+	// Contexts is the context content type, passed through to the worker
+	// verbatim like Items: this handler validates the transport, the worker
+	// reconciles the content.
+	Contexts json.RawMessage `json:"contexts"`
+	// Decisions is the decisions content type, passed through the same way:
+	// the worker upserts it into the unit_decisions ledger after the chunks.
+	Decisions json.RawMessage `json:"decisions"`
+	// Writes are the edition writes beside the decisions (see
+	// venue.EditionWrite): how each translation the project holds came
+	// to be. Passed through to the worker, which records them.
+	Writes json.RawMessage `json:"writes"`
+	// ExpectedRef is the compare-and-swap assertion: the governance
+	// components this push last observed. Checked here so a client waiting
+	// on `kapi push` is told at once, and again in the worker, which is
+	// where the write actually lands.
+	ExpectedRef ref.Ref `json:"expected_ref"`
+	// BlockPropertyKeys declares what this producer's readers record, so
+	// the worker knows which stored properties this push is authoritative
+	// about. Passed through verbatim like Items — see
+	// core/venue.BlockPropertyKeys.
+	BlockPropertyKeys []string `json:"block_property_keys"`
+	// Scope is the set of paths this push is authoritative over, and Tree
+	// is what the producer read within it — per item, the block keys it
+	// holds and the content hash of each. Together they are how a push says
+	// what is GONE: a deletion sends no block, so the payload cannot say
+	// it, and absence is only an answer inside a declared scope. Passed
+	// through verbatim like Items; see core/venue.Tree and core/venue.Scope.
+	Scope venue.Scope `json:"scope"`
+	Tree  venue.Tree  `json:"tree"`
+	// ContentModelEpoch is the generation this push wrote, recorded on the
+	// stream now that it has been accepted.
+	ContentModelEpoch int `json:"content_model_epoch"`
+	// Settings are the recipe-owned project settings this push asks to put
+	// in force: the converge policy and the translate_after level. A push
+	// to the default stream applies each one that tightens, and one that
+	// loosens when the pusher may manage the project. Applied here, before
+	// the job is queued, so the run a push starts already reads them.
+	Settings venue.ProjectSettings `json:"settings"`
+
+	// Terms is the terminology part (host/venue/client.TermsEdits), checked
+	// here and applied by the worker in the push's transaction. TermsAuthor
+	// and TermsOnBehalfOf are set here from the signed-in caller.
+	Terms           json.RawMessage `json:"terms"`
+	TermsAuthor     string          `json:"terms_author"`
+	TermsOnBehalfOf string          `json:"terms_on_behalf_of"`
+	// ContextObjects are the context ledger objects the project's context
+	// lives in, when it lives here. Checked here (names, reach, key) and
+	// stored by the worker in the push's transaction. ContextKey,
+	// ContextOperations and ContextEvent are set here: the key to bind, the
+	// operations the project did not hold, and the context change the worker
+	// publishes once the push commits.
+	ContextObjects    []apiclient.ContextObjectWire `json:"context_objects"`
+	ContextKey        string                        `json:"context_key"`
+	ContextOperations int                           `json:"context_operations"`
+	ContextEvent      map[string]string             `json:"context_event"`
 }
 
 // HandleSyncPushCommit finalizes a push by validating the manifest and enqueuing the worker job.
@@ -198,54 +268,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		return err
 	}
 
-	var manifest struct {
-		UploadID      string          `json:"upload_id"`
-		ProjectID     string          `json:"project_id"`
-		Stream        string          `json:"stream"`
-		Chunks        []chunkRef      `json:"chunks"`
-		Items         json.RawMessage `json:"items"`
-		ActorID       string          `json:"actor_id"`
-		WorkspaceSlug string          `json:"workspace_slug"`
-		ConnectorID   string          `json:"connector_id"`
-		// Contexts is the context content type, passed through to the worker
-		// verbatim like Items: this handler validates the transport, the worker
-		// reconciles the content.
-		Contexts json.RawMessage `json:"contexts"`
-		// Decisions is the decisions content type, passed through the same way:
-		// the worker upserts it into the unit_decisions ledger after the chunks.
-		Decisions json.RawMessage `json:"decisions"`
-		// Writes are the edition writes beside the decisions (see
-		// venue.EditionWrite): how each translation the project holds came
-		// to be. Passed through to the worker, which records them.
-		Writes json.RawMessage `json:"writes"`
-		// ExpectedRef is the compare-and-swap assertion: the governance
-		// components this push last observed. Checked here so a client waiting
-		// on `kapi push` is told at once, and again in the worker, which is
-		// where the write actually lands.
-		ExpectedRef ref.Ref `json:"expected_ref"`
-		// BlockPropertyKeys declares what this producer's readers record, so
-		// the worker knows which stored properties this push is authoritative
-		// about. Passed through verbatim like Items — see
-		// core/venue.BlockPropertyKeys.
-		BlockPropertyKeys []string `json:"block_property_keys"`
-		// Scope is the set of paths this push is authoritative over, and Tree
-		// is what the producer read within it — per item, the block keys it
-		// holds and the content hash of each. Together they are how a push says
-		// what is GONE: a deletion sends no block, so the payload cannot say
-		// it, and absence is only an answer inside a declared scope. Passed
-		// through verbatim like Items; see core/venue.Tree and core/venue.Scope.
-		Scope venue.Scope `json:"scope"`
-		Tree  venue.Tree  `json:"tree"`
-		// ContentModelEpoch is the generation this push wrote, recorded on the
-		// stream now that it has been accepted.
-		ContentModelEpoch int `json:"content_model_epoch"`
-		// Settings are the recipe-owned project settings this push asks to put
-		// in force: the converge policy and the translate_after level. A push
-		// to the default stream applies each one that tightens, and one that
-		// loosens when the pusher may manage the project. Applied here, before
-		// the job is queued, so the run a push starts already reads them.
-		Settings venue.ProjectSettings `json:"settings"`
-	}
+	var manifest pushCommitManifest
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
@@ -257,6 +280,9 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	// authenticated user; a client-supplied project_id / actor_id / workspace
 	// is not trusted (prevents writing into another tenant's project, IDOR).
 	manifest.ProjectID = c.Param("id")
+	// The fields this handler sets are never taken from the client.
+	manifest.TermsAuthor, manifest.TermsOnBehalfOf = "", ""
+	manifest.ContextKey, manifest.ContextOperations, manifest.ContextEvent = "", 0, nil
 	// The path is authorized; a manifest-supplied stream never overrides it.
 	manifest.Stream = refParam(c)
 	manifest.ActorID, _ = c.Get("user_id").(string)
@@ -319,6 +345,12 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		if err != nil || !exists {
 			return apiErr(c, http.StatusBadRequest, fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash))
 		}
+	}
+
+	// The terminology and context ledger parts, checked before anything is
+	// applied: a part this request can already refuse refuses the whole push.
+	if refused, err := s.acceptPushParts(c, &manifest); refused || err != nil {
+		return err
 	}
 
 	appliedSettings, refusedSettings, err := s.applyRecipeSettings(c, manifest.ProjectID, manifest.Stream, manifest.Settings)
@@ -524,6 +556,21 @@ func (s *Server) pushGovernanceFor(ctx context.Context, pushID string) *venue.Pu
 		return nil
 	}
 	return &report
+}
+
+// pushPartsFor reads back what a push's terminology and context ledger parts
+// did, as the worker recorded it on the job row. Best-effort, like
+// pushGovernanceFor.
+func (s *Server) pushPartsFor(ctx context.Context, pushID string) *venue.PushParts {
+	raw, err := s.JobStore.PushParts(ctx, pushID)
+	if err != nil || raw == "" {
+		return nil
+	}
+	var parts venue.PushParts
+	if json.Unmarshal([]byte(raw), &parts) != nil || parts.Empty() {
+		return nil
+	}
+	return &parts
 }
 
 // HandleSyncProxyChunkUpload handles chunk uploads for the proxy transport mode
@@ -946,6 +993,16 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 	// the worker reaches the person who ran `kapi push`.
 	if report := s.pushGovernanceFor(c.Request().Context(), pushID); report != nil {
 		resp["governance"] = report
+	}
+	// What the push's terminology and context ledger parts did, once its
+	// transaction committed.
+	if parts := s.pushPartsFor(c.Request().Context(), pushID); parts != nil {
+		if parts.Terms != nil {
+			resp["terms"] = parts.Terms
+		}
+		if parts.Ledger != nil {
+			resp["ledger"] = parts.Ledger
+		}
 	}
 	return c.JSON(http.StatusOK, resp)
 }

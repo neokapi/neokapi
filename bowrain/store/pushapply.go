@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -174,6 +176,56 @@ func (a pushApply) GetDefaultCollection(ctx context.Context, projectID string) (
 		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND is_default=TRUE`, projectID)
 	return a.s.scanCollectionPg(row)
+}
+
+// PutContextObjects writes a push's context ledger objects on the push's
+// transaction and returns how many the project did not hold.
+func (a pushApply) PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []platstore.ContextObject) (int, error) {
+	return putContextObjectsTx(ctx, a.tx, projectID, pushedBy, batch)
+}
+
+// BindContextKey binds the project's context to key on the push's
+// transaction, when it is bound to none, and returns the key it is bound to.
+func (a pushApply) BindContextKey(ctx context.Context, projectID, key string) (string, error) {
+	return bindContextKeyTx(ctx, a.tx, projectID, key)
+}
+
+// ClaimPushApply marks the push job applied on the push's transaction. It
+// reports false when the job was applied by an earlier, committed run.
+func (a pushApply) ClaimPushApply(ctx context.Context, jobID string) (bool, error) {
+	res, err := a.tx.ExecContext(ctx,
+		`INSERT INTO push_applies (job_id) VALUES ($1) ON CONFLICT (job_id) DO NOTHING`, jobID)
+	if err != nil {
+		return false, fmt.Errorf("claim push apply %s: %w", jobID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("claim push apply %s: %w", jobID, err)
+	}
+	return n == 1, nil
+}
+
+// RecordPushApply stores what the push job applied, on its transaction.
+func (a pushApply) RecordPushApply(ctx context.Context, jobID string, record []byte) error {
+	if _, err := a.tx.ExecContext(ctx,
+		`UPDATE push_applies SET record = $2 WHERE job_id = $1`, jobID, string(record)); err != nil {
+		return fmt.Errorf("record push apply %s: %w", jobID, err)
+	}
+	return nil
+}
+
+// PushApplied reads what an applied push job recorded, and false when the job
+// has not been applied.
+func (s *PostgresStore) PushApplied(ctx context.Context, jobID string) ([]byte, bool, error) {
+	var record string
+	err := s.db.QueryRowContext(ctx, `SELECT record FROM push_applies WHERE job_id = $1`, jobID).Scan(&record)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("read push apply %s: %w", jobID, err)
+	}
+	return []byte(record), true, nil
 }
 
 // ApplyPush runs fn against one transaction and commits it. An error from fn

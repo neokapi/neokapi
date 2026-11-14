@@ -247,6 +247,12 @@ type PushStatusResponse struct {
 	// The verdicts were not recorded and the rungs were not written; the
 	// content landed regardless, at translated.
 	Governance *venue.PushGovernance `json:"governance,omitempty"`
+
+	// Terms and Ledger are what the push's terminology and context ledger
+	// parts did, once its transaction committed. Nil for a part the push did
+	// not carry, and for a push still being applied.
+	Terms  *venue.PushTermsOutcome  `json:"terms,omitempty"`
+	Ledger *venue.PushLedgerOutcome `json:"ledger,omitempty"`
 }
 
 // BlockContent represents a block with its translations from the server.

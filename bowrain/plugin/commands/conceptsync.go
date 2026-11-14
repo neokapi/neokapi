@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/ref/refcache"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
@@ -31,11 +32,12 @@ import (
 // terms, recording a baseline in the sync cache so a later push can diff
 // against it. A push (kapi push, kapi sync's push phase) reconciles local
 // terms edits against that baseline: ordinary edits (definitions, notes, new
-// proposed terms, non-governed relations) go up directly through the concept
-// REST endpoints, while governed edits (a term banned/promoted, a forbidden
-// status removed, a REPLACED_BY relation, a concept delete) are bundled into a
-// single submitted change-set so they travel the same reviewed path the web hub
-// enforces.
+// proposed terms, non-governed relations) apply directly, while governed edits
+// (a term banned/promoted, a forbidden status removed, a REPLACED_BY relation,
+// a concept delete) are bundled into a single change-set so they travel the
+// same reviewed path the web hub enforces. Both travel in the push itself
+// (apiclient.TermsEdits) and the server applies them in the transaction that
+// stores the content.
 
 const (
 	// conceptPullPageSize is the page size used when paginating the workspace
@@ -123,11 +125,12 @@ type PullConceptsResult struct {
 	TermsRef string
 }
 
-// PushConceptsResult holds what a concept push applied directly versus proposed
-// through a change-set. ConceptsApplied/RelationsApplied are the ordinary edits
-// written straight to the concept endpoints; ConceptsProposed is the number of
-// governed ops bundled into ChangesetID (with ChangesetURL a best-effort link to
-// review it). DryRun reports a dry-run plan rather than executed work.
+// PushConceptsResult holds what a push's terminology part applied directly
+// versus proposed through a change-set. ConceptsApplied/RelationsApplied are
+// the ordinary edits; ConceptsProposed is the number of governed ops bundled
+// into ChangesetID (with ChangesetURL a best-effort link to review it). DryRun
+// reports a dry-run plan rather than executed work, and Pending edits the
+// server has not yet confirmed applying.
 type PushConceptsResult struct {
 	ConceptsApplied  int
 	RelationsApplied int
@@ -139,17 +142,12 @@ type PushConceptsResult struct {
 	// created.
 	ChangesetUnchanged bool
 	DryRun             bool
+	Pending            bool
 }
 
 // conceptPushOrigin is the origin every kapi-push concept change-set carries;
 // the server admits one open change-set per origin.
 const conceptPushOrigin = "kapi-push/concepts"
-
-// changed reports whether the push had any concept-related work — used by the
-// caller to decide whether to surface a concept summary at all.
-func (r *PushConceptsResult) changed() bool {
-	return r.ConceptsApplied > 0 || r.RelationsApplied > 0 || r.ConceptsProposed > 0
-}
 
 // ---------------------------------------------------------------------------
 // Pull
@@ -385,32 +383,20 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 // Push
 // ---------------------------------------------------------------------------
 
-// PushConcepts diffs the project's terms against baseline and pushes the
-// changes: ordinary edits go up directly through the concept endpoints, governed
-// edits are bundled into one submitted change-set. It returns nil when the
-// project has no terms. When dryRun is set it reports the plan without writing
-// or proposing anything.
+// PlanConcepts classifies the project's terminology edits against the
+// workspace baseline: ordinary edits that apply directly, and governed ones
+// bundled into one proposal. It returns nil when tb is nil or nothing changed.
+// When no baseline was pulled yet it reads the workspace's terminology to
+// establish one, so an empty workspace makes every local concept a create.
 //
-// tb is the project's terms store, handed in rather than opened. A nil store is
-// the one condition that legitimately skips — it is what the caller's HasTerms
-// says when the project's vocabulary is empty, which used to be a stat of
-// `.kapi/terms.db`. The file question stopped distinguishing anything: every
-// subsystem's schema exists from the store's first open, so the store file being
-// there says only that some command ran in this project.
-//
-// expectedTerms is the terms component of the ref this project last observed —
-// the compare-and-swap assertion carried on the change-set submit. The plan
-// below is a DIFF against the baseline, so a workspace whose terminology moved
-// since makes every governed op a proposal about a state that no longer exists.
-func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms.Store, baseline *bproject.ConceptBaseline, expectedTerms string, dryRun bool) (*PushConceptsResult, error) {
+// expectedTerms is the terms component of the ref this project last observed,
+// carried on the proposal. The plan is a DIFF against the baseline, so a
+// workspace whose terminology moved since makes every governed op a proposal
+// about a state that no longer exists, and the server refuses the push.
+func PlanConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms.Store, baseline *bproject.ConceptBaseline, expectedTerms string) (*apiclient.TermsEdits, error) {
 	if tb == nil {
 		return nil, nil
 	}
-
-	// When no baseline exists, read workspace terms to establish one. The baseline
-	// prevents duplicate proposals; it is not required before the first push.
-	// An empty workspace yields an empty baseline, making every local concept a
-	// create operation.
 	if baseline == nil {
 		serverConcepts, serverRels, err := fetchServerConcepts(ctx, client)
 		if err != nil {
@@ -430,20 +416,11 @@ func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms
 
 	plan := buildPushPlan(local, localRels, baseline)
 	if plan.isEmpty() {
-		return &PushConceptsResult{DryRun: dryRun}, nil
+		return nil, nil
 	}
-	if dryRun {
-		return &PushConceptsResult{
-			ConceptsApplied:  len(plan.creates) + len(plan.updates),
-			RelationsApplied: len(plan.relAdds) + len(plan.relRemoves),
-			ConceptsProposed: len(plan.governed),
-			DryRun:           true,
-		}, nil
-	}
-
 	name := "kapi push " + time.Now().UTC().Format("2006-01-02 15:04")
 	desc := fmt.Sprintf("Governed terminology edits proposed by kapi push: %d operation(s).", len(plan.governed))
-	return plan.apply(ctx, client, name, desc, expectedTerms)
+	return plan.edits(name, desc, expectedTerms), nil
 }
 
 // pushPlan is the classified diff a concept push executes: ordinary edits that
@@ -476,61 +453,30 @@ func (p pushPlan) isEmpty() bool {
 		len(p.relAdds) == 0 && len(p.relRemoves) == 0 && len(p.governed) == 0
 }
 
-// apply executes the plan against the server: ordinary creates/updates and
-// relation edits land directly, then any governed ops are drafted into one
-// change-set (create → append-op → submit) named name. It stops at the first
-// error, returning the partial result so the caller can report what landed.
-func (p pushPlan) apply(ctx context.Context, client *apiclient.BowrainClient, name, desc, expectedTerms string) (*PushConceptsResult, error) {
-	res := &PushConceptsResult{}
-
-	for _, c := range p.creates {
-		if _, err := client.CreateConcept(ctx, c); err != nil {
-			return res, fmt.Errorf("create concept: %w", err)
-		}
-		res.ConceptsApplied++
-	}
+// edits renders the plan as the terminology part of a push. The governed ops
+// become one proposal named name, under the origin every kapi-push concept
+// change-set carries.
+func (p pushPlan) edits(name, desc, expectedTerms string) *apiclient.TermsEdits {
+	e := &apiclient.TermsEdits{Creates: p.creates}
 	for _, u := range p.updates {
-		if err := client.UpdateConcept(ctx, u.conceptID, u.params); err != nil {
-			return res, fmt.Errorf("update concept %s: %w", u.conceptID, err)
-		}
-		res.ConceptsApplied++
+		e.Updates = append(e.Updates, apiclient.ConceptEdit{ConceptID: u.conceptID, Concept: u.params})
 	}
 	for _, a := range p.relAdds {
-		if _, err := client.AddRelation(ctx, a.sourceID, a.params); err != nil {
-			return res, fmt.Errorf("add relation on %s: %w", a.sourceID, err)
-		}
-		res.RelationsApplied++
+		e.RelationAdds = append(e.RelationAdds, apiclient.RelationEdit{SourceID: a.sourceID, Relation: a.params})
 	}
 	for _, r := range p.relRemoves {
-		if err := client.RemoveRelation(ctx, r.sourceID, r.relationID); err != nil {
-			return res, fmt.Errorf("remove relation %s: %w", r.relationID, err)
-		}
-		res.RelationsApplied++
+		e.RelationRemoves = append(e.RelationRemoves, apiclient.RelationRemoval{SourceID: r.sourceID, RelationID: r.relationID})
 	}
-
 	if len(p.governed) > 0 {
-		// The origin admits one open change-set on the server: a re-push with
-		// identical ops is idempotent (submit returns the open change-set),
-		// and changed ops supersede it — drafts never pile up per push.
-		cs, err := client.CreateChangeset(ctx, name, desc, conceptPushOrigin)
-		if err != nil {
-			return res, fmt.Errorf("create change-set: %w", err)
+		e.Proposal = &apiclient.TermsProposal{
+			Name:             name,
+			Description:      desc,
+			Origin:           conceptPushOrigin,
+			Ops:              p.governed,
+			ExpectedTermsRef: expectedTerms,
 		}
-		for _, op := range p.governed {
-			if _, err := client.AppendChangesetOp(ctx, cs.ID, op); err != nil {
-				return res, fmt.Errorf("append change-set op %q: %w", op.Op, err)
-			}
-		}
-		submitted, err := client.SubmitChangeset(ctx, cs.ID, expectedTerms)
-		if err != nil {
-			return res, fmt.Errorf("submit change-set %s: %w", cs.ID, err)
-		}
-		res.ConceptsProposed = len(p.governed)
-		res.ChangesetID = submitted.ID
-		res.ChangesetUnchanged = submitted.ID != cs.ID
 	}
-
-	return res, nil
+	return e
 }
 
 // buildPushPlan classifies every local concept/relation change against the
@@ -846,21 +792,47 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// conceptPush runs the project-level concept push: it builds the workspace
-// knowledge client (skipping silently when the project is not workspace-claimed)
-// and diffs the bound terms against the sync-cache baseline. It skips when no
-// baseline has been pulled yet. On a real push it fills in the change-set review
-// URL.
-// PushProjectConcepts reconciles the project's terminology into its workspace.
-//
-// Exported because a push arrives by two routes and terminology must travel on
-// both. `kapi-bowrain push` runs the cobra command, which calls this after the
-// content transport; `kapi push` is dispatched over the Mode-C daemon RPC,
-// which called it nowhere — so terminology never reached a workspace through
-// the verb everyone actually uses. Same shape as the context content type
-// before #1625.
-func PushProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun bool) (*PushConceptsResult, error) {
-	return conceptPush(ctx, proj, dryRun)
+// conceptEdits plans the project-level terminology part of a push: it builds
+// the workspace knowledge client (skipping silently, with nil, when the project
+// is not workspace-claimed) and diffs the project's terms against the
+// sync-cache baseline, reading the workspace's terminology for one when none
+// was pulled yet. Nil when nothing changed.
+func conceptEdits(ctx context.Context, proj *bproject.Project) (*apiclient.TermsEdits, error) {
+	client, err := knowledgeClient(proj)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil {
+		return nil, nil
+	}
+	cache := bproject.LoadSyncCache(proj.Layout)
+	tb, err := projectTermsIfAny(ctx, proj)
+	if err != nil {
+		return nil, err
+	}
+	return PlanConcepts(ctx, client, tb, cache.ConceptBaseline, observedTermsRef(proj))
+}
+
+// conceptResult is the report of a push's terminology part: what the server
+// applied, or, when it has not confirmed the push yet or on a dry run, what
+// the push carried. Nil when the push carried no terminology.
+func conceptResult(proj *bproject.Project, outcome *venue.PushTermsOutcome, dryRun, pending bool) *PushConceptsResult {
+	if outcome.Empty() {
+		return nil
+	}
+	res := &PushConceptsResult{
+		ConceptsApplied:    outcome.ConceptsApplied,
+		RelationsApplied:   outcome.RelationsApplied,
+		ConceptsProposed:   outcome.ConceptsProposed,
+		ChangesetID:        outcome.ChangesetID,
+		ChangesetUnchanged: outcome.ChangesetUnchanged,
+		DryRun:             dryRun,
+		Pending:            pending && !dryRun,
+	}
+	if res.ChangesetID != "" {
+		res.ChangesetURL = changesetURL(proj, res.ChangesetID)
+	}
+	return res
 }
 
 // PullProjectConcepts snapshots the workspace's terminology into the project.
@@ -876,37 +848,6 @@ func PushProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun boo
 // SetConceptBaseline so the connector's single Close() persists it.
 func PullProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
 	return conceptPull(ctx, proj, dryRun)
-}
-
-func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*PushConceptsResult, error) {
-	client, err := knowledgeClient(proj)
-	if err != nil {
-		return nil, err
-	}
-	if client == nil {
-		return nil, nil
-	}
-	// No guard on the baseline. It used to return here, which is what kept
-	// terminology out of a workspace that had never been pulled from: a fresh
-	// workspace has nothing to pull, so no baseline was written, so the push
-	// returned — permanently. PushConcepts asks the server for the baseline
-	// when the cache has none, so an absent one now means "seed", not "skip".
-	cache := bproject.LoadSyncCache(proj.Layout)
-	tb, err := projectTermsIfAny(ctx, proj)
-	if err != nil {
-		return nil, err
-	}
-	res, err := PushConcepts(ctx, client, tb, cache.ConceptBaseline, observedTermsRef(proj), dryRun)
-	if err != nil {
-		return nil, err
-	}
-	if res == nil || !res.changed() {
-		return nil, nil
-	}
-	if res.ChangesetID != "" {
-		res.ChangesetURL = changesetURL(proj, res.ChangesetID)
-	}
-	return res, nil
 }
 
 // ---------------------------------------------------------------------------

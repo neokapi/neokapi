@@ -2,6 +2,7 @@ package terms
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -72,4 +73,48 @@ func IsGovernedTransition(from, to model.TermStatus) bool {
 // git needs to distinguish a decision from ordinary workspace state.
 func IsGovernedStatus(s model.TermStatus) bool {
 	return s == model.TermForbidden || s == model.TermPreferred
+}
+
+// GovernedCreate reports whether creating a concept with these terms is a
+// governed transition: a term created already forbidden or preferred.
+func GovernedCreate(terms []Term) bool {
+	for _, t := range terms {
+		if IsGovernedStatus(t.Status) {
+			return true
+		}
+	}
+	return false
+}
+
+// GovernedUpdate reports whether replacing oldTerms with newTerms entails a
+// governed status transition: an added or changed term moving to or from
+// forbidden or preferred, or a forbidden term removed. Terms are matched by
+// locale and lowercased text, the identity a change-set op names a term by.
+func GovernedUpdate(oldTerms, newTerms []Term) bool {
+	oldByKey := make(map[string]Term, len(oldTerms))
+	for _, t := range oldTerms {
+		oldByKey[TermIdentity(t)] = t
+	}
+	newByKey := make(map[string]Term, len(newTerms))
+	for _, t := range newTerms {
+		newByKey[TermIdentity(t)] = t
+		from := model.TermStatus("")
+		if prev, ok := oldByKey[TermIdentity(t)]; ok {
+			from = prev.Status
+		}
+		if IsGovernedTransition(from, t.Status) {
+			return true
+		}
+	}
+	for k, prev := range oldByKey {
+		if _, ok := newByKey[k]; !ok && prev.Status == model.TermForbidden {
+			return true
+		}
+	}
+	return false
+}
+
+// TermIdentity keys a term by locale and lowercased text.
+func TermIdentity(t Term) string {
+	return string(t.Locale) + "|" + strings.ToLower(t.Text)
 }
