@@ -1300,6 +1300,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		authProtected.GET("/me", s.HandleAuthMe)
 		authProtected.GET("/me/onboarding", s.HandleGetOnboarding)
+		// The languages waiting for the caller's review across workspaces.
+		authProtected.GET("/me/review", s.HandleReviewInbox)
 		authProtected.POST("/me/onboarding", s.HandleCompleteOnboarding)
 		authProtected.POST("/me/email", s.HandleRequestEmailChange)
 		authProtected.POST("/logout", s.HandleAuthLogout)
