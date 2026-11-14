@@ -13,7 +13,7 @@ export const feedEveryKind: FeedEntry[] = [
     kind: "push",
     at: minutesAgo(4),
     actor: ada,
-    counts: { files: 3, blocks: 40 },
+    counts: { files: 3, blocks: 40, collections: 2, files_removed: 1 },
     stream: "main",
     link: { screen: "stream", id: "push-1", stream: "main" },
   },
@@ -25,6 +25,10 @@ export const feedEveryKind: FeedEntry[] = [
     counts: { passes: 2, locales: 2, produced: 40 },
     locales: ["nb", "de"],
     state: "converged",
+    standing: [
+      { locale: "nb", state: "shippable", units: 30, produced: 30 },
+      { locale: "de", state: "pending", units: 24, produced: 10 },
+    ],
     link: { screen: "run", id: "run-1" },
   },
   {
@@ -34,6 +38,16 @@ export const feedEveryKind: FeedEntry[] = [
     actor: { id: "u-ada", kind: "agent", name: "claude-code", session: "0ab4e399", host: "laptop" },
     on_behalf_of: { id: "u-ada", name: "Ada Lindqvist" },
     counts: { term_rule: 6, add: 6 },
+    samples: [
+      {
+        kind: "term_rule",
+        operation: "add",
+        term: "translation memory",
+        replacement: "content memory",
+      },
+      { kind: "term_rule", operation: "add", term: "termbase", replacement: "terms store" },
+      { kind: "term_rule", operation: "add", term: "glossary", replacement: "terms store" },
+    ],
     link: { screen: "context_deck", mode: "pending" },
   },
   {
@@ -81,9 +95,59 @@ export const feedEveryKind: FeedEntry[] = [
     kind: "change_set",
     at: minutesAgo(27 * 60),
     actor: { id: "u-sam", kind: "person", name: "Sam Okafor" },
-    counts: {},
+    counts: { "term.add": 3, "term.status": 1 },
+    name: "Checkout terms",
     state: "merged",
     link: { screen: "change_set", id: "cs-1" },
+  },
+];
+
+const convergence = { id: "system", kind: "tool" as const, name: "convergence" };
+
+/** Three runs within the fold window, and a quiet run the feed leaves out. */
+export const feedFolded: FeedEntry[] = [
+  {
+    id: "e-fold-1",
+    kind: "convergence_run",
+    at: minutesAgo(3),
+    actor: convergence,
+    counts: { passes: 1, locales: 2, produced: 12 },
+    locales: ["nb", "de"],
+    state: "converged",
+    standing: [
+      { locale: "nb", state: "shippable", units: 12, produced: 12 },
+      { locale: "de", state: "shippable", units: 8, produced: 8 },
+    ],
+    link: { screen: "run", id: "run-f1" },
+  },
+  {
+    id: "e-fold-quiet",
+    kind: "convergence_run",
+    at: minutesAgo(6),
+    actor: convergence,
+    counts: { passes: 0, locales: 0, produced: 0 },
+    state: "converged",
+    link: { screen: "run", id: "run-q" },
+  },
+  {
+    id: "e-fold-2",
+    kind: "convergence_run",
+    at: minutesAgo(9),
+    actor: convergence,
+    counts: { passes: 1, locales: 1, produced: 4 },
+    locales: ["nb"],
+    state: "converged",
+    link: { screen: "run", id: "run-f2" },
+  },
+  {
+    id: "e-fold-3",
+    kind: "convergence_run",
+    at: minutesAgo(20),
+    actor: convergence,
+    counts: { passes: 2, locales: 1, produced: 7 },
+    locales: ["de"],
+    state: "converged",
+    link: { screen: "run", id: "run-f3" },
   },
 ];
 

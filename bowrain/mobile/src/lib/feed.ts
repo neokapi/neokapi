@@ -1,11 +1,20 @@
 // The project feed: the query that pages it, and the words a row is made of.
 // The server sends kinds, counts and names; every label and unit here comes
 // from the catalog, with the language's plural rules.
-import { mainCount, type FeedCount, type FeedEntry, type FeedPage } from "@neokapi/bowrain-client";
+import {
+  ageOf,
+  mainCount,
+  targetChanges,
+  type FeedCard,
+  type FeedCount,
+  type FeedEntry,
+  type FeedPage,
+} from "@neokapi/bowrain-client";
 import { useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 
 import { useAuth } from "./auth";
+import i18n from "./i18n";
 import { localeName } from "./localeName";
 
 /** Entries per page. */
@@ -118,7 +127,192 @@ export function countLabel(t: TFunction, c: FeedCount): string {
 
 /** A language as the reader names it, else its code. */
 export function languageLabel(code: string, uiLanguage: string): string {
-  return localeName(code, uiLanguage) ?? code;
+  // A runtime without Intl.DisplayNames (Hermes on some versions) names the
+  // common languages from the catalog, which each UI language translates.
+  return (
+    localeName(code, uiLanguage) ??
+    i18n.t(`languageNames.${code}`, {
+      defaultValue: i18n.t(`languageNames.${code.split(/[-_]/)[0]}`, { defaultValue: code }),
+    })
+  );
+}
+
+/** Items joined the way the UI language lists them: "A, B and C". */
+export function listOf(items: string[], t: TFunction, uiLanguage: string): string {
+  if (items.length <= 1) return items[0] ?? "";
+  try {
+    if (typeof Intl.ListFormat === "function") {
+      return new Intl.ListFormat(uiLanguage, { type: "conjunction" }).format(items);
+    }
+  } catch {
+    // fall through to the catalog's own joining
+  }
+  if (items.length === 2) return t("feed.list.two", { a: items[0], b: items[1] });
+  return t("feed.list.many", {
+    rest: items.slice(0, -1).join(", "),
+    last: items[items.length - 1],
+  });
+}
+
+/** The compact time of an entry: now, 5m, 2h, yesterday, or the date. */
+export function ageLabel(iso: string, t: TFunction, uiLanguage: string, now = new Date()): string {
+  const age = ageOf(iso, now);
+  switch (age.unit) {
+    case "now":
+      return t("feed.time.now");
+    case "minutes":
+      return t("feed.time.minutes", { count: age.n });
+    case "hours":
+      return t("feed.time.hours", { count: age.n });
+    case "yesterday":
+      return t("feed.time.yesterday");
+    case "date":
+      try {
+        return new Intl.DateTimeFormat(uiLanguage, { day: "numeric", month: "short" }).format(
+          age.date,
+        );
+      } catch {
+        return age.date.toDateString();
+      }
+  }
+}
+
+const CONTEXT_OP_KEYS: Record<string, string> = {
+  add: "contextAdd",
+  edit: "contextEdit",
+  keep: "contextKeep",
+  drop: "contextDrop",
+  retire: "contextRetire",
+};
+
+const CONTEXT_OPS = ["add", "edit", "keep", "drop", "retire"];
+
+const CHANGE_SET_KEYS: Record<string, string> = {
+  created: "changeSetCreated",
+  submitted: "changeSetSubmitted",
+  approved: "changeSetApproved",
+  rejected: "changeSetRejected",
+  merged: "changeSetMerged",
+  abandoned: "changeSetAbandoned",
+  superseded: "changeSetSuperseded",
+};
+
+/**
+ * What the actor did, as the sentence after their name: "added Japanese and
+ * Korean", "proposed 6 term rules", "drafted 40 translations in 3 languages".
+ */
+export function actionOf(e: FeedEntry, t: TFunction, uiLanguage: string): string {
+  const c = e.counts ?? {};
+  switch (e.kind) {
+    case "push": {
+      if (c.blocks === undefined) return t("feed.action.pushSync");
+      return e.stream
+        ? t("feed.action.push", { count: c.blocks, stream: e.stream })
+        : t("feed.action.pushNoStream", { count: c.blocks });
+    }
+    case "convergence_run": {
+      if (e.state === "parked") return t("feed.action.runParked");
+      if (e.state === "failed") return t("feed.action.runFailed");
+      if (e.state === "canceled") return t("feed.action.runCanceled");
+      const produced = c.produced ?? 0;
+      if (produced === 0) return t("feed.action.runNothing");
+      const langs = e.locales?.length ?? c.locales ?? 0;
+      const languages =
+        langs === 1 && e.locales
+          ? languageLabel(e.locales[0], uiLanguage)
+          : t("feed.unit.locales", { count: langs });
+      return t("feed.action.runDrafted", { count: produced, languages });
+    }
+    case "review_summary": {
+      const parts: string[] = [];
+      if (c.approved) parts.push(t("feed.action.approved", { count: c.approved }));
+      if (c.bulk_approved) parts.push(t("feed.action.bulkApproved", { count: c.bulk_approved }));
+      if (c.fixed) parts.push(t("feed.action.fixed", { count: c.fixed }));
+      if (c.rejected) parts.push(t("feed.action.rejected", { count: c.rejected }));
+      if (c.unreviewed) parts.push(t("feed.action.sentBack", { count: c.unreviewed }));
+      const language = e.locales?.[0] ? languageLabel(e.locales[0], uiLanguage) : "";
+      return t("feed.action.review", { parts: listOf(parts, t, uiLanguage), language });
+    }
+    case "recipe_change": {
+      const parts: string[] = [];
+      const { added, removed } = targetChanges(e);
+      if (added.length) {
+        parts.push(
+          t("feed.action.addedLanguages", {
+            languages: listOf(
+              added.map((l) => languageLabel(l, uiLanguage)),
+              t,
+              uiLanguage,
+            ),
+          }),
+        );
+      }
+      if (removed.length) {
+        parts.push(
+          t("feed.action.removedLanguages", {
+            languages: listOf(
+              removed.map((l) => languageLabel(l, uiLanguage)),
+              t,
+              uiLanguage,
+            ),
+          }),
+        );
+      }
+      for (const col of e.diff?.collections ?? []) {
+        const key =
+          col.change === "added"
+            ? "addedCollection"
+            : col.change === "removed"
+              ? "removedCollection"
+              : "movedCollection";
+        parts.push(t(`feed.action.${key}`, { name: col.name }));
+      }
+      if (e.diff?.settings?.length) {
+        parts.push(t("feed.action.changedSettings", { count: e.diff.settings.length }));
+      }
+      return parts.length ? listOf(parts, t, uiLanguage) : t("feed.action.other");
+    }
+    case "context_change": {
+      const op = CONTEXT_OPS.find((o) => (c[o] ?? 0) > 0) ?? "add";
+      const main = mainCount(e);
+      const items = main ? countLabel(t, main) : "";
+      const key = op === "add" && e.actor.kind === "agent" ? "contextPropose" : CONTEXT_OP_KEYS[op];
+      return t(`feed.action.${key}`, { items });
+    }
+    case "change_set": {
+      const key = CHANGE_SET_KEYS[e.state ?? ""] ?? "changeSetSubmitted";
+      return t(`feed.action.${key}`, { name: e.name || t("feed.action.aChangeSet") });
+    }
+    case "coverage_milestone": {
+      const language = e.locales?.[0] ? languageLabel(e.locales[0], uiLanguage) : "";
+      return t("feed.action.milestone", { language, percent: c.percent ?? 0 });
+    }
+    default:
+      return t("feed.action.other");
+  }
+}
+
+const FOLDED_KEYS: Record<string, string> = {
+  push: "foldedPush",
+  convergence_run: "foldedRun",
+  context_change: "foldedContext",
+  change_set: "foldedChangeSet",
+};
+
+/** The sentence of a folded card: "ran 3 times". */
+export function foldedActionOf(card: FeedCard, t: TFunction, uiLanguage: string): string {
+  const lead = card.entries[0];
+  const key = FOLDED_KEYS[lead.kind];
+  if (card.entries.length < 2 || !key) return actionOf(lead, t, uiLanguage);
+  return t(`feed.action.${key}`, { count: card.entries.length });
+}
+
+/** The name a card shows for its actor. */
+export function actorName(e: FeedEntry, t: TFunction): string {
+  if (e.actor.kind === "tool" && e.actor.name) {
+    return e.actor.name.charAt(0).toUpperCase() + e.actor.name.slice(1);
+  }
+  return e.actor.name || e.on_behalf_of?.name || t("feed.someone");
 }
 
 /** What the row is about, after the kind: the stream, the outcome, the language. */

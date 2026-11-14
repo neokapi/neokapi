@@ -1,17 +1,18 @@
-// The project feed: one timeline of how a project changes. List and detail,
-// at full width. The list holds one row per entry under a sticky header per
-// day in the reader's time zone; the detail pane shows the selected entry's
-// counts, who did it and for whom, where it sits, a recipe change's values
-// before and after, and one button to the place the entry links to.
+// The project feed: one timeline of how a project changes, as a column of
+// cards under a heading per day in the reader's time zone. Each card names
+// who did what in a sentence and shows a preview of the change; a card opens
+// the place its entry links to, and a language chip opens that language.
 //
-// The server sends counts and names, never sentences, so every label and unit
-// is worded here (labels.ts). New entries arrive through the workspace event
-// stream, which invalidates the ["projectFeed", ws, project] queries.
-import { useCallback, useMemo, useState } from "react";
+// The server sends counts and names, never sentences; every sentence is
+// composed here through the catalog (labels.ts). Quiet runs are left out and
+// one actor's changes close together fold into one card (foldFeed). New
+// entries arrive through the workspace event stream, which invalidates the
+// ["projectFeed", ws, project] queries.
+import { useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { t, useNeokapi } from "@neokapi/i18n-react/runtime";
 import {
-  countsOf,
+  foldFeed,
   groupFeedByDay,
   FEED_KINDS,
   type FeedActorKind,
@@ -20,17 +21,8 @@ import {
   type FeedLink,
 } from "@neokapi/bowrain-client";
 import {
-  ActorMark,
   Button,
   EmptyState,
-  KNOWN_ACTORS,
-  ListDetail,
-  ListDetailEmpty,
-  ListDetailGroup,
-  ListDetailItem,
-  ListDetailList,
-  ListDetailPane,
-  ListDetailToolbar,
   LoadingSpinner,
   PageHeader,
   Select,
@@ -38,33 +30,15 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  StatRow,
   ToggleGroup,
   ToggleGroupItem,
-  When,
   formatWhen,
 } from "@neokapi/ui-primitives";
-import {
-  Activity,
-  BookOpen,
-  CheckCheck,
-  FileText,
-  Flag,
-  GitPullRequest,
-  RefreshCw,
-  Upload,
-} from "../components/icons";
+import { Activity } from "../components/icons";
 import { useApi } from "../context/ApiContext";
 import { ErrorNotice } from "../errors";
-import {
-  actorKindLabel,
-  actorName,
-  entryTitle,
-  kindLabel,
-  languageName,
-  mainCountText,
-  unitLabel,
-} from "./labels";
+import { FeedCard } from "./FeedCard";
+import { actorKindLabel, kindLabel, languageName } from "./labels";
 
 /** Entries per page. */
 const PAGE_SIZE = 50;
@@ -81,246 +55,23 @@ export interface ProjectFeedViewProps {
   projectId: string;
   /** The project's target languages, for the language filter. */
   languages?: string[];
-  /** Opens the place an entry links to. Absent, the detail offers no button. */
+  /** Opens the place an entry links to. */
   onOpenLink?: (entry: FeedEntry) => void;
+  /** Opens a language's review deck, from a language chip. */
+  onOpenLanguage?: (locale: string) => void;
   /** Whether the app has the screen a link names. Absent, every link opens. */
   canOpen?: (link: FeedLink) => boolean;
-  /** The entry to open on, by id. Absent opens on the newest. */
-  defaultSelected?: string;
 }
 
-function KindIcon({ kind }: { kind: string }) {
-  const cls = "size-4 text-muted-foreground";
-  switch (kind) {
-    case "push":
-      return <Upload aria-hidden className={cls} />;
-    case "convergence_run":
-      return <RefreshCw aria-hidden className={cls} />;
-    case "review_summary":
-      return <CheckCheck aria-hidden className={cls} />;
-    case "recipe_change":
-      return <FileText aria-hidden className={cls} />;
-    case "context_change":
-      return <BookOpen aria-hidden className={cls} />;
-    case "change_set":
-      return <GitPullRequest aria-hidden className={cls} />;
-    case "coverage_milestone":
-      return <Flag aria-hidden className={cls} />;
-    default:
-      return <Activity aria-hidden className={cls} />;
-  }
-}
-
-/** The actor's mark: the assistant's host for an agent, a gear for a tool, else the person. */
-function FeedActorMark({ entry, size = "sm" }: { entry: FeedEntry; size?: "sm" | "md" }) {
-  const name = actorName(entry);
-  if (entry.actor.kind === "tool") return <ActorMark actor="sync" size={size} decorative />;
-  if (entry.actor.kind === "agent") {
-    const host = (entry.actor.name ?? "").trim().toLowerCase();
-    if ((KNOWN_ACTORS as readonly string[]).includes(host)) {
-      return <ActorMark actor={host} size={size} decorative />;
-    }
-    return <ActorMark actor={host || "agent"} name={name} size={size} decorative />;
-  }
-  return <ActorMark actor="person" name={name} size={size} decorative />;
-}
-
-function DayLabel({ daysAgo, date }: { daysAgo: number; date: Date }) {
+function DayHeading({ daysAgo, date }: { daysAgo: number; date: Date }) {
   const { locale } = useNeokapi();
-  if (daysAgo <= 0) return <>{t("Today")}</>;
-  if (daysAgo === 1) return <>{t("Yesterday")}</>;
-  return <>{formatWhen(date.toISOString(), { uiLocale: locale, timeStyle: "none" }).text}</>;
-}
-
-/** One entry: the kind's icon, the primary line, then who, the main count and the time. */
-function FeedRow({ entry }: { entry: FeedEntry }) {
-  const { locale } = useNeokapi();
-  const count = mainCountText(entry, locale);
-  return (
-    <ListDetailItem
-      id={entry.id}
-      data-slot="feed-entry"
-      data-kind={entry.kind}
-      className="[contain-intrinsic-size:auto_36px] [content-visibility:auto]"
-      leading={<KindIcon kind={entry.kind} />}
-      trailing={<FeedActorMark entry={entry} />}
-    >
-      <span translate="no">{entryTitle(entry, locale)}</span>
-      <span className="ml-1.5 text-[11px] text-muted-foreground tabular-nums">
-        <span translate="no">{actorName(entry)}</span>
-        {count && <> · {count}</>}
-        {" · "}
-        <When iso={entry.at} dateStyle="none" timeStyle="short" />
-      </span>
-    </ListDetailItem>
-  );
-}
-
-const FACTS_CLASS =
-  "grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5 text-sm";
-
-function coordinatesText(c: Record<string, string> | undefined): string {
-  const parts = Object.entries(c ?? {}).map(([axis, value]) => `${axis}: ${value}`);
-  return parts.length ? parts.join(", ") : "–";
-}
-
-/** The selected entry. */
-export function FeedEntryDetail({
-  entry,
-  onOpenLink,
-  canOpen,
-}: {
-  entry: FeedEntry;
-  onOpenLink?: (entry: FeedEntry) => void;
-  canOpen?: (link: FeedLink) => boolean;
-}) {
-  const { locale } = useNeokapi();
-  const counts = countsOf(entry);
-  const openable =
-    onOpenLink && entry.link.screen !== "recipe_diff" && (canOpen?.(entry.link) ?? true);
-  const diff = entry.diff;
-
-  return (
-    <ListDetailPane
-      data-slot="feed-entry-detail"
-      data-entry={entry.id}
-      toolbar={
-        <ListDetailToolbar
-          title={
-            <span className="flex min-w-0 items-center gap-2">
-              <KindIcon kind={entry.kind} />
-              <span className="min-w-0 truncate" translate="no">
-                {entryTitle(entry, locale)}
-              </span>
-            </span>
-          }
-          actions={
-            openable ? (
-              <Button size="sm" data-slot="feed-entry-open" onClick={() => onOpenLink(entry)}>
-                {t("Open")}
-              </Button>
-            ) : undefined
-          }
-        />
-      }
-    >
-      {counts.length > 0 && (
-        <StatRow
-          data-slot="feed-entry-counts"
-          items={counts.map((c) => ({
-            id: c.key,
-            value: c.n,
-            label: unitLabel(c.key, c.n),
-          }))}
-        />
-      )}
-      <dl data-slot="feed-entry-facts" className={FACTS_CLASS}>
-        <dt className="text-[11px] text-muted-foreground">{t("Who")}</dt>
-        <dd className="flex min-w-0 items-center gap-1.5">
-          <FeedActorMark entry={entry} />
-          <span translate="no">{actorName(entry)}</span>
-          <span className="text-muted-foreground">· {actorKindLabel(entry.actor.kind)}</span>
-        </dd>
-        {entry.on_behalf_of && (
-          <>
-            <dt className="text-[11px] text-muted-foreground">{t("For", "acting for a member")}</dt>
-            <dd className="min-w-0" translate="no">
-              {entry.on_behalf_of.name ?? entry.on_behalf_of.id}
-            </dd>
-          </>
-        )}
-        {entry.actor.session && (
-          <>
-            <dt className="text-[11px] text-muted-foreground">{t("Session")}</dt>
-            <dd className="min-w-0 font-mono text-xs" translate="no">
-              {[entry.actor.host, entry.actor.session].filter(Boolean).join(" · ")}
-            </dd>
-          </>
-        )}
-        <dt className="text-[11px] text-muted-foreground">{t("When")}</dt>
-        <dd className="min-w-0">
-          <When iso={entry.at} />
-        </dd>
-        {entry.stream && (
-          <>
-            <dt className="text-[11px] text-muted-foreground">{t("Stream")}</dt>
-            <dd className="min-w-0" translate="no">
-              {entry.stream}
-            </dd>
-          </>
-        )}
-        {entry.locales && entry.locales.length > 0 && (
-          <>
-            <dt className="text-[11px] text-muted-foreground">{t("Languages")}</dt>
-            <dd className="min-w-0">
-              {entry.locales.map((l) => languageName(l, locale)).join(", ")}
-            </dd>
-          </>
-        )}
-        {entry.coordinates && (
-          <>
-            <dt className="text-[11px] text-muted-foreground">{t("Where")}</dt>
-            <dd className="min-w-0" translate="no">
-              {coordinatesText(entry.coordinates)}
-            </dd>
-          </>
-        )}
-      </dl>
-
-      {diff && (
-        <section aria-label={t("Changes")} data-slot="feed-recipe-diff">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] text-muted-foreground">
-                <th className="py-1 pr-4 font-medium">{t("What")}</th>
-                <th className="py-1 pr-4 font-medium">{t("Before")}</th>
-                <th className="py-1 font-medium">{t("After")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {diff.targets && (
-                <tr className="border-t border-border align-baseline">
-                  <td className="py-1.5 pr-4">{t("Target languages")}</td>
-                  <td className="py-1.5 pr-4" translate="no">
-                    {diff.targets.before.join(", ") || "–"}
-                  </td>
-                  <td className="py-1.5" translate="no">
-                    {diff.targets.after.join(", ") || "–"}
-                  </td>
-                </tr>
-              )}
-              {(diff.collections ?? []).map((c) => (
-                <tr key={`c-${c.name}`} className="border-t border-border align-baseline">
-                  <td className="py-1.5 pr-4" translate="no">
-                    {c.name}
-                  </td>
-                  <td className="py-1.5 pr-4" translate="no">
-                    {coordinatesText(c.before)}
-                  </td>
-                  <td className="py-1.5" translate="no">
-                    {coordinatesText(c.after)}
-                  </td>
-                </tr>
-              ))}
-              {(diff.settings ?? []).map((s) => (
-                <tr key={`s-${s.name}`} className="border-t border-border align-baseline">
-                  <td className="py-1.5 pr-4 font-mono text-xs" translate="no">
-                    {s.name}
-                  </td>
-                  <td className="py-1.5 pr-4" translate="no">
-                    {s.before || "–"}
-                  </td>
-                  <td className="py-1.5" translate="no">
-                    {s.after || "–"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-    </ListDetailPane>
-  );
+  const label =
+    daysAgo <= 0
+      ? t("Today")
+      : daysAgo === 1
+        ? t("Yesterday")
+        : formatWhen(date.toISOString(), { uiLocale: locale, timeStyle: "none" }).text;
+  return <h2 className="px-1 pt-4 pb-1 text-base font-bold text-foreground">{label}</h2>;
 }
 
 export function ProjectFeedView({
@@ -328,8 +79,8 @@ export function ProjectFeedView({
   projectId,
   languages = [],
   onOpenLink,
+  onOpenLanguage,
   canOpen,
-  defaultSelected,
 }: ProjectFeedViewProps) {
   const api = useApi();
   const [kinds, setKinds] = useState<FeedKind[]>([]);
@@ -352,17 +103,22 @@ export function ProjectFeedView({
     staleTime: 10_000,
   });
 
-  const entries = useMemo(() => {
+  const days = useMemo(() => {
     const seen = new Set<string>();
-    return (feed.data?.pages ?? []).flatMap((p) =>
+    const entries = (feed.data?.pages ?? []).flatMap((p) =>
       p.entries.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true))),
     );
+    return groupFeedByDay(entries)
+      .map((day) => ({ ...day, cards: foldFeed(day.entries) }))
+      .filter((day) => day.cards.length > 0);
   }, [feed.data]);
-  const days = useMemo(() => groupFeedByDay(entries), [entries]);
 
-  const [chosen, setChosen] = useState<string | null>(defaultSelected ?? null);
-  const selected = entries.find((e) => e.id === chosen) ?? entries[0] ?? null;
-  const select = useCallback((id: string) => setChosen(id), []);
+  const open = (entry: FeedEntry) => {
+    if (!onOpenLink) return;
+    if (entry.link.screen === "recipe_diff") return;
+    if (canOpen && !canOpen(entry.link)) return;
+    onOpenLink(entry);
+  };
   const filtered = kinds.length > 0 || actorKind !== "" || locale !== "";
 
   const filters = (
@@ -398,7 +154,7 @@ export function ProjectFeedView({
       </ToggleGroup>
       {languages.length > 0 && (
         <Select value={locale || "all"} onValueChange={(v) => setLocale(v === "all" ? "" : v)}>
-          <SelectTrigger size="sm" className="w-40 text-xs" aria-label={t("Language")}>
+          <SelectTrigger size="sm" className="w-44 text-xs" aria-label={t("Language")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -425,7 +181,7 @@ export function ProjectFeedView({
     );
   } else if (feed.isLoading) {
     body = <LoadingSpinner />;
-  } else if (entries.length === 0) {
+  } else if (days.length === 0) {
     body = (
       <EmptyState
         className="mx-auto w-full max-w-md"
@@ -439,68 +195,36 @@ export function ProjectFeedView({
       />
     );
   } else {
-    const list = (
-      <>
-        <ListDetailList
-          selectedId={selected?.id}
-          onSelect={select}
-          aria-label={t("Activity")}
-          data-testid="project-feed-entries"
-        >
-          {days.map((day) => (
-            <ListDetailGroup
-              key={day.key}
-              data-slot="feed-day"
-              label={<DayLabel daysAgo={day.daysAgo} date={day.date} />}
-              count={day.entries.length}
-            >
-              {day.entries.map((entry) => (
-                <FeedRow key={entry.id} entry={entry} />
-              ))}
-            </ListDetailGroup>
-          ))}
-        </ListDetailList>
-        {feed.hasNextPage && (
-          <div className="px-2 pb-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              data-slot="feed-older"
-              className="w-full text-muted-foreground"
-              disabled={feed.isFetchingNextPage}
-              onClick={() => void feed.fetchNextPage()}
-            >
-              {t("Show older activity")}
-            </Button>
-          </div>
-        )}
-      </>
-    );
     body = (
-      <div className="min-h-[420px] flex-1 overflow-hidden rounded-lg border border-border">
-        <ListDetail
-          list={list}
-          listWidth={380}
-          detail={
-            selected ? (
-              <FeedEntryDetail
-                key={selected.id}
-                entry={selected}
-                onOpenLink={onOpenLink}
-                canOpen={canOpen}
-              />
-            ) : (
-              <ListDetailEmpty title={t("Choose an entry to see what it changed")} />
-            )
-          }
-        />
+      <div data-testid="project-feed-entries" className="space-y-3 pb-6">
+        {days.map((day) => (
+          <section key={day.key} data-slot="feed-day" className="space-y-3">
+            <DayHeading daysAgo={day.daysAgo} date={day.date} />
+            {day.cards.map((card) => (
+              <FeedCard key={card.key} card={card} onOpen={open} onOpenLanguage={onOpenLanguage} />
+            ))}
+          </section>
+        ))}
+        {feed.hasNextPage && (
+          <Button
+            variant="ghost"
+            size="sm"
+            data-slot="feed-older"
+            className="w-full text-muted-foreground"
+            disabled={feed.isFetchingNextPage}
+            onClick={() => void feed.fetchNextPage()}
+          >
+            {t("Show older activity")}
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
-    <div data-slot="project-feed" className="flex min-h-0 flex-1 flex-col gap-3">
-      <PageHeader className="mb-0 shrink-0" title={t("Activity")} actions={filters} />
+    <div data-slot="project-feed" className="mx-auto flex w-full max-w-2xl flex-col gap-2">
+      <PageHeader className="mb-0" title={t("Activity")} />
+      {filters}
       {body}
     </div>
   );

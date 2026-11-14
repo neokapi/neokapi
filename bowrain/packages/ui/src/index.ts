@@ -1329,6 +1329,7 @@ export {
 } from "./components/pulse";
 export type { PulseSettingsProps } from "./components/pulse";
 
-// The project feed (GET /:ws/:id/feed): list and detail of how a project changes.
-export { ProjectFeedView, FeedEntryDetail, projectFeedKey } from "./project-feed/ProjectFeedView";
+// The project feed (GET /:ws/:id/feed): a column of cards of how a project changes.
+export { ProjectFeedView, projectFeedKey } from "./project-feed/ProjectFeedView";
+export { FeedCard, FeedAvatar, FeedPreview } from "./project-feed/FeedCard";
 export type { ProjectFeedViewProps } from "./project-feed/ProjectFeedView";

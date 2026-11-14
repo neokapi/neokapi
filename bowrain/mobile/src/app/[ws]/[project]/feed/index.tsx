@@ -1,14 +1,16 @@
-// A project's feed: how the project changed, newest first, under a sticky
-// header per day. A row opens the review deck it links to, or the entry's
-// detail. New entries arrive over the workspace event stream.
-import { groupFeedByDay, type FeedEntry } from "@neokapi/bowrain-client";
+// A project's feed: how the project changed, newest first, as cards under a
+// header per day. A card opens what it links to (a language's deck, or the
+// entry's detail); a language chip in a card opens that language's deck.
+// Quiet runs are left out and one actor's changes close together fold into
+// one card. New entries arrive over the workspace event stream.
+import { foldFeed, groupFeedByDay, type FeedEntry } from "@neokapi/bowrain-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { ActivityIndicator, SectionList, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { FeedRow } from "../../../../components/FeedRow";
+import { FeedCardItem } from "../../../../components/feed/FeedCard";
 import { QueryState } from "../../../../components/List";
 import { dayLabel, deckLocaleOf, entriesOf, feedKey, useFeed } from "../../../../lib/feed";
 import { useFeedEvents } from "../../../../lib/feedEvents";
@@ -22,25 +24,36 @@ export default function Feed() {
 
   const sections = useMemo(
     () =>
-      groupFeedByDay(entriesOf(feed.data)).map((day) => ({
-        key: day.key,
-        title: dayLabel(day.daysAgo, day.date, t, i18n.language),
-        data: day.entries,
-      })),
+      groupFeedByDay(entriesOf(feed.data))
+        .map((day) => ({
+          key: day.key,
+          title: dayLabel(day.daysAgo, day.date, t, i18n.language),
+          data: foldFeed(day.entries),
+        }))
+        .filter((s) => s.data.length > 0),
     [feed.data, t, i18n.language],
   );
 
-  const open = (entry: FeedEntry) => {
-    const locale = deckLocaleOf(entry);
-    if (locale) {
-      router.push({ pathname: "/[ws]/[project]/[locale]", params: { ws, project, locale } });
-      return;
-    }
-    router.push({
-      pathname: "/[ws]/[project]/feed/[entry]",
-      params: { ws, project, entry: entry.id },
-    });
-  };
+  const openLanguage = useCallback(
+    (locale: string) =>
+      router.push({ pathname: "/[ws]/[project]/[locale]", params: { ws, project, locale } }),
+    [ws, project],
+  );
+
+  const open = useCallback(
+    (entry: FeedEntry) => {
+      const locale = deckLocaleOf(entry);
+      if (locale) {
+        openLanguage(locale);
+        return;
+      }
+      router.push({
+        pathname: "/[ws]/[project]/feed/[entry]",
+        params: { ws, project, entry: entry.id },
+      });
+    },
+    [ws, project, openLanguage],
+  );
 
   return (
     <View className="bg-background flex-1">
@@ -48,8 +61,9 @@ export default function Feed() {
         testID="feed-list"
         contentInsetAdjustmentBehavior="automatic"
         sections={sections}
-        keyExtractor={(e) => e.id}
-        stickySectionHeadersEnabled
+        keyExtractor={(card) => card.key}
+        stickySectionHeadersEnabled={false}
+        contentContainerClassName="pb-8"
         refreshing={feed.isRefetching && !feed.isFetchingNextPage}
         onRefresh={() => void qc.invalidateQueries({ queryKey: feedKey(ws, project) })}
         onEndReachedThreshold={0.5}
@@ -57,11 +71,13 @@ export default function Feed() {
           if (feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage();
         }}
         renderSectionHeader={({ section }) => (
-          <View className="bg-background border-border border-b px-4 pt-4 pb-1.5">
-            <Text className="text-muted-foreground text-sm font-semibold">{section.title}</Text>
+          <View className="px-5 pt-5 pb-2">
+            <Text className="text-foreground text-[17px] font-bold">{section.title}</Text>
           </View>
         )}
-        renderItem={({ item }) => <FeedRow entry={item} onPress={() => open(item)} />}
+        renderItem={({ item }) => (
+          <FeedCardItem card={item} onOpen={open} onOpenLanguage={openLanguage} />
+        )}
         ListFooterComponent={
           feed.isFetchingNextPage ? (
             <View className="items-center p-4">
