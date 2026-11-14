@@ -144,7 +144,7 @@ function SplitBar({
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground tabular-nums">
         {shown.map((s) => (
-          <span key={s.key} className="inline-flex items-center gap-1.5">
+          <span key={s.key} className="inline-flex items-center gap-1.5" translate="no">
             <span className={cn("size-2 rounded-full", s.colour)} />
             {s.label} {s.value}
           </span>
@@ -333,12 +333,12 @@ export function FeedPreview({
         <div className="flex flex-wrap gap-2">
           {added.map((l) => (
             <Chip key={`+${l}`} tone="added" onClick={openLang(l)}>
-              + {languageName(l, locale)}
+              <span translate="no">+ {languageName(l, locale)}</span>
             </Chip>
           ))}
           {removed.map((l) => (
             <Chip key={`-${l}`} tone="removed">
-              − {languageName(l, locale)}
+              <span translate="no">− {languageName(l, locale)}</span>
             </Chip>
           ))}
           {(entry.diff?.collections ?? []).map((col) => (
