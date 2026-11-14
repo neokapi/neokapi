@@ -67,12 +67,18 @@ export function ProjectFeedRoute() {
   );
 
   return (
-    <PageContainer width="full" className="px-6 pt-5 pb-4">
+    <PageContainer width="wide">
       <ProjectFeedView
         workspace={ws}
         projectId={projectId}
         languages={project.data?.target_languages ?? []}
         onOpenLink={open}
+        onOpenLanguage={() =>
+          void navigate({
+            to: "/$workspace/p/$projectId/s/$stream/review",
+            params: { workspace: ws, projectId, stream },
+          })
+        }
         canOpen={(link) => OPENS.has(link.screen) && (link.screen !== "change_set" || !!link.id)}
       />
     </PageContainer>

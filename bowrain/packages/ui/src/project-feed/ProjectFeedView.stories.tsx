@@ -3,12 +3,12 @@ import type { Decorator } from "@storybook/react";
 import { fn } from "storybook/test";
 import type { FeedEntry } from "@neokapi/bowrain-client";
 import { ProjectFeedView } from "./ProjectFeedView";
-import { feedEveryKind, feedLong, feedMany } from "./fixtures";
+import { feedEveryKind, feedFolded, feedLong, feedMany } from "./fixtures";
 import { createProvidersDecorator } from "../stories/decorators";
 
-// A project's feed as list and detail: one row per entry under its day, the
-// selected entry's counts and facts beside it. The fixtures are dated from
-// now, so they read under Today and Yesterday.
+// A project's feed as a column of cards: who did what, when, and a preview of
+// the change. The fixtures are dated from now, so they read under Today and
+// Yesterday.
 
 /** A feed served page by page and filtered the way the server filters it. */
 function withFeed(entries: FeedEntry[], pageSize = 50): Decorator {
@@ -40,10 +40,11 @@ const meta: Meta<typeof ProjectFeedView> = {
     projectId: "p-docs",
     languages: ["nb", "de", "fr"],
     onOpenLink: fn(),
+    onOpenLanguage: fn(),
   },
   decorators: [
     (Story) => (
-      <div style={{ height: 680, padding: 16, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: 16 }}>
         <Story />
       </div>
     ),
@@ -53,7 +54,7 @@ const meta: Meta<typeof ProjectFeedView> = {
 export default meta;
 type Story = StoryObj<typeof ProjectFeedView>;
 
-/** One entry of each kind, the newest push selected. */
+/** One card of each kind: push, run, agent context change, review, milestone, recipe and change set. */
 export const EveryKind: Story = {
   decorators: [withFeed(feedEveryKind)],
   globals: { theme: "light" },
@@ -64,27 +65,13 @@ export const EveryKindDark: Story = {
   globals: { theme: "dark" },
 };
 
-/** An agent's context change, selected: the session and the member it ran for. */
-export const AgentContextChange: Story = {
-  args: { defaultSelected: "e-context" },
-  decorators: [withFeed(feedEveryKind)],
+/** Three runs close together fold into one card; the quiet run is left out. */
+export const FoldedRuns: Story = {
+  decorators: [withFeed(feedFolded)],
   globals: { theme: "light" },
 };
 
-/** A recipe change, selected: the values before and after. */
-export const RecipeChange: Story = {
-  args: { defaultSelected: "e-recipe" },
-  decorators: [withFeed(feedEveryKind)],
-  globals: { theme: "light" },
-};
-
-export const RecipeChangeDark: Story = {
-  args: { defaultSelected: "e-recipe" },
-  decorators: [withFeed(feedEveryKind)],
-  globals: { theme: "dark" },
-};
-
-/** One entry. */
+/** One card. */
 export const OneEntry: Story = {
   decorators: [withFeed(feedEveryKind.slice(0, 1))],
   globals: { theme: "light" },
@@ -98,17 +85,16 @@ export const ManyEntries: Story = {
 
 /** Long names, a long stream and a recipe change with every axis. */
 export const LongContent: Story = {
-  args: { defaultSelected: "e-long-recipe" },
   decorators: [withFeed(feedLong)],
   globals: { theme: "light" },
+};
+
+export const LongContentDark: Story = {
+  decorators: [withFeed(feedLong)],
+  globals: { theme: "dark" },
 };
 
 export const Empty: Story = {
   decorators: [withFeed([])],
   globals: { theme: "light" },
-};
-
-export const EmptyDark: Story = {
-  decorators: [withFeed([])],
-  globals: { theme: "dark" },
 };

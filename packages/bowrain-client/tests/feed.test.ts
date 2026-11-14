@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { groupFeedByDay, isFeedSourceEvent, mainCount, type FeedEntry } from "../src/index.ts";
+import {
+  ageOf,
+  foldFeed,
+  groupFeedByDay,
+  initialsOf,
+  isFeedSourceEvent,
+  mainCount,
+  paletteIndex,
+  type FeedEntry,
+} from "../src/index.ts";
 
 function entry(kind: string, at: Date, counts: Record<string, number> = {}): FeedEntry {
   return {
@@ -63,5 +72,45 @@ describe("feed", () => {
     expect(isFeedSourceEvent("connector.push.completed")).toBe(true);
     expect(isFeedSourceEvent("changeset.merged")).toBe(true);
     expect(isFeedSourceEvent("block.updated")).toBe(false);
+  });
+
+  it("drops quiet runs and folds one actor's runs into one card", () => {
+    const t0 = new Date(2026, 10, 14, 12, 0);
+    const run = (minutesAgo: number, produced: number, state = "converged") => ({
+      ...entry("convergence_run", new Date(t0.getTime() - minutesAgo * 60_000), { produced }),
+      id: `r${minutesAgo}`,
+      state,
+      actor: { id: "system", kind: "tool" as const, name: "convergence" },
+    });
+    const cards = foldFeed([
+      run(0, 40),
+      run(5, 0),
+      run(10, 12),
+      run(20, 0, "failed"),
+      entry("push", new Date(t0.getTime() - 25 * 60_000)),
+      run(90, 3),
+    ]);
+    expect(cards.map((c) => c.entries.map((e) => e.id))).toEqual([
+      ["r0", "r10", "r20"],
+      [`push-${t0.getTime() - 25 * 60_000}`],
+      ["r90"],
+    ]);
+  });
+
+  it("gives an actor initials and a stable colour", () => {
+    expect(initialsOf("Ada Lindqvist")).toBe("AL");
+    expect(initialsOf("claude-code")).toBe("CC");
+    expect(initialsOf("asgeir")).toBe("AS");
+    expect(paletteIndex("u-ada", 8)).toBe(paletteIndex("u-ada", 8));
+  });
+
+  it("states an age as now, minutes, hours, yesterday or a date", () => {
+    const now = new Date(2026, 10, 14, 15, 0);
+    const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+    expect(ageOf(ago(10_000), now)).toEqual({ unit: "now" });
+    expect(ageOf(ago(5 * 60_000), now)).toEqual({ unit: "minutes", n: 5 });
+    expect(ageOf(ago(2 * 3_600_000), now)).toEqual({ unit: "hours", n: 2 });
+    expect(ageOf(ago(20 * 3_600_000), now)).toEqual({ unit: "yesterday" });
+    expect(ageOf(ago(4 * 86_400_000), now).unit).toBe("date");
   });
 });

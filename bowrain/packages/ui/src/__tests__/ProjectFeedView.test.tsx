@@ -1,52 +1,84 @@
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import type { ApiAdapter } from "../api/adapter";
 import { ProjectFeedView } from "../project-feed/ProjectFeedView";
-import { feedEveryKind } from "../project-feed/fixtures";
+import { feedEveryKind, feedFolded } from "../project-feed/fixtures";
 
-function renderFeed(listProjectFeed: ApiAdapter["listProjectFeed"], onOpenLink = vi.fn()) {
+function renderFeed(
+  listProjectFeed: ApiAdapter["listProjectFeed"],
+  handlers: {
+    onOpenLink?: ReturnType<typeof vi.fn>;
+    onOpenLanguage?: ReturnType<typeof vi.fn>;
+  } = {},
+) {
   const adapter = { listProjectFeed } as unknown as ApiAdapter;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const onOpenLink = handlers.onOpenLink ?? vi.fn();
+  const onOpenLanguage = handlers.onOpenLanguage ?? vi.fn();
   render(
     <QueryClientProvider client={client}>
       <ApiProvider adapter={adapter}>
-        <ProjectFeedView workspace="acme" projectId="p1" onOpenLink={onOpenLink} />
+        <ProjectFeedView
+          workspace="acme"
+          projectId="p1"
+          onOpenLink={onOpenLink}
+          onOpenLanguage={onOpenLanguage}
+        />
       </ApiProvider>
     </QueryClientProvider>,
   );
-  return onOpenLink;
+  return { onOpenLink, onOpenLanguage };
+}
+
+function cards(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-slot="feed-card"]'));
 }
 
 describe("ProjectFeedView", () => {
-  it("lists one row per entry with its title, actor and main count", async () => {
+  it("shows a card per entry with who did what", async () => {
     renderFeed(vi.fn().mockResolvedValue({ entries: feedEveryKind }));
-    const rows = await screen.findAllByRole("option");
-    expect(rows).toHaveLength(feedEveryKind.length);
-    expect(rows[0].textContent).toContain("Push · main");
-    expect(rows[0].textContent).toContain("Ada Lindqvist");
-    expect(rows[0].textContent).toContain("40 blocks");
+    await waitFor(() => expect(cards()).toHaveLength(feedEveryKind.length));
+    const text = cards().map((c) => c.textContent ?? "");
+    expect(text[0]).toContain("Ada Lindqvist pushed 40 blocks to main");
+    expect(text.find((t) => t.includes("claude-code"))).toContain("proposed 6 term rules");
+    expect(text.find((t) => t.includes("claude-code"))).toContain("for Ada Lindqvist");
+    expect(text.find((t) => t.includes("Convergence"))).toContain(
+      "drafted 40 translations in 2 languages",
+    );
+    expect(text.find((t) => t.includes("content memory"))).toContain("+3 more");
     expect(screen.getByText("Today")).toBeTruthy();
   });
 
-  it("shows the selected entry's counts and opens its link", async () => {
-    const onOpen = renderFeed(vi.fn().mockResolvedValue({ entries: feedEveryKind }));
-    const detail = await waitFor(() => {
-      const el = document.querySelector('[data-slot="feed-entry-detail"]');
-      if (!el) throw new Error("no detail");
-      return el as HTMLElement;
-    });
-    expect(within(detail).getByText("files")).toBeTruthy();
-    await userEvent.click(within(detail).getByRole("button", { name: "Open" }));
-    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: "e-push" }));
+  it("opens a card's link, and a language chip's deck", async () => {
+    const { onOpenLink, onOpenLanguage } = renderFeed(
+      vi.fn().mockResolvedValue({ entries: feedEveryKind }),
+    );
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0));
+    await userEvent.click(screen.getByText(/pushed 40 blocks/));
+    expect(onOpenLink).toHaveBeenCalledWith(expect.objectContaining({ id: "e-push" }));
+    const chip = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-slot="feed-chip-link"]'),
+    ).find((el) => el.textContent?.includes("French"));
+    expect(chip).toBeTruthy();
+    await userEvent.click(chip!);
+    expect(onOpenLanguage).toHaveBeenCalledWith("fr");
+  });
+
+  it("folds one actor's runs into one card and leaves out quiet runs", async () => {
+    renderFeed(vi.fn().mockResolvedValue({ entries: feedFolded }));
+    await waitFor(() => expect(cards()).toHaveLength(1));
+    expect(cards()[0].textContent).toContain("Convergence ran 3 times");
+    await userEvent.click(screen.getByRole("button", { name: /Show 2 more/ }));
+    expect(cards()[0].textContent).toContain("drafted 7 translations");
   });
 
   it("asks the server for the kinds a filter selects", async () => {
     const list = vi.fn().mockResolvedValue({ entries: feedEveryKind });
     renderFeed(list);
-    await screen.findAllByRole("option");
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0));
     await userEvent.click(document.querySelector('[data-slot="feed-filter-push"]') as HTMLElement);
     await waitFor(() =>
       expect(list).toHaveBeenLastCalledWith(

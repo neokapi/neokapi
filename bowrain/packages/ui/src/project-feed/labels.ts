@@ -2,8 +2,8 @@
 // states and typed counts; each is worded here, with the language's plural
 // rules, and nothing is built from a server sentence.
 import { t } from "@neokapi/i18n-react/runtime";
-import type { FeedActorKind, FeedCount, FeedEntry } from "@neokapi/bowrain-client";
-import { mainCount } from "@neokapi/bowrain-client";
+import type { FeedActorKind, FeedCard, FeedCount, FeedEntry } from "@neokapi/bowrain-client";
+import { ageOf, mainCount, targetChanges } from "@neokapi/bowrain-client";
 
 /** The label of a feed kind: Push, Run, Review. */
 export function kindLabel(kind: string): string {
@@ -161,7 +161,10 @@ export function countText(c: FeedCount, locale: string): string {
 /** A language as the reader names it, else its code. */
 export function languageName(code: string, locale: string): string {
   try {
-    const names = new Intl.DisplayNames([locale, "en"], { type: "language", fallback: "none" });
+    const names = new Intl.DisplayNames([locale || "en", "en"], {
+      type: "language",
+      fallback: "none",
+    });
     return names.of(code.replace(/_/g, "-")) ?? code;
   } catch {
     return code;
@@ -196,9 +199,208 @@ export function entryTitle(e: FeedEntry, locale: string): string {
   return object ? `${kindLabel(e.kind)} · ${object}` : kindLabel(e.kind);
 }
 
-/** Who did it, as the row names them. */
+/** Who did it, as a card names them. A tool's name is capitalised. */
 export function actorName(e: FeedEntry): string {
+  if (e.actor.kind === "tool" && e.actor.name) {
+    return e.actor.name.charAt(0).toUpperCase() + e.actor.name.slice(1);
+  }
   return e.actor.name || e.on_behalf_of?.name || t("Someone");
+}
+
+/** Items joined the way the UI language lists them: "A, B and C". */
+export function listOf(items: string[], locale: string): string {
+  if (items.length <= 1) return items[0] ?? "";
+  // The package's lib predates Intl.ListFormat; every supported browser has it.
+  const ListFormat = (
+    Intl as unknown as {
+      ListFormat?: new (
+        locale: string,
+        opts: { type: "conjunction" },
+      ) => { format: (items: string[]) => string };
+    }
+  ).ListFormat;
+  try {
+    if (ListFormat) return new ListFormat(locale || "en", { type: "conjunction" }).format(items);
+  } catch {
+    // fall through
+  }
+  return items.join(", ");
+}
+
+/** The compact time of an entry: now, 5m, 2h, yesterday, or the date. */
+export function ageText(iso: string, locale: string, now = new Date()): string {
+  const age = ageOf(iso, now);
+  switch (age.unit) {
+    case "now":
+      return t("now", "feed time");
+    case "minutes":
+      return t("{count}m", { count: age.n });
+    case "hours":
+      return t("{count}h", { count: age.n });
+    case "yesterday":
+      return t("yesterday", "feed time");
+    case "date":
+      try {
+        return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(age.date);
+      } catch {
+        return age.date.toDateString();
+      }
+  }
+}
+
+const CONTEXT_OPS = ["add", "edit", "keep", "drop", "retire"];
+
+function contextAction(op: string, agent: boolean, items: string): string {
+  switch (op) {
+    case "edit":
+      return t("edited {items}", { items });
+    case "keep":
+      return t("kept {items}", { items });
+    case "drop":
+      return t("dropped {items}", { items });
+    case "retire":
+      return t("retired {items}", { items });
+    default:
+      return agent ? t("proposed {items}", { items }) : t("added {items}", { items });
+  }
+}
+
+function changeSetAction(state: string, name: string): string {
+  switch (state) {
+    case "created":
+      return t("opened {name}", { name });
+    case "approved":
+      return t("approved {name}", { name });
+    case "rejected":
+      return t("rejected {name}", { name });
+    case "merged":
+      return t("merged {name}", { name });
+    case "abandoned":
+      return t("abandoned {name}", { name });
+    case "superseded":
+      return t("replaced {name}", { name });
+    default:
+      return t("submitted {name} for review", { name });
+  }
+}
+
+/**
+ * What the actor did, as the sentence after their name: "added Japanese and
+ * Korean", "proposed 6 term rules", "drafted 40 translations in 3 languages".
+ */
+export function actionText(e: FeedEntry, locale: string): string {
+  const c = e.counts ?? {};
+  switch (e.kind) {
+    case "push": {
+      if (c.blocks === undefined) return t("synced the repository");
+      return e.stream
+        ? t(
+            "{count, plural, one {pushed # block to {stream}} other {pushed # blocks to {stream}}}",
+            {
+              count: c.blocks,
+              stream: e.stream,
+            },
+          )
+        : t("{count, plural, one {pushed # block} other {pushed # blocks}}", { count: c.blocks });
+    }
+    case "convergence_run": {
+      if (e.state === "parked") return t("parked a run that needs attention");
+      if (e.state === "failed") return t("could not finish a run");
+      if (e.state === "canceled") return t("canceled a run");
+      const produced = c.produced ?? 0;
+      if (produced === 0) return t("had nothing to draft");
+      const n = e.locales?.length ?? c.locales ?? 0;
+      const languages =
+        n === 1 && e.locales
+          ? languageName(e.locales[0], locale)
+          : t("{count, plural, one {# language} other {# languages}}", { count: n });
+      return t(
+        "{count, plural, one {drafted # translation in {languages}} other {drafted # translations in {languages}}}",
+        { count: produced, languages },
+      );
+    }
+    case "review_summary": {
+      const parts: string[] = [];
+      if (c.approved) parts.push(t("approved {count}", { count: c.approved }));
+      if (c.bulk_approved) parts.push(t("approved {count} in bulk", { count: c.bulk_approved }));
+      if (c.fixed) parts.push(t("fixed {count}", { count: c.fixed }));
+      if (c.rejected) parts.push(t("rejected {count}", { count: c.rejected }));
+      if (c.unreviewed) parts.push(t("sent back {count}", { count: c.unreviewed }));
+      const language = e.locales?.[0] ? languageName(e.locales[0], locale) : "";
+      return t("{parts} in {language}", { parts: listOf(parts, locale), language });
+    }
+    case "recipe_change": {
+      const parts: string[] = [];
+      const { added, removed } = targetChanges(e);
+      if (added.length) {
+        parts.push(
+          t("added {languages}", {
+            languages: listOf(
+              added.map((l) => languageName(l, locale)),
+              locale,
+            ),
+          }),
+        );
+      }
+      if (removed.length) {
+        parts.push(
+          t("removed {languages}", {
+            languages: listOf(
+              removed.map((l) => languageName(l, locale)),
+              locale,
+            ),
+          }),
+        );
+      }
+      for (const col of e.diff?.collections ?? []) {
+        if (col.change === "added")
+          parts.push(t("added the {name} collection", { name: col.name }));
+        else if (col.change === "removed") {
+          parts.push(t("removed the {name} collection", { name: col.name }));
+        } else parts.push(t("moved {name}", { name: col.name }));
+      }
+      if (e.diff?.settings?.length) {
+        parts.push(
+          t("{count, plural, one {changed # setting} other {changed # settings}}", {
+            count: e.diff.settings.length,
+          }),
+        );
+      }
+      return parts.length ? listOf(parts, locale) : t("made a change");
+    }
+    case "context_change": {
+      const op = CONTEXT_OPS.find((o) => (c[o] ?? 0) > 0) ?? "add";
+      const main = mainCount(e);
+      return contextAction(op, e.actor.kind === "agent", main ? countText(main, locale) : "");
+    }
+    case "change_set":
+      return changeSetAction(e.state ?? "", e.name || t("a change set"));
+    case "coverage_milestone": {
+      const language = e.locales?.[0] ? languageName(e.locales[0], locale) : "";
+      return t("{language} reached {percent}%", { language, percent: c.percent ?? 0 });
+    }
+    default:
+      return t("made a change");
+  }
+}
+
+/** The sentence of a folded card: "ran 3 times". */
+export function foldedActionText(card: FeedCard, locale: string): string {
+  const lead = card.entries[0];
+  const count = card.entries.length;
+  if (count < 2) return actionText(lead, locale);
+  switch (lead.kind) {
+    case "push":
+      return t("{count, plural, other {pushed # times}}", { count });
+    case "convergence_run":
+      return t("{count, plural, other {ran # times}}", { count });
+    case "context_change":
+      return t("{count, plural, other {made # context changes}}", { count });
+    case "change_set":
+      return t("{count, plural, other {updated # change sets}}", { count });
+    default:
+      return actionText(lead, locale);
+  }
 }
 
 /** The count a row leads with, worded, or undefined. */

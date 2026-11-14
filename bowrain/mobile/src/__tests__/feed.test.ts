@@ -2,7 +2,15 @@ import type { FeedEntry } from "@neokapi/bowrain-client";
 import i18n from "i18next";
 
 import "../lib/i18n";
-import { dayLabel, deckLocaleOf, entryMeta, entryTitle } from "../lib/feed";
+import {
+  actionOf,
+  ageLabel,
+  dayLabel,
+  deckLocaleOf,
+  entryMeta,
+  entryTitle,
+  foldedActionOf,
+} from "../lib/feed";
 import { changeTypeOf, createSseParser } from "../lib/sse";
 
 const t = i18n.getFixedT("en");
@@ -18,6 +26,71 @@ function entry(over: Partial<FeedEntry>): FeedEntry {
     ...over,
   };
 }
+
+describe("feed card sentences", () => {
+  it("says what the actor did, with language names", () => {
+    expect(
+      actionOf(
+        entry({
+          kind: "recipe_change",
+          diff: { targets: { before: ["nb"], after: ["nb", "ja", "ko"] } },
+          counts: { targets_added: 2 },
+        }),
+        t,
+        "en",
+      ),
+    ).toBe("added Japanese and Korean");
+    expect(
+      actionOf(
+        entry({
+          kind: "context_change",
+          actor: { id: "u1", kind: "agent", name: "claude-code" },
+          counts: { term_rule: 6, add: 6 },
+        }),
+        t,
+        "en",
+      ),
+    ).toBe("proposed 6 term rules");
+    expect(
+      actionOf(
+        entry({
+          kind: "convergence_run",
+          state: "converged",
+          locales: ["nb", "de", "fr"],
+          counts: { produced: 40 },
+        }),
+        t,
+        "en",
+      ),
+    ).toBe("drafted 40 translations in 3 languages");
+    expect(
+      actionOf(
+        entry({
+          kind: "review_summary",
+          locales: ["nb"],
+          counts: { approved: 120, rejected: 14 },
+        }),
+        t,
+        "en",
+      ),
+    ).toBe("approved 120 and rejected 14 in Norwegian Bokmål");
+    expect(
+      actionOf(entry({ kind: "change_set", state: "merged", name: "Checkout terms" }), t, "en"),
+    ).toBe("merged Checkout terms");
+  });
+
+  it("says how many times a folded card's actor acted", () => {
+    const run = entry({ kind: "convergence_run", counts: { produced: 3 } });
+    expect(foldedActionOf({ key: "k", entries: [run, run, run] }, t, "en")).toBe("ran 3 times");
+  });
+
+  it("states a compact age", () => {
+    const now = new Date(2026, 10, 14, 15, 0);
+    expect(ageLabel(new Date(now.getTime() - 2 * 3_600_000).toISOString(), t, "en", now)).toBe(
+      "2h",
+    );
+  });
+});
 
 describe("feed rows", () => {
   it("names the kind and its object on the primary line", () => {
