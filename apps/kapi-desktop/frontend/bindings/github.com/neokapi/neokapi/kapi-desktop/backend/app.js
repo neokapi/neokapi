@@ -867,7 +867,9 @@ export function DetectAIProviders() {
 
 /**
  * DetectFormat returns the format name for a file path outside any project:
- * the registry's resolver by extension, under the config's engine default.
+ * the registry's resolver, under the config's engine default. When several
+ * formats claim the extension, the file's head decides among them; a path
+ * that cannot be read (an archive entry's name) resolves by extension.
  * A path in an open project goes through DetectProjectFormat, which adds the
  * recipe's sources, engine preference and pins.
  * @param {string} path
