@@ -1,0 +1,19 @@
+# Open a deck from the Review tab: the languages waiting for the test user
+# across projects. The test user needs review permission in the project
+# named, and something waiting in the language.
+#
+#   -e PROJECT=<project id> -e LOCALE=nb
+appId: cloud.bowrain.app
+---
+- runFlow: sign-in.yaml
+- tapOn: "Review"
+- extendedWaitUntil:
+    visible:
+      id: inbox-${PROJECT}-${LOCALE}
+    timeout: 20000
+- tapOn:
+    id: inbox-${PROJECT}-${LOCALE}
+- extendedWaitUntil:
+    visible:
+      id: review-card
+    timeout: 20000

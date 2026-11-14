@@ -384,6 +384,38 @@ screens.
   (`review_approved`, `review_rejected`, batch size and locale), never
   content.
 
+## Navigation
+
+The app opens on the system tab bar (expo-router native tabs: UITabBar on
+iOS, the Material bar on Android). Each tab holds its own stack, so a tab
+keeps its place while another is open.
+
+| Tab | What it shows | Where it reads it |
+| --- | --- | --- |
+| Home | workspaces, a workspace's projects, a project's languages with what each deck holds | `/workspaces`, `/:ws/projects`, `/:ws/:id/permissions`, the deck's counts |
+| Review | every language the person may review, across projects and workspaces, where anything waits, most waiting first | `GET /auth/me/review` (below) |
+| Activity | the feed of the project the person last opened; a button at the top picks another | `GET /:ws/:id/feed` |
+| Account | the person, the account page on the server, the server, appearance, the version and update, sign-out | `/auth/me`, expo-application, expo-updates |
+
+The deck is not in a tab. It opens over the tab bar from Home, Review or an
+Activity card, because a reviewer needs the whole screen for the card and
+the action bar. Its route, `/:ws/:project/:locale`, and the Home routes keep
+their paths, so a link to a deck or a project opens the same screen as
+before, with the tabs beneath it.
+
+Review is a tab of its own because the question a reviewer opens the app
+with is what is waiting for them, and Home answers it one project at a time.
+The server answers it in one request; the app neither sums nor sorts.
+
+The avatar is the person's initials in a colour fixed by their user id, the
+colour the feed gives the same person. It sits at the top right of Home and
+opens Account. The tab bar shows a system symbol for Account: a native tab
+icon is an image or a symbol, and the initials are neither.
+
+The project the Activity tab shows is kept on the device and dropped on
+sign-out. Appearance (System, Light, Dark) is kept on the device too and
+applied through Uniwind, which also sets the native interface style.
+
 ## Licence
 
 `bowrain/` is AGPL-3.0. GPL-family licences conflict with App Store terms
@@ -589,6 +621,40 @@ The grouping rule is `reviewdeck.ClassifyDeckCard` (`host/reviewdeck`):
 A translation rejected at the wording it holds is in no group. It waits for a
 new draft, and the deck and its counts leave it out until one lands; the new
 draft then goes to the desk.
+
+### The review inbox
+
+`GET /auth/me/review`
+
+Every language the caller may review, in every project of every workspace
+they belong to, where the language's deck holds anything. Access resolves as
+it does for a project route, and an API token's scopes narrow it. Each
+language counts as its deck counts it: `waiting` is the grouped translations
+plus `unclassified`, the part the deck groups when it is opened. Nothing is
+classified by this call. The list is sorted most waiting first.
+
+```json
+{
+  "languages": [
+    {
+      "workspace": "acme",
+      "workspace_name": "Acme",
+      "project": "site",
+      "project_name": "Site",
+      "stream": "main",
+      "locale": "nb",
+      "waiting": 42,
+      "fast": 30,
+      "closer": 8,
+      "desk": 2,
+      "unclassified": 2
+    }
+  ]
+}
+```
+
+A server without the route answers 404, and the Review tab says so and
+points to Home.
 
 ### Fix candidates
 

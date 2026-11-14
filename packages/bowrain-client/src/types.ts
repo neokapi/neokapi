@@ -50,6 +50,25 @@ export interface CallerPermissions {
   languages: string[];
 }
 
+/**
+ * One language waiting for the caller's review (reviewInboxLanguage). The
+ * counts are the language's review deck: `waiting` is everything in it,
+ * `unclassified` the part the deck groups when it is opened.
+ */
+export interface ReviewInboxLanguage {
+  workspace: string;
+  workspace_name: string;
+  project: string;
+  project_name: string;
+  stream: string;
+  locale: string;
+  waiting: number;
+  fast: number;
+  closer: number;
+  desk: number;
+  unclassified: number;
+}
+
 /** One locale's committed target (BlockTargetInfo). */
 export interface BlockTarget {
   text: string;

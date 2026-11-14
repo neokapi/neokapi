@@ -245,8 +245,8 @@ next.
 
 All labels and count units come from the client's catalog, with the locale's
 plural rules, which is why the server sends counts and never sentences. On
-mobile the feed is a tab of the project screen and is cached through the
-TanStack Query persister like the deck.
+mobile the feed is the Activity tab, showing the project the person last
+opened, and is cached through the TanStack Query persister like the deck.
 
 ## Part B: context review in the deck
 

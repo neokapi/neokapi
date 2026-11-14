@@ -4,12 +4,14 @@
 import type { DeckCounts, Project } from "@neokapi/bowrain-client";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { FlatList, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { QueryState, Row } from "../../../components/List";
-import { useAuth } from "../../../lib/auth";
-import { localeName } from "../../../lib/localeName";
+import { QueryState, Row } from "../../../../../components/List";
+import { useAuth } from "../../../../../lib/auth";
+import { localeName } from "../../../../../lib/localeName";
+import { setRecentProject } from "../../../../../lib/recentProject";
 
 export default function Languages() {
   const { t, i18n } = useTranslation();
@@ -24,6 +26,9 @@ export default function Languages() {
     initialData: () => qc.getQueryData<Project[]>(["projects", ws]),
   });
   const info = projects.data?.find((p) => p.id === project);
+  // The Activity tab follows the project the person last opened.
+  const projectName = info?.name;
+  useEffect(() => setRecentProject({ ws, project, name: projectName }), [ws, project, projectName]);
   const perms = useQuery({
     queryKey: ["permissions", ws, project],
     queryFn: () => client.permissions(ws, project),
@@ -50,7 +55,7 @@ export default function Languages() {
   });
 
   return (
-    <View className="bg-background flex-1">
+    <View collapsable={false} className="bg-background flex-1">
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         data={languages}
@@ -58,22 +63,11 @@ export default function Languages() {
         refreshing={false}
         onRefresh={() => void qc.invalidateQueries({ queryKey: ["counts", ws, project] })}
         ListHeaderComponent={
-          <View>
-            {info ? (
-              <View className="px-4 pt-4 pb-2">
-                <Text className="text-muted-foreground text-sm">{info.name}</Text>
-              </View>
-            ) : null}
-            <Row
-              testID="project-feed"
-              title={t("feed.open")}
-              trailing="›"
-              onPress={() =>
-                router.push({ pathname: "/[ws]/[project]/feed", params: { ws, project } })
-              }
-            />
-            <View className="h-4" />
-          </View>
+          info ? (
+            <View className="px-4 pt-4 pb-2">
+              <Text className="text-muted-foreground text-sm">{info.name}</Text>
+            </View>
+          ) : undefined
         }
         renderItem={({ item, index }) => {
           const c = counts[index]?.data;

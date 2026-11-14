@@ -5,6 +5,12 @@
     "loadFailed": "Could not load this. Check your connection.",
     "dismiss": "Dismiss"
   },
+  "tabs": {
+    "home": "Home",
+    "review": "Review",
+    "activity": "Activity",
+    "account": "Account"
+  },
   "signIn": {
     "title": "Bowrain",
     "serverSettings": "Server settings",
@@ -18,16 +24,17 @@
     "local": "Local stack",
     "custom": "Specify a different server",
     "save": "Use this server",
-    "invalid": "Enter a web address, such as https://bowrain.example.com."
+    "invalid": "Enter a web address, such as https://bowrain.example.com.",
+    "signedInNote": "You are signed in to {{host}}. The server you choose here is used the next time you sign in."
   },
   "signOut": {
     "button": "Sign out",
     "signedInAs": "Signed in as {{email}}",
-    "account": "Manage your account",
     "queuedTitle": "Decisions not sent",
     "queuedBody_one": "1 decision has not reached the server. Signing out discards it.",
     "queuedBody_other": "{{count}} decisions have not reached the server. Signing out discards them.",
-    "confirm": "Sign out"
+    "confirm": "Sign out",
+    "confirmTitle": "Sign out of Bowrain?"
   },
   "workspaces": {
     "title": "Workspaces",
@@ -44,6 +51,15 @@
     "groups": "{{fast}} quick, {{desk}} for the desk",
     "empty": "This project has no target languages.",
     "noPermission": "You do not have review permission in this project."
+  },
+  "inbox": {
+    "title": "Review",
+    "rowLabel_one": "{{language}}, {{where}}, 1 card waiting",
+    "rowLabel_other": "{{language}}, {{where}}, {{count}} cards waiting",
+    "emptyTitle": "All caught up",
+    "emptyBody": "Nothing is waiting for your review in any project.",
+    "unsupported": "This server does not list review across projects",
+    "unsupportedBody": "Open a project from Home to see its languages."
   },
   "deck": {
     "title": "Review",
@@ -281,7 +297,6 @@
     },
     "milestoneLabel": "Coverage milestone",
     "title": "Activity",
-    "open": "Activity",
     "today": "Today",
     "yesterday": "Yesterday",
     "empty": "Nothing has happened in this project yet. Pushes, runs, reviews and context changes appear here.",
@@ -396,6 +411,37 @@
       "after": "After",
       "targets": "Target languages",
       "none": "none"
+    }
+  },
+  "activity": {
+    "title": "Activity",
+    "projectLabel": "Project: {{name}}",
+    "pickHint": "Shows the activity of another project",
+    "pick": "Choose a project",
+    "pickTitle": "Show activity for",
+    "noProject": "No project chosen",
+    "noProjectBody": "Activity follows the project you open last. Choose one to see how it changed."
+  },
+  "account": {
+    "title": "Account",
+    "open": "Account, signed in as {{name}}",
+    "manage": "Manage account",
+    "manageHint": "Opens your account settings in the browser",
+    "server": "Server",
+    "appearance": {
+      "title": "Appearance",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "about": {
+      "title": "About",
+      "version": "Version",
+      "versionBuild": "{{version}} ({{build}})",
+      "update": "Update",
+      "updateEmbedded": "Included in this build",
+      "updateNone": "None in a development build",
+      "channel": "Channel"
     }
   }
 }

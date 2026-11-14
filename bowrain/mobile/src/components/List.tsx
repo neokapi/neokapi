@@ -1,21 +1,27 @@
 // List rows and the loading and error states the list screens share.
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useCSSVariable } from "uniwind";
 
+/** A list row. A row that opens another screen shows a chevron. */
 export function Row({
   title,
   detail,
   trailing,
   onPress,
+  chevron = onPress !== undefined,
   testID,
 }: {
   title: string;
   detail?: string;
   trailing?: string;
   onPress?: () => void;
+  chevron?: boolean;
   testID?: string;
 }) {
+  const muted = useCSSVariable("--color-muted-foreground");
   return (
     <Pressable
       testID={testID}
@@ -30,6 +36,7 @@ export function Row({
       {trailing !== undefined ? (
         <Text className="text-foreground text-base font-semibold tabular-nums">{trailing}</Text>
       ) : null}
+      {chevron ? <Ionicons name="chevron-forward" size={18} color={String(muted)} /> : null}
     </Pressable>
   );
 }

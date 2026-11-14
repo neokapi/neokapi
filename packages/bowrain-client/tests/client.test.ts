@@ -299,4 +299,35 @@ describe("client", () => {
     expect(page.entries[0].counts).toEqual({ files: 3, blocks: 40 });
     expect(page.next_cursor).toBeUndefined();
   });
+  it("reads the review inbox, and null from a server without it", async () => {
+    const language = {
+      workspace: "ws",
+      workspace_name: "WS",
+      project: "p",
+      project_name: "Site",
+      stream: "main",
+      locale: "nb",
+      waiting: 12,
+      fast: 8,
+      closer: 2,
+      desk: 1,
+      unclassified: 1,
+    };
+    const urls: string[] = [];
+    const answering = (status: number) =>
+      createBowrainClient({
+        baseUrl: "http://server",
+        getAccessToken: () => "t",
+        fetch: (async (url: string) => {
+          urls.push(url);
+          return new Response(JSON.stringify(status === 200 ? { languages: [language] } : {}), {
+            status,
+          });
+        }) as typeof fetch,
+      });
+    expect(await answering(200).reviewInbox()).toEqual([language]);
+    expect(urls[0]).toBe("http://server/api/v1/auth/me/review");
+    expect(await answering(404).reviewInbox()).toBeNull();
+    await expect(answering(500).reviewInbox()).rejects.toThrow();
+  });
 });

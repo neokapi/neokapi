@@ -61,7 +61,15 @@ export function Avatar({
       style={box}
       className={`${colour} items-center justify-center rounded-full`}
     >
-      <Text className="text-[15px] font-semibold text-white">{initialsOf(name)}</Text>
+      {/* The initials fill a fixed circle, so they keep its scale rather
+          than the reader's text size. */}
+      <Text
+        allowFontScaling={false}
+        style={{ fontSize: Math.round(size * 0.38) }}
+        className="font-semibold text-white"
+      >
+        {initialsOf(name)}
+      </Text>
     </View>
   );
 }

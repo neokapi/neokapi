@@ -27,6 +27,7 @@ import type {
   PreReview,
   Project,
   ReviewContext,
+  ReviewInboxLanguage,
   User,
   Workspace,
 } from "./types.ts";
@@ -92,6 +93,11 @@ export interface BowrainClient {
   workspaces(): Promise<Workspace[]>;
   projects(workspace: string): Promise<Project[]>;
   permissions(workspace: string, project: string): Promise<CallerPermissions>;
+  /**
+   * Every language the caller may review, across workspaces, where anything
+   * is waiting, most waiting first. Null from a server without the route.
+   */
+  reviewInbox(): Promise<ReviewInboxLanguage[] | null>;
   pendingReview(
     scope: ProjectScope,
     opts?: { locales?: string[]; limit?: number; offset?: number },
@@ -260,6 +266,16 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     workspaces: () => get<Workspace[]>("/workspaces"),
     projects: (ws) => get<Project[]>(`/${enc(ws)}/projects`),
     permissions: (ws, pid) => get<CallerPermissions>(`/${enc(ws)}/${enc(pid)}/permissions`),
+
+    async reviewInbox() {
+      try {
+        const body = await get<{ languages: ReviewInboxLanguage[] }>("/auth/me/review");
+        return body.languages ?? [];
+      } catch (err) {
+        if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return null;
+        throw err;
+      }
+    },
 
     pendingReview(scope, o = {}) {
       return get<PendingReviewPage>(
