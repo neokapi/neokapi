@@ -61,6 +61,7 @@ export const projectSectionTargets = {
   source: "/$workspace/p/$projectId/s/$stream/source",
   automations: "/$workspace/p/$projectId/s/$stream/automations",
   runs: "/$workspace/p/$projectId/s/$stream/runs",
+  feed: "/$workspace/p/$projectId/s/$stream/feed",
   connectors: "/$workspace/p/$projectId/s/$stream/connectors",
 } as const;
 

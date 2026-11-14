@@ -97,6 +97,7 @@ export type ProjectView =
   | "source"
   | "automations"
   | "runs"
+  | "feed"
   | "connectors";
 
 export type SidebarContext =
@@ -122,6 +123,8 @@ export type SidebarContext =
       onDeleteStream?: (streamName: string) => void;
       onOpenAutomations?: () => void;
       onOpenRuns?: () => void;
+      /** The project feed: how the project changed, newest first. */
+      onOpenFeed?: () => void;
       onOpenConnectors?: () => void;
     };
 
@@ -223,6 +226,7 @@ export const projectSubNavConfig = (
     { id: "source", label: t("Source content"), icon: <FolderOpen />, on: ctx.onOpenSource },
     { id: "automations", label: t("Automations"), icon: <Sparkles />, on: ctx.onOpenAutomations },
     { id: "runs", label: t("Runs"), icon: <Rocket />, on: ctx.onOpenRuns },
+    { id: "feed", label: t("Activity"), icon: <Activity />, on: ctx.onOpenFeed },
     { id: "connectors", label: t("Connectors"), icon: <Plug />, on: ctx.onOpenConnectors },
   ]
     .filter((item) => item.on)
@@ -240,6 +244,7 @@ export function openProjectSection(
     source: ctx.onOpenSource,
     automations: ctx.onOpenAutomations,
     runs: ctx.onOpenRuns,
+    feed: ctx.onOpenFeed,
     connectors: ctx.onOpenConnectors,
   }[id];
   run?.();

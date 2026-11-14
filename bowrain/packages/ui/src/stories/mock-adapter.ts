@@ -1643,6 +1643,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       new_count: 0,
     }),
     markActivitiesSeen: async () => {},
+    listProjectFeed: async () => ({ entries: [] }),
 
     // --- Convergence runs (Bowrain AD-022) ------------------------------------------
     listConvergenceRuns: async () => [],
