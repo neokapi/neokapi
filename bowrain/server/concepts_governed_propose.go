@@ -48,7 +48,7 @@ func (s *Server) proposeGovernedChange(ctx context.Context, wsSlug, wsID, actor,
 	}
 	cs.Status = knowledge.ChangeSetInReview
 
-	s.publishKnowledgeEventsIn(wsSlug, actor, []knowledge.MergeEvent{
+	s.publishKnowledgeEventsIn(ctx, wsSlug, actor, []knowledge.MergeEvent{
 		changesetEvent(knowledge.EventChangeSetCreated, wsID, cs.ID, actor),
 		changesetEvent(knowledge.EventChangeSetSubmitted, wsID, cs.ID, actor),
 	})

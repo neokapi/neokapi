@@ -100,6 +100,37 @@ func (c ContextCounts) only() (ContextItemKind, ContextOperation) {
 	return "", ""
 }
 
+// MaxContextSamples bounds the items a context change names.
+const MaxContextSamples = 3
+
+// maxSampleText bounds the length of a note's text in a sample, in runes.
+const maxSampleText = 140
+
+// ContextSample is one item a context change touched, as data: a term rule's
+// term and replacement, or the start of a note.
+type ContextSample struct {
+	Kind        ContextItemKind  `json:"kind"`
+	Operation   ContextOperation `json:"operation,omitempty"`
+	Term        string           `json:"term,omitempty"`
+	Replacement string           `json:"replacement,omitempty"`
+	Text        string           `json:"text,omitempty"`
+}
+
+// AddSample appends s while fewer than MaxContextSamples are held. A note's
+// text is cut to a bounded length.
+func (c *ContextChange) AddSample(s ContextSample) {
+	if len(c.Samples) >= MaxContextSamples {
+		return
+	}
+	if s.Term == "" && s.Text == "" {
+		return
+	}
+	if r := []rune(s.Text); len(r) > maxSampleText {
+		s.Text = string(r[:maxSampleText]) + "…"
+	}
+	c.Samples = append(c.Samples, s)
+}
+
 // ContextChange is the typed payload of a context change event: who made the
 // change, in which project, what it touched and how many items. Data and
 // ParseContextChange convert it to and from an event's Data map, whose keys
@@ -125,6 +156,10 @@ type ContextChange struct {
 	ItemID string
 	// Counts holds the number of items by kind and operation.
 	Counts ContextCounts
+	// Samples names the first few items the change touched, at most
+	// MaxContextSamples, so a reader can see what changed without opening
+	// the ledger. Counts holds the full number.
+	Samples []ContextSample
 	// Extra carries further event-specific detail, written beside the typed
 	// fields.
 	Extra map[string]string
@@ -157,6 +192,11 @@ func (c ContextChange) Data() map[string]string {
 			data["counts"] = string(raw)
 		}
 	}
+	if len(c.Samples) > 0 {
+		if raw, err := json.Marshal(c.Samples); err == nil {
+			data["samples"] = string(raw)
+		}
+	}
 	return data
 }
 
@@ -177,6 +217,11 @@ func ParseContextChange(data map[string]string) ContextChange {
 	if raw := data["counts"]; raw != "" {
 		if err := json.Unmarshal([]byte(raw), &c.Counts); err != nil {
 			c.Counts = ContextCounts{}
+		}
+	}
+	if raw := data["samples"]; raw != "" {
+		if err := json.Unmarshal([]byte(raw), &c.Samples); err != nil || len(c.Samples) > MaxContextSamples {
+			c.Samples = nil
 		}
 	}
 	return c

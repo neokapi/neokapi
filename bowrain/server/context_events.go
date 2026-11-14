@@ -94,6 +94,59 @@ func countLedgerOps(ops []workspace.Op, resolve subjectResolver) (platev.Context
 	return counts, actors
 }
 
+// ledgerOpSubject is the part of a context operation's payload a sample
+// reads: the subject it states, or the operation it acts on.
+type ledgerOpSubject struct {
+	Subject contextop.Subject `json:"subject"`
+	Target  string            `json:"target"`
+}
+
+// sampleLedgerOps adds to change the first few term rules and notes ops
+// touch. An operation that acts on another (a keep, a drop) is sampled with
+// the subject of the one it names, which lookup returns.
+func sampleLedgerOps(change *platev.ContextChange, ops []workspace.Op, lookup func(id string) (contextop.Subject, bool)) {
+	for _, op := range ops {
+		if len(change.Samples) >= platev.MaxContextSamples {
+			return
+		}
+		name, ok := strings.CutPrefix(op.Kind, contextop.OpKindPrefix)
+		if !ok {
+			continue
+		}
+		operation, ok := contextOpOperations[contextop.Kind(name)]
+		if !ok {
+			continue
+		}
+		var body ledgerOpSubject
+		if len(op.Payload) > 0 {
+			_ = json.Unmarshal(op.Payload, &body)
+		}
+		subject := body.Subject
+		if subject.Kind == contextop.SubjectNone && body.Target != "" && lookup != nil {
+			subject, _ = lookup(body.Target)
+		}
+		change.AddSample(contextSample(subject, operation))
+	}
+}
+
+// contextSample is the sample a ledger subject gives: a term rule's term and
+// replacement, or a note's text. Other subjects give an empty sample, which
+// AddSample skips.
+func contextSample(subject contextop.Subject, operation platev.ContextOperation) platev.ContextSample {
+	switch subject.Kind {
+	case contextop.SubjectTerm:
+		if rule, ok := subject.Rule(); ok {
+			return platev.ContextSample{
+				Kind: platev.ContextItemTermRule, Operation: operation,
+				Term: rule.Term, Replacement: rule.Replacement,
+			}
+		}
+	case contextop.SubjectNote:
+		return platev.ContextSample{Kind: platev.ContextItemNote, Operation: operation, Text: subject.Text}
+	}
+	return platev.ContextSample{}
+}
+
 // pushedActor is the actor kind and session a push of operations is
 // attributed to. Operations that share one kind name it; a push mixing kinds
 // that holds an agent's operations is an agent's, so a reviewer sees an
@@ -180,6 +233,15 @@ func (s *Server) emitPushedContext(c echo.Context, projectID string, accepted ac
 	if len(accepted.fresh) == 1 {
 		change.ItemID = accepted.fresh[0].ID
 	}
+	sampleLedgerOps(&change, accepted.fresh, func(id string) (contextop.Subject, bool) {
+		target, ok := accepted.byID[id]
+		if !ok {
+			return contextop.Subject{}, false
+		}
+		var body ledgerOpSubject
+		_ = json.Unmarshal(target.Payload, &body)
+		return body.Subject, true
+	})
 	s.emitContextChange(c, platev.EventContextRecorded, projectID, "", change)
 }
 
@@ -198,14 +260,19 @@ func (s *Server) emitDecidedContext(c echo.Context, st *decideState, answered st
 		return r.Subject.Kind, ok
 	})
 	kind, session := requestSession(c)
-	s.emitContextChange(c, platev.EventContextRecorded, st.project.ID, answered, platev.ContextChange{
+	change := platev.ContextChange{
 		ActorKind: kind,
 		ActorName: st.reader.Name,
 		Session:   session,
 		Source:    contextSourceDecide,
 		ItemID:    answered,
 		Counts:    counts,
+	}
+	sampleLedgerOps(&change, recorded, func(id string) (contextop.Subject, bool) {
+		r, ok := st.byID[id]
+		return r.Subject, ok
 	})
+	s.emitContextChange(c, platev.EventContextRecorded, st.project.ID, answered, change)
 }
 
 // voiceRuleChange is the context change a decision about one voice rule
@@ -224,6 +291,7 @@ func voiceRuleChange(c echo.Context, actor platev.ContextActorKind, op platev.Co
 		Source:        contextSourceVoice,
 		ItemID:        term,
 		Counts:        counts,
+		Samples:       []platev.ContextSample{{Kind: platev.ContextItemVoiceRule, Operation: op, Term: term}},
 	}
 }
 

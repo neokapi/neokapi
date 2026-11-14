@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -53,13 +55,13 @@ func (s *Server) knowledgeEngineFor(ctx context.Context, wsSlug string) (*knowle
 // build the same descriptors for the events they fire directly.
 func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.MergeEvent) {
 	fallbackActor, _ := c.Get("user_id").(string)
-	s.publishKnowledgeEventsIn(c.Param("ws"), fallbackActor, events)
+	s.publishKnowledgeEventsIn(c.Request().Context(), c.Param("ws"), fallbackActor, events)
 }
 
 // publishKnowledgeEventsIn is publishKnowledgeEvents for a caller outside a
 // request: the workspace slug the events are keyed by, and the actor an event
 // that names none is attributed to.
-func (s *Server) publishKnowledgeEventsIn(wsSlug, fallbackActor string, events []knowledge.MergeEvent) {
+func (s *Server) publishKnowledgeEventsIn(ctx context.Context, wsSlug, fallbackActor string, events []knowledge.MergeEvent) {
 	if s.EventBus == nil || len(events) == 0 {
 		return
 	}
@@ -86,6 +88,9 @@ func (s *Server) publishKnowledgeEventsIn(wsSlug, fallbackActor string, events [
 		put("profile_id", ev.ProfileID)
 		put("project_id", ev.ProjectID)
 		put("stream", ev.Stream)
+		if strings.HasPrefix(string(ev.Type), "changeset.") {
+			s.putChangeSetSummary(ctx, data, ev.WorkspaceID, ev.ChangesetID)
+		}
 		resType, resID := knowledgeEventResource(ev)
 		s.EventBus.Publish(platev.Event{
 			ID:           id.New(),
@@ -98,6 +103,36 @@ func (s *Server) publishKnowledgeEventsIn(wsSlug, fallbackActor string, events [
 			ResourceID:   resID,
 			Timestamp:    now,
 		})
+	}
+}
+
+// putChangeSetSummary writes a change set's name and the number of its ops
+// by op type into an event's data, so the feed can show what the set holds.
+// The op types are a closed list, which bounds the counts. A set that cannot
+// be read leaves the data as it was.
+func (s *Server) putChangeSetSummary(ctx context.Context, data map[string]string, workspaceID, changesetID string) {
+	if s.KnowledgeStore == nil || workspaceID == "" || changesetID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+	defer cancel()
+	cs, err := s.KnowledgeStore.GetChangeSet(ctx, workspaceID, changesetID)
+	if err != nil || cs == nil {
+		return
+	}
+	if cs.Name != "" {
+		data["changeset_name"] = cs.Name
+	}
+	ops, err := s.KnowledgeStore.ListOps(ctx, workspaceID, changesetID)
+	if err != nil || len(ops) == 0 {
+		return
+	}
+	counts := map[string]int{}
+	for _, op := range ops {
+		counts[string(op.Op)]++
+	}
+	if raw, err := json.Marshal(counts); err == nil {
+		data["changeset_ops"] = string(raw)
 	}
 }
 

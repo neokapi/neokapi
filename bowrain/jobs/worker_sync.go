@@ -445,7 +445,11 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 				"items_sample": strings.Join(sampleItemNames(allItemNames, 3), ","),
 				"files_count":  strconv.Itoa(len(allItemNames)),
 				"blocks_count": strconv.Itoa(totalStored),
-				"push_id":      pushID,
+				// Files the source no longer has, which the push removed,
+				// and the collections the recipe declared.
+				"files_removed":     strconv.Itoa(outcome.Removed),
+				"collections_count": strconv.Itoa(contextResult.total()),
+				"push_id":           pushID,
 				// Collections the recipe stopped declaring. They ride on the
 				// event rather than being acted on, which is the whole of the
 				// server's answer to a removed collection: say so, keep the

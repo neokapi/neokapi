@@ -626,6 +626,10 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 				"locales":        strings.Join(locales, ","),
 				"locales_count":  strconv.Itoa(len(locales)),
 				"produced_count": strconv.Itoa(produced),
+				// Each language's standing at the end of the run, so the feed
+				// can show the run language by language. One entry per
+				// target language, which bounds it.
+				"standing": standingJSON(run.Standing),
 			},
 		})
 	}
@@ -1358,6 +1362,19 @@ func (o *convergenceOrchestrator) workspaceSlugFor(ctx context.Context, workspac
 // runOutcomeCounts folds a terminal run's per-locale standing into what the
 // activity feed reports: the locales the run worked, in run order, and how many
 // translations it produced across them.
+// standingJSON renders a run's per-language standing for an event's data, or
+// "" when the run has none.
+func standingJSON(standing []bstore.ConvergenceLocaleStanding) string {
+	if len(standing) == 0 {
+		return ""
+	}
+	raw, err := json.Marshal(standing)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
 func runOutcomeCounts(run *bstore.ConvergenceRun) (locales []string, produced int) {
 	for _, ls := range run.Standing {
 		if ls.Locale != "" {
