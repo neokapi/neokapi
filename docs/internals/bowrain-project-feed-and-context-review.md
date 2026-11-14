@@ -1,6 +1,9 @@
 # Bowrain project feed and context review: design note
 
-Status: proposal for the founder's review, 2026-11-14. Nothing here is built.
+Status: proposal for the founder's review, 2026-11-14. The founder decided
+four questions on 2026-11-14, and three more are set to defaults; both are
+listed under [Decisions](#decisions) and stated in place below. Nothing here
+is built.
 Every route, type and field named below was checked against `main` at
 `a8b8e7328`. The dogfood figures come from `kapi context log` and
 `kapi terms stats` on the local project; the server's copy of the same
@@ -150,7 +153,9 @@ a data reset over a migration applies, so no backfill is written.
 ### Event types
 
 The project feed lists exactly these kinds. Everything else in `activities`
-(streams, tasks, gates) stays visible through `/:ws/activities`.
+(streams, tasks, gates) stays visible through `/:ws/activities`. Content
+changes made in the editor (`content.changed`) stay out of the feed and
+remain in block history (default, open to change).
 
 | Kind | Source event | Emitter | Counts | Opens |
 | --- | --- | --- | --- | --- |
@@ -171,8 +176,9 @@ blocks in a morning files three rows, never 300.
 one segment: a push of context objects, one Decide answer, one attestation
 batch. Its counts are taken from the records in that segment.
 
-**Milestones.** A locale crossing 50, 90 or 100 percent established, in
-either direction. The thresholds are an open question.
+**Milestones.** A locale crossing the project's ship bar, in either
+direction. A project with no ship bar uses 100 percent established (default,
+open to change).
 
 ### Endpoint
 
@@ -257,11 +263,13 @@ TanStack Query persister like the deck.
 | Correction candidate | voice loop: `GET /:ws/voice-profiles/suggested-rules`, `GET /:ws/voice-profiles/:id/candidates` | term within a profile | promote, demote, reject, evaluate-rule |
 | Entity suggestion | review queue item, type `entity_review` | item id | `GET /:ws/:id/review-queue/:ref` |
 
-A `TermRule` carries no language field. A rule tied to a concept takes the
-language of the concept's term, which covers the source-language rules the
-founder asked about (the rule that makes "content memory" the preferred
-term, forbidden and avoided words, `competitor: true`) as well as the nb terms. A rule with no
-`ConceptID` has no language the server can show.
+A `TermRule` carries no language field today. A rule tied to a concept takes
+the language of the concept's term, which covers the source-language rules
+the founder asked about (the rule that makes "content memory" the preferred
+term, forbidden and avoided words, `competitor: true`) as well as the nb
+terms. `profile.TermRule` gains an optional `language` field, so a
+source-language rule with no `ConceptID` names its language and the card
+shows it (default, open to change). A rule with neither shows no language.
 
 ### Provenance today
 
@@ -317,6 +325,12 @@ change set, with a header such as "claude-code · 0ab4e399 · 14 items ·
 2026-09-26". The default filter is "not reviewed". Other filters: actor kind,
 item kind, language, coordinate.
 
+A session stack offers **Keep all**. It shows the number of items it will
+keep and asks for confirmation, then records one attestation per item, each
+naming its own item and revision. Items in the stack that the reviewer may
+not attest (their own handwritten items, below) are skipped and counted in
+the confirmation.
+
 ### The card
 
 | Region | Content |
@@ -337,15 +351,24 @@ Retire (swipe left, with a Fix button beside it), Later (swipe up), Keep
 | Item | Keep | Retire | Fix |
 | --- | --- | --- | --- |
 | Ledger suggestion (Pending) | `POST /:ws/:id/rules/:ref/decide` with `answer: keep` (a `keep` operation) | the same with `answer: drop` | keep with edits: `form` exists today; the request gains `replacement`, `advisory` and `scope`, which `kapi context review --keep --use --advisory --widen-to` already take |
-| Ledger rule or note in force (Replay) | an attestation | a `drop` operation, which `kapi context review --drop` already accepts for a rule | an `edit` operation with the new rule; the old one is dropped in the same segment |
+| Ledger rule or note in force (Replay) | an attestation | a `drop` operation, which `kapi context review --drop` already accepts for a rule, held under `block` as below | an `edit` operation with the new rule; the old one is dropped in the same segment |
 | Concept (Replay) | an attestation | a change set with `term.status` to `deprecated` or `forbidden`, or `concept.delete` | a change set with `term.update` or `term.add` |
 | Terms change set (Pending) | `POST /:ws/changesets/:id/approve`, then `/merge` | `POST /:ws/changesets/:id/reject` | `POST /:ws/changesets/:id/ops` with the edited op; the set then needs another approver |
 | Voice candidate (Pending) | `POST /:ws/voice-profiles/:id/promote-rule` | `POST /:ws/voice-profiles/:id/reject-rule` | promote with an edited `replacement` |
-| Voice rule in force (Replay) | an attestation | a new profile version without the rule (`PUT /:ws/voice-profiles/:id`) | a new profile version with the edited rule |
+| Voice rule in force (Replay) | an attestation | a change set with a new `voice.rule.remove` op naming the rule's id | a change set with `voice.rule.update` |
 
-Change sets carry no voice ops today (`knowledge.OpType` lists concept, term
-and relation ops only), so a voice Retire or Fix lands at once, without the
-review a terms change gets. Whether to add voice ops is an open question.
+Voice rule changes go through change sets, the same as terms. Change sets
+carry no voice ops today (`knowledge.OpType` lists concept, term and relation
+ops only), so the design adds `voice.rule.add`, `voice.rule.update` and
+`voice.rule.remove`. Each names a rule by a stable id, which
+`profile.Pattern` lacks today; adding that id is a step of its own in the
+build order. Merging such a change set writes a new profile version.
+
+Retire follows the change-set policy for every item kind. Under `block` a
+Retire is held until a second person approves it; under `off` or `warn` it
+applies at once, and `warn` writes a warning to the audit log. For a ledger
+rule, the held Retire is a `drop` staged in a change set and recorded when
+the set merges.
 
 A Fix in Replay produces a new revision. The reviewer is its author, and the
 separation-of-duties rules below decide whether it counts as reviewed.
@@ -382,7 +405,7 @@ sets refuse a self-review unless the basis is `solo_owner`
 under the founder's token is filed as the founder, so the founder's review of
 that agent's work counts as self-review and `block` refuses it.
 
-Proposed rules, all computed on the server and returned on each card as
+The rules, all computed on the server and returned on each card as
 `own_work` and the basis the action would record:
 
 | Case | Basis | Result |
@@ -395,9 +418,12 @@ Proposed rules, all computed on the server and returned on each card as
 | Fix by the reviewer, policy `block` | none | in force, not reviewed, waits for a second person |
 | Fix by the reviewer, no other member holds `manage_terms` | `solo_owner` | reviewed, as change sets already allow |
 
-The second row depends on gap 1 in provenance. Until the override is a field,
-the server can read it only from the note text, and the 19 dogfood operations
-are recognisable only that way.
+The `agent_authored` basis is decided: the founder's review of work an agent
+did under the founder's login is a valid review. The item keeps the record
+that an agent wrote it, and every new write carries the agent session, so the
+basis rests on a stored field rather than on the member's word. Until the
+override is a field (gap 1 in provenance), the server reads it from the note
+text, which is the only way the 19 dogfood operations can be recognised.
 
 The dogfood workspace has one member, so every founder Fix records
 `solo_owner`.
@@ -427,8 +453,11 @@ recorded it, so the reader can see what else that session did.
    moved.
 6. **The `attest` operation** in `core/contextop`, and the reviewed counts.
 7. **Provenance fields:** host and override on `contextop.Actor`; actor kind,
-   session and commit on change sets, concept revisions and voice versions; a
-   stable id on `profile.Pattern`; one ledger operation per item on import.
+   session and commit on change sets, concept revisions and voice versions;
+   one ledger operation per item on import; an optional `language` on
+   `profile.TermRule`.
+8. **Voice rules in change sets:** a stable id on `profile.Pattern`, and the
+   `voice.rule.*` ops with their merge into a new profile version.
 
 ## Build order
 
@@ -446,31 +475,40 @@ new route rather than new storage.
    concept revisions and voice versions, showing provenance as stored. The
    founder can read the dogfood context from here on.
 4. **The attestation** and the reviewed counts.
-5. **Retire and Fix** through the existing flows, with the separation-of-
-   duties rules.
-6. **Pending** as one merged deck.
-7. **Provenance at write time**, so items recorded after this step carry
+5. **Stable ids for voice pattern rules,** then the `voice.rule.*` change-set
+   ops. Voice Retire and Fix depend on both.
+6. **Retire and Fix** through change sets and the existing flows, with the
+   separation-of-duties rules.
+7. **Pending** as one merged deck.
+8. **Provenance at write time**, so items recorded after this step carry
    kind, session and commit. It helps only new items, which is why it comes
    after the steps that serve the existing backlog.
 
-Steps 1 and 3 are independent and can run in parallel.
+Steps 1 and 3 are independent and can run in parallel, and so are steps 4
+and 5.
 
-## Open questions for the founder
+## Decisions
 
-1. Should Replay offer "keep all" for one session after a count
-   confirmation, recorded as one attestation per item? The CLI has
-   `kapi context review --session <id> --keep all` for suggestions.
-2. Does a Retire take effect at once, as a ledger `drop` does today, or wait
-   for a second person under `block`?
-3. Should voice rules move into change sets (new `voice.*` ops), so a voice
-   Retire or Fix gets the review a terms change gets?
-4. Is `agent_authored` an acceptable basis: the founder reviewing work an
-   agent did under the founder's token counts as review?
-5. Should `profile.TermRule` gain a language field for rules with no concept?
-6. Coverage milestones at 50, 90 and 100 percent established, or the
-   project's ship bar?
-7. Should the feed show `content_change` rows for edits made in the editor,
-   or leave those to block history?
+Decided by the founder on 2026-11-14:
+
+1. **Keep all in Replay.** A session stack can be kept in one action after a
+   count confirmation. Each item is still attested individually.
+2. **Retire follows the change-set policy.** Under `block` it waits for a
+   second person; under `off` or `warn` it applies at once.
+3. **Voice rule changes go through change sets,** the same as terms. This
+   needs stable ids for voice pattern rules, which is step 5 of the build
+   order.
+4. **`agent_authored` counts.** The founder's review of agent work done under
+   the founder's login is valid, the item records that an agent wrote it, and
+   new writes carry the agent session.
+
+Defaults, each open to change:
+
+5. **`profile.TermRule` gains an optional language field,** so a
+   source-language rule that is not tied to a concept names its language.
+6. **Milestones sit at the project's ship bar** when it has one, and at 100
+   percent established otherwise.
+7. **Editor content changes stay out of the feed.**
 
 ## Sources
 
