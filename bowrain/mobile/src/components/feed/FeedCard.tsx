@@ -103,15 +103,18 @@ function FeedCardView({ card, onOpen, onOpenLanguage }: FeedCardProps) {
     .filter(Boolean)
     .join(" · ");
 
+  // The header is the card's one accessible button. The preview opens the
+  // same place when tapped, but stays a group, so a language chip inside it
+  // is its own control rather than folded into the card's label; the expand
+  // control sits outside both for the same reason.
   return (
-    <Pressable
-      testID={`feed-card-${lead.id}`}
-      accessibilityRole="button"
-      accessibilityLabel={`${name} ${action}. ${meta}`}
-      onPress={() => onOpen(lead)}
-      className={`${CARD} active:opacity-90`}
-    >
-      <View className="flex-row gap-3">
+    <View testID={`feed-card-${lead.id}`} className={CARD}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${name} ${action}. ${meta}`}
+        onPress={() => onOpen(lead)}
+        className="flex-row gap-3 active:opacity-70"
+      >
         <Avatar actor={lead.actor} name={name} />
         <View className="min-w-0 flex-1 justify-center">
           <Text className="text-foreground text-[15px] leading-5">
@@ -119,16 +122,17 @@ function FeedCardView({ card, onOpen, onOpenLanguage }: FeedCardProps) {
           </Text>
           <Text className="text-muted-foreground mt-0.5 text-[13px]">{meta}</Text>
         </View>
-      </View>
+      </Pressable>
 
-      <View className="mt-3">
+      <Pressable accessible={false} onPress={() => onOpen(lead)} className="mt-3">
         <Preview entry={lead} onOpenLanguage={onOpenLanguage} />
-      </View>
+      </Pressable>
 
       {folded ? (
         <>
           {expanded ? <FoldedList entries={card.entries.slice(1)} /> : null}
           <Pressable
+            testID={`feed-expand-${lead.id}`}
             accessibilityRole="button"
             hitSlop={8}
             onPress={() => setExpanded((v) => !v)}
@@ -147,7 +151,7 @@ function FeedCardView({ card, onOpen, onOpenLanguage }: FeedCardProps) {
           </Pressable>
         </>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 

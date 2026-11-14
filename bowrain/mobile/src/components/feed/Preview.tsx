@@ -176,20 +176,16 @@ function ContextPreview({ entry }: PreviewProps) {
           </View>
         ) : (
           <View key={`t-${i}`} className="flex-row">
-            <View className="bg-chip flex-row flex-wrap items-center gap-1.5 rounded-xl px-3 py-2">
-              {s.replacement ? (
-                <>
-                  <Text className="text-chip-foreground text-[14px] font-semibold">
-                    {s.replacement}
-                  </Text>
-                  <Text className="text-chip-foreground text-[14px]">←</Text>
-                  <Text className="text-chip-foreground text-[14px] line-through opacity-80">
-                    {s.term}
-                  </Text>
-                </>
-              ) : (
-                <Text className="text-chip-foreground text-[14px] font-semibold">{s.term}</Text>
-              )}
+            <View className="bg-chip shrink rounded-xl px-3 py-2">
+              <Text className="text-chip-foreground text-[14px]">
+                <Text className="font-semibold">{s.replacement || s.term}</Text>
+                {s.replacement ? (
+                  <>
+                    {"  ←  "}
+                    <Text className="line-through opacity-80">{s.term}</Text>
+                  </>
+                ) : null}
+              </Text>
             </View>
           </View>
         ),
@@ -234,7 +230,7 @@ function ChangeSetPreview({ entry }: PreviewProps) {
         <ChipRow>
           {ops.map(([op, n]) => (
             <Chip key={op}>
-              {`${n} ${t(`feed.op.${op.replace(/\./g, "_")}`, { defaultValue: op })}`}
+              {t(`feed.op.${op.replace(/\./g, "_")}`, { count: n, defaultValue: `${n} ${op}` })}
             </Chip>
           ))}
         </ChipRow>

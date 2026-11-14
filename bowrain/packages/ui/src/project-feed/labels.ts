@@ -321,8 +321,10 @@ export function actionText(e: FeedEntry, locale: string): string {
     }
     case "review_summary": {
       const parts: string[] = [];
-      if (c.approved) parts.push(t("approved {count}", { count: c.approved }));
-      if (c.bulk_approved) parts.push(t("approved {count} in bulk", { count: c.bulk_approved }));
+      // Approvals one by one and in bulk read as one count; the split bar
+      // keeps the detail.
+      const approved = (c.approved ?? 0) + (c.bulk_approved ?? 0);
+      if (approved) parts.push(t("approved {count}", { count: approved }));
       if (c.fixed) parts.push(t("fixed {count}", { count: c.fixed }));
       if (c.rejected) parts.push(t("rejected {count}", { count: c.rejected }));
       if (c.unreviewed) parts.push(t("sent back {count}", { count: c.unreviewed }));

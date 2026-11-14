@@ -225,8 +225,10 @@ export function actionOf(e: FeedEntry, t: TFunction, uiLanguage: string): string
     }
     case "review_summary": {
       const parts: string[] = [];
-      if (c.approved) parts.push(t("feed.action.approved", { count: c.approved }));
-      if (c.bulk_approved) parts.push(t("feed.action.bulkApproved", { count: c.bulk_approved }));
+      // Approvals one by one and in bulk read as one count; the preview's
+      // split bar keeps the detail.
+      const approved = (c.approved ?? 0) + (c.bulk_approved ?? 0);
+      if (approved) parts.push(t("feed.action.approved", { count: approved }));
       if (c.fixed) parts.push(t("feed.action.fixed", { count: c.fixed }));
       if (c.rejected) parts.push(t("feed.action.rejected", { count: c.rejected }));
       if (c.unreviewed) parts.push(t("feed.action.sentBack", { count: c.unreviewed }));

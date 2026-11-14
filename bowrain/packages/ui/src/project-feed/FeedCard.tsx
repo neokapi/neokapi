@@ -173,28 +173,29 @@ function standingLabel(state: string): string {
   }
 }
 
-function opLabel(op: string): string {
+/** A change set's op count with its unit: "3 terms added", "1 status change". */
+function opText(op: string, count: number): string {
   switch (op) {
     case "concept.create":
-      return t("concepts added");
+      return t("{count, plural, one {# concept added} other {# concepts added}}", { count });
     case "concept.update":
-      return t("concepts edited");
+      return t("{count, plural, one {# concept edited} other {# concepts edited}}", { count });
     case "concept.delete":
-      return t("concepts removed");
+      return t("{count, plural, one {# concept removed} other {# concepts removed}}", { count });
     case "term.add":
-      return t("terms added");
+      return t("{count, plural, one {# term added} other {# terms added}}", { count });
     case "term.update":
-      return t("terms edited");
+      return t("{count, plural, one {# term edited} other {# terms edited}}", { count });
     case "term.remove":
-      return t("terms removed");
+      return t("{count, plural, one {# term removed} other {# terms removed}}", { count });
     case "term.status":
-      return t("status changes");
+      return t("{count, plural, one {# status change} other {# status changes}}", { count });
     case "relation.add":
-      return t("relations added");
+      return t("{count, plural, one {# relation added} other {# relations added}}", { count });
     case "relation.remove":
-      return t("relations removed");
+      return t("{count, plural, one {# relation removed} other {# relations removed}}", { count });
     default:
-      return op;
+      return `${count} ${op}`;
   }
 }
 
@@ -444,9 +445,7 @@ export function FeedPreview({
           {ops.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {ops.map(([op, n]) => (
-                <Chip key={op}>
-                  {n} {opLabel(op)}
-                </Chip>
+                <Chip key={op}>{opText(op, n)}</Chip>
               ))}
             </div>
           )}
