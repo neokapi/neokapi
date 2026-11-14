@@ -14,11 +14,12 @@ import (
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/termspush"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/venue"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -72,6 +73,23 @@ type syncPushManifest struct {
 	// and keeps the approvals hanging off it rather than being read as one file
 	// deleted and another created.
 	Tree venue.Tree `json:"tree"`
+
+	// Terms is the terminology part (host/venue/client.TermsEdits), applied
+	// after the content inside the transition. TermsAuthor and
+	// TermsOnBehalfOf are who the commit handler attributed the edits to.
+	Terms           json.RawMessage `json:"terms"`
+	TermsAuthor     string          `json:"terms_author"`
+	TermsOnBehalfOf string          `json:"terms_on_behalf_of"`
+
+	// ContextObjects are the context ledger objects the project did not hold,
+	// stored inside the transition. The commit handler checked their reach and
+	// set ContextKey (the key to bind, when the project was unbound),
+	// ContextOperations (the operations the project did not hold) and
+	// ContextEvent (the context change to publish once the push commits).
+	ContextObjects    []apiclient.ContextObjectWire `json:"context_objects"`
+	ContextKey        string                        `json:"context_key"`
+	ContextOperations int                           `json:"context_operations"`
+	ContextEvent      map[string]string             `json:"context_event"`
 }
 
 type syncChunkRef struct {
@@ -251,6 +269,20 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 	}
 
+	var termsEdits *apiclient.TermsEdits
+	if len(manifest.Terms) > 0 && string(manifest.Terms) != "null" {
+		termsEdits = &apiclient.TermsEdits{}
+		if err := json.Unmarshal(manifest.Terms, termsEdits); err != nil {
+			markJobFailed(ctx, deps, job.ID, "invalid terms payload")
+			return fmt.Errorf("parse manifest terms: %w", err)
+		}
+	}
+	ledger := pushLedger{
+		Objects:    manifest.ContextObjects,
+		Key:        manifest.ContextKey,
+		Operations: manifest.ContextOperations,
+	}
+
 	var writes []venue.EditionWrite
 	if len(manifest.Writes) > 0 {
 		if err := json.Unmarshal(manifest.Writes, &writes); err != nil {
@@ -288,13 +320,16 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	}
 	var outcome *pushOutcome
 	var contextResult *contextReconcileResult
-	apply := func(tx store.PushApplier, voice coreprofile.Store) error {
+	var parts venue.PushParts
+	var termsResult *termspush.Result
+	apply := func(st PushStores) error {
+		tx := st.Content
 		// Collections first, and on this transaction: an item naming a
 		// collection that does not exist yet falls to the project's default
 		// collection, and a reconcile that outlived a failed push would leave
 		// the project governed by a declaration that never landed.
 		var rerr error
-		contextResult, rerr = reconcileContext(ctx, tx, voice,
+		contextResult, rerr = reconcileContext(ctx, tx, st.Voice,
 			projectID, stream, workspaceID, manifest.ActorID, contextEntries)
 		if rerr != nil {
 			return rerr
@@ -302,7 +337,24 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		var aerr error
 		outcome, aerr = applyStagedPush(ctx, tx, deps, job, projectID, stream,
 			staged, plan, manifest.Tree, decisions, writes, manifest.ExpectedRef, gov)
-		return aerr
+		if aerr != nil {
+			return aerr
+		}
+		// The context ledger and the terminology after the content, on the
+		// same transaction: either failing rolls the content back with it.
+		if parts.Ledger, aerr = applyPushLedger(ctx, tx, projectID, manifest.ActorID, ledger); aerr != nil {
+			return fmt.Errorf("context ledger: %w", aerr)
+		}
+		termsResult, aerr = applyPushTerms(ctx, st, manifest.WorkspaceSlug, workspaceID, stream, pushTerms{
+			Edits: termsEdits, Author: manifest.TermsAuthor, OnBehalfOf: manifest.TermsOnBehalfOf,
+		})
+		if aerr != nil {
+			return fmt.Errorf("terms: %w", aerr)
+		}
+		if termsResult != nil {
+			parts.Terms = termsResult.Outcome
+		}
+		return nil
 	}
 
 	if deps.PushTransition != nil {
@@ -313,11 +365,23 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	} else if err := applier.ApplyPush(ctx, func(tx store.PushApplier) error {
 		// No shared-pool transition: the voice store cannot join this
 		// transaction, so it is written through the pool and a rollback leaves
-		// it. Content and collections still land together.
-		return apply(tx, deps.VoiceStore)
+		// it. Content, collections and the context ledger still land together;
+		// terminology edits are refused, as they cannot join it either.
+		return apply(PushStores{Content: tx, Voice: deps.VoiceStore})
 	}); err != nil {
 		markJobFailed(ctx, deps, job.ID, err.Error())
 		return err
+	}
+	recordPushParts(ctx, deps, job.ID, parts)
+	if parts.Ledger != nil {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Stored %d context ledger object(s) carrying %d new operation(s)",
+				parts.Ledger.Objects, parts.Ledger.Operations), nil)
+	}
+	if !parts.Terms.Empty() {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Terminology: %d concept(s) and %d relation(s) applied, %d operation(s) proposed",
+				parts.Terms.ConceptsApplied, parts.Terms.RelationsApplied, parts.Terms.ConceptsProposed), nil)
 	}
 	if contextResult.total() > 0 {
 		emitLog(deps, job.StepID, "info",
@@ -459,6 +523,10 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			},
 		})
 	}
+
+	// The concepts and change-set the terminology part touched, and the
+	// context change the ledger made, now that the push has committed.
+	publishPushParts(deps, projectID, workspaceID, manifest.WorkspaceSlug, manifest.ActorID, termsResult, manifest.ContextEvent)
 
 	// The collections this push added or moved, as one recipe change with
 	// the coordinates before and after.

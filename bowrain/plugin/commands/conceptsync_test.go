@@ -298,7 +298,17 @@ func TestPullConceptsDryRunWritesNothing(t *testing.T) {
 	assert.Empty(t, concepts, "dry-run pull must not write into the terms store")
 }
 
-func TestPushConceptsOrdinaryEditAppliesDirectly(t *testing.T) {
+// updateFor finds the direct edit of one concept in a plan.
+func updateFor(edits *apiclient.TermsEdits, conceptID string) *apiclient.ConceptEdit {
+	for i := range edits.Updates {
+		if edits.Updates[i].ConceptID == conceptID {
+			return &edits.Updates[i]
+		}
+	}
+	return nil
+}
+
+func TestPlanConceptsOrdinaryEditAppliesDirectly(t *testing.T) {
 	srv, rec := conceptSyncServer(t)
 	tb, baseline := pullInto(t, srv)
 
@@ -308,24 +318,29 @@ func TestPushConceptsOrdinaryEditAppliesDirectly(t *testing.T) {
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
+	edits, err := PlanConcepts(context.Background(), client, tb, baseline, "")
 	require.NoError(t, err)
-	require.NotNil(t, res)
+	require.NotNil(t, edits)
 
-	assert.Equal(t, 1, res.ConceptsApplied)
-	assert.Equal(t, 0, res.ConceptsProposed)
-	assert.Empty(t, res.ChangesetID)
+	concepts, _ := edits.Applied()
+	assert.Equal(t, 1, concepts)
+	assert.Zero(t, edits.Proposed())
+	assert.Nil(t, edits.Proposal, "an ordinary edit opens no change-set")
 
-	// The edit went up as a direct PUT; no change-set was opened.
+	u := updateFor(edits, "c-cta")
+	require.NotNil(t, u, "the edit travels as a direct update")
+	assert.Equal(t, "Primary call to action.", u.Concept.Definition)
+	assert.Nil(t, updateFor(edits, "c-greeting"))
+
+	// Planning writes nothing: the push carries the edits, and the server
+	// applies them in the push's transaction.
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
-	require.Contains(t, rec.updates, "c-cta")
-	assert.Equal(t, "Primary call to action.", rec.updates["c-cta"]["definition"])
-	assert.NotContains(t, rec.updates, "c-greeting")
-	assert.Empty(t, rec.changesets, "an ordinary edit must not open a change-set")
+	assert.Empty(t, rec.updates)
+	assert.Empty(t, rec.changesets)
 }
 
-func TestPushConceptsGovernedEditProposesChangeSet(t *testing.T) {
+func TestPlanConceptsGovernedEditProposesChangeSet(t *testing.T) {
 	srv, rec := conceptSyncServer(t)
 	tb, baseline := pullInto(t, srv)
 
@@ -339,78 +354,46 @@ func TestPushConceptsGovernedEditProposesChangeSet(t *testing.T) {
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
+	edits, err := PlanConcepts(context.Background(), client, tb, baseline, "terms-ref-1")
 	require.NoError(t, err)
-	require.NotNil(t, res)
+	require.NotNil(t, edits)
 
-	// The governed transition went into a submitted change-set, not a direct write.
-	assert.Equal(t, 1, res.ConceptsProposed)
-	assert.Equal(t, 0, res.ConceptsApplied)
-	assert.Equal(t, "cs-1", res.ChangesetID)
+	// The governed transition goes into the proposal, not a direct write.
+	assert.Nil(t, updateFor(edits, "c-greeting"), "a governed edit must not be direct-written")
+	require.NotNil(t, edits.Proposal)
+	assert.Equal(t, conceptPushOrigin, edits.Proposal.Origin)
+	assert.Equal(t, "terms-ref-1", edits.Proposal.ExpectedTermsRef,
+		"the proposal asserts the terminology it was computed against")
+	require.Len(t, edits.Proposal.Ops, 1)
+
+	op := edits.Proposal.Ops[0]
+	assert.Equal(t, "term.status", op.Op)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(op.Payload, &payload))
+	assert.Equal(t, "c-greeting", payload["concept_id"])
+	assert.Equal(t, "Hi", payload["text"])
+	assert.Equal(t, "approved", payload["from"])
+	assert.Equal(t, "forbidden", payload["to"])
 
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
-	assert.NotContains(t, rec.updates, "c-greeting", "a governed edit must not be direct-written")
-	require.Len(t, rec.changesets, 1)
-	require.Len(t, rec.ops, 1)
-	require.Len(t, rec.submits, 1)
-
-	op := rec.ops[0]
-	assert.Equal(t, "term.status", op.op)
-	assert.Equal(t, "c-greeting", op.payload["concept_id"])
-	assert.Equal(t, "Hi", op.payload["text"])
-	assert.Equal(t, "approved", op.payload["from"])
-	assert.Equal(t, "forbidden", op.payload["to"])
-}
-
-func TestPushConceptsDryRunNeitherWritesNorProposes(t *testing.T) {
-	srv, rec := conceptSyncServer(t)
-	tb, baseline := pullInto(t, srv)
-
-	editConcept(t, tb, "c-greeting", func(c *terms.Concept) {
-		for i := range c.Terms {
-			if c.Terms[i].Text == "Hi" {
-				c.Terms[i].Status = model.TermForbidden
-			}
-		}
-	})
-
-	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, "", true)
-	require.NoError(t, err)
-	require.NotNil(t, res)
-
-	assert.True(t, res.DryRun)
-	assert.Equal(t, 1, res.ConceptsProposed)
-
-	rec.mu.Lock()
-	defer rec.mu.Unlock()
-	assert.Empty(t, rec.updates, "dry-run must not write")
-	assert.Empty(t, rec.changesets, "dry-run must not open a change-set")
+	assert.Empty(t, rec.changesets, "planning opens no change-set")
 	assert.Empty(t, rec.ops)
 	assert.Empty(t, rec.submits)
 }
 
-func TestPushConceptsUnchangedIsNoop(t *testing.T) {
-	srv, rec := conceptSyncServer(t)
+func TestPlanConceptsUnchangedIsNil(t *testing.T) {
+	srv, _ := conceptSyncServer(t)
 	tb, baseline := pullInto(t, srv)
 
-	// No local edit: the push must be a no-op.
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
+	edits, err := PlanConcepts(context.Background(), client, tb, baseline, "")
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	assert.False(t, res.changed())
-
-	rec.mu.Lock()
-	defer rec.mu.Unlock()
-	assert.Empty(t, rec.updates)
-	assert.Empty(t, rec.creates)
-	assert.Empty(t, rec.changesets)
+	assert.Nil(t, edits, "no local edit plans nothing")
 }
 
-func TestPushConceptsNewConceptCreatesDirectly(t *testing.T) {
-	srv, rec := conceptSyncServer(t)
+func TestPlanConceptsNewConceptCreatesDirectly(t *testing.T) {
+	srv, _ := conceptSyncServer(t)
 	tb, baseline := pullInto(t, srv)
 
 	// A brand-new local concept with only proposed terms → ordinary create.
@@ -422,17 +405,12 @@ func TestPushConceptsNewConceptCreatesDirectly(t *testing.T) {
 	}))
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
+	edits, err := PlanConcepts(context.Background(), client, tb, baseline, "")
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	assert.Equal(t, 1, res.ConceptsApplied)
-	assert.Equal(t, 0, res.ConceptsProposed)
-
-	rec.mu.Lock()
-	defer rec.mu.Unlock()
-	require.Len(t, rec.creates, 1)
-	assert.Equal(t, "A freshly minted concept.", rec.creates[0]["definition"])
-	assert.Empty(t, rec.changesets)
+	require.NotNil(t, edits)
+	require.Len(t, edits.Creates, 1)
+	assert.Equal(t, "A freshly minted concept.", edits.Creates[0].Definition)
+	assert.Nil(t, edits.Proposal)
 }
 
 // TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt is the
@@ -457,7 +435,7 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 		app = prev
 	})
 
-	srv, rec := conceptSyncServer(t)
+	srv, _ := conceptSyncServer(t)
 
 	root := t.TempDir()
 	reg := registry.NewFormatRegistry()
@@ -515,27 +493,23 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 		c.Definition = "Primary call to action."
 	})
 
-	pres, perr := conceptPush(context.Background(), proj, false)
+	edits, perr := conceptEdits(context.Background(), proj)
 	require.NoError(t, perr)
-	require.NotNil(t, pres)
-	assert.Equal(t, 1, pres.ConceptsApplied)
-	assert.Equal(t, 0, pres.ConceptsProposed)
-
-	rec.mu.Lock()
-	defer rec.mu.Unlock()
-	require.Contains(t, rec.updates, "c-cta")
-	assert.Equal(t, "Primary call to action.", rec.updates["c-cta"]["definition"])
+	require.NotNil(t, edits)
+	u := updateFor(edits, "c-cta")
+	require.NotNil(t, u)
+	assert.Equal(t, "Primary call to action.", u.Concept.Definition)
+	assert.Nil(t, edits.Proposal)
 }
 
 // A project with no terminology of its own has nothing to push. That is the one
-// condition that legitimately skips, and it is now a row question the caller
-// asks (HasTerms) rather than a stat of a terms FILE — the file stopped
-// distinguishing anything once every subsystem shared one store.
-func TestPushConceptsWithoutTermsSkips(t *testing.T) {
+// condition that legitimately skips, and it is a row question the caller asks
+// (HasTerms) rather than a stat of a terms file.
+func TestPlanConceptsWithoutTermsSkips(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 
-	res, err := PushConcepts(context.Background(), client, nil, nil, "", false)
+	edits, err := PlanConcepts(context.Background(), client, nil, nil, "")
 	require.NoError(t, err)
-	assert.Nil(t, res, "push must skip when the project has no terms")
+	assert.Nil(t, edits, "a push carries no terminology when the project has none")
 }

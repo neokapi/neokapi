@@ -21,7 +21,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/core/venue/connector"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/host/venue/source"
 )
@@ -38,6 +40,10 @@ type PushOptions struct {
 	// Stream overrides the stream the connector would otherwise resolve from
 	// config or auto-detection. Empty leaves that resolution alone.
 	Stream string
+	// Terms are the project's terminology edits, classified against the
+	// workspace baseline. They travel in the push and apply in its
+	// transaction; nil carries none.
+	Terms *apiclient.TermsEdits
 }
 
 // PushResult holds the structured result of a push.
@@ -82,6 +88,18 @@ type PushResult struct {
 	// value, each with the reason and what would apply it.
 	SettingsApplied venue.ProjectSettings
 	SettingsRefused []venue.SettingRefusal
+
+	// Terms is what the terminology part did, and Ledger what the context
+	// ledger part did. Each is the venue's answer once the push applied; when
+	// the venue has not confirmed it yet, or on a dry run, it counts what the
+	// push carried and PartsPending says so. Nil for a part the push did not
+	// carry.
+	Terms        *venue.PushTermsOutcome
+	Ledger       *venue.PushLedgerOutcome
+	PartsPending bool
+
+	// CollectionsDeclared counts the collections the push declared.
+	CollectionsDeclared int
 }
 
 // PullResult holds the structured result of a pull.
@@ -143,6 +161,14 @@ func PushProject(ctx context.Context, app *host.App, proj *project.Project, conn
 	}
 	conn.SetPushContext(pushCtx)
 
+	// When the project's context lives on the venue, the ledger operations the
+	// venue does not hold travel in the push too, and land in its transaction.
+	ledger, err := app.StageVenueContextPush(ctx, proj.Root)
+	if err != nil {
+		return nil, err
+	}
+	conn.SetPushParts(opts.Terms, ledgerObjects(ledger))
+
 	result, err := conn.Push(ctx, connector.PushOptions{
 		Paths:  opts.Paths,
 		Force:  opts.Force,
@@ -172,11 +198,55 @@ func PushProject(ctx context.Context, app *host.App, proj *project.Project, conn
 	}
 	if opts.DryRun {
 		pr.DryRun = true
-	} else if result.BlocksPushed == 0 {
+	} else if result.BlocksPushed == 0 && opts.Terms.Empty() && ledger == nil {
 		pr.UpToDate = true
 	}
-
+	if pushCtx != nil {
+		pr.CollectionsDeclared = len(pushCtx.Entries)
+	}
+	settleParts(ctx, pr, result, opts, ledger)
 	return pr, nil
+}
+
+// ledgerObjects is a staged ledger push as the objects a push carries.
+func ledgerObjects(staged *workspace.StagedPush) []apiclient.ContextObjectWire {
+	if staged == nil {
+		return nil
+	}
+	out := make([]apiclient.ContextObjectWire, 0, len(staged.Objects))
+	for _, obj := range staged.Objects {
+		out = append(out, apiclient.ContextObjectWire{Name: obj.Name, Data: obj.Data})
+	}
+	return out
+}
+
+// settleParts fills in what the push's terminology and ledger parts did, and
+// records the ledger as pushed once the venue applied the push. Recording it
+// is best-effort: a ledger the venue holds and this checkout does not know it
+// holds is staged again by the next push, and the venue takes the same bytes
+// as nothing new.
+func settleParts(ctx context.Context, pr *PushResult, result *connector.PushResult, opts PushOptions, ledger *workspace.StagedPush) {
+	applied := !opts.DryRun && result.Ingest == connector.IngestApplied
+	if applied {
+		pr.Terms, pr.Ledger = result.Terms, result.Ledger
+		if ledger != nil {
+			_ = ledger.Confirm(ctx)
+		}
+		return
+	}
+	if !opts.Terms.Empty() {
+		concepts, relations := opts.Terms.Applied()
+		pr.Terms = &venue.PushTermsOutcome{
+			ConceptsApplied:  concepts,
+			RelationsApplied: relations,
+			ConceptsProposed: opts.Terms.Proposed(),
+		}
+		pr.PartsPending = true
+	}
+	if ledger != nil {
+		pr.Ledger = &venue.PushLedgerOutcome{Objects: len(ledger.Objects), Operations: ledger.Pushed}
+		pr.PartsPending = true
+	}
 }
 
 // Pull downloads translations and governed terminology into the checkout

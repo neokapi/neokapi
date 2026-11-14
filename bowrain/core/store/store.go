@@ -282,6 +282,17 @@ type PushApplier interface {
 	CreateCollection(ctx context.Context, c *Collection) error
 	UpdateCollection(ctx context.Context, c *Collection) error
 
+	// The context ledger verbs. When a project's context lives on the venue,
+	// a push carries the ledger objects the venue does not hold, and storing
+	// them is part of the same transition as the content: a ledger that
+	// outlived a failed push would record decisions about content that never
+	// landed. PutContextObjects returns how many objects the project did not
+	// hold, and refuses a name held with other bytes with a
+	// *ContextObjectExistsError. BindContextKey binds an unbound project and
+	// returns the key it is bound to after the call.
+	PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []ContextObject) (int, error)
+	BindContextKey(ctx context.Context, projectID, key string) (string, error)
+
 	// The identity verbs. A push declares a tree; which document each entry IS
 	// is resolved against what the venue holds, and acted on before any content
 	// lands — so a renamed file's blocks are written to the item that already

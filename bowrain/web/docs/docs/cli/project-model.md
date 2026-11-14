@@ -166,6 +166,11 @@ browser and in Kapi Desktop, Rules shows that record (see
 `kapi context sync` keeps it in step with the Bowrain project the `bowrain:`
 block connects to.
 
+`kapi push` sends the same record. Each push carries the operations Bowrain
+doesn't hold yet, beside the content, the collections and your terms edits.
+Bowrain stores all of them together or none of them, so a refused rule never
+leaves half a push on the server. The push report has one line for each part.
+
 A project on Bowrain keeps its context there. `kapi share --via bowrain
 <server-url>` connects the project and moves its context in one step: it reads
 everything the earlier backend holds (git, a folder, S3 or this machine),

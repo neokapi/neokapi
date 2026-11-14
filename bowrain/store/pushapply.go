@@ -176,6 +176,18 @@ func (a pushApply) GetDefaultCollection(ctx context.Context, projectID string) (
 	return a.s.scanCollectionPg(row)
 }
 
+// PutContextObjects writes a push's context ledger objects on the push's
+// transaction and returns how many the project did not hold.
+func (a pushApply) PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []platstore.ContextObject) (int, error) {
+	return putContextObjectsTx(ctx, a.tx, projectID, pushedBy, batch)
+}
+
+// BindContextKey binds the project's context to key on the push's
+// transaction, when it is bound to none, and returns the key it is bound to.
+func (a pushApply) BindContextKey(ctx context.Context, projectID, key string) (string, error) {
+	return bindContextKeyTx(ctx, a.tx, projectID, key)
+}
+
 // ApplyPush runs fn against one transaction and commits it. An error from fn
 // rolls the whole transition back, so a push either lands or does not.
 // Bind returns this store's push surface bound to tx, for a caller that owns

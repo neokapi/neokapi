@@ -439,42 +439,23 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	// An origin-carrying change-set is an automated proposal, and the origin
-	// admits one open proposal at a time. Identical ops make the submit
-	// idempotent: the new draft is abandoned and the open one is returned.
-	// Different ops supersede the open one — terminally, on the record — so
-	// repeated pushes converge to a single reviewable change-set.
-	if cs.Origin != "" {
-		open, err := s.KnowledgeStore.ListOpenChangeSetsByOrigin(ctx, wsID, cs.Origin)
-		if err != nil {
-			return serverErr(c, err)
-		}
-		for _, prior := range open {
-			if prior.ID == cs.ID {
-				continue
-			}
-			priorOps, err := s.KnowledgeStore.ListOps(ctx, wsID, prior.ID)
-			if err != nil {
-				return serverErr(c, err)
-			}
-			if prior.Status == knowledge.ChangeSetInReview && knowledge.SameOps(priorOps, ops) {
-				if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetAbandoned); err != nil {
-					return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
-				}
-				return s.refreshedChangeSet(c, wsID, prior.ID)
-			}
-			if err := s.KnowledgeStore.SupersedeChangeSet(ctx, wsID, prior.ID, cs.ID); err != nil {
-				return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
-			}
-			s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-				changesetEvent(knowledge.EventChangeSetSuperseded, wsID, prior.ID, actor),
-			})
-			// The superseded review is over; nobody should keep a task for it.
-			s.closeChangeSetReviewTasks(ctx, wsID, prior.ID, actor)
-		}
+	// admits one open proposal at a time (see knowledge.SubmitChangeSet).
+	res, err := knowledge.SubmitChangeSet(ctx, s.KnowledgeStore, cs, ops)
+	for _, prior := range res.Superseded {
+		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
+			changesetEvent(knowledge.EventChangeSetSuperseded, wsID, prior, actor),
+		})
+		// The superseded review is over; nobody should keep a task for it.
+		s.closeChangeSetReviewTasks(ctx, wsID, prior, actor)
 	}
-
-	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetInReview); err != nil {
+	if errors.Is(err, knowledge.ErrSubmitRefused) {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	}
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if res.Unchanged {
+		return s.refreshedChangeSet(c, wsID, res.ID)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{

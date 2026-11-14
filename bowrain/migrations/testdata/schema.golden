@@ -1045,6 +1045,7 @@ translation_jobs.governance_report text NOT NULL DEFAULT ''::text
 translation_jobs.id text NOT NULL
 translation_jobs.item_name text NOT NULL
 translation_jobs.model text NOT NULL DEFAULT ''::text
+translation_jobs.parts_report text NOT NULL DEFAULT ''::text
 translation_jobs.progress integer NOT NULL DEFAULT 0
 translation_jobs.project_id text NOT NULL
 translation_jobs.provider_config_id text NOT NULL DEFAULT ''::text

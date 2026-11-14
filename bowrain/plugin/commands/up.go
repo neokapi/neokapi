@@ -106,18 +106,19 @@ func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 	if !app.Quiet {
 		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing produced results to the server...")
 	}
-	pr, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{})
+	terms, err := conceptEdits(cmd.Context(), proj)
+	if err != nil {
+		return fmt.Errorf("terminology: %w", err)
+	}
+	pr, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{Terms: terms})
 	if err != nil {
 		return fmt.Errorf("push after local run: %w", err)
 	}
 	defer conn.Close()
-	// The declared context — collections, coordinates, voice — travelled
-	// with the push itself; the push reports what its governance amounted to.
+	// The declared context (collections, coordinates, voice) and the
+	// terminology travelled with the push itself, in one transaction.
 	bres := pr.Brand
-	cres, err := conceptPush(cmd.Context(), proj, false)
-	if err != nil {
-		return err
-	}
+	cres := conceptResult(proj, pr.Terms, false, pr.PartsPending)
 	if err := reportConceptPush(cmd, nil, cres, flagBool(cmd, "json")); err != nil {
 		return err
 	}
@@ -179,8 +180,12 @@ func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *Pus
 			res.ConceptsApplied, res.RelationsApplied)
 	}
 	if res.ConceptsProposed > 0 {
-		fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s. They take effect when reviewed.\n",
-			res.ConceptsProposed, res.ChangesetID)
+		in := "in a change-set"
+		if res.ChangesetID != "" {
+			in = "in change-set " + res.ChangesetID
+		}
+		fmt.Fprintf(w, "Proposed %d governed terminology edit(s) %s. They take effect when reviewed.\n",
+			res.ConceptsProposed, in)
 		if res.ChangesetURL != "" {
 			fmt.Fprintf(w, "Review it at %s\n", res.ChangesetURL)
 		}
@@ -217,18 +222,19 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pushing local changes...")
 	}
-	pr, conn, err := transfer.Push(ctx, app, proj, transfer.PushOptions{})
+	terms, err := conceptEdits(ctx, proj)
+	if err != nil {
+		return fmt.Errorf("terminology: %w", err)
+	}
+	pr, conn, err := transfer.Push(ctx, app, proj, transfer.PushOptions{Terms: terms})
 	if err != nil {
 		return fmt.Errorf("push: %w", err)
 	}
 	defer conn.Close()
-	// The declared context — collections, coordinates, voice — travelled
-	// with the push itself; the push reports what its governance amounted to.
+	// The declared context (collections, coordinates, voice) and the
+	// terminology travelled with the push itself, in one transaction.
 	bres := pr.Brand
-	cres, err := conceptPush(ctx, proj, false)
-	if err != nil {
-		return err
-	}
+	cres := conceptResult(proj, pr.Terms, false, pr.PartsPending)
 	if err := reportConceptPush(cmd, jsonStream, cres, jsonOut); err != nil {
 		return err
 	}

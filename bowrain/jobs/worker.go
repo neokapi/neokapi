@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
 	"github.com/neokapi/neokapi/bowrain/review"
@@ -26,12 +27,29 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/venue"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/terms"
 	"golang.org/x/time/rate"
 )
 
 // PushTransitionFunc runs fn against one transaction, handing it each store
 // bound to that transaction. An error from fn rolls the whole thing back.
-type PushTransitionFunc func(ctx context.Context, fn func(store.PushApplier, coreprofile.Store) error) error
+type PushTransitionFunc func(ctx context.Context, fn func(PushStores) error) error
+
+// PushStores are the stores one push writes, each bound to the push's
+// transaction.
+type PushStores struct {
+	// Content stores the items, blocks, collections, decisions and context
+	// ledger objects.
+	Content store.PushApplier
+	// Voice holds the workspace's voice profiles the context reconcile writes.
+	Voice coreprofile.Store
+	// Terms opens a workspace's terms store on the transaction, by slug. Nil
+	// when the deployment cannot put terms in the transaction, in which case
+	// a push carrying terminology edits is refused.
+	Terms func(ctx context.Context, workspaceSlug string) (terms.Store, error)
+	// Knowledge records the change-set a push proposes. Nil like Terms.
+	Knowledge knowledge.Store
+}
 
 // WorkerDeps holds all dependencies for the translation worker.
 //

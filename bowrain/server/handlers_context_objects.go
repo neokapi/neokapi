@@ -164,20 +164,9 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 	}
-	batch := make([]platstore.ContextObject, 0, len(body.Objects))
-	for _, obj := range body.Objects {
-		if !workspace.ValidObjectName(obj.Name) {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error: "not a name in the context layout", Details: obj.Name, Code: contextObjectInvalidCode,
-			})
-		}
-		if strings.HasPrefix(obj.Name, workspace.RemoteBlobDir) &&
-			workspace.BlobObjectName(workspace.BlobAddress(obj.Data)) != obj.Name {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error: "the blob's name is not the address of its bytes", Details: obj.Name, Code: contextObjectInvalidCode,
-			})
-		}
-		batch = append(batch, platstore.ContextObject{Name: obj.Name, Data: obj.Data})
+	batch, refused, err := contextBatchOf(c, body.Objects)
+	if refused || err != nil {
+		return err
 	}
 	cos, ok := s.contextObjects()
 	if !ok {
@@ -192,7 +181,7 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	} else if err != nil {
 		return serverErr(c, err)
 	}
-	accepted, refused, err := s.acceptContextBatch(c, cos, batch)
+	accepted, refused, err := s.acceptContextBatch(c, cos, batch, true)
 	if refused || err != nil {
 		return err
 	}
@@ -212,11 +201,14 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 
 // acceptedContext is what a push accepted by acceptContextBatch carries: the
 // operations the project did not hold, every operation by id, and whether
-// the push bound the project's context to its key.
+// the push bound the project's context to its key. When the caller defers the
+// binding to its own transaction, bindKey names the key to bind and bound is
+// what the binding will report.
 type acceptedContext struct {
-	fresh []workspace.Op
-	byID  map[string]workspace.Op
-	bound bool
+	fresh   []workspace.Op
+	byID    map[string]workspace.Op
+	bound   bool
+	bindKey workspace.ProjectKey
 }
 
 // acceptContextBatch reads the segments of a push before any of it is
@@ -234,8 +226,10 @@ type acceptedContext struct {
 //   - a governing operation lies outside the pusher's reach (403
 //     outside_reach, see checkReach).
 //
-// refused reports that the answer has been written.
-func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (accepted acceptedContext, refused bool, err error) {
+// refused reports that the answer has been written. bind binds an unbound
+// project here; a caller that stores the batch in a transaction of its own
+// passes false and binds accepted.bindKey there.
+func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject, bind bool) (accepted acceptedContext, refused bool, err error) {
 	ctx := c.Request().Context()
 	projectID := c.Param("id")
 	member := ledgerMemberOf(c)
@@ -362,7 +356,9 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 		}
 	}
 
-	if bound == "" {
+	if bound == "" && !bind {
+		accepted.bindKey, accepted.bound = key, true
+	} else if bound == "" {
 		now, err := cos.BindContextKey(ctx, projectID, string(key))
 		if errors.Is(err, platstore.ErrNoContextProject) {
 			return accepted, true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})

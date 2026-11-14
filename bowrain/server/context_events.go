@@ -216,6 +216,25 @@ func (s *Server) emitPushedContext(c echo.Context, projectID string, accepted ac
 	if s.EventBus == nil {
 		return
 	}
+	s.emitContextChange(c, platev.EventContextRecorded, projectID, "", pushedContextChange(accepted))
+}
+
+// pushedContextData is the event data of the context change a push of
+// context objects makes, for a caller that publishes it later: the push
+// worker, once the transaction storing the objects commits. Nil when the
+// change counts no item.
+func pushedContextData(c echo.Context, accepted acceptedContext) map[string]string {
+	change := pushedContextChange(accepted)
+	if change.Counts.Total() == 0 {
+		return nil
+	}
+	change.WorkspaceSlug = c.Param("ws")
+	change.ActorName, _ = c.Get("name").(string)
+	return change.Data()
+}
+
+// pushedContextChange is the context change a push of context objects makes.
+func pushedContextChange(accepted acceptedContext) platev.ContextChange {
 	counts, actors := countLedgerOps(accepted.fresh, func(op workspace.Op, kind contextop.Kind) (contextop.SubjectKind, bool) {
 		subject, err := subjectKindOf(op, kind, accepted.byID)
 		return subject, err == nil
@@ -242,7 +261,7 @@ func (s *Server) emitPushedContext(c echo.Context, projectID string, accepted ac
 		_ = json.Unmarshal(target.Payload, &body)
 		return body.Subject, true
 	})
-	s.emitContextChange(c, platev.EventContextRecorded, projectID, "", change)
+	return change
 }
 
 // emitDecidedContext publishes the context change one Decide answer made.

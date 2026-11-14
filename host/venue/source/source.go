@@ -113,6 +113,11 @@ type BowrainSourceConnector struct {
 	// governance. Set by SetPushContext before Push; nil means the caller is
 	// pushing content without making any claim about the declared context.
 	pushContext *apiclient.PushContext
+
+	// pushTerms and pushLedger are the terminology edits and context ledger
+	// objects this push carries beside its content. Set by SetPushParts.
+	pushTerms  *apiclient.TermsEdits
+	pushLedger []apiclient.ContextObjectWire
 }
 
 // itemBlock associates a block with its source item name.
@@ -606,6 +611,20 @@ func (c *BowrainSourceConnector) SetPushContext(p *apiclient.PushContext) {
 	c.pushContext = p
 }
 
+// SetPushParts sets the terminology edits and the context ledger objects the
+// next push carries beside its content. The venue applies them in the push's
+// transaction, so a push carrying them commits even when no content changed.
+func (c *BowrainSourceConnector) SetPushParts(terms *apiclient.TermsEdits, ledger []apiclient.ContextObjectWire) {
+	c.pushTerms = terms
+	c.pushLedger = ledger
+}
+
+// pushPartsPending reports whether the next push carries terminology edits or
+// ledger objects.
+func (c *BowrainSourceConnector) pushPartsPending() bool {
+	return !c.pushTerms.Empty() || len(c.pushLedger) > 0
+}
+
 // PushContextChanged reports whether the declared context differs from the one
 // the last push carried, as recorded in the sync cache. It is the local half of
 // the context fast path: an unedited recipe is not worth a round trip, but a
@@ -815,7 +834,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// cannot make that comparison and does not pretend to: it stays additive,
 	// as it was before there were trees.
 	if len(changed) == 0 && !venueHoldsMoreThan(serverTree, localTree, scope) &&
-		!c.PushContextChanged() && !sendRecord && !sendWrites && !c.pushSettingsPending() {
+		!c.PushContextChanged() && !sendRecord && !sendWrites && !c.pushSettingsPending() && !c.pushPartsPending() {
 		return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 	}
 
@@ -844,6 +863,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		apiclient.DeclareBlockProperties(venue.BlockPropertyKeys(allScannedBlocks(blockMap))),
 		apiclient.DeclareTree(scope, localTree),
 		apiclient.CarryEditionWrites(writes),
+		apiclient.CarryTerms(c.pushTerms),
+		apiclient.CarryContextObjects(c.pushLedger),
 	}
 	// --force already means "send everything, ignore the cache". It also means
 	// the one thing the server refuses on its own: writing content from an
@@ -891,7 +912,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// holds this content. The commit answers 202 and hands the work to a
 	// worker; a failed ingest with the cache already written is content the
 	// next push will conclude is present and never send again.
-	ingest, governance, ierr := c.confirmIngest(ctx, pushID)
+	ingest, governance, parts, ierr := c.confirmIngest(ctx, pushID)
 	if ierr != nil {
 		return nil, ierr
 	}
@@ -991,6 +1012,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		VerdictsRetired:       retired,
 		SettingsApplied:       settingsApplied,
 		SettingsRefused:       settingsRefused,
+		Terms:                 parts.Terms,
+		Ledger:                parts.Ledger,
 	}, nil
 }
 
@@ -1054,11 +1077,12 @@ const ingestConfirmWindow = 6 * time.Second
 // old for the endpoint, or a status call that errors leaves the push reported
 // as unknown rather than refused — the alternative is refusing pushes that
 // worked.
-func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID string) (string, *venue.PushGovernance, error) {
+func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID string) (string, *venue.PushGovernance, venue.PushParts, error) {
+	var none venue.PushParts
 	// The unchanged sentinel is the init fast path's: nothing was committed, so
 	// there is no job and nothing to confirm.
 	if c.client == nil || pushID == "" || pushID == apiclient.PushUnchanged {
-		return "", nil, nil
+		return "", nil, none, nil
 	}
 
 	deadline := time.Now().Add(ingestConfirmWindow)
@@ -1066,16 +1090,16 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 	for {
 		st, err := c.client.PushStatus(ctx, pushID)
 		if err != nil {
-			return bowrainconn.IngestUnknown, nil, nil //nolint:nilerr // an unaskable server is unknown, not failed
+			return bowrainconn.IngestUnknown, nil, none, nil //nolint:nilerr // an unaskable server is unknown, not failed
 		}
 		switch {
 		case st.Failed > 0 && st.Completed == 0:
-			return "", nil, fmt.Errorf(
+			return "", nil, none, fmt.Errorf(
 				"push %s was accepted but the server failed to apply it (%d job(s) failed); "+
 					"the local sync record was left untouched so the next push sends this content again",
 				pushID, st.Failed)
 		case st.Completed > 0:
-			return bowrainconn.IngestApplied, st.Governance, nil
+			return bowrainconn.IngestApplied, st.Governance, venue.PushParts{Terms: st.Terms, Ledger: st.Ledger}, nil
 		case st.Total == 0:
 			// No job exists for this push id. Either the deployment runs no
 			// worker or the job has not been recorded yet; keep waiting, and
@@ -1083,13 +1107,13 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 		}
 		if time.Now().After(deadline) {
 			if st.Total == 0 {
-				return bowrainconn.IngestUnknown, st.Governance, nil
+				return bowrainconn.IngestUnknown, st.Governance, none, nil
 			}
-			return bowrainconn.IngestQueued, st.Governance, nil
+			return bowrainconn.IngestQueued, st.Governance, none, nil
 		}
 		select {
 		case <-ctx.Done():
-			return bowrainconn.IngestUnknown, st.Governance, nil
+			return bowrainconn.IngestUnknown, st.Governance, none, nil
 		case <-time.After(interval):
 		}
 		if interval < time.Second {

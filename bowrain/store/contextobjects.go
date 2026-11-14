@@ -65,9 +65,27 @@ func (s *PostgresStore) GetContextObject(ctx context.Context, projectID, name st
 // pushes creating one name at once serialize on the primary key: the second
 // insert waits for the first to commit and finds its row.
 func (s *PostgresStore) PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []platstore.ContextObject) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("put context objects: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := putContextObjectsTx(ctx, tx, projectID, pushedBy, batch); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("put context objects: %w", err)
+	}
+	return nil
+}
+
+// putContextObjectsTx writes batch on tx and returns how many of its objects
+// the project did not hold. A name held with other bytes refuses the batch
+// with a *platstore.ContextObjectExistsError; the caller rolls tx back.
+func putContextObjectsTx(ctx context.Context, tx Runner, projectID, pushedBy string, batch []platstore.ContextObject) (int, error) {
 	for _, obj := range batch {
 		if err := storeutil.CheckContextObject(obj.Name, obj.Data); err != nil {
-			return err
+			return 0, err
 		}
 	}
 	// Names are written in byte order, so two batches that share names
@@ -75,11 +93,7 @@ func (s *PostgresStore) PutContextObjects(ctx context.Context, projectID, pushed
 	batch = slices.SortedFunc(slices.Values(batch), func(a, b platstore.ContextObject) int {
 		return strings.Compare(a.Name, b.Name)
 	})
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("put context objects: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
+	created := 0
 	for _, obj := range batch {
 		data := obj.Data
 		if data == nil {
@@ -92,27 +106,25 @@ func (s *PostgresStore) PutContextObjects(ctx context.Context, projectID, pushed
 			 ON CONFLICT (project_id, name) DO NOTHING`,
 			projectID, obj.Name, data, digest, pushedBy)
 		if err != nil {
-			return fmt.Errorf("put context object %s: %w", obj.Name, err)
+			return 0, fmt.Errorf("put context object %s: %w", obj.Name, err)
 		}
 		if n, err := res.RowsAffected(); err != nil {
-			return fmt.Errorf("put context object %s: %w", obj.Name, err)
+			return 0, fmt.Errorf("put context object %s: %w", obj.Name, err)
 		} else if n == 1 {
+			created++
 			continue
 		}
 		var held []byte
 		if err := tx.QueryRowContext(ctx,
 			`SELECT data FROM context_objects WHERE project_id = $1 AND name = $2`,
 			projectID, obj.Name).Scan(&held); err != nil {
-			return fmt.Errorf("read held context object %s: %w", obj.Name, err)
+			return 0, fmt.Errorf("read held context object %s: %w", obj.Name, err)
 		}
 		if !bytes.Equal(held, data) {
-			return &platstore.ContextObjectExistsError{Name: obj.Name}
+			return 0, &platstore.ContextObjectExistsError{Name: obj.Name}
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("put context objects: %w", err)
-	}
-	return nil
+	return created, nil
 }
 
 // DigestContextObjects implements platstore.ContextObjectStore.
@@ -143,8 +155,12 @@ func (s *PostgresStore) DigestContextObjects(ctx context.Context, projectID, dir
 
 // ContextKey implements platstore.ContextObjectStore.
 func (s *PostgresStore) ContextKey(ctx context.Context, projectID string) (string, error) {
+	return contextKeyTx(ctx, s.db, projectID)
+}
+
+func contextKeyTx(ctx context.Context, q Runner, projectID string) (string, error) {
 	var key string
-	err := s.db.QueryRowContext(ctx, `SELECT context_key FROM projects WHERE id = $1`, projectID).Scan(&key)
+	err := q.QueryRowContext(ctx, `SELECT context_key FROM projects WHERE id = $1`, projectID).Scan(&key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("%w: %s", platstore.ErrNoContextProject, projectID)
 	}
@@ -158,14 +174,18 @@ func (s *PostgresStore) ContextKey(ctx context.Context, projectID string) (strin
 // only an unbound project, so of two first pushes naming different keys the
 // one that commits first binds and the other reads its key back.
 func (s *PostgresStore) BindContextKey(ctx context.Context, projectID, key string) (string, error) {
+	return bindContextKeyTx(ctx, s.db, projectID, key)
+}
+
+func bindContextKeyTx(ctx context.Context, q Runner, projectID, key string) (string, error) {
 	if key == "" {
 		return "", errors.New("bind a context key: the key is empty")
 	}
-	if _, err := s.db.ExecContext(ctx,
+	if _, err := q.ExecContext(ctx,
 		`UPDATE projects SET context_key = $2 WHERE id = $1 AND context_key = ''`, projectID, key); err != nil {
 		return "", fmt.Errorf("bind the context key of project %s: %w", projectID, err)
 	}
-	return s.ContextKey(ctx, projectID)
+	return contextKeyTx(ctx, q, projectID)
 }
 
 var _ platstore.ContextObjectStore = (*PostgresStore)(nil)

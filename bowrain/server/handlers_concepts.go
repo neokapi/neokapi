@@ -390,7 +390,7 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 	}
 
 	termList := editorTermsFromInfo(req.Terms)
-	if governedConceptCreate(termList) {
+	if terms.GovernedCreate(termList) {
 		return conceptGovernedConflict(c, "a concept whose term is created as forbidden or preferred")
 	}
 	if req.DoNotTranslate {
@@ -484,7 +484,7 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 	}
 
 	newTerms := editorTermsFromInfo(req.Terms)
-	if governedConceptUpdate(existing.Terms, newTerms) {
+	if terms.GovernedUpdate(existing.Terms, newTerms) {
 		return conceptGovernedConflict(c, "a term status transition to/from forbidden or preferred")
 	}
 	if req.DoNotTranslate != nil && *req.DoNotTranslate != existing.DoNotTranslate {
@@ -1126,50 +1126,6 @@ func conceptGovernedConflict(c echo.Context, detail string) error {
 		"detail": detail,
 		"hint":   "open a change-set (POST /:ws/changesets), add the governed op, and submit it for review",
 	})
-}
-
-// governedConceptCreate reports whether creating a concept with these terms is a
-// governed transition — any term created already forbidden or preferred.
-func governedConceptCreate(terms []terms.Term) bool {
-	for _, t := range terms {
-		if t.Status == model.TermForbidden || t.Status == model.TermPreferred {
-			return true
-		}
-	}
-	return false
-}
-
-// governedConceptUpdate reports whether replacing oldTerms with newTerms entails
-// a governed status transition: any added/changed term moving to/from forbidden
-// or preferred, or a forbidden term removed (un-forbidding it).
-func governedConceptUpdate(oldTerms, newTerms []terms.Term) bool {
-	oldByKey := make(map[string]terms.Term, len(oldTerms))
-	for _, t := range oldTerms {
-		oldByKey[termIdentity(t)] = t
-	}
-	newByKey := make(map[string]terms.Term, len(newTerms))
-	for _, t := range newTerms {
-		newByKey[termIdentity(t)] = t
-		from := model.TermStatus("")
-		if prev, ok := oldByKey[termIdentity(t)]; ok {
-			from = prev.Status
-		}
-		if terms.IsGovernedTransition(from, t.Status) {
-			return true
-		}
-	}
-	for k, prev := range oldByKey {
-		if _, ok := newByKey[k]; !ok && prev.Status == model.TermForbidden {
-			return true
-		}
-	}
-	return false
-}
-
-// termIdentity keys a term by locale + lowered text, matching the change-set op
-// identity for terms.
-func termIdentity(t terms.Term) string {
-	return string(t.Locale) + "|" + strings.ToLower(t.Text)
 }
 
 // conceptMatchesFacets reports whether a concept passes the optional list facets

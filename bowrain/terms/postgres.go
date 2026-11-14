@@ -23,6 +23,37 @@ import (
 type PostgresStore struct {
 	db          *storage.PgDB
 	workspaceID string
+	// tx is the transition this store was bound into, or nil for the pool. A
+	// push applies terminology edits in the same transaction as its content,
+	// so the same store runs either way (see Bind).
+	tx storage.Runner
+}
+
+// Bind returns this store with its statements directed at tx, for a caller
+// that owns the transaction and is putting more than one store in it. A write
+// through the bound store neither begins nor commits: it runs on tx, and the
+// owner commits or rolls back. The receiver is left alone.
+func (tb *PostgresStore) Bind(tx storage.Runner) *PostgresStore {
+	bound := *tb
+	bound.tx = tx
+	return &bound
+}
+
+// run is where this store's statements go.
+func (tb *PostgresStore) run() storage.Runner {
+	if tb.tx != nil {
+		return tb.tx
+	}
+	return tb.db
+}
+
+// begin opens the transaction one write runs in: the bound transition, which
+// its owner commits, or a transaction of its own on the pool.
+func (tb *PostgresStore) begin(ctx context.Context) (storage.WriteTx, error) {
+	if tb.tx != nil {
+		return storage.Within(tb.tx), nil
+	}
+	return tb.db.BeginTx(ctx, nil)
 }
 
 // NewPostgresStoreFromDB creates a PostgresStore using an existing shared PgDB
@@ -119,7 +150,7 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 // a reader treats as a revision it cannot keep anything under.
 func (tb *PostgresStore) Revision(ctx context.Context) (string, error) {
 	var rev string
-	err := tb.db.QueryRowContext(ctx, "SELECT revision FROM tb_revision WHERE workspace_id = $1", tb.workspaceID).Scan(&rev)
+	err := tb.run().QueryRowContext(ctx, "SELECT revision FROM tb_revision WHERE workspace_id = $1", tb.workspaceID).Scan(&rev)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return "", nil
@@ -131,7 +162,7 @@ func (tb *PostgresStore) Revision(ctx context.Context) (string, error) {
 
 // bumpRevision gives the workspace's terms a new revision inside tx, the
 // transaction of the write that changes them.
-func (tb *PostgresStore) bumpRevision(ctx context.Context, tx *sql.Tx) error {
+func (tb *PostgresStore) bumpRevision(ctx context.Context, tx storage.Runner) error {
 	var token [16]byte
 	if _, err := rand.Read(token[:]); err != nil {
 		return fmt.Errorf("new terms revision: %w", err)
@@ -147,8 +178,8 @@ func (tb *PostgresStore) bumpRevision(ctx context.Context, tx *sql.Tx) error {
 
 // write runs fn in a transaction that also bumps the workspace's terms
 // revision, and commits both or neither.
-func (tb *PostgresStore) write(ctx context.Context, fn func(tx *sql.Tx) error) error {
-	tx, err := tb.db.BeginTx(ctx, nil)
+func (tb *PostgresStore) write(ctx context.Context, fn func(tx storage.Runner) error) error {
+	tx, err := tb.begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -239,7 +270,7 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 		propsJSON, _ = json.Marshal(concept.Properties)
 	}
 
-	tx, err := tb.db.BeginTx(ctx, nil)
+	tx, err := tb.begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -308,7 +339,7 @@ func (tb *PostgresStore) GetConcept(ctx context.Context, id string) (fw.Concept,
 
 // DeleteConcept removes a concept by ID.
 func (tb *PostgresStore) DeleteConcept(ctx context.Context, id string) error {
-	return tb.write(ctx, func(tx *sql.Tx) error {
+	return tb.write(ctx, func(tx storage.Runner) error {
 		result, err := tx.ExecContext(ctx, "DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
 		if err != nil {
 			return fmt.Errorf("delete concept: %w", err)
@@ -349,7 +380,7 @@ func (tb *PostgresStore) AddRelationWithStream(ctx context.Context, rel fw.Conce
 
 	// created_at is deliberately not updated on conflict: an upsert preserves
 	// the original creation time, like AddConcept does for concepts.
-	return tb.write(ctx, func(tx *sql.Tx) error {
+	return tb.write(ctx, func(tx storage.Runner) error {
 		_, err := tx.ExecContext(ctx, `
 		INSERT INTO tb_relations (id, workspace_id, source_id, target_id, relation, note, stream, valid_from, valid_to, tags, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -374,7 +405,7 @@ func (tb *PostgresStore) AddRelationWithStream(ctx context.Context, rel fw.Conce
 // requireConcept returns an error if the concept does not exist.
 func (tb *PostgresStore) requireConcept(ctx context.Context, role, id string) error {
 	var n int
-	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id).Scan(&n); err != nil {
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id).Scan(&n); err != nil {
 		return fmt.Errorf("check %s concept: %w", role, err)
 	}
 	if n == 0 {
@@ -385,7 +416,7 @@ func (tb *PostgresStore) requireConcept(ctx context.Context, role, id string) er
 
 // DeleteRelation removes a relation by ID.
 func (tb *PostgresStore) DeleteRelation(ctx context.Context, id string) error {
-	return tb.write(ctx, func(tx *sql.Tx) error {
+	return tb.write(ctx, func(tx storage.Runner) error {
 		result, err := tx.ExecContext(ctx, "DELETE FROM tb_relations WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
 		if err != nil {
 			return fmt.Errorf("delete relation: %w", err)
@@ -404,7 +435,7 @@ func (tb *PostgresStore) DeleteRelation(ctx context.Context, id string) error {
 // RelationsOf returns all relations touching the concept, in either direction,
 // filtered by the validity scope when one is given.
 func (tb *PostgresStore) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]fw.ConceptRelation, error) {
-	rows, err := tb.db.QueryContext(ctx, `
+	rows, err := tb.run().QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
 		FROM tb_relations WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) ORDER BY id
 	`, tb.workspaceID, conceptID)
@@ -419,7 +450,7 @@ func (tb *PostgresStore) RelationsOf(ctx context.Context, conceptID string, scop
 // is given.
 func (tb *PostgresStore) ListRelations(ctx context.Context, scope *graph.Scope) ([]fw.ConceptRelation, error) {
 	notShadow, shadowArg := fw.NotShadowSQL("id", "$2")
-	rows, err := tb.db.QueryContext(ctx, `
+	rows, err := tb.run().QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
 		FROM tb_relations WHERE workspace_id = $1 AND `+notShadow+` ORDER BY id
 	`, tb.workspaceID, shadowArg)
@@ -464,7 +495,7 @@ func (tb *PostgresStore) RelationsForStream(ctx context.Context, conceptID strin
 		WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) AND stream IN (%s)
 		ORDER BY %s, id
 	`, strings.Join(placeholders, ","), caseExpr.String())
-	rows, err := tb.db.QueryContext(ctx, q, args...)
+	rows, err := tb.run().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query relations for stream: %w", err)
 	}
@@ -570,7 +601,7 @@ func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceL
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	var total int
-	if err := tb.db.QueryRowContext(ctx, countQ, countArgs...).Scan(&total); err != nil {
+	if err := tb.run().QueryRowContext(ctx, countQ, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -585,7 +616,7 @@ func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceL
 		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
 
-	rows, err := tb.db.QueryContext(ctx, q, args...)
+	rows, err := tb.run().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -636,13 +667,13 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	_ = tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
 
 	// No DISTINCT: c.id is the table PK (single-table query), so rows are already
 	// unique — and DISTINCT would make ORDER BY c.updated_at illegal in Postgres.
 	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY c.updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tb.db.QueryContext(ctx, q, args...)
+	rows, err := tb.run().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, total, fmt.Errorf("search concepts: %w", err)
 	}
@@ -718,7 +749,7 @@ func (tb *PostgresStore) pgSearchTrgmForStream(ctx context.Context, query string
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -736,7 +767,7 @@ func (tb *PostgresStore) pgSearchTrgmForStream(ctx context.Context, query string
 	// status/updated_at ORDER BY illegal in Postgres.
 	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tb.db.QueryContext(ctx, q, args...)
+	rows, err := tb.run().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -800,7 +831,7 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	_ = tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
 
 	// Build CASE expression for stream priority ordering.
 	var caseExpr strings.Builder
@@ -816,7 +847,7 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 	// status/updated_at ORDER BY illegal in Postgres.
 	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tb.db.QueryContext(ctx, q, args...)
+	rows, err := tb.run().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, total, fmt.Errorf("search concepts: %w", err)
 	}
@@ -844,7 +875,7 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 // Count returns the total number of concepts for this workspace.
 func (tb *PostgresStore) Count(ctx context.Context) (int, error) {
 	var count int
-	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count concepts: %w", err)
 	}
 	return count, nil
@@ -856,7 +887,7 @@ func (tb *PostgresStore) Count(ctx context.Context) (int, error) {
 // this list is what the sync carries into a project's own terms.
 func (tb *PostgresStore) Concepts(ctx context.Context) ([]fw.Concept, error) {
 	notShadow, shadowArg := fw.NotShadowSQL("id", "$2")
-	rows, err := tb.db.QueryContext(ctx,
+	rows, err := tb.run().QueryContext(ctx,
 		"SELECT id FROM tb_concepts WHERE workspace_id = $1 AND "+notShadow+" ORDER BY id",
 		tb.workspaceID, shadowArg)
 	if err != nil {
@@ -910,7 +941,7 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 	}
 	inClause := strings.Join(placeholders, ",")
 
-	conceptRows, err := tb.db.QueryContext(ctx, `
+	conceptRows, err := tb.run().QueryContext(ctx, `
 		SELECT id, domain, definition, properties, source, do_not_translate, advisory, created_at, updated_at
 		FROM tb_concepts WHERE workspace_id = $1 AND id IN (`+inClause+`)`, args...)
 	if err != nil {
@@ -938,7 +969,7 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 		return nil, fmt.Errorf("iterate concepts: %w", err)
 	}
 
-	termRows, err := tb.db.QueryContext(ctx, `
+	termRows, err := tb.run().QueryContext(ctx, `
 		SELECT concept_id, text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms
 		FROM tb_terms WHERE workspace_id = $1 AND concept_id IN (`+inClause+`)
 		ORDER BY concept_id, text`, args...)
@@ -987,7 +1018,7 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 	var propsJSON *string
 	var source string
 
-	err := tb.db.QueryRowContext(ctx, `
+	err := tb.run().QueryRowContext(ctx, `
 		SELECT id, domain, definition, properties, source, do_not_translate, advisory, created_at, updated_at
 		FROM tb_concepts WHERE workspace_id = $1 AND id = $2
 	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.DoNotTranslate, &c.Advisory, &c.CreatedAt, &c.UpdatedAt)
@@ -1005,7 +1036,7 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 		}
 	}
 
-	rows, err := tb.db.QueryContext(ctx, `
+	rows, err := tb.run().QueryContext(ctx, `
 		SELECT text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms
 		FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2
 	`, tb.workspaceID, id)
@@ -1056,7 +1087,7 @@ func (tb *PostgresStore) queryExactTerms(ctx context.Context, sourceText string,
 		WHERE t.workspace_id = $1 AND %s = $2 AND t.locale = $3
 	`, column)
 
-	rows, err := tb.db.QueryContext(ctx, q, tb.workspaceID, searchText, string(opts.SourceLocale))
+	rows, err := tb.run().QueryContext(ctx, q, tb.workspaceID, searchText, string(opts.SourceLocale))
 	if err != nil {
 		return nil, fmt.Errorf("query exact terms: %w", err)
 	}
@@ -1066,7 +1097,7 @@ func (tb *PostgresStore) queryExactTerms(ctx context.Context, sourceText string,
 }
 
 func (tb *PostgresStore) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
-	rows, err := tb.db.QueryContext(ctx, `
+	rows, err := tb.run().QueryContext(ctx, `
 		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.text_lower = $2 AND t.locale = $3
@@ -1082,7 +1113,7 @@ func (tb *PostgresStore) queryNormalizedTerms(ctx context.Context, normalizedSou
 // queryFormTerms returns the source-locale terms that declare forms. Which of
 // their forms names the query is decided in the shared fw.LookupTiered.
 func (tb *PostgresStore) queryFormTerms(ctx context.Context, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
-	rows, err := tb.db.QueryContext(ctx, `
+	rows, err := tb.run().QueryContext(ctx, `
 		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.locale = $2 AND jsonb_array_length(t.forms) > 0
@@ -1112,7 +1143,7 @@ func (tb *PostgresStore) queryFuzzyTerms(ctx context.Context, normalizedSource s
 
 func (tb *PostgresStore) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	// Use pg_trgm similarity operator (%) with GIN index.
-	rows, err := tb.db.QueryContext(ctx, `
+	rows, err := tb.run().QueryContext(ctx, `
 		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.locale = $2 AND t.text_lower % $3
@@ -1130,7 +1161,7 @@ func (tb *PostgresStore) queryFuzzyTrigramCandidates(ctx context.Context, normal
 func (tb *PostgresStore) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	minLen, maxLen := fw.FuzzyLengthWindow(len([]rune(normalizedSource)), opts.MinScore)
 
-	rows, err := tb.db.QueryContext(ctx, `
+	rows, err := tb.run().QueryContext(ctx, `
 		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.locale = $2 AND LENGTH(t.text_lower) BETWEEN $3 AND $4
@@ -1173,7 +1204,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 		where += " AND t.status IN (" + strings.Join(placeholders, ",") + ")"
 	}
 
-	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
+	rows, err := tb.run().QueryContext(ctx, fmt.Sprintf(`
 		SELECT c.id, c.domain, c.definition, c.do_not_translate, c.advisory, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms
 		FROM tb_terms t JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s

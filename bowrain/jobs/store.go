@@ -60,6 +60,12 @@ type JobStore interface {
 	// carried no verdict, when every verdict was accepted, or when the push is
 	// not yet applied.
 	PushGovernance(ctx context.Context, pushID string) (string, error)
+	// SetPushParts records what a push's terminology and context ledger parts
+	// did (venue.PushParts, as JSON), on the job row the producer polls.
+	SetPushParts(ctx context.Context, jobID, report string) error
+	// PushParts reads that record back for a push. Empty when the push carried
+	// neither part, or is not yet applied.
+	PushParts(ctx context.Context, pushID string) (string, error)
 	// ClaimJob atomically transitions a job from queued to processing and bumps
 	// its claim_epoch (the lease generation). Returns claimed=true with the new
 	// epoch if this caller won the claim, or (false, 0, nil) if another worker
@@ -144,8 +150,8 @@ type JobStore interface {
 //
 // Baseline is version 10 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; versions 11 and 12 follow it, and
-// the next migration is version 13.
+// repaired. Retired numbers are never reused; versions 11 to 13 follow it, and
+// the next migration is version 14.
 var JobMigrations = []storage.Migration{
 	{
 		Version:     10,
@@ -256,6 +262,20 @@ var JobMigrations = []storage.Migration{
 					ALTER TABLE translation_jobs RENAME COLUMN via_tm TO via_memory;
 				END IF;
 			END $$;
+		`,
+	},
+	{
+		Version:     13,
+		Description: "record what a push's terms and context ledger parts did",
+		SQL: `
+			-- A push applies its content, its terminology edits and its
+			-- context ledger objects in one transaction on the worker, after
+			-- the commit was answered with 202. What the terms and ledger
+			-- parts amounted to (concepts applied, the change-set proposed,
+			-- the operations stored) is written here for the producer to read
+			-- back, as governance_report is.
+			ALTER TABLE translation_jobs
+				ADD COLUMN IF NOT EXISTS parts_report TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }
@@ -542,6 +562,34 @@ func (s *jobStore) PushGovernance(ctx context.Context, pushID string) (string, e
 	}
 	if err != nil {
 		return "", fmt.Errorf("read push governance: %w", err)
+	}
+	return report, nil
+}
+
+// SetPushParts records what a push's terms and ledger parts did on the job row.
+func (s *jobStore) SetPushParts(ctx context.Context, jobID, report string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs SET parts_report = $1, updated_at = NOW() WHERE id = $2`,
+		report, jobID)
+	if err != nil {
+		return fmt.Errorf("record push parts: %w", err)
+	}
+	return nil
+}
+
+// PushParts reads back what a push's terms and ledger parts did, from the
+// ingest job's row.
+func (s *jobStore) PushParts(ctx context.Context, pushID string) (string, error) {
+	var report string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT parts_report FROM translation_jobs
+		 WHERE push_id = $1 AND item_name = $2 AND parts_report <> ''
+		 LIMIT 1`, pushID, SyncPushItemName).Scan(&report)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read push parts: %w", err)
 	}
 	return report, nil
 }
