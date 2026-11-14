@@ -58,12 +58,23 @@
     "unclassified_one": "1 more card is being sorted and joins the deck shortly.",
     "unclassified_other": "{{count}} more cards are being sorted and join the deck shortly.",
     "unordered": "This server does not order the deck. Cards come in queue order.",
-    "done": "Nothing left to review here.",
+    "progress": "{{position}} of {{total}}",
+    "doneTitle": "All caught up",
+    "doneBody_one": "You reviewed 1 card in this language.",
+    "doneBody_other": "You reviewed {{count}} cards in this language.",
+    "doneEmpty": "Nothing in this language is waiting for review.",
     "deskTitle_one": "1 card for the desk",
     "deskTitle_other": "{{count}} cards for the desk",
     "deskLead": "These need a closer look than a phone allows. Review them in Bowrain on a computer."
   },
   "card": {
+    "languages": "{{source}} → {{target}}",
+    "source": "Source",
+    "translation": "Translation",
+    "group": {
+      "fast": "Quick",
+      "closer": "Look closer"
+    },
     "noTranslation": "No translation yet.",
     "preReview": "Pre-review score {{score}}",
     "failingFindings_one": "1 failing check",
@@ -72,15 +83,19 @@
     "noContext": "No context for this text. You cannot see where it appears."
   },
   "actions": {
+    "reject": "Reject",
+    "rejectHint": "Asks for a new draft, with a reason. Same as swiping left.",
     "fix": "Fix",
-    "fixHint": "Opens the fix sheet. Same as swiping left.",
+    "fixHint": "Opens the fix sheet to correct the translation.",
     "later": "Later",
     "laterHint": "Moves the card to the end of the deck. Same as swiping up.",
     "approve": "Approve",
-    "approveHint": "Approves the translation. Same as swiping right."
+    "approveHint": "Approves the translation. Same as swiping right.",
+    "approveOwnWork": "You wrote this translation, so another reviewer approves it."
   },
   "fix": {
     "title": "Fix the translation",
+    "rejectTitle": "Reject the translation",
     "why": "Why",
     "readyMade": "Ready-made fixes",
     "fixesUnavailable": "Fixes need a connection. You can still edit or reject.",
@@ -96,6 +111,8 @@
     "notePlaceholder": "Note for the next draft (optional)",
     "rejectButton": "Reject and ask for a new draft",
     "rejectNeedsReason": "Choose a reason above to reject.",
+    "fixInstead": "Fix it instead",
+    "fixInsteadHint": "A correction settles the text now. A rejection waits for a new draft.",
     "useFix": "Use this fix",
     "editField": "Text {{n}} of {{count}}",
     "kind": {
@@ -117,7 +134,12 @@
     "refused": "The server did not accept a decision."
   },
   "undo": {
-    "label": "Decision recorded",
-    "button": "Undo"
+    "button": "Undo",
+    "hint": "Takes back the last decision."
+  },
+  "swipe": {
+    "approve": "Approve",
+    "reject": "Reject",
+    "later": "Later"
   }
 }

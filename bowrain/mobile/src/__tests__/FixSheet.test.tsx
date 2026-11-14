@@ -92,4 +92,18 @@ describe("FixSheet", () => {
     await fireEvent.press(screen.getByTestId("fix-reject"));
     expect(h.onReject).toHaveBeenCalledWith(card, ["meaning"], "Says the opposite");
   });
+
+  it("opens on the rejection from a left swipe, with the fixes one tap away", async () => {
+    const h = setup();
+    await render(wrap(<FixSheetBody card={card} mode="reject" onClose={() => {}} {...h} />));
+    expect(screen.queryByTestId("fix-start-edit")).toBeNull();
+    expect(h.loadFixes).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId("reason-tone"));
+    await fireEvent.press(screen.getByTestId("fix-reject"));
+    expect(h.onReject).toHaveBeenCalledWith(card, ["tone"], "");
+
+    await fireEvent.press(screen.getByTestId("fix-instead"));
+    expect(await screen.findByTestId("use-term-0")).toBeTruthy();
+    expect(screen.getByTestId("fix-start-edit")).toBeTruthy();
+  });
 });

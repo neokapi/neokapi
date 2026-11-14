@@ -2,7 +2,9 @@
  * The app's styles: Tailwind v4 through Uniwind. The colour tokens carry the
  * names Bowrain web uses (background, foreground, card, muted, border,
  * primary), so a class reads the same on both. Approve is the primary blue;
- * the corrective action (fix, reject) is orange.
+ * the corrective action (fix, reject) is orange. The review deck's swipe
+ * feedback is green for approve and red for reject (approve, reject), as on
+ * any swipe-card surface.
  *
  * The neutrals, the primary and the prism ramp are Bowrain's "Rainlight"
  * palette (packages/ui/src/styles/theme-colors.css), converted from OKLCH to
@@ -27,6 +29,10 @@
       --color-primary-foreground: #f8fafc;
       --color-corrective: #c2410c;
       --color-corrective-foreground: #ffffff;
+      --color-approve: #15803d;
+      --color-approve-foreground: #ffffff;
+      --color-reject: #dc2626;
+      --color-reject-foreground: #ffffff;
       --color-chip: #e0e7ff;
       --color-chip-foreground: #3730a3;
       --color-added: #dcfce7;
@@ -51,6 +57,10 @@
       --color-primary-foreground: #091018;
       --color-corrective: #ea6a2e;
       --color-corrective-foreground: #ffffff;
+      --color-approve: #4ade80;
+      --color-approve-foreground: #052e16;
+      --color-reject: #f87171;
+      --color-reject-foreground: #450a0a;
       --color-chip: #312e81;
       --color-chip-foreground: #e0e7ff;
       --color-added: #14532d;
