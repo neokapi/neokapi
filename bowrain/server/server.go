@@ -1842,6 +1842,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Project audit log — Bowrain AD-011: /:ws/:id/audit-log
 	g.GET("/:id/audit-log", s.HandleListAuditLog)
 
+	// Project feed: /:ws/:id/feed. One timeline of how the project changes.
+	g.GET("/:id/feed", s.HandleProjectFeed)
+
 	// Automations — Bowrain AD-011: /:ws/:id/automations
 	g.GET("/:id/automations", s.HandleListAutomationRules)
 	g.POST("/:id/automations", s.HandleCreateAutomationRule)

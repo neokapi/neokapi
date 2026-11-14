@@ -1,17 +1,26 @@
 # columns: table.column type nullability default
 activities.actor_id text NOT NULL
+activities.actor_kind text NOT NULL DEFAULT ''::text
 activities.actor_name text NOT NULL DEFAULT ''::text
+activities.coordinates jsonb NOT NULL DEFAULT '{}'::jsonb
+activities.counts jsonb NOT NULL DEFAULT '{}'::jsonb
 activities.created_at timestamp with time zone NOT NULL DEFAULT now()
 activities.data jsonb NOT NULL DEFAULT '{}'::jsonb
 activities.entity_id text NOT NULL DEFAULT ''::text
 activities.entity_type text NOT NULL DEFAULT ''::text
 activities.event_id text NOT NULL DEFAULT ''::text
 activities.id text NOT NULL
+activities.kind text NOT NULL DEFAULT ''::text
+activities.locales ARRAY NOT NULL DEFAULT '{}'::text[]
 activities.project_id text NOT NULL DEFAULT ''::text
+activities.session text NOT NULL DEFAULT ''::text
 activities.stream text NOT NULL DEFAULT ''::text
 activities.summary text NOT NULL DEFAULT ''::text
 activities.type text NOT NULL
 activities.workspace_id text NOT NULL
+activity_rollup_events.activity_id text NOT NULL
+activity_rollup_events.created_at timestamp with time zone NOT NULL DEFAULT now()
+activity_rollup_events.event_id text NOT NULL
 activity_state.last_seen_at timestamp with time zone NOT NULL DEFAULT now()
 activity_state.user_id text NOT NULL
 activity_state.workspace_id text NOT NULL
@@ -1282,6 +1291,7 @@ workspaces.voice_profile_id text NOT NULL DEFAULT ''::text
 
 # constraints: table constraint definition
 activities activities_pkey PRIMARY KEY (id)
+activity_rollup_events activity_rollup_events_pkey PRIMARY KEY (event_id)
 activity_state activity_state_pkey PRIMARY KEY (user_id, workspace_id)
 agent_config agent_config_pkey PRIMARY KEY (workspace_id)
 agent_conversations agent_conversations_pkey PRIMARY KEY (id)
@@ -1548,6 +1558,7 @@ CREATE INDEX annotations_p7_project_id_stream_block_id_idx ON public.annotations
 CREATE INDEX annotations_p7_project_id_stream_kind_updated_at_idx ON public.annotations_p7 USING btree (project_id, stream, kind, updated_at DESC)
 CREATE INDEX context_assignments_assignee ON public.context_assignments USING btree (assignee)
 CREATE INDEX idx_activities_actor ON public.activities USING btree (workspace_id, actor_id, created_at DESC)
+CREATE INDEX idx_activities_feed ON public.activities USING btree (workspace_id, project_id, created_at DESC, id DESC) WHERE (kind <> ''::text)
 CREATE INDEX idx_activities_project ON public.activities USING btree (workspace_id, project_id, created_at DESC)
 CREATE INDEX idx_activities_workspace ON public.activities USING btree (workspace_id, created_at DESC)
 CREATE INDEX idx_agent_conv_workspace_user ON public.agent_conversations USING btree (workspace_id, user_id)
@@ -1727,6 +1738,7 @@ CREATE INDEX translations_p7_project_id_stream_block_id_idx ON public.translatio
 CREATE INDEX translations_p7_project_id_stream_locale_updated_at_idx ON public.translations_p7 USING btree (project_id, stream, locale, updated_at DESC)
 CREATE UNIQUE INDEX activities_event_id ON public.activities USING btree (event_id) WHERE (event_id <> ''::text)
 CREATE UNIQUE INDEX activities_pkey ON public.activities USING btree (id)
+CREATE UNIQUE INDEX activity_rollup_events_pkey ON public.activity_rollup_events USING btree (event_id)
 CREATE UNIQUE INDEX activity_state_pkey ON public.activity_state USING btree (user_id, workspace_id)
 CREATE UNIQUE INDEX agent_config_pkey ON public.agent_config USING btree (workspace_id)
 CREATE UNIQUE INDEX agent_conversations_pkey ON public.agent_conversations USING btree (id)

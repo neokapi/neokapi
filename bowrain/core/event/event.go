@@ -147,6 +147,13 @@ const (
 	// ContextChange.
 	EventContextRecorded EventType = "context.recorded"
 
+	// EventRecipeChanged records one change to what a project declares: the
+	// collections and their coordinates a push reconciled, the recipe-owned
+	// settings a push applied, or the target languages a member set. Data
+	// carries the fields of RecipeChange, the before and after values
+	// included.
+	EventRecipeChanged EventType = "recipe.changed"
+
 	// Workflow events (Bowrain AD-014)
 	EventPushAutomationsCompleted EventType = "push.automations.completed"
 	EventSourceReviewCompleted    EventType = "source.review.completed"

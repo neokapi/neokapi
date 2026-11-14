@@ -220,4 +220,117 @@ export interface FixCandidates {
 export const FIX_REASONS = ["wrong_term", "meaning", "tone", "placeholder", "grammar"] as const;
 export type FixReason = (typeof FIX_REASONS)[number];
 
+/** The project feed's kinds (bstore.FeedKinds): a closed list. */
+export const FEED_KINDS = [
+  "push",
+  "convergence_run",
+  "review_summary",
+  "recipe_change",
+  "context_change",
+  "change_set",
+  "coverage_milestone",
+] as const;
+export type FeedKind = (typeof FEED_KINDS)[number];
+
+/** Who did what a feed entry records: a person, an agent or a tool. */
+export type FeedActorKind = "person" | "agent" | "tool";
+
+/** The client screens a feed entry can open (FeedScreen*): a closed list. */
+export const FEED_SCREENS = [
+  "stream",
+  "run",
+  "review_deck",
+  "recipe_diff",
+  "context_deck",
+  "change_set",
+  "language",
+] as const;
+export type FeedScreen = (typeof FEED_SCREENS)[number];
+
+/** The actor of a feed entry, as recorded (FeedActor). */
+export interface FeedActor {
+  id: string;
+  kind: FeedActorKind;
+  name?: string;
+  session?: string;
+  host?: string;
+}
+
+/** The member an agent or a tool acted for (FeedMember). */
+export interface FeedMember {
+  id: string;
+  name?: string;
+}
+
+/** The screen an entry opens and what to open there (FeedLink). */
+export interface FeedLink {
+  screen: FeedScreen;
+  /** The push, run or change set; the entry itself for a recipe diff. */
+  id?: string;
+  stream?: string;
+  locale?: string;
+  /** The context deck's mode. */
+  mode?: "pending" | "replay";
+  items?: string[];
+}
+
+/** One collection a recipe change touched (event.CollectionChange). */
+export interface FeedCollectionChange {
+  name: string;
+  change: "added" | "removed" | "coordinates";
+  before?: Record<string, string>;
+  after?: Record<string, string>;
+}
+
+/** A recipe change's values before and after (event.RecipeChange). */
+export interface FeedRecipeDiff {
+  collections?: FeedCollectionChange[];
+  settings?: { name: string; before: string; after: string }[];
+  targets?: { before: string[]; after: string[] };
+}
+
+/**
+ * One entry of a project's feed (FeedEntry). It carries counts and names,
+ * never a sentence; the client renders each in the reader's language.
+ */
+export interface FeedEntry {
+  id: string;
+  /** A kind from FEED_KINDS; a kind a newer server adds reads as another string. */
+  kind: FeedKind | (string & {});
+  /** RFC 3339, with microseconds. */
+  at: string;
+  actor: FeedActor;
+  on_behalf_of?: FeedMember;
+  locales?: string[];
+  coordinates?: Record<string, string>;
+  /** Typed counts, keyed by what they count, such as `files` and `blocks` for a push. */
+  counts: Record<string, number>;
+  stream?: string;
+  /** A run's outcome or a change set's step. */
+  state?: string;
+  diff?: FeedRecipeDiff;
+  link: FeedLink;
+}
+
+/** A page of a project's feed (FeedResponse), newest first. */
+export interface FeedPage {
+  entries: FeedEntry[];
+  /** Absent on the last page. */
+  next_cursor?: string;
+}
+
+/** The feed's filters (the query parameters of GET /:ws/:id/feed). */
+export interface FeedQuery {
+  kinds?: FeedKind[];
+  locale?: string;
+  /** Axis values the entries sit at, such as `{ product: "kapi" }`. */
+  coordinates?: Record<string, string>;
+  actor?: string;
+  actorKind?: FeedActorKind;
+  /** RFC 3339. */
+  since?: string;
+  cursor?: string;
+  limit?: number;
+}
+
 export type { ReviewContext };

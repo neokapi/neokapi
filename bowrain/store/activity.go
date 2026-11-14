@@ -26,14 +26,21 @@ const (
 	ActivityBlockCommented  ActivityType = "block.commented"
 
 	// Project management
-	ActivityProjectCreated ActivityType = "project.created"
-	ActivityProjectUpdated ActivityType = "project.updated"
-	ActivityLocaleAdded    ActivityType = "locale.added"
-	ActivityMemberAdded    ActivityType = "member.added"
-	ActivityMemberRemoved  ActivityType = "member.removed"
+	ActivityProjectCreated    ActivityType = "project.created"
+	ActivityProjectUpdated    ActivityType = "project.updated"
+	ActivityProjectDeleted    ActivityType = "project.deleted"
+	ActivityCollectionCreated ActivityType = "collection.created"
+	// ActivityRecipeChanged is a change to what a project declares: its
+	// collections and their coordinates, its recipe-owned settings, its
+	// target languages. Data carries the fields of event.RecipeChange.
+	ActivityRecipeChanged ActivityType = "recipe.changed"
+	ActivityLocaleAdded   ActivityType = "locale.added"
+	ActivityMemberAdded   ActivityType = "member.added"
+	ActivityMemberRemoved ActivityType = "member.removed"
 
 	// Stream operations
 	ActivityStreamCreated  ActivityType = "stream.created"
+	ActivityStreamDeleted  ActivityType = "stream.deleted"
 	ActivityStreamMerged   ActivityType = "stream.merged"
 	ActivityStreamLocked   ActivityType = "stream.locked"
 	ActivityStreamUnlocked ActivityType = "stream.unlocked"
@@ -54,6 +61,9 @@ const (
 	// Review queue
 	ActivityReviewAssigned ActivityType = "review.assigned"
 	ActivityReviewDecided  ActivityType = "review.decided"
+	// ActivityReviewSummary is the roll-up of one actor's review decisions
+	// in one language and one hour of one project.
+	ActivityReviewSummary ActivityType = "review.summary"
 
 	// Knowledge graph (AD-021). The families are the feed's filter vocabulary:
 	// `?types=` matches a prefix, so `concept` selects every concept.* entry,
@@ -95,17 +105,38 @@ const (
 	ActivityContextChanged ActivityType = "context.changed"
 )
 
-// FeedKind is the project feed kind an activity belongs to, carried in its
-// Data under "feed_kind".
+// FeedKind is the project feed kind an activity belongs to. An activity with
+// no kind is listed by the workspace feed and left out of the project feed.
 type FeedKind string
 
-// The feed kinds the activity recorder stamps.
+// The project feed's kinds: a closed list.
 const (
-	FeedKindContextChange FeedKind = "context_change"
-	FeedKindChangeSet     FeedKind = "change_set"
+	FeedKindPush              FeedKind = "push"
+	FeedKindConvergenceRun    FeedKind = "convergence_run"
+	FeedKindReviewSummary     FeedKind = "review_summary"
+	FeedKindRecipeChange      FeedKind = "recipe_change"
+	FeedKindContextChange     FeedKind = "context_change"
+	FeedKindChangeSet         FeedKind = "change_set"
+	FeedKindCoverageMilestone FeedKind = "coverage_milestone"
 )
 
-// Activity is an immutable record of something that happened.
+// FeedKinds lists the project feed's kinds.
+var FeedKinds = []FeedKind{
+	FeedKindPush, FeedKindConvergenceRun, FeedKindReviewSummary, FeedKindRecipeChange,
+	FeedKindContextChange, FeedKindChangeSet, FeedKindCoverageMilestone,
+}
+
+// The actor kinds a feed entry names, in the vocabulary of
+// contextop.ActorKind.
+const (
+	ActorKindPerson = "person"
+	ActorKindAgent  = "agent"
+	ActorKindTool   = "tool"
+)
+
+// Activity is an immutable record of something that happened. A roll-up row
+// (Kind review_summary) is the exception: its counts grow as decisions in
+// its hour arrive.
 type Activity struct {
 	ID string `json:"id"`
 	// EventID is the bus event this entry records, when it came from one. It
@@ -122,6 +153,20 @@ type Activity struct {
 	Summary     string            `json:"summary"`
 	Data        map[string]string `json:"data"`
 	CreatedAt   time.Time         `json:"created_at"`
+
+	// The project feed's fields. Kind is empty for a row outside it.
+	Kind FeedKind `json:"kind,omitempty"`
+	// ActorKind is person, agent or tool.
+	ActorKind string `json:"actor_kind,omitempty"`
+	// Session is the agent session behind the entry, when there is one.
+	Session string `json:"session,omitempty"`
+	// Locales are the languages the entry touches.
+	Locales []string `json:"locales,omitempty"`
+	// Coordinates is the point the entry sits at (brand, product, channel,
+	// market).
+	Coordinates map[string]string `json:"coordinates,omitempty"`
+	// Counts are the entry's typed counts, keyed by what they count.
+	Counts map[string]int `json:"counts,omitempty"`
 }
 
 // ActivityQuery defines filters for listing activities.
@@ -139,6 +184,16 @@ type ActivityQuery struct {
 	Since         time.Time
 	Limit         int
 	Cursor        string // opaque; a previous page's NextCursor
+
+	// The project feed's filters. FeedOnly lists only rows with a kind;
+	// Kinds narrows them to some kinds.
+	FeedOnly bool
+	Kinds    []FeedKind
+	// Locale lists rows that touch this language.
+	Locale string
+	// Coordinates lists rows at every one of these axis values.
+	Coordinates map[string]string
+	ActorKind   string
 }
 
 // ErrInvalidActivityCursor reports a cursor that no List call returned.
@@ -205,8 +260,17 @@ func NewActivityStore(db *sql.DB) *ActivityStore {
 	return &ActivityStore{db: db}
 }
 
-// Create inserts a new activity.
-func (s *ActivityStore) Create(ctx context.Context, a *Activity) error {
+// activityInsertColumns are the columns Create and AddToRollup write, in the
+// order activityInsertArgs returns their values.
+const activityInsertColumns = `id, event_id, workspace_id, project_id, stream, actor_id, actor_name,
+	type, entity_type, entity_id, summary, data, created_at,
+	kind, actor_kind, session, locales, coordinates, counts`
+
+const activityInsertValues = `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+	$14, $15, $16, $17, $18, $19`
+
+// prepare fills an activity's defaults before it is written.
+func (a *Activity) prepare() {
 	if a.ID == "" {
 		a.ID = id.New()
 	}
@@ -219,21 +283,83 @@ func (s *ActivityStore) Create(ctx context.Context, a *Activity) error {
 	if a.Data == nil {
 		a.Data = map[string]string{}
 	}
+}
 
-	dataJSON, err := json.Marshal(a.Data)
-	if err != nil {
-		dataJSON = []byte("{}")
+func activityInsertArgs(a *Activity) []any {
+	marshal := func(v any, empty string) string {
+		raw, err := json.Marshal(v)
+		if err != nil || string(raw) == "null" {
+			return empty
+		}
+		return string(raw)
 	}
-
-	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO activities (id, event_id, workspace_id, project_id, stream, actor_id, actor_name,
-		 type, entity_type, entity_id, summary, data, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		 ON CONFLICT DO NOTHING`,
+	locales := a.Locales
+	if locales == nil {
+		locales = []string{}
+	}
+	return []any{
 		a.ID, a.EventID, a.WorkspaceID, a.ProjectID, a.Stream, a.ActorID, a.ActorName,
 		string(a.Type), a.EntityType, a.EntityID, a.Summary,
-		string(dataJSON), a.CreatedAt)
+		marshal(a.Data, "{}"), a.CreatedAt,
+		string(a.Kind), a.ActorKind, a.Session, locales,
+		marshal(a.Coordinates, "{}"), marshal(a.Counts, "{}"),
+	}
+}
+
+// Create inserts a new activity.
+func (s *ActivityStore) Create(ctx context.Context, a *Activity) error {
+	a.prepare()
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO activities (`+activityInsertColumns+`)
+		 VALUES (`+activityInsertValues+`)
+		 ON CONFLICT DO NOTHING`,
+		activityInsertArgs(a)...)
 	return err
+}
+
+// AddToRollup files the event eventID into the roll-up row a: the row is
+// created with a's counts when it does not exist, and a's counts are added
+// to the row's when it does. The row's id names the roll-up's key, so every
+// event of one key lands on one row. An event already counted is skipped,
+// which makes a redelivered event a no-op.
+func (s *ActivityStore) AddToRollup(ctx context.Context, eventID string, a *Activity) error {
+	if eventID == "" || a.ID == "" {
+		return errors.New("a roll-up needs an event id and a row id")
+	}
+	a.prepare()
+	// The row records no single event: many events share it.
+	a.EventID = ""
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO activity_rollup_events (event_id, activity_id) VALUES ($1, $2)
+		 ON CONFLICT (event_id) DO NOTHING`, eventID, a.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+	// Each count is added key by key; a key only one side holds keeps its
+	// value.
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO activities (`+activityInsertColumns+`)
+		 VALUES (`+activityInsertValues+`)
+		 ON CONFLICT (id) DO UPDATE SET counts = (
+			SELECT COALESCE(jsonb_object_agg(k,
+				COALESCE((activities.counts->>k)::bigint, 0) + COALESCE((EXCLUDED.counts->>k)::bigint, 0)), '{}'::jsonb)
+			FROM jsonb_object_keys(activities.counts || EXCLUDED.counts) AS k
+		 )`,
+		activityInsertArgs(a)...)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // List returns activities matching the query, newest first.
@@ -284,6 +410,32 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 		where = append(where, "created_at > "+ph())
 		args = append(args, q.Since.UTC())
 	}
+	if q.FeedOnly || len(q.Kinds) > 0 {
+		where = append(where, "kind <> ''")
+	}
+	if len(q.Kinds) > 0 {
+		kinds := make([]string, len(q.Kinds))
+		for i, k := range q.Kinds {
+			kinds[i] = string(k)
+		}
+		where = append(where, inClause("kind", kinds, ph, &args))
+	}
+	if q.Locale != "" {
+		where = append(where, ph()+" = ANY(locales)")
+		args = append(args, q.Locale)
+	}
+	if len(q.Coordinates) > 0 {
+		raw, err := json.Marshal(q.Coordinates)
+		if err != nil {
+			return nil, err
+		}
+		where = append(where, "coordinates @> "+ph()+"::jsonb")
+		args = append(args, string(raw))
+	}
+	if q.ActorKind != "" {
+		where = append(where, "actor_kind = "+ph())
+		args = append(args, q.ActorKind)
+	}
 	if q.Cursor != "" {
 		at, rowID, err := decodeActivityCursor(q.Cursor)
 		if err != nil {
@@ -300,7 +452,8 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 
 	query := fmt.Sprintf(
 		`SELECT id, workspace_id, project_id, stream, actor_id, actor_name,
-		 type, entity_type, entity_id, summary, data, created_at
+		 type, entity_type, entity_id, summary, data, created_at,
+		 kind, actor_kind, session, array_to_json(locales)::text, coordinates::text, counts::text
 		 FROM activities %s ORDER BY created_at DESC, id DESC LIMIT %s`, whereClause, ph())
 	args = append(args, q.Limit+1)
 
@@ -374,18 +527,40 @@ type DailyCount struct {
 
 func scanActivity(row scanner) (*Activity, error) {
 	var a Activity
-	var typ, dataJSON string
+	var typ, dataJSON, kind, localesJSON, coordsJSON, countsJSON string
 
 	err := row.Scan(
 		&a.ID, &a.WorkspaceID, &a.ProjectID, &a.Stream,
 		&a.ActorID, &a.ActorName, &typ, &a.EntityType,
 		&a.EntityID, &a.Summary, &dataJSON, &a.CreatedAt,
+		&kind, &a.ActorKind, &a.Session, &localesJSON, &coordsJSON, &countsJSON,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	a.Type = ActivityType(typ)
+	a.Kind = FeedKind(kind)
+	for _, f := range []struct {
+		raw string
+		dst any
+	}{{localesJSON, &a.Locales}, {coordsJSON, &a.Coordinates}, {countsJSON, &a.Counts}} {
+		if f.raw == "" {
+			continue
+		}
+		if err := json.Unmarshal([]byte(f.raw), f.dst); err != nil {
+			return nil, fmt.Errorf("activity %s: unmarshal feed fields: %w", a.ID, err)
+		}
+	}
+	if len(a.Locales) == 0 {
+		a.Locales = nil
+	}
+	if len(a.Coordinates) == 0 {
+		a.Coordinates = nil
+	}
+	if len(a.Counts) == 0 {
+		a.Counts = nil
+	}
 	if dataJSON != "" {
 		if err := json.Unmarshal([]byte(dataJSON), &a.Data); err != nil {
 			return nil, fmt.Errorf("activity %s: unmarshal data: %w", a.ID, err)

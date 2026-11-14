@@ -420,8 +420,10 @@ func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, s
 		return nil, nil, fmt.Errorf("apply project settings: %w", err)
 	}
 	applied := venue.ProjectSettings{}
+	recipe := platev.RecipeChange{Source: "push", Stream: stream}
 	for _, ch := range changes {
 		applied[ch.Setting] = ch.To
+		recipe.Settings = append(recipe.Settings, platev.SettingChange{Name: ch.Setting, Before: ch.From, After: ch.To})
 		s.emitAudit(c, auditEvent{
 			Type:         platev.EventProjectSettingChanged,
 			WorkspaceID:  proj.WorkspaceID,
@@ -433,6 +435,15 @@ func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, s
 			After:        map[string]string{ch.Setting: ch.To},
 		})
 	}
+	// One feed entry for the push's settings, however many it changed.
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventRecipeChanged,
+		WorkspaceID:  proj.WorkspaceID,
+		ProjectID:    projectID,
+		ResourceType: "project",
+		ResourceID:   projectID,
+		Data:         recipe.Data(),
+	})
 	return applied, refused, nil
 }
 

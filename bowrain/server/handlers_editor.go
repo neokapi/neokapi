@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
@@ -92,12 +93,18 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	if req.Name != "" {
 		proj.Name = req.Name
 	}
+	var targets *platev.TargetsChange
 	if req.TargetLanguages != nil {
+		before := make([]string, len(proj.TargetLanguages))
+		for i, l := range proj.TargetLanguages {
+			before[i] = string(l)
+		}
 		locales := make([]model.LocaleID, len(req.TargetLanguages))
 		for i, l := range req.TargetLanguages {
 			locales[i] = model.LocaleID(l)
 		}
 		proj.TargetLanguages = locales
+		targets = &platev.TargetsChange{Before: before, After: slices.Clone(req.TargetLanguages)}
 	}
 	if req.DefaultStream != nil {
 		proj.DefaultStream = *req.DefaultStream
@@ -128,6 +135,16 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
 		return serverErr(c, err)
+	}
+	if recipe := (platev.RecipeChange{Source: "project", Targets: targets}); !recipe.Empty() {
+		s.emitAudit(c, auditEvent{
+			Type:         platev.EventRecipeChanged,
+			WorkspaceID:  proj.WorkspaceID,
+			ProjectID:    proj.ID,
+			ResourceType: "project",
+			ResourceID:   proj.ID,
+			Data:         recipe.Data(),
+		})
 	}
 
 	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParamWithProject(c, proj))

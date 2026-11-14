@@ -161,6 +161,7 @@ func pinnedEventTypes() []struct {
 		{event.EventVoiceRuleRejected, "voice.rule_rejected"},
 		{event.EventVoiceRuleDemoted, "brand.rule.demoted"},
 		{event.EventContextRecorded, "context.recorded"},
+		{event.EventRecipeChanged, "recipe.changed"},
 		{event.EventPushAutomationsCompleted, "push.automations.completed"},
 		{event.EventSourceReviewCompleted, "source.review.completed"},
 		{event.EventReviewCompleted, "review.completed"},

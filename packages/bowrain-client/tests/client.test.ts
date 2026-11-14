@@ -261,4 +261,42 @@ describe("client", () => {
     expect(await client.logout()).toEqual({});
     expect(bodies).toEqual([undefined]);
   });
+
+  it("reads a feed page with its filters", async () => {
+    const urls: string[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string) => {
+        urls.push(url);
+        return new Response(
+          JSON.stringify({
+            entries: [
+              {
+                id: "a1",
+                kind: "push",
+                at: "2026-11-14T09:10:00.000001Z",
+                actor: { id: "u1", kind: "person", name: "Ada" },
+                counts: { files: 3, blocks: 40 },
+                link: { screen: "stream", stream: "main" },
+              },
+            ],
+            next_cursor: "",
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const page = await client.feed("ws", "p", {
+      kinds: ["push", "context_change"],
+      coordinates: { product: "kapi", channel: "web" },
+      actorKind: "agent",
+      limit: 20,
+    });
+    expect(urls[0]).toBe(
+      "http://server/api/v1/ws/p/feed?kind=push%2Ccontext_change&coordinate=product%3Akapi&coordinate=channel%3Aweb&actor_kind=agent&limit=20",
+    );
+    expect(page.entries[0].counts).toEqual({ files: 3, blocks: 40 });
+    expect(page.next_cursor).toBeUndefined();
+  });
 });

@@ -82,7 +82,7 @@ func contextActivity(t *testing.T, srv *Server, entityID string) bstore.Activity
 		}
 		return false
 	}, 5*time.Second, 20*time.Millisecond, "no context activity about %s", entityID)
-	assert.Equal(t, string(bstore.FeedKindContextChange), found.Data["feed_kind"])
+	assert.Equal(t, bstore.FeedKindContextChange, found.Kind)
 	return found
 }
 
@@ -268,7 +268,7 @@ func TestContextEvents_VoiceDecisionsAreRecorded_Postgres(t *testing.T) {
 			}, 5*time.Second, 20*time.Millisecond)
 			assert.Empty(t, found.ProjectID, "a voice profile belongs to the workspace")
 			assert.Equal(t, tc.kind, found.EntityType)
-			assert.Equal(t, string(bstore.FeedKindContextChange), found.Data["feed_kind"])
+			assert.Equal(t, bstore.FeedKindContextChange, found.Kind)
 		})
 	}
 	verifyAuditChain(t, base, token)
