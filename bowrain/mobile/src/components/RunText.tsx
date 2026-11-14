@@ -10,7 +10,9 @@ import { codeLabels } from "./codeLabels";
 export interface RunTextProps {
   runs: readonly Run[];
   /** Larger text for the card's main reading. */
-  size?: "base" | "lg";
+  size?: "base" | "lg" | "xl";
+  /** Secondary ink, for the source above a translation. */
+  muted?: boolean;
   testID?: string;
 }
 
@@ -74,13 +76,17 @@ function renderRuns(runs: readonly Run[], prefix: string): ReactNode[] {
   return projectRuns(runs, spec(runs, prefix));
 }
 
-export function RunText({ runs, size = "base", testID }: RunTextProps) {
+const SIZES = {
+  base: "text-base leading-6",
+  lg: "text-lg leading-7",
+  xl: "text-2xl leading-9 font-medium",
+} as const;
+
+export function RunText({ runs, size = "base", muted = false, testID }: RunTextProps) {
   return (
     <Text
       testID={testID}
-      className={
-        size === "lg" ? "text-foreground text-xl leading-8" : "text-foreground text-base leading-6"
-      }
+      className={`${muted ? "text-muted-foreground" : "text-foreground"} ${SIZES[size]}`}
     >
       {renderRuns(runs, "r")}
     </Text>

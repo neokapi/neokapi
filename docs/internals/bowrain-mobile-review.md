@@ -68,20 +68,28 @@ appears is guessing, and the card should make that plain.
 
 | Action | Gesture | Button | Result |
 | --- | --- | --- | --- |
-| Fix | swipe left | Fix | the fix sheet (below): pick a ready-made fix or edit, and the corrected translation is approved in one change set |
+| Reject | swipe left | Reject | the fix sheet opens on the rejection: a reason and an optional note, with the fixes one tap away |
+| Fix | none | Fix | the fix sheet (below): pick a ready-made fix or edit, and the corrected translation is approved in one change set |
 | Skip | swipe up | Later | nothing is recorded; the card returns at the end of the deck |
 | Approve | swipe right | Approve | a `decide` operation with outcome `establish` |
-| Undo | the undo bar | Undo | the last decision is withdrawn while it is still queued, or reversed with a new decision once sent |
+| Undo | none | Undo | the last decision is withdrawn while it is still queued, or reversed with a new decision once sent; the card comes back from the side it left by |
 
-The buttons follow the rule every review surface uses: the negative or
-corrective action first, Approve last at the trailing edge, with space
-between them. Kapi Desktop, Bowrain web
-and the app place them the same way, and the swipe direction matches: right
-approves.
+The deck is a stack of cards: the top card with the next two behind it,
+smaller and lower. A card tilts with the drag, and an Approve (green) or
+Reject (red) stamp fades in with the distance. Crossing the commit distance
+gives a haptic tick; a release past it throws the card off the screen, and a
+release short of it springs the card back. The buttons throw the card the same
+way. With reduced motion the card fades instead of flying and does not tilt.
+
+The buttons sit under the card in the directions the card moves: Reject on the
+left, Approve on the right, Fix between them, with Undo and Later smaller at
+the edges. This keeps the rule every review surface uses, the negative or
+corrective action first and Approve last at the trailing edge, so Kapi
+Desktop, Bowrain web and the app agree, and right approves.
 
 Every gesture has a button, for discoverability and for accessibility
-(VoiceOver and TalkBack users act on the buttons). Haptics confirm approve and
-fix.
+(VoiceOver and TalkBack users act on the buttons, and the card carries the
+same actions as accessibility actions). Haptics confirm approve and fix.
 
 ### The fix sheet
 

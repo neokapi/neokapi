@@ -1,10 +1,10 @@
-# Reject a card with a reason and a note, from the Fix button.
+# Reject a card with a reason and a note, from the Reject button.
 appId: cloud.bowrain.app
 ---
 - runFlow: sign-in.yaml
 - runFlow: open-deck.yaml
 - tapOn:
-    id: action-fix
+    id: action-reject
 - tapOn:
     id: reason-meaning
 - tapOn:
