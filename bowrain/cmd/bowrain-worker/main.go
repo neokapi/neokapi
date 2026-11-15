@@ -298,13 +298,10 @@ func runWorker(dbURL string) error {
 		}
 	}
 
-	// Wire billing credit deduction + Stripe meter reporting into the worker
-	// (Epic 004). Without this, async auto-translate records ai_usage and
-	// enforces the token abuse cap but never deducts credits or fires Stripe
-	// meters. Only platform-key jobs are metered (resolved.Source); BYO-key jobs
-	// burn no credits. Degrades gracefully in self-hosted mode where the billing
-	// store can't be built — the worker just skips credit deduction (mirrors the
-	// server's nil-BillingHooks behavior).
+	// Wire billing credit deduction and Stripe meter reporting into the worker
+	// (Epic 004). Only platform-key jobs are metered (resolved.Source); BYO-key
+	// jobs burn no credits. When the billing store can't be built, the worker
+	// skips credit deduction, as the server does with nil BillingHooks.
 	if hooks := buildWorkerBillingHooks(pgdb); hooks != nil {
 		translationDeps.BillingHooks = hooks
 	}
@@ -678,34 +675,30 @@ func runWorker(dbURL string) error {
 }
 
 // buildWorkerBillingHooks constructs the worker's billing usage hooks: the
-// Postgres-backed billing store for credit deduction plus the Stripe client for
-// meter reporting. It is gated on STRIPE_SECRET_KEY — the signal that this is a
-// billed, metered SaaS deployment. Without Stripe there are no subscriptions and
-// therefore no weekly credit allocations, so every platform job's DeductCredits
-// would return "no allocation for workspace" and log once per chunk on an
-// otherwise-unbilled self-hosted deployment (Epic 004). Returning nil in that
-// case makes the worker skip credit deduction cleanly (mirrors the server's
-// nil-BillingHooks behavior). Migrations are namespaced + idempotent, so
-// re-running them here (the server also runs them) is safe.
+// Postgres-backed billing store for credit deduction, plus the Stripe client for
+// meter reporting when a real STRIPE_SECRET_KEY is set. It matches the server,
+// which deducts from the ledger whether or not Stripe is configured. On a
+// deployment that grants no credits, DeductCredits reports the missing
+// allocation per chunk at info level and the job continues. Migrations are
+// namespaced and idempotent, so re-running them here (the server also runs
+// them) is safe.
 func buildWorkerBillingHooks(pgdb *storage.PgDB) *billing.UsageHooks {
-	// A placeholder key (Terraform seeds the SSM parameter as "CHANGEME", epic
-	// 002) is not a key: treating it as one would enable credit deduction and fire
-	// every meter event at a Stripe account that rejects them.
-	stripeKey := os.Getenv("STRIPE_SECRET_KEY")
-	if !billing.IsStripeSecretKey(stripeKey) {
-		slog.Info("worker billing disabled: no usable STRIPE_SECRET_KEY (self-hosted / unbilled / unprovisioned deployment)")
-		return nil
-	}
+	// The trial and monthly grants are handed out without Stripe, so spending
+	// them must not depend on Stripe either. A placeholder key (Terraform seeds the SSM parameter as
+	// "CHANGEME") is not a key: treating it as one would fire every meter event
+	// at a Stripe account that rejects them.
 	billingStore, err := billing.NewPgBillingStore(pgdb)
 	if err != nil {
 		slog.Warn("worker billing disabled: failed to init billing store", "error", err)
 		return nil
 	}
-	hooks := &billing.UsageHooks{
-		Store:  billingStore,
-		Stripe: billing.NewStripeClient(stripeKey),
+	hooks := &billing.UsageHooks{Store: billingStore}
+	if stripeKey := os.Getenv("STRIPE_SECRET_KEY"); billing.IsStripeSecretKey(stripeKey) {
+		hooks.Stripe = billing.NewStripeClient(stripeKey)
+		slog.Info("worker billing: credit deduction and Stripe meter reporting enabled")
+	} else {
+		slog.Info("worker billing: credit deduction enabled; Stripe meter reporting off (no usable STRIPE_SECRET_KEY)")
 	}
-	slog.Info("worker billing credit deduction + Stripe meter reporting enabled")
 	return hooks
 }
 
