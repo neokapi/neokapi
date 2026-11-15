@@ -1685,9 +1685,13 @@ func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProv
 // which falls back to the BOWRAIN_PLATFORM_* env bootstrap defaults when unset —
 // so an admin switching provider/model in ctrl takes effect on the next request
 // without a redeploy, while an un-provisioned instance behaves exactly as before.
+// The API key comes from the environment through jobs.PlatformAPIKey, the same
+// resolution the worker uses, so a keyed provider (openai) works on both paths.
 func (s *Server) platformProviderConfig() jobs.PlatformProviderConfig {
+	provider := s.PlatformConfig.AIProvider()
 	return jobs.PlatformProviderConfig{
-		Provider: s.PlatformConfig.AIProvider(),
+		Provider: provider,
+		APIKey:   jobs.PlatformAPIKey(provider),
 		Model:    s.PlatformConfig.AIDefaultModel(),
 		BaseURL:  s.PlatformConfig.AIBaseURL(),
 	}
