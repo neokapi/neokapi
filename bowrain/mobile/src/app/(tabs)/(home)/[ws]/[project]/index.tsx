@@ -40,6 +40,14 @@ export default function Languages() {
     ? (info?.target_languages ?? []).filter((l) => scoped.length === 0 || scoped.includes(l))
     : [];
 
+  // The context waits before the languages: a translation is checked against it.
+  const context = useQuery({
+    queryKey: ["context-count", ws, project],
+    queryFn: () => client.contextDeck(ws, project, { limit: 1 }),
+    retry: false,
+  });
+  const contextWaiting = context.data?.counts.total ?? 0;
+
   const counts = useQueries({
     queries: languages.map((locale) => ({
       queryKey: ["counts", ws, project, locale],
@@ -63,9 +71,26 @@ export default function Languages() {
         refreshing={false}
         onRefresh={() => void qc.invalidateQueries({ queryKey: ["counts", ws, project] })}
         ListHeaderComponent={
-          info ? (
-            <View className="px-4 pt-4 pb-2">
-              <Text className="text-muted-foreground text-sm">{info.name}</Text>
+          info || contextWaiting > 0 ? (
+            <View>
+              {info ? (
+                <View className="px-4 pt-4 pb-2">
+                  <Text className="text-muted-foreground text-sm">{info.name}</Text>
+                </View>
+              ) : null}
+              {contextWaiting > 0 ? (
+                <Row
+                  testID="project-context"
+                  title={t("context.entry", { count: contextWaiting })}
+                  detail={t("context.split", {
+                    agent: context.data?.counts.agent ?? 0,
+                    person: context.data?.counts.person ?? 0,
+                  })}
+                  onPress={() =>
+                    router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
+                  }
+                />
+              ) : null}
             </View>
           ) : undefined
         }

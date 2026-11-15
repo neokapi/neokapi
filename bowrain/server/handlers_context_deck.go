@@ -223,7 +223,7 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 		})
 	}
 	if !slices.Contains(card.Actions, req.Action) {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: fmt.Sprintf("%s is not offered on this card", req.Action), Code: deckCodeNotOffered})
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: req.Action + " is not offered on this card", Code: deckCodeNotOffered})
 	}
 
 	if req.Action == deckActionReject && card.Item.Kind == contextop.ItemConcept {

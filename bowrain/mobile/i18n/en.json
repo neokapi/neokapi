@@ -61,6 +61,81 @@
     "unsupported": "This server does not list review across projects",
     "unsupportedBody": "Open a project from Home to see its languages."
   },
+  "context": {
+    "title": "Context",
+    "entry_one": "Context: 1 to review",
+    "entry_other": "Context: {{count}} to review",
+    "entryLabel_one": "Context in {{where}}, 1 item to review",
+    "entryLabel_other": "Context in {{where}}, {{count}} items to review",
+    "kinds": "{{voice}} voice · {{terms}} terms · {{rules}} rules · {{notes}} notes",
+    "split": "{{agent}} by agents · {{person}} by people",
+    "kind": {
+      "voice_rule": "Voice rule",
+      "concept": "Term",
+      "term_rule": "Term rule",
+      "note": "Note"
+    },
+    "status": {
+      "suggested": "Suggested",
+      "contested": "Contested"
+    },
+    "flag": {
+      "fails": "Fails",
+      "advisory": "Reports",
+      "competitor": "Competitor",
+      "do_not_translate": "Do not translate",
+      "rate": "Ceiling"
+    },
+    "termStatus": {
+      "preferred": "Preferred",
+      "admitted": "Admitted",
+      "approved": "Approved",
+      "proposed": "Proposed",
+      "deprecated": "Deprecated",
+      "forbidden": "Forbidden"
+    },
+    "list": {
+      "prohibited": "Never write",
+      "required": "Always write"
+    },
+    "use": "Use",
+    "avoid": "Instead of",
+    "rate": "At most {{max}} per {{per}} words",
+    "appliesIn": "Applies in",
+    "where": {
+      "project": "This project",
+      "workspace": "Every project"
+    },
+    "validFrom": "from {{date}}",
+    "validTo": "until {{date}}",
+    "unknownAuthor": "Unknown author",
+    "agent": "Agent",
+    "session": "Session {{session}}",
+    "host": "In {{host}}",
+    "changedSinceReview": "Changed since {{name}} reviewed it",
+    "ownWork": "You wrote this, so another person keeps it.",
+    "keep": "Keep",
+    "keepHint": "Records that you reviewed this. Same as swiping right.",
+    "retire": "Retire",
+    "retireHint": "Retires the item. Same as swiping left.",
+    "retireTitle": "Retire this item?",
+    "unbound": "Push this project from kapi before you keep items.",
+    "outcome": {
+      "proposed": "Sent for review as a change set."
+    },
+    "refused": {
+      "stale": "This item changed. It is back at the end of the deck.",
+      "not_pending": "Someone reviewed this item already.",
+      "action_not_offered": "You cannot do that with this item.",
+      "retire_needs_approval": "Retiring this needs a second person's approval.",
+      "no_context_key": "Push this project from kapi before you keep items.",
+      "failed": "The decision was not saved. The item is back at the end of the deck."
+    },
+    "doneTitle": "Context reviewed",
+    "doneBody_one": "You reviewed 1 item.",
+    "doneBody_other": "You reviewed {{count}} items.",
+    "doneEmpty": "Nothing waits for review."
+  },
   "deck": {
     "title": "Review",
     "remaining_one": "1 card here, {{total}} waiting",
@@ -224,6 +299,7 @@
       "contextKeep": "kept {{items}}",
       "contextDrop": "dropped {{items}}",
       "contextRetire": "retired {{items}}",
+      "contextAttest": "reviewed {{items}}",
       "changeSetCreated": "opened {{name}}",
       "changeSetSubmitted": "submitted {{name}} for review",
       "changeSetApproved": "approved {{name}}",
@@ -395,6 +471,8 @@
       "keep_other": "{{count, number}} kept",
       "drop_one": "{{count, number}} dropped",
       "drop_other": "{{count, number}} dropped",
+      "attest_one": "{{count, number}} reviewed",
+      "attest_other": "{{count, number}} reviewed",
       "other_one": "{{count, number}}",
       "other_other": "{{count, number}}"
     },

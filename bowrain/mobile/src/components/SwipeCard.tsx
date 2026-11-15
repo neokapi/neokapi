@@ -38,6 +38,12 @@ export interface SwipeCardProps {
   children: ReactNode;
   /** Whether the approve swipe is offered for this card. */
   canApprove: boolean;
+  /** Whether the reject swipe is offered for this card. Offered unless false. */
+  canReject?: boolean;
+  /** Whether the card offers a fix. Offered unless false. */
+  canFix?: boolean;
+  /** Stamp labels in place of the translation deck's. */
+  stamps?: { approve?: string; reject?: string };
   onAction: (action: SwipeAction) => void;
   /** Slide the card in from this side when it mounts (an undone decision). */
   enterFrom?: SwipeSide | null;
@@ -59,6 +65,9 @@ const tick = () => void Haptics.selectionAsync();
 export function SwipeCard({
   children,
   canApprove,
+  canReject = true,
+  canFix = true,
+  stamps,
   onAction,
   enterFrom,
   progress,
@@ -142,11 +151,12 @@ export function SwipeCard({
     activeOffsetX: [-12, 12],
     activeOffsetY: -20,
     onUpdate: (e) => {
-      tx.value = canApprove ? e.translationX : Math.min(e.translationX, 40);
+      const x = canApprove ? e.translationX : Math.min(e.translationX, 40);
+      tx.value = canReject ? x : Math.max(x, -40);
       ty.value = Math.min(e.translationY, 0) * 0.9;
       const past =
         (canApprove && e.translationX > commitX) ||
-        e.translationX < -commitX ||
+        (canReject && e.translationX < -commitX) ||
         (e.translationY < -commitY && Math.abs(e.translationX) < commitX);
       if (past !== over.value) {
         over.value = past;
@@ -159,7 +169,7 @@ export function SwipeCard({
       const flingX = Math.abs(e.velocityX) > 900 && Math.abs(e.translationX) > commitX * 0.4;
       if (canApprove && (e.translationX > commitX || (flingX && e.velocityX > 0))) {
         leave("approve");
-      } else if (e.translationX < -commitX || (flingX && e.velocityX < 0)) {
+      } else if (canReject && (e.translationX < -commitX || (flingX && e.velocityX < 0))) {
         leave("reject");
       } else if (e.translationY < -commitY && Math.abs(e.translationX) < commitX) {
         leave("later");
@@ -213,8 +223,8 @@ export function SwipeCard({
         style={[{ flex: 1 }, cardStyle]}
         accessibilityActions={[
           ...(canApprove ? [{ name: "approve", label: t("actions.approve") }] : []),
-          { name: "reject", label: t("actions.reject") },
-          { name: "fix", label: t("actions.fix") },
+          ...(canReject ? [{ name: "reject", label: t("actions.reject") }] : []),
+          ...(canFix ? [{ name: "fix", label: t("actions.fix") }] : []),
           { name: "later", label: t("actions.later") },
         ]}
         onAccessibilityAction={onAccessibilityAction}
@@ -232,7 +242,7 @@ export function SwipeCard({
         />
         <Stamp
           testID="stamp-approve"
-          label={t("swipe.approve")}
+          label={stamps?.approve ?? t("swipe.approve")}
           className="border-approve left-5"
           textClassName="text-approve"
           rotate="-14deg"
@@ -240,7 +250,7 @@ export function SwipeCard({
         />
         <Stamp
           testID="stamp-reject"
-          label={t("swipe.reject")}
+          label={stamps?.reject ?? t("swipe.reject")}
           className="border-reject right-5"
           textClassName="text-reject"
           rotate="14deg"
