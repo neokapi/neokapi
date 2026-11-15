@@ -1,6 +1,6 @@
 {
   "name": "@neokapi/bowrain-mobile",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Bowrain for iOS and Android: review translations on a phone. A client of the Bowrain server.",
   "license": "Apache-2.0",

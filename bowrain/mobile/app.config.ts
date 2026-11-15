@@ -25,7 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Bowrain",
   slug: "bowrain",
   owner: easOwner || undefined,
-  version: "0.1.0",
+  version: "0.1.1",
   // EAS Update: the production and preview build profiles publish to channels
   // of the same name. A build only takes updates made for its app version.
   runtimeVersion: { policy: "appVersion" },
