@@ -1789,6 +1789,7 @@ L10N_LOOP_LOCALE = core/i18n/catalogs/$(1).json host/i18n/catalogs/$(1).json \
 	bowrain/apps/ctrl/public/translations/$(1).json \
 	bowrain/apps/pulse/public/translations/$(1).json \
 	$(LANDING_DIR)/translations/$(1).json \
+	bowrain/mobile/i18n/$(1).json \
 	bowrain/mailer/templates/$(1) \
 	scripts/gen-refs/nativedocs/$(1) \
 	packages/reference-data/data/$(1)
@@ -2091,7 +2092,8 @@ L10N_REPORT_PAIRS = \
 	bowrain/apps/bowrain/frontend/public/translations/$(1).json:bowrain/apps/bowrain/frontend/public/translations/qps.json \
 	bowrain/apps/ctrl/public/translations/$(1).json:bowrain/apps/ctrl/public/translations/qps.json \
 	bowrain/apps/pulse/public/translations/$(1).json:bowrain/apps/pulse/public/translations/qps.json \
-	$(LANDING_DIR)/translations/$(1).json:$(LANDING_DIR)/translations/qps.json
+	$(LANDING_DIR)/translations/$(1).json:$(LANDING_DIR)/translations/qps.json \
+	bowrain/mobile/i18n/$(1).json:bowrain/mobile/i18n/en.json
 
 l10n-report: ## Report per-locale coverage and placeholder parity over the loop-owned tier (never gates)
 	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-loop-report.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
