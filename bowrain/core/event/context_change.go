@@ -244,7 +244,7 @@ func (c ContextCounts) Describe() string {
 			entries = append(entries, entry{op, kind, n})
 		}
 	}
-	order := []ContextOperation{ContextOpAdd, ContextOpEdit, ContextOpKeep, ContextOpDrop, ContextOpRetire}
+	order := []ContextOperation{ContextOpAdd, ContextOpEdit, ContextOpKeep, ContextOpDrop, ContextOpRetire, ContextOpAttest}
 	slices.SortFunc(entries, func(a, b entry) int {
 		if d := slices.Index(order, a.op) - slices.Index(order, b.op); d != 0 {
 			return d
@@ -271,6 +271,8 @@ func contextVerb(op ContextOperation) string {
 		return "dropped"
 	case ContextOpRetire:
 		return "retired"
+	case ContextOpAttest:
+		return "reviewed"
 	}
 	return string(op)
 }

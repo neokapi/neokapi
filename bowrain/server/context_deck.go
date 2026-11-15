@@ -434,9 +434,9 @@ func sameLanguage(a, b model.LocaleID) bool {
 
 // voiceRuleCards are the cards of the pattern rules of the voice profile
 // bound to the project at its source language. A pattern rule has no id of
-// its own, so its id is a digest of its list and its regular expression and
-// its revision a digest of the whole rule: editing what a rule says is a new
-// revision of it, and editing what it matches is a new rule. The author is
+// its own. Its id is a digest of its list and its regular expression, and its
+// revision a digest of the whole rule. Editing what a rule says is a new
+// revision of it; editing what it matches is a new rule. The author is
 // whoever wrote the first profile version that holds the rule as it reads
 // now.
 func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, error) {
