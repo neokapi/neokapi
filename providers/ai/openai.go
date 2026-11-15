@@ -12,7 +12,7 @@ import (
 )
 
 // DefaultOpenAIModel is the model a fresh provider uses when the caller names none.
-const DefaultOpenAIModel = "gpt-5.6-sol"
+const DefaultOpenAIModel = "gpt-6.1-terra"
 
 // OpenAIProvider implements LLMProvider for OpenAI-compatible APIs.
 type OpenAIProvider struct {

@@ -16,7 +16,7 @@ type ModelTier string
 const (
 	TierFast     ModelTier = "fast"     // cheapest/fastest (Haiku)
 	TierBalanced ModelTier = "balanced" // the translation default band (Sonnet)
-	TierFlagship ModelTier = "flagship" // highest quality/cost (Opus, Sonnet 5)
+	TierFlagship ModelTier = "flagship" // highest quality/cost (Opus, GPT-6 Astra)
 )
 
 // Model describes one entry in the platform's model catalog. The catalog is a
@@ -34,37 +34,50 @@ type Model struct {
 	Tier ModelTier `json:"tier"`
 	// RequiresMarketplace flags a model that is catalog-listed but needs an extra
 	// account-level AWS Marketplace subscription before it will invoke (the newest
-	// Claude models). Onboarding it without that subscription yields a 403 at
-	// invoke time — the UI warns accordingly.
+	// Claude models and the OpenAI models). Onboarding it without that
+	// subscription yields a 403 at invoke time, and the UI warns accordingly.
 	RequiresMarketplace bool `json:"requires_marketplace,omitempty"`
 }
 
-// BedrockAnthropicCatalog is the maintained set of Anthropic Claude models
-// available on AWS Bedrock in the eu-north-1 cross-region (eu.) inference zone,
-// empirically confirmed against the production account. On-demand-invokable
-// models carry no marketplace flag; the newest ones (Sonnet 5, Opus 4.7/4.8)
-// require a Marketplace subscription and are flagged so the admin knows to enable
-// them in AWS before onboarding.
+// BedrockCatalog is the maintained set of text models the platform can onboard
+// from AWS Bedrock in eu-north-1: the Anthropic Claude models in the eu.
+// cross-region inference zone, and the OpenAI GPT models, which Bedrock serves
+// only through global. inference profiles (global routing, not EU-only). The
+// list is checked against the production account's inference profiles.
+// On-demand-invokable models carry no marketplace flag; the rest need an
+// account-level AWS Marketplace agreement before they invoke, and are flagged so
+// the admin knows to accept it in AWS before onboarding.
 //
 // Maintenance note: when AWS adds a model to Bedrock, add a row here (and drop
-// the marketplace flag once it invokes on-demand). This is intentionally the one
-// place that changes on a model refresh.
-var BedrockAnthropicCatalog = []Model{
+// the marketplace flag once it invokes on-demand); when Bedrock stops serving
+// one, remove its row. Every row must resolve to an entry in the framework's
+// model catalog (providers/ai/models.json), which a test enforces. This list
+// changes on a model refresh, alongside that catalog.
+var BedrockCatalog = []Model{
 	{ID: "eu.anthropic.claude-sonnet-4-6", Name: "Claude Sonnet 4.6", Tier: TierBalanced},
 	{ID: "eu.anthropic.claude-sonnet-4-5-20250929-v1:0", Name: "Claude Sonnet 4.5", Tier: TierBalanced},
 	{ID: "eu.anthropic.claude-opus-4-6-v1", Name: "Claude Opus 4.6", Tier: TierFlagship},
 	{ID: "eu.anthropic.claude-opus-4-5-20251101-v1:0", Name: "Claude Opus 4.5", Tier: TierFlagship},
 	{ID: "eu.anthropic.claude-haiku-4-5-20251001-v1:0", Name: "Claude Haiku 4.5", Tier: TierFast},
+	{ID: "eu.anthropic.claude-sonnet-5-5", Name: "Claude Sonnet 5.5", Tier: TierBalanced, RequiresMarketplace: true},
 	{ID: "eu.anthropic.claude-sonnet-5", Name: "Claude Sonnet 5", Tier: TierFlagship, RequiresMarketplace: true},
+	{ID: "eu.anthropic.claude-haiku-5-5", Name: "Claude Haiku 5.5", Tier: TierFast, RequiresMarketplace: true},
+	{ID: "eu.anthropic.claude-opus-5-5", Name: "Claude Opus 5.5", Tier: TierFlagship, RequiresMarketplace: true},
+	{ID: "eu.anthropic.claude-opus-5", Name: "Claude Opus 5", Tier: TierFlagship, RequiresMarketplace: true},
 	{ID: "eu.anthropic.claude-opus-4-8", Name: "Claude Opus 4.8", Tier: TierFlagship, RequiresMarketplace: true},
 	{ID: "eu.anthropic.claude-opus-4-7", Name: "Claude Opus 4.7", Tier: TierFlagship, RequiresMarketplace: true},
+	{ID: "global.openai.gpt-6.1-terra", Name: "GPT-6.1 Terra", Tier: TierBalanced, RequiresMarketplace: true},
+	{ID: "global.openai.gpt-6.1-sol", Name: "GPT-6.1 Sol", Tier: TierFlagship, RequiresMarketplace: true},
+	{ID: "global.openai.gpt-6-astra", Name: "GPT-6 Astra", Tier: TierFlagship, RequiresMarketplace: true},
+	{ID: "global.openai.gpt-6-luna", Name: "GPT-6 Luna", Tier: TierFast, RequiresMarketplace: true},
+	{ID: "global.openai.gpt-5.6-terra", Name: "GPT-5.6 Terra", Tier: TierBalanced, RequiresMarketplace: true},
 }
 
 // Catalog returns the model catalog for a provider. Only "bedrock" has a curated
 // catalog today; other providers return nil (the admin sets a free-text model).
 func Catalog(provider string) []Model {
 	if provider == "bedrock" {
-		return BedrockAnthropicCatalog
+		return BedrockCatalog
 	}
 	return nil
 }

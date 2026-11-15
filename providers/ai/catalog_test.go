@@ -75,7 +75,10 @@ func TestLimitsResolveThroughTheCatalog(t *testing.T) {
 		{"claude-sonnet-5-20260115", 128_000, 1_000_000}, // dated id → family
 		{"claude-haiku-4-5", 64_000, 200_000},
 		{"claude-sonnet-4", 64_000, 200_000},
-		{"gpt-5.6-sol", 128_000, 1_050_000}, // the real default id, via prefix
+		{"gpt-6.1-terra", 128_000, 1_050_000}, // the openai default
+		{"gpt-5.6-sol", 128_000, 1_050_000},   // a superseded id, via the family prefix
+		{"claude-sonnet-5-5", 128_000, 1_000_000},
+		{"gemini-3.8-flash", 65_536, 1_048_576},
 		{"gpt-4o", 16_384, 128_000},
 		{"gemini-3.5-flash", 65_536, 1_048_576},
 		{"gemini-3.1-pro-preview", 64_000, 1_048_576}, // longest-prefix beats "gemini-3"

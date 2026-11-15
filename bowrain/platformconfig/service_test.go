@@ -123,7 +123,7 @@ func TestSnapshotIncludesCatalog(t *testing.T) {
 	snap := svc.Snapshot()
 	assert.Equal(t, "bedrock", snap.AI.Provider)
 	assert.NotEmpty(t, snap.ModelCatalog)
-	assert.Equal(t, BedrockAnthropicCatalog, snap.ModelCatalog)
+	assert.Equal(t, BedrockCatalog, snap.ModelCatalog)
 }
 
 func TestCatalogHelpers(t *testing.T) {
@@ -131,7 +131,7 @@ func TestCatalogHelpers(t *testing.T) {
 	assert.False(t, InCatalog("bedrock", "eu.anthropic.claude-nonexistent"))
 	assert.Nil(t, Catalog("openai"))
 	// Marketplace-gated models are flagged.
-	for _, m := range BedrockAnthropicCatalog {
+	for _, m := range BedrockCatalog {
 		if m.ID == "eu.anthropic.claude-sonnet-5" {
 			assert.True(t, m.RequiresMarketplace)
 		}

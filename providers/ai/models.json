@@ -1,20 +1,59 @@
 {
-  "as_of": "2026-08-27",
+  "as_of": "2026-11-15",
   "note": "The curated catalog of models kapi ships support for, with ceilings, provider, and neokapi lifecycle. Single source of truth: limits.go and the provider defaults read from here. Maintained by hand (the vendors' APIs do not carry lifecycle); `make check-models` flags when the live model lists diverge from this file. See scripts/prompts/update-model-catalog.md.",
   "models": [
     {
-      "id": "claude-opus-5",
+      "id": "claude-opus-5-5",
       "provider": "anthropic",
-      "label": "Claude Opus 5",
+      "label": "Claude Opus 5.5",
       "aliases": [
         "opus"
       ],
       "max_output_tokens": 128000,
       "context_window": 1000000,
       "status": "active",
-      "introduced": "2026-08-27",
+      "introduced": "2026-11-15",
       "note": "1M context is standard, with no long-context surcharge.",
       "recommended": false
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "provider": "anthropic",
+      "label": "Claude Sonnet 5.5",
+      "aliases": [
+        "sonnet"
+      ],
+      "default_for": [
+        "anthropic"
+      ],
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "status": "active",
+      "introduced": "2026-11-15"
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "provider": "anthropic",
+      "label": "Claude Haiku 5.5",
+      "aliases": [
+        "haiku"
+      ],
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "status": "active",
+      "introduced": "2026-11-15"
+    },
+    {
+      "id": "claude-opus-5",
+      "provider": "anthropic",
+      "label": "Claude Opus 5",
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "status": "superseded",
+      "introduced": "2026-08-27",
+      "note": "1M context is standard, with no long-context surcharge.",
+      "recommended": false,
+      "superseded_by": "claude-opus-5-5"
     },
     {
       "id": "claude-opus-4-8",
@@ -26,22 +65,17 @@
       "introduced": "2026-07-14",
       "note": "1M context is standard, with no long-context surcharge.",
       "recommended": false,
-      "superseded_by": "claude-opus-5"
+      "superseded_by": "claude-opus-5-5"
     },
     {
       "id": "claude-sonnet-5",
       "provider": "anthropic",
       "label": "Claude Sonnet 5",
-      "aliases": [
-        "sonnet"
-      ],
-      "default_for": [
-        "anthropic"
-      ],
       "max_output_tokens": 128000,
       "context_window": 1000000,
-      "status": "active",
-      "introduced": "2026-07-14"
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "superseded_by": "claude-sonnet-5-5"
     },
     {
       "id": "claude-fable-5",
@@ -60,13 +94,11 @@
       "id": "claude-haiku-4-5",
       "provider": "anthropic",
       "label": "Claude Haiku 4.5",
-      "aliases": [
-        "haiku"
-      ],
       "max_output_tokens": 64000,
       "context_window": 200000,
-      "status": "active",
-      "introduced": "2026-07-03"
+      "status": "superseded",
+      "introduced": "2026-07-03",
+      "superseded_by": "claude-haiku-5-5"
     },
     {
       "id": "claude-sonnet-4",
@@ -75,7 +107,7 @@
       "max_output_tokens": 64000,
       "context_window": 200000,
       "status": "superseded",
-      "superseded_by": "claude-sonnet-5",
+      "superseded_by": "claude-sonnet-5-5",
       "introduced": "2026-04-03",
       "note": "Reached in production through the Bedrock inference profile eu.anthropic.claude-sonnet-4-6."
     },
@@ -86,31 +118,71 @@
       "max_output_tokens": 32000,
       "context_window": 200000,
       "status": "superseded",
-      "superseded_by": "claude-opus-4-8",
+      "superseded_by": "claude-opus-5-5",
       "introduced": "2026-07-14"
     },
     {
-      "id": "claude-3-5",
-      "provider": "anthropic",
-      "label": "Claude 3.5 (Sonnet / Haiku)",
-      "max_output_tokens": 8192,
-      "context_window": 200000,
-      "status": "superseded",
-      "superseded_by": "claude-haiku-4-5",
-      "introduced": "2026-06-22"
-    },
-    {
-      "id": "gpt-5.6",
+      "id": "gpt-6.1-terra",
       "provider": "openai",
-      "label": "GPT-5.6",
+      "label": "GPT-6.1 Terra",
       "default_for": [
         "openai"
       ],
       "max_output_tokens": 128000,
       "context_window": 1050000,
       "status": "active",
+      "introduced": "2026-11-15",
+      "note": "Prompts over 272k input tokens are billed at a higher tier."
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "provider": "openai",
+      "label": "GPT-6.1 Sol",
+      "max_output_tokens": 128000,
+      "context_window": 1050000,
+      "status": "active",
+      "introduced": "2026-11-15",
+      "note": "Prompts over 272k input tokens are billed at a higher tier."
+    },
+    {
+      "id": "gpt-6-astra",
+      "provider": "openai",
+      "label": "GPT-6 Astra",
+      "max_output_tokens": 128000,
+      "context_window": 1050000,
+      "status": "active",
+      "introduced": "2026-11-15",
+      "recommended": false
+    },
+    {
+      "id": "gpt-6-luna",
+      "provider": "openai",
+      "label": "GPT-6 Luna",
+      "max_output_tokens": 128000,
+      "context_window": 1050000,
+      "status": "active",
+      "introduced": "2026-11-15"
+    },
+    {
+      "id": "gpt-5.6",
+      "provider": "openai",
+      "label": "GPT-5.6",
+      "max_output_tokens": 128000,
+      "context_window": 1050000,
+      "status": "superseded",
       "introduced": "2026-07-14",
-      "note": "The default id is gpt-5.6-sol, which resolves to this family."
+      "note": "Matches gpt-5.6-sol and gpt-5.6-luna; gpt-5.6-terra has its own entry.",
+      "superseded_by": "gpt-6.1-sol"
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "provider": "openai",
+      "label": "GPT-5.6 Terra",
+      "max_output_tokens": 128000,
+      "context_window": 1050000,
+      "status": "superseded",
+      "introduced": "2026-11-15",
+      "superseded_by": "gpt-6.1-terra"
     },
     {
       "id": "gpt-5",
@@ -119,8 +191,9 @@
       "max_output_tokens": 128000,
       "context_window": 400000,
       "status": "superseded",
-      "superseded_by": "gpt-5.6",
-      "introduced": "2026-07-14"
+      "introduced": "2026-07-14",
+      "superseded_by": "gpt-6.1-sol",
+      "retirement_date": "2026-12-11"
     },
     {
       "id": "gpt-4.1",
@@ -129,8 +202,9 @@
       "max_output_tokens": 32768,
       "context_window": 1047576,
       "status": "superseded",
-      "superseded_by": "gpt-5.6",
-      "introduced": "2026-07-14"
+      "introduced": "2026-07-14",
+      "superseded_by": "gpt-6-luna",
+      "retirement_date": "2027-01-14"
     },
     {
       "id": "gpt-4o",
@@ -142,9 +216,10 @@
       "max_output_tokens": 16384,
       "context_window": 128000,
       "status": "superseded",
-      "superseded_by": "gpt-5.6",
       "introduced": "2026-04-03",
-      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative."
+      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative. The retirement date is OpenAI's; Azure sets its own.",
+      "superseded_by": "gpt-6-luna",
+      "retirement_date": "2027-01-14"
     },
     {
       "id": "o3",
@@ -152,31 +227,21 @@
       "label": "OpenAI o3",
       "max_output_tokens": 100000,
       "context_window": 200000,
-      "status": "active",
+      "status": "superseded",
       "introduced": "2026-06-22",
       "note": "Reasoning model; kept for callers who name it explicitly.",
-      "recommended": false
+      "recommended": false,
+      "superseded_by": "gpt-6.1-sol",
+      "retirement_date": "2026-12-11"
     },
     {
-      "id": "gpt-4-",
-      "provider": "openai",
-      "label": "GPT-4 (legacy family)",
-      "max_output_tokens": 4096,
-      "context_window": 128000,
-      "status": "superseded",
-      "superseded_by": "gpt-5.6",
-      "introduced": "2026-07-14",
-      "note": "The trailing dash keeps this prefix from matching gpt-4o or gpt-4.1."
-    },
-    {
-      "id": "gpt-3.5",
-      "provider": "openai",
-      "label": "GPT-3.5",
-      "max_output_tokens": 4096,
-      "context_window": 16385,
-      "status": "superseded",
-      "superseded_by": "gpt-5.6",
-      "introduced": "2026-07-14"
+      "id": "gemini-3.8-flash",
+      "provider": "gemini",
+      "label": "Gemini 3.8 Flash",
+      "max_output_tokens": 65536,
+      "context_window": 1048576,
+      "status": "active",
+      "introduced": "2026-11-15"
     },
     {
       "id": "gemini-3.5-flash",
@@ -188,7 +253,8 @@
       "max_output_tokens": 65536,
       "context_window": 1048576,
       "status": "active",
-      "introduced": "2026-07-14"
+      "introduced": "2026-07-14",
+      "note": "Google serves this id by routing it to gemini-3.6-flash."
     },
     {
       "id": "gemini-3.1-pro",
