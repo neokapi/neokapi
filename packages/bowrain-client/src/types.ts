@@ -69,6 +69,122 @@ export interface ReviewInboxLanguage {
   unclassified: number;
 }
 
+/**
+ * One project whose context waits for the caller's review
+ * (contextInboxEntry). `by_kind` counts the cards of each kind the caller
+ * may keep.
+ */
+export interface ContextInboxEntry {
+  workspace: string;
+  workspace_name: string;
+  project: string;
+  project_name: string;
+  waiting: number;
+  by_kind: Partial<Record<ContextCardKind, number>>;
+}
+
+/** The review inbox: the context waiting first, then the languages. */
+export interface ReviewHome {
+  context: ContextInboxEntry[];
+  languages: ReviewInboxLanguage[];
+}
+
+/** The kinds of card the context deck holds, in the order it deals them. */
+export type ContextCardKind = "voice_rule" | "concept" | "term_rule" | "note";
+
+/** What a context card offers. */
+export type ContextAction = "keep" | "reject" | "later";
+
+/** The ground a keep is valid on, decided by the server. */
+export type ContextReviewBasis = "peer" | "agent_authored" | "solo_owner" | "self_warned";
+
+/** The item a context card names, in whichever store holds it. */
+export interface ContextItemRef {
+  kind: "op" | "concept" | "voice_rule";
+  id: string;
+  profile?: string;
+}
+
+/** Who wrote a context item, as its store recorded it. */
+export interface ContextAuthor {
+  kind: "person" | "agent" | "tool";
+  name?: string;
+  session?: string;
+  /** The agent host a person recorded the item from. */
+  host?: string;
+  agent_authored: boolean;
+}
+
+/** An earlier attestation of an older revision of the item. */
+export interface ContextReview {
+  id: string;
+  by: { kind: string; name?: string };
+  at: string;
+  revision: string;
+  basis: ContextReviewBasis;
+}
+
+/** One context item waiting for review (contextDeckCard). */
+export interface ContextCard {
+  item: ContextItemRef;
+  kind: ContextCardKind;
+  revision: string;
+  status?: "suggested" | "established" | "contested";
+  term?: { term: string; replacement?: string; forms?: string[] };
+  terms?: { text: string; locale: string; status?: string }[];
+  pattern?: {
+    list: "prohibited" | "required";
+    regex: string;
+    description?: string;
+    rate?: string;
+    profile?: string;
+  };
+  text?: string;
+  language?: string;
+  flags?: string[];
+  where: {
+    level: "project" | "workspace";
+    coordinates?: Record<string, string>;
+    valid_from?: string;
+    valid_to?: string;
+  };
+  author: ContextAuthor;
+  at?: string;
+  review?: ContextReview;
+  own_work: boolean;
+  basis?: ContextReviewBasis;
+  actions: ContextAction[];
+}
+
+/** A page of the context deck (GET /:ws/:id/context/deck). */
+export interface ContextDeck {
+  mode: "pending";
+  /** False for a project no push has bound: nothing can be kept yet. */
+  bound: boolean;
+  counts: {
+    total: number;
+    by_kind: Record<ContextCardKind, number>;
+    agent: number;
+    person: number;
+  };
+  cards: ContextCard[];
+  next_cursor?: string;
+}
+
+/** One decision about a context card. */
+export interface ContextDecision {
+  item: ContextItemRef;
+  revision: string;
+  action: ContextAction;
+  note?: string;
+}
+
+/** What a context decision did. */
+export interface ContextDecisionResult {
+  outcome: "attested" | "kept" | "dropped" | "proposed" | "later";
+  changeset_id?: string;
+}
+
 /** One locale's committed target (BlockTargetInfo). */
 export interface BlockTarget {
   text: string;

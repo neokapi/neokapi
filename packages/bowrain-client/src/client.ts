@@ -12,6 +12,10 @@ import type {
   AuthTokens,
   BlockInfo,
   CallerPermissions,
+  ContextCardKind,
+  ContextDeck,
+  ContextDecision,
+  ContextDecisionResult,
   Deck,
   DeckCard,
   DeckCounts,
@@ -27,6 +31,7 @@ import type {
   PreReview,
   Project,
   ReviewContext,
+  ReviewHome,
   ReviewInboxLanguage,
   User,
   Workspace,
@@ -98,6 +103,23 @@ export interface BowrainClient {
    * is waiting, most waiting first. Null from a server without the route.
    */
   reviewInbox(): Promise<ReviewInboxLanguage[] | null>;
+  /**
+   * The review inbox whole: the projects whose context waits for the caller,
+   * then the languages. Null from a server without the route.
+   */
+  reviewHome(): Promise<ReviewHome | null>;
+  /** One page of a project's context deck: the items nobody reviewed at their current revision. */
+  contextDeck(
+    workspace: string,
+    project: string,
+    opts?: { limit?: number; cursor?: string; kind?: ContextCardKind },
+  ): Promise<ContextDeck>;
+  /** Keep, reject or put off one context card. A refusal throws an ApiError whose body carries `code`. */
+  decideContext(
+    workspace: string,
+    project: string,
+    decision: ContextDecision,
+  ): Promise<ContextDecisionResult>;
   pendingReview(
     scope: ProjectScope,
     opts?: { locales?: string[]; limit?: number; offset?: number },
@@ -133,6 +155,8 @@ export const ROUTES = {
   changes: (s: ProjectScope) =>
     `/${enc(s.workspace)}/projects/${enc(s.project)}/streams/${stream(s)}/changes`,
   feed: (workspace: string, project: string) => `/${enc(workspace)}/${enc(project)}/feed`,
+  contextDeck: (workspace: string, project: string) =>
+    `/${enc(workspace)}/${enc(project)}/context/deck`,
 };
 
 /** The query string of a feed request; `coordinate` repeats once per axis. */
@@ -268,13 +292,32 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     permissions: (ws, pid) => get<CallerPermissions>(`/${enc(ws)}/${enc(pid)}/permissions`),
 
     async reviewInbox() {
+      const home = await client.reviewHome();
+      return home ? home.languages : null;
+    },
+
+    async reviewHome() {
       try {
-        const body = await get<{ languages: ReviewInboxLanguage[] }>("/auth/me/review");
-        return body.languages ?? [];
+        const body = await get<Partial<ReviewHome>>("/auth/me/review");
+        return { context: body.context ?? [], languages: body.languages ?? [] };
       } catch (err) {
         if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return null;
         throw err;
       }
+    },
+
+    async contextDeck(ws, pid, o = {}) {
+      const deck = await get<ContextDeck>(
+        `${ROUTES.contextDeck(ws, pid)}${query({ mode: "pending", limit: o.limit, cursor: o.cursor, kind: o.kind })}`,
+      );
+      return { ...deck, cards: deck.cards ?? [], next_cursor: deck.next_cursor || undefined };
+    },
+
+    decideContext(ws, pid, decision) {
+      return send(`${ROUTES.contextDeck(ws, pid)}/decide`, {
+        method: "POST",
+        body: JSON.stringify(decision),
+      }).then((r) => r.body as ContextDecisionResult);
     },
 
     pendingReview(scope, o = {}) {
