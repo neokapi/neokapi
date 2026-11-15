@@ -16,7 +16,7 @@ import (
 // none. The registry advertises this same constant, so what `kapi models` shows a
 // user and what they actually get cannot drift apart — they did, and the registry
 // went on advertising a model that had been retired.
-const DefaultAnthropicModel = "claude-sonnet-5"
+const DefaultAnthropicModel = "claude-sonnet-5-5"
 
 // AnthropicProvider implements LLMProvider for Anthropic Claude API.
 type AnthropicProvider struct {

@@ -2923,6 +2923,9 @@
     "claude-opus-5": {
       "note": "1M context is standard, with no long-context surcharge."
     },
+    "claude-opus-5-5": {
+      "note": "1M context is standard, with no long-context surcharge."
+    },
     "claude-sonnet-4": {
       "note": "Reached in production through the Bedrock inference profile eu.anthropic.claude-sonnet-4-6."
     },
@@ -2932,14 +2935,20 @@
     "gemini-3.1-pro": {
       "note": "Prompts over 200k input tokens are billed at a higher tier."
     },
-    "gpt-4-": {
-      "note": "The trailing dash keeps this prefix from matching gpt-4o or gpt-4.1."
+    "gemini-3.5-flash": {
+      "note": "Google serves this id by routing it to gemini-3.6-flash."
     },
     "gpt-4o": {
-      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative."
+      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative. The retirement date is OpenAI's; Azure sets its own."
     },
     "gpt-5.6": {
-      "note": "The default id is gpt-5.6-sol, which resolves to this family."
+      "note": "Matches gpt-5.6-sol and gpt-5.6-luna; gpt-5.6-terra has its own entry."
+    },
+    "gpt-6.1-sol": {
+      "note": "Prompts over 272k input tokens are billed at a higher tier."
+    },
+    "gpt-6.1-terra": {
+      "note": "Prompts over 272k input tokens are billed at a higher tier."
     },
     "llama3.2": {
       "note": "Runs locally through Ollama; ceilings depend on the pulled quantisation, so none are pinned here."

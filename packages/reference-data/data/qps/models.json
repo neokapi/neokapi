@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-10-16T21:39:04Z",
-  "asOf": "2026-08-27",
+  "generatedAt": "2026-11-15T22:38:20Z",
+  "asOf": "2026-11-15",
   "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
   "models": [
     {
-      "id": "claude-opus-5",
+      "id": "claude-opus-5-5",
       "provider": "anthropic",
       "providerLabel": "Anthropic",
-      "label": "Claude Opus 5",
+      "label": "Claude Opus 5.5",
       "aliases": [
         "opus"
       ],
@@ -15,7 +15,51 @@
       "maxOutputTokens": 128000,
       "contextWindow": 1000000,
       "status": "active",
+      "introduced": "2026-11-15",
+      "note": "▒ 1Ḿ çöñţéẋţ îš šţàñđàŕđ, ŵîţĥ ñö ļöñĝ-çöñţéẋţ šüŕçĥàŕĝé. ▒"
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Sonnet 5.5",
+      "aliases": [
+        "sonnet"
+      ],
+      "defaultFor": [
+        "anthropic"
+      ],
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-11-15"
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Haiku 5.5",
+      "aliases": [
+        "haiku"
+      ],
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-11-15"
+    },
+    {
+      "id": "claude-opus-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Opus 5",
+      "recommended": false,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "superseded",
       "introduced": "2026-08-27",
+      "supersededBy": "claude-opus-5-5",
       "note": "▒ 1Ḿ çöñţéẋţ îš šţàñđàŕđ, ŵîţĥ ñö ļöñĝ-çöñţéẋţ šüŕçĥàŕĝé. ▒"
     },
     {
@@ -28,7 +72,7 @@
       "contextWindow": 1000000,
       "status": "superseded",
       "introduced": "2026-07-14",
-      "supersededBy": "claude-opus-5",
+      "supersededBy": "claude-opus-5-5",
       "note": "▒ 1Ḿ çöñţéẋţ îš šţàñđàŕđ, ŵîţĥ ñö ļöñĝ-çöñţéẋţ šüŕçĥàŕĝé. ▒"
     },
     {
@@ -36,17 +80,12 @@
       "provider": "anthropic",
       "providerLabel": "Anthropic",
       "label": "Claude Sonnet 5",
-      "aliases": [
-        "sonnet"
-      ],
-      "defaultFor": [
-        "anthropic"
-      ],
       "recommended": true,
       "maxOutputTokens": 128000,
       "contextWindow": 1000000,
-      "status": "active",
-      "introduced": "2026-07-14"
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "claude-sonnet-5-5"
     },
     {
       "id": "claude-fable-5",
@@ -67,14 +106,12 @@
       "provider": "anthropic",
       "providerLabel": "Anthropic",
       "label": "Claude Haiku 4.5",
-      "aliases": [
-        "haiku"
-      ],
       "recommended": true,
       "maxOutputTokens": 64000,
       "contextWindow": 200000,
-      "status": "active",
-      "introduced": "2026-07-03"
+      "status": "superseded",
+      "introduced": "2026-07-03",
+      "supersededBy": "claude-haiku-5-5"
     },
     {
       "id": "claude-sonnet-4",
@@ -86,7 +123,7 @@
       "contextWindow": 200000,
       "status": "superseded",
       "introduced": "2026-04-03",
-      "supersededBy": "claude-sonnet-5",
+      "supersededBy": "claude-sonnet-5-5",
       "note": "▒ Ŕéàçĥéđ îñ þŕöđüçţîöñ ţĥŕöüĝĥ ţĥé Ƃéđŕöçķ îñƒéŕéñçé þŕöƒîļé éü.àñţĥŕöþîç.çļàüđé-šöññéţ-4-6. ▒"
     },
     {
@@ -99,25 +136,13 @@
       "contextWindow": 200000,
       "status": "superseded",
       "introduced": "2026-07-14",
-      "supersededBy": "claude-opus-4-8"
+      "supersededBy": "claude-opus-5-5"
     },
     {
-      "id": "claude-3-5",
-      "provider": "anthropic",
-      "providerLabel": "Anthropic",
-      "label": "Claude 3.5 (Sonnet / Haiku)",
-      "recommended": true,
-      "maxOutputTokens": 8192,
-      "contextWindow": 200000,
-      "status": "superseded",
-      "introduced": "2026-06-22",
-      "supersededBy": "claude-haiku-4-5"
-    },
-    {
-      "id": "gpt-5.6",
+      "id": "gpt-6.1-terra",
       "provider": "openai",
       "providerLabel": "OpenAI",
-      "label": "GPT-5.6",
+      "label": "GPT-6.1 Terra",
       "defaultFor": [
         "openai"
       ],
@@ -125,8 +150,67 @@
       "maxOutputTokens": 128000,
       "contextWindow": 1050000,
       "status": "active",
+      "introduced": "2026-11-15",
+      "note": "▒ Þŕöḿþţš öṽéŕ 272ķ îñþüţ ţöķéñš àŕé ƃîļļéđ àţ à ĥîĝĥéŕ ţîéŕ. ▒"
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-6.1 Sol",
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1050000,
+      "status": "active",
+      "introduced": "2026-11-15",
+      "note": "▒ Þŕöḿþţš öṽéŕ 272ķ îñþüţ ţöķéñš àŕé ƃîļļéđ àţ à ĥîĝĥéŕ ţîéŕ. ▒"
+    },
+    {
+      "id": "gpt-6-astra",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-6 Astra",
+      "recommended": false,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1050000,
+      "status": "active",
+      "introduced": "2026-11-15"
+    },
+    {
+      "id": "gpt-6-luna",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-6 Luna",
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1050000,
+      "status": "active",
+      "introduced": "2026-11-15"
+    },
+    {
+      "id": "gpt-5.6",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-5.6",
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1050000,
+      "status": "superseded",
       "introduced": "2026-07-14",
-      "note": "▒ Ţĥé đéƒàüļţ îđ îš ĝþţ-5.6-šöļ, ŵĥîçĥ ŕéšöļṽéš ţö ţĥîš ƒàḿîļý. ▒"
+      "supersededBy": "gpt-6.1-sol",
+      "note": "▒ Ḿàţçĥéš ĝþţ-5.6-šöļ àñđ ĝþţ-5.6-ļüñà; ĝþţ-5.6-ţéŕŕà ĥàš îţš öŵñ éñţŕý. ▒"
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-5.6 Terra",
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1050000,
+      "status": "superseded",
+      "introduced": "2026-11-15",
+      "supersededBy": "gpt-6.1-terra"
     },
     {
       "id": "gpt-5",
@@ -138,7 +222,8 @@
       "contextWindow": 400000,
       "status": "superseded",
       "introduced": "2026-07-14",
-      "supersededBy": "gpt-5.6"
+      "supersededBy": "gpt-6.1-sol",
+      "retirementDate": "2026-12-11"
     },
     {
       "id": "gpt-4.1",
@@ -150,7 +235,8 @@
       "contextWindow": 1047576,
       "status": "superseded",
       "introduced": "2026-07-14",
-      "supersededBy": "gpt-5.6"
+      "supersededBy": "gpt-6-luna",
+      "retirementDate": "2027-01-14"
     },
     {
       "id": "gpt-4o",
@@ -165,8 +251,9 @@
       "contextWindow": 128000,
       "status": "superseded",
       "introduced": "2026-04-03",
-      "supersededBy": "gpt-5.6",
-      "note": "▒ Šüþéŕšéđéđ öñ ţĥé ÖþéñÀÎ ÀÞÎ, ƃüţ šţîļļ ţĥé Àžüŕé ÖþéñÀÎ đéƒàüļţ, ƃéçàüšé Àžüŕé đéþļöýḿéñţš ļàĝ ţĥé þüƃļîç ÀÞÎ àñđ ţĥé đéƒàüļţ îš đéļîƃéŕàţéļý çöñšéŕṽàţîṽé. ▒"
+      "supersededBy": "gpt-6-luna",
+      "retirementDate": "2027-01-14",
+      "note": "▒ Šüþéŕšéđéđ öñ ţĥé ÖþéñÀÎ ÀÞÎ, ƃüţ šţîļļ ţĥé Àžüŕé ÖþéñÀÎ đéƒàüļţ, ƃéçàüšé Àžüŕé đéþļöýḿéñţš ļàĝ ţĥé þüƃļîç ÀÞÎ àñđ ţĥé đéƒàüļţ îš đéļîƃéŕàţéļý çöñšéŕṽàţîṽé. Ţĥé ŕéţîŕéḿéñţ đàţé îš ÖþéñÀÎ'š; Àžüŕé šéţš îţš öŵñ. ▒"
     },
     {
       "id": "o3",
@@ -176,34 +263,22 @@
       "recommended": false,
       "maxOutputTokens": 100000,
       "contextWindow": 200000,
-      "status": "active",
+      "status": "superseded",
       "introduced": "2026-06-22",
+      "supersededBy": "gpt-6.1-sol",
+      "retirementDate": "2026-12-11",
       "note": "▒ Ŕéàšöñîñĝ ḿöđéļ; ķéþţ ƒöŕ çàļļéŕš ŵĥö ñàḿé îţ éẋþļîçîţļý. ▒"
     },
     {
-      "id": "gpt-4-",
-      "provider": "openai",
-      "providerLabel": "OpenAI",
-      "label": "GPT-4 (legacy family)",
+      "id": "gemini-3.8-flash",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3.8 Flash",
       "recommended": true,
-      "maxOutputTokens": 4096,
-      "contextWindow": 128000,
-      "status": "superseded",
-      "introduced": "2026-07-14",
-      "supersededBy": "gpt-5.6",
-      "note": "▒ Ţĥé ţŕàîļîñĝ đàšĥ ķééþš ţĥîš þŕéƒîẋ ƒŕöḿ ḿàţçĥîñĝ ĝþţ-4ö öŕ ĝþţ-4.1. ▒"
-    },
-    {
-      "id": "gpt-3.5",
-      "provider": "openai",
-      "providerLabel": "OpenAI",
-      "label": "GPT-3.5",
-      "recommended": true,
-      "maxOutputTokens": 4096,
-      "contextWindow": 16385,
-      "status": "superseded",
-      "introduced": "2026-07-14",
-      "supersededBy": "gpt-5.6"
+      "maxOutputTokens": 65536,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-11-15"
     },
     {
       "id": "gemini-3.5-flash",
@@ -217,7 +292,8 @@
       "maxOutputTokens": 65536,
       "contextWindow": 1048576,
       "status": "active",
-      "introduced": "2026-07-14"
+      "introduced": "2026-07-14",
+      "note": "▒ Ĝööĝļé šéŕṽéš ţĥîš îđ ƃý ŕöüţîñĝ îţ ţö ĝéḿîñî-3.6-ƒļàšĥ. ▒"
     },
     {
       "id": "gemini-3.1-pro",

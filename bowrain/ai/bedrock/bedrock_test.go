@@ -54,6 +54,8 @@ func TestBaseModelID(t *testing.T) {
 		"claude-sonnet-4-6":                        "claude-sonnet-4-6",
 		"eu.meta.llama3-1-70b-instruct-v1:0":       "llama3-1-70b-instruct-v1:0",
 		"us.anthropic.claude-3-5-sonnet-2024-v1:0": "claude-3-5-sonnet-2024-v1:0",
+		"global.anthropic.claude-sonnet-4-6":       "claude-sonnet-4-6",
+		"global.openai.gpt-6.1-terra":              "gpt-6.1-terra",
 	}
 	for in, want := range cases {
 		assert.Equalf(t, want, baseModelID(in), "baseModelID(%q)", in)
@@ -65,6 +67,11 @@ func TestLimitsResolveThroughProfileID(t *testing.T) {
 	// so the batch packer sizes calls correctly.
 	sonnet := New(aiprovider.Config{Model: "eu.anthropic.claude-sonnet-4-6"}).Limits()
 	assert.Equal(t, 64_000, sonnet.MaxOutputTokens)
+
+	// The OpenAI models are served through global profiles.
+	terra := New(aiprovider.Config{Model: "global.openai.gpt-6.1-terra"}).Limits()
+	assert.Equal(t, 128_000, terra.MaxOutputTokens)
+	assert.Equal(t, 1_050_000, terra.ContextWindow)
 
 	// An unknown model falls back to the conservative default rather than assuming
 	// a large ceiling.
