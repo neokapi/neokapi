@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -97,6 +98,35 @@ func TestSyncTree_ScopeNarrowsTheAnswer(t *testing.T) {
 
 	tree, rec := fetchTree(t, e, pid, authHeader, "?scope=docs")
 	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, tree.Items, 1)
+	assert.Equal(t, "docs/a.json", tree.Items[0].Path)
+}
+
+// The POST form carries the scope in the body, for a scope too long for a URL.
+func TestSyncTree_ScopeInAPostBody(t *testing.T) {
+	srv, token := newTestServer(t)
+	e := srv.GetEcho()
+	pid := createProject(t, srv, token)
+
+	inside := &model.Block{ID: "i1", Translatable: true}
+	inside.SetSourceText("Inside")
+	outside := &model.Block{ID: "o1", Translatable: true}
+	outside.SetSourceText("Outside")
+
+	ctx := t.Context()
+	require.NoError(t, srv.ContentStore.StoreBlocksForItem(ctx, pid, "main", "docs/a.json", []*model.Block{inside}))
+	require.NoError(t, srv.ContentStore.StoreBlocksForItem(ctx, pid, "main", "web/b.json", []*model.Block{outside}))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/tree",
+		strings.NewReader(`{"scope":["docs"]}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var tree treeJSON
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &tree))
 	require.Len(t, tree.Items, 1)
 	assert.Equal(t, "docs/a.json", tree.Items[0].Path)
 }

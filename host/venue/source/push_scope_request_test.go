@@ -59,7 +59,15 @@ func newScopeServer(t *testing.T, projectID string, stored []venue.TreeItem) *sc
 	})
 	mux.HandleFunc(base+"/sync/main/tree", func(w http.ResponseWriter, r *http.Request) {
 		ss.mu.Lock()
-		ss.treeScopes = append(ss.treeScopes, r.URL.Query()["scope"])
+		scope := r.URL.Query()["scope"]
+		if r.Method == http.MethodPost {
+			var body struct {
+				Scope []string `json:"scope"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			scope = body.Scope
+		}
+		ss.treeScopes = append(ss.treeScopes, scope)
 		ss.mu.Unlock()
 		current := published
 		_ = json.NewEncoder(w).Encode(apiclient.TreeResponse{Ref: &current, Items: ss.stored})

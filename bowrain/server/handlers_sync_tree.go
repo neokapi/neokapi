@@ -1,6 +1,10 @@
 package server
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -15,6 +19,12 @@ import (
 // known ref.
 //
 // GET /sync/:ref/tree[?scope=<pattern>&scope=<pattern>]
+// POST /sync/:ref/tree {"scope": ["<pattern>", ...]}
+//
+// The POST form carries the scope in the body. A push's scope lists every file
+// its patterns match that no format reads, and for a large project that query
+// string passes the 8 KB URL limit of the CDN in front of the server, which
+// rejects the request before it arrives.
 //
 // This is the fetch a push is built on. It replaces a negotiation that
 // descended one item at a time — a few hundred files were a few hundred
@@ -39,7 +49,10 @@ func (s *Server) HandleSyncTree(c echo.Context) error {
 
 	projectID := c.Param("id")
 	stream := refParam(c)
-	scope := venue.Scope(c.QueryParams()["scope"])
+	scope, err := treeScope(c)
+	if err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
 
 	ctx := c.Request().Context()
 	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
@@ -76,6 +89,21 @@ func (s *Server) HandleSyncTree(c echo.Context) error {
 		"root_hash": root,
 		"items":     items,
 	})
+}
+
+// treeScope reads the scope from the query string of a GET or the JSON body of
+// a POST.
+func treeScope(c echo.Context) (venue.Scope, error) {
+	if c.Request().Method != http.MethodPost {
+		return venue.Scope(c.QueryParams()["scope"]), nil
+	}
+	var body struct {
+		Scope []string `json:"scope"`
+	}
+	if err := json.NewDecoder(c.Request().Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("invalid tree request body: %w", err)
+	}
+	return venue.Scope(body.Scope), nil
 }
 
 // etagMatches compares a request's If-None-Match against the tag served,
