@@ -111,7 +111,7 @@ server runs on.
 | | **kapi** | **Bowrain** |
 | --- | --- | --- |
 | Reach of the graph | One project | Every project in the workspace |
-| Shape | A CLI + desktop app you install | A server + web and desktop clients |
+| Shape | A CLI + desktop app you install | A server + web, desktop and mobile clients |
 | Who decides | You, in a commit | A reviewer, on the record |
 | Where context is stored | A local workspace, shared by project checkouts | On the server, with a desktop cache |
 | How guidance is updated | Corrections and decisions are recorded in the workspace context store | Corrections aggregate into candidate rules a reviewer promotes |

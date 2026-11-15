@@ -1,4 +1,4 @@
-import { Apple, Monitor, Download, Globe2, Laptop, Terminal } from "lucide-react";
+import { Apple, Monitor, Download, Globe2, Laptop, Smartphone, Terminal } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useReveal } from "../useReveal";
 import { useSectionSignals } from "../useSectionSignals";
@@ -17,6 +17,13 @@ const PLACES = [
     where: t("As a desktop app"),
     body: t(
       "A signed native build for macOS, Windows and Linux. It keeps working offline and syncs when you reconnect.",
+    ),
+  },
+  {
+    icon: Smartphone,
+    where: t("On your phone"),
+    body: t(
+      "The Bowrain app shows the translations waiting for your review as a deck of cards. You approve or reject each one with a swipe, or correct its wording. In beta on iOS.",
     ),
   },
   {
@@ -40,16 +47,16 @@ export function Apps() {
             WHERE YOU WORK
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("One workspace,")} <span className="prism-text">{t("three ways in.")}</span>
+            {t("One workspace,")} <span className="prism-text">{t("four ways in.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "Access shared projects, context and review work from the browser, desktop app or kapi.",
+              "Access shared projects, context and review work from the browser, the desktop app, your phone or kapi.",
             )}
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {PLACES.map((p) => (
             <div key={p.where} className="rounded-xl border border-border bg-card p-6">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">

@@ -63,6 +63,11 @@ Direct downloads for **Bowrain Desktop 1.3.0-rc10**:
 Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.3.0-rc10/checksums.txt).
 <!-- END:downloads-bowrain-desktop -->
 
+## The mobile app
+
+The Bowrain mobile app is in beta on iOS. It signs in to Bowrain Cloud or to
+your own server. See [Review on your phone](/server/review-on-your-phone).
+
 ## The kapi CLI (the developer route)
 
 To connect a local codebase, install the bowrain plugin for the
