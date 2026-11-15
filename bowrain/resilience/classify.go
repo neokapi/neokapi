@@ -35,6 +35,12 @@ func IsUpstreamFailure(err error) bool {
 	if IsUnavailable(err) || isCallerFault(err) {
 		return false
 	}
+	// An exhausted account quota refuses every call until it resets, hours
+	// away. Retrying spends the job's budget on calls that cannot succeed, and
+	// the condition says nothing about the provider's health.
+	if IsQuotaExhausted(err) {
+		return false
+	}
 	// A caller that walked away is not evidence about the dependency.
 	if errors.Is(err, context.Canceled) {
 		return false
@@ -66,11 +72,15 @@ func IsUpstreamFailure(err error) bool {
 
 var transientStatusMarkers = []string{
 	"error 500", "error 502", "error 503", "error 504", "error 529", "error 429",
+	// The AWS SDK (Bedrock) formats an HTTP failure as "StatusCode: 429".
+	"statuscode: 429",
 }
 
 var transientTextMarkers = []string{
 	"rate limit",
 	"too many requests",
+	"throttlingexception",
+	"too many tokens",
 	"timeout",
 	"timed out",
 	"deadline exceeded",
@@ -83,4 +93,67 @@ var transientTextMarkers = []string{
 	"service unavailable",
 	"server error",
 	"overloaded",
+}
+
+// ProviderLimit names why an AI provider refused work on account limits, as
+// opposed to a fault in the request or an outage.
+type ProviderLimit int
+
+const (
+	// NoProviderLimit: the failure is not about an account limit.
+	NoProviderLimit ProviderLimit = iota
+	// ProviderThrottled: the provider is rate limiting (HTTP 429, a Bedrock
+	// ThrottlingException). The worker retries it, so a job that still fails
+	// has spent its retries against the limit.
+	ProviderThrottled
+	// ProviderQuotaExhausted: a quota with a long reset window is used up,
+	// such as the Bedrock tokens-per-day quota or an OpenAI account with no
+	// remaining balance. Every further call fails until it resets.
+	ProviderQuotaExhausted
+)
+
+// ClassifyProviderLimit classifies a provider error message. It takes text
+// rather than an error so it also reads a failure back from a job row, where
+// only the message survives. Quota exhaustion is checked first, because
+// Bedrock reports its daily quota as a ThrottlingException.
+func ClassifyProviderLimit(msg string) ProviderLimit {
+	m := strings.ToLower(msg)
+	for _, marker := range quotaExhaustedMarkers {
+		if strings.Contains(m, marker) {
+			return ProviderQuotaExhausted
+		}
+	}
+	for _, marker := range throttledMarkers {
+		if strings.Contains(m, marker) {
+			return ProviderThrottled
+		}
+	}
+	return NoProviderLimit
+}
+
+// IsQuotaExhausted reports whether err is a provider quota exhaustion (see
+// [ProviderQuotaExhausted]).
+func IsQuotaExhausted(err error) bool {
+	return err != nil && ClassifyProviderLimit(err.Error()) == ProviderQuotaExhausted
+}
+
+var quotaExhaustedMarkers = []string{
+	"tokens per day",
+	"requests per day",
+	"daily quota",
+	"servicequotaexceededexception",
+	"insufficient_quota",
+	"exceeded your current quota",
+	"credit balance is too low",
+}
+
+var throttledMarkers = []string{
+	"throttlingexception",
+	"throttled",
+	"too many requests",
+	"too many tokens",
+	"rate limit",
+	"rate_limit",
+	"error 429",
+	"statuscode: 429",
 }
