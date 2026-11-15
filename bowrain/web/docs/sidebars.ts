@@ -65,6 +65,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/review",
+        "server/review-on-your-phone",
       ],
     },
     {
