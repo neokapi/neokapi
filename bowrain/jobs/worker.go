@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
 	"github.com/neokapi/neokapi/bowrain/review"
 	diffcache "github.com/neokapi/neokapi/bowrain/sync"
@@ -552,6 +553,13 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		emitLog(deps, job.StepID, "error",
 			"Translation failed: "+err.Error(),
 			map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
+		if resilience.IsQuotaExhausted(err) {
+			if n := skipQueuedPushSiblings(ctx, deps.JobStore, job, err); n > 0 {
+				emitLog(deps, job.StepID, "error",
+					fmt.Sprintf("The AI provider's quota is exhausted; skipped %d queued job(s) in this batch.", n),
+					map[string]string{"locale": job.TargetLocale, "skipped": strconv.Itoa(n)})
+			}
+		}
 		return err
 	}
 

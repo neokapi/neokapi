@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
@@ -517,6 +518,11 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	case ctx.Err() != nil:
 		run.State = bstore.ConvergenceRunCanceled
 		run.Error = "canceled"
+	case loopErr != nil && errors.As(loopErr, &stall) && stall.failed:
+		run.State = bstore.ConvergenceRunFailed
+		run.StallReason = stall.reason
+		run.Error = stall.message
+		slog.WarnContext(ctx, "convergence: run stopped", "run", run.ID, "stall_reason", stall.reason)
 	case loopErr != nil && errors.As(loopErr, &stall):
 		run.State = bstore.ConvergenceRunParked
 		run.StallReason = stall.reason
@@ -979,6 +985,15 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 		// sum those splits across the locale's jobs so the run reports a truthful
 		// "content memory N · AI M" instead of attributing everything to AI.
 		translated := 0
+		// A sibling locale that stopped the run on a provider limit cancels
+		// this context too; this locale's queued jobs would meet the same
+		// limit, so they are skipped rather than left for the worker.
+		defer func() {
+			var stop *stallError
+			if ctx.Err() != nil && errors.As(context.Cause(ctx), &stop) && stop.failed {
+				o.skipQueuedJobs(ctx, pushID, stop)
+			}
+		}()
 		for {
 			if err := ctx.Err(); err != nil {
 				return convergence.PassProduction{Done: translated, ViaAI: translated}, err
@@ -1007,6 +1022,13 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 				Type: convergence.EventUnitProgress, Stage: convergence.StageAITranslate,
 				Pass: pass, Locale: locale, Done: translated, ViaMemory: doneMemory, ViaAI: doneAI,
 			})
+			// A job that failed on a provider limit means the rest of the run
+			// would fail the same way, and so would every later pass. Stop now,
+			// before the remaining queued jobs reach the provider.
+			if stop := providerLimitStop(jobList); stop != nil {
+				o.skipQueuedJobs(ctx, pushID, stop)
+				return convergence.PassProduction{Done: translated, ViaMemory: doneMemory, ViaAI: doneAI}, stop
+			}
 			if inProgress == 0 {
 				return convergence.PassProduction{Done: translated, ViaMemory: doneMemory, ViaAI: doneAI}, nil
 			}
@@ -1132,9 +1154,89 @@ func (o *convergenceOrchestrator) createSourceReviewTasks(ctx context.Context, r
 type stallError struct {
 	reason  convergence.StallReason
 	message string
+	// failed ends the run as failed rather than parked: nothing the run
+	// could do would advance it, and another pass would only repeat the
+	// refused calls.
+	failed bool
 }
 
 func (e *stallError) Error() string { return e.message }
+
+// StallProviderQuotaExhausted is the platform-only stall reason for a run
+// stopped because the AI provider refused calls on an exhausted account quota,
+// such as the Bedrock tokens-per-day quota. The wire value is fixed: it is
+// carried on run events and persisted on run rows.
+const StallProviderQuotaExhausted convergence.StallReason = "provider_quota_exhausted"
+
+// errStallProviderQuota stops a run whose jobs failed on an exhausted provider
+// quota. The quota is shared and resets in hours, so the run fails rather than
+// spend further passes on calls the provider will refuse.
+var errStallProviderQuota = &stallError{
+	reason:  StallProviderQuotaExhausted,
+	message: "the AI provider's quota is exhausted. Work so far is saved; run again once the quota resets",
+	failed:  true,
+}
+
+// errStallProviderThrottled stops a run whose jobs failed on provider rate
+// limiting after the worker's retries ran out.
+var errStallProviderThrottled = &stallError{
+	reason:  convergence.StallRateLimited,
+	message: "the AI provider kept rate limiting requests after retries. Work so far is saved; run again later",
+	failed:  true,
+}
+
+// providerLimitStop returns the stall that stops a run when one of a pass's
+// jobs failed on a provider limit, or nil when every failure is specific to
+// its item. An exhausted quota wins over throttling.
+func providerLimitStop(jobList []*jobs.TranslationJob) *stallError {
+	var stop *stallError
+	for _, j := range jobList {
+		if j.Status != jobs.StatusFailed {
+			continue
+		}
+		switch resilience.ClassifyProviderLimit(j.Error) {
+		case resilience.ProviderQuotaExhausted:
+			return errStallProviderQuota
+		case resilience.ProviderThrottled:
+			stop = errStallProviderThrottled
+		}
+	}
+	return stop
+}
+
+// skipQueuedJobs fails a push's jobs that are still queued once the run has
+// stopped, so a worker does not take them to the provider afterwards.
+func (o *convergenceOrchestrator) skipQueuedJobs(ctx context.Context, pushID string, stop *stallError) {
+	store := o.server.JobStore
+	if store == nil || pushID == "" {
+		return
+	}
+	ctx = context.WithoutCancel(ctx)
+	jobList, err := store.ListJobsByPushID(ctx, pushID)
+	if err != nil {
+		slog.WarnContext(ctx, "convergence: list jobs to skip failed", "push_id", pushID, "error", err)
+		return
+	}
+	reason := "skipped: " + stop.message
+	skipped := 0
+	for _, j := range jobList {
+		if j.Status != jobs.StatusQueued {
+			continue
+		}
+		ok, err := store.CancelJob(ctx, j.ID, reason)
+		if err != nil {
+			slog.WarnContext(ctx, "convergence: skip queued job failed", "job_id", j.ID, "error", err)
+			continue
+		}
+		if ok {
+			skipped++
+		}
+	}
+	if skipped > 0 {
+		slog.InfoContext(ctx, "convergence: skipped queued jobs after a provider limit",
+			"push_id", pushID, "skipped", skipped, "stall_reason", stop.reason)
+	}
+}
 
 // StallNeedsCredits is the platform-only stall reason: the credit pre-check
 // refused to produce (a zero-credit workspace). Work so far is saved; add
