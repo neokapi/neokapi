@@ -490,6 +490,9 @@ func foldDecoded(decoded []decodedOp, axes func(workspace.ProjectKey) axis.Space
 		}
 		r.Status = statusAtBirth(r.Kind)
 		r.Established = r.Kind.Bears() && r.Status == StatusEstablished
+		if r.Kind.Bears() {
+			r.Revision = r.ID
+		}
 		records = append(records, r)
 	}
 	// Id order, which is the order the operations were accepted in on every
@@ -537,8 +540,12 @@ func foldDecoded(decoded []decodedOp, axes func(workspace.ProjectKey) axis.Space
 			facts.kept[i] = true
 			if act.Subject.Kind != SubjectNone {
 				records[i].Subject = act.Subject
+				records[i].Revision = act.ID
 			}
 			if act.Scope.Level != "" || len(act.Scope.Coordinates) > 0 || act.Scope.AllProfiles || act.Scope.Windowed() {
+				if !sameScope(records[i].Scope, act.Scope) {
+					records[i].Revision = act.ID
+				}
 				records[i].Scope = act.Scope
 			}
 		case KindDrop:
@@ -559,6 +566,7 @@ func foldDecoded(decoded []decodedOp, axes func(workspace.ProjectKey) axis.Space
 			facts.signals[i] = append(facts.signals[i], at[act.ID])
 		case KindWiden:
 			records[i].Scope = act.Scope
+			records[i].Revision = act.ID
 		}
 	}
 	settle(records, facts)

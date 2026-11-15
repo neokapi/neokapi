@@ -163,10 +163,16 @@ const (
 	// session and the transcript state the hook ran at (CheckRun.Turn), so
 	// the hook running twice for one Stop records one operation.
 	KindCheck Kind = "check"
+	// KindAttest records that a person read one item at one revision and
+	// keeps it (an [Attestation]). It changes nothing in force. It names the
+	// operation it attests as its target when the item is an operation of
+	// this log; a concept or a voice rule lives in another store and is named
+	// by the attestation alone.
+	KindAttest Kind = "attest"
 )
 
 // Kinds is every operation kind, in the order a reader meets them.
-var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindReset, KindWiden, KindSignal, KindEstablish, KindCheck}
+var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindReset, KindWiden, KindSignal, KindEstablish, KindCheck, KindAttest}
 
 // Valid reports whether k is one of the declared kinds.
 func (k Kind) Valid() bool { return slices.Contains(Kinds, k) }
@@ -522,6 +528,13 @@ type Record struct {
 	// Standing counts the evidence for and against a suggestion, folded from
 	// the log. It is set on a term rule that settling considers.
 	Standing *Standing `json:"standing,omitempty"`
+	// Attest is what an attest operation carries.
+	Attest *Attestation `json:"attest,omitempty"`
+	// Revision names the subject as it reads now: the id of the operation
+	// that last changed its rule or its scope, which is the operation itself
+	// until a keep edits it or a widening moves it. It is folded, not stored,
+	// and an attestation names it.
+	Revision string `json:"revision,omitempty"`
 
 	// pending names the person signals a suggestion would be established on,
 	// when the log supports establishing it and no establish operation has
@@ -554,6 +567,7 @@ type payload struct {
 	Because    []string    `json:"because,omitempty"`
 	Check      *CheckRun   `json:"check,omitempty"`
 	Voice      *VoiceEdit  `json:"voice,omitempty"`
+	Attest     *Attestation `json:"attest,omitempty"`
 }
 
 // encode renders a record as the workspace operation that carries it.
@@ -572,6 +586,7 @@ func encode(r Record) (workspace.Op, error) {
 		Because:    r.Because,
 		Check:      r.Check,
 		Voice:      r.Voice,
+		Attest:     r.Attest,
 	})
 	if err != nil {
 		return workspace.Op{}, fmt.Errorf("contextop: encode %s operation: %w", r.Kind, err)
@@ -616,6 +631,7 @@ func decode(op workspace.Op) (Record, bool, error) {
 		Because:    body.Because,
 		Check:      body.Check,
 		Voice:      body.Voice,
+		Attest:     body.Attest,
 		At:         op.At.UTC(),
 	}, true, nil
 }
