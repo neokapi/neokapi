@@ -1045,9 +1045,14 @@ jobs:
           mkdir -p dmg
           cp -R bin/Kapi.app dmg/
           ln -s /Applications dmg/Applications
+          # hdiutil's own size estimate for -srcfolder can fall short of the
+          # content ("No space left on device" inside the mounted volume), so
+          # the image is sized from the folder with headroom.
+          size_mb=$(( $(du -sm dmg | cut -f1) * 12 / 10 + 50 ))
           # hdiutil flakes with "Resource busy" on macos-latest; retry up to 3x.
           for i in 1 2 3; do
             hdiutil create \
+              -size "${size_mb}m" \
               -volname "Kapi v${VERSION}" \
               -srcfolder dmg \
               -ov \
