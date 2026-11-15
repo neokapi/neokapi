@@ -1194,10 +1194,58 @@ func batchTranslationSchema() aiprovider.JSONSchema {
 
 // batchResult is the JSON structure returned by structured batch translation.
 type batchResult struct {
-	Translations []struct {
-		ID   string `json:"id"`
-		Text string `json:"text"`
-	} `json:"translations"`
+	Translations batchTranslations `json:"translations"`
+}
+
+// batchTranslation is one segment's result in a batch response.
+type batchTranslation struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+}
+
+// batchTranslations decodes the translations array. Some models return the
+// array JSON-encoded inside a string ("[{...}]"), or the whole response object
+// encoded in one ("{\"translations\": [...]}"). A string whose content decodes
+// to either shape is accepted; any other string is an error.
+type batchTranslations []batchTranslation
+
+func (b *batchTranslations) UnmarshalJSON(data []byte) error {
+	var arr []batchTranslation
+	trimmed := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(trimmed, `"`) {
+		if err := json.Unmarshal(data, &arr); err != nil {
+			return err
+		}
+		*b = arr
+		return nil
+	}
+	var inner string
+	if err := json.Unmarshal(data, &inner); err != nil {
+		return err
+	}
+	inner = strings.TrimSpace(inner)
+	switch {
+	case strings.HasPrefix(inner, "["):
+		if err := json.Unmarshal([]byte(inner), &arr); err != nil {
+			return fmt.Errorf("translations string is not a JSON array: %w", err)
+		}
+		*b = arr
+		return nil
+	case strings.HasPrefix(inner, "{"):
+		var obj struct {
+			Translations *[]batchTranslation `json:"translations"`
+		}
+		if err := json.Unmarshal([]byte(inner), &obj); err != nil {
+			return fmt.Errorf("translations string is not a JSON object: %w", err)
+		}
+		if obj.Translations == nil {
+			return errors.New("translations string holds an object without a translations array")
+		}
+		*b = *obj.Translations
+		return nil
+	default:
+		return errors.New("translations is a string that does not contain JSON")
+	}
 }
 
 // blockContext builds the reference material for one block: its key, and — when
