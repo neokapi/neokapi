@@ -3,6 +3,7 @@ package store
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -241,4 +242,40 @@ func TestProviderConfigResolveIgnoresStaleSlug(t *testing.T) {
 	got, err := s.Resolve(ctx, "ws-victim", victim.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "sk-victim-secret", got.APIKey)
+}
+
+func TestProviderConfigLatest(t *testing.T) {
+	s := newTestProviderStore(t, testCipher(t))
+	ctx := t.Context()
+
+	_, err := s.Latest(ctx, "ws-a")
+	require.ErrorIs(t, err, ErrProviderConfigNotFound, "a workspace with no config has no latest")
+	_, err = s.Latest(ctx, "")
+	require.ErrorIs(t, err, ErrProviderConfigNotFound)
+
+	save := func(ws, name, typ string) ProviderConfig {
+		t.Helper()
+		cfg, err := s.Upsert(ctx, &ProviderConfig{WorkspaceID: ws, Name: name, Type: typ, APIKey: "k-" + name})
+		require.NoError(t, err)
+		// Postgres timestamps are microsecond-precise; keep successive saves
+		// strictly ordered.
+		time.Sleep(2 * time.Millisecond)
+		return cfg
+	}
+	first := save("ws-a", "first", "openai")
+	second := save("ws-a", "second", "anthropic")
+	save("ws-b", "other", "gemini")
+
+	got, err := s.Latest(ctx, "ws-a")
+	require.NoError(t, err)
+	assert.Equal(t, second.ID, got.ID, "the most recently saved config is the latest")
+	assert.Empty(t, got.APIKey, "Latest must not carry the API key")
+
+	// Editing the older config makes it the latest again.
+	_, err = s.Upsert(ctx, &ProviderConfig{WorkspaceID: "ws-a", Name: "first", Type: "openai", Model: "gpt-5.6"})
+	require.NoError(t, err)
+	got, err = s.Latest(ctx, "ws-a")
+	require.NoError(t, err)
+	assert.Equal(t, first.ID, got.ID)
+	assert.Equal(t, "gpt-5.6", got.Model)
 }

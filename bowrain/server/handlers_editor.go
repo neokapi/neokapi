@@ -17,6 +17,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -663,6 +664,17 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	// a workspace out of platform credits but carrying its own key (saved
 	// provider_config_id or inline api_key) must still be allowed, mirroring the
 	// async enqueue pre-check. BYO burns no credits, so it is never gated.
+	//
+	// A request that names neither a saved config nor an inline key runs on the
+	// workspace's own saved key when it has one, the way automatic jobs do
+	// (workspaceProviderConfig). An explicit "platform" keeps the platform path.
+	wsID, _ := c.Get("workspace_id").(string)
+	if req.ProviderConfigID == "" && req.APIKey == "" {
+		if cfg, ok := s.workspaceProviderConfig(c.Request().Context(), wsID); ok {
+			req.ProviderConfigID = cfg.ID
+			req.Model = jobs.BYOModel(cfg)
+		}
+	}
 	byo := (req.ProviderConfigID != "" && req.ProviderConfigID != "platform") || req.APIKey != ""
 	if err := billing.GuardSyncCredits(c, s.BillingStore, byo, s.billingGuardEvent()); err != nil {
 		return err
@@ -673,7 +685,6 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	// it is optional: missing stores mean a bare translation, never an error.
 	voiceCtx := s.editorVoiceContext()
 
-	wsID, _ := c.Get("workspace_id").(string)
 	commit, err := s.requestCommit(c, pid)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})

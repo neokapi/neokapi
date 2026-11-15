@@ -362,20 +362,16 @@ func runWorker(dbURL string) error {
 	//
 	//   - BOWRAIN_PLATFORM_PROVIDER (e.g. "gemini", "openai", "anthropic",
 	//     "ollama", "demo") selects a generic upstream for self-hosted / local
-	//     dev with a plain API key. The key comes from BOWRAIN_PLATFORM_API_KEY
-	//     or a provider-specific env var (e.g. GEMINI_API_KEY). This takes
-	//     precedence over the Azure path.
+	//     dev with a plain API key. The key comes from the provider's own env var
+	//     (e.g. OPENAI_API_KEY), then BOWRAIN_PLATFORM_API_KEY; see
+	//     jobs.PlatformAPIKey. This takes precedence over the Azure path.
 	//   - BOWRAIN_OPENAI_ENDPOINT selects Azure OpenAI via managed identity
 	//     (the hosted Bowrain cloud).
 	switch {
 	case platformProvider != "":
-		apiKey := os.Getenv("BOWRAIN_PLATFORM_API_KEY")
-		if apiKey == "" {
-			apiKey = platformAPIKeyFromEnv(platformProvider)
-		}
 		translationDeps.Platform = &jobs.PlatformProviderConfig{
 			Provider: platformProvider,
-			APIKey:   apiKey,
+			APIKey:   jobs.PlatformAPIKey(platformProvider),
 			Model:    os.Getenv("BOWRAIN_PLATFORM_MODEL"),
 			BaseURL:  os.Getenv("BOWRAIN_PLATFORM_BASE_URL"),
 		}
@@ -581,6 +577,8 @@ func runWorker(dbURL string) error {
 		// optional — extraction degrades to the plain LLM pass.
 		Platform:         translationDeps.Platform,
 		PlatformResolver: platformResolver,
+		// A workspace that saved its own provider key extracts on it.
+		ProviderStore: providerStore,
 		// Extraction spends the platform key, so it is metered like every
 		// other AI path: the abuse cap sees each call and the credit ledger
 		// takes one deduction per job. Nil hooks (no STRIPE_SECRET_KEY)
@@ -810,44 +808,16 @@ func envOrDefault(key, fallback string) string {
 // ctrl-managed settings service, mirroring the startup BOWRAIN_PLATFORM_* switch:
 // a configured provider (e.g. "bedrock") takes the generic path with its env key.
 // Provider, model and base URL come from the service (so a ctrl change is picked
-// up live); the API key remains an env-sourced secret. Returns nil when no
-// provider is configured.
+// up live); the API key remains an env-sourced secret, resolved for the current
+// provider by jobs.PlatformAPIKey. Returns nil when no provider is configured.
 func platformConfigFromService(svc *platformconfig.Service) *jobs.PlatformProviderConfig {
 	if provider := svc.AIProvider(); provider != "" {
-		apiKey := os.Getenv("BOWRAIN_PLATFORM_API_KEY")
-		if apiKey == "" {
-			apiKey = platformAPIKeyFromEnv(provider)
-		}
 		return &jobs.PlatformProviderConfig{
 			Provider: provider,
-			APIKey:   apiKey,
+			APIKey:   jobs.PlatformAPIKey(provider),
 			Model:    svc.AIDefaultModel(),
 			BaseURL:  svc.AIBaseURL(),
 		}
 	}
 	return nil
-}
-
-// platformAPIKeyFromEnv resolves a platform-provider API key from the
-// provider-specific environment variables, so operators can supply e.g.
-// GEMINI_API_KEY directly without also setting BOWRAIN_PLATFORM_API_KEY.
-// Keyless providers (ollama, demo) return "".
-func platformAPIKeyFromEnv(provider string) string {
-	var names []string
-	switch strings.ToLower(provider) {
-	case "gemini":
-		names = []string{"GEMINI_API_KEY", "GOOGLE_API_KEY"}
-	case "openai":
-		names = []string{"OPENAI_API_KEY"}
-	case "anthropic":
-		names = []string{"ANTHROPIC_API_KEY"}
-	case "azureopenai":
-		names = []string{"AZURE_OPENAI_API_KEY"}
-	}
-	for _, n := range names {
-		if v := os.Getenv(n); v != "" {
-			return v
-		}
-	}
-	return ""
 }

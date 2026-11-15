@@ -74,17 +74,23 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project_id, item_name, and target_locale are required"})
 	}
 
-	// Default to platform provider if none specified.
-	providerConfigID := req.ProviderConfigID
-	if providerConfigID == "" {
-		providerConfigID = "platform"
-	}
-
 	// The billing workspace ID (set by WorkspaceAccessMiddleware) drives credit
 	// deduction in the worker; carry it on the job so platform runs are metered.
 	wsID, _ := c.Get("workspace_id").(string)
 
 	ctx := c.Request().Context()
+
+	// A request that names no provider runs on the workspace's own saved key
+	// when it has one (workspaceProviderConfig), otherwise on the platform.
+	providerConfigID := req.ProviderConfigID
+	model := req.Model
+	if providerConfigID == "" {
+		providerConfigID = "platform"
+		if cfg, ok := s.workspaceProviderConfig(ctx, wsID); ok {
+			providerConfigID = cfg.ID
+			model = jobs.BYOModel(cfg)
+		}
+	}
 
 	// Credit pre-check (Epic 004): refuse a platform-key job on a zero-credit
 	// workspace up front, before it runs and drives the ledger negative.
@@ -102,7 +108,7 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		Stream:           refParam(c),
 		TargetLocale:     req.TargetLocale,
 		ProviderConfigID: providerConfigID,
-		Model:            req.Model,
+		Model:            model,
 		BatchSize:        req.BatchSize,
 		Concurrency:      req.Concurrency,
 		Status:           jobs.StatusQueued,

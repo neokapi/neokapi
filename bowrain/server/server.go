@@ -90,6 +90,9 @@ type Server struct {
 	// multi-tenant, keychain-free replacement for CredentialStore on the
 	// /:ws/providers surface. Nil until PostgreSQL stores are initialized.
 	ProviderStore *bstore.ProviderConfigStore
+	// latestProviderConfig overrides ProviderStore.Latest in tests that run
+	// without Postgres. Nil in production.
+	latestProviderConfig func(ctx context.Context, workspaceID string) (bstore.ProviderConfig, error)
 
 	// ConnectorConfigStore persists workspace-scoped connector configurations
 	// (WordPress, Figma, HubSpot, …) so they survive a restart, with credential

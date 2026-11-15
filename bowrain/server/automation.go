@@ -436,13 +436,19 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 	}
 }
 
-// createTranslationJobs creates and enqueues one platform translation job per
+// createTranslationJobs creates and enqueues one translation job per
 // (item, locale), returning the enqueued job IDs. It is the shared production
 // primitive behind both the auto-extract/translate automation path and the
 // convergence orchestrator's Produce step; the model resolution and provider
-// binding ("platform" + BOWRAIN_PLATFORM_PROVIDER) are identical for both.
+// binding are identical for both.
 //
-// On a zero-credit workspace it refuses to spawn jobs and returns a typed
+// A workspace that has saved its own AI provider key runs these jobs on that
+// key: the job names the workspace's most recently updated provider config (see
+// workspaceProviderConfig), takes that config's model or the provider's default
+// model, and is never charged credits. Every other workspace runs on the
+// platform provider ("platform").
+//
+// On a zero-credit workspace it refuses to spawn platform jobs and returns a typed
 // errStallNeedsCredits sentinel (NOT an empty list silently) so the convergence
 // orchestrator can label the run's stall_reason instead of parking with no
 // reason (strategy 2026-07-dogfood doc 06, theme C). A workspace over its
@@ -453,18 +459,15 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 	if s.JobStore == nil || s.JobQueue == nil {
 		return nil, nil
 	}
-	// Credit pre-check (Epic 004): these are platform-key jobs. Refuse to spawn
-	// them for a zero-credit workspace so automation (and the convergence
-	// orchestrator) can't drive the ledger deeply negative. Self-hosted/unbilled
+	providerConfigID, model := s.translationJobProvider(ctx, proj)
+	// Credit pre-check (Epic 004): refuse to spawn platform-key jobs for a
+	// zero-credit workspace so automation (and the convergence orchestrator)
+	// can't drive the ledger deeply negative. BYO jobs and self-hosted/unbilled
 	// deployments are never blocked.
-	if s.insufficientPlatformCredits(ctx, proj.WorkspaceID, "platform") {
+	if s.insufficientPlatformCredits(ctx, proj.WorkspaceID, providerConfigID) {
 		slog.Warn("translation jobs: skipped, workspace out of credits",
 			"workspace_id", proj.WorkspaceID, "project", proj.ID)
 		return nil, errStallNeedsCredits
-	}
-	model := "gpt-4o-mini"
-	if proj.Properties != nil && proj.Properties["ai_model"] != "" {
-		model = proj.Properties["ai_model"]
 	}
 	if wsSlug == "" {
 		wsSlug = "_anon"
@@ -496,7 +499,7 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 				ItemName:         itemName,
 				Stream:           stream,
 				TargetLocale:     locale,
-				ProviderConfigID: "platform",
+				ProviderConfigID: providerConfigID,
 				Model:            model,
 				PushID:           pushID,
 				StepID:           stepID,
