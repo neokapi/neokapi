@@ -86,6 +86,14 @@ type ReviewDeckCounts struct {
 	Unclassified int
 }
 
+// ReviewDeckCollectionCounts counts the deck of one collection, beside every
+// translation of the language the collection holds: the ones waiting, the
+// ones approved and the ones set aside.
+type ReviewDeckCollectionCounts struct {
+	ReviewDeckCounts
+	Translations int
+}
+
 // ReviewDeckStore keeps the review deck's facts. The PostgreSQL store
 // implements it.
 type ReviewDeckStore interface {
@@ -102,6 +110,10 @@ type ReviewDeckStore interface {
 	// CountReviewDeck counts the deck by group, and what is not classified.
 	// A translation set aside is not counted.
 	CountReviewDeck(ctx context.Context, q ReviewDeckQuery) (ReviewDeckCounts, error)
+	// CountReviewDeckByCollection counts the deck as CountReviewDeck does,
+	// once per collection, keyed by collection id ("" for blocks in none).
+	// A collection with translations and nothing waiting is present.
+	CountReviewDeckByCollection(ctx context.Context, q ReviewDeckQuery) (map[string]ReviewDeckCollectionCounts, error)
 }
 
 // ReviewDeckStores finds the review deck store behind a content store,

@@ -2,7 +2,8 @@
 // then every language they may review, across projects and workspaces, where
 // translations are waiting, most waiting first. The server lists both, counts
 // them as each deck counts them and orders them (GET /auth/me/review); the app
-// shows the lists as they come.
+// shows the lists as they come. A language opens its collections, to take the
+// deck one collection at a time.
 import type { ContextInboxEntry, ReviewInboxLanguage } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
@@ -33,7 +34,7 @@ const InboxRow = memo(function InboxRow({
   const open = () => {
     setRecentProject({ ws: item.workspace, project: item.project, name: item.project_name });
     router.push({
-      pathname: "/[ws]/[project]/[locale]",
+      pathname: "/review/[ws]/[project]/[locale]",
       params: { ws: item.workspace, project: item.project, locale: item.locale },
     });
   };

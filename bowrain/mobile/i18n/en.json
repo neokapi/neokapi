@@ -136,6 +136,22 @@
     "doneBody_other": "You reviewed {{count}} items.",
     "doneEmpty": "Nothing waits for review."
   },
+  "collections": {
+    "title": "Collections",
+    "all": "All collections",
+    "none": "Not in a collection",
+    "empty": "Nothing in this language is waiting for review.",
+    "progress": "{{decided}} of {{total}} reviewed",
+    "rowLabel_one": "{{name}}, 1 card waiting, {{decided}} of {{total}} reviewed",
+    "rowLabel_other": "{{name}}, {{count}} cards waiting, {{decided}} of {{total}} reviewed",
+    "doneBody_one": "You reviewed 1 card in {{name}}.",
+    "doneBody_other": "You reviewed {{count}} cards in {{name}}.",
+    "doneEmpty": "Nothing in {{name}} is waiting for review.",
+    "next": "Next: {{name}}",
+    "nextWaiting_one": "1 card waiting",
+    "nextWaiting_other": "{{count}} cards waiting",
+    "back": "All collections"
+  },
   "deck": {
     "title": "Review",
     "remaining_one": "1 card here, {{total}} waiting",

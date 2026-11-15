@@ -212,6 +212,75 @@ describe("client", () => {
     expect(fixes?.dropped).toHaveLength(1);
   });
 
+  it("narrows the deck to a collection and lists a language's collections", async () => {
+    const collections = {
+      locale: "nb",
+      stream: "main",
+      all: {
+        collection_id: "",
+        name: "",
+        waiting: 3,
+        fast: 2,
+        closer: 1,
+        desk: 0,
+        unclassified: 0,
+        translations: 5,
+        decided: 2,
+      },
+      collections: [
+        {
+          collection_id: "c1",
+          name: "web",
+          waiting: 3,
+          fast: 2,
+          closer: 1,
+          desk: 0,
+          unclassified: 0,
+          translations: 5,
+          decided: 2,
+        },
+      ],
+    };
+    const urls: string[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string) => {
+        urls.push(url);
+        if (url.includes("/collections"))
+          return new Response(JSON.stringify(collections), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            locale: "nb",
+            cards: [],
+            counts: { fast: 0, closer: 0, desk: 0, total: 0 },
+          }),
+          {
+            status: 200,
+          },
+        );
+      }) as typeof fetch,
+    });
+    const scope = { workspace: "ws", project: "p" };
+    expect(await client.deckCollections(scope, "nb")).toEqual(collections);
+    await client.deck(scope, "nb", { limit: 50, collection: "c1" });
+    await client.deck(scope, "nb", { collection: "" });
+    expect(urls).toEqual([
+      "http://server/api/v1/ws/p/review-deck/main/collections?locale=nb",
+      "http://server/api/v1/ws/p/review-deck/main?locale=nb&limit=50&collection=c1",
+      "http://server/api/v1/ws/p/review-deck/main?locale=nb&collection=",
+    ]);
+  });
+
+  it("answers null for a language's collections from a server without the route", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => new Response("{}", { status: 404 })) as typeof fetch,
+    });
+    expect(await client.deckCollections({ workspace: "ws", project: "p" }, "nb")).toBeNull();
+  });
+
   it("refreshes once on a 401", async () => {
     let token = "old";
     const client = createBowrainClient({

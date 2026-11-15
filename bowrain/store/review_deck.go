@@ -17,7 +17,15 @@ var _ platstore.ReviewDeckStore = (*PostgresStore)(nil)
 // beside each translation: its pre-review, its ledger row and its facts.
 //
 // $1 project, $2 stream, $3 locale, $4 policy; a collection scope binds $5.
-const reviewDeckFrom = ` FROM blocks b JOIN translations t
+const reviewDeckFrom = reviewDeckTranslations + reviewDeckPending
+
+// reviewDeckPending keeps, of reviewDeckTranslations, those waiting for
+// review: an established translation has been approved.
+const reviewDeckPending = ` AND COALESCE(t.target_json->>'status', '') <> 'established'`
+
+// reviewDeckTranslations is every translation of one language, reviewed or
+// not, joined as reviewDeckFrom joins it.
+const reviewDeckTranslations = ` FROM blocks b JOIN translations t
 	ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2
 	LEFT JOIN items i
 	ON i.project_id = b.project_id AND i.stream = $2 AND i.name = b.item_name
@@ -29,7 +37,7 @@ const reviewDeckFrom = ` FROM blocks b JOIN translations t
 	LEFT JOIN review_deck_facts f
 	ON f.project_id = b.project_id AND f.stream = $2 AND f.block_id = b.id AND f.locale = t.locale
 	WHERE b.project_id = $1 AND b.stream = $2 AND b.translatable AND t.text <> ''
-	AND COALESCE(t.target_json->>'status', '') <> 'established' AND t.locale = $3`
+	AND t.locale = $3`
 
 // reviewDeckFresh holds when a translation's facts were computed from the
 // rows as they stand, under the policy asked for, within the last day.
@@ -203,6 +211,47 @@ func (s *PostgresStore) CountReviewDeck(ctx context.Context, q platstore.ReviewD
 			continue
 		}
 		out.ByRank[rank] += n
+	}
+	return out, rows.Err()
+}
+
+// CountReviewDeckByCollection counts the deck of each collection, with every
+// translation of the language in it. See platstore.ReviewDeckStore.
+func (s *PostgresStore) CountReviewDeckByCollection(ctx context.Context, q platstore.ReviewDeckQuery) (map[string]platstore.ReviewDeckCollectionCounts, error) {
+	scope, args := reviewDeckArgs(q)
+	// Rank -3 is an established translation, -2 one set aside, -1 one whose
+	// facts are missing or no longer hold.
+	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
+	query := `SELECT COALESCE(i.collection_id, '') AS coll, CASE
+			WHEN COALESCE(t.target_json->>'status', '') = 'established' THEN -3
+			WHEN ` + reviewDeckFresh + ` AND f.group_rank < 0 THEN -2
+			WHEN ` + reviewDeckFresh + ` THEN f.group_rank
+			ELSE -1 END AS rank, count(*)` +
+		reviewDeckTranslations + scope + ` GROUP BY coll, rank`
+	rows, err := s.db.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("count review deck by collection: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]platstore.ReviewDeckCollectionCounts{}
+	for rows.Next() {
+		var coll string
+		var rank, n int
+		if err := rows.Scan(&coll, &rank, &n); err != nil {
+			return nil, fmt.Errorf("scan review deck count by collection: %w", err)
+		}
+		c, ok := out[coll]
+		if !ok {
+			c.ByRank = map[int]int{}
+		}
+		c.Translations += n
+		switch {
+		case rank == -1:
+			c.Unclassified += n
+		case rank >= 0:
+			c.ByRank[rank] += n
+		}
+		out[coll] = c
 	}
 	return out, rows.Err()
 }

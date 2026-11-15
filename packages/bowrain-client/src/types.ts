@@ -185,6 +185,37 @@ export interface ContextDecisionResult {
   changeset_id?: string;
 }
 
+/**
+ * A language's review deck narrowed to one collection (deckCollection). The
+ * counts are those of ReviewInboxLanguage; `translations` is every
+ * translation of the language in the collection and `decided` the part no
+ * longer waiting, so `decided` of `translations` is the progress. An empty
+ * `collection_id` is the blocks in no collection.
+ */
+export interface DeckCollection {
+  collection_id: string;
+  name: string;
+  waiting: number;
+  fast: number;
+  closer: number;
+  desk: number;
+  unclassified: number;
+  translations: number;
+  decided: number;
+}
+
+/**
+ * A language's review deck split by collection, in the server's order:
+ * collections with anything waiting first, finished ones last. `all` is the
+ * whole language.
+ */
+export interface DeckCollections {
+  locale: string;
+  stream: string;
+  all: DeckCollection;
+  collections: DeckCollection[];
+}
+
 /** One locale's committed target (BlockTargetInfo). */
 export interface BlockTarget {
   text: string;

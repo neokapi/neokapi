@@ -656,6 +656,45 @@ classified by this call. The list is sorted most waiting first.
 A server without the route answers 404, and the Review tab says so and
 points to Home.
 
+### A language's deck by collection
+
+`GET /:ws/:id/review-deck/:ref/collections?locale=nb`
+
+The deck of one language split by collection, so a reviewer takes it one
+collection at a time. Permission is the deck's: `review` for the language.
+The request classifies new translations within the deck's budget, then
+counts.
+
+Collections with something waiting come first, in the project's collection
+order (the default collection, then by name). The blocks in no collection
+follow, with an empty `collection_id`. Collections with nothing left
+waiting come last. A collection with no translation in the language is
+absent. `all` is the whole language, the deck without `collection`.
+
+`translations` is every translation of the language in the collection and
+`decided` the part no longer waiting (approved, or rejected and waiting for
+a new draft), so `decided` of `translations` is the collection's progress.
+The deck opens on one collection with `collection=<collection_id>`.
+
+```json
+{
+  "locale": "nb",
+  "stream": "main",
+  "all": {"collection_id": "", "name": "", "waiting": 52, "fast": 30, "closer": 10, "desk": 4, "unclassified": 8, "translations": 140, "decided": 88},
+  "collections": [
+    {"collection_id": "c-01J...", "name": "web-ui", "waiting": 40, "fast": 30, "closer": 6, "desk": 2, "unclassified": 2, "translations": 100, "decided": 60},
+    {"collection_id": "c-01K...", "name": "docs", "waiting": 12, "fast": 0, "closer": 4, "desk": 2, "unclassified": 6, "translations": 30, "decided": 18},
+    {"collection_id": "c-01L...", "name": "emails", "waiting": 0, "fast": 0, "closer": 0, "desk": 0, "unclassified": 0, "translations": 10, "decided": 10}
+  ]
+}
+```
+
+In the app, a language in the Review tab opens this list. Each row shows
+what waits and how much of the collection is decided; a row opens the deck
+on that collection, and the first row opens the whole language. When a
+collection's deck runs out, the end screen offers the next collection with
+anything waiting.
+
 ### Fix candidates
 
 `GET /:ws/:id/blocks/:ref/:bid/fix-candidates?locale=nb&reason=wrong_term&ai=false`
