@@ -49,6 +49,7 @@ COPY packages/editor-grid/package.json packages/editor-grid/
 COPY packages/status-views/package.json packages/status-views/
 COPY packages/project-screens/package.json packages/project-screens/
 COPY packages/flow-editor/package.json packages/flow-editor/
+COPY packages/bowrain-client/package.json packages/bowrain-client/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/packages/app/package.json bowrain/packages/app/
 COPY bowrain/apps/web/package.json bowrain/apps/web/
@@ -74,6 +75,7 @@ COPY packages/editor-grid/ packages/editor-grid/
 COPY packages/status-views/ packages/status-views/
 COPY packages/project-screens/ packages/project-screens/
 COPY packages/flow-editor/ packages/flow-editor/
+COPY packages/bowrain-client/ packages/bowrain-client/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 # bowrain/apps/web's vite.config imports ../../packages/app/neokapi-i18n.config.json
 # (the extract config shared with the desktop app), so the app package must be
