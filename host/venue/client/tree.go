@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -51,24 +52,52 @@ type TreeResponse struct {
 // An empty scope asks for everything the stream holds — which is what a push
 // declaring no scope needs, since it computes its diff against the venue's
 // whole content and claims authority over none of it.
+//
+// A scope travels in the body of a POST. A push's scope excludes every file its
+// patterns match that no format reads, and as a query string that passes the
+// 8 KB URL limit of the CDN in front of a hosted server. A server that predates
+// the POST route answers 404 or 405, and the scope is then sent as a query.
 func (c *BowrainClient) Tree(ctx context.Context, scope venue.Scope) (*TreeResponse, error) {
 	if c == nil {
 		return nil, errNotConnected()
 	}
-	endpoint := c.streamPrefix() + "/tree"
-	if len(scope) > 0 {
-		q := url.Values{}
-		for _, pat := range scope {
-			if pat != "" {
-				q.Add("scope", pat)
-			}
+	patterns := make([]string, 0, len(scope))
+	for _, pat := range scope {
+		if pat != "" {
+			patterns = append(patterns, pat)
 		}
-		endpoint += "?" + q.Encode()
 	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if len(patterns) == 0 {
+		return c.fetchTree(ctx, http.MethodGet, c.streamPrefix()+"/tree", nil)
+	}
+	body, err := json.Marshal(map[string][]string{"scope": patterns})
 	if err != nil {
 		return nil, err
+	}
+	tree, err := c.fetchTree(ctx, http.MethodPost, c.streamPrefix()+"/tree", body)
+	var se *StatusError
+	if err == nil || !errors.As(err, &se) ||
+		(se.StatusCode != http.StatusNotFound && se.StatusCode != http.StatusMethodNotAllowed) {
+		return tree, err
+	}
+	q := url.Values{}
+	for _, pat := range patterns {
+		q.Add("scope", pat)
+	}
+	return c.fetchTree(ctx, http.MethodGet, c.streamPrefix()+"/tree?"+q.Encode(), nil)
+}
+
+func (c *BowrainClient) fetchTree(ctx context.Context, method, endpoint string, body []byte) (*TreeResponse, error) {
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		httpReq.Header.Set("Content-Type", "application/json")
 	}
 	resp, err := c.Do(httpReq)
 	if err != nil {
