@@ -94,7 +94,16 @@ func (s *Server) soloReviewOverride(ctx context.Context, wsID, actor string, cs 
 	if actor != cs.CreatedBy {
 		return false
 	}
+	return s.soleReviewer(ctx, wsID, actor)
+}
 
+// soleReviewer reports whether actor owns the workspace and no other member
+// holds the review permission, which is when the owner may review their own
+// work. It fails closed, as soloReviewOverride describes.
+func (s *Server) soleReviewer(ctx context.Context, wsID, actor string) bool {
+	if s.AuthStore == nil || wsID == "" || actor == "" {
+		return false
+	}
 	membership, err := s.AuthStore.GetMembership(ctx, wsID, actor)
 	if err != nil || membership == nil || membership.Role != platauth.RoleOwner {
 		return false

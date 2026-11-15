@@ -36,6 +36,7 @@ var contextOpOperations = map[contextop.Kind]platev.ContextOperation{
 	contextop.KindDrop:      platev.ContextOpDrop,
 	contextop.KindWithdraw:  platev.ContextOpRetire,
 	contextop.KindReset:     platev.ContextOpRetire,
+	contextop.KindAttest:    platev.ContextOpAttest,
 }
 
 // contextItemKinds maps a ledger subject kind to the item kind a context
@@ -50,8 +51,16 @@ var contextItemKinds = map[contextop.SubjectKind]platev.ContextItemKind{
 // ledgerOpHead is the part of a context operation's payload a context change
 // reads.
 type ledgerOpHead struct {
-	Actor contextop.Actor `json:"actor"`
-	Voice json.RawMessage `json:"voice"`
+	Actor  contextop.Actor        `json:"actor"`
+	Voice  json.RawMessage        `json:"voice"`
+	Attest *contextop.Attestation `json:"attest"`
+}
+
+// attestedItemKinds maps an attested item in another store to the item kind
+// a context change counts it under.
+var attestedItemKinds = map[contextop.ItemKind]platev.ContextItemKind{
+	contextop.ItemConcept:   platev.ContextItemTerm,
+	contextop.ItemVoiceRule: platev.ContextItemVoiceRule,
 }
 
 // subjectResolver returns the subject kind a context operation is about,
@@ -79,7 +88,9 @@ func countLedgerOps(ops []workspace.Op, resolve subjectResolver) (platev.Context
 			_ = json.Unmarshal(op.Payload, &head)
 		}
 		item := platev.ContextItemDecision
-		if len(head.Voice) > 0 && string(head.Voice) != "null" {
+		if mapped, ok := attestedItemKinds[attestedKind(head.Attest)]; ok {
+			item = mapped
+		} else if len(head.Voice) > 0 && string(head.Voice) != "null" {
 			item = platev.ContextItemVoiceProfile
 		} else if subject, ok := resolve(op, kind); ok {
 			if mapped, ok := contextItemKinds[subject]; ok {
@@ -92,6 +103,14 @@ func countLedgerOps(ops []workspace.Op, resolve subjectResolver) (platev.Context
 		}
 	}
 	return counts, actors
+}
+
+// attestedKind is the kind of item an attestation names, empty for none.
+func attestedKind(a *contextop.Attestation) contextop.ItemKind {
+	if a == nil {
+		return ""
+	}
+	return a.Item.Kind
 }
 
 // ledgerOpSubject is the part of a context operation's payload a sample

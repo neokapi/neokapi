@@ -270,6 +270,15 @@ func TestRevisionsMonotonic(t *testing.T) {
 	assert.Equal(t, int64(1), revs[0].Rev)
 	assert.Equal(t, int64(3), revs[2].Rev)
 	assert.JSONEq(t, `{"id":"c1"}`, string(revs[0].Snapshot))
+
+	require.NoError(t, store.AddRevision(ctx, &ConceptRevision{WorkspaceID: testWS, ConceptID: "c2", Actor: "dave"}))
+	require.NoError(t, store.AddRevision(ctx, &ConceptRevision{WorkspaceID: "ws-other", ConceptID: "c9", Actor: "erin"}))
+	byConcept, err := store.LatestRevisions(ctx, testWS)
+	require.NoError(t, err)
+	require.Len(t, byConcept, 2, "one latest revision per concept of the workspace")
+	assert.Equal(t, int64(3), byConcept["c1"].Rev)
+	assert.Equal(t, "carol", byConcept["c1"].Actor)
+	assert.Equal(t, int64(1), byConcept["c2"].Rev)
 }
 
 // TestMarketsLocalesRoundtrip covers market CRUD and the JSONB locales array.

@@ -759,6 +759,10 @@ func (f *fakeKnowledgeStore) ListRevisions(context.Context, string, string) ([]*
 
 func (f *fakeKnowledgeStore) LatestRev(context.Context, string, string) (int64, error) { return 0, nil }
 
+func (f *fakeKnowledgeStore) LatestRevisions(context.Context, string) (map[string]*knowledge.ConceptRevision, error) {
+	return map[string]*knowledge.ConceptRevision{}, nil
+}
+
 // --- Change-sets -----------------------------------------------------------
 
 func (f *fakeKnowledgeStore) CreateChangeSet(_ context.Context, cs *knowledge.ChangeSet) error {

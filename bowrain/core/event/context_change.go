@@ -55,6 +55,9 @@ const (
 	ContextOpRetire ContextOperation = "retire"
 	ContextOpKeep   ContextOperation = "keep"
 	ContextOpDrop   ContextOperation = "drop"
+	// ContextOpAttest is a person attesting that they reviewed an item,
+	// which changes nothing in force.
+	ContextOpAttest ContextOperation = "attest"
 )
 
 // ContextCounts counts the items of a context change by item kind and
