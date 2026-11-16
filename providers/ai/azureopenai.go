@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/neokapi/neokapi/core/httputil"
 )
 
 const defaultAzureAPIVersion = "2024-10-21"
@@ -48,7 +46,7 @@ func NewAzureOpenAIProvider(cfg Config) *AzureOpenAIProvider {
 		config:     cfg,
 		deployment: cfg.Model,
 		apiVersion: defaultAzureAPIVersion,
-		client:     httputil.NewResilientClient(),
+		client:     newChatClient(),
 	}
 }
 
@@ -64,7 +62,7 @@ func NewAzureOpenAITokenProvider(endpoint, deployment string, tp TokenProvider) 
 		},
 		deployment:    deployment,
 		apiVersion:    defaultAzureAPIVersion,
-		client:        httputil.NewResilientClient(),
+		client:        newChatClient(),
 		tokenProvider: tp,
 	}
 }
