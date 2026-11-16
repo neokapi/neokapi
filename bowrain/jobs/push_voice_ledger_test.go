@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projector"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/workspace"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -92,6 +93,29 @@ func projectVoiceEdits(t *testing.T, deps *WorkerDeps, projectID string) ([]cont
 		}
 	}
 	return out, writers
+}
+
+// serverSegments reads the ledger segments the server wrote into the
+// project, each as the operations it holds.
+func serverSegments(t *testing.T, deps *WorkerDeps, projectID string) [][]workspace.Op {
+	t.Helper()
+	ctx := t.Context()
+	objects, ok := store.ContextObjects(deps.ContentStore)
+	require.True(t, ok)
+	names, err := objects.ListContextObjects(ctx, projectID, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	var out [][]workspace.Op
+	for _, name := range names {
+		if workspace.SegmentWriter(name) != voicewrite.Writer {
+			continue
+		}
+		obj, err := objects.GetContextObject(ctx, projectID, name)
+		require.NoError(t, err)
+		ops, err := workspace.DecodeSegment(obj.Data, voiceLedgerKey)
+		require.NoError(t, err)
+		out = append(out, ops)
+	}
+	return out
 }
 
 // TestPushVoiceLedger_RecordsEachWriteOnce: a push writes the voice profile
@@ -191,13 +215,20 @@ func TestPushVoiceLedger_RecordsEachWriteOnce(t *testing.T) {
 					server = append(server, e)
 				}
 			}
+			segments := serverSegments(t, deps, "p1")
 			if tt.wantClient {
 				require.Len(t, edits, 1, "the client's operation is the one record")
 				assert.Equal(t, clientOp, edits[0].ID)
 				assert.Contains(t, edits[0].Note, "claude-code shell")
+				assert.Empty(t, segments, "the client carries its own store write, so none echoes back")
 				return
 			}
 			require.Len(t, server, 1, "the server records the write as the pusher's")
+			require.Len(t, segments, 1)
+			require.Len(t, segments[0], 2, "the record and the store write share one segment")
+			assert.Equal(t, server[0].ID, segments[0][0].ID)
+			assert.Equal(t, projector.KindVoice, segments[0][1].Kind)
+			assert.Contains(t, string(segments[0][1].Payload), `"id":"acme-voice"`, "stored under the id a checkout spells from the name")
 			assert.Equal(t, contextop.ActorPerson, server[0].Actor.Kind)
 			assert.Equal(t, "pushed with `kapi push`", server[0].Note)
 			assert.Equal(t, profiles[0].ID, server[0].Voice.Profile)
