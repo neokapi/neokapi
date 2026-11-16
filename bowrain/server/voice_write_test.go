@@ -267,12 +267,12 @@ func TestContextDeck_VoiceRuleAuthorIsTheLedgers(t *testing.T) {
 	clientOp := putClientVoiceEdit(t, s, proj.ID, before, &after)
 	objects, _ := s.contextObjects()
 	ledger := &workspaceVoiceLedger{s: s, wsID: wsID, objects: objects,
-		put: func(ctx context.Context, projectID, pushedBy string, obj platstore.ContextObject) error {
+		put: func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error {
 			return objects.PutContextObjects(ctx, projectID, pushedBy, []platstore.ContextObject{obj})
 		}}
 	res, err := voicewrite.Apply(ctx, s.VoiceStore, ledger, voicewrite.Write{
 		Before: before, After: &after, Actor: contextop.Actor{Kind: contextop.ActorPerson},
-		PushedBy: "member-b", Note: "pushed with `kapi push`", Recorded: clientOp,
+		PushedBy: platstore.Member("member-b"), Note: "pushed with `kapi push`", Recorded: clientOp,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, clientOp, res.Op, "the client's operation is the record")
@@ -320,7 +320,7 @@ func putClientVoiceEdit(t *testing.T, s *Server, projectID string, before, after
 	data, err := workspace.EncodeSegment(log.ops)
 	require.NoError(t, err)
 	cos, _ := s.contextObjects()
-	require.NoError(t, cos.PutContextObjects(t.Context(), projectID, "member-b",
+	require.NoError(t, cos.PutContextObjects(t.Context(), projectID, platstore.Member("member-b"),
 		[]platstore.ContextObject{{Name: workspace.SegmentName("laptop", rec.ID), Data: data}}))
 	return rec.ID
 }

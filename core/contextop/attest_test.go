@@ -112,3 +112,27 @@ func TestAttest_ItemInAnotherStore(t *testing.T) {
 	assert.True(t, reviews[ref.Key()].Current("3"))
 	assert.False(t, reviews[ref.Key()].Current("4"))
 }
+
+func TestReviews_CountsOnlyAPersonsAttestation(t *testing.T) {
+	item := contextop.ItemRef{Kind: contextop.ItemOp, ID: "op1"}
+	tests := []struct {
+		name   string
+		actor  contextop.Actor
+		counts bool
+	}{
+		{"a person", person("asgeir"), true},
+		{"an actor with no kind reads as a person", contextop.Actor{Name: "asgeir"}, true},
+		{"an agent", agent("claude", "s1"), false},
+		{"a tool issued by a member", contextop.Actor{Kind: contextop.ActorTool, Name: "dogfood-sync", OnBehalfOf: "Asgeir"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reviews := contextop.Reviews([]contextop.Record{{
+				ID: "a1", Kind: contextop.KindAttest, Actor: tt.actor,
+				Attest: &contextop.Attestation{Item: item, Revision: "op1", Verdict: contextop.VerdictKeep, Basis: contextop.BasisPeer},
+			}})
+			_, ok := reviews[item.Key()]
+			assert.Equal(t, tt.counts, ok)
+		})
+	}
+}

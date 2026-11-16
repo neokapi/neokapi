@@ -43,7 +43,7 @@ const (
 func (s *Server) registerRulesDecideRoutes(g *echo.Group) {
 	g.GET("/:id/rules/:ref/decide", s.HandleRulesDecideView)
 	g.GET("/:id/rules/:ref/decide/consequence", s.HandleRulesDecideConsequence)
-	g.POST("/:id/rules/:ref/decide", s.HandleDecideRule)
+	g.POST("/:id/rules/:ref/decide", s.refuseTool(s.HandleDecideRule))
 	g.POST("/:id/rules/:ref/assign", s.HandleAssignRule)
 	g.GET("/:id/rules/:ref/assignees", s.HandleRuleAssignees)
 	g.GET("/:id/rules/:ref/kept", s.HandleKeptRules)

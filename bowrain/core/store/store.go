@@ -290,7 +290,7 @@ type PushApplier interface {
 	// hold, and refuses a name held with other bytes with a
 	// *ContextObjectExistsError. BindContextKey binds an unbound project and
 	// returns the key it is bound to after the call.
-	PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []ContextObject) (int, error)
+	PutContextObjects(ctx context.Context, projectID string, pushedBy Pusher, batch []ContextObject) (int, error)
 	BindContextKey(ctx context.Context, projectID, key string) (string, error)
 
 	// The apply marker. A push job claims it on its own transaction, so a job

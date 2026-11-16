@@ -157,6 +157,9 @@ type contextDeckAuthor struct {
 	// Host is the agent host a person recorded the item from, read from the
 	// operation's note ("recorded as a person in a claude-code shell").
 	Host string `json:"host,omitempty"`
+	// OnBehalfOf names the member an agent or a tool ran for, when the store
+	// records it: the member who issued the token a tool pushed with.
+	OnBehalfOf string `json:"on_behalf_of,omitempty"`
 	// AgentAuthored says an agent or a tool wrote the item, or a person in an
 	// agent host's shell.
 	AgentAuthored bool `json:"agent_authored"`
@@ -220,7 +223,7 @@ func opAuthor(r contextop.Record) contextDeckAuthor {
 	if kind == "" {
 		kind = contextop.ActorPerson
 	}
-	a := contextDeckAuthor{Kind: string(kind), Name: r.Actor.Name, Session: r.Actor.Session}
+	a := contextDeckAuthor{Kind: string(kind), Name: r.Actor.Name, Session: r.Actor.Session, OnBehalfOf: r.Actor.OnBehalfOf}
 	if m := overrideNote.FindStringSubmatch(r.Note); m != nil {
 		a.Host = m[1]
 	}
@@ -258,12 +261,15 @@ func (s *Server) memberName(ctx context.Context, userID string, names map[string
 	return name, name != ""
 }
 
-// memberAuthor is an item a store records under a member's user id, or
-// under "agent/<name>" for one an agent wrote. An id that names no member
-// shows no name rather than the id.
+// memberAuthor is an item a store records under a member's user id, under
+// "agent/<name>" for one an agent wrote, or under "tool/<name>" for one a
+// tool wrote. An id that names no member shows no name rather than the id.
 func (s *Server) memberAuthor(ctx context.Context, userID string, names map[string]string) contextDeckAuthor {
-	if name, ok := strings.CutPrefix(userID, "agent/"); ok {
+	if name, ok := strings.CutPrefix(userID, platauth.AgentIdentityPrefix); ok {
 		return contextDeckAuthor{Kind: string(contextop.ActorAgent), Name: name, AgentAuthored: true}
+	}
+	if name, ok := platauth.ToolOfIdentity(userID); ok {
+		return contextDeckAuthor{Kind: string(contextop.ActorTool), Name: name, AgentAuthored: true}
 	}
 	if userID == "" {
 		return contextDeckAuthor{Kind: string(contextop.ActorPerson)}

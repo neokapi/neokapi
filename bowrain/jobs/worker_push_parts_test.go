@@ -248,7 +248,7 @@ func TestPushParts_AFailingPartRollsBackTheContent(t *testing.T) {
 		{
 			name: "a ledger object the project holds with other bytes",
 			setup: func(t *testing.T, e *partsEnv) {
-				require.NoError(t, e.cs.PutContextObjects(t.Context(), partsProject, "someone", []store.ContextObject{
+				require.NoError(t, e.cs.PutContextObjects(t.Context(), partsProject, store.Member("someone"), []store.ContextObject{
 					{Name: partsSegment, Data: []byte("other bytes\n")},
 				}))
 			},

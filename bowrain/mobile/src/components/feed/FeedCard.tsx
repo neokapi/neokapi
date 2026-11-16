@@ -95,7 +95,7 @@ function FeedCardView({ card, onOpen, onOpenLanguage }: FeedCardProps) {
   const action = foldedActionOf(card, t, i18n.language);
   const folded = card.entries.length > 1;
   const meta = [
-    lead.actor.kind === "agent" && lead.on_behalf_of?.name
+    lead.actor.kind !== "person" && lead.on_behalf_of?.name
       ? t("feed.forMember", { name: lead.on_behalf_of.name })
       : undefined,
     ageLabel(lead.at, t, i18n.language),

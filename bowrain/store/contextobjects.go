@@ -48,8 +48,8 @@ func (s *PostgresStore) GetContextObject(ctx context.Context, projectID, name st
 	}
 	obj := platstore.ContextObject{Name: name}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT data, sha256, pushed_by, pushed_at FROM context_objects WHERE project_id = $1 AND name = $2`,
-		projectID, name).Scan(&obj.Data, &obj.SHA256, &obj.PushedBy, &obj.PushedAt)
+		`SELECT data, sha256, pushed_by, pushed_tool, pushed_token, pushed_at FROM context_objects WHERE project_id = $1 AND name = $2`,
+		projectID, name).Scan(&obj.Data, &obj.SHA256, &obj.PushedBy.UserID, &obj.PushedBy.Tool, &obj.PushedBy.TokenID, &obj.PushedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: %s", platstore.ErrNoContextObject, name)
 	}
@@ -64,7 +64,7 @@ func (s *PostgresStore) GetContextObject(ctx context.Context, projectID, name st
 // inserted unless its name is held; a held name's bytes are then compared. Two
 // pushes creating one name at once serialize on the primary key: the second
 // insert waits for the first to commit and finds its row.
-func (s *PostgresStore) PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []platstore.ContextObject) error {
+func (s *PostgresStore) PutContextObjects(ctx context.Context, projectID string, pushedBy platstore.Pusher, batch []platstore.ContextObject) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("put context objects: %w", err)
@@ -82,7 +82,7 @@ func (s *PostgresStore) PutContextObjects(ctx context.Context, projectID, pushed
 // putContextObjectsTx writes batch on tx and returns how many of its objects
 // the project did not hold. A name held with other bytes refuses the batch
 // with a *platstore.ContextObjectExistsError; the caller rolls tx back.
-func putContextObjectsTx(ctx context.Context, tx Runner, projectID, pushedBy string, batch []platstore.ContextObject) (int, error) {
+func putContextObjectsTx(ctx context.Context, tx Runner, projectID string, pushedBy platstore.Pusher, batch []platstore.ContextObject) (int, error) {
 	for _, obj := range batch {
 		if err := storeutil.CheckContextObject(obj.Name, obj.Data); err != nil {
 			return 0, err
@@ -101,10 +101,10 @@ func putContextObjectsTx(ctx context.Context, tx Runner, projectID, pushedBy str
 		}
 		digest := storeutil.ContextObjectDigest(data)
 		res, err := tx.ExecContext(ctx,
-			`INSERT INTO context_objects (project_id, name, data, sha256, pushed_by, pushed_at)
-			 VALUES ($1, $2, $3, $4, $5, NOW())
+			`INSERT INTO context_objects (project_id, name, data, sha256, pushed_by, pushed_tool, pushed_token, pushed_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 			 ON CONFLICT (project_id, name) DO NOTHING`,
-			projectID, obj.Name, data, digest, pushedBy)
+			projectID, obj.Name, data, digest, pushedBy.UserID, pushedBy.Tool, pushedBy.TokenID)
 		if err != nil {
 			return 0, fmt.Errorf("put context object %s: %w", obj.Name, err)
 		}

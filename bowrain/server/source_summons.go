@@ -133,7 +133,7 @@ func (s *Server) notifySourceOwners(ctx context.Context, task *bstore.Task, owne
 // read from it rather than inferred from the block. DecidedBy is written as the
 // decider's email when the auth store could resolve one and the opaque user id
 // otherwise (recordReviewDecision), so both spellings resolve back to a user
-// here; machine deciders ("ai/…", "agent/…") are nobody to notify.
+// here; machine deciders ("ai/…", "agent/…", "tool/…") are nobody to notify.
 //
 // Best-effort throughout: a store without the ledger capability, an unreadable
 // block, or an unresolvable name yields fewer recipients, never an error.
@@ -177,7 +177,7 @@ func (s *Server) userIDForDecider(ctx context.Context, decidedBy string) string 
 	if decidedBy == "" || s.AuthStore == nil {
 		return ""
 	}
-	if strings.HasPrefix(decidedBy, "ai/") || strings.HasPrefix(decidedBy, "agent/") {
+	if strings.HasPrefix(decidedBy, "ai/") || platauth.IsMachineIdentity(decidedBy) {
 		return ""
 	}
 	if strings.Contains(decidedBy, "@") {

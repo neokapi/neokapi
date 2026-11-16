@@ -136,7 +136,6 @@ annotations_p7.payload jsonb NOT NULL DEFAULT '{}'::jsonb
 annotations_p7.project_id text NOT NULL
 annotations_p7.stream text NOT NULL DEFAULT 'main'::text
 annotations_p7.updated_at timestamp with time zone NOT NULL DEFAULT now()
-api_tokens.agent_name text NOT NULL DEFAULT ''::text
 api_tokens.created_at timestamp with time zone NOT NULL DEFAULT now()
 api_tokens.expires_at timestamp with time zone NULL
 api_tokens.id text NOT NULL
@@ -145,6 +144,7 @@ api_tokens.name text NOT NULL
 api_tokens.scopes text NOT NULL DEFAULT '["*"]'::text
 api_tokens.token_hash text NOT NULL
 api_tokens.token_prefix text NOT NULL
+api_tokens.tool_name text NOT NULL DEFAULT ''::text
 api_tokens.user_id text NOT NULL
 api_tokens.workspace_id text NOT NULL
 asset_variants.asset_id text NOT NULL
@@ -362,6 +362,8 @@ context_objects.name text NOT NULL
 context_objects.project_id text NOT NULL
 context_objects.pushed_at timestamp with time zone NOT NULL DEFAULT now()
 context_objects.pushed_by text NOT NULL DEFAULT ''::text
+context_objects.pushed_token text NOT NULL DEFAULT ''::text
+context_objects.pushed_tool text NOT NULL DEFAULT ''::text
 context_objects.sha256 text NOT NULL
 context_scan_jobs.attempts integer NOT NULL DEFAULT 0
 context_scan_jobs.claim_epoch bigint NOT NULL DEFAULT 0

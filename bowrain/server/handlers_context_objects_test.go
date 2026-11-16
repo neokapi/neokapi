@@ -118,7 +118,7 @@ func TestContextObjectRoutes_PushedByAndPermissions_SQLite(t *testing.T) {
 	require.NoError(t, writer.Put(ctx, workspace.Object{Name: name, Data: workspacetest.Segment("prj", "000000000000000000000001", "one")}))
 	obj, err := cs.GetContextObject(ctx, pid, name)
 	require.NoError(t, err)
-	assert.Equal(t, "member-a", obj.PushedBy)
+	assert.Equal(t, platstore.Member("member-a"), obj.PushedBy)
 
 	readerURL := contextObjectSQLiteServer(t, cs, "viewer", platauth.PermViewContent)
 	reader := contextRemote(t, readerURL, "ws", pid, "unused")
@@ -223,7 +223,7 @@ func TestContextObjectRoutes_RemoteConformance_Postgres(t *testing.T) {
 		require.True(t, ok)
 		obj, err := cos.GetContextObject(ctx, pid, name)
 		require.NoError(t, err)
-		assert.Equal(t, "test-user", obj.PushedBy)
+		assert.Equal(t, platstore.Member("test-user"), obj.PushedBy)
 
 		viewer := &platauth.User{ID: "viewer-user", Email: "viewer@example.com", Name: "Viewer"}
 		require.NoError(t, srv.AuthStore.CreateUser(ctx, viewer))

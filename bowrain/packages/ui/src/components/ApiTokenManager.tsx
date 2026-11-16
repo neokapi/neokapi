@@ -121,9 +121,10 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const [copied, setCopied] = useState(false);
   const [deleteTokenId, setDeleteTokenId] = useState<string | null>(null);
 
-  // Machine identity: names the runner or agent this token is for. Empty means
-  // an ordinary personal token, which is what most tokens are.
-  const [agentName, setAgentName] = useState("");
+  // A tool token belongs to a named tool, such as a CI workflow. Most tokens
+  // are personal.
+  const [forTool, setForTool] = useState(false);
+  const [toolName, setToolName] = useState("");
 
   // Scope selection state
   const [scopeMode, setScopeMode] = useState<"full" | "custom">("full");
@@ -193,7 +194,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
         name.trim(),
         days,
         scopes,
-        agentName.trim() || undefined,
+        forTool ? toolName.trim() || undefined : undefined,
       );
       setCreatedToken(resp);
       setTokens((prev) => [
@@ -202,7 +203,8 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
           user_id: "",
           workspace_id: "",
           name: resp.name,
-          agent_name: resp.agent_name,
+          tool_name: resp.tool_name,
+          issued_by: resp.issued_by,
           token_prefix: resp.token_prefix,
           scopes: resp.scopes,
           last_used_at: null,
@@ -239,7 +241,8 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       setName("");
-      setAgentName("");
+      setForTool(false);
+      setToolName("");
       setExpiryPreset("30");
       setCustomDate(addDays(30));
       setScopeMode("full");
@@ -312,6 +315,9 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                     Name
                   </th>
                   <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Used by
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
                     Prefix
                   </th>
                   <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
@@ -335,15 +341,19 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                       key={t.id}
                       className={`border-b border-border/50 transition-colors hover:bg-accent/50 ${expired ? "opacity-50" : ""}`}
                     >
-                      <td className="px-4 py-2.5 text-sm font-medium">
-                        {t.name}
-                        {t.agent_name && (
-                          <span
-                            className="ml-2 font-mono text-xs font-normal text-muted-foreground"
-                            title="Work pushed with this token is authored by this machine, not by the person who minted it"
-                          >
-                            agent/{t.agent_name}
-                          </span>
+                      <td className="px-4 py-2.5 text-sm font-medium">{t.name}</td>
+                      <td className="px-4 py-2.5 text-sm" data-testid="token-used-by">
+                        {t.tool_name ? (
+                          <>
+                            <span className="font-mono">{t.tool_name}</span>
+                            {t.issuer_name && (
+                              <span className="block text-xs text-muted-foreground">
+                                Issued by {t.issuer_name}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">{t.issuer_name}</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground">
@@ -448,31 +458,49 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 />
               </div>
               <div>
-                <Label className="text-muted-foreground">Machine identity (optional)</Label>
-                <Input
-                  value={agentName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setAgentName(e.target.value)
-                  }
-                  placeholder="e.g. kapi-ci"
-                  className="mt-1 font-mono"
-                  data-testid="token-agent-name-input"
-                />
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  {agentName.trim() ? (
-                    <>
-                      Change-sets pushed with this token will be authored by{" "}
-                      <span className="font-mono">agent/{agentName.trim()}</span>, so you can review
-                      them.
-                    </>
-                  ) : (
-                    <>
-                      Name the runner or agent that will hold this token, and its work is authored
-                      by the machine instead of by you, which leaves you free to review it. Leave
-                      empty for a personal token.
-                    </>
-                  )}
-                </p>
+                <Label className="text-muted-foreground">Used by</Label>
+                <div className="mt-2 flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="token-holder"
+                      checked={!forTool}
+                      onChange={() => setForTool(false)}
+                      className="accent-primary"
+                      data-testid="token-for-me-radio"
+                    />
+                    <span className="text-sm">Me</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="token-holder"
+                      checked={forTool}
+                      onChange={() => setForTool(true)}
+                      className="accent-primary"
+                      data-testid="token-for-tool-radio"
+                    />
+                    <span className="text-sm">A tool</span>
+                  </label>
+                </div>
+                {forTool && (
+                  <>
+                    <Input
+                      value={toolName}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setToolName(e.target.value)
+                      }
+                      placeholder="dogfood-sync"
+                      aria-label="Tool name"
+                      className="mt-2 font-mono"
+                      data-testid="token-tool-name-input"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Lowercase letters, digits, - and _. Its work is recorded as the tool's, issued
+                      by you. You can review that work; the token cannot.
+                    </p>
+                  </>
+                )}
               </div>
               <div>
                 <Label className="text-muted-foreground">Expiration</Label>

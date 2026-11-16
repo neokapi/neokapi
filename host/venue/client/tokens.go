@@ -15,12 +15,16 @@ import (
 type CreateTokenRequest struct {
 	Name       string `json:"name"`
 	ExpireDays int    `json:"expire_days,omitempty"`
+	// ToolName makes the token a tool token: the server records work done
+	// under it as the named tool's, issued by the member who mints it.
+	ToolName string `json:"tool_name,omitempty"`
 }
 
 // CreateTokenResponse is returned after creating a token.
 type CreateTokenResponse struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
+	ToolName    string     `json:"tool_name,omitempty"`
 	TokenPrefix string     `json:"token_prefix"`
 	Token       string     `json:"token"`
 	Scopes      string     `json:"scopes"`
@@ -32,6 +36,9 @@ type CreateTokenResponse struct {
 type TokenInfo struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
+	ToolName    string     `json:"tool_name,omitempty"`
+	IssuedBy    string     `json:"issued_by,omitempty"`
+	IssuerName  string     `json:"issuer_name,omitempty"`
 	TokenPrefix string     `json:"token_prefix"`
 	Scopes      string     `json:"scopes"`
 	LastUsedAt  *time.Time `json:"last_used_at"`
@@ -40,8 +47,8 @@ type TokenInfo struct {
 }
 
 // CreateToken creates a new API token in the given workspace.
-func CreateToken(ctx context.Context, serverURL, token, workspace, name string, expireDays int) (*CreateTokenResponse, error) {
-	body, err := json.Marshal(CreateTokenRequest{Name: name, ExpireDays: expireDays})
+func CreateToken(ctx context.Context, serverURL, token, workspace string, spec CreateTokenRequest) (*CreateTokenResponse, error) {
+	body, err := json.Marshal(spec)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}

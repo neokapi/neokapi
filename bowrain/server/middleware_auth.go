@@ -178,11 +178,13 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 	c.Set("name", user.Name)
 	c.Set("api_token_id", apiToken.ID)
 	c.Set("api_token_scopes", apiToken.Scopes)
-	// A machine token authors as the machine. user_id stays the token's owner,
-	// because that is who is accountable and whose membership resolves the
-	// permissions — only authorship moves. See authorIdentity.
-	if apiToken.AgentName != "" {
+	// A tool token acts as the tool. user_id stays the member who issued it,
+	// who is accountable and whose membership resolves the permissions; the
+	// tool is recorded as who did the work. See requestActor.
+	if apiToken.IsTool() {
 		c.Set("author_identity", apiToken.AuthorIdentity())
+		c.Set(toolNameKey, apiToken.ToolName)
+		ctx = platev.WithTool(ctx, platev.Tool{Name: apiToken.ToolName, TokenID: apiToken.ID})
 	}
 	// Propagate actor into the request context for event attribution.
 	ctx = platev.WithActor(ctx, user.ID, user.Name)
@@ -523,7 +525,13 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 				s.recordCustodyLapse(c, access.coordinates)
 			}
 
-			c.Set("project_permissions", access.permissions)
+			perms := access.permissions
+			// A tool token never approves or rejects translations, whatever
+			// its issuer's membership and its scopes grant.
+			if requestActorOf(c).isTool() {
+				perms &^= reviewDeniedToTools
+			}
+			c.Set("project_permissions", perms)
 			c.Set("project_languages", access.languages)
 			c.Set("project_coordinates", access.coordinates)
 
@@ -748,7 +756,6 @@ func ScopeRestrictionMiddleware() echo.MiddlewareFunc {
 			if !ok {
 				return next(c) // no project permissions to restrict
 			}
-
 			resolved, err := platauth.ParseScopes(scopesJSON)
 			if err != nil || resolved.IsFullAccess {
 				return next(c) // "*" scope or parse error — no restriction

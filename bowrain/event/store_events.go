@@ -41,6 +41,7 @@ func (s *EventEmittingStore) publish(ctx context.Context, ev platev.Event) {
 			}
 		}
 	}
+	ev.Data = platev.StampTool(ctx, ev.Data)
 	if meta := platev.RequestMetaFromContext(ctx); meta != (platev.RequestMeta{}) {
 		if ev.RequestID == "" {
 			ev.RequestID = meta.RequestID

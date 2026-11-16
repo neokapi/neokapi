@@ -133,7 +133,7 @@ func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
 		CreatedBy:   userID,
 	}
 
-	res, err := s.writeVoiceProfile(c.Request().Context(), wsID, memberVoiceWrite(userID, nil, profile, "created in Bowrain"))
+	res, err := s.writeVoiceProfile(c.Request().Context(), wsID, memberVoiceWrite(requestActorOf(c), nil, profile, "created in Bowrain"))
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -172,9 +172,8 @@ func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	wsID, _ := c.Get("workspace_id").(string)
-	userID, _ := c.Get("user_id").(string)
 
-	result, err := s.upsertVoiceProfile(ctx, wsID, userID, req, "superseded by kapi push", "written through the voice profile upsert")
+	result, err := s.upsertVoiceProfile(ctx, wsID, requestActorOf(c), req, "superseded by kapi push", "written through the voice profile upsert")
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -219,7 +218,7 @@ type voiceProfileUpsert struct {
 // The caller emits any audit event: the same upsert is reached from the
 // upsert endpoint and from a context-scan approval, and those are not the
 // same act.
-func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, req VoiceProfileRequest, versionNote, note string) (voiceProfileUpsert, error) {
+func (s *Server) upsertVoiceProfile(ctx context.Context, wsID string, actor requestActor, req VoiceProfileRequest, versionNote, note string) (voiceProfileUpsert, error) {
 	profiles, err := s.VoiceStore.ListProfiles(ctx, wsID)
 	if err != nil {
 		return voiceProfileUpsert{}, err
@@ -249,9 +248,9 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 			Version:     1,
 			CreatedAt:   now,
 			UpdatedAt:   now,
-			CreatedBy:   userID,
+			CreatedBy:   actor.UserID,
 		}
-		res, err := s.writeVoiceProfile(ctx, wsID, memberVoiceWrite(userID, nil, profile, note))
+		res, err := s.writeVoiceProfile(ctx, wsID, memberVoiceWrite(actor, nil, profile, note))
 		if err != nil {
 			return voiceProfileUpsert{}, err
 		}
@@ -284,7 +283,7 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 
 	// UpdateProfile archives the current state as an immutable ProfileVersion
 	// and bumps existing.Version — the incoming change lands as a new version.
-	res, err := s.writeVoiceProfile(ctx, wsID, memberVoiceWrite(userID, &before, existing, note))
+	res, err := s.writeVoiceProfile(ctx, wsID, memberVoiceWrite(actor, &before, existing, note))
 	if err != nil {
 		return voiceProfileUpsert{}, err
 	}
@@ -410,8 +409,7 @@ func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
 	profile.MinScore = req.MinScore
 	profile.UpdatedAt = time.Now().UTC()
 
-	userID, _ := c.Get("user_id").(string)
-	res, err := s.writeVoiceProfile(ctx, profile.Scope, memberVoiceWrite(userID, &before, profile, "edited in Bowrain"))
+	res, err := s.writeVoiceProfile(ctx, profile.Scope, memberVoiceWrite(requestActorOf(c), &before, profile, "edited in Bowrain"))
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -446,8 +444,7 @@ func (s *Server) HandleDeleteVoiceProfile(c echo.Context) error {
 	if !profileInRequestWorkspace(c, profile) {
 		return apiErr(c, http.StatusNotFound, "voice profile not found")
 	}
-	userID, _ := c.Get("user_id").(string)
-	if _, err := s.writeVoiceProfile(ctx, profile.Scope, memberVoiceWrite(userID, profile, nil, "removed in Bowrain")); err != nil {
+	if _, err := s.writeVoiceProfile(ctx, profile.Scope, memberVoiceWrite(requestActorOf(c), profile, nil, "removed in Bowrain")); err != nil {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -564,7 +561,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 	}
 
 	res, err := s.writeVoiceProfile(c.Request().Context(), wsID,
-		memberVoiceWrite(userID, nil, profile, "created from the "+req.Pack+" starter pack"))
+		memberVoiceWrite(requestActorOf(c), nil, profile, "created from the "+req.Pack+" starter pack"))
 	if err != nil {
 		return serverErr(c, err)
 	}

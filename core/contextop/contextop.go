@@ -93,6 +93,10 @@ type Actor struct {
 	// can be reviewed together, or the context reset to before it. Empty for a
 	// person and for a tool.
 	Session string `json:"session,omitempty"`
+	// OnBehalfOf names the member an agent or a tool ran for, when the server
+	// that records the operation knows it: the member who issued the token a
+	// tool pushed with. Empty for a person.
+	OnBehalfOf string `json:"on_behalf_of,omitempty"`
 }
 
 // String renders an actor for a log line: "agent claude/abc123", "person asgeir",

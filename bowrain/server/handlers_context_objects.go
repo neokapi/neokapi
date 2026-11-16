@@ -185,8 +185,7 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	if refused || err != nil {
 		return err
 	}
-	pushedBy, _ := c.Get("user_id").(string)
-	err = cos.PutContextObjects(ctx, projectID, pushedBy, batch)
+	err = cos.PutContextObjects(ctx, projectID, requestActorOf(c).pusher(), batch)
 	if exists, ok := errors.AsType[*platstore.ContextObjectExistsError](err); ok {
 		return c.JSON(http.StatusConflict, ErrorResponse{
 			Error: "the project already holds that context object with other bytes", Details: exists.Name, Code: contextObjectExistsCode,

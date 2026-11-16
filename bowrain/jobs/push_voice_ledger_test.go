@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
@@ -154,7 +155,7 @@ func TestPushVoiceLedger_RecordsEachWriteOnce(t *testing.T) {
 				var segment store.ContextObject
 				segment, clientOp = clientVoiceSegment(t, tt.client())
 				if tt.heldBy != "" {
-					require.NoError(t, objects.PutContextObjects(ctx, "p1", tt.heldBy, []store.ContextObject{segment}))
+					require.NoError(t, objects.PutContextObjects(ctx, "p1", store.Member(tt.heldBy), []store.ContextObject{segment}))
 				}
 				if tt.carried {
 					ledger.Objects = []apiclient.ContextObjectWire{{Name: segment.Name, Data: segment.Data}}
@@ -201,5 +202,58 @@ func TestPushVoiceLedger_RecordsEachWriteOnce(t *testing.T) {
 			assert.Equal(t, "pushed with `kapi push`", server[0].Note)
 			assert.Equal(t, profiles[0].ID, server[0].Voice.Profile)
 		})
+	}
+}
+
+// A push made with a tool token stores its segments as the tool's, and records
+// its voice profile write as the tool's, issued by the member. An operation the
+// member pushed in person earlier is not the record of the tool's write.
+func TestPushVoiceLedger_AToolsPushIsTheTools(t *testing.T) {
+	deps, _ := newTransitionDeps(t)
+	ctx := platev.WithTool(t.Context(), platev.Tool{Name: "dogfood-sync", TokenID: "tok-1"})
+	newContextProject(t, ctx, deps, "p1", "ws1")
+	objects, ok := store.ContextObjects(deps.ContentStore)
+	require.True(t, ok)
+	_, err := objects.BindContextKey(ctx, "p1", voiceLedgerKey)
+	require.NoError(t, err)
+
+	profile := &coreprofile.VoiceProfile{
+		ID: "acme-voice", Name: "Acme Voice",
+		Style: coreprofile.StyleRules{ProhibitedPatterns: []coreprofile.Pattern{{Regex: `\bleverage\b`}}},
+	}
+	segment, clientOp := clientVoiceSegment(t, profile)
+	require.NoError(t, objects.PutContextObjects(t.Context(), "p1", store.Member("user-1"), []store.ContextObject{segment}))
+	authored, err := json.Marshal(profile)
+	require.NoError(t, err)
+	entry := contextEntry("docs", map[string]string{"product": "kapi"}, "", "Acme Voice", authored)
+	entry.VoiceOp = clientOp
+
+	ledger := pushLedger{}
+	err = deps.PushTransition(ctx, func(st PushStores) error {
+		_, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1",
+			newPushVoiceLedger(ctx, deps, st.Content, "p1", "user-1", ledger), []*pb.SyncContextEntry{entry})
+		return rerr
+	})
+	require.NoError(t, err)
+
+	edits, writers := projectVoiceEdits(t, deps, "p1")
+	var server []contextop.Record
+	for _, e := range edits {
+		if writers[e.ID] == voicewrite.Writer {
+			server = append(server, e)
+		}
+	}
+	require.Len(t, server, 1, "the member's own earlier operation is not the tool's record")
+	assert.Equal(t, contextop.Actor{Kind: contextop.ActorTool, Name: "dogfood-sync"}, server[0].Actor)
+
+	names, err := objects.ListContextObjects(ctx, "p1", workspace.RemoteLogDir)
+	require.NoError(t, err)
+	for _, name := range names {
+		if workspace.SegmentWriter(name) != voicewrite.Writer {
+			continue
+		}
+		obj, err := objects.GetContextObject(ctx, "p1", name)
+		require.NoError(t, err)
+		assert.Equal(t, store.Pusher{UserID: "user-1", Tool: "dogfood-sync", TokenID: "tok-1"}, obj.PushedBy)
 	}
 }

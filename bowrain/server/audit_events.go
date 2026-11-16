@@ -43,6 +43,9 @@ func (s *Server) emitAudit(c echo.Context, ev auditEvent) {
 			data["actor_name"] = name
 		}
 	}
+	// Under a tool token the tool is who acted and the member issued it: the
+	// tool's name and token replace any actor the data named.
+	data = platev.StampTool(c.Request().Context(), data)
 
 	wsID := ev.WorkspaceID
 	if wsID == "" {

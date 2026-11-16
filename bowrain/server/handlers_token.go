@@ -19,12 +19,12 @@ type CreateTokenRequest struct {
 	Name       string   `json:"name"`
 	ExpireDays int      `json:"expire_days,omitempty"` // 0 = no expiration
 	Scopes     []string `json:"scopes,omitempty"`      // e.g. ["*"], ["read"], ["translate:fr,de"]
-	// AgentName names the machine this token is for — a CI runner, a
-	// kapi-action step, an agent-driven kapi. Setting it makes the token a
-	// machine token: change-sets pushed under it are authored by
-	// "agent/<AgentName>", so the person who minted it can review them.
-	// Omitting it leaves the token an ordinary personal one.
-	AgentName string `json:"agent_name,omitempty"`
+	// ToolName names the tool this token is for, such as a CI workflow or a
+	// kapi-action step. Setting it makes the token a tool token: the server
+	// records work done under it as the tool's ("tool/<ToolName>"), issued by
+	// the member who mints it, and that member can review the tool's work.
+	// Omitting it leaves the token a personal one.
+	ToolName string `json:"tool_name,omitempty"`
 }
 
 // CreateTokenResponse is returned after creating a token. The plaintext
@@ -32,7 +32,8 @@ type CreateTokenRequest struct {
 type CreateTokenResponse struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
-	AgentName   string     `json:"agent_name,omitempty"`
+	ToolName    string     `json:"tool_name,omitempty"`
+	IssuedBy    string     `json:"issued_by,omitempty"`
 	TokenPrefix string     `json:"token_prefix"`
 	Token       string     `json:"token"` // plaintext, shown once
 	Scopes      string     `json:"scopes"`
@@ -53,7 +54,14 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	if req.Name == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
 	}
-	if err := platauth.ValidateAgentName(req.AgentName); err != nil {
+	// A token mints no token: a tool acts for its issuer and stops when its
+	// own token is revoked.
+	if a := requestActorOf(c); a.isTool() {
+		return c.JSON(http.StatusForbidden, ErrorResponse{
+			Error: "a tool token cannot mint tokens: sign in as a member to mint one", Code: toolTokenRefusedCode,
+		})
+	}
+	if err := platauth.ValidateToolName(req.ToolName); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
@@ -84,7 +92,7 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 		UserID:      userID,
 		WorkspaceID: workspaceID,
 		Name:        req.Name,
-		AgentName:   req.AgentName,
+		ToolName:    req.ToolName,
 		ScopesJSON:  scopesJSON,
 		ExpiresAt:   expiresAt,
 	})
@@ -92,9 +100,9 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	auditData := map[string]string{"name": token.Name, "scopes": token.Scopes}
-	if token.AgentName != "" {
-		// The identity, not the bare name: this is the string that will appear
-		// as the author of every change-set the machine proposes.
+	if token.IsTool() {
+		// The identity, not the bare name: this is the string that appears
+		// as the author of every change-set the tool proposes.
 		auditData["author_identity"] = token.AuthorIdentity()
 	}
 	s.emitAudit(c, auditEvent{
@@ -110,14 +118,15 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	// laptop; `scope` says what that channel was trusted with. Neither the token
 	// nor its name travels — a token name is something a person typed.
 	props := analytics.Props(workspaceID, "")
-	props["machine"] = token.AgentName != ""
+	props["machine"] = token.IsTool()
 	props["scope"] = scopeActions(token.Scopes)
 	s.trackEvent(userID, analytics.EventAPITokenCreated, props)
 
 	return c.JSON(http.StatusCreated, CreateTokenResponse{
 		ID:          token.ID,
 		Name:        token.Name,
-		AgentName:   token.AgentName,
+		ToolName:    token.ToolName,
+		IssuedBy:    token.IssuedBy,
 		TokenPrefix: token.TokenPrefix,
 		Token:       plaintext,
 		Scopes:      token.Scopes,
@@ -177,15 +186,34 @@ func (s *Server) HandleDeleteToken(c echo.Context) error {
 	}
 
 	tokenID := c.Param("id")
+	workspaceID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
+	// Only a token of this workspace is revoked here. Revoking deletes the
+	// token and nothing else: the issuer's sign-in and other tokens stay, and
+	// the records the token made keep its id and tool name.
+	tokens, err := s.AuthStore.ListAPITokens(ctx, workspaceID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	idx := slices.IndexFunc(tokens, func(t *platauth.APIToken) bool { return t.ID == tokenID })
+	if idx < 0 {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "api token " + tokenID + " not found"})
+	}
+	revoked := tokens[idx]
 	if err := s.AuthStore.DeleteAPIToken(ctx, tokenID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	data := map[string]string{"name": revoked.Name}
+	if revoked.IsTool() {
+		data["tool"] = revoked.ToolName
+		data["issued_by"] = revoked.IssuedBy
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventTokenRevoked,
 		ResourceType: "api_token",
 		ResourceID:   tokenID,
+		Data:         data,
 	})
 
 	return c.NoContent(http.StatusNoContent)

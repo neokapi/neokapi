@@ -70,3 +70,31 @@ func TestBaselineOnAnEmptyDatabaseNamesTheColumnDirectly(t *testing.T) {
 		WHERE table_name = 'workspaces' AND column_name = 'brand_voice_profile_id'`).Scan(&n))
 	assert.Zero(t, n, "the former name must not survive on a fresh database")
 }
+
+// The tool name of an API token moved from agent_name to tool_name. A database
+// that predates the rename keeps its rows under the new name.
+func TestBaselineRenamesAPITokenAgentName(t *testing.T) {
+	db := pgtest.NewTestDB(t)
+	ctx := t.Context()
+
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE api_tokens (
+			id           TEXT PRIMARY KEY,
+			user_id      TEXT NOT NULL,
+			workspace_id TEXT NOT NULL,
+			name         TEXT NOT NULL,
+			agent_name   TEXT NOT NULL DEFAULT '',
+			token_hash   TEXT UNIQUE NOT NULL,
+			token_prefix TEXT NOT NULL
+		);
+		INSERT INTO api_tokens (id, user_id, workspace_id, name, agent_name, token_hash, token_prefix)
+		VALUES ('t1', 'u1', 'ws1', 'CI', 'kapi-ci', 'h1', 'bwt_ab12');`)
+	require.NoError(t, err)
+
+	require.NoError(t, storage.MigratePostgresNS(db, "auth_schema_migrations", auth.Migrations))
+
+	var tool string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT tool_name FROM api_tokens WHERE id = 't1'`).Scan(&tool))
+	assert.Equal(t, "kapi-ci", tool, "the rename carries the rows")
+	require.NoError(t, storage.MigratePostgresNS(db, "auth_schema_migrations", auth.Migrations), "the baseline applies again")
+}

@@ -82,12 +82,17 @@ func (r *Review) Current(revision string) bool {
 // Reviews returns the latest attestation of every item the records attest,
 // keyed by ItemRef.Key. The records are read in id order, so a later
 // attestation of an item replaces an earlier one. An attestation set aside by
-// a reset is left out.
+// a reset is left out, and so is one an agent or a tool recorded: only a
+// person reviews (PersonDecides), and a server reads an operation a tool
+// pushed as the tool's, whatever actor the operation names.
 func Reviews(records []Record) map[string]*Review {
 	out := map[string]*Review{}
 	var latest map[string]string
 	for _, r := range records {
 		if r.Kind != KindAttest || r.Attest == nil || r.Status == StatusReset {
+			continue
+		}
+		if r.Actor.Kind != "" && r.Actor.Kind != ActorPerson {
 			continue
 		}
 		key := r.Attest.Item.Key()

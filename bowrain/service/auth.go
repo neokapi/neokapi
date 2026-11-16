@@ -413,18 +413,18 @@ func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy s
 }
 
 // APITokenSpec describes a token to mint. It is a struct rather than a
-// parameter list because UserID, WorkspaceID, Name, AgentName and ScopesJSON
+// parameter list because UserID, WorkspaceID, Name, ToolName and ScopesJSON
 // are five adjacent strings, and adjacent strings get transposed.
 type APITokenSpec struct {
 	// UserID is the person the token belongs to and whose membership decides
-	// what it may do. Required, machine token or not.
+	// what it may do: the issuer of a tool token. Required.
 	UserID      string
 	WorkspaceID string
 	Name        string
-	// AgentName, when set, makes this a machine token: work authored under it
-	// is attributed to "agent/<AgentName>" instead of to UserID. Empty leaves
-	// the token an ordinary personal one.
-	AgentName string
+	// ToolName, when set, makes this a tool token: the server records work done
+	// under it as the tool's, issued by UserID. Empty leaves the token a
+	// personal one.
+	ToolName string
 	// ScopesJSON is a JSON array of scope strings (`["*"]`,
 	// `["translate:fr,de"]`). Empty defaults to full access at the store.
 	ScopesJSON string
@@ -443,7 +443,7 @@ func (s *AuthService) CreateAPIToken(ctx context.Context, spec APITokenSpec) (*p
 	if spec.Name == "" {
 		return nil, "", errors.New("token name is required")
 	}
-	if err := platauth.ValidateAgentName(spec.AgentName); err != nil {
+	if err := platauth.ValidateToolName(spec.ToolName); err != nil {
 		return nil, "", err
 	}
 	tokenBytes := make([]byte, 32)
@@ -459,7 +459,7 @@ func (s *AuthService) CreateAPIToken(ctx context.Context, spec APITokenSpec) (*p
 		UserID:      spec.UserID,
 		WorkspaceID: spec.WorkspaceID,
 		Name:        spec.Name,
-		AgentName:   spec.AgentName,
+		ToolName:    spec.ToolName,
 		TokenPrefix: plaintext[:8], // "bwt_" + first 4 hex chars
 		Scopes:      spec.ScopesJSON,
 		ExpiresAt:   spec.ExpiresAt,
@@ -467,6 +467,9 @@ func (s *AuthService) CreateAPIToken(ctx context.Context, spec APITokenSpec) (*p
 
 	if err := s.store.CreateAPIToken(ctx, token, tokenHash); err != nil {
 		return nil, "", err
+	}
+	if token.IsTool() {
+		token.IssuedBy = token.UserID
 	}
 
 	return token, plaintext, nil

@@ -53,6 +53,9 @@ type pushGovernor struct {
 	gate    *review.Gate
 	permits *review.LanguagePermits
 	actor   string
+	// tool is the tool whose token made the push. A tool's push carries no
+	// verdict: every approval, rejection and withdrawal in it is refused.
+	tool string
 	// source is the project's source language, which the revision of a
 	// pushed block's source is taken under, as the store takes the revision
 	// of the source it holds (venue.SourceRevision).
@@ -266,8 +269,10 @@ func newPushGovernor(
 	staged []stagedGroup,
 	decisions []venue.UnitDecision,
 ) (*pushGovernor, error) {
+	tool, _ := platev.ToolFromContext(ctx)
 	g := &pushGovernor{
 		actor:          actor,
+		tool:           tool.Name,
 		source:         source,
 		storedID:       map[string]string{},
 		unitID:         map[unitRef]string{},
@@ -534,6 +539,13 @@ func (g *pushGovernor) rowFor(b *model.Block) string {
 // the report; countRefusal is false when the caller counts it itself. A
 // translation somebody wrote by hand on their checkout is judged as theirs.
 func (g *pushGovernor) allow(blockID string, at unitVariantRef, locale, kind string, countRefusal bool) (bool, string) {
+	if g.tool != "" {
+		// A tool reviews nothing: its issuer reviews with their own sign-in.
+		if countRefusal {
+			g.counts[refusalRef{locale: locale, kind: kind, reason: venue.RefusedNoReviewPermission}]++
+		}
+		return false, venue.RefusedNoReviewPermission
+	}
 	key := gateKey(blockID, at.item, at.unit)
 	if author := g.writers[at]; author != "" {
 		g.gate.WrittenBy(key, locale, author)
@@ -555,6 +567,9 @@ func (g *pushGovernor) allow(blockID string, at unitVariantRef, locale, kind str
 
 // allowWithdrawal puts one language to the gate's withdrawal question.
 func (g *pushGovernor) allowWithdrawal(locale string) (bool, string) {
+	if g.tool != "" {
+		return false, venue.RefusedEstablishedWithdrawal
+	}
 	err := g.gate.AllowWithdrawal(locale)
 	if err == nil {
 		return true, ""

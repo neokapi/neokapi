@@ -28,14 +28,13 @@ import (
 // authorIdentity is the identity that work created on this request is recorded
 // against.
 //
-// For an ordinary session or a personal API token this is the user ID, exactly
-// as before. For a machine API token (one minted with an agent name) it is
-// "agent/<name>" — the machine, not the person whose token it is.
+// For a session or a personal API token this is the user ID. For a tool
+// token it is "tool/<name>": the tool, not the member who issued its token.
 //
 // Authorization is deliberately not routed through here: every permission check
-// still reads user_id. A machine can do no more than its token's owner can. The
+// still reads user_id. A tool can do no more than its issuer can. The
 // only thing that moves is the name on the work, and the consequence that
-// matters is that the owner is not the author, so the owner can review it.
+// matters is that the issuer is not the author, so the issuer can review it.
 func authorIdentity(c echo.Context) string {
 	if machine, _ := c.Get("author_identity").(string); machine != "" {
 		return machine
@@ -90,7 +89,7 @@ func (s *Server) soloReviewOverride(ctx context.Context, wsID, actor string, cs 
 		return false
 	}
 	// Only ever relevant to a self-review. A machine-authored change-set never
-	// reaches here: its author is "agent/<name>", which no user ID equals.
+	// reaches here: its author is "tool/<name>", which no user ID equals.
 	if actor != cs.CreatedBy {
 		return false
 	}

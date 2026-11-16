@@ -374,7 +374,9 @@ export function actorName(e: FeedEntry, t: TFunction): string {
     return t("feed.actor.convergence");
   }
   if (e.actor.kind === "tool" && e.actor.name) {
-    return e.actor.name.charAt(0).toUpperCase() + e.actor.name.slice(1);
+    // A tool token names its tool as a slug ("dogfood-sync"): show it as words.
+    const words = e.actor.name.replace(/[-_]+/g, " ");
+    return words.charAt(0).toUpperCase() + words.slice(1);
   }
   return e.actor.name || e.on_behalf_of?.name || t("feed.someone");
 }

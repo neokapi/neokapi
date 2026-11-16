@@ -59,6 +59,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 49  the review deck's group for each translation waiting for review
 // 50  the project feed's columns on activities, and the events a roll-up row counts
 // 51  the pushes a worker has applied, so a redelivered push job applies once
+// 52  the tool and token a context object was pushed with
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1831,6 +1832,18 @@ var Migrations = []storage.Migration{
 				record     JSONB NOT NULL DEFAULT '{}',
 				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+		`,
+	},
+	{
+		Version:     52,
+		Description: "the tool and token a context object was pushed with",
+		SQL: `
+			-- pushed_tool is the tool whose token pushed the object, and
+			-- pushed_token that token's id; pushed_by is then the member who
+			-- issued it. Both are empty for an object a person pushed. The
+			-- server reads every operation of a tool's segment as the tool's.
+			ALTER TABLE context_objects ADD COLUMN IF NOT EXISTS pushed_tool  TEXT NOT NULL DEFAULT '';
+			ALTER TABLE context_objects ADD COLUMN IF NOT EXISTS pushed_token TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

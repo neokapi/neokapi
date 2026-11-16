@@ -60,7 +60,7 @@ func applyPushLedger(ctx context.Context, tx store.PushApplier, projectID, actor
 	for _, obj := range l.Objects {
 		batch = append(batch, store.ContextObject{Name: obj.Name, Data: obj.Data})
 	}
-	if _, err := tx.PutContextObjects(ctx, projectID, actor, batch); err != nil {
+	if _, err := tx.PutContextObjects(ctx, projectID, pusherOf(ctx, actor), batch); err != nil {
 		if exists, ok := errors.AsType[*store.ContextObjectExistsError](err); ok {
 			return nil, fmt.Errorf("the project already holds context object %s with other bytes", exists.Name)
 		}

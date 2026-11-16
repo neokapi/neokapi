@@ -36,6 +36,70 @@ func ActorNameFromContext(ctx context.Context) string {
 	return ""
 }
 
+type toolKeyType struct{}
+
+// Tool is the tool a request or a job acts as, when a member's tool token
+// authenticated it. The actor (WithActor) is then the member who issued the
+// token, and the tool is who did the work.
+type Tool struct {
+	// Name is the tool's name, as the token was minted with.
+	Name string
+	// TokenID is the id of the token the tool authenticated with.
+	TokenID string
+}
+
+// The event data keys a tool is recorded under.
+const (
+	DataActorKind = "actor_kind"
+	DataActorName = "actor_name"
+	DataTokenID   = "token_id"
+	// ActorKindTool is the actor kind of work a tool did.
+	ActorKindTool = "tool"
+)
+
+// WithTool returns a context that carries the tool a request acts as. A tool
+// with no name leaves the context as it is.
+func WithTool(ctx context.Context, t Tool) context.Context {
+	if t.Name == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, toolKeyType{}, t)
+}
+
+// ToolFromContext returns the tool the context carries, and whether it carries
+// one.
+func ToolFromContext(ctx context.Context) (Tool, bool) {
+	t, ok := ctx.Value(toolKeyType{}).(Tool)
+	return t, ok && t.Name != ""
+}
+
+// StampTool records the context's tool on an event's data: actor_kind tool,
+// actor_name the tool's name and token_id its token, replacing whatever the
+// data said, and no session, which a tool does not have. The event's Actor
+// stays the member who issued the token. A nil
+// map is allocated when there is a tool to record; without one, data is
+// returned as it is.
+func StampTool(ctx context.Context, data map[string]string) map[string]string {
+	t, _ := ToolFromContext(ctx)
+	return t.Stamp(data)
+}
+
+// Stamp is StampTool for a tool held outside a context, such as a push job's
+// manifest. A tool with no name returns data as it is.
+func (t Tool) Stamp(data map[string]string) map[string]string {
+	if t.Name == "" {
+		return data
+	}
+	if data == nil {
+		data = map[string]string{}
+	}
+	data[DataActorKind] = ActorKindTool
+	data[DataActorName] = t.Name
+	data[DataTokenID] = t.TokenID
+	delete(data, "session")
+	return data
+}
+
 type reqMetaKeyType struct{}
 
 // RequestMeta carries audit-relevant request metadata for event attribution.

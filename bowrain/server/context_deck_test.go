@@ -424,7 +424,7 @@ func TestReviewInbox_ListsPendingContext(t *testing.T) {
 	require.NoError(t, err)
 	ops, err := workspace.DecodeSegment(segment, "prj_decideparityaaaaaaaa")
 	require.NoError(t, err)
-	require.NoError(t, cos.PutContextObjects(ctx, proj.ID, owner, []platstore.ContextObject{
+	require.NoError(t, cos.PutContextObjects(ctx, proj.ID, platstore.Member(owner), []platstore.ContextObject{
 		{Name: workspace.SegmentName("desktop", ops[0].ID), Data: segment},
 	}))
 
