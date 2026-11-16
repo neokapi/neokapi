@@ -321,6 +321,10 @@ func TestContextDeckCardJudge(t *testing.T) {
 	}{
 		{"an agent's rule", contextDeckAuthor{Kind: "agent", AgentAuthored: true}, deckKindTermRule, "established",
 			deckReviewer{userID: "u1", name: "Ada", perms: all}, true, contextop.BasisAgentAuthored, false, []string{"keep", "reject", "later"}},
+		{"a tool's rule, read by the member who issued its token",
+			opAuthor(contextop.Record{Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "dogfood-sync", OnBehalfOf: "Ada"}}),
+			deckKindTermRule, "established",
+			deckReviewer{userID: "u1", name: "Ada", perms: all}, true, contextop.BasisAgentAuthored, false, []string{"keep", "reject", "later"}},
 		{"another person's rule", contextDeckAuthor{Kind: "person", Name: "Bea"}, deckKindTermRule, "established",
 			deckReviewer{userID: "u1", name: "Ada", perms: all}, true, contextop.BasisPeer, false, []string{"keep", "reject", "later"}},
 		{"the reader's own rule", contextDeckAuthor{Kind: "person", Name: "Ada"}, deckKindTermRule, "established",
@@ -424,7 +428,7 @@ func TestReviewInbox_ListsPendingContext(t *testing.T) {
 	require.NoError(t, err)
 	ops, err := workspace.DecodeSegment(segment, "prj_decideparityaaaaaaaa")
 	require.NoError(t, err)
-	require.NoError(t, cos.PutContextObjects(ctx, proj.ID, owner, []platstore.ContextObject{
+	require.NoError(t, cos.PutContextObjects(ctx, proj.ID, platstore.Member(owner), []platstore.ContextObject{
 		{Name: workspace.SegmentName("desktop", ops[0].ID), Data: segment},
 	}))
 

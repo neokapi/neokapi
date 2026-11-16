@@ -23,14 +23,18 @@ import (
 
 // syncPushManifest matches the JSON manifest written by HandleSyncPushCommit.
 type syncPushManifest struct {
-	UploadID      string          `json:"upload_id"`
-	ProjectID     string          `json:"project_id"`
-	Stream        string          `json:"stream"`
-	Chunks        []syncChunkRef  `json:"chunks"`
-	Items         json.RawMessage `json:"items"`
-	ActorID       string          `json:"actor_id"`
-	WorkspaceSlug string          `json:"workspace_slug"`
-	ConnectorID   string          `json:"connector_id"`
+	UploadID  string          `json:"upload_id"`
+	ProjectID string          `json:"project_id"`
+	Stream    string          `json:"stream"`
+	Chunks    []syncChunkRef  `json:"chunks"`
+	Items     json.RawMessage `json:"items"`
+	ActorID   string          `json:"actor_id"`
+	// ActorTool and ActorTokenID name the tool and its token when a tool
+	// token made the push; ActorID is then the member who issued it.
+	ActorTool     string `json:"actor_tool"`
+	ActorTokenID  string `json:"actor_token_id"`
+	WorkspaceSlug string `json:"workspace_slug"`
+	ConnectorID   string `json:"connector_id"`
 	// Contexts is the context content type: the collections the recipe
 	// declares. It rides in the manifest so the structure lands in the same
 	// transaction as the items stored into it (see worker_context.go).
@@ -147,6 +151,9 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		markJobFailed(ctx, deps, job.ID, "invalid manifest")
 		return fmt.Errorf("parse manifest: %w", err)
 	}
+	// What a tool's push stores and records names the tool, on behalf of
+	// manifest.ActorID.
+	ctx = platev.WithTool(ctx, manifest.tool())
 
 	stream := manifest.Stream
 	if stream == "" {
@@ -525,12 +532,12 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			Source:    "sync-worker",
 			ProjectID: projectID,
 			Actor:     manifest.ActorID,
-			Data: platev.RecipeChange{
+			Data: manifest.tool().Stamp(platev.RecipeChange{
 				WorkspaceSlug: manifest.WorkspaceSlug,
 				Source:        "push",
 				Stream:        stream,
 				Collections:   contextResult.Changes,
-			}.Data(),
+			}.Data()),
 		})
 	}
 

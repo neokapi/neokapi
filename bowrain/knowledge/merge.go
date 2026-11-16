@@ -30,7 +30,7 @@ type MergeEvent struct {
 	Stream      string    `json:"stream,omitempty"`
 	Actor       string    `json:"actor,omitempty"`
 	// OnBehalfOf names the person accountable when Actor is a machine identity
-	// ("agent/<name>"): the owner of the API token the machine used. Empty when
+	// ("tool/<name>"): the member who issued the token the tool used. Empty when
 	// the actor is already a person.
 	OnBehalfOf string `json:"on_behalf_of,omitempty"`
 	// ReviewBasis is the rule under which a review event's verdict was

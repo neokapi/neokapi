@@ -42,13 +42,13 @@ type Ledger interface {
 	Find(ctx context.Context, p Project, opID string) (op HeldOp, ok bool, err error)
 	// Put stores one ledger segment of a project, stamped as pushed by
 	// pushedBy.
-	Put(ctx context.Context, projectID, pushedBy string, obj platstore.ContextObject) error
+	Put(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error
 }
 
 // HeldOp is an operation a ledger holds and the member who pushed it.
 type HeldOp struct {
 	Op       workspace.Op
-	PushedBy string
+	PushedBy platstore.Pusher
 }
 
 // Write is one write of a voice profile.
@@ -62,8 +62,10 @@ type Write struct {
 	// names the operation after the member who pushed its segment (PushedBy),
 	// as it does an operation the command line records.
 	Actor contextop.Actor
-	// PushedBy is the member id the ledger segment is stamped with.
-	PushedBy string
+	// PushedBy is who the ledger segment is stamped as pushed by: the member,
+	// and the tool when a tool token made the write. A reader names an
+	// operation in a tool's segment after the tool.
+	PushedBy platstore.Pusher
 	// Note is what the operation says about where the write came from.
 	Note string
 	// Recorded is the id of an operation the writer's own client recorded for
@@ -176,11 +178,11 @@ func Apply(ctx context.Context, voice coreprofile.Store, ledger Ledger, w Write)
 
 // recordedThis reports whether a held operation is the record of the write
 // that left stored: a voice edit of the same profile whose fingerprint is the
-// stored profile's, pushed by the member making this write. Naming any other
+// stored profile's, pushed by the member, and the tool, making this write. Naming any other
 // operation would credit the write to that operation's actor, so a client
 // cannot borrow another member's or an agent's record.
-func recordedThis(held HeldOp, pushedBy string, stored *coreprofile.VoiceProfile) bool {
-	if stored == nil || pushedBy == "" || held.PushedBy != pushedBy ||
+func recordedThis(held HeldOp, pushedBy platstore.Pusher, stored *coreprofile.VoiceProfile) bool {
+	if stored == nil || pushedBy.UserID == "" || held.PushedBy != pushedBy ||
 		!strings.HasPrefix(held.Op.Kind, contextop.OpKindPrefix+string(contextop.KindEdit)) {
 		return false
 	}
@@ -229,7 +231,7 @@ func writerDecided(contextop.Transition) error { return nil }
 type segmentLog struct {
 	ledger   Ledger
 	projects []Project
-	pushedBy string
+	pushedBy platstore.Pusher
 }
 
 var _ contextop.Log = (*segmentLog)(nil)

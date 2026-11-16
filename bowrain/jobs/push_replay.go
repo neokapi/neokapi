@@ -136,7 +136,7 @@ func publishPushCompleted(deps *WorkerDeps, projectID, stream, pushID string, ma
 		Source:    "sync-worker",
 		ProjectID: projectID,
 		Actor:     manifest.ActorID,
-		Data: map[string]string{
+		Data: manifest.tool().Stamp(map[string]string{
 			"stream":       stream,
 			"items":        strings.Join(rec.Items, ","),
 			"items_sample": strings.Join(sampleItemNames(rec.Items, 3), ","),
@@ -151,6 +151,12 @@ func publishPushCompleted(deps *WorkerDeps, projectID, stream, pushID string, ma
 			// on: the server keeps them and their content.
 			"undeclared_collections": strings.Join(rec.Undeclared, ","),
 			"workspace_slug":         manifest.WorkspaceSlug,
-		},
+		}),
 	})
+}
+
+// tool is the tool whose token made the push, the zero value for a person's
+// push.
+func (m *syncPushManifest) tool() platev.Tool {
+	return platev.Tool{Name: m.ActorTool, TokenID: m.ActorTokenID}
 }

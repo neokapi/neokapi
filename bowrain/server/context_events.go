@@ -249,7 +249,7 @@ func pushedContextData(c echo.Context, accepted acceptedContext) map[string]stri
 	}
 	change.WorkspaceSlug = c.Param("ws")
 	change.ActorName, _ = c.Get("name").(string)
-	return change.Data()
+	return platev.StampTool(c.Request().Context(), change.Data())
 }
 
 // pushedContextChange is the context change a push of context objects makes.
@@ -354,5 +354,5 @@ func voiceProfileChange(c echo.Context, profileID string) platev.ContextChange {
 func voiceProfileData(c echo.Context, profileID string, detail map[string]string) map[string]string {
 	change := voiceProfileChange(c, profileID)
 	change.Extra = detail
-	return change.Data()
+	return platev.StampTool(c.Request().Context(), change.Data())
 }

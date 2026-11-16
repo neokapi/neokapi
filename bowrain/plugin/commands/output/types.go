@@ -651,6 +651,7 @@ func (o AuthClaimOutput) FormatText(w io.Writer) error {
 type TokenCreateOutput struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
+	Tool        string     `json:"tool,omitempty"`
 	Token       string     `json:"token"`
 	TokenPrefix string     `json:"token_prefix"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
@@ -658,6 +659,9 @@ type TokenCreateOutput struct {
 
 func (o TokenCreateOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Token created: %s\n", o.Name)
+	if o.Tool != "" {
+		fmt.Fprintf(w, "Tool:   %s\n", o.Tool)
+	}
 	fmt.Fprintf(w, "ID:     %s\n", o.ID)
 	fmt.Fprintf(w, "Prefix: %s\n", o.TokenPrefix)
 	if o.ExpiresAt != nil {
@@ -677,6 +681,8 @@ type TokenListOutput struct {
 type TokenEntry struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
+	Tool        string     `json:"tool,omitempty"`
+	IssuedBy    string     `json:"issued_by,omitempty"`
 	TokenPrefix string     `json:"token_prefix"`
 	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
@@ -689,7 +695,7 @@ func (o TokenListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	t := NewTable(w).Accent(0).Headers("NAME", "PREFIX", "LAST USED", "EXPIRES", "ID")
+	t := NewTable(w).Accent(0).Headers("NAME", "TOOL", "ISSUED BY", "PREFIX", "LAST USED", "EXPIRES", "ID")
 	s := t.Styles()
 
 	for _, tok := range o.Tokens {
@@ -701,7 +707,11 @@ func (o TokenListOutput) FormatText(w io.Writer) error {
 		if tok.ExpiresAt != nil {
 			expires = tok.ExpiresAt.Format("2006-01-02 15:04")
 		}
-		t.Row(tok.Name, tok.TokenPrefix, lastUsed, expires, s.Dim(tok.ID))
+		tool, issuer := s.Muted.Render("-"), s.Muted.Render("-")
+		if tok.Tool != "" {
+			tool, issuer = tok.Tool, tok.IssuedBy
+		}
+		t.Row(tok.Name, tool, issuer, tok.TokenPrefix, lastUsed, expires, s.Dim(tok.ID))
 	}
 	t.Render()
 

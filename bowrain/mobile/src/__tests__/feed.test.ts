@@ -110,6 +110,14 @@ describe("feed card sentences", () => {
     );
   });
 
+  it("names a tool by its name in words, apart from the member who issued it", () => {
+    const tool = entry({
+      actor: { id: "u1", kind: "tool", name: "dogfood-sync" },
+      on_behalf_of: { id: "u1", name: "Asgeir" },
+    });
+    expect(actorName(tool, t)).toBe("Dogfood sync");
+  });
+
   it("counts collections past two instead of naming each", () => {
     const added = (n: number) =>
       actionOf(

@@ -83,6 +83,7 @@ func (r Recorder) Record(ctx context.Context, rec change.Record) (string, error)
 	if actor == "" && rec.Actor.Kind == change.ActorPerson {
 		actor = rec.Actor.Name
 	}
+	data = platev.StampTool(ctx, data)
 	r.Publish(ctx, platev.Event{
 		ID:           id.New(),
 		Type:         platev.EventContentChanged,

@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -10,7 +11,7 @@ import (
 
 // contextObjectPutter stores ledger segments on a push's transaction.
 type contextObjectPutter interface {
-	PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []store.ContextObject) (int, error)
+	PutContextObjects(ctx context.Context, projectID string, pushedBy store.Pusher, batch []store.ContextObject) (int, error)
 }
 
 // pushVoiceLedger records a push's voice profile writes in the pushed
@@ -24,8 +25,20 @@ type pushVoiceLedger struct {
 	held    store.ContextObjectStore
 	project voicewrite.Project
 	pushed  []store.ContextObject
-	// pusher is the member whose push carries pushed.
-	pusher string
+	// pusher is the member whose push carries pushed, and the tool when a
+	// tool token made the push.
+	pusher store.Pusher
+}
+
+// pusherOf is the stamp of what a push job stores for the member userID: the
+// member, with the tool the job's context carries when a tool token made the
+// push (platev.WithTool).
+func pusherOf(ctx context.Context, userID string) store.Pusher {
+	p := store.Pusher{UserID: userID}
+	if t, ok := platev.ToolFromContext(ctx); ok {
+		p.Tool, p.TokenID = t.Name, t.TokenID
+	}
+	return p
 }
 
 var _ voicewrite.Ledger = (*pushVoiceLedger)(nil)
@@ -35,7 +48,7 @@ var _ voicewrite.Ledger = (*pushVoiceLedger)(nil)
 // context is already bound to. A project with neither holds no ledger, and
 // the writes are recorded nowhere.
 func newPushVoiceLedger(ctx context.Context, deps *WorkerDeps, tx contextObjectPutter, projectID, pusher string, l pushLedger) *pushVoiceLedger {
-	out := &pushVoiceLedger{tx: tx, pusher: pusher, project: voicewrite.Project{ID: projectID, Key: workspace.ProjectKey(l.Key)}}
+	out := &pushVoiceLedger{tx: tx, pusher: pusherOf(ctx, pusher), project: voicewrite.Project{ID: projectID, Key: workspace.ProjectKey(l.Key)}}
 	if objects, ok := store.ContextObjects(deps.ContentStore); ok {
 		out.held = objects
 		if out.project.Key == "" {
@@ -72,7 +85,7 @@ func (l *pushVoiceLedger) Find(ctx context.Context, p voicewrite.Project, opID s
 }
 
 // Put implements voicewrite.Ledger.
-func (l *pushVoiceLedger) Put(ctx context.Context, projectID, pushedBy string, obj store.ContextObject) error {
+func (l *pushVoiceLedger) Put(ctx context.Context, projectID string, pushedBy store.Pusher, obj store.ContextObject) error {
 	_, err := l.tx.PutContextObjects(ctx, projectID, pushedBy, []store.ContextObject{obj})
 	return err
 }

@@ -140,11 +140,15 @@ export interface ApiToken {
   workspace_id: string;
   name: string;
   /**
-   * The machine this token is for, when it is a machine token. Work created
-   * under it is authored by "agent/<agent_name>" rather than by user_id.
-   * Absent on an ordinary personal token.
+   * The tool this token is for, when it is a tool token. The server records
+   * work done under it as the tool's, issued by user_id (issued_by).
+   * Absent on a personal token.
    */
-  agent_name?: string;
+  tool_name?: string;
+  /** The member who issued a tool token. */
+  issued_by?: string;
+  /** Display name of the member the token belongs to, in a listing. */
+  issuer_name?: string;
   token_prefix: string;
   scopes: string;
   last_used_at: string | null;
@@ -156,7 +160,9 @@ export interface ApiToken {
 export interface CreateApiTokenResponse {
   id: string;
   name: string;
-  agent_name?: string;
+  tool_name?: string;
+  /** The member who issued a tool token. */
+  issued_by?: string;
   token_prefix: string;
   token: string;
   scopes: string;

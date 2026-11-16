@@ -48,8 +48,8 @@ func (s *Server) registerChangesetRoutes(g *echo.Group) {
 
 	// Lifecycle: draft → in_review → approved → merged, or abandoned.
 	g.POST("/changesets/:id/submit", s.HandleSubmitChangeSet)
-	g.POST("/changesets/:id/approve", s.HandleApproveChangeSet)
-	g.POST("/changesets/:id/reject", s.HandleRejectChangeSet)
+	g.POST("/changesets/:id/approve", s.refuseTool(s.HandleApproveChangeSet))
+	g.POST("/changesets/:id/reject", s.refuseTool(s.HandleRejectChangeSet))
 	g.POST("/changesets/:id/merge", s.HandleMergeChangeSet)
 	g.POST("/changesets/:id/abandon", s.HandleAbandonChangeSet)
 

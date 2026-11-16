@@ -1201,6 +1201,17 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     43,
+		Description: "the tool and token a context object was pushed with",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 52; Apply adds the columns.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "context_objects", []string{
+				"pushed_tool  TEXT NOT NULL DEFAULT ''",
+				"pushed_token TEXT NOT NULL DEFAULT ''",
+			})
+		},
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

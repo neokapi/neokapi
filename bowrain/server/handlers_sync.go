@@ -196,14 +196,19 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 // pushCommitManifest is the body of POST /sync/push/commit, and the manifest
 // the push worker reads (jobs.syncPushManifest).
 type pushCommitManifest struct {
-	UploadID      string          `json:"upload_id"`
-	ProjectID     string          `json:"project_id"`
-	Stream        string          `json:"stream"`
-	Chunks        []chunkRef      `json:"chunks"`
-	Items         json.RawMessage `json:"items"`
-	ActorID       string          `json:"actor_id"`
-	WorkspaceSlug string          `json:"workspace_slug"`
-	ConnectorID   string          `json:"connector_id"`
+	UploadID  string          `json:"upload_id"`
+	ProjectID string          `json:"project_id"`
+	Stream    string          `json:"stream"`
+	Chunks    []chunkRef      `json:"chunks"`
+	Items     json.RawMessage `json:"items"`
+	ActorID   string          `json:"actor_id"`
+	// ActorTool and ActorTokenID name the tool and its token when a tool
+	// token made the push; ActorID is then the member who issued it. Set
+	// here from the signed-in caller, never from the client.
+	ActorTool     string `json:"actor_tool"`
+	ActorTokenID  string `json:"actor_token_id"`
+	WorkspaceSlug string `json:"workspace_slug"`
+	ConnectorID   string `json:"connector_id"`
 	// Contexts is the context content type, passed through to the worker
 	// verbatim like Items: this handler validates the transport, the worker
 	// reconciles the content.
@@ -285,7 +290,8 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	manifest.ContextKey, manifest.ContextOperations, manifest.ContextEvent = "", 0, nil
 	// The path is authorized; a manifest-supplied stream never overrides it.
 	manifest.Stream = refParam(c)
-	manifest.ActorID, _ = c.Get("user_id").(string)
+	actor := requestActorOf(c)
+	manifest.ActorID, manifest.ActorTool, manifest.ActorTokenID = actor.UserID, actor.Tool, actor.TokenID
 	// Resolve the workspace slug from the path-scoped project rather than
 	// trusting the client. Best-effort: the worker tolerates an empty slug.
 	manifest.WorkspaceSlug = ""

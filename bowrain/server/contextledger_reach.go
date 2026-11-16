@@ -24,13 +24,24 @@ type LedgerMember struct {
 	UserID      string
 	Permissions platauth.Permission
 	Reach       platauth.CoordinateReach
+	// Tool is set when the member writes through a tool token: the tool's
+	// name, and TokenID the token's id. UserID is then the member who issued
+	// the token.
+	Tool    string
+	TokenID string
 }
 
-// ledgerMemberOf reads the signed-in member of a request.
+// pusher is the stamp the segments the member writes carry.
+func (m LedgerMember) pusher() platstore.Pusher {
+	return platstore.Pusher{UserID: m.UserID, Tool: m.Tool, TokenID: m.TokenID}
+}
+
+// ledgerMemberOf reads the signed-in member of a request, and the tool when a
+// tool token authenticated it.
 func ledgerMemberOf(c echo.Context) LedgerMember {
-	userID, _ := c.Get("user_id").(string)
+	a := requestActorOf(c)
 	perms, _ := c.Get("project_permissions").(platauth.Permission)
-	return LedgerMember{UserID: userID, Permissions: perms, Reach: callerReach(c)}
+	return LedgerMember{UserID: a.UserID, Permissions: perms, Reach: callerReach(c), Tool: a.Tool, TokenID: a.TokenID}
 }
 
 // ErrOutsideReach reports a context operation that governs a point the

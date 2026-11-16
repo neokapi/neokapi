@@ -1358,6 +1358,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			// project's workspace role) so the sync handlers' permission checks
 			// enforce rather than fail open.
 			flatSyncGroup.Use(s.ProjectAccessMiddleware())
+			// An API token is narrowed to its scopes here as on the workspace
+			// routes, so a scoped token cannot push or pull past them.
+			flatSyncGroup.Use(ScopeRestrictionMiddleware())
 			flatSyncGroup.GET("/pull", s.HandleSyncPull)
 			flatSyncGroup.GET("/ref", s.HandleSyncRef)
 			flatSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
@@ -1378,6 +1381,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			flatProjectGroup := v1.Group("/projects")
 			flatProjectGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 			flatProjectGroup.Use(s.ProjectAccessMiddleware())
+			flatProjectGroup.Use(ScopeRestrictionMiddleware())
 			s.registerConvergenceRoutes(flatProjectGroup)
 		}
 
@@ -1723,7 +1727,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/voice-profiles/:id/candidates", s.HandleListCandidates)
 	g.POST("/voice-profiles/:id/promote-rule", s.HandlePromoteSuggestedRule)
 	g.POST("/voice-profiles/:id/demote-rule", s.HandleDemoteSuggestedRule)
-	g.POST("/voice-profiles/:id/reject-rule", s.HandleRejectSuggestedRule)
+	g.POST("/voice-profiles/:id/reject-rule", s.refuseTool(s.HandleRejectSuggestedRule))
 	g.POST("/voice-profiles/:id/evaluate-rule", s.HandleEvaluateRulePromotion)
 	g.GET("/voice-profiles/starter-packs", s.HandleListStarterPacks)
 
@@ -1731,7 +1735,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// approved axis is not a coordinate until kapi.yaml says so and a push
 	// carries it, so these three endpoints are the hand-off: propose, read what
 	// is pending, settle it once a pull has taken it.
-	g.POST("/projects/:id/axes", s.HandleApproveAxis)
+	g.POST("/projects/:id/axes", s.refuseTool(s.HandleApproveAxis))
 	g.GET("/projects/:id/recipe-changes", s.HandleListPendingRecipeChanges)
 	g.POST("/projects/:id/recipe-changes/:changeID/applied", s.HandleMarkRecipeChangeApplied)
 
@@ -1745,7 +1749,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/context-scans/uploads", s.HandleContextScanUploads)
 	g.POST("/context-scans", s.HandleCreateContextScan, aiLimit, billing.QuotaGuard(s.BillingStore))
 	g.GET("/context-scans/:id", s.HandleGetContextScan)
-	g.POST("/context-scans/:id/approve", s.HandleApproveContextScan)
+	g.POST("/context-scans/:id/approve", s.refuseTool(s.HandleApproveContextScan))
 	g.POST("/context-scans/check-draft", s.HandleCheckVoiceDraft, aiLimit)
 
 	// Translation jobs — Bowrain AD-011: /:ws/jobs
@@ -1929,7 +1933,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Blocks — Bowrain AD-011: /:ws/:id/blocks/:ref
 	g.GET("/:id/blocks/:ref", s.HandleGetFileBlocks) // ?item=&locale=&status=&q=&translatable=
 	g.GET("/:id/blocks/:ref/counts", s.HandleGetBlockCounts)
-	g.POST("/:id/blocks/:ref/bulk-review", s.HandleBulkReviewBlocks)
+	g.POST("/:id/blocks/:ref/bulk-review", s.refuseTool(s.HandleBulkReviewBlocks))
 	g.POST("/:id/blocks/:ref/bulk-apply-memory", s.HandleBulkApplyMemory)
 	g.GET("/:id/blocks/:ref/:bid", s.HandleGetBlock)
 	// Who may change a block's content (the access ladder), which a change set
@@ -1937,7 +1941,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/:id/blocks/:ref/:bid/access", s.HandleSetBlockAccess)
 	// Bulk approve every passing draft in one action, then continue the loop to
 	// delivery (RV-D). Distinct path segment from /:id/review-queue below.
-	g.POST("/:id/review/approve-passing", s.HandleApprovePassing)
+	g.POST("/:id/review/approve-passing", s.refuseTool(s.HandleApprovePassing))
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.POST("/:id/revert", s.HandleRevertBatch)
@@ -2032,18 +2036,18 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Review queue — Bowrain AD-011: /:ws/:id/review-queue/:ref
 	g.GET("/:id/review-queue/:ref", s.HandleListReviewQueue)
 	g.GET("/:id/review-queue/:ref/:itemId", s.HandleGetReviewQueueItem)
-	g.POST("/:id/review-queue/:ref/:itemId/decide", s.HandleDecideReviewItem)
+	g.POST("/:id/review-queue/:ref/:itemId/decide", s.refuseTool(s.HandleDecideReviewItem))
 	g.POST("/:id/review-queue/:ref/:itemId/assign", s.HandleAssignReviewItem)
 	g.POST("/:id/review-queue/:ref/:itemId/split", s.HandleSplitReviewItem)
-	g.POST("/:id/review-queue/:ref/batch-decide", s.HandleBatchDecideReviewItems)
-	g.POST("/:id/review-queue/:ref/sync", s.HandleSyncReviewDecisions)
+	g.POST("/:id/review-queue/:ref/batch-decide", s.refuseTool(s.HandleBatchDecideReviewItems))
+	g.POST("/:id/review-queue/:ref/sync", s.refuseTool(s.HandleSyncReviewDecisions))
 
 	// Back-to-source review (RV-F): a reviewer proposes a source-text fix; a
 	// source owner (PermEditSource) approves it (applies + re-drafts every locale)
 	// or rejects it. /:ws/:id/source-proposals
 	g.GET("/:id/source-proposals", s.HandleListSourceProposals)
 	g.POST("/:id/source-proposals", s.HandleCreateSourceProposal)
-	g.POST("/:id/source-proposals/:pid/decide", s.HandleDecideSourceProposal)
+	g.POST("/:id/source-proposals/:pid/decide", s.refuseTool(s.HandleDecideSourceProposal))
 
 	// Voice — Bowrain AD-011: /:ws/:id/voice/:ref
 	g.GET("/:id/voice/:ref/scores", s.HandleGetVoiceScores)

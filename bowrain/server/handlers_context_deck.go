@@ -45,7 +45,7 @@ const (
 func (s *Server) registerContextDeckRoutes(g *echo.Group) {
 	g.GET("/:id/context/deck", s.HandleContextDeck)
 	g.GET("/:id/context/deck/origins/:op", s.HandleContextDeckOrigin)
-	g.POST("/:id/context/deck/decide", s.HandleContextDeckDecide)
+	g.POST("/:id/context/deck/decide", s.refuseTool(s.HandleContextDeckDecide))
 }
 
 // contextDeckResponse is a page of the context deck.

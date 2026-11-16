@@ -120,6 +120,7 @@ func reconcileContext(
 
 	declared := make(map[string]struct{}, len(entries))
 	profileIDs := newProfileBinder(voice, ledger, workspaceID, actorID)
+	profileIDs.pusher = pusherOf(ctx, actorID)
 
 	for _, e := range entries {
 		if e == nil || e.Name == "" {
@@ -262,6 +263,7 @@ type profileBinder struct {
 	ledger      voicewrite.Ledger
 	workspaceID string
 	actorID     string
+	pusher      store.Pusher
 	byName      map[string]string
 }
 
@@ -372,13 +374,18 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	return updated.ID, nil
 }
 
-// write is the voicewrite.Write of one pushed profile, by the pusher.
+// write is the voicewrite.Write of one pushed profile, by the pusher: the
+// member, or the tool whose token made the push.
 func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded string) voicewrite.Write {
+	actor := contextop.Actor{Kind: contextop.ActorPerson}
+	if b.pusher.Tool != "" {
+		actor = contextop.Actor{Kind: contextop.ActorTool, Name: b.pusher.Tool}
+	}
 	return voicewrite.Write{
 		Before:   before,
 		After:    after,
-		Actor:    contextop.Actor{Kind: contextop.ActorPerson},
-		PushedBy: b.actorID,
+		Actor:    actor,
+		PushedBy: b.pusher,
 		Note:     "pushed with `kapi push`",
 		Recorded: recorded,
 	}

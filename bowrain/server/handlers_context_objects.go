@@ -185,8 +185,7 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	if refused || err != nil {
 		return err
 	}
-	pushedBy, _ := c.Get("user_id").(string)
-	err = cos.PutContextObjects(ctx, projectID, pushedBy, batch)
+	err = cos.PutContextObjects(ctx, projectID, requestActorOf(c).pusher(), batch)
 	if exists, ok := errors.AsType[*platstore.ContextObjectExistsError](err); ok {
 		return c.JSON(http.StatusConflict, ErrorResponse{
 			Error: "the project already holds that context object with other bytes", Details: exists.Name, Code: contextObjectExistsCode,
@@ -337,6 +336,17 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 		fresh = append(fresh, op)
 	}
 
+	if member.Tool != "" {
+		if ids := verdictOps(fresh); len(ids) > 0 {
+			return accepted, true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Error: fmt.Sprintf("tool %s cannot push review verdicts: operations %s keep, attest or drop context, and only a person records those",
+					member.Tool, strings.Join(ids, ", ")),
+				Message: "Push these operations with your own sign-in first, then run the tool again.",
+				Details: strings.Join(ids, ","),
+				Code:    toolPushVerdictCode,
+			})
+		}
+	}
 	if err := checkPushContent(member, fresh, byID); err != nil {
 		return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 	}

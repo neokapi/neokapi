@@ -8,7 +8,6 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	platvoice "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
-	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -33,7 +32,7 @@ func (s *Server) writeVoiceProfile(ctx context.Context, wsID string, w voicewrit
 		err := vs.DB().Transition(ctx, func(tx storage.Runner) error {
 			applier := cs.Bind(tx)
 			ledger := &workspaceVoiceLedger{s: s, wsID: wsID, objects: objects,
-				put: func(ctx context.Context, projectID, pushedBy string, obj platstore.ContextObject) error {
+				put: func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error {
 					_, err := applier.PutContextObjects(ctx, projectID, pushedBy, []platstore.ContextObject{obj})
 					return err
 				}}
@@ -46,20 +45,21 @@ func (s *Server) writeVoiceProfile(ctx context.Context, wsID string, w voicewrit
 	var ledger voicewrite.Ledger
 	if hasLedger {
 		ledger = &workspaceVoiceLedger{s: s, wsID: wsID, objects: objects,
-			put: func(ctx context.Context, projectID, pushedBy string, obj platstore.ContextObject) error {
+			put: func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error {
 				return objects.PutContextObjects(ctx, projectID, pushedBy, []platstore.ContextObject{obj})
 			}}
 	}
 	return voicewrite.Apply(ctx, s.VoiceStore, ledger, w)
 }
 
-// memberVoiceWrite is a write of a voice profile by a signed-in member.
-func memberVoiceWrite(userID string, before, after *coreprofile.VoiceProfile, note string) voicewrite.Write {
+// memberVoiceWrite is a write of a voice profile by the actor a request acts
+// as: a signed-in member, or a tool under a member's tool token.
+func memberVoiceWrite(a requestActor, before, after *coreprofile.VoiceProfile, note string) voicewrite.Write {
 	return voicewrite.Write{
 		Before:   before,
 		After:    after,
-		Actor:    contextop.Actor{Kind: contextop.ActorPerson},
-		PushedBy: userID,
+		Actor:    a.contextActor(),
+		PushedBy: a.pusher(),
 		Note:     note,
 	}
 }
@@ -88,7 +88,7 @@ type workspaceVoiceLedger struct {
 	s       *Server
 	wsID    string
 	objects platstore.ContextObjectStore
-	put     func(ctx context.Context, projectID, pushedBy string, obj platstore.ContextObject) error
+	put     func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error
 }
 
 var _ voicewrite.Ledger = (*workspaceVoiceLedger)(nil)
@@ -124,6 +124,6 @@ func (l *workspaceVoiceLedger) Find(ctx context.Context, p voicewrite.Project, o
 }
 
 // Put implements voicewrite.Ledger.
-func (l *workspaceVoiceLedger) Put(ctx context.Context, projectID, pushedBy string, obj platstore.ContextObject) error {
+func (l *workspaceVoiceLedger) Put(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error {
 	return l.put(ctx, projectID, pushedBy, obj)
 }

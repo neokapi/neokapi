@@ -180,7 +180,7 @@ func (a pushApply) GetDefaultCollection(ctx context.Context, projectID string) (
 
 // PutContextObjects writes a push's context ledger objects on the push's
 // transaction and returns how many the project did not hold.
-func (a pushApply) PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []platstore.ContextObject) (int, error) {
+func (a pushApply) PutContextObjects(ctx context.Context, projectID string, pushedBy platstore.Pusher, batch []platstore.ContextObject) (int, error) {
 	return putContextObjectsTx(ctx, a.tx, projectID, pushedBy, batch)
 }
 
