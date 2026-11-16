@@ -7,7 +7,7 @@ import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
-import { countLabel, languageLabel, stateLabel } from "../../lib/feed";
+import { countLabel, languageLabel, stateLabel, waitsForReview } from "../../lib/feed";
 import { Chip, ChipRow, PRISM_FILLS, ProgressRow, SplitBar } from "./parts";
 
 export interface PreviewProps {
@@ -60,7 +60,10 @@ function RunPreview({ entry, onOpenLanguage }: PreviewProps) {
       {standing.map((s, i) => {
         const units = Math.max(s.units ?? 0, s.produced ?? 0);
         const fraction = units > 0 ? (s.produced ?? 0) / units : s.state === "shippable" ? 1 : 0;
-        const state = t(`feed.standing.${s.state}`, { defaultValue: s.state });
+        // A parked language waits for review unless the run stopped on a
+        // problem, which the card's sentence names.
+        const key = s.state === "parked" && !waitsForReview(entry) ? "stopped" : s.state;
+        const state = t(`feed.standing.${key}`, { defaultValue: s.state });
         return (
           <ProgressRow
             key={s.locale}
@@ -124,9 +127,13 @@ function axesText(c: Record<string, string> | undefined): string {
   return Object.values(c ?? {}).join(" · ");
 }
 
+/** Collection chips a recipe card shows before it counts the rest. */
+const COLLECTION_CHIPS = 3;
+
 function RecipePreview({ entry, onOpenLanguage }: PreviewProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { added, removed } = targetChanges(entry);
+  const collections = entry.diff?.collections ?? [];
   return (
     <ChipRow>
       {added.map((l) => (
@@ -143,13 +150,21 @@ function RecipePreview({ entry, onOpenLanguage }: PreviewProps) {
           {`− ${languageLabel(l, i18n.language)}`}
         </Chip>
       ))}
-      {(entry.diff?.collections ?? []).map((col) => (
-        <Chip key={`c-${col.name}`} tone="accent">
-          {col.before && Object.keys(col.before).length > 0
-            ? `${col.name}: ${axesText(col.before)} → ${axesText(col.after)}`
-            : `${col.name}: ${axesText(col.after)}`}
+      {collections.slice(0, COLLECTION_CHIPS).map((col) => (
+        <Chip
+          key={`c-${col.name}`}
+          tone={col.change === "added" ? "added" : col.change === "removed" ? "removed" : "accent"}
+        >
+          {col.change === "added"
+            ? `+ ${col.name}`
+            : col.change === "removed"
+              ? `− ${col.name}`
+              : `${col.name}: ${axesText(col.before)} → ${axesText(col.after)}`}
         </Chip>
       ))}
+      {collections.length > COLLECTION_CHIPS ? (
+        <Chip>{t("feed.moreItems", { count: collections.length - COLLECTION_CHIPS })}</Chip>
+      ) : null}
       {(entry.diff?.settings ?? []).map((s) => (
         <Chip key={`s-${s.name}`}>{`${s.name}: ${s.after || "–"}`}</Chip>
       ))}

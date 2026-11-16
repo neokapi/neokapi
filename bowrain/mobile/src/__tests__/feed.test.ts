@@ -4,6 +4,7 @@ import i18n from "i18next";
 import "../lib/i18n";
 import {
   actionOf,
+  actorName,
   ageLabel,
   dayLabel,
   deckLocaleOf,
@@ -77,6 +78,56 @@ describe("feed card sentences", () => {
     expect(
       actionOf(entry({ kind: "change_set", state: "merged", name: "Checkout terms" }), t, "en"),
     ).toBe("merged Checkout terms");
+  });
+
+  it("words a parked run from why it stopped", () => {
+    const parked = (stall_reason?: string) =>
+      actionOf(
+        entry({
+          kind: "convergence_run",
+          state: "parked",
+          stall_reason,
+          locales: ["nb"],
+          counts: { produced: 34231 },
+        }),
+        t,
+        "en",
+      );
+    expect(parked()).toBe("drafted 34,231 translations in Norwegian Bokmål for review");
+    expect(parked("no_progress")).toBe(
+      "drafted 34,231 translations in Norwegian Bokmål for review",
+    );
+    expect(parked("needs_credits")).toBe("stopped because the workspace is out of AI credits");
+    expect(parked("checks_failing")).toBe(
+      "drafted 34,231 translations in Norwegian Bokmål, and some fail checks",
+    );
+    expect(parked("something_new")).toBe("stopped before finishing");
+  });
+
+  it("names the convergence loop as Bowrain", () => {
+    expect(actorName(entry({ actor: { id: "", kind: "tool", name: "convergence" } }), t)).toBe(
+      "Bowrain",
+    );
+  });
+
+  it("counts collections past two instead of naming each", () => {
+    const added = (n: number) =>
+      actionOf(
+        entry({
+          kind: "recipe_change",
+          diff: {
+            collections: Array.from({ length: n }, (_, i) => ({
+              name: `c${i}`,
+              change: "added",
+              after: {},
+            })),
+          },
+        }),
+        t,
+        "en",
+      );
+    expect(added(2)).toBe("added the c0 collection and added the c1 collection");
+    expect(added(20)).toBe("added 20 collections");
   });
 
   it("says how many times a folded card's actor acted", () => {

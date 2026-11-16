@@ -95,7 +95,7 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 		ID: "ev-run", Type: platev.EventConvergenceRunCompleted, Source: "convergence", ProjectID: "p-feed",
 		Timestamp: at.Add(time.Minute),
 		Data: map[string]string{
-			"run_id": "run-1", "state": "converged", "passes": "2", "locales": "nb,de",
+			"run_id": "run-1", "state": "parked", "stall_reason": "no_progress", "passes": "2", "locales": "nb,de",
 			"locales_count": "2", "produced_count": "40", "workspace_id": "test-ws", "workspace_slug": "test",
 			"standing": `[{"locale":"nb","state":"shippable","units":30,"produced":30},{"locale":"de","state":"pending","units":20,"produced":10}]`,
 		},
@@ -176,7 +176,8 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 	assert.True(t, push.At.Equal(at), "the entry carries the event's own time, got %s", push.At)
 
 	run := by["convergence_run"][0]
-	assert.Equal(t, "converged", run.State)
+	assert.Equal(t, "parked", run.State)
+	assert.Equal(t, "no_progress", run.StallReason)
 	assert.Equal(t, "tool", run.Actor.Kind)
 	assert.Equal(t, []string{"nb", "de"}, run.Locales)
 	assert.Equal(t, map[string]int{"passes": 2, "locales": 2, "produced": 40}, run.Counts)

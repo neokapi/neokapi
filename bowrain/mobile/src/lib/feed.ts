@@ -213,16 +213,16 @@ export function actionOf(e: FeedEntry, t: TFunction, uiLanguage: string): string
         : t("feed.action.pushNoStream", { count: c.blocks });
     }
     case "convergence_run": {
-      if (e.state === "parked") return t("feed.action.runParked");
       if (e.state === "failed") return t("feed.action.runFailed");
       if (e.state === "canceled") return t("feed.action.runCanceled");
       const produced = c.produced ?? 0;
-      if (produced === 0) return t("feed.action.runNothing");
       const langs = e.locales?.length ?? c.locales ?? 0;
       const languages =
         langs === 1 && e.locales
           ? languageLabel(e.locales[0], uiLanguage)
           : t("feed.unit.locales", { count: langs });
+      if (e.state === "parked") return parkedActionOf(e.stall_reason, produced, languages, t);
+      if (produced === 0) return t("feed.action.runNothing");
       return t("feed.action.runDrafted", { count: produced, languages });
     }
     case "review_summary": {
@@ -262,15 +262,7 @@ export function actionOf(e: FeedEntry, t: TFunction, uiLanguage: string): string
           }),
         );
       }
-      for (const col of e.diff?.collections ?? []) {
-        const key =
-          col.change === "added"
-            ? "addedCollection"
-            : col.change === "removed"
-              ? "removedCollection"
-              : "movedCollection";
-        parts.push(t(`feed.action.${key}`, { name: col.name }));
-      }
+      parts.push(...collectionPartsOf(e, t));
       if (e.diff?.settings?.length) {
         parts.push(t("feed.action.changedSettings", { count: e.diff.settings.length }));
       }
@@ -296,6 +288,71 @@ export function actionOf(e: FeedEntry, t: TFunction, uiLanguage: string): string
   }
 }
 
+/** Stall reasons that stop a run on something other than review. */
+const STOPPED_KEYS: Record<string, string> = {
+  needs_credits: "runNoCredits",
+  needs_ai_key: "runNoProvider",
+  rate_limited: "runRateLimited",
+  source_not_ready: "runSourceFirst",
+};
+
+/**
+ * A parked run, worded from why it stopped. No reason, or no_progress, means
+ * the run drafted what it could and the rest waits for review.
+ */
+function parkedActionOf(
+  reason: string | undefined,
+  produced: number,
+  languages: string,
+  t: TFunction,
+): string {
+  if (reason && STOPPED_KEYS[reason]) return t(`feed.action.${STOPPED_KEYS[reason]}`);
+  if (reason === "checks_failing") {
+    return t("feed.action.runChecksFailing", { count: produced, languages });
+  }
+  if (reason && reason !== "no_progress") return t("feed.action.runStopped");
+  if (produced === 0) return t("feed.action.runWaiting");
+  return t("feed.action.runReady", { count: produced, languages });
+}
+
+/** Whether a parked run waits for review rather than on a problem. */
+export function waitsForReview(e: FeedEntry): boolean {
+  return !e.stall_reason || e.stall_reason === "no_progress";
+}
+
+/** Collections a sentence names one by one; more than this are counted. */
+const NAMED_COLLECTIONS = 2;
+
+const COLLECTION_KEYS = {
+  added: ["addedCollection", "addedCollections"],
+  removed: ["removedCollection", "removedCollections"],
+  moved: ["movedCollection", "movedCollections"],
+} as const;
+
+/** A recipe change's collections: "added the docs collection", "added 20 collections". */
+function collectionPartsOf(e: FeedEntry, t: TFunction): string[] {
+  const groups: Record<keyof typeof COLLECTION_KEYS, string[]> = {
+    added: [],
+    removed: [],
+    moved: [],
+  };
+  for (const col of e.diff?.collections ?? []) {
+    const change = col.change === "added" || col.change === "removed" ? col.change : "moved";
+    groups[change].push(col.name);
+  }
+  const parts: string[] = [];
+  for (const change of ["added", "removed", "moved"] as const) {
+    const names = groups[change];
+    const [one, many] = COLLECTION_KEYS[change];
+    if (names.length > NAMED_COLLECTIONS) {
+      parts.push(t(`feed.action.${many}`, { count: names.length }));
+    } else {
+      for (const name of names) parts.push(t(`feed.action.${one}`, { name }));
+    }
+  }
+  return parts;
+}
+
 const FOLDED_KEYS: Record<string, string> = {
   push: "foldedPush",
   convergence_run: "foldedRun",
@@ -313,6 +370,9 @@ export function foldedActionOf(card: FeedCard, t: TFunction, uiLanguage: string)
 
 /** The name a card shows for its actor. */
 export function actorName(e: FeedEntry, t: TFunction): string {
+  if (e.actor.kind === "tool" && e.actor.name === "convergence") {
+    return t("feed.actor.convergence");
+  }
   if (e.actor.kind === "tool" && e.actor.name) {
     return e.actor.name.charAt(0).toUpperCase() + e.actor.name.slice(1);
   }

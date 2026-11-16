@@ -511,6 +511,12 @@ export interface FeedEntry {
   stream?: string;
   /** A run's outcome or a change set's step. */
   state?: string;
+  /**
+   * Why a parked run stopped: no_progress (the rest waits for review),
+   * checks_failing, source_not_ready, needs_credits, needs_ai_key or
+   * rate_limited.
+   */
+  stall_reason?: string;
   diff?: FeedRecipeDiff;
   /** The first few items a context change touched; `counts` holds the full number. */
   samples?: FeedSample[];

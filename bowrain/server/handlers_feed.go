@@ -75,6 +75,11 @@ type FeedEntry struct {
 	// change set's step (submitted, approved, rejected, merged, created,
 	// abandoned, superseded).
 	State string `json:"state,omitempty"`
+	// StallReason is why a parked run stopped (no_progress, checks_failing,
+	// source_not_ready, needs_credits, needs_ai_key, rate_limited). A client
+	// words a parked run from it: no_progress means the remaining work waits
+	// for a person's review.
+	StallReason string `json:"stall_reason,omitempty"`
 	// Diff is a recipe change's values before and after.
 	Diff *platev.RecipeChange `json:"diff,omitempty"`
 	// Samples names the first few items a context change touched; counts
@@ -240,6 +245,7 @@ func feedEntryOf(a *bstore.Activity, memberName func(string) string) FeedEntry {
 		e.Link = FeedLink{Screen: FeedScreenStream, ID: a.EntityID, Stream: a.Stream}
 	case bstore.FeedKindConvergenceRun:
 		e.State = a.Data["state"]
+		e.StallReason = a.Data["stall_reason"]
 		if raw := a.Data["standing"]; raw != "" {
 			_ = json.Unmarshal([]byte(raw), &e.Standing)
 		}
