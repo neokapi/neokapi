@@ -21,6 +21,7 @@ jest.mock("expo-sqlite/kv-store", () => ({
 jest.mock("expo-haptics", () => ({
   notificationAsync: async () => undefined,
   impactAsync: async () => undefined,
+  selectionAsync: async () => undefined,
   NotificationFeedbackType: { Success: "success" },
   ImpactFeedbackStyle: { Medium: "medium" },
 }));

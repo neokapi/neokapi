@@ -1,10 +1,14 @@
 // One context item as a card in the context deck: its kind, language and
 // status as chips, the rule, term, voice rule or note itself, where it
-// applies, and who wrote it. The server decides every field; the card only
-// lays them out.
+// applies, who wrote it, and the bulk operation that brought it in. The
+// server decides every field; the card only lays them out.
 import type { ContextCard as Card } from "@neokapi/bowrain-client";
-import { ScrollView, Text, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useCSSVariable } from "uniwind";
+
+import { originLine } from "../lib/contextOrigin";
 
 import { Avatar } from "./feed/Avatar";
 import { CARD_SHADOW } from "./ReviewCard";
@@ -112,7 +116,32 @@ function Body({ card }: { card: Card }) {
   );
 }
 
-export function ContextCard({ card }: { card: Card }) {
+/** Where the item came from, when a bulk operation brought it in. Tapping it opens the origin sheet. */
+function OriginLine({ card, onOpen }: { card: Card; onOpen?: () => void }) {
+  const { t } = useTranslation();
+  const muted = useCSSVariable("--color-muted-foreground");
+  if (!card.origin) return null;
+  const line = originLine(t, card.origin);
+  return (
+    <Pressable
+      testID="context-origin"
+      accessibilityRole="button"
+      accessibilityLabel={`${t("context.origin.openLabel")}: ${line}`}
+      disabled={!onOpen}
+      onPress={onOpen}
+      hitSlop={6}
+      className="bg-muted flex-row items-center gap-2 rounded-xl px-3 py-2 active:opacity-70"
+    >
+      <Ionicons name="git-branch-outline" size={14} color={String(muted)} />
+      <Text className="text-foreground min-w-0 flex-1 text-sm" numberOfLines={1}>
+        {line}
+      </Text>
+      {onOpen ? <Ionicons name="chevron-forward" size={14} color={String(muted)} /> : null}
+    </Pressable>
+  );
+}
+
+export function ContextCard({ card, onOpenOrigin }: { card: Card; onOpenOrigin?: () => void }) {
   const { t, i18n } = useTranslation();
   const where = [
     t(`context.where.${card.where.level}`),
@@ -158,6 +187,8 @@ export function ContextCard({ card }: { card: Card }) {
             {where.join(" · ")}
           </Text>
         </View>
+
+        <OriginLine card={card} onOpen={onOpenOrigin} />
 
         {card.review ? (
           <View className="bg-muted rounded-xl px-3 py-2">

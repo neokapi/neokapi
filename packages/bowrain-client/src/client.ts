@@ -14,6 +14,7 @@ import type {
   CallerPermissions,
   ContextCardKind,
   ContextDeck,
+  ContextOriginPage,
   ContextDecision,
   ContextDecisionResult,
   Deck,
@@ -115,6 +116,13 @@ export interface BowrainClient {
     project: string,
     opts?: { limit?: number; cursor?: string; kind?: ContextCardKind },
   ): Promise<ContextDeck>;
+  /** One page of the items the bulk operation `op` brought into a project, reviewed or not. */
+  contextOrigin(
+    workspace: string,
+    project: string,
+    op: string,
+    opts?: { limit?: number; cursor?: string },
+  ): Promise<ContextOriginPage>;
   /** Keep, reject or put off one context card. A refusal throws an ApiError whose body carries `code`. */
   decideContext(
     workspace: string,
@@ -323,6 +331,13 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         `${ROUTES.contextDeck(ws, pid)}${query({ mode: "pending", limit: o.limit, cursor: o.cursor, kind: o.kind })}`,
       );
       return { ...deck, cards: deck.cards ?? [], next_cursor: deck.next_cursor || undefined };
+    },
+
+    async contextOrigin(ws, pid, op, o = {}) {
+      const page = await get<ContextOriginPage>(
+        `${ROUTES.contextDeck(ws, pid)}/origins/${enc(op)}${query({ limit: o.limit, cursor: o.cursor })}`,
+      );
+      return { ...page, cards: page.cards ?? [], next_cursor: page.next_cursor || undefined };
     },
 
     decideContext(ws, pid, decision) {
