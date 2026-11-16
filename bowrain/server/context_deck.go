@@ -275,8 +275,9 @@ func (s *Server) memberAuthor(ctx context.Context, userID string, names map[stri
 // judge sets what a keep would record and which actions the card offers,
 // from who wrote the item and who reads it. An agent's work is reviewed by
 // the member it ran for (agent_authored); another person's by a peer. An item
-// the reviewer wrote by hand needs another person, unless the reviewer is the
-// workspace's only one (solo_owner).
+// the reviewer wrote by hand, or one no record names an author for, needs
+// another person, unless the reviewer is the workspace's only one
+// (solo_owner).
 func (card *contextDeckCard) judge(rv deckReviewer, need platauth.Permission, reaches, bound bool) {
 	switch {
 	case card.Author.AgentAuthored:
@@ -284,6 +285,13 @@ func (card *contextDeckCard) judge(rv deckReviewer, need platauth.Permission, re
 	case card.Author.userID != "" && card.Author.userID == rv.userID,
 		card.Author.userID == "" && card.Author.Name != "" && card.Author.Name == rv.name:
 		card.OwnWork = true
+		if rv.solo {
+			card.Basis = contextop.BasisSoloOwner
+		}
+	case card.Author.userID == "" && card.Author.Name == "":
+		// No record says who wrote the item, so no reviewer can be shown to
+		// be someone other than its author. Only a workspace's sole member
+		// may keep it.
 		if rv.solo {
 			card.Basis = contextop.BasisSoloOwner
 		}

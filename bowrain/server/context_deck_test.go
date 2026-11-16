@@ -32,6 +32,8 @@ func deckSQLiteServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitest
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = cs.Close() })
 	ks := newFakeKnowledgeStore()
+	// Another member wrote the concept, so the caller may keep it as a peer.
+	ks.latest = map[string]*knowledge.ConceptRevision{"c-memory": {ConceptID: "c-memory", Rev: 1, Actor: "member-b"}}
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores(), KnowledgeStore: ks}
 	tb := &testTermStore{terms.NewInMemoryStore()}
 	srv.wsStores.termsFactory = func() terms.Store { return tb }
@@ -327,6 +329,10 @@ func TestContextDeckCardJudge(t *testing.T) {
 			deckReviewer{userID: "u1", name: "Ada", perms: all, solo: true}, true, contextop.BasisSoloOwner, true, []string{"keep", "reject", "later"}},
 		{"a voice rule cannot be retired here yet", contextDeckAuthor{Kind: "person", userID: "u2"}, deckKindVoiceRule, "",
 			deckReviewer{userID: "u1", name: "Ada", perms: all}, true, contextop.BasisPeer, false, []string{"keep", "later"}},
+		{"an item no record names an author for", contextDeckAuthor{Kind: "person"}, deckKindVoiceRule, "",
+			deckReviewer{userID: "u1", name: "Ada", perms: all}, true, "", false, []string{"later"}},
+		{"the sole member keeps an item with no author", contextDeckAuthor{Kind: "person"}, deckKindVoiceRule, "",
+			deckReviewer{userID: "u1", name: "Ada", perms: all, solo: true}, true, contextop.BasisSoloOwner, false, []string{"keep", "later"}},
 		{"no permission", contextDeckAuthor{Kind: "agent", AgentAuthored: true}, deckKindTermRule, "established",
 			deckReviewer{userID: "u1", name: "Ada"}, true, contextop.BasisAgentAuthored, false, []string{"later"}},
 		{"an unbound project", contextDeckAuthor{Kind: "agent", AgentAuthored: true}, deckKindTermRule, "established",
