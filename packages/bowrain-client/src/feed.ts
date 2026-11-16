@@ -82,7 +82,7 @@ export function groupFeedByDay(entries: readonly FeedEntry[], now: Date = new Da
 }
 
 /** The context operations a context change counts beside its item kinds. */
-const CONTEXT_OPERATIONS = ["add", "edit", "retire", "keep", "drop"];
+const CONTEXT_OPERATIONS = ["add", "edit", "retire", "keep", "drop", "attest"];
 
 /** The review decisions a review summary counts. */
 const REVIEW_COUNTS = ["approved", "rejected", "unreviewed", "fixed", "bulk_approved"];

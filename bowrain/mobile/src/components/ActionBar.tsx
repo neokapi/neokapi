@@ -58,11 +58,22 @@ export function ActionBar({
   canUndo,
   onAction,
   onUndo,
+  canReject = true,
+  showFix = true,
+  labels,
 }: {
   canApprove: boolean;
   canUndo: boolean;
   onAction: (action: SwipeAction) => void;
   onUndo: () => void;
+  /** Whether Reject is offered. Offered unless false. */
+  canReject?: boolean;
+  /** Whether the Fix button is shown. Shown unless false. */
+  showFix?: boolean;
+  /** Labels and hints in place of the translation deck's. */
+  labels?: Partial<
+    Record<"approve" | "approveHint" | "approveDenied" | "reject" | "rejectHint", string>
+  >;
 }) {
   const { t } = useTranslation();
   const [approve, reject, corrective, muted] = useCSSVariable([
@@ -88,26 +99,33 @@ export function ActionBar({
         icon="close"
         color={String(reject)}
         size="lg"
-        label={t("actions.reject")}
-        hint={t("actions.rejectHint")}
+        label={labels?.reject ?? t("actions.reject")}
+        hint={labels?.rejectHint ?? t("actions.rejectHint")}
+        disabled={!canReject}
         onPress={() => onAction("reject")}
       />
-      <RoundButton
-        testID="action-fix"
-        icon="create-outline"
-        color={String(corrective)}
-        size="md"
-        label={t("actions.fix")}
-        hint={t("actions.fixHint")}
-        onPress={() => onAction("fix")}
-      />
+      {showFix ? (
+        <RoundButton
+          testID="action-fix"
+          icon="create-outline"
+          color={String(corrective)}
+          size="md"
+          label={t("actions.fix")}
+          hint={t("actions.fixHint")}
+          onPress={() => onAction("fix")}
+        />
+      ) : null}
       <RoundButton
         testID="action-approve"
         icon="checkmark"
         color={String(approve)}
         size="lg"
-        label={t("actions.approve")}
-        hint={canApprove ? t("actions.approveHint") : t("actions.approveOwnWork")}
+        label={labels?.approve ?? t("actions.approve")}
+        hint={
+          canApprove
+            ? (labels?.approveHint ?? t("actions.approveHint"))
+            : (labels?.approveDenied ?? t("actions.approveOwnWork"))
+        }
         disabled={!canApprove}
         onPress={() => onAction("approve")}
       />

@@ -453,6 +453,26 @@ func (s *PostgresKnowledgeStore) LatestRev(ctx context.Context, workspaceID, con
 	return rev, nil
 }
 
+func (s *PostgresKnowledgeStore) LatestRevisions(ctx context.Context, workspaceID string) (map[string]*ConceptRevision, error) {
+	rows, err := s.run().QueryContext(ctx,
+		`SELECT DISTINCT ON (concept_id) workspace_id, concept_id, rev, snapshot, summary, actor, changeset_id, created_at
+		 FROM kg_concept_revisions WHERE workspace_id = $1
+		 ORDER BY concept_id, rev DESC`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("latest revisions: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]*ConceptRevision{}
+	for rows.Next() {
+		r, err := scanRevision(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[r.ConceptID] = r
+	}
+	return out, rows.Err()
+}
+
 func scanRevision(row scanner) (*ConceptRevision, error) {
 	var r ConceptRevision
 	var snapshot []byte

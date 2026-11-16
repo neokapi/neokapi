@@ -107,6 +107,7 @@ const UNITS = new Set([
   "retire",
   "keep",
   "drop",
+  "attest",
 ]);
 
 /** The kind's label: Push, Run, Review. */
@@ -183,9 +184,10 @@ const CONTEXT_OP_KEYS: Record<string, string> = {
   keep: "contextKeep",
   drop: "contextDrop",
   retire: "contextRetire",
+  attest: "contextAttest",
 };
 
-const CONTEXT_OPS = ["add", "edit", "keep", "drop", "retire"];
+const CONTEXT_OPS = ["add", "edit", "keep", "drop", "retire", "attest"];
 
 const CHANGE_SET_KEYS: Record<string, string> = {
   created: "changeSetCreated",

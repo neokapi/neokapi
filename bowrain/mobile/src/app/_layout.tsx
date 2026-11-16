@@ -121,6 +121,10 @@ function Screens() {
           name="[ws]/[project]/[locale]"
           options={{ title: t("deck.title"), headerTransparent: false }}
         />
+        <Stack.Screen
+          name="[ws]/[project]/context"
+          options={{ title: t("context.title"), headerTransparent: false }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />

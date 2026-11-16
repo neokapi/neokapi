@@ -330,4 +330,60 @@ describe("client", () => {
     expect(await answering(404).reviewInbox()).toBeNull();
     await expect(answering(500).reviewInbox()).rejects.toThrow();
   });
+
+  it("reads the context waiting in the inbox, and an older server's answer as none", async () => {
+    const entry = {
+      workspace: "ws",
+      workspace_name: "WS",
+      project: "p",
+      project_name: "Site",
+      waiting: 3,
+      by_kind: { term_rule: 2, note: 1 },
+    };
+    const answering = (body: object) =>
+      createBowrainClient({
+        baseUrl: "http://server",
+        getAccessToken: () => "t",
+        fetch: (async () => new Response(JSON.stringify(body), { status: 200 })) as typeof fetch,
+      });
+    expect(await answering({ context: [entry], languages: [] }).reviewHome()).toEqual({
+      context: [entry],
+      languages: [],
+    });
+    expect(await answering({ languages: [] }).reviewHome()).toEqual({ context: [], languages: [] });
+  });
+
+  it("pages the context deck and sends a decision", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        const body = url.endsWith("/decide")
+          ? { outcome: "attested" }
+          : {
+              mode: "pending",
+              bound: true,
+              counts: { total: 0, by_kind: {}, agent: 0, person: 0 },
+              cards: [],
+              next_cursor: "",
+            };
+        return new Response(JSON.stringify(body), { status: 200 });
+      }) as typeof fetch,
+    });
+    const deck = await client.contextDeck("ws", "p", { limit: 20, cursor: "40" });
+    expect(calls[0]?.url).toBe(
+      "http://server/api/v1/ws/p/context/deck?mode=pending&limit=20&cursor=40",
+    );
+    expect(deck.next_cursor).toBeUndefined();
+    const result = await client.decideContext("ws", "p", {
+      item: { kind: "op", id: "0abc" },
+      revision: "0abc",
+      action: "keep",
+    });
+    expect(result.outcome).toBe("attested");
+    expect(calls[1]?.url).toBe("http://server/api/v1/ws/p/context/deck/decide");
+    expect(calls[1]?.init?.method).toBe("POST");
+  });
 });

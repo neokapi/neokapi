@@ -55,6 +55,9 @@ const (
 	ContextOpRetire ContextOperation = "retire"
 	ContextOpKeep   ContextOperation = "keep"
 	ContextOpDrop   ContextOperation = "drop"
+	// ContextOpAttest is a person attesting that they reviewed an item,
+	// which changes nothing in force.
+	ContextOpAttest ContextOperation = "attest"
 )
 
 // ContextCounts counts the items of a context change by item kind and
@@ -241,7 +244,7 @@ func (c ContextCounts) Describe() string {
 			entries = append(entries, entry{op, kind, n})
 		}
 	}
-	order := []ContextOperation{ContextOpAdd, ContextOpEdit, ContextOpKeep, ContextOpDrop, ContextOpRetire}
+	order := []ContextOperation{ContextOpAdd, ContextOpEdit, ContextOpKeep, ContextOpDrop, ContextOpRetire, ContextOpAttest}
 	slices.SortFunc(entries, func(a, b entry) int {
 		if d := slices.Index(order, a.op) - slices.Index(order, b.op); d != 0 {
 			return d
@@ -268,6 +271,8 @@ func contextVerb(op ContextOperation) string {
 		return "dropped"
 	case ContextOpRetire:
 		return "retired"
+	case ContextOpAttest:
+		return "reviewed"
 	}
 	return string(op)
 }

@@ -1,8 +1,9 @@
-// The review inbox: every language the person may review, across projects
-// and workspaces, where translations are waiting, most waiting first. The
-// server lists them, counts them as each language's deck counts them and
-// orders them (GET /auth/me/review); the app shows that list as it comes.
-import type { ReviewInboxLanguage } from "@neokapi/bowrain-client";
+// The review inbox: the projects whose context waits for the person's review,
+// then every language they may review, across projects and workspaces, where
+// translations are waiting, most waiting first. The server lists both, counts
+// them as each deck counts them and orders them (GET /auth/me/review); the app
+// shows the lists as they come.
+import type { ContextInboxEntry, ReviewInboxLanguage } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
@@ -58,6 +59,52 @@ const InboxRow = memo(function InboxRow({
   );
 });
 
+const ContextRow = memo(function ContextRow({
+  item,
+  showWorkspace,
+}: {
+  item: ContextInboxEntry;
+  showWorkspace: boolean;
+}) {
+  const { t } = useTranslation();
+  const muted = useCSSVariable("--color-muted-foreground");
+  const where = showWorkspace ? `${item.project_name} · ${item.workspace_name}` : item.project_name;
+  const open = () => {
+    setRecentProject({ ws: item.workspace, project: item.project, name: item.project_name });
+    router.push({
+      pathname: "/[ws]/[project]/context",
+      params: { ws: item.workspace, project: item.project },
+    });
+  };
+  return (
+    <Pressable
+      testID={`inbox-context-${item.project}`}
+      accessibilityRole="button"
+      accessibilityLabel={t("context.entryLabel", { where, count: item.waiting })}
+      onPress={open}
+      className="bg-card border-border flex-row items-center gap-3 border-b px-4 py-3.5 active:opacity-70"
+    >
+      <View className="flex-1 gap-0.5">
+        <Text className="text-foreground text-base font-medium">
+          {t("context.entry", { count: item.waiting })}
+        </Text>
+        <Text className="text-muted-foreground text-sm" numberOfLines={1}>
+          {where}
+        </Text>
+        <Text className="text-muted-foreground text-xs tabular-nums" numberOfLines={1}>
+          {t("context.kinds", {
+            voice: item.by_kind.voice_rule ?? 0,
+            terms: item.by_kind.concept ?? 0,
+            rules: item.by_kind.term_rule ?? 0,
+            notes: item.by_kind.note ?? 0,
+          })}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={String(muted)} />
+    </Pressable>
+  );
+});
+
 function Empty({
   icon,
   title,
@@ -80,7 +127,7 @@ function Empty({
 export default function ReviewInbox() {
   const { t } = useTranslation();
   const { client } = useAuth();
-  const inbox = useQuery({ queryKey: inboxKey, queryFn: () => client.reviewInbox() });
+  const inbox = useQuery({ queryKey: inboxKey, queryFn: () => client.reviewHome() });
   const { refetch } = inbox;
 
   // Back from a deck, the counts have moved.
@@ -90,8 +137,10 @@ export default function ReviewInbox() {
     }, [refetch]),
   );
 
-  const languages = inbox.data ?? [];
-  const showWorkspace = new Set(languages.map((l) => l.workspace)).size > 1;
+  const languages = inbox.data?.languages ?? [];
+  const context = inbox.data?.context ?? [];
+  const showWorkspace =
+    new Set([...languages.map((l) => l.workspace), ...context.map((c) => c.workspace)]).size > 1;
   const renderItem = useCallback(
     ({ item }: { item: ReviewInboxLanguage }) => (
       <InboxRow item={item} showWorkspace={showWorkspace} />
@@ -104,7 +153,7 @@ export default function ReviewInbox() {
     empty = (
       <Empty icon="server" title={t("inbox.unsupported")} body={t("inbox.unsupportedBody")} />
     );
-  } else if (inbox.isSuccess) {
+  } else if (inbox.isSuccess && context.length === 0) {
     empty = (
       <Empty icon="checkmark-done" title={t("inbox.emptyTitle")} body={t("inbox.emptyBody")} />
     );
@@ -118,6 +167,19 @@ export default function ReviewInbox() {
         data={languages}
         keyExtractor={(l) => `${l.workspace}/${l.project}/${l.locale}`}
         renderItem={renderItem}
+        ListHeaderComponent={
+          context.length > 0 ? (
+            <View testID="inbox-context">
+              {context.map((c) => (
+                <ContextRow
+                  key={`${c.workspace}/${c.project}`}
+                  item={c}
+                  showWorkspace={showWorkspace}
+                />
+              ))}
+            </View>
+          ) : undefined
+        }
         refreshing={inbox.isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={empty ?? <QueryState query={inbox} />}

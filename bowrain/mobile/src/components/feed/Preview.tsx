@@ -16,7 +16,7 @@ export interface PreviewProps {
   onOpenLanguage?: (locale: string) => void;
 }
 
-const CONTEXT_OPS = ["add", "edit", "keep", "drop", "retire"];
+const CONTEXT_OPS = ["add", "edit", "keep", "drop", "retire", "attest"];
 
 function PushPreview({ entry }: PreviewProps) {
   const { t } = useTranslation();

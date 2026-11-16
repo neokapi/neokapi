@@ -39,6 +39,10 @@ type reviewInboxLanguage struct {
 }
 
 type reviewInboxResponse struct {
+	// Context lists the projects whose context waits for the caller's
+	// review, most waiting first. A client shows it before the languages:
+	// the context a translation is checked against is reviewed first.
+	Context   []contextInboxEntry   `json:"context"`
 	Languages []reviewInboxLanguage `json:"languages"`
 }
 
@@ -78,11 +82,19 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 	scopes, _ := c.Get("api_token_scopes").(string)
 	policy := deckPolicyKey(s.deckPolicy())
 
-	out := reviewInboxResponse{Languages: []reviewInboxLanguage{}}
+	out := reviewInboxResponse{Context: []contextInboxEntry{}, Languages: []reviewInboxLanguage{}}
 	for _, ws := range workspaces {
 		for _, p := range projects {
 			if p.WorkspaceID != ws.ID || p.Archived {
 				continue
+			}
+			perms, reach := s.inboxProjectAccess(ctx, userID, ws, p, scopes)
+			entry, ok, err := s.contextInbox(ctx, ws, p, userID, perms, reach)
+			if err != nil {
+				return serverErr(c, err)
+			}
+			if ok {
+				out.Context = append(out.Context, entry)
 			}
 			locales := s.reviewableLocales(ctx, userID, ws, p, scopes)
 			for _, loc := range locales {
@@ -115,6 +127,9 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 			}
 		}
 	}
+	slices.SortStableFunc(out.Context, func(a, b contextInboxEntry) int {
+		return cmp.Or(cmp.Compare(b.Waiting, a.Waiting), cmp.Compare(a.ProjectName, b.ProjectName))
+	})
 	slices.SortStableFunc(out.Languages, func(a, b reviewInboxLanguage) int {
 		return cmp.Or(
 			cmp.Compare(b.Waiting, a.Waiting),
@@ -123,6 +138,22 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 		)
 	})
 	return c.JSON(http.StatusOK, out)
+}
+
+// inboxProjectAccess is what the user may do in the project and the
+// coordinates their grants reach, as resolveProjectAccess resolves it and an
+// API token's scopes narrow it.
+func (s *Server) inboxProjectAccess(ctx context.Context, userID string, ws *platauth.Workspace, p *store.Project, scopes string) (platauth.Permission, platauth.CoordinateReach) {
+	access := s.resolveProjectAccess(ctx, accessRequest{
+		userID: userID, projectID: p.ID, workspaceID: ws.ID, role: ws.Role, plan: ws.Plan,
+	})
+	perms := access.permissions
+	if scopes != "" {
+		if resolved, err := platauth.ParseScopes(scopes); err == nil && !resolved.IsFullAccess {
+			perms &= resolved.Permissions
+		}
+	}
+	return perms, access.coordinates
 }
 
 // reviewableLocales is the project's target languages the user may review:
