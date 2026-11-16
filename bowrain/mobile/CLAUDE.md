@@ -61,8 +61,7 @@ reads. Read that note before changing a screen.
   - `(tabs)/account/`: the grouped account screen.
 - `src/components/`: the card, the swipe gesture, the action bar, the fix
   sheet, the run renderer and the run editor; the list rows (`List.tsx`),
-  the grouped settings list (`Grouped.tsx`), the avatar button and the feed
-  cards.
+  the grouped settings list (`Grouped.tsx`) and the feed cards.
 - `src/lib/`: the session (`auth.tsx`, `callback.ts`), the query client and
   its on-device persistence, the offline decision queue (`decisions.ts`),
   and what the device keeps for the person: appearance, the last project

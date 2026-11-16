@@ -82,7 +82,6 @@ export default function ContextDeckScreen() {
     onSuccess: (result) => {
       if (result.outcome === "proposed") setNotice(t("context.outcome.proposed"));
       void qc.invalidateQueries({ queryKey: ["review-inbox"] });
-      void qc.invalidateQueries({ queryKey: ["context-count", ws, project] });
     },
     onError: (err, d) => {
       // The card comes back at the end of the deck with what the server said.

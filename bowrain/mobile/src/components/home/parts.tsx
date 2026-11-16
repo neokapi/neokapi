@@ -7,8 +7,11 @@ import { AccessibilityInfo, Animated, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
+import { formatCount } from "../../lib/format";
+
 /** A count of what waits, or a check when nothing does. */
 export function CountPill({ count, testID }: { count: number; testID?: string }) {
+  const { i18n } = useTranslation();
   const approve = useCSSVariable("--color-approve");
   if (count <= 0) {
     return (
@@ -19,7 +22,9 @@ export function CountPill({ count, testID }: { count: number; testID?: string })
   }
   return (
     <View testID={testID} className="bg-primary min-w-9 items-center rounded-full px-2.5 py-1">
-      <Text className="text-primary-foreground text-sm font-semibold tabular-nums">{count}</Text>
+      <Text className="text-primary-foreground text-sm font-semibold tabular-nums">
+        {formatCount(count, i18n.language)}
+      </Text>
     </View>
   );
 }

@@ -26,9 +26,16 @@ type reviewInboxLanguage struct {
 	ProjectName   string `json:"project_name"`
 	Stream        string `json:"stream"`
 	Locale        string `json:"locale"`
-	// Waiting is what the language's review deck holds: the translations
-	// classified into a group, and those not classified yet. A translation
-	// set aside is not counted.
+	deckWaiting
+}
+
+// deckWaiting is what a language's review deck holds, split by group. The
+// inbox, the deck and the deck's collections all count with it, so one
+// language shows one number wherever a client asks.
+type deckWaiting struct {
+	// Waiting is every translation the deck deals: the ones classified into
+	// a group and the ones not classified yet. A translation set aside is
+	// not counted.
 	Waiting int `json:"waiting"`
 	Fast    int `json:"fast"`
 	Closer  int `json:"closer"`
@@ -36,6 +43,18 @@ type reviewInboxLanguage struct {
 	// Unclassified is the part of Waiting the deck has not grouped yet. The
 	// deck groups it when the language is opened.
 	Unclassified int `json:"unclassified"`
+}
+
+// deckWaitingOf reads the store's deck counts.
+func deckWaitingOf(n store.ReviewDeckCounts) deckWaiting {
+	w := deckWaiting{
+		Fast:         n.ByRank[deckRank(reviewdeck.DeckFast)],
+		Closer:       n.ByRank[deckRank(reviewdeck.DeckCloser)],
+		Desk:         n.ByRank[deckRank(reviewdeck.DeckDesk)],
+		Unclassified: n.Unclassified,
+	}
+	w.Waiting = w.Fast + w.Closer + w.Desk + w.Unclassified
+	return w
 }
 
 type reviewInboxResponse struct {
@@ -115,12 +134,8 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 					ProjectName:   p.Name,
 					Stream:        reviewInboxStream,
 					Locale:        loc,
-					Fast:          counts.ByRank[deckRank(reviewdeck.DeckFast)],
-					Closer:        counts.ByRank[deckRank(reviewdeck.DeckCloser)],
-					Desk:          counts.ByRank[deckRank(reviewdeck.DeckDesk)],
-					Unclassified:  counts.Unclassified,
+					deckWaiting:   deckWaitingOf(counts),
 				}
-				lang.Waiting = lang.Fast + lang.Closer + lang.Desk + lang.Unclassified
 				if lang.Waiting > 0 {
 					out.Languages = append(out.Languages, lang)
 				}

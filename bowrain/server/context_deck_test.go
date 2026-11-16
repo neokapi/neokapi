@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -340,6 +341,41 @@ func TestContextDeckCardJudge(t *testing.T) {
 			assert.Equal(t, tt.actions, card.Actions)
 		})
 	}
+}
+
+func TestOriginNoteDropsTheHostMarker(t *testing.T) {
+	assert.Equal(t, "edited with `kapi voice edit`", originNote("edited with `kapi voice edit` (recorded as a person in a claude-code shell)"))
+	assert.Equal(t, "fixed the casing", originNote("fixed the casing; recorded as a person in a codex shell"))
+}
+
+func TestVoiceEditHistoryFindsTheWriteThatAddedARule(t *testing.T) {
+	ruleA := coreprofile.Pattern{Regex: `\bleverage\b`, Description: "no leverage"}
+	ruleB := coreprofile.Pattern{Regex: `\butilize\b`, Description: "no utilize"}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Docs"}
+	profile.Style.ProhibitedPatterns = []coreprofile.Pattern{ruleA, ruleB}
+	t0 := time.Date(2026, 11, 10, 6, 0, 0, 0, time.UTC)
+
+	// The first write created the profile with rule A; the second, from an
+	// agent host's shell, added rule B.
+	first := contextop.Record{ID: "op1", At: t0, Voice: &contextop.VoiceEdit{Profile: "docs"}}
+	second := contextop.Record{
+		ID: "op2", At: t0.Add(time.Hour),
+		Actor: contextop.Actor{Kind: contextop.ActorPerson, Name: "u1"},
+		Note:  "recorded as a person in a claude-code shell",
+		Voice: &contextop.VoiceEdit{Profile: "docs", Previous: "name: Docs\nstyle:\n  prohibited_patterns:\n    - regex: '\\bleverage\\b'\n      description: no leverage\n"},
+	}
+	unrelated := contextop.Record{ID: "op3", At: t0, Voice: &contextop.VoiceEdit{Profile: "other"}}
+	steps := voiceEditSteps([]contextop.Record{second, unrelated, first}, profile)
+	require.Len(t, steps, 2)
+
+	_, revA := patternIdentity("prohibited", ruleA)
+	_, revB := patternIdentity("prohibited", ruleB)
+	require.NotNil(t, steps.introduced("prohibited", revA))
+	assert.Equal(t, "op1", steps.introduced("prohibited", revA).rec.ID)
+	require.NotNil(t, steps.introduced("prohibited", revB))
+	assert.Equal(t, "op2", steps.introduced("prohibited", revB).rec.ID)
+	assert.True(t, opAuthor(steps.introduced("prohibited", revB).rec).AgentAuthored)
+	assert.Nil(t, steps.introduced("required", revB))
 }
 
 func TestPatternIdentity(t *testing.T) {

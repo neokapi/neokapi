@@ -142,24 +142,33 @@ describe("ProjectCard", () => {
 });
 
 describe("LanguageCard", () => {
-  it("shows the deck's groups and opens the language", async () => {
+  const nb: ReviewInboxLanguage = {
+    workspace: "acme",
+    workspace_name: "Acme",
+    project: "p1",
+    project_name: "Docs",
+    stream: "main",
+    locale: "nb",
+    waiting: 34229,
+    fast: 0,
+    closer: 25576,
+    desk: 2822,
+    unclassified: 5831,
+  };
+
+  it("shows the inbox's waiting count, the groups, and opens the language", async () => {
     const onPress = jest.fn();
-    await render(
-      <LanguageCard
-        locale="nb"
-        counts={{ total: 12, fast: 8, closer: 3, desk: 1 }}
-        onPress={onPress}
-      />,
-    );
+    await render(<LanguageCard locale="nb" waiting={nb} onPress={onPress} />);
     expect(screen.getByTestId("language-nb-mix")).toBeTruthy();
+    expect(screen.getByText("34,229")).toBeTruthy();
     await fireEvent.press(screen.getByTestId("language-nb"));
     expect(onPress).toHaveBeenCalledWith("nb");
   });
 
-  it("shows a total alone from a server that does not group the deck", async () => {
-    await render(<LanguageCard locale="nb" counts={{ total: 5 }} onPress={() => {}} />);
+  it("says nothing waits for a language the inbox does not list", async () => {
+    await render(<LanguageCard locale="nb" onPress={() => {}} />);
     expect(screen.queryByTestId("language-nb-mix")).toBeNull();
-    expect(screen.getByText("5 translations")).toBeTruthy();
+    expect(screen.getByText("Nothing waiting for you")).toBeTruthy();
   });
 });
 

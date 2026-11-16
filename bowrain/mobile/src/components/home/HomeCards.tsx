@@ -1,7 +1,7 @@
 // The cards of the Home screens: a workspace, a project, a project's context
 // waiting for review, and one of its languages. Each card says what waits for
 // the person and opens the next screen in one tap.
-import type { DeckCounts, Project, Workspace } from "@neokapi/bowrain-client";
+import type { Project, ReviewInboxLanguage, Workspace } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { TFunction } from "i18next";
 import { memo } from "react";
@@ -202,23 +202,25 @@ export function ContextEntryCard({
 
 export const LanguageCard = memo(function LanguageCard({
   locale,
-  counts,
+  waiting,
+  loading,
   onPress,
 }: {
   locale: string;
-  /** The language's deck counts; undefined while they load. */
-  counts?: Partial<DeckCounts> & { total: number };
+  /** The inbox's entry for the language; undefined when nothing waits. */
+  waiting?: ReviewInboxLanguage;
+  /** The inbox is still loading. */
+  loading?: boolean;
   onPress: (locale: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const name = languageLabel(locale, i18n.language);
-  const total = counts?.total;
-  const status =
-    total === undefined
-      ? t("home.loading")
-      : total > 0
-        ? t("home.translations", { count: total })
-        : t("home.nothingWaiting");
+  const count = waiting?.waiting ?? 0;
+  const status = loading
+    ? t("home.loading")
+    : count > 0
+      ? t("home.translations", { count })
+      : t("home.nothingWaiting");
   return (
     <Pressable
       testID={`language-${locale}`}
@@ -227,22 +229,18 @@ export const LanguageCard = memo(function LanguageCard({
       onPress={() => onPress(locale)}
       className={CARD}
     >
-      <LocaleBadge locale={locale} active={(total ?? 0) > 0} />
+      <LocaleBadge locale={locale} active={count > 0} />
       <View className="flex-1 gap-1.5">
         <Text className="text-foreground text-[17px] font-semibold" numberOfLines={2}>
           {name}
         </Text>
-        {total !== undefined && total > 0 && counts?.fast !== undefined ? (
-          <ReviewMix testID={`language-${locale}-mix`} mix={counts} />
+        {waiting && count > 0 ? (
+          <ReviewMix testID={`language-${locale}-mix`} mix={waiting} />
         ) : (
           <Text className="text-muted-foreground text-sm">{status}</Text>
         )}
       </View>
-      {total === undefined ? (
-        <View className="bg-muted h-7 w-9 rounded-full" />
-      ) : (
-        <CountPill count={total} />
-      )}
+      {loading ? <View className="bg-muted h-7 w-9 rounded-full" /> : <CountPill count={count} />}
       <Chevron />
     </Pressable>
   );

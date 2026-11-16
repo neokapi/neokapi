@@ -1,10 +1,9 @@
-# Open the account screen from the avatar on Home, check what it shows, and
+# Open the account screen from the Account tab, check what it shows, and
 # sign out from it. Nothing is queued, so the plain confirmation appears.
 appId: cloud.bowrain.app
 ---
 - runFlow: sign-in.yaml
-- tapOn:
-    id: account-button
+- tapOn: "Account"
 - assertVisible:
     id: account-profile
 - assertVisible:

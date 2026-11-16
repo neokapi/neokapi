@@ -101,6 +101,7 @@ describe("feed", () => {
     expect(initialsOf("Ada Lindqvist")).toBe("AL");
     expect(initialsOf("claude-code")).toBe("CC");
     expect(initialsOf("asgeir")).toBe("AS");
+    expect(initialsOf("asgeirf@gmail.com")).toBe("AS");
     expect(paletteIndex("u-ada", 8)).toBe(paletteIndex("u-ada", 8));
   });
 

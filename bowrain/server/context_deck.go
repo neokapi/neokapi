@@ -209,7 +209,9 @@ type deckSource struct {
 
 // overrideNote is the note a person's operation carries when it was recorded
 // in an agent host's shell (host.ResolvedActor.NoteWith).
-var overrideNote = regexp.MustCompile(`recorded as a person in an? (\S+) shell`)
+// NoteWith appends it in brackets after a note of the person's own, or
+// writes it alone.
+var overrideNote = regexp.MustCompile(`\s*\(?recorded as a person in an? (\S+) shell\)?`)
 
 // opAuthor reads who wrote a ledger operation.
 func opAuthor(r contextop.Record) contextDeckAuthor {
@@ -376,13 +378,15 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 	}
 	cards = append(cards, concepts...)
 
-	voice, err := s.voiceRuleCards(ctx, src, names)
+	voice, err := s.voiceRuleCards(ctx, src, bulk, origins, names)
 	if err != nil {
 		return nil, err
 	}
 	for i := range voice {
 		voice[i].judge(rv, platauth.PermManageVoice, rv.reach.Unconstrained(), bound)
-		voice[i].Origin = voiceOrigin(origins, voice[i])
+		if voice[i].Origin == nil {
+			voice[i].Origin = voiceOrigin(origins, voice[i])
+		}
 	}
 	cards = append(cards, voice...)
 
@@ -425,7 +429,7 @@ func (s *Server) deckOrigins(ctx context.Context, bulk []contextop.Record, names
 		o := &contextDeckOrigin{
 			ID: r.ID, Short: contextop.ShortID(r.ID), At: r.At,
 			Author: s.recordAuthor(ctx, r, names),
-			Note:   strings.Trim(overrideNote.ReplaceAllString(r.Note, ""), " ;"),
+			Note:   originNote(r.Note),
 		}
 		if src, ok := r.ImportOf(); ok {
 			o.Kind, o.Source, o.Path, o.Count = originKindImport, src.Source, src.Path, src.Count
@@ -439,6 +443,12 @@ func (s *Server) deckOrigins(ctx context.Context, bulk []contextop.Record, names
 	}
 	slices.SortStableFunc(out, func(a, b *contextDeckOrigin) int { return a.At.Compare(b.At) })
 	return out
+}
+
+// originNote is what the person said about an operation, without the agent
+// host marker the author already carries.
+func originNote(note string) string {
+	return strings.Trim(overrideNote.ReplaceAllString(note, ""), " ;")
 }
 
 // voiceWriteProfile is the voice profile a whole-profile write names: its
@@ -634,12 +644,101 @@ func sameLanguage(a, b model.LocaleID) bool {
 // revision of it; editing what it matches is a new rule. The author is
 // whoever wrote the first profile version that holds the rule as it reads
 // now.
-func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, error) {
+func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, bulk []contextop.Record, origins []*contextDeckOrigin, names map[string]string) ([]contextDeckCard, error) {
 	var out []contextDeckCard
 	for _, profile := range s.boundVoiceProfiles(ctx, src) {
-		out = append(out, s.profileRuleCards(ctx, src, profile, names)...)
+		steps := voiceEditSteps(bulk, profile)
+		for _, card := range s.profileRuleCards(ctx, src, profile, names) {
+			if step := steps.introduced(card.Pattern.List, card.Revision); step != nil {
+				// The ledger records who made each voice edit, an agent host
+				// included; the store's version rows do not.
+				card.Author = s.recordAuthor(ctx, step.rec, names)
+				card.At = step.rec.At
+				card.Origin = originByID(origins, step.rec.ID)
+			}
+			out = append(out, card)
+		}
 	}
 	return out, nil
+}
+
+// voiceEditStep is one whole-profile write the ledger records, with the
+// pattern rules the profile held before and after it, keyed by list and
+// revision.
+type voiceEditStep struct {
+	rec    contextop.Record
+	before map[string]bool
+	after  map[string]bool
+}
+
+// voiceEditHistory is a profile's ledger writes, oldest first.
+type voiceEditHistory []voiceEditStep
+
+// voiceEditSteps reads the ledger's writes of profile. A write's after-state
+// is the next write's before-state, and the last write's is the profile as
+// stored.
+func voiceEditSteps(bulk []contextop.Record, profile *coreprofile.VoiceProfile) voiceEditHistory {
+	var steps voiceEditHistory
+	for _, r := range bulk {
+		if r.Voice == nil || !sameProfile(r.Voice.Profile, profile.ID, profile.Name) {
+			continue
+		}
+		step := voiceEditStep{rec: r, before: map[string]bool{}}
+		if r.Voice.Previous != "" {
+			prev, err := coreprofile.LoadProfileYAML(strings.NewReader(r.Voice.Previous))
+			if err != nil {
+				continue
+			}
+			step.before = patternKeys(prev)
+		}
+		steps = append(steps, step)
+	}
+	slices.SortStableFunc(steps, func(a, b voiceEditStep) int { return a.rec.At.Compare(b.rec.At) })
+	for i := range steps {
+		if i+1 < len(steps) {
+			steps[i].after = steps[i+1].before
+		} else {
+			steps[i].after = patternKeys(profile)
+		}
+	}
+	return steps
+}
+
+// introduced is the latest write that added the rule at revision rev, or nil
+// when no write the ledger records did.
+func (h voiceEditHistory) introduced(list, rev string) *voiceEditStep {
+	key := list + "\x00" + rev
+	for i := len(h) - 1; i >= 0; i-- {
+		if h[i].after[key] && !h[i].before[key] {
+			return &h[i]
+		}
+	}
+	return nil
+}
+
+// patternKeys are a profile's pattern rules keyed by list and revision.
+func patternKeys(p *coreprofile.VoiceProfile) map[string]bool {
+	out := map[string]bool{}
+	for list, patterns := range map[string][]coreprofile.Pattern{
+		"prohibited": p.Style.ProhibitedPatterns,
+		"required":   p.Style.RequiredPatterns,
+	} {
+		for _, pat := range patterns {
+			_, rev := patternIdentity(list, pat)
+			out[list+"\x00"+rev] = true
+		}
+	}
+	return out
+}
+
+// originByID is the origin of the operation id names, or nil.
+func originByID(origins []*contextDeckOrigin, id string) *contextDeckOrigin {
+	for _, o := range origins {
+		if o.ID == id {
+			return o
+		}
+	}
+	return nil
 }
 
 // boundVoiceProfiles are the voice profiles bound in the project, resolved at

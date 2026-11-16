@@ -89,13 +89,10 @@ type deckCard struct {
 }
 
 type deckCounts struct {
-	Fast   int `json:"fast"`
-	Closer int `json:"closer"`
-	Desk   int `json:"desk"`
-	Total  int `json:"total"`
-	// Unclassified counts the translations waiting for review that this
-	// request did not reach; the next request classifies them.
-	Unclassified int `json:"unclassified,omitempty"`
+	deckWaiting
+	// Total is the classified part of Waiting: the cards the deck can deal
+	// now. The unclassified rest is grouped by a later request.
+	Total int `json:"total"`
 }
 
 type reviewDeckResponse struct {
@@ -207,11 +204,8 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	}
 
 	out := reviewDeckResponse{Locale: loc, Cards: []deckCard{}, Policy: policy}
-	out.Counts.Fast = counts.ByRank[deckRank(reviewdeck.DeckFast)]
-	out.Counts.Closer = counts.ByRank[deckRank(reviewdeck.DeckCloser)]
-	out.Counts.Desk = counts.ByRank[deckRank(reviewdeck.DeckDesk)]
-	out.Counts.Total = out.Counts.Fast + out.Counts.Closer + out.Counts.Desk
-	out.Counts.Unclassified = counts.Unclassified
+	out.Counts.deckWaiting = deckWaitingOf(counts)
+	out.Counts.Total = out.Counts.Waiting - out.Counts.Unclassified
 	if len(rows) > limit {
 		rows = rows[:limit]
 		last := rows[len(rows)-1]

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { languageLabel } from "../../lib/feed";
+import { formatCount } from "../../lib/format";
 import type { NextUp } from "../../lib/home";
 import { LocaleBadge } from "./parts";
 import { ReviewMix } from "./ReviewMix";
@@ -68,7 +69,9 @@ export function NextUpCard({
             </Text>
           </View>
           <View className="items-end">
-            <Text className="text-foreground text-3xl font-bold tabular-nums">{count}</Text>
+            <Text className="text-foreground text-3xl font-bold tabular-nums">
+              {formatCount(count, i18n.language)}
+            </Text>
             <Text className="text-muted-foreground text-xs">{t("home.waiting")}</Text>
           </View>
         </View>
