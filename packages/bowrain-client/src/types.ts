@@ -124,6 +124,29 @@ export interface ContextReview {
   basis: ContextReviewBasis;
 }
 
+/**
+ * The bulk operation that brought a context item in or last changed it: an
+ * import of a context file, or a whole voice-profile write
+ * (contextDeckOrigin). The deck deals the items it carried, never the
+ * operation itself.
+ */
+export interface ContextOrigin {
+  id: string;
+  short: string;
+  kind: "import" | "voice_edit";
+  /** What an import read. */
+  source?: "terms" | "memory" | "voice" | "decisions";
+  /** The file an import read. */
+  path?: string;
+  /** The voice profile a voice edit wrote. */
+  profile?: string;
+  /** Items an import carried, or fields a voice edit changed. */
+  count?: number;
+  author: ContextAuthor;
+  at: string;
+  note?: string;
+}
+
 /** One context item waiting for review (contextDeckCard). */
 export interface ContextCard {
   item: ContextItemRef;
@@ -154,6 +177,20 @@ export interface ContextCard {
   own_work: boolean;
   basis?: ContextReviewBasis;
   actions: ContextAction[];
+  /** The bulk operation that brought the item in, when one did. */
+  origin?: ContextOrigin;
+  /** An attestation covers the item at its current revision (origin listings only). */
+  reviewed?: boolean;
+}
+
+/** A page of the items one bulk operation brought in (GET .../context/deck/origins/:op). */
+export interface ContextOriginPage {
+  origin: ContextOrigin;
+  /** Items of the project from the operation, and those still waiting for review. */
+  total: number;
+  pending: number;
+  cards: ContextCard[];
+  next_cursor?: string;
 }
 
 /** A page of the context deck (GET /:ws/:id/context/deck). */

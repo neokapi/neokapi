@@ -16,6 +16,7 @@ import { useCSSVariable } from "uniwind";
 
 import { ActionBar } from "../../../components/ActionBar";
 import { ContextCard } from "../../../components/ContextCard";
+import { OriginSheet } from "../../../components/OriginSheet";
 import { SafeAreaView } from "../../../components/SafeArea";
 import {
   StackedCard,
@@ -54,6 +55,7 @@ export default function ContextDeckScreen() {
   const [decided, setDecided] = useState<string[]>([]);
   const [later, setLater] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [originOf, setOriginOf] = useState<Card | null>(null);
   const drag = useSharedValue(0);
   const swipeRef = useRef<SwipeCardHandle>(null);
 
@@ -203,13 +205,25 @@ export default function ContextDeckScreen() {
               onAction={onAction}
               progress={drag}
             >
-              <ContextCard card={top} />
+              <ContextCard
+                card={top}
+                onOpenOrigin={() => {
+                  void Haptics.selectionAsync();
+                  setOriginOf(top);
+                }}
+              />
             </SwipeCard>
           </View>
         ) : (
           <Done reviewed={reviewed} />
         )}
       </View>
+
+      <OriginSheet
+        card={originOf}
+        load={(op, cursor) => client.contextOrigin(ws, project, op, { cursor, limit: 50 })}
+        onClose={() => setOriginOf(null)}
+      />
 
       {top ? (
         <ActionBar

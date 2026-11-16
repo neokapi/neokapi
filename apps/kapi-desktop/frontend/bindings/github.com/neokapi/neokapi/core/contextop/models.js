@@ -505,6 +505,56 @@ export class Evidence {
 }
 
 /**
+ * ImportSource is the context file an import operation read.
+ */
+export class ImportSource {
+    /**
+     * Creates a new ImportSource instance.
+     * @param {Partial<ImportSource>} [$$source = {}] - The source object to create the ImportSource.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * Source is terms, memory, voice or decisions.
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Path is the file's project-relative path, or the directory of a
+             * decision record.
+             * @member
+             * @type {string | undefined}
+             */
+            this["path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Count is how many items the file carried: concepts, content-memory
+             * entries, decisions, or one voice profile.
+             * @member
+             * @type {number | undefined}
+             */
+            this["count"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportSource instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ImportSource}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportSource(/** @type {Partial<ImportSource>} */($$parsedSource));
+    }
+}
+
+/**
  * ItemKind names the store an attested item lives in.
  * @readonly
  * @enum {string}

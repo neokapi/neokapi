@@ -3,7 +3,8 @@
     "cancel": "Cancel",
     "retry": "Try again",
     "loadFailed": "Could not load this. Check your connection.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "close": "Close"
   },
   "tabs": {
     "home": "Home",
@@ -134,7 +135,47 @@
     "doneTitle": "Context reviewed",
     "doneBody_one": "You reviewed 1 item.",
     "doneBody_other": "You reviewed {{count}} items.",
-    "doneEmpty": "Nothing waits for review."
+    "doneEmpty": "Nothing waits for review.",
+    "origin": {
+      "line": {
+        "terms": "Imported from {{path}}",
+        "memory": "Imported from {{path}}",
+        "voice": "Imported from {{path}}",
+        "decisions": "Imported from {{path}}",
+        "import": "Imported from {{path}}",
+        "voice_edit": "Voice profile edited"
+      },
+      "lineCount_one": "1 item",
+      "lineCount_other": "{{count, number}} items",
+      "openLabel": "Where this came from",
+      "summary": {
+        "terms_one": "Added 1 concept to this project's terms",
+        "terms_other": "Added {{count, number}} concepts to this project's terms",
+        "memory_one": "Added 1 content-memory entry",
+        "memory_other": "Added {{count, number}} content-memory entries",
+        "decisions_one": "Added 1 recorded decision",
+        "decisions_other": "Added {{count, number}} recorded decisions",
+        "voice": "Read a voice profile from a file",
+        "import": "Read a context file",
+        "voice_edit": "Edited the voice profile {{profile}}"
+      },
+      "fields_one": "1 field changed",
+      "fields_other": "{{count, number}} fields changed",
+      "ranBy": "Run by",
+      "file": "File",
+      "when": "When",
+      "waiting": "{{pending, number}} of {{total, number}} wait for review",
+      "items": "What it brought in",
+      "noItems": "Nothing it brought in is a card in this project.",
+      "thisCard": "This card",
+      "reviewed": "Reviewed",
+      "more": "Show more",
+      "why": "Why am I seeing this?",
+      "whyBody": "An import puts a whole file in force at once. Each item it carried is its own card, so you keep or retire it on what it says.",
+      "whyAgent": "It ran in {{host}}, an agent host, so a person reviews each item before it counts as reviewed.",
+      "definition": "Definition",
+      "otherForms": "In other languages"
+    }
   },
   "collections": {
     "title": "Collections",
