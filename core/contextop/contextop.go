@@ -554,19 +554,19 @@ func (r Record) Rule() (profile.TermRule, bool) { return r.Subject.Rule() }
 // id, the sequence, the project, the timestamp and the folded status are the
 // log's own and are not repeated here.
 type payload struct {
-	Actor      Actor       `json:"actor"`
-	Subject    Subject     `json:"subject,omitzero"`
-	Correction *Correction `json:"correction,omitempty"`
-	Evidence   []Evidence  `json:"evidence,omitempty"`
-	Basis      Basis       `json:"basis,omitzero"`
-	Scope      Scope       `json:"scope,omitzero"`
-	Target     string      `json:"target,omitempty"`
-	Before     string      `json:"before,omitempty"`
-	Note       string      `json:"note,omitempty"`
-	Signal     *Signal     `json:"signal,omitempty"`
-	Because    []string    `json:"because,omitempty"`
-	Check      *CheckRun   `json:"check,omitempty"`
-	Voice      *VoiceEdit  `json:"voice,omitempty"`
+	Actor      Actor        `json:"actor"`
+	Subject    Subject      `json:"subject,omitzero"`
+	Correction *Correction  `json:"correction,omitempty"`
+	Evidence   []Evidence   `json:"evidence,omitempty"`
+	Basis      Basis        `json:"basis,omitzero"`
+	Scope      Scope        `json:"scope,omitzero"`
+	Target     string       `json:"target,omitempty"`
+	Before     string       `json:"before,omitempty"`
+	Note       string       `json:"note,omitempty"`
+	Signal     *Signal      `json:"signal,omitempty"`
+	Because    []string     `json:"because,omitempty"`
+	Check      *CheckRun    `json:"check,omitempty"`
+	Voice      *VoiceEdit   `json:"voice,omitempty"`
 	Attest     *Attestation `json:"attest,omitempty"`
 }
 

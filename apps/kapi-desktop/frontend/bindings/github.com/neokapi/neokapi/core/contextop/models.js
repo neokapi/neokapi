@@ -92,6 +92,63 @@ export const ActorKind = {
 };
 
 /**
+ * Attestation is what an attest operation carries: a person read one item at
+ * one revision and keeps it. It changes nothing in force.
+ */
+export class Attestation {
+    /**
+     * Creates a new Attestation instance.
+     * @param {Partial<Attestation>} [$$source = {}] - The source object to create the Attestation.
+     */
+    constructor($$source = {}) {
+        if (!("item" in $$source)) {
+            /**
+             * @member
+             * @type {ItemRef}
+             */
+            this["item"] = (new ItemRef());
+        }
+        if (!("revision" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["revision"] = "";
+        }
+        if (!("verdict" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["verdict"] = "";
+        }
+        if (!("basis" in $$source)) {
+            /**
+             * @member
+             * @type {ReviewBasis}
+             */
+            this["basis"] = ReviewBasis.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Attestation instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Attestation}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("item" in $$parsedSource) {
+            $$parsedSource["item"] = $$createField0_0($$parsedSource["item"]);
+        }
+        return new Attestation(/** @type {Partial<Attestation>} */($$parsedSource));
+    }
+}
+
+/**
  * Basis is the governance in force when the operation was recorded. A rule
  * suggested under one voice profile and kept under another is a rule that
  * deserves a second look, and the basis is what makes that visible.
@@ -334,9 +391,9 @@ export class CheckRun {
      * @returns {CheckRun}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType0;
-        const $$createField8_0 = $$createType0;
-        const $$createField9_0 = $$createType2;
+        const $$createField4_0 = $$createType1;
+        const $$createField8_0 = $$createType1;
+        const $$createField9_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField4_0($$parsedSource["files"]);
@@ -448,6 +505,81 @@ export class Evidence {
 }
 
 /**
+ * ItemKind names the store an attested item lives in.
+ * @readonly
+ * @enum {string}
+ */
+export const ItemKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * ItemOp is an operation of this log that carries a subject: a term rule
+     * or a note. Its revision is Record.Revision.
+     */
+    ItemOp: "op",
+
+    /**
+     * ItemConcept is a concept of the terms store. Its revision is the
+     * concept's revision there.
+     */
+    ItemConcept: "concept",
+
+    /**
+     * ItemVoiceRule is one rule of a voice profile. Its ID is the rule's id
+     * within the profile, and Profile names the profile.
+     */
+    ItemVoiceRule: "voice_rule",
+};
+
+/**
+ * ItemRef names one item a person can attest, in whichever store holds it.
+ */
+export class ItemRef {
+    /**
+     * Creates a new ItemRef instance.
+     * @param {Partial<ItemRef>} [$$source = {}] - The source object to create the ItemRef.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {ItemKind}
+             */
+            this["kind"] = ItemKind.$zero;
+        }
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ItemRef instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ItemRef}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ItemRef(/** @type {Partial<ItemRef>} */($$parsedSource));
+    }
+}
+
+/**
  * Kind says what an operation did.
  * @readonly
  * @enum {string}
@@ -541,6 +673,15 @@ export const Kind = {
      * the hook running twice for one Stop records one operation.
      */
     KindCheck: "check",
+
+    /**
+     * KindAttest records that a person read one item at one revision and
+     * keeps it (an [Attestation]). It changes nothing in force. It names the
+     * operation it attests as its target when the item is an operation of
+     * this log; a concept or a voice rule lives in another store and is named
+     * by the attestation alone.
+     */
+    KindAttest: "attest",
 };
 
 /**
@@ -620,6 +761,42 @@ export class MemoryPair {
 }
 
 /**
+ * ReviewBasis is the ground an attestation is valid on, decided by the
+ * writer that records it and never chosen by the reviewer.
+ * @readonly
+ * @enum {string}
+ */
+export const ReviewBasis = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * BasisPeer is a review of an item another person wrote.
+     */
+    BasisPeer: "peer",
+
+    /**
+     * BasisAgentAuthored is a review, by the member an agent or a tool ran
+     * for, of what that agent or tool wrote.
+     */
+    BasisAgentAuthored: "agent_authored",
+
+    /**
+     * BasisSoloOwner is the workspace owner reviewing their own item where no
+     * other member could review it.
+     */
+    BasisSoloOwner: "solo_owner",
+
+    /**
+     * BasisSelfWarned is a reviewer's own item admitted under a policy that
+     * warns rather than blocks.
+     */
+    BasisSelfWarned: "self_warned",
+};
+
+/**
  * Scope is where a subject answers: how far it reaches, and the coordinates of
  * the point its evidence was seen at.
  * 
@@ -688,7 +865,7 @@ export class Scope {
      * @returns {Scope}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType3;
+        const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField1_0($$parsedSource["coordinates"]);
@@ -897,9 +1074,9 @@ export class Standing {
      * @returns {Standing}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType5;
-        const $$createField6_0 = $$createType0;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType6;
+        const $$createField6_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("merges" in $$parsedSource) {
             $$parsedSource["merges"] = $$createField2_0($$parsedSource["merges"]);
@@ -1016,8 +1193,8 @@ export class Subject {
      * @returns {Subject}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType9;
+        const $$createField1_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("term" in $$parsedSource) {
             $$parsedSource["term"] = $$createField1_0($$parsedSource["term"]);
@@ -1221,7 +1398,7 @@ export class VoiceEdit {
      * @returns {VoiceEdit}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType11;
+        const $$createField1_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("changes" in $$parsedSource) {
             $$parsedSource["changes"] = $$createField1_0($$parsedSource["changes"]);
@@ -1231,15 +1408,16 @@ export class VoiceEdit {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = CheckFinding.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = Uses.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = profile$0.TermRule.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = MemoryPair.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = VoiceChange.createFrom;
-const $$createType11 = $Create.Array($$createType10);
+const $$createType0 = ItemRef.createFrom;
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = CheckFinding.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType5 = Uses.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = profile$0.TermRule.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = MemoryPair.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = VoiceChange.createFrom;
+const $$createType12 = $Create.Array($$createType11);
