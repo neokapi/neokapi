@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.32",
-    "@assistant-ui/react-markdown": "^0.14.22",
+    "@assistant-ui/react-markdown": "^0.14.26",
     "@fontsource-variable/geist": "^5.3.0",
     "@neokapi/bowrain-client": "*",
     "@neokapi/concept-ui": "*",
