@@ -272,7 +272,7 @@ func TestContextDeck_VoiceRuleAuthorIsTheLedgers(t *testing.T) {
 		}}
 	res, err := voicewrite.Apply(ctx, s.VoiceStore, ledger, voicewrite.Write{
 		Before: before, After: &after, Actor: contextop.Actor{Kind: contextop.ActorPerson},
-		PushedBy: owner, Note: "pushed with `kapi push`", Recorded: clientOp,
+		PushedBy: "member-b", Note: "pushed with `kapi push`", Recorded: clientOp,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, clientOp, res.Op, "the client's operation is the record")

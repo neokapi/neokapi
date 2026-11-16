@@ -17,6 +17,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -502,7 +503,7 @@ func voiceOrigin(origins []*contextDeckOrigin, card contextDeckCard) *contextDec
 		case originKindVoiceEdit:
 			return sameProfile(o.Profile, card.Item.Profile, card.Pattern.Profile)
 		case originKindImport:
-			return o.Source == contextop.ImportVoice && strings.Contains(profileSlug(o.Path), profileSlug(card.Pattern.Profile))
+			return o.Source == contextop.ImportVoice && strings.Contains(voicewrite.ProfileSlug(o.Path), voicewrite.ProfileSlug(card.Pattern.Profile))
 		}
 		return false
 	})
@@ -512,15 +513,7 @@ func voiceOrigin(origins []*contextDeckOrigin, card contextDeckCard) *contextDec
 // one the server holds as id and name. A checkout names a profile by its own
 // id, which is the profile's name spelled as a slug.
 func sameProfile(named, id, name string) bool {
-	return named != "" && (named == id || profileSlug(named) == profileSlug(name))
-}
-
-// profileSlug spells a profile name the way a checkout's profile id does:
-// lower case, words joined by hyphens.
-func profileSlug(name string) string {
-	return strings.Join(strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
-		return r == ' ' || r == '_' || r == '-'
-	}), "-")
+	return voicewrite.SameProfile(named, id, name)
 }
 
 // termRuleFlags are the badges a term rule shows.

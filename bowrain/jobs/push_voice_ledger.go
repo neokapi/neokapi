@@ -24,6 +24,8 @@ type pushVoiceLedger struct {
 	held    store.ContextObjectStore
 	project voicewrite.Project
 	pushed  []store.ContextObject
+	// pusher is the member whose push carries pushed.
+	pusher string
 }
 
 var _ voicewrite.Ledger = (*pushVoiceLedger)(nil)
@@ -32,8 +34,8 @@ var _ voicewrite.Ledger = (*pushVoiceLedger)(nil)
 // in: the project's, under the key the push binds or the key the project's
 // context is already bound to. A project with neither holds no ledger, and
 // the writes are recorded nowhere.
-func newPushVoiceLedger(ctx context.Context, deps *WorkerDeps, tx contextObjectPutter, projectID string, l pushLedger) *pushVoiceLedger {
-	out := &pushVoiceLedger{tx: tx, project: voicewrite.Project{ID: projectID, Key: workspace.ProjectKey(l.Key)}}
+func newPushVoiceLedger(ctx context.Context, deps *WorkerDeps, tx contextObjectPutter, projectID, pusher string, l pushLedger) *pushVoiceLedger {
+	out := &pushVoiceLedger{tx: tx, pusher: pusher, project: voicewrite.Project{ID: projectID, Key: workspace.ProjectKey(l.Key)}}
 	if objects, ok := store.ContextObjects(deps.ContentStore); ok {
 		out.held = objects
 		if out.project.Key == "" {
@@ -56,16 +58,17 @@ func (l *pushVoiceLedger) Projects(context.Context) ([]voicewrite.Project, error
 	return []voicewrite.Project{l.project}, nil
 }
 
-// Holds implements voicewrite.Ledger: the push carries the operation, or the
-// project held it before the push.
-func (l *pushVoiceLedger) Holds(ctx context.Context, p voicewrite.Project, opID string) (bool, error) {
-	if voicewrite.HeldIn(l.pushed, p.Key, opID) {
-		return true, nil
+// Find implements voicewrite.Ledger: the push carries the operation, pushed
+// by the pusher, or the project held it before the push.
+func (l *pushVoiceLedger) Find(ctx context.Context, p voicewrite.Project, opID string) (voicewrite.HeldOp, bool, error) {
+	if held, ok := voicewrite.FindIn(l.pushed, p.Key, opID); ok {
+		held.PushedBy = l.pusher
+		return held, true, nil
 	}
 	if l.held == nil {
-		return false, nil
+		return voicewrite.HeldOp{}, false, nil
 	}
-	return voicewrite.ReadHeld(ctx, l.held, p, opID)
+	return voicewrite.FindStored(ctx, l.held, p, opID)
 }
 
 // Put implements voicewrite.Ledger.

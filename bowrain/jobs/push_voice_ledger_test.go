@@ -94,29 +94,49 @@ func projectVoiceEdits(t *testing.T, deps *WorkerDeps, projectID string) ([]cont
 }
 
 // TestPushVoiceLedger_RecordsEachWriteOnce: a push writes the voice profile
-// and its ledger record as one change. The operation the client recorded is
-// the record when the push carries it or the project already holds it, with
-// the client's note and agent host; otherwise the server records the write
-// as the pusher's. No case leaves two records of one write.
+// and its ledger record as one change. The operation the client names stands
+// as the record only when it describes this write: a voice edit of the same
+// profile, fingerprinted as the profile now stands, pushed by the pusher.
+// Any other operation is ignored, and the server records the write as the
+// pusher's, so a client cannot credit its write to another member or an
+// agent.
 func TestPushVoiceLedger_RecordsEachWriteOnce(t *testing.T) {
+	pushedProfile := func() *coreprofile.VoiceProfile {
+		return &coreprofile.VoiceProfile{
+			ID: "acme-voice", Name: "Acme Voice",
+			Style: coreprofile.StyleRules{ProhibitedPatterns: []coreprofile.Pattern{{Regex: `\bleverage\b`}}},
+		}
+	}
 	tests := []struct {
 		name string
-		// carried says the push carries the client's segment; held says the
-		// project holds it from an earlier push.
-		carried, held bool
+		// client is the profile the client's operation records, nil for none.
+		client func() *coreprofile.VoiceProfile
+		// carried says the push carries the client's segment; heldBy names the
+		// member who pushed it earlier, empty when nobody did.
+		carried bool
+		heldBy  string
 		// op is the entry's voice_op: "client" names the client's operation.
-		op         string
-		wantWriter string
-		wantNote   string
+		op string
+		// wantClient says the client's operation is the record.
+		wantClient bool
 	}{
-		{name: "client operation carried in the push", carried: true, op: "client",
-			wantWriter: "laptop", wantNote: "saved in the voice editor (recorded as a person in a claude-code shell)"},
-		{name: "client operation held from an earlier push", held: true, op: "client",
-			wantWriter: "laptop", wantNote: "saved in the voice editor (recorded as a person in a claude-code shell)"},
-		{name: "no client operation", op: "",
-			wantWriter: voicewrite.Writer, wantNote: "pushed with `kapi push`"},
-		{name: "an operation the ledger does not hold", op: "0000000000aaaaaaaaaaaaaaaa",
-			wantWriter: voicewrite.Writer, wantNote: "pushed with `kapi push`"},
+		{name: "client operation carried in the push", client: pushedProfile, carried: true, op: "client", wantClient: true},
+		{name: "client operation the pusher pushed earlier", client: pushedProfile, heldBy: "user-1", op: "client", wantClient: true},
+		{name: "another member's operation", client: pushedProfile, heldBy: "user-2", op: "client"},
+		{name: "an operation for a different profile", carried: true, op: "client",
+			client: func() *coreprofile.VoiceProfile {
+				p := pushedProfile()
+				p.ID, p.Name = "other-voice", "Other Voice"
+				return p
+			}},
+		{name: "a stale operation", carried: true, op: "client",
+			client: func() *coreprofile.VoiceProfile {
+				p := pushedProfile()
+				p.Style.ProhibitedPatterns = nil
+				return p
+			}},
+		{name: "no client operation", op: ""},
+		{name: "an operation the ledger does not hold", op: "0000000000aaaaaaaaaaaaaaaa"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -128,30 +148,30 @@ func TestPushVoiceLedger_RecordsEachWriteOnce(t *testing.T) {
 			_, err := objects.BindContextKey(ctx, "p1", voiceLedgerKey)
 			require.NoError(t, err)
 
-			profile := &coreprofile.VoiceProfile{
-				ID: "acme", Name: "Acme Voice",
-				Style: coreprofile.StyleRules{ProhibitedPatterns: []coreprofile.Pattern{{Regex: `\bleverage\b`}}},
-			}
-			segment, clientOp := clientVoiceSegment(t, profile)
-			if tt.held {
-				require.NoError(t, objects.PutContextObjects(ctx, "p1", "user-1", []store.ContextObject{segment}))
-			}
 			ledger := pushLedger{}
-			if tt.carried {
-				ledger.Objects = []apiclient.ContextObjectWire{{Name: segment.Name, Data: segment.Data}}
+			var clientOp string
+			if tt.client != nil {
+				var segment store.ContextObject
+				segment, clientOp = clientVoiceSegment(t, tt.client())
+				if tt.heldBy != "" {
+					require.NoError(t, objects.PutContextObjects(ctx, "p1", tt.heldBy, []store.ContextObject{segment}))
+				}
+				if tt.carried {
+					ledger.Objects = []apiclient.ContextObjectWire{{Name: segment.Name, Data: segment.Data}}
+				}
 			}
 			op := tt.op
 			if op == "client" {
 				op = clientOp
 			}
-			authored, err := json.Marshal(profile)
+			authored, err := json.Marshal(pushedProfile())
 			require.NoError(t, err)
 			entry := contextEntry("docs", map[string]string{"product": "kapi"}, "", "Acme Voice", authored)
 			entry.VoiceOp = op
 
 			err = deps.PushTransition(ctx, func(st PushStores) error {
 				if _, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1",
-					newPushVoiceLedger(ctx, deps, st.Content, "p1", ledger), []*pb.SyncContextEntry{entry}); rerr != nil {
+					newPushVoiceLedger(ctx, deps, st.Content, "p1", "user-1", ledger), []*pb.SyncContextEntry{entry}); rerr != nil {
 					return rerr
 				}
 				_, aerr := applyPushLedger(ctx, st.Content, "p1", "user-1", ledger)
@@ -164,16 +184,22 @@ func TestPushVoiceLedger_RecordsEachWriteOnce(t *testing.T) {
 			require.Len(t, profiles, 1, "the push wrote the profile")
 
 			edits, writers := projectVoiceEdits(t, deps, "p1")
-			require.Len(t, edits, 1, "one record of the write")
-			assert.Equal(t, tt.wantWriter, writers[edits[0].ID])
-			assert.Equal(t, tt.wantNote, edits[0].Note)
-			assert.Equal(t, contextop.ActorPerson, edits[0].Actor.Kind)
-			if tt.wantWriter == voicewrite.Writer {
-				assert.Equal(t, profiles[0].ID, edits[0].Voice.Profile, "the server records the profile it stored")
-				assert.Empty(t, edits[0].Voice.Previous, "the push created the profile")
-			} else {
-				assert.Equal(t, clientOp, edits[0].ID)
+			var server []contextop.Record
+			for _, e := range edits {
+				if writers[e.ID] == voicewrite.Writer {
+					server = append(server, e)
+				}
 			}
+			if tt.wantClient {
+				require.Len(t, edits, 1, "the client's operation is the one record")
+				assert.Equal(t, clientOp, edits[0].ID)
+				assert.Contains(t, edits[0].Note, "claude-code shell")
+				return
+			}
+			require.Len(t, server, 1, "the server records the write as the pusher's")
+			assert.Equal(t, contextop.ActorPerson, server[0].Actor.Kind)
+			assert.Equal(t, "pushed with `kapi push`", server[0].Note)
+			assert.Equal(t, profiles[0].ID, server[0].Voice.Profile)
 		})
 	}
 }

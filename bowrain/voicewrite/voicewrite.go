@@ -8,6 +8,7 @@ package voicewrite
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -35,12 +36,19 @@ type Ledger interface {
 	// whose context no push has bound to a key holds no ledger, and is not
 	// listed.
 	Projects(ctx context.Context) ([]Project, error)
-	// Holds reports whether a project's ledger holds the operation id, or
-	// will hold it when the change Apply runs in commits.
-	Holds(ctx context.Context, p Project, opID string) (bool, error)
+	// Find returns the operation id names in a project's ledger, as it
+	// holds it or as the change Apply runs in will add it, and the member
+	// who pushed its segment. ok is false when neither holds it.
+	Find(ctx context.Context, p Project, opID string) (op HeldOp, ok bool, err error)
 	// Put stores one ledger segment of a project, stamped as pushed by
 	// pushedBy.
 	Put(ctx context.Context, projectID, pushedBy string, obj platstore.ContextObject) error
+}
+
+// HeldOp is an operation a ledger holds and the member who pushed it.
+type HeldOp struct {
+	Op       workspace.Op
+	PushedBy string
 }
 
 // Write is one write of a voice profile.
@@ -59,8 +67,9 @@ type Write struct {
 	// Note is what the operation says about where the write came from.
 	Note string
 	// Recorded is the id of an operation the writer's own client recorded for
-	// this write and carries beside it (a push). A project whose ledger holds
-	// it records no second operation.
+	// this write and carries beside it (a push). It stands as the record only
+	// when it describes this write (recordedThis); otherwise the write is
+	// recorded as PushedBy's.
 	Recorded string
 }
 
@@ -116,11 +125,11 @@ func Apply(ctx context.Context, voice coreprofile.Store, ledger Ledger, w Write)
 	var record []Project
 	for _, p := range projects {
 		if w.Recorded != "" {
-			held, err := ledger.Holds(ctx, p, w.Recorded)
+			held, ok, err := ledger.Find(ctx, p, w.Recorded)
 			if err != nil {
 				return res, err
 			}
-			if held {
+			if ok && recordedThis(held, w.PushedBy, stored) {
 				res.Op = w.Recorded
 				continue
 			}
@@ -163,6 +172,49 @@ func Apply(ctx context.Context, voice coreprofile.Store, ledger Ledger, w Write)
 	}
 	res.Op = appended.ID
 	return res, nil
+}
+
+// recordedThis reports whether a held operation is the record of the write
+// that left stored: a voice edit of the same profile whose fingerprint is the
+// stored profile's, pushed by the member making this write. Naming any other
+// operation would credit the write to that operation's actor, so a client
+// cannot borrow another member's or an agent's record.
+func recordedThis(held HeldOp, pushedBy string, stored *coreprofile.VoiceProfile) bool {
+	if stored == nil || pushedBy == "" || held.PushedBy != pushedBy ||
+		!strings.HasPrefix(held.Op.Kind, contextop.OpKindPrefix+string(contextop.KindEdit)) {
+		return false
+	}
+	var body struct {
+		Voice *contextop.VoiceEdit `json:"voice"`
+	}
+	if json.Unmarshal(held.Op.Payload, &body) != nil || body.Voice == nil {
+		return false
+	}
+	edit := body.Voice
+	if !SameProfile(edit.Profile, stored.ID, stored.Name) || edit.Wrote == "" {
+		return false
+	}
+	// A checkout stores the profile under its own id, which the fingerprint
+	// covers; the server's copy is compared under that id.
+	local := *stored
+	local.ID = edit.Profile
+	wrote, err := contextop.VoiceFingerprint(&local)
+	return err == nil && wrote == edit.Wrote
+}
+
+// SameProfile reports whether a profile an operation names is the stored
+// profile with id and name: the same id, or the name a checkout spells its
+// profile id from.
+func SameProfile(named, id, name string) bool {
+	return named != "" && (named == id || ProfileSlug(named) == ProfileSlug(name))
+}
+
+// ProfileSlug spells a profile name the way a checkout's profile id does:
+// lower case, words joined by hyphens.
+func ProfileSlug(name string) string {
+	return strings.Join(strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
+		return r == ' ' || r == '_' || r == '-'
+	}), "-")
 }
 
 // writerDecided admits every operation Apply appends. The surface that calls
@@ -211,9 +263,9 @@ func (l *segmentLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 	return out, nil
 }
 
-// HeldIn reports whether a ledger segment among objects holds the operation
-// id, read as operations of key.
-func HeldIn(objects []platstore.ContextObject, key workspace.ProjectKey, opID string) bool {
+// FindIn returns the operation id names among the ledger segments of
+// objects, read as operations of key, with the member who pushed its segment.
+func FindIn(objects []platstore.ContextObject, key workspace.ProjectKey, opID string) (HeldOp, bool) {
 	for _, obj := range objects {
 		if !strings.HasPrefix(obj.Name, workspace.RemoteLogDir) {
 			continue
@@ -224,27 +276,28 @@ func HeldIn(objects []platstore.ContextObject, key workspace.ProjectKey, opID st
 		}
 		for _, op := range ops {
 			if op.ID == opID {
-				return true
+				return HeldOp{Op: op, PushedBy: obj.PushedBy}, true
 			}
 		}
 	}
-	return false
+	return HeldOp{}, false
 }
 
-// ReadHeld reports whether the project's stored ledger holds the operation id.
-func ReadHeld(ctx context.Context, objects platstore.ContextObjectStore, p Project, opID string) (bool, error) {
+// FindStored returns the operation id names in the project's stored ledger,
+// with the member who pushed its segment.
+func FindStored(ctx context.Context, objects platstore.ContextObjectStore, p Project, opID string) (HeldOp, bool, error) {
 	names, err := objects.ListContextObjects(ctx, p.ID, workspace.RemoteLogDir)
 	if err != nil {
-		return false, err
+		return HeldOp{}, false, err
 	}
 	for _, name := range names {
 		obj, err := objects.GetContextObject(ctx, p.ID, name)
 		if err != nil {
-			return false, err
+			return HeldOp{}, false, err
 		}
-		if HeldIn([]platstore.ContextObject{*obj}, p.Key, opID) {
-			return true, nil
+		if held, ok := FindIn([]platstore.ContextObject{*obj}, p.Key, opID); ok {
+			return held, true, nil
 		}
 	}
-	return false, nil
+	return HeldOp{}, false, nil
 }

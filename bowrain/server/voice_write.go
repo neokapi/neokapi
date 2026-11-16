@@ -118,9 +118,9 @@ func (l *workspaceVoiceLedger) Projects(ctx context.Context) ([]voicewrite.Proje
 	return out, nil
 }
 
-// Holds implements voicewrite.Ledger.
-func (l *workspaceVoiceLedger) Holds(ctx context.Context, p voicewrite.Project, opID string) (bool, error) {
-	return voicewrite.ReadHeld(ctx, l.objects, p, opID)
+// Find implements voicewrite.Ledger.
+func (l *workspaceVoiceLedger) Find(ctx context.Context, p voicewrite.Project, opID string) (voicewrite.HeldOp, bool, error) {
+	return voicewrite.FindStored(ctx, l.objects, p, opID)
 }
 
 // Put implements voicewrite.Ledger.
