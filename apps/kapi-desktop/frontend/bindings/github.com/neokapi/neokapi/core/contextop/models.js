@@ -47,6 +47,16 @@ export class Actor {
              */
             this["session"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * OnBehalfOf names the member an agent or a tool ran for, when the server
+             * that records the operation knows it: the member who issued the token a
+             * tool pushed with. Empty for a person.
+             * @member
+             * @type {string | undefined}
+             */
+            this["on_behalf_of"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
