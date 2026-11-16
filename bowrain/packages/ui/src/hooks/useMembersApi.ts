@@ -22,7 +22,7 @@ export function buildNameResolver(members: Membership[] | undefined): NameResolv
     // A membership can carry a missing user (a former member, a system actor).
     // Degrade to email then the raw id rather than throwing — reading .name off
     // an absent user blanked the whole Experiments view.
-    const name = member.user?.name.trim() ?? "";
+    const name = member.user?.name?.trim() ?? "";
     const email = member.user?.email.trim() ?? "";
     byId.set(member.user_id, name || email || member.user_id);
   }

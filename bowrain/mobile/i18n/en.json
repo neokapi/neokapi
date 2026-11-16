@@ -380,9 +380,11 @@
       "runReady_one": "drafted {{count, number}} translation in {{languages}} for review",
       "runReady_other": "drafted {{count, number}} translations in {{languages}} for review",
       "runWaiting": "has translations waiting for review",
+      "runWaiting_you": "have translations waiting for review",
       "runChecksFailing_one": "drafted {{count, number}} translation in {{languages}}, and it fails checks",
       "runChecksFailing_other": "drafted {{count, number}} translations in {{languages}}, and some fail checks",
       "runSourceFirst": "is waiting for the source text to be reviewed",
+      "runSourceFirst_you": "are waiting for the source text to be reviewed",
       "runNoCredits": "stopped because the workspace is out of AI credits",
       "runNoProvider": "stopped because no AI provider is set up",
       "runRateLimited": "stopped because the AI provider is limiting requests",
@@ -431,7 +433,8 @@
       "other": "made a change"
     },
     "actor": {
-      "convergence": "Bowrain"
+      "convergence": "Bowrain",
+      "you": "You"
     },
     "time": {
       "now": "now",
@@ -444,6 +447,7 @@
       "many": "{{rest}} and {{last}}"
     },
     "forMember": "for {{name}}",
+    "forYou": "for you",
     "showAll_one": "Show {{count, number}} more",
     "showAll_other": "Show {{count, number}} more",
     "showLess": "Show less",
@@ -624,6 +628,13 @@
     "open": "Account, signed in as {{name}}",
     "manage": "Manage account",
     "manageHint": "Opens your account settings in the browser",
+    "name": {
+      "title": "Name",
+      "notSet": "Not set",
+      "footer": "Your name shows on your activity and your reviews. Left empty, your handle shows instead.",
+      "save": "Save",
+      "failed": "The name could not be saved. Try again."
+    },
     "server": "Server",
     "appearance": {
       "title": "Appearance",

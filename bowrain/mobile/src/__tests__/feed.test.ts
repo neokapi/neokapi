@@ -104,6 +104,25 @@ describe("feed card sentences", () => {
     expect(parked("something_new")).toBe("stopped before finishing");
   });
 
+  it("names the reader's own entries in the second person", () => {
+    const own = entry({
+      actor: { id: "u1", kind: "person", name: "Ada", viewer: true },
+      counts: { blocks: 12 },
+      stream: "main",
+    });
+    expect(actorName(own, t)).toBe("You");
+    expect(actionOf(own, t, "en")).toBe("pushed 12 blocks to main");
+    expect(entryMeta(own, t, "en")).toMatch(/^You/);
+    const waiting = entry({
+      kind: "convergence_run",
+      actor: { id: "u1", kind: "person", name: "Ada", viewer: true },
+      state: "parked",
+      counts: { produced: 0 },
+    });
+    expect(actionOf(waiting, t, "en")).toBe("have translations waiting for review");
+    expect(actorName(entry({ actor: { id: "u2", kind: "person", name: "Bo" } }), t)).toBe("Bo");
+  });
+
   it("names the convergence loop as Bowrain", () => {
     expect(actorName(entry({ actor: { id: "", kind: "tool", name: "convergence" } }), t)).toBe(
       "Bowrain",

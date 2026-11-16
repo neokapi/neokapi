@@ -10,13 +10,26 @@ describe("profileOf", () => {
         { id: "u1", email: "ada@example.com", name: "Ada Lindqvist" },
         { email: "old@example.com" },
       ),
-    ).toEqual({ key: "u1", name: "Ada Lindqvist", email: "ada@example.com" });
+    ).toEqual({
+      key: "u1",
+      name: "Ada Lindqvist",
+      ownName: "Ada Lindqvist",
+      email: "ada@example.com",
+    });
   });
 
-  it("falls back to the session, then to the email as the name", () => {
+  it("shows the server's shown name while the person has set none", () => {
+    expect(profileOf({ id: "u1", email: "ada@example.com", shown_name: "ada" }, null)).toEqual({
+      key: "u1",
+      name: "ada",
+      email: "ada@example.com",
+    });
+  });
+
+  it("falls back to the session, then to the email before the @", () => {
     expect(profileOf(undefined, { userId: "u2", email: "bo@example.com" })).toEqual({
       key: "u2",
-      name: "bo@example.com",
+      name: "bo",
       email: "bo@example.com",
     });
     expect(profileOf(undefined, { email: "cy@example.com" }).key).toBe("cy@example.com");

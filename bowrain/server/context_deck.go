@@ -245,18 +245,13 @@ func (s *Server) recordAuthor(ctx context.Context, r contextop.Record, names map
 	return a
 }
 
-// memberName is the display name of the member userID names, and whether
+// memberName is the shown name (personName) of the member userID names, and whether
 // one is known. names caches the answers of one deal, an unknown id as "".
 func (s *Server) memberName(ctx context.Context, userID string, names map[string]string) (string, bool) {
 	if name, ok := names[userID]; ok {
 		return name, name != ""
 	}
-	name := ""
-	if s.AuthStore != nil {
-		if u, err := s.AuthStore.GetUser(ctx, userID); err == nil && u != nil {
-			name = cmp.Or(u.Name, u.Email)
-		}
-	}
+	name := s.personName(ctx, userID)
 	names[userID] = name
 	return name, name != ""
 }

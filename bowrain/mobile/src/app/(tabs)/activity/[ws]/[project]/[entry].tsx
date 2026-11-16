@@ -13,7 +13,7 @@ import { useCSSVariable } from "uniwind";
 
 import { actorIcon, kindIcon } from "../../../../../components/feed/icons";
 import {
-  actorLabel,
+  actorName,
   countLabel,
   deckLocaleOf,
   entriesOf,
@@ -97,7 +97,7 @@ export default function FeedEntryDetail() {
           <View className="flex-row items-center gap-1.5">
             <Ionicons name={actorIcon(entry.actor.kind)} size={16} color={String(muted)} />
             <Value>
-              {actorLabel(entry, t)} · {t(`feed.actorKind.${entry.actor.kind}`)}
+              {actorName(entry, t)} · {t(`feed.actorKind.${entry.actor.kind}`)}
             </Value>
           </View>
         </Fact>

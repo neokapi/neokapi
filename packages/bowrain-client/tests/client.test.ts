@@ -456,3 +456,26 @@ describe("client", () => {
     expect(calls[1]?.init?.method).toBe("POST");
   });
 });
+
+describe("updateMe", () => {
+  it("patches the signed-in person's name", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        return new Response(
+          JSON.stringify({ id: "u1", email: "a@b.c", name: "Ada", shown_name: "Ada" }),
+          {
+            status: 200,
+          },
+        );
+      }) as typeof fetch,
+    });
+    expect((await client.updateMe({ name: "Ada" })).shown_name).toBe("Ada");
+    expect(calls[0].url).toBe("http://server/api/v1/auth/me");
+    expect(calls[0].init?.method).toBe("PATCH");
+    expect(JSON.parse(calls[0].init?.body as string)).toEqual({ name: "Ada" });
+  });
+});
