@@ -69,7 +69,7 @@ func (s *importScribe) records() bool { return s != nil && s.ops != nil }
 // read records one context file the import put into the store, naming what the
 // file holds and the bytes it held.
 func (s *importScribe) read(ctx context.Context, src contextSource, n int, digest string) error {
-	return s.record(ctx, src.rel, digest, importSubjectText(src, n))
+	return s.record(ctx, src.rel, digest, importSubjectText(src, n), importSourceOf(src, n))
 }
 
 // readRecord records the decision record the import read. A record is a
@@ -77,7 +77,8 @@ func (s *importScribe) read(ctx context.Context, src contextSource, n int, diges
 // with the number of decisions it carried, and its digest is the one
 // state.CommittedDigest takes over every shard.
 func (s *importScribe) readRecord(ctx context.Context, rel string, n int, digest string) error {
-	return s.record(ctx, rel, digest, fmt.Sprintf("decision record %s, %s", rel, pluralUnit(n, "decision", "decisions")))
+	return s.record(ctx, rel, digest, fmt.Sprintf("decision record %s, %s", rel, pluralUnit(n, "decision", "decisions")),
+		&contextop.ImportSource{Source: contextop.ImportDecisions, Path: rel, Count: n})
 }
 
 // record appends one import operation naming a source the import read. What a
@@ -86,7 +87,7 @@ func (s *importScribe) readRecord(ctx context.Context, rel string, n int, digest
 // The evidence carries the source's project-relative path and the SHA-256 of
 // the bytes that were read (over every shard, for the decision record), so a
 // reader of the log can tell which version of a source is in force.
-func (s *importScribe) record(ctx context.Context, rel, digest, subject string) error {
+func (s *importScribe) record(ctx context.Context, rel, digest, subject string, source *contextop.ImportSource) error {
 	if !s.records() {
 		return nil
 	}
@@ -100,6 +101,7 @@ func (s *importScribe) record(ctx context.Context, rel, digest, subject string) 
 		Subject:  contextop.Subject{Kind: contextop.SubjectNote, Text: subject},
 		Evidence: evidence,
 		Note:     s.note,
+		Import:   source,
 	}, evidence))
 	if err != nil {
 		return teachRefusal(err)
@@ -118,6 +120,22 @@ func importSubjectText(src contextSource, n int) string {
 		return "voice profile " + src.rel
 	}
 	return src.rel
+}
+
+// importSourceOf is the marker an import operation carries for one source,
+// so a reader tells what it read without parsing the subject text.
+func importSourceOf(src contextSource, n int) *contextop.ImportSource {
+	out := &contextop.ImportSource{Path: src.rel, Count: n}
+	switch src.kind {
+	case sourceKindTerms:
+		out.Source = contextop.ImportTerms
+	case sourceKindMemory:
+		out.Source = contextop.ImportMemory
+	case sourceKindVoice:
+		out.Source = contextop.ImportVoice
+		out.Count = 1
+	}
+	return out
 }
 
 // importStamps maps a context file to the digest it held when a checkout read

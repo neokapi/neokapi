@@ -76,6 +76,43 @@ type contextDeckCard struct {
 	// Basis is what a keep would record.
 	Basis   contextop.ReviewBasis `json:"basis,omitempty"`
 	Actions []string              `json:"actions"`
+	// Origin is the bulk operation that brought the item in or last changed
+	// it: an import of a context file, or a whole voice-profile write.
+	Origin *contextDeckOrigin `json:"origin,omitempty"`
+	// Reviewed says an attestation covers the item at its current revision.
+	// Only a listing of an origin's items deals reviewed ones.
+	Reviewed bool `json:"reviewed,omitempty"`
+}
+
+// The kinds of bulk operation an origin names.
+const (
+	originKindImport    = "import"
+	originKindVoiceEdit = "voice_edit"
+)
+
+// contextDeckOrigin is the bulk operation that brought an item in: who ran
+// it, from where, when, and how many items it carried. The deck deals the
+// items, never the operation, because keeping the operation would vouch for
+// every item it carried unseen.
+type contextDeckOrigin struct {
+	// ID is the operation's id, which the origin listing takes.
+	ID    string `json:"id"`
+	Short string `json:"short"`
+	// Kind is import or voice_edit.
+	Kind string `json:"kind"`
+	// Source is what an import read: terms, memory, voice or decisions.
+	Source string `json:"source,omitempty"`
+	// Path is the file an import read.
+	Path string `json:"path,omitempty"`
+	// Profile is the voice profile a voice edit wrote.
+	Profile string `json:"profile,omitempty"`
+	// Count is how many items an import carried, or how many fields a voice
+	// edit changed. Zero when the operation did not record it.
+	Count  int               `json:"count,omitempty"`
+	Author contextDeckAuthor `json:"author"`
+	At     time.Time         `json:"at"`
+	// Note is what the person said about the operation.
+	Note string `json:"note,omitempty"`
 }
 
 type contextDeckTermRule struct {
@@ -188,8 +225,39 @@ func opAuthor(r contextop.Record) contextDeckAuthor {
 	return a
 }
 
+// recordAuthor is opAuthor with a person's name resolved: an operation a
+// person recorded under a member's user id shows the member's display name,
+// and keeps the id so the deck can tell the reviewer's own work.
+func (s *Server) recordAuthor(ctx context.Context, r contextop.Record, names map[string]string) contextDeckAuthor {
+	a := opAuthor(r)
+	if a.Kind != string(contextop.ActorPerson) || a.Name == "" {
+		return a
+	}
+	if name, ok := s.memberName(ctx, a.Name, names); ok {
+		a.userID, a.Name = a.Name, name
+	}
+	return a
+}
+
+// memberName is the display name of the member userID names, and whether
+// one is known. names caches the answers of one deal, an unknown id as "".
+func (s *Server) memberName(ctx context.Context, userID string, names map[string]string) (string, bool) {
+	if name, ok := names[userID]; ok {
+		return name, name != ""
+	}
+	name := ""
+	if s.AuthStore != nil {
+		if u, err := s.AuthStore.GetUser(ctx, userID); err == nil && u != nil {
+			name = cmp.Or(u.Name, u.Email)
+		}
+	}
+	names[userID] = name
+	return name, name != ""
+}
+
 // memberAuthor is an item a store records under a member's user id, or
-// under "agent/<name>" for one an agent wrote.
+// under "agent/<name>" for one an agent wrote. An id that names no member
+// shows no name rather than the id.
 func (s *Server) memberAuthor(ctx context.Context, userID string, names map[string]string) contextDeckAuthor {
 	if name, ok := strings.CutPrefix(userID, "agent/"); ok {
 		return contextDeckAuthor{Kind: string(contextop.ActorAgent), Name: name, AgentAuthored: true}
@@ -197,11 +265,7 @@ func (s *Server) memberAuthor(ctx context.Context, userID string, names map[stri
 	if userID == "" {
 		return contextDeckAuthor{Kind: string(contextop.ActorPerson)}
 	}
-	name, ok := names[userID]
-	if !ok {
-		name = s.displayName(ctx, userID)
-		names[userID] = name
-	}
+	name, _ := s.memberName(ctx, userID, names)
 	return contextDeckAuthor{Kind: string(contextop.ActorPerson), Name: name, userID: userID}
 }
 
@@ -238,9 +302,22 @@ func (card *contextDeckCard) judge(rv deckReviewer, need platauth.Permission, re
 // pendingContext deals the project's context items no attestation covers at
 // their current revision, in deck order.
 func (s *Server) pendingContext(ctx context.Context, src deckSource, rv deckReviewer) ([]contextDeckCard, error) {
+	cards, err := s.contextItems(ctx, src, rv)
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(cards, func(c contextDeckCard) bool { return c.Reviewed }), nil
+}
+
+// contextItems deals every context item of the project, reviewed or not, in
+// deck order, each with the bulk operation that brought it in. A bulk
+// operation (contextop.Record.Bulk) is never a card of its own: the concepts
+// and voice rules it carried are, one by one.
+func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReviewer) ([]contextDeckCard, error) {
 	var cards []contextDeckCard
 	bound := src.key != ""
 	names := map[string]string{}
+	var bulk []contextop.Record
 
 	for _, r := range src.records {
 		if !r.Kind.Bears() || !r.Status.Answers() {
@@ -249,11 +326,15 @@ func (s *Server) pendingContext(ctx context.Context, src deckSource, rv deckRevi
 		if r.Project != src.key && r.Scope.Level != contextop.LevelWorkspace {
 			continue
 		}
+		if r.Bulk() {
+			bulk = append(bulk, r)
+			continue
+		}
 		card := contextDeckCard{
 			Item:     contextop.ItemRef{Kind: contextop.ItemOp, ID: r.ID},
 			Revision: r.Revision,
 			Status:   string(r.Status),
-			Author:   opAuthor(r),
+			Author:   s.recordAuthor(ctx, r, names),
 			At:       r.At,
 			Where: contextDeckWhere{
 				Level: string(cmp.Or(r.Scope.Level, contextop.LevelProject)), Coordinates: r.Scope.Coordinates,
@@ -283,12 +364,15 @@ func (s *Server) pendingContext(ctx context.Context, src deckSource, rv deckRevi
 		cards = append(cards, card)
 	}
 
+	origins := s.deckOrigins(ctx, bulk, names)
+
 	concepts, err := s.conceptCards(ctx, src, names)
 	if err != nil {
 		return nil, err
 	}
 	for i := range concepts {
 		concepts[i].judge(rv, platauth.PermManageTerms, rv.reach.Unconstrained(), bound)
+		concepts[i].Origin = conceptOrigin(origins, concepts[i].At)
 	}
 	cards = append(cards, concepts...)
 
@@ -298,27 +382,135 @@ func (s *Server) pendingContext(ctx context.Context, src deckSource, rv deckRevi
 	}
 	for i := range voice {
 		voice[i].judge(rv, platauth.PermManageVoice, rv.reach.Unconstrained(), bound)
+		voice[i].Origin = voiceOrigin(origins, voice[i])
 	}
 	cards = append(cards, voice...)
 
 	reviews := contextop.Reviews(src.records)
-	pending := cards[:0]
-	for _, card := range cards {
-		review := reviews[card.Item.Key()]
-		if review.Current(card.Revision) {
+	for i := range cards {
+		review := reviews[cards[i].Item.Key()]
+		if review.Current(cards[i].Revision) {
+			cards[i].Reviewed = true
 			continue
 		}
-		card.Review = review
-		pending = append(pending, card)
+		cards[i].Review = review
 	}
-	slices.SortStableFunc(pending, func(a, b contextDeckCard) int {
+	slices.SortStableFunc(cards, func(a, b contextDeckCard) int {
 		return cmp.Or(
 			cmp.Compare(slices.Index(deckKindOrder, a.Kind), slices.Index(deckKindOrder, b.Kind)),
 			a.At.Compare(b.At),
 			strings.Compare(a.Item.ID, b.Item.ID),
 		)
 	})
-	return pending, nil
+	return cards, nil
+}
+
+// bulkRecords are the bulk operations of the project's ledger.
+func bulkRecords(src deckSource) []contextop.Record {
+	var out []contextop.Record
+	for _, r := range src.records {
+		if r.Kind.Bears() && r.Status.Answers() && r.Bulk() &&
+			(r.Project == src.key || r.Scope.Level == contextop.LevelWorkspace) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// deckOrigins reads the bulk operations of the project's ledger as origins,
+// oldest first.
+func (s *Server) deckOrigins(ctx context.Context, bulk []contextop.Record, names map[string]string) []*contextDeckOrigin {
+	out := make([]*contextDeckOrigin, 0, len(bulk))
+	for _, r := range bulk {
+		o := &contextDeckOrigin{
+			ID: r.ID, Short: contextop.ShortID(r.ID), At: r.At,
+			Author: s.recordAuthor(ctx, r, names),
+			Note:   strings.Trim(overrideNote.ReplaceAllString(r.Note, ""), " ;"),
+		}
+		if src, ok := r.ImportOf(); ok {
+			o.Kind, o.Source, o.Path, o.Count = originKindImport, src.Source, src.Path, src.Count
+		} else {
+			o.Kind, o.Profile = originKindVoiceEdit, voiceWriteProfile(r)
+			if r.Voice != nil {
+				o.Count = len(r.Voice.Changes) + r.Voice.Omitted
+			}
+		}
+		out = append(out, o)
+	}
+	slices.SortStableFunc(out, func(a, b *contextDeckOrigin) int { return a.At.Compare(b.At) })
+	return out
+}
+
+// voiceWriteProfile is the voice profile a whole-profile write names: its
+// VoiceEdit's, or the word after "voice profile " in the note of a write
+// recorded without one.
+func voiceWriteProfile(r contextop.Record) string {
+	if r.Voice != nil {
+		return r.Voice.Profile
+	}
+	rest, _ := strings.CutPrefix(r.Subject.Text, "voice profile ")
+	name, _, _ := strings.Cut(rest, " ")
+	return strings.TrimSuffix(name, ":")
+}
+
+// latestOrigin is the latest origin match accepts that was recorded at or
+// before at, or the latest it accepts at all when none was or at is unknown.
+// A store stamps an item when the item reached it, which is after the
+// operation that carried it was recorded on the machine that ran it.
+func latestOrigin(origins []*contextDeckOrigin, at time.Time, match func(*contextDeckOrigin) bool) *contextDeckOrigin {
+	var before, last *contextDeckOrigin
+	for _, o := range origins {
+		if !match(o) {
+			continue
+		}
+		last = o
+		if !at.IsZero() && !o.At.After(at) {
+			before = o
+		}
+	}
+	if before != nil {
+		return before
+	}
+	return last
+}
+
+// conceptOrigin is the terms import that brought a concept in.
+func conceptOrigin(origins []*contextDeckOrigin, at time.Time) *contextDeckOrigin {
+	return latestOrigin(origins, at, func(o *contextDeckOrigin) bool {
+		return o.Kind == originKindImport && o.Source == contextop.ImportTerms
+	})
+}
+
+// voiceOrigin is the voice import or whole-profile write that last changed
+// the profile a voice rule belongs to.
+func voiceOrigin(origins []*contextDeckOrigin, card contextDeckCard) *contextDeckOrigin {
+	if card.Pattern == nil {
+		return nil
+	}
+	return latestOrigin(origins, card.At, func(o *contextDeckOrigin) bool {
+		switch o.Kind {
+		case originKindVoiceEdit:
+			return sameProfile(o.Profile, card.Item.Profile, card.Pattern.Profile)
+		case originKindImport:
+			return o.Source == contextop.ImportVoice && strings.Contains(profileSlug(o.Path), profileSlug(card.Pattern.Profile))
+		}
+		return false
+	})
+}
+
+// sameProfile reports whether the profile a ledger operation names is the
+// one the server holds as id and name. A checkout names a profile by its own
+// id, which is the profile's name spelled as a slug.
+func sameProfile(named, id, name string) bool {
+	return named != "" && (named == id || profileSlug(named) == profileSlug(name))
+}
+
+// profileSlug spells a profile name the way a checkout's profile id does:
+// lower case, words joined by hyphens.
+func profileSlug(name string) string {
+	return strings.Join(strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
+		return r == ' ' || r == '_' || r == '-'
+	}), "-")
 }
 
 // termRuleFlags are the badges a term rule shows.
@@ -432,28 +624,65 @@ func sameLanguage(a, b model.LocaleID) bool {
 	return primary(a) != "" && primary(a) == primary(b)
 }
 
-// voiceRuleCards are the cards of the pattern rules of the voice profile
-// bound to the project at its source language. A pattern rule has no id of
-// its own. Its id is a digest of its list and its regular expression, and its
+// voiceRuleCards are the cards of the pattern rules of every voice profile
+// bound in the project at its source language: the one the project resolves
+// to, and each one a collection binds. A recipe that binds a voice per
+// collection binds none on the project itself, so reading the project's
+// binding alone deals no voice rule at all. A pattern rule has no id of its
+// own. Its id is a digest of its list and its regular expression, and its
 // revision a digest of the whole rule. Editing what a rule says is a new
 // revision of it; editing what it matches is a new rule. The author is
 // whoever wrote the first profile version that holds the rule as it reads
 // now.
 func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, error) {
+	var out []contextDeckCard
+	for _, profile := range s.boundVoiceProfiles(ctx, src) {
+		out = append(out, s.profileRuleCards(ctx, src, profile, names)...)
+	}
+	return out, nil
+}
+
+// boundVoiceProfiles are the voice profiles bound in the project, resolved at
+// its source language: the project's own first, then each collection's, each
+// profile once.
+func (s *Server) boundVoiceProfiles(ctx context.Context, src deckSource) []*coreprofile.VoiceProfile {
 	if s.VoiceStore == nil || s.ContentStore == nil {
-		return nil, nil
+		return nil
 	}
 	var wd voicescope.WorkspaceDefault
 	if s.AuthStore != nil {
 		wd = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
 	}
-	profile, err := voicescope.Resolve(ctx, s.ContentStore, wd, s.VoiceStore, voicescope.Scope{
+	scope := voicescope.Scope{
 		WorkspaceID: src.project.WorkspaceID, ProjectID: src.project.ID, Stream: reviewInboxStream,
 		Locale: src.project.DefaultSourceLanguage,
-	})
-	if err != nil || profile == nil {
-		return nil, nil //nolint:nilerr // a project with no voice bound has no voice rule cards
 	}
+	scopes := []voicescope.Scope{scope}
+	if cols, err := s.ContentStore.ListCollections(ctx, src.project.ID, reviewInboxStream); err == nil {
+		for _, col := range cols {
+			if col.ConnectorConfig[coreprofile.PropertyProfileID] == "" {
+				continue
+			}
+			at := scope
+			at.CollectionID = col.ID
+			scopes = append(scopes, at)
+		}
+	}
+	seen := map[string]bool{}
+	var out []*coreprofile.VoiceProfile
+	for _, sc := range scopes {
+		profile, err := voicescope.Resolve(ctx, s.ContentStore, wd, s.VoiceStore, sc)
+		if err != nil || profile == nil || seen[profile.ID] {
+			continue
+		}
+		seen[profile.ID] = true
+		out = append(out, profile)
+	}
+	return out
+}
+
+// profileRuleCards are the cards of one voice profile's pattern rules.
+func (s *Server) profileRuleCards(ctx context.Context, src deckSource, profile *coreprofile.VoiceProfile, names map[string]string) []contextDeckCard {
 	versions, _ := s.VoiceStore.ListProfileVersions(ctx, profile.ID)
 	slices.SortFunc(versions, func(a, b *coreprofile.ProfileVersion) int { return cmp.Compare(a.Version, b.Version) })
 
@@ -489,7 +718,7 @@ func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, names map[s
 	}
 	add("prohibited", profile.Style.ProhibitedPatterns)
 	add("required", profile.Style.RequiredPatterns)
-	return out, nil
+	return out
 }
 
 // patternIdentity is a pattern rule's id and revision.

@@ -525,6 +525,9 @@ type Record struct {
 	// Voice is what a whole-profile write did, for the edit operation that
 	// records one.
 	Voice *VoiceEdit `json:"voice,omitempty"`
+	// Import is the context file an import operation read: what kind of
+	// source it was, its path and how many items it carried.
+	Import *ImportSource `json:"import,omitempty"`
 	// Standing counts the evidence for and against a suggestion, folded from
 	// the log. It is set on a term rule that settling considers.
 	Standing *Standing `json:"standing,omitempty"`
@@ -554,20 +557,21 @@ func (r Record) Rule() (profile.TermRule, bool) { return r.Subject.Rule() }
 // id, the sequence, the project, the timestamp and the folded status are the
 // log's own and are not repeated here.
 type payload struct {
-	Actor      Actor        `json:"actor"`
-	Subject    Subject      `json:"subject,omitzero"`
-	Correction *Correction  `json:"correction,omitempty"`
-	Evidence   []Evidence   `json:"evidence,omitempty"`
-	Basis      Basis        `json:"basis,omitzero"`
-	Scope      Scope        `json:"scope,omitzero"`
-	Target     string       `json:"target,omitempty"`
-	Before     string       `json:"before,omitempty"`
-	Note       string       `json:"note,omitempty"`
-	Signal     *Signal      `json:"signal,omitempty"`
-	Because    []string     `json:"because,omitempty"`
-	Check      *CheckRun    `json:"check,omitempty"`
-	Voice      *VoiceEdit   `json:"voice,omitempty"`
-	Attest     *Attestation `json:"attest,omitempty"`
+	Actor      Actor         `json:"actor"`
+	Subject    Subject       `json:"subject,omitzero"`
+	Correction *Correction   `json:"correction,omitempty"`
+	Evidence   []Evidence    `json:"evidence,omitempty"`
+	Basis      Basis         `json:"basis,omitzero"`
+	Scope      Scope         `json:"scope,omitzero"`
+	Target     string        `json:"target,omitempty"`
+	Before     string        `json:"before,omitempty"`
+	Note       string        `json:"note,omitempty"`
+	Signal     *Signal       `json:"signal,omitempty"`
+	Because    []string      `json:"because,omitempty"`
+	Check      *CheckRun     `json:"check,omitempty"`
+	Voice      *VoiceEdit    `json:"voice,omitempty"`
+	Import     *ImportSource `json:"import,omitempty"`
+	Attest     *Attestation  `json:"attest,omitempty"`
 }
 
 // encode renders a record as the workspace operation that carries it.
@@ -586,6 +590,7 @@ func encode(r Record) (workspace.Op, error) {
 		Because:    r.Because,
 		Check:      r.Check,
 		Voice:      r.Voice,
+		Import:     r.Import,
 		Attest:     r.Attest,
 	})
 	if err != nil {
@@ -631,6 +636,7 @@ func decode(op workspace.Op) (Record, bool, error) {
 		Because:    body.Because,
 		Check:      body.Check,
 		Voice:      body.Voice,
+		Import:     body.Import,
 		Attest:     body.Attest,
 		At:         op.At.UTC(),
 	}, true, nil

@@ -44,6 +44,7 @@ const (
 
 func (s *Server) registerContextDeckRoutes(g *echo.Group) {
 	g.GET("/:id/context/deck", s.HandleContextDeck)
+	g.GET("/:id/context/deck/origins/:op", s.HandleContextDeckOrigin)
 	g.POST("/:id/context/deck/decide", s.HandleContextDeckDecide)
 }
 
@@ -168,6 +169,77 @@ func (s *Server) HandleContextDeck(c echo.Context) error {
 	offset = max(0, min(offset, len(cards)))
 	end := min(offset+limit, len(cards))
 	out.Cards = cards[offset:end]
+	if end < len(cards) {
+		out.NextCursor = strconv.Itoa(end)
+	}
+	if out.Cards == nil {
+		out.Cards = []contextDeckCard{}
+	}
+	return c.JSON(http.StatusOK, out)
+}
+
+// contextDeckOriginResponse is a page of the items one bulk operation
+// brought in.
+type contextDeckOriginResponse struct {
+	Origin *contextDeckOrigin `json:"origin"`
+	// Total counts the items the project holds from the operation, and
+	// Pending those still waiting for review.
+	Total      int               `json:"total"`
+	Pending    int               `json:"pending"`
+	Cards      []contextDeckCard `json:"cards"`
+	NextCursor string            `json:"next_cursor,omitempty"`
+}
+
+// HandleContextDeckOrigin answers GET /:ws/:id/context/deck/origins/:op: the
+// bulk operation op and the items of the project it brought in, reviewed or
+// not, in deck order. ?cursor= and ?limit= page it.
+func (s *Server) HandleContextDeckOrigin(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+	src, rv, err := s.deckRequest(c)
+	if errors.Is(err, errNoProject) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	if err != nil {
+		return serverErr(c, err)
+	}
+	op := c.Param("op")
+	cards, err := s.contextItems(c.Request().Context(), src, rv)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	cards = slices.DeleteFunc(cards, func(card contextDeckCard) bool { return card.Origin == nil || card.Origin.ID != op })
+	out := contextDeckOriginResponse{Total: len(cards)}
+	for _, card := range cards {
+		if !card.Reviewed {
+			out.Pending++
+		}
+	}
+	if len(cards) > 0 {
+		out.Origin = cards[0].Origin
+	} else {
+		for _, o := range s.deckOrigins(c.Request().Context(), bulkRecords(src), map[string]string{}) {
+			if o.ID == op {
+				out.Origin = o
+			}
+		}
+	}
+	if out.Origin == nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no bulk operation of this project has that id"})
+	}
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	if limit <= 0 {
+		limit = contextDeckPageSize
+	}
+	limit = min(limit, contextDeckMaxPage)
+	offset, _ := strconv.Atoi(c.QueryParam("cursor"))
+	offset = max(0, min(offset, len(cards)))
+	end := min(offset+limit, len(cards))
+	out.Cards = slices.Clone(cards[offset:end])
+	for i := range out.Cards {
+		out.Cards[i].Origin = nil
+	}
 	if end < len(cards) {
 		out.NextCursor = strconv.Itoa(end)
 	}
