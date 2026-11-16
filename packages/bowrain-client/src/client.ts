@@ -97,6 +97,8 @@ export interface BowrainClient {
    */
   logout(opts?: { postLogoutRedirectUri?: string }): Promise<{ endSessionUrl?: string }>;
   me(): Promise<User>;
+  /** Changes the signed-in person's own account; an empty name clears it. */
+  updateMe(change: { name?: string }): Promise<User>;
   workspaces(): Promise<Workspace[]>;
   projects(workspace: string): Promise<Project[]>;
   permissions(workspace: string, project: string): Promise<CallerPermissions>;
@@ -307,6 +309,10 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     },
 
     me: () => get<User>("/auth/me"),
+    async updateMe(change) {
+      const { body } = await send("/auth/me", { method: "PATCH", body: JSON.stringify(change) });
+      return body as User;
+    },
     workspaces: () => get<Workspace[]>("/workspaces"),
     projects: (ws) => get<Project[]>(`/${enc(ws)}/projects`),
     permissions: (ws, pid) => get<CallerPermissions>(`/${enc(ws)}/${enc(pid)}/permissions`),

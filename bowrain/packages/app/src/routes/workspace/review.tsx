@@ -50,7 +50,7 @@ export function ReviewRoute() {
     locale: project.target_languages?.[0] ?? "",
     user: {
       userId: user.id,
-      name: user.name,
+      name: user.shown_name || user.name || "",
       avatarUrl: user.avatar_url,
     },
     enabled: !!fileName && !!ws,

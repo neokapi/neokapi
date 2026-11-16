@@ -9,6 +9,24 @@ import (
 	"time"
 )
 
+// ShownName is the name to show for a person: the name they set, else their
+// handle (the slug of their personal workspace), else the part of their email
+// before the @. A full email address is never shown as a name, and neither is
+// a user id.
+func ShownName(u *User, handle string) string {
+	if u == nil {
+		return ""
+	}
+	if name := strings.TrimSpace(u.Name); name != "" {
+		return name
+	}
+	if handle != "" {
+		return handle
+	}
+	local, _, _ := strings.Cut(u.Email, "@")
+	return local
+}
+
 // User represents an authenticated user.
 //
 // OnboardedAt is set when the user has completed onboarding (chosen a handle
@@ -17,7 +35,9 @@ import (
 type User struct {
 	ID          string     `json:"id"`
 	Email       string     `json:"email"`
-	Name        string     `json:"name"`
+	// Name is the name the person set. It is empty, and left out of the
+	// JSON, until they set one; ShownName answers what to show meanwhile.
+	Name        string     `json:"name,omitempty"`
 	AvatarURL   string     `json:"avatar_url"`
 	OIDCSub     string     `json:"oidc_sub,omitempty"`
 	OnboardedAt *time.Time `json:"onboarded_at,omitempty"`

@@ -395,7 +395,7 @@ keeps its place while another is open.
 | Home | workspaces, a workspace's projects, a project's languages with what each deck holds | `/workspaces`, `/:ws/projects`, `/:ws/:id/permissions`, the deck's counts |
 | Review | every language the person may review, across projects and workspaces, where anything waits, most waiting first | `GET /auth/me/review` (below) |
 | Activity | the feed of the project the person last opened; a button at the top picks another | `GET /:ws/:id/feed` |
-| Account | the person, the account page on the server, the server, appearance, the version and update, sign-out | `/auth/me`, expo-application, expo-updates |
+| Account | the person and the name they show under, the account page on the server, the server, appearance, the version and update, sign-out | `GET` and `PATCH /auth/me`, expo-application, expo-updates |
 
 The deck is not in a tab. It opens over the tab bar from Home, Review or an
 Activity card, because a reviewer needs the whole screen for the card and
@@ -406,6 +406,14 @@ before, with the tabs beneath it.
 Review is a tab of its own because the question a reviewer opens the app
 with is what is waiting for them, and Home answers it one project at a time.
 The server answers it in one request; the app neither sums nor sorts.
+
+A person shows under the name they set, else their handle (the slug of their
+personal workspace), else the part of their email before the @; the server
+answers it as `shown_name` on `/auth/me` and as the actor's name on each feed
+entry, read from the account when the feed is read. A feed entry the reader
+made carries `viewer: true`, and the app words it in the second person: "You
+approved 2". A key with a `_you` variant in the catalog is read for those
+("You have translations waiting"), and every other key reads as it is.
 
 Account is reached from its tab only; Home carries no second way in. The tab
 bar shows a system symbol for Account: a native tab icon is an image or a

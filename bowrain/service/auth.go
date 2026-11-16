@@ -207,6 +207,14 @@ func (s *AuthService) CompleteOnboarding(ctx context.Context, userID, slug, disp
 	if taken {
 		return nil, false, fmt.Errorf("slug %q is not available", slug)
 	}
+	// The display name the person typed is their own name, as well as the
+	// first name of their workspace.
+	if displayName != "" && u.Name == "" {
+		u.Name = displayName
+		if err := s.store.UpdateUser(ctx, u); err != nil {
+			return nil, false, fmt.Errorf("set name: %w", err)
+		}
+	}
 	if displayName == "" {
 		displayName = u.Name
 	}

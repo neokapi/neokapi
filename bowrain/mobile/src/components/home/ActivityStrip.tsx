@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { Avatar } from "../feed/Avatar";
-import { actionOf, actorName, ageLabel } from "../../lib/feed";
+import { actionOf, actorLabel, actorName, ageLabel } from "../../lib/feed";
 
 const MAX_AVATARS = 4;
 
@@ -56,7 +56,7 @@ export function ActivityStrip({ entries, onPress }: { entries: FeedEntry[]; onPr
               style={{ marginLeft: i === 0 ? 0 : -10, zIndex: actors.length - i }}
               className="border-card rounded-full border-2"
             >
-              <Avatar actor={e.actor} name={actorName(e, t)} size={32} />
+              <Avatar actor={e.actor} name={actorLabel(e, t)} size={32} />
             </View>
           ))}
         </View>

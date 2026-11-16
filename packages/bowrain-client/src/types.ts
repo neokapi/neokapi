@@ -16,11 +16,16 @@ export interface AuthTokens {
   expires_in?: number;
 }
 
-/** The signed-in person (auth.User, GET /auth/me). */
+/** The signed-in person (meResponse, GET and PATCH /auth/me). */
 export interface User {
   id: string;
   email: string;
+  /** The name the person set; absent until they set one. */
   name?: string;
+  /** The name to show: the name they set, else their handle, else the email before the @. */
+  shown_name?: string;
+  /** The slug of their personal workspace. */
+  handle?: string;
 }
 
 /** A workspace the person belongs to (auth.Workspace). */
@@ -464,12 +469,16 @@ export interface FeedActor {
   name?: string;
   session?: string;
   host?: string;
+  /** Set on the entries the signed-in reader made. */
+  viewer?: boolean;
 }
 
 /** The member an agent or a tool acted for (FeedMember). */
 export interface FeedMember {
   id: string;
   name?: string;
+  /** Set when the member is the signed-in reader. */
+  viewer?: boolean;
 }
 
 /** The screen an entry opens and what to open there (FeedLink). */

@@ -204,6 +204,25 @@ const CHANGE_SET_KEYS: Record<string, string> = {
  * Korean", "proposed 6 term rules", "drafted 40 translations in 3 languages".
  */
 export function actionOf(e: FeedEntry, t: TFunction, uiLanguage: string): string {
+  return actionIn(e, isViewer(e) ? youContext(t) : t, uiLanguage);
+}
+
+/** Whether the signed-in reader made the entry themselves. */
+export function isViewer(e: FeedEntry): boolean {
+  return e.actor.kind === "person" && !!e.actor.viewer;
+}
+
+/**
+ * The catalog in the second person: a key with a `_you` variant ("are
+ * waiting" for "is waiting") reads it, and every other key reads as it is.
+ */
+function youContext(t: TFunction): TFunction {
+  const you = (key: string, opts?: object) => t(key, { ...opts, context: "you" });
+  // TFunction is branded and overloaded; this wrapper keeps its call shape.
+  return you as unknown as TFunction;
+}
+
+function actionIn(e: FeedEntry, t: TFunction, uiLanguage: string): string {
   const c = e.counts ?? {};
   switch (e.kind) {
     case "push": {
@@ -365,11 +384,12 @@ export function foldedActionOf(card: FeedCard, t: TFunction, uiLanguage: string)
   const lead = card.entries[0];
   const key = FOLDED_KEYS[lead.kind];
   if (card.entries.length < 2 || !key) return actionOf(lead, t, uiLanguage);
-  return t(`feed.action.${key}`, { count: card.entries.length });
+  return (isViewer(lead) ? youContext(t) : t)(`feed.action.${key}`, { count: card.entries.length });
 }
 
-/** The name a card shows for its actor. */
+/** The name a card shows for its actor: "You" for the reader's own entries. */
 export function actorName(e: FeedEntry, t: TFunction): string {
+  if (isViewer(e)) return t("feed.actor.you");
   if (e.actor.kind === "tool" && e.actor.name === "convergence") {
     return t("feed.actor.convergence");
   }
@@ -411,14 +431,14 @@ export function entryTitle(e: FeedEntry, t: TFunction, uiLanguage: string): stri
   return object ? `${kindLabel(t, e.kind)} · ${object}` : kindLabel(t, e.kind);
 }
 
-/** Who did it, as the row names them. */
+/** The actor's own name, never "You": what an avatar draws its initials from. */
 export function actorLabel(e: FeedEntry, t: TFunction): string {
   return e.actor.name || e.on_behalf_of?.name || t("feed.someone");
 }
 
 /** The row's meta line: the actor, the main count and the time, at most three facts. */
 export function entryMeta(e: FeedEntry, t: TFunction, uiLanguage: string): string {
-  const facts = [actorLabel(e, t)];
+  const facts = [actorName(e, t)];
   const main = e.kind === "coverage_milestone" ? undefined : mainCount(e);
   if (main) facts.push(countLabel(t, main));
   facts.push(timeOf(e.at, uiLanguage));

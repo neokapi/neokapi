@@ -10,7 +10,14 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
-import { actionOf, actorName, ageLabel, foldedActionOf, languageLabel } from "../../lib/feed";
+import {
+  actionOf,
+  actorLabel,
+  actorName,
+  ageLabel,
+  foldedActionOf,
+  languageLabel,
+} from "../../lib/feed";
 import { Avatar } from "./Avatar";
 import { Preview } from "./Preview";
 
@@ -96,7 +103,9 @@ function FeedCardView({ card, onOpen, onOpenLanguage }: FeedCardProps) {
   const folded = card.entries.length > 1;
   const meta = [
     lead.actor.kind !== "person" && lead.on_behalf_of?.name
-      ? t("feed.forMember", { name: lead.on_behalf_of.name })
+      ? lead.on_behalf_of.viewer
+        ? t("feed.forYou")
+        : t("feed.forMember", { name: lead.on_behalf_of.name })
       : undefined,
     ageLabel(lead.at, t, i18n.language),
   ]
@@ -115,7 +124,7 @@ function FeedCardView({ card, onOpen, onOpenLanguage }: FeedCardProps) {
         onPress={() => onOpen(lead)}
         className="flex-row gap-3 active:opacity-70"
       >
-        <Avatar actor={lead.actor} name={name} />
+        <Avatar actor={lead.actor} name={actorLabel(lead, t)} />
         <View className="min-w-0 flex-1 justify-center">
           <Text className="text-foreground text-[15px] leading-5">
             <Text className="font-semibold">{name}</Text> {action}

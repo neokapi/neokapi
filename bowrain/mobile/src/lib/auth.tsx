@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }).me();
         next.userId = me.id;
         next.email = me.email;
-        next.name = me.name;
+        next.name = me.shown_name || me.name;
       } catch {
         // The name is for display; the session stands without it.
       }

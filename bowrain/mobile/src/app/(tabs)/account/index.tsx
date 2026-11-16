@@ -46,6 +46,7 @@ export default function Account() {
   const { session, signOut } = useAuth();
   const qc = useQueryClient();
   const appearance = useAppearance();
+  const profile = useProfile();
 
   const [info] = useState(appInfo);
   const { version, build } = info;
@@ -81,6 +82,15 @@ export default function Account() {
       <ProfileHeader />
 
       <Section>
+        <Cell
+          testID="account-name"
+          icon="create"
+          tile="green"
+          title={t("account.name.title")}
+          value={profile.ownName ?? t("account.name.notSet")}
+          chevron
+          onPress={() => router.push("/account/name")}
+        />
         <Cell
           testID="account"
           icon="person"

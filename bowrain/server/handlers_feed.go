@@ -35,12 +35,16 @@ type FeedActor struct {
 	Name    string `json:"name,omitempty"`
 	Session string `json:"session,omitempty"`
 	Host    string `json:"host,omitempty"`
+	// Viewer marks the entries the signed-in reader made, which a client
+	// words in the second person.
+	Viewer bool `json:"viewer,omitempty"`
 }
 
 // FeedMember is the signed-in member an agent or tool acted for.
 type FeedMember struct {
-	ID   string `json:"id"`
-	Name string `json:"name,omitempty"`
+	ID     string `json:"id"`
+	Name   string `json:"name,omitempty"`
+	Viewer bool   `json:"viewer,omitempty"`
 }
 
 // FeedLink names the client screen an entry opens and what to open there.
@@ -176,38 +180,31 @@ func (s *Server) HandleProjectFeed(c echo.Context) error {
 	}
 
 	names := s.feedMemberNames(ctx)
+	viewer, _ := c.Get("user_id").(string)
 	resp := FeedResponse{Entries: make([]FeedEntry, 0, len(result.Activities)), NextCursor: result.NextCursor}
 	for i := range result.Activities {
-		resp.Entries = append(resp.Entries, feedEntryOf(&result.Activities[i], names))
+		resp.Entries = append(resp.Entries, feedEntryOf(&result.Activities[i], names, viewer))
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
-// feedMemberNames returns a lookup of a user's display name that reads each
-// user at most once per request.
+// feedMemberNames returns a lookup of the name to show for a user
+// (personName) that reads each user at most once per request.
 func (s *Server) feedMemberNames(ctx context.Context) func(string) string {
 	cache := map[string]string{}
 	return func(userID string) string {
-		if userID == "" || userID == "system" || s.AuthStore == nil {
-			return ""
-		}
 		if name, ok := cache[userID]; ok {
 			return name
 		}
-		name := ""
-		if u, err := s.AuthStore.GetUser(ctx, userID); err == nil && u != nil {
-			name = u.Name
-			if name == "" {
-				name = u.Email
-			}
-		}
+		name := s.personName(ctx, userID)
 		cache[userID] = name
 		return name
 	}
 }
 
 // feedEntryOf renders one activity row as a feed entry.
-func feedEntryOf(a *bstore.Activity, memberName func(string) string) FeedEntry {
+// viewer is the user id of the reader, which marks their own entries.
+func feedEntryOf(a *bstore.Activity, memberName func(string) string, viewer string) FeedEntry {
 	e := FeedEntry{
 		ID:          a.ID,
 		Kind:        string(a.Kind),
@@ -230,13 +227,19 @@ func feedEntryOf(a *bstore.Activity, memberName func(string) string) FeedEntry {
 	if e.Actor.Kind == "" {
 		e.Actor.Kind = bstore.ActorKindPerson
 	}
-	if e.Actor.Kind == bstore.ActorKindPerson && e.Actor.Name == "" {
-		e.Actor.Name = memberName(a.ActorID)
+	isViewer := viewer != "" && a.ActorID == viewer
+	// A person shows under the name their account carries now; the name the
+	// row recorded is kept for an account that no longer exists.
+	if e.Actor.Kind == bstore.ActorKindPerson {
+		if name := memberName(a.ActorID); name != "" {
+			e.Actor.Name = name
+		}
+		e.Actor.Viewer = isViewer
 	}
 	// An agent or a tool that ran under a member's login names the member.
 	if e.Actor.Kind != bstore.ActorKindPerson {
 		if name := memberName(a.ActorID); name != "" {
-			e.OnBehalfOf = &FeedMember{ID: a.ActorID, Name: name}
+			e.OnBehalfOf = &FeedMember{ID: a.ActorID, Name: name, Viewer: isViewer}
 		}
 	}
 

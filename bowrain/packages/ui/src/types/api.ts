@@ -7,7 +7,12 @@ export type { IOPort };
 export interface User {
   id: string;
   email: string;
-  name: string;
+  /** The name the person set; absent until they set one. */
+  name?: string;
+  /** GET /auth/me only: the name to show, the set name else the handle. */
+  shown_name?: string;
+  /** GET /auth/me only: the slug of the personal workspace. */
+  handle?: string;
   avatar_url: string;
   /** Set once the user has completed onboarding. Null/undefined = needs /welcome. */
   onboarded_at?: string | null;

@@ -1303,6 +1303,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected := authGroup.Group("")
 		authProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		authProtected.GET("/me", s.HandleAuthMe)
+		authProtected.PATCH("/me", s.HandleUpdateMe)
 		authProtected.GET("/me/onboarding", s.HandleGetOnboarding)
 		// The languages waiting for the caller's review across workspaces.
 		authProtected.GET("/me/review", s.HandleReviewInbox)

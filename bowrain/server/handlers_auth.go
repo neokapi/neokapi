@@ -1197,7 +1197,7 @@ func (s *Server) HandleAuthMe(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, "user not found")
 	}
 
-	return c.JSON(http.StatusOK, user)
+	return c.JSON(http.StatusOK, s.meResponseOf(ctx, user))
 }
 
 // WhoAmIResponse is the trimmed, display-only body returned by

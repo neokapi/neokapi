@@ -171,7 +171,7 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 
 	push := by["push"][0]
 	assert.Equal(t, map[string]int{"files": 3, "blocks": 40}, push.Counts)
-	assert.Equal(t, FeedActor{ID: "test-user", Kind: "person", Name: "Test"}, push.Actor)
+	assert.Equal(t, FeedActor{ID: "test-user", Kind: "person", Name: "Test", Viewer: true}, push.Actor, "the reader made it")
 	assert.Equal(t, FeedLink{Screen: FeedScreenStream, ID: "push-1", Stream: "main"}, push.Link)
 	assert.True(t, push.At.Equal(at), "the entry carries the event's own time, got %s", push.At)
 
@@ -203,7 +203,7 @@ func TestProjectFeed_EveryKind(t *testing.T) {
 
 	ctxEntry := by["context_change"][0]
 	assert.Equal(t, FeedActor{ID: "test-user", Kind: "agent", Name: "claude-code", Session: "0ab4e399", Host: "laptop"}, ctxEntry.Actor)
-	assert.Equal(t, &FeedMember{ID: "test-user", Name: "Test"}, ctxEntry.OnBehalfOf)
+	assert.Equal(t, &FeedMember{ID: "test-user", Name: "Test", Viewer: true}, ctxEntry.OnBehalfOf)
 	assert.Equal(t, map[string]int{"term_rule": 6, "add": 6}, ctxEntry.Counts)
 	assert.Equal(t, FeedLink{Screen: FeedScreenContextDeck, Mode: "pending"}, ctxEntry.Link)
 	require.Len(t, ctxEntry.Samples, 1)

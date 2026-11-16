@@ -10,6 +10,7 @@ export default function AccountLayout() {
   return (
     <Stack screenOptions={useStackOptions()}>
       <Stack.Screen name="index" options={{ ...tabRoot, title: t("account.title") }} />
+      <Stack.Screen name="name" options={{ title: t("account.name.title") }} />
     </Stack>
   );
 }
