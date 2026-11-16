@@ -18,6 +18,7 @@ import type {
   ContextDecisionResult,
   Deck,
   DeckCard,
+  DeckCollections,
   DeckCounts,
   DeckGroup,
   DeckNote,
@@ -126,12 +127,21 @@ export interface BowrainClient {
   ): Promise<PendingReviewPage>;
   /** The number of translations waiting for review in one language. */
   pendingCount(scope: ProjectScope, locale: string): Promise<number>;
-  /** One page of the review deck for a language, in the server's group order. */
+  /**
+   * One page of the review deck for a language, in the server's group order.
+   * `collection` narrows it to one collection; an empty string selects the
+   * blocks in no collection.
+   */
   deck(
     scope: ProjectScope,
     locale: string,
-    opts?: { limit?: number; cursor?: string; group?: DeckGroup },
+    opts?: { limit?: number; cursor?: string; group?: DeckGroup; collection?: string },
   ): Promise<Deck>;
+  /**
+   * A language's review deck split by collection, in the server's order. Null
+   * from a server without the route.
+   */
+  deckCollections(scope: ProjectScope, locale: string): Promise<DeckCollections | null>;
   reviewContext(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContext>;
   /** Ready-made fixes for one card, or null when the server has no such route. */
   fixCandidates(
@@ -150,6 +160,8 @@ const DEFAULT_STREAM = "main";
 /** Paths of the review endpoints (the "API for the first version" section of the design note). */
 export const ROUTES = {
   deck: (s: ProjectScope) => `/${enc(s.workspace)}/${enc(s.project)}/review-deck/${stream(s)}`,
+  deckCollections: (s: ProjectScope) =>
+    `/${enc(s.workspace)}/${enc(s.project)}/review-deck/${stream(s)}/collections`,
   fixCandidates: (s: ProjectScope, blockId: string) =>
     `/${enc(s.workspace)}/${enc(s.project)}/blocks/${stream(s)}/${enc(blockId)}/fix-candidates`,
   changes: (s: ProjectScope) =>
@@ -338,15 +350,19 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     async deck(scope, locale, o = {}) {
       try {
         const body = await get<ServerDeck>(
-          `${ROUTES.deck(scope)}${query({ locale, limit: o.limit, cursor: o.cursor, group: o.group })}`,
+          `${ROUTES.deck(scope)}${query({ locale, limit: o.limit, cursor: o.cursor, group: o.group })}${
+            o.collection === undefined ? "" : `&collection=${enc(o.collection)}`
+          }`,
         );
         return deckFromServer(body, locale);
       } catch (err) {
         if (!(err instanceof ApiError) || (err.status !== 404 && err.status !== 405)) throw err;
       }
       // A server without the deck route: the pending-review queue, in the
-      // server's order, ungrouped and on one page.
-      if (o.cursor) return { locale, cards: [], total: 0, ordered: false };
+      // server's order, ungrouped and on one page. That queue has no
+      // collection filter, so a collection's deck reads as empty.
+      if (o.cursor || o.collection !== undefined)
+        return { locale, cards: [], total: 0, ordered: false };
       const page = await client.pendingReview(scope, { locales: [locale], limit: o.limit ?? 200 });
       return {
         locale,
@@ -357,6 +373,15 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         total: page.total,
         ordered: false,
       };
+    },
+
+    async deckCollections(scope, locale) {
+      try {
+        return await get<DeckCollections>(`${ROUTES.deckCollections(scope)}${query({ locale })}`);
+      } catch (err) {
+        if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return null;
+        throw err;
+      }
     },
 
     reviewContext(scope, blockId, locale) {

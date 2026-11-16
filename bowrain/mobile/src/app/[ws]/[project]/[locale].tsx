@@ -1,8 +1,15 @@
 // The review deck for one language: a stack of cards, swiped or tapped to
 // decide, one at a time. Decisions go to the offline queue and are sent in
 // order; Undo takes back the last one and the card comes back from the side
-// it left by.
-import type { DeckCard, FixReason, Project, ProjectScope } from "@neokapi/bowrain-client";
+// it left by. Opened from a language's collections, the deck holds one
+// collection, and its end offers the next one with anything waiting.
+import type {
+  DeckCard,
+  DeckCollection,
+  FixReason,
+  Project,
+  ProjectScope,
+} from "@neokapi/bowrain-client";
 import type { Run } from "@neokapi/kapi-format";
 import {
   onlineManager,
@@ -15,7 +22,7 @@ import {
 import * as Crypto from "expo-crypto";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
@@ -48,6 +55,12 @@ import {
   type DecisionVars,
   type WithdrawVars,
 } from "../../../lib/decisions";
+import {
+  collectionFromParam,
+  collectionParam,
+  collectionsKey,
+  nextCollection,
+} from "../../../lib/deckCollections";
 import { cardId, deckView, mergePages } from "../../../lib/deckView";
 
 const PAGE = 50;
@@ -66,11 +79,17 @@ function useOnline(): boolean {
 
 export default function DeckScreen() {
   const { t } = useTranslation();
-  const { ws, project, locale } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     ws: string;
     project: string;
     locale: string;
+    collection?: string;
+    name?: string;
   }>();
+  const { ws, project, locale } = params;
+  const collection = collectionFromParam(params.collection);
+  const collectionName =
+    collection === undefined ? undefined : params.name || t("collections.none");
   const { client } = useAuth();
   const qc = useQueryClient();
   const online = useOnline();
@@ -84,8 +103,9 @@ export default function DeckScreen() {
       ?.default_source_language ?? "";
 
   const deck = useInfiniteQuery({
-    queryKey: ["deck", ws, project, locale],
-    queryFn: ({ pageParam }) => client.deck(scope, locale, { limit: PAGE, cursor: pageParam }),
+    queryKey: ["deck", ws, project, locale, collection ?? null],
+    queryFn: ({ pageParam }) =>
+      client.deck(scope, locale, { limit: PAGE, cursor: pageParam, collection }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor,
   });
@@ -151,6 +171,26 @@ export default function DeckScreen() {
   useEffect(() => {
     if (view.swipe.length === 0 && !hasNextPage && unclassified > 0 && !isFetching) void refetch();
   }, [view.swipe.length, hasNextPage, unclassified, isFetching, refetch]);
+
+  // The language's collections, for the next one when this one runs out.
+  const collections = useQuery({
+    queryKey: collectionsKey(ws, project, locale),
+    queryFn: () => client.deckCollections(scope, locale),
+    enabled: collection !== undefined,
+  });
+  const finished = !deck.isPending && !top;
+  const refetchCollections = collections.refetch;
+  useEffect(() => {
+    if (finished && collection !== undefined) void refetchCollections();
+  }, [finished, collection, refetchCollections]);
+  const next = finished ? nextCollection(collections.data?.collections, collection) : null;
+  const openNext = (c: DeckCollection) => {
+    const name = c.collection_id === "" ? t("collections.none") : c.name;
+    router.replace({
+      pathname: "/[ws]/[project]/[locale]",
+      params: { ws, project, locale, collection: collectionParam(c.collection_id), name },
+    });
+  };
 
   const decide = useMutation<DecisionResult, unknown, DecisionVars>({ mutationKey: DECISION_KEY });
   const withdraw = useMutation<unknown, unknown, WithdrawVars>({ mutationKey: WITHDRAW_KEY });
@@ -225,6 +265,7 @@ export default function DeckScreen() {
       {/* The header takes the page colour, so the deck reads as one surface in both themes. */}
       <Stack.Screen
         options={{
+          ...(collectionName ? { title: collectionName } : {}),
           headerStyle: { backgroundColor: String(pageBackground) },
           headerTintColor: String(pageForeground),
           headerShadowVisible: false,
@@ -324,7 +365,15 @@ export default function DeckScreen() {
             </SwipeCard>
           </View>
         ) : (
-          <EndState reviewed={reviewed.length} desk={view.desk} canUndo={canUndo} onUndo={onUndo} />
+          <EndState
+            reviewed={reviewed.length}
+            desk={view.desk}
+            canUndo={canUndo}
+            onUndo={onUndo}
+            collectionName={collectionName}
+            next={next}
+            onNext={openNext}
+          />
         )}
       </View>
 
@@ -364,13 +413,31 @@ function EndState({
   desk,
   canUndo,
   onUndo,
+  collectionName,
+  next,
+  onNext,
 }: {
   reviewed: number;
   desk: DeckCard[];
   canUndo: boolean;
   onUndo: () => void;
+  /** The collection this deck holds, when it holds one. */
+  collectionName?: string;
+  /** The next collection with anything waiting. */
+  next: DeckCollection | null;
+  onNext: (c: DeckCollection) => void;
 }) {
   const { t } = useTranslation();
+  let body: string;
+  if (collectionName !== undefined) {
+    body =
+      reviewed > 0
+        ? t("collections.doneBody", { count: reviewed, name: collectionName })
+        : t("collections.doneEmpty", { name: collectionName });
+  } else {
+    body = reviewed > 0 ? t("deck.doneBody", { count: reviewed }) : t("deck.doneEmpty");
+  }
+  const nextName = next ? next.name || t("collections.none") : "";
   const [approve] = useCSSVariable(["--color-approve"]);
   return (
     <ScrollView contentContainerClassName="grow gap-8 pb-6">
@@ -387,9 +454,32 @@ function EndState({
         >
           {t("deck.doneTitle")}
         </Text>
-        <Text className="text-muted-foreground px-6 text-center text-base">
-          {reviewed > 0 ? t("deck.doneBody", { count: reviewed }) : t("deck.doneEmpty")}
-        </Text>
+        <Text className="text-muted-foreground px-6 text-center text-base">{body}</Text>
+        {next ? (
+          <Pressable
+            testID="deck-next-collection"
+            accessibilityRole="button"
+            onPress={() => onNext(next)}
+            className="bg-primary items-center gap-0.5 rounded-full px-6 py-3 active:opacity-80"
+          >
+            <Text className="text-primary-foreground text-base font-semibold" numberOfLines={1}>
+              {t("collections.next", { name: nextName })}
+            </Text>
+            <Text className="text-primary-foreground/80 text-xs tabular-nums">
+              {t("collections.nextWaiting", { count: next.waiting })}
+            </Text>
+          </Pressable>
+        ) : null}
+        {collectionName !== undefined ? (
+          <Pressable
+            testID="deck-back-collections"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+            hitSlop={12}
+          >
+            <Text className="text-primary text-sm font-semibold">{t("collections.back")}</Text>
+          </Pressable>
+        ) : null}
         {canUndo ? (
           <Pressable
             testID="undo"
