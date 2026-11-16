@@ -1358,6 +1358,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			// project's workspace role) so the sync handlers' permission checks
 			// enforce rather than fail open.
 			flatSyncGroup.Use(s.ProjectAccessMiddleware())
+			// An API token is narrowed to its scopes here as on the workspace
+			// routes, so a scoped token cannot push or pull past them.
+			flatSyncGroup.Use(ScopeRestrictionMiddleware())
 			flatSyncGroup.GET("/pull", s.HandleSyncPull)
 			flatSyncGroup.GET("/ref", s.HandleSyncRef)
 			flatSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
@@ -1378,6 +1381,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			flatProjectGroup := v1.Group("/projects")
 			flatProjectGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 			flatProjectGroup.Use(s.ProjectAccessMiddleware())
+			flatProjectGroup.Use(ScopeRestrictionMiddleware())
 			s.registerConvergenceRoutes(flatProjectGroup)
 		}
 
