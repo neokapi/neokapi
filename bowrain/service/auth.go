@@ -188,6 +188,10 @@ func (s *AuthService) CompleteOnboarding(ctx context.Context, userID, slug, disp
 	if slug == "" {
 		return nil, false, errors.New("slug is required")
 	}
+	displayName, err := platauth.CleanPersonName(displayName)
+	if err != nil {
+		return nil, false, err
+	}
 	u, err := s.store.GetUser(ctx, userID)
 	if err != nil {
 		return nil, false, fmt.Errorf("get user: %w", err)

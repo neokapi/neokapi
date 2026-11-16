@@ -4,15 +4,10 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
-
-// maxPersonName bounds the name a person sets, in characters.
-const maxPersonName = 80
 
 // personName is the name to show for the user userID names
 // (platauth.ShownName), or "" for an id that names no user.
@@ -88,9 +83,9 @@ func (s *Server) HandleUpdateMe(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, "user not found")
 	}
 	if req.Name != nil {
-		name, msg := cleanPersonName(*req.Name)
-		if msg != "" {
-			return apiErr(c, http.StatusBadRequest, msg)
+		name, err := platauth.CleanPersonName(*req.Name)
+		if err != nil {
+			return apiErr(c, http.StatusBadRequest, err.Error())
 		}
 		u.Name = name
 		if err := s.AuthStore.UpdateUser(ctx, u); err != nil {
@@ -98,17 +93,4 @@ func (s *Server) HandleUpdateMe(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusOK, s.meResponseOf(ctx, u))
-}
-
-// cleanPersonName trims a name a person typed and checks it, returning the
-// name or why it is refused.
-func cleanPersonName(raw string) (string, string) {
-	name := strings.TrimSpace(raw)
-	if utf8.RuneCountInString(name) > maxPersonName {
-		return "", "name is longer than 80 characters"
-	}
-	if strings.ContainsFunc(name, unicode.IsControl) {
-		return "", "name contains a control character"
-	}
-	return name, ""
 }

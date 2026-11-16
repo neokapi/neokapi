@@ -7,7 +7,27 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
+
+// MaxPersonName bounds the name a person sets, in characters.
+const MaxPersonName = 80
+
+// CleanPersonName trims a name a person typed and checks it, returning the
+// name or why it is refused. Control and format characters (bidi overrides,
+// zero-width joiners) are refused, so a name cannot reorder or hide text
+// around it.
+func CleanPersonName(raw string) (string, error) {
+	name := strings.TrimSpace(raw)
+	if utf8.RuneCountInString(name) > MaxPersonName {
+		return "", errors.New("name is longer than 80 characters")
+	}
+	if strings.ContainsFunc(name, func(r rune) bool { return unicode.IsControl(r) || unicode.Is(unicode.Cf, r) }) {
+		return "", errors.New("name contains a control or format character")
+	}
+	return name, nil
+}
 
 // ShownName is the name to show for a person: the name they set, else their
 // handle (the slug of their personal workspace), else the part of their email

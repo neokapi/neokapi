@@ -76,8 +76,9 @@ func TestUpdateMe_SetsAndClearsTheName(t *testing.T) {
 func TestUpdateMe_RefusesABadName(t *testing.T) {
 	h := newPeopleHarness(t)
 	for _, body := range []string{
-		`{"name":"` + strings.Repeat("x", maxPersonName+1) + `"}`,
+		`{"name":"` + strings.Repeat("x", platauth.MaxPersonName+1) + `"}`,
 		`{"name":"Sam\u0007"}`,
+		`{"name":"Sam\u202egnp.exe"}`,
 	} {
 		rec, _ := callMe(t, h, http.MethodPatch, "u-sam", body)
 		assert.Equal(t, http.StatusBadRequest, rec.Code, body)
@@ -108,4 +109,19 @@ func TestFeedEntryOf_NamesAndViewer(t *testing.T) {
 
 	gone := feedEntryOf(&bstore.Activity{ActorID: "u-gone", ActorName: "Former Member"}, names, "u-new")
 	assert.Equal(t, "Former Member", gone.Actor.Name, "an account that no longer exists keeps its recorded name")
+}
+
+func TestOnboarding_RefusesABadDisplayName(t *testing.T) {
+	h := newWelcomeHarness(t)
+	h.store.users["u-new"].Name = ""
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/me/onboarding",
+		strings.NewReader(`{"slug":"dana","display_name":"Dana\u202e"}`))
+	req.Header.Set("Content-Type", echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := h.srv.GetEcho().NewContext(req, rec)
+	c.Set("user_id", "u-new")
+	require.NoError(t, h.srv.HandleCompleteOnboarding(c))
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Empty(t, h.store.users["u-new"].Name)
 }
