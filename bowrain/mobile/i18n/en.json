@@ -377,7 +377,16 @@
       "pushSync": "synced the repository",
       "runDrafted_one": "drafted {{count, number}} translation in {{languages}}",
       "runDrafted_other": "drafted {{count, number}} translations in {{languages}}",
-      "runParked": "parked a run that needs attention",
+      "runReady_one": "drafted {{count, number}} translation in {{languages}} for review",
+      "runReady_other": "drafted {{count, number}} translations in {{languages}} for review",
+      "runWaiting": "has translations waiting for review",
+      "runChecksFailing_one": "drafted {{count, number}} translation in {{languages}}, and it fails checks",
+      "runChecksFailing_other": "drafted {{count, number}} translations in {{languages}}, and some fail checks",
+      "runSourceFirst": "is waiting for the source text to be reviewed",
+      "runNoCredits": "stopped because the workspace is out of AI credits",
+      "runNoProvider": "stopped because no AI provider is set up",
+      "runRateLimited": "stopped because the AI provider is limiting requests",
+      "runStopped": "stopped before finishing",
       "runFailed": "could not finish a run",
       "runCanceled": "canceled a run",
       "runNothing": "had nothing to draft",
@@ -389,8 +398,14 @@
       "addedLanguages": "added {{languages}}",
       "removedLanguages": "removed {{languages}}",
       "addedCollection": "added the {{name}} collection",
+      "addedCollections_one": "added {{count, number}} collection",
+      "addedCollections_other": "added {{count, number}} collections",
       "removedCollection": "removed the {{name}} collection",
+      "removedCollections_one": "removed {{count, number}} collection",
+      "removedCollections_other": "removed {{count, number}} collections",
       "movedCollection": "moved {{name}}",
+      "movedCollections_one": "moved {{count, number}} collection",
+      "movedCollections_other": "moved {{count, number}} collections",
       "changedSettings_one": "changed {{count, number}} setting",
       "changedSettings_other": "changed {{count, number}} settings",
       "contextAdd": "added {{items}}",
@@ -414,6 +429,9 @@
       "foldedContext_other": "made {{count, number}} context changes",
       "foldedChangeSet_other": "updated {{count, number}} change sets",
       "other": "made a change"
+    },
+    "actor": {
+      "convergence": "Bowrain"
     },
     "time": {
       "now": "now",
@@ -443,7 +461,8 @@
     "standing": {
       "shippable": "Ready",
       "pending": "In progress",
-      "parked": "Parked"
+      "parked": "Ready for review",
+      "stopped": "Stopped"
     },
     "split": {
       "approved": "Approved",
@@ -490,7 +509,7 @@
     },
     "state": {
       "converged": "converged",
-      "parked": "parked",
+      "parked": "waiting for review",
       "failed": "failed",
       "canceled": "canceled",
       "submitted": "submitted",
