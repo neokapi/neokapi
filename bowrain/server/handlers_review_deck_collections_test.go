@@ -79,12 +79,12 @@ func TestReviewDeckCollections_CountsAndOrdersEachCollection(t *testing.T) {
 
 	assert.Equal(t, "fr", got.Locale)
 	assert.Equal(t, "main", got.Stream)
-	assert.Equal(t, deckCollection{Waiting: 4, Fast: 1, Closer: 3, Translations: 6, Decided: 2}, got.All)
+	assert.Equal(t, deckCollection{deckWaiting: deckWaiting{Waiting: 4, Fast: 1, Closer: 3}, Translations: 6, Decided: 2}, got.All)
 
 	want := []deckCollection{
-		{CollectionID: colls["docs"], Name: "docs", Waiting: 1, Closer: 1, Translations: 1},
-		{CollectionID: colls["web"], Name: "web", Waiting: 2, Fast: 1, Closer: 1, Translations: 3, Decided: 1},
-		{CollectionID: "", Name: "", Waiting: 1, Closer: 1, Translations: 1},
+		{CollectionID: colls["docs"], Name: "docs", deckWaiting: deckWaiting{Waiting: 1, Closer: 1}, Translations: 1},
+		{CollectionID: colls["web"], Name: "web", deckWaiting: deckWaiting{Waiting: 2, Fast: 1, Closer: 1}, Translations: 3, Decided: 1},
+		{CollectionID: "", Name: "", deckWaiting: deckWaiting{Waiting: 1, Closer: 1}, Translations: 1},
 		{CollectionID: colls["emails"], Name: "emails", Translations: 1, Decided: 1},
 	}
 	require.Len(t, got.Collections, len(want), "%+v", got.Collections)

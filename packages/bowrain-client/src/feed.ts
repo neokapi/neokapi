@@ -207,8 +207,10 @@ export function paletteIndex(id: string, size: number): number {
 
 /** Up to two initials of a name: "Ada Lindqvist" gives "AL". */
 export function initialsOf(name: string): string {
+  // An email address names its person before the @; the domain is no initial.
   const parts = name
     .trim()
+    .replace(/@.*$/, "")
     .split(/[\s._@-]+/)
     .filter(Boolean);
   if (parts.length === 0) return "?";

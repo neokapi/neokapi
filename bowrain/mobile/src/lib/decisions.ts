@@ -127,7 +127,6 @@ export function registerDecisionDefaults(qc: QueryClient): void {
         addNotice(qc, { id: v.id, kind: res.outcome, card: v.card, message: res.message });
       }
       void qc.invalidateQueries({ queryKey: ["deck", v.scope.workspace, v.scope.project] });
-      void qc.invalidateQueries({ queryKey: ["counts", v.scope.workspace, v.scope.project] });
       void qc.invalidateQueries({ queryKey: ["review-inbox"] });
     },
     onError: (err: unknown, v: DecisionVars) => {
@@ -157,7 +156,6 @@ export function registerDecisionDefaults(qc: QueryClient): void {
     onSettled: (_r: unknown, _e: unknown, v: WithdrawVars | undefined) => {
       if (!v) return;
       void qc.invalidateQueries({ queryKey: ["deck", v.scope.workspace, v.scope.project] });
-      void qc.invalidateQueries({ queryKey: ["counts", v.scope.workspace, v.scope.project] });
       void qc.invalidateQueries({ queryKey: ["review-inbox"] });
     },
   });

@@ -407,10 +407,11 @@ Review is a tab of its own because the question a reviewer opens the app
 with is what is waiting for them, and Home answers it one project at a time.
 The server answers it in one request; the app neither sums nor sorts.
 
-The avatar is the person's initials in a colour fixed by their user id, the
-colour the feed gives the same person. It sits at the top right of Home and
-opens Account. The tab bar shows a system symbol for Account: a native tab
-icon is an image or a symbol, and the initials are neither.
+Account is reached from its tab only; Home carries no second way in. The tab
+bar shows a system symbol for Account: a native tab icon is an image or a
+symbol, and the initials are neither. The feed draws a person as their
+initials in a colour fixed by their user id. An email address gives the
+initials of the part before the @.
 
 The project the Activity tab shows is kept on the device and dropped on
 sign-out. Appearance (System, Light, Dark) is kept on the device too and

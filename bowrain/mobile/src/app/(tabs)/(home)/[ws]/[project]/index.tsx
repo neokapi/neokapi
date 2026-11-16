@@ -3,9 +3,10 @@
 // languages the person may review, each with the translations waiting and how
 // the deck groups them. A language opens its deck in one tap. The server says
 // which languages the review permission covers; the app lists those and no
-// others.
-import type { DeckCounts, Project } from "@neokapi/bowrain-client";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+// others. What waits comes from the review inbox the Review tab reads, so a
+// project shows the numbers the Review tab shows.
+import type { Project } from "@neokapi/bowrain-client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect } from "react";
 import { FlatList, Text, View } from "react-native";
@@ -20,8 +21,6 @@ import { useAuth } from "../../../../../lib/auth";
 import { entriesOf, languageLabel, useFeed } from "../../../../../lib/feed";
 import { projectKey, summarize, useReviewHome } from "../../../../../lib/home";
 import { setRecentProject } from "../../../../../lib/recentProject";
-
-type Counts = Partial<DeckCounts> & { total: number };
 
 function ProjectHeader({ project }: { project: Project }) {
   const { t, i18n } = useTranslation();
@@ -47,7 +46,6 @@ export default function ProjectHome() {
   const { ws, project } = useLocalSearchParams<{ ws: string; project: string }>();
   const { client } = useAuth();
   const qc = useQueryClient();
-  const scope = { workspace: ws, project };
 
   const projects = useQuery({
     queryKey: ["projects", ws],
@@ -70,41 +68,19 @@ export default function ProjectHome() {
     : [];
 
   // The context waits before the languages: a translation is checked against it.
-  const context = useQuery({
-    queryKey: ["context-count", ws, project],
-    queryFn: () => client.contextDeck(ws, project, { limit: 1 }),
-    retry: false,
-  });
-  const contextWaiting = context.data?.counts.total ?? 0;
-  // The inbox counts the context by kind; the deck alone splits it by author.
   const inbox = useReviewHome();
-  const byKind = summarize(inbox.data).byProject.get(projectKey(ws, project))?.contextEntry
-    ?.by_kind;
-  const contextDetail = byKind
-    ? t("context.kinds", {
-        voice: byKind.voice_rule ?? 0,
-        terms: byKind.concept ?? 0,
-        rules: byKind.term_rule ?? 0,
-        notes: byKind.note ?? 0,
-      })
-    : t("context.split", {
-        agent: context.data?.counts.agent ?? 0,
-        person: context.data?.counts.person ?? 0,
-      });
+  const waiting = summarize(inbox.data).byProject.get(projectKey(ws, project));
+  const contextWaiting = waiting?.contextEntry?.waiting ?? 0;
+  const byKind = waiting?.contextEntry?.by_kind ?? {};
+  const contextDetail = t("context.kinds", {
+    voice: byKind.voice_rule ?? 0,
+    terms: byKind.concept ?? 0,
+    rules: byKind.term_rule ?? 0,
+    notes: byKind.note ?? 0,
+  });
 
   const feed = useFeed(ws, project);
   const entries = entriesOf(feed.data);
-
-  const counts = useQueries({
-    queries: languages.map((locale) => ({
-      queryKey: ["counts", ws, project, locale],
-      queryFn: async (): Promise<Counts> => {
-        const deck = await client.deck(scope, locale, { limit: 1 });
-        // A server without the deck route counts the queue but does not group it.
-        return deck.counts ?? { total: deck.total };
-      },
-    })),
-  });
 
   const openLanguage = useCallback(
     (locale: string) =>
@@ -112,15 +88,18 @@ export default function ProjectHome() {
     [ws, project],
   );
   const renderItem = useCallback(
-    ({ item, index }: { item: string; index: number }) => (
-      <LanguageCard locale={item} counts={counts[index]?.data} onPress={openLanguage} />
+    ({ item }: { item: string }) => (
+      <LanguageCard
+        locale={item}
+        waiting={waiting?.byLocale.get(item)}
+        loading={inbox.isPending}
+        onPress={openLanguage}
+      />
     ),
-    [counts, openLanguage],
+    [waiting, inbox.isPending, openLanguage],
   );
 
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ["counts", ws, project] });
-    void context.refetch();
     void feed.refetch();
     void inbox.refetch();
   };

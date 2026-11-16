@@ -33,7 +33,7 @@
     "signedInAs": "Signed in as {{email}}",
     "queuedTitle": "Decisions not sent",
     "queuedBody_one": "1 decision has not reached the server. Signing out discards it.",
-    "queuedBody_other": "{{count}} decisions have not reached the server. Signing out discards them.",
+    "queuedBody_other": "{{count, number}} decisions have not reached the server. Signing out discards them.",
     "confirm": "Sign out",
     "confirmTitle": "Sign out of Bowrain?"
   },
@@ -45,7 +45,7 @@
     "title": "Projects",
     "empty": "This workspace has no projects.",
     "languages_one": "1 language",
-    "languages_other": "{{count}} languages"
+    "languages_other": "{{count, number}} languages"
   },
   "languages": {
     "title": "Languages",
@@ -58,9 +58,9 @@
     "waiting": "waiting",
     "nothingWaiting": "Nothing waiting for you",
     "translations_one": "1 translation",
-    "translations_other": "{{count}} translations",
+    "translations_other": "{{count, number}} translations",
     "contextItems_one": "1 context item",
-    "contextItems_other": "{{count}} context items",
+    "contextItems_other": "{{count, number}} context items",
     "workspacesHeader": "Your workspaces",
     "projectsHeader": "Projects",
     "languagesHeader": "Languages",
@@ -69,26 +69,26 @@
       "start": "Start reviewing",
       "hint": "Opens the review deck.",
       "languageLabel_one": "{{language}}, {{where}}, 1 translation waiting",
-      "languageLabel_other": "{{language}}, {{where}}, {{count}} translations waiting",
+      "languageLabel_other": "{{language}}, {{where}}, {{count, number}} translations waiting",
       "more_one": "1 more deck waiting",
-      "more_other": "{{count}} more decks waiting"
+      "more_other": "{{count, number}} more decks waiting"
     },
     "mix": {
       "fast_one": "1 quick",
-      "fast_other": "{{count}} quick",
+      "fast_other": "{{count, number}} quick",
       "closer_one": "1 to look closer",
-      "closer_other": "{{count}} to look closer",
+      "closer_other": "{{count, number}} to look closer",
       "desk_one": "1 for the desk",
-      "desk_other": "{{count}} for the desk",
+      "desk_other": "{{count, number}} for the desk",
       "unclassified_one": "1 being sorted",
-      "unclassified_other": "{{count}} being sorted"
+      "unclassified_other": "{{count, number}} being sorted"
     },
     "project": {
       "from": "From {{language}}",
       "moreLanguages_one": "+1",
-      "moreLanguages_other": "+{{count}}",
+      "moreLanguages_other": "+{{count, number}}",
       "waitingIn_one": "{{translations}} in 1 language",
-      "waitingIn_other": "{{translations}} in {{count}} languages",
+      "waitingIn_other": "{{translations}} in {{count, number}} languages",
       "blocks_one": "1 block",
       "blocks_other": "{{count, number}} blocks"
     },
@@ -99,7 +99,7 @@
   "inbox": {
     "title": "Review",
     "rowLabel_one": "{{language}}, {{where}}, 1 card waiting",
-    "rowLabel_other": "{{language}}, {{where}}, {{count}} cards waiting",
+    "rowLabel_other": "{{language}}, {{where}}, {{count, number}} cards waiting",
     "emptyTitle": "All caught up",
     "emptyBody": "Nothing is waiting for your review in any project.",
     "unsupported": "This server does not list review across projects",
@@ -108,9 +108,9 @@
   "context": {
     "title": "Context",
     "entry_one": "Context: 1 to review",
-    "entry_other": "Context: {{count}} to review",
+    "entry_other": "Context: {{count, number}} to review",
     "entryLabel_one": "Context in {{where}}, 1 item to review",
-    "entryLabel_other": "Context in {{where}}, {{count}} items to review",
+    "entryLabel_other": "Context in {{where}}, {{count, number}} items to review",
     "kinds": "{{voice}} voice · {{terms}} terms · {{rules}} rules · {{notes}} notes",
     "split": "{{agent}} by agents · {{person}} by people",
     "kind": {
@@ -177,7 +177,7 @@
     },
     "doneTitle": "Context reviewed",
     "doneBody_one": "You reviewed 1 item.",
-    "doneBody_other": "You reviewed {{count}} items.",
+    "doneBody_other": "You reviewed {{count, number}} items.",
     "doneEmpty": "Nothing waits for review.",
     "origin": {
       "line": {
@@ -227,35 +227,35 @@
     "empty": "Nothing in this language is waiting for review.",
     "progress": "{{decided}} of {{total}} reviewed",
     "rowLabel_one": "{{name}}, 1 card waiting, {{decided}} of {{total}} reviewed",
-    "rowLabel_other": "{{name}}, {{count}} cards waiting, {{decided}} of {{total}} reviewed",
+    "rowLabel_other": "{{name}}, {{count, number}} cards waiting, {{decided}} of {{total}} reviewed",
     "doneBody_one": "You reviewed 1 card in {{name}}.",
-    "doneBody_other": "You reviewed {{count}} cards in {{name}}.",
+    "doneBody_other": "You reviewed {{count, number}} cards in {{name}}.",
     "doneEmpty": "Nothing in {{name}} is waiting for review.",
     "next": "Next: {{name}}",
     "nextWaiting_one": "1 card waiting",
-    "nextWaiting_other": "{{count}} cards waiting",
+    "nextWaiting_other": "{{count, number}} cards waiting",
     "back": "All collections"
   },
   "deck": {
     "title": "Review",
     "remaining_one": "1 card here, {{total}} waiting",
-    "remaining_other": "{{count}} cards here, {{total}} waiting",
+    "remaining_other": "{{count, number}} cards here, {{total}} waiting",
     "remainingShort_one": "1 card",
-    "remainingShort_other": "{{count}} cards",
+    "remainingShort_other": "{{count, number}} cards",
     "offline_one": "Offline, 1 decision queued",
-    "offline_other": "Offline, {{count}} decisions queued",
+    "offline_other": "Offline, {{count, number}} decisions queued",
     "sending_one": "Sending 1 decision",
-    "sending_other": "Sending {{count}} decisions",
+    "sending_other": "Sending {{count, number}} decisions",
     "unclassified_one": "1 more card is being sorted and joins the deck shortly.",
-    "unclassified_other": "{{count}} more cards are being sorted and join the deck shortly.",
+    "unclassified_other": "{{count, number}} more cards are being sorted and join the deck shortly.",
     "unordered": "This server does not order the deck. Cards come in queue order.",
     "progress": "{{position}} of {{total}}",
     "doneTitle": "All caught up",
     "doneBody_one": "You reviewed 1 card in this language.",
-    "doneBody_other": "You reviewed {{count}} cards in this language.",
+    "doneBody_other": "You reviewed {{count, number}} cards in this language.",
     "doneEmpty": "Nothing in this language is waiting for review.",
     "deskTitle_one": "1 card for the desk",
-    "deskTitle_other": "{{count}} cards for the desk",
+    "deskTitle_other": "{{count, number}} cards for the desk",
     "deskLead": "These need a closer look than a phone allows. Review them in Bowrain on a computer."
   },
   "card": {
@@ -269,7 +269,7 @@
     "noTranslation": "No translation yet.",
     "preReview": "Pre-review score {{score}}",
     "failingFindings_one": "1 failing check",
-    "failingFindings_other": "{{count}} failing checks",
+    "failingFindings_other": "{{count, number}} failing checks",
     "ownWork": "You wrote this translation, so another reviewer approves it. You can still fix or reject it.",
     "noContext": "No context for this text. You cannot see where it appears."
   },
@@ -305,7 +305,7 @@
     "fixInstead": "Fix it instead",
     "fixInsteadHint": "A correction settles the text now. A rejection waits for a new draft.",
     "useFix": "Use this fix",
-    "editField": "Text {{n}} of {{count}}",
+    "editField": "Text {{n}} of {{count, number}}",
     "kind": {
       "term": "Term fix",
       "memory": "From the content memory",
@@ -435,8 +435,8 @@
     },
     "time": {
       "now": "now",
-      "minutes": "{{count}}m",
-      "hours": "{{count}}h",
+      "minutes": "{{count, number}}m",
+      "hours": "{{count, number}}h",
       "yesterday": "yesterday"
     },
     "list": {
@@ -444,8 +444,8 @@
       "many": "{{rest}} and {{last}}"
     },
     "forMember": "for {{name}}",
-    "showAll_one": "Show {{count}} more",
-    "showAll_other": "Show {{count}} more",
+    "showAll_one": "Show {{count, number}} more",
+    "showAll_other": "Show {{count, number}} more",
     "showLess": "Show less",
     "moreItems": "+{{count, number}} more",
     "chip": {
@@ -526,7 +526,7 @@
       "tool": "Tool"
     },
     "someone": "Someone",
-    "percent": "{{count}}%",
+    "percent": "{{count, number}}%",
     "unit": {
       "files_one": "{{count, number}} file",
       "files_other": "{{count, number}} files",

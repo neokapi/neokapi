@@ -83,7 +83,7 @@ func TestReviewInbox_ListsReviewableLanguagesMostWaitingFirst(t *testing.T) {
 	// counts.
 	deck := readDeck(t, s, wsID, big, url.Values{"locale": {"fr"}})
 	inbox = readInbox(t, s, owner)
-	assert.Equal(t, deck.Counts.Total, inbox.Languages[0].Waiting)
+	assert.Equal(t, deck.Counts.Waiting, inbox.Languages[0].Waiting)
 	assert.Zero(t, inbox.Languages[0].Unclassified)
 	assert.Equal(t, deck.Counts.Fast, inbox.Languages[0].Fast)
 	assert.Equal(t, deck.Counts.Closer, inbox.Languages[0].Closer)

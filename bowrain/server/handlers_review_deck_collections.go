@@ -9,7 +9,6 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/host/reviewdeck"
 )
 
 // deckCollection is the review deck of one language narrowed to one
@@ -19,13 +18,7 @@ type deckCollection struct {
 	// empty for the blocks in no collection, and for the whole language.
 	CollectionID string `json:"collection_id"`
 	Name         string `json:"name"`
-	// Waiting is what the deck holds, counted as reviewInboxLanguage counts
-	// it.
-	Waiting      int `json:"waiting"`
-	Fast         int `json:"fast"`
-	Closer       int `json:"closer"`
-	Desk         int `json:"desk"`
-	Unclassified int `json:"unclassified"`
+	deckWaiting
 	// Translations is every translation of the language in the collection,
 	// and Decided the part no longer waiting: approved, or rejected and
 	// waiting for a new draft. Decided of Translations is the progress.
@@ -120,13 +113,9 @@ func deckCollectionOf(id, name string, n store.ReviewDeckCollectionCounts) deckC
 	dc := deckCollection{
 		CollectionID: id,
 		Name:         cmp.Or(name, id),
-		Fast:         n.ByRank[deckRank(reviewdeck.DeckFast)],
-		Closer:       n.ByRank[deckRank(reviewdeck.DeckCloser)],
-		Desk:         n.ByRank[deckRank(reviewdeck.DeckDesk)],
-		Unclassified: n.Unclassified,
+		deckWaiting:  deckWaitingOf(n.ReviewDeckCounts),
 		Translations: n.Translations,
 	}
-	dc.Waiting = dc.Fast + dc.Closer + dc.Desk + dc.Unclassified
 	dc.Decided = dc.Translations - dc.Waiting
 	return dc
 }

@@ -352,16 +352,23 @@ export interface DeckNote {
 
 /** How many cards each group holds. */
 export interface DeckCounts {
+  /**
+   * Every translation the deck deals, grouped or not. The review inbox and
+   * the deck's collections count the same way, so a language shows one
+   * number on every screen.
+   */
+  waiting: number;
   fast: number;
   closer: number;
   desk: number;
-  total: number;
   /**
    * Translations the server has not classified yet. Their cards are absent
    * until a later request classifies them, so a client asks again while this
    * is above zero.
    */
-  unclassified?: number;
+  unclassified: number;
+  /** The classified part of `waiting`: the cards the deck can deal now. */
+  total: number;
 }
 
 /** A review deck for one language. */

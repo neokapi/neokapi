@@ -9,7 +9,6 @@ import { useCallback, useMemo } from "react";
 import { FlatList, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { AccountButton } from "../../../components/AccountButton";
 import { QueryState } from "../../../components/List";
 import { WorkspaceCard } from "../../../components/home/HomeCards";
 import { CaughtUpCard, NextUpCard } from "../../../components/home/NextUpCard";
@@ -85,7 +84,6 @@ export default function Workspaces() {
 
   return (
     <View collapsable={false} className="bg-background flex-1">
-      <AccountButton />
       <FlatList
         testID="workspace-list"
         contentInsetAdjustmentBehavior="automatic"
