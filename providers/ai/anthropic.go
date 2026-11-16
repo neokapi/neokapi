@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/neokapi/neokapi/core/httputil"
 )
 
 // DefaultAnthropicModel is the model a fresh provider uses when the caller names
@@ -37,7 +35,7 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 	}
 	return &AnthropicProvider{
 		config: cfg,
-		client: httputil.NewResilientClient(),
+		client: newChatClient(),
 	}
 }
 

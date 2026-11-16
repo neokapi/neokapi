@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync/atomic"
-
-	"github.com/neokapi/neokapi/core/httputil"
 )
 
 // DefaultOpenAIModel is the model a fresh provider uses when the caller names none.
@@ -45,7 +43,7 @@ func NewOpenAIProvider(cfg Config) *OpenAIProvider {
 	}
 	return &OpenAIProvider{
 		config: cfg,
-		client: httputil.NewResilientClient(),
+		client: newChatClient(),
 	}
 }
 
