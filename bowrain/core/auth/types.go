@@ -53,8 +53,8 @@ func ShownName(u *User, handle string) string {
 // and had their personal workspace created). Until then, the user has a
 // session but no workspace; the web app routes them through /welcome.
 type User struct {
-	ID          string     `json:"id"`
-	Email       string     `json:"email"`
+	ID    string `json:"id"`
+	Email string `json:"email"`
 	// Name is the name the person set. It is empty, and left out of the
 	// JSON, until they set one; ShownName answers what to show meanwhile.
 	Name        string     `json:"name,omitempty"`
