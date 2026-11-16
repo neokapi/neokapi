@@ -107,7 +107,7 @@ func TestReviewDeck_GroupsOrdersAndPages(t *testing.T) {
 	recordScore(t, s, projID, phID, 95)
 
 	deck := readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}})
-	assert.Equal(t, deckCounts{deckWaiting: deckWaiting{Waiting: 6, Fast: 2, Closer: 2, Desk: 2}, Total: 6}, deck.Counts, "%+v", deck.Cards)
+	assert.Equal(t, deckCounts{Waiting: 6, Fast: 2, Closer: 2, Desk: 2, Total: 6}, deck.Counts, "%+v", deck.Cards)
 	assert.Equal(t, reviewdeck.DefaultDeckPolicy, deck.Policy)
 
 	groupOf := map[string]reviewdeck.DeckGroup{}
