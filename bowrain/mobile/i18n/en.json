@@ -53,6 +53,49 @@
     "empty": "This project has no target languages.",
     "noPermission": "You do not have review permission in this project."
   },
+  "home": {
+    "loading": "Loading",
+    "waiting": "waiting",
+    "nothingWaiting": "Nothing waiting for you",
+    "translations_one": "1 translation",
+    "translations_other": "{{count}} translations",
+    "contextItems_one": "1 context item",
+    "contextItems_other": "{{count}} context items",
+    "workspacesHeader": "Your workspaces",
+    "projectsHeader": "Projects",
+    "languagesHeader": "Languages",
+    "next": {
+      "eyebrow": "Continue reviewing",
+      "start": "Start reviewing",
+      "hint": "Opens the review deck.",
+      "languageLabel_one": "{{language}}, {{where}}, 1 translation waiting",
+      "languageLabel_other": "{{language}}, {{where}}, {{count}} translations waiting",
+      "more_one": "1 more deck waiting",
+      "more_other": "{{count}} more decks waiting"
+    },
+    "mix": {
+      "fast_one": "1 quick",
+      "fast_other": "{{count}} quick",
+      "closer_one": "1 to look closer",
+      "closer_other": "{{count}} to look closer",
+      "desk_one": "1 for the desk",
+      "desk_other": "{{count}} for the desk",
+      "unclassified_one": "1 being sorted",
+      "unclassified_other": "{{count}} being sorted"
+    },
+    "project": {
+      "from": "From {{language}}",
+      "moreLanguages_one": "+1",
+      "moreLanguages_other": "+{{count}}",
+      "waitingIn_one": "{{translations}} in 1 language",
+      "waitingIn_other": "{{translations}} in {{count}} languages",
+      "blocks_one": "1 block",
+      "blocks_other": "{{count, number}} blocks"
+    },
+    "activity": {
+      "title": "Recent activity"
+    }
+  },
   "inbox": {
     "title": "Review",
     "rowLabel_one": "{{language}}, {{where}}, 1 card waiting",
