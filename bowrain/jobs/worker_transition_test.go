@@ -58,7 +58,7 @@ func TestPushTransition_ReconcileRollsBackWithTheContent(t *testing.T) {
 
 	boom := errors.New("the content stage failed")
 	err := deps.PushTransition(ctx, func(st PushStores) error {
-		if _, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1", transitionEntries(t)); rerr != nil {
+		if _, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1", nil, transitionEntries(t)); rerr != nil {
 			return rerr
 		}
 		// Everything the reconcile wrote is visible inside the transition.
@@ -87,7 +87,7 @@ func TestPushTransition_CommitLandsBoth(t *testing.T) {
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
 	err := deps.PushTransition(ctx, func(st PushStores) error {
-		_, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1", transitionEntries(t))
+		_, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1", nil, transitionEntries(t))
 		return rerr
 	})
 	require.NoError(t, err)

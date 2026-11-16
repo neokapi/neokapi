@@ -12,6 +12,8 @@ import (
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/voicewrite"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 
@@ -84,7 +86,8 @@ func parseContextEntries(raw json.RawMessage) ([]*pb.SyncContextEntry, error) {
 // reconciles collection structure.
 //
 // collections may be a transaction-scoped store, allowing governance updates to
-// roll back with the content push.
+// roll back with the content push. ledger records each voice profile write on
+// the pushed project's context ledger; nil records none.
 type collectionWriter interface {
 	ListCollections(ctx context.Context, projectID, stream string) ([]*store.Collection, error)
 	CreateCollection(ctx context.Context, c *store.Collection) error
@@ -96,6 +99,7 @@ func reconcileContext(
 	collections collectionWriter,
 	voice coreprofile.Store,
 	projectID, stream, workspaceID, actorID string,
+	ledger voicewrite.Ledger,
 	entries []*pb.SyncContextEntry,
 ) (*contextReconcileResult, error) {
 	result := &contextReconcileResult{ProfileIDs: map[string]string{}}
@@ -115,7 +119,7 @@ func reconcileContext(
 	}
 
 	declared := make(map[string]struct{}, len(entries))
-	profileIDs := newProfileBinder(voice, workspaceID, actorID)
+	profileIDs := newProfileBinder(voice, ledger, workspaceID, actorID)
 
 	for _, e := range entries {
 		if e == nil || e.Name == "" {
@@ -255,13 +259,14 @@ func governanceConfig(current map[string]string, profileID, channel string) map[
 // name, so several collections governed by one voice cost one upsert.
 type profileBinder struct {
 	voice       coreprofile.Store
+	ledger      voicewrite.Ledger
 	workspaceID string
 	actorID     string
 	byName      map[string]string
 }
 
-func newProfileBinder(voice coreprofile.Store, workspaceID, actorID string) *profileBinder {
-	return &profileBinder{voice: voice, workspaceID: workspaceID, actorID: actorID, byName: map[string]string{}}
+func newProfileBinder(voice coreprofile.Store, ledger voicewrite.Ledger, workspaceID, actorID string) *profileBinder {
+	return &profileBinder{voice: voice, ledger: ledger, workspaceID: workspaceID, actorID: actorID, byName: map[string]string{}}
 }
 
 // bind returns the profile id governing this entry, creating or updating the
@@ -303,7 +308,7 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 		return "", fmt.Errorf("decode voice profile %q: %w", e.VoiceProfile, err)
 	}
 
-	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed)
+	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed, e.GetVoiceOp())
 	if err != nil {
 		return "", err
 	}
@@ -314,7 +319,13 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 // upsert applies the pushed profile content to the hub and returns the id to
 // bind. With no pushed content it binds whatever the hub already holds under
 // that name.
-func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile) (string, error) {
+//
+// The write goes through voicewrite.Apply, which records it on the project's
+// ledger. recorded is the operation the pushing client recorded for the
+// write: when the push's ledger objects or the project's ledger hold it, it
+// is the record, with its actor, note and agent host, and no second
+// operation is appended. Otherwise the write is recorded as the pusher's.
+func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile, recorded string) (string, error) {
 	if pushed == nil {
 		if existing == nil {
 			return "", nil
@@ -332,8 +343,8 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created.CreatedAt = now
 		created.UpdatedAt = now
 		created.CreatedBy = b.actorID
-		if err := b.voice.CreateProfile(ctx, &created); err != nil {
-			return "", fmt.Errorf("create voice profile %q: %w", name, err)
+		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(nil, &created, recorded)); err != nil {
+			return "", err
 		}
 		return created.ID, nil
 	}
@@ -355,10 +366,22 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	updated.Personas = pushed.Personas
 	updated.VersionNote = "superseded by kapi push"
 	updated.UpdatedAt = now
-	if err := b.voice.UpdateProfile(ctx, &updated); err != nil {
-		return "", fmt.Errorf("update voice profile %q: %w", name, err)
+	if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(existing, &updated, recorded)); err != nil {
+		return "", err
 	}
 	return updated.ID, nil
+}
+
+// write is the voicewrite.Write of one pushed profile, by the pusher.
+func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded string) voicewrite.Write {
+	return voicewrite.Write{
+		Before:   before,
+		After:    after,
+		Actor:    contextop.Actor{Kind: contextop.ActorPerson},
+		PushedBy: b.actorID,
+		Note:     "pushed with `kapi push`",
+		Recorded: recorded,
+	}
 }
 
 // decodeVoiceProfile reads the authored voice content a context entry carried.

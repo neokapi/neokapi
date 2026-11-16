@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/venue"
@@ -143,6 +145,31 @@ func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 	assert.Equal(t, "neutral", tone["formality"],
 		"the base tone must survive: resolving the docs channel into it would leave every other channel governed by the docs voice")
 	assert.Contains(t, carried, "channels", "the overrides travel so the server can apply them itself")
+}
+
+// TestBuildPushContext_CarriesTheRecordedVoiceWrite: the entry that carries a
+// voice profile names the context operation that recorded the write leaving
+// it as carried, so the server keeps that operation's author rather than
+// recording the pusher. A profile no recorded write left as it is names none.
+func TestBuildPushContext_CarriesTheRecordedVoiceWrite(t *testing.T) {
+	app, proj := newGovernedProject(t)
+
+	pushCtx, _, err := BuildPushContext(t.Context(), app, proj, false)
+	require.NoError(t, err)
+	assert.Empty(t, entriesByName(pushCtx.Entries)["docs"].VoiceOp,
+		"a profile read in from a file was written by no recorded operation")
+
+	saved, err := app.SaveVoiceProfileAt(t.Context(), proj.Root, coreproj.GovernancePoint{Profile: "kapi"},
+		contextop.Actor{Kind: contextop.ActorPerson},
+		&coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "formal"}})
+	require.NoError(t, err)
+	require.NotEmpty(t, saved.Recorded)
+
+	pushCtx, _, err = BuildPushContext(t.Context(), app, proj, false)
+	require.NoError(t, err)
+	byName := entriesByName(pushCtx.Entries)
+	assert.Equal(t, saved.Recorded, byName["docs"].VoiceOp)
+	assert.Empty(t, byName["mail"].VoiceOp, "only the entry that carries the profile names its write")
 }
 
 // TestBuildPushContext_DryRunResolvesWithoutSending pins that --dry-run reports

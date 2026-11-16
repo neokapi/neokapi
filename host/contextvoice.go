@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -193,16 +192,7 @@ func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) (bool, error) {
 // last touched, who touched it. None of that is context, and all of it would
 // show up in a diff.
 func AuthoredVoiceProfile(p *coreprofile.VoiceProfile) *coreprofile.VoiceProfile {
-	if p == nil {
-		return nil
-	}
-	out := *p
-	out.Scope = ""
-	out.CreatedAt = time.Time{}
-	out.UpdatedAt = time.Time{}
-	out.CreatedBy = ""
-	out.VersionNote = ""
-	return &out
+	return coreprofile.Authored(p)
 }
 
 // voiceProfileID settles the identity a profile compiled from rel is stored

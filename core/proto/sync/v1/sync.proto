@@ -458,6 +458,16 @@ message SyncContextEntry {
   // collection's other declared facts. Absent when the collection declares
   // none, which is how a reviewer decides to offer document reading only.
   SyncPreviewSource preview = 8;
+
+  // VoiceOp is the id of the context ledger operation that recorded the write
+  // leaving the profile as voice_profile_json carries it, set on the entry
+  // that carries the profile. The server writes the profile and that
+  // operation as one change: when the push's ledger objects, or the project's
+  // ledger, hold the operation, the server records no second one. Empty when
+  // no recorded write left the profile as it is, and the server then records
+  // the write as the pusher's. Not part of content_hash: it says who wrote the
+  // profile, not what the collection declares.
+  string voice_op = 9;
 }
 
 // SyncPreviewSource is a place a collection's strings can be seen in situ.

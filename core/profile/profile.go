@@ -47,6 +47,22 @@ type VoiceProfile struct {
 	carried CarriedTerms
 }
 
+// Authored is a voice profile as a project authors it: what it says about how
+// to write, without the bookkeeping a store keeps about the row (its partition
+// key, its timestamps, its creator and the note of its last write).
+func Authored(p *VoiceProfile) *VoiceProfile {
+	if p == nil {
+		return nil
+	}
+	out := *p
+	out.Scope = ""
+	out.CreatedAt = time.Time{}
+	out.UpdatedAt = time.Time{}
+	out.CreatedBy = ""
+	out.VersionNote = ""
+	return &out
+}
+
 // CarriedTerms are the word rules a voice file carries beside its voice, and
 // where they come from ("pack technical-docs", or "voice file").
 type CarriedTerms struct {
@@ -171,12 +187,13 @@ func cloneRules(in []TermRule) []TermRule {
 
 // ProfileVersion is an immutable snapshot of a profile at a point in time.
 // Each UpdateProfile() call archives the previous state as a ProfileVersion.
+// A version records what the profile said, never who wrote it: the context
+// ledger records each write with its actor.
 type ProfileVersion struct {
 	ProfileID string       `json:"profile_id"`
 	Version   int          `json:"version"`
 	Snapshot  VoiceProfile `json:"snapshot"`
 	Note      string       `json:"note"`
-	CreatedBy string       `json:"created_by"`
 	CreatedAt time.Time    `json:"created_at"`
 }
 

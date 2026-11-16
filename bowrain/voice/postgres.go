@@ -34,6 +34,10 @@ func (s *PostgresVoiceStore) Bind(tx storage.Runner) *PostgresVoiceStore {
 	return &bound
 }
 
+// DB is the database this store was built on. Two stores built on one
+// database can be bound into one of its transitions.
+func (s *PostgresVoiceStore) DB() *storage.PgDB { return s.db }
+
 // run is where this store's statements go.
 func (s *PostgresVoiceStore) run() storage.Runner {
 	if s.tx != nil {
@@ -143,11 +147,11 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 	}
 	snapshotJSON, _ := json.Marshal(existing)
 	_, _ = s.run().ExecContext(ctx,
-		`INSERT INTO voice_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
-		 VALUES ($1, $2, $3, $4, $5, NOW())
+		`INSERT INTO voice_profile_versions (profile_id, version, snapshot, note, created_at)
+		 VALUES ($1, $2, $3, $4, NOW())
 		 ON CONFLICT DO NOTHING`,
 		existing.ID, existing.Version, string(snapshotJSON),
-		profile.VersionNote, existing.CreatedBy)
+		profile.VersionNote)
 
 	now := time.Now().UTC()
 	profile.UpdatedAt = now
@@ -512,7 +516,7 @@ func (s *PostgresVoiceStore) ListRuleDecisions(ctx context.Context, profileID st
 
 func (s *PostgresVoiceStore) ListProfileVersions(ctx context.Context, profileID string) ([]*coreprofile.ProfileVersion, error) {
 	rows, err := s.run().QueryContext(ctx,
-		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		`SELECT profile_id, version, snapshot, note, created_at
 		 FROM voice_profile_versions WHERE profile_id = $1 ORDER BY version DESC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list profile versions: %w", err)
@@ -523,7 +527,7 @@ func (s *PostgresVoiceStore) ListProfileVersions(ctx context.Context, profileID 
 	for rows.Next() {
 		var v coreprofile.ProfileVersion
 		var snapshotJSON string
-		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &v.CreatedAt); err != nil {
+		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan profile version: %w", err)
 		}
 		if err := json.Unmarshal([]byte(snapshotJSON), &v.Snapshot); err != nil {
@@ -538,9 +542,9 @@ func (s *PostgresVoiceStore) GetProfileVersion(ctx context.Context, profileID st
 	var v coreprofile.ProfileVersion
 	var snapshotJSON string
 	err := s.run().QueryRowContext(ctx,
-		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		`SELECT profile_id, version, snapshot, note, created_at
 		 FROM voice_profile_versions WHERE profile_id = $1 AND version = $2`, profileID, version).
-		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &v.CreatedAt)
+		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
 	}

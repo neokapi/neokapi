@@ -118,6 +118,57 @@ func TestPostgresVoiceStore_ProfileVersioning(t *testing.T) {
 	require.Error(t, err, "UpdateProfile of an unknown profile fails at the versioning read")
 }
 
+// TestPostgresVoiceStore_VersionsCarryNoAuthor pins that a version row records
+// what the profile said and never who wrote it: the column is gone from a
+// fresh database and from one migrated from a schema that had it. The context
+// ledger is the record of who wrote each version.
+func TestPostgresVoiceStore_VersionsCarryNoAuthor(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup string
+	}{
+		{name: "fresh database"},
+		{name: "database that had the column", setup: `
+			CREATE TABLE voice_profile_versions (
+				profile_id TEXT NOT NULL,
+				version    INTEGER NOT NULL,
+				snapshot   JSONB NOT NULL,
+				note       TEXT NOT NULL DEFAULT '',
+				created_by TEXT NOT NULL DEFAULT '',
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (profile_id, version)
+			)`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := pgtest.NewTestDB(t)
+			ctx := t.Context()
+			if tt.setup != "" {
+				_, err := db.ExecContext(ctx, tt.setup)
+				require.NoError(t, err)
+			}
+			store, err := NewPostgresVoiceStore(db)
+			require.NoError(t, err)
+
+			var columns int
+			require.NoError(t, db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM information_schema.columns
+				 WHERE table_schema = current_schema() AND table_name = 'voice_profile_versions' AND column_name = 'created_by'`).
+				Scan(&columns))
+			assert.Zero(t, columns, "a version row carries no author")
+
+			p := newTestProfile("ws-noauthor", "Acme")
+			require.NoError(t, store.CreateProfile(ctx, p))
+			p.Name = "Acme Edited"
+			require.NoError(t, store.UpdateProfile(ctx, p))
+			versions, err := store.ListProfileVersions(ctx, p.ID)
+			require.NoError(t, err)
+			require.Len(t, versions, 1)
+			assert.Equal(t, "Acme", versions[0].Snapshot.Name)
+		})
+	}
+}
+
 // TestPostgresVoiceStore_MinScoreRoundTrips pins the profile's own compliance bar
 // onto every read the store answers. min_score was declared on the model, sent
 // on the wire, and read by four UI surfaces, but the store's column list never

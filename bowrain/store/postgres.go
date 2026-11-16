@@ -33,6 +33,10 @@ type PostgresStore struct {
 // existing plaintext rows are read transparently and re-sealed on next write.
 func (s *PostgresStore) SetSecretsCipher(c *crypto.Cipher) { s.cipher = c }
 
+// DB is the database this store was built on. Two stores built on one
+// database can be bound into one of its transitions.
+func (s *PostgresStore) DB() *storage.PgDB { return s.db }
+
 // NewPostgresStore opens a PostgreSQL-backed ContentStore.
 func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	db, err := storage.OpenPostgres(connStr)

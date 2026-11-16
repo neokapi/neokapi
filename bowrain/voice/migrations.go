@@ -10,8 +10,9 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // Versions issued after the baseline:
 //
 //	6  drop the profile vocabulary column (word rules live in the terms store)
+//	7  drop the version author column (the context ledger records who wrote each version)
 //
-// Retired numbers are never reused. The next migration is version 7.
+// Retired numbers are never reused. The next migration is version 8.
 var Migrations = []storage.Migration{
 	{
 		Version:     5,
@@ -52,7 +53,6 @@ var Migrations = []storage.Migration{
 				version    INTEGER NOT NULL,
 				snapshot   JSONB NOT NULL,
 				note       TEXT NOT NULL DEFAULT '',
-				created_by TEXT NOT NULL DEFAULT '',
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (profile_id, version)
 			);
@@ -116,5 +116,10 @@ var Migrations = []storage.Migration{
 		Version:     6,
 		Description: "drop the profile vocabulary column",
 		SQL:         `ALTER TABLE voice_profiles DROP COLUMN IF EXISTS vocabulary;`,
+	},
+	{
+		Version:     7,
+		Description: "drop the version author column",
+		SQL:         `ALTER TABLE voice_profile_versions DROP COLUMN IF EXISTS created_by;`,
 	},
 }
