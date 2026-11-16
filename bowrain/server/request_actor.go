@@ -2,12 +2,15 @@ package server
 
 import (
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // toolNameKey is the echo context key handleAPIToken sets the tool's name
@@ -99,4 +102,31 @@ func (s *Server) refuseTool(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		return next(c)
 	}
+}
+
+// toolPushVerdictCode is the error code of a tool's push that carries review
+// verdicts.
+const toolPushVerdictCode = "tool_push_carries_verdicts"
+
+// verdictKinds are the operation kinds that record a review verdict.
+var verdictKinds = []contextop.Kind{contextop.KindKeep, contextop.KindAttest, contextop.KindDrop}
+
+// verdictOps returns the short ids of the operations in ops that record a
+// review verdict.
+//
+// A tool's push carrying one is refused rather than stored. Every operation of
+// a tool's segment reads as the tool's, and a tool's verdict counts for nothing,
+// so storing the segment would quietly cancel a person's keep. Storing the
+// segment without those operations is not sound either: a segment is created
+// once under its name, so the person's own push of the same segment would then
+// be refused as other bytes, and the keep could never be recorded as theirs.
+func verdictOps(ops []workspace.Op) []string {
+	var out []string
+	for _, op := range ops {
+		kind, ok := strings.CutPrefix(op.Kind, contextop.OpKindPrefix)
+		if ok && slices.Contains(verdictKinds, contextop.Kind(kind)) {
+			out = append(out, workspace.ShortOpID(op.ID))
+		}
+	}
+	return out
 }

@@ -336,6 +336,17 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 		fresh = append(fresh, op)
 	}
 
+	if member.Tool != "" {
+		if ids := verdictOps(fresh); len(ids) > 0 {
+			return accepted, true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Error: fmt.Sprintf("tool %s cannot push review verdicts: operations %s keep, attest or drop context, and only a person records those",
+					member.Tool, strings.Join(ids, ", ")),
+				Message: "Push these operations with your own sign-in first, then run the tool again.",
+				Details: strings.Join(ids, ","),
+				Code:    toolPushVerdictCode,
+			})
+		}
+	}
 	if err := checkPushContent(member, fresh, byID); err != nil {
 		return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 	}

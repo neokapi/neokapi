@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -224,4 +225,52 @@ func TestToolToken_MintListAndRevoke(t *testing.T) {
 	assert.Equal(t, http.StatusOK,
 		serve(t, srv, http.MethodGet, "/api/v1/"+wsSlug+"/tokens", jwt, nil).Code,
 		"the issuer's sign-in is untouched")
+}
+
+// A tool's push that carries a keep a person recorded is refused, naming the
+// operation, and stores nothing. Once the person pushes it with their own
+// sign-in, the keep reads as theirs and the tool's push of the same segments
+// changes nothing.
+func TestToolToken_PushCarryingAPersonsKeepIsRefused(t *testing.T) {
+	srv, owner := newTestServer(t)
+	ctx := t.Context()
+	p := &platstore.Project{
+		Name: "ctx", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"},
+		WorkspaceID: "test-ws", Properties: map[string]string{},
+	}
+	require.NoError(t, srv.ContentStore.CreateProject(ctx, p))
+	_, toolToken := mintTool(t, srv, "dogfood-sync")
+
+	d := newDesktop(t, "site")
+	observed := d.observe(t, "use", "utilise")
+	d.keep(t, observed.ID)
+	segments := d.push(t)
+	base := "/api/v1/test/" + p.ID + "/context/objects"
+
+	tool := &routeRemote{h: srv.GetEcho(), base: base, bearer: toolToken}
+	rec := tool.do(ctx, http.MethodPost, base, pushBody(t, segments))
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+	var refusal ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, toolPushVerdictCode, refusal.Code)
+	assert.NotContains(t, refusal.Details, workspace.ShortOpID(observed.ID), "the observation is not a verdict")
+	assert.NotEmpty(t, refusal.Details, "the refusal names the keep")
+
+	cos, ok := srv.contextObjects()
+	require.True(t, ok)
+	names, err := cos.ListContextObjects(ctx, p.ID, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	assert.Empty(t, names, "a refused push stores no segment")
+
+	person := &routeRemote{h: srv.GetEcho(), base: base, bearer: owner}
+	require.NoError(t, person.Put(ctx, segments...))
+	require.NoError(t, tool.Put(ctx, segments...), "segments the project holds change nothing")
+
+	ledger, err := srv.ContextLedger(ctx, p.ID, testMember("test-user"))
+	require.NoError(t, err)
+	records, err := ledger.Records(ctx, contextop.Filter{})
+	require.NoError(t, err)
+	for _, r := range records {
+		assert.Equal(t, contextop.ActorPerson, r.Actor.Kind, "operation %s reads as the person's", r.ID)
+	}
 }
