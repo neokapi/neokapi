@@ -11,6 +11,7 @@ export {
     CheckRun,
     Correction,
     Evidence,
+    ImportSource,
     ItemKind,
     ItemRef,
     Kind,
