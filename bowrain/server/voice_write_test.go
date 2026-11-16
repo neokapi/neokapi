@@ -21,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -86,6 +87,44 @@ func ledgerVoiceEdits(t *testing.T, s *Server, projectID string) []contextop.Rec
 		}
 	}
 	return out
+}
+
+// voiceStoreWrite returns the voice.write operation that shares a ledger
+// segment with the operation opID names, and its single step.
+func voiceStoreWrite(t *testing.T, s *Server, projectID, opID string) (workspace.Op, voiceStoreStep) {
+	t.Helper()
+	ctx := t.Context()
+	cos, ok := platstore.ContextObjects(s.ContentStore)
+	require.True(t, ok)
+	names, err := cos.ListContextObjects(ctx, projectID, workspace.RemoteLogDir)
+	require.NoError(t, err)
+	for _, name := range names {
+		obj, err := cos.GetContextObject(ctx, projectID, name)
+		require.NoError(t, err)
+		ops, err := workspace.DecodeSegment(obj.Data, voiceWriteKey)
+		require.NoError(t, err)
+		if len(ops) == 0 || ops[0].ID != opID {
+			continue
+		}
+		require.Len(t, ops, 2, "the record and the store write share one segment")
+		require.Equal(t, projector.KindVoice, ops[1].Kind)
+		var body struct {
+			Origin projector.Origin `json:"origin"`
+			Steps  []voiceStoreStep `json:"steps"`
+		}
+		require.NoError(t, json.Unmarshal(ops[1].Payload, &body))
+		require.Len(t, body.Steps, 1)
+		assert.Equal(t, opID, body.Origin.Cause, "the store write names the record it carries out")
+		return ops[1], body.Steps[0]
+	}
+	t.Fatalf("no ledger segment starts with operation %s", opID)
+	return workspace.Op{}, voiceStoreStep{}
+}
+
+// voiceStoreStep is the step of a voice.write operation.
+type voiceStoreStep struct {
+	Put    []coreprofile.VoiceProfile `json:"create_profiles"`
+	Remove []string                   `json:"delete_profiles"`
 }
 
 // ownerProfile stores a profile the owner wrote before the ledger recorded
@@ -201,6 +240,23 @@ func TestVoiceProfileWrites_RecordOneLedgerOperation(t *testing.T) {
 			assert.Contains(t, op.Subject.Text, "voice profile "+profileID+" "+tt.wantWhat)
 			assert.Equal(t, tt.existing, op.Voice.Previous != "", "a write over a stored profile keeps what it replaced")
 			assert.Equal(t, tt.wantWhat == "removed", op.Voice.Wrote == "", "a removal leaves nothing to fingerprint")
+
+			// A checkout learns of the write from the voice.write beside the
+			// record, keyed by the id it spells from the profile's name.
+			_, step := voiceStoreWrite(t, s, proj.ID, op.ID)
+			if tt.wantWhat == "removed" {
+				assert.Empty(t, step.Put)
+				assert.Equal(t, []string{"docs"}, step.Remove)
+				return
+			}
+			require.Len(t, step.Put, 1)
+			stored, err := s.VoiceStore.GetProfile(t.Context(), profileID)
+			require.NoError(t, err)
+			assert.Equal(t, coreprofile.Slug(stored.Name), step.Put[0].ID)
+			assert.Equal(t, stored.Name, step.Put[0].Name)
+			assert.Equal(t, stored.Description, step.Put[0].Description)
+			assert.Empty(t, step.Put[0].Scope, "the server's workspace partition stays on the server")
+			assert.Empty(t, step.Remove)
 		})
 	}
 }

@@ -1,5 +1,7 @@
 // Package voicewrite writes a workspace voice profile and records the write
-// on the context ledger, as one change. Every surface that writes a voice
+// on the context ledger, as one change. Beside the record it writes the
+// voice.write operation a checkout applies to its own voice store, so a
+// profile written on the server reaches every checkout of the project. Every surface that writes a voice
 // profile on the server (a push, the web editor, a context-scan approval)
 // goes through Apply. The ledger is the only record of who wrote a profile:
 // the voice store holds the profile as it stands and the versions it
@@ -16,6 +18,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -161,7 +164,8 @@ func Apply(ctx context.Context, voice coreprofile.Store, ledger Ledger, w Write)
 	if actor.Kind == "" || actor.Kind == contextop.ActorPerson {
 		actor = contextop.Actor{Kind: contextop.ActorPerson, Session: actor.Session}
 	}
-	log := &segmentLog{ledger: ledger, projects: record, pushedBy: w.PushedBy}
+	put, remove := storeWrite(w.Before, stored)
+	log := &segmentLog{ledger: ledger, projects: record, pushedBy: w.PushedBy, put: put, remove: remove}
 	appended, err := contextop.NewLedger(log, writerDecided).Append(ctx, contextop.Record{
 		Actor:   actor,
 		Kind:    contextop.KindEdit,
@@ -174,6 +178,25 @@ func Apply(ctx context.Context, voice coreprofile.Store, ledger Ledger, w Write)
 	}
 	res.Op = appended.ID
 	return res, nil
+}
+
+// storeWrite is what a checkout's voice store is to put and remove for a
+// write that turned before into stored: the profile as written, stored under
+// the id a checkout spells from its name, and the profile under its former
+// name when the write removed or renamed it.
+func storeWrite(before, stored *coreprofile.VoiceProfile) (put []*coreprofile.VoiceProfile, remove []string) {
+	if stored != nil {
+		prof := coreprofile.Authored(stored)
+		prof.ID = ProfileSlug(stored.Name)
+		prof.Version = 0
+		put = append(put, prof)
+	}
+	if before != nil {
+		if id := ProfileSlug(before.Name); stored == nil || id != ProfileSlug(stored.Name) {
+			remove = append(remove, id)
+		}
+	}
+	return put, remove
 }
 
 // recordedThis reports whether a held operation is the record of the write
@@ -211,13 +234,9 @@ func SameProfile(named, id, name string) bool {
 	return named != "" && (named == id || ProfileSlug(named) == ProfileSlug(name))
 }
 
-// ProfileSlug spells a profile name the way a checkout's profile id does:
-// lower case, words joined by hyphens.
-func ProfileSlug(name string) string {
-	return strings.Join(strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
-		return r == ' ' || r == '_' || r == '-'
-	}), "-")
-}
+// ProfileSlug spells a profile name the way a checkout's profile id does
+// (coreprofile.Slug).
+func ProfileSlug(name string) string { return coreprofile.Slug(name) }
 
 // writerDecided admits every operation Apply appends. The surface that calls
 // Apply has already decided the write is allowed (a member's permission, a
@@ -227,11 +246,15 @@ func writerDecided(contextop.Transition) error { return nil }
 
 // segmentLog is the log Apply appends through: each operation is written as
 // a segment of its own to every project it records the write in, under one
-// id. It reads nothing back, as an edit names no operation to resolve.
+// id. The same segment then holds the voice.write operation that puts the
+// profiles of put into a checkout's voice store and removes those of remove.
+// It reads nothing back, as an edit names no operation to resolve.
 type segmentLog struct {
 	ledger   Ledger
 	projects []Project
 	pushedBy platstore.Pusher
+	put      []*coreprofile.VoiceProfile
+	remove   []string
 }
 
 var _ contextop.Log = (*segmentLog)(nil)
@@ -249,9 +272,19 @@ func (l *segmentLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 		if op.ID == "" {
 			op.ID = workspace.NewOpID(op.At, "")
 		}
+		storeID := workspace.NewOpID(op.At, op.ID)
 		for _, p := range l.projects {
 			op.Project = p.Key
-			data, err := workspace.EncodeSegment([]workspace.Op{op})
+			segment := []workspace.Op{op}
+			if len(l.put) > 0 || len(l.remove) > 0 {
+				write, err := projector.VoiceWrite(p.Key, op.At, projector.Origin{By: Writer, Cause: op.ID}, l.put, l.remove)
+				if err != nil {
+					return nil, err
+				}
+				write.ID = storeID
+				segment = append(segment, write)
+			}
+			data, err := workspace.EncodeSegment(segment)
 			if err != nil {
 				return nil, err
 			}

@@ -2,6 +2,7 @@ package profile
 
 import (
 	"maps"
+	"regexp"
 	"strings"
 	"time"
 
@@ -46,6 +47,16 @@ type VoiceProfile struct {
 	// are never stored with the profile and never serialized.
 	carried CarriedTerms
 }
+
+// Slug spells a profile name as the id a project stores the profile under:
+// lower case, each run of characters other than letters a to z and digits
+// replaced by one hyphen, with no hyphen at either end.
+func Slug(name string) string {
+	s := slugRe.ReplaceAllString(strings.ToLower(strings.TrimSpace(name)), "-")
+	return strings.Trim(s, "-")
+}
+
+var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
 
 // Authored is a voice profile as a project authors it: what it says about how
 // to write, without the bookkeeping a store keeps about the row (its partition

@@ -30,6 +30,8 @@ on:
       - "providers/**"
       - "memory/**"
       - "terms/**"
+      - "voice/**"
+      - "kpz/**"
       - "go.mod"
       - "go.sum"
       # And the deploy path itself. #2119 rewrote the deploy step and merged

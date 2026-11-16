@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -744,11 +743,5 @@ func RuleRewrite(profile *coreprofile.VoiceProfile, text string) (string, []outp
 	return res.Text, changes, res.Skipped
 }
 
-var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
-
 // slugify converts a profile name to a stable, filename-safe ID.
-func slugify(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = slugRe.ReplaceAllString(s, "-")
-	return strings.Trim(s, "-")
-}
+func slugify(s string) string { return coreprofile.Slug(s) }

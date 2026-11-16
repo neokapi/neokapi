@@ -361,6 +361,19 @@ well inside the 64 MiB bound. A pass that writes many rows (an import, a
 convergence run's absorbed record) collects them into one batch, recorded as one
 operation per store.
 
+Applying a `voice.write` step puts each profile it carries. A profile the store
+lacks is created, and a profile it holds is updated when what the profile says
+differs, with the replaced version archived. A writer that records into the
+project's log without a checkout of its own, such as a shared server, builds
+the operation with `projector.VoiceWrite`. That writer cannot know which
+profiles a checkout holds, so the same operation applies to a checkout that
+never held the profile and to one holding an older version, and removing a
+profile the checkout lacks is not an error. The profile's id is its name as
+`profile.Slug` spells it, the id a checkout stores the profile under. The
+writer records the operation beside the `context.edit` that names the change;
+the history reads the context operation, and the store applies the
+`voice.write`.
+
 `Projector.Rebuild`, behind `kapi store rebuild`, empties the projection tables
 and the rules the project widened, and replays the project's operations in id
 order. On a log one machine wrote, the rows it leaves equal the rows the writes
