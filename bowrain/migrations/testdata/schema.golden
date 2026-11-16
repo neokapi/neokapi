@@ -1203,7 +1203,6 @@ voice_profile_tags.name text NOT NULL
 voice_profile_tags.profile_id text NOT NULL
 voice_profile_tags.version integer NOT NULL
 voice_profile_versions.created_at timestamp with time zone NOT NULL DEFAULT now()
-voice_profile_versions.created_by text NOT NULL DEFAULT ''::text
 voice_profile_versions.note text NOT NULL DEFAULT ''::text
 voice_profile_versions.profile_id text NOT NULL
 voice_profile_versions.snapshot jsonb NOT NULL
