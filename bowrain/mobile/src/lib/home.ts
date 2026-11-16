@@ -90,11 +90,12 @@ export type NextUp =
   | { kind: "context"; entry: ContextInboxEntry; more: number };
 
 /**
- * The first deck to offer: a language in the project the person last opened,
- * when one waits there, and otherwise the inbox's first language, which the
- * server puts first because the most waits there. With no translation
- * waiting, the first project whose context waits. `more` counts the other
- * decks waiting.
+ * The first deck to offer. Source context comes before translations, since
+ * the translations are drafted from it: a project whose context waits,
+ * preferring the project the person last opened. With no context waiting, a
+ * language in the project last opened, and otherwise the inbox's first
+ * language, which the server puts first because the most waits there.
+ * `more` counts the other decks waiting.
  */
 export function nextUp(
   home: ReviewHome | null | undefined,
@@ -102,12 +103,14 @@ export function nextUp(
 ): NextUp | null {
   const languages = (home?.languages ?? []).filter((l) => l.waiting > 0);
   const context = (home?.context ?? []).filter((c) => c.waiting > 0);
-  const decks = languages.length + context.length;
-  const inRecent = recent
-    ? languages.find((l) => l.workspace === recent.ws && l.project === recent.project)
-    : undefined;
-  const language = inRecent ?? languages[0];
-  if (language) return { kind: "language", entry: language, more: decks - 1 };
-  if (context[0]) return { kind: "context", entry: context[0], more: decks - 1 };
+  const more = languages.length + context.length - 1;
+  const inRecent = <T extends { workspace: string; project: string }>(list: T[]) =>
+    recent
+      ? list.find((e) => e.workspace === recent.ws && e.project === recent.project)
+      : undefined;
+  const ctx = inRecent(context) ?? context[0];
+  if (ctx) return { kind: "context", entry: ctx, more };
+  const language = inRecent(languages) ?? languages[0];
+  if (language) return { kind: "language", entry: language, more };
   return null;
 }

@@ -62,27 +62,29 @@ describe("summarize", () => {
 });
 
 describe("nextUp", () => {
-  it("offers the inbox's first language", () => {
+  const translationsOnly = { context: [], languages: home.languages };
+
+  it("offers the source context before any translations", () => {
     const n = nextUp(home);
-    expect(n?.kind).toBe("language");
-    expect(n?.kind === "language" && n.entry.locale).toBe("nb");
+    expect(n?.kind).toBe("context");
+    expect(n?.kind === "context" && n.entry.project).toBe("p2");
     expect(n?.more).toBe(3);
   });
 
+  it("offers the inbox's first language when no context waits", () => {
+    const n = nextUp(translationsOnly);
+    expect(n?.kind === "language" && n.entry.locale).toBe("nb");
+    expect(n?.more).toBe(2);
+  });
+
   it("prefers a language waiting in the project opened last", () => {
-    const n = nextUp(home, { ws: "beta", project: "p9" });
+    const n = nextUp(translationsOnly, { ws: "beta", project: "p9" });
     expect(n?.kind === "language" && n.entry.locale).toBe("fr");
   });
 
   it("falls back to the inbox order when nothing waits in the project opened last", () => {
-    const n = nextUp(home, { ws: "acme", project: "p2" });
+    const n = nextUp(translationsOnly, { ws: "acme", project: "p2" });
     expect(n?.kind === "language" && n.entry.locale).toBe("nb");
-  });
-
-  it("offers the context when no translation waits", () => {
-    const n = nextUp({ context: home.context, languages: [] });
-    expect(n?.kind).toBe("context");
-    expect(n?.more).toBe(0);
   });
 
   it("offers nothing when nothing waits", () => {
