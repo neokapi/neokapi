@@ -295,6 +295,17 @@ func newPushGovernor(
 	if !carriesVerdict(staged, decisions) && !g.withdrawsAny(staged, decisions) {
 		return g, nil // nothing to judge; no permission lookups, no gate
 	}
+	if g.tool != "" {
+		// A tool records no verdict, so no permission is looked up: every
+		// verdict and withdrawal is refused (allow, allowWithdrawal) and the
+		// rest of the push lands, with or without a review authority.
+		gate, err := review.Open(ctx, review.Config{ProjectID: projectID, WorkspaceID: workspaceID, Stream: stream})
+		if err != nil {
+			return nil, err
+		}
+		g.gate = gate
+		return g, nil
+	}
 	if deps.ReviewAuthority == nil {
 		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing an approved translation is refused")
 	}
