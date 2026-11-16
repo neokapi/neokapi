@@ -349,7 +349,8 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// the project governed by a declaration that never landed.
 		var rerr error
 		contextResult, rerr = reconcileContext(ctx, tx, st.Voice,
-			projectID, stream, workspaceID, manifest.ActorID, contextEntries)
+			projectID, stream, workspaceID, manifest.ActorID,
+			newPushVoiceLedger(ctx, deps, tx, projectID, manifest.ActorID, ledger), contextEntries)
 		if rerr != nil {
 			return rerr
 		}

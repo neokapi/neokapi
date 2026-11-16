@@ -17,6 +17,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -502,7 +503,7 @@ func voiceOrigin(origins []*contextDeckOrigin, card contextDeckCard) *contextDec
 		case originKindVoiceEdit:
 			return sameProfile(o.Profile, card.Item.Profile, card.Pattern.Profile)
 		case originKindImport:
-			return o.Source == contextop.ImportVoice && strings.Contains(profileSlug(o.Path), profileSlug(card.Pattern.Profile))
+			return o.Source == contextop.ImportVoice && strings.Contains(voicewrite.ProfileSlug(o.Path), voicewrite.ProfileSlug(card.Pattern.Profile))
 		}
 		return false
 	})
@@ -512,15 +513,7 @@ func voiceOrigin(origins []*contextDeckOrigin, card contextDeckCard) *contextDec
 // one the server holds as id and name. A checkout names a profile by its own
 // id, which is the profile's name spelled as a slug.
 func sameProfile(named, id, name string) bool {
-	return named != "" && (named == id || profileSlug(named) == profileSlug(name))
-}
-
-// profileSlug spells a profile name the way a checkout's profile id does:
-// lower case, words joined by hyphens.
-func profileSlug(name string) string {
-	return strings.Join(strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
-		return r == ' ' || r == '_' || r == '-'
-	}), "-")
+	return voicewrite.SameProfile(named, id, name)
 }
 
 // termRuleFlags are the badges a term rule shows.
@@ -642,16 +635,16 @@ func sameLanguage(a, b model.LocaleID) bool {
 // own. Its id is a digest of its list and its regular expression, and its
 // revision a digest of the whole rule. Editing what a rule says is a new
 // revision of it; editing what it matches is a new rule. The author is
-// whoever wrote the first profile version that holds the rule as it reads
-// now.
+// whoever made the latest write the ledger records that added the rule as it
+// reads now; a rule no recorded write added names no author.
 func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, bulk []contextop.Record, origins []*contextDeckOrigin, names map[string]string) ([]contextDeckCard, error) {
 	var out []contextDeckCard
 	for _, profile := range s.boundVoiceProfiles(ctx, src) {
 		steps := voiceEditSteps(bulk, profile)
-		for _, card := range s.profileRuleCards(ctx, src, profile, names) {
+		for _, card := range profileRuleCards(src, profile) {
 			if step := steps.introduced(card.Pattern.List, card.Revision); step != nil {
-				// The ledger records who made each voice edit, an agent host
-				// included; the store's version rows do not.
+				// The ledger is the only record of who made each voice edit,
+				// an agent host included.
 				card.Author = s.recordAuthor(ctx, step.rec, names)
 				card.At = step.rec.At
 				card.Origin = originByID(origins, step.rec.ID)
@@ -781,10 +774,7 @@ func (s *Server) boundVoiceProfiles(ctx context.Context, src deckSource) []*core
 }
 
 // profileRuleCards are the cards of one voice profile's pattern rules.
-func (s *Server) profileRuleCards(ctx context.Context, src deckSource, profile *coreprofile.VoiceProfile, names map[string]string) []contextDeckCard {
-	versions, _ := s.VoiceStore.ListProfileVersions(ctx, profile.ID)
-	slices.SortFunc(versions, func(a, b *coreprofile.ProfileVersion) int { return cmp.Compare(a.Version, b.Version) })
-
+func profileRuleCards(src deckSource, profile *coreprofile.VoiceProfile) []contextDeckCard {
 	var out []contextDeckCard
 	add := func(list string, patterns []coreprofile.Pattern) {
 		for _, p := range patterns {
@@ -811,7 +801,10 @@ func (s *Server) profileRuleCards(ctx context.Context, src deckSource, profile *
 			} else {
 				card.Flags = append(card.Flags, "advisory")
 			}
-			card.Author, card.At = s.patternAuthor(ctx, list, rev, profile, versions, names)
+			// The author is the ledger's to say (voiceRuleCards); a rule no
+			// recorded write added names none.
+			card.Author = contextDeckAuthor{Kind: string(contextop.ActorPerson)}
+			card.At = profile.UpdatedAt
 			out = append(out, card)
 		}
 	}
@@ -826,23 +819,6 @@ func patternIdentity(list string, p coreprofile.Pattern) (id, rev string) {
 	body, _ := json.Marshal(p)
 	revSum := sha256.Sum256(append([]byte(list+"\x00"), body...))
 	return hex.EncodeToString(idSum[:8]), hex.EncodeToString(revSum[:8])
-}
-
-// patternAuthor is who wrote the first profile version holding the rule at
-// revision rev, or the profile's author when no version holds it.
-func (s *Server) patternAuthor(ctx context.Context, list, rev string, profile *coreprofile.VoiceProfile, versions []*coreprofile.ProfileVersion, names map[string]string) (contextDeckAuthor, time.Time) {
-	for _, v := range versions {
-		patterns := v.Snapshot.Style.ProhibitedPatterns
-		if list == "required" {
-			patterns = v.Snapshot.Style.RequiredPatterns
-		}
-		for _, p := range patterns {
-			if _, r := patternIdentity(list, p); r == rev {
-				return s.memberAuthor(ctx, v.CreatedBy, names), v.CreatedAt
-			}
-		}
-	}
-	return s.memberAuthor(ctx, profile.CreatedBy, names), profile.UpdatedAt
 }
 
 // findCard is the card naming item, and whether the deck holds one.

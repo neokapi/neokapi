@@ -384,7 +384,7 @@ func (s *Server) HandleApproveContextScan(c echo.Context) error {
 
 	wsID, _ := c.Get("workspace_id").(string)
 	actor, _ := c.Get("user_id").(string)
-	upsert, err := s.upsertVoiceProfile(ctx, wsID, actor, req.Profile, "superseded by a brand-scan approval")
+	upsert, err := s.upsertVoiceProfile(ctx, wsID, actor, req.Profile, "superseded by a brand-scan approval", "approved from a context scan")
 	if err != nil {
 		return serverErr(c, err)
 	}

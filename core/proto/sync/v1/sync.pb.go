@@ -1663,7 +1663,16 @@ type SyncContextEntry struct {
 	// A repository fact the server cannot derive, so it travels with the
 	// collection's other declared facts. Absent when the collection declares
 	// none, which is how a reviewer decides to offer document reading only.
-	Preview       *SyncPreviewSource `protobuf:"bytes,8,opt,name=preview,proto3" json:"preview,omitempty"`
+	Preview *SyncPreviewSource `protobuf:"bytes,8,opt,name=preview,proto3" json:"preview,omitempty"`
+	// VoiceOp is the id of the context ledger operation that recorded the write
+	// leaving the profile as voice_profile_json carries it, set on the entry
+	// that carries the profile. The server writes the profile and that
+	// operation as one change: when the push's ledger objects, or the project's
+	// ledger, hold the operation, the server records no second one. Empty when
+	// no recorded write left the profile as it is, and the server then records
+	// the write as the pusher's. Not part of content_hash: it says who wrote the
+	// profile, not what the collection declares.
+	VoiceOp       string `protobuf:"bytes,9,opt,name=voice_op,json=voiceOp,proto3" json:"voice_op,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1752,6 +1761,13 @@ func (x *SyncContextEntry) GetPreview() *SyncPreviewSource {
 		return x.Preview
 	}
 	return nil
+}
+
+func (x *SyncContextEntry) GetVoiceOp() string {
+	if x != nil {
+		return x.VoiceOp
+	}
+	return ""
 }
 
 // SyncPreviewSource is a place a collection's strings can be seen in situ.
@@ -2299,7 +2315,7 @@ const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\fcontent_hash\x18\x0f \x01(\tR\vcontentHash\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa0\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbb\x03\n" +
 	"\x10SyncContextEntry\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12T\n" +
 	"\vcoordinates\x18\x02 \x03(\v22.neokapi.sync.v1.SyncContextEntry.CoordinatesEntryR\vcoordinates\x12\x18\n" +
@@ -2308,7 +2324,8 @@ const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x12voice_profile_json\x18\x05 \x01(\fR\x10voiceProfileJson\x12\x14\n" +
 	"\x05owner\x18\x06 \x01(\tR\x05owner\x12!\n" +
 	"\fcontent_hash\x18\a \x01(\tR\vcontentHash\x12<\n" +
-	"\apreview\x18\b \x01(\v2\".neokapi.sync.v1.SyncPreviewSourceR\apreview\x1a>\n" +
+	"\apreview\x18\b \x01(\v2\".neokapi.sync.v1.SyncPreviewSourceR\apreview\x12\x19\n" +
+	"\bvoice_op\x18\t \x01(\tR\avoiceOp\x1a>\n" +
 	"\x10CoordinatesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"9\n" +
