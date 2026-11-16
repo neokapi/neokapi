@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -584,7 +585,9 @@ type fakeKnowledgeStore struct {
 	markets      map[string]*knowledge.Market
 	observations map[string]*knowledge.Observation
 	comments     map[string]*knowledge.Comment
-	seq          int
+	// latest is each concept's latest revision, as LatestRevisions serves it.
+	latest map[string]*knowledge.ConceptRevision
+	seq    int
 }
 
 func newFakeKnowledgeStore() *fakeKnowledgeStore {
@@ -760,7 +763,9 @@ func (f *fakeKnowledgeStore) ListRevisions(context.Context, string, string) ([]*
 func (f *fakeKnowledgeStore) LatestRev(context.Context, string, string) (int64, error) { return 0, nil }
 
 func (f *fakeKnowledgeStore) LatestRevisions(context.Context, string) (map[string]*knowledge.ConceptRevision, error) {
-	return map[string]*knowledge.ConceptRevision{}, nil
+	out := map[string]*knowledge.ConceptRevision{}
+	maps.Copy(out, f.latest)
+	return out, nil
 }
 
 // --- Change-sets -----------------------------------------------------------
