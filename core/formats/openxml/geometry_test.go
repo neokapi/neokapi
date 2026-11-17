@@ -6,6 +6,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 
 	doclangfmt "github.com/neokapi/neokapi/core/formats/doclang"
@@ -65,6 +66,9 @@ func TestParseCellRefA1(t *testing.T) {
 		{"A1B", 0, 0, false}, // trailing letters
 		{"A+1", 0, 0, false}, // signed row (Atoi would accept; regex does not)
 		{"A-1", 0, 0, false}, // signed row
+		{"XFD1", 16383, 0, true},
+		{"XFE1", 0, 0, false},                            // past the last column
+		{"ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1", 0, 0, false}, // would overflow
 	}
 	for _, c := range cases {
 		col, row, ok := parseCellRefA1(c.ref)
@@ -149,10 +153,14 @@ func blockByText(blocks []*model.Block, text string) *model.Block {
 func TestNative_PPTXShapeGeometry(t *testing.T) {
 	body := sp(`<a:off x="914400" y="457200"/>`, `<a:ext cx="1828800" cy="685800"/>`, "Positioned title") +
 		sp("", "", "No transform here") +
-		// A group shape whose own transform is present but whose child shape
-		// carries child-space coordinates — geometry must be omitted for the child.
-		`<p:grpSp><p:grpSpPr><a:xfrm><a:off x="100" y="200"/><a:ext cx="300" cy="400"/><a:chOff x="0" y="0"/><a:chExt cx="300" cy="400"/></a:xfrm></p:grpSpPr>` +
-		sp(`<a:off x="100" y="100"/>`, `<a:ext cx="100" cy="100"/>`, "Inside a group") +
+		// A group placed at (2in, 1in), 4in × 2in on the slide, whose child
+		// space is 8in × 4in: its children are drawn at half scale.
+		`<p:grpSp><p:grpSpPr><a:xfrm><a:off x="1828800" y="914400"/><a:ext cx="3657600" cy="1828800"/><a:chOff x="0" y="0"/><a:chExt cx="7315200" cy="3657600"/></a:xfrm></p:grpSpPr>` +
+		sp(`<a:off x="914400" y="914400"/>`, `<a:ext cx="1828800" cy="914400"/>`, "Inside a group") +
+		`</p:grpSp>` +
+		// A group with no transform of its own cannot be placed.
+		`<p:grpSp><p:grpSpPr/>` +
+		sp(`<a:off x="914400" y="914400"/>`, `<a:ext cx="914400" cy="914400"/>`, "Inside an unplaced group") +
 		`</p:grpSp>`
 
 	reader := NewReader()
@@ -178,11 +186,163 @@ func TestNative_PPTXShapeGeometry(t *testing.T) {
 	_, ok = noxfrm.Geometry()
 	assert.False(t, ok, "shape without xfrm should have no geometry")
 
-	// A shape inside a group is skipped (child-space coords need an affine remap).
+	// A grouped shape is mapped out of the group's child space: the child at
+	// (1in, 1in), 2in × 1in lands at (2in + 0.5in, 1in + 0.5in), 1in × 0.5in.
 	grouped := blockByText(blocks, "Inside a group")
 	require.NotNil(t, grouped)
-	_, ok = grouped.Geometry()
-	assert.False(t, ok, "grouped shape should have no geometry in v1")
+	g, ok = grouped.Geometry()
+	require.True(t, ok, "grouped shape should be placed through the group transform")
+	assert.Equal(t, model.Rect{X: 180, Y: 108, W: 72, H: 36}, g.BBox)
+
+	unplaced := blockByText(blocks, "Inside an unplaced group")
+	require.NotNil(t, unplaced)
+	_, ok = unplaced.Geometry()
+	assert.False(t, ok, "a shape in a group without a transform should have no geometry")
+}
+
+// pptxWithLayout builds a one-slide PPTX whose slide inherits from a layout,
+// and the layout from a master, so placeholder frames can be resolved.
+func pptxWithLayout(t *testing.T, slideBody, layoutBody, masterBody string) *bytes.Reader {
+	t.Helper()
+	const ns = `xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"`
+	const rel = `http://schemas.openxmlformats.org/officeDocument/2006/relationships/`
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	writeZipEntry(t, zw, "[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+  <Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>
+  <Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+  <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+</Types>`)
+	writeZipEntry(t, zw, "_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="`+rel+`officeDocument" Target="ppt/presentation.xml"/>
+</Relationships>`)
+	writeZipEntry(t, zw, "ppt/presentation.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation `+ns+`/>`)
+	writeZipEntry(t, zw, "ppt/_rels/presentation.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="`+rel+`slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId2" Type="`+rel+`slide" Target="slides/slide1.xml"/>
+</Relationships>`)
+	writeZipEntry(t, zw, "ppt/slides/_rels/slide1.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="`+rel+`slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`)
+	writeZipEntry(t, zw, "ppt/slideLayouts/_rels/slideLayout1.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="`+rel+`slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>`)
+	writeZipEntry(t, zw, "ppt/slideMasters/_rels/slideMaster1.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="`+rel+`slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`)
+	writeZipEntry(t, zw, "ppt/slides/slide1.xml", `<p:sld `+ns+`><p:cSld><p:spTree>`+slideBody+`</p:spTree></p:cSld></p:sld>`)
+	writeZipEntry(t, zw, "ppt/slideLayouts/slideLayout1.xml", `<p:sldLayout `+ns+`><p:cSld><p:spTree>`+layoutBody+`</p:spTree></p:cSld></p:sldLayout>`)
+	writeZipEntry(t, zw, "ppt/slideMasters/slideMaster1.xml", `<p:sldMaster `+ns+`><p:cSld><p:spTree>`+masterBody+`</p:spTree></p:cSld></p:sldMaster>`)
+	require.NoError(t, zw.Close())
+	return bytes.NewReader(buf.Bytes())
+}
+
+// phSp builds a placeholder <p:sp> with the given <p:ph> attributes, an
+// optional transform and one paragraph of text.
+func phSp(phAttrs, xfrm, text string) string {
+	if xfrm != "" {
+		xfrm = `<a:xfrm>` + xfrm + `</a:xfrm>`
+	}
+	return `<p:sp><p:nvSpPr><p:cNvPr id="2" name="ph"/><p:cNvSpPr/><p:nvPr><p:ph ` + phAttrs + `/></p:nvPr></p:nvSpPr>` +
+		`<p:spPr>` + xfrm + `</p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:t>` + text + `</a:t></a:r></a:p></p:txBody></p:sp>`
+}
+
+// TestNative_PPTXPlaceholderGeometry checks that a placeholder with no
+// transform of its own takes the frame of the matching placeholder on its
+// layout, or on the layout's master when the layout states none either.
+func TestNative_PPTXPlaceholderGeometry(t *testing.T) {
+	inch := func(x, y, cx, cy int) string {
+		return fmt.Sprintf(`<a:off x="%d" y="%d"/><a:ext cx="%d" cy="%d"/>`, x*914400, y*914400, cx*914400, cy*914400)
+	}
+	slide := phSp(`type="ctrTitle"`, "", "Centred title") +
+		phSp(`type="subTitle" idx="1"`, "", "Subtitle by idx") +
+		phSp(`type="dt" idx="10"`, "", "Date from master") +
+		phSp(`idx="13"`, "", "Unknown placeholder") +
+		phSp(`type="ftr" idx="11"`, inch(5, 6, 2, 1), "Own frame wins")
+	layout := phSp(`type="ctrTitle"`, inch(1, 2, 8, 1), "Layout title prompt") +
+		phSp(`type="subTitle" idx="1"`, "", "Layout subtitle without frame") +
+		phSp(`type="dt" sz="half" idx="10"`, "", "Layout date without frame")
+	master := phSp(`type="title"`, inch(0, 0, 10, 1), "Master title") +
+		phSp(`type="body" idx="1"`, inch(1, 3, 6, 3), "Master body") +
+		phSp(`type="dt" sz="half" idx="2"`, inch(0, 7, 2, 1), "Master date")
+
+	reader := NewReader()
+	doc := testutil.RawDocFromReader(pptxWithLayout(t, slide, layout, master), "test.pptx", model.LocaleEnglish)
+	require.NoError(t, reader.Open(t.Context(), doc))
+	defer reader.Close()
+	blocks := translatableBlocks(testutil.CollectParts(t, reader.Read(t.Context())))
+
+	cases := []struct {
+		text string
+		want *model.Rect
+	}{
+		// The layout's centred title states a frame.
+		{"Centred title", &model.Rect{X: 72, Y: 144, W: 576, H: 72}},
+		// The layout's subtitle (matched by idx) has no frame, so the master's
+		// body placeholder supplies it.
+		{"Subtitle by idx", &model.Rect{X: 72, Y: 216, W: 432, H: 216}},
+		// The date matches by idx on the layout, by type on the master, whose
+		// date placeholder has a different idx.
+		{"Date from master", &model.Rect{X: 0, Y: 504, W: 144, H: 72}},
+		// An untyped placeholder no layout placeholder matches falls back to
+		// the master's body.
+		{"Unknown placeholder", &model.Rect{X: 72, Y: 216, W: 432, H: 216}},
+		{"Own frame wins", &model.Rect{X: 360, Y: 432, W: 144, H: 72}},
+	}
+	for _, c := range cases {
+		b := blockByText(blocks, c.text)
+		require.NotNilf(t, b, "block %q", c.text)
+		g, ok := b.Geometry()
+		require.Truef(t, ok, "%q should carry geometry", c.text)
+		assert.Equalf(t, 1, g.Page, "%q page", c.text)
+		assert.Equalf(t, *c.want, g.BBox, "%q box", c.text)
+	}
+}
+
+// TestNative_PPTXTableCellGeometry checks that each cell of a slide table gets
+// its own frame from the grid's column widths and the rows' heights.
+func TestNative_PPTXTableCellGeometry(t *testing.T) {
+	cell := func(attrs, text string) string {
+		return `<a:tc` + attrs + `><a:txBody><a:bodyPr/><a:p><a:r><a:t>` + text + `</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc>`
+	}
+	body := `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="4" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>` +
+		`<p:xfrm><a:off x="914400" y="1828800"/><a:ext cx="5486400" cy="914400"/></p:xfrm>` +
+		`<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1"/>` +
+		`<a:tblGrid><a:gridCol w="1828800"/><a:gridCol w="1828800"/><a:gridCol w="1828800"/></a:tblGrid>` +
+		`<a:tr h="457200">` + cell("", "Region") + cell("", "Units") + cell("", "Note") + `</a:tr>` +
+		`<a:tr h="457200">` + cell("", "North") + cell(` gridSpan="2"`, "Spans two columns") + cell(` hMerge="1"`, "") + `</a:tr>` +
+		`</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`
+
+	reader := NewReader()
+	doc := testutil.RawDocFromReader(minimalPPTX(t, body), "test.pptx", model.LocaleEnglish)
+	require.NoError(t, reader.Open(t.Context(), doc))
+	defer reader.Close()
+	blocks := translatableBlocks(testutil.CollectParts(t, reader.Read(t.Context())))
+
+	cases := map[string]model.Rect{
+		"Region":            {X: 72, Y: 144, W: 144, H: 36},
+		"Units":             {X: 216, Y: 144, W: 144, H: 36},
+		"Note":              {X: 360, Y: 144, W: 144, H: 36},
+		"North":             {X: 72, Y: 180, W: 144, H: 36},
+		"Spans two columns": {X: 216, Y: 180, W: 288, H: 36},
+	}
+	for text, want := range cases {
+		b := blockByText(blocks, text)
+		require.NotNilf(t, b, "block %q", text)
+		g, ok := b.Geometry()
+		require.Truef(t, ok, "%q should carry geometry", text)
+		assert.Equalf(t, want, g.BBox, "%q box", text)
+	}
 }
 
 // TestNative_PPTXGeometryNotOnNonSlideParts confirms geometry is attached only
@@ -263,8 +423,8 @@ func TestNative_XLSXCellGeometry(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, model.Rect{X: 2, Y: 2, W: 1, H: 1}, g.BBox)
 
-	// The shared string is deduplicated in sharedStrings.xml — one block backs
-	// potentially many cells — so it carries no single position.
+	// The shared string is deduplicated in sharedStrings.xml: one block backs
+	// potentially many cells, so it carries no single position.
 	shared := blockByText(blocks, "Shared label")
 	require.NotNil(t, shared, "expected the shared-string block")
 	_, ok = shared.Geometry()

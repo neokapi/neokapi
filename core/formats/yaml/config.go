@@ -20,6 +20,12 @@ type Config struct {
 	// Default: false (only string scalars are extracted).
 	ExtractNonStrings bool
 
+	// TranslateURLs controls whether a scalar whose whole value is an
+	// absolute URL is translatable. Default false: such a block is
+	// extracted and marked non-translatable, so the writer keeps the
+	// source bytes. Mirrors the markdown format's translate_urls.
+	TranslateURLs bool
+
 	// UseCodeFinder enables inline code detection within string values.
 	// When enabled, patterns like \n in double-quoted strings are
 	// recognized as inline codes.
@@ -49,6 +55,7 @@ func (c *Config) FormatName() string { return "yaml" }
 // Reset restores default values.
 func (c *Config) Reset() {
 	c.ExtractNonStrings = false
+	c.TranslateURLs = false
 	c.UseCodeFinder = false
 	c.CodeFinderRules = nil
 	c.KeyPathPatterns = nil
@@ -69,6 +76,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return errors.New("yaml: extract_non_strings must be bool")
 			}
 			c.ExtractNonStrings = b
+		case "translate_urls":
+			b, ok := val.(bool)
+			if !ok {
+				return errors.New("yaml: translate_urls must be bool")
+			}
+			c.TranslateURLs = b
 		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {

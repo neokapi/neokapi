@@ -2898,6 +2898,10 @@
           "title": "Subfilter Format",
           "description": "Sub-filter to apply to scalar values (e.g., 'html' to process HTML within YAML values)"
         },
+        "translate_urls": {
+          "title": "Translate URLs",
+          "description": "Make a value that is only an absolute URL translatable. When off, the value is extracted and kept as written."
+        },
         "use_code_finder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within string values"

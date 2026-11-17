@@ -72,7 +72,7 @@ examples:
       parser:
         preserve_whitespace: true
   - title: Ḿàķé à çüšţöḿ éļéḿéñţ ţŕàñšļàţàƃļé
-    description: Éẋţŕàçţ ţĥé ţéẋţ öƒ à çüšţöḿ <šüḿḿàŕý> éļéḿéñţ.
+    description: Éẋţŕàçţ ţĥé ţéẋţ öƒ à çüšţöḿ <summary> éļéḿéñţ.
     config: |
       elements:
         summary:

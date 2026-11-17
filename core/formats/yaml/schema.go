@@ -22,7 +22,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extract_non_strings", "key_path_patterns",
+					"extract_non_strings", "translate_urls", "key_path_patterns",
 				},
 			},
 			{
@@ -46,6 +46,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Default:     false,
 				Title:       "Extract Non-String Values",
 				Description: "Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks",
+			}),
+			"translate_urls": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     false,
+				Title:       "Translate URLs",
+				Description: "Make a value that is only an absolute URL translatable. When off, the value is extracted and kept as written.",
 			}),
 			"key_path_patterns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",

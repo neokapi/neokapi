@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -113,6 +114,41 @@ func TestInspect_StructuralRole(t *testing.T) {
 	require.NotNil(t, heading, "heading block not found")
 	assert.Equal(t, model.RoleHeading, heading.Role)
 	assert.Equal(t, 1, heading.Level)
+}
+
+// A cell in a hidden spreadsheet column reports its visibility, so a reader
+// of the records can tell text no one sees from text on the sheet.
+func TestInspect_ReportsHiddenContent(t *testing.T) {
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	entry := func(name, body string) {
+		w, err := zw.Create(name)
+		require.NoError(t, err)
+		_, err = w.Write([]byte(body))
+		require.NoError(t, err)
+	}
+	const rel = `http://schemas.openxmlformats.org/officeDocument/2006/relationships/`
+	entry("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/></Types>`)
+	entry("_rels/.rels", `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="`+rel+`officeDocument" Target="xl/workbook.xml"/></Relationships>`)
+	entry("xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="`+strings.TrimSuffix(rel, "/")+`"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>`)
+	entry("xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="`+rel+`worksheet" Target="worksheets/sheet1.xml"/></Relationships>`)
+	entry("xl/worksheets/sheet1.xml", `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="2" max="2" hidden="1"/></cols><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Shown</t></is></c><c r="B1" t="inlineStr"><is><t>Not shown</t></is></c></row></sheetData></worksheet>`)
+	require.NoError(t, zw.Close())
+
+	out := runInspectFixture(t, "book.xlsx", buf.String())
+	var blocks []struct {
+		Text       string `json:"text"`
+		Visibility string `json:"visibility"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &blocks), out)
+	vis := map[string]string{}
+	for _, b := range blocks {
+		vis[b.Text] = b.Visibility
+	}
+	require.Contains(t, vis, "Shown")
+	require.Contains(t, vis, "Not shown")
+	assert.Empty(t, vis["Shown"])
+	assert.Equal(t, model.VisibilityHidden, vis["Not shown"])
 }
 
 // A read of several files names each block's document in its reference: the

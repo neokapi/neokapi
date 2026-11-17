@@ -186,7 +186,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 			return nil
 		}
 		runs := v.SourceRuns()
-		if len(runs) == 0 {
+		if !hasPseudoText(runs) {
 			return nil
 		}
 		if shouldWalkRuns(runs, cfg) {
@@ -210,6 +210,15 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 	return &PseudoTranslateTool{BaseTool: base, cfg: cfg}
 }
 
+// hasPseudoText reports whether a block has text to pseudo-translate. A block
+// of whitespace and inline codes alone is left untranslated: wrapping it in
+// markers would put text where the document has none, and a reader can then
+// see different structure when the output is read again (an HTML layout
+// element between two blocks becomes part of one mixed-content block).
+func hasPseudoText(runs []model.Run) bool {
+	return strings.TrimSpace(model.RunsText(runs)) != ""
+}
+
 // applyPseudo runs the deterministic pseudo-translation on a block
 // part. Factored out so SessionProcess can call it after checking
 // the overlay cache. It writes through a tool view, as the dispatched
@@ -223,7 +232,7 @@ func applyPseudo(ctx context.Context, part *model.Part, conf *PseudoConfig) (*mo
 		return part, nil
 	}
 	runs := block.SourceRuns()
-	if len(runs) == 0 {
+	if !hasPseudoText(runs) {
 		return part, nil
 	}
 	err := tool.WriteAs(ctx, block, conf.ToolName(), func(v tool.VariantView) error {
@@ -633,6 +642,12 @@ func accentTransform(text string) string {
 				i += len(verb)
 				continue
 			}
+		case r == '<':
+			if tag := markupTag.FindString(text[i:]); tag != "" {
+				b.WriteString(tag)
+				i += len(tag)
+				continue
+			}
 		default:
 			if replacement, ok := accentMap[r]; ok {
 				r = replacement
@@ -651,6 +666,15 @@ func accentTransform(text string) string {
 // check.PlaceholderToken recognizes. A space is not read as a flag, so the
 // `% o` in "50% of" stays prose.
 var printfVerb = regexp.MustCompile(`^%(?:%|(?:\([^)]+\))?(?:\[\d+\])?[-+#0]*(?:\d+\$)?(?:\*|\d+)?(?:\.(?:\*|\d+)?)?(?:hh|h|ll|l|L|q|j|z|t)?[A-Za-z@])`)
+
+// markupTag matches one HTML or XML tag at the start of a string: an opening
+// tag with optional attributes, a closing tag, or a self-closing tag. A value
+// read as plain text (a YAML or JSON string, a properties entry) carries its
+// markup as text rather than as code runs, and the consumer parses it: an
+// accented `<ƃ>` is no longer the element it was. The name must start right
+// after `<` (or `</`) with a letter, so prose such as "a < b" or "<3" stays
+// text and is accented.
+var markupTag = regexp.MustCompile(`^</?[A-Za-z][A-Za-z0-9:_-]*(?:\s+[^<>]*?)?\s*/?>`)
 
 // effectiveWrap returns the markers to emit, exactly as configured.
 //

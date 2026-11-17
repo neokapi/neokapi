@@ -248,7 +248,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 
-		visitor := &readerVisitor{reader: r, ctx: ctx, ch: ch}
+		visitor := &readerVisitor{reader: r, ctx: ctx, ch: ch, names: &domNamer{}}
 		walker := newDOMWalker(r.cfg, visitor)
 		walker.walk(doc)
 	}
@@ -262,6 +262,8 @@ type readerVisitor struct {
 	reader *Reader
 	ctx    context.Context
 	ch     chan<- model.PartResult
+	// names gives each block its structural name. See structural_name.go.
+	names *domNamer
 }
 
 func (v *readerVisitor) onContainerStart(groupID, groupType string, props map[string]string) {
@@ -293,7 +295,7 @@ func (v *readerVisitor) onData(dataID string, n *html.Node, dataName string, pro
 // ingestion/LLM consumers, skipped by MT. The body is NOT inline-parsed.
 func (v *readerVisitor) onContentBlock(blockID string, n *html.Node, role, body string) {
 	block := model.NewBlock(blockID, body) // single verbatim run
-	block.Name = nodePath(n)
+	block.Name = v.names.path(n)
 	block.Type = n.Data
 	block.Translatable = false
 	block.PreserveWhitespace = true
@@ -312,7 +314,7 @@ func (v *readerVisitor) onTextBlock(blockID string, n *html.Node) {
 		text = strings.TrimFunc(text, isHTMLWhitespace)
 	}
 	block := model.NewBlock(blockID, text)
-	block.Name = nodePath(n)
+	block.Name = v.names.path(n)
 	markInteractiveAncestor(block, domInteractiveAncestor(n.Parent))
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -320,7 +322,7 @@ func (v *readerVisitor) onTextBlock(blockID string, n *html.Node) {
 func (v *readerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey string) {
 	value := getAttr(n, attrKey)
 	block := model.NewBlock(blockID, value)
-	block.Name = attributePath(n, attrKey)
+	block.Name = v.names.attributePath(n, attrKey)
 	block.Type = attrKey
 	block.IsReferent = true
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -351,7 +353,7 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 	}
 
 	block := model.NewRunsBlock(blockID, runs)
-	block.Name = v.reader.blockName(n)
+	block.Name = v.names.path(n)
 	block.Type = v.reader.blockType(n)
 	block.PreserveWhitespace = preserveWS
 	block.Properties = v.reader.extractBlockProperties(n)
@@ -382,7 +384,7 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 	// A mixed-content run is named after the node it starts at, not after
 	// its container: a container holds several runs, so naming them all
 	// after the container would give them one address between them.
-	block.Name = nodePath(runStart)
+	block.Name = v.names.path(runStart)
 	block.Type = v.reader.blockType(parent)
 	block.PreserveWhitespace = preserveWS
 	block.Properties = v.reader.extractBlockProperties(parent)
@@ -770,12 +772,6 @@ func hasAttr(n *html.Node, key string) bool {
 		}
 	}
 	return false
-}
-
-// blockName returns the block's structural address in the DOM. See
-// structural_name.go for the scheme.
-func (r *Reader) blockName(n *html.Node) string {
-	return nodePath(n)
 }
 
 // extractBlockProperties returns properties from the element's attributes.

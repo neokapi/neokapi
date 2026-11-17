@@ -32,12 +32,17 @@ mime_type: application/yaml
 description: |
   YAML 1.2 filter (block + flow styles). Walks the document tree and
   extracts string scalar values as translatable Blocks; non-string
-  scalars (numbers, booleans, nulls) are skipped by default. The
+  scalars (numbers, booleans, nulls) are skipped by default. A plain
+  YAML 1.1 boolean (`yes`, `no`, `on`, `off`) counts as a boolean
+  even though YAML 1.2 resolves it as a string. A value that is one
+  absolute URL is extracted as a non-translatable Block unless
+  `translate_urls` is set. The
   nested key path (e.g. `en.activerecord.errors.messages.blank`)
   becomes the Block name. Anchors and aliases resolve to their
   referenced value at each use site, so an alias produces a Block of
-  its own. Multi-document streams (`---` separators) flow through as
-  a single sequence of Blocks.
+  its own. On write, anchors and tags stay in place and an alias
+  still writes as `*name`. Multi-document streams (`---` separators)
+  flow through as a single sequence of Blocks.
 
 config:
   # ── Extraction filtering (bridge `extraction.*` leaves) ───────────
@@ -372,6 +377,7 @@ features:
     native_refs:
       - yaml.TestReadAnchorAndAlias
       - yaml.TestReadScalarAnchorAlias
+      - yaml.TestTranslatedWrite_KeepsAnchorsAndTags
 
   - id: multi_document_stream
     name: Multi-document YAML stream

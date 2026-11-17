@@ -192,12 +192,6 @@ func (s *tokenReaderState) flushPendingWS() {
 	s.pendingWS = nil
 }
 
-// dropPendingWS discards buffered pure-WS tokens. Used when adjacent to a
-// text-unit (Okapi-style trimming).
-func (s *tokenReaderState) dropPendingWS() {
-	s.pendingWS = nil
-}
-
 // takePendingWS returns the buffered pure-WS tokens joined and clears the
 // buffer.
 func (s *tokenReaderState) takePendingWS() []byte {
@@ -276,7 +270,36 @@ func (s *tokenReaderState) onStructuralEvent(ctx context.Context, ch chan<- mode
 // tag (e.g. <b>, </b>) to the skeleton. Inline tags are part of the
 // text-unit, so any pendingWS is intra-unit and must be flushed.
 func (s *tokenReaderState) onInlineEvent() {
+	s.writeTrailingWSBeforeInline()
 	s.flushPendingWS()
+}
+
+// writeTrailingWSBeforeInline records the trailing whitespace of the last
+// text block when an inline tag is about to follow its ref. A structural event
+// later in the same text unit trims that whitespace off the block, and by then
+// the inline tag stands between the ref and the place the whitespace belongs.
+// So the whitespace goes to the skeleton now, as a SkeletonTrimmed entry keyed
+// to the trimmed rendering: the writer emits it only when the block renders to
+// exactly that, which holds when the trim happened and nothing edited the
+// block. When more text follows, the block keeps its whitespace, renders to
+// something else, and the entry writes nothing.
+func (s *tokenReaderState) writeTrailingWSBeforeInline() {
+	if s.lastTextBlock == nil || s.store.EntriesWritten() != s.lastTextBlockEntries {
+		return
+	}
+	runs := s.lastTextBlock.SourceRuns()
+	if len(runs) == 0 || runs[len(runs)-1].Text == nil {
+		return
+	}
+	text := runs[len(runs)-1].Text.Text
+	trimmed := strings.TrimRightFunc(text, isHTMLWhitespace)
+	if trimmed == text {
+		return
+	}
+	var rendered strings.Builder
+	rendered.WriteString(model.RenderRunsWithData(runs[:len(runs)-1]))
+	rendered.WriteString(trimmed)
+	s.store.WriteTrimmed([]byte(rendered.String()), []byte(text[len(trimmed):]))
 }
 
 // run processes HTML content with the tokenizer, writing skeleton data and
@@ -570,7 +593,11 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					markInteractiveAncestor(block, s.interactiveAncestor())
 					s.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
-					s.dropPendingWS()
+					// The whitespace dropped here is the document's
+					// own, so it goes to the skeleton as a
+					// SkeletonOriginal the writer replays while nothing
+					// edits the block.
+					leading := s.takePendingWS()
 					body := text
 					// Only trim leading whitespace at the start of a new
 					// text-unit. When `lastTextBlock` is set, this text is
@@ -582,6 +609,9 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					// part of the same unit.
 					if s.lastTextBlock == nil {
 						body = trimLeadingHTMLWhitespace(text)
+					}
+					if len(leading) > 0 || len(body) != len(text) {
+						s.store.WriteOriginal([]byte(body), append(leading, text...))
 					}
 					blockID := s.nextBlockID()
 					s.store.WriteRef(blockID)

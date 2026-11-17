@@ -75,3 +75,33 @@ func TestRenderBlockFragment_UnknownFormat(t *testing.T) {
 	assert.False(t, ok)
 	assert.Equal(t, []string{"asciidoc", "html", "markdown"}, formats.BlockFragmentFormats())
 }
+
+// A placeholder with a display form and no equivalent text, such as a Word
+// footnote reference, renders its display form in every format, so the
+// marker stays in the sentence. A placeholder with neither renders nothing.
+func TestRenderBlockFragment_PlaceholderDisplay(t *testing.T) {
+	b := model.NewBlock("", "")
+	b.ID = "p"
+	b.SetSemanticRole(model.RoleParagraph, 0)
+	b.SetSourceRuns([]model.Run{
+		{Text: &model.TextRun{Text: "in the third quarter"}},
+		{Ph: &model.PlaceholderRun{ID: "c3", Type: "struct:footnote", Data: `<w:footnoteReference w:id="1"/>`, Disp: "[1]"}},
+		{Text: &model.TextRun{Text: ", see"}},
+		{Ph: &model.PlaceholderRun{ID: "c4", Type: "struct:commentRange", Data: `<w:commentRangeStart/>`}},
+		{Text: &model.TextRun{Text: " it."}},
+	})
+
+	html, ok := formats.RenderBlockFragment(b, "html")
+	require.True(t, ok)
+	assert.Equal(t, "<p>in the third quarter[1], see it.</p>", html)
+
+	md, ok := formats.RenderBlockFragment(b, "markdown")
+	require.True(t, ok)
+	assert.Equal(t, "in the third quarter[1], see it.", md)
+
+	adoc, ok := formats.RenderBlockFragment(b, "asciidoc")
+	require.True(t, ok)
+	assert.Equal(t, "in the third quarter[1], see it.", adoc)
+
+	assert.Empty(t, b.SourceRuns()[1].Ph.Equiv, "the block keeps its runs")
+}
