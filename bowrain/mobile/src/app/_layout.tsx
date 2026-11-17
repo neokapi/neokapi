@@ -6,11 +6,15 @@
 import "../global.css";
 import "../lib/i18n";
 
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import {
+  persistQueryClientSave,
+  PersistQueryClientProvider,
+} from "@tanstack/react-query-persist-client";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AppState } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -19,8 +23,12 @@ import { useCSSVariable } from "uniwind";
 
 import { loadAppearance } from "../lib/appearance";
 import { AuthProvider, useAuth } from "../lib/auth";
-import { resendLost, setDecisionClient } from "../lib/decisions";
+import { UpdateBanner } from "../components/UpdateBanner";
+import { createUpdateController, loadUpdates, useUpdateReady } from "../lib/appUpdates";
+import { isBusy } from "../lib/busy";
+import { releaseDue, resendLost, setDecisionClient } from "../lib/decisions";
 import {
+  CACHE_BUSTER,
   CACHE_MAX_AGE,
   createQueryClient,
   persister,
@@ -50,6 +58,27 @@ function QueryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => startDecisionClock(queryClient), [queryClient]);
 
+  // Updates: checked on launch and on each return to the foreground, applied
+  // at the next safe foreground or from the banner.
+  const [updates] = useState(() =>
+    createUpdateController({
+      updates: loadUpdates(),
+      isBusy,
+      beforeReload: async () => {
+        releaseDue(queryClient, Date.now(), true);
+        await persistQueryClientSave({ queryClient, persister, buster: CACHE_BUSTER });
+      },
+    }),
+  );
+  useEffect(() => {
+    void updates.check(Date.now());
+    const sub = AppState.addEventListener("change", (status) => {
+      if (status === "active") void updates.foreground(Date.now());
+    });
+    return () => sub.remove();
+  }, [updates]);
+  const updateReady = useUpdateReady(updates);
+
   // Signing out drops the cache, any decision still queued and the project
   // the Activity tab remembers, so the next person on the device starts from
   // nothing.
@@ -65,13 +94,14 @@ function QueryProvider({ children }: { children: ReactNode }) {
   return (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: "1" }}
+      persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: CACHE_BUSTER }}
       onSuccess={() => {
         resendLost(queryClient);
         void queryClient.resumePausedMutations();
       }}
     >
       {children}
+      {updateReady ? <UpdateBanner onRestart={() => void updates.apply()} /> : null}
     </PersistQueryClientProvider>
   );
 }

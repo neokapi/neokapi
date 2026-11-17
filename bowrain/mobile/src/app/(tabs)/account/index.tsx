@@ -35,14 +35,28 @@ function ProfileHeader() {
   );
 }
 
-/** The update the app runs: its id, the build's own bundle, or none in development. */
-function updateLabel(info: AppInfo, t: (key: string) => string): string {
+/**
+ * The update the app runs: when it was published and the start of its id,
+ * the build's own bundle, or none in development.
+ */
+function updateLabel(info: AppInfo, t: (key: string) => string, uiLanguage: string): string {
   if (!info.updatesEnabled) return t("account.about.updateNone");
-  return info.updateId ?? t("account.about.updateEmbedded");
+  if (!info.updateId) return t("account.about.updateEmbedded");
+  const id = info.updateId.slice(0, 8);
+  if (!info.updateCreatedAt) return id;
+  let when: string;
+  try {
+    when = new Intl.DateTimeFormat(uiLanguage, { dateStyle: "medium", timeStyle: "short" }).format(
+      info.updateCreatedAt,
+    );
+  } catch {
+    when = info.updateCreatedAt.toISOString().slice(0, 16).replace("T", " ");
+  }
+  return `${when} · ${id}`;
 }
 
 export default function Account() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { session, signOut } = useAuth();
   const qc = useQueryClient();
   const appearance = useAppearance();
@@ -136,7 +150,7 @@ export default function Account() {
         <Cell
           testID="about-update"
           title={t("account.about.update")}
-          value={updateLabel(info, t)}
+          value={updateLabel(info, t, i18n.language)}
         />
         {info.channel ? <Cell title={t("account.about.channel")} value={info.channel} /> : null}
       </Section>

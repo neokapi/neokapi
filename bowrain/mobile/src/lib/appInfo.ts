@@ -21,6 +21,8 @@ export interface AppInfo {
   build: string | null;
   /** The running update's id; null when the build runs its own bundle. */
   updateId: string | null;
+  /** When the running update was published; null for the build's own bundle. */
+  updateCreatedAt: Date | null;
   /** Whether the binary takes updates at all. */
   updatesEnabled: boolean;
   channel: string | null;
@@ -33,6 +35,8 @@ export function appInfo(): AppInfo {
     version: Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "",
     build: Application.nativeBuildVersion,
     updateId: enabled && updates && !updates.isEmbeddedLaunch ? updates.updateId : null,
+    updateCreatedAt:
+      enabled && updates && !updates.isEmbeddedLaunch ? (updates.createdAt ?? null) : null,
     updatesEnabled: enabled,
     channel: enabled ? (updates?.channel ?? null) : null,
   };

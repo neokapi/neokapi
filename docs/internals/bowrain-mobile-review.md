@@ -451,7 +451,13 @@ dependency, and covers the new directory once it has its `LICENSE`.
 - EAS Build and EAS Submit, run from EAS Workflows or CI beside
   `release-bowrain.yml`, on the `bowrain-v*` tags.
 - EAS Update for JavaScript-only fixes between store releases. Apple allows
-  over-the-air updates that do not change the app's primary purpose.
+  over-the-air updates that do not change the app's primary purpose. The app
+  checks when it opens and on each return to the foreground (at most every ten
+  minutes), downloads in the background, and applies a downloaded update at
+  the next return to the foreground unless the fix sheet is open, behind the
+  splash screen. Under an open sheet it offers Restart in a banner instead.
+  Held decisions are sent and the cache saved before the reload
+  (`src/lib/appUpdates.ts`).
 - Store requirements in 2026: Google Play requires target API level 36 for
   new apps and updates since 2026-08-31; Apple requires privacy manifests for
   the SDKs an app uses and the account-deletion rule above.
