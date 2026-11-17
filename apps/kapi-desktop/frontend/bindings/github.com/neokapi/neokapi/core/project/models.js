@@ -232,6 +232,17 @@ export class Collection {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Priority orders this collection's content for review against the
+             * project's other collections: high, normal or low. Empty takes
+             * defaults.priority. A review surface deals the high collections first and
+             * the low ones last.
+             * @member
+             * @type {string | undefined}
+             */
+            this["priority"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Redaction is the redaction policy for the files this collection's items
              * claim, on a named collection and on a bare entry alike. It replaces
              * `defaults.redaction` for those files whole, and an item's own
@@ -276,8 +287,8 @@ export class Collection {
         const $$createField2_0 = $$createType1;
         const $$createField3_0 = $$createType3;
         const $$createField6_0 = $$createType4;
-        const $$createField8_0 = $$createType6;
-        const $$createField10_0 = $$createType8;
+        const $$createField9_0 = $$createType6;
+        const $$createField11_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -289,10 +300,10 @@ export class Collection {
             $$parsedSource["coordinates"] = $$createField6_0($$parsedSource["coordinates"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField8_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField9_0($$parsedSource["redaction"]);
         }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField10_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField11_0($$parsedSource["format"]);
         }
         return new Collection(/** @type {Partial<Collection>} */($$parsedSource));
     }
@@ -883,6 +894,15 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Priority is the review priority every collection takes unless it sets
+             * its own: high, normal or low. Empty is normal.
+             * @member
+             * @type {string | undefined}
+             */
+            this["priority"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Tools holds project-level tool presets: per-tool config defaults applied
              * wherever the tool runs in a project flow. A flow step's own config
              * overrides the preset per key (step wins), so a project can pin, say,
@@ -930,8 +950,8 @@ export class Defaults {
         const $$createField18_0 = $$createType16;
         const $$createField19_0 = $$createType18;
         const $$createField20_0 = $$createType4;
-        const $$createField21_0 = $$createType20;
-        const $$createField22_0 = $$createType22;
+        const $$createField22_0 = $$createType20;
+        const $$createField23_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -967,10 +987,10 @@ export class Defaults {
             $$parsedSource["coordinates"] = $$createField20_0($$parsedSource["coordinates"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField21_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField22_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField22_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField23_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
