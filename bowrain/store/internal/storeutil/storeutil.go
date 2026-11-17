@@ -108,3 +108,19 @@ func SplitLocales(s string) []model.LocaleID {
 	}
 	return locales
 }
+
+// VerbatimInJSON says text appears byte for byte in the JSON encoding/json
+// writes for any string holding it, so a substring test on the encoded
+// source can rule a row out before the row's JSON is parsed. Quotes,
+// backslashes, control characters, the HTML characters <, > and &, and the
+// line and paragraph separators U+2028 and U+2029 are escaped by the encoder,
+// so text holding one of them does not appear verbatim.
+func VerbatimInJSON(text string) bool {
+	for _, r := range text {
+		switch {
+		case r < 0x20, r == '"', r == '\\', r == '<', r == '>', r == '&', r == ' ', r == ' ':
+			return false
+		}
+	}
+	return text != ""
+}
