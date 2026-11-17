@@ -57,11 +57,18 @@ func TestContextRuleExamples(t *testing.T) {
 	code, out := get(hype.Item.Profile, hype.Item.ID)
 	require.Equal(t, http.StatusOK, code)
 	require.Len(t, out.Examples, 3, "the limit holds even where more text matches")
-	assert.Equal(t, "powerful", out.Examples[0].Match)
-	assert.Equal(t, "A ", out.Examples[0].Before)
-	assert.Equal(t, " engine.", out.Examples[0].After)
-	assert.Equal(t, "docs/intro.md", out.Examples[0].Item)
-	assert.Equal(t, 3, out.Scanned, "the walk stopped at the third example")
+	// The walk goes in block id order, which is not the file's order.
+	var matches []string
+	for _, ex := range out.Examples {
+		matches = append(matches, ex.Before+"["+ex.Match+"]"+ex.After)
+		assert.Equal(t, "docs/intro.md", ex.Item)
+	}
+	assert.ElementsMatch(t, []string{
+		"A [powerful] engine.",
+		"So [blazing] fast, and powerful too.",
+		"So blazing fast, and [powerful] too.",
+	}, matches)
+	assert.Equal(t, 2, out.Scanned, "the walk reads only blocks holding one of the rule's words")
 	assert.False(t, out.Complete)
 
 	code, _ = get(hype.Item.Profile, "nope")

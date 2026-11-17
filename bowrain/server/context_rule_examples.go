@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -102,7 +103,7 @@ func (s *Server) ruleExamples(ctx context.Context, projectID string, rule corepr
 	ctx, cancel := context.WithTimeout(ctx, ruleExampleBudget)
 	defer cancel()
 	out := ruleExamplesResponse{Examples: []ruleExample{}}
-	scope := platstore.BlockQuery{ProjectID: projectID, Stream: reviewInboxStream}
+	scope := platstore.BlockQuery{ProjectID: projectID, Stream: reviewInboxStream, TextAny: ruleCandidates(rule.Regex)}
 	err := platstore.EachBlockBatch(ctx, s.ContentStore, scope, 0, func(blocks []*venue.StoredBlock) error {
 		for _, b := range blocks {
 			out.Scanned++
@@ -127,4 +128,21 @@ func (s *Server) ruleExamples(ctx context.Context, projectID string, rule corepr
 		return out, err
 	}
 	return out, nil
+}
+
+// ruleCandidates is the text a block must contain for rule to match it, when
+// the rule is a list of words: each word, with an open end trimmed ("util…"
+// is any block containing "util"). A rule with no word list walks every
+// block.
+func ruleCandidates(regex string) []string {
+	words := coreprofile.PatternWords(regex)
+	out := make([]string, 0, len(words))
+	for _, w := range words {
+		w = strings.TrimSuffix(w, "…")
+		if w == "" {
+			return nil
+		}
+		out = append(out, w)
+	}
+	return out
 }

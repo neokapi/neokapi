@@ -1274,6 +1274,14 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 		}
 		where = append(where, match)
 	}
+	if len(query.TextAny) > 0 {
+		alts := make([]string, 0, len(query.TextAny))
+		for _, text := range query.TextAny {
+			alts = append(alts, sqliteSourceTextMatch)
+			whereArgs = append(whereArgs, text)
+		}
+		where = append(where, "("+strings.Join(alts, " OR ")+")")
+	}
 	if withStatus && query.Status != "" && join != "" {
 		where = append(where, sqliteStatusBucket+" = ?")
 		whereArgs = append(whereArgs, query.Status)
