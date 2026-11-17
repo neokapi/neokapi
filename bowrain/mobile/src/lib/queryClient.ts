@@ -8,7 +8,7 @@ import { AppState, Platform } from "react-native";
 
 import { isNetworkError } from "@neokapi/bowrain-client";
 
-import { registerDecisionDefaults, shouldRetry } from "./decisions";
+import { registerDecisionDefaults, releaseDue, shouldRetry } from "./decisions";
 
 /** How long a persisted cache stays usable: a reviewer may stay offline for a day. */
 export const CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -58,4 +58,20 @@ export function wireAppSignals(): void {
     });
     return () => sub.remove();
   });
+}
+
+/**
+ * Send held decisions as their grace runs out, and every held decision when
+ * the app leaves the foreground, where nobody can undo one and timers stop.
+ * Returns the function that stops it.
+ */
+export function startDecisionClock(qc: QueryClient): () => void {
+  const timer = setInterval(() => releaseDue(qc, Date.now()), 1000);
+  const sub = AppState.addEventListener("change", (status) => {
+    if (status !== "active") releaseDue(qc, Date.now(), true);
+  });
+  return () => {
+    clearInterval(timer);
+    sub.remove();
+  };
 }

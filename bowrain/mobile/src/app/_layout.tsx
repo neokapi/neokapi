@@ -19,8 +19,14 @@ import { useCSSVariable } from "uniwind";
 
 import { loadAppearance } from "../lib/appearance";
 import { AuthProvider, useAuth } from "../lib/auth";
-import { setDecisionClient } from "../lib/decisions";
-import { CACHE_MAX_AGE, createQueryClient, persister, wireAppSignals } from "../lib/queryClient";
+import { resendLost, setDecisionClient } from "../lib/decisions";
+import {
+  CACHE_MAX_AGE,
+  createQueryClient,
+  persister,
+  startDecisionClock,
+  wireAppSignals,
+} from "../lib/queryClient";
 import { loadRecentProject, setRecentProject } from "../lib/recentProject";
 
 void SplashScreen.preventAutoHideAsync();
@@ -42,6 +48,8 @@ function QueryProvider({ children }: { children: ReactNode }) {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
 
+  useEffect(() => startDecisionClock(queryClient), [queryClient]);
+
   // Signing out drops the cache, any decision still queued and the project
   // the Activity tab remembers, so the next person on the device starts from
   // nothing.
@@ -59,6 +67,7 @@ function QueryProvider({ children }: { children: ReactNode }) {
       client={queryClient}
       persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: "1" }}
       onSuccess={() => {
+        resendLost(queryClient);
         void queryClient.resumePausedMutations();
       }}
     >
@@ -121,6 +130,7 @@ function Screens() {
           name="[ws]/[project]/[locale]"
           options={{ title: t("deck.title"), headerTransparent: false }}
         />
+        <Stack.Screen name="[ws]/[project]/reviewed" options={{ title: t("reviewed.title") }} />
         <Stack.Screen
           name="[ws]/[project]/context"
           options={{ title: t("context.title"), headerTransparent: false }}

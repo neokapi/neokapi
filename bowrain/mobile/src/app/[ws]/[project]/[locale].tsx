@@ -1,7 +1,8 @@
 // The review deck for one language: a stack of cards, swiped or tapped to
-// decide, one at a time. Decisions go to the offline queue and are sent in
-// order; Undo takes back the last one and the card comes back from the side
-// it left by. Opened from a language's collections, the deck holds one
+// decide, one at a time. A decision waits on the device for a few seconds
+// under an Undo bar, then goes to the offline queue and is sent in order.
+// Undo takes back the last one and the card comes back from the side it left
+// by; Reviewed lists every decision made here, each with its own Undo. Opened from a language's collections, the deck holds one
 // collection, and its end offers the next one with anything waiting.
 import type {
   DeckCard,
@@ -42,17 +43,21 @@ import {
   type SwipeSide,
 } from "../../../components/SwipeCard";
 import { useAuth } from "../../../lib/auth";
+import { UndoSnackbar } from "../../../components/UndoSnackbar";
 import {
   DECISION_KEY,
   dismissNotice,
+  hidesCard,
+  holdDecision,
+  lastDecision,
   NOTICES_KEY,
   planUndo,
-  undoLast,
+  undoDecision,
+  useDecisionLog,
   WITHDRAW_KEY,
   type DecisionKind,
   type DecisionNotice,
-  type DecisionResult,
-  type DecisionVars,
+  type LoggedDecision,
   type WithdrawVars,
 } from "../../../lib/decisions";
 import {
@@ -110,24 +115,34 @@ export default function DeckScreen() {
     getNextPageParam: (last) => last.nextCursor,
   });
 
-  // The cards this person decided on this device and the server has not yet
-  // dropped from the deck: queued, in flight, or landed.
-  const decided = useMutationState({
-    filters: { mutationKey: DECISION_KEY },
-    select: (m) => {
-      const v = m.state.variables as DecisionVars | undefined;
-      const data = m.state.data as DecisionResult | undefined;
-      if (!v) return "";
-      if (m.state.status === "pending") return cardId(v.card);
-      if (
-        m.state.status === "success" &&
-        (data?.outcome === "applied" || data?.outcome === "held")
-      ) {
-        return cardId(v.card);
-      }
-      return "";
-    },
-  });
+  // The decisions made on this device in this deck: the cards they keep out
+  // of it, the progress of this visit, and the one Undo takes back.
+  const log = useDecisionLog();
+  const [since] = useState(Date.now);
+  const inDeck = useCallback(
+    (e: LoggedDecision) =>
+      e.vars.scope.workspace === ws &&
+      e.vars.scope.project === project &&
+      e.vars.card.locale === locale &&
+      (collection === undefined || e.vars.card.collectionId === collection),
+    [ws, project, locale, collection],
+  );
+  const decided = useMemo(
+    () => log.filter((e) => inDeck(e) && hidesCard(e)).map((e) => cardId(e.vars.card)),
+    [log, inDeck],
+  );
+  const reviewed = useMemo(
+    () => log.filter((e) => inDeck(e) && e.vars.madeAt >= since && hidesCard(e)),
+    [log, inDeck, since],
+  );
+  const last = lastDecision(log, inDeck);
+  const canUndo = last !== null && planUndo(qc, last) !== null;
+  const madeHere = log.filter(
+    (e) =>
+      e.vars.scope.workspace === ws &&
+      e.vars.scope.project === project &&
+      e.vars.card.locale === locale,
+  ).length;
   const queued = useMutationState({
     filters: { mutationKey: DECISION_KEY, status: "pending" },
     select: (m) => m.state.submittedAt,
@@ -140,9 +155,6 @@ export default function DeckScreen() {
     mode: "fix" | "reject";
     flown: boolean;
   } | null>(null);
-  const [undoable, setUndoable] = useState(false);
-  // The cards decided in this visit, for the progress line.
-  const [reviewed, setReviewed] = useState<string[]>([]);
   // A card brought back by Undo, and the side it slides in from.
   const [entering, setEntering] = useState<{ id: string; from: SwipeSide } | null>(null);
   const drag = useSharedValue(0);
@@ -192,7 +204,6 @@ export default function DeckScreen() {
     });
   };
 
-  const decide = useMutation<DecisionResult, unknown, DecisionVars>({ mutationKey: DECISION_KEY });
   const withdraw = useMutation<unknown, unknown, WithdrawVars>({ mutationKey: WITHDRAW_KEY });
 
   const record = useCallback(
@@ -201,14 +212,19 @@ export default function DeckScreen() {
       kind: DecisionKind,
       extra: { runs?: Run[]; reasons?: FixReason[]; note?: string } = {},
     ) => {
-      decide.mutate({ id: Crypto.randomUUID(), scope, card, kind, madeAt: Date.now(), ...extra });
-      setUndoable(true);
-      setReviewed((r) => [...r, cardId(card)]);
+      holdDecision(qc, {
+        id: Crypto.randomUUID(),
+        scope,
+        card,
+        kind,
+        madeAt: Date.now(),
+        ...extra,
+      });
       if (kind === "approve")
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       else void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     },
-    [decide, scope],
+    [qc, scope],
   );
 
   const swipeRef = useRef<SwipeCardHandle>(null);
@@ -230,13 +246,10 @@ export default function DeckScreen() {
   );
 
   const onUndo = () => {
-    const plan = planUndo(qc);
-    const card = undoLast(qc, (v) => withdraw.mutate(v));
-    setUndoable(planUndo(qc) !== null);
-    if (!card || !plan) return;
-    const id = cardId(card);
-    setReviewed((r) => r.filter((k) => k !== id));
-    setEntering({ id, from: plan.vars.kind === "reject" ? "left" : "right" });
+    if (!last) return;
+    const card = undoDecision(qc, last.vars.id, (v) => withdraw.mutate(v));
+    if (!card) return;
+    setEntering({ id: cardId(card), from: last.vars.kind === "reject" ? "left" : "right" });
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -244,14 +257,6 @@ export default function DeckScreen() {
     if (fixing?.flown) swipeRef.current?.restore("left");
     setFixing(null);
   };
-  // Whether Undo applies changes as a decision moves from queued to sent,
-  // which `decided` above does not notice. The states are read into the
-  // condition so a memoizing compiler recomputes it when any of them changes.
-  const decisionStates = useMutationState({
-    filters: { mutationKey: DECISION_KEY },
-    select: (m) => `${m.state.status}:${m.state.isPaused}`,
-  });
-  const canUndo = undoable && decisionStates.length > 0 && planUndo(qc) !== null;
 
   const notices = useQuery<DecisionNotice[]>({
     queryKey: NOTICES_KEY,
@@ -266,6 +271,25 @@ export default function DeckScreen() {
       <Stack.Screen
         options={{
           ...(collectionName ? { title: collectionName } : {}),
+          headerRight: () =>
+            madeHere > 0 ? (
+              <Pressable
+                testID="deck-reviewed"
+                accessibilityRole="button"
+                accessibilityHint={t("reviewed.openHint")}
+                hitSlop={8}
+                onPress={() =>
+                  router.push({
+                    pathname: "/[ws]/[project]/reviewed",
+                    params: { ws, project, locale },
+                  })
+                }
+              >
+                <Text className="text-primary text-base">
+                  {t("reviewed.open", { count: madeHere })}
+                </Text>
+              </Pressable>
+            ) : null,
           headerStyle: { backgroundColor: String(pageBackground) },
           headerTintColor: String(pageForeground),
           headerShadowVisible: false,
@@ -376,6 +400,10 @@ export default function DeckScreen() {
           />
         )}
       </View>
+
+      {last?.phase === "held" ? (
+        <UndoSnackbar entry={last} online={online} onUndo={onUndo} />
+      ) : null}
 
       {top ? (
         <ActionBar
