@@ -256,6 +256,10 @@ export interface ContextDecisionResult {
 export interface DeckCollection {
   collection_id: string;
   name: string;
+  /** The channel the collection's recipe binds, such as `neokapi/desktop`. */
+  channel?: string;
+  /** The point the collection declares: axis to value, such as `product: kapi`. */
+  coordinates?: Record<string, string>;
   waiting: number;
   fast: number;
   closer: number;
@@ -354,6 +358,12 @@ export interface DeckCard {
   group: DeckGroup;
   /** Why the server placed the card in its group. */
   reason?: string;
+  /**
+   * The reason as a code a client words itself: rejected, failing_findings,
+   * stale_source, redraft, long_source, findings, no_pre_review, low_score or
+   * fast. A code a newer server adds falls back to `reason`.
+   */
+  reasonCode?: string;
   preReview?: PreReview;
   /** The term, voice, check and pre-review notes the server returns for the card. */
   notes: DeckNote[];

@@ -9,6 +9,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // deckCollection is the review deck of one language narrowed to one
@@ -18,6 +19,11 @@ type deckCollection struct {
 	// empty for the blocks in no collection, and for the whole language.
 	CollectionID string `json:"collection_id"`
 	Name         string `json:"name"`
+	// Channel and Coordinates say where the collection's content is read:
+	// the channel its recipe binds and the point it declares. A reviewer
+	// reads them as the product and surface a string ships on.
+	Channel     string            `json:"channel,omitempty"`
+	Coordinates map[string]string `json:"coordinates,omitempty"`
 	deckWaiting
 	// Translations is every translation of the language in the collection,
 	// and Decided the part no longer waiting: approved, or rejected and
@@ -88,12 +94,22 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		addDeckCollection(&out.All, deckCollectionOf("", "", n))
 	}
 	var waiting, done []deckCollection
-	add := func(id, name string) {
+	add := func(coll *store.Collection) {
+		id, name := "", ""
+		if coll != nil {
+			id, name = coll.ID, coll.Name
+		}
 		n, ok := counts[id]
 		if !ok || n.Translations == 0 {
 			return
 		}
 		dc := deckCollectionOf(id, name, n)
+		if coll != nil {
+			dc.Channel = coll.ConnectorConfig[coreprofile.PropertyChannel]
+			if len(coll.Context) > 0 {
+				dc.Coordinates = coll.Context
+			}
+		}
 		if dc.Waiting > 0 {
 			waiting = append(waiting, dc)
 		} else {
@@ -102,10 +118,10 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 	}
 	for _, coll := range colls {
 		if coll.ID != "" {
-			add(coll.ID, coll.Name)
+			add(coll)
 		}
 	}
-	add("", "")
+	add(nil)
 	out.Collections = append(append(out.Collections, waiting...), done...)
 	return c.JSON(http.StatusOK, out)
 }

@@ -1,6 +1,9 @@
 package reviewdeck
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // A review deck orders the translations waiting for review by how much
 // attention each needs: the cards a reviewer can judge at a glance, the ones
@@ -101,4 +104,48 @@ func ClassifyDeckCard(f DeckFacts, p DeckPolicy) (DeckGroup, string) {
 		return DeckCloser, fmt.Sprintf("pre-review score %d", *f.Score)
 	}
 	return DeckFast, fmt.Sprintf("no findings, pre-review score %d", *f.Score)
+}
+
+// DeckReason names why a card sits in its group, so a client can word the
+// reason in the reader's language. The counts and the score the English
+// reason carries are on the card beside it.
+type DeckReason string
+
+const (
+	DeckReasonRejected        DeckReason = "rejected"
+	DeckReasonFailingFindings DeckReason = "failing_findings"
+	DeckReasonStaleSource     DeckReason = "stale_source"
+	DeckReasonRedraft         DeckReason = "redraft"
+	DeckReasonLongSource      DeckReason = "long_source"
+	DeckReasonFindings        DeckReason = "findings"
+	DeckReasonNoPreReview     DeckReason = "no_pre_review"
+	DeckReasonLowScore        DeckReason = "low_score"
+	DeckReasonFast            DeckReason = "fast"
+)
+
+// DeckReasonOf names the reason ClassifyDeckCard gave. Stored deck facts keep
+// the English reason, so the code is read back from it; an unknown reason has
+// no code.
+func DeckReasonOf(reason string) DeckReason {
+	switch {
+	case reason == "rejected, waiting for a new draft":
+		return DeckReasonRejected
+	case strings.HasSuffix(reason, "failing finding"), strings.HasSuffix(reason, "failing findings"):
+		return DeckReasonFailingFindings
+	case reason == "the source changed after the translation was approved":
+		return DeckReasonStaleSource
+	case reason == "a new draft after a rejection":
+		return DeckReasonRedraft
+	case strings.HasPrefix(reason, "a long source"):
+		return DeckReasonLongSource
+	case strings.HasSuffix(reason, " finding"), strings.HasSuffix(reason, " findings"):
+		return DeckReasonFindings
+	case reason == "no pre-review score":
+		return DeckReasonNoPreReview
+	case strings.HasPrefix(reason, "pre-review score"):
+		return DeckReasonLowScore
+	case strings.HasPrefix(reason, "no findings, pre-review score"):
+		return DeckReasonFast
+	}
+	return ""
 }

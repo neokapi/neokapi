@@ -208,6 +208,7 @@ func (s *Server) fillReviewPoint(
 			out.CollectionID = item.CollectionID
 			if coll, cerr := s.ContentStore.GetCollection(ctx, proj.ID, item.CollectionID); cerr == nil && coll != nil {
 				p.Collection = coll.Name
+				p.Channel = coll.ConnectorConfig[coreprofile.PropertyChannel]
 				if len(coll.Context) > 0 {
 					p.Coordinates = coll.Context
 				}
