@@ -1,11 +1,14 @@
-// A run sequence drawn as text, with each placeholder and inline code as a
-// chip. The projection is a RunSpec over every run kind, so no kind can be
-// dropped without saying so; a plural or select shows every form, labelled.
-import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+// A run sequence drawn for reading. Placeholders are chips that show a
+// variable's name or word the code's kind; a paired code draws its content
+// as styled text, with no tags. Nothing shows a code's native data: every
+// code goes through codeDisplays and CodeChip. The projection is a RunSpec
+// over every run kind, so no kind can be dropped without saying so; a plural
+// or select shows every form, labelled.
+import { codeDisplays, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 import { Fragment, type ReactNode } from "react";
 import { Text } from "react-native";
 
-import { codeLabels } from "./codeLabels";
+import { CodeChip } from "./CodeChip";
 
 export interface RunTextProps {
   runs: readonly Run[];
@@ -14,20 +17,6 @@ export interface RunTextProps {
   /** Secondary ink, for the source above a translation. */
   muted?: boolean;
   testID?: string;
-}
-
-export function Chip({ label, testID }: { label: string; testID?: string }) {
-  return (
-    // A nested Text takes the size of the text around it. Uniwind resolves
-    // an em size by recursing until the stack overflows, so none is set.
-    <Text
-      testID={testID}
-      accessibilityLabel={label}
-      className="bg-chip text-chip-foreground rounded-md px-1 font-mono"
-    >
-      {label}
-    </Text>
-  );
 }
 
 function branchList(prefix: string, branches: Record<string, Run[] | undefined>): ReactNode {
@@ -40,21 +29,36 @@ function branchList(prefix: string, branches: Record<string, Run[] | undefined>)
   ));
 }
 
+// Text inside a paired code reads as marked: underlined and tinted, the way
+// a link or a styled span sits in a sentence.
+const IN_PAIR = "bg-chip/40 underline decoration-dotted";
+
 function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
-  const label = codeLabels(runs);
+  const code = codeDisplays(runs);
   let i = 0;
+  let depth = 0;
   const key = () => `${prefix}-${i++}`;
   return {
-    text: (r) => <Text key={key()}>{r.text}</Text>,
-    ph: ({ ph }) => <Chip key={key()} label={label.ph(ph)} testID="run-chip" />,
-    pcOpen: ({ pcOpen }) => <Chip key={key()} label={label.pcOpen(pcOpen)} testID="run-chip" />,
-    pcClose: ({ pcClose }) => <Chip key={key()} label={label.pcClose(pcClose)} testID="run-chip" />,
-    sub: ({ sub }) => <Chip key={key()} label={label.sub(sub)} testID="run-chip" />,
+    text: (r) => (
+      <Text key={key()} className={depth > 0 ? IN_PAIR : undefined}>
+        {r.text}
+      </Text>
+    ),
+    ph: ({ ph }) => <CodeChip key={key()} display={code.ph(ph)} testID="run-chip" />,
+    pcOpen: () => {
+      depth++;
+      return null;
+    },
+    pcClose: () => {
+      depth = Math.max(0, depth - 1);
+      return null;
+    },
+    sub: ({ sub }) => <CodeChip key={key()} display={code.sub(sub)} testID="run-chip" />,
     plural: ({ plural }) => {
       const k = key();
       return (
         <Fragment key={k}>
-          <Chip label={`{${plural.pivot}}`} testID="run-chip" />
+          <CodeChip display={code.choice(plural.pivot)} testID="run-chip" />
           {branchList(k, plural.forms)}
         </Fragment>
       );
@@ -63,12 +67,12 @@ function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
       const k = key();
       return (
         <Fragment key={k}>
-          <Chip label={`{${select.pivot}}`} testID="run-chip" />
+          <CodeChip display={code.choice(select.pivot)} testID="run-chip" />
           {branchList(k, select.cases)}
         </Fragment>
       );
     },
-    fallback: (kind) => <Chip key={key()} label={`{${kind}}`} testID="run-chip-unknown" />,
+    fallback: () => <CodeChip key={key()} display={code.unknown()} testID="run-chip-unknown" />,
   };
 }
 

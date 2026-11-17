@@ -93,6 +93,7 @@ run_check "Documentation palettes are fresh" make check-docs-palette
 # Ungated: a hand-rolled run walk is written wherever someone needs "just the
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh
+run_check "No surface shows coded text" ./scripts/check-code-display.sh
 
 # Ungated: a camelCase json tag on an output type changes a field name every
 # script and agent reads. ~1s.

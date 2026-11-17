@@ -1,4 +1,5 @@
 import React from "react";
+import { CODE_KIND_WORDS, codeKind, humanCodeName } from "@neokapi/kapi-format";
 import { cn } from "../../lib/utils";
 import type { Run, SegmentSpan } from "./types";
 
@@ -44,12 +45,29 @@ export default function RunSequence({ runs, segments }: RunSequenceProps): React
   );
 }
 
+/**
+ * What a chip says for a code: its human name, else its kind. A code's native
+ * data and a synthesized identifier never reach the screen.
+ */
+function codeWordOf(code: {
+  type?: string;
+  subType?: string;
+  equiv?: string;
+  disp?: string;
+  data?: string;
+}): string {
+  return (
+    humanCodeName(code.disp, code.equiv, code.data) ??
+    CODE_KIND_WORDS[codeKind(code.type ?? "", code.subType)]
+  );
+}
+
 function RunChip({ run }: { run: Run }): React.ReactElement {
   if (run.text !== undefined) {
     return <span className="whitespace-pre-wrap">{run.text}</span>;
   }
   if (run.ph) {
-    const label = run.ph.equiv || run.ph.data || `#${run.ph.id}`;
+    const label = codeWordOf(run.ph);
     return (
       <span className={cn(CHIP, CHIP_PH)} title={`placeholder ${run.ph.type ?? ""}`}>
         {label}
@@ -57,7 +75,7 @@ function RunChip({ run }: { run: Run }): React.ReactElement {
     );
   }
   if (run.pcOpen) {
-    const label = run.pcOpen.equiv || run.pcOpen.data || `<${run.pcOpen.id}>`;
+    const label = codeWordOf(run.pcOpen);
     return (
       <span className={cn(CHIP, CHIP_PC)} title={`open code ${run.pcOpen.type ?? ""}`}>
         {label}
@@ -65,7 +83,7 @@ function RunChip({ run }: { run: Run }): React.ReactElement {
     );
   }
   if (run.pcClose) {
-    const label = run.pcClose.equiv || run.pcClose.data || `</${run.pcClose.id}>`;
+    const label = codeWordOf(run.pcClose);
     return (
       <span className={cn(CHIP, CHIP_PC)} title="close code">
         {label}
@@ -75,7 +93,7 @@ function RunChip({ run }: { run: Run }): React.ReactElement {
   if (run.sub) {
     return (
       <span className={cn(CHIP, CHIP_SUB)} title="sub-block reference">
-        → {run.sub.ref}
+        → {humanCodeName(run.sub.equiv, run.sub.ref) ?? CODE_KIND_WORDS.content}
       </span>
     );
   }

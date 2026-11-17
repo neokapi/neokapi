@@ -13,19 +13,19 @@ func TestRunsDisplayText(t *testing.T) {
 		want string
 	}{
 		{
-			name: "a code finder's placeholder reads as its native form",
+			name: "a code finder's placeholder reads as the name inside its native form",
 			runs: []Run{TextR("Failed to cordon node "), {Ph: &PlaceholderRun{ID: "c1", Type: "code", Data: "{{name}}"}}},
-			want: "Failed to cordon node {{name}}",
+			want: "Failed to cordon node name",
 		},
 		{
 			name: "a display text wins over the native form",
 			runs: []Run{TextR("Hi "), {Ph: &PlaceholderRun{ID: "1", Data: "%1$s", Disp: "{user}"}}},
-			want: "Hi {user}",
+			want: "Hi user",
 		},
 		{
-			name: "a placeholder with only an equiv reads as it in braces",
+			name: "a placeholder with only an equiv reads as it",
 			runs: []Run{TextR("Hi "), {Ph: &PlaceholderRun{ID: "1", Equiv: "user"}}},
-			want: "Hi {user}",
+			want: "Hi user",
 		},
 		{
 			name: "paired codes keep the text between them",
@@ -43,7 +43,21 @@ func TestRunsDisplayText(t *testing.T) {
 				PluralOne:   {TextR("one file")},
 				PluralOther: {{Ph: &PlaceholderRun{ID: "1", Data: "{n}"}}, TextR(" files")},
 			}}}},
-			want: "{n} files",
+			want: "n files",
+		},
+		{
+			name: "coded text never shows: a synthesized identifier and native markup",
+			runs: []Run{
+				TextR("Reach "),
+				{PcOpen: &PcOpenRun{ID: "0", Type: "jsx:element", SubType: "span", Data: `<span className="x">`, Equiv: "=m0"}},
+				{Ph: &PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{serverURL}", Equiv: "serverURL"}},
+				{PcClose: &PcCloseRun{ID: "0", Type: "jsx:element", SubType: "span", Data: "</span>", Equiv: "=m0"}},
+				TextR(" or "),
+				{Ph: &PlaceholderRun{ID: "2", Type: "jsx:node", Data: "{open && <Link/>}", Equiv: "=m2"}},
+				TextR(" and "),
+				{Ph: &PlaceholderRun{ID: "3", Data: "%1$s"}},
+			},
+			want: "Reach serverURL or content and value",
 		},
 	}
 	for _, tt := range tests {

@@ -5,7 +5,7 @@ import { diffRuns, type DiffToken, type FixDiff } from "@neokapi/bowrain-client"
 import type { Run } from "@neokapi/kapi-format";
 import { Text, View } from "react-native";
 
-import { Chip } from "./RunText";
+import { CodeChip } from "./CodeChip";
 
 function tokenNode(t: DiffToken, key: string, className?: string) {
   if (t.kind === "text") {
@@ -15,7 +15,7 @@ function tokenNode(t: DiffToken, key: string, className?: string) {
       </Text>
     );
   }
-  return <Chip key={key} label={t.label} />;
+  return <CodeChip key={key} display={t.display} />;
 }
 
 /** The diff between a draft and a fix, both as runs. */

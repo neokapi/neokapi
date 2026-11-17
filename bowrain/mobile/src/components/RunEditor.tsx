@@ -2,31 +2,42 @@
 // locked chips. The runs become a row of segments: an editable field for each
 // stretch of text, and a chip for each code, so typing can never break or
 // drop a code. Text marked not for translation is locked as well.
-import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import {
+  codeDisplays,
+  projectRuns,
+  type CodeDisplay,
+  type ModelRunSpec,
+  type Run,
+} from "@neokapi/kapi-format";
 import { useMemo } from "react";
 import { TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { codeLabels } from "./codeLabels";
-import { Chip } from "./RunText";
+import { CodeChip, LockedText } from "./CodeChip";
 
-/** One segment of the editor. */
-export type Segment = { kind: "text"; text: string } | { kind: "locked"; run: Run; label: string };
+/**
+ * One segment of the editor: a field, a locked code (drawn from its display,
+ * never from its data), or locked text marked not for translation.
+ */
+export type Segment =
+  | { kind: "text"; text: string }
+  | { kind: "locked"; run: Run; display: CodeDisplay }
+  | { kind: "fixed"; run: Run; text: string };
 
 function segmentSpec(runs: readonly Run[]): ModelRunSpec<Segment> {
-  const label = codeLabels(runs);
+  const code = codeDisplays(runs);
   return {
     text: (r) =>
-      r.noTranslate ? { kind: "locked", run: r, label: r.text } : { kind: "text", text: r.text },
-    ph: (r) => ({ kind: "locked", run: r, label: label.ph(r.ph) }),
-    pcOpen: (r) => ({ kind: "locked", run: r, label: label.pcOpen(r.pcOpen) }),
-    pcClose: (r) => ({ kind: "locked", run: r, label: label.pcClose(r.pcClose) }),
-    sub: (r) => ({ kind: "locked", run: r, label: label.sub(r.sub) }),
+      r.noTranslate ? { kind: "fixed", run: r, text: r.text } : { kind: "text", text: r.text },
+    ph: (r) => ({ kind: "locked", run: r, display: code.ph(r.ph) }),
+    pcOpen: (r) => ({ kind: "locked", run: r, display: code.pcOpen(r.pcOpen) }),
+    pcClose: (r) => ({ kind: "locked", run: r, display: code.pcClose(r.pcClose) }),
+    sub: (r) => ({ kind: "locked", run: r, display: code.sub(r.sub) }),
     // A plural or select has forms of its own, which a single field cannot hold.
     // It stays as it is, and the editor reports that it cannot change it.
-    plural: (r) => ({ kind: "locked", run: r, label: `{${r.plural.pivot}, plural}` }),
-    select: (r) => ({ kind: "locked", run: r, label: `{${r.select.pivot}, select}` }),
-    fallback: (kind) => ({ kind: "locked", run: { text: "" }, label: `{${kind}}` }),
+    plural: (r) => ({ kind: "locked", run: r, display: code.choice(r.plural.pivot) }),
+    select: (r) => ({ kind: "locked", run: r, display: code.choice(r.select.pivot) }),
+    fallback: () => ({ kind: "locked", run: { text: "" }, display: code.unknown() }),
   };
 }
 
@@ -41,7 +52,7 @@ export function toSegments(runs: readonly Run[]): Segment[] {
     if (s.kind === "text" && prev?.kind === "text") {
       out[out.length - 1] = { kind: "text", text: prev.text + s.text };
     } else {
-      if (s.kind === "locked" && prev?.kind !== "text") out.push({ kind: "text", text: "" });
+      if (s.kind !== "text" && prev?.kind !== "text") out.push({ kind: "text", text: "" });
       out.push(s);
     }
   }
@@ -53,7 +64,7 @@ export function toSegments(runs: readonly Run[]): Segment[] {
 export function fromSegments(segments: readonly Segment[]): Run[] {
   const runs: Run[] = [];
   for (const s of segments) {
-    if (s.kind === "locked") runs.push(s.run);
+    if (s.kind !== "text") runs.push(s.run);
     else if (s.text !== "") runs.push({ text: s.text });
   }
   return runs;
@@ -88,7 +99,10 @@ export function RunEditor({ segments, onChange }: RunEditorProps) {
   return (
     <View className="bg-card border-border flex-row flex-wrap items-center gap-1 rounded-xl border p-3">
       {segments.map((s, i) => {
-        if (s.kind === "locked") return <Chip key={`l${i}`} label={s.label} testID="editor-chip" />;
+        if (s.kind === "locked")
+          return <CodeChip key={`l${i}`} display={s.display} testID="editor-chip" />;
+        if (s.kind === "fixed")
+          return <LockedText key={`f${i}`} text={s.text} testID="editor-chip" />;
         const n = field++;
         return (
           <TextInput

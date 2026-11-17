@@ -6,12 +6,13 @@
  * native form, and never the native form itself. A placeholder a code finder
  * marked, such as i18next's `{{name}}`, carries no label of its own, so the
  * editor would draw it with its vocabulary type ("code"). A surface that also
- * holds the block's runs, as the Review page does, gives such a placeholder its
- * display text as the label. Only the label changes: the edit text still names
+ * holds the block's runs, as the Review page does, gives such a placeholder the
+ * name inside its native form (`{{name}}` reads `name`, see `humanCodeName`),
+ * and never the native form itself. Only the label changes: the edit text still names
  * the code by id, and a save sends the same tokens.
  */
 
-import { projectRuns, type RunSpec } from "@neokapi/kapi-format";
+import { humanCodeName, projectRuns, type RunSpec } from "@neokapi/kapi-format";
 import type { CodeRead, Run } from "@neokapi/contract-types";
 
 /** One placeholder's token in edit text, and the text it reads as. */
@@ -21,7 +22,7 @@ const LABELS: RunSpec<Run, Label> = {
   text: { dropped: "text carries no code" },
   ph: {
     expand: (r) => {
-      const label = r.ph.disp || r.ph.data;
+      const label = humanCodeName(r.ph.disp, r.ph.data);
       return label ? [[`${r.ph.id}/`, label]] : [];
     },
   },

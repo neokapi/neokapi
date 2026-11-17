@@ -205,8 +205,10 @@ describe("NeighbourhoodCard", () => {
       />,
     );
     const row = slot("review-neighbour-unit")?.textContent ?? "";
-    expect(row).toContain("Failed to cordon node {{name}}");
-    expect(row).toContain("Kunne ikke sperre node {{name}} for planlegging.");
+    // The chip names the variable; its native form is never shown.
+    expect(row).toContain("Failed to cordon node name");
+    expect(row).toContain("Kunne ikke sperre node name for planlegging.");
+    expect(row).not.toContain("{{");
     unmount();
 
     // The caller's runs win over the copy read with the context.
@@ -217,7 +219,7 @@ describe("NeighbourhoodCard", () => {
         testId="hood"
       />,
     );
-    expect(slot("review-neighbour-unit")?.textContent).toContain("Klarte ikke sperre {{name}}");
+    expect(slot("review-neighbour-unit")?.textContent).toContain("Klarte ikke sperre name");
   });
 
   it("draws the document top to bottom, with the unit in place among its neighbours", () => {

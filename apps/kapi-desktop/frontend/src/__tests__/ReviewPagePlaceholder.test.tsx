@@ -17,8 +17,8 @@ const ITEM: ReviewItem = {
   file: "locales/nb.json",
   key: "/cordonFailed",
   collection: "Glossary",
-  source: "Failed to cordon node {{name}}",
-  target: "Kunne ikke sperre node {{name}} for planlegging.",
+  source: "Failed to cordon node name",
+  target: "Kunne ikke sperre node name for planlegging.",
   source_locale: "en-US",
   has_findings: false,
 };
@@ -77,21 +77,22 @@ function renderPage() {
 const text = (sel: string) => document.querySelector(sel)?.textContent ?? "";
 
 describe("ReviewPage: a unit with an i18next placeholder", () => {
-  it("draws the placeholder in the queue row, the header and its own row in the document", async () => {
+  it("names the placeholder in the queue row, the header and its own row, never its native form", async () => {
     renderPage();
     await waitFor(() =>
-      expect(text("[data-slot='review-source']")).toBe("Failed to cordon node {{name}}"),
+      expect(text("[data-slot='review-source']")).toBe("Failed to cordon node name"),
     );
-    expect(text("[data-slot='review-queue-item']")).toContain("Failed to cordon node {{name}}");
+    expect(text("[data-slot='review-queue-item']")).toContain("Failed to cordon node name");
 
     const unitRow = text("[data-slot='review-neighbour-unit']");
-    expect(unitRow).toContain("Failed to cordon node {{name}}");
-    expect(unitRow).toContain("Kunne ikke sperre node {{name}} for planlegging.");
+    expect(unitRow).toContain("Failed to cordon node name");
+    expect(unitRow).toContain("Kunne ikke sperre node name for planlegging.");
+    expect(document.body.textContent).not.toContain("{{name}}");
     // The neighbour already read through the projection; the unit now matches it.
-    expect(text("[data-slot='review-neighbour']")).toContain("Cordoned node {{name}}.");
+    expect(text("[data-slot='review-neighbour']")).toContain("Cordoned node name.");
   });
 
-  it("labels the editor's chip with the placeholder's own text", async () => {
+  it("labels the editor's chip with the placeholder's name, never its native form", async () => {
     renderPage();
     const editor = await waitFor(() => {
       const el = document.querySelector<HTMLElement>(
@@ -100,7 +101,8 @@ describe("ReviewPage: a unit with an i18next placeholder", () => {
       expect(el).not.toBeNull();
       return el!;
     });
-    await waitFor(() => expect(editor.textContent).toContain("{{name}}"));
+    await waitFor(() => expect(editor.textContent).toMatch(/\bname\b/));
+    expect(editor.textContent).not.toContain("{{name}}");
     expect(editor.textContent).not.toMatch(/\bcode\b/);
   });
 });

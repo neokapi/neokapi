@@ -1,3 +1,5 @@
+import { humanCodeName } from "@neokapi/kapi-format";
+
 import type { SpanInfo } from "../types/span";
 import commonFormatting from "./common-formatting.json";
 import richHtml from "./rich-html.json";
@@ -87,6 +89,46 @@ function expand(
   return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
     key in values ? escape(values[key]) : whole,
   );
+}
+
+/**
+ * Expand a template into text a person reads: a chip, a display label, a
+ * reading's text equivalent. Native data is never substituted, and `equiv`
+ * and `subType` only when they are human names (`humanCodeName`), so an
+ * extractor's synthesized identifier (`=m0`) or a code's source slice cannot
+ * reach the screen through a template.
+ */
+function expandLabel(template: string | undefined, span: SpanInfo): string {
+  if (!template) return "";
+  const values: Record<string, string> = {
+    id: "",
+    subType: humanCodeName(span.sub_type) ?? "",
+    data: "",
+    equiv: humanCodeName(span.equiv_text) ?? "",
+  };
+  return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
+    key in values ? values[key] : whole,
+  );
+}
+
+/**
+ * Whether a label reads as words. A chip's role marks (`B>`, `/B`, `[B]`,
+ * `[/B]`) and the node glyphs are allowed around the words; anything left
+ * that only markup or native data would hold (`<`, `>`, `{`, `}`, `=`, a
+ * quote) means the label is coded text and must not be shown.
+ */
+export function readableLabel(label: string): boolean {
+  if (label === "") return false;
+  const core = label
+    .replace(/^\[\/?|\]$/g, "")
+    .replace(/^\/|>$/g, "")
+    .replace(/[«»⟨⟩]/g, "");
+  return !/[<>{}="'`]/.test(core);
+}
+
+/** The label when it reads as words, else "" so the caller's fallback applies. */
+function readable(label: string): string {
+  return readableLabel(label) ? label : "";
 }
 
 /** Minimal HTML escaping for values substituted into a markup template. */
@@ -208,11 +250,11 @@ export class VocabularyRegistry {
     const fallback = shortChipLabel(span.type, this.fallback.chipLabel);
     switch (span.span_type) {
       case "opening":
-        return expand(info.chipLabel.open, span) || fallback.open;
+        return readable(expandLabel(info.chipLabel.open, span)) || fallback.open;
       case "closing":
-        return expand(info.chipLabel.close, span) || fallback.close;
+        return readable(expandLabel(info.chipLabel.close, span)) || fallback.close;
       case "placeholder":
-        return expand(info.chipLabel.placeholder, span) || fallback.placeholder;
+        return readable(expandLabel(info.chipLabel.placeholder, span)) || fallback.placeholder;
       default:
         return "?";
     }
@@ -230,12 +272,18 @@ export class VocabularyRegistry {
     const fallback = this.fallback.display;
     switch (span.span_type) {
       case "opening":
-        return expand(info.display.open, span) || fallback.open.replace("{type}", span.type);
+        return (
+          readable(expandLabel(info.display.open, span)) ||
+          fallback.open.replace("{type}", span.type)
+        );
       case "closing":
-        return expand(info.display.close, span) || fallback.close.replace("{type}", span.type);
+        return (
+          readable(expandLabel(info.display.close, span)) ||
+          fallback.close.replace("{type}", span.type)
+        );
       case "placeholder":
         return (
-          expand(info.display.placeholder, span) ||
+          readable(expandLabel(info.display.placeholder, span)) ||
           fallback.placeholder.replace("{type}", span.type)
         );
       default:
@@ -249,7 +297,10 @@ export class VocabularyRegistry {
    * none.
    */
   textEquiv(span: SpanInfo): string {
-    return expand(this.lookupOrFallback(span.type).equiv, span);
+    const equiv = this.lookupOrFallback(span.type).equiv;
+    // A newline is a reading's own equivalent, not a label.
+    if (equiv === "\n") return equiv;
+    return readable(expandLabel(equiv, span));
   }
 
   chipColor(span: SpanInfo): ColorScheme {

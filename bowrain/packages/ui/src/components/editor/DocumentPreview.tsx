@@ -8,7 +8,15 @@ import { useStream } from "../../context/StreamContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import type { BlockInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";
-import { otherBranch, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import {
+  CODE_KIND_WORDS,
+  codeKind,
+  humanCodeName,
+  otherBranch,
+  projectRuns,
+  type ModelRunSpec,
+  type Run,
+} from "@neokapi/kapi-format";
 import { sourceRuns, targetRuns } from "./blockContent";
 import { getTargetText } from "./blockStatus";
 import { pseudoAccent, pseudoTranslate, pseudoWrap } from "./pseudoTranslate";
@@ -28,18 +36,39 @@ function escapeHTML(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Whether a code's native data is an HTML tag, which the preview can render as itself. */
+function isTag(data: string): boolean {
+  return /^<\/?[A-Za-z][^<>]*>$/.test(data.trim());
+}
+
+/** A named chip for a code the preview cannot render as markup. */
+function codeChipHTML(code: {
+  type: string;
+  subType?: string;
+  equiv?: string;
+  disp?: string;
+  data?: string;
+}): string {
+  const word =
+    humanCodeName(code.disp, code.equiv, code.data) ??
+    CODE_KIND_WORDS[codeKind(code.type, code.subType)];
+  return `<span class="neokapi-var">${escapeHTML(word)}</span>`;
+}
+
 /**
- * A run sequence as display HTML: text escaped, each inline code as the
- * markup it stands for, a subblock reference named, and a plural or select
- * read as its `other` branch. Every run kind is answered, so a code is never
- * closed over.
+ * A run sequence as display HTML: text escaped, each inline code rendered as
+ * the HTML tag it is, a subblock reference named, and a plural or select read
+ * as its `other` branch. A code whose native form is not an HTML tag (a JSX
+ * variable's `{serverURL}`, markdown's `**`) is never printed: a placeholder
+ * shows as a named chip, and a pair's content reads as plain text. Every run
+ * kind is answered, so a code is never closed over.
  */
 const DISPLAY_HTML: ModelRunSpec<string> = {
   text: (r) => escapeHTML(r.text),
-  ph: (r) => r.ph.data,
-  pcOpen: (r) => r.pcOpen.data,
-  pcClose: (r) => r.pcClose.data,
-  sub: (r) => escapeHTML(`[${r.sub.equiv}]`),
+  ph: (r) => (isTag(r.ph.data) ? r.ph.data : codeChipHTML(r.ph)),
+  pcOpen: (r) => (isTag(r.pcOpen.data) ? r.pcOpen.data : ""),
+  pcClose: (r) => (isTag(r.pcClose.data) ? r.pcClose.data : ""),
+  sub: (r) => escapeHTML(humanCodeName(r.sub.equiv) ?? CODE_KIND_WORDS.content),
   plural: (r) => runsToHTML(otherBranch(r.plural.forms as Record<string, Run[]>)),
   select: (r) => runsToHTML(otherBranch(r.select.cases)),
   fallback: () => "",

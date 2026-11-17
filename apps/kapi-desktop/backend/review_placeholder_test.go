@@ -64,16 +64,16 @@ func TestReview_KeepsTheSelectedUnitsPlaceholder(t *testing.T) {
 		if it.Key == "/cordonFailed" && it.Locale == "nb" {
 			src := it.Source
 			row = &src
-			assert.Equal(t, "Kunne ikke sperre node {{name}} for planlegging.", it.Target, "the row's target keeps the placeholder")
+			assert.Equal(t, "Kunne ikke sperre node name for planlegging.", it.Target, "the row's target names the placeholder")
 		}
 	}
 	require.NotNil(t, row, "the unit is in the queue")
-	assert.Equal(t, "Failed to cordon node {{name}}", *row, "the row's source keeps the placeholder")
+	assert.Equal(t, "Failed to cordon node name", *row, "the row's source names the placeholder")
 
 	d, err := app.GetReviewUnit(tab.ID, "nb", file, "/cordonFailed")
 	require.NoError(t, err)
-	assert.Equal(t, "Failed to cordon node {{name}}", d.Source)
-	assert.Equal(t, "Kunne ikke sperre node {{name}} for planlegging.", d.Target)
+	assert.Equal(t, "Failed to cordon node name", d.Source)
+	assert.Equal(t, "Kunne ikke sperre node name for planlegging.", d.Target)
 
 	t.Run("the unit travels as runs, placeholder included", func(t *testing.T) {
 		require.Len(t, d.SourceRuns, 2)

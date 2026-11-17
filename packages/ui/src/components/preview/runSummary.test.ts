@@ -32,12 +32,10 @@ describe("collapsed run summaries", () => {
           },
         },
       ]),
-    ).toBe(
-      "{count, plural, one {One item} other {# items for {audience, select, other {⟨name⟩}}}}",
-    );
+    ).toBe("⟨count: one: One item; other: ⟨value⟩ items for ⟨audience: other: ⟨value⟩⟩⟩");
   });
 
-  it("preserves paired codes and sub-block references", () => {
+  it("reads a paired code's content without tags, and names a sub-block reference", () => {
     expect(
       runSummary([
         { pcOpen: { id: "b", data: "<b>" } },
@@ -45,6 +43,27 @@ describe("collapsed run summaries", () => {
         { sub: { id: "s", ref: "notice" } },
         { pcClose: { id: "b", data: "</b>" } },
       ]),
-    ).toBe("<b>Read [notice]</b>");
+    ).toBe("Read ⟨notice⟩");
+  });
+});
+
+describe("coded text in summaries", () => {
+  it("never shows a code's native form or a synthesized identifier", () => {
+    const summary = runSummary([
+      { text: "Reach " },
+      {
+        pcOpen: {
+          id: "0",
+          type: "jsx:element",
+          subType: "span",
+          data: '<span className="x">',
+          equiv: "=m0",
+        },
+      },
+      { ph: { id: "1", type: "jsx:var", data: "{serverURL}", equiv: "serverURL" } },
+      { pcClose: { id: "0", type: "jsx:element", subType: "span", data: "</span>", equiv: "=m0" } },
+      { ph: { id: "2", type: "jsx:node", data: "{open && <Link/>}", equiv: "=m2" } },
+    ]);
+    expect(summary).toBe("Reach ⟨serverURL⟩⟨content⟩");
   });
 });
