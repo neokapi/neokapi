@@ -573,9 +573,13 @@ again in its new group, so a client drops cards it already holds by
 
 The server keeps each translation's group and classifies a translation
 again when its draft, its source, its pre-review or its decision changes,
-and once a day otherwise. A request classifies at most 2,000 new or changed
-translations and reads the rest of the deck from what it kept, so only the
-page's blocks are read whole.
+and once a day otherwise. A background sorter in the server
+(`server/review_deck_sorter.go`) classifies every waiting translation of
+every project's languages every five minutes and shortly after a push or a
+convergence run completes, under an advisory lock so one server instance
+sorts at a time. A request classifies at most 2,000 new or changed
+translations the sorter has not reached, and reads the rest of the deck from
+what it kept, so only the page's blocks are read whole.
 
 ```json
 {
@@ -654,8 +658,8 @@ Every language the caller may review, in every project of every workspace
 they belong to, where the language's deck holds anything. Access resolves as
 it does for a project route, and an API token's scopes narrow it. Each
 language counts as its deck counts it: `waiting` is the grouped translations
-plus `unclassified`, the part the deck groups when it is opened. Nothing is
-classified by this call. The list is sorted most waiting first.
+plus `unclassified`, the part the background sorter or an opened deck has
+not grouped yet. Nothing is classified by this call. The list is sorted most waiting first.
 
 ```json
 {

@@ -217,6 +217,9 @@ type Server struct {
 	// AuditRetention prunes audit rows past the retention window. Nil when disabled.
 	AuditRetention *event.AuditRetentionCleaner
 
+	// deckSorter sorts the review decks in the background. Nil without PostgreSQL.
+	deckSorter *deckSorter
+
 	// SIEMExporter forwards events to an external SIEM/log sink. Nil when disabled.
 	SIEMExporter *event.SIEMExporter
 
@@ -612,6 +615,7 @@ func NewServer(cfg Config) *Server {
 			s.ConvergenceRunStore = bstore.NewConvergenceRunStore(pgSQL)
 			s.PreferenceStore = bstore.NewPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewDigestStore(pgSQL)
+			s.deckSorter = s.startDeckSorter(pgSQL)
 			s.VoiceStore = pg.Brand
 			s.KnowledgeStore = pg.Knowledge
 			s.GraphStore = pg.GraphStore
@@ -2222,6 +2226,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.AuditRetention != nil {
 		s.AuditRetention.Close()
+	}
+	if s.deckSorter != nil {
+		s.deckSorter.Close()
 	}
 	if s.SIEMExporter != nil {
 		s.SIEMExporter.Close()

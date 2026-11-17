@@ -191,7 +191,8 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 		q.CollectionID = &scope
 	}
 
-	if err := s.classifyDeck(ctx, c, decks, proj, q, policy); err != nil {
+	wsID, _ := c.Get("workspace_id").(string)
+	if _, err := s.classifyDeck(ctx, wsID, decks, proj, q, policy, deckClassifyBudget); err != nil {
 		return serverErr(c, err)
 	}
 	counts, err := decks.CountReviewDeck(ctx, q)
@@ -223,23 +224,25 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 
 // classifyDeck computes the facts of the deck's translations that have none,
 // or whose facts no longer hold, deckClassifyBatch at a time and at most
-// deckClassifyBudget in one request. Only each batch's blocks are read whole.
-func (s *Server) classifyDeck(ctx context.Context, c echo.Context, decks store.ReviewDeckStore, proj *store.Project, q store.ReviewDeckQuery, policy reviewdeck.DeckPolicy) error {
+// budget in one call, and returns how many it classified. Only each batch's
+// blocks are read whole. A deck request classifies deckClassifyBudget; the
+// background sorter (deckSorter) classifies the rest.
+func (s *Server) classifyDeck(ctx context.Context, wsID string, decks store.ReviewDeckStore, proj *store.Project, q store.ReviewDeckQuery, policy reviewdeck.DeckPolicy, budget int) (int, error) {
 	targetLoc := model.LocaleID(q.Locale)
 	var (
 		gate   *termGate
 		scored map[string]scoredBlock
 	)
-	for done := 0; done < deckClassifyBudget; {
-		entries, err := decks.UnclassifiedReview(ctx, q, min(deckClassifyBatch, deckClassifyBudget-done))
+	done := 0
+	for done < budget {
+		entries, err := decks.UnclassifiedReview(ctx, q, min(deckClassifyBatch, budget-done))
 		if err != nil {
-			return err
+			return done, err
 		}
 		if len(entries) == 0 {
-			return nil
+			return done, nil
 		}
 		if gate == nil {
-			wsID, _ := c.Get("workspace_id").(string)
 			gate = s.resolveTermGate(ctx, proj, q.Stream, wsID)
 			scored = latestVoiceScores(ctx, s.VoiceStore, proj.ID, q.Stream)[string(locale.Normalize(targetLoc))]
 		}
@@ -251,7 +254,7 @@ func (s *Server) classifyDeck(ctx context.Context, c echo.Context, decks store.R
 		}
 		byID, err := s.deckBlocks(ctx, proj.ID, q.Stream, ids)
 		if err != nil {
-			return err
+			return done, err
 		}
 		preReviews, err := s.ContentStore.PreReviews(ctx, proj.ID, q.Stream, ids)
 		if err != nil {
@@ -266,14 +269,14 @@ func (s *Server) classifyDeck(ctx context.Context, c echo.Context, decks store.R
 			facts = append(facts, deckFactsFor(ctx, sb, e, targetLoc, gate, scored, preReviews, policy, q.Policy))
 		}
 		if err := decks.RecordReviewDeckFacts(ctx, proj.ID, q.Stream, facts); err != nil {
-			return err
+			return done, err
 		}
 		done += len(entries)
 		if len(entries) < deckClassifyBatch {
-			return nil
+			return done, nil
 		}
 	}
-	return nil
+	return done, nil
 }
 
 // deckBlocks reads the named blocks whole, keyed by id.
