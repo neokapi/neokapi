@@ -45,7 +45,7 @@
       "category": "node",
       "label": "JSX ReactNode",
       "html": {
-        "placeholder": "<span class=\"neokapi-node\" data-node=\"{id}\">⟨⟩</span>"
+        "placeholder": "<span class=\"neokapi-node\" data-node=\"{id}\">{name}</span>"
       },
       "display": {
         "placeholder": "⟨⟩"

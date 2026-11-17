@@ -85,6 +85,8 @@ function expand(
     subType: span.sub_type ?? "",
     data: span.data,
     equiv: span.equiv_text ?? "",
+    // What a reader sees for the code: its human name, else a neutral glyph.
+    name: humanCodeName(span.equiv_text, span.data) ?? "⟨⟩",
   };
   return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
     key in values ? escape(values[key]) : whole,
@@ -105,6 +107,7 @@ function expandLabel(template: string | undefined, span: SpanInfo): string {
     subType: humanCodeName(span.sub_type) ?? "",
     data: "",
     equiv: humanCodeName(span.equiv_text) ?? "",
+    name: humanCodeName(span.equiv_text, span.data) ?? "",
   };
   return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
     key in values ? values[key] : whole,
