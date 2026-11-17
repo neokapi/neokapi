@@ -236,6 +236,28 @@ func (s *PostgresAuthStore) ListPublicWorkspaces(ctx context.Context) ([]*platau
 	return result, rows.Err()
 }
 
+func (s *PostgresAuthStore) ListAllWorkspaces(ctx context.Context, limit, offset int) ([]*platauth.Workspace, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_access_key, pulse_term_sources, preferred_model, voice_profile_id, created_at, updated_at
+		 FROM workspaces
+		 ORDER BY created_at DESC, id
+		 LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list all workspaces: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.Workspace, 0)
+	for rows.Next() {
+		w, err := scanWorkspacePg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, w)
+	}
+	return result, rows.Err()
+}
+
 func (s *PostgresAuthStore) UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	w.UpdatedAt = time.Now().UTC()
 	termSrcJSON, _ := json.Marshal(w.PulseTermSources)

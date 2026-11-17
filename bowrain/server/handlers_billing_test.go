@@ -44,11 +44,16 @@ type mockBillingStore struct {
 	grantSetsAlloc bool
 }
 
-func (m *mockBillingStore) GetSubscription(_ context.Context, _ string) (*billing.Subscription, error) {
-	if m.sub == nil {
-		return nil, assert.AnError
+func (m *mockBillingStore) GetSubscription(_ context.Context, workspaceID string) (*billing.Subscription, error) {
+	if m.sub != nil {
+		return m.sub, nil
 	}
-	return m.sub, nil
+	for _, sub := range m.subs {
+		if sub.WorkspaceID == workspaceID {
+			return sub, nil
+		}
+	}
+	return nil, assert.AnError
 }
 func (m *mockBillingStore) UpsertSubscription(_ context.Context, sub *billing.Subscription) error {
 	m.upsertedSub = sub

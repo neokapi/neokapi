@@ -74,12 +74,13 @@ var BedrockCatalog = []Model{
 }
 
 // Catalog returns the model catalog for a provider. Only "bedrock" has a curated
-// catalog today; other providers return nil (the admin sets a free-text model).
+// catalog; other providers return an empty list (the admin sets a free-text
+// model), which serializes as [] rather than null.
 func Catalog(provider string) []Model {
 	if provider == "bedrock" {
 		return BedrockCatalog
 	}
-	return nil
+	return []Model{}
 }
 
 // InCatalog reports whether a model id exists in the given provider's catalog.

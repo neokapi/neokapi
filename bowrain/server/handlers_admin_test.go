@@ -24,6 +24,7 @@ type mockAuthStore struct {
 	emails     map[string]*platauth.User
 	workspaces map[string][]*platauth.Workspace
 	allUsers   []*platauth.User
+	all        []*platauth.Workspace
 }
 
 func newMockAuthStore() *mockAuthStore {
@@ -77,7 +78,46 @@ func (m *mockAuthStore) ListUsers(_ context.Context, limit, offset int) ([]*plat
 	return m.allUsers[offset:end], nil
 }
 
+func (m *mockAuthStore) ListAllWorkspaces(_ context.Context, limit, offset int) ([]*platauth.Workspace, error) {
+	if offset >= len(m.all) {
+		return nil, nil
+	}
+	return m.all[offset:min(offset+limit, len(m.all))], nil
+}
+
+func (m *mockAuthStore) ListMembers(context.Context, string) ([]*platauth.Membership, error) {
+	return nil, nil
+}
+
 func (m *mockAuthStore) Close() error { return nil }
+
+// adminListServer is a server whose instance holds the workspaces ws-1 to
+// ws-n, with the subscriptions subs.
+func adminListServer(n int, subs ...*billing.Subscription) *Server {
+	as := newMockAuthStore()
+	for i := 1; i <= n; i++ {
+		id := "ws-" + string(rune('0'+i))
+		as.all = append(as.all, &platauth.Workspace{ID: id, Name: "Workspace " + id, Slug: id, Plan: "free"})
+	}
+	s := newBillingTestServer(&mockBillingStore{subs: subs})
+	s.AuthStore = as
+	return s
+}
+
+func listAdminWorkspaces(t *testing.T, s *Server, query string) []map[string]any {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/api/admin/workspaces"+query, nil), rec)
+	require.NoError(t, s.HandleAdminListWorkspaces(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var resp struct {
+		Workspaces []map[string]any `json:"workspaces"`
+		Total      int              `json:"total"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Workspaces, resp.Total)
+	return resp.Workspaces
+}
 
 func TestHandleAdminListWorkspaces_NilStore(t *testing.T) {
 	s := &Server{}
@@ -92,73 +132,43 @@ func TestHandleAdminListWorkspaces_NilStore(t *testing.T) {
 }
 
 func TestHandleAdminListWorkspaces_WithData(t *testing.T) {
-	store := &mockBillingStore{
-		subs: []*billing.Subscription{
-			{WorkspaceID: "ws-1", Plan: billing.PlanFree, Status: "active"},
-			{WorkspaceID: "ws-2", Plan: billing.PlanPro, Status: "active"},
-			{WorkspaceID: "ws-3", Plan: billing.PlanPro, Status: "canceled"},
-		},
+	s := adminListServer(3,
+		&billing.Subscription{WorkspaceID: "ws-2", Plan: billing.PlanPro, Status: "active"},
+	)
+	got := listAdminWorkspaces(t, s, "")
+	require.Len(t, got, 3, "a workspace without a subscription is listed")
+	byID := map[string]map[string]any{}
+	for _, w := range got {
+		byID[w["id"].(string)] = w
 	}
-	s := newBillingTestServer(store)
-
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	err := s.HandleAdminListWorkspaces(c)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var resp map[string]any
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, float64(3), resp["total"])
+	assert.Equal(t, "free", byID["ws-1"]["plan"], "no subscription: the workspace's own plan")
+	assert.Equal(t, "", byID["ws-1"]["status"])
+	assert.Equal(t, "pro", byID["ws-2"]["plan"], "a subscription's plan wins")
+	assert.Equal(t, "active", byID["ws-2"]["status"])
+	assert.Equal(t, "ws-1", byID["ws-1"]["slug"])
 }
 
 func TestHandleAdminListWorkspaces_FilterByPlan(t *testing.T) {
-	store := &mockBillingStore{
-		subs: []*billing.Subscription{
-			{WorkspaceID: "ws-1", Plan: billing.PlanFree, Status: "active"},
-			{WorkspaceID: "ws-2", Plan: billing.PlanPro, Status: "active"},
-		},
-	}
-	s := newBillingTestServer(store)
-
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces?plan=pro", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	err := s.HandleAdminListWorkspaces(c)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var resp map[string]any
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, float64(1), resp["total"])
+	s := adminListServer(2, &billing.Subscription{WorkspaceID: "ws-2", Plan: billing.PlanPro, Status: "active"})
+	got := listAdminWorkspaces(t, s, "?plan=pro")
+	require.Len(t, got, 1)
+	assert.Equal(t, "ws-2", got[0]["id"])
 }
 
 func TestHandleAdminListWorkspaces_FilterByStatus(t *testing.T) {
-	store := &mockBillingStore{
-		subs: []*billing.Subscription{
-			{WorkspaceID: "ws-1", Plan: billing.PlanPro, Status: "active"},
-			{WorkspaceID: "ws-2", Plan: billing.PlanPro, Status: "canceled"},
-		},
-	}
-	s := newBillingTestServer(store)
+	s := adminListServer(2,
+		&billing.Subscription{WorkspaceID: "ws-1", Plan: billing.PlanPro, Status: "active"},
+		&billing.Subscription{WorkspaceID: "ws-2", Plan: billing.PlanPro, Status: "canceled"},
+	)
+	got := listAdminWorkspaces(t, s, "?status=active")
+	require.Len(t, got, 1)
+	assert.Equal(t, "ws-1", got[0]["id"])
+}
 
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces?status=active", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	err := s.HandleAdminListWorkspaces(c)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var resp map[string]any
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, float64(1), resp["total"])
+func TestHandleAdminListWorkspaces_Search(t *testing.T) {
+	got := listAdminWorkspaces(t, adminListServer(3), "?q=WS-3")
+	require.Len(t, got, 1)
+	assert.Equal(t, "ws-3", got[0]["id"])
 }
 
 func TestHandleAdminGetWorkspace(t *testing.T) {
