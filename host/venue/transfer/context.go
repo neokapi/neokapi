@@ -105,6 +105,7 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 			Name:        coll.Name,
 			Coordinates: kapiProject.CoordinatesAt(point, governance),
 			Owner:       venue.ContextOwnerRecipe,
+			SourceOnly:  coll.SourceOnly,
 		}
 		if governance != nil {
 			entry.Channel = governance.Channel

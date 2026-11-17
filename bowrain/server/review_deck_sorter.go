@@ -170,8 +170,12 @@ func (s *Server) sortDecks(ctx context.Context) (int, error) {
 			streams = append(streams, p.DefaultStream)
 		}
 		for _, stream := range streams {
+			exclude, err := sourceOnlyCollections(ctx, s.ContentStore, p.ID, stream)
+			if err != nil {
+				return total, err
+			}
 			for _, loc := range p.TargetLanguages {
-				q := store.ReviewDeckQuery{ProjectID: p.ID, Stream: stream, Locale: string(loc), Policy: deckPolicyKey(policy)}
+				q := store.ReviewDeckQuery{ProjectID: p.ID, Stream: stream, Locale: string(loc), Policy: deckPolicyKey(policy), ExcludeCollections: exclude}
 				for {
 					if err := ctx.Err(); err != nil {
 						return total, err

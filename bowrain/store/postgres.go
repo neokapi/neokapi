@@ -1637,6 +1637,11 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, q platstore.Pendi
 		args = append(args, *q.CollectionID)
 		next++
 	}
+	if len(q.ExcludeCollections) > 0 {
+		scope += fmt.Sprintf(` AND COALESCE(i.collection_id, '') <> ALL($%d)`, next)
+		args = append(args, q.ExcludeCollections)
+		next++
+	}
 
 	var total int
 	countQuery := fmt.Sprintf(skeleton, "count(*)", scope)

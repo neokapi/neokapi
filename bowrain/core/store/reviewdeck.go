@@ -18,6 +18,9 @@ type ReviewDeckQuery struct {
 	Locale    string
 	// CollectionID narrows the deck as PendingReviewQuery.CollectionID does.
 	CollectionID *string
+	// ExcludeCollections leaves out the items of these collections: the
+	// source-only ones, whose content has no target language.
+	ExcludeCollections []string
 	// Policy names the thresholds the facts were computed under. Facts
 	// computed under another policy are classified again.
 	Policy string

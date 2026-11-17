@@ -488,8 +488,21 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 			return nil, errStallQuotaExceeded
 		}
 	}
+	// A source-only collection's items have no target language to draft.
+	var skip map[string]bool
+	var err error
+	if s.ContentStore != nil {
+		skip, err = sourceOnlyItems(ctx, s.ContentStore, proj.ID, stream)
+	}
+	if err != nil {
+		slog.Warn("translation jobs: could not read source-only collections; drafting every item",
+			"project", proj.ID, "error", err)
+	}
 	var jobIDs []string
 	for _, itemName := range itemNames {
+		if skip[itemName] {
+			continue
+		}
 		for _, locale := range locales {
 			job := &jobs.TranslationJob{
 				ID:               id.New(),

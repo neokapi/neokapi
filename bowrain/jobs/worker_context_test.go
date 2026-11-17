@@ -327,3 +327,13 @@ func TestReconcileContext_UnclaimedProjectReconcilesStructure(t *testing.T) {
 	assert.Equal(t, []string{"docs"}, res.Created)
 	assert.Empty(t, res.ProfileIDs)
 }
+
+func TestGovernanceConfig_SourceOnly(t *testing.T) {
+	set := governanceConfig(map[string]string{"type": "git"}, "", "web", true)
+	assert.Equal(t, "true", set[store.CollectionConfigSourceOnly])
+	assert.Equal(t, "git", set["type"])
+
+	cleared := governanceConfig(set, "", "web", false)
+	_, ok := cleared[store.CollectionConfigSourceOnly]
+	assert.False(t, ok)
+}
