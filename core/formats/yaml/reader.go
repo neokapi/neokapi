@@ -471,7 +471,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 		notes.queueComment(node.HeadComment)
 	}
 
-	isString := node.Tag == "!!str" || node.Tag == ""
+	isString := isStringScalar(node)
 	if !isString && !r.cfg.ExtractNonStrings {
 		return
 	}
@@ -496,21 +496,26 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 		*blockCounter++
 		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
 		block.Name = keyPath
-		if r.cfg.UseCodeFinder {
-			r.applyCodeFinder(block)
-		}
+		r.classifyBlock(block)
 		notes.attach(block, inline, foot)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		return
 	}
 
-	// yaml.v3 reports node.Line/Column at the tag indicator (`!`) when
-	// the scalar carries an explicit tag (e.g. `! 'value'`, `!!str x`).
-	// scanScalarEnd's quoted-string scanners require start to land on
-	// the actual scalar character (`'`, `"`, `|`, `>`), so advance past
-	// any leading tag handle plus the separating whitespace.
-	tagPrefix := scanTagPrefix(content, start)
-	start += tagPrefix
+	// yaml.v3 reports node.Line/Column at the first node property when
+	// the scalar carries an explicit tag (`! 'value'`, `!!str x`) or an
+	// anchor (`&name value`). The properties stay in the skeleton, so a
+	// translated write keeps the anchor that aliases elsewhere refer to,
+	// and scanScalarEnd's scanners start on the scalar's own first byte
+	// (`'`, `"`, `|`, `>` or plain text).
+	start = skipNodeProperties(content, start)
+	if node.Anchor != "" || node.Style&yamlv3.TaggedStyle != 0 {
+		// A property alone on its line puts the value on the next one.
+		for start < len(content) && (content[start] == '\n' || content[start] == '\r' ||
+			content[start] == ' ' || content[start] == '\t') {
+			start++
+		}
+	}
 
 	end := scanScalarEnd(content, start, node.Style, node.Value)
 
@@ -571,9 +576,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 		}
 	}
 
-	if r.cfg.UseCodeFinder {
-		r.applyCodeFinder(block)
-	}
+	r.classifyBlock(block)
 
 	if !insideAlias {
 		*ranges = append(*ranges, scalarRange{
@@ -1042,7 +1045,7 @@ func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, nod
 	// or rides to the next block otherwise.
 	notes.queueComment(node.HeadComment)
 
-	isString := node.Tag == "!!str" || node.Tag == ""
+	isString := isStringScalar(node)
 
 	if !isString && !r.cfg.ExtractNonStrings {
 		return
@@ -1064,9 +1067,7 @@ func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, nod
 	*blockCounter++
 	block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
 	block.Name = keyPath
-	if r.cfg.UseCodeFinder {
-		r.applyCodeFinder(block)
-	}
+	r.classifyBlock(block)
 	notes.attach(block, node.LineComment, node.FootComment)
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -1123,6 +1124,55 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 	case <-ctx.Done():
 		return false
 	}
+}
+
+// classifyBlock applies the configured inline-code rules to a freshly
+// built block and marks a value that is only an absolute URL
+// non-translatable unless translate_urls is on.
+func (r *Reader) classifyBlock(block *model.Block) {
+	if r.cfg.UseCodeFinder {
+		r.applyCodeFinder(block)
+	}
+	if !r.cfg.TranslateURLs && isBareURL(block.SourceText()) {
+		block.Translatable = false
+	}
+}
+
+// bareURLRe matches a value that is one absolute URL and nothing else:
+// a scheme, `://`, and no whitespace.
+var bareURLRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://\S+$`)
+
+// isBareURL reports whether text, trimmed, is a single absolute URL.
+func isBareURL(text string) bool {
+	return bareURLRe.MatchString(strings.TrimSpace(text))
+}
+
+// yaml11Bools are the YAML 1.1 boolean spellings that YAML 1.2 (and so
+// yaml.v3) resolves as strings. YAML 1.1 parsers, Ruby's Psych among
+// them, read these as booleans, so a Rails locale file's `enabled: yes`
+// is a flag, not text. `y` and `n` are left out, as Psych and PyYAML
+// do, because a one-letter value is more often a real string.
+var yaml11Bools = map[string]bool{
+	"yes": true, "Yes": true, "YES": true,
+	"no": true, "No": true, "NO": true,
+	"on": true, "On": true, "ON": true,
+	"off": true, "Off": true, "OFF": true,
+}
+
+// isStringScalar reports whether a scalar is a string for extraction.
+// yaml.v3 resolves numbers, nulls, timestamps and the YAML 1.2 booleans
+// to their own tags. A plain (unquoted, untagged) YAML 1.1 boolean
+// resolves to !!str in yaml.v3 and is treated as a boolean here, so it
+// follows extract_non_strings like every other non-string scalar.
+// Quoting it or tagging it `!!str` makes it a string.
+func isStringScalar(node *yamlv3.Node) bool {
+	if node.Tag != "!!str" && node.Tag != "" {
+		return false
+	}
+	if node.Style == 0 && yaml11Bools[node.Value] {
+		return false
+	}
+	return true
 }
 
 // applyCodeFinder applies code finder patterns to a block's segments,

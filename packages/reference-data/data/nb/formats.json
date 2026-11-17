@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T17:16:50Z",
+  "generatedAt": "2026-11-17T09:43:23Z",
   "kind": "format",
   "entries": [
     {
@@ -5060,6 +5060,7 @@
             "label": "Uttrekk",
             "fields": [
               "extract_non_strings",
+              "translate_urls",
               "key_path_patterns"
             ]
           },
@@ -5105,6 +5106,12 @@
             "type": "string",
             "title": "Delfilterformat",
             "description": "Delfilter som skal brukes på skalarverdier (f.eks. 'html' for å behandle HTML i YAML-verdier)"
+          },
+          "translate_urls": {
+            "type": "boolean",
+            "title": "Translate URLs",
+            "description": "Make a value that is only an absolute URL translatable. When off, the value is extracted and kept as written.",
+            "default": false
           },
           "use_code_finder": {
             "type": "boolean",
