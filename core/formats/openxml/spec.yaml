@@ -234,9 +234,10 @@ features:
   - id: pptx_hidden_slide_excluded
     name: Hidden slides excluded by default (PPTX)
     description: |
-      Slides marked hidden in the presentation are NOT extracted unless
-      translate_hidden_slides is enabled. Default behavior should produce
-      no blocks from a deck where every slide is hidden.
+      Slides marked hidden in the presentation are not extracted unless
+      translate_hidden_slides is enabled, and neither are their speaker
+      notes and comments. From a deck where every slide is hidden, only
+      the document properties remain.
     applies_to: [pptx]
     spec_refs:
       - "ECMA-376 Part 1 §19.3 PresentationML — slide (sld) and `show` attribute"
@@ -245,16 +246,15 @@ features:
         origin: "okapi-fixture: okapi:filters/openxml/.../1010-slide1-hidden-slide2-hidden.pptx"
         variant: pptx
         input_file: okapi:okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx
-        # Default config: hidden slides skipped → no translatable text.
-        expected_fail: |
-          neokapi extracts slide masters and speaker notes from hidden
-          slides even when translate_slide_masters=false and
-          translate_hidden_slides=false. Native defaults disagree with
-          the Okapi contract; tracked here until the reader honors the
-          flags consistently.
-        block_count_max: 0
+        # Default config: hidden slides and their notes are skipped; the
+        # two blocks are docProps/core.xml's title and creator, the same
+        # two Okapi returns.
+        block_texts:
+          - "Slide 1"
+          - "User"
     okapi_refs:
       - OpenXmlPptxTest#doesNotExtractHiddenSlides
+      - OpenXmlPptxTest#hiddenSlideRelatedPartsNotExtracted
 
   - id: pptx_hidden_slide_included
     name: Hidden slides included when configured (PPTX)

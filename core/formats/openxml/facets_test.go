@@ -16,16 +16,17 @@ func TestDocxPartStructure(t *testing.T) {
 		path, plane, note string
 	}{
 		{"word/document.xml", "", ""},
-		{"word/header1.xml", model.LayerFurniture, ""},
-		{"word/footer2.xml", model.LayerFurniture, ""},
+		{"word/header1.xml", model.LayerFurniture, model.RolePageHeader},
+		{"word/footer2.xml", model.LayerFurniture, model.RolePageFooter},
 		{"word/footnotes.xml", "", model.RoleFootnote},
 		{"word/endnotes.xml", "", model.RoleFootnote},
 		{"word/glossary/footnotes.xml", "", model.RoleFootnote},
+		{"word/comments.xml", model.LayerMetadata, ""},
 	}
 	for _, c := range cases {
-		plane, note := docxPartStructure(c.path)
+		plane, role := docxPartStructure(c.path)
 		assert.Equal(t, c.plane, plane, "plane for %s", c.path)
-		assert.Equal(t, c.note, note, "note role for %s", c.path)
+		assert.Equal(t, c.note, role, "role for %s", c.path)
 	}
 }
 

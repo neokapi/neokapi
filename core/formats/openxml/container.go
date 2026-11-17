@@ -58,6 +58,13 @@ type containerInfo struct {
 	// moved to the front keeps its number), so the list is the only source
 	// of the order the deck plays in. Nil when it could not be read.
 	slideOrder []string
+	// hiddenParts holds the parts of every slide marked <p:sld show="0">:
+	// the slide itself, its speaker notes and its comments. PowerPoint skips
+	// such a slide in a show. Nil when the deck has none.
+	hiddenParts map[string]bool
+	// hiddenSheets holds the worksheet parts xl/workbook.xml marks
+	// state="hidden" or state="veryHidden". Nil when no sheet is hidden.
+	hiddenSheets map[string]bool
 	// placeholders resolves the frame a slide placeholder inherits from its
 	// layout and master. Nil when the package has none.
 	placeholders *placeholderGeometry
@@ -157,6 +164,7 @@ func parseContainer(zr *zip.Reader, cfg *Config) (*containerInfo, error) {
 	info.mainDocumentPart = findMainDocumentPart(info.relationships)
 	if info.docType == docTypePPTX {
 		info.slideOrder = parseSlideOrder(zr, info)
+		info.hiddenParts = parseHiddenSlideParts(zr, info)
 		info.placeholders = parsePlaceholderGeometry(zr, info)
 	}
 
@@ -479,6 +487,12 @@ func buildPPTXParts(info *containerInfo, cfg *Config) []string {
 		if seen[target] {
 			return
 		}
+		// A hidden slide, with its notes and comments, is left out unless
+		// translate_hidden_slides asks for it. The part then goes back to
+		// the package as the source wrote it.
+		if info.hiddenParts[target] && !cfg.TranslateHiddenSlides {
+			return
+		}
 		seen[target] = true
 		*list = append(*list, target)
 	}
@@ -666,6 +680,61 @@ func parseSlideOrder(zr *zip.Reader, info *containerInfo) []string {
 	}
 }
 
+// parseHiddenSlideParts returns the parts that belong to a hidden slide: each
+// slide whose root element is <p:sld show="0"> (ECMA-376-1 §19.3.1.38), the
+// notes slide and the comments its relationships name. Nil when no slide is
+// hidden.
+func parseHiddenSlideParts(zr *zip.Reader, info *containerInfo) map[string]bool {
+	var out map[string]bool
+	for relsPath, rels := range info.relationships {
+		for _, rel := range rels {
+			if rel.Type != relTypeSlide {
+				continue
+			}
+			slide := resolveRelTarget(relsPath, rel.Target)
+			if out[slide] || !slideIsHidden(zr, slide) {
+				continue
+			}
+			if out == nil {
+				out = make(map[string]bool)
+			}
+			out[slide] = true
+			slideRels := partRelsPath(slide)
+			for _, r := range info.relationships[slideRels] {
+				if r.Type == relTypeNotesSlide || r.Type == relTypeComments {
+					out[resolveRelTarget(slideRels, r.Target)] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
+// slideIsHidden reports whether a slide part's root element carries
+// show="0" (or "false"). Only the root start tag is read.
+func slideIsHidden(zr *zip.Reader, slide string) bool {
+	f := zipFileByName(zr, slide)
+	if f == nil {
+		return false
+	}
+	rc, err := f.Open()
+	if err != nil {
+		return false
+	}
+	defer rc.Close()
+	dec := xml.NewDecoder(rc)
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return false
+		}
+		if se, ok := tok.(xml.StartElement); ok {
+			v := attrLocalVal(se, "show")
+			return v == "0" || v == "false"
+		}
+	}
+}
+
 // naturalCompare orders part names with their digit runs compared as numbers,
 // so slide2.xml sorts before slide10.xml.
 func naturalCompare(a, b string) int {
@@ -737,16 +806,18 @@ var workbookSheetRE = regexp.MustCompile(`<sheet\b[^>]*>`)
 
 // parseSheetNames maps each worksheet part path to its display name by joining
 // xl/workbook.xml's <sheet name= r:id=> entries against the workbook's
-// relationships. Returns nil when the workbook part is absent or unreadable —
-// a sheet with no recoverable name simply gets none.
-func parseSheetNames(zr *zip.Reader, rels map[string][]relationship) map[string]string {
+// relationships. Returns nil when the workbook part is absent or unreadable,
+// and a sheet with no recoverable name gets none. hidden holds the parts
+// whose <sheet> carries state="hidden" or state="veryHidden" (ECMA-376-1
+// §18.2.19), nil when none does.
+func parseSheetNames(zr *zip.Reader, rels map[string][]relationship) (names map[string]string, hidden map[string]bool) {
 	f := zipFileByName(zr, "xl/workbook.xml")
 	if f == nil {
-		return nil
+		return nil, nil
 	}
 	data, err := safeio.DefaultZipLimits.ReadEntry(f)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	byID := map[string]string{}
 	for _, rel := range rels["xl/_rels/workbook.xml.rels"] {
@@ -754,19 +825,25 @@ func parseSheetNames(zr *zip.Reader, rels map[string][]relationship) map[string]
 	}
 	out := map[string]string{}
 	for _, tag := range workbookSheetRE.FindAllString(string(data), -1) {
-		name := attrFromTag(tag, "name")
 		relID := attrFromTag(tag, "r:id")
-		if name == "" || relID == "" {
+		part, ok := byID[relID]
+		if relID == "" || !ok {
 			continue
 		}
-		if part, ok := byID[relID]; ok {
+		if state := attrFromTag(tag, "state"); state == "hidden" || state == "veryHidden" {
+			if hidden == nil {
+				hidden = make(map[string]bool)
+			}
+			hidden[part] = true
+		}
+		if name := attrFromTag(tag, "name"); name != "" {
 			out[part] = name
 		}
 	}
 	if len(out) == 0 {
-		return nil
+		return nil, hidden
 	}
-	return out
+	return out, hidden
 }
 
 // attrFromTag reads one attribute value out of a serialized start tag.

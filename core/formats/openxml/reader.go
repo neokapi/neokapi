@@ -128,7 +128,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			ch <- model.PartResult{Error: fmt.Errorf("openxml: parsing shared strings: %w", err)}
 			return
 		}
-		info.sheetNames = parseSheetNames(zr, info.relationships)
+		info.sheetNames, info.hiddenSheets = parseSheetNames(zr, info.relationships)
 		info.cellStyles = parseCellStyles(zr, info.relationships)
 	}
 
@@ -331,7 +331,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				// so cross-format writers and core/projection rebuild the grid.
 				emitPart: func(part *model.Part) { r.emit(ctx, ch, part) },
 			}
-			parser.partPlane, parser.partNoteRole = docxPartStructure(partPath)
+			parser.partPlane, parser.partRole = docxPartStructure(partPath)
 			err = parser.parsePart(partData, partPath, emitBlock, func() {})
 			if err != nil {
 				ch <- model.PartResult{Error: err}
@@ -348,6 +348,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				rels:          relsMap,
 				slideNum:      pptxSlideNum(partPath),
 				placeholders:  info.placeholders,
+				hiddenSlide:   info.hiddenParts[partPath],
 				// Surface slide-table topology (a:tbl/a:tr → Groups, cells →
 				// RoleTableCell), as the Word parser does for w:tbl.
 				emitPart: func(part *model.Part) { r.emit(ctx, ch, part) },
@@ -374,6 +375,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				skeletonStore: r.skeletonStore,
 				sharedStrings: info.sharedStrings,
 				sheetNames:    info.sheetNames,
+				hiddenSheet:   info.hiddenSheets[partPath],
 				styles:        info.cellStyles,
 				// Surface worksheet topology (table/table-row Groups) so
 				// cross-format writers and core/projection rebuild the grid

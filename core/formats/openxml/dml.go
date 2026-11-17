@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // dmlNamespace is the DrawingML namespace.
@@ -74,6 +75,10 @@ type dmlParser struct {
 	placeholders *placeholderGeometry
 	phRawType    string
 	phIdx        string
+	// hiddenSlide is set when the part belongs to a slide marked show="0"
+	// (the slide, its notes or its comments); every block it yields is
+	// marked hidden.
+	hiddenSlide bool
 	// Slide table geometry: the graphic frame's origin, the table grid's
 	// column widths, the open row's top and declared height, and the column
 	// the next a:tc occupies. cellBox is the open cell's frame.
@@ -83,6 +88,7 @@ type dmlParser struct {
 	rowTop     int64
 	rowH       int64
 	colIndex   int
+	cellCol    int
 	cellBox    emuBox
 	hasCellBox bool
 	// phType is the current shape's placeholder type (<p:ph type>), cleared at
@@ -161,6 +167,7 @@ func (p *dmlParser) openTableStruct(t xml.StartElement) {
 // minimums; PowerPoint grows a row to fit its text.
 func (p *dmlParser) openCellBox() {
 	col := p.colIndex
+	p.cellCol = col
 	p.colIndex++
 	span := max(p.pendingColSpan, 1)
 	p.hasCellBox = false
@@ -217,6 +224,11 @@ func (p *dmlParser) markTableCell(block *model.Block) {
 		role = model.RoleTableHeader
 	}
 	block.SetSemanticRole(role, 0)
+	// Every paragraph of the cell carries the cell's grid address, so a cell
+	// holding several paragraphs still places each one under its column. The
+	// keys and their 0-based values are the ones the worksheet reader stamps.
+	block.Properties["column"] = strconv.Itoa(p.cellCol)
+	block.Properties[projection.PropFlatRow] = strconv.Itoa(p.rowIndex - 1)
 	if p.pendingMerged {
 		block.Properties[model.PropTableVMerge] = "continue"
 	}
@@ -733,6 +745,9 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				}
 				p.attachShapeGeometry(block)
 				applyPPTXPartFacets(block, partPath)
+				if p.hiddenSlide {
+					block.SetVisibility(model.VisibilityHidden)
+				}
 				emitBlock(block)
 				return nil
 			}
@@ -980,6 +995,9 @@ func (p *dmlParser) emitDrawingProp(a xml.Attr, partPath string, emitBlock func(
 	// RoleCaption lets semantic export and the editor identify it without
 	// treating it as MT input.
 	block.SetSemanticRole(model.RoleCaption, 0)
+	if p.hiddenSlide {
+		block.SetVisibility(model.VisibilityHidden)
+	}
 	emitBlock(block)
 	return id
 }

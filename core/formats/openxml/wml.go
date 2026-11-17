@@ -143,12 +143,14 @@ type wmlParser struct {
 	// heuristic in roleForParaStyle still applies.
 	roleStyles styleRoleMap
 	// partPlane is the layout-layer plane every block in this part inherits
-	// from the part's role (header/footer → furniture); "" for the main
-	// document body. partNoteRole is the fallback semantic role for paragraphs
-	// in a note part (footnotes/endnotes → footnote). Both are §8 structure
-	// facets — additive stand-off metadata, never serialized back.
-	partPlane    string
-	partNoteRole string
+	// from the part's role (header/footer → furniture, comments → metadata);
+	// "" for the main document body. partRole is the semantic role the part
+	// gives its paragraphs. Running headers and footers take page-header and
+	// page-footer. A note part (footnotes/endnotes) gives footnote when the
+	// paragraph style implies no role. Both are §8 structure facets, additive
+	// stand-off metadata that is never serialized back.
+	partPlane string
+	partRole  string
 	// currentStyleChainNames is the resolved set of rPr-child element
 	// local names contributed by docDefaults + the current paragraph's
 	// basedOn chain. It is recomputed on each <w:pPr> we encounter

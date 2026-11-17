@@ -31,6 +31,12 @@ type smlParser struct {
 	// sheetNames maps a worksheet part path to its display name, so a grid can
 	// be labelled with the tab a reader would see.
 	sheetNames map[string]string
+	// hiddenSheet is set when the workbook marks the worksheet being read
+	// hidden or veryHidden. hiddenCols holds the 0-based column ranges its
+	// <col hidden="1"> entries cover. A cell on a hidden sheet, in a hidden
+	// column or in a <row hidden="1"> is extracted and marked hidden.
+	hiddenSheet bool
+	hiddenCols  [][2]int
 	// styles resolves a cell's style index to the number format its value
 	// displays through. Nil resolves every cell to General.
 	styles *cellStyles
@@ -426,7 +432,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 	}
 	rowID := ""
 
-	var inRow, inCell, inValue bool
+	var inRow, inCell, inValue, rowHidden bool
 	var cellType, cellRef, cellStyle string
 	var cellText strings.Builder
 	var hasFormula bool  // the current cell contains a <f> element
@@ -464,6 +470,19 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 			switch t.Name.Local {
 			case "row":
 				inRow = true
+				rowHidden = dmlTrue(attrVal(t, "hidden"))
+				p.skelWriteStartElement(d, t)
+
+			case "col":
+				if inCell {
+					raw, err := captureRawElement(d, t)
+					if err != nil {
+						return err
+					}
+					cellChildren.WriteString(raw)
+					continue
+				}
+				p.recordHiddenCols(t)
 				p.skelWriteStartElement(d, t)
 
 			case "c":
@@ -551,6 +570,13 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 				if inCell {
 					text := cellText.String()
 					translatable := false
+					emitCell := emitBlock
+					if p.hiddenSheet || rowHidden || p.inHiddenCol(cellRef) {
+						emitCell = func(b *model.Block) {
+							b.SetVisibility(model.VisibilityHidden)
+							emitBlock(b)
+						}
+					}
 
 					// The row bracket opens on the row's first surfaced cell,
 					// not on <row>: Excel writes rows carrying only styling, and
@@ -632,7 +658,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 							block.SetGeometry(g)
 						}
 						markGridCell(block, cellRef, p.emitPart != nil)
-						emitBlock(block)
+						emitCell(block)
 					} else {
 						// Nothing in the cell is translated, so it goes back
 						// exactly as it was read: self-closing form, child
@@ -650,11 +676,11 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 							switch {
 							case cellType == "s":
 								openRow()
-								p.emitSharedCellAnchor(text, cellRef, partPath, merges, emitBlock)
+								p.emitSharedCellAnchor(text, cellRef, partPath, merges, emitCell)
 							case strings.TrimSpace(text) != "":
 								openRow()
 								display, code := p.cellDisplay(text, cellType, cellStyle)
-								p.emitLiteralCellAnchor(text, display, code, cellRef, partPath, merges, emitBlock)
+								p.emitLiteralCellAnchor(text, display, code, cellRef, partPath, merges, emitCell)
 							}
 						}
 					}
@@ -681,6 +707,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 
 			case "row":
 				inRow = false
+				rowHidden = false
 				p.skelWriteEndElement(d)
 				p.closeGroup(rowID)
 				rowID = ""
@@ -747,7 +774,41 @@ func (p *smlParser) emitSheetHeading(partPath string, emitBlock func(*model.Bloc
 	block.Translatable = false
 	block.Properties["partPath"] = partPath
 	block.SetSemanticRole(model.RoleHeading, 2)
+	if p.hiddenSheet {
+		block.SetVisibility(model.VisibilityHidden)
+	}
 	emitBlock(block)
+}
+
+// recordHiddenCols notes the column range a <col min max hidden="1"> entry
+// covers (ECMA-376-1 §18.3.1.13). min and max are 1-based and inclusive.
+func (p *smlParser) recordHiddenCols(t xml.StartElement) {
+	if !dmlTrue(attrVal(t, "hidden")) {
+		return
+	}
+	lo, err1 := strconv.Atoi(attrVal(t, "min"))
+	hi, err2 := strconv.Atoi(attrVal(t, "max"))
+	if err1 != nil || err2 != nil || lo < 1 || hi < lo {
+		return
+	}
+	p.hiddenCols = append(p.hiddenCols, [2]int{lo - 1, hi - 1})
+}
+
+// inHiddenCol reports whether a cell reference falls in a hidden column.
+func (p *smlParser) inHiddenCol(cellRef string) bool {
+	if len(p.hiddenCols) == 0 {
+		return false
+	}
+	col, _, ok := parseCellRefA1(cellRef)
+	if !ok {
+		return false
+	}
+	for _, r := range p.hiddenCols {
+		if col >= r[0] && col <= r[1] {
+			return true
+		}
+	}
+	return false
 }
 
 // emitSharedCellAnchor surfaces a shared-string worksheet cell as a
