@@ -84,6 +84,25 @@ describe("ReviewCard", () => {
     expect(onDetails).toHaveBeenCalled();
   });
 
+  it("says how many other places the decision covers", async () => {
+    const copy = {
+      blockId: "b9",
+      item: "apps/kapi-desktop/build/windows/info.json",
+      name: "fixed.comments",
+      collectionId: "c1",
+      targetRevision: "r:9",
+    };
+    await render(
+      wrap(
+        <ReviewCard
+          card={{ ...card, copies: [copy, { ...copy, blockId: "b8" }] }}
+          sourceLanguage="en"
+        />,
+      ),
+    );
+    expect(screen.getByTestId("card-copies")).toHaveTextContent(/2 other places/);
+  });
+
   it("words no reason for a quick card", async () => {
     await render(
       wrap(
@@ -128,5 +147,33 @@ describe("ContextSheetBody", () => {
     expect(screen.getByText("Neokapi desktop build")).toBeTruthy();
     expect(screen.getByText("neokapi documentation")).toBeTruthy();
     expect(screen.getByText("info.comments")).toBeTruthy();
+    expect(screen.queryByTestId("details-copy")).toBeNull();
+  });
+
+  it("lists the copies a decision covers", async () => {
+    await render(
+      wrap(
+        <ContextSheetBody
+          card={{
+            ...card,
+            copies: [
+              {
+                blockId: "b9",
+                item: "apps/kapi-desktop/build/windows/info.json",
+                name: "fixed.comments",
+                collectionId: "c1",
+                targetRevision: "r:9",
+              },
+            ],
+          }}
+          scope={{ workspace: "w", project: "p" }}
+          where={[]}
+          load={async () => ({}) as unknown as ReviewContext}
+          onClose={() => {}}
+        />,
+      ),
+    );
+    expect(screen.getByTestId("details-copy")).toHaveTextContent(/info\.json/);
+    expect(screen.getByText("fixed.comments")).toBeTruthy();
   });
 });

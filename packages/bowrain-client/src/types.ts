@@ -377,6 +377,23 @@ export interface DeckCard {
    * card offers no approve swipe.
    */
   ownWork: boolean;
+  /**
+   * The other translations waiting with the same source and the same
+   * translation. A decision on the card is sent for each of them in the same
+   * change set. A card read before the server dealt copies has none.
+   */
+  copies?: DeckCopy[];
+}
+
+/** A translation a deck card stands for (`copies[]` of a deck card). */
+export interface DeckCopy {
+  blockId: string;
+  item: string;
+  /** The block's key in its item. */
+  name?: string;
+  collectionId: string;
+  targetRevision: string;
+  sourceRevision?: string;
 }
 
 /** A note on a card (`notes[]` of a deck card). */

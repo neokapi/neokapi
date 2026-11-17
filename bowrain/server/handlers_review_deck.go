@@ -44,6 +44,9 @@ const (
 	deckClassifyBudget = 2000
 	// deckNoteLimit bounds the check notes one card carries.
 	deckNoteLimit = 3
+	// deckCopyLimit bounds the copies one page reads. A copy past it stays
+	// in the deck and is dealt once the card's decision lands.
+	deckCopyLimit = 500
 )
 
 // deckNote is one line about a card: a check finding, a term the source
@@ -88,6 +91,21 @@ type deckCard struct {
 	Reason string               `json:"reason"`
 	// ReasonCode names Reason for a client that words it itself.
 	ReasonCode reviewdeck.DeckReason `json:"reason_code,omitempty"`
+	// Copies are the other translations waiting with the same source and the
+	// same translation. A decision on the card is meant for each of them,
+	// so a client sends one change set with an operation per copy.
+	Copies []deckCopy `json:"copies,omitempty"`
+}
+
+// deckCopy is a translation a card stands for, with the revisions a change
+// set binds to.
+type deckCopy struct {
+	BlockID        string `json:"block_id"`
+	ItemName       string `json:"item_name"`
+	Key            string `json:"key"`
+	CollectionID   string `json:"collection_id"`
+	SourceRevision string `json:"source_revision"`
+	TargetRevision string `json:"target_revision"`
 }
 
 type deckCounts struct {
@@ -224,6 +242,9 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	}
 	cards, err := s.deckPage(ctx, c, proj, stream, loc, rows)
 	if err != nil {
+		return serverErr(c, err)
+	}
+	if err := s.deckCopies(ctx, decks, proj, q, cards); err != nil {
 		return serverErr(c, err)
 	}
 	out.Cards = cards
@@ -438,6 +459,52 @@ func (s *Server) deckPage(ctx context.Context, c echo.Context, proj *store.Proje
 		cards = append(cards, card)
 	}
 	return cards, nil
+}
+
+// deckCopies sets each card's copies, the other translations waiting with
+// the same source and translation in every collection the deck reads.
+func (s *Server) deckCopies(ctx context.Context, decks store.ReviewDeckStore, proj *store.Project, q store.ReviewDeckQuery, cards []deckCard) error {
+	if len(cards) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(cards))
+	for _, c := range cards {
+		ids = append(ids, c.BlockID)
+	}
+	all := q
+	all.CollectionID = nil
+	copies, err := decks.ReviewDeckCopies(ctx, all, ids, deckCopyLimit)
+	if err != nil || len(copies) == 0 {
+		return err
+	}
+	var copyIDs []string
+	for _, refs := range copies {
+		for _, r := range refs {
+			copyIDs = append(copyIDs, r.BlockID)
+		}
+	}
+	byID, err := s.deckBlocks(ctx, proj.ID, q.Stream, copyIDs)
+	if err != nil {
+		return err
+	}
+	targetLoc := model.LocaleID(q.Locale)
+	for i := range cards {
+		for _, r := range copies[cards[i].BlockID] {
+			sb := byID[r.BlockID]
+			if sb == nil {
+				continue
+			}
+			cards[i].Copies = append(cards[i].Copies, deckCopy{
+				BlockID:        r.BlockID,
+				ItemName:       r.ItemName,
+				Key:            sb.Block.Name,
+				CollectionID:   r.CollectionID,
+				SourceRevision: check.SourceRevision(sb.Block, proj.DefaultSourceLanguage),
+				TargetRevision: store.TargetRevision(sb, targetLoc),
+			})
+		}
+	}
+	return nil
 }
 
 func nonNilRuns(runs []model.Run) []model.Run {

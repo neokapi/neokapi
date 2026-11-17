@@ -48,6 +48,11 @@ const reviewDeckFresh = `(f.block_id IS NOT NULL
 	AND f.decision_at IS NOT DISTINCT FROM d.updated_at
 	AND f.computed_at > NOW() - INTERVAL '1 day')`
 
+// reviewDeckSame names the translations a reviewer decides once: the same
+// source, codes included (its revision), and the same translation. A block
+// stored before it had a source revision stands alone.
+const reviewDeckSame = `(CASE WHEN b.source_revision = '' THEN b.id ELSE b.source_revision END), t.text`
+
 // reviewDeckPriority is the SQL rank of a row's collection tier, 0 high,
 // 1 normal, 2 low, binding the tiers' collection ids through args.
 func reviewDeckPriority(q platstore.ReviewDeckQuery, args []any) (string, []any) {
@@ -161,24 +166,31 @@ func (s *PostgresStore) RecordReviewDeckFacts(ctx context.Context, projectID, st
 func (s *PostgresStore) ListReviewDeck(ctx context.Context, q platstore.ReviewDeckQuery, groupRank int, after *platstore.ReviewDeckKey, limit int) ([]platstore.ReviewDeckRow, error) {
 	scope, args := reviewDeckArgs(q)
 	prio, args := reviewDeckPriority(q, args)
+	// The inner query ranks each set of copies over the whole deck, so a set
+	// is dealt once, at its first card; the outer one pages that.
+	var outer string
 	if groupRank >= 0 {
 		args = append(args, groupRank)
-		scope += fmt.Sprintf(` AND f.group_rank = $%d`, len(args))
-	} else {
-		scope += ` AND f.group_rank >= 0`
+		outer += fmt.Sprintf(` AND x.group_rank = $%d`, len(args))
 	}
 	if after != nil {
 		n := len(args)
 		args = append(args, after.Priority, after.GroupRank, after.ItemName, after.Position, after.BlockID)
-		scope += fmt.Sprintf(` AND (`+prio+`, f.group_rank, b.item_name, b.position, b.id) > ($%d, $%d, $%d, $%d, $%d)`, n+1, n+2, n+3, n+4, n+5)
+		outer += fmt.Sprintf(` AND (x.prio, x.group_rank, x.item_name, x.position, x.id) > ($%d, $%d, $%d, $%d, $%d)`, n+1, n+2, n+3, n+4, n+5)
 	}
 	args = append(args, limit)
+	order := prio + `, f.group_rank, b.item_name, b.position, b.id`
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
-	query := `SELECT b.id, b.item_name, t.locale, COALESCE(i.collection_id, ''), b.position,
-		t.updated_at, b.source_revision, f.policy, f.group_rank, f.deck_group, f.reason,
-		f.findings, f.failing, f.term_compliance, f.voice_score, f.voice_bar, ` + prio +
-		reviewDeckFrom + scope + ` AND ` + reviewDeckFresh +
-		fmt.Sprintf(` ORDER BY `+prio+`, f.group_rank, b.item_name, b.position, b.id LIMIT $%d`, len(args))
+	query := `SELECT x.id, x.item_name, x.locale, x.collection_id, x.position,
+		x.updated_at, x.source_revision, x.policy, x.group_rank, x.deck_group, x.reason,
+		x.findings, x.failing, x.term_compliance, x.voice_score, x.voice_bar, x.prio
+		FROM (SELECT b.id, b.item_name, t.locale, COALESCE(i.collection_id, '') AS collection_id, b.position,
+			t.updated_at, b.source_revision, f.policy, f.group_rank, f.deck_group, f.reason,
+			f.findings, f.failing, f.term_compliance, f.voice_score, f.voice_bar, ` + prio + ` AS prio,
+			row_number() OVER (PARTITION BY ` + reviewDeckSame + ` ORDER BY ` + order + `) AS copy` +
+		reviewDeckFrom + scope + ` AND ` + reviewDeckFresh + ` AND f.group_rank >= 0) x
+		WHERE x.copy = 1` + outer +
+		fmt.Sprintf(` ORDER BY x.prio, x.group_rank, x.item_name, x.position, x.id LIMIT $%d`, len(args))
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list review deck: %w", err)
@@ -204,6 +216,47 @@ func (s *PostgresStore) ListReviewDeck(ctx context.Context, q platstore.ReviewDe
 	return out, rows.Err()
 }
 
+// ReviewDeckCopies returns the other pending translations with the same
+// source and translation as each block. See platstore.ReviewDeckStore.
+func (s *PostgresStore) ReviewDeckCopies(ctx context.Context, q platstore.ReviewDeckQuery, blockIDs []string, limit int) (map[string][]platstore.PendingReviewRef, error) {
+	out := map[string][]platstore.PendingReviewRef{}
+	if len(blockIDs) == 0 || limit <= 0 {
+		return out, nil
+	}
+	args := []any{q.ProjectID, storeutil.DefaultStream(q.Stream), q.Locale, blockIDs}
+	var scope string
+	if len(q.ExcludeCollections) > 0 {
+		args = append(args, q.ExcludeCollections)
+		scope = fmt.Sprintf(` AND COALESCE(i.collection_id, '') <> ALL($%d)`, len(args))
+	}
+	args = append(args, limit)
+	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
+	query := `SELECT r.id, b.id, b.item_name, COALESCE(i.collection_id, '')
+		FROM blocks r
+		JOIN translations rt ON rt.project_id = r.project_id AND rt.stream = $2 AND rt.block_id = r.id AND rt.locale = $3
+		JOIN blocks b ON b.project_id = r.project_id AND b.stream = $2 AND b.source_revision = r.source_revision
+			AND b.id <> r.id AND b.translatable
+		JOIN translations t ON t.project_id = b.project_id AND t.stream = $2 AND t.block_id = b.id AND t.locale = $3
+			AND t.text = rt.text AND COALESCE(t.target_json->>'status', '') <> 'established'
+		LEFT JOIN items i ON i.project_id = b.project_id AND i.stream = $2 AND i.name = b.item_name
+		WHERE r.project_id = $1 AND r.stream = $2 AND r.id = ANY($4) AND r.source_revision <> '' AND rt.text <> ''` +
+		scope + fmt.Sprintf(` ORDER BY r.id, b.item_name, b.position, b.id LIMIT $%d`, len(args))
+	rows, err := s.db.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list review deck copies: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var of string
+		ref := platstore.PendingReviewRef{Locale: q.Locale}
+		if err := rows.Scan(&of, &ref.BlockID, &ref.ItemName, &ref.CollectionID); err != nil {
+			return nil, fmt.Errorf("scan review deck copies: %w", err)
+		}
+		out[of] = append(out[of], ref)
+	}
+	return out, rows.Err()
+}
+
 func nullIntPtr(n sql.NullInt64) *int {
 	if !n.Valid {
 		return nil
@@ -216,11 +269,15 @@ func nullIntPtr(n sql.NullInt64) *int {
 // platstore.ReviewDeckStore.
 func (s *PostgresStore) CountReviewDeck(ctx context.Context, q platstore.ReviewDeckQuery) (platstore.ReviewDeckCounts, error) {
 	scope, args := reviewDeckArgs(q)
+	prio, args := reviewDeckPriority(q, args)
 	out := platstore.ReviewDeckCounts{ByRank: map[int]int{}}
+	// A set of copies counts once, at the card ListReviewDeck deals for it; a
+	// fresh row ranked below 0 is set aside and is not in the deck.
+	rank := `CASE WHEN ` + reviewDeckFresh + ` THEN f.group_rank ELSE -1 END`
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
-	// A fresh row ranked below 0 is set aside and is not in the deck.
-	query := `SELECT CASE WHEN ` + reviewDeckFresh + ` THEN f.group_rank ELSE -1 END AS rank, count(*)` +
-		reviewDeckFrom + scope + ` AND NOT (` + reviewDeckFresh + ` AND f.group_rank < 0) GROUP BY rank`
+	query := `SELECT rank, count(*) FROM (SELECT DISTINCT ON (` + reviewDeckSame + `) ` + rank + ` AS rank` +
+		reviewDeckFrom + scope + ` AND NOT (` + reviewDeckFresh + ` AND f.group_rank < 0)
+		ORDER BY ` + reviewDeckSame + `, (` + rank + ` < 0), ` + prio + `, ` + rank + `) x GROUP BY rank`
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return out, fmt.Errorf("count review deck: %w", err)
@@ -246,13 +303,19 @@ func (s *PostgresStore) CountReviewDeckByCollection(ctx context.Context, q plats
 	scope, args := reviewDeckArgs(q)
 	// Rank -3 is an established translation, -2 one set aside, -1 one whose
 	// facts are missing or no longer hold.
-	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
-	query := `SELECT COALESCE(i.collection_id, '') AS coll, CASE
+	rank := `CASE
 			WHEN COALESCE(t.target_json->>'status', '') = 'established' THEN -3
 			WHEN ` + reviewDeckFresh + ` AND f.group_rank < 0 THEN -2
 			WHEN ` + reviewDeckFresh + ` THEN f.group_rank
-			ELSE -1 END AS rank, count(*)` +
-		reviewDeckTranslations + scope + ` GROUP BY coll, rank`
+			ELSE -1 END`
+	// A set of copies in a collection counts once, as its collection's deck
+	// deals it: waiting while any copy waits.
+	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
+	query := `SELECT coll, rank, count(*) FROM (SELECT DISTINCT ON (coll, ` + reviewDeckSame + `)
+			COALESCE(i.collection_id, '') AS coll, ` + rank + ` AS rank` +
+		reviewDeckTranslations + scope + `
+		ORDER BY coll, ` + reviewDeckSame + `, CASE WHEN ` + rank + ` >= 0 THEN 0 ELSE -` + rank + ` END, ` + rank + `) x
+		GROUP BY coll, rank`
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("count review deck by collection: %w", err)

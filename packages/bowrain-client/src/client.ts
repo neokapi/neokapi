@@ -560,6 +560,14 @@ export interface ServerDeckCard {
   group?: DeckGroup;
   reason?: string;
   reason_code?: string;
+  copies?: {
+    block_id: string;
+    item_name: string;
+    key?: string;
+    collection_id?: string;
+    source_revision?: string;
+    target_revision: string;
+  }[];
 }
 
 /** A page of the server's deck. */
@@ -608,6 +616,14 @@ export function cardFromServer(c: ServerDeckCard): DeckCard {
     findingsCount: c.findings_count ?? 0,
     failingFindingsCount: c.failing_findings_count ?? 0,
     ownWork: c.own_work ?? false,
+    copies: (c.copies ?? []).map((cp) => ({
+      blockId: cp.block_id,
+      item: cp.item_name,
+      name: cp.key,
+      collectionId: cp.collection_id ?? "",
+      targetRevision: cp.target_revision,
+      sourceRevision: cp.source_revision || undefined,
+    })),
   };
 }
 

@@ -235,3 +235,48 @@ func TestReviewDeck_DealsCollectionsByPriority(t *testing.T) {
 	assert.Equal(t, colls["docs"], listed.Collections[0].CollectionID)
 	assert.Equal(t, "high", listed.Collections[0].Priority)
 }
+
+func TestReviewDeck_DealsIdenticalTextOnce(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+	projID, colls, _ := seedCollectionsProject(t, s, wsID)
+	// The same source with the same translation in another collection, and
+	// once with a different translation.
+	require.NoError(t, s.ContentStore.StoreItem(ctx, projID, "main", &platstore.Item{
+		Name: "more.json", Format: "txt", ItemType: "file", CollectionID: colls["docs"],
+	}))
+	require.NoError(t, s.ContentStore.StoreBlocksForItem(ctx, projID, "main", "more.json", []*model.Block{
+		pendingFrBlock("m1", "Save", "Enregistrer"),
+		pendingFrBlock("m2", "Save", "Sauvegarder"),
+	}))
+
+	deck := readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}})
+	var same []deckCard
+	targets := map[string]int{}
+	for _, c := range deck.Cards {
+		if c.SourceText == "Save" {
+			targets[c.TargetText]++
+			if c.TargetText == "Enregistrer" {
+				same = append(same, c)
+			}
+		}
+	}
+	assert.Equal(t, map[string]int{"Enregistrer": 1, "Sauvegarder": 1}, targets, "one card per translation")
+	require.Len(t, same, 1)
+	require.Len(t, same[0].Copies, 1)
+	cp := same[0].Copies[0]
+	assert.NotEqual(t, same[0].BlockID, cp.BlockID)
+	assert.NotEmpty(t, cp.TargetRevision)
+	assert.NotEmpty(t, cp.SourceRevision)
+	assert.Equal(t, 5, deck.Counts.Waiting, "the copy counts once")
+
+	// A collection's own deck reads only its collection, and its card still
+	// lists the copy in the other one.
+	docs := readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}, "collection": {colls["docs"]}})
+	for _, c := range docs.Cards {
+		if c.SourceText == "Save" && c.TargetText == "Enregistrer" {
+			require.Len(t, c.Copies, 1)
+			assert.Equal(t, colls["web"], c.Copies[0].CollectionID)
+		}
+	}
+}
