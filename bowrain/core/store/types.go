@@ -353,6 +353,22 @@ type Collection struct {
 // translation as missing, and deals none for review.
 const CollectionConfigSourceOnly = "source_only"
 
+// CollectionConfigPriority is the ConnectorConfig key a collection's review
+// priority is stored under: "high" or "low". Absent is normal.
+const CollectionConfigPriority = "priority"
+
+// Priority is the collection's review priority: "high", "normal" or "low".
+func (c *Collection) Priority() string {
+	if c == nil {
+		return "normal"
+	}
+	switch p := c.ConnectorConfig[CollectionConfigPriority]; p {
+	case "high", "low":
+		return p
+	}
+	return "normal"
+}
+
 // SourceOnly reports whether the collection's content has no target language.
 func (c *Collection) SourceOnly() bool {
 	return c != nil && c.ConnectorConfig[CollectionConfigSourceOnly] == "true"

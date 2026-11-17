@@ -260,6 +260,8 @@ export interface DeckCollection {
   channel?: string;
   /** The point the collection declares: axis to value, such as `product: kapi`. */
   coordinates?: Record<string, string>;
+  /** The collection's review priority; absent for no collection and for the whole language. */
+  priority?: "high" | "normal" | "low";
   waiting: number;
   fast: number;
   closer: number;

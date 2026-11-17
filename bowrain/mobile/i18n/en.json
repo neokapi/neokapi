@@ -244,7 +244,9 @@
     "next": "Next: {{name}}",
     "nextWaiting_one": "1 card waiting",
     "nextWaiting_other": "{{count, number}} cards waiting",
-    "back": "All collections"
+    "back": "All collections",
+    "start": "Start here",
+    "low": "Low priority"
   },
   "deck": {
     "title": "Review",

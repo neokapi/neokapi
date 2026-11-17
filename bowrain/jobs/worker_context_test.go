@@ -329,11 +329,14 @@ func TestReconcileContext_UnclaimedProjectReconcilesStructure(t *testing.T) {
 }
 
 func TestGovernanceConfig_SourceOnly(t *testing.T) {
-	set := governanceConfig(map[string]string{"type": "git"}, "", "web", true)
+	set := governanceConfig(map[string]string{"type": "git"}, "", &pb.SyncContextEntry{Channel: "web", SourceOnly: true, Priority: "high"})
+	assert.Equal(t, "high", set[store.CollectionConfigPriority])
 	assert.Equal(t, "true", set[store.CollectionConfigSourceOnly])
 	assert.Equal(t, "git", set["type"])
 
-	cleared := governanceConfig(set, "", "web", false)
+	cleared := governanceConfig(set, "", &pb.SyncContextEntry{Channel: "web"})
+	_, hasPriority := cleared[store.CollectionConfigPriority]
+	assert.False(t, hasPriority)
 	_, ok := cleared[store.CollectionConfigSourceOnly]
 	assert.False(t, ok)
 }

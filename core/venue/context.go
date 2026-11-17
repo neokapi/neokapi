@@ -89,6 +89,10 @@ func ComputeContextEntryHash(e *pb.SyncContextEntry) string {
 		h.Write([]byte{0})
 		h.Write([]byte("source_only"))
 	}
+	if p := e.GetPriority(); p != "" {
+		h.Write([]byte{0})
+		h.Write([]byte("priority:" + p))
+	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 

@@ -3,6 +3,7 @@ package server
 import (
 	"cmp"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -24,6 +25,9 @@ type deckCollection struct {
 	// reads them as the product and surface a string ships on.
 	Channel     string            `json:"channel,omitempty"`
 	Coordinates map[string]string `json:"coordinates,omitempty"`
+	// Priority is the collection's review priority: high, normal or low.
+	// Absent for the blocks in no collection and for the whole language.
+	Priority string `json:"priority,omitempty"`
 	deckWaiting
 	// Translations is every translation of the language in the collection,
 	// and Decided the part no longer waiting: approved, or rejected and
@@ -75,11 +79,12 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	policy := s.deckPolicy()
-	exclude, err := sourceOnlyCollections(ctx, s.ContentStore, pid, stream)
+	scope, err := deckScopeOf(ctx, s.ContentStore, pid, stream)
 	if err != nil {
 		return serverErr(c, err)
 	}
-	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy), ExcludeCollections: exclude}
+	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy)}
+	scope.apply(&q)
 	wsID, _ := c.Get("workspace_id").(string)
 	if _, err := s.classifyDeck(ctx, wsID, decks, proj, q, policy, deckClassifyBudget); err != nil {
 		return serverErr(c, err)
@@ -109,6 +114,7 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		}
 		dc := deckCollectionOf(id, name, n)
 		if coll != nil {
+			dc.Priority = coll.Priority()
 			dc.Channel = coll.ConnectorConfig[coreprofile.PropertyChannel]
 			if len(coll.Context) > 0 {
 				dc.Coordinates = coll.Context
@@ -126,6 +132,11 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		}
 	}
 	add(nil)
+	// Higher priority first among those waiting; the order within a tier is
+	// the project's collection order.
+	slices.SortStableFunc(waiting, func(a, b deckCollection) int {
+		return priorityRank(a.Priority) - priorityRank(b.Priority)
+	})
 	out.Collections = append(append(out.Collections, waiting...), done...)
 	return c.JSON(http.StatusOK, out)
 }
@@ -149,4 +160,16 @@ func addDeckCollection(sum *deckCollection, dc deckCollection) {
 	sum.Unclassified += dc.Unclassified
 	sum.Translations += dc.Translations
 	sum.Decided += dc.Decided
+}
+
+// priorityRank is a collection priority's place in the deal: high, then
+// normal (and no collection), then low.
+func priorityRank(p string) int {
+	switch p {
+	case "high":
+		return 0
+	case "low":
+		return 2
+	}
+	return 1
 }

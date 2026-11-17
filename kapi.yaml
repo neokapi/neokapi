@@ -211,6 +211,10 @@ profiles:
 
 # A channel is always bound as `<profile>/<channel>`: the product owns the
 # surface, and the binding reads as one.
+#
+# Review priority: the surfaces a user reads first (the CLI, both apps, the
+# mobile app and the landing page) are high; the internal admin apps, demo
+# narration and the generated reference dossiers are low; the rest is normal.
 collections:
   - name: neokapi-engine
     channel: neokapi/engine
@@ -241,6 +245,7 @@ collections:
   # The CLI's own help and output strings.
   - name: neokapi-cli
     channel: neokapi/cli
+    priority: high
     base: host/i18n
     content:
       # Bare `json`: the whole file is recycled as one item. The catalog
@@ -253,6 +258,7 @@ collections:
         target: catalogs/{lang}.json
   - name: neokapi-desktop
     channel: neokapi/desktop
+    priority: high
     base: apps/kapi-desktop/frontend
     # A reviewer can read one of these strings inside the component that ships
     # it. Declared per collection because this repository publishes one host per
@@ -267,6 +273,7 @@ collections:
         target: i18n-{lang}/{filename}
   - name: bowrain-app
     channel: bowrain/app
+    priority: high
     base: bowrain/packages/app
     preview:
       kind: storybook
@@ -276,6 +283,7 @@ collections:
         target: i18n-{lang}/{filename}
   - name: bowrain-ctrl
     channel: bowrain/ctrl
+    priority: low
     base: bowrain/apps/ctrl
     preview:
       kind: storybook
@@ -285,6 +293,7 @@ collections:
         target: i18n-{lang}/{filename}
   - name: bowrain-pulse
     channel: bowrain/pulse
+    priority: low
     base: bowrain/apps/pulse
     preview:
       kind: storybook
@@ -333,6 +342,7 @@ collections:
   # in that locale by the site's reference-locale plugin.
   - name: neokapi-docs-reference
     channel: neokapi/docs
+    priority: low
     base: scripts/gen-refs/nativedocs
     content:
       # `*/*.yaml` is the generator's own glob (loadNativeDocs reads
@@ -398,12 +408,14 @@ collections:
         target: "{lang}.json"
   - name: bowrain-landing
     channel: bowrain/landing
+    priority: high
     base: bowrain/web/landing
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-mobile
     channel: bowrain/mobile
+    priority: high
     base: bowrain/mobile
     content:
       - path: i18n/en.json
@@ -461,6 +473,7 @@ collections:
             exceptions: "FileDescription|Comments"
   - name: neokapi-demos
     channel: neokapi/demos
+    priority: low
     base: harness/demos
     content:
       # Narrated demo-video scripts. The English demo.yaml is the master;

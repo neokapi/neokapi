@@ -116,18 +116,18 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				out.Context = append(out.Context, entry)
 			}
 			locales := s.reviewableLocales(ctx, userID, ws, p, scopes)
-			exclude, err := sourceOnlyCollections(ctx, s.ContentStore, p.ID, reviewInboxStream)
+			scope, err := deckScopeOf(ctx, s.ContentStore, p.ID, reviewInboxStream)
 			if err != nil {
 				return serverErr(c, err)
 			}
 			for _, loc := range locales {
 				q := store.ReviewDeckQuery{
-					ProjectID:          p.ID,
-					Stream:             reviewInboxStream,
-					Locale:             loc,
-					Policy:             policy,
-					ExcludeCollections: exclude,
+					ProjectID: p.ID,
+					Stream:    reviewInboxStream,
+					Locale:    loc,
+					Policy:    policy,
 				}
+				scope.apply(&q)
 				counts, err := decks.CountReviewDeck(ctx, q)
 				if err != nil {
 					return serverErr(c, err)

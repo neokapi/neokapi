@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -106,6 +107,11 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 			Coordinates: kapiProject.CoordinatesAt(point, governance),
 			Owner:       venue.ContextOwnerRecipe,
 			SourceOnly:  coll.SourceOnly,
+		}
+		// Normal travels as empty, so a recipe that sets no priority sends
+		// what it sent before the field existed.
+		if pr := kapiProject.PriorityOf(coll); pr != project.PriorityNormal {
+			entry.Priority = pr
 		}
 		if governance != nil {
 			entry.Channel = governance.Channel

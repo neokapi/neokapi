@@ -287,6 +287,10 @@ type Defaults struct {
 	// them would let a recipe contradict its own point. Declared axes only.
 	Coordinates map[string]string `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
 
+	// Priority is the review priority every collection takes unless it sets
+	// its own: high, normal or low. Empty is normal.
+	Priority string `yaml:"priority,omitempty" json:"priority,omitempty"`
+
 	// Tools holds project-level tool presets: per-tool config defaults applied
 	// wherever the tool runs in a project flow. A flow step's own config
 	// overrides the preset per key (step wins), so a project can pin, say,
@@ -764,6 +768,12 @@ type Collection struct {
 	// the items cannot drift into disagreeing.
 	SourceOnly bool `yaml:"source_only,omitempty" json:"source_only,omitempty"`
 
+	// Priority orders this collection's content for review against the
+	// project's other collections: high, normal or low. Empty takes
+	// defaults.priority. A review surface deals the high collections first and
+	// the low ones last.
+	Priority string `yaml:"priority,omitempty" json:"priority,omitempty"`
+
 	// Redaction is the redaction policy for the files this collection's items
 	// claim, on a named collection and on a bare entry alike. It replaces
 	// `defaults.redaction` for those files whole, and an item's own
@@ -1178,9 +1188,15 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.validateContextSpace(); err != nil {
 		return err
 	}
+	if !ValidPriority(p.Defaults.Priority) {
+		return fmt.Errorf("defaults.priority: %q is not one of high, normal, low", p.Defaults.Priority)
+	}
 	for i, c := range p.Collections {
 		if err := c.validateSourceOnly(i); err != nil {
 			return err
+		}
+		if !ValidPriority(c.Priority) {
+			return fmt.Errorf("collections[%d].priority: %q is not one of high, normal, low", i, c.Priority)
 		}
 		if err := c.Redaction.validateAt(fmt.Sprintf("collections[%d].redaction", i)); err != nil {
 			return err
@@ -1523,4 +1539,33 @@ func (p *KapiProject) GetExtra(key string, target any) (bool, error) {
 // DeleteExtra removes a key from Extras. No-op if the key is absent.
 func (p *KapiProject) DeleteExtra(key string) {
 	delete(p.Extras, key)
+}
+
+// The review priorities a collection takes. Empty is PriorityNormal.
+const (
+	PriorityHigh   = "high"
+	PriorityNormal = "normal"
+	PriorityLow    = "low"
+)
+
+// ValidPriority reports whether s is a priority a recipe may write: empty,
+// high, normal or low.
+func ValidPriority(s string) bool {
+	switch s {
+	case "", PriorityHigh, PriorityNormal, PriorityLow:
+		return true
+	}
+	return false
+}
+
+// PriorityOf is the review priority of a collection: its own, else
+// defaults.priority, else normal.
+func (p *KapiProject) PriorityOf(c *Collection) string {
+	if c != nil && c.Priority != "" {
+		return c.Priority
+	}
+	if p != nil && p.Defaults.Priority != "" {
+		return p.Defaults.Priority
+	}
+	return PriorityNormal
 }

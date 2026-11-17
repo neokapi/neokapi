@@ -473,6 +473,11 @@ message SyncContextEntry {
   // has no target language, so the venue never drafts a translation of it or
   // deals one for review. It is part of content_hash.
   bool source_only = 10;
+
+  // Priority is the collection's review priority as the recipe resolves it:
+  // "high" or "low", empty for normal. A venue deals high collections first
+  // and low ones last. It is part of content_hash.
+  string priority = 11;
 }
 
 // SyncPreviewSource is a place a collection's strings can be seen in situ.

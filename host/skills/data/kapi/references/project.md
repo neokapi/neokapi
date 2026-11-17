@@ -218,6 +218,9 @@ collections:
   and checks but never writes back (package descriptions, installer strings);
   `kapi up` skips it and target-coverage gates exclude it. A collection that
   also names a target fails to load.
+- **Review priority**: `priority: high | normal | low` on a collection, or
+  `defaults.priority` for all of them, orders review: high collections are
+  dealt first and low ones last.
 - **Comments in code**: `comments: true` on a content item checks the comments
   in its files as content. Go source has no format reader, so its comments are
   what kapi reads: `kapi check` and `check --ship` check them under the item's
