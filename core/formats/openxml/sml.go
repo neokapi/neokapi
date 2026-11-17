@@ -806,16 +806,18 @@ func (p *smlParser) recordHiddenCols(t xml.StartElement) {
 // make the hidden-column set larger than a sheet.
 const maxSheetColumns = 16384
 
-// inHiddenCol reports whether a cell reference falls in a hidden column.
+// inHiddenCol reports whether a cell reference falls in a hidden column. A
+// cell past the sheet's last column is one no spreadsheet shows, so it counts
+// as hidden too.
 func (p *smlParser) inHiddenCol(cellRef string) bool {
-	if len(p.hiddenCols) == 0 {
-		return false
-	}
 	col, _, ok := parseCellRefA1(cellRef)
-	if !ok || col < 0 || col >= len(p.hiddenCols) {
+	if !ok || col < 0 {
 		return false
 	}
-	return p.hiddenCols[col]
+	if col >= maxSheetColumns {
+		return true
+	}
+	return len(p.hiddenCols) > 0 && p.hiddenCols[col]
 }
 
 // emitSharedCellAnchor surfaces a shared-string worksheet cell as a
