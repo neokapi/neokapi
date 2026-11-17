@@ -336,7 +336,14 @@
   },
   "undo": {
     "button": "Undo",
-    "hint": "Takes back the last decision."
+    "hint": "Takes back the last decision.",
+    "whenOnline": "Sends when you're online.",
+    "announce": "{{decision}}. Undo is available for a few seconds.",
+    "decided": {
+      "approve": "Approved",
+      "reject": "Rejected",
+      "fix": "Corrected"
+    }
   },
   "swipe": {
     "approve": "Approve",
@@ -660,6 +667,27 @@
       "updateEmbedded": "Included in this build",
       "updateNone": "None in a development build",
       "channel": "Channel"
+    }
+  },
+  "reviewed": {
+    "title": "Reviewed",
+    "open_one": "Reviewed ({{count}})",
+    "open_other": "Reviewed ({{count, number}})",
+    "openHint": "Lists your decisions in this language, each with Undo.",
+    "lead": "Your decisions in {{language}} on this device, newest first.",
+    "empty": "No decisions on this device yet.",
+    "undoHint": "Takes back this decision.",
+    "status": {
+      "held": "Not sent yet",
+      "sending": "Sending",
+      "offline": "Waits for a connection",
+      "sent": "Sent",
+      "fixLanded": "Sent. Edit the text again to change it",
+      "secondReview": "Waits for a second reviewer",
+      "stale": "The text changed first",
+      "refused": "Not accepted",
+      "undoing": "Undoing",
+      "undone": "Undone"
     }
   }
 }

@@ -9,13 +9,21 @@ import {
 
 import {
   DECISION_KEY,
+  GRACE_MS,
+  holdDecision,
+  LOG_KEY,
   NOTICES_KEY,
   planUndo,
   queuedDecisions,
+  readLog,
+  releaseDue,
+  resendLost,
   setDecisionClient,
-  undoLast,
+  undoDecision,
   type DecisionNotice,
   type DecisionVars,
+  type LoggedDecision,
+  type WithdrawVars,
 } from "../lib/decisions";
 import { createQueryClient as create } from "../lib/queryClient";
 
@@ -101,8 +109,9 @@ describe("the offline decision queue", () => {
     onlineManager.setOnline(false);
 
     const before = createQueryClient();
-    queue(before, vars(1));
-    queue(before, vars(2, "reject"));
+    holdDecision(before, made(1));
+    holdDecision(before, made(2, "reject"));
+    releaseDue(before, now + 10 * GRACE_MS);
     await flush();
     expect(queuedDecisions(before).map((v) => v.id)).toEqual(["d1", "d2"]);
     expect(s.sent).toHaveLength(0);
@@ -147,32 +156,114 @@ describe("the offline decision queue", () => {
     expect(notices.map((n) => [n.kind, n.card.key])).toEqual([["stale", "b3:nb"]]);
   });
 
-  it("undoes the last decision while it is still queued", async () => {
+  const entry = (qc: QueryClient, id: string): LoggedDecision => {
+    const e = readLog(qc).find((x) => x.vars.id === id);
+    if (!e) throw new Error(`no decision ${id}`);
+    return e;
+  };
+  const now = Date.now();
+  const made = (n: number, kind: DecisionVars["kind"] = "approve"): DecisionVars => ({
+    ...vars(n, kind),
+    madeAt: now + n,
+  });
+
+  it("holds a new decision on the device for the grace period", async () => {
+    const s = server(applied);
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    holdDecision(qc, made(1));
+    expect(releaseDue(qc, now + 1 + GRACE_MS - 1)).toBe(0);
+    expect(queuedDecisions(qc).map((v) => v.id)).toEqual(["d1"]);
+    expect(releaseDue(qc, now + 1 + GRACE_MS)).toBe(1);
+    await flush();
+    await flush();
+    expect(s.sent.map((set) => set.ops[0].at.block)).toEqual(["b1"]);
+    expect(entry(qc, "d1")).toMatchObject({
+      phase: "done",
+      result: { outcome: "applied", revision: "r:1111111111111111" },
+    });
+  });
+
+  it("drops a held decision on undo, so nothing reaches the server", async () => {
+    const s = server(applied);
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    holdDecision(qc, made(2));
+    holdDecision(qc, made(3));
+    expect(planUndo(qc, entry(qc, "d2"))).toEqual({ kind: "drop" });
+    expect(undoDecision(qc, "d2", () => undefined)?.key).toBe("b2:nb");
+    releaseDue(qc, now + 10 * GRACE_MS);
+    await flush();
+    await flush();
+    expect(s.sent.map((set) => set.ops[0].at.block)).toEqual(["b3"]);
+    expect(entry(qc, "d2").phase).toBe("undone");
+  });
+
+  it("sends every held decision when the app leaves the foreground", async () => {
+    const s = server(applied);
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    holdDecision(qc, made(4));
+    expect(releaseDue(qc, now, true)).toBe(1);
+    await flush();
+    expect(s.sent).toHaveLength(1);
+  });
+
+  it("drops a decision that waits offline in the queue", async () => {
     const s = server(applied);
     setDecisionClient(s.client);
     onlineManager.setOnline(false);
     const qc = createQueryClient();
-    queue(qc, vars(4));
-    queue(qc, vars(5));
+    holdDecision(qc, made(5));
+    holdDecision(qc, made(6));
+    releaseDue(qc, now + 10 * GRACE_MS);
     await flush();
-    expect(planUndo(qc)).toMatchObject({ kind: "unqueue", vars: { id: "d5" } });
-    expect(undoLast(qc, () => undefined)?.key).toBe("b5:nb");
+    expect(planUndo(qc, entry(qc, "d5"))).toEqual({ kind: "unqueue" });
+    undoDecision(qc, "d5", () => undefined);
     onlineManager.setOnline(true);
     await qc.resumePausedMutations();
     await flush();
-    expect(s.sent.map((set) => set.ops[0].at.block)).toEqual(["b4"]);
+    expect(s.sent.map((set) => set.ops[0].at.block)).toEqual(["b6"]);
   });
 
-  it("withdraws the last decision with a new one once it landed", async () => {
+  it("withdraws a sent decision with a new one, and keeps a landed fix", async () => {
     const s = server(applied);
     setDecisionClient(s.client);
     const qc = createQueryClient();
-    queue(qc, vars(6));
+    holdDecision(qc, made(7));
+    holdDecision(qc, { ...made(8, "fix"), runs: [{ text: "Rettet" }] });
+    releaseDue(qc, now + 10 * GRACE_MS);
     await flush();
     await flush();
-    const withdrawn: string[] = [];
-    expect(planUndo(qc)).toMatchObject({ kind: "withdraw", revision: "r:1111111111111111" });
-    undoLast(qc, (w) => withdrawn.push(w.revision));
-    expect(withdrawn).toEqual(["r:1111111111111111"]);
+    await flush();
+    expect(planUndo(qc, entry(qc, "d8"))).toBeNull();
+    const withdrawn: WithdrawVars[] = [];
+    undoDecision(qc, "d7", (w) => withdrawn.push(w));
+    expect(withdrawn.map((w) => [w.id, w.revision])).toEqual([["d7", "r:1111111111111111"]]);
+    expect(entry(qc, "d7").phase).toBe("undoing");
+  });
+
+  it("keeps held decisions across a restart and sends one that was in flight", async () => {
+    const s = server(applied);
+    setDecisionClient(s.client);
+    const before = createQueryClient();
+    holdDecision(before, made(9));
+    // A decision handed to the queue whose mutation was not persisted.
+    before.setQueryData<LoggedDecision[]>(LOG_KEY, (log = []) => [
+      ...log,
+      { vars: made(10), phase: "queued" },
+    ]);
+    const persisted = JSON.parse(JSON.stringify(dehydrate(before)));
+    const after = createQueryClient();
+    hydrate(after, persisted);
+    expect(readLog(after).map((e) => [e.vars.id, e.phase])).toEqual([
+      ["d9", "held"],
+      ["d10", "queued"],
+    ]);
+    resendLost(after);
+    releaseDue(after, now + 10 * GRACE_MS);
+    await flush();
+    await flush();
+    expect(s.sent.map((set) => set.ops[0].at.block).sort()).toEqual(["b10", "b9"]);
   });
 });

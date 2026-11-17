@@ -1,9 +1,15 @@
-// Review decisions as TanStack Query mutations. Each decision is its own change
-// set, sent in the order it was made. Offline, a decision waits as a paused
-// mutation; the paused mutations are persisted on the device with the query
-// cache and resume when the app is back online or returns to the foreground.
-// The mutation function is registered with setMutationDefaults, so a decision
-// restored after a restart still knows how to send itself.
+// Review decisions: a log on the device, and TanStack Query mutations that
+// send them. A new decision is held in the log for a few seconds (GRACE_MS),
+// so a wrong swipe is taken back before anything reaches the server; then it
+// becomes a mutation, its own change set, sent in the order it was made.
+// Offline, it waits as a paused mutation. The log and the paused mutations
+// are persisted with the query cache, and the mutation function is
+// registered with setMutationDefaults, so a decision restored after a
+// restart still knows how to send itself.
+//
+// The log keeps every decision made on this device for a day, with what
+// became of it, so any of them can be undone from the Reviewed list: a held
+// or queued decision is dropped, a sent one is withdrawn with a new decision.
 import {
   approveSet,
   fixSet,
@@ -17,9 +23,23 @@ import {
   type ProjectScope,
 } from "@neokapi/bowrain-client";
 import type { Run } from "@neokapi/kapi-format";
-import type { Mutation, QueryClient } from "@tanstack/react-query";
+import {
+  MutationObserver,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+  type Mutation,
+  type QueryClient,
+} from "@tanstack/react-query";
 
 export const DECISION_KEY = ["decision"] as const;
+export const LOG_KEY = ["decision-log"] as const;
+
+/** How long a new decision waits on the device, undoable, before it is sent. */
+export const GRACE_MS = 5000;
+
+/** How long the log keeps a decision: as long as the persisted cache lives. */
+export const LOG_MAX_AGE = 24 * 60 * 60 * 1000;
 export const WITHDRAW_KEY = ["withdraw"] as const;
 
 export type DecisionKind = "approve" | "reject" | "fix";
@@ -123,6 +143,7 @@ export function registerDecisionDefaults(qc: QueryClient): void {
     scope: { id: "decisions" },
     retry: shouldRetry,
     onSuccess: (res: DecisionResult, v: DecisionVars) => {
+      settle(qc, v.id, res);
       if (res.outcome !== "applied") {
         addNotice(qc, { id: v.id, kind: res.outcome, card: v.card, message: res.message });
       }
@@ -130,6 +151,11 @@ export function registerDecisionDefaults(qc: QueryClient): void {
       void qc.invalidateQueries({ queryKey: ["review-inbox"] });
     },
     onError: (err: unknown, v: DecisionVars) => {
+      settle(qc, v.id, {
+        id: v.id,
+        outcome: "refused",
+        message: err instanceof Error ? err.message : undefined,
+      });
       addNotice(qc, {
         id: v.id,
         kind: "refused",
@@ -153,6 +179,20 @@ export function registerDecisionDefaults(qc: QueryClient): void {
     },
     scope: { id: "decisions" },
     retry: shouldRetry,
+    onSuccess: (_r: unknown, v: WithdrawVars | undefined) => {
+      if (v) setPhase(qc, v.id, "undone");
+    },
+    onError: (err: unknown, v: WithdrawVars | undefined) => {
+      if (!v) return;
+      // The decision stands: show it as sent again, and say why.
+      setPhase(qc, v.id, "done");
+      addNotice(qc, {
+        id: `${v.id}:withdraw`,
+        kind: "refused",
+        card: v.card,
+        message: err instanceof Error ? err.message : undefined,
+      });
+    },
     onSettled: (_r: unknown, _e: unknown, v: WithdrawVars | undefined) => {
       if (!v) return;
       void qc.invalidateQueries({ queryKey: ["deck", v.scope.workspace, v.scope.project] });
@@ -168,59 +208,200 @@ function decisionMutations(qc: QueryClient): DecisionMutation[] {
     .getMutationCache()
     .findAll({ mutationKey: DECISION_KEY })
     .map((m) => m as unknown as DecisionMutation)
-    .filter((m) => m.state.variables)
-    .sort((a, b) => (a.state.variables?.madeAt ?? 0) - (b.state.variables?.madeAt ?? 0));
+    .filter((m) => m.state.variables);
 }
 
-/** The decisions not yet sent, oldest first. */
+function mutationOf(qc: QueryClient, id: string): DecisionMutation | undefined {
+  return decisionMutations(qc).find((m) => m.state.variables?.id === id);
+}
+
+/**
+ * Where a decision is. held: on the device, undoable, not sent yet. queued:
+ * handed to the send queue (offline it waits there). done: the server
+ * answered, and `result` says how. undoing: a withdrawal is on its way.
+ * undone: taken back.
+ */
+export type DecisionPhase = "held" | "queued" | "done" | "undoing" | "undone";
+
+export interface LoggedDecision {
+  vars: DecisionVars;
+  phase: DecisionPhase;
+  result?: DecisionResult;
+}
+
+/** The decisions made on this device, oldest first. */
+export function readLog(qc: QueryClient): LoggedDecision[] {
+  return qc.getQueryData<LoggedDecision[]>(LOG_KEY) ?? [];
+}
+
+function writeLog(qc: QueryClient, f: (log: LoggedDecision[]) => LoggedDecision[]): void {
+  const cutoff = Date.now() - LOG_MAX_AGE;
+  qc.setQueryData<LoggedDecision[]>(LOG_KEY, (prev = []) =>
+    f(prev).filter((e) => e.vars.madeAt >= cutoff || e.phase === "held" || e.phase === "queued"),
+  );
+}
+
+function update(qc: QueryClient, id: string, f: (e: LoggedDecision) => LoggedDecision): void {
+  writeLog(qc, (log) => log.map((e) => (e.vars.id === id ? f(e) : e)));
+}
+
+function setPhase(qc: QueryClient, id: string, phase: DecisionPhase): void {
+  update(qc, id, (e) => ({ ...e, phase }));
+}
+
+function settle(qc: QueryClient, id: string, result: DecisionResult): void {
+  update(qc, id, (e) => (e.phase === "undone" ? e : { ...e, phase: "done", result }));
+}
+
+/** Record a decision. It waits GRACE_MS on the device before it is sent. */
+export function holdDecision(qc: QueryClient, vars: DecisionVars): void {
+  writeLog(qc, (log) => [...log, { vars, phase: "held" }]);
+}
+
+function send(qc: QueryClient, vars: DecisionVars): void {
+  void new MutationObserver<DecisionResult, unknown, DecisionVars>(qc, {
+    mutationKey: DECISION_KEY,
+  })
+    .mutate(vars)
+    .catch(() => undefined);
+}
+
+/**
+ * Send the held decisions whose grace has passed, oldest first, or every held
+ * decision when `all` is set (the app is leaving the foreground). Returns how
+ * many were sent.
+ */
+export function releaseDue(qc: QueryClient, now: number, all = false): number {
+  const due = readLog(qc).filter(
+    (e) => e.phase === "held" && (all || e.vars.madeAt + GRACE_MS <= now),
+  );
+  if (due.length === 0) return 0;
+  const ids = new Set(due.map((e) => e.vars.id));
+  writeLog(qc, (log) =>
+    log.map((e) => (ids.has(e.vars.id) ? { ...e, phase: "queued" as const } : e)),
+  );
+  for (const e of due) send(qc, e.vars);
+  return due.length;
+}
+
+/**
+ * After a restart: send again any decision the log handed to the queue but
+ * whose mutation was not persisted (it was in flight when the app stopped).
+ * Sending twice is safe: a decision names the revision it saw, so a repeat
+ * is the same verdict or a stale one.
+ */
+export function resendLost(qc: QueryClient): void {
+  for (const e of readLog(qc)) {
+    if (e.phase === "queued" && !mutationOf(qc, e.vars.id)) send(qc, e.vars);
+  }
+}
+
+/** The decisions not yet sent, held or queued, oldest first. */
 export function queuedDecisions(qc: QueryClient): DecisionVars[] {
-  return decisionMutations(qc)
-    .filter((m) => m.state.status === "pending" || m.state.isPaused)
-    .map((m) => m.state.variables as DecisionVars);
+  const waiting = new Set(
+    decisionMutations(qc)
+      .filter((m) => m.state.status === "pending" || m.state.isPaused)
+      .map((m) => m.state.variables?.id),
+  );
+  return readLog(qc)
+    .filter((e) => e.phase === "held" || (e.phase === "queued" && waiting.has(e.vars.id)))
+    .map((e) => e.vars);
 }
 
-/** What undoing the most recent decision would do, or null when there is nothing to undo. */
+/** What undoing one decision does, or null when it cannot be undone. */
 export type UndoPlan =
-  | { kind: "unqueue"; vars: DecisionVars }
-  | { kind: "withdraw"; vars: DecisionVars; revision: string }
+  | { kind: "drop" }
+  | { kind: "unqueue" }
+  | { kind: "withdraw"; revision: string }
   | null;
 
-export function planUndo(qc: QueryClient): UndoPlan {
-  const last = decisionMutations(qc).at(-1);
-  const vars = last?.state.variables;
-  if (!last || !vars) return null;
-  if (last.state.isPaused) return { kind: "unqueue", vars };
-  const data = last.state.data;
-  // A correction that landed is not withdrawn: its content stays, so the undo
-  // of a sent fix is a new edit on a desk.
-  if (
-    last.state.status === "success" &&
-    data?.outcome === "applied" &&
-    data.revision &&
-    vars.kind !== "fix"
-  ) {
-    return { kind: "withdraw", vars, revision: data.revision };
+export function planUndo(qc: QueryClient, entry: LoggedDecision): UndoPlan {
+  switch (entry.phase) {
+    case "held":
+      return { kind: "drop" };
+    case "queued": {
+      // A decision on its way to the server can be undone once it lands.
+      const m = mutationOf(qc, entry.vars.id);
+      return m?.state.isPaused ? { kind: "unqueue" } : null;
+    }
+    case "done": {
+      // A correction that landed is not withdrawn: its content stays, so the
+      // undo of a sent fix is a new edit.
+      const r = entry.result;
+      if (r?.outcome === "applied" && r.revision && entry.vars.kind !== "fix") {
+        return { kind: "withdraw", revision: r.revision };
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Undo one decision: drop it while it is held or queued, or withdraw it with
+ * a new decision once it landed. Returns the card that comes back, or null.
+ */
+export function undoDecision(
+  qc: QueryClient,
+  id: string,
+  withdraw: (v: WithdrawVars) => void,
+): DeckCard | null {
+  const entry = readLog(qc).find((e) => e.vars.id === id);
+  if (!entry) return null;
+  const plan = planUndo(qc, entry);
+  if (!plan) return null;
+  const { vars } = entry;
+  if (plan.kind === "withdraw") {
+    setPhase(qc, id, "undoing");
+    withdraw({ id, scope: vars.scope, card: vars.card, revision: plan.revision });
+  } else {
+    const m = mutationOf(qc, id);
+    if (m) qc.getMutationCache().remove(m as unknown as Mutation);
+    setPhase(qc, id, "undone");
+  }
+  return vars.card;
+}
+
+/** The most recent decision a filter selects that is not taken back, or null. */
+export function lastDecision(
+  log: readonly LoggedDecision[],
+  where: (e: LoggedDecision) => boolean,
+): LoggedDecision | null {
+  for (let i = log.length - 1; i >= 0; i--) {
+    const e = log[i];
+    if (e.phase === "undone" || e.phase === "undoing") continue;
+    if (where(e)) return e;
   }
   return null;
 }
 
 /**
- * Undo the most recent decision: drop it from the queue while it is still
- * waiting, or withdraw it with a new decision once it landed. Returns the card
- * that comes back, or null.
+ * Whether a decision keeps its card out of the deck: while it is held or on
+ * its way, and once it landed. A stale or refused one gives the card back.
  */
-export function undoLast(qc: QueryClient, withdraw: (v: WithdrawVars) => void): DeckCard | null {
-  const plan = planUndo(qc);
-  if (!plan) return null;
-  const m = decisionMutations(qc).find((x) => x.state.variables?.id === plan.vars.id);
-  if (plan.kind === "withdraw") {
-    withdraw({
-      id: plan.vars.id,
-      scope: plan.vars.scope,
-      card: plan.vars.card,
-      revision: plan.revision,
-    });
-  }
-  if (m) qc.getMutationCache().remove(m as unknown as Mutation);
-  return plan.vars.card;
+export function hidesCard(e: LoggedDecision): boolean {
+  if (e.phase === "held" || e.phase === "queued") return true;
+  if (e.phase === "done") return e.result?.outcome === "applied" || e.result?.outcome === "held";
+  return false;
+}
+
+/**
+ * The decision log, kept current. It also follows the send queue, so an
+ * undo plan that depends on whether a decision is still waiting is read
+ * again when that changes.
+ */
+export function useDecisionLog(): LoggedDecision[] {
+  const qc = useQueryClient();
+  useMutationState({
+    filters: { mutationKey: DECISION_KEY },
+    select: (m) => `${m.state.status}:${m.state.isPaused}`,
+  });
+  return useQuery<LoggedDecision[]>({
+    queryKey: LOG_KEY,
+    queryFn: () => readLog(qc),
+    initialData: [],
+    staleTime: Infinity,
+    gcTime: LOG_MAX_AGE,
+  }).data;
 }

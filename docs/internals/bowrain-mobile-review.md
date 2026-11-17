@@ -72,7 +72,7 @@ appears is guessing, and the card should make that plain.
 | Fix | none | Fix | the fix sheet (below): pick a ready-made fix or edit, and the corrected translation is approved in one change set |
 | Skip | swipe up | Later | nothing is recorded; the card returns at the end of the deck |
 | Approve | swipe right | Approve | a `decide` operation with outcome `establish` |
-| Undo | none | Undo | the last decision is withdrawn while it is still queued, or reversed with a new decision once sent; the card comes back from the side it left by |
+| Undo | none | Undo, or Undo on the bar under the card | the last decision is dropped while it is held or queued, or reversed with a new decision once sent; the card comes back from the side it left by |
 
 The deck is a stack of cards: the top card with the next two behind it,
 smaller and lower. A card tilts with the drag, and an Approve (green) or
@@ -189,7 +189,16 @@ source moved after the card was loaded, the server answers `409 stale` and the
 approval does not land. The app tells the reviewer and offers the new version
 as a fresh card.
 
-Decisions made offline are paused mutations in TanStack Query, persisted on
+A new decision is held on the device for five seconds under a bar that names
+it and offers Undo, so a wrong swipe is taken back before anything reaches the
+server. Leaving the app sends every held decision at once. Every decision made
+on the device is kept in a log for a day with what became of it, and the
+deck's Reviewed list shows that log with an Undo on each decision that can
+still be taken back: a held or queued one is dropped, a sent approval or
+rejection is withdrawn with a new decision. A correction that landed stays;
+changing it is a new edit.
+
+Decisions waiting to be sent are paused mutations in TanStack Query, persisted on
 the device, and sent in order when the phone reconnects or the app returns to
 the foreground. Background sync on iOS is opportunistic, so the app does not
 rely on it. Each decision is its own change set, so one stale card does not
