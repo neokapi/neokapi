@@ -281,7 +281,27 @@
     "failingFindings_one": "1 failing check",
     "failingFindings_other": "{{count, number}} failing checks",
     "ownWork": "You wrote this translation, so another reviewer approves it. You can still fix or reject it.",
-    "noContext": "No context for this text. You cannot see where it appears."
+    "details": "Details",
+    "detailsLabel": "Details for this text in {{file}}",
+    "why": {
+      "stale_source": "The source changed after this translation was approved.",
+      "redraft": "A new draft after an earlier rejection.",
+      "long_source": "A long source text, so read it in full.",
+      "no_pre_review": "No pre-review yet, so nothing has checked the meaning."
+    }
+  },
+  "details": {
+    "title": "Details",
+    "where": "Where it appears",
+    "collection": "Collection",
+    "file": "File",
+    "key": "Key",
+    "around": "Around it in the file",
+    "thisText": "This text",
+    "sameText": "Same text",
+    "voice": "Voice profile",
+    "memory": "Closest in content memory",
+    "memoryScore": "{{score}}% match"
   },
   "actions": {
     "reject": "Reject",

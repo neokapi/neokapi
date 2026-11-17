@@ -86,6 +86,8 @@ type deckCard struct {
 
 	Group  reviewdeck.DeckGroup `json:"group"`
 	Reason string               `json:"reason"`
+	// ReasonCode names Reason for a client that words it itself.
+	ReasonCode reviewdeck.DeckReason `json:"reason_code,omitempty"`
 }
 
 type deckCounts struct {
@@ -418,6 +420,7 @@ func (s *Server) deckPage(ctx context.Context, c echo.Context, proj *store.Proje
 			OwnWork:              actor != "" && wrote[store.TargetRef{BlockID: r.BlockID, Locale: r.Locale}] == actor,
 			Group:                reviewdeck.DeckGroup(r.Facts.Group),
 			Reason:               r.Facts.Reason,
+			ReasonCode:           reviewdeck.DeckReasonOf(r.Facts.Reason),
 		}
 		card.Notes = s.deckNotes(ctx, b, targetLoc, r.Facts, proj, tb)
 		if pr := freshPreReview(preReviews, sb, targetLoc); pr != nil {

@@ -559,6 +559,7 @@ export interface ServerDeckCard {
   own_work?: boolean;
   group?: DeckGroup;
   reason?: string;
+  reason_code?: string;
 }
 
 /** A page of the server's deck. */
@@ -601,6 +602,7 @@ export function cardFromServer(c: ServerDeckCard): DeckCard {
     sourceRevision: c.source_revision,
     group: c.group ?? "unsorted",
     reason: c.reason,
+    reasonCode: c.reason_code || undefined,
     preReview: c.pre_review,
     notes: c.notes ?? [],
     findingsCount: c.findings_count ?? 0,

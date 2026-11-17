@@ -32,6 +32,7 @@ import { useCSSVariable } from "uniwind";
 import { SafeAreaView } from "../../../components/SafeArea";
 
 import { ActionBar } from "../../../components/ActionBar";
+import { ContextSheet } from "../../../components/ContextSheet";
 import { FixSheet } from "../../../components/FixSheet";
 import { ReviewCard } from "../../../components/ReviewCard";
 import { RunText } from "../../../components/RunText";
@@ -67,6 +68,7 @@ import {
   nextCollection,
 } from "../../../lib/deckCollections";
 import { cardId, deckView, mergePages } from "../../../lib/deckView";
+import { whereParts } from "../../../lib/where";
 
 const PAGE = 50;
 
@@ -187,12 +189,18 @@ export default function DeckScreen() {
     if (view.swipe.length === 0 && !hasNextPage && unclassified > 0 && !isFetching) void refetch();
   }, [view.swipe.length, hasNextPage, unclassified, isFetching, refetch]);
 
-  // The language's collections, for the next one when this one runs out.
+  // The language's collections: where each card's text ships, and the next
+  // collection when this one runs out.
   const collections = useQuery({
     queryKey: collectionsKey(ws, project, locale),
     queryFn: () => client.deckCollections(scope, locale),
-    enabled: collection !== undefined,
   });
+  const whereOf = useCallback(
+    (c: DeckCard) =>
+      whereParts(collections.data?.collections.find((x) => x.collection_id === c.collectionId)),
+    [collections.data],
+  );
+  const [details, setDetails] = useState<DeckCard | null>(null);
   const finished = !deck.isPending && !top;
   const refetchCollections = collections.refetch;
   useEffect(() => {
@@ -376,7 +384,7 @@ export default function DeckScreen() {
             {behind
               .map((c, i) => (
                 <StackedCard key={cardId(c)} depth={i + 1} progress={drag}>
-                  <ReviewCard card={c} sourceLanguage={sourceLanguage} />
+                  <ReviewCard card={c} sourceLanguage={sourceLanguage} where={whereOf(c)} />
                 </StackedCard>
               ))
               .reverse()}
@@ -388,7 +396,12 @@ export default function DeckScreen() {
               progress={drag}
               enterFrom={entering?.id === cardId(top) ? entering.from : null}
             >
-              <ReviewCard card={top} sourceLanguage={sourceLanguage} />
+              <ReviewCard
+                card={top}
+                sourceLanguage={sourceLanguage}
+                where={whereOf(top)}
+                onDetails={() => setDetails(top)}
+              />
             </SwipeCard>
           </View>
         ) : (
@@ -419,6 +432,14 @@ export default function DeckScreen() {
           }}
         />
       ) : null}
+
+      <ContextSheet
+        card={details}
+        scope={scope}
+        where={details ? whereOf(details) : []}
+        load={(card) => client.reviewContext(scope, card.blockId, card.locale)}
+        onClose={() => setDetails(null)}
+      />
 
       <FixSheet
         card={fixing?.card ?? null}

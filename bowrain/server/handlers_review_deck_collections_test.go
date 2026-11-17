@@ -11,6 +11,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // establishedFrBlock is a block whose French translation is approved.
@@ -37,6 +38,10 @@ func seedCollectionsProject(t *testing.T, s *Server, wsID string) (string, map[s
 	colls := map[string]string{}
 	for _, name := range []string{"web", "docs", "emails", "quiet"} {
 		coll := &platstore.Collection{ProjectID: proj.ID, Name: name, Kind: platstore.CollectionUploaded}
+		if name == "web" {
+			coll.ConnectorConfig = map[string]string{coreprofile.PropertyChannel: "acme/web"}
+			coll.Context = map[string]string{"product": "acme"}
+		}
 		require.NoError(t, s.ContentStore.CreateCollection(ctx, coll))
 		colls[name] = coll.ID
 	}
@@ -83,7 +88,7 @@ func TestReviewDeckCollections_CountsAndOrdersEachCollection(t *testing.T) {
 
 	want := []deckCollection{
 		{CollectionID: colls["docs"], Name: "docs", Waiting: 1, Closer: 1, Translations: 1},
-		{CollectionID: colls["web"], Name: "web", Waiting: 2, Fast: 1, Closer: 1, Translations: 3, Decided: 1},
+		{CollectionID: colls["web"], Name: "web", Channel: "acme/web", Coordinates: map[string]string{"product": "acme"}, Waiting: 2, Fast: 1, Closer: 1, Translations: 3, Decided: 1},
 		{CollectionID: "", Name: "", Waiting: 1, Closer: 1, Translations: 1},
 		{CollectionID: colls["emails"], Name: "emails", Translations: 1, Decided: 1},
 	}

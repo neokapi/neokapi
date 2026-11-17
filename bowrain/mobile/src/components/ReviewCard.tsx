@@ -1,11 +1,30 @@
 // One block's translation as a card in the deck: the language and group as
-// chips, the source above the translation with codes as chips, where the
-// block sits, and what the server says about it.
+// chips, the product and surface the text ships on, the source above the
+// translation with codes as chips, why the card needs a closer look, and what
+// the server says about it. The footer names the file and key, and opens the
+// details sheet.
 import type { DeckCard } from "@neokapi/bowrain-client";
-import { ScrollView, Text, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useCSSVariable } from "uniwind";
 
 import { RunText } from "./RunText";
+import { fileName } from "../lib/where";
+
+/** The reason codes a card's reason line words; another code shows nothing. */
+const REASONS = new Set(["stale_source", "redraft", "long_source", "no_pre_review"]);
+
+/**
+ * Why the card is not a quick one, worded in the reader's language. Findings
+ * and the pre-review score already show as notes and chips, so only the
+ * reasons nothing else on the card says are worded.
+ */
+export function reasonKey(card: DeckCard): string | null {
+  if (card.group !== "closer" && card.group !== "desk") return null;
+  if (!card.reasonCode || !REASONS.has(card.reasonCode)) return null;
+  return `card.why.${card.reasonCode}`;
+}
 
 /** The card's lift off the page; the border carries the edge in dark mode. */
 export const CARD_SHADOW =
@@ -23,8 +42,43 @@ function Tag({ label, testID, accent }: { label: string; testID?: string; accent
   );
 }
 
-export function ReviewCard({ card, sourceLanguage }: { card: DeckCard; sourceLanguage: string }) {
+export function ReviewCard({
+  card,
+  sourceLanguage,
+  where,
+  onDetails,
+}: {
+  card: DeckCard;
+  sourceLanguage: string;
+  /** The product and surface the text ships on, such as ["Neokapi", "Desktop"]. */
+  where?: string[];
+  /** Opens the details sheet; without it the footer is plain text. */
+  onDetails?: () => void;
+}) {
   const { t } = useTranslation();
+  const muted = useCSSVariable("--color-muted-foreground") as string | undefined;
+  const why = reasonKey(card);
+  const file = fileName(card.item);
+  const footer = (
+    <>
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text className="text-muted-foreground text-xs" numberOfLines={1}>
+          {file}
+        </Text>
+        {card.name ? (
+          <Text className="text-muted-foreground font-mono text-xs" numberOfLines={1}>
+            {card.name}
+          </Text>
+        ) : null}
+      </View>
+      {onDetails ? (
+        <View className="flex-row items-center gap-1">
+          <Text className="text-primary text-sm font-semibold">{t("card.details")}</Text>
+          <Ionicons name="chevron-forward" size={14} color={muted} />
+        </View>
+      ) : null}
+    </>
+  );
   const languages = sourceLanguage
     ? t("card.languages", {
         source: sourceLanguage.toUpperCase(),
@@ -45,6 +99,15 @@ export function ReviewCard({ card, sourceLanguage }: { card: DeckCard; sourceLan
           <Tag label={t("card.preReview", { score: card.preReview.score })} />
         ) : null}
       </View>
+      {where && where.length > 0 ? (
+        <Text
+          testID="card-where"
+          className="text-muted-foreground px-5 pt-2 text-sm font-medium"
+          numberOfLines={1}
+        >
+          {where.join(" · ")}
+        </Text>
+      ) : null}
 
       <ScrollView contentContainerClassName="gap-5 p-5">
         <View className="gap-2">
@@ -68,6 +131,11 @@ export function ReviewCard({ card, sourceLanguage }: { card: DeckCard; sourceLan
         </View>
 
         <View className="gap-2">
+          {why ? (
+            <Text testID="card-why" className="text-muted-foreground text-sm">
+              {t(why)}
+            </Text>
+          ) : null}
           {card.failingFindingsCount > 0 ? (
             <Text className="text-corrective text-sm">
               {t("card.failingFindings", { count: card.failingFindingsCount })}
@@ -83,22 +151,24 @@ export function ReviewCard({ card, sourceLanguage }: { card: DeckCard; sourceLan
               <Text className="text-warning-foreground text-sm">{t("card.ownWork")}</Text>
             </View>
           ) : null}
-          {!card.preReview && card.notes.length === 0 && card.findingsCount === 0 ? (
-            <Text className="text-muted-foreground text-sm">{t("card.noContext")}</Text>
-          ) : null}
         </View>
       </ScrollView>
 
-      <View className="border-border gap-0.5 border-t px-5 py-3">
-        {card.name ? (
-          <Text className="text-muted-foreground font-mono text-xs" numberOfLines={1}>
-            {card.name}
-          </Text>
-        ) : null}
-        <Text className="text-muted-foreground text-xs" numberOfLines={1}>
-          {card.item}
-        </Text>
-      </View>
+      {onDetails ? (
+        <Pressable
+          testID="card-details"
+          accessibilityRole="button"
+          accessibilityLabel={t("card.detailsLabel", { file })}
+          onPress={onDetails}
+          className="border-border flex-row items-center gap-3 border-t px-5 py-3 active:opacity-60"
+        >
+          {footer}
+        </Pressable>
+      ) : (
+        <View className="border-border flex-row items-center gap-3 border-t px-5 py-3">
+          {footer}
+        </View>
+      )}
     </View>
   );
 }

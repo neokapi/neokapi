@@ -54,15 +54,27 @@ One block per card:
 
 - the source text and the translation, with placeholders and inline codes
   drawn as chips, never flattened to text;
-- the key, the file and the collection;
-- a screenshot or "where it is used" when the review context has one;
+- under the chips, the product and surface the text ships on, such as
+  *Neokapi · Desktop*. The app reads them from the collection's coordinates
+  and channel binding, which the deck's collection list carries
+  (`GET /:ws/:id/review-deck/:ref/collections`), and falls back to the
+  collection's name;
+- why a card that is not quick needs a closer look, when nothing else on the
+  card says so: no pre-review, a long source, a source changed since the
+  approval, or a redraft after a rejection. The server sends the reason as a
+  code (`reason_code`) and the app words it;
+- a footer with the file name and the key, which opens the details sheet;
 - for a stale block, the earlier approved translation beside the new draft,
   with the changed words marked;
 - the AI pre-review score and the check findings, when there are any;
 - the term and voice notes the review context returns for the block.
 
-A card with no context says so. A reviewer who cannot see where a string
-appears is guessing, and the card should make that plain.
+The details sheet reads the block's review context
+(`GET /:ws/:id/blocks/:ref/:bid/review-context`) when it opens: the
+collection and any other coordinates, the full path and key, the strings
+either side of the text in its file (a neighbour with the same wording is
+marked *Same text*), the voice profile in force, and the closest content
+memory match.
 
 ## Gestures and buttons
 
