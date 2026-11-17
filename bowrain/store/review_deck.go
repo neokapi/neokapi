@@ -300,6 +300,26 @@ func (s *PostgresStore) CountReviewDeck(ctx context.Context, q platstore.ReviewD
 // CountReviewDeckByCollection counts the deck of each collection, with every
 // translation of the language in it. See platstore.ReviewDeckStore.
 func (s *PostgresStore) CountReviewDeckByCollection(ctx context.Context, q platstore.ReviewDeckQuery) (map[string]platstore.ReviewDeckCollectionCounts, error) {
+	return s.countReviewDeckCollections(ctx, q, `COALESCE(i.collection_id, '')`)
+}
+
+// CountReviewDeckLanguage counts the language as one collection. See
+// platstore.ReviewDeckStore.
+func (s *PostgresStore) CountReviewDeckLanguage(ctx context.Context, q platstore.ReviewDeckQuery) (platstore.ReviewDeckCollectionCounts, error) {
+	out, err := s.countReviewDeckCollections(ctx, q, `''`)
+	if err != nil {
+		return platstore.ReviewDeckCollectionCounts{}, err
+	}
+	c, ok := out[""]
+	if !ok {
+		c.ByRank = map[int]int{}
+	}
+	return c, nil
+}
+
+// countReviewDeckCollections counts the deck grouped by coll, an SQL
+// expression naming each row's group.
+func (s *PostgresStore) countReviewDeckCollections(ctx context.Context, q platstore.ReviewDeckQuery, coll string) (map[string]platstore.ReviewDeckCollectionCounts, error) {
 	scope, args := reviewDeckArgs(q)
 	// Rank -3 is an established translation, -2 one set aside, -1 one whose
 	// facts are missing or no longer hold.
@@ -312,7 +332,7 @@ func (s *PostgresStore) CountReviewDeckByCollection(ctx context.Context, q plats
 	// deals it: waiting while any copy waits.
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
 	query := `SELECT coll, rank, count(*) FROM (SELECT DISTINCT ON (coll, ` + reviewDeckSame + `)
-			COALESCE(i.collection_id, '') AS coll, ` + rank + ` AS rank` +
+			` + coll + ` AS coll, ` + rank + ` AS rank` +
 		reviewDeckTranslations + scope + `
 		ORDER BY coll, ` + reviewDeckSame + `, CASE WHEN ` + rank + ` >= 0 THEN 0 ELSE -` + rank + ` END, ` + rank + `) x
 		GROUP BY coll, rank`

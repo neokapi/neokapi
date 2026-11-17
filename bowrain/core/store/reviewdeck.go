@@ -127,6 +127,10 @@ type ReviewDeckStore interface {
 	// once per collection, keyed by collection id ("" for blocks in none).
 	// A collection with translations and nothing waiting is present.
 	CountReviewDeckByCollection(ctx context.Context, q ReviewDeckQuery) (map[string]ReviewDeckCollectionCounts, error)
+	// CountReviewDeckLanguage counts the whole language as
+	// CountReviewDeckByCollection counts one collection, so a set of copies
+	// in several collections counts once.
+	CountReviewDeckLanguage(ctx context.Context, q ReviewDeckQuery) (ReviewDeckCollectionCounts, error)
 	// ReviewDeckCopies returns, for each of blockIDs, the other translations
 	// waiting for review in the language with the same source and the same
 	// translation, up to limit in all, keyed by the block they copy. It
