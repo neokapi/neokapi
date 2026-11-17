@@ -58,6 +58,9 @@ type containerInfo struct {
 	// moved to the front keeps its number), so the list is the only source
 	// of the order the deck plays in. Nil when it could not be read.
 	slideOrder []string
+	// placeholders resolves the frame a slide placeholder inherits from its
+	// layout and master. Nil when the package has none.
+	placeholders *placeholderGeometry
 }
 
 // relationship represents an OpenXML relationship entry.
@@ -154,6 +157,7 @@ func parseContainer(zr *zip.Reader, cfg *Config) (*containerInfo, error) {
 	info.mainDocumentPart = findMainDocumentPart(info.relationships)
 	if info.docType == docTypePPTX {
 		info.slideOrder = parseSlideOrder(zr, info)
+		info.placeholders = parsePlaceholderGeometry(zr, info)
 	}
 
 	// Build ordered list of translatable parts

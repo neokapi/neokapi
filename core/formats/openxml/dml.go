@@ -25,7 +25,7 @@ type dmlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	rels          map[string]relationship
-	// path addresses each block by part plus the shape it sits in — see
+	// path addresses each block by part plus the shape it sits in; see
 	// structural_name.go. shapeStep is the current shape's step, taken from
 	// its <p:cNvPr id> when the part supplies one (PowerPoint keeps those
 	// stable across edits) and from its position in the part otherwise.
@@ -48,13 +48,14 @@ type dmlParser struct {
 	// Intrinsic slide geometry (WS2): when slideNum > 0 (a ppt/slides/slideN.xml
 	// part), each text-bearing shape's bounding box is derived from its
 	// DrawingML transform (<a:xfrm><a:off/><a:ext/>) and attached to the Block
-	// as a GeometryAnnotation — additive stand-off metadata, never serialized
+	// as a GeometryAnnotation: additive stand-off metadata, never serialized
 	// back. slideNum is set by the reader from the part path. The off/ext fields
 	// hold the current shape's transform (EMU); they are reset at each shape
-	// boundary so a shape without its own <a:xfrm> inherits no box. groupDepth
-	// tracks <p:grpSp> nesting: child shapes inside a group carry child-space
-	// coordinates that need an affine remap to slide space, so geometry is
-	// omitted inside groups (v1) rather than emitting wrong absolute boxes.
+	// boundary. A placeholder without its own <a:xfrm> takes the frame its
+	// layout or master gives it (placeholders); any other shape without one
+	// gets no box. groupDepth tracks <p:grpSp> nesting and groups holds each
+	// open group's transform, which maps its children's child-space
+	// coordinates to slide space.
 	slideNum   int
 	hasOff     bool
 	offX, offY int64
@@ -62,9 +63,31 @@ type dmlParser struct {
 	extCx      int64
 	extCy      int64
 	groupDepth int
+	groups     []groupTransform
+	// inGrpSpPr is set while the open group's own <p:grpSpPr> is read, so its
+	// <a:off>/<a:ext>/<a:chOff>/<a:chExt> describe the group, not a shape.
+	inGrpSpPr bool
+	// partPath is the part being parsed; placeholders resolves an inherited
+	// frame against it. phRawType and phIdx are the open placeholder's type
+	// and idx attributes as written, cleared at each shape boundary.
+	partPath     string
+	placeholders *placeholderGeometry
+	phRawType    string
+	phIdx        string
+	// Slide table geometry: the graphic frame's origin, the table grid's
+	// column widths, the open row's top and declared height, and the column
+	// the next a:tc occupies. cellBox is the open cell's frame.
+	tblHas     bool
+	tblX, tblY int64
+	gridCols   []int64
+	rowTop     int64
+	rowH       int64
+	colIndex   int
+	cellBox    emuBox
+	hasCellBox bool
 	// phType is the current shape's placeholder type (<p:ph type>), cleared at
 	// each shape boundary. It is the only signal PresentationML gives for a
-	// paragraph's role — there is no w:pStyle on a slide.
+	// paragraph's role, since a slide has no w:pStyle.
 	phType string
 
 	// emitPart surfaces a slide table's topology (a:tbl → table Group, a:tr →
@@ -96,8 +119,13 @@ func (p *dmlParser) openTableStruct(t xml.StartElement) {
 	switch t.Name.Local {
 	case "tbl":
 		p.headerRow, p.rowIndex = false, 0
+		p.tblHas, p.tblX, p.tblY = p.hasOff && p.hasExt, p.offX, p.offY
+		p.gridCols, p.rowTop, p.rowH = nil, 0, 0
 	case "tr":
 		p.rowIndex++
+		p.rowTop += p.rowH
+		p.rowH, _ = strconv.ParseInt(attrVal(t, "h"), 10, 64)
+		p.colIndex = 0
 	case "tblPr":
 		p.headerRow = dmlTrue(attrVal(t, "firstRow"))
 		return
@@ -122,7 +150,32 @@ func (p *dmlParser) openTableStruct(t xml.StartElement) {
 		p.pendingColSpan, _ = strconv.Atoi(attrVal(t, "gridSpan"))
 		p.pendingRowSpan, _ = strconv.Atoi(attrVal(t, "rowSpan"))
 		p.pendingMerged = dmlTrue(attrVal(t, "hMerge")) || dmlTrue(attrVal(t, "vMerge"))
+		p.openCellBox()
 	}
+}
+
+// openCellBox computes the open cell's frame from the table grid: its column
+// offset and width from <a:gridCol w>, its row offset and height from the
+// rows' <a:tr h>. A cell spanning rows keeps the table frame, because the
+// heights of the rows below are not read yet. Row heights are the declared
+// minimums; PowerPoint grows a row to fit its text.
+func (p *dmlParser) openCellBox() {
+	col := p.colIndex
+	p.colIndex++
+	span := max(p.pendingColSpan, 1)
+	p.hasCellBox = false
+	if !p.tblHas || p.pendingRowSpan > 1 || col+span > len(p.gridCols) || p.rowH <= 0 {
+		return
+	}
+	var x, w int64
+	for _, cw := range p.gridCols[:col] {
+		x += cw
+	}
+	for _, cw := range p.gridCols[col : col+span] {
+		w += cw
+	}
+	p.cellBox = emuBox{x: p.tblX + x, y: p.tblY + p.rowTop, cx: w, cy: p.rowH}
+	p.hasCellBox = true
 }
 
 // closeTableStruct closes the Group a:tbl / a:tr opened, or leaves the cell.
@@ -146,6 +199,7 @@ func (p *dmlParser) closeTableStruct(name string) {
 			p.cellDepth--
 		}
 		p.pendingColSpan, p.pendingRowSpan, p.pendingMerged = 0, 0, false
+		p.hasCellBox = false
 	}
 }
 
@@ -184,7 +238,7 @@ func (p *dmlParser) markTableCell(block *model.Block) {
 func dmlTrue(v string) bool { return v == "1" || v == "true" }
 
 // emuToPt converts English Metric Units (914400 EMU/inch, 12700 EMU/point) to
-// points — the absolute unit the GeometryAnnotation BBox carries (Resolution 0).
+// points, the absolute unit the GeometryAnnotation BBox carries (Resolution 0).
 func emuToPt(v int64) float64 { return float64(v) / 12700.0 }
 
 // applyPPTXPartFacets records §8 structure facets a PPTX part implies: speaker
@@ -203,7 +257,7 @@ func applyPPTXPartFacets(block *model.Block, partPath string) {
 }
 
 // pptxSlideNum returns the 1-based slide number for a `ppt/slides/slideN.xml`
-// part, or 0 for any other PPTX part (notes, masters, layouts) — those have a
+// part, or 0 for any other PPTX part (notes, masters, layouts), which have a
 // presentation-relative coordinate space, not a slide page, so they get no
 // geometry. The prefix is exact: `ppt/slideLayouts/`, `ppt/slideMasters/`, and
 // `ppt/notesSlides/` do not start with `ppt/slides/`.
@@ -221,9 +275,10 @@ func pptxSlideNum(partPath string) int {
 
 // parsePart streams through a DrawingML XML part, emitting Blocks.
 func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*model.Block)) error {
-	// Root block names at this part before any shape opens — a later
+	// Root block names at this part before any shape opens. A later
 	// re-rooting would drop the shape scope already pushed.
 	p.path.ensurePart(partPath)
+	p.partPath = partPath
 	d := newRawDecoder(data)
 
 	for {
@@ -239,7 +294,7 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "txBody":
-				// DrawingML text body — contains paragraphs
+				// DrawingML text body, which holds the paragraphs
 				if err := p.parseTextBody(d, partPath, emitBlock); err != nil {
 					return err
 				}
@@ -263,6 +318,11 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			switch t.Name.Local {
 			case "grpSp":
 				p.groupDepth--
+				if n := len(p.groups); n > 0 {
+					p.groups = p.groups[:n-1]
+				}
+			case "grpSpPr":
+				p.inGrpSpPr = false
 			case "tbl", "tr", "tc":
 				p.closeTableStruct(t.Name.Local)
 			}
@@ -288,12 +348,19 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 // lacking its own <a:xfrm> inherits no box; <p:grpSp> bumps the group depth.
 func (p *dmlParser) captureShapeGeometry(t xml.StartElement) {
 	if t.Name.Space == dmlNamespace {
+		if p.inGrpSpPr && len(p.groups) > 0 {
+			p.groups[len(p.groups)-1].capture(t)
+			return
+		}
 		switch t.Name.Local {
-		case "off": // <a:off x= y=> — shape origin (EMU)
+		case "gridCol": // <a:gridCol w=>: a slide table column's width (EMU)
+			w, _ := strconv.ParseInt(attrVal(t, "w"), 10, 64)
+			p.gridCols = append(p.gridCols, w)
+		case "off": // <a:off x= y=>: shape origin (EMU)
 			p.offX, _ = strconv.ParseInt(attrVal(t, "x"), 10, 64)
 			p.offY, _ = strconv.ParseInt(attrVal(t, "y"), 10, 64)
 			p.hasOff = true
-		case "ext": // <a:ext cx= cy=> — shape size (EMU)
+		case "ext": // <a:ext cx= cy=>: shape size (EMU)
 			p.extCx, _ = strconv.ParseInt(attrVal(t, "cx"), 10, 64)
 			p.extCy, _ = strconv.ParseInt(attrVal(t, "cy"), 10, 64)
 			p.hasExt = true
@@ -306,19 +373,28 @@ func (p *dmlParser) captureShapeGeometry(t xml.StartElement) {
 	switch t.Name.Local {
 	case "grpSp":
 		p.groupDepth++
+		p.groups = append(p.groups, groupTransform{})
 		p.hasOff, p.hasExt = false, false
+	case "grpSpPr":
+		// The group's own properties come first inside <p:grpSp>; the slide's
+		// <p:spTree> has a <p:grpSpPr> too, with no group open.
+		if n := len(p.groups); n > 0 && !p.groups[n-1].seen {
+			p.groups[n-1].seen = true
+			p.inGrpSpPr = true
+		}
 	case "sp", "pic", "graphicFrame", "cxnSp":
 		p.hasOff, p.hasExt = false, false
-		p.phType = ""
+		p.phType, p.phRawType, p.phIdx = "", "", ""
 		p.openShape()
 	case "ph":
 		// <p:ph type="title"|"ctrTitle"|"subTitle"|"body"|…> inside
-		// <p:nvSpPr><p:nvPr> — the shape's placeholder role on the slide
+		// <p:nvSpPr><p:nvPr> is the shape's placeholder role on the slide
 		// layout. PresentationML has no w:pStyle: this element is the only
 		// thing that distinguishes a slide title from body text, so without it
 		// a deck's whole outline is invisible. ECMA-376-1 §19.3.1.36 makes
 		// "body" the default when the attribute is absent.
 		p.phType = attrVal(t, "type")
+		p.phRawType, p.phIdx = p.phType, attrVal(t, "idx")
 		if p.phType == "" {
 			p.phType = "body"
 		}
@@ -336,8 +412,8 @@ func (p *dmlParser) captureShapeGeometry(t xml.StartElement) {
 // PresentationML distinguishes the deck title from a slide title precisely so a
 // consumer can nest them: ctrTitle (the title slide's title) heads the
 // document, an ordinary slide title heads a section under it, the subtitle
-// sits with the section titles. Anything else — body text, a bare text box, a
-// table cell — keeps the paragraph role it already had, so this narrows to the
+// sits with the section titles. Anything else (body text, a bare text box, a
+// table cell) keeps the paragraph role it already had, so this narrows to the
 // outline and changes nothing else.
 func (p *dmlParser) placeholderRole() (string, int) {
 	switch p.phType {
@@ -374,21 +450,98 @@ func (p *dmlParser) paragraphName(partPath string) string {
 	return p.path.name(ordinalStep("p", p.paraSeq))
 }
 
-// attachShapeGeometry sets the block's page geometry from the current shape's
-// transform, when this is a slide part, we are not inside a group, and the
-// shape carried a full <a:xfrm>. DrawingML's origin is top-left, so no flip.
+// attachShapeGeometry sets the block's page geometry on a slide part. The
+// frame is the open table cell's, else the shape's own <a:xfrm>, else (for a
+// placeholder outside a group) the frame its layout or master gives it. Inside
+// groups the frame is mapped out through each group's transform. DrawingML's
+// origin is top-left, so no flip.
 func (p *dmlParser) attachShapeGeometry(b *model.Block) {
-	if p.slideNum <= 0 || p.groupDepth != 0 || !p.hasOff || !p.hasExt {
+	if p.slideNum <= 0 {
 		return
 	}
+	var box emuBox
+	switch {
+	case p.cellDepth > 0 && p.hasCellBox:
+		box = p.cellBox
+	case p.hasOff && p.hasExt:
+		box = emuBox{x: p.offX, y: p.offY, cx: p.extCx, cy: p.extCy}
+	case p.phType != "" && len(p.groups) == 0:
+		inherited, ok := p.placeholders.resolve(p.partPath, p.phRawType, p.phIdx)
+		if !ok {
+			return
+		}
+		box = inherited
+	default:
+		return
+	}
+	x, y, w, h := float64(box.x), float64(box.y), float64(box.cx), float64(box.cy)
+	for i := len(p.groups) - 1; i >= 0; i-- {
+		var ok bool
+		if x, y, w, h, ok = p.groups[i].apply(x, y, w, h); !ok {
+			return
+		}
+	}
 	b.SetGeometry(&model.GeometryAnnotation{
-		Page: p.slideNum,
-		BBox: model.Rect{
-			X: emuToPt(p.offX), Y: emuToPt(p.offY),
-			W: emuToPt(p.extCx), H: emuToPt(p.extCy),
-		},
+		Page:   p.slideNum,
+		BBox:   model.Rect{X: x / emuPerPt, Y: y / emuPerPt, W: w / emuPerPt, H: h / emuPerPt},
 		Origin: "top-left",
 	})
+}
+
+// emuPerPt is the number of English Metric Units in a point.
+const emuPerPt = 12700.0
+
+// groupTransform is a <p:grpSp>'s <a:xfrm>: the group's frame on its parent
+// (off, ext) and the child coordinate space its shapes are placed in (chOff,
+// chExt), ECMA-376-1 §20.1.7.5.
+type groupTransform struct {
+	seen                               bool
+	offX, offY, extCx, extCy           int64
+	chOffX, chOffY, chExtCx, chExtCy   int64
+	hasOff, hasExt, hasChOff, hasChExt bool
+}
+
+func (g *groupTransform) capture(t xml.StartElement) {
+	num := func(name string) int64 {
+		v, _ := strconv.ParseInt(attrVal(t, name), 10, 64)
+		return v
+	}
+	switch t.Name.Local {
+	case "off":
+		g.offX, g.offY, g.hasOff = num("x"), num("y"), true
+	case "ext":
+		g.extCx, g.extCy, g.hasExt = num("cx"), num("cy"), true
+	case "chOff":
+		g.chOffX, g.chOffY, g.hasChOff = num("x"), num("y"), true
+	case "chExt":
+		g.chExtCx, g.chExtCy, g.hasChExt = num("cx"), num("cy"), true
+	}
+}
+
+// apply maps a box from the group's child space to its parent's space. A group
+// with no frame of its own cannot be placed, so neither can its children.
+// Without chOff/chExt the child space is the group's own frame.
+func (g *groupTransform) apply(x, y, w, h float64) (float64, float64, float64, float64, bool) {
+	if !g.hasOff || !g.hasExt {
+		return 0, 0, 0, 0, false
+	}
+	chOffX, chOffY, chExtCx, chExtCy := g.offX, g.offY, g.extCx, g.extCy
+	if g.hasChOff {
+		chOffX, chOffY = g.chOffX, g.chOffY
+	}
+	if g.hasChExt {
+		chExtCx, chExtCy = g.chExtCx, g.chExtCy
+	}
+	sx, sy := 1.0, 1.0
+	if chExtCx != 0 {
+		sx = float64(g.extCx) / float64(chExtCx)
+	}
+	if chExtCy != 0 {
+		sy = float64(g.extCy) / float64(chExtCy)
+	}
+	return float64(g.offX) + (x-float64(chOffX))*sx,
+		float64(g.offY) + (y-float64(chOffY))*sy,
+		w * sx, h * sy, true
 }
 
 // parseTextBody parses an <a:txBody> element.
@@ -445,7 +598,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 	var endParaRPr string
 	// The paragraph's own start tag, kept so the skeleton can put it back with
 	// whatever attributes it carried, and its offset, so a paragraph holding no
-	// translatable text can be replayed whole.
+	// extractable text can be replayed whole.
 	paraStart := d.RawString()
 	paraOff := d.Offset()
 	contentOff := d.EndOffset()
@@ -529,7 +682,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					// source wrote it: a placeholder <a:fld>, an
 					// <a:endParaRPr>, the line endings and the empty-element
 					// forms all survive. A chart or diagram paragraph is the
-					// exception — okapi's BlockProperties.getEvents omits a
+					// exception: okapi's BlockProperties.getEvents omits a
 					// structurally empty pPr there, so those are rebuilt.
 					if !p.stripEmptyParaProps {
 						p.skelWriteString(d.FromString(paraOff))
@@ -755,8 +908,8 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 // Translatable:false RoleCaption "property" blocks (#928). Each surfaced value
 // is replaced with a skeleton ref so the writer restores it via renderBlock
 // ("property" → escaped text); an untranslated block restores the source value,
-// keeping the round-trip byte-exact. All other attributes — including name=,
-// which the PPTX path does not extract for translation — pass through verbatim.
+// keeping the round-trip byte-exact. All other attributes, including name=,
+// which the PPTX path does not extract for translation, pass through verbatim.
 //
 // Mirrors the WML drawing-name path (writeDrawingPropertyElementTo) and the
 // SpreadsheetML table-column path (skelWriteTableColumn). Only called when
