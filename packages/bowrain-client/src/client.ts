@@ -24,6 +24,7 @@ import type {
   DeckCounts,
   DeckGroup,
   DeckNote,
+  FeedDecisions,
   FeedPage,
   FeedQuery,
   FixCandidate,
@@ -173,6 +174,8 @@ export interface BowrainClient {
   applyChanges(scope: ProjectScope, set: ChangeSet): Promise<ChangeResult>;
   /** One page of a project's feed, newest first. */
   feed(workspace: string, project: string, query?: FeedQuery): Promise<FeedPage>;
+  /** The decisions a review entry of the feed counts, newest first. */
+  feedDecisions(workspace: string, project: string, entry: string): Promise<FeedDecisions>;
 }
 
 const DEFAULT_STREAM = "main";
@@ -467,6 +470,23 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       const page = await get<FeedPage>(`${ROUTES.feed(ws, pid)}${feedQueryString(q)}`);
       return { entries: page.entries ?? [], next_cursor: page.next_cursor || undefined };
     },
+
+    async feedDecisions(ws, pid, entry) {
+      const body = await get<ServerFeedDecisions>(
+        `${ROUTES.feed(ws, pid)}/${enc(entry)}/decisions`,
+      );
+      return {
+        locale: body.locale,
+        bulkApproved: body.bulk_approved ?? 0,
+        decisions: (body.decisions ?? []).map((d) => ({
+          card: cardFromServer(d.card),
+          decision: d.decision,
+          at: d.at,
+          current: d.current,
+          canUndo: d.can_undo,
+        })),
+      };
+    },
   };
   return client;
 }
@@ -550,6 +570,19 @@ export interface ServerDeck {
 }
 
 /** A card from the server's deck. */
+/** The decisions of a feed roll-up as the server sends them. */
+interface ServerFeedDecisions {
+  locale: string;
+  bulk_approved?: number;
+  decisions?: {
+    card: ServerDeckCard;
+    decision: string;
+    at: string;
+    current: boolean;
+    can_undo: boolean;
+  }[];
+}
+
 export function cardFromServer(c: ServerDeckCard): DeckCard {
   let target: Run[] = [];
   if (c.target_runs && c.target_runs.length > 0) target = c.target_runs;

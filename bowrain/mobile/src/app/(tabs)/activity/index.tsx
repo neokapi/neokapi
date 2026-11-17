@@ -75,7 +75,9 @@ function ProjectFeed({ recent }: { recent: RecentProject }) {
 
   const open = useCallback(
     (entry: FeedEntry) => {
-      const locale = deckLocaleOf(entry);
+      // A review entry opens on its decisions, where each can be undone; the
+      // deck is one button further.
+      const locale = entry.kind === "review_summary" ? undefined : deckLocaleOf(entry);
       if (locale) {
         openLanguage(locale);
         return;

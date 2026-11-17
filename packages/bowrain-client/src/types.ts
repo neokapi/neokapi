@@ -588,6 +588,27 @@ export interface FeedPage {
   next_cursor?: string;
 }
 
+/** One review decision a feed entry counts, beside the translation as it stands now. */
+export interface FeedDecision {
+  /** The translation now, in the deck's shape: a withdrawal names its revision. */
+  card: DeckCard;
+  /** approved, rejected, or unreviewed for a withdrawal. */
+  decision: string;
+  at: string;
+  /** Still the newest decision on the translation, which stands where it left it. */
+  current: boolean;
+  /** The reader made it and it still holds, so it can be withdrawn. */
+  canUndo: boolean;
+}
+
+/** The decisions of a review entry of the feed (GET /:ws/:id/feed/:entry/decisions). */
+export interface FeedDecisions {
+  locale: string;
+  decisions: FeedDecision[];
+  /** Approvals of a bulk pass, which records no decision per translation. */
+  bulkApproved: number;
+}
+
 /** The feed's filters (the query parameters of GET /:ws/:id/feed). */
 export interface FeedQuery {
   kinds?: FeedKind[];

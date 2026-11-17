@@ -498,3 +498,55 @@ describe("contextRuleExamples", () => {
     expect(out).toEqual({ examples: [], scanned: 12, complete: true });
   });
 });
+
+describe("feedDecisions", () => {
+  it("reads a review entry's decisions as deck cards", async () => {
+    const calls: string[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string) => {
+        calls.push(url);
+        return new Response(
+          JSON.stringify({
+            locale: "nb",
+            bulk_approved: 0,
+            decisions: [
+              {
+                card: {
+                  block_id: "b1",
+                  item_name: "i18n/en.json",
+                  key: "greeting",
+                  collection_id: "",
+                  locale: "nb",
+                  source_runs: [{ text: "Hello" }],
+                  target_runs: [{ text: "Hei" }],
+                  source_revision: "r:s",
+                  target_revision: "r:t",
+                  notes: [],
+                  findings_count: 0,
+                  failing_findings_count: 0,
+                  own_work: false,
+                  group: "fast",
+                  reason: "",
+                },
+                decision: "approved",
+                at: "2026-11-17T10:00:00Z",
+                current: true,
+                can_undo: true,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const out = await client.feedDecisions("ws", "p", "rvw_1");
+    expect(calls[0]).toBe("http://server/api/v1/ws/p/feed/rvw_1/decisions");
+    expect(out.decisions[0]).toMatchObject({
+      decision: "approved",
+      canUndo: true,
+      card: { blockId: "b1", targetRevision: "r:t", target: [{ text: "Hei" }] },
+    });
+  });
+});
