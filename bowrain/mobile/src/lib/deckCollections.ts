@@ -47,3 +47,13 @@ export function nextCollection(
 export function decidedShare(c: Pick<DeckCollection, "decided" | "translations">): number {
   return c.translations > 0 ? Math.min(1, Math.max(0, c.decided / c.translations)) : 0;
 }
+
+/**
+ * The collection to start with: the first one, in the server's order, that
+ * has a high priority and anything waiting. Null when no waiting collection
+ * is high priority, since then no collection stands out.
+ */
+export function startCollection(collections: readonly DeckCollection[] | undefined): string | null {
+  const c = collections?.find((x) => x.waiting > 0 && x.priority === "high");
+  return c ? c.collection_id : null;
+}

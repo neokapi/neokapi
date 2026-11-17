@@ -87,10 +87,10 @@ func TestReviewDeckCollections_CountsAndOrdersEachCollection(t *testing.T) {
 	assert.Equal(t, deckCollection{Waiting: 4, Fast: 1, Closer: 3, Translations: 6, Decided: 2}, got.All)
 
 	want := []deckCollection{
-		{CollectionID: colls["docs"], Name: "docs", Waiting: 1, Closer: 1, Translations: 1},
-		{CollectionID: colls["web"], Name: "web", Channel: "acme/web", Coordinates: map[string]string{"product": "acme"}, Waiting: 2, Fast: 1, Closer: 1, Translations: 3, Decided: 1},
+		{CollectionID: colls["docs"], Name: "docs", Priority: "normal", Waiting: 1, Closer: 1, Translations: 1},
+		{CollectionID: colls["web"], Name: "web", Priority: "normal", Channel: "acme/web", Coordinates: map[string]string{"product": "acme"}, Waiting: 2, Fast: 1, Closer: 1, Translations: 3, Decided: 1},
 		{CollectionID: "", Name: "", Waiting: 1, Closer: 1, Translations: 1},
-		{CollectionID: colls["emails"], Name: "emails", Translations: 1, Decided: 1},
+		{CollectionID: colls["emails"], Name: "emails", Priority: "normal", Translations: 1, Decided: 1},
 	}
 	require.Len(t, got.Collections, len(want), "%+v", got.Collections)
 	for i, w := range want {
@@ -195,4 +195,43 @@ func TestReviewDeck_LeavesOutSourceOnlyCollections(t *testing.T) {
 	skip, err := sourceOnlyItems(ctx, s.ContentStore, projID, "main")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]bool{"docs.md": true}, skip)
+}
+
+func TestReviewDeck_DealsCollectionsByPriority(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+	projID, colls, ids := seedCollectionsProject(t, s, wsID)
+	setPriority := func(name, p string) {
+		coll, err := s.ContentStore.GetCollection(ctx, projID, colls[name])
+		require.NoError(t, err)
+		coll.ConnectorConfig = map[string]string{platstore.CollectionConfigPriority: p}
+		require.NoError(t, s.ContentStore.UpdateCollection(ctx, coll))
+	}
+	setPriority("docs", "high")
+	setPriority("web", "low")
+
+	// One card a page, so every step crosses the cursor.
+	var got []string
+	q := url.Values{"locale": {"fr"}, "limit": {"1"}}
+	for range 10 {
+		deck := readDeck(t, s, wsID, projID, q)
+		for _, c := range deck.Cards {
+			got = append(got, c.BlockID)
+		}
+		if deck.NextCursor == "" {
+			break
+		}
+		q.Set("cursor", deck.NextCursor)
+	}
+	require.Len(t, got, 4)
+	assert.Equal(t, ids["Read the guide"], got[0], "the high collection comes first")
+	assert.Equal(t, ids["Loose"], got[1], "no collection is normal")
+	assert.ElementsMatch(t, []string{ids["Save"], ids["Cancel"]}, got[2:], "the low collection comes last")
+
+	rec := deckCall(t, s, s.HandleGetReviewDeckCollections, wsID, projID, "", "u-reviewer", testReviewer, nil, url.Values{"locale": {"fr"}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	listed := decodeJSON[reviewDeckCollectionsResponse](t, rec)
+	require.NotEmpty(t, listed.Collections)
+	assert.Equal(t, colls["docs"], listed.Collections[0].CollectionID)
+	assert.Equal(t, "high", listed.Collections[0].Priority)
 }

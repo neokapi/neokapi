@@ -21,6 +21,10 @@ type ReviewDeckQuery struct {
 	// ExcludeCollections leaves out the items of these collections: the
 	// source-only ones, whose content has no target language.
 	ExcludeCollections []string
+	// HighCollections and LowCollections are dealt first and last: the
+	// collections whose review priority is high or low. The rest are normal.
+	HighCollections []string
+	LowCollections  []string
 	// Policy names the thresholds the facts were computed under. Facts
 	// computed under another policy are classified again.
 	Policy string
@@ -69,6 +73,8 @@ type ReviewDeckFacts struct {
 
 // ReviewDeckKey is a position in a deck: the keyset its pages are cut on.
 type ReviewDeckKey struct {
+	// Priority is the collection's tier: 0 high, 1 normal, 2 low.
+	Priority  int
 	GroupRank int
 	ItemName  string
 	Position  int
@@ -79,6 +85,8 @@ type ReviewDeckKey struct {
 type ReviewDeckRow struct {
 	PendingReviewRef
 	Position int
+	// Priority is the tier of the row's collection: 0 high, 1 normal, 2 low.
+	Priority int
 	Facts    ReviewDeckFacts
 }
 

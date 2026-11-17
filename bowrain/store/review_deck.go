@@ -48,6 +48,26 @@ const reviewDeckFresh = `(f.block_id IS NOT NULL
 	AND f.decision_at IS NOT DISTINCT FROM d.updated_at
 	AND f.computed_at > NOW() - INTERVAL '1 day')`
 
+// reviewDeckPriority is the SQL rank of a row's collection tier, 0 high,
+// 1 normal, 2 low, binding the tiers' collection ids through args.
+func reviewDeckPriority(q platstore.ReviewDeckQuery, args []any) (string, []any) {
+	expr := "CASE"
+	if len(q.HighCollections) > 0 {
+		args = append(args, q.HighCollections)
+		expr += fmt.Sprintf(` WHEN COALESCE(i.collection_id, '') = ANY($%d) THEN 0`, len(args))
+	}
+	if len(q.LowCollections) > 0 {
+		args = append(args, q.LowCollections)
+		expr += fmt.Sprintf(` WHEN COALESCE(i.collection_id, '') = ANY($%d) THEN 2`, len(args))
+	}
+	// An expression rather than the bare literal: ORDER BY 1 names the first
+	// column.
+	if expr == "CASE" {
+		return "CAST(1 AS integer)", args
+	}
+	return expr + " ELSE 1 END", args
+}
+
 func reviewDeckArgs(q platstore.ReviewDeckQuery) (scope string, args []any) {
 	args = []any{q.ProjectID, storeutil.DefaultStream(q.Stream), q.Locale, q.Policy}
 	if q.CollectionID != nil {
@@ -140,6 +160,7 @@ func (s *PostgresStore) RecordReviewDeckFacts(ctx context.Context, projectID, st
 // platstore.ReviewDeckStore.
 func (s *PostgresStore) ListReviewDeck(ctx context.Context, q platstore.ReviewDeckQuery, groupRank int, after *platstore.ReviewDeckKey, limit int) ([]platstore.ReviewDeckRow, error) {
 	scope, args := reviewDeckArgs(q)
+	prio, args := reviewDeckPriority(q, args)
 	if groupRank >= 0 {
 		args = append(args, groupRank)
 		scope += fmt.Sprintf(` AND f.group_rank = $%d`, len(args))
@@ -148,16 +169,16 @@ func (s *PostgresStore) ListReviewDeck(ctx context.Context, q platstore.ReviewDe
 	}
 	if after != nil {
 		n := len(args)
-		args = append(args, after.GroupRank, after.ItemName, after.Position, after.BlockID)
-		scope += fmt.Sprintf(` AND (f.group_rank, b.item_name, b.position, b.id) > ($%d, $%d, $%d, $%d)`, n+1, n+2, n+3, n+4)
+		args = append(args, after.Priority, after.GroupRank, after.ItemName, after.Position, after.BlockID)
+		scope += fmt.Sprintf(` AND (`+prio+`, f.group_rank, b.item_name, b.position, b.id) > ($%d, $%d, $%d, $%d, $%d)`, n+1, n+2, n+3, n+4, n+5)
 	}
 	args = append(args, limit)
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
 	query := `SELECT b.id, b.item_name, t.locale, COALESCE(i.collection_id, ''), b.position,
 		t.updated_at, b.source_revision, f.policy, f.group_rank, f.deck_group, f.reason,
-		f.findings, f.failing, f.term_compliance, f.voice_score, f.voice_bar` +
+		f.findings, f.failing, f.term_compliance, f.voice_score, f.voice_bar, ` + prio +
 		reviewDeckFrom + scope + ` AND ` + reviewDeckFresh +
-		fmt.Sprintf(` ORDER BY f.group_rank, b.item_name, b.position, b.id LIMIT $%d`, len(args))
+		fmt.Sprintf(` ORDER BY `+prio+`, f.group_rank, b.item_name, b.position, b.id LIMIT $%d`, len(args))
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list review deck: %w", err)
@@ -171,7 +192,7 @@ func (s *PostgresStore) ListReviewDeck(ctx context.Context, q platstore.ReviewDe
 		if err := rows.Scan(&r.BlockID, &r.ItemName, &r.Locale, &r.CollectionID, &r.Position,
 			&r.Facts.Basis.TargetUpdatedAt, &r.Facts.Basis.SourceRevision, &r.Facts.Policy,
 			&r.Facts.GroupRank, &r.Facts.Group, &r.Facts.Reason, &r.Facts.Findings, &r.Facts.Failing,
-			&term, &voice, &bar); err != nil {
+			&term, &voice, &bar, &r.Priority); err != nil {
 			return nil, fmt.Errorf("scan review deck: %w", err)
 		}
 		r.Facts.BlockID, r.Facts.Locale = r.BlockID, r.Locale

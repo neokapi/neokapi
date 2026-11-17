@@ -5,6 +5,7 @@ import {
   collectionParam,
   decidedShare,
   nextCollection,
+  startCollection,
 } from "../lib/deckCollections";
 
 function coll(id: string, waiting: number): DeckCollection {
@@ -46,5 +47,32 @@ describe("deck collections", () => {
   it("measures progress as decided of all translations", () => {
     expect(decidedShare({ decided: 3, translations: 4 })).toBe(0.75);
     expect(decidedShare({ decided: 0, translations: 0 })).toBe(0);
+  });
+});
+
+describe("startCollection", () => {
+  const base = {
+    name: "",
+    fast: 0,
+    closer: 0,
+    desk: 0,
+    unclassified: 0,
+    translations: 1,
+    decided: 0,
+  };
+  it("starts with the first waiting high priority collection", () => {
+    expect(
+      startCollection([
+        { ...base, collection_id: "a", waiting: 0, priority: "high" },
+        { ...base, collection_id: "b", waiting: 3, priority: "high" },
+        { ...base, collection_id: "c", waiting: 5, priority: "normal" },
+      ]),
+    ).toBe("b");
+  });
+  it("marks nothing when no waiting collection is high priority", () => {
+    expect(
+      startCollection([{ ...base, collection_id: "c", waiting: 5, priority: "normal" }]),
+    ).toBeNull();
+    expect(startCollection(undefined)).toBeNull();
   });
 });

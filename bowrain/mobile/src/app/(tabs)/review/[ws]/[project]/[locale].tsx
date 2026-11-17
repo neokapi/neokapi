@@ -1,7 +1,9 @@
 // One language's review deck split by collection, so a reviewer takes it one
 // piece at a time. The server counts and orders the collections
 // (GET /:ws/:id/review-deck/:ref/collections): those with anything waiting
-// first, finished ones last. A row opens the deck on that collection, and the
+// first, high priority before low, finished ones last. The first waiting
+// collection with a high priority is marked as the place to start, and a low
+// priority one says so. A row opens the deck on that collection, and the
 // first row opens the whole language.
 import type { DeckCollection } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -14,18 +16,26 @@ import { useCSSVariable } from "uniwind";
 
 import { QueryState } from "../../../../../components/List";
 import { useAuth } from "../../../../../lib/auth";
-import { collectionParam, collectionsKey, decidedShare } from "../../../../../lib/deckCollections";
+import {
+  collectionParam,
+  collectionsKey,
+  decidedShare,
+  startCollection,
+} from "../../../../../lib/deckCollections";
 import { languageLabel } from "../../../../../lib/feed";
 
 const CollectionRow = memo(function CollectionRow({
   item,
   name,
   testID,
+  start,
   onPress,
 }: {
   item: DeckCollection;
   name: string;
   testID: string;
+  /** The collection to review first. */
+  start?: boolean;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
@@ -50,9 +60,24 @@ const CollectionRow = memo(function CollectionRow({
     >
       <View className="flex-row items-center gap-3">
         <View className="min-w-0 flex-1 gap-0.5">
-          <Text className="text-foreground text-base font-medium" numberOfLines={1}>
-            {name}
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-foreground shrink text-base font-medium" numberOfLines={1}>
+              {name}
+            </Text>
+            {start ? (
+              <View testID={`${testID}-start`} className="bg-chip rounded-full px-2 py-0.5">
+                <Text className="text-chip-foreground text-xs font-semibold">
+                  {t("collections.start")}
+                </Text>
+              </View>
+            ) : !done && item.priority === "low" ? (
+              <View testID={`${testID}-low`} className="bg-muted rounded-full px-2 py-0.5">
+                <Text className="text-muted-foreground text-xs font-semibold">
+                  {t("collections.low")}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           <Text className="text-muted-foreground text-sm tabular-nums" numberOfLines={1}>
             {done ? progress : `${groups} · ${progress}`}
           </Text>
@@ -124,19 +149,21 @@ export default function LanguageCollections() {
     (c: DeckCollection) => (c.collection_id === "" ? t("collections.none") : c.name),
     [t],
   );
+  const data = list.data;
+  const start = startCollection(data?.collections);
   const renderItem = useCallback(
     ({ item }: { item: DeckCollection }) => (
       <CollectionRow
         item={item}
         name={nameOf(item)}
         testID={`collection-${item.collection_id || "none"}`}
+        start={item.collection_id === start}
         onPress={() => openDeck(item, nameOf(item))}
       />
     ),
-    [nameOf, openDeck],
+    [nameOf, openDeck, start],
   );
 
-  const data = list.data;
   return (
     <View collapsable={false} className="bg-background flex-1">
       <Stack.Screen options={{ title: languageLabel(locale, i18n.language) }} />

@@ -146,7 +146,7 @@ func reconcileContext(
 				Context:         maps.Clone(e.Coordinates),
 				Owner:           venue.ContextOwnerRecipe,
 				ContextHash:     e.ContentHash,
-				ConnectorConfig: governanceConfig(nil, profileID, e.Channel, e.GetSourceOnly()),
+				ConnectorConfig: governanceConfig(nil, profileID, e),
 				PreviewKind:     e.GetPreview().GetKind(),
 				PreviewURL:      e.GetPreview().GetUrl(),
 			}
@@ -173,7 +173,7 @@ func reconcileContext(
 		// keys are still compared, because the profile id is minted server-side
 		// and can change without the recipe changing (a hub rename, a first
 		// bind after the project was claimed into a workspace).
-		wantConfig := governanceConfig(current.ConnectorConfig, profileID, e.Channel, e.GetSourceOnly())
+		wantConfig := governanceConfig(current.ConnectorConfig, profileID, e)
 		if !claiming && current.ContextHash == e.ContentHash &&
 			maps.Equal(current.ConnectorConfig, wantConfig) {
 			result.Unchanged = append(result.Unchanged, e.Name)
@@ -233,24 +233,25 @@ func reconcileContext(
 
 // governanceConfig returns the collection's connector config with the resolved
 // governance written into the two keys core/profile reads, the bound profile id
-// and the channel, and the recipe's source_only declaration
-// (store.CollectionConfigSourceOnly). Every other key is carried through untouched — a collection
+// and the channel, and the recipe's source_only declaration and review
+// priority (store.CollectionConfigSourceOnly, store.CollectionConfigPriority). Every other key is carried through untouched: a collection
 // may also hold connector settings, and governance has no business dropping
 // them.
 //
 // An empty profile id or channel, or a collection that is not source-only, REMOVES the key rather than storing an empty
 // value, so "no voice bound at this point" reads the same as "never bound one".
-func governanceConfig(current map[string]string, profileID, channel string, sourceOnly bool) map[string]string {
-	out := make(map[string]string, len(current)+3)
+func governanceConfig(current map[string]string, profileID string, e *pb.SyncContextEntry) map[string]string {
+	out := make(map[string]string, len(current)+4)
 	maps.Copy(out, current)
 	only := ""
-	if sourceOnly {
+	if e.GetSourceOnly() {
 		only = "true"
 	}
 	for key, value := range map[string]string{
 		coreprofile.PropertyProfileID:    profileID,
-		coreprofile.PropertyChannel:      channel,
+		coreprofile.PropertyChannel:      e.GetChannel(),
 		store.CollectionConfigSourceOnly: only,
+		store.CollectionConfigPriority:   e.GetPriority(),
 	} {
 		if value == "" {
 			delete(out, key)

@@ -107,7 +107,7 @@ type reviewDeckResponse struct {
 
 // encodeDeckCursor is the opaque form of a deck position.
 func encodeDeckCursor(k store.ReviewDeckKey) string {
-	raw, _ := json.Marshal([]any{k.GroupRank, k.ItemName, k.Position, k.BlockID})
+	raw, _ := json.Marshal([]any{k.Priority, k.GroupRank, k.ItemName, k.Position, k.BlockID})
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
@@ -117,17 +117,18 @@ func decodeDeckCursor(s string) (store.ReviewDeckKey, error) {
 		return store.ReviewDeckKey{}, err
 	}
 	var parts []any
-	if err := json.Unmarshal(raw, &parts); err != nil || len(parts) != 4 {
+	if err := json.Unmarshal(raw, &parts); err != nil || len(parts) != 5 {
 		return store.ReviewDeckKey{}, errors.New("malformed cursor")
 	}
-	rank, ok1 := parts[0].(float64)
-	item, ok2 := parts[1].(string)
-	pos, ok3 := parts[2].(float64)
-	bid, ok4 := parts[3].(string)
-	if !ok1 || !ok2 || !ok3 || !ok4 {
+	prio, ok0 := parts[0].(float64)
+	rank, ok1 := parts[1].(float64)
+	item, ok2 := parts[2].(string)
+	pos, ok3 := parts[3].(float64)
+	bid, ok4 := parts[4].(string)
+	if !ok0 || !ok1 || !ok2 || !ok3 || !ok4 {
 		return store.ReviewDeckKey{}, errors.New("malformed cursor")
 	}
-	return store.ReviewDeckKey{GroupRank: int(rank), ItemName: item, Position: int(pos), BlockID: bid}, nil
+	return store.ReviewDeckKey{Priority: int(prio), GroupRank: int(rank), ItemName: item, Position: int(pos), BlockID: bid}, nil
 }
 
 // deckPolicy is the policy the server's deck applies.
@@ -187,11 +188,12 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	policy := s.deckPolicy()
-	exclude, err := sourceOnlyCollections(ctx, s.ContentStore, pid, stream)
+	scope, err := deckScopeOf(ctx, s.ContentStore, pid, stream)
 	if err != nil {
 		return serverErr(c, err)
 	}
-	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy), ExcludeCollections: exclude}
+	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy)}
+	scope.apply(&q)
 	if c.QueryParams().Has("collection") {
 		scope := strings.TrimSpace(c.QueryParam("collection"))
 		q.CollectionID = &scope
@@ -217,7 +219,7 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 		rows = rows[:limit]
 		last := rows[len(rows)-1]
 		out.NextCursor = encodeDeckCursor(store.ReviewDeckKey{
-			GroupRank: last.Facts.GroupRank, ItemName: last.ItemName, Position: last.Position, BlockID: last.BlockID,
+			Priority: last.Priority, GroupRank: last.Facts.GroupRank, ItemName: last.ItemName, Position: last.Position, BlockID: last.BlockID,
 		})
 	}
 	cards, err := s.deckPage(ctx, c, proj, stream, loc, rows)
