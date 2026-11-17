@@ -242,8 +242,11 @@ type PendingReviewQuery struct {
 	// A pointer rather than a string because the empty collection is a scope,
 	// not the absence of one.
 	CollectionID *string
-	Limit        int
-	Offset       int
+	// ExcludeCollections leaves out the items of these collections: the
+	// source-only ones, whose content has no target language.
+	ExcludeCollections []string
+	Limit              int
+	Offset             int
 }
 
 // Version represents a named snapshot of project state.
@@ -342,6 +345,17 @@ type Collection struct {
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// CollectionConfigSourceOnly is the ConnectorConfig key a recipe's
+// `source_only: true` collection is stored under, set to "true". Its items have
+// no target language: the platform drafts no translation of them, counts no
+// translation as missing, and deals none for review.
+const CollectionConfigSourceOnly = "source_only"
+
+// SourceOnly reports whether the collection's content has no target language.
+func (c *Collection) SourceOnly() bool {
+	return c != nil && c.ConnectorConfig[CollectionConfigSourceOnly] == "true"
 }
 
 // ---------------------------------------------------------------------------

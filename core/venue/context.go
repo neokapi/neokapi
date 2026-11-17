@@ -50,7 +50,7 @@ func IsRecipeOwned(owner string) bool {
 
 // ComputeContextEntryHash hashes one context entry over the fields the protocol
 // owns: the collection name, its coordinates, its resolved governance, and its
-// owner. The authored profile content is folded in as well, so editing the
+// owner, its preview and whether it is source-only. The authored profile content is folded in as well, so editing the
 // voice a collection is governed by changes the entry's hash and the push
 // carries the new governance instead of being skipped by the fast path.
 //
@@ -83,6 +83,12 @@ func ComputeContextEntryHash(e *pb.SyncContextEntry) string {
 	h.Write([]byte(e.GetPreview().GetKind()))
 	h.Write([]byte{0})
 	h.Write([]byte(e.GetPreview().GetUrl()))
+	// Written only when set, so an entry that declares nothing new keeps the
+	// hash it had before the field existed.
+	if e.GetSourceOnly() {
+		h.Write([]byte{0})
+		h.Write([]byte("source_only"))
+	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 

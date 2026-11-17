@@ -312,7 +312,7 @@ collections:
 | `base`             | string          | The directory this collection lives in; every `path`, `target` and item `base` below is written relative to it |
 | `channel`          | string          | The point in the context space this content sits at: `profile/channel`, or a bare `channel` (see [Profiles and channels](#profiles-and-channels)) |
 | `coordinates`      | map             | Declared axes this collection sets, overlaid on `defaults.coordinates` per axis: a collection moves on the one axis it differs on and inherits the rest |
-| `source_only`      | bool            | This collection has no target language and is never translated: a run reads it, checks it, and writes nothing back |
+| `source_only`      | bool            | This collection has no target language and is never translated: a run reads it, checks it, and writes nothing back. Bowrain drafts no translation of it, leaves it out of coverage and keeps it out of the review queue |
 | `preview`          | object          | Where this collection's strings can be read in place: `kind` (`storybook`) and `url` (see [Review in place](/server/review#review-in-place)) |
 | `content`          | list            | The collection's content items                                             |
 | `collection`       | string          | Collection routing override                                                |

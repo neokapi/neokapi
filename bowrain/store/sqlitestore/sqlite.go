@@ -1406,6 +1406,12 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.Pending
 		scope += ` AND COALESCE(i.collection_id, '') = ?`
 		args = append(args, *q.CollectionID)
 	}
+	if len(q.ExcludeCollections) > 0 {
+		scope += fmt.Sprintf(` AND COALESCE(i.collection_id, '') NOT IN (?%s)`, strings.Repeat(",?", len(q.ExcludeCollections)-1))
+		for _, id := range q.ExcludeCollections {
+			args = append(args, id)
+		}
+	}
 
 	var total int
 	countQuery := fmt.Sprintf(skeleton, "count(*)", scope)

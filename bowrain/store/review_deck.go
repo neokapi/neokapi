@@ -54,6 +54,10 @@ func reviewDeckArgs(q platstore.ReviewDeckQuery) (scope string, args []any) {
 		scope = ` AND COALESCE(i.collection_id, '') = $5`
 		args = append(args, *q.CollectionID)
 	}
+	if len(q.ExcludeCollections) > 0 {
+		args = append(args, q.ExcludeCollections)
+		scope += fmt.Sprintf(` AND COALESCE(i.collection_id, '') <> ALL($%d)`, len(args))
+	}
 	return scope, args
 }
 

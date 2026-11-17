@@ -153,3 +153,41 @@ func TestReviewDeckCollections_NeedsTheReviewPermissionForTheLanguage(t *testing
 		})
 	}
 }
+
+func TestReviewDeck_LeavesOutSourceOnlyCollections(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+	projID, colls, ids := seedCollectionsProject(t, s, wsID)
+	docs, err := s.ContentStore.GetCollection(ctx, projID, colls["docs"])
+	require.NoError(t, err)
+	docs.ConnectorConfig = map[string]string{platstore.CollectionConfigSourceOnly: "true"}
+	require.NoError(t, s.ContentStore.UpdateCollection(ctx, docs))
+
+	deck := readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}})
+	var got []string
+	for _, c := range deck.Cards {
+		got = append(got, c.BlockID)
+	}
+	assert.ElementsMatch(t, []string{ids["Save"], ids["Cancel"], ids["Loose"]}, got)
+
+	rec := deckCall(t, s, s.HandleGetReviewDeckCollections, wsID, projID, "", "u-reviewer", testReviewer, nil, url.Values{"locale": {"fr"}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	listed := decodeJSON[reviewDeckCollectionsResponse](t, rec)
+	for _, c := range listed.Collections {
+		assert.NotEqual(t, colls["docs"], c.CollectionID)
+	}
+	assert.Equal(t, 3, listed.All.Waiting)
+
+	refs, total, err := s.ContentStore.ListPendingReview(ctx, platstore.PendingReviewQuery{
+		ProjectID: projID, Stream: "main", ExcludeCollections: []string{colls["docs"]},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	for _, r := range refs {
+		assert.NotEqual(t, ids["Read the guide"], r.BlockID)
+	}
+
+	skip, err := sourceOnlyItems(ctx, s.ContentStore, projID, "main")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]bool{"docs.md": true}, skip)
+}

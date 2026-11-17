@@ -1911,6 +1911,11 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		if !bs.Translatable {
 			continue
 		}
+		// A source-only collection's content has no target language, so it
+		// owes no translation and counts toward no coverage.
+		if im := itemLookup[bs.ItemName]; im != nil && collMap[im.collectionID].SourceOnly() {
+			continue
+		}
 		translatableBlocks++
 		wc := bs.SourceWords
 		totalSourceWords += wc

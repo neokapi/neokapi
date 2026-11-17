@@ -69,7 +69,11 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	policy := s.deckPolicy()
-	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy)}
+	exclude, err := sourceOnlyCollections(ctx, s.ContentStore, pid, stream)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy), ExcludeCollections: exclude}
 	wsID, _ := c.Get("workspace_id").(string)
 	if _, err := s.classifyDeck(ctx, wsID, decks, proj, q, policy, deckClassifyBudget); err != nil {
 		return serverErr(c, err)

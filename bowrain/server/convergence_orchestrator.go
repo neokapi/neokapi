@@ -838,12 +838,16 @@ func blockCoverage(
 	for _, loc := range locales {
 		out[loc] = coverageCounts{}
 	}
-	err := platstore.EachBlockBatch(ctx, cs,
+	skip, err := sourceOnlyItems(ctx, cs, projectID, stream)
+	if err != nil {
+		return nil, err
+	}
+	err = platstore.EachBlockBatch(ctx, cs,
 		platstore.BlockQuery{ProjectID: projectID, Stream: stream},
 		platstore.DefaultBlockBatch,
 		func(batch []*venue.StoredBlock) error {
 			for _, sb := range batch {
-				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable || skip[sb.ItemName] {
 					continue
 				}
 				for _, loc := range locales {
@@ -883,12 +887,16 @@ func countFailingBlocks(
 	for _, loc := range locales {
 		out[loc] = 0
 	}
-	err := platstore.EachBlockBatch(ctx, cs,
+	skip, err := sourceOnlyItems(ctx, cs, projectID, stream)
+	if err != nil {
+		return nil, err
+	}
+	err = platstore.EachBlockBatch(ctx, cs,
 		platstore.BlockQuery{ProjectID: projectID, Stream: stream},
 		platstore.DefaultBlockBatch,
 		func(batch []*venue.StoredBlock) error {
 			for _, sb := range batch {
-				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable || skip[sb.ItemName] {
 					continue
 				}
 				for _, loc := range locales {

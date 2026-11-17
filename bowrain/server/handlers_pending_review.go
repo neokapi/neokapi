@@ -91,13 +91,18 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 		collectionID = &scope
 	}
 
+	exclude, err := sourceOnlyCollections(ctx, s.ContentStore, pid, streamParam(c))
+	if err != nil {
+		return serverErr(c, err)
+	}
 	refs, total, err := s.ContentStore.ListPendingReview(ctx, store.PendingReviewQuery{
-		ProjectID:    pid,
-		Stream:       streamParam(c),
-		Locales:      locales,
-		CollectionID: collectionID,
-		Limit:        limit,
-		Offset:       offset,
+		ProjectID:          pid,
+		Stream:             streamParam(c),
+		Locales:            locales,
+		CollectionID:       collectionID,
+		ExcludeCollections: exclude,
+		Limit:              limit,
+		Offset:             offset,
 	})
 	if err != nil {
 		return serverErr(c, err)

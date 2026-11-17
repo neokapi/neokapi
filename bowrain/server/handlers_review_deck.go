@@ -185,7 +185,11 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	policy := s.deckPolicy()
-	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy)}
+	exclude, err := sourceOnlyCollections(ctx, s.ContentStore, pid, stream)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy), ExcludeCollections: exclude}
 	if c.QueryParams().Has("collection") {
 		scope := strings.TrimSpace(c.QueryParam("collection"))
 		q.CollectionID = &scope
