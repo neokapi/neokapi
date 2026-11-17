@@ -19,18 +19,20 @@ import (
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
-// inspectRecord is one block as kapi inspect prints it: the read record of
-// the change service (the reference to copy into an operation, the revision
-// to send as if_match, the text in placeholder form, its inline codes with
-// the attributes an edit may change, its plurals and selects, its other
-// editions and the operations it accepts), with the block's structural role
-// and nesting level, and its rendering in other formats when --project asks
-// for it.
+// inspectRecord is one block as kapi inspect prints it. It embeds the change
+// service's read record: the reference to copy into an operation, the
+// revision to send as if_match, the text in placeholder form, the inline
+// codes, plurals and selects, the other editions and the accepted operations.
+// It adds the block's structural role and nesting level, the layer it sits on
+// when that is not the body, and its visibility when the file hides it.
+// Projected holds its rendering in other formats when --render asks for it.
 type inspectRecord struct {
 	change.BlockRead
-	Role      string            `json:"role,omitempty"`
-	Level     int               `json:"level,omitempty"`
-	Projected map[string]string `json:"projected,omitempty"`
+	Role       string            `json:"role,omitempty"`
+	Level      int               `json:"level,omitempty"`
+	Layer      string            `json:"layer,omitempty"`
+	Visibility string            `json:"visibility,omitempty"`
+	Projected  map[string]string `json:"projected,omitempty"`
 }
 
 // RunInspect prints a read record for each block of the files args name. It
@@ -178,6 +180,10 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSourc
 		rec := inspectRecord{BlockRead: r}
 		if s, ok := b.Structure(); ok {
 			rec.Role, rec.Level = s.Role, s.Level
+			if s.Layer != model.LayerBody {
+				rec.Layer = s.Layer
+			}
+			rec.Visibility = s.Visibility
 		}
 		if len(render) > 0 {
 			rec.Projected = make(map[string]string, len(render))
