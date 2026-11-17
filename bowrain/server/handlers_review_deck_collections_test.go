@@ -270,6 +270,18 @@ func TestReviewDeck_DealsIdenticalTextOnce(t *testing.T) {
 	assert.NotEmpty(t, cp.SourceRevision)
 	assert.Equal(t, 5, deck.Counts.Waiting, "the copy counts once")
 
+	// The language total on the collection list counts it once too, though
+	// each collection holding a copy counts it.
+	rec := deckCall(t, s, s.HandleGetReviewDeckCollections, wsID, projID, "", "u-reviewer", testReviewer, nil, url.Values{"locale": {"fr"}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	listed := decodeJSON[reviewDeckCollectionsResponse](t, rec)
+	assert.Equal(t, deck.Counts.Waiting, listed.All.Waiting)
+	perCollection := 0
+	for _, c := range listed.Collections {
+		perCollection += c.Waiting
+	}
+	assert.Equal(t, listed.All.Waiting+1, perCollection)
+
 	// A collection's own deck reads only its collection, and its card still
 	// lists the copy in the other one.
 	docs := readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}, "collection": {colls["docs"]}})

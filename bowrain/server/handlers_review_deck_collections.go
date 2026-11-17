@@ -98,10 +98,14 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	out := reviewDeckCollectionsResponse{Locale: loc, Stream: stream, Collections: []deckCollection{}}
-	for _, n := range counts {
-		addDeckCollection(&out.All, deckCollectionOf("", "", n))
+	// The language counts a set of copies once, as the deck and the inbox
+	// do, though each collection holding a copy counts it.
+	all, err := decks.CountReviewDeckLanguage(ctx, q)
+	if err != nil {
+		return serverErr(c, err)
 	}
+	out := reviewDeckCollectionsResponse{Locale: loc, Stream: stream, Collections: []deckCollection{}}
+	out.All = deckCollectionOf("", "", all)
 	var waiting, done []deckCollection
 	add := func(coll *store.Collection) {
 		id, name := "", ""
@@ -150,16 +154,6 @@ func deckCollectionOf(id, name string, n store.ReviewDeckCollectionCounts) deckC
 	}
 	dc.Decided = dc.Translations - dc.Waiting
 	return dc
-}
-
-func addDeckCollection(sum *deckCollection, dc deckCollection) {
-	sum.Waiting += dc.Waiting
-	sum.Fast += dc.Fast
-	sum.Closer += dc.Closer
-	sum.Desk += dc.Desk
-	sum.Unclassified += dc.Unclassified
-	sum.Translations += dc.Translations
-	sum.Decided += dc.Decided
 }
 
 // priorityRank is a collection priority's place in the deal: high, then

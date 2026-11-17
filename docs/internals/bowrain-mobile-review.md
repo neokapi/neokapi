@@ -722,7 +722,10 @@ Collections with something waiting come first, in the project's collection
 order (the default collection, then by name). The blocks in no collection
 follow, with an empty `collection_id`. Collections with nothing left
 waiting come last. A collection with no translation in the language is
-absent. `all` is the whole language, the deck without `collection`.
+absent. `all` is the whole language, the deck without `collection`. A set
+of copies in several collections counts once in `all` and once in each
+collection that holds one, so the collections can add up to more than
+`all`.
 
 `translations` is every translation of the language in the collection and
 `decided` the part no longer waiting (approved, or rejected and waiting for
