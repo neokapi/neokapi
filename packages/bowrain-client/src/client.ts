@@ -39,6 +39,8 @@ import type {
   ReviewInboxLanguage,
   User,
   Workspace,
+  ReviewContainer,
+  ContainerUnit,
 } from "./types.ts";
 
 /** A response the server answered with an error status. */
@@ -164,6 +166,8 @@ export interface BowrainClient {
    */
   deckCollections(scope: ProjectScope, locale: string): Promise<DeckCollections | null>;
   reviewContext(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContext>;
+  /** The block's container: its component, its section, or the blocks around it. */
+  reviewContainer(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContainer>;
   /** Ready-made fixes for one card, or null when the server has no such route. */
   fixCandidates(
     scope: ProjectScope,
@@ -433,6 +437,15 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       );
     },
 
+    async reviewContainer(scope, blockId, locale) {
+      const body = await get<ServerContainer>(
+        `/${enc(scope.workspace)}/${enc(scope.project)}/blocks/${stream(scope)}/${enc(blockId)}/container${query(
+          { target_locale: locale },
+        )}`,
+      );
+      return containerFromServer(body);
+    },
+
     async fixCandidates(scope, card, o = {}) {
       try {
         const body = await get<ServerFixCandidates>(
@@ -624,6 +637,78 @@ export function cardFromServer(c: ServerDeckCard): DeckCard {
       targetRevision: cp.target_revision,
       sourceRevision: cp.source_revision || undefined,
     })),
+  };
+}
+
+interface ServerContainer {
+  kind: ReviewContainer["kind"];
+  title: string;
+  item_name: string;
+  locale: string;
+  focus: string;
+  more_before?: boolean;
+  more_after?: boolean;
+  units?: {
+    block_id: string;
+    item_name: string;
+    key: string;
+    role: string;
+    level?: number;
+    source_runs?: Run[];
+    target_runs?: Run[];
+    target_status?: string;
+    waiting?: boolean;
+    source_revision: string;
+    target_revision: string;
+  }[];
+}
+
+export function containerFromServer(c: ServerContainer): ReviewContainer {
+  return {
+    kind: c.kind,
+    title: c.title,
+    item: c.item_name,
+    locale: c.locale,
+    focus: c.focus,
+    moreBefore: c.more_before ?? false,
+    moreAfter: c.more_after ?? false,
+    units: (c.units ?? []).map((u) => ({
+      blockId: u.block_id,
+      item: u.item_name,
+      key: u.key,
+      role: u.role,
+      level: u.level || undefined,
+      source: u.source_runs ?? [],
+      target: u.target_runs ?? [],
+      targetStatus: u.target_status || undefined,
+      waiting: u.waiting ?? false,
+      sourceRevision: u.source_revision,
+      targetRevision: u.target_revision,
+    })),
+  };
+}
+
+/**
+ * A container unit as a deck card, so a decision made in place goes through
+ * the same change sets and queue as one made on a card.
+ */
+export function cardOfUnit(u: ContainerUnit, locale: string, collectionId = ""): DeckCard {
+  return {
+    key: `${u.blockId}:${locale}`,
+    blockId: u.blockId,
+    item: u.item,
+    locale,
+    collectionId,
+    name: u.key,
+    source: u.source,
+    target: u.target,
+    targetRevision: u.targetRevision,
+    sourceRevision: u.sourceRevision || undefined,
+    group: "unsorted",
+    notes: [],
+    findingsCount: 0,
+    failingFindingsCount: 0,
+    ownWork: false,
   };
 }
 

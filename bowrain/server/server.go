@@ -1958,6 +1958,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// The context a reviewer decides in, for one unit: what governs it, what
 	// surrounds it, what was decided about it, what the checks found.
 	g.GET("/:id/blocks/:ref/:bid/review-context", s.HandleGetReviewContext)
+	g.GET("/:id/blocks/:ref/:bid/container", s.HandleGetReviewContainer)
 	// The ready-made corrections the fix sheet offers for one translation.
 	g.GET("/:id/blocks/:ref/:bid/fix-candidates", s.HandleGetFixCandidates)
 	g.GET("/:id/blocks/:ref/:bid/html", s.HandleRenderBlockHTML)

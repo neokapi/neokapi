@@ -283,10 +283,10 @@
     "failingFindings_one": "1 failing check",
     "failingFindings_other": "{{count, number}} failing checks",
     "ownWork": "You wrote this translation, so another reviewer approves it. You can still fix or reject it.",
-    "details": "Details",
+    "details": "In context",
     "copies_one": "The same translation is waiting in 1 other place. Your decision applies there too.",
     "copies_other": "The same translation is waiting in {{count, number}} other places. Your decision applies to all of them.",
-    "detailsLabel": "Details for this text in {{file}}",
+    "detailsLabel": "This text in context, in {{file}}",
     "why": {
       "stale_source": "The source changed after this translation was approved.",
       "redraft": "A new draft after an earlier rejection.",
@@ -308,6 +308,26 @@
       "unknown": "code"
     }
   },
+  "inContext": {
+    "tab": "In context",
+    "kind": {
+      "component": "Component",
+      "section": "Section",
+      "window": "Around it in the file"
+    },
+    "reading": {
+      "translation": "Translation",
+      "source": "Source",
+      "both": "Both"
+    },
+    "approve": "Approve",
+    "fix": "Fix",
+    "decided": "Decided",
+    "waiting": "Waiting for review",
+    "approveAll_one": "Approve the 1 translation waiting here",
+    "approveAll_other": "Approve the {{count, number}} translations waiting here",
+    "more": "More of it continues in the file"
+  },
   "details": {
     "title": "Details",
     "where": "Where it appears",
@@ -327,6 +347,7 @@
     "rejectHint": "Asks for a new draft, with a reason. Same as swiping left.",
     "fix": "Fix",
     "fixHint": "Opens the fix sheet to correct the translation.",
+    "context": "Show in context",
     "later": "Later",
     "laterHint": "Moves the card to the end of the deck. Same as swiping up.",
     "approve": "Approve",
