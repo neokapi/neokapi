@@ -142,7 +142,7 @@ func TestHandleAdminListWorkspaces_WithData(t *testing.T) {
 		byID[w["id"].(string)] = w
 	}
 	assert.Equal(t, "free", byID["ws-1"]["plan"], "no subscription: the workspace's own plan")
-	assert.Equal(t, "", byID["ws-1"]["status"])
+	assert.Empty(t, byID["ws-1"]["status"])
 	assert.Equal(t, "pro", byID["ws-2"]["plan"], "a subscription's plan wins")
 	assert.Equal(t, "active", byID["ws-2"]["status"])
 	assert.Equal(t, "ws-1", byID["ws-1"]["slug"])
