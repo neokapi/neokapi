@@ -164,15 +164,17 @@ export function ContextEntryCard({
   count,
   detail,
   onPress,
+  testID = "project-context",
 }: {
   count: number;
   detail?: string;
   onPress: () => void;
+  testID?: string;
 }) {
   const { t } = useTranslation();
   return (
     <Pressable
-      testID="project-context"
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={[t("context.entry", { count }), detail].filter(Boolean).join(", ")}
       onPress={onPress}
@@ -204,6 +206,8 @@ export const LanguageCard = memo(function LanguageCard({
   locale,
   waiting,
   loading,
+  where,
+  testID,
   onPress,
 }: {
   locale: string;
@@ -211,6 +215,9 @@ export const LanguageCard = memo(function LanguageCard({
   waiting?: ReviewInboxLanguage;
   /** The inbox is still loading. */
   loading?: boolean;
+  /** The project (and workspace) the language belongs to, where the list spans several. */
+  where?: string;
+  testID?: string;
   onPress: (locale: string) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -223,9 +230,9 @@ export const LanguageCard = memo(function LanguageCard({
       : t("home.nothingWaiting");
   return (
     <Pressable
-      testID={`language-${locale}`}
+      testID={testID ?? `language-${locale}`}
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${status}`}
+      accessibilityLabel={[name, where, status].filter(Boolean).join(", ")}
       onPress={() => onPress(locale)}
       className={CARD}
     >
@@ -234,6 +241,11 @@ export const LanguageCard = memo(function LanguageCard({
         <Text className="text-foreground text-[17px] font-semibold" numberOfLines={2}>
           {name}
         </Text>
+        {where ? (
+          <Text className="text-muted-foreground text-sm" numberOfLines={1}>
+            {where}
+          </Text>
+        ) : null}
         {waiting && count > 0 ? (
           <ReviewMix testID={`language-${locale}-mix`} mix={waiting} />
         ) : (
