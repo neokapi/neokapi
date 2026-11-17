@@ -542,11 +542,6 @@
       "abandoned": "abandoned",
       "superseded": "superseded"
     },
-    "actorKind": {
-      "person": "Person",
-      "agent": "Agent",
-      "tool": "Tool"
-    },
     "someone": "Someone",
     "percent": "{{count, number}}%",
     "unit": {
@@ -618,18 +613,14 @@
       "other_other": "{{count, number}}"
     },
     "detail": {
-      "who": "Who",
-      "for": "For",
-      "session": "Session",
-      "when": "When",
-      "stream": "Stream",
-      "languages": "Languages",
-      "where": "Where",
-      "counts": "Counts",
-      "before": "Before",
-      "after": "After",
       "targets": "Target languages",
-      "none": "none"
+      "none": "none",
+      "collectionsAdded": "Collections added",
+      "collectionsMoved": "Collections moved",
+      "collectionsRemoved": "Collections removed",
+      "settings": "Settings",
+      "noCoordinates": "No coordinates",
+      "showAll": "Show all {{count, number}}"
     },
     "decisions": {
       "title_one": "1 decision",

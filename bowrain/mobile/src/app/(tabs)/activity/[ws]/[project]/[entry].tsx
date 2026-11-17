@@ -1,21 +1,29 @@
-// One feed entry: its counts, who did it and for whom, when, where it sits,
-// and for a recipe change the values before and after. A review entry lists
-// its decisions, with Undo on the reader's own. An entry that links to a
-// review deck offers one button to it.
-import { countsOf, type FeedEntry, type FeedPage } from "@neokapi/bowrain-client";
+// One feed entry, in the feed's own shape: who did what as a sentence under
+// their avatar, when, and the stream, languages and coordinates as chips.
+// Below it, what the entry is about: a recipe change lists its collections,
+// languages and settings in sections; a review entry lists its decisions with
+// Undo; any other entry shows the preview its feed card shows. An entry about
+// a language offers its review deck.
+import type { FeedCollectionChange, FeedEntry, FeedPage } from "@neokapi/bowrain-client";
+import { countsOf, targetChanges } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { InfiniteData } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
-import { actorIcon, kindIcon } from "../../../../../components/feed/icons";
+import { Avatar } from "../../../../../components/feed/Avatar";
+import { Chip, ChipRow } from "../../../../../components/feed/parts";
+import { Preview } from "../../../../../components/feed/Preview";
 import { ReviewDecisions } from "../../../../../components/feed/ReviewDecisions";
 import {
+  actionOf,
+  actorLabel,
   actorName,
+  ageLabel,
   countLabel,
   deckLocaleOf,
   entriesOf,
@@ -25,22 +33,194 @@ import {
   timeOf,
 } from "../../../../../lib/feed";
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+const CARD = "bg-card border-border mx-4 rounded-3xl border p-4";
+
+/** Rows a section shows before Show all. */
+const SECTION_ROWS = 6;
+
+function Section({
+  title,
+  count,
+  rows,
+  testID,
+}: {
+  title: string;
+  count: number;
+  rows: ReactNode[];
+  testID?: string;
+}) {
+  const { t } = useTranslation();
+  const primary = useCSSVariable("--color-primary");
+  const [all, setAll] = useState(false);
+  const shown = all ? rows : rows.slice(0, SECTION_ROWS);
   return (
-    <View className="border-border flex-row gap-4 border-b px-4 py-3">
-      <Text className="text-muted-foreground w-28 text-sm">{label}</Text>
-      <View className="min-w-0 flex-1">{children}</View>
+    <View testID={testID} className="mt-6 gap-2">
+      <View className="mx-5 flex-row items-baseline gap-2">
+        <Text accessibilityRole="header" className="text-foreground text-base font-semibold">
+          {title}
+        </Text>
+        <Text className="text-muted-foreground text-sm tabular-nums">{count}</Text>
+      </View>
+      <View className="bg-card border-border mx-4 overflow-hidden rounded-3xl border">
+        {shown.map((row, i) => (
+          <View key={i} className={i > 0 ? "border-border border-t" : ""}>
+            {row}
+          </View>
+        ))}
+        {rows.length > SECTION_ROWS ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setAll((v) => !v)}
+            className="border-border flex-row items-center justify-center gap-1 border-t py-3 active:opacity-60"
+          >
+            <Text className="text-primary text-sm font-medium">
+              {all ? t("feed.showLess") : t("feed.detail.showAll", { count: rows.length })}
+            </Text>
+            <Ionicons
+              name={all ? "chevron-up" : "chevron-down"}
+              size={14}
+              color={String(primary)}
+            />
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
 
-function Value({ children }: { children: ReactNode }) {
-  return <Text className="text-foreground text-sm">{children}</Text>;
+/** A collection and where it sits, or how its place changed. */
+function CollectionRow({ c }: { c: FeedCollectionChange }) {
+  const { t } = useTranslation();
+  const before = c.before ?? {};
+  const after = c.after ?? {};
+  let chips: ReactNode[];
+  if (c.change === "coordinates") {
+    const axes = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+    chips = axes
+      .filter((a) => before[a] !== after[a])
+      .map((a) => (
+        <Chip key={a} tone="accent">
+          {`${a}: ${before[a] ?? t("feed.detail.none")} → ${after[a] ?? t("feed.detail.none")}`}
+        </Chip>
+      ));
+  } else {
+    const at = c.change === "removed" ? before : after;
+    chips = Object.entries(at)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([axis, value]) => <Chip key={axis}>{`${axis}: ${value}`}</Chip>);
+  }
+  return (
+    <View testID={`collection-${c.name}`} className="gap-2 px-4 py-3">
+      <Text className="text-foreground text-[15px] font-medium" numberOfLines={1}>
+        {c.name}
+      </Text>
+      {chips.length > 0 ? (
+        <ChipRow>{chips}</ChipRow>
+      ) : (
+        <Text className="text-muted-foreground text-sm">{t("feed.detail.noCoordinates")}</Text>
+      )}
+    </View>
+  );
 }
 
-function coordinatesText(c: Record<string, string> | undefined, none: string): string {
-  const parts = Object.entries(c ?? {}).map(([axis, value]) => `${axis}: ${value}`);
-  return parts.length ? parts.join(", ") : none;
+function LanguageRow({
+  locale,
+  added,
+  onOpen,
+}: {
+  locale: string;
+  added: boolean;
+  onOpen?: () => void;
+}) {
+  const { i18n } = useTranslation();
+  const [approve, reject, muted] = useCSSVariable([
+    "--color-approve",
+    "--color-reject",
+    "--color-muted-foreground",
+  ]);
+  return (
+    <Pressable
+      disabled={!onOpen}
+      onPress={onOpen}
+      accessibilityRole={onOpen ? "button" : undefined}
+      className="flex-row items-center gap-3 px-4 py-3 active:opacity-70"
+    >
+      <Ionicons
+        name={added ? "add-circle" : "remove-circle"}
+        size={20}
+        color={String(added ? approve : reject)}
+      />
+      <Text className="text-foreground flex-1 text-[15px]">
+        {languageLabel(locale, i18n.language)}
+      </Text>
+      {onOpen ? <Ionicons name="chevron-forward" size={16} color={String(muted)} /> : null}
+    </Pressable>
+  );
+}
+
+function RecipeChanges({
+  entry,
+  onOpenLanguage,
+}: {
+  entry: FeedEntry;
+  onOpenLanguage: (locale: string) => void;
+}) {
+  const { t } = useTranslation();
+  const collections = entry.diff?.collections ?? [];
+  const groups: { key: FeedCollectionChange["change"]; title: string }[] = [
+    { key: "added", title: t("feed.detail.collectionsAdded") },
+    { key: "coordinates", title: t("feed.detail.collectionsMoved") },
+    { key: "removed", title: t("feed.detail.collectionsRemoved") },
+  ];
+  const { added, removed } = targetChanges(entry);
+  const settings = entry.diff?.settings ?? [];
+  return (
+    <>
+      {added.length + removed.length > 0 ? (
+        <Section
+          testID="detail-languages"
+          title={t("feed.detail.targets")}
+          count={added.length + removed.length}
+          rows={[
+            ...added.map((l) => (
+              <LanguageRow key={`+${l}`} locale={l} added onOpen={() => onOpenLanguage(l)} />
+            )),
+            ...removed.map((l) => <LanguageRow key={`-${l}`} locale={l} added={false} />),
+          ]}
+        />
+      ) : null}
+      {groups.map((g) => {
+        const list = collections.filter((c) => c.change === g.key);
+        return list.length > 0 ? (
+          <Section
+            key={g.key}
+            testID={`detail-collections-${g.key}`}
+            title={g.title}
+            count={list.length}
+            rows={list.map((c) => (
+              <CollectionRow key={c.name} c={c} />
+            ))}
+          />
+        ) : null;
+      })}
+      {settings.length > 0 ? (
+        <Section
+          testID="detail-settings"
+          title={t("feed.detail.settings")}
+          count={settings.length}
+          rows={settings.map((s) => (
+            <View key={s.name} className="gap-1 px-4 py-3">
+              <Text className="text-foreground text-[15px] font-medium">{s.name}</Text>
+              <ChipRow>
+                <Chip tone="removed">{s.before || t("feed.detail.none")}</Chip>
+                <Chip tone="added">{s.after || t("feed.detail.none")}</Chip>
+              </ChipRow>
+            </View>
+          ))}
+        />
+      ) : null}
+    </>
+  );
 }
 
 export default function FeedEntryDetail() {
@@ -55,7 +235,10 @@ export default function FeedEntryDetail() {
     entry: string;
   }>();
   const qc = useQueryClient();
-  const [foreground, muted] = useCSSVariable(["--color-foreground", "--color-muted-foreground"]);
+  const [muted, primaryForeground] = useCSSVariable([
+    "--color-muted-foreground",
+    "--color-primary-foreground",
+  ]);
   const entry: FeedEntry | undefined = entriesOf(
     qc.getQueryData<InfiniteData<FeedPage>>(feedKey(ws, project)),
   ).find((e) => e.id === entryId);
@@ -69,115 +252,97 @@ export default function FeedEntryDetail() {
   }
 
   const lang = i18n.language;
-  const title = entryTitle(entry, t, lang);
-  const counts = countsOf(entry).filter(
-    (c) => entry.kind !== "coverage_milestone" || c.key !== "percent",
-  );
+  const openLanguage = (locale: string) =>
+    router.push({ pathname: "/[ws]/[project]/[locale]", params: { ws, project, locale } });
   const deckLocale = deckLocaleOf(entry);
   const when = new Date(entry.at);
   const date = Number.isNaN(when.getTime())
     ? entry.at
-    : `${new Intl.DateTimeFormat(lang, { dateStyle: "medium" }).format(when)} ${timeOf(entry.at, lang)}`;
-  const none = t("feed.detail.none");
+    : `${new Intl.DateTimeFormat(lang, { dateStyle: "medium" }).format(when)}, ${timeOf(entry.at, lang)}`;
+  const counts = countsOf(entry).filter(
+    (c) => entry.kind !== "coverage_milestone" || c.key !== "percent",
+  );
+  const forName =
+    entry.actor.kind !== "person" && entry.on_behalf_of?.name
+      ? entry.on_behalf_of.viewer
+        ? t("feed.forYou")
+        : t("feed.forMember", { name: entry.on_behalf_of.name })
+      : undefined;
+  const icon = (name: "git-branch-outline" | "terminal-outline" | "location-outline") => (
+    <Ionicons name={name} size={13} color={String(muted)} />
+  );
 
   return (
-    <ScrollView className="bg-background flex-1" contentInsetAdjustmentBehavior="automatic">
-      <Stack.Screen options={{ title }} />
-      {counts.length > 0 ? (
-        <View className="flex-row flex-wrap items-center gap-2 px-4 pt-4 pb-4">
-          <Ionicons name={kindIcon(entry.kind)} size={22} color={String(foreground)} />
-          {counts.map((c) => (
-            <View key={c.key} className="bg-card border-border rounded-lg border px-3 py-2">
-              <Text className="text-foreground text-sm tabular-nums">{countLabel(t, c)}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+    <ScrollView
+      className="bg-background flex-1"
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerClassName="pt-2 pb-32"
+    >
+      <Stack.Screen options={{ title: entryTitle(entry, t, lang) }} />
 
-      <View className="bg-card border-border border-t">
-        <Fact label={t("feed.detail.who")}>
-          <View className="flex-row items-center gap-1.5">
-            <Ionicons name={actorIcon(entry.actor.kind)} size={16} color={String(muted)} />
-            <Value>
-              {actorName(entry, t)} · {t(`feed.actorKind.${entry.actor.kind}`)}
-            </Value>
+      <View testID="detail-header" className={`${CARD} gap-4`}>
+        <View className="flex-row gap-3">
+          <Avatar actor={entry.actor} name={actorLabel(entry, t)} size={48} />
+          <View className="min-w-0 flex-1 justify-center gap-0.5">
+            <Text className="text-foreground text-[17px] leading-6">
+              <Text className="font-semibold">{actorName(entry, t)}</Text>{" "}
+              {actionOf(entry, t, lang)}
+            </Text>
+            <Text className="text-muted-foreground text-[13px]">
+              {[forName, date, ageLabel(entry.at, t, lang)].filter(Boolean).join(" · ")}
+            </Text>
           </View>
-        </Fact>
-        {entry.on_behalf_of ? (
-          <Fact label={t("feed.detail.for")}>
-            <Value>{entry.on_behalf_of.name ?? entry.on_behalf_of.id}</Value>
-          </Fact>
+        </View>
+
+        {counts.length > 0 && entry.kind !== "recipe_change" ? (
+          <ChipRow>
+            {counts.map((c) => (
+              <Chip key={c.key} tone="accent">
+                {countLabel(t, c)}
+              </Chip>
+            ))}
+          </ChipRow>
         ) : null}
-        {entry.actor.session ? (
-          <Fact label={t("feed.detail.session")}>
-            <Value>{[entry.actor.host, entry.actor.session].filter(Boolean).join(" · ")}</Value>
-          </Fact>
-        ) : null}
-        <Fact label={t("feed.detail.when")}>
-          <Value>{date}</Value>
-        </Fact>
-        {entry.stream ? (
-          <Fact label={t("feed.detail.stream")}>
-            <Value>{entry.stream}</Value>
-          </Fact>
-        ) : null}
-        {entry.locales?.length ? (
-          <Fact label={t("feed.detail.languages")}>
-            <Value>{entry.locales.map((l) => languageLabel(l, lang)).join(", ")}</Value>
-          </Fact>
-        ) : null}
-        {entry.coordinates ? (
-          <Fact label={t("feed.detail.where")}>
-            <Value>{coordinatesText(entry.coordinates, none)}</Value>
-          </Fact>
-        ) : null}
-        {entry.diff?.targets ? (
-          <Fact label={t("feed.detail.targets")}>
-            <Value>
-              {t("feed.detail.before")}: {entry.diff.targets.before.join(", ") || none}
-            </Value>
-            <Value>
-              {t("feed.detail.after")}: {entry.diff.targets.after.join(", ") || none}
-            </Value>
-          </Fact>
-        ) : null}
-        {(entry.diff?.collections ?? []).map((c) => (
-          <Fact key={`c-${c.name}`} label={c.name}>
-            <Value>
-              {t("feed.detail.before")}: {coordinatesText(c.before, none)}
-            </Value>
-            <Value>
-              {t("feed.detail.after")}: {coordinatesText(c.after, none)}
-            </Value>
-          </Fact>
-        ))}
-        {(entry.diff?.settings ?? []).map((s) => (
-          <Fact key={`s-${s.name}`} label={s.name}>
-            <Value>
-              {s.before || none} → {s.after || none}
-            </Value>
-          </Fact>
-        ))}
+
+        <ChipRow>
+          {entry.stream ? <Chip leading={icon("git-branch-outline")}>{entry.stream}</Chip> : null}
+          {(entry.locales ?? []).map((l) => (
+            <Chip key={l} onPress={() => openLanguage(l)}>
+              {languageLabel(l, lang)}
+            </Chip>
+          ))}
+          {Object.entries(entry.coordinates ?? {}).map(([axis, value]) => (
+            <Chip key={axis} leading={icon("location-outline")}>{`${axis}: ${value}`}</Chip>
+          ))}
+          {entry.actor.session ? (
+            <Chip leading={icon("terminal-outline")}>
+              {[entry.actor.host, entry.actor.session].filter(Boolean).join(" · ")}
+            </Chip>
+          ) : null}
+        </ChipRow>
       </View>
 
-      {entry.kind === "review_summary" ? (
+      {entry.kind === "recipe_change" ? (
+        <RecipeChanges entry={entry} onOpenLanguage={openLanguage} />
+      ) : entry.kind === "review_summary" ? (
         <ReviewDecisions ws={ws} project={project} entry={entry.id} />
-      ) : null}
+      ) : (
+        <View className={`${CARD} mt-4`}>
+          <Preview entry={entry} onOpenLanguage={openLanguage} />
+        </View>
+      )}
 
       {deckLocale ? (
         <Pressable
+          testID="detail-open-deck"
           accessibilityRole="button"
-          onPress={() =>
-            router.push({
-              pathname: "/[ws]/[project]/[locale]",
-              params: { ws, project, locale: deckLocale },
-            })
-          }
-          className="bg-primary m-4 items-center rounded-lg py-3 active:opacity-80"
+          onPress={() => openLanguage(deckLocale)}
+          className="bg-primary mx-4 mt-6 min-h-[50px] flex-row items-center justify-center gap-2 rounded-2xl px-4 py-3 active:opacity-80"
         >
           <Text className="text-primary-foreground text-base font-semibold">
             {t("feed.openDeck")}
           </Text>
+          <Ionicons name="arrow-forward" size={18} color={String(primaryForeground)} />
         </Pressable>
       ) : null}
     </ScrollView>
