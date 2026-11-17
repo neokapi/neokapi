@@ -1,7 +1,8 @@
-// The decisions made on this device in a project, newest first, with where
-// each one is and Undo on every one that can still be taken back. Opened
-// from the deck, it lists that language; a held or queued decision is
-// dropped, a sent one is withdrawn with a new decision.
+// The decisions made on this device in a project that still stand, newest
+// first, with where each one is and Undo on every one that can still be taken
+// back. Opened from the deck, it lists that language. A held or queued
+// decision is dropped, a sent one is withdrawn with a new decision, and an
+// undone decision leaves the list.
 import { onlineManager, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
@@ -64,9 +65,12 @@ export default function ReviewedScreen() {
   const online = useOnline();
   const log = useDecisionLog();
   const withdraw = useMutation<unknown, unknown, WithdrawVars>({ mutationKey: WITHDRAW_KEY });
+  // An undone decision leaves the list; one being withdrawn stays, marked,
+  // until the server confirms.
   const entries = log
     .filter(
       (e) =>
+        e.phase !== "undone" &&
         e.vars.scope.workspace === ws &&
         e.vars.scope.project === project &&
         (!locale || e.vars.card.locale === locale),
@@ -108,7 +112,6 @@ export default function ReviewedScreen() {
               item.vars.kind === "fix" && item.vars.runs ? item.vars.runs : item.vars.card.target
             }
             source={item.vars.card.source}
-            dimmed={item.phase === "undone"}
             canUndo={planUndo(qc, item) !== null}
             onUndo={() => undo(item.vars.id)}
           />

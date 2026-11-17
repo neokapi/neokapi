@@ -137,8 +137,11 @@ export default function DeckScreen() {
   );
   const last = lastDecision(log, inDeck);
   const canUndo = last !== null && planUndo(qc, last) !== null;
+  // The decisions that stand here: an undone one leaves the count.
   const madeHere = log.filter(
     (e) =>
+      e.phase !== "undone" &&
+      e.phase !== "undoing" &&
       e.vars.scope.workspace === ws &&
       e.vars.scope.project === project &&
       e.vars.card.locale === locale,
