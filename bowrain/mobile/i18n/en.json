@@ -218,6 +218,16 @@
       "whyAgent": "It ran in {{host}}, an agent host, so a person reviews each item before it counts as reviewed.",
       "definition": "Definition",
       "otherForms": "In other languages"
+    },
+    "pattern": {
+      "words": "Words it looks for",
+      "inYourContent": "In your content",
+      "looking": "Looking through your content…",
+      "noMatches": "Nothing in your content matches this rule.",
+      "noMatchesYet_one": "No matches in the first {{count}} block.",
+      "noMatchesYet_other": "No matches in the first {{count}} blocks.",
+      "show": "Show the pattern",
+      "hide": "Hide the pattern"
     }
   },
   "collections": {

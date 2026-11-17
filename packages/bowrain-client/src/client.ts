@@ -15,6 +15,7 @@ import type {
   ContextCardKind,
   ContextDeck,
   ContextOriginPage,
+  ContextRuleExamples,
   ContextDecision,
   ContextDecisionResult,
   Deck,
@@ -125,6 +126,15 @@ export interface BowrainClient {
     op: string,
     opts?: { limit?: number; cursor?: string },
   ): Promise<ContextOriginPage>;
+  /**
+   * Up to three places a voice rule matches the project's source text, found by a
+   * bounded walk. `profile` and `id` are the card's `item.profile` and `item.id`.
+   */
+  contextRuleExamples(
+    workspace: string,
+    project: string,
+    rule: { profile: string; id: string },
+  ): Promise<ContextRuleExamples>;
   /** Keep, reject or put off one context card. A refusal throws an ApiError whose body carries `code`. */
   decideContext(
     workspace: string,
@@ -344,6 +354,13 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         `${ROUTES.contextDeck(ws, pid)}/origins/${enc(op)}${query({ limit: o.limit, cursor: o.cursor })}`,
       );
       return { ...page, cards: page.cards ?? [], next_cursor: page.next_cursor || undefined };
+    },
+
+    async contextRuleExamples(ws, pid, rule) {
+      const out = await get<ContextRuleExamples>(
+        `${ROUTES.contextDeck(ws, pid)}/examples${query({ profile: rule.profile, id: rule.id })}`,
+      );
+      return { ...out, examples: out.examples ?? [] };
     },
 
     decideContext(ws, pid, decision) {

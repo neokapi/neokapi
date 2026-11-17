@@ -479,3 +479,22 @@ describe("updateMe", () => {
     expect(JSON.parse(calls[0].init?.body as string)).toEqual({ name: "Ada" });
   });
 });
+
+describe("contextRuleExamples", () => {
+  it("asks for a voice rule's examples by profile and id", async () => {
+    const calls: string[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string) => {
+        calls.push(url);
+        return new Response(JSON.stringify({ examples: null, scanned: 12, complete: true }), {
+          status: 200,
+        });
+      }) as typeof fetch,
+    });
+    const out = await client.contextRuleExamples("ws", "p", { profile: "docs", id: "ab12" });
+    expect(calls[0]).toBe("http://server/api/v1/ws/p/context/deck/examples?profile=docs&id=ab12");
+    expect(out).toEqual({ examples: [], scanned: 12, complete: true });
+  });
+});
