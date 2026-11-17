@@ -807,17 +807,15 @@ func (p *smlParser) recordHiddenCols(t xml.StartElement) {
 const maxSheetColumns = 16384
 
 // inHiddenCol reports whether a cell reference falls in a hidden column. A
-// cell past the sheet's last column is one no spreadsheet shows, so it counts
-// as hidden too.
+// reference parseCellRefA1 rejects (past column XFD) is never marked hidden:
+// the mark comes from the file's own <col hidden> entries, so a malformed
+// reference cannot use it to keep text out of a reviewer's view.
 func (p *smlParser) inHiddenCol(cellRef string) bool {
 	col, _, ok := parseCellRefA1(cellRef)
-	if !ok || col < 0 {
+	if !ok || col < 0 || col >= len(p.hiddenCols) {
 		return false
 	}
-	if col >= maxSheetColumns {
-		return true
-	}
-	return len(p.hiddenCols) > 0 && p.hiddenCols[col]
+	return p.hiddenCols[col]
 }
 
 // emitSharedCellAnchor surfaces a shared-string worksheet cell as a
@@ -1015,6 +1013,11 @@ func parseCellRefA1(ref string) (col, row int, ok bool) {
 			break
 		}
 		col = col*26 + int(c-'A'+1) // 'A' → 1
+		if col > maxSheetColumns {
+			// Past XFD, the last column a sheet has. Rejected here, so a long
+			// letter run can neither overflow nor alias a real column.
+			return 0, 0, false
+		}
 		i++
 	}
 	if i == 0 || i == len(ref) {
