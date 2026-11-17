@@ -70,7 +70,8 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 	}
 	policy := s.deckPolicy()
 	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy)}
-	if err := s.classifyDeck(ctx, c, decks, proj, q, policy); err != nil {
+	wsID, _ := c.Get("workspace_id").(string)
+	if _, err := s.classifyDeck(ctx, wsID, decks, proj, q, policy, deckClassifyBudget); err != nil {
 		return serverErr(c, err)
 	}
 	counts, err := decks.CountReviewDeckByCollection(ctx, q)
