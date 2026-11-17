@@ -878,6 +878,16 @@ export function ReviewSession({
           {current ? (
             <FocusedReviewer
               entry={current}
+              projectId={project.id}
+              onOpenBlock={(blockId) => {
+                const target = visible.find(
+                  (e) =>
+                    e.block.id === blockId &&
+                    e.locale === current.locale &&
+                    e.itemName === current.itemName,
+                );
+                if (target) selectId(target.id);
+              }}
               sourceLocale={sourceLocale}
               position={{ index: currentIndex + 1, total: visible.length }}
               localeName={localeName}
