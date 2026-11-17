@@ -101,3 +101,29 @@ func TestOpenAIUsesCompletionTokensOnItsOwnEndpoint(t *testing.T) {
 	assert.True(t, p.completionTokens())
 	assert.False(t, NewOpenAIProvider(Config{APIKey: "k", BaseURL: "http://localhost:11434"}).completionTokens())
 }
+
+// max_completion_tokens covers a reasoning model's hidden reasoning as well as
+// its reply, so the provider leaves room for the reasoning on top of the reply
+// budget a caller asks for, within the model's ceiling. max_tokens, which an
+// OpenAI-compatible server reads as the reply alone, is sent as asked.
+func TestOpenAILeavesRoomForReasoning(t *testing.T) {
+	srv, bodies := paramServer(t)
+	ctx := WithMaxOutputTokens(context.Background(), 4096)
+
+	p := NewOpenAIProvider(Config{APIKey: "k", Model: "gpt-6.1-terra", BaseURL: srv.URL})
+	p.tokensParam.Store(tokensParamCompletion)
+	_, err := p.Chat(ctx, []Message{TextMessage("user", "hi")})
+	require.NoError(t, err)
+	assert.EqualValues(t, min(4096+reasoningHeadroomTokens, p.Limits().EffectiveMaxOutputTokens()),
+		bodies()[0]["max_completion_tokens"])
+	assert.Greater(t, bodies()[0]["max_completion_tokens"], float64(4096))
+
+	legacy := NewOpenAIProvider(Config{APIKey: "k", Model: "gpt-6.1-terra", BaseURL: srv.URL})
+	legacy.tokensParam.Store(tokensParamLegacy)
+	_, err = legacy.Chat(ctx, []Message{TextMessage("user", "hi")})
+	require.NoError(t, err)
+	assert.EqualValues(t, 4096, bodies()[1]["max_tokens"])
+
+	assert.Equal(t, 100, withReasoningHeadroom(4096, 100), "never above the model ceiling")
+	assert.Equal(t, 40000*4, withReasoningHeadroom(40000, 1_000_000), "a large reply gets room in proportion")
+}
