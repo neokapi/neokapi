@@ -13,7 +13,7 @@ import {
 } from "@neokapi/bowrain-client";
 import type { Run } from "@neokapi/kapi-format";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -28,6 +28,7 @@ import { SafeAreaView } from "./SafeArea";
 
 import { RunDiff, ServerDiff } from "./DiffView";
 import { editable, fromSegments, RunEditor, toSegments, type Segment } from "./RunEditor";
+import { markBusy } from "../lib/busy";
 import { RunText } from "./RunText";
 
 export interface FixSheetProps {
@@ -46,6 +47,12 @@ export interface FixSheetProps {
 }
 
 export function FixSheet(props: FixSheetProps) {
+  // An open sheet holds a reason, a note or an edit: no update reloads under it.
+  const open = props.card !== null;
+  useEffect(() => {
+    markBusy("fix-sheet", open);
+    return () => markBusy("fix-sheet", false);
+  }, [open]);
   return (
     <Modal
       visible={props.card !== null}

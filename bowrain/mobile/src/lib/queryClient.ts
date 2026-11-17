@@ -31,6 +31,9 @@ export function createQueryClient(): QueryClient {
   return qc;
 }
 
+/** The persisted cache's version: a different value discards what a device holds. */
+export const CACHE_BUSTER = "1";
+
 export const persister = createAsyncStoragePersister({
   storage: Storage,
   key: "bowrain.query-cache",

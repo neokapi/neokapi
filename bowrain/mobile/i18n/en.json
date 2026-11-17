@@ -697,5 +697,11 @@
       "undoing": "Undoing",
       "undone": "Undone"
     }
+  },
+  "update": {
+    "ready": "A new version is ready.",
+    "later": "Later",
+    "restart": "Restart",
+    "restartHint": "Restarts the app into the new version. Nothing you did is lost."
   }
 }
