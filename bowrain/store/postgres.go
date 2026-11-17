@@ -1439,7 +1439,15 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 	if len(query.TextAny) > 0 {
 		alts := make([]string, 0, len(query.TextAny))
 		for _, text := range query.TextAny {
-			alts = append(alts, fmt.Sprintf(pgSourceTextMatch, bind(text)))
+			p := bind(text)
+			match := fmt.Sprintf(pgSourceTextMatch, p)
+			// A substring test on the raw column first, so the run JSON is
+			// parsed only for rows that hold the text at all. Without it a
+			// word list reads every row's JSON once per word.
+			if storeutil.VerbatimInJSON(text) {
+				match = fmt.Sprintf("(strpos(lower(b.source_json), lower(%s)) > 0 AND %s)", p, match)
+			}
+			alts = append(alts, match)
 		}
 		where = append(where, "("+strings.Join(alts, " OR ")+")")
 	}

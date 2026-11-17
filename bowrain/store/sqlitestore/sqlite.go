@@ -1277,6 +1277,13 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 	if len(query.TextAny) > 0 {
 		alts := make([]string, 0, len(query.TextAny))
 		for _, text := range query.TextAny {
+			// A substring test on the raw column first, so the run JSON is
+			// parsed only for rows that hold the text at all.
+			if storeutil.VerbatimInJSON(text) {
+				alts = append(alts, "(instr(lower(b.source_json), lower(?)) > 0 AND "+sqliteSourceTextMatch+")")
+				whereArgs = append(whereArgs, text, text)
+				continue
+			}
 			alts = append(alts, sqliteSourceTextMatch)
 			whereArgs = append(whereArgs, text)
 		}
