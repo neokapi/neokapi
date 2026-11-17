@@ -104,6 +104,11 @@ type BlockQuery struct {
 	// text, contains it case-insensitively. Source matching is per run, so a
 	// substring spanning an inline-code boundary does not match.
 	Text string
+	// TextAny keeps only blocks whose source text contains at least one of
+	// its strings, case-insensitively and per run as Text matches. Empty
+	// keeps every block. A caller that matches a pattern rule passes the
+	// rule's words (profile.PatternWords) to read only the candidates.
+	TextAny []string
 
 	// Order says how a page is sorted. Empty is the keyset order, by id, which
 	// is what a walk needs: AfterID and BeforeID are cursors over that order,

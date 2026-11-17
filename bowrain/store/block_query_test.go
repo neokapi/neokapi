@@ -158,6 +158,19 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 		assert.Empty(t, sourcesOf(got))
 	})
 
+	t.Run("any-text keeps blocks whose source holds one of the strings", func(t *testing.T) {
+		got, err := s.GetBlocks(ctx, platstore.BlockQuery{
+			ProjectID: pid, Stream: "main", TextAny: []string{"WORLD", "settled"},
+		})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []string{"Hello world", "Settled text"}, sourcesOf(got))
+		got, err = s.GetBlocks(ctx, platstore.BlockQuery{
+			ProjectID: pid, Stream: "main", TextAny: []string{"hei"},
+		})
+		require.NoError(t, err)
+		assert.Empty(t, sourcesOf(got), "the target side is not searched")
+	})
+
 	t.Run("counts follow the text filter", func(t *testing.T) {
 		counts, err := s.CountBlocks(ctx, platstore.BlockQuery{
 			ProjectID: pid, Stream: "main", TargetLocale: "nb", Text: "text",
