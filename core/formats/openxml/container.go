@@ -686,13 +686,20 @@ func parseSlideOrder(zr *zip.Reader, info *containerInfo) []string {
 // hidden.
 func parseHiddenSlideParts(zr *zip.Reader, info *containerInfo) map[string]bool {
 	var out map[string]bool
+	// A slide is the target of presentation.xml and of its notes slide, so
+	// each part is read once whatever the number of relationships naming it.
+	checked := make(map[string]bool)
 	for relsPath, rels := range info.relationships {
 		for _, rel := range rels {
 			if rel.Type != relTypeSlide {
 				continue
 			}
 			slide := resolveRelTarget(relsPath, rel.Target)
-			if out[slide] || !slideIsHidden(zr, slide) {
+			if checked[slide] {
+				continue
+			}
+			checked[slide] = true
+			if !slideIsHidden(zr, slide) {
 				continue
 			}
 			if out == nil {
@@ -717,7 +724,7 @@ func slideIsHidden(zr *zip.Reader, slide string) bool {
 	if f == nil {
 		return false
 	}
-	rc, err := f.Open()
+	rc, err := safeio.DefaultZipLimits.OpenEntry(f)
 	if err != nil {
 		return false
 	}

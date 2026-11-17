@@ -32,11 +32,12 @@ type smlParser struct {
 	// be labelled with the tab a reader would see.
 	sheetNames map[string]string
 	// hiddenSheet is set when the workbook marks the worksheet being read
-	// hidden or veryHidden. hiddenCols holds the 0-based column ranges its
-	// <col hidden="1"> entries cover. A cell on a hidden sheet, in a hidden
-	// column or in a <row hidden="1"> is extracted and marked hidden.
+	// hidden or veryHidden. hiddenCols marks, by 0-based column index, the
+	// columns its <col hidden="1"> entries cover; nil when none is hidden. A
+	// cell on a hidden sheet, in a hidden column or in a <row hidden="1"> is
+	// extracted and marked hidden.
 	hiddenSheet bool
-	hiddenCols  [][2]int
+	hiddenCols  []bool
 	// styles resolves a cell's style index to the number format its value
 	// displays through. Nil resolves every cell to General.
 	styles *cellStyles
@@ -788,11 +789,22 @@ func (p *smlParser) recordHiddenCols(t xml.StartElement) {
 	}
 	lo, err1 := strconv.Atoi(attrVal(t, "min"))
 	hi, err2 := strconv.Atoi(attrVal(t, "max"))
-	if err1 != nil || err2 != nil || lo < 1 || hi < lo {
+	if err1 != nil || err2 != nil || lo < 1 || hi < lo || lo > maxSheetColumns {
 		return
 	}
-	p.hiddenCols = append(p.hiddenCols, [2]int{lo - 1, hi - 1})
+	hi = min(hi, maxSheetColumns)
+	if p.hiddenCols == nil {
+		p.hiddenCols = make([]bool, maxSheetColumns)
+	}
+	for c := lo - 1; c < hi; c++ {
+		p.hiddenCols[c] = true
+	}
 }
+
+// maxSheetColumns is the number of columns a worksheet can have (A to XFD,
+// ECMA-376-1 §18.3.1.13). Column ranges are clamped to it, so a file cannot
+// make the hidden-column set larger than a sheet.
+const maxSheetColumns = 16384
 
 // inHiddenCol reports whether a cell reference falls in a hidden column.
 func (p *smlParser) inHiddenCol(cellRef string) bool {
@@ -800,15 +812,10 @@ func (p *smlParser) inHiddenCol(cellRef string) bool {
 		return false
 	}
 	col, _, ok := parseCellRefA1(cellRef)
-	if !ok {
+	if !ok || col < 0 || col >= len(p.hiddenCols) {
 		return false
 	}
-	for _, r := range p.hiddenCols {
-		if col >= r[0] && col <= r[1] {
-			return true
-		}
-	}
-	return false
+	return p.hiddenCols[col]
 }
 
 // emitSharedCellAnchor surfaces a shared-string worksheet cell as a
