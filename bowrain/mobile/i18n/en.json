@@ -342,7 +342,8 @@
     "decided": {
       "approve": "Approved",
       "reject": "Rejected",
-      "fix": "Corrected"
+      "fix": "Corrected",
+      "withdraw": "Withdrawn"
     }
   },
   "swipe": {
@@ -629,6 +630,13 @@
       "after": "After",
       "targets": "Target languages",
       "none": "none"
+    },
+    "decisions": {
+      "title_one": "1 decision",
+      "title_other": "{{count, number}} decisions",
+      "changed": "Changed since",
+      "bulk_one": "1 more was approved in one pass and is not listed.",
+      "bulk_other": "{{count, number}} more were approved in one pass and are not listed."
     }
   },
   "activity": {

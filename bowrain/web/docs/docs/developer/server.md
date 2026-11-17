@@ -349,6 +349,7 @@ POST /api/v1/:ws/:id/blocks/:ref/bulk-review  # One review decision on the trans
 GET  /api/v1/projects/:id/ship.json           # Public per-locale ship manifest
 GET  /api/v1/:ws/audit-log/verify             # Verify the workspace audit chain
 GET  /api/v1/:ws/:id/feed                     # The project's feed: pushes, runs, reviews, recipe, context and change sets
+GET  /api/v1/:ws/:id/feed/:entry/decisions    # The decisions a review entry counts, with the translations as they stand
 ```
 
 ### Webhooks (inbound)

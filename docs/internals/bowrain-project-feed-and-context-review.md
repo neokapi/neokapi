@@ -216,6 +216,19 @@ Response:
 }
 ```
 
+### A review entry's decisions
+
+`GET /api/v1/:ws/:id/feed/:entry/decisions` lists the decisions a
+`review_summary` entry counts, newest first, one per translation. The events
+filed into the roll-up (`activity_rollup_events`) name their `review.decided`
+audit entries, and each decision comes with the translation as it stands now
+in the review deck's card shape. `current` is true while it is the newest
+decision on the translation and the translation still has the status the
+decision gave it. `can_undo` is a current approval or rejection the reader
+made; a client withdraws it with a `decide` operation, outcome `withdraw`, on
+the card's `target_revision`. A bulk approval records no decision per
+translation, so `bulk_approved` counts them instead.
+
 `actor` is who did it as recorded; `on_behalf_of` is the signed-in member
 whose token carried it, present when the two differ. `link.screen` names a
 client screen from a closed list (`stream`, `run`, `review_deck`,

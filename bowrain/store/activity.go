@@ -362,6 +362,20 @@ func (s *ActivityStore) AddToRollup(ctx context.Context, eventID string, a *Acti
 	return tx.Commit()
 }
 
+// Get returns the activity with the id, or nil when there is none.
+func (s *ActivityStore) Get(ctx context.Context, id string) (*Activity, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, workspace_id, project_id, stream, actor_id, actor_name,
+		 type, entity_type, entity_id, summary, data, created_at,
+		 kind, actor_kind, session, array_to_json(locales)::text, coordinates::text, counts::text
+		 FROM activities WHERE id = $1`, id)
+	a, err := scanActivity(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return a, err
+}
+
 // List returns activities matching the query, newest first.
 func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityResult, error) {
 	if q.Limit <= 0 {

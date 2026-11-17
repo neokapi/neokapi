@@ -1859,6 +1859,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Project feed: /:ws/:id/feed. One timeline of how the project changes.
 	g.GET("/:id/feed", s.HandleProjectFeed)
+	g.GET("/:id/feed/:entry/decisions", s.HandleFeedDecisions)
 
 	// Automations — Bowrain AD-011: /:ws/:id/automations
 	g.GET("/:id/automations", s.HandleListAutomationRules)

@@ -1,6 +1,7 @@
 // One feed entry: its counts, who did it and for whom, when, where it sits,
-// and for a recipe change the values before and after. An entry that links
-// to a review deck offers one button to it.
+// and for a recipe change the values before and after. A review entry lists
+// its decisions, with Undo on the reader's own. An entry that links to a
+// review deck offers one button to it.
 import { countsOf, type FeedEntry, type FeedPage } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { InfiniteData } from "@tanstack/react-query";
@@ -12,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { actorIcon, kindIcon } from "../../../../../components/feed/icons";
+import { ReviewDecisions } from "../../../../../components/feed/ReviewDecisions";
 import {
   actorName,
   countLabel,
@@ -157,6 +159,10 @@ export default function FeedEntryDetail() {
           </Fact>
         ))}
       </View>
+
+      {entry.kind === "review_summary" ? (
+        <ReviewDecisions ws={ws} project={project} entry={entry.id} />
+      ) : null}
 
       {deckLocale ? (
         <Pressable

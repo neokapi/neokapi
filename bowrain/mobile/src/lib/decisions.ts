@@ -42,6 +42,11 @@ export const GRACE_MS = 5000;
 export const LOG_MAX_AGE = 24 * 60 * 60 * 1000;
 export const WITHDRAW_KEY = ["withdraw"] as const;
 
+/** The query key of the decisions a review entry of the feed counts. */
+export function feedDecisionsKey(ws: string, project: string, entry: string) {
+  return ["feed-decisions", ws, project, entry] as const;
+}
+
 export type DecisionKind = "approve" | "reject" | "fix";
 
 /** A decision as it waits in the queue. Plain data, so it persists. */
@@ -195,6 +200,10 @@ export function registerDecisionDefaults(qc: QueryClient): void {
     },
     onSettled: (_r: unknown, _e: unknown, v: WithdrawVars | undefined) => {
       if (!v) return;
+      void qc.invalidateQueries({
+        queryKey: ["feed-decisions", v.scope.workspace, v.scope.project],
+      });
+      void qc.invalidateQueries({ queryKey: ["feed", v.scope.workspace, v.scope.project] });
       void qc.invalidateQueries({ queryKey: ["deck", v.scope.workspace, v.scope.project] });
       void qc.invalidateQueries({ queryKey: ["review-inbox"] });
     },
