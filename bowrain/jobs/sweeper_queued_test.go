@@ -43,3 +43,24 @@ func TestSweep_LeavesAFreshQueuedRowAlone(t *testing.T) {
 	assert.Empty(t, requeued)
 	assert.Zero(t, failed)
 }
+
+// TestSweep_WaitingIsNotAnAttempt: a job still waiting behind a backlog longer
+// than the threshold is re-enqueued on every sweep and never failed. Counting
+// the wait as attempts failed 1,020 extraction jobs that never ran.
+func TestSweep_WaitingIsNotAnAttempt(t *testing.T) {
+	f := newBillingWorkerFixture(t)
+	ctx := t.Context()
+
+	job := f.chunkedJob("job-backlog", "ws-orphan", "en.json")
+	require.NoError(t, f.deps.JobStore.CreateJob(ctx, job))
+
+	for range 5 {
+		requeued, failed, err := f.deps.JobStore.SweepStaleProcessing(ctx, -time.Second, 1)
+		require.NoError(t, err)
+		assert.Equal(t, []string{job.ID}, requeued)
+		assert.Zero(t, failed)
+	}
+	got, err := f.deps.JobStore.GetJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusQueued, got.Status)
+}

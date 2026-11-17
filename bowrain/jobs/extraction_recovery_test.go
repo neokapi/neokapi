@@ -111,6 +111,32 @@ func TestExtractionStore_SweepFailsWhatIsOutOfBudget(t *testing.T) {
 	assert.Contains(t, got.Error, "exceeded max attempts")
 }
 
+// TestExtractionStore_SweepNeverFailsAWaitingJob: a job that never started is
+// re-enqueued however long it waits, and keeps its whole budget for when a
+// worker claims it.
+func TestExtractionStore_SweepNeverFailsAWaitingJob(t *testing.T) {
+	store := newTestExtractionStore(t)
+	ctx := t.Context()
+	job := seedExtractionJob(t, store)
+
+	for range 5 {
+		requeued, failed, err := store.SweepStaleProcessing(ctx, -time.Second, 1)
+		require.NoError(t, err)
+		assert.Equal(t, []string{job.ID}, requeued)
+		assert.Zero(t, failed)
+	}
+	got, err := store.GetExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ExtractionStatusQueued, got.Status)
+
+	// Claimed and then stalled, it spends its budget as before.
+	_, _, err = store.ClaimExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	_, failed, err := store.SweepStaleProcessing(ctx, -time.Second, 1)
+	require.NoError(t, err)
+	assert.Equal(t, 1, failed)
+}
+
 // TestExtractionStore_RevertSweepRequeueRestoresTheRow: a sweep whose
 // re-enqueue failed must leave the row where the NEXT sweep can find it, since
 // nothing scans 'queued' orphans.
