@@ -27,7 +27,7 @@ function HomepageHeader() {
           </Heading>
           <p className={styles.heroSubtitle}>
             <Translate id="home.hero.subtitle">
-              kapi reads your project\'s files, keeps the rules they are written by in a context
+              kapi reads your project's files, keeps the rules they are written by in a context
               graph, and checks every edit against it. Use it from the desktop app, the command line
               or your AI agent. kapi is built on neokapi, in Go.
             </Translate>
