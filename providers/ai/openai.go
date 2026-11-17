@@ -99,6 +99,7 @@ func (p *OpenAIProvider) complete(ctx context.Context, body openaiRequest) (*Cha
 		req := body
 		if n := p.maxTokens(ctx); n > 0 {
 			if p.completionTokens() {
+				n = withReasoningHeadroom(n, p.Limits().EffectiveMaxOutputTokens())
 				req.MaxCompletionTokens = &n
 			} else {
 				req.MaxTokens = &n
@@ -119,6 +120,20 @@ func (p *OpenAIProvider) complete(ctx context.Context, body openaiRequest) (*Cha
 		}
 		return resp, nil
 	}
+}
+
+// reasoningHeadroomTokens is what a reasoning model may spend thinking before
+// it writes a reply, on top of the reply itself.
+const reasoningHeadroomTokens = 16384
+
+// withReasoningHeadroom turns the reply budget a caller asked for into a
+// max_completion_tokens cap. On OpenAI's reasoning models that cap covers the
+// hidden reasoning as well as the visible reply, so a budget sized for the
+// reply alone is spent thinking and the reply is cut off: a one-line
+// extraction stopped at 4,096 tokens. The cap only bounds a runaway reply; the
+// tokens used are what is billed.
+func withReasoningHeadroom(reply, ceiling int) int {
+	return min(ceiling, max(reply*4, reply+reasoningHeadroomTokens))
 }
 
 // completionTokens reports whether requests carry max_completion_tokens rather
