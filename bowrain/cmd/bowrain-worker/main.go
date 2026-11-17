@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -593,10 +594,17 @@ func runWorker(dbURL string) error {
 			slog.Info("extraction: "+message, "step_id", stepID, "level", level)
 		},
 	}
-	g.Go(func() error {
-		slog.Info("starting extraction worker")
-		return jobs.RunExtractionWorker(ctx, extractionDeps)
-	})
+	// Several loops share the queue: a push that creates hundreds of
+	// extraction jobs otherwise drains them one model call at a time.
+	// ClaimExtractionJob admits one loop per job, so the loops never repeat
+	// work.
+	extractionLoops := extractionConcurrency()
+	slog.Info("starting extraction worker", "loops", extractionLoops)
+	for range extractionLoops {
+		g.Go(func() error {
+			return jobs.RunExtractionWorker(ctx, extractionDeps)
+		})
+	}
 
 	// Extraction stale-job sweeper: the same crash backstop the translation and
 	// brand-scan workers have. Without it an extraction job whose worker died
@@ -795,6 +803,15 @@ func guardSecretsKey(secretsKey, databaseURL string) error {
 	slog.Error("BOWRAIN_SECRETS_KEY is not set: workspace AI provider keys and connector secrets " +
 		"will be stored UNENCRYPTED in Postgres; set a 32-byte base64 key before storing tenant secrets")
 	return nil
+}
+
+// extractionConcurrency is how many extraction loops the worker runs:
+// BOWRAIN_EXTRACTION_CONCURRENCY when it is a positive number, else 4.
+func extractionConcurrency() int {
+	if n, err := strconv.Atoi(os.Getenv("BOWRAIN_EXTRACTION_CONCURRENCY")); err == nil && n > 0 {
+		return n
+	}
+	return 4
 }
 
 func envOrDefault(key, fallback string) string {
