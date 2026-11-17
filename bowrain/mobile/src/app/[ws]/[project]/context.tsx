@@ -206,6 +206,7 @@ export default function ContextDeckScreen() {
             >
               <ContextCard
                 card={top}
+                scope={{ ws, project }}
                 onOpenOrigin={() => {
                   void Haptics.selectionAsync();
                   setOriginOf(top);

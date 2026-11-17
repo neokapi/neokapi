@@ -446,7 +446,13 @@ recorded it, so the reader can see what else that session did.
 4. **`GET /:ws/:id/context/deck?mode=pending|replay`** with `cursor`, `kind`,
    `locale`, `coordinate`, `actor_kind`, `session` and `reviewed`. Each card
    carries its item reference, revision, provenance, blast radius summary,
-   review state, `own_work` and the actions allowed.
+   review state, `own_work` and the actions allowed. A voice rule card also
+   carries `words`, the words and phrases its regex matches when it is a short
+   list of them (`profile.PatternWords`), and
+   `GET /:ws/:id/context/deck/examples?profile=&id=` returns up to three
+   places the rule matches the project's source text, from a walk bounded in
+   blocks and time. A reviewer judges the rule by its description, its words
+   and what it catches; the regex waits behind a toggle.
 5. **`POST /:ws/:id/context/deck/decide`** with the item reference, the
    revision the card showed, the action and a Fix payload. The server maps it
    to the flows in the action table and answers `409 stale` when the revision

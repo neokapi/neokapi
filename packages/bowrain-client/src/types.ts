@@ -152,6 +152,23 @@ export interface ContextOrigin {
   note?: string;
 }
 
+/** One place a voice rule matches the project's source text. */
+export interface ContextRuleExample {
+  before: string;
+  match: string;
+  after: string;
+  /** The file the text sits in. */
+  item?: string;
+}
+
+/** Where a voice rule matches the project's source text (a bounded walk). */
+export interface ContextRuleExamples {
+  examples: ContextRuleExample[];
+  scanned: number;
+  /** The walk read every block. False with no examples means it stopped early. */
+  complete: boolean;
+}
+
 /** One context item waiting for review (contextDeckCard). */
 export interface ContextCard {
   item: ContextItemRef;
@@ -166,6 +183,8 @@ export interface ContextCard {
     description?: string;
     rate?: string;
     profile?: string;
+    /** The words and phrases the regex matches, when it is a short list of them. */
+    words?: string[];
   };
   text?: string;
   language?: string;

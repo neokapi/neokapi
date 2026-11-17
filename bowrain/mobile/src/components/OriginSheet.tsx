@@ -15,6 +15,7 @@ import { useCSSVariable } from "uniwind";
 import { contextCardId } from "../lib/contextDeck";
 import { isCurrentCard, originSummary } from "../lib/contextOrigin";
 import { Avatar } from "./feed/Avatar";
+import { RegexText } from "./RegexText";
 import { SafeAreaView } from "./SafeArea";
 
 export interface OriginSheetProps {
@@ -309,7 +310,7 @@ const Sibling = memo(function Sibling({
   const approve = useCSSVariable("--color-approve");
   const muted = useCSSVariable("--color-muted-foreground");
   const terms = card.terms ?? [];
-  const expandable = terms.length > 1 || !!card.text;
+  const expandable = terms.length > 1 || !!card.text || !!card.pattern;
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 35).duration(220)}>
@@ -332,9 +333,18 @@ const Sibling = memo(function Sibling({
                 <Text className="text-muted-foreground text-xs">
                   {t(`context.list.${card.pattern.list}`)}
                 </Text>
-                <Text className="text-foreground font-mono text-sm" numberOfLines={1}>
-                  {card.pattern.regex}
-                </Text>
+                {card.pattern.description?.trim() || card.pattern.words?.length ? (
+                  <Text
+                    className="text-foreground text-sm font-medium"
+                    numberOfLines={open ? undefined : 2}
+                  >
+                    {card.pattern.description?.trim() || card.pattern.words?.join(", ")}
+                  </Text>
+                ) : (
+                  <Text className="text-foreground font-mono text-sm" numberOfLines={1}>
+                    {card.pattern.regex}
+                  </Text>
+                )}
               </View>
             ) : (
               <Text className="text-foreground text-sm" numberOfLines={2}>
@@ -361,11 +371,7 @@ const Sibling = memo(function Sibling({
             <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color={String(muted)} />
           ) : null}
         </View>
-        {card.pattern?.description ? (
-          <Text className="text-muted-foreground text-sm" numberOfLines={open ? undefined : 2}>
-            {card.pattern.description}
-          </Text>
-        ) : null}
+        {open && card.pattern ? <RegexText source={card.pattern.regex} /> : null}
         {terms.length > 1 && !open ? (
           <View className="flex-row flex-wrap gap-1.5">
             {terms.slice(1, 4).map((term, i) => (

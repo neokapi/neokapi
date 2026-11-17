@@ -4,6 +4,7 @@
 // server decides every field; the card only lays them out.
 import type { ContextCard as Card } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
@@ -11,7 +12,9 @@ import { useCSSVariable } from "uniwind";
 import { originLine } from "../lib/contextOrigin";
 
 import { Avatar } from "./feed/Avatar";
+import { RegexText } from "./RegexText";
 import { CARD_SHADOW } from "./ReviewCard";
+import { RuleExamples } from "./RuleExamples";
 
 function Chip({ label, accent, testID }: { label: string; accent?: boolean; testID?: string }) {
   return (
@@ -33,8 +36,83 @@ function Label({ children }: { children: string }) {
   );
 }
 
+/** The project a card belongs to, which a voice rule's examples are read from. */
+export interface CardScope {
+  ws: string;
+  project: string;
+}
+
+/**
+ * A voice rule: what it is for in words first, then the words it looks for and
+ * where it matches the project's text. The regex itself waits behind a toggle.
+ */
+function PatternBody({ card, scope }: { card: Card; scope?: CardScope }) {
+  const { t } = useTranslation();
+  const [showPattern, setShowPattern] = useState(false);
+  const muted = useCSSVariable("--color-muted-foreground");
+  const pattern = card.pattern!;
+  const words = pattern.words ?? [];
+  const description = pattern.description?.trim();
+  const [max, per] = (pattern.rate ?? "").split("/");
+  return (
+    <View className="gap-4">
+      <View className="gap-1">
+        <Label>{t(`context.list.${pattern.list}`)}</Label>
+        {description ? (
+          <Text
+            testID="context-pattern-description"
+            className="text-foreground text-xl font-semibold"
+          >
+            {description}
+          </Text>
+        ) : words.length > 0 ? null : (
+          <RegexText testID="context-pattern" source={pattern.regex} />
+        )}
+      </View>
+      {words.length > 0 ? (
+        <View className="gap-2">
+          <Label>{t("context.pattern.words")}</Label>
+          <View testID="context-pattern-words" className="flex-row flex-wrap gap-2">
+            {words.map((w) => (
+              <View key={w} className="bg-muted rounded-lg px-2.5 py-1">
+                <Text className="text-foreground text-base">{w}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+      {pattern.rate ? (
+        <Text className="text-muted-foreground text-sm">{t("context.rate", { max, per })}</Text>
+      ) : null}
+      {scope ? <RuleExamples card={card} ws={scope.ws} project={scope.project} /> : null}
+      {description || words.length > 0 ? (
+        <View className="gap-2">
+          <Pressable
+            testID="context-pattern-toggle"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showPattern }}
+            onPress={() => setShowPattern((v) => !v)}
+            hitSlop={8}
+            className="flex-row items-center gap-1 self-start active:opacity-70"
+          >
+            <Text className="text-primary text-sm font-medium">
+              {showPattern ? t("context.pattern.hide") : t("context.pattern.show")}
+            </Text>
+            <Ionicons
+              name={showPattern ? "chevron-up" : "chevron-down"}
+              size={14}
+              color={String(muted)}
+            />
+          </Pressable>
+          {showPattern ? <RegexText testID="context-pattern" source={pattern.regex} /> : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** The item itself, in the shape its kind takes. */
-function Body({ card }: { card: Card }) {
+function Body({ card, scope }: { card: Card; scope?: CardScope }) {
   const { t } = useTranslation();
   if (card.term) {
     const avoid = [card.term.term, ...(card.term.forms ?? [])];
@@ -86,29 +164,7 @@ function Body({ card }: { card: Card }) {
       </View>
     );
   }
-  if (card.pattern) {
-    return (
-      <View className="gap-3">
-        <View className="gap-1">
-          <Label>{t(`context.list.${card.pattern.list}`)}</Label>
-          <Text testID="context-pattern" className="text-foreground font-mono text-lg">
-            {card.pattern.regex}
-          </Text>
-        </View>
-        {card.pattern.description ? (
-          <Text className="text-foreground text-base">{card.pattern.description}</Text>
-        ) : null}
-        {card.pattern.rate ? (
-          <Text className="text-muted-foreground text-sm">
-            {t("context.rate", {
-              max: card.pattern.rate.split("/")[0],
-              per: card.pattern.rate.split("/")[1],
-            })}
-          </Text>
-        ) : null}
-      </View>
-    );
-  }
+  if (card.pattern) return <PatternBody card={card} scope={scope} />;
   return (
     <Text testID="context-note" className="text-foreground text-xl">
       {card.text}
@@ -141,7 +197,16 @@ function OriginLine({ card, onOpen }: { card: Card; onOpen?: () => void }) {
   );
 }
 
-export function ContextCard({ card, onOpenOrigin }: { card: Card; onOpenOrigin?: () => void }) {
+export function ContextCard({
+  card,
+  scope,
+  onOpenOrigin,
+}: {
+  card: Card;
+  /** The card's project. Given, a voice rule shows where it matches the project's text. */
+  scope?: CardScope;
+  onOpenOrigin?: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const where = [
     t(`context.where.${card.where.level}`),
@@ -179,7 +244,7 @@ export function ContextCard({ card, onOpenOrigin }: { card: Card; onOpenOrigin?:
       </View>
 
       <ScrollView contentContainerClassName="gap-5 p-5">
-        <Body card={card} />
+        <Body card={card} scope={scope} />
 
         <View className="gap-1">
           <Label>{t("context.appliesIn")}</Label>

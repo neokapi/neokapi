@@ -137,6 +137,10 @@ type contextDeckPattern struct {
 	Rate string `json:"rate,omitempty"`
 	// Profile is the voice profile's name.
 	Profile string `json:"profile,omitempty"`
+	// Words are the words and phrases the regex matches, when it is a short
+	// list of them (profile.PatternWords). A reader can judge those without
+	// reading the regex.
+	Words []string `json:"words,omitempty"`
 }
 
 // contextDeckWhere is where an item applies.
@@ -796,6 +800,7 @@ func profileRuleCards(src deckSource, profile *coreprofile.VoiceProfile) []conte
 				Where:    contextDeckWhere{Level: string(contextop.LevelProject)},
 				Pattern: &contextDeckPattern{
 					List: list, Regex: p.Regex, Description: p.Description, Profile: profile.Name,
+					Words: coreprofile.PatternWords(p.Regex),
 				},
 			}
 			if p.Scope != "" {
