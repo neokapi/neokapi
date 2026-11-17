@@ -186,7 +186,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 			return nil
 		}
 		runs := v.SourceRuns()
-		if len(runs) == 0 {
+		if !hasPseudoText(runs) {
 			return nil
 		}
 		if shouldWalkRuns(runs, cfg) {
@@ -210,6 +210,15 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 	return &PseudoTranslateTool{BaseTool: base, cfg: cfg}
 }
 
+// hasPseudoText reports whether a block has text to pseudo-translate. A block
+// of whitespace and inline codes alone is left untranslated: wrapping it in
+// markers would put text where the document has none, and a reader can then
+// see different structure when the output is read again (an HTML layout
+// element between two blocks becomes part of one mixed-content block).
+func hasPseudoText(runs []model.Run) bool {
+	return strings.TrimSpace(model.RunsText(runs)) != ""
+}
+
 // applyPseudo runs the deterministic pseudo-translation on a block
 // part. Factored out so SessionProcess can call it after checking
 // the overlay cache. It writes through a tool view, as the dispatched
@@ -223,7 +232,7 @@ func applyPseudo(ctx context.Context, part *model.Part, conf *PseudoConfig) (*mo
 		return part, nil
 	}
 	runs := block.SourceRuns()
-	if len(runs) == 0 {
+	if !hasPseudoText(runs) {
 		return part, nil
 	}
 	err := tool.WriteAs(ctx, block, conf.ToolName(), func(v tool.VariantView) error {
