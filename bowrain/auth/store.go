@@ -44,6 +44,9 @@ type AuthStore interface {
 	GetWorkspaceByAccessKey(ctx context.Context, key string) (*platauth.Workspace, error)
 	ListWorkspaces(ctx context.Context, userID string) ([]*platauth.Workspace, error)
 	ListPublicWorkspaces(ctx context.Context) ([]*platauth.Workspace, error)
+	// ListAllWorkspaces returns every workspace of the instance, newest first,
+	// for the control plane.
+	ListAllWorkspaces(ctx context.Context, limit, offset int) ([]*platauth.Workspace, error)
 	UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error
 	DeleteWorkspace(ctx context.Context, id string) error
 

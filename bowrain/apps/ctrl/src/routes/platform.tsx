@@ -186,13 +186,16 @@ function AICard({
   // both onboard/offboard from the static catalog and free-text ids are managed
   // in one list.
   const rows: CatalogModel[] = useMemo(() => {
+    // A provider without a curated catalog, or no enabled models, may come
+    // back as null from an older server.
+    const catalog = snapshot.model_catalog ?? [];
     const byId = new Map<string, CatalogModel>();
-    for (const m of snapshot.model_catalog) byId.set(m.id, m);
+    for (const m of catalog) byId.set(m.id, m);
     const extras: CatalogModel[] = [];
-    for (const id of ai.enabled_models) {
+    for (const id of ai.enabled_models ?? []) {
       if (!byId.has(id)) extras.push({ id, name: id, tier: "balanced" });
     }
-    return [...snapshot.model_catalog, ...extras];
+    return [...catalog, ...extras];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot.model_catalog, ai.enabled_models]);
 

@@ -129,7 +129,8 @@ func TestSnapshotIncludesCatalog(t *testing.T) {
 func TestCatalogHelpers(t *testing.T) {
 	assert.True(t, InCatalog("bedrock", "eu.anthropic.claude-sonnet-4-6"))
 	assert.False(t, InCatalog("bedrock", "eu.anthropic.claude-nonexistent"))
-	assert.Nil(t, Catalog("openai"))
+	assert.Empty(t, Catalog("openai"))
+	assert.NotNil(t, Catalog("openai"), "an empty catalog serializes as [], which the control plane iterates")
 	// Marketplace-gated models are flagged.
 	for _, m := range BedrockCatalog {
 		if m.ID == "eu.anthropic.claude-sonnet-5" {

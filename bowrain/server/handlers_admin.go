@@ -28,31 +28,25 @@ func (s *Server) HandleAdminListWorkspaces(c echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
+	if s.AuthStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+	}
 
 	limit, offset := pageParams(c, 50, maxListPageSize)
 
+	// Every workspace is listed, with or without a subscription: one created
+	// without billing (a self-hosted instance, or before Stripe is set up)
+	// has no subscription row and still belongs in the control plane.
 	ctx := c.Request().Context()
-	subs, err := s.BillingStore.ListSubscriptions(ctx, limit, offset)
+	all, err := s.AuthStore.ListAllWorkspaces(ctx, limit, offset)
 	if err != nil {
 		return serverErr(c, err)
 	}
 
-	// Filter by plan/status if requested.
+	search := strings.ToLower(strings.TrimSpace(c.QueryParam("q")))
 	planFilter := c.QueryParam("plan")
 	statusFilter := c.QueryParam("status")
 
-	var filtered []*billing.Subscription
-	for _, sub := range subs {
-		if planFilter != "" && string(sub.Plan) != planFilter {
-			continue
-		}
-		if statusFilter != "" && sub.Status != statusFilter {
-			continue
-		}
-		filtered = append(filtered, sub)
-	}
-
-	// Enrich with workspace metadata from AuthStore.
 	ownerResolver := &ownerEmailResolver{authStore: s.AuthStore}
 	type adminWorkspace struct {
 		ID                 string  `json:"id"`
@@ -68,36 +62,40 @@ func (s *Server) HandleAdminListWorkspaces(c echo.Context) error {
 		CreatedAt          string  `json:"created_at"`
 	}
 
-	workspaces := make([]adminWorkspace, 0, len(filtered))
-	for _, sub := range filtered {
+	workspaces := make([]adminWorkspace, 0, len(all))
+	for _, ws := range all {
+		if search != "" && !strings.Contains(strings.ToLower(ws.Name), search) &&
+			!strings.Contains(strings.ToLower(ws.Slug), search) {
+			continue
+		}
 		aw := adminWorkspace{
-			ID:        sub.WorkspaceID,
-			Plan:      string(sub.Plan),
-			Status:    sub.Status,
-			CreatedAt: sub.CreatedAt.Format(time.RFC3339),
+			ID:        ws.ID,
+			Name:      ws.Name,
+			Slug:      ws.Slug,
+			Plan:      ws.Plan,
+			CreatedAt: ws.CreatedAt.Format(time.RFC3339),
 		}
-
-		// Enrich from AuthStore workspace metadata.
-		if s.AuthStore != nil {
-			if ws, err := s.AuthStore.GetWorkspace(ctx, sub.WorkspaceID); err == nil {
-				aw.Name = ws.Name
-				aw.Slug = ws.Slug
-			}
-			if members, err := s.AuthStore.ListMembers(ctx, sub.WorkspaceID); err == nil {
-				aw.MemberCount = len(members)
-			}
-			aw.OwnerEmail = ownerResolver.GetOwnerEmail(ctx, sub.WorkspaceID)
+		if sub, err := s.BillingStore.GetSubscription(ctx, ws.ID); err == nil && sub != nil {
+			aw.Plan = string(sub.Plan)
+			aw.Status = sub.Status
 		}
-
-		// Enrich with credit data.
-		if alloc, err := s.BillingStore.GetCurrentAllocation(ctx, sub.WorkspaceID); err == nil && alloc != nil {
+		if planFilter != "" && aw.Plan != planFilter {
+			continue
+		}
+		if statusFilter != "" && aw.Status != statusFilter {
+			continue
+		}
+		if members, err := s.AuthStore.ListMembers(ctx, ws.ID); err == nil {
+			aw.MemberCount = len(members)
+		}
+		aw.OwnerEmail = ownerResolver.GetOwnerEmail(ctx, ws.ID)
+		if alloc, err := s.BillingStore.GetCurrentAllocation(ctx, ws.ID); err == nil && alloc != nil {
 			aw.CreditsUsed = alloc.CreditsUsed
 			aw.CreditsTotal = alloc.CreditsTotal
 			if alloc.CreditsTotal > 0 {
 				aw.CreditUsagePercent = float64(alloc.CreditsUsed) / float64(alloc.CreditsTotal) * 100
 			}
 		}
-
 		workspaces = append(workspaces, aw)
 	}
 
