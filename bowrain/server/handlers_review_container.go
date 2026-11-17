@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -129,10 +130,8 @@ type container struct {
 // containerOf picks the block's container from the blocks before and after
 // it, both in document order.
 func containerOf(sb *venue.StoredBlock, before, after []*venue.StoredBlock) container {
-	out := container{reviewContainerResponse: reviewContainerResponse{
-		ItemName: sb.ItemName,
-		Focus:    sb.Block.ID,
-	}}
+	var out container
+	out.ItemName, out.Focus = sb.ItemName, sb.Block.ID
 
 	// A string from a component: the component's other strings.
 	if comp := sb.Block.Properties["component"]; comp != "" {
@@ -160,8 +159,8 @@ func containerOf(sb *venue.StoredBlock, before, after []*venue.StoredBlock) cont
 	if r, lvl := blockRole(sb.Block); r == "heading" {
 		headIdx, headLevel = len(before), lvl
 	} else {
-		for k := len(before) - 1; k >= 0; k-- {
-			if r, lvl := blockRole(before[k].Block); r == "heading" {
+		for k, b := range slices.Backward(before) {
+			if r, lvl := blockRole(b.Block); r == "heading" {
 				headIdx, headLevel = k, lvl
 				break
 			}
