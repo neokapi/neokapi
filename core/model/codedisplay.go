@@ -92,10 +92,9 @@ var codeTypeKinds = []struct {
 func CodeKindOf(typ, subType string) CodeKind {
 	tag := subType
 	if tag == "" {
-		if i := strings.LastIndex(typ, ":"); i >= 0 {
-			tag = typ[i+1:]
-		} else {
-			tag = typ
+		tag = typ
+		if _, after, ok := strings.CutLast(typ, ":"); ok {
+			tag = after
 		}
 	}
 	if k, ok := codeTagKinds[strings.ToLower(tag)]; ok {
