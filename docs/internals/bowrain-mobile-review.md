@@ -622,7 +622,11 @@ what it kept, so only the page's blocks are read whole.
       ],
       "own_work": false,
       "group": "fast",
-      "reason": "no findings, pre-review score 92"
+      "reason": "no findings, pre-review score 92",
+      "copies": [
+        {"block_id": "b-01K...", "item_name": "desktop/i18n/en.json", "key": "actions.save",
+         "collection_id": "c-01K...", "source_revision": "r:0a1b2c3d4e5f6a7b", "target_revision": "r:9c8b7a6f5e4d3c2b"}
+      ]
     }
   ],
   "counts": {"fast": 3758, "closer": 0, "desk": 57, "total": 3815},
@@ -633,6 +637,15 @@ what it kept, so only the page's blocks are read whole.
 
 - `source_revision` and `target_revision` are the tokens a change set's
   `basis` and `if_match` take (below).
+- The deck deals one card for each source and translation. Translations
+  waiting with the same source revision and the same translation text are
+  dealt once, at the first in deck order, and the counts count them once.
+  `copies` lists the others, across every collection the deck reads, each
+  with its `block_id`, `item_name`, `key`, `collection_id` and revisions.
+  The app sends a decision as one change set with an operation for the card
+  and one for each copy, and an undo withdraws each on the revision the
+  decision left there. A page reads at most 500 copies; one past that stays
+  in the deck and is dealt after the card's decision lands.
 - `source_runs` and `target_runs` are for drawing the card, codes with their
   data. `target_edit_text` is the translation in the placeholder form a
   `set_content` sends as `text`, which the edit field starts from.

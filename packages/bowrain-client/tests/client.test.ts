@@ -10,6 +10,8 @@ import {
   fixSet,
   readOutcome,
   rejectSet,
+  revisionsOf,
+  withdrawSet,
   type DeckCard,
   type PendingReviewPage,
 } from "../src/index.ts";
@@ -34,6 +36,60 @@ const card: DeckCard = {
 };
 
 describe("change sets", () => {
+  const copied: DeckCard = {
+    ...card,
+    copies: [
+      {
+        blockId: "b2",
+        item: "web/en.json",
+        collectionId: "c2",
+        targetRevision: "r:2222222222222222",
+        sourceRevision: "r:aaaaaaaaaaaaaaaa",
+      },
+    ],
+  };
+
+  it("decides each copy a card stands for in the same set", () => {
+    const set = approveSet(copied);
+    expect(set.ops.map((op) => ("at" in op ? op.at.block : ""))).toEqual(["b1", "b2"]);
+    expect(set.ops[1]).toMatchObject({
+      op: "decide",
+      at: { doc: "web/en.json", block: "b2", edition: "nb" },
+      if_match: "r:2222222222222222",
+      outcome: "establish",
+    });
+    const fix = fixSet(copied, [{ text: "Hallo " }, ph], []);
+    expect(fix.ops.map((op) => op.op)).toEqual(["set_content", "decide", "set_content", "decide"]);
+    expect(rejectSet(copied, ["meaning"]).ops).toHaveLength(2);
+  });
+
+  it("withdraws each copy on the revision the decision left there", () => {
+    const set = approveSet(copied);
+    const result = {
+      status: "applied",
+      ops: [
+        { i: 0, op: "decide", status: "applied", after: "r:a1" },
+        { i: 1, op: "decide", status: "applied", after: "r:b2" },
+      ],
+    } as unknown as ChangeResult;
+    expect(revisionsOf(set, result)).toEqual({ b1: "r:a1", b2: "r:b2" });
+    const undo = withdrawSet(copied, "r:a1", { b2: "r:b2" });
+    expect(undo.ops).toEqual([
+      {
+        op: "decide",
+        at: { doc: "i18n/en.json", block: "b1", edition: "nb" },
+        if_match: "r:a1",
+        outcome: "withdraw",
+      },
+      {
+        op: "decide",
+        at: { doc: "web/en.json", block: "b2", edition: "nb" },
+        if_match: "r:b2",
+        outcome: "withdraw",
+      },
+    ]);
+  });
+
   it("approves on the revision the card showed", () => {
     const set = approveSet(card);
     expect(set.ops).toEqual([

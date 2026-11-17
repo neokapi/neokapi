@@ -21,7 +21,7 @@ import {
 } from "@neokapi/contract-types";
 import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 
-import type { DeckCard, FixReason } from "./types.ts";
+import type { DeckCard, DeckCopy, FixReason } from "./types.ts";
 
 /** The translation a card shows: its block's edition in the card's locale. */
 export function cardRef(card: Pick<DeckCard, "item" | "blockId" | "locale">): ChangeRef {
@@ -87,9 +87,24 @@ const CHANGE_RUNS: ModelRunSpec<ChangeRun> = {
   },
 };
 
+/** What a decision addresses: the card's translation, or one of its copies. */
+type Decided = Pick<DeckCard, "item" | "blockId" | "locale" | "targetRevision" | "sourceRevision">;
+
+/** The card's translation and each copy it stands for, in that order. */
+export function decidedOf(card: DeckCard): Decided[] {
+  const copies = (card.copies ?? []).map((c: DeckCopy): Decided => ({
+    item: c.item,
+    blockId: c.blockId,
+    locale: card.locale,
+    targetRevision: c.targetRevision,
+    sourceRevision: c.sourceRevision,
+  }));
+  return [card, ...copies];
+}
+
 /** A decision on the translation a card shows. */
 export function decideOp(
-  card: DeckCard,
+  card: Decided,
   outcome: DecideOutcome,
   reasons?: readonly string[],
 ): DecideOp {
@@ -105,7 +120,7 @@ export function decideOp(
 }
 
 /** Replace the translation a card shows with corrected runs. */
-export function setContentOp(card: DeckCard, runs: readonly Run[]): SetContentOp {
+export function setContentOp(card: Decided, runs: readonly Run[]): SetContentOp {
   const op: SetContentOp = {
     op: "set_content",
     at: cardRef(card),
@@ -128,14 +143,24 @@ function changeSet(ops: ChangeOp[], card: DeckCard, note?: string): ChangeSet {
   return set;
 }
 
-/** Approve the translation as the card shows it. */
+/** Approve the translation as the card shows it, and each copy. */
 export function approveSet(card: DeckCard): ChangeSet {
-  return changeSet([decideOp(card, "establish")], card);
+  return changeSet(
+    decidedOf(card).map((d) => decideOp(d, "establish")),
+    card,
+  );
 }
 
-/** Reject the translation, with the reasons and an optional note the next draft reads. */
+/**
+ * Reject the translation and each copy, with the reasons and an optional
+ * note the next draft reads.
+ */
 export function rejectSet(card: DeckCard, reasons: readonly FixReason[], note?: string): ChangeSet {
-  return changeSet([decideOp(card, "reject", reasons)], card, note);
+  return changeSet(
+    decidedOf(card).map((d) => decideOp(d, "reject", reasons)),
+    card,
+    note,
+  );
 }
 
 /**
@@ -149,16 +174,52 @@ export function fixSet(
   reasons: readonly FixReason[],
   note?: string,
 ): ChangeSet {
-  return changeSet([setContentOp(card, runs), decideOp(card, "establish", reasons)], card, note);
+  return changeSet(
+    decidedOf(card).flatMap((d) => [setContentOp(d, runs), decideOp(d, "establish", reasons)]),
+    card,
+    note,
+  );
 }
 
 /**
  * Withdraw a decision that already landed, on the revision the decision left:
  * the undo of a sent approval or rejection. The translation returns to review.
+ * `copies` maps each copy's block the decision reached to the revision it
+ * left there.
  */
-export function withdrawSet(card: DeckCard, revision: string): ChangeSet {
-  const op: DecideOp = { op: "decide", at: cardRef(card), if_match: revision, outcome: "withdraw" };
-  return { schema: CHANGE_SCHEMA_ID, ops: [op] };
+export function withdrawSet(
+  card: DeckCard,
+  revision: string,
+  copies: Readonly<Record<string, string>> = {},
+): ChangeSet {
+  const ops: DecideOp[] = [
+    { op: "decide", at: cardRef(card), if_match: revision, outcome: "withdraw" },
+  ];
+  for (const c of card.copies ?? []) {
+    const rev = copies[c.blockId];
+    if (!rev) continue;
+    ops.push({
+      op: "decide",
+      at: { doc: c.item, block: c.blockId, edition: card.locale },
+      if_match: rev,
+      outcome: "withdraw",
+    });
+  }
+  return { schema: CHANGE_SCHEMA_ID, ops };
+}
+
+/**
+ * The revision each block's last operation left in a change set's result,
+ * keyed by block: what a later withdrawal names.
+ */
+export function revisionsOf(set: ChangeSet, result: ChangeResult): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of result.ops) {
+    const op = set.ops[r.i];
+    const block = op && "at" in op ? op.at.block : undefined;
+    if (block && r.after) out[block] = r.after;
+  }
+  return out;
 }
 
 /** What became of a change set. */

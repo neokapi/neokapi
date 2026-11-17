@@ -284,6 +284,8 @@
     "failingFindings_other": "{{count, number}} failing checks",
     "ownWork": "You wrote this translation, so another reviewer approves it. You can still fix or reject it.",
     "details": "Details",
+    "copies_one": "The same translation is waiting in 1 other place. Your decision applies there too.",
+    "copies_other": "The same translation is waiting in {{count, number}} other places. Your decision applies to all of them.",
     "detailsLabel": "Details for this text in {{file}}",
     "why": {
       "stale_source": "The source changed after this translation was approved.",
@@ -301,6 +303,7 @@
     "around": "Around it in the file",
     "thisText": "This text",
     "sameText": "Same text",
+    "copies": "Same translation",
     "voice": "Voice profile",
     "memory": "Closest in content memory",
     "memoryScore": "{{score}}% match"

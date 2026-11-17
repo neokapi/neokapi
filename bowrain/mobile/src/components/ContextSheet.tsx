@@ -11,7 +11,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "rea
 import { useTranslation } from "react-i18next";
 
 import { markBusy } from "../lib/busy";
-import { humanize } from "../lib/where";
+import { fileName, humanize } from "../lib/where";
 import { RunText } from "./RunText";
 import { SafeAreaView } from "./SafeArea";
 
@@ -155,6 +155,21 @@ export function ContextSheetBody({
           <Row label={t("details.file")} value={card.item} mono />
           {card.name ? <Row label={t("details.key")} value={card.name} mono /> : null}
         </Section>
+
+        {card.copies && card.copies.length > 0 ? (
+          <Section title={t("details.copies")}>
+            {card.copies.map((c) => (
+              <View key={c.blockId} testID="details-copy" className="gap-0.5">
+                <Text className="text-foreground text-sm font-medium">{fileName(c.item)}</Text>
+                {c.name ? (
+                  <Text className="text-muted-foreground font-mono text-xs" selectable>
+                    {c.name}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </Section>
+        ) : null}
 
         {ctx.isPending ? (
           <ActivityIndicator />

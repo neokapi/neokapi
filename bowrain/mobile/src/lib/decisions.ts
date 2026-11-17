@@ -16,6 +16,7 @@ import {
   isNetworkError,
   readOutcome,
   rejectSet,
+  revisionsOf,
   withdrawSet,
   type BowrainClient,
   type DeckCard,
@@ -73,6 +74,8 @@ export interface DecisionResult {
   outcome: "applied" | "held" | "stale" | "refused";
   /** The revision the decision left, which an undo names. */
   revision?: string;
+  /** The revision it left on each copy the card stood for, by block. */
+  copyRevisions?: Record<string, string>;
   message?: string;
 }
 
@@ -81,6 +84,7 @@ export interface WithdrawVars {
   scope: ProjectScope;
   card: DeckCard;
   revision: string;
+  copyRevisions?: Record<string, string>;
 }
 
 /** A notice the deck shows about a decision that did not land as made. */
@@ -113,8 +117,16 @@ export async function sendDecision(c: BowrainClient, v: DecisionVars): Promise<D
   else set = fixSet(v.card, v.runs ?? v.card.target, v.reasons ?? [], v.note);
   const outcome = readOutcome(await c.applyChanges(v.scope, set));
   switch (outcome.status) {
-    case "applied":
-      return { id: v.id, outcome: "applied", revision: outcome.revision };
+    case "applied": {
+      const revisions = revisionsOf(set, outcome.result);
+      const { [v.card.blockId]: own, ...copyRevisions } = revisions;
+      return {
+        id: v.id,
+        outcome: "applied",
+        revision: own ?? outcome.revision,
+        ...(Object.keys(copyRevisions).length > 0 ? { copyRevisions } : {}),
+      };
+    }
     case "held":
       return { id: v.id, outcome: "held", message: outcome.error?.message };
     case "stale":
@@ -173,7 +185,7 @@ export function registerDecisionDefaults(qc: QueryClient): void {
     mutationFn: async (v: WithdrawVars | undefined) => {
       if (!v) throw new Error("nothing to withdraw");
       const outcome = readOutcome(
-        await client().applyChanges(v.scope, withdrawSet(v.card, v.revision)),
+        await client().applyChanges(v.scope, withdrawSet(v.card, v.revision, v.copyRevisions)),
       );
       if (outcome.status !== "applied") {
         throw new Error(
@@ -321,7 +333,7 @@ export function queuedDecisions(qc: QueryClient): DecisionVars[] {
 export type UndoPlan =
   | { kind: "drop" }
   | { kind: "unqueue" }
-  | { kind: "withdraw"; revision: string }
+  | { kind: "withdraw"; revision: string; copyRevisions?: Record<string, string> }
   | null;
 
 export function planUndo(qc: QueryClient, entry: LoggedDecision): UndoPlan {
@@ -338,7 +350,7 @@ export function planUndo(qc: QueryClient, entry: LoggedDecision): UndoPlan {
       // undo of a sent fix is a new edit.
       const r = entry.result;
       if (r?.outcome === "applied" && r.revision && entry.vars.kind !== "fix") {
-        return { kind: "withdraw", revision: r.revision };
+        return { kind: "withdraw", revision: r.revision, copyRevisions: r.copyRevisions };
       }
       return null;
     }
@@ -363,7 +375,13 @@ export function undoDecision(
   const { vars } = entry;
   if (plan.kind === "withdraw") {
     setPhase(qc, id, "undoing");
-    withdraw({ id, scope: vars.scope, card: vars.card, revision: plan.revision });
+    withdraw({
+      id,
+      scope: vars.scope,
+      card: vars.card,
+      revision: plan.revision,
+      copyRevisions: plan.copyRevisions,
+    });
   } else {
     const m = mutationOf(qc, id);
     if (m) qc.getMutationCache().remove(m as unknown as Mutation);

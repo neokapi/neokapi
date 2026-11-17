@@ -136,6 +136,11 @@ export function ReviewCard({
               {t(why)}
             </Text>
           ) : null}
+          {card.copies && card.copies.length > 0 ? (
+            <Text testID="card-copies" className="text-foreground text-sm">
+              {t("card.copies", { count: card.copies.length })}
+            </Text>
+          ) : null}
           {card.failingFindingsCount > 0 ? (
             <Text className="text-corrective text-sm">
               {t("card.failingFindings", { count: card.failingFindingsCount })}

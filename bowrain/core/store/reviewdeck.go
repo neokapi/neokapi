@@ -115,7 +115,9 @@ type ReviewDeckStore interface {
 	// translations.
 	RecordReviewDeckFacts(ctx context.Context, projectID, stream string, facts []ReviewDeckFacts) error
 	// ListReviewDeck returns up to limit classified translations after the
-	// key, ordered by group, item, position and block. A group rank below 0
+	// key, ordered by priority, group, item, position and block. Of the
+	// translations with the same source and the same translation it returns
+	// the first in that order only; ReviewDeckCopies reads the others. A group rank below 0
 	// reads every group of the deck; a translation set aside is never read.
 	ListReviewDeck(ctx context.Context, q ReviewDeckQuery, groupRank int, after *ReviewDeckKey, limit int) ([]ReviewDeckRow, error)
 	// CountReviewDeck counts the deck by group, and what is not classified.
@@ -125,6 +127,11 @@ type ReviewDeckStore interface {
 	// once per collection, keyed by collection id ("" for blocks in none).
 	// A collection with translations and nothing waiting is present.
 	CountReviewDeckByCollection(ctx context.Context, q ReviewDeckQuery) (map[string]ReviewDeckCollectionCounts, error)
+	// ReviewDeckCopies returns, for each of blockIDs, the other translations
+	// waiting for review in the language with the same source and the same
+	// translation, up to limit in all, keyed by the block they copy. It
+	// honours q.ExcludeCollections and reads every collection otherwise.
+	ReviewDeckCopies(ctx context.Context, q ReviewDeckQuery, blockIDs []string, limit int) (map[string][]PendingReviewRef, error)
 }
 
 // ReviewDeckStores finds the review deck store behind a content store,
