@@ -653,3 +653,39 @@ export interface FeedQuery {
 }
 
 export type { ReviewContext };
+
+/**
+ * What a reader meets a block inside: a React component's strings, a
+ * document's section from its heading to the next, or the blocks around it.
+ */
+export interface ReviewContainer {
+  kind: "component" | "section" | "window";
+  /** The component, the section's heading, or the file. */
+  title: string;
+  item: string;
+  locale: string;
+  /** The block the container was asked for. */
+  focus: string;
+  units: ContainerUnit[];
+  /** Blocks of the container past what the response holds. */
+  moreBefore: boolean;
+  moreAfter: boolean;
+}
+
+/** One block of a container, laid out by its role. */
+export interface ContainerUnit {
+  blockId: string;
+  item: string;
+  key: string;
+  /** heading, paragraph, list_item, button, label, link, caption, cell, code or text. */
+  role: string;
+  /** A heading's level, 1 to 6. */
+  level?: number;
+  source: Run[];
+  target: Run[];
+  targetStatus?: string;
+  /** A translation waiting for review. */
+  waiting: boolean;
+  sourceRevision: string;
+  targetRevision: string;
+}

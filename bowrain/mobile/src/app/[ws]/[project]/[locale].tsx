@@ -201,6 +201,22 @@ export default function DeckScreen() {
     [collections.data],
   );
   const [details, setDetails] = useState<DeckCard | null>(null);
+  // The blocks decided here, so the context page marks them.
+  const decidedBlocks = useMemo(
+    () =>
+      new Set(
+        log
+          .filter(
+            (e) =>
+              e.vars.card.locale === locale &&
+              e.vars.scope.workspace === ws &&
+              e.vars.scope.project === project &&
+              hidesCard(e),
+          )
+          .map((e) => e.vars.card.blockId),
+      ),
+    [log, locale, ws, project],
+  );
   const finished = !deck.isPending && !top;
   const refetchCollections = collections.refetch;
   useEffect(() => {
@@ -245,6 +261,7 @@ export default function DeckScreen() {
       if (!top) return;
       setEntering(null);
       if (action === "approve") record(top, "approve");
+      else if (action === "context") setDetails(top);
       else if (action === "later") setLater((l) => [...l.filter((k) => k !== top.key), top.key]);
       else
         setFixing({
@@ -439,6 +456,16 @@ export default function DeckScreen() {
         where={details ? whereOf(details) : []}
         load={(card) => client.reviewContext(scope, card.blockId, card.locale)}
         onClose={() => setDetails(null)}
+        inContext={{
+          loadContainer: (card) => client.reviewContainer(scope, card.blockId, card.locale),
+          onApprove: (card) => record(card, "approve"),
+          // The fix sheet opens over the deck, so the context sheet steps aside.
+          onFix: (card) => {
+            setDetails(null);
+            setFixing({ card, mode: "fix", flown: false });
+          },
+          decided: decidedBlocks,
+        }}
       />
 
       <FixSheet
