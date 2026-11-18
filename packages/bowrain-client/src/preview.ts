@@ -92,10 +92,10 @@ export function visibleFragments(runtime: string, max = 3): string[] {
   let flat = runtime;
   for (let prev = ""; prev !== flat;) {
     prev = flat;
-    flat = flat.replace(/\{[^{}]*\}/g, "\u0000");
+    flat = flat.replace(/\{[^{}]*\}/g, "\uE000");
   }
   const parts = flat
-    .split(/\u0000|\[[^\]]*\]|[{}[\]]|<\/?[^<>]*>/)
+    .split(/\uE000|\[[^\]]*\]|[{}[\]]|<\/?[^<>]*>/)
     .map((p) => p.replace(/\s+/g, " ").trim())
     .filter((p) => /\p{L}.*\p{L}/u.test(p));
   return [...new Set(parts)].sort((a, b) => b.length - a.length).slice(0, max);
