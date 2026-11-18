@@ -30,7 +30,7 @@ const sampleTree: ContentTree = {
           side: "source",
           spans: [
             {
-              range: { startRun: 0, endRun: 1, startOffset: 19, endOffset: 28 },
+              range: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 0, offset: 28 } },
               text: "dashboard",
               props: { term: "dashboard", target: "tableau de bord", domain: "ui" },
             },
@@ -41,7 +41,7 @@ const sampleTree: ContentTree = {
           side: "source",
           spans: [
             {
-              range: { startRun: 0, endRun: 1, startOffset: 7, endOffset: 14 },
+              range: { kind: "range", start: { run: 0, offset: 7 }, end: { run: 0, offset: 14 } },
               text: "utilize",
               props: {
                 category: "voice-vocabulary",

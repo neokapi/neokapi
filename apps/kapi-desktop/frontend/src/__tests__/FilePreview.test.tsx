@@ -23,7 +23,7 @@ const tree: ContentTree = {
           side: "source",
           spans: [
             {
-              range: { startRun: 0, startOffset: 19, endRun: 1, endOffset: 28 },
+              range: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 0, offset: 28 } },
               text: "dashboard",
               props: { term: "dashboard", target: "tableau de bord" },
             },

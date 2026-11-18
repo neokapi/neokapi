@@ -226,7 +226,7 @@ describe("blockToContentNode — overlays", () => {
       evidence: { terms: [termMatch], findings: [voiceFinding] },
     });
     const text = runsPlainText(node.source);
-    const spans = resolveOverlaySpans(node.overlays, "source", text);
+    const spans = resolveOverlaySpans(node.overlays, "source", node.source);
     expect(spans.map((s) => text.slice(s.start, s.end))).toEqual(["Utilize", "Acme", "console"]);
     // The voice-vocabulary finding takes the dedicated accent, not the generic check accent.
     expect(spans[0].style.label).toBe("Voice");

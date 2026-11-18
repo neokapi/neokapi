@@ -7,7 +7,7 @@ import {
   type ReviewFindingView,
   type ReviewTermHitView,
 } from "@neokapi/ui-primitives";
-import { resolveOverlaySpans, segmentText } from "@neokapi/ui-primitives/preview";
+import { resolveOverlaySpans, runsPlainText, segmentText } from "@neokapi/ui-primitives/preview";
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
 import type { BlockNote, BlockTermMatch, CheckIssue } from "../../types/api";
 import type { UnifiedSaveResult } from "../UnifiedTargetEditor";
@@ -74,8 +74,12 @@ export function AnchoredTarget({
   side: string;
   text: string;
 }) {
-  const spans = node ? resolveOverlaySpans(node.overlays, side, text) : [];
-  const segments = segmentText(text, spans);
+  // The anchors address the side's runs, so the marks are placed over those
+  // runs' text; with no runs for the side, the text is shown unmarked.
+  const runs = node ? (side === "source" ? node.source : node.targets?.[side]) : undefined;
+  const read = runs?.length ? runsPlainText(runs) : text;
+  const spans = runs?.length ? resolveOverlaySpans(node?.overlays, side, runs) : [];
+  const segments = segmentText(read, spans);
   if (segments.length === 0) return null;
   return (
     <p className="text-sm leading-relaxed" data-testid="anchored-target">
