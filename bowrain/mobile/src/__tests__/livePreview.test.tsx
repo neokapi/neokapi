@@ -1,6 +1,6 @@
 import type { ReviewContainer, StoryIndex } from "@neokapi/bowrain-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
 import "../lib/i18n";
@@ -200,5 +200,38 @@ describe("InContextView live", () => {
     expect(await screen.findByTestId("live-frame", {}, { timeout: 5000 })).toBeTruthy();
     await fireEvent.press(screen.getByTestId("live-close"));
     expect(screen.queryByTestId("live-frame")).toBeNull();
+  });
+
+  it("offers no live view for a component its Storybook has no story for", async () => {
+    const loadIndex = jest.fn(async () => ({ entries: {} }));
+    await render(
+      wrap(
+        <InContextView
+          card={{
+            key: "o2:nb",
+            blockId: "o2",
+            item: "OfflineLaunch.kbf.json",
+            locale: "nb",
+            collectionId: "c1",
+            source: [],
+            target: [],
+            targetRevision: "",
+            group: "unsorted",
+            notes: [],
+            findingsCount: 0,
+            failingFindingsCount: 0,
+            ownWork: false,
+          }}
+          scope={{ workspace: "w", project: "p" }}
+          load={async () => container}
+          loadIndex={loadIndex}
+          onApprove={() => {}}
+          onFix={() => {}}
+        />,
+      ),
+    );
+    await screen.findByText("Prøv igjen", {}, { timeout: 5000 });
+    await waitFor(() => expect(loadIndex).toHaveBeenCalled());
+    expect(screen.queryByTestId("context-live")).toBeNull();
   });
 });

@@ -44,6 +44,7 @@ const entryPoints = [
   "src/runtime/index.ts",
   "src/runtime/icu.ts",
   "src/runtime/markers.ts",
+  "src/runtime/keymarks.ts",
   "src/runtime/plural.tsx",
   "src/runtime/pseudo.ts",
   "src/runtime/hash.ts",

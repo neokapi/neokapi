@@ -110,7 +110,8 @@ marked yet: the anchors resolve to the top-level text runs only.
 A code chip, such as a variable named `count`, is not a term. Tapping it says
 what it is: a value the app fills in, a choice of forms, or formatting.
 
-When the container is a component and its collection declares a Storybook,
+When the container is a component, its collection declares a Storybook, and
+the Storybook's index holds a story beside the component's source file,
 **See it running** opens the component running, full page. The container names the host
 and the component's source file; the app reads the host's story index through
 the server, takes the stories written beside that file

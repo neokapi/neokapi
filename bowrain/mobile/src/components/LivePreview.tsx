@@ -45,6 +45,36 @@ export function hasLivePreview(c: ReviewContainer): boolean {
   return c.kind === "component" && c.preview?.kind === "storybook" && !!c.collectionId;
 }
 
+/**
+ * The stories that render a container's component, ranked, read from its
+ * Storybook's index (one query, cached, shared by the context page and the
+ * live view). Empty until the index loads, and for a component with no story
+ * beside its source file, which then has nothing to show running.
+ */
+export function useLiveStories(
+  container: ReviewContainer | undefined,
+  scope: ProjectScope,
+  loadIndex?: (collectionId: string) => Promise<StoryIndex>,
+) {
+  const preview = container?.preview;
+  const collectionId = container?.collectionId ?? "";
+  const title = container?.title ?? "";
+  const index = useQuery({
+    queryKey: ["story-index", scope.workspace, scope.project, collectionId],
+    queryFn: () => loadIndex!(collectionId),
+    enabled: !!loadIndex && !!container && hasLivePreview(container),
+    staleTime: 10 * 60_000,
+  });
+  const stories = useMemo(
+    () =>
+      index.data && preview
+        ? rankStories(storiesForSource(index.data, preview.sourceFile), title)
+        : [],
+    [index.data, preview, title],
+  );
+  return { stories, index };
+}
+
 /** The script that answers the story's ready message with the dictionary. */
 export function previewScript(locale: string, translations: Record<string, string>): string {
   // markKeys asks the runtime to bracket each message with its key
@@ -219,21 +249,8 @@ export function LiveView({
 }: LiveViewProps) {
   const { t } = useTranslation();
   const preview = container.preview;
-  const collectionId = container.collectionId ?? "";
   const units = container.units;
-  const index = useQuery({
-    queryKey: ["story-index", scope.workspace, scope.project, collectionId],
-    queryFn: () => loadIndex(collectionId),
-    enabled: !!preview && !!collectionId,
-    staleTime: 10 * 60_000,
-  });
-  const stories = useMemo(
-    () =>
-      index.data && preview
-        ? rankStories(storiesForSource(index.data, preview.sourceFile), container.title)
-        : [],
-    [index.data, preview, container.title],
-  );
+  const { stories, index } = useLiveStories(container, scope, loadIndex);
 
   const [source, setSource] = useState(false);
   const [at, setAt] = useState(() =>
