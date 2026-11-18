@@ -3,6 +3,7 @@ export * from "./editions.ts";
 export * from "./vocabulary.ts";
 export * from "./preview.ts";
 export * from "./annotation.ts";
+export * from "./anchor.ts";
 export * from "./kbf.ts";
 export * from "./run-projection.ts";
 export * from "./code-display.ts";

@@ -484,16 +484,23 @@ func targetMeta(key model.EditionKey, e model.Edition) *TargetMeta {
 	return m
 }
 
-// overlayViews serializes every stand-off overlay on the block, resolving each
-// span's covered text from the side it annotates (source or a target variant).
+// overlayViews serializes every stand-off overlay on the block.
 func overlayViews(b *model.Block) []OverlayView {
-	if len(b.Overlays) == 0 {
+	return OverlayViewsOf(b, b.Overlays)
+}
+
+// OverlayViewsOf serializes overlays over the editions of b, resolving each
+// span's covered text from the edition it annotates (source or a target
+// variant). A surface that computes overlays for a block without recording them
+// on it, such as a check's spans for one response, serializes them with this.
+func OverlayViewsOf(b *model.Block, overlays []model.Overlay) []OverlayView {
+	if len(overlays) == 0 {
 		return nil
 	}
 	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
-	out := make([]OverlayView, 0, len(b.Overlays))
-	for i := range b.Overlays {
-		o := &b.Overlays[i]
+	out := make([]OverlayView, 0, len(overlays))
+	for i := range overlays {
+		o := &overlays[i]
 		// Overlays are positional by construction; block-scoped annotations are
 		// rendered separately by annotationViews via AnnoMap.
 		side := "source"

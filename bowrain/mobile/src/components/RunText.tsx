@@ -4,7 +4,17 @@
 // code goes through codeDisplays and CodeChip. The projection is a RunSpec
 // over every run kind, so no kind can be dropped without saying so; a plural
 // or select shows every form, labelled.
-import { codeDisplays, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+//
+// Marks (terms) arrive as run anchors computed by the engine and are drawn
+// where they point: the component matches no text of its own.
+import {
+  codeDisplays,
+  projectRuns,
+  textRunSpansForAnchor,
+  type AnchorLike,
+  type ModelRunSpec,
+  type Run,
+} from "@neokapi/kapi-format";
 import { Fragment, type ReactNode } from "react";
 import { Text } from "react-native";
 
@@ -17,6 +27,68 @@ export interface RunTextProps {
   /** Secondary ink, for the source above a translation. */
   muted?: boolean;
   testID?: string;
+  /** Spans to mark, such as terms, each opening something when tapped. */
+  marks?: readonly RunMark[];
+}
+
+/** A span of the runs to mark, by run anchor, and what tapping it does. */
+export interface RunMark {
+  anchor: AnchorLike;
+  onPress: () => void;
+}
+
+/** A marked part of one text run, as UTF-16 indices into its text. */
+interface MarkedPart {
+  start: number;
+  end: number;
+  mark: RunMark;
+}
+
+/**
+ * The marked parts of each top-level text run, in order, keyed by the run.
+ * Where two marks overlap, the one that starts first is kept.
+ */
+export function markedParts(
+  runs: readonly Run[],
+  marks: readonly RunMark[],
+): Map<Run, MarkedPart[]> {
+  const out = new Map<Run, MarkedPart[]>();
+  for (const mark of marks) {
+    for (const span of textRunSpansForAnchor(runs as Run[], mark.anchor)) {
+      const run = runs[span.run];
+      out.set(run, [...(out.get(run) ?? []), { start: span.start, end: span.end, mark }]);
+    }
+  }
+  for (const [run, parts] of out) {
+    parts.sort((a, b) => a.start - b.start);
+    out.set(
+      run,
+      parts.filter((p, i) => i === 0 || p.start >= parts[i - 1].end),
+    );
+  }
+  return out;
+}
+
+function markText(text: string, parts: readonly MarkedPart[]): ReactNode[] {
+  const out: ReactNode[] = [];
+  let at = 0;
+  parts.forEach((p, j) => {
+    if (p.start > at) out.push(text.slice(at, p.start));
+    out.push(
+      <Text
+        key={j}
+        testID="run-mark"
+        accessibilityRole="button"
+        onPress={p.mark.onPress}
+        className="text-primary underline"
+      >
+        {text.slice(p.start, p.end)}
+      </Text>,
+    );
+    at = p.end;
+  });
+  if (at < text.length) out.push(text.slice(at));
+  return out;
 }
 
 function branchList(prefix: string, branches: Record<string, Run[] | undefined>): ReactNode {
@@ -33,7 +105,11 @@ function branchList(prefix: string, branches: Record<string, Run[] | undefined>)
 // a link or a styled span sits in a sentence.
 const IN_PAIR = "bg-chip/40 underline decoration-dotted";
 
-function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
+function spec(
+  runs: readonly Run[],
+  prefix: string,
+  parts?: Map<Run, MarkedPart[]>,
+): ModelRunSpec<ReactNode> {
   const code = codeDisplays(runs);
   let i = 0;
   let depth = 0;
@@ -41,7 +117,7 @@ function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
   return {
     text: (r) => (
       <Text key={key()} className={depth > 0 ? IN_PAIR : undefined}>
-        {r.text}
+        {parts?.get(r) ? markText(r.text, parts.get(r)!) : r.text}
       </Text>
     ),
     ph: ({ ph }) => <CodeChip key={key()} display={code.ph(ph)} testID="run-chip" explain />,
@@ -76,8 +152,12 @@ function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
   };
 }
 
-function renderRuns(runs: readonly Run[], prefix: string): ReactNode[] {
-  return projectRuns(runs, spec(runs, prefix));
+function renderRuns(
+  runs: readonly Run[],
+  prefix: string,
+  parts?: Map<Run, MarkedPart[]>,
+): ReactNode[] {
+  return projectRuns(runs, spec(runs, prefix, parts));
 }
 
 const SIZES = {
@@ -86,13 +166,14 @@ const SIZES = {
   xl: "text-2xl leading-9 font-medium",
 } as const;
 
-export function RunText({ runs, size = "base", muted = false, testID }: RunTextProps) {
+export function RunText({ runs, size = "base", muted = false, testID, marks }: RunTextProps) {
+  const parts = marks?.length ? markedParts(runs, marks) : undefined;
   return (
     <Text
       testID={testID}
       className={`${muted ? "text-muted-foreground" : "text-foreground"} ${SIZES[size]}`}
     >
-      {renderRuns(runs, "r")}
+      {renderRuns(runs, "r", parts)}
     </Text>
   );
 }

@@ -4,7 +4,7 @@
  * the server leaves out is optional here.
  */
 
-import type { ReviewContext } from "@neokapi/contract-types";
+import type { OverlayView, ReviewContext } from "@neokapi/contract-types";
 import type { Run } from "@neokapi/kapi-format";
 
 /** The access and refresh tokens the server issues (venueauth.TokenResponse). */
@@ -753,4 +753,27 @@ export interface ContainerUnit {
    * syntax. It goes to a running component and is never drawn.
    */
   runtimeText?: string;
+  /**
+   * The term check's spans over the source and the translation, run-anchored
+   * (unitTerms reads them). A client draws them and matches no text itself.
+   */
+  overlays?: OverlayView[];
+}
+
+/** One term of a concept, in one language. */
+export interface ConceptTerm {
+  text: string;
+  locale: string;
+  status: string;
+  partOfSpeech?: string;
+  note?: string;
+}
+
+/** A concept in the workspace terms store: one meaning and its terms in each language. */
+export interface Concept {
+  id: string;
+  domain?: string;
+  definition?: string;
+  doNotTranslate: boolean;
+  terms: ConceptTerm[];
 }

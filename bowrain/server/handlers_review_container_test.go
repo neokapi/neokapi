@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // containerProject is a French project with a React component's strings
@@ -172,4 +174,56 @@ func TestReviewContainer_NamesTheLivePreviewOfAComponent(t *testing.T) {
 	doc := readContainer(t, s, wsID, projID, ids["Restart."])
 	assert.Nil(t, doc.Preview)
 	assert.Empty(t, doc.Units[1].MessageKey)
+}
+
+func TestReviewContainer_CarriesTheTermChecksSpans(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	projID, ids := containerProject(t, s, wsID)
+	ctx := t.Context()
+	tb, err := s.wsStores.getTerms(ctx, "rc") // the slug deckCall reads under
+	require.NoError(t, err)
+	for _, c := range []terms.Concept{
+		{ID: "c-server", Terms: []terms.Term{
+			{Text: "server", Locale: "en", Status: model.TermPreferred},
+			{Text: "serveur", Locale: "fr", Status: model.TermPreferred},
+		}},
+		{ID: "c-retry", Terms: []terms.Term{
+			{Text: "try again", Locale: "en", Status: model.TermPreferred},
+			{Text: "recommencer", Locale: "fr", Status: model.TermPreferred},
+		}},
+	} {
+		require.NoError(t, tb.AddConcept(ctx, c))
+	}
+
+	got := readContainer(t, s, wsID, projID, ids["Bowrain keeps trying."])
+	require.Len(t, got.Units, 3)
+
+	// "Can't reach your server" / "Impossible de joindre le serveur"
+	server := got.Units[0].Overlays
+	require.Len(t, server, 2, "a span over the source and one over the translation")
+	assert.Equal(t, string(model.OverlayTerm), server[0].Type)
+	assert.Equal(t, "source", server[0].Side)
+	require.Len(t, server[0].Spans, 1)
+	assert.Equal(t, "server", server[0].Spans[0].Text)
+	assert.Equal(t, "c-server", server[0].Spans[0].Props["concept_id"])
+	assert.Equal(t, "true", server[0].Spans[0].Props["satisfied"])
+	assert.Equal(t, "fr", server[1].Side)
+	assert.Equal(t, []string{"serveur"}, spanTexts(server[1]))
+
+	assert.Empty(t, got.Units[1].Overlays, "Bowrain keeps trying.")
+
+	// "Try again" / "Réessayer": the source uses the term and the
+	// translation holds no rendering, the term-check violation.
+	retry := got.Units[2].Overlays
+	require.Len(t, retry, 1)
+	assert.Equal(t, "Try again", retry[0].Spans[0].Text)
+	assert.Equal(t, "false", retry[0].Spans[0].Props["satisfied"])
+}
+
+func spanTexts(o editor.OverlayView) []string {
+	var out []string
+	for _, s := range o.Spans {
+		out = append(out, s.Text)
+	}
+	return out
 }

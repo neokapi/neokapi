@@ -11,7 +11,9 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -58,6 +60,11 @@ type containerUnit struct {
 	// it, codes in their native syntax. It goes to a running component and is
 	// never drawn by the client.
 	MessageText string `json:"message_text,omitempty"`
+	// Overlays are the term-check's spans over the source and the
+	// translation (coretools.TermCheckOverlays): where each demanded term sits,
+	// where the translation renders it, and whether it does. A client draws
+	// them by anchor and matches no text of its own.
+	Overlays []editor.OverlayView `json:"overlays,omitempty"`
 }
 
 // containerPreview is where a container can be seen running: the host its
@@ -141,8 +148,13 @@ func (s *Server) HandleGetReviewContainer(c echo.Context) error {
 	out := containerOf(sb, before, after)
 	out.Locale = loc
 	targetLoc := model.LocaleID(loc)
+	termCheck := s.resolveTermGate(ctx, proj, stream, proj.WorkspaceID).termCheckConfig(ctx, targetLoc)
 	for _, b := range out.blocks {
-		out.Units = append(out.Units, containerUnitOf(b, targetLoc, proj.DefaultSourceLanguage))
+		u := containerUnitOf(b, targetLoc, proj.DefaultSourceLanguage)
+		if termCheck != nil {
+			u.Overlays = editor.OverlayViewsOf(b.Block, coretools.TermCheckOverlays(termCheck, b.Block.SourceRuns(), u.TargetRuns))
+		}
+		out.Units = append(out.Units, u)
 	}
 	if out.Units == nil {
 		out.Units = []containerUnit{}

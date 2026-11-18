@@ -111,6 +111,9 @@ Done (PRs #3571 and the container PR):
   previous and next over the strings (the current one outlined in the running
   component) and over the stories (one that shows none of the strings is
   passed over).
+- terms marked in the container's strings on mobile from term-check's own
+  spans (`coretools.TermCheckOverlays`), each opening its concept, with
+  previous and next through the container's terms.
 
 Next, in the order that pays most per unit of work:
 

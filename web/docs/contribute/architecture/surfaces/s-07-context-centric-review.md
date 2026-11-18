@@ -277,6 +277,24 @@ is what they are for. `scripts/check-code-display.sh` fails when interface
 code reads a code's `data`, `equiv` or `disp` outside an allowlist, in
 `make lint`, the pre-push check and CI.
 
+### A surface draws the positions the engine recorded
+
+Where a review surface marks something inside a string (a term, a finding),
+the position comes from the engine as a run-anchored overlay (`model.Overlay`, the stand-off layer of
+[F-02](../foundations/f-02-content-model.md)), and the surface draws what the anchor covers. It
+never searches the text for the thing again. A second matcher in a client
+disagrees with the check sooner or later: it marks a word the gate never
+counted, or calls a translation compliant that the gate fails.
+
+For terms, the producer is the term check itself. `coretools.TermCheckUses`
+returns its decision rule by rule with byte ranges in the source and the
+target, `TermCheckViolations` reports from it, and `TermCheckOverlays` draws
+it as `term` overlays on both editions, each span carrying the verdict. A
+surface that shows "this translation uses the term" therefore shows the
+gate's answer. The anchor arithmetic a client needs (`runsPlainText`,
+`charSpanForAnchor`, `textRunSpansForAnchor`) lives once, in
+`@neokapi/kapi-format`, mirroring `model.RunsText` and `model.RangeAnchor`.
+
 ### The AI actions inherit the point
 
 An AI action taken from a review client builds its tool through the same

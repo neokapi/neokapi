@@ -518,6 +518,7 @@ export default function DeckScreen() {
           },
           decided: decidedBlocks,
           loadIndex: (collectionId) => client.storyIndex(scope, collectionId),
+          loadConcept: (conceptId) => client.concept(scope.workspace, conceptId),
         }}
       />
 
