@@ -7,3 +7,4 @@ export * from "./client.ts";
 export * from "./changes.ts";
 export * from "./diff.ts";
 export * from "./feed.ts";
+export * from "./preview.ts";

@@ -11,6 +11,7 @@ import {
   type DeckCard,
   type ProjectScope,
   type ReviewContainer,
+  type StoryIndex,
 } from "@neokapi/bowrain-client";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState, type ComponentRef, type ReactNode } from "react";
@@ -18,6 +19,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-nati
 import { useTranslation } from "react-i18next";
 
 import { fileName } from "../lib/where";
+import { hasLivePreview, LivePreview } from "./LivePreview";
 import { RunText } from "./RunText";
 
 /** The query key of one block's container in one language. */
@@ -42,6 +44,11 @@ export interface InContextViewProps {
   decided?: ReadonlySet<string>;
   /** Drawn below the units: where a page review goes next. */
   footer?: ReactNode;
+  /**
+   * Reads a collection's story index. Given, a component whose collection
+   * declares a Storybook is shown running above its units.
+   */
+  loadIndex?: (collectionId: string) => Promise<StoryIndex>;
 }
 
 export function InContextView({
@@ -52,11 +59,13 @@ export function InContextView({
   onFix,
   decided,
   footer,
+  loadIndex,
 }: InContextViewProps) {
   const { t } = useTranslation();
   const [reading, setReading] = useState<Reading>("translation");
   const [selected, setSelected] = useState<string>(card.blockId);
   const [approved, setApproved] = useState<ReadonlySet<string>>(new Set());
+  const [live, setLive] = useState(true);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const placed = useRef(false);
 
@@ -112,10 +121,31 @@ export function InContextView({
         <Text className="text-muted-foreground font-mono text-xs" numberOfLines={1}>
           {fileName(c.item)}
         </Text>
-        <ReadingSwitch value={reading} onChange={setReading} />
+        <View className="flex-row flex-wrap items-center gap-2">
+          <ReadingSwitch value={reading} onChange={setReading} />
+          {loadIndex && hasLivePreview(c) ? (
+            <Pressable
+              testID="context-live"
+              accessibilityRole="switch"
+              accessibilityState={{ checked: live }}
+              onPress={() => setLive((v) => !v)}
+              className={`rounded-lg px-3 py-1 ${live ? "bg-primary/15" : "bg-muted"}`}
+            >
+              <Text className="text-foreground text-sm font-semibold">{t("live.toggle")}</Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <ScrollView ref={scroll} contentContainerClassName="gap-3 px-4 py-4 pb-24">
+        {loadIndex && live && hasLivePreview(c) ? (
+          <LivePreview
+            container={c}
+            scope={scope}
+            loadIndex={loadIndex}
+            source={reading === "source"}
+          />
+        ) : null}
         {c.moreBefore ? <More /> : null}
         {c.units.map((u) => (
           <View

@@ -42,6 +42,7 @@ import type {
   ReviewContainer,
   DeckPage,
   DeckPages,
+  StoryIndex,
   ContainerUnit,
 } from "./types.ts";
 
@@ -180,6 +181,8 @@ export interface BowrainClient {
   reviewContext(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContext>;
   /** The block's container: its component, its section, or the blocks around it. */
   reviewContainer(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContainer>;
+  /** The story index of a collection's preview host, read through the server. */
+  storyIndex(scope: ProjectScope, collectionId: string): Promise<StoryIndex>;
   /** Ready-made fixes for one card, or null when the server has no such route. */
   fixCandidates(
     scope: ProjectScope,
@@ -472,6 +475,12 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       return containerFromServer(body);
     },
 
+    storyIndex(scope, collectionId) {
+      return get<StoryIndex>(
+        `/${enc(scope.workspace)}/${enc(scope.project)}/collections/${stream(scope)}/${enc(collectionId)}/preview/index`,
+      );
+    },
+
     async fixCandidates(scope, card, o = {}) {
       try {
         const body = await get<ServerFixCandidates>(
@@ -675,6 +684,8 @@ interface ServerContainer {
   more_before?: boolean;
   more_after?: boolean;
   next_waiting?: string;
+  collection_id?: string;
+  preview?: { kind: string; url: string; source_file: string };
   units?: {
     block_id: string;
     item_name: string;
@@ -687,6 +698,8 @@ interface ServerContainer {
     waiting?: boolean;
     source_revision: string;
     target_revision: string;
+    message_key?: string;
+    message_text?: string;
   }[];
 }
 
@@ -700,6 +713,10 @@ export function containerFromServer(c: ServerContainer): ReviewContainer {
     moreBefore: c.more_before ?? false,
     moreAfter: c.more_after ?? false,
     nextWaiting: c.next_waiting || undefined,
+    collectionId: c.collection_id || undefined,
+    preview: c.preview
+      ? { kind: c.preview.kind, url: c.preview.url, sourceFile: c.preview.source_file }
+      : undefined,
     units: (c.units ?? []).map((u) => ({
       blockId: u.block_id,
       item: u.item_name,
@@ -712,6 +729,8 @@ export function containerFromServer(c: ServerContainer): ReviewContainer {
       waiting: u.waiting ?? false,
       sourceRevision: u.source_revision,
       targetRevision: u.target_revision,
+      messageKey: u.message_key || undefined,
+      runtimeText: u.message_text || undefined,
     })),
   };
 }

@@ -27,7 +27,7 @@ Two separate failures:
 | Fact | Where it is recorded | Reaches the server |
 | --- | --- | --- |
 | React string's component, file, line, element, JSX path | `model.BlockProperties` from the React extractor (`packages/i18n-react`) | yes, as block properties |
-| Story id, snapshot path, sample values for a string | `model.BlockPreviewHints` | the type exists; nothing fills it |
+| Story id, snapshot path, sample values for a string | `model.BlockPreviewHints` | the type exists; nothing fills it. Surfaces match a story to a component by file name at read time instead |
 | Heading and its level | markdown reader (`Type: "heading"`, `level`), structure annotation | yes |
 | Role, page and bounding box | structure and geometry annotations (`core/model/structure.go`) | annotations, partly |
 | Reading order | block `position`, set by a push | yes |
@@ -77,8 +77,10 @@ cannot (S-07):
    data. Needs only the store, so a phone can draw it.
 4. **Neighbourhood**: before and after, which every client holds.
 
-The mobile app draws rung 3. Rungs 1 and 2 need a WebView, which is a
-native module and therefore a new build, not an over-the-air update.
+The mobile app draws rung 1 for a component whose collection declares a
+Storybook, and rung 3 otherwise. The live preview is a WebView, a native
+module, so it reaches a phone through a new build (app version 0.2.0), not
+an over-the-air update.
 
 ## The code-display rule
 
@@ -101,25 +103,21 @@ Done (PRs #3571 and the container PR):
 - the mobile context page and the swipe down;
 - the web review session opening the document at the block;
 - the mobile deck opening on pages (`GET …/review-deck/:ref/pages`), with a
-  document walked section by section.
+  document walked section by section;
+- live component previews on mobile: the container names its collection's
+  Storybook and the component's source file, the app finds the story beside
+  that file in the host's index, loads it in a WebView and posts the
+  container's translations into it.
 
 Next, in the order that pays most per unit of work:
 
-1. **Live component previews on mobile.** Add `react-native-webview` in the
-   next native build and load the collection's Storybook story for the
-   block's component with the pending translation, as the web `StoryPreview`
-   does. Needs the story id per string (item 2).
-2. **Fill the preview hints.** Have the React extractor record a story id per
-   component when the project has a Storybook (`BlockPreviewHints.StoryID`),
-   so a string maps to the story that renders it without a lookup.
-3. **Rendered documents on mobile.** With the WebView in place, show the
+1. **Rendered documents on mobile.** With the WebView in place, show the
    item's preview HTML in the target language with the block marked, for
    markdown and HTML items (rung 2).
-4. **Review by page on web.** The pages route serves Bowrain web as it serves
+2. **Review by page on web.** The pages route serves Bowrain web as it serves
    the app.
-5. **Screenshots.** Deferred by the founder (2026-11-18). The harness
-   already drives real screens; capturing one
-   per component and attaching it as `SnapshotPath` gives a still image where
+3. **Screenshots.** Deferred by the founder (2026-11-18). The harness
+   already drives real screens; capturing one per component and attaching it as `SnapshotPath` gives a still image where
    no live render is reachable (rung 1.5).
 
 ## Decisions

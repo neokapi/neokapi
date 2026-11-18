@@ -145,6 +145,7 @@ export default function PageScreen() {
         onApprove={(c) => record(c, "approve")}
         onFix={(c) => setFixing(c)}
         footer={footer}
+        loadIndex={(collectionId) => client.storyIndex(scope, collectionId)}
       />
       {last?.phase === "held" ? (
         <UndoSnackbar entry={last} online={online} onUndo={onUndo} />

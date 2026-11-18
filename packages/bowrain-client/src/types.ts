@@ -675,6 +675,33 @@ export interface ReviewContainer {
    * reviewer walking a document goes next. Absent when none waits.
    */
   nextWaiting?: string;
+  /** The collection of the container's item. */
+  collectionId?: string;
+  /** Where a component's container runs, when its collection declares a host. */
+  preview?: ContainerPreview;
+}
+
+/** A preview host a component can be seen running in. */
+export interface ContainerPreview {
+  /** The host kind, such as `storybook`. */
+  kind: string;
+  url: string;
+  /** The component's source path, which names the story that renders it. */
+  sourceFile: string;
+}
+
+/** One story, as a Storybook's `index.json` describes it. */
+export interface StoryEntry {
+  id: string;
+  title: string;
+  name: string;
+  importPath: string;
+  type?: string;
+}
+
+/** The `index.json` a Storybook serves. */
+export interface StoryIndex {
+  entries: Record<string, StoryEntry>;
 }
 
 /**
@@ -719,4 +746,11 @@ export interface ContainerUnit {
   waiting: boolean;
   sourceRevision: string;
   targetRevision: string;
+  /** The key a running component looks the string up by. */
+  messageKey?: string;
+  /**
+   * The translation as the runtime's catalog holds it, codes in their native
+   * syntax. It goes to a running component and is never drawn.
+   */
+  runtimeText?: string;
 }

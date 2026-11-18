@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"slices"
 	"strconv"
@@ -49,6 +50,25 @@ type containerUnit struct {
 	Waiting        bool   `json:"waiting"`
 	SourceRevision string `json:"source_revision"`
 	TargetRevision string `json:"target_revision"`
+	// MessageKey is the key a running component looks the string up by (the
+	// block's hash property), so a live preview can render the translation
+	// in place. Empty for a block no runtime addresses.
+	MessageKey string `json:"message_key,omitempty"`
+	// MessageText is the translation in the form the runtime's catalog holds
+	// it, codes in their native syntax. It goes to a running component and is
+	// never drawn by the client.
+	MessageText string `json:"message_text,omitempty"`
+}
+
+// containerPreview is where a container can be seen running: the host its
+// collection declares, and the component file the units were extracted from,
+// which names the story that renders them.
+type containerPreview struct {
+	// Kind is the host kind, such as storybook.
+	Kind string `json:"kind"`
+	URL  string `json:"url"`
+	// SourceFile is the component's source path.
+	SourceFile string `json:"source_file"`
 }
 
 // reviewContainerResponse is the body of GET .../container.
@@ -69,6 +89,11 @@ type reviewContainerResponse struct {
 	// container, in document order: where a reviewer walking the document
 	// goes next. Empty when none waits.
 	NextWaiting string `json:"next_waiting,omitempty"`
+	// CollectionID is the collection of the container's item.
+	CollectionID string `json:"collection_id,omitempty"`
+	// Preview is set for a component whose collection declares a preview
+	// host.
+	Preview *containerPreview `json:"preview,omitempty"`
 }
 
 // HandleGetReviewContainer answers GET /:ws/:id/blocks/:ref/:bid/container
@@ -122,6 +147,9 @@ func (s *Server) HandleGetReviewContainer(c echo.Context) error {
 	if out.Units == nil {
 		out.Units = []containerUnit{}
 	}
+	if sb.ItemName != "" {
+		out.CollectionID, out.Preview = s.containerPreviewOf(ctx, pid, stream, sb, out.Kind)
+	}
 	if decks, ok := store.ReviewDeckStores(s.ContentStore); ok && sb.ItemName != "" && len(out.blocks) > 0 {
 		q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(s.deckPolicy())}
 		last := out.blocks[len(out.blocks)-1].Block.ID
@@ -130,6 +158,24 @@ func (s *Server) HandleGetReviewContainer(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusOK, out.reviewContainerResponse)
+}
+
+// containerPreviewOf names the item's collection and, for a component whose
+// collection declares a preview host, where it runs.
+func (s *Server) containerPreviewOf(ctx context.Context, pid, stream string, sb *venue.StoredBlock, kind string) (string, *containerPreview) {
+	item, err := s.ContentStore.GetItem(ctx, pid, stream, sb.ItemName)
+	if err != nil || item == nil || item.CollectionID == "" {
+		return "", nil
+	}
+	file := sb.Block.Properties["file"]
+	if kind != "component" || file == "" {
+		return item.CollectionID, nil
+	}
+	col, err := s.ContentStore.GetCollection(ctx, pid, item.CollectionID)
+	if err != nil || col == nil || col.PreviewKind == "" || col.PreviewURL == "" {
+		return item.CollectionID, nil
+	}
+	return item.CollectionID, &containerPreview{Kind: col.PreviewKind, URL: col.PreviewURL, SourceFile: file}
 }
 
 // container is a response with the blocks it was built from.
@@ -226,6 +272,12 @@ func containerUnitOf(sb *venue.StoredBlock, loc model.LocaleID, sourceLang model
 		u.TargetRuns = target.Runs
 		u.TargetStatus = string(target.Status)
 		u.Waiting = target.Status != model.Status(model.TargetStatusEstablished)
+	}
+	if key := b.Properties["hash"]; key != "" {
+		u.MessageKey = key
+		if len(u.TargetRuns) > 0 {
+			u.MessageText = model.RenderRunsWithData(u.TargetRuns)
+		}
 	}
 	return u
 }
