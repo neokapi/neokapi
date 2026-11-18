@@ -253,7 +253,7 @@ In order, with the counts from 2026-11-19:
 ## Build order
 
 1. The review plan endpoint (server), with the levels and counts. Built.
-2. The plan on mobile. Built; the web Overview next.
+2. The plan on mobile and on the web Overview. Built.
 3. Term candidates: sampling across coordinates, one candidate shape, keep
    creates a scoped concept, translations proposed (the section above).
 4. Context deck ordered by reach, source term and translations together.

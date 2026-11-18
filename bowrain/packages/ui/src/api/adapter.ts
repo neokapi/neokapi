@@ -1,3 +1,4 @@
+import type { ReviewInvolvement, ServerReviewPlan } from "@neokapi/bowrain-client";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
   KeptRule,
@@ -823,6 +824,25 @@ export interface ApiAdapter {
     projectId: string,
     req?: ApprovePassingRequest,
   ): Promise<ApprovePassingResult>;
+
+  /**
+   * The project's review plan for the caller (GET /:ws/:id/review/plan): the
+   * coordinates, the key language, the exceptions, the pages and what the
+   * involvement leaves to the checks, in the order a reviewer works them.
+   */
+  getReviewPlan?(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ServerReviewPlan>;
+  /** Confirms the project's coordinates as the plan lists them. */
+  confirmReviewCoordinates?(workspaceSlug: string, projectId: string): Promise<void>;
+  /** Sets how much the project's reviewers can be involved. */
+  setReviewInvolvement?(
+    workspaceSlug: string,
+    projectId: string,
+    involvement: ReviewInvolvement,
+  ): Promise<void>;
 
   // Back-to-source review (RV-F): a reviewer proposes a source-text fix; a source
   // owner (PermEditSource) approves it — applying it and re-drafting every locale
