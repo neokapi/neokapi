@@ -22,24 +22,22 @@ export interface ReviewPlanPanelProps {
   stream: string;
 }
 
-const INVOLVEMENTS: { value: ReviewInvolvement; label: string; detail: string }[] = [
-  {
-    value: "context",
-    label: "Context",
-    detail:
-      "You decide the coordinates, the key language and the exceptions, and read a sample of pages. Content that clears every check is settled by the checks.",
-  },
-  {
-    value: "interfaces",
-    label: "Interfaces",
-    detail: "As Context, and you read every interface page.",
-  },
-  {
-    value: "every",
-    label: "Every translation",
-    detail: "A person establishes every translation. Nothing is settled by the checks.",
-  },
-];
+/** What each involvement leaves to a person and to the checks. */
+function InvolvementDetail({ involvement }: { involvement: ReviewInvolvement }) {
+  switch (involvement) {
+    case "interfaces":
+      return <>As Context, and you read every interface page.</>;
+    case "every":
+      return <>A person establishes every translation. Nothing is settled by the checks.</>;
+    default:
+      return (
+        <>
+          You decide the coordinates, the key language and the exceptions, and read a sample of
+          pages. Content that clears every check is settled by the checks.
+        </>
+      );
+  }
+}
 
 function reviewPlanQueryKey(ws: string, projectId: string, stream: string) {
   return ["review-plan", ws, projectId, stream] as const;
@@ -112,7 +110,6 @@ export function ReviewPlanSteps({
   const failing = plan.languages.reduce((n, l) => n + l.failing, 0);
   const pages = plan.languages.reduce((n, l) => n + l.pages, 0);
   const settleable = plan.languages.reduce((n, l) => n + l.settleable, 0);
-  const involvement = INVOLVEMENTS.find((i) => i.value === plan.involvement) ?? INVOLVEMENTS[0];
   const params = { workspace: ws, projectId, stream };
 
   return (
@@ -128,16 +125,15 @@ export function ReviewPlanSteps({
             disabled={!onInvolvement || busy}
             onChange={(e) => onInvolvement?.(e.target.value as ReviewInvolvement)}
           >
-            {INVOLVEMENTS.map((i) => (
-              <option key={i.value} value={i.value}>
-                {i.label}
-              </option>
-            ))}
+            <option value="context">Context</option>
+            <option value="interfaces">Interfaces</option>
+            <option value="every">Every translation</option>
           </select>
         </label>
       </div>
       <p className="text-muted-foreground text-sm">
-        Decide what generates the text before you read the text. {involvement.detail}
+        Decide what generates the text before you read the text.{" "}
+        <InvolvementDetail involvement={plan.involvement} />
       </p>
       <ol className="space-y-2">
         <Step
