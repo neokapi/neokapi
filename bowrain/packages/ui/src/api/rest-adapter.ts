@@ -1,3 +1,4 @@
+import type { ReviewInvolvement, ServerReviewPlan } from "@neokapi/bowrain-client";
 import { ROUTES as BOWRAIN_ROUTES, feedQueryString } from "@neokapi/bowrain-client";
 import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
@@ -1817,6 +1818,32 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/approve-passing`, {
       method: "POST",
       body: JSON.stringify(req),
+    });
+  }
+
+  async getReviewPlan(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ServerReviewPlan> {
+    const q = stream ? `?stream=${encodeURIComponent(stream)}` : "";
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan${q}`);
+  }
+
+  async confirmReviewCoordinates(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/coordinates`, {
+      method: "POST",
+    });
+  }
+
+  async setReviewInvolvement(
+    workspaceSlug: string,
+    projectId: string,
+    involvement: ReviewInvolvement,
+  ): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/involvement`, {
+      method: "PUT",
+      body: JSON.stringify({ involvement }),
     });
   }
 

@@ -1,0 +1,98 @@
+---
+sidebar_position: 4
+title: Reviewing a large project
+slug: /reviewing-a-large-project
+description: How to review a project with more content than anyone can read. Decide the coordinates and the key language first, then the exceptions, then whole interfaces in context, and let the checks settle the rest under a policy you set.
+keywords: [review, review plan, large project, involvement, key language, terms, coordinates, voice profile, policy, approve passing]
+---
+
+# Reviewing a large project
+
+A project connected to a real repository holds thousands of blocks in the
+source language, and as many again in each target language. You will not read
+them one by one, and you don't need to. Most of that text is generated from a
+few decisions: where each part of the project sits, which terms it uses, and
+how its voice sounds. Decide those, and the text follows.
+
+The **review plan** on each project puts those decisions in order. Each step
+reaches more content than the step below it, so you start at the top.
+
+## The five steps
+
+| Step | What you decide | How much one decision reaches |
+| --- | --- | --- |
+| 1. Coordinates | the products, channels and languages, and the voice profile each part of the project uses | every block in that part |
+| 2. Key language | the project's terms and voice rules, in the source language first, then each term's translation | every block that uses the term or meets the rule |
+| 3. Exceptions | content that fails a check, grouped by the rule it breaks | the blocks that rule names |
+| 4. Interfaces in context | whole screens, components and pages, read where they ship | the strings on the page |
+| 5. Settled by the checks | nothing: content that clears every check is established under your policy | |
+
+### 1. Coordinates
+
+The plan lists each part of the project with its product and channel, the
+voice profile bound there, and the languages the project translates into.
+These come from the project's recipe or from the context scan Bowrain runs
+when you connect a repository. Read them once and confirm them. A product
+filed under the wrong voice profile, or a language the project never ships,
+puts every block below it at the wrong point.
+
+### 2. Key language
+
+The context deck holds the terms and voice rules that wait for your review.
+Decide each term in the source language first, then its term in each language
+you review, while you know what the term means.
+
+A term you keep governs every block that uses it: the checks hold the source
+to it, translation uses it, and a translation that misses it fails. A term
+that has no translation in a language yet is counted on the plan, because
+until you decide one, every translation of that term is a guess.
+
+### 3. Exceptions
+
+The plan counts the findings in the source and the translations that fail a
+check. Most findings are one rule broken many times. Decide whether the rule
+is right (change the rule, and every finding it raised clears) or the content
+is wrong (fix the source, and the translations are drafted again from it).
+
+### 4. Interfaces in context
+
+Read complete interfaces where they ship: a component in its running story, a
+document section with its heading. Read the source first, then each
+translation of the same page. On the phone, a language's deck opens on pages
+for this reason.
+
+How many pages you read depends on your involvement (below). Under
+**Context**, read a sample: enough to confirm that the decisions above read
+right.
+
+### 5. Settled by the checks
+
+Everything else is settled by the checks you have already decided. A
+translation that passes the checks, uses the terms and meets the voice bar is
+established as your decision: it is recorded in the decision ledger under your
+name, and anyone who rejects it later reopens it. The plan's last step shows
+how many translations qualify and establishes them when you ask.
+
+## Choosing your involvement
+
+Set how much your reviewers can be involved, and the plan follows:
+
+| Involvement | You read | The checks settle |
+| --- | --- | --- |
+| Context | the coordinates, the key language, the exceptions and a sample of pages | every translation that clears every check |
+| Interfaces | as Context, and every interface page | the translations the pages do not cover |
+| Every translation | everything | nothing |
+
+**Context** is the default, and it is the setting a single reviewer can keep
+up with on a large project. Choose **Interfaces** when a team can read every
+screen before a release, and **Every translation** for content where each
+sentence carries legal or safety weight. Changing it needs the permission to
+edit the project's settings.
+
+## Getting the source right first
+
+Every translation is made from the source, so the source comes first at every
+step: its terms before their translations, its findings before the
+translations' findings, its reading of a page before each translation of that
+page. Translation keeps running while you review the source; a source fix
+drafts the affected translations again on its own.

@@ -8,6 +8,12 @@
 import type { ChangeResult, ChangeSet, OverlayView } from "@neokapi/contract-types";
 import type { Run } from "@neokapi/kapi-format";
 
+import {
+  planFromServer,
+  type ReviewInvolvement,
+  type ReviewPlan,
+  type ServerReviewPlan,
+} from "./plan.ts";
 import type {
   Concept,
   AuthTokens,
@@ -186,6 +192,17 @@ export interface BowrainClient {
   storyIndex(scope: ProjectScope, collectionId: string): Promise<StoryIndex>;
   /** One concept of the workspace terms store, with its terms in every language. */
   concept(workspace: string, conceptId: string): Promise<Concept>;
+  /** The project's review plan for the caller. */
+  reviewPlan(scope: ProjectScope): Promise<ReviewPlan>;
+  /** Confirms the project's coordinates as the plan lists them. */
+  confirmCoordinates(scope: ProjectScope): Promise<void>;
+  /** Sets how much the project's reviewers can be involved. */
+  setInvolvement(scope: ProjectScope, involvement: ReviewInvolvement): Promise<void>;
+  /** Establishes every waiting translation that clears every bar, in the languages given. */
+  approvePassing(
+    scope: ProjectScope,
+    locales: string[],
+  ): Promise<{ approved: number; skipped: number }>;
   /** Ready-made fixes for one card, or null when the server has no such route. */
   fixCandidates(
     scope: ProjectScope,
@@ -482,6 +499,36 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       return get<StoryIndex>(
         `/${enc(scope.workspace)}/${enc(scope.project)}/collections/${stream(scope)}/${enc(collectionId)}/preview/index`,
       );
+    },
+
+    async reviewPlan(scope) {
+      return planFromServer(
+        await get<ServerReviewPlan>(
+          `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan${query({ stream: scope.stream })}`,
+        ),
+      );
+    },
+
+    async confirmCoordinates(scope) {
+      await send(`/${enc(scope.workspace)}/${enc(scope.project)}/review/plan/coordinates`, {
+        method: "POST",
+      });
+    },
+
+    async setInvolvement(scope, involvement) {
+      await send(`/${enc(scope.workspace)}/${enc(scope.project)}/review/plan/involvement`, {
+        method: "PUT",
+        body: JSON.stringify({ involvement }),
+      });
+    },
+
+    async approvePassing(scope, locales) {
+      const { body } = await send(
+        `/${enc(scope.workspace)}/${enc(scope.project)}/review/approve-passing`,
+        { method: "POST", body: JSON.stringify({ stream: scope.stream, locales }) },
+      );
+      const r = body as { approved?: number; skipped?: number } | undefined;
+      return { approved: r?.approved ?? 0, skipped: r?.skipped ?? 0 };
     },
 
     async concept(workspace, conceptId) {
