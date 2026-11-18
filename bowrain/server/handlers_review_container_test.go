@@ -27,7 +27,10 @@ func containerProject(t *testing.T, s *Server, wsID string) (string, map[string]
 
 	jsx := func(id, comp, element, src, tgt string) *model.Block {
 		b := pendingFrBlock(id, src, tgt)
-		b.Properties = map[string]string{"component": comp, "element": element, "jsxPath": element}
+		b.Properties = map[string]string{
+			"component": comp, "element": element, "jsxPath": element,
+			"file": "src/components/" + comp + ".tsx", "hash": "h-" + id,
+		}
 		return b
 	}
 	heading := func(id, level, src, tgt string) *model.Block {
@@ -140,4 +143,33 @@ func TestReviewContainer_NeedsATargetLocale(t *testing.T) {
 	projID, ids := containerProject(t, s, wsID)
 	rec := deckCall(t, s, s.HandleGetReviewContainer, wsID, projID, ids["Restart."], "u-reviewer", testReviewer, nil, url.Values{})
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestReviewContainer_NamesTheLivePreviewOfAComponent(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	projID, ids := containerProject(t, s, wsID)
+	ctx := t.Context()
+	col := &platstore.Collection{
+		ProjectID: projID, Name: "app", Stream: "main",
+		PreviewKind: "storybook", PreviewURL: "https://example.org/storybook/",
+	}
+	require.NoError(t, s.ContentStore.CreateCollection(ctx, col))
+	require.NoError(t, s.ContentStore.StoreItem(ctx, projID, "main", &platstore.Item{
+		Name: "OfflineLaunch.kbf.json", Format: "txt", ItemType: "file", CollectionID: col.ID,
+	}))
+
+	got := readContainer(t, s, wsID, projID, ids["Bowrain keeps trying."])
+	assert.Equal(t, col.ID, got.CollectionID)
+	require.NotNil(t, got.Preview)
+	assert.Equal(t, containerPreview{
+		Kind: "storybook", URL: "https://example.org/storybook/", SourceFile: "src/components/OfflineLaunch.tsx",
+	}, *got.Preview)
+	require.Len(t, got.Units, 3)
+	assert.Equal(t, "h-o2", got.Units[1].MessageKey)
+	assert.Equal(t, "Bowrain réessaie.", got.Units[1].MessageText)
+
+	// A document's section has no component to run.
+	doc := readContainer(t, s, wsID, projID, ids["Restart."])
+	assert.Nil(t, doc.Preview)
+	assert.Empty(t, doc.Units[1].MessageKey)
 }
