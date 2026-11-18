@@ -105,6 +105,20 @@ export default function ContextDeckScreen() {
     [decide],
   );
 
+  // A proposed term's actions say what they do to it: keep makes it a term
+  // of the project, and retire records that it is not one.
+  const proposed = top?.proposed ?? false;
+  const copy = useMemo(() => {
+    const prefix = proposed ? "context.candidate" : "context";
+    return {
+      keep: t(`${prefix}.keep`),
+      keepHint: t(`${prefix}.keepHint`),
+      retire: t(`${prefix}.retire`),
+      retireHint: t(`${prefix}.retireHint`),
+      retireTitle: t(`${prefix}.retireTitle`),
+    };
+  }, [proposed, t]);
+
   const onAction = useCallback(
     (action: SwipeAction) => {
       if (!top) return;
@@ -113,17 +127,17 @@ export default function ContextDeckScreen() {
         const id = contextCardId(top);
         setLater((ids) => [...ids.filter((x) => x !== id), id]);
       } else if (action === "reject") {
-        Alert.alert(t("context.retireTitle"), undefined, [
+        Alert.alert(copy.retireTitle, undefined, [
           {
             text: t("common.cancel"),
             style: "cancel",
             onPress: () => swipeRef.current?.restore("left"),
           },
-          { text: t("context.retire"), style: "destructive", onPress: () => record(top, "reject") },
+          { text: copy.retire, style: "destructive", onPress: () => record(top, "reject") },
         ]);
       }
     },
-    [top, record, t],
+    [top, record, t, copy],
   );
 
   const canKeep = top?.actions.includes("keep") ?? false;
@@ -200,7 +214,7 @@ export default function ContextDeckScreen() {
               canApprove={canKeep}
               canReject={canReject}
               canFix={false}
-              stamps={{ approve: t("context.keep"), reject: t("context.retire") }}
+              stamps={{ approve: copy.keep, reject: copy.retire }}
               onAction={onAction}
               progress={drag}
             >
@@ -233,11 +247,11 @@ export default function ContextDeckScreen() {
           canUndo={false}
           onUndo={() => {}}
           labels={{
-            approve: t("context.keep"),
-            approveHint: t("context.keepHint"),
+            approve: copy.keep,
+            approveHint: copy.keepHint,
             approveDenied: t("context.ownWork"),
-            reject: t("context.retire"),
-            rejectHint: t("context.retireHint"),
+            reject: copy.retire,
+            rejectHint: copy.retireHint,
           }}
           onAction={(a) => {
             if (swipeRef.current) swipeRef.current.swipe(a);

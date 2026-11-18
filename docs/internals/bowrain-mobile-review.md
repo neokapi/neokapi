@@ -262,6 +262,31 @@ published source applies acceptance sampling to translation review
 specifically, so the defaults are a starting point to measure, not a
 standard.
 
+### The context deck
+
+The context page of a project (`app/[ws]/[project]/context.tsx`) deals the
+project's context items one card at a time from `GET /:ws/:id/context/deck`:
+voice rules, concepts, term rules and notes. Keep records an attestation of
+the revision the card shows; retire drops a rule or a note, and proposes a
+change set that deprecates a concept's terms.
+
+Candidate terms come first. A context scan that names a project
+(`project` on `POST /:ws/context-scans`) samples every collection, extracts
+terms in the project's source language, counts the blocks that use each one
+over the whole project, and files each as a concept whose source term is
+proposed. A proposed term governs no check. Its card carries `proposed: true`,
+`reach` (the blocks in all and per collection) and, in `where`, the
+coordinates every block that uses it shares. The deck orders candidates by
+reach, most blocks first, ahead of every other card.
+
+The card reads **Proposed term**, **Used in N blocks** and the collections.
+Its actions say what they do:
+
+| Action | Label | What the server does |
+| --- | --- | --- |
+| Keep | Keep as a term | the proposed term becomes preferred, and the concept is attested as it then reads |
+| Retire | Not a term | the concept is deleted, and the term is recorded on the project so no later scan proposes it again |
+
 ## Guarding against careless approval
 
 - **Pace:** adults read silent non-fiction at about 238 words a minute, with

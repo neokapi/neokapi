@@ -633,6 +633,10 @@ func runWorker(dbURL string) error {
 		PlatformResolver: platformResolver,
 		BillingHooks:     translationDeps.BillingHooks,
 		QuotaStore:       pgQS,
+		// A scan that names a project samples its content and files the
+		// candidate terms in the workspace terms store the server reads.
+		ContentStore:  cs,
+		TermsResolver: translationDeps.TermsResolver,
 		LogFunc: func(stepID, level, message string, data map[string]string) {
 			slog.Info("brand-scan: "+message, "job_id", stepID, "level", level)
 		},

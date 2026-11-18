@@ -96,6 +96,46 @@ describe("ContextCard", () => {
     expect(screen.getByText("You wrote this, so another person keeps it.")).toBeTruthy();
   });
 
+  it("labels a proposed term and shows how many blocks use it, by collection", async () => {
+    const candidate: Card = {
+      item: { kind: "concept", id: "c9" },
+      kind: "concept",
+      revision: "u1",
+      terms: [{ text: "Dashpanel", locale: "en", status: "proposed" }],
+      text: "The panel listing a project's files.",
+      language: "en",
+      where: { level: "project", coordinates: { product: "bowrain" } },
+      author: { kind: "tool", name: "context-scan", agent_authored: true },
+      own_work: false,
+      basis: "agent_authored",
+      actions: ["keep", "reject", "later"],
+      proposed: true,
+      reach: {
+        blocks: 1204,
+        collections: [
+          { name: "bowrain-app", blocks: 1200 },
+          { name: "", blocks: 4 },
+        ],
+      },
+    };
+    await render(<ContextCard card={candidate} />);
+    expect(screen.getByTestId("context-kind")).toHaveTextContent("Proposed term");
+    expect(screen.getByTestId("context-reach")).toHaveTextContent(/Used in 1,204 blocks/);
+    const cols = screen.getAllByTestId("context-reach-collection");
+    expect(cols[0]).toHaveTextContent("bowrain-app: 1,200");
+    expect(cols[1]).toHaveTextContent("Files outside a collection: 4");
+    expect(screen.getByTestId("context-where")).toHaveTextContent(
+      "This project · product: bowrain",
+    );
+
+    await render(<ContextCard card={{ ...candidate, reach: undefined }} />);
+    expect(screen.getByTestId("context-reach")).toHaveTextContent("Not counted yet");
+
+    await render(<ContextCard card={concept} />);
+    expect(screen.queryByTestId("context-reach")).toBeNull();
+    expect(screen.getByTestId("context-kind")).toHaveTextContent("Term");
+  });
+
   it("marks a note recorded in an agent host's shell, changed since its review", async () => {
     await render(<ContextCard card={note} />);
     expect(screen.getByTestId("context-note")).toHaveTextContent(note.text ?? "");

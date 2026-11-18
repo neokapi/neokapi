@@ -1,6 +1,7 @@
 // One context item as a card in the context deck: its kind, language and
-// status as chips, the rule, term, voice rule or note itself, where it
-// applies, who wrote it, and the bulk operation that brought it in. The
+// status as chips, the rule, term, voice rule or note itself, how many blocks
+// a proposed term reaches, where it applies, who wrote it, and the bulk
+// operation that brought it in. The
 // server decides every field; the card only lays them out.
 import type { ContextCard as Card } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -172,6 +173,32 @@ function Body({ card, scope }: { card: Card; scope?: CardScope }) {
   );
 }
 
+/**
+ * How many blocks use a candidate term, and in which collections, as the scan
+ * that proposed it counted them.
+ */
+function Reach({ card }: { card: Card }) {
+  const { t } = useTranslation();
+  const reach = card.reach;
+  return (
+    <View className="gap-1" testID="context-reach">
+      <Label>
+        {reach
+          ? t("context.candidate.reach", { count: reach.blocks })
+          : t("context.candidate.reachNone")}
+      </Label>
+      {(reach?.collections ?? []).map((c) => (
+        <Text key={c.name} className="text-foreground text-sm" testID="context-reach-collection">
+          {t("context.candidate.collection", {
+            name: c.name || t("context.candidate.noCollection"),
+            count: c.blocks,
+          })}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 /** Where the item came from, when a bulk operation brought it in. Tapping it opens the origin sheet. */
 function OriginLine({ card, onOpen }: { card: Card; onOpen?: () => void }) {
   const { t } = useTranslation();
@@ -233,7 +260,11 @@ export function ContextCard({
       style={{ boxShadow: CARD_SHADOW }}
     >
       <View className="flex-row flex-wrap items-center gap-2 px-5 pt-5">
-        <Chip label={t(`context.kind.${card.kind}`)} accent testID="context-kind" />
+        <Chip
+          label={card.proposed ? t("context.candidate.label") : t(`context.kind.${card.kind}`)}
+          accent
+          testID="context-kind"
+        />
         {card.language ? <Chip label={card.language.toUpperCase()} /> : null}
         {card.status && card.status !== "established" ? (
           <Chip label={t(`context.status.${card.status}`)} testID="context-status" />
@@ -245,6 +276,8 @@ export function ContextCard({
 
       <ScrollView contentContainerClassName="gap-5 p-5">
         <Body card={card} scope={scope} />
+
+        {card.proposed ? <Reach card={card} /> : null}
 
         <View className="gap-1">
           <Label>{t("context.appliesIn")}</Label>

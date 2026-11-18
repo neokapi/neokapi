@@ -28,6 +28,14 @@ import (
 // and an in-memory knowledge store, signed in as whoever caller names.
 func deckSQLiteServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQLiteStore, *fakeKnowledgeStore) {
 	t.Helper()
+	e, cs, ks, _ := deckSQLiteServerWithTerms(t, caller)
+	return e, cs, ks
+}
+
+// deckSQLiteServerWithTerms is deckSQLiteServer that also hands back the
+// terms store the deck reads.
+func deckSQLiteServerWithTerms(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQLiteStore, *fakeKnowledgeStore, *testTermStore) {
+	t.Helper()
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = cs.Close() })
@@ -58,7 +66,7 @@ func deckSQLiteServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitest
 	srv.registerContextObjectRoutes(g)
 	srv.registerRulesDecideRoutes(g)
 	srv.registerContextDeckRoutes(g)
-	return e, cs, ks
+	return e, cs, ks, tb
 }
 
 func readContextDeck(t *testing.T, e *echo.Echo, pid, query string) contextDeckResponse {

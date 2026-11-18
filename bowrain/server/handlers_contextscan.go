@@ -176,7 +176,7 @@ func (s *Server) HandleCreateContextScan(c echo.Context) error {
 	}
 	if !req.HasSource() {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: "at least one source is required: paste_text, urls, upload_keys, or repo_url",
+			Error: "at least one source is required: paste_text, urls, upload_keys, repo_url, or project",
 		})
 	}
 	if len(req.URLs) > jobs.MaxContextScanURLs {
@@ -187,6 +187,18 @@ func (s *Server) HandleCreateContextScan(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	wsID, _ := c.Get("workspace_id").(string)
+
+	// A project is read by the worker, so it is checked here: it must exist
+	// and belong to the workspace the request is scoped to.
+	if req.Project = strings.TrimSpace(req.Project); req.Project != "" {
+		if s.ContentStore == nil {
+			return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "content store not configured"})
+		}
+		p, err := s.ContentStore.GetProject(ctx, req.Project)
+		if err != nil || p == nil || wsID == "" || p.WorkspaceID != wsID {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
+		}
+	}
 
 	// Credit pre-check (Epic 004 pattern): brand scans are always platform-key
 	// work, so a zero-credit workspace is refused before the job runs.

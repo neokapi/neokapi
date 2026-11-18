@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/termcandidate"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -252,9 +255,11 @@ func (s *Server) HandleContextDeckOrigin(c echo.Context) error {
 
 // HandleContextDeckDecide answers POST /:ws/:id/context/deck/decide: one
 // decision about one card. Keep records an attestation of the revision the
-// card showed, and for a suggestion keeps it first. Reject drops a term rule
-// or a note from the ledger, and proposes a change set that deprecates a
-// concept's terms. Later records nothing. A revision that has moved since the
+// card showed, and for a suggestion keeps it first. Keep on a candidate term
+// makes its proposed term preferred and attests the concept as it then
+// reads. Reject drops a term rule or a note from the ledger, deletes a
+// candidate term and records that it is not one, and proposes a change set
+// that deprecates the terms of any other concept. Later records nothing. A revision that has moved since the
 // card was dealt answers 409 stale with the card as it reads now.
 func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 	var req contextDeckDecideRequest
@@ -299,6 +304,20 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: req.Action + " is not offered on this card", Code: deckCodeNotOffered})
 	}
 
+	promoted := false
+	if card.Proposed && card.Item.Kind == contextop.ItemConcept {
+		if req.Action == deckActionReject {
+			return s.forgetCandidate(c, src, rv, card)
+		}
+		fresh, err := s.keepCandidate(c, src, rv, card)
+		if errors.Is(err, errCandidateGone) {
+			return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error(), Code: deckCodeNotPending})
+		}
+		if err != nil {
+			return serverErr(c, err)
+		}
+		card, promoted = fresh, true
+	}
 	if req.Action == deckActionReject && card.Item.Kind == contextop.ItemConcept {
 		return s.proposeConceptRetire(c, src, rv, card)
 	}
@@ -328,7 +347,111 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	s.emitDecidedContext(c, st, card.Item.ID, recorded)
+	if promoted {
+		outcome = deckOutcomeKept
+	}
 	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: outcome})
+}
+
+// errCandidateGone is a candidate term deleted between the deal and the
+// decision.
+var errCandidateGone = errors.New("the candidate term is gone")
+
+// keepCandidate makes a candidate term a term of the project: its proposed
+// source-language term becomes preferred. It returns the card as the deck
+// deals it after the write, whose revision the keep then attests, so the
+// concept does not come back for review as changed.
+//
+// A move to preferred is a governed transition (terms.IsGovernedTransition),
+// which other surfaces route through a change set. Here the keep is that
+// review: the scan proposed the term, and a person who may manage terms,
+// judged against the scan as the author (contextDeckCard.judge), decides it.
+// The attestation the keep records names the person and the basis.
+func (s *Server) keepCandidate(c echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) (contextDeckCard, error) {
+	if s.wsStores == nil {
+		return card, errKnowledgeUnavailable
+	}
+	ctx := c.Request().Context()
+	tb, err := s.wsStores.getTerms(ctx, src.wsSlug)
+	if err != nil {
+		return card, err
+	}
+	concept, ok, err := tb.GetConcept(ctx, card.Item.ID)
+	if err != nil {
+		return card, err
+	}
+	if !ok {
+		return card, errCandidateGone
+	}
+	if termcandidate.Promote(&concept, src.project.DefaultSourceLanguage) {
+		concept.UpdatedAt = time.Now().UTC()
+		if err := tb.AddConcept(ctx, concept); err != nil {
+			return card, err
+		}
+		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
+			conceptEvent(knowledge.EventConceptUpdated, src.wsID, concept.ID, rv.userID),
+		})
+	}
+	cards, err := s.contextItems(ctx, src, rv)
+	if err != nil {
+		return card, err
+	}
+	fresh, ok := findCard(cards, card.Item)
+	if !ok {
+		return card, nil
+	}
+	fresh.Basis = card.Basis
+	return fresh, nil
+}
+
+// forgetCandidate deletes a candidate term and records on the project that it
+// is not a term (termcandidate.ProjectPropRejected), so no later scan files
+// it again. The rejection is recorded first: a deletion that fails after it
+// leaves a candidate the next decision deletes, never one the next scan
+// brings back.
+func (s *Server) forgetCandidate(c echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
+	}
+	ctx := c.Request().Context()
+	tb, err := s.wsStores.getTerms(ctx, src.wsSlug)
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	concept, ok, err := tb.GetConcept(ctx, card.Item.ID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	term := ""
+	if ok {
+		term = termcandidate.SourceText(concept, src.project.DefaultSourceLanguage)
+	}
+	if term == "" && len(card.Terms) > 0 {
+		term = card.Terms[0].Text
+	}
+	project, err := s.ContentStore.GetProject(ctx, src.project.ID)
+	if err != nil || project == nil {
+		return serverErr(c, fmt.Errorf("read the project: %w", err))
+	}
+	props := maps.Clone(project.Properties)
+	if props == nil {
+		props = map[string]string{}
+	}
+	if termcandidate.AddRejected(props, term) {
+		project.Properties = props
+		if err := s.ContentStore.UpdateProject(ctx, project); err != nil {
+			return serverErr(c, err)
+		}
+	}
+	if ok {
+		if err := tb.DeleteConcept(ctx, concept.ID); err != nil {
+			return serverErr(c, err)
+		}
+		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
+			conceptEvent(knowledge.EventConceptDeleted, src.wsID, concept.ID, rv.userID),
+		})
+	}
+	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckOutcomeDropped})
 }
 
 // deckPlan is the ledger records a keep or a reject of card writes, or the
