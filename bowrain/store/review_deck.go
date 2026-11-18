@@ -405,7 +405,6 @@ func (s *PostgresStore) NextReviewInItem(ctx context.Context, q platstore.Review
 	scope, args := reviewDeckArgs(q)
 	args = append(args, itemName, afterBlockID)
 	n := len(args)
-	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
 	query := `SELECT b.id` + reviewDeckFrom + scope + reviewDeckWaiting +
 		fmt.Sprintf(` AND b.item_name = $%d AND (b.position, b.id) > (
 			SELECT a.position, a.id FROM blocks a WHERE a.project_id = $1 AND a.stream = $2 AND a.id = $%d)
