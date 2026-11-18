@@ -40,6 +40,7 @@ import {
   type MarkerToken,
   type MarkerTranslate,
 } from "./markers.ts";
+import { KEY_MARK_CLOSE, keyMarkOpen } from "./keymarks.ts";
 
 // ─── Translation store ───────────────────────────────────────
 
@@ -286,6 +287,19 @@ export function setStringTransform(fn: StringTransform | null): void {
   notify();
 }
 
+/**
+ * Whether every rendered message carries its key marks (keymarks.ts). A host
+ * previewing a component turns it on to find each message by key; nothing
+ * else should.
+ */
+let keyMarking = false;
+
+export function setKeyMarking(on: boolean): void {
+  if (keyMarking === on) return;
+  keyMarking = on;
+  notify();
+}
+
 // ─── String translation ──────────────────────────────────────
 
 /**
@@ -294,6 +308,15 @@ export function setStringTransform(fn: StringTransform | null): void {
  * build time. Do not call directly from application code.
  */
 export function __t(
+  hash: string,
+  fallback: string,
+  params?: Record<string, ICUParamValue>,
+): string {
+  const text = lookupText(hash, fallback, params);
+  return keyMarking ? keyMarkOpen(hash) + text + KEY_MARK_CLOSE : text;
+}
+
+function lookupText(
   hash: string,
   fallback: string,
   params?: Record<string, ICUParamValue>,
@@ -358,6 +381,34 @@ function holdsElement(value: unknown): boolean {
  * Do not call directly from application code.
  */
 export function __tx(
+  hash: string,
+  fallback: string,
+  elements: Record<string, ReactNode>,
+  params?: Record<string, ICUParamValue | ReactNode>,
+  markers?: MarkerTranslate,
+): ReactNode {
+  const node = renderTx(hash, fallback, elements, params, markers);
+  return keyMarking ? markNode(hash, node) : node;
+}
+
+/**
+ * A rendered message bracketed by its key marks. A message that renders as
+ * one element (which an `asChild` consumer clones) is marked inside that
+ * element, so the element stays the only child; one with no children of its
+ * own (an `<input>`) is left unmarked.
+ */
+function markNode(hash: string, node: ReactNode): ReactNode {
+  const open = keyMarkOpen(hash);
+  if (typeof node === "string") return open + node + KEY_MARK_CLOSE;
+  if (isValidElement(node)) {
+    const children = (node.props as { children?: ReactNode }).children;
+    if (children === undefined) return node;
+    return cloneElement(node, undefined, open, children, KEY_MARK_CLOSE);
+  }
+  return createElement(Fragment, null, open, node, KEY_MARK_CLOSE);
+}
+
+function renderTx(
   hash: string,
   fallback: string,
   elements: Record<string, ReactNode>,
@@ -559,6 +610,15 @@ function markersBound(text: string, elements: Record<string, ReactNode>): boolea
 }
 
 export { collectMarkerTokens, collectTokens, collectValueTokens, pairMarkers, protectionMask };
+export {
+  KEY_MARK_CLOSE,
+  KEY_MARK_KEY_END,
+  KEY_MARK_OPEN,
+  keyMarkOpen,
+  readKeyMarks,
+  stripKeyMarks,
+  type KeyMark,
+} from "./keymarks.ts";
 export type { MarkerToken, MarkerTranslate };
 
 // ─── React hook ──────────────────────────────────────────────

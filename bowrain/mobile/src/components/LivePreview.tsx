@@ -47,7 +47,14 @@ export function hasLivePreview(c: ReviewContainer): boolean {
 
 /** The script that answers the story's ready message with the dictionary. */
 export function previewScript(locale: string, translations: Record<string, string>): string {
-  const msg = JSON.stringify({ type: PREVIEW_TRANSLATIONS_MESSAGE, locale, translations });
+  // markKeys asks the runtime to bracket each message with its key
+  // (@neokapi/i18n-react runtime, keymarks), which highlightScript reads.
+  const msg = JSON.stringify({
+    type: PREVIEW_TRANSLATIONS_MESSAGE,
+    locale,
+    translations,
+    markKeys: true,
+  });
   const ready = JSON.stringify(PREVIEW_READY_MESSAGE);
   return `(function(){
   var msg = ${msg};
@@ -62,9 +69,14 @@ export function previewScript(locale: string, translations: Record<string, strin
 })(); true;`;
 }
 
-/** One string to find on the page: its block and the text a reader sees of it. */
+/**
+ * One string to find on the page: its block, the key the runtime renders it
+ * under, and the text a reader sees of it, for a Storybook whose runtime does
+ * not mark keys.
+ */
 export interface PreviewTarget {
   key: string;
+  messageKey?: string;
   fragments: string[];
 }
 
@@ -76,15 +88,21 @@ export function previewTargets(units: ContainerUnit[], source: boolean): Preview
         source || !u.target.length
           ? flattenRuns(u.source)
           : (u.runtimeText ?? flattenRuns(u.target));
-      return { key: u.blockId, fragments: visibleFragments(text) };
+      return { key: u.blockId, messageKey: u.messageKey, fragments: visibleFragments(text) };
     })
-    .filter((t) => t.fragments.length > 0);
+    .filter((t) => t.messageKey || t.fragments.length > 0);
 }
 
 /**
  * The script that finds the strings on the page, outlines them (the current
  * one solid, the rest dashed), scrolls the current one into view and tells
  * the app which it found. It runs again as the component renders.
+ *
+ * A string is found by its message key: the runtime brackets each message it
+ * renders with invisible marks, an open mark (U+2064, the key in Unicode tag
+ * characters, U+E007F) and a close mark (U+2063), and the element is the one
+ * holding both. The text search over `fragments` is the fallback for a
+ * Storybook built with a runtime that marks nothing.
  */
 export function highlightScript(targets: PreviewTarget[], current: string): string {
   const state = JSON.stringify({ targets, current, found: PREVIEW_FOUND_MESSAGE });
@@ -99,12 +117,36 @@ export function highlightScript(targets: PreviewTarget[], current: string): stri
       }
       var nodes = [], w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n;
       while ((n = w.nextNode())) if (n.nodeValue && n.nodeValue.trim()) nodes.push(n);
+      var byKey = {}, open = [];
+      for (var j = 0; j < nodes.length; j++) {
+        var v = nodes[j].nodeValue;
+        for (var i = 0; i < v.length; i++) {
+          var c = v.charCodeAt(i);
+          if (c === 0x2064) {
+            var key = "", k = i + 1;
+            while (k + 1 < v.length && v.charCodeAt(k) === 0xDB40) {
+              var lo = v.charCodeAt(k + 1); k += 2;
+              if (lo === 0xDC7F) break;
+              key += String.fromCharCode(lo - 0xDC00);
+            }
+            open.push({ key: key, node: nodes[j] }); i = k - 1;
+          } else if (c === 0x2063) {
+            var top = open.pop();
+            if (top && !byKey[top.key]) {
+              var r = document.createRange(); r.setStart(top.node, 0); r.setEnd(nodes[j], 0);
+              var a = r.commonAncestorContainer;
+              byKey[top.key] = a.nodeType === 1 ? a : a.parentElement;
+            }
+          }
+        }
+      }
+      var unmark = function (t) { return t.replace(/\u2063|\u2064|\uDB40[\uDC20-\uDC7F]/g, "").replace(/s+/g, " "); };
       var found = [], cur = null;
       s.targets.forEach(function (t) {
-        var el = null;
+        var el = (t.messageKey && byKey[t.messageKey]) || null;
         for (var f = 0; f < t.fragments.length && !el; f++) {
           for (var j = 0; j < nodes.length; j++) {
-            if (nodes[j].nodeValue.replace(/\\s+/g, " ").indexOf(t.fragments[f]) >= 0) { el = nodes[j].parentElement; break; }
+            if (unmark(nodes[j].nodeValue).indexOf(t.fragments[f]) >= 0) { el = nodes[j].parentElement; break; }
           }
         }
         if (!el) return;

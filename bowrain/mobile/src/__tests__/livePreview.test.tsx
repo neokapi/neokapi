@@ -140,13 +140,16 @@ describe("LiveView", () => {
 
   it("looks for each string by the text a reader sees, in the reading shown", () => {
     expect(previewTargets(container.units, false)).toEqual([
-      { key: "o1", fragments: ["Får ikke kontakt"] },
-      { key: "o2", fragments: ["Prøv igjen"] },
+      { key: "o1", messageKey: "h-o1", fragments: ["Får ikke kontakt"] },
+      { key: "o2", messageKey: "h-o2", fragments: ["Prøv igjen"] },
     ]);
     expect(previewTargets(container.units, true)[0].fragments).toEqual(["Can't reach your server"]);
     const script = highlightScript(previewTargets(container.units, false), "o2");
     expect(script).toContain('"current":"o2"');
     expect(script).toContain("Prøv igjen");
+    // The script is injected as is, so it has to parse.
+    expect(() => new Function(script)).not.toThrow();
+    if (process.env.NK_DUMP_SCRIPT) require("fs").writeFileSync(process.env.NK_DUMP_SCRIPT, script);
   });
 
   it("takes only the strings it asked for from the page", () => {

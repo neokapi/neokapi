@@ -129,8 +129,12 @@ state or a dark theme last. On opening, a story that shows none of the strings
 within a few seconds is passed over, so the view settles on one that shows the
 content under review; the bar says how many of the strings each story shows.
 
-An injected script finds each string by the plain text between its codes
-(`visibleFragments`) and posts back the block ids it found. That list is the
+The app asks the story's runtime to mark keys (`markKeys` in the posted
+dictionary): every message renders between invisible marks that carry its
+message key. An injected script finds each unit's element by its
+`message_key` and posts back the block ids it found. For a Storybook built
+with a runtime that marks nothing, the script falls back to the plain text
+between the string's codes (`visibleFragments`). That list is the
 page's only message to the app, and the app keeps only ids it sent. The
 WebView stays on the story's origin. A decision made
 here goes through the same change sets and offline queue as a swipe, and Fix
