@@ -43,6 +43,8 @@ jest.mock("react-native-webview", () => {
     React.useImperativeHandle(ref, () => ({ injectJavaScript: jest.fn() }));
     return React.createElement(View, {
       testID: props.testID,
+      onMessage: props.onMessage,
+      injectedJavaScript: props.injectedJavaScript,
       accessibilityLabel: JSON.stringify((props.source as { uri?: string })?.uri ?? ""),
     });
   });

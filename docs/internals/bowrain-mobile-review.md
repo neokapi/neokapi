@@ -95,15 +95,28 @@ carries a dot; tapping one selects it and offers Approve and Fix in place, and
 when more than one waits the page offers to approve them all.
 
 When the container is a component and its collection declares a Storybook,
-the page shows the component running above its strings (**Live**, on by
-default). The container names the host and the component's source file; the
-app reads the host's story index through the server, picks the story written
-beside that file (`OfflineLaunch.stories.tsx` for `OfflineLaunch.tsx`), and
-loads it in a WebView. The container's translations go in as the dictionary
-the `@neokapi/i18n-react` Storybook decorator renders, keyed by each unit's
+**Live** opens the component running, full page. The container names the host
+and the component's source file; the app reads the host's story index through
+the server, takes the stories written beside that file
+(`OfflineLaunch.stories.tsx` for `OfflineLaunch.tsx`), and loads one in a
+WebView. The container's translations go in as the dictionary the
+`@neokapi/i18n-react` Storybook decorator renders, keyed by each unit's
 `message_key`, so the component shows the wording under review. Source reading
-posts an empty dictionary. The WebView stays on the story's origin and has no
-message handler, so the page cannot call into the app. A decision made
+posts an empty dictionary.
+
+The view has two steppers. The bottom one walks the container's strings: the
+current string is outlined solid in the running component and scrolled into
+view, the others dashed, and the panel under it shows the string with Approve
+and Fix. The top one walks the stories. They are ordered with a story named
+for the component first and stories named for an error, a sign-in, an empty
+state or a dark theme last. On opening, a story that shows none of the strings
+within a few seconds is passed over, so the view settles on one that shows the
+content under review; the bar says how many of the strings each story shows.
+
+An injected script finds each string by the plain text between its codes
+(`visibleFragments`) and posts back the block ids it found. That list is the
+page's only message to the app, and the app keeps only ids it sent. The
+WebView stays on the story's origin. A decision made
 here goes through the same change sets and offline queue as a swipe, and Fix
 opens the deck's fix sheet for that unit.
 
