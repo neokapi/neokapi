@@ -262,4 +262,4 @@ In order, with the counts from 2026-11-19:
    under `when:`) and policy establishment on the server, through the approve
    passing path, with the ledger reason. Until then the plan's last step
    applies approve passing on request.
-7. User guide: reviewing a large project.
+7. User guide: reviewing a large project. Built (bowrain/web/docs, getting started).
