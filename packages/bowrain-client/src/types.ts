@@ -670,6 +670,37 @@ export interface ReviewContainer {
   /** Blocks of the container past what the response holds. */
   moreBefore: boolean;
   moreAfter: boolean;
+  /**
+   * The first translation waiting in the item after the container: where a
+   * reviewer walking a document goes next. Absent when none waits.
+   */
+  nextWaiting?: string;
+}
+
+/**
+ * A part of a language's review deck a reviewer reads whole: one component's
+ * strings, or the blocks of one document that belong to no component.
+ */
+export interface DeckPage {
+  kind: "component" | "document";
+  /** The component, or the document's file name. */
+  title: string;
+  item: string;
+  collectionId: string;
+  component?: string;
+  waiting: number;
+  /** The page's first waiting translation, which opens its container. */
+  firstBlockId: string;
+}
+
+/** A language's review deck by page. */
+export interface DeckPages {
+  locale: string;
+  pages: DeckPage[];
+  /** The sum of the pages' waiting counts. */
+  waiting: number;
+  /** Pages past the ones returned. */
+  more: boolean;
 }
 
 /** One block of a container, laid out by its role. */

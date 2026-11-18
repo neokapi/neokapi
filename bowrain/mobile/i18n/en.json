@@ -270,6 +270,26 @@
     "deskTitle_other": "{{count, number}} cards for the desk",
     "deskLead": "These need a closer look than a phone allows. Review them in Bowrain on a computer."
   },
+  "pages": {
+    "view": {
+      "pages": "Pages",
+      "cards": "Cards"
+    },
+    "lead": "Each page is a component or a document. Review its translations together, the way a reader meets them.",
+    "kind": {
+      "component": "Component",
+      "document": "Document"
+    },
+    "waiting_one": "1 waiting",
+    "waiting_other": "{{count, number}} waiting",
+    "rowLabel_one": "{{kind}} {{title}}, 1 translation waiting",
+    "rowLabel_other": "{{kind}} {{title}}, {{count, number}} translations waiting",
+    "more": "More pages wait past these. Review these first, or switch to Cards.",
+    "empty": "Nothing in this language is waiting for review.",
+    "next": "Next section",
+    "done": "Back to pages",
+    "finished": "Nothing else waits in this document."
+  },
   "card": {
     "languages": "{{source}} → {{target}}",
     "source": "Source",

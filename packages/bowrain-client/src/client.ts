@@ -40,6 +40,8 @@ import type {
   User,
   Workspace,
   ReviewContainer,
+  DeckPage,
+  DeckPages,
   ContainerUnit,
 } from "./types.ts";
 
@@ -165,6 +167,16 @@ export interface BowrainClient {
    * from a server without the route.
    */
   deckCollections(scope: ProjectScope, locale: string): Promise<DeckCollections | null>;
+  /**
+   * A language's review deck by page: each component and each document with
+   * its waiting count. `collection` narrows it to one collection. Null from a
+   * server without the route.
+   */
+  deckPages(
+    scope: ProjectScope,
+    locale: string,
+    opts?: { collection?: string },
+  ): Promise<DeckPages | null>;
   reviewContext(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContext>;
   /** The block's container: its component, its section, or the blocks around it. */
   reviewContainer(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContainer>;
@@ -429,6 +441,20 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       }
     },
 
+    async deckPages(scope, locale, o = {}) {
+      try {
+        const body = await get<ServerDeckPages>(
+          `/${enc(scope.workspace)}/${enc(scope.project)}/review-deck/${stream(scope)}/pages${query({ locale })}${
+            o.collection === undefined ? "" : `&collection=${enc(o.collection)}`
+          }`,
+        );
+        return deckPagesFromServer(body, locale);
+      } catch (err) {
+        if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return null;
+        throw err;
+      }
+    },
+
     reviewContext(scope, blockId, locale) {
       return get<ReviewContext>(
         `/${enc(scope.workspace)}/${enc(scope.project)}/blocks/${stream(scope)}/${enc(blockId)}/review-context${query(
@@ -648,6 +674,7 @@ interface ServerContainer {
   focus: string;
   more_before?: boolean;
   more_after?: boolean;
+  next_waiting?: string;
   units?: {
     block_id: string;
     item_name: string;
@@ -672,6 +699,7 @@ export function containerFromServer(c: ServerContainer): ReviewContainer {
     focus: c.focus,
     moreBefore: c.more_before ?? false,
     moreAfter: c.more_after ?? false,
+    nextWaiting: c.next_waiting || undefined,
     units: (c.units ?? []).map((u) => ({
       blockId: u.block_id,
       item: u.item_name,
@@ -685,6 +713,39 @@ export function containerFromServer(c: ServerContainer): ReviewContainer {
       sourceRevision: u.source_revision,
       targetRevision: u.target_revision,
     })),
+  };
+}
+
+interface ServerDeckPages {
+  locale?: string;
+  pages?: {
+    kind: DeckPage["kind"];
+    title: string;
+    item_name: string;
+    collection_id?: string;
+    component?: string;
+    waiting: number;
+    first_block_id: string;
+  }[];
+  waiting?: number;
+  more?: boolean;
+}
+
+export function deckPagesFromServer(body: ServerDeckPages, locale: string): DeckPages {
+  const pages = (body.pages ?? []).map((p) => ({
+    kind: p.kind,
+    title: p.title,
+    item: p.item_name,
+    collectionId: p.collection_id ?? "",
+    component: p.component || undefined,
+    waiting: p.waiting,
+    firstBlockId: p.first_block_id,
+  }));
+  return {
+    locale: body.locale ?? locale,
+    pages,
+    waiting: body.waiting ?? pages.reduce((n, p) => n + p.waiting, 0),
+    more: body.more ?? false,
   };
 }
 

@@ -513,6 +513,69 @@ describe("client", () => {
   });
 });
 
+describe("deckPages", () => {
+  it("reads the deck by page, and null from a server without the route", async () => {
+    const calls: string[] = [];
+    let present = true;
+    const client = createBowrainClient({
+      baseUrl: "http://server/",
+      getAccessToken: () => "t",
+      fetch: (async (url: string) => {
+        calls.push(url);
+        if (!present) return new Response("{}", { status: 404 });
+        return new Response(
+          JSON.stringify({
+            locale: "nb",
+            pages: [
+              {
+                kind: "component",
+                title: "OfflineLaunch",
+                item_name: "app.kbf.json",
+                collection_id: "c1",
+                component: "OfflineLaunch",
+                waiting: 3,
+                first_block_id: "b1",
+              },
+              {
+                kind: "document",
+                title: "guide.md",
+                item_name: "docs/guide.md",
+                waiting: 2,
+                first_block_id: "b9",
+              },
+            ],
+            waiting: 5,
+            more: false,
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const scope = { workspace: "ws", project: "p" };
+    const got = await client.deckPages(scope, "nb", { collection: "c1" });
+    expect(calls[0]).toBe(
+      "http://server/api/v1/ws/p/review-deck/main/pages?locale=nb&collection=c1",
+    );
+    expect(got?.waiting).toBe(5);
+    expect(got?.pages[0]).toEqual({
+      kind: "component",
+      title: "OfflineLaunch",
+      item: "app.kbf.json",
+      collectionId: "c1",
+      component: "OfflineLaunch",
+      waiting: 3,
+      firstBlockId: "b1",
+    });
+    expect(got?.pages[1]).toMatchObject({
+      kind: "document",
+      collectionId: "",
+      component: undefined,
+    });
+    present = false;
+    expect(await client.deckPages(scope, "nb")).toBeNull();
+  });
+});
+
 describe("updateMe", () => {
   it("patches the signed-in person's name", async () => {
     const calls: { url: string; init?: RequestInit }[] = [];

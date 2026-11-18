@@ -13,7 +13,7 @@ import {
   type ReviewContainer,
 } from "@neokapi/bowrain-client";
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState, type ComponentRef } from "react";
+import { useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
@@ -40,6 +40,8 @@ export interface InContextViewProps {
   onFix: (card: DeckCard) => void;
   /** Blocks decided in this session, so they read as decided. */
   decided?: ReadonlySet<string>;
+  /** Drawn below the units: where a page review goes next. */
+  footer?: ReactNode;
 }
 
 export function InContextView({
@@ -49,6 +51,7 @@ export function InContextView({
   onApprove,
   onFix,
   decided,
+  footer,
 }: InContextViewProps) {
   const { t } = useTranslation();
   const [reading, setReading] = useState<Reading>("translation");
@@ -153,6 +156,7 @@ export function InContextView({
             </Text>
           </Pressable>
         ) : null}
+        {footer}
       </ScrollView>
     </View>
   );
