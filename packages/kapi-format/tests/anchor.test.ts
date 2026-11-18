@@ -6,6 +6,7 @@ import {
   rangeAnchorForChars,
   runsPlainText,
   textForBytes,
+  textRunPartsForAnchor,
   textRunSpansForAnchor,
 } from "../src/anchor.ts";
 
@@ -319,6 +320,32 @@ describe("textRunSpansForAnchor", () => {
     expect(textRunSpansForAnchor(simple, { kind: "block" })).toEqual([]);
     expect(
       textRunSpansForAnchor(withPlural, { kind: "range", path: [1, { plural: "other" }] }),
+    ).toEqual([]);
+  });
+});
+
+describe("textRunPartsForAnchor", () => {
+  it("follows a path into a plural form and returns the runs it covers", () => {
+    const one = [{ text: "one workspace" }];
+    const runs: Run[] = [
+      { text: "You have " },
+      { plural: { pivot: "count", forms: { one, other: [{ text: "many workspaces" }] } } },
+    ];
+    const parts = textRunPartsForAnchor(runs, {
+      kind: "range",
+      path: [1, { plural: "one" }],
+      start: { run: 0, offset: 4 },
+      end: { run: 0, offset: 13 },
+    });
+    expect(parts).toEqual([{ run: one[0], start: 4, end: 13 }]);
+    expect(parts[0].run).toBe(one[0]);
+  });
+
+  it("covers top-level runs as textRunSpansForAnchor does, and nothing for a bad path", () => {
+    const anchor = rangeAnchorForChars(simple, 11, 15);
+    expect(textRunPartsForAnchor(simple, anchor)).toEqual([{ run: simple[0], start: 11, end: 15 }]);
+    expect(
+      textRunPartsForAnchor(withPlural, { kind: "range", path: [0, { plural: "one" }] }),
     ).toEqual([]);
   });
 });

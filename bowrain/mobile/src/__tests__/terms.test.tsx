@@ -152,3 +152,96 @@ describe("terms in a string", () => {
     expect(loadConcept).toHaveBeenCalledWith("c-ws");
   });
 });
+
+describe("terms inside plural forms", () => {
+  // "{count, plural, one {# arbeidsområde} other {# rom}}": the check found the
+  // term in the `one` form and missed it in `other`.
+  const one = [{ text: "1 arbeidsområde" }];
+  const other = [{ text: "# rom" }];
+  const target = [{ plural: { pivot: "count", forms: { one, other } } }];
+  const pathed = (form: string, start: number, end: number) => ({
+    kind: "range",
+    path: [0, { plural: form }],
+    start: { run: 0, offset: start },
+    end: { run: 0, offset: end },
+  });
+
+  it("marks a term where its form is drawn", () => {
+    const mark = { anchor: pathed("one", 2, 15), onPress: () => {} };
+    const parts = markedParts(target, [mark]);
+    expect(parts.get(one[0])).toEqual([{ start: 2, end: 15, mark }]);
+    expect(parts.has(other[0])).toBe(false);
+  });
+
+  it("names the forms that miss the term", async () => {
+    const props = {
+      term: "workspace",
+      replacement: "arbeidsområde",
+      satisfied: "false",
+      missing_forms: "other",
+    };
+    const plural: ReviewContainer = {
+      ...container,
+      units: [
+        {
+          ...unit("p1", "", "", []),
+          source: [
+            {
+              plural: {
+                pivot: "count",
+                forms: { one: [{ text: "1 workspace" }], other: [{ text: "# workspaces" }] },
+              },
+            },
+          ],
+          target,
+          overlays: [
+            {
+              type: "term",
+              side: "source",
+              spans: [
+                { id: "term-check:0", range: pathed("one", 2, 11), props },
+                { id: "term-check:0", range: pathed("other", 2, 12), props },
+              ],
+            },
+            {
+              type: "term",
+              side: "nb",
+              spans: [{ id: "term-check:0", range: pathed("one", 2, 15), props }],
+            },
+          ],
+        },
+      ],
+    };
+    await render(
+      wrap(
+        <InContextView
+          card={{
+            key: "p1:nb",
+            blockId: "p1",
+            item: "OfflineLaunch.kbf.json",
+            locale: "nb",
+            collectionId: "c1",
+            source: [],
+            target: [],
+            targetRevision: "",
+            group: "unsorted",
+            notes: [],
+            findingsCount: 0,
+            failingFindingsCount: 0,
+            ownWork: false,
+          }}
+          scope={{ workspace: "w", project: "p" }}
+          load={async () => plural}
+          onApprove={() => {}}
+          onFix={() => {}}
+        />,
+      ),
+    );
+    const marks = await screen.findAllByTestId("run-mark", {}, { timeout: 5000 });
+    expect(marks.map((m) => m.props.children)).toEqual(["arbeidsområde"]);
+    await fireEvent.press(marks[0]);
+    expect(screen.getByTestId("term-unused").props.children).toBe(
+      "This translation does not use arbeidsområde in these forms: other.",
+    );
+  });
+});

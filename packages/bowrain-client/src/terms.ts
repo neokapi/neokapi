@@ -17,8 +17,10 @@ export interface UnitTerm {
   replacement?: string;
   /** The concept in the terms store, when the rule comes from one. */
   conceptId?: string;
-  /** The check's verdict: the translation holds a rendering. */
+  /** The check's verdict: every form of the translation holds a rendering. */
   satisfied: boolean;
+  /** The plural or select forms of the translation that miss the term. */
+  missingForms: string[];
   /** A rule that reports and never fails. */
   advisory: boolean;
   /** The translation keeps the term as written. */
@@ -50,6 +52,7 @@ export function unitTerms(unit: ContainerUnit): UnitTerm[] {
           replacement: props.replacement || undefined,
           conceptId: props.concept_id || undefined,
           satisfied: props.satisfied === "true",
+          missingForms: props.missing_forms ? props.missing_forms.split(",") : [],
           advisory: props.advisory === "true",
           doNotTranslate: props.do_not_translate === "true",
           source: [],

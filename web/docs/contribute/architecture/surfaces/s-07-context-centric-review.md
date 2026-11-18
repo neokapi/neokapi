@@ -289,10 +289,13 @@ counted, or calls a translation compliant that the gate fails.
 For terms, the producer is the term check itself. `coretools.TermCheckUses`
 returns its decision rule by rule with byte ranges in the source and the
 target, `TermCheckViolations` reports from it, and `TermCheckOverlays` draws
-it as `term` overlays on both editions, each span carrying the verdict. A
+it as `term` overlays on both editions, each span carrying the verdict. Each
+form of a plural or select is read on its own (`model.FormReadings`), and a
+span inside a form is anchored to it, so a surface that draws every form marks
+the term in each and can say which forms miss it. A
 surface that shows "this translation uses the term" therefore shows the
 gate's answer. The anchor arithmetic a client needs (`runsPlainText`,
-`charSpanForAnchor`, `textRunSpansForAnchor`) lives once, in
+`charSpanForAnchor`, `textRunPartsForAnchor`) lives once, in
 `@neokapi/kapi-format`, mirroring `model.RunsText` and `model.RangeAnchor`.
 
 ### The AI actions inherit the point

@@ -423,3 +423,51 @@ export function textRunSpansForAnchor(runs: Run[] | undefined, anchor: Anchor): 
   }
   return out;
 }
+
+/** The part of one text run an anchor covers, with the run itself. */
+export interface RunTextPart<R extends RunLike = RunLike> {
+  /** The text run, from the sequence the anchor's path leads to. */
+  run: R;
+  /** UTF-16 indices into the run's text. */
+  start: number;
+  end: number;
+}
+
+/**
+ * The parts of the text runs a range anchor covers, following its path into a
+ * plural or select form. A renderer that draws every form keys its marks by
+ * the run objects returned, so a term inside the `one` form is marked where
+ * that form is drawn. A path that does not resolve, or an anchor of another
+ * kind, covers nothing.
+ */
+export function textRunPartsForAnchor<R extends RunLike>(
+  runs: readonly R[] | undefined,
+  anchor: Anchor,
+): RunTextPart<R>[] {
+  if (anchor.kind !== "range") return [];
+  let seq: readonly R[] = runs ?? [];
+  let landed: R | null = null;
+  for (const step of anchor.path ?? []) {
+    if (typeof step === "number") {
+      if (landed !== null || step < 0 || step >= seq.length) return [];
+      landed = seq[step];
+      continue;
+    }
+    if (landed === null) return [];
+    const key = "plural" in step ? step.plural : step.select;
+    const branches =
+      "plural" in step
+        ? (landed.plural?.forms as Record<string, R[]> | undefined)
+        : (landed.select?.cases as Record<string, R[]> | undefined);
+    const next = branches?.[key];
+    if (!next) return [];
+    seq = next;
+    landed = null;
+  }
+  if (landed !== null) return [];
+  return textRunSpansForAnchor(seq as unknown as Run[], { ...anchor, path: [] }).map((s) => ({
+    run: seq[s.run],
+    start: s.start,
+    end: s.end,
+  }));
+}

@@ -332,11 +332,11 @@ func fillBreaksTermRules(conf *MemoryLeverageConfig, v tool.VariantView, candida
 	if len(conf.TermRules) == 0 {
 		return false
 	}
-	errs, _ := TermCheckViolations(&TermCheckConfig{
+	errs, _ := TermCheckRunViolations(&TermCheckConfig{
 		TermRules:    conf.TermRules,
 		SourceLocale: conf.SourceLocale,
 		TargetLocale: conf.TargetLocale,
-	}, v.SourceText(), model.RunsText(candidate))
+	}, v.SourceRuns(), candidate)
 	return len(errs) > 0
 }
 
