@@ -165,6 +165,7 @@ function Screens() {
           name="[ws]/[project]/page"
           options={{ title: t("pages.view.pages"), headerTransparent: false }}
         />
+        <Stack.Screen name="[ws]/[project]/plan" options={{ title: t("plan.title") }} />
         <Stack.Screen
           name="[ws]/[project]/context"
           options={{ title: t("context.title"), headerTransparent: false }}

@@ -9,7 +9,7 @@ import type { Project } from "@neokapi/bowrain-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect } from "react";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { QueryState } from "../../../../../components/List";
@@ -21,6 +21,16 @@ import { useAuth } from "../../../../../lib/auth";
 import { entriesOf, languageLabel, useFeed } from "../../../../../lib/feed";
 import { projectKey, summarize, useReviewHome } from "../../../../../lib/home";
 import { setRecentProject } from "../../../../../lib/recentProject";
+import { reviewPlanKey } from "../../../../../lib/plan";
+
+/** The title key of each plan level, for the project's plan card. */
+const planStepTitle = {
+  coordinates: "plan.coordinates.title",
+  key_language: "plan.key.title",
+  exceptions: "plan.exceptions.title",
+  interfaces: "plan.interfaces.title",
+  policy: "plan.policy.title",
+} as const;
 
 function ProjectHeader({ project }: { project: Project }) {
   const { t, i18n } = useTranslation();
@@ -79,6 +89,17 @@ export default function ProjectHome() {
     notes: byKind.note ?? 0,
   });
 
+  // The review plan leads: what to decide next, from the coordinates down.
+  const plan = useQuery({
+    queryKey: reviewPlanKey(ws, project),
+    queryFn: () => client.reviewPlan({ workspace: ws, project }),
+  });
+  const planDetail = plan.data
+    ? plan.data.next
+      ? t("plan.homeNext", { step: t(planStepTitle[plan.data.next]) })
+      : t("plan.homeDone")
+    : undefined;
+
   const feed = useFeed(ws, project);
   const entries = entriesOf(feed.data);
 
@@ -121,6 +142,19 @@ export default function ProjectHome() {
         ListHeaderComponent={
           <View>
             {info ? <ProjectHeader project={info} /> : null}
+            {planDetail ? (
+              <Pressable
+                testID="project-plan"
+                accessibilityRole="button"
+                onPress={() =>
+                  router.push({ pathname: "/[ws]/[project]/plan", params: { ws, project } })
+                }
+                className="border-primary/40 bg-primary/10 mx-4 mb-3 rounded-3xl border p-4 active:opacity-80"
+              >
+                <Text className="text-foreground text-[17px] font-semibold">{t("plan.home")}</Text>
+                <Text className="text-muted-foreground text-sm">{planDetail}</Text>
+              </Pressable>
+            ) : null}
             {contextWaiting > 0 ? (
               <ContextEntryCard
                 count={contextWaiting}
