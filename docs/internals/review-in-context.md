@@ -45,9 +45,9 @@ bytes on the server (removed in #136).
 | --- | --- | --- |
 | Kapi Desktop review | queue, five shared cards, and the rendered document opening at the unit with findings marked | unchanged; codes now read by name |
 | Bowrain web review page | document-first: the item drawn as a document, findings inline, decisions in an inspector | unchanged; codes now read by name |
-| Bowrain web review session | queue with the focused block and the neighbourhood list, no document | unchanged (gap, below) |
+| Bowrain web review session | queue with the focused block and the neighbourhood list, no document | the document opened at the block, and before and after |
 | Bowrain web editor | visual editor, and a live Storybook preview for collections with a preview URL | unchanged |
-| Bowrain mobile deck | one string per card; details sheet with data and a neighbour list | the context page: the block's component or section laid out by role, decidable in place; opens from the footer or a swipe down |
+| Bowrain mobile deck | one string per card; details sheet with data and a neighbour list | opens on pages (components and documents, reviewed in place); on cards, the context page: the block's component or section laid out by role, decidable in place; opens from the footer or a swipe down |
 
 ## The principle
 
@@ -98,38 +98,37 @@ Done (PRs #3571 and the container PR):
   the guard;
 - `GET …/blocks/:ref/:bid/container`: component, section or window, units with
   roles and revisions;
-- the mobile context page and the swipe down.
+- the mobile context page and the swipe down;
+- the web review session opening the document at the block;
+- the mobile deck opening on pages (`GET …/review-deck/:ref/pages`), with a
+  document walked section by section.
 
 Next, in the order that pays most per unit of work:
 
-1. **Web review session gets the container.** `FocusedReviewer` shows the
-   neighbourhood as a list; it should open the item's `DocumentPreview` at the
-   block (rung 2, which the review page already uses) and fall back to the
-   laid-out container.
-2. **Live component previews on mobile.** Add `react-native-webview` in the
+1. **Live component previews on mobile.** Add `react-native-webview` in the
    next native build and load the collection's Storybook story for the
    block's component with the pending translation, as the web `StoryPreview`
-   does. Needs the story id per string (item 3).
-3. **Fill the preview hints.** Have the React extractor record a story id per
+   does. Needs the story id per string (item 2).
+2. **Fill the preview hints.** Have the React extractor record a story id per
    component when the project has a Storybook (`BlockPreviewHints.StoryID`),
    so a string maps to the story that renders it without a lookup.
-4. **Rendered documents on mobile.** With the WebView in place, show the
+3. **Rendered documents on mobile.** With the WebView in place, show the
    item's preview HTML in the target language with the block marked, for
    markdown and HTML items (rung 2).
-5. **Review by page.** On mobile and web, list a collection's containers
-   (components, sections) with their waiting counts, and review a whole page at
-   a time; the swipe deck remains for context items and quick strings.
-6. **Screenshots.** The harness already drives real screens; capturing one
+4. **Review by page on web.** The pages route serves Bowrain web as it serves
+   the app.
+5. **Screenshots.** Deferred by the founder (2026-11-18). The harness
+   already drives real screens; capturing one
    per component and attaching it as `SnapshotPath` gives a still image where
    no live render is reachable (rung 1.5).
 
-## Decisions for the founder
+## Decisions
 
-- Should the mobile deck open on pages (item 5) for block translations, with
-  the swipe deck kept for context items? The container makes this possible;
-  the call is about the default.
-- A native build for the WebView (items 2 and 4): next TestFlight build, or
-  wait for a batch of native changes?
-- Live previews read the customer's Storybook. For Bowrain's own dogfood
-  collections the Storybook exists; for a customer without one, rung 3 is the
-  ceiling until screenshots exist.
+Taken by the founder on 2026-11-18:
+
+- The mobile deck opens on pages for block translations; the swipe deck stays
+  for context items and as the quick path.
+- The WebView ships in the next TestFlight build, for live component previews
+  and rendered documents on mobile.
+- Screenshots per component wait; for a collection without a Storybook, the
+  laid-out container is the ceiling on mobile.
