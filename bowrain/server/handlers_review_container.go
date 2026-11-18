@@ -65,6 +65,10 @@ type reviewContainerResponse struct {
 	// More reports blocks of the container past what the response holds.
 	MoreBefore bool `json:"more_before"`
 	MoreAfter  bool `json:"more_after"`
+	// NextWaiting is the first translation waiting in the item after the
+	// container, in document order: where a reviewer walking the document
+	// goes next. Empty when none waits.
+	NextWaiting string `json:"next_waiting,omitempty"`
 }
 
 // HandleGetReviewContainer answers GET /:ws/:id/blocks/:ref/:bid/container
@@ -117,6 +121,13 @@ func (s *Server) HandleGetReviewContainer(c echo.Context) error {
 	}
 	if out.Units == nil {
 		out.Units = []containerUnit{}
+	}
+	if decks, ok := store.ReviewDeckStores(s.ContentStore); ok && sb.ItemName != "" && len(out.blocks) > 0 {
+		q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(s.deckPolicy())}
+		last := out.blocks[len(out.blocks)-1].Block.ID
+		if next, err := decks.NextReviewInItem(ctx, q, sb.ItemName, last); err == nil {
+			out.NextWaiting = next
+		}
 	}
 	return c.JSON(http.StatusOK, out.reviewContainerResponse)
 }
