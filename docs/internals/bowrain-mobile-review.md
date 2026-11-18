@@ -63,18 +63,52 @@ One block per card:
   card says so: no pre-review, a long source, a source changed since the
   approval, or a redraft after a rejection. The server sends the reason as a
   code (`reason_code`) and the app words it;
-- a footer with the file name and the key, which opens the details sheet;
+- a footer with the file name and the key, which opens the context page;
 - for a stale block, the earlier approved translation beside the new draft,
   with the changed words marked;
 - the AI pre-review score and the check findings, when there are any;
 - the term and voice notes the review context returns for the block.
 
-The details sheet reads the block's review context
-(`GET /:ws/:id/blocks/:ref/:bid/review-context`) when it opens: the
-collection and any other coordinates, the full path and key, the strings
+### The context page
+
+A string read alone is often ambiguous: "Open" can be a verb on a button or an
+adjective in a status line, and a sentence fragment only makes sense in its
+paragraph. The context page shows the translation where a reader meets it.
+It opens from the card's footer or with a swipe down on the card, and has two
+tabs.
+
+**In context** draws the block inside its container, which the server picks
+(`GET /:ws/:id/blocks/:ref/:bid/container?target_locale=`):
+
+- a string from a React component is read with the component's other strings,
+  in the order the component renders them;
+- a block of a document is read with its section, from the heading above it to
+  the next heading of the same or a higher level;
+- anything else is read with the dozen blocks either side of it.
+
+Each unit carries its role (heading with its level, paragraph, button, list
+item, label, link, caption, cell, code), and the page lays the units out by
+role, so a heading reads as a heading and a button as a button. The page
+opens on the translation, with Source and Both a tap away, and scrolls to the
+card's block, which is outlined. Every other translation waiting for review
+carries a dot; tapping one selects it and offers Approve and Fix in place, and
+when more than one waits the page offers to approve them all. A decision made
+here goes through the same change sets and offline queue as a swipe, and Fix
+opens the deck's fix sheet for that unit.
+
+**Details** lists the data behind the card, from the block's review context
+(`GET /:ws/:id/blocks/:ref/:bid/review-context`): the collection and any other
+coordinates, the full path and key, the copies a decision covers, the strings
 either side of the text in its file (a neighbour with the same wording is
 marked *Same text*), the voice profile in force, and the closest content
 memory match.
+
+Codes on every surface read as a name or a word, never as their native form:
+a variable reads as its name (`serverURL`), a code without a human name reads
+as its kind (*link*, *line break*, *value*), and a paired code draws its
+content as marked text with no tags (`codeDisplays` in
+`packages/kapi-format/src/code-display.ts`, `HumanCodeName` in Go;
+`scripts/check-code-display.sh` guards it).
 
 ## Gestures and buttons
 
@@ -83,6 +117,7 @@ memory match.
 | Reject | swipe left | Reject | the fix sheet opens on the rejection: a reason and an optional note, with the fixes one tap away |
 | Fix | none | Fix | the fix sheet (below): pick a ready-made fix or edit, and the corrected translation is approved in one change set |
 | Skip | swipe up | Later | nothing is recorded; the card returns at the end of the deck |
+| In context | swipe down | the card's footer | the context page opens over the card, which stays in place |
 | Approve | swipe right | Approve | a `decide` operation with outcome `establish` |
 | Undo | none | Undo, or Undo on the bar under the card | the last decision is dropped while it is held or queued, or reversed with a new decision once sent; the card comes back from the side it left by |
 
@@ -750,6 +785,42 @@ what waits and how much of the collection is decided; a row opens the deck
 on that collection, and the first row opens the whole language. When a
 collection's deck runs out, the end screen offers the next collection with
 anything waiting.
+
+### A block's container
+
+`GET /:ws/:id/blocks/:ref/:bid/container?target_locale=nb`
+
+What a reader meets the block inside. Permission is `view_content`, as for
+the review context.
+
+```json
+{
+  "kind": "component",
+  "title": "OfflineLaunch",
+  "item_name": "bowrain/apps/bowrain/frontend/src/components/OfflineLaunch.kbf.json",
+  "locale": "nb",
+  "focus": "b-01J...",
+  "more_before": false,
+  "more_after": false,
+  "units": [
+    {"block_id": "b-01H...", "item_name": "…", "key": "…", "role": "heading", "level": 2,
+     "source_runs": [{"text": "Can't reach your server"}], "target_runs": [{"text": "Kan ikke nå serveren din"}],
+     "target_status": "translated", "waiting": true,
+     "source_revision": "r:…", "target_revision": "r:…"}
+  ]
+}
+```
+
+- `kind` is `component` (a React component's strings, by the block's
+  `component` property), `section` (from the heading at or above the block to
+  the next heading of the same or a higher level) or `window` (twelve blocks
+  either side). The container looks at most 80 blocks either side;
+  `more_before` and `more_after` say it stopped short.
+- `role` comes from the structure annotation, the block's type (a markdown
+  heading is `heading` with a `level` property) or a React string's element and
+  JSX path. A role the server cannot read is `paragraph`.
+- `waiting` is a translation present and not approved. The revisions are the
+  ones a change set binds to, so any unit can be decided as a card is.
 
 ### Fix candidates
 

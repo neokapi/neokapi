@@ -22,7 +22,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 import { useTranslation } from "react-i18next";
 
-export type SwipeAction = "approve" | "reject" | "fix" | "later";
+export type SwipeAction = "approve" | "reject" | "fix" | "later" | "context";
 
 /** The side a card leaves by, and comes back from on undo. */
 export type SwipeSide = "left" | "right" | "up";
@@ -143,17 +143,21 @@ export function SwipeCard({
   };
 
   // From the JS thread: the fix sheet needs no animation, so it opens at once.
-  const swipe = (action: SwipeAction) => (action === "fix" ? run(action) : leave(action));
+  // The fix sheet and the context page open over the card, which stays.
+  const swipe = (action: SwipeAction) =>
+    action === "fix" || action === "context" ? run(action) : leave(action);
 
   useImperativeHandle(ref, () => ({ swipe, restore }));
 
   const pan = usePanGesture({
     activeOffsetX: [-12, 12],
-    activeOffsetY: -20,
+    activeOffsetY: [-20, 30],
     onUpdate: (e) => {
       const x = canApprove ? e.translationX : Math.min(e.translationX, 40);
       tx.value = canReject ? x : Math.max(x, -40);
-      ty.value = Math.min(e.translationY, 0) * 0.9;
+      // Up moves the card; down only gives a little, as a pull that opens
+      // the context page.
+      ty.value = e.translationY < 0 ? e.translationY * 0.9 : e.translationY * 0.35;
       const past =
         (canApprove && e.translationX > commitX) ||
         (canReject && e.translationX < -commitX) ||
@@ -173,6 +177,10 @@ export function SwipeCard({
         leave("reject");
       } else if (e.translationY < -commitY && Math.abs(e.translationX) < commitX) {
         leave("later");
+      } else if (e.translationY > commitY && Math.abs(e.translationX) < commitX) {
+        tx.value = withSpring(0, SPRING);
+        ty.value = withSpring(0, SPRING);
+        scheduleOnRN(run, "context");
       } else {
         tx.value = withSpring(0, SPRING);
         ty.value = withSpring(0, SPRING);
@@ -212,7 +220,13 @@ export function SwipeCard({
 
   const onAccessibilityAction = (e: AccessibilityActionEvent) => {
     const name = e.nativeEvent.actionName;
-    if (name === "approve" || name === "reject" || name === "fix" || name === "later") {
+    if (
+      name === "approve" ||
+      name === "reject" ||
+      name === "fix" ||
+      name === "later" ||
+      name === "context"
+    ) {
       swipe(name);
     }
   };
@@ -226,6 +240,7 @@ export function SwipeCard({
           ...(canReject ? [{ name: "reject", label: t("actions.reject") }] : []),
           ...(canFix ? [{ name: "fix", label: t("actions.fix") }] : []),
           { name: "later", label: t("actions.later") },
+          { name: "context", label: t("actions.context") },
         ]}
         onAccessibilityAction={onAccessibilityAction}
       >
