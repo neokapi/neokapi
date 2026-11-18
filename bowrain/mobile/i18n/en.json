@@ -4,7 +4,8 @@
     "retry": "Try again",
     "loadFailed": "Could not load this. Check your connection.",
     "dismiss": "Dismiss",
-    "close": "Close"
+    "close": "Close",
+    "done": "Done"
   },
   "tabs": {
     "home": "Home",
@@ -798,5 +799,26 @@
     "later": "Later",
     "restart": "Restart",
     "restartHint": "Restarts the app into the new version. Nothing you did is lost."
+  },
+  "term": {
+    "kind": "Term",
+    "of": "Term {{n}} of {{count}}",
+    "prev": "Previous term",
+    "next": "Next term",
+    "use": "In {{locale}}",
+    "keep": "Keep {{term}} as it is: it is not translated.",
+    "noForm": "No approved form in this language yet.",
+    "used": "This translation uses it.",
+    "unused": "This translation does not use {{form}}.",
+    "notKept": "This translation does not keep {{term}} as it is.",
+    "languages": "Every language",
+    "status": {
+      "preferred": "preferred",
+      "approved": "approved",
+      "admitted": "admitted",
+      "proposed": "proposed",
+      "deprecated": "avoid",
+      "forbidden": "do not use"
+    }
   }
 }

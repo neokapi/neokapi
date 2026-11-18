@@ -284,6 +284,25 @@ func (g *termGate) compliance(ctx context.Context, block *model.Block, tgtLoc mo
 	return blockTermComplianceWith(ctx, block, g.srcLoc, tgtLoc, tb, g.profileFor(ctx, tgtLoc), g.declaredFor(tgtLoc))
 }
 
+// termCheckConfig is the term-check a translation into tgtLoc is held to: the
+// rules the terms snapshot's concepts impose and the rules the recipe
+// declares, joined as targetMissingMandatedTerm and kapi's gate join them. It
+// is nil when nothing governs tgtLoc by terms, and for a nil gate.
+func (g *termGate) termCheckConfig(ctx context.Context, tgtLoc model.LocaleID) *coretools.TermCheckConfig {
+	if g == nil {
+		return nil
+	}
+	var rules []coreprofile.TermRule
+	if g.snapshotGoverns(ctx, tgtLoc) {
+		rules = terms.RulesFromConcepts(g.concepts, g.srcLoc, tgtLoc)
+	}
+	rules = coreprofile.WithDeclaredTermRules(rules, g.declaredFor(tgtLoc))
+	if len(rules) == 0 {
+		return nil
+	}
+	return &coretools.TermCheckConfig{TermRules: rules, SourceLocale: g.srcLoc, TargetLocale: tgtLoc}
+}
+
 // snapshotGoverns reports whether the terms snapshot governs tgtLoc: whether at
 // least one of its concepts answers for a translation from the project's source
 // language into it (terms.RuleForConcept), the same derivation kapi's term rule

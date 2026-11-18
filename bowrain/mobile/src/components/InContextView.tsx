@@ -7,6 +7,8 @@
 // only draws what it is given.
 import {
   cardOfUnit,
+  unitTerms,
+  type Concept,
   type ContainerUnit,
   type DeckCard,
   type ProjectScope,
@@ -20,7 +22,8 @@ import { useTranslation } from "react-i18next";
 
 import { fileName } from "../lib/where";
 import { hasLivePreview, LiveView } from "./LivePreview";
-import { RunText } from "./RunText";
+import { RunText, type RunMark } from "./RunText";
+import { TermSheet, type TermStop } from "./TermSheet";
 
 /** The query key of one block's container in one language. */
 export function reviewContainerKey(scope: ProjectScope, blockId: string, locale: string) {
@@ -49,6 +52,8 @@ export interface InContextViewProps {
    * declares a Storybook can be opened running, full page.
    */
   loadIndex?: (collectionId: string) => Promise<StoryIndex>;
+  /** Reads a concept of the workspace terms store, for a term opened from a string. */
+  loadConcept?: (conceptId: string) => Promise<Concept>;
 }
 
 export function InContextView({
@@ -60,12 +65,14 @@ export function InContextView({
   decided,
   footer,
   loadIndex,
+  loadConcept,
 }: InContextViewProps) {
   const { t } = useTranslation();
   const [reading, setReading] = useState<Reading>("translation");
   const [selected, setSelected] = useState<string>(card.blockId);
   const [approved, setApproved] = useState<ReadonlySet<string>>(new Set());
   const [live, setLive] = useState(false);
+  const [termAt, setTermAt] = useState<number | null>(null);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const placed = useRef(false);
 
@@ -102,8 +109,34 @@ export function InContextView({
     setApproved((s) => new Set([...s, u.blockId]));
   };
 
+  // Every term the term check found in the container, in reading order, one
+  // stop per term per unit, so the term sheet steps through them as the
+  // strings read. The spans and the verdict are the check's; nothing here
+  // matches text.
+  const stops: TermStop[] = c.units.flatMap((u) =>
+    unitTerms(u).map((term) => ({ term, blockId: u.blockId, hasTarget: u.target.length > 0 })),
+  );
+  const marksOf = (u: ContainerUnit, side: "source" | "target"): RunMark[] =>
+    stops.flatMap((stop, at) =>
+      stop.blockId !== u.blockId
+        ? []
+        : (side === "source" ? stop.term.source : stop.term.target).map((anchor) => ({
+            anchor,
+            onPress: () => setTermAt(at),
+          })),
+    );
+
   return (
     <View className="flex-1">
+      <TermSheet
+        stops={stops}
+        at={termAt}
+        locale={card.locale}
+        workspace={scope.workspace}
+        loadConcept={loadConcept}
+        onMove={setTermAt}
+        onClose={() => setTermAt(null)}
+      />
       <View className="border-border gap-2 border-b px-4 pt-2 pb-3">
         <Text
           testID="context-kind"
@@ -189,6 +222,7 @@ export function InContextView({
             <Unit
               unit={u}
               reading={reading}
+              marks={marksOf}
               focus={u.blockId === c.focus}
               selected={u.blockId === selected}
               done={isDone(u)}
@@ -255,6 +289,7 @@ function sizeOf(u: ContainerUnit): "base" | "lg" | "xl" {
 
 function Unit({
   unit,
+  marks,
   reading,
   focus,
   selected,
@@ -264,6 +299,7 @@ function Unit({
   onFix,
 }: {
   unit: ContainerUnit;
+  marks: (u: ContainerUnit, side: "source" | "target") => RunMark[];
   reading: Reading;
   focus: boolean;
   selected: boolean;
@@ -274,11 +310,19 @@ function Unit({
 }) {
   const { t } = useTranslation();
   const hasTarget = unit.target.length > 0;
-  const main = reading === "source" || !hasTarget ? unit.source : unit.target;
+  const mainSide = reading === "source" || !hasTarget ? "source" : "target";
+  const main = mainSide === "source" ? unit.source : unit.target;
   const size = sizeOf(unit);
   const waiting = unit.waiting && !done;
 
-  const body = <RunText runs={main} size={size} muted={reading !== "source" && !hasTarget} />;
+  const body = (
+    <RunText
+      runs={main}
+      size={size}
+      muted={reading !== "source" && !hasTarget}
+      marks={marks(unit, mainSide)}
+    />
+  );
   let drawn = body;
   if (unit.role === "button") {
     drawn = (
@@ -316,7 +360,7 @@ function Unit({
         <View className="flex-1 gap-1">
           {drawn}
           {reading === "both" && hasTarget ? (
-            <RunText runs={unit.source} size="base" muted />
+            <RunText runs={unit.source} size="base" muted marks={marks(unit, "source")} />
           ) : null}
         </View>
       </View>

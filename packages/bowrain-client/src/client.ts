@@ -5,10 +5,11 @@
  * are all computed by the server.
  */
 
-import type { ChangeResult, ChangeSet } from "@neokapi/contract-types";
+import type { ChangeResult, ChangeSet, OverlayView } from "@neokapi/contract-types";
 import type { Run } from "@neokapi/kapi-format";
 
 import type {
+  Concept,
   AuthTokens,
   BlockInfo,
   CallerPermissions,
@@ -183,6 +184,8 @@ export interface BowrainClient {
   reviewContainer(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContainer>;
   /** The story index of a collection's preview host, read through the server. */
   storyIndex(scope: ProjectScope, collectionId: string): Promise<StoryIndex>;
+  /** One concept of the workspace terms store, with its terms in every language. */
+  concept(workspace: string, conceptId: string): Promise<Concept>;
   /** Ready-made fixes for one card, or null when the server has no such route. */
   fixCandidates(
     scope: ProjectScope,
@@ -481,6 +484,12 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       );
     },
 
+    async concept(workspace, conceptId) {
+      return conceptFromServer(
+        await get<ServerConcept>(`/${enc(workspace)}/concepts/${enc(conceptId)}`),
+      );
+    },
+
     async fixCandidates(scope, card, o = {}) {
       try {
         const body = await get<ServerFixCandidates>(
@@ -700,7 +709,38 @@ interface ServerContainer {
     target_revision: string;
     message_key?: string;
     message_text?: string;
+    overlays?: OverlayView[] | null;
   }[];
+}
+
+interface ServerConcept {
+  id: string;
+  domain?: string;
+  definition?: string;
+  do_not_translate?: boolean;
+  terms?: {
+    text: string;
+    locale: string;
+    status?: string;
+    part_of_speech?: string;
+    note?: string;
+  }[];
+}
+
+export function conceptFromServer(c: ServerConcept): Concept {
+  return {
+    id: c.id,
+    domain: c.domain || undefined,
+    definition: c.definition || undefined,
+    doNotTranslate: c.do_not_translate ?? false,
+    terms: (c.terms ?? []).map((t) => ({
+      text: t.text,
+      locale: t.locale,
+      status: t.status || "approved",
+      partOfSpeech: t.part_of_speech || undefined,
+      note: t.note || undefined,
+    })),
+  };
 }
 
 export function containerFromServer(c: ServerContainer): ReviewContainer {
@@ -731,6 +771,7 @@ export function containerFromServer(c: ServerContainer): ReviewContainer {
       targetRevision: u.target_revision,
       messageKey: u.message_key || undefined,
       runtimeText: u.message_text || undefined,
+      overlays: u.overlays?.length ? u.overlays : undefined,
     })),
   };
 }

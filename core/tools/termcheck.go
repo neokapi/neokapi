@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
@@ -153,25 +155,19 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 // content to term rules outside a pipeline calls it, so it reports exactly
 // what the tool reports.
 func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, warns []string) {
-	targetText := check.PlaceholderText(target)
-	for _, use := range sourceUses(source, cfg) {
-		rule := cfg.TermRules[use.index]
+	for _, use := range TermCheckUses(cfg, source, target) {
+		if use.Satisfied {
+			continue
+		}
 		var msg string
-		if rule.DoNotTranslate {
-			if keptVerbatim(targetText, rule, use.texts) {
-				continue
-			}
-			msg = doNotTranslateViolation(rule)
+		if use.Rule.DoNotTranslate {
+			msg = doNotTranslateViolation(use.Rule)
 		} else {
-			renderings := rule.Renderings()
-			if rendered(targetText, renderings, casedFor(cfg, rule)) {
-				continue
-			}
-			msg = violation(rule, renderings, cfg.TargetLocale)
+			msg = violation(use.Rule, use.Rule.Renderings(), cfg.TargetLocale)
 		}
 		// A rule fails unless it is marked advisory. Rules resolved from the
 		// terms store are established terms and fail.
-		if !rule.Advisory {
+		if !use.Rule.Advisory {
 			errs = append(errs, msg)
 		} else {
 			warns = append(warns, msg)
@@ -180,10 +176,109 @@ func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, war
 	return errs, warns
 }
 
+// TermUse is one rule term-check holds a translation to, with where the
+// decision found it: the byte ranges of the term in the source, and of each
+// rendering (or, for a do-not-translate rule, of the kept term) in the target.
+// Satisfied is the verdict, and it is true exactly when Target holds a range.
+type TermUse struct {
+	Rule      profile.TermRule
+	Source    [][2]int
+	Target    [][2]int
+	Satisfied bool
+}
+
+// TermCheckUses is term-check's decision for one source and target text,
+// rule by rule, with positions. TermCheckViolations reports from it and
+// TermCheckOverlays draws from it, so a surface that shows where a term sits
+// shows what the check decided.
+func TermCheckUses(cfg *TermCheckConfig, source, target string) []TermUse {
+	targetText := check.PlaceholderText(target)
+	uses := sourceUses(source, cfg)
+	out := make([]TermUse, 0, len(uses))
+	for _, use := range uses {
+		rule := cfg.TermRules[use.index]
+		var hits [][2]int
+		if rule.DoNotTranslate {
+			hits = verbatimSpans(targetText, rule, use.texts)
+		} else {
+			hits = renderingSpans(targetText, rule.Renderings(), casedFor(cfg, rule))
+		}
+		out = append(out, TermUse{Rule: rule, Source: use.spans, Target: hits, Satisfied: len(hits) > 0})
+	}
+	return out
+}
+
+// TermCheckOverlays draws term-check's decision as term overlays: one over
+// the source runs, a span for each place the source uses a demanded term, and
+// one over the translation in cfg.TargetLocale, a span for each rendering the
+// target holds. The spans of one rule share an id ("term-check:<n>"), and
+// each carries the rule as a TermAnnotation and, in its props, the verdict
+// ("satisfied"), the source term ("term"), the rendering it requires
+// ("replacement") and the concept ("concept_id"), so
+// a reader of the wire form, which keeps props, can pair a source term with
+// its rendering, tell a missing one, and open the concept. It returns nil when
+// the source uses no demanded term.
+func TermCheckOverlays(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) []model.Overlay {
+	uses := TermCheckUses(cfg, model.RunsText(sourceRuns), model.RunsText(targetRuns))
+	if len(uses) == 0 {
+		return nil
+	}
+	src := model.Overlay{Type: model.OverlayTerm}
+	tgt := model.Overlay{Type: model.OverlayTerm, Edition: model.Variant(cfg.TargetLocale)}
+	for i, use := range uses {
+		id := fmt.Sprintf("term-check:%d", i)
+		ann := termAnnotation(use.Rule, cfg.TargetLocale)
+		props := map[string]string{"satisfied": strconv.FormatBool(use.Satisfied), "term": use.Rule.Term}
+		if use.Rule.ConceptID != "" {
+			props["concept_id"] = use.Rule.ConceptID
+		}
+		if use.Rule.Replacement != "" {
+			props["replacement"] = use.Rule.Replacement
+		}
+		if use.Rule.Advisory {
+			props["advisory"] = "true"
+		}
+		if use.Rule.DoNotTranslate {
+			props["do_not_translate"] = "true"
+		}
+		for _, h := range use.Source {
+			src.Spans = append(src.Spans, model.Span{ID: id, Range: model.RangeAnchorForBytes(sourceRuns, h[0], h[1]), Props: props, Value: ann})
+		}
+		for _, h := range use.Target {
+			tgt.Spans = append(tgt.Spans, model.Span{ID: id, Range: model.RangeAnchorForBytes(targetRuns, h[0], h[1]), Props: props, Value: ann})
+		}
+	}
+	out := []model.Overlay{src}
+	if len(tgt.Spans) > 0 {
+		out = append(out, tgt)
+	}
+	return out
+}
+
+// termAnnotation is a rule as a term annotation: the source term, its concept,
+// and the renderings that satisfy it in target. A do-not-translate rule's
+// rendering is the term itself.
+func termAnnotation(rule profile.TermRule, target model.LocaleID) *model.TermAnnotation {
+	ann := &model.TermAnnotation{SourceTerm: rule.Term, ConceptID: rule.ConceptID, Score: 1}
+	if rule.DoNotTranslate {
+		ann.TargetTerms = []model.TermRef{{Text: rule.Term, Locale: target}}
+		return ann
+	}
+	for i, r := range rule.Renderings() {
+		ref := model.TermRef{Text: r.Text, Locale: target}
+		if i == 0 {
+			ref.Status = model.TermPreferred
+		}
+		ann.TargetTerms = append(ann.TargetTerms, ref)
+	}
+	return ann
+}
+
 // sourceUse is a rule the source uses, with the text of each place it does.
 type sourceUse struct {
 	index int
 	texts []string
+	spans [][2]int
 }
 
 // sourceUses returns, in rule order, every rule the target is held to whose
@@ -241,6 +336,7 @@ func sourceUses(source string, conf *TermCheckConfig) []sourceUse {
 			order = append(order, s.Index)
 		}
 		use.texts = append(use.texts, source[s.Start:s.End])
+		use.spans = append(use.spans, [2]int{s.Start, s.End})
 	}
 	slices.Sort(order)
 	out := make([]sourceUse, 0, len(order))
@@ -255,12 +351,17 @@ func sourceUses(source string, conf *TermCheckConfig) []sourceUse {
 // of it, so a term the source capitalises at the start of a sentence is kept
 // when the target capitalises it the same way.
 func keptVerbatim(target string, rule profile.TermRule, occurrences []string) bool {
+	return len(verbatimSpans(target, rule, occurrences)) > 0
+}
+
+// verbatimSpans returns the byte ranges where target keeps a do-not-translate
+// term as keptVerbatim reads it.
+func verbatimSpans(target string, rule profile.TermRule, occurrences []string) [][2]int {
+	var hits [][2]int
 	for _, s := range append(rule.AllForms(), occurrences...) {
-		if s != "" && strings.Contains(target, s) {
-			return true
-		}
+		hits = append(hits, occurrencesOf(target, s, true)...)
 	}
-	return false
+	return outermostSpans(hits)
 }
 
 // doNotTranslateViolation words a do-not-translate rule the target does not
@@ -276,17 +377,21 @@ func doNotTranslateViolation(rule profile.TermRule) string {
 // rendered reports whether target contains one of the renderings or a declared
 // form of one.
 func rendered(target string, renderings []profile.Rendering, caseSensitive bool) bool {
+	return len(renderingSpans(target, renderings, caseSensitive)) > 0
+}
+
+// renderingSpans returns the byte ranges where target contains one of the
+// renderings or a declared form of one. The match is containment, as rendered
+// decides it, so a compound holding a rendering is a range.
+func renderingSpans(target string, renderings []profile.Rendering, caseSensitive bool) [][2]int {
+	var hits [][2]int
 	for _, r := range renderings {
-		if containsTerm(target, r.Text, caseSensitive) {
-			return true
-		}
+		hits = append(hits, occurrencesOf(target, r.Text, caseSensitive)...)
 		for _, f := range r.Forms {
-			if strings.TrimSpace(f) != "" && containsTerm(target, f, caseSensitive) {
-				return true
-			}
+			hits = append(hits, occurrencesOf(target, f, caseSensitive)...)
 		}
 	}
-	return false
+	return outermostSpans(hits)
 }
 
 // violation words a demanded rule the target does not satisfy. It opens the way
@@ -325,11 +430,43 @@ func declaresForms(renderings []profile.Rendering) bool {
 	return false
 }
 
-func containsTerm(text, term string, caseSensitive bool) bool {
-	if caseSensitive {
-		return strings.Contains(text, term)
+// occurrencesOf returns the byte ranges of every occurrence of term in text.
+// Without caseSensitive a letter matches any of its cases (strings.EqualFold).
+// A blank term occurs nowhere.
+func occurrencesOf(text, term string, caseSensitive bool) [][2]int {
+	if strings.TrimSpace(term) == "" {
+		return nil
 	}
-	return strings.Contains(strings.ToLower(text), strings.ToLower(term))
+	var hits [][2]int
+	for i := 0; i+len(term) <= len(text); {
+		window := text[i : i+len(term)]
+		if window == term || (!caseSensitive && strings.EqualFold(window, term)) {
+			hits = append(hits, [2]int{i, i + len(term)})
+		}
+		_, size := utf8.DecodeRuneInString(text[i:])
+		i += size
+	}
+	return hits
+}
+
+// outermostSpans sorts ranges by position and drops any range that lies
+// inside one already kept, so a declared form and its rendering covering the
+// same word are one range.
+func outermostSpans(hits [][2]int) [][2]int {
+	slices.SortFunc(hits, func(a, b [2]int) int {
+		if a[0] != b[0] {
+			return a[0] - b[0]
+		}
+		return b[1] - a[1]
+	})
+	var out [][2]int
+	for _, h := range hits {
+		if n := len(out); n > 0 && h[1] <= out[n-1][1] {
+			continue
+		}
+		out = append(out, h)
+	}
+	return out
 }
 
 // TermCheckMatching describes how term-check matches under cfg, for the verdict

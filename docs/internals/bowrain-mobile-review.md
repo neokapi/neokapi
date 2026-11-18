@@ -94,8 +94,24 @@ card's block, which is outlined. Every other translation waiting for review
 carries a dot; tapping one selects it and offers Approve and Fix in place, and
 when more than one waits the page offers to approve them all.
 
+Each unit carries the term check's spans (`overlays`). The server runs
+term-check, the gate kapi and the platform use, with the rules the workspace's
+concepts and the recipe impose on the language, and returns its decision as
+term overlays: where each term sits in the source, where the translation
+renders it, and whether it does. The page underlines what those anchors cover
+and matches no text itself, so a term marked here and the gate's verdict are
+one decision. Tapping a term opens the term sheet: the concept's definition,
+the form to use in the language under review, the check's verdict on this
+translation, and the concept's terms in every language with their status
+(`GET /:ws/concepts/:cid`). Previous and next step through every term in the
+container in reading order. A term inside a plural or select form is not
+marked yet: the anchors resolve to the top-level text runs only.
+
+A code chip, such as a variable named `count`, is not a term. Tapping it says
+what it is: a value the app fills in, a choice of forms, or formatting.
+
 When the container is a component and its collection declares a Storybook,
-**Live** opens the component running, full page. The container names the host
+**See it running** opens the component running, full page. The container names the host
 and the component's source file; the app reads the host's story index through
 the server, takes the stories written beside that file
 (`OfflineLaunch.stories.tsx` for `OfflineLaunch.tsx`), and loads one in a
@@ -859,6 +875,12 @@ the review context.
 - `message_key` and `message_text` are the key a running component looks the
   string up by and the translation in the runtime catalog's form. They feed
   the live preview and are never drawn.
+- `overlays` are term-check's spans in the overlay wire form
+  (`core/editor.OverlayView`): a `term` overlay on side `source` and, when the
+  translation renders a term, one on the target locale's side. Spans of one
+  rule share an id (`term-check:<n>`); their props carry `term`,
+  `replacement`, `concept_id`, `satisfied` and, where set, `advisory` and
+  `do_not_translate`. Absent when no term governs the language.
 - `collection_id` names the item's collection. `preview` (`kind`, `url`,
   `source_file`) is set for a component whose collection declares a preview
   host.

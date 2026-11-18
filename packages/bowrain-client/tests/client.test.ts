@@ -151,7 +151,7 @@ describe("change sets", () => {
     } as unknown as ChangeResult;
     const outcome = readOutcome(result);
     expect(outcome.status).toBe("stale");
-    if (outcome.status === "stale") expect(outcome.current.rev).toBe("r:fedcba9876543210");
+    if (outcome.status === "stale") expect(outcome.current?.rev).toBe("r:fedcba9876543210");
   });
 });
 

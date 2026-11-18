@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { Run } from "./types";
+import type { RunLike as Run } from "../src/run-projection.ts";
 import {
   charSpanForAnchor,
   rangeAnchorForBytes,
   rangeAnchorForChars,
   runsPlainText,
   textForBytes,
-} from "./anchor";
+  textRunSpansForAnchor,
+} from "../src/anchor.ts";
 
 // The fixtures mirror what a reader emits: text runs interleaved with inline
 // codes, and a plural wrapper whose "other" branch carries the flat text.
@@ -287,5 +288,37 @@ describe("charSpanForAnchor", () => {
     expect(charSpanForAnchor(simple, { kind: "form", path: [0], key: "one" })).toBeNull();
     expect(charSpanForAnchor(simple, { kind: "weird" })).toBeNull();
     expect(charSpanForAnchor(undefined, { kind: "range", end: { run: 1 } })).toBeNull();
+  });
+});
+
+describe("textRunSpansForAnchor", () => {
+  it("covers the part of one text run a range names", () => {
+    const anchor = rangeAnchorForChars(simple, 11, 15);
+    expect(textRunSpansForAnchor(simple, anchor)).toEqual([{ run: 0, start: 11, end: 15 }]);
+  });
+
+  it("skips the codes inside a range and splits it across text runs", () => {
+    // "Hello " + {name} + ", welcome to " + <b>Acme</b> + "."
+    const flat = runsPlainText(withCodes);
+    const start = flat.indexOf("welcome");
+    const anchor = rangeAnchorForChars(withCodes, start, flat.indexOf("."));
+    expect(textRunSpansForAnchor(withCodes, anchor)).toEqual([
+      { run: 2, start: 2, end: 13 },
+      { run: 4, start: 0, end: 4 },
+    ]);
+  });
+
+  it("counts offsets in code points and returns UTF-16 indices", () => {
+    const runs: Run[] = [{ text: "😀 server" }];
+    const anchor = rangeAnchorForChars(runs, 2, 8);
+    const [span] = textRunSpansForAnchor(runs, anchor);
+    expect(runs[0].text?.slice(span.start, span.end)).toBe("server");
+  });
+
+  it("resolves no nested or non-range anchor to text runs", () => {
+    expect(textRunSpansForAnchor(simple, { kind: "block" })).toEqual([]);
+    expect(
+      textRunSpansForAnchor(withPlural, { kind: "range", path: [1, { plural: "other" }] }),
+    ).toEqual([]);
   });
 });
