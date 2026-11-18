@@ -107,8 +107,9 @@ translation, and the concept's terms in every language with their status
 container in reading order. A term inside a plural or select form is not
 marked yet: the anchors resolve to the top-level text runs only.
 
-A code chip, such as a variable named `count`, is not a term. Tapping it says
-what it is: a value the app fills in, a choice of forms, or formatting.
+A code, such as a variable named `serverURL`, reads as its name in a muted
+monospace face and does not respond to a tap. In a string, a tap opens a term
+or contextual help, and a code is neither.
 
 When the container is a component, its collection declares a Storybook, and
 the Storybook's index holds a story beside the component's source file,

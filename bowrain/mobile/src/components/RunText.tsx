@@ -120,7 +120,7 @@ function spec(
         {parts?.get(r) ? markText(r.text, parts.get(r)!) : r.text}
       </Text>
     ),
-    ph: ({ ph }) => <CodeChip key={key()} display={code.ph(ph)} testID="run-chip" explain />,
+    ph: ({ ph }) => <CodeChip key={key()} display={code.ph(ph)} testID="run-chip" />,
     pcOpen: () => {
       depth++;
       return null;
@@ -129,12 +129,12 @@ function spec(
       depth = Math.max(0, depth - 1);
       return null;
     },
-    sub: ({ sub }) => <CodeChip key={key()} display={code.sub(sub)} testID="run-chip" explain />,
+    sub: ({ sub }) => <CodeChip key={key()} display={code.sub(sub)} testID="run-chip" />,
     plural: ({ plural }) => {
       const k = key();
       return (
         <Fragment key={k}>
-          <CodeChip display={code.choice(plural.pivot)} testID="run-chip" explain />
+          <CodeChip display={code.choice(plural.pivot)} testID="run-chip" />
           {branchList(k, plural.forms)}
         </Fragment>
       );
@@ -143,7 +143,7 @@ function spec(
       const k = key();
       return (
         <Fragment key={k}>
-          <CodeChip display={code.choice(select.pivot)} testID="run-chip" explain />
+          <CodeChip display={code.choice(select.pivot)} testID="run-chip" />
           {branchList(k, select.cases)}
         </Fragment>
       );

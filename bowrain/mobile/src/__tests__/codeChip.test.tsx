@@ -1,18 +1,19 @@
 import { codeDisplays, type Run } from "@neokapi/kapi-format";
-import { fireEvent, render, screen } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { render, screen } from "@testing-library/react-native";
 
 import "../lib/i18n";
 import { RunText } from "../components/RunText";
 
-describe("code chips in a string", () => {
-  it("say what a variable is when tapped", async () => {
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-    const ph = { id: "1", type: "variable", data: "{count}", equiv: "{count}" };
-    const runs: Run[] = [{ ph }, { text: " angitt" }];
-    expect(codeDisplays(runs).ph(ph).name).toBe("count");
+describe("codes in a string", () => {
+  it("read as a muted monospace name and do not respond to a tap", async () => {
+    const ph = { id: "1", type: "variable", data: "{serverURL}", equiv: "{serverURL}" };
+    const runs: Run[] = [{ text: "Bowrain må nå " }, { ph }, { text: " for å laste" }];
+    expect(codeDisplays(runs).ph(ph).name).toBe("serverURL");
     await render(<RunText runs={runs} />);
-    await fireEvent.press(screen.getByTestId("run-chip"));
-    expect(alert).toHaveBeenCalledWith("count", expect.stringContaining("fills in when it runs"));
+    const code = screen.getByTestId("run-chip");
+    expect(code.props.children).toBe("serverURL");
+    expect(code.props.onPress).toBeUndefined();
+    expect(code.props.className).toContain("font-mono");
+    expect(code.props.className).toContain("text-muted-foreground");
   });
 });
