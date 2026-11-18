@@ -326,6 +326,12 @@
       "content": "content",
       "element": "styled text",
       "unknown": "code"
+    },
+    "explain": {
+      "hint": "Says what this is",
+      "variable": "A value the app fills in when it runs, such as a number or a name. It stays as it is in every language: keep it where the translated sentence needs it.",
+      "choice": "The app picks one of the forms shown by this value, such as one item or several. Each form is translated.",
+      "other": "Formatting or content the app puts here, such as a link or a line break. Keep it where the translated sentence needs it."
     }
   },
   "inContext": {
@@ -349,7 +355,7 @@
     "more": "More of it continues in the file"
   },
   "live": {
-    "open": "Live",
+    "open": "See it running",
     "hint": "Opens the component running in its Storybook, with these translations in place.",
     "close": "Close",
     "unreadable": "This collection's Storybook could not be read, so the component is shown from its strings.",
@@ -363,7 +369,8 @@
     "prevStory": "Previous story",
     "nextStory": "Next story",
     "prevString": "Previous string",
-    "nextString": "Next string"
+    "nextString": "Next string",
+    "openDetail": "In its Storybook, with these translations"
   },
   "details": {
     "title": "Details",

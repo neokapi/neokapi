@@ -3,7 +3,7 @@
 // an extractor's internal identifier cannot reach the screen through it: a
 // chip shows the code's human name, or words its kind.
 import type { CodeDisplay, CodeKind } from "@neokapi/kapi-format";
-import { Text } from "react-native";
+import { Alert, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 
 /** The words for a code with no human name, as the catalog holds them. */
@@ -21,7 +21,24 @@ const SHAPE: Record<CodeDisplay["role"], string> = {
   close: "rounded-r-md rounded-l-sm opacity-70",
 };
 
-export function CodeChip({ display, testID }: { display: CodeDisplay; testID?: string }) {
+/** What a code is, said to a reviewer who meets it in a string. */
+export function codeExplanationKey(d: CodeDisplay): string {
+  if (d.role === "choice") return "code.explain.choice";
+  if (d.kind === "variable" || (d.role === "placeholder" && d.name)) return "code.explain.variable";
+  return "code.explain.other";
+}
+
+export function CodeChip({
+  display,
+  testID,
+  explain = false,
+}: {
+  display: CodeDisplay;
+  testID?: string;
+  /** Tapping the chip says what it is: a value the app fills in, a choice, markup. */
+  explain?: boolean;
+}) {
+  const { t } = useTranslation();
   const word = useCodeWord()(display);
   return (
     // A nested Text takes the size of the text around it. Uniwind resolves
@@ -29,6 +46,8 @@ export function CodeChip({ display, testID }: { display: CodeDisplay; testID?: s
     <Text
       testID={testID}
       accessibilityLabel={word}
+      accessibilityHint={explain ? t("code.explain.hint") : undefined}
+      onPress={explain ? () => Alert.alert(word, t(codeExplanationKey(display))) : undefined}
       className={`bg-chip text-chip-foreground px-1 ${SHAPE[display.role]}`}
     >
       {word}
