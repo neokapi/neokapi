@@ -15,11 +15,11 @@ import {
 } from "@neokapi/bowrain-client";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState, type ComponentRef, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { fileName } from "../lib/where";
-import { hasLivePreview, LivePreview } from "./LivePreview";
+import { hasLivePreview, LiveView } from "./LivePreview";
 import { RunText } from "./RunText";
 
 /** The query key of one block's container in one language. */
@@ -46,7 +46,7 @@ export interface InContextViewProps {
   footer?: ReactNode;
   /**
    * Reads a collection's story index. Given, a component whose collection
-   * declares a Storybook is shown running above its units.
+   * declares a Storybook can be opened running, full page.
    */
   loadIndex?: (collectionId: string) => Promise<StoryIndex>;
 }
@@ -65,7 +65,7 @@ export function InContextView({
   const [reading, setReading] = useState<Reading>("translation");
   const [selected, setSelected] = useState<string>(card.blockId);
   const [approved, setApproved] = useState<ReadonlySet<string>>(new Set());
-  const [live, setLive] = useState(true);
+  const [live, setLive] = useState(false);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const placed = useRef(false);
 
@@ -126,26 +126,41 @@ export function InContextView({
           {loadIndex && hasLivePreview(c) ? (
             <Pressable
               testID="context-live"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: live }}
-              onPress={() => setLive((v) => !v)}
-              className={`rounded-lg px-3 py-1 ${live ? "bg-primary/15" : "bg-muted"}`}
+              accessibilityRole="button"
+              accessibilityHint={t("live.hint")}
+              onPress={() => setLive(true)}
+              className="bg-primary/15 rounded-lg px-3 py-1"
             >
-              <Text className="text-foreground text-sm font-semibold">{t("live.toggle")}</Text>
+              <Text className="text-foreground text-sm font-semibold">{t("live.open")}</Text>
             </Pressable>
           ) : null}
         </View>
       </View>
 
-      <ScrollView ref={scroll} contentContainerClassName="gap-3 px-4 py-4 pb-24">
-        {loadIndex && live && hasLivePreview(c) ? (
-          <LivePreview
+      {loadIndex && hasLivePreview(c) ? (
+        <Modal
+          visible={live}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setLive(false)}
+        >
+          <LiveView
             container={c}
             scope={scope}
             loadIndex={loadIndex}
-            source={reading === "source"}
+            start={selected}
+            isDone={isDone}
+            onApprove={approve}
+            onFix={(u) => {
+              setLive(false);
+              onFix(cardOfUnit(u, card.locale, card.collectionId));
+            }}
+            onClose={() => setLive(false)}
           />
-        ) : null}
+        </Modal>
+      ) : null}
+
+      <ScrollView ref={scroll} contentContainerClassName="gap-3 px-4 py-4 pb-24">
         {c.moreBefore ? <More /> : null}
         {c.units.map((u) => (
           <View

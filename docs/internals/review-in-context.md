@@ -107,7 +107,10 @@ Done (PRs #3571 and the container PR):
 - live component previews on mobile: the container names its collection's
   Storybook and the component's source file, the app finds the story beside
   that file in the host's index, loads it in a WebView and posts the
-  container's translations into it.
+  container's translations into it. The live view is full page, with
+  previous and next over the strings (the current one outlined in the running
+  component) and over the stories (one that shows none of the strings is
+  passed over).
 
 Next, in the order that pays most per unit of work:
 

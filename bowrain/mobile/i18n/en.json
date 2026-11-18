@@ -349,9 +349,21 @@
     "more": "More of it continues in the file"
   },
   "live": {
-    "toggle": "Live",
+    "open": "Live",
+    "hint": "Opens the component running in its Storybook, with these translations in place.",
+    "close": "Close",
     "unreadable": "This collection's Storybook could not be read, so the component is shown from its strings.",
-    "noStory": "No story renders this component. A story beside it, named Component.stories.tsx, shows it running here."
+    "noStory": "No story renders this component. A story beside it, named Component.stories.tsx, shows it running here.",
+    "storyOf": "Story {{n}} of {{count}}",
+    "looking": "Looking for a story that shows these strings",
+    "shows": "Shows {{found}} of {{count}} strings",
+    "showsNone": "Shows none of these strings",
+    "stringOf": "String {{n}} of {{count}}",
+    "notShown": "not in this story",
+    "prevStory": "Previous story",
+    "nextStory": "Next story",
+    "prevString": "Previous string",
+    "nextString": "Next string"
   },
   "details": {
     "title": "Details",

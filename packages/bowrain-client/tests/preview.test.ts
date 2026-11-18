@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { previewDictionary, storiesForSource, storyLabel, storyURL } from "../src/preview.ts";
+import {
+  previewDictionary,
+  rankStories,
+  storiesForSource,
+  storyLabel,
+  storyURL,
+  visibleFragments,
+} from "../src/preview.ts";
 
 const index = {
   entries: {
@@ -51,5 +58,35 @@ describe("live preview", () => {
         { runtimeText: "orphan" },
       ]),
     ).toEqual({ h1: "Réessayer" });
+  });
+
+  it("puts a story named for the component first and error or dark states last", () => {
+    const e = (id: string, name: string) => ({
+      id,
+      name,
+      title: "Components/Sheet",
+      importPath: "./Sheet.stories.tsx",
+      type: "story",
+    });
+    const got = rankStories(
+      [
+        e("a", "Connected No Permission"),
+        e("b", "Overview tab (dark)"),
+        e("c", "Map tab"),
+        e("d", "PreviewBody"),
+      ],
+      "PreviewBody",
+    );
+    expect(got.map((x) => x.id)).toEqual(["d", "c", "b", "a"]);
+  });
+
+  it("finds the text a reader sees between codes, longest first", () => {
+    expect(visibleFragments("Hei {name}, se {=m0}vilkårene{/=m0} her")).toEqual([
+      "vilkårene",
+      ", se",
+      "Hei",
+    ]);
+    expect(visibleFragments("<=m0><serverURL/></=m0>")).toEqual([]);
+    expect(visibleFragments("{count, plural, one {# fil} other {# filer}}")).toEqual([]);
   });
 });
