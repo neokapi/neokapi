@@ -2039,6 +2039,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/review-deck/:ref", s.HandleGetReviewDeck)
 	// The same deck split by collection, to take one collection at a time.
 	g.GET("/:id/review-deck/:ref/collections", s.HandleGetReviewDeckCollections)
+	// The same deck by page: each component, and each document, with its
+	// waiting count.
+	g.GET("/:id/review-deck/:ref/pages", s.HandleGetReviewDeckPages)
 
 	// Review queue — Bowrain AD-011: /:ws/:id/review-queue/:ref
 	g.GET("/:id/review-queue/:ref", s.HandleListReviewQueue)

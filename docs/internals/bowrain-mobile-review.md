@@ -170,7 +170,18 @@ any other decision.
 
 ## The deck
 
-The server orders the deck and returns it with a reason per card:
+A language's deck opens on **pages**. A page is one component's strings, or
+the blocks of one document that belong to no component, listed with the
+translations waiting in it (`GET …/review-deck/:ref/pages`, below). Opening a
+page shows its container with the first waiting translation in view; the
+reviewer decides each unit in place, or approves every waiting one at once. A
+document page walks section by section: **Next section** opens the container
+of the next translation waiting in the document (`next_waiting` on the
+container). **Cards** is the other view, one tap away, for quick strings.
+Context items (terms, rules, coordinates) stay on cards in their own deck. A
+server without the pages route opens on cards.
+
+The server orders the cards and returns them with a reason per card:
 
 1. **Fast deck:** blocks with no check findings and a high pre-review score.
    These are the cards a swipe is right for.
@@ -821,6 +832,38 @@ the review context.
   JSX path. A role the server cannot read is `paragraph`.
 - `waiting` is a translation present and not approved. The revisions are the
   ones a change set binds to, so any unit can be decided as a card is.
+- `next_waiting` is the first translation waiting in the item after the
+  container, in document order; absent when none waits. A page review moves
+  there with Next section.
+
+### A language's deck by page
+
+`GET /:ws/:id/review-deck/:ref/pages?locale=nb[&collection=c1]`
+
+Permission is `review` for the language, as for the deck.
+
+```json
+{
+  "locale": "nb",
+  "waiting": 9,
+  "more": false,
+  "pages": [
+    {"kind": "component", "title": "OfflineLaunch", "component": "OfflineLaunch",
+     "item_name": "…/OfflineLaunch.kbf.json", "collection_id": "c1",
+     "waiting": 3, "first_block_id": "b-01J..."},
+    {"kind": "document", "title": "guide.md", "item_name": "docs/guide.md",
+     "collection_id": "c2", "waiting": 4, "first_block_id": "b-01K..."}
+  ]
+}
+```
+
+- Pages are grouped by item and the block's `component` property, and ordered
+  by collection priority, item, and the position of the first waiting
+  translation.
+- `waiting` counts translations present and not approved, leaving out those
+  set aside. A copy counts on each page it appears on, since a page review
+  decides each unit in place.
+- The route returns at most 200 pages; `more` says more wait past them.
 
 ### Fix candidates
 

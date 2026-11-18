@@ -136,6 +136,30 @@ type ReviewDeckStore interface {
 	// translation, up to limit in all, keyed by the block they copy. It
 	// honours q.ExcludeCollections and reads every collection otherwise.
 	ReviewDeckCopies(ctx context.Context, q ReviewDeckQuery, blockIDs []string, limit int) (map[string][]PendingReviewRef, error)
+	// ListReviewDeckPages returns up to limit pages of the deck, each with
+	// its waiting count: a page is a component's strings, or an item's
+	// blocks that belong to no component. Pages are ordered by priority, item
+	// and the position of their first waiting translation. A translation set
+	// aside is not counted, and each copy counts on its own page.
+	ListReviewDeckPages(ctx context.Context, q ReviewDeckQuery, limit int) ([]ReviewDeckPage, error)
+	// NextReviewInItem returns the first translation waiting in the item
+	// after the block, in document order, or "" when none waits.
+	NextReviewInItem(ctx context.Context, q ReviewDeckQuery, itemName, afterBlockID string) (string, error)
+}
+
+// ReviewDeckPage is a part of the deck a reviewer reads whole: the strings
+// of one component, or the blocks of one item that belong to no component.
+type ReviewDeckPage struct {
+	ItemName     string
+	CollectionID string
+	// Component names the component; empty for an item's other blocks.
+	Component string
+	// Priority is the tier of the page's collection: 0 high, 1 normal, 2 low.
+	Priority int
+	// Waiting counts the page's translations waiting for review.
+	Waiting int
+	// FirstBlockID is the page's first waiting translation in document order.
+	FirstBlockID string
 }
 
 // ReviewDeckStores finds the review deck store behind a content store,

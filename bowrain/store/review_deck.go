@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -362,4 +363,59 @@ func (s *PostgresStore) countReviewDeckCollections(ctx context.Context, q platst
 		out[coll] = c
 	}
 	return out, rows.Err()
+}
+
+// reviewDeckWaiting keeps, of reviewDeckFrom, the translations in the deck:
+// a fresh row ranked below 0 is set aside.
+const reviewDeckWaiting = ` AND NOT (` + reviewDeckFresh + ` AND f.group_rank < 0)`
+
+// ListReviewDeckPages returns the deck's pages with their waiting counts.
+// See platstore.ReviewDeckStore.
+func (s *PostgresStore) ListReviewDeckPages(ctx context.Context, q platstore.ReviewDeckQuery, limit int) ([]platstore.ReviewDeckPage, error) {
+	scope, args := reviewDeckArgs(q)
+	prio, args := reviewDeckPriority(q, args)
+	args = append(args, limit)
+	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
+	query := `SELECT x.item_name, x.collection_id, x.component, x.prio, count(*),
+		(array_agg(x.id ORDER BY x.position, x.id))[1]
+		FROM (SELECT b.id, b.item_name, COALESCE(i.collection_id, '') AS collection_id,
+			COALESCE(b.properties::jsonb->>'component', '') AS component, b.position, ` + prio + ` AS prio` +
+		reviewDeckFrom + scope + reviewDeckWaiting + `) x
+		GROUP BY x.item_name, x.collection_id, x.component, x.prio` +
+		fmt.Sprintf(` ORDER BY x.prio, x.item_name, min(x.position), x.component LIMIT $%d`, len(args))
+	rows, err := s.db.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list review deck pages: %w", err)
+	}
+	defer rows.Close()
+	var out []platstore.ReviewDeckPage
+	for rows.Next() {
+		var p platstore.ReviewDeckPage
+		if err := rows.Scan(&p.ItemName, &p.CollectionID, &p.Component, &p.Priority, &p.Waiting, &p.FirstBlockID); err != nil {
+			return nil, fmt.Errorf("scan review deck page: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// NextReviewInItem returns the first translation waiting in the item after
+// the block. See platstore.ReviewDeckStore.
+func (s *PostgresStore) NextReviewInItem(ctx context.Context, q platstore.ReviewDeckQuery, itemName, afterBlockID string) (string, error) {
+	scope, args := reviewDeckArgs(q)
+	args = append(args, itemName, afterBlockID)
+	n := len(args)
+	query := `SELECT b.id` + reviewDeckFrom + scope + reviewDeckWaiting +
+		fmt.Sprintf(` AND b.item_name = $%d AND (b.position, b.id) > (
+			SELECT a.position, a.id FROM blocks a WHERE a.project_id = $1 AND a.stream = $2 AND a.id = $%d)
+		ORDER BY b.position, b.id LIMIT 1`, n-1, n)
+	var id string
+	err := s.db.DB.QueryRowContext(ctx, query, args...).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("next review in item: %w", err)
+	}
+	return id, nil
 }

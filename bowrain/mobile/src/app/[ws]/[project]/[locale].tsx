@@ -1,5 +1,7 @@
-// The review deck for one language: a stack of cards, swiped or tapped to
-// decide, one at a time. A decision waits on the device for a few seconds
+// The review deck for one language. It opens on pages: each component and
+// each document with its waiting translations, reviewed together in place
+// (page.tsx). Cards is the other view: a stack of cards, swiped or tapped to
+// decide, one at a time, for quick strings. A decision waits on the device for a few seconds
 // under an Undo bar, then goes to the offline queue and is sent in order.
 // Undo takes back the last one and the card comes back from the side it left
 // by; Reviewed lists every decision made here, each with its own Undo. Opened from a language's collections, the deck holds one
@@ -23,7 +25,7 @@ import {
 import * as Crypto from "expo-crypto";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
@@ -33,6 +35,7 @@ import { SafeAreaView } from "../../../components/SafeArea";
 
 import { ActionBar } from "../../../components/ActionBar";
 import { ContextSheet } from "../../../components/ContextSheet";
+import { PagesList } from "../../../components/PagesList";
 import { FixSheet } from "../../../components/FixSheet";
 import { ReviewCard } from "../../../components/ReviewCard";
 import { RunText } from "../../../components/RunText";
@@ -68,6 +71,7 @@ import {
   nextCollection,
 } from "../../../lib/deckCollections";
 import { cardId, deckView, mergePages } from "../../../lib/deckView";
+import { opensOnPages } from "../../../lib/pages";
 import { whereParts } from "../../../lib/where";
 
 const PAGE = 50;
@@ -108,6 +112,39 @@ export default function DeckScreen() {
   const sourceLanguage =
     qc.getQueryData<Project[]>(["projects", ws])?.find((p) => p.id === project)
       ?.default_source_language ?? "";
+
+  // The deck by page, which the screen opens on when the server has it.
+  const pages = useQuery({
+    queryKey: ["deck-pages", ws, project, locale, collection ?? null],
+    queryFn: () => client.deckPages(scope, locale, { collection }),
+  });
+  const refetchPages = pages.refetch;
+  useFocusEffect(
+    useCallback(() => {
+      void refetchPages();
+    }, [refetchPages]),
+  );
+  const [chosenView, setView] = useState<"pages" | "cards" | null>(null);
+  const hasPages = opensOnPages(pages.data);
+  const mode = chosenView ?? (hasPages ? "pages" : "cards");
+  const openPage = (p: {
+    firstBlockId: string;
+    kind: string;
+    title: string;
+    collectionId: string;
+  }) =>
+    router.push({
+      pathname: "/[ws]/[project]/page",
+      params: {
+        ws,
+        project,
+        locale,
+        block: p.firstBlockId,
+        kind: p.kind,
+        title: p.title,
+        collection: p.collectionId,
+      },
+    });
 
   const deck = useInfiniteQuery({
     queryKey: ["deck", ws, project, locale, collection ?? null],
@@ -323,122 +360,137 @@ export default function DeckScreen() {
           headerShadowVisible: false,
         }}
       />
-      <View className="gap-2 px-5 pt-2 pb-1">
-        <View className="flex-row items-center justify-between">
-          <Text
-            testID="deck-remaining"
-            className="text-foreground text-sm font-semibold"
-            accessibilityLabel={
-              counts
-                ? t("deck.remaining", { count: view.swipe.length, total: counts.total })
-                : t("deck.remainingShort", { count: view.swipe.length })
-            }
-          >
-            {total > 0
-              ? t("deck.progress", {
-                  position: Math.min(reviewed.length + 1, total),
-                  total,
-                })
-              : ""}
-          </Text>
-          <Text testID="deck-sync" className="text-muted-foreground text-sm">
-            {!online
-              ? t("deck.offline", { count: queued })
-              : queued > 0
-                ? t("deck.sending", { count: queued })
+      {hasPages || chosenView === "pages" ? (
+        <View className="px-5 pt-2">
+          <ViewSwitch value={mode} onChange={setView} />
+        </View>
+      ) : null}
+      {mode === "pages" && pages.data ? (
+        <View className="flex-1 px-5 pt-3">
+          <PagesList pages={pages.data} onOpen={openPage} />
+        </View>
+      ) : null}
+      <View className={mode === "pages" && pages.data ? "hidden" : "flex-1"}>
+        <View className="gap-2 px-5 pt-2 pb-1">
+          <View className="flex-row items-center justify-between">
+            <Text
+              testID="deck-remaining"
+              className="text-foreground text-sm font-semibold"
+              accessibilityLabel={
+                counts
+                  ? t("deck.remaining", { count: view.swipe.length, total: counts.total })
+                  : t("deck.remainingShort", { count: view.swipe.length })
+              }
+            >
+              {total > 0
+                ? t("deck.progress", {
+                    position: Math.min(reviewed.length + 1, total),
+                    total,
+                  })
                 : ""}
-          </Text>
-        </View>
-        <View className="bg-muted h-1 overflow-hidden rounded-full" importantForAccessibility="no">
-          <View
-            testID="deck-progress"
-            className="from-prism-1 via-prism-3 to-prism-5 h-1 rounded-full bg-linear-to-r"
-            style={{ width: `${total > 0 ? (reviewed.length / total) * 100 : 0}%` }}
-          />
-        </View>
-      </View>
-
-      {unclassified > 0 ? (
-        <Text testID="deck-unclassified" className="text-muted-foreground px-4 pb-2 text-xs">
-          {t("deck.unclassified", { count: unclassified })}
-        </Text>
-      ) : null}
-
-      {!ordered ? (
-        <Text className="text-muted-foreground px-4 pb-2 text-xs">{t("deck.unordered")}</Text>
-      ) : null}
-
-      {notices.map((n) => (
-        <View
-          key={n.id}
-          testID={`notice-${n.kind}`}
-          className="bg-warning mx-4 mb-2 gap-1 rounded-xl px-3 py-2"
-        >
-          <Text className="text-warning-foreground text-sm">{t(`notice.${n.kind}`)}</Text>
-          {n.message && n.kind === "refused" ? (
-            <Text className="text-warning-foreground text-xs">{n.message}</Text>
-          ) : null}
-          <Pressable accessibilityRole="button" onPress={() => dismissNotice(qc, n.id)}>
-            <Text className="text-warning-foreground text-sm font-semibold">
-              {t("common.dismiss")}
             </Text>
-          </Pressable>
+            <Text testID="deck-sync" className="text-muted-foreground text-sm">
+              {!online
+                ? t("deck.offline", { count: queued })
+                : queued > 0
+                  ? t("deck.sending", { count: queued })
+                  : ""}
+            </Text>
+          </View>
+          <View
+            className="bg-muted h-1 overflow-hidden rounded-full"
+            importantForAccessibility="no"
+          >
+            <View
+              testID="deck-progress"
+              className="from-prism-1 via-prism-3 to-prism-5 h-1 rounded-full bg-linear-to-r"
+              style={{ width: `${total > 0 ? (reviewed.length / total) * 100 : 0}%` }}
+            />
+          </View>
         </View>
-      ))}
 
-      <View className="flex-1 px-5 pt-3 pb-6">
-        {deck.isPending ? (
-          <ActivityIndicator className="flex-1" />
-        ) : deck.isError && cards.length === 0 ? (
-          <View className="flex-1 items-center justify-center gap-3">
-            <Text className="text-muted-foreground">{t("common.loadFailed")}</Text>
-            <Pressable accessibilityRole="button" onPress={() => void deck.refetch()}>
-              <Text className="text-primary">{t("common.retry")}</Text>
+        {unclassified > 0 ? (
+          <Text testID="deck-unclassified" className="text-muted-foreground px-4 pb-2 text-xs">
+            {t("deck.unclassified", { count: unclassified })}
+          </Text>
+        ) : null}
+
+        {!ordered ? (
+          <Text className="text-muted-foreground px-4 pb-2 text-xs">{t("deck.unordered")}</Text>
+        ) : null}
+
+        {notices.map((n) => (
+          <View
+            key={n.id}
+            testID={`notice-${n.kind}`}
+            className="bg-warning mx-4 mb-2 gap-1 rounded-xl px-3 py-2"
+          >
+            <Text className="text-warning-foreground text-sm">{t(`notice.${n.kind}`)}</Text>
+            {n.message && n.kind === "refused" ? (
+              <Text className="text-warning-foreground text-xs">{n.message}</Text>
+            ) : null}
+            <Pressable accessibilityRole="button" onPress={() => dismissNotice(qc, n.id)}>
+              <Text className="text-warning-foreground text-sm font-semibold">
+                {t("common.dismiss")}
+              </Text>
             </Pressable>
           </View>
-        ) : top ? (
-          <View className="flex-1">
-            {behind
-              .map((c, i) => (
-                <StackedCard key={cardId(c)} depth={i + 1} progress={drag}>
-                  <ReviewCard card={c} sourceLanguage={sourceLanguage} where={whereOf(c)} />
-                </StackedCard>
-              ))
-              .reverse()}
-            <SwipeCard
-              key={cardId(top)}
-              ref={swipeRef}
-              canApprove={!top.ownWork}
-              onAction={onAction}
-              progress={drag}
-              enterFrom={entering?.id === cardId(top) ? entering.from : null}
-            >
-              <ReviewCard
-                card={top}
-                sourceLanguage={sourceLanguage}
-                where={whereOf(top)}
-                onDetails={() => setDetails(top)}
-              />
-            </SwipeCard>
-          </View>
-        ) : (
-          <EndState
-            reviewed={reviewed.length}
-            desk={view.desk}
-            canUndo={canUndo}
-            onUndo={onUndo}
-            collectionName={collectionName}
-            next={next}
-            onNext={openNext}
-          />
-        )}
+        ))}
+
+        <View className="flex-1 px-5 pt-3 pb-6">
+          {deck.isPending ? (
+            <ActivityIndicator className="flex-1" />
+          ) : deck.isError && cards.length === 0 ? (
+            <View className="flex-1 items-center justify-center gap-3">
+              <Text className="text-muted-foreground">{t("common.loadFailed")}</Text>
+              <Pressable accessibilityRole="button" onPress={() => void deck.refetch()}>
+                <Text className="text-primary">{t("common.retry")}</Text>
+              </Pressable>
+            </View>
+          ) : top ? (
+            <View className="flex-1">
+              {behind
+                .map((c, i) => (
+                  <StackedCard key={cardId(c)} depth={i + 1} progress={drag}>
+                    <ReviewCard card={c} sourceLanguage={sourceLanguage} where={whereOf(c)} />
+                  </StackedCard>
+                ))
+                .reverse()}
+              <SwipeCard
+                key={cardId(top)}
+                ref={swipeRef}
+                canApprove={!top.ownWork}
+                onAction={onAction}
+                progress={drag}
+                enterFrom={entering?.id === cardId(top) ? entering.from : null}
+              >
+                <ReviewCard
+                  card={top}
+                  sourceLanguage={sourceLanguage}
+                  where={whereOf(top)}
+                  onDetails={() => setDetails(top)}
+                />
+              </SwipeCard>
+            </View>
+          ) : (
+            <EndState
+              reviewed={reviewed.length}
+              desk={view.desk}
+              canUndo={canUndo}
+              onUndo={onUndo}
+              collectionName={collectionName}
+              next={next}
+              onNext={openNext}
+            />
+          )}
+        </View>
       </View>
 
       {last?.phase === "held" ? (
         <UndoSnackbar entry={last} online={online} onUndo={onUndo} />
       ) : null}
 
-      {top ? (
+      {top && mode === "cards" ? (
         <ActionBar
           canApprove={!top.ownWork}
           canUndo={canUndo}
@@ -483,6 +535,38 @@ export default function DeckScreen() {
         }}
       />
     </SafeAreaView>
+  );
+}
+
+/** Pages or Cards: how the language's deck is laid out. */
+function ViewSwitch({
+  value,
+  onChange,
+}: {
+  value: "pages" | "cards";
+  onChange: (v: "pages" | "cards") => void;
+}) {
+  const { t } = useTranslation();
+  const options = ["pages", "cards"] as const;
+  return (
+    <View accessibilityRole="tablist" className="bg-muted flex-row self-start rounded-lg p-0.5">
+      {options.map((o) => (
+        <Pressable
+          key={o}
+          testID={`deck-view-${o}`}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: value === o }}
+          onPress={() => onChange(o)}
+          className={`rounded-md px-3 py-1 ${value === o ? "bg-background" : ""}`}
+        >
+          <Text
+            className={`text-sm ${value === o ? "text-foreground font-semibold" : "text-muted-foreground"}`}
+          >
+            {t(`pages.view.${o}`)}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 

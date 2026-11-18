@@ -162,6 +162,10 @@ function Screens() {
         />
         <Stack.Screen name="[ws]/[project]/reviewed" options={{ title: t("reviewed.title") }} />
         <Stack.Screen
+          name="[ws]/[project]/page"
+          options={{ title: t("pages.view.pages"), headerTransparent: false }}
+        />
+        <Stack.Screen
           name="[ws]/[project]/context"
           options={{ title: t("context.title"), headerTransparent: false }}
         />
