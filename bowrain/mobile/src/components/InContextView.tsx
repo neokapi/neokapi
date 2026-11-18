@@ -123,18 +123,28 @@ export function InContextView({
         </Text>
         <View className="flex-row flex-wrap items-center gap-2">
           <ReadingSwitch value={reading} onChange={setReading} />
-          {loadIndex && hasLivePreview(c) ? (
-            <Pressable
-              testID="context-live"
-              accessibilityRole="button"
-              accessibilityHint={t("live.hint")}
-              onPress={() => setLive(true)}
-              className="bg-primary/15 rounded-lg px-3 py-1"
-            >
-              <Text className="text-foreground text-sm font-semibold">{t("live.open")}</Text>
-            </Pressable>
-          ) : null}
         </View>
+        {loadIndex && hasLivePreview(c) ? (
+          <Pressable
+            testID="context-live"
+            accessibilityRole="button"
+            accessibilityLabel={t("live.open")}
+            accessibilityHint={t("live.openDetail")}
+            onPress={() => setLive(true)}
+            className="border-primary/40 bg-primary/10 mt-1 flex-row items-center gap-3 rounded-xl border px-3 py-2.5"
+          >
+            <View className="bg-primary h-8 w-8 items-center justify-center rounded-full">
+              <Text className="text-primary-foreground text-sm">▶</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-foreground text-base font-semibold">{t("live.open")}</Text>
+              <Text className="text-muted-foreground text-xs" numberOfLines={1}>
+                {t("live.openDetail")}
+              </Text>
+            </View>
+            <Text className="text-muted-foreground text-xl">›</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {loadIndex && hasLivePreview(c) ? (

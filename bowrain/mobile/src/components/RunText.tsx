@@ -44,7 +44,7 @@ function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
         {r.text}
       </Text>
     ),
-    ph: ({ ph }) => <CodeChip key={key()} display={code.ph(ph)} testID="run-chip" />,
+    ph: ({ ph }) => <CodeChip key={key()} display={code.ph(ph)} testID="run-chip" explain />,
     pcOpen: () => {
       depth++;
       return null;
@@ -53,12 +53,12 @@ function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
       depth = Math.max(0, depth - 1);
       return null;
     },
-    sub: ({ sub }) => <CodeChip key={key()} display={code.sub(sub)} testID="run-chip" />,
+    sub: ({ sub }) => <CodeChip key={key()} display={code.sub(sub)} testID="run-chip" explain />,
     plural: ({ plural }) => {
       const k = key();
       return (
         <Fragment key={k}>
-          <CodeChip display={code.choice(plural.pivot)} testID="run-chip" />
+          <CodeChip display={code.choice(plural.pivot)} testID="run-chip" explain />
           {branchList(k, plural.forms)}
         </Fragment>
       );
@@ -67,7 +67,7 @@ function spec(runs: readonly Run[], prefix: string): ModelRunSpec<ReactNode> {
       const k = key();
       return (
         <Fragment key={k}>
-          <CodeChip display={code.choice(select.pivot)} testID="run-chip" />
+          <CodeChip display={code.choice(select.pivot)} testID="run-chip" explain />
           {branchList(k, select.cases)}
         </Fragment>
       );
