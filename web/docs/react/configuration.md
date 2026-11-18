@@ -326,6 +326,21 @@ export default {
 
 A globe icon appears in the Storybook toolbar, and switching locale re-renders every story. Use it for design review, translation checks and RTL layout testing.
 
+### Showing a host's translations in a story
+
+A review tool can frame a story and show it with translations the published catalog does not hold yet. Set `hostTranslations: true` in the options, and the story accepts a dictionary posted into its frame:
+
+```ts
+frame.contentWindow.postMessage(
+  { type: "neokapi-i18n-translations", locale: "nb", translations: { "4kT9xQ": "Prøv igjen" }, markKeys: true },
+  storyOrigin,
+);
+```
+
+The story replies with `{ type: "neokapi-i18n-ready" }` once it can accept one. The keys are the message keys the extractor records (the block's `hash`).
+
+With `markKeys: true`, the runtime brackets every message it renders with invisible key marks, so the tool can find the element that renders a message by its key instead of by searching for its text. A mark opens with U+2064, the key spelled in Unicode tag characters (U+E0000 plus each character's ASCII code) and U+E007F, and closes with U+2063. These characters have no width and draw nothing. `readKeyMarks` and `stripKeyMarks` in `@neokapi/i18n-react/runtime` read and remove them. Marks are off unless a host asks for them.
+
 ## HTML `lang` and `dir` attributes
 
 `setTranslations()` and `loadTranslations()` set the locale on the document root:

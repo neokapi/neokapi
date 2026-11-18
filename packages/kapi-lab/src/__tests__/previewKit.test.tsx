@@ -50,7 +50,7 @@ const termOverlay: OverlayView = {
   spans: [
     {
       id: "t1",
-      range: { kind: "range", start: { run: 0 }, end: { run: 0 } },
+      range: { kind: "range", start: { run: 0, offset: 11 }, end: { run: 0, offset: 15 } },
       text: "Acme",
       props: { term: "Acme", target: "Acme", domain: "brand" },
     },
@@ -63,7 +63,7 @@ const voiceOverlay: OverlayView = {
   spans: [
     {
       id: "b1",
-      range: { kind: "range", start: { run: 0 }, end: { run: 0 } },
+      range: { kind: "range", start: { run: 0, offset: 11 }, end: { run: 0, offset: 15 } },
       text: "Acme",
       props: {
         category: "voice-vocabulary",
@@ -80,7 +80,7 @@ const checkOverlay: OverlayView = {
   spans: [
     {
       id: "q1",
-      range: { kind: "range", start: { run: 0 }, end: { run: 0 } },
+      range: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 4 } },
       text: "Acme",
       props: { category: "doubled-word", message: 'Doubled word: "Acme"' },
     },
@@ -172,11 +172,9 @@ describe("treeToRenderDoc — targets & overlays", () => {
 describe("overlayHighlight", () => {
   it("resolves source-side spans to char ranges and skips other sides", () => {
     // term + voice are source-side; qa is fr-FR-side and must be skipped here.
-    const spans = resolveOverlaySpans(
-      [termOverlay, voiceOverlay, checkOverlay],
-      "source",
-      "Welcome to Acme",
-    );
+    const spans = resolveOverlaySpans([termOverlay, voiceOverlay, checkOverlay], "source", [
+      { text: "Welcome to Acme" },
+    ]);
     expect(spans).toHaveLength(2);
     expect(spans.map((s) => s.type)).toEqual(["term", "qa"]);
     expect(spans.every((s) => s.start === 11 && s.end === 15)).toBe(true);
@@ -187,14 +185,16 @@ describe("overlayHighlight", () => {
   });
 
   it("resolves target-side spans for the active locale", () => {
-    const spans = resolveOverlaySpans([termOverlay, checkOverlay], "fr-FR", "Acme aide");
+    const spans = resolveOverlaySpans([termOverlay, checkOverlay], "fr-FR", [
+      { text: "Acme aide" },
+    ]);
     expect(spans).toHaveLength(1);
     expect(spans[0].type).toBe("qa");
   });
 
   it("distinguishes voice-vocabulary qa from plain qa by span props", () => {
-    const [voice] = resolveOverlaySpans([voiceOverlay], "source", "Welcome to Acme");
-    const [plainCheck] = resolveOverlaySpans([checkOverlay], "fr-FR", "Acme aide");
+    const [voice] = resolveOverlaySpans([voiceOverlay], "source", [{ text: "Welcome to Acme" }]);
+    const [plainCheck] = resolveOverlaySpans([checkOverlay], "fr-FR", [{ text: "Acme aide" }]);
     // Voice violation = pink accent + "Voice" label; plain qa = amber "Check".
     expect(voice.style.label).toBe("Voice");
     expect(voice.style.className).toContain("pink");
@@ -209,7 +209,7 @@ describe("overlayHighlight", () => {
     const spans = resolveOverlaySpans(
       [termOverlay],
       "source",
-      "Welcome to Acme",
+      [{ text: "Welcome to Acme" }],
       new Set(["entity"]),
     );
     expect(spans).toHaveLength(0);
@@ -225,7 +225,7 @@ describe("overlayHighlight", () => {
   });
 
   it("segments text into plain + overlay runs (innermost wins on overlap)", () => {
-    const spans = resolveOverlaySpans([termOverlay], "source", "Welcome to Acme");
+    const spans = resolveOverlaySpans([termOverlay], "source", [{ text: "Welcome to Acme" }]);
     const segs = segmentText("Welcome to Acme", spans);
     expect(segs.map((s) => s.text).join("")).toBe("Welcome to Acme");
     expect(segs.find((s) => s.overlay)?.text).toBe("Acme");

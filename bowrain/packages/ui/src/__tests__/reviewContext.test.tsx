@@ -127,7 +127,7 @@ describe("the queue anchors what the checks found", () => {
       message: "Uses a forbidden rendering.",
       original_text: "mot de passe",
       suggestion: "code secret",
-      position: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 0, offset: 31 } },
+      position: { kind: "range", start: { run: 0, offset: 20 }, end: { run: 0, offset: 32 } },
     };
     reviewer({ issues: [issue] }, emptyContext());
 

@@ -348,42 +348,15 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 	}
 }
 
-// termOverlay builds an OverlayTerm over the source runs from the project's
-// terms. Each matched term becomes a span carrying the matched
-// surface form (term), its preferred target translation (target) and domain.
-// Returns nil when nothing matches.
-func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, source string, sourceLoc, targetLoc model.LocaleID) *model.Overlay {
-	// The store is asked about the search text, where a character reference
-	// stands for its character, and each match is mapped back to the runs.
-	search := coreprofile.NewSearchText(source, runs)
-	matches, err := tb.LookupAll(ctx, search.Text, terms.LookupOptions{
-		SourceLocale: sourceLoc,
-		TargetLocale: targetLoc,
-	})
-	if err != nil || len(matches) == 0 {
+// termOverlay is the term overlay over the source runs from the project's
+// terms store (terms.LocateOverlay), the same occurrences every other reader
+// of the store finds. Returns nil when nothing matches.
+func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, _ string, sourceLoc, targetLoc model.LocaleID) *model.Overlay {
+	ov, err := terms.LocateOverlay(ctx, tb, runs, sourceLoc, targetLoc)
+	if err != nil {
 		return nil
 	}
-	spans := make([]model.Span, 0, len(matches))
-	for _, m := range matches {
-		props := map[string]string{"term": m.Term.Text}
-		// The match carries its whole concept, target-locale terms included.
-		if !targetLoc.IsEmpty() {
-			if tgt := m.Concept.PreferredTerm(targetLoc); tgt != nil {
-				props["target"] = tgt.Text
-			}
-		}
-		if m.Concept.Domain != "" {
-			props["domain"] = m.Concept.Domain
-		}
-		if search.SpelledAtEdge(m.Position.Start, m.Position.End) {
-			props["spelled"] = search.Text[m.Position.Start:m.Position.End]
-		}
-		spans = append(spans, model.Span{
-			Range: model.RangeAnchorForBytes(runs, search.ToText(m.Position.Start), search.ToText(m.Position.End)),
-			Props: props,
-		})
-	}
-	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
+	return ov
 }
 
 // wordRuleSets are the word rules governing a file's source text: the

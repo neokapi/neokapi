@@ -21,7 +21,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "rea
 import { useTranslation } from "react-i18next";
 
 import { fileName } from "../lib/where";
-import { hasLivePreview, LiveView } from "./LivePreview";
+import { LiveView, useLiveStories } from "./LivePreview";
 import { RunText, type RunMark } from "./RunText";
 import { TermSheet, type TermStop } from "./TermSheet";
 
@@ -81,6 +81,9 @@ export function InContextView({
     queryFn: () => load(card),
     staleTime: 60_000,
   });
+  // "See it running" is offered only when the component has a story to run.
+  const { stories } = useLiveStories(ctx.data, scope, loadIndex);
+  const canRun = stories.length > 0;
 
   if (ctx.isPending) {
     return (
@@ -157,7 +160,7 @@ export function InContextView({
         <View className="flex-row flex-wrap items-center gap-2">
           <ReadingSwitch value={reading} onChange={setReading} />
         </View>
-        {loadIndex && hasLivePreview(c) ? (
+        {canRun ? (
           <Pressable
             testID="context-live"
             accessibilityRole="button"
@@ -180,7 +183,7 @@ export function InContextView({
         ) : null}
       </View>
 
-      {loadIndex && hasLivePreview(c) ? (
+      {canRun && loadIndex ? (
         <Modal
           visible={live}
           animationType="slide"

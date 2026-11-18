@@ -158,7 +158,7 @@ describe("FormatPreview — inline codes", () => {
                   range: {
                     kind: "range",
                     start: { run: 0, offset: 13 },
-                    end: { run: 2, offset: 6 },
+                    end: { run: 2, offset: 9 },
                   },
                   text: "reset on . Upgrade",
                 },

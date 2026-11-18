@@ -1,6 +1,6 @@
 import type { ReviewContainer, StoryIndex } from "@neokapi/bowrain-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
 import "../lib/i18n";
@@ -140,13 +140,16 @@ describe("LiveView", () => {
 
   it("looks for each string by the text a reader sees, in the reading shown", () => {
     expect(previewTargets(container.units, false)).toEqual([
-      { key: "o1", fragments: ["Får ikke kontakt"] },
-      { key: "o2", fragments: ["Prøv igjen"] },
+      { key: "o1", messageKey: "h-o1", fragments: ["Får ikke kontakt"] },
+      { key: "o2", messageKey: "h-o2", fragments: ["Prøv igjen"] },
     ]);
     expect(previewTargets(container.units, true)[0].fragments).toEqual(["Can't reach your server"]);
     const script = highlightScript(previewTargets(container.units, false), "o2");
     expect(script).toContain('"current":"o2"');
     expect(script).toContain("Prøv igjen");
+    // The script is injected as is, so it has to parse.
+    expect(() => new Function(script)).not.toThrow();
+    if (process.env.NK_DUMP_SCRIPT) require("fs").writeFileSync(process.env.NK_DUMP_SCRIPT, script);
   });
 
   it("takes only the strings it asked for from the page", () => {
@@ -197,5 +200,38 @@ describe("InContextView live", () => {
     expect(await screen.findByTestId("live-frame", {}, { timeout: 5000 })).toBeTruthy();
     await fireEvent.press(screen.getByTestId("live-close"));
     expect(screen.queryByTestId("live-frame")).toBeNull();
+  });
+
+  it("offers no live view for a component its Storybook has no story for", async () => {
+    const loadIndex = jest.fn(async () => ({ entries: {} }));
+    await render(
+      wrap(
+        <InContextView
+          card={{
+            key: "o2:nb",
+            blockId: "o2",
+            item: "OfflineLaunch.kbf.json",
+            locale: "nb",
+            collectionId: "c1",
+            source: [],
+            target: [],
+            targetRevision: "",
+            group: "unsorted",
+            notes: [],
+            findingsCount: 0,
+            failingFindingsCount: 0,
+            ownWork: false,
+          }}
+          scope={{ workspace: "w", project: "p" }}
+          load={async () => container}
+          loadIndex={loadIndex}
+          onApprove={() => {}}
+          onFix={() => {}}
+        />,
+      ),
+    );
+    await screen.findByText("Prøv igjen", {}, { timeout: 5000 });
+    await waitFor(() => expect(loadIndex).toHaveBeenCalled());
+    expect(screen.queryByTestId("context-live")).toBeNull();
   });
 });
