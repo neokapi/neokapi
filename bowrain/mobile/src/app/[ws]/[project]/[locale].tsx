@@ -517,6 +517,7 @@ export default function DeckScreen() {
             setFixing({ card, mode: "fix", flown: false });
           },
           decided: decidedBlocks,
+          loadIndex: (collectionId) => client.storyIndex(scope, collectionId),
         }}
       />
 

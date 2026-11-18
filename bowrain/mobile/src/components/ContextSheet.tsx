@@ -5,7 +5,7 @@
 // the voice it is held to and the closest wording the content memory holds,
 // read from the server's review context for the block
 // (GET …/blocks/:ref/:bid/review-context) only when the sheet opens.
-import type { DeckCard, ProjectScope, ReviewContext } from "@neokapi/bowrain-client";
+import type { DeckCard, ProjectScope, ReviewContext, StoryIndex } from "@neokapi/bowrain-client";
 import type { Run } from "@neokapi/kapi-format";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -31,6 +31,8 @@ export interface InContextActions {
   onApprove: (card: DeckCard) => void;
   onFix: (card: DeckCard) => void;
   decided?: ReadonlySet<string>;
+  /** Reads a collection's story index, for a component shown running. */
+  loadIndex?: (collectionId: string) => Promise<StoryIndex>;
 }
 
 export function ContextSheet({
@@ -180,6 +182,7 @@ export function ContextSheetBody({
           onApprove={inContext.onApprove}
           onFix={inContext.onFix}
           decided={inContext.decided}
+          loadIndex={inContext.loadIndex}
         />
       ) : (
         <DetailsBody card={card} scope={scope} where={where} load={load} />

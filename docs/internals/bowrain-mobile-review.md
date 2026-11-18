@@ -92,7 +92,18 @@ role, so a heading reads as a heading and a button as a button. The page
 opens on the translation, with Source and Both a tap away, and scrolls to the
 card's block, which is outlined. Every other translation waiting for review
 carries a dot; tapping one selects it and offers Approve and Fix in place, and
-when more than one waits the page offers to approve them all. A decision made
+when more than one waits the page offers to approve them all.
+
+When the container is a component and its collection declares a Storybook,
+the page shows the component running above its strings (**Live**, on by
+default). The container names the host and the component's source file; the
+app reads the host's story index through the server, picks the story written
+beside that file (`OfflineLaunch.stories.tsx` for `OfflineLaunch.tsx`), and
+loads it in a WebView. The container's translations go in as the dictionary
+the `@neokapi/i18n-react` Storybook decorator renders, keyed by each unit's
+`message_key`, so the component shows the wording under review. Source reading
+posts an empty dictionary. The WebView stays on the story's origin and has no
+message handler, so the page cannot call into the app. A decision made
 here goes through the same change sets and offline queue as a swipe, and Fix
 opens the deck's fix sheet for that unit.
 
@@ -832,6 +843,12 @@ the review context.
   JSX path. A role the server cannot read is `paragraph`.
 - `waiting` is a translation present and not approved. The revisions are the
   ones a change set binds to, so any unit can be decided as a card is.
+- `message_key` and `message_text` are the key a running component looks the
+  string up by and the translation in the runtime catalog's form. They feed
+  the live preview and are never drawn.
+- `collection_id` names the item's collection. `preview` (`kind`, `url`,
+  `source_file`) is set for a component whose collection declares a preview
+  host.
 - `next_waiting` is the first translation waiting in the item after the
   container, in document order; absent when none waits. A page review moves
   there with Next section.

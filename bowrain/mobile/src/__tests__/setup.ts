@@ -34,3 +34,17 @@ jest.mock("expo-network", () => ({
 jest.mock("expo-localization", () => ({
   getLocales: () => [{ languageCode: "en" }],
 }));
+
+// The WebView is a native view; tests read the props it was given.
+jest.mock("react-native-webview", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const WebView = React.forwardRef((props: Record<string, unknown>, ref: unknown) => {
+    React.useImperativeHandle(ref, () => ({ injectJavaScript: jest.fn() }));
+    return React.createElement(View, {
+      testID: props.testID,
+      accessibilityLabel: JSON.stringify((props.source as { uri?: string })?.uri ?? ""),
+    });
+  });
+  return { WebView };
+});

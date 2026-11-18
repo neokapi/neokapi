@@ -348,6 +348,11 @@
     "approveAll_other": "Approve the {{count, number}} translations waiting here",
     "more": "More of it continues in the file"
   },
+  "live": {
+    "toggle": "Live",
+    "unreadable": "This collection's Storybook could not be read, so the component is shown from its strings.",
+    "noStory": "No story renders this component. A story beside it, named Component.stories.tsx, shows it running here."
+  },
   "details": {
     "title": "Details",
     "where": "Where it appears",
