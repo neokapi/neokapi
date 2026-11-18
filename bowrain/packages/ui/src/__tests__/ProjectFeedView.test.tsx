@@ -1,4 +1,13 @@
 import { describe, it, expect, vi } from "vite-plus/test";
+
+// The fixtures stamp entries minutes before now, when they are imported, and
+// the feed groups them by day: run near midnight, "Today" became "Yesterday".
+// The clock is pinned to midday before the fixtures load. Only Date is faked,
+// so waitFor's timers still run.
+vi.hoisted(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+});
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

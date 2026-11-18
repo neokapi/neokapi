@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // VocabularyEntry describes how a Run type renders across HTML,
@@ -89,7 +91,9 @@ var JSXVocabulary = []VocabularyEntry{
 		Key:      "jsx:node",
 		Category: "node",
 		HTML: HTMLRendering{
-			Placeholder: `<span class="neokapi-node" data-node="{id}" title="{data}">{equiv}</span>`,
+			// The node's native source and its synthesized identifier are not
+			// for a reader; it shows as a neutral glyph.
+			Placeholder: `<span class="neokapi-node" data-node="{id}">{name}</span>`,
 		},
 		Display: TextRendering{
 			Placeholder: "«{equiv}»",
@@ -177,7 +181,9 @@ type renderCtx struct {
 func renderEntry(vocab VocabularyLookup, typ, kind string, ctx renderCtx) string {
 	entry := vocab(typ)
 	if entry == nil {
-		return fmt.Sprintf(`<span class="neokapi-unknown">%s</span>`, escapeHTML(ctx.Data))
+		// A type the vocabulary does not know shows by its name, never its
+		// native form.
+		return fmt.Sprintf(`<span class="neokapi-unknown">%s</span>`, escapeHTML(codeName(ctx)))
 	}
 	var tmpl string
 	switch kind {
@@ -193,7 +199,19 @@ func renderEntry(vocab VocabularyLookup, typ, kind string, ctx renderCtx) string
 		"subType": ctx.SubType,
 		"data":    escapeHTML(ctx.Data),
 		"equiv":   escapeHTML(ctx.Equiv),
+		"name":    escapeHTML(codeName(ctx)),
 	})
+}
+
+// codeName is what a reader sees for a code: its human name
+// (model.HumanCodeName), else a neutral glyph. A template that puts a code's
+// label in front of a reader uses {name}, never {equiv} or {data}, which can
+// hold a synthesized identifier or native source.
+func codeName(ctx renderCtx) string {
+	if name := model.HumanCodeName(ctx.Equiv, ctx.Data); name != "" {
+		return name
+	}
+	return "⟨⟩"
 }
 
 // renderPlural emits forms in a deterministic order to keep output

@@ -1,5 +1,12 @@
 import { Fragment, type ReactNode } from "react";
-import { otherBranch, projectRuns, type RunSpec } from "@neokapi/kapi-format";
+import {
+  codeDisplays,
+  codeWord,
+  otherBranch,
+  projectRuns,
+  type CodeDisplay,
+  type RunSpec,
+} from "@neokapi/kapi-format";
 import type { Run } from "@neokapi/contract-types";
 
 /**
@@ -23,37 +30,62 @@ const CHIP_PC = "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-
 const CHIP_GROUP = "border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300";
 const CHIP_SUB = "border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300";
 
-function chip(cls: string, label: string, title: string): ReactNode {
+const ROLE_SHAPE: Record<CodeDisplay["role"], string> = {
+  placeholder: "",
+  choice: "",
+  reference: "",
+  open: "rounded-r-none",
+  close: "rounded-l-none opacity-70",
+};
+
+/**
+ * A chip for one code. It takes a CodeDisplay, which only codeDisplays
+ * (@neokapi/kapi-format) makes, so a code's native data or an extractor's
+ * internal identifier never reaches the screen through it.
+ */
+function chip(cls: string, display: CodeDisplay, title: string): ReactNode {
+  const word = codeWord(display);
   return (
-    <span className={`${CHIP} ${cls}`} title={title} translate="no">
-      {label}
+    <span className={`${CHIP} ${cls} ${ROLE_SHAPE[display.role]}`} title={title} translate="no">
+      {word}
     </span>
   );
 }
 
-const REVIEW_RUNS: RunSpec<Run, ReactNode> = {
-  text: (r) => <span className="whitespace-pre-wrap">{r.text}</span>,
-  ph: (r) => chip(CHIP_PH, r.ph.equiv || r.ph.data || r.ph.id, `placeholder ${r.ph.type}`),
-  pcOpen: (r) => chip(CHIP_PC, r.pcOpen.equiv || `<${r.pcOpen.id}>`, `open code ${r.pcOpen.type}`),
-  pcClose: (r) =>
-    chip(CHIP_PC, r.pcClose.equiv || `</${r.pcClose.id}>`, `close code ${r.pcClose.type}`),
-  sub: (r) => chip(CHIP_SUB, r.sub.equiv || r.sub.ref, "sub-block reference"),
-  // A plural keeps its marker and its wording: the chip names the pivot that
-  // chooses the form, and one form is read after it so the reviewer sees words.
-  plural: {
-    expand: (r) => [
-      chip(CHIP_GROUP, `plural(${r.plural.pivot})`, Object.keys(r.plural.forms).join(", ")),
-      ...projectRuns(otherBranch(r.plural.forms), REVIEW_RUNS),
-    ],
-  },
-  select: {
-    expand: (r) => [
-      chip(CHIP_GROUP, `select(${r.select.pivot})`, Object.keys(r.select.cases).join(", ")),
-      ...projectRuns(otherBranch(r.select.cases), REVIEW_RUNS),
-    ],
-  },
-  fallback: (kind) => chip(CHIP_PH, kind, `a run this build cannot draw: ${kind}`),
-};
+function reviewRuns(runs: readonly Run[]): RunSpec<Run, ReactNode> {
+  const code = codeDisplays(runs as Parameters<typeof codeDisplays>[0]);
+  const spec: RunSpec<Run, ReactNode> = {
+    text: (r) => <span className="whitespace-pre-wrap">{r.text}</span>,
+    ph: (r) => chip(CHIP_PH, code.ph(r.ph), "placeholder"),
+    pcOpen: (r) => chip(CHIP_PC, code.pcOpen(r.pcOpen), "start of styled text"),
+    pcClose: (r) => chip(CHIP_PC, code.pcClose(r.pcClose), "end of styled text"),
+    sub: (r) => chip(CHIP_SUB, code.sub(r.sub), "sub-block reference"),
+    // A plural keeps its marker and its wording: the chip names the pivot that
+    // chooses the form, and one form is read after it so the reviewer sees words.
+    plural: {
+      expand: (r) => [
+        chip(
+          CHIP_GROUP,
+          code.choice(r.plural.pivot),
+          `plural: ${Object.keys(r.plural.forms).join(", ")}`,
+        ),
+        ...projectRuns(otherBranch(r.plural.forms), reviewRuns(otherBranch(r.plural.forms))),
+      ],
+    },
+    select: {
+      expand: (r) => [
+        chip(
+          CHIP_GROUP,
+          code.choice(r.select.pivot),
+          `select: ${Object.keys(r.select.cases).join(", ")}`,
+        ),
+        ...projectRuns(otherBranch(r.select.cases), reviewRuns(otherBranch(r.select.cases))),
+      ],
+    },
+    fallback: (kind) => chip(CHIP_PH, code.unknown(), `a run this build cannot draw: ${kind}`),
+  };
+  return spec;
+}
 
 export interface RunTextProps {
   runs: Run[] | undefined;
@@ -64,7 +96,7 @@ export interface RunTextProps {
 
 /** One run sequence, read inline. */
 export function RunText({ runs, className, dirAttrs }: RunTextProps) {
-  const parts = projectRuns(runs, REVIEW_RUNS);
+  const parts = projectRuns(runs, reviewRuns(runs ?? []));
   return (
     <span className={className} translate="no" {...dirAttrs}>
       {parts.map((part, i) => (

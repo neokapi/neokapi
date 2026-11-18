@@ -598,15 +598,16 @@ func flattenRunsTo(buf *strings.Builder, runs []Run) {
 }
 
 // RunsDisplayText returns a Run sequence as a reader sees it in one line of
-// text: TextRun content verbatim, each placeholder as its display text (Disp,
-// else its native form Data, else its Equiv in braces), each subblock
-// reference as its Equiv in brackets, and plural / select by their 'other'
-// branch (or the first form present). Paired codes contribute nothing; the
-// text between them is kept.
+// text: TextRun content verbatim, each placeholder as its human name or the
+// word for its kind (PlaceholderWord), each subblock reference by its name,
+// and plural / select by their 'other' branch (or the first form present).
+// Paired codes contribute nothing; the text between them is kept. A code's
+// native form and a synthesized identifier never appear.
 //
 // It is the text for a list row or a preview, where a placeholder has to stay
-// visible: "Failed to cordon node {{name}}" rather than RunsText's "Failed to
-// cordon node ". It is never parsed back into runs.
+// visible: "Failed to cordon node name" rather than RunsText's "Failed to
+// cordon node ". It is never parsed back into runs; a writer that needs the
+// native form uses RenderRunsWithData.
 func RunsDisplayText(runs []Run) string {
 	var buf strings.Builder
 	runsDisplayTextTo(&buf, runs)
@@ -619,18 +620,13 @@ func runsDisplayTextTo(buf *strings.Builder, runs []Run) {
 		case RunKindText:
 			buf.WriteString(r.Text.Text)
 		case RunKindPh:
-			switch {
-			case r.Ph.Disp != "":
-				buf.WriteString(r.Ph.Disp)
-			case r.Ph.Data != "":
-				buf.WriteString(r.Ph.Data)
-			case r.Ph.Equiv != "":
-				buf.WriteString("{" + r.Ph.Equiv + "}")
-			}
+			buf.WriteString(PlaceholderWord(r.Ph))
 		case RunKindPcOpen, RunKindPcClose:
 		case RunKindSub:
-			if r.Sub.Equiv != "" {
-				buf.WriteString("[" + r.Sub.Equiv + "]")
+			if name := HumanCodeName(r.Sub.Equiv); name != "" {
+				buf.WriteString(name)
+			} else {
+				buf.WriteString(CodeKindWords[CodeKindContent])
 			}
 		case RunKindPlural:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {

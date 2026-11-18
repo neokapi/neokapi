@@ -294,6 +294,20 @@
       "no_pre_review": "No pre-review yet, so nothing has checked the meaning."
     }
   },
+  "code": {
+    "kind": {
+      "link": "link",
+      "bold": "bold",
+      "italic": "italic",
+      "code": "code",
+      "break": "line break",
+      "image": "image",
+      "variable": "value",
+      "content": "content",
+      "element": "styled text",
+      "unknown": "code"
+    }
+  },
   "details": {
     "title": "Details",
     "where": "Where it appears",

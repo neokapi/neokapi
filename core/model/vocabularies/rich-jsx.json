@@ -11,8 +11,8 @@
         "close": "</{subType}>"
       },
       "display": {
-        "open": "<{subType}>",
-        "close": "</{subType}>"
+        "open": "[{subType}]",
+        "close": "[/{subType}]"
       },
       "chipLabel": { "open": "{subType}>", "close": "/{subType}", "placeholder": "{subType}" },
       "color": {
@@ -30,7 +30,7 @@
         "placeholder": "<span class=\"neokapi-var\" data-var=\"{equiv}\" data-type=\"{subType}\">{equiv}</span>"
       },
       "display": {
-        "placeholder": "{{equiv}}"
+        "placeholder": "{equiv}"
       },
       "chipLabel": { "placeholder": "{equiv}" },
       "color": {
@@ -45,10 +45,10 @@
       "category": "node",
       "label": "JSX ReactNode",
       "html": {
-        "placeholder": "<span class=\"neokapi-node\" data-node=\"{id}\" title=\"{data}\">{equiv}</span>"
+        "placeholder": "<span class=\"neokapi-node\" data-node=\"{id}\">{name}</span>"
       },
       "display": {
-        "placeholder": "«{equiv}»"
+        "placeholder": "⟨⟩"
       },
       "chipLabel": { "placeholder": "⟨⟩" },
       "color": {

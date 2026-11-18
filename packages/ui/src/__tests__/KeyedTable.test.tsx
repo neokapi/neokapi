@@ -181,7 +181,9 @@ describe("KeyedTable", () => {
     expect(el.textContent).toContain("Many items");
     const chip = el.querySelector("[data-inline-code]");
     expect(chip?.textContent).toBe("plural");
-    expect(chip?.getAttribute("title")).toContain("{count, plural}");
+    // The tooltip names the code; its native form is never shown.
+    expect(chip?.getAttribute("title")).toContain("plural");
+    expect(chip?.getAttribute("title")).not.toMatch(/[{}]/);
   });
 
   it("pins the key LTR beside a right-to-left value", () => {

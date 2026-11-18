@@ -211,7 +211,9 @@ describe("the queue's neighbourhood", () => {
     // have rendered "We sent a link to ." and lost the variable. Both sides go
     // through it, so the chip survives on the target line too.
     expect(table.textContent).toContain("Nous avons envoyé un lien à ");
-    expect(table.textContent.match(/{{\.Email}}/g)).toHaveLength(2);
+    // The chip names the variable (Email) and never prints its native form.
+    expect(table.textContent.match(/\bEmail\b/g)).toHaveLength(2);
+    expect(table.textContent).not.toContain("{{");
     // The neighbour is keyed by the block the payload names, so a reviewer can
     // find it in the document rather than guessing which line it was.
     expect(table.textContent).toContain("b0");

@@ -4,13 +4,22 @@
  * a moved or dropped placeholder shows as a change.
  */
 
-import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import {
+  codeDisplays,
+  projectRuns,
+  type CodeDisplay,
+  type ModelRunSpec,
+  type Run,
+} from "@neokapi/kapi-format";
 
-/** One unit a diff compares: a word, the space between words, or a code. */
+/**
+ * One unit a diff compares: a word, the space between words, or a code. A
+ * code carries its display (never its data), which is what a surface draws.
+ */
 export type DiffToken =
   | { kind: "text"; text: string }
-  | { kind: "code"; id: string; label: string; role: "ph" | "open" | "close" | "sub" }
-  | { kind: "branch"; label: string; key: string };
+  | { kind: "code"; id: string; display: CodeDisplay; role: "ph" | "open" | "close" | "sub" }
+  | { kind: "branch"; display: CodeDisplay; key: string };
 
 /** One span of a diff. */
 export interface DiffSpan {
@@ -18,29 +27,32 @@ export interface DiffSpan {
   token: DiffToken;
 }
 
-const TOKENS: ModelRunSpec<DiffToken[]> = {
-  text: (r) => splitWords(r.text).map((text) => ({ kind: "text", text })),
-  ph: ({ ph }) => [{ kind: "code", id: ph.id, label: ph.disp || ph.equiv || ph.id, role: "ph" }],
-  pcOpen: ({ pcOpen }) => [
-    { kind: "code", id: pcOpen.id, label: pcOpen.disp || pcOpen.equiv || pcOpen.id, role: "open" },
-  ],
-  pcClose: ({ pcClose }) => [
-    { kind: "code", id: pcClose.id, label: pcClose.equiv || pcClose.id, role: "close" },
-  ],
-  sub: ({ sub }) => [{ kind: "code", id: sub.id, label: sub.equiv || sub.id, role: "sub" }],
-  // A plural or select is one token: its forms compare as a whole.
-  plural: ({ plural }) => [
-    { kind: "branch", label: `{${plural.pivot}, plural}`, key: JSON.stringify(plural) },
-  ],
-  select: ({ select }) => [
-    { kind: "branch", label: `{${select.pivot}, select}`, key: JSON.stringify(select) },
-  ],
-  fallback: (kind) => [{ kind: "branch", label: `{${kind}}`, key: kind }],
-};
+function tokenSpec(runs: readonly Run[]): ModelRunSpec<DiffToken[]> {
+  const code = codeDisplays(runs);
+  return {
+    text: (r) => splitWords(r.text).map((text) => ({ kind: "text", text })),
+    ph: ({ ph }) => [{ kind: "code", id: ph.id, display: code.ph(ph), role: "ph" }],
+    pcOpen: ({ pcOpen }) => [
+      { kind: "code", id: pcOpen.id, display: code.pcOpen(pcOpen), role: "open" },
+    ],
+    pcClose: ({ pcClose }) => [
+      { kind: "code", id: pcClose.id, display: code.pcClose(pcClose), role: "close" },
+    ],
+    sub: ({ sub }) => [{ kind: "code", id: sub.id, display: code.sub(sub), role: "sub" }],
+    // A plural or select is one token: its forms compare as a whole.
+    plural: ({ plural }) => [
+      { kind: "branch", display: code.choice(plural.pivot), key: JSON.stringify(plural) },
+    ],
+    select: ({ select }) => [
+      { kind: "branch", display: code.choice(select.pivot), key: JSON.stringify(select) },
+    ],
+    fallback: (kind) => [{ kind: "branch", display: code.unknown(), key: kind }],
+  };
+}
 
 /** The tokens of a run sequence, in document order. */
 export function runTokens(runs: readonly Run[]): DiffToken[] {
-  return projectRuns(runs, TOKENS).flat();
+  return projectRuns(runs, tokenSpec(runs)).flat();
 }
 
 function splitWords(text: string): string[] {
