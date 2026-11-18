@@ -104,8 +104,9 @@ one decision. Tapping a term opens the term sheet: the concept's definition,
 the form to use in the language under review, the check's verdict on this
 translation, and the concept's terms in every language with their status
 (`GET /:ws/concepts/:cid`). Previous and next step through every term in the
-container in reading order. A term inside a plural or select form is not
-marked yet: the anchors resolve to the top-level text runs only.
+container in reading order. A plural or select is checked form by form, and
+a term inside a form is marked where the form is drawn; when some forms miss
+the term, the sheet names them.
 
 A code, such as a variable named `serverURL`, reads as its name in a muted
 monospace face and does not respond to a tap. In a string, a tap opens a term
@@ -885,8 +886,9 @@ the review context.
   (`core/editor.OverlayView`): a `term` overlay on side `source` and, when the
   translation renders a term, one on the target locale's side. Spans of one
   rule share an id (`term-check:<n>`); their props carry `term`,
-  `replacement`, `concept_id`, `satisfied` and, where set, `advisory` and
-  `do_not_translate`. Absent when no term governs the language.
+  `replacement`, `concept_id`, `satisfied` and, where set, `missing_forms`,
+  `advisory` and `do_not_translate`. A span inside a plural or select form is
+  pathed to the form. Absent when no term governs the language.
 - `collection_id` names the item's collection. `preview` (`kind`, `url`,
   `source_file`) is set for a component whose collection declares a preview
   host.

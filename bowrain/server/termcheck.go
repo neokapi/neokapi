@@ -31,7 +31,7 @@ import (
 //   - ABSENCE: the source uses a concept that MANDATES a preferred or approved
 //     rendering for the target locale and the target OMITS it, or the concept is
 //     marked do-not-translate and the target does not keep the term verbatim.
-//     Both are decided by coretools.TermCheckViolations, the function the
+//     Both are decided by coretools.TermCheckRunViolations, the function the
 //     term-check tool itself uses, so a translation the CLI gate passes
 //     is compliant here and one it fails is a violation.
 //
@@ -92,7 +92,7 @@ func blockTermComplianceWith(ctx context.Context, block *model.Block, srcLoc, tg
 	// ABSENCE (terms and the recipe's rules): the source uses a concept or a
 	// declared rule whose mandated rendering for the target locale, or whose
 	// do-not-translate term, is missing from the target.
-	if targetMissingMandatedTerm(ctx, tb, declared, block.SourceText(), targetText, srcLoc, tgtLoc) {
+	if targetMissingMandatedTerm(ctx, tb, declared, block.SourceRuns(), block.TargetRuns(tgtLoc), srcLoc, tgtLoc) {
 		return store.TermComplianceViolation
 	}
 	return store.TermComplianceCompliant
@@ -120,8 +120,8 @@ func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetTex
 // ABSENCE: the source uses a concept's term, and the target holds none of the
 // renderings that concept accepts for tgtLoc. It determines exactly what the
 // term-check tool determines, by deriving the rules with terms.RulesFromConcepts
-// and asking coretools.TermCheckViolations, so a translation the CLI gate
-// passes is compliant here and one it fails is a violation. That includes an
+// and asking coretools.TermCheckRunViolations, form by form, so a translation
+// the CLI gate passes is compliant here and one it fails is a violation. That includes an
 // admitted or approved term, a declared form of any rendering, an English
 // source term's regular inflections, placeholder names read as syntax, and a
 // do-not-translate term, which the target must keep verbatim. Redirection
@@ -130,8 +130,8 @@ func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetTex
 // declared are the term rules the recipe declares for tgtLoc. They join the
 // concepts' rules as kapi's gate joins them, and tb may be nil when they are
 // all that governs the locale.
-func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, declared []coreprofile.TermRule, sourceText, targetText string, srcLoc, tgtLoc model.LocaleID) bool {
-	if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
+func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, declared []coreprofile.TermRule, sourceRuns, targetRuns []model.Run, srcLoc, tgtLoc model.LocaleID) bool {
+	if strings.TrimSpace(model.RunsText(sourceRuns)) == "" || strings.TrimSpace(model.RunsText(targetRuns)) == "" {
 		return false
 	}
 	var rules []coreprofile.TermRule
@@ -144,11 +144,11 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, declar
 	if len(rules) == 0 {
 		return false
 	}
-	errs, _ := coretools.TermCheckViolations(&coretools.TermCheckConfig{
+	errs, _ := coretools.TermCheckRunViolations(&coretools.TermCheckConfig{
 		TermRules:    rules,
 		SourceLocale: srcLoc,
 		TargetLocale: tgtLoc,
-	}, sourceText, targetText)
+	}, sourceRuns, targetRuns)
 	return len(errs) > 0
 }
 

@@ -517,7 +517,7 @@ func OverlayViewsOf(b *model.Block, overlays []model.Overlay) []OverlayView {
 				ID:        s.ID,
 				Range:     s.Range,
 				Props:     nonEmptyProps(s.Props),
-				Text:      model.RunsText(s.Range.ExtractRuns(runs)),
+				Text:      s.Range.TextIn(runs),
 				Ignorable: s.Ignorable(),
 			})
 		}

@@ -197,7 +197,12 @@ function TermBody({
                 ? t("term.used")
                 : keep
                   ? t("term.notKept", { term: term.term })
-                  : t("term.unused", { form: term.replacement ?? forms[0] ?? term.term })}
+                  : term.missingForms.length
+                    ? t("term.unusedForms", {
+                        form: term.replacement ?? forms[0] ?? term.term,
+                        forms: term.missingForms.join(", "),
+                      })
+                    : t("term.unused", { form: term.replacement ?? forms[0] ?? term.term })}
             </Text>
           ) : null}
         </View>

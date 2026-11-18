@@ -46,6 +46,7 @@ const container = containerFromServer({
                 term: "try again",
                 replacement: "recommencer",
                 advisory: "true",
+                missing_forms: "one,other",
               },
             },
           ],
@@ -92,8 +93,10 @@ describe("unitTerms", () => {
       term: "try again",
       satisfied: false,
       advisory: true,
+      missingForms: ["one", "other"],
       target: [],
     });
+    expect(server.missingForms).toEqual([]);
   });
 
   it("reads nothing from a unit with no term check spans", () => {

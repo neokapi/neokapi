@@ -10,7 +10,7 @@
 import {
   codeDisplays,
   projectRuns,
-  textRunSpansForAnchor,
+  textRunPartsForAnchor,
   type AnchorLike,
   type ModelRunSpec,
   type Run,
@@ -45,7 +45,8 @@ interface MarkedPart {
 }
 
 /**
- * The marked parts of each top-level text run, in order, keyed by the run.
+ * The marked parts of each text run, top-level or inside a form, in order,
+ * keyed by the run.
  * Where two marks overlap, the one that starts first is kept.
  */
 export function markedParts(
@@ -54,9 +55,10 @@ export function markedParts(
 ): Map<Run, MarkedPart[]> {
   const out = new Map<Run, MarkedPart[]>();
   for (const mark of marks) {
-    for (const span of textRunSpansForAnchor(runs as Run[], mark.anchor)) {
-      const run = runs[span.run];
-      out.set(run, [...(out.get(run) ?? []), { start: span.start, end: span.end, mark }]);
+    // The anchor's path leads into a plural or select form when the term sits
+    // there, and the form is drawn below with the same run objects.
+    for (const part of textRunPartsForAnchor(runs, mark.anchor)) {
+      out.set(part.run, [...(out.get(part.run) ?? []), { start: part.start, end: part.end, mark }]);
     }
   }
   for (const [run, parts] of out) {
@@ -91,12 +93,16 @@ function markText(text: string, parts: readonly MarkedPart[]): ReactNode[] {
   return out;
 }
 
-function branchList(prefix: string, branches: Record<string, Run[] | undefined>): ReactNode {
+function branchList(
+  prefix: string,
+  branches: Record<string, Run[] | undefined>,
+  parts?: Map<Run, MarkedPart[]>,
+): ReactNode {
   return Object.entries(branches).map(([form, runs]) => (
     <Text key={`${prefix}-${form}`}>
       {"\n"}
       <Text className="text-muted-foreground text-xs">{form}: </Text>
-      {renderRuns(runs ?? [], `${prefix}-${form}`)}
+      {renderRuns(runs ?? [], `${prefix}-${form}`, parts)}
     </Text>
   ));
 }
@@ -135,7 +141,7 @@ function spec(
       return (
         <Fragment key={k}>
           <CodeChip display={code.choice(plural.pivot)} testID="run-chip" />
-          {branchList(k, plural.forms)}
+          {branchList(k, plural.forms, parts)}
         </Fragment>
       );
     },
@@ -144,7 +150,7 @@ function spec(
       return (
         <Fragment key={k}>
           <CodeChip display={code.choice(select.pivot)} testID="run-chip" />
-          {branchList(k, select.cases)}
+          {branchList(k, select.cases, parts)}
         </Fragment>
       );
     },

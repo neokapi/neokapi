@@ -804,6 +804,7 @@
     "noForm": "No approved form in this language yet.",
     "used": "This translation uses it.",
     "unused": "This translation does not use {{form}}.",
+    "unusedForms": "This translation does not use {{form}} in these forms: {{forms}}.",
     "notKept": "This translation does not keep {{term}} as it is.",
     "languages": "Every language",
     "status": {

@@ -132,7 +132,7 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 			return nil
 		}
 
-		errs, warns := TermCheckViolations(conf, v.SourceText(), v.TargetText(conf.TargetLocale))
+		errs, warns := TermCheckRunViolations(conf, v.SourceRuns(), v.TargetRuns(conf.TargetLocale))
 
 		if len(errs) == 0 {
 			v.SetProperty(PropTermCheckPassed, "true")
@@ -181,6 +181,8 @@ func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, war
 // rendering (or, for a do-not-translate rule, of the kept term) in the target.
 // Satisfied is the verdict, and it is true exactly when Target holds a range.
 type TermUse struct {
+	// Index is the rule's position in TermCheckConfig.TermRules.
+	Index     int
 	Rule      profile.TermRule
 	Source    [][2]int
 	Target    [][2]int
@@ -203,49 +205,159 @@ func TermCheckUses(cfg *TermCheckConfig, source, target string) []TermUse {
 		} else {
 			hits = renderingSpans(targetText, rule.Renderings(), casedFor(cfg, rule))
 		}
-		out = append(out, TermUse{Rule: rule, Source: use.spans, Target: hits, Satisfied: len(hits) > 0})
+		out = append(out, TermUse{Index: use.index, Rule: rule, Source: use.spans, Target: hits, Satisfied: len(hits) > 0})
 	}
 	return out
+}
+
+// termReading pairs a reading of the source with the reading of the
+// translation held to it. A translation's form is held to the source's form of
+// the same key (its `one` to the source's `one`), and to the source's default
+// form when the source has no such form: a Polish `few` renders what English
+// says in `other`.
+type termReading struct {
+	source, target model.FormReading
+	// form is the form the pair stands for, empty when neither side holds a
+	// plural or select.
+	form string
+}
+
+// termReadings returns the pairs that together read every form of the
+// translation, and every form of the source when the translation holds no
+// plural or select of its own.
+func termReadings(sourceRuns, targetRuns []model.Run) []termReading {
+	sources := model.FormReadings(sourceRuns)
+	targets := model.FormReadings(targetRuns)
+	out := make([]termReading, 0, len(targets))
+	for _, t := range targets {
+		src := sources[0]
+		if t.Varied != nil {
+			src = model.FormReadingFor(sourceRuns, t.Varied.Pivot, t.Varied.Key)
+		}
+		out = append(out, termReading{source: src, target: t, form: t.Form()})
+	}
+	if len(targets) == 1 {
+		for _, s := range sources[1:] {
+			out = append(out, termReading{source: s, target: targets[0], form: s.Form()})
+		}
+	}
+	if len(out) == 1 && len(sources) == 1 {
+		out[0].form = ""
+	}
+	return out
+}
+
+// TermCheckRunViolations is term-check's decision over a source's and a
+// translation's runs, form by form. A plural or select holds one sequence per
+// form, and the flat text holds only one of them, so each form of the
+// translation is checked against the matching form of the source
+// (termReadings), and a violation in one form names it. For content with no
+// plural or select it reports exactly what TermCheckViolations reports over the
+// flat texts.
+func TermCheckRunViolations(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) (errs, warns []string) {
+	seen := map[string]bool{}
+	add := func(list *[]string, msgs []string, form string) {
+		for _, m := range msgs {
+			if form != "" {
+				m += " (in the " + form + " form)"
+			}
+			if !seen[m] {
+				seen[m] = true
+				*list = append(*list, m)
+			}
+		}
+	}
+	for _, r := range termReadings(sourceRuns, targetRuns) {
+		e, w := TermCheckViolations(cfg, r.source.Text, r.target.Text)
+		add(&errs, e, r.form)
+		add(&warns, w, r.form)
+	}
+	return errs, warns
 }
 
 // TermCheckOverlays draws term-check's decision as term overlays: one over
 // the source runs, a span for each place the source uses a demanded term, and
 // one over the translation in cfg.TargetLocale, a span for each rendering the
-// target holds. The spans of one rule share an id ("term-check:<n>"), and
-// each carries the rule as a TermAnnotation and, in its props, the verdict
-// ("satisfied"), the source term ("term"), the rendering it requires
-// ("replacement") and the concept ("concept_id"), so
-// a reader of the wire form, which keeps props, can pair a source term with
-// its rendering, tell a missing one, and open the concept. It returns nil when
-// the source uses no demanded term.
+// target holds. Each form of a plural or select is checked (termReadings), and
+// a span inside a form is anchored to that form. The spans of one rule share
+// an id ("term-check:<n>", n its index in TermRules), and each carries the rule
+// as a TermAnnotation and, in its props, the verdict ("satisfied", false when
+// any form misses the term), the forms that miss it ("missing_forms", comma
+// separated, when the content has forms), the source term ("term"), the
+// rendering it requires ("replacement") and the concept ("concept_id"), so a
+// reader of the wire form, which keeps props, can pair a source term with its
+// rendering, tell a missing one, and open the concept. It returns nil when the
+// source uses no demanded term.
 func TermCheckOverlays(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) []model.Overlay {
-	uses := TermCheckUses(cfg, model.RunsText(sourceRuns), model.RunsText(targetRuns))
-	if len(uses) == 0 {
+	type ruleSpans struct {
+		rule        profile.TermRule
+		src, tgt    []model.Anchor
+		seen        map[string]bool
+		missing     []string
+		unsatisfied bool
+	}
+	byRule := map[int]*ruleSpans{}
+	var order []int
+	add := func(rs *ruleSpans, list *[]model.Anchor, a model.Anchor) {
+		key := fmt.Sprintf("%p:%+v", list, a)
+		if !rs.seen[key] {
+			rs.seen[key] = true
+			*list = append(*list, a)
+		}
+	}
+	for _, r := range termReadings(sourceRuns, targetRuns) {
+		for _, use := range TermCheckUses(cfg, r.source.Text, r.target.Text) {
+			rs, ok := byRule[use.Index]
+			if !ok {
+				rs = &ruleSpans{rule: use.Rule, seen: map[string]bool{}}
+				byRule[use.Index] = rs
+				order = append(order, use.Index)
+			}
+			for _, h := range use.Source {
+				add(rs, &rs.src, r.source.Anchor(h[0], h[1]))
+			}
+			for _, h := range use.Target {
+				add(rs, &rs.tgt, r.target.Anchor(h[0], h[1]))
+			}
+			if !use.Satisfied {
+				rs.unsatisfied = true
+				if r.form != "" && !slices.Contains(rs.missing, r.form) {
+					rs.missing = append(rs.missing, r.form)
+				}
+			}
+		}
+	}
+	if len(order) == 0 {
 		return nil
 	}
+	slices.Sort(order)
 	src := model.Overlay{Type: model.OverlayTerm}
 	tgt := model.Overlay{Type: model.OverlayTerm, Edition: model.Variant(cfg.TargetLocale)}
-	for i, use := range uses {
-		id := fmt.Sprintf("term-check:%d", i)
-		ann := termAnnotation(use.Rule, cfg.TargetLocale)
-		props := map[string]string{"satisfied": strconv.FormatBool(use.Satisfied), "term": use.Rule.Term}
-		if use.Rule.ConceptID != "" {
-			props["concept_id"] = use.Rule.ConceptID
+	for _, idx := range order {
+		rs := byRule[idx]
+		id := fmt.Sprintf("term-check:%d", idx)
+		ann := termAnnotation(rs.rule, cfg.TargetLocale)
+		props := map[string]string{"satisfied": strconv.FormatBool(!rs.unsatisfied), "term": rs.rule.Term}
+		if len(rs.missing) > 0 {
+			props["missing_forms"] = strings.Join(rs.missing, ",")
 		}
-		if use.Rule.Replacement != "" {
-			props["replacement"] = use.Rule.Replacement
+		if rs.rule.ConceptID != "" {
+			props["concept_id"] = rs.rule.ConceptID
 		}
-		if use.Rule.Advisory {
+		if rs.rule.Replacement != "" {
+			props["replacement"] = rs.rule.Replacement
+		}
+		if rs.rule.Advisory {
 			props["advisory"] = "true"
 		}
-		if use.Rule.DoNotTranslate {
+		if rs.rule.DoNotTranslate {
 			props["do_not_translate"] = "true"
 		}
-		for _, h := range use.Source {
-			src.Spans = append(src.Spans, model.Span{ID: id, Range: model.RangeAnchorForBytes(sourceRuns, h[0], h[1]), Props: props, Value: ann})
+		for _, a := range rs.src {
+			src.Spans = append(src.Spans, model.Span{ID: id, Range: a, Props: props, Value: ann})
 		}
-		for _, h := range use.Target {
-			tgt.Spans = append(tgt.Spans, model.Span{ID: id, Range: model.RangeAnchorForBytes(targetRuns, h[0], h[1]), Props: props, Value: ann})
+		for _, a := range rs.tgt {
+			tgt.Spans = append(tgt.Spans, model.Span{ID: id, Range: a, Props: props, Value: ann})
 		}
 	}
 	out := []model.Overlay{src}

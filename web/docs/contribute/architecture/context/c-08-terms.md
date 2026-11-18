@@ -472,9 +472,15 @@ store, whenever one is open, and `kapi tools` does not list them.
   under its own configuration: a target with the rendering deleted, one holding
   a word that opens like the rendering and ends differently, the shape of
   "Kaiplan" for `kaiplass`, and a target that does not keep a do-not-translate
-  term. The ship terminology gate, `kapi check` with a target in a project, the
-  loop checks behind `kapi status` and `ship.json`, and the platform's
-  compliance predicate all decide through it.
+  term. A plural or select is checked form by form
+  (`TermCheckRunViolations`): each form of the target is held to the source's
+  form of the same key, or to the source's `other` form when the source has no
+  such form, so a target that renders a term in `other` and drops it in `one`
+  fails, and the finding names the form. The ship terminology gate, `kapi check`
+  with a target in a project, the loop checks behind `kapi status` and
+  `ship.json`, and the platform's compliance predicate all decide through it,
+  and `TermCheckOverlays` draws the same decision as term overlays anchored to
+  each form.
 - **`term-enforce`** (validate): for each known source term, checks that an
   acceptable target-locale translation is present, and flags blocks where it is
   missing. A source term whose concept is forbidden or deprecated redirects
