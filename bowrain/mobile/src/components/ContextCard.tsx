@@ -1,16 +1,20 @@
 // One context item as a card in the context deck: its kind, language and
 // status as chips, the rule, term, proposed translation of a term, voice rule
 // or note itself, how many blocks a proposed term reaches, where it applies,
-// who wrote it, and the bulk operation that brought it in. The
-// server decides every field; the card only lays them out.
-import type { ContextCard as Card } from "@neokapi/bowrain-client";
+// who wrote it, and the bulk operation that brought it in. Dealt in a
+// session, it also shows its reach as a bar against the widest term in the
+// session, the channels it appears in and the target terms proposed for it.
+// The server decides every field; the card only lays them out.
+import type { ContextCard as Card, ContextTranslation } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
+import { reachShare } from "../lib/contextDeck";
 import { originLine } from "../lib/contextOrigin";
+import { localeName } from "../lib/localeName";
 
 import { Avatar } from "./feed/Avatar";
 import { RegexText } from "./RegexText";
@@ -221,6 +225,74 @@ function Reach({ card }: { card: Card }) {
   );
 }
 
+/**
+ * A session card's reach: how many blocks use the term, as a bar against the
+ * widest term in the session, with the channels it appears in underneath.
+ */
+function SessionReach({
+  card,
+  widest,
+  channels,
+}: {
+  card: Card;
+  widest: number;
+  channels: readonly string[];
+}) {
+  const { t } = useTranslation();
+  const blocks = card.reach?.blocks;
+  const share = reachShare(blocks, widest);
+  return (
+    <View className="gap-2" testID="context-session-reach">
+      <Label>
+        {blocks !== undefined
+          ? t("context.candidate.reach", { count: blocks })
+          : t("context.candidate.reachNone")}
+      </Label>
+      {blocks !== undefined ? (
+        <View className="bg-muted h-2 overflow-hidden rounded-full" importantForAccessibility="no">
+          <View
+            testID="context-reach-bar"
+            className="bg-primary h-2 rounded-full"
+            style={{ width: `${Math.round(share * 100)}%` }}
+          />
+        </View>
+      ) : null}
+      {channels.length > 0 ? (
+        <View testID="context-channels" className="flex-row flex-wrap gap-2">
+          {channels.map((ch) => (
+            <Chip key={ch} label={ch} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** The target terms proposed for a concept, one line per language the reviewer may review. */
+function Proposals({ proposals }: { proposals: readonly ContextTranslation[] }) {
+  const { t, i18n } = useTranslation();
+  return (
+    <View className="gap-1" testID="context-proposals">
+      <Label>{t("context.inSession.proposals")}</Label>
+      {proposals.map((p) => (
+        <View
+          key={p.locale}
+          testID="context-proposal"
+          className="flex-row items-baseline justify-between gap-3"
+        >
+          <Text className="text-muted-foreground text-sm">
+            {localeName(p.locale, i18n.language) ?? p.locale.toUpperCase()}
+          </Text>
+          <Text className="text-foreground flex-1 text-right text-lg font-semibold">
+            {p.proposed}
+          </Text>
+          <Text className="text-muted-foreground text-xs">{t("context.termStatus.proposed")}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** Where the item came from, when a bulk operation brought it in. Tapping it opens the origin sheet. */
 function OriginLine({ card, onOpen }: { card: Card; onOpen?: () => void }) {
   const { t } = useTranslation();
@@ -250,11 +322,24 @@ export function ContextCard({
   card,
   scope,
   onOpenOrigin,
+  session,
 }: {
   card: Card;
   /** The card's project. Given, a voice rule shows where it matches the project's text. */
   scope?: CardScope;
   onOpenOrigin?: () => void;
+  /**
+   * The card as a session deals it: the widest reach in the session, which
+   * the reach bar is drawn against, the channels the term appears in, the
+   * target terms proposed for it, and whether it is new since the last
+   * session.
+   */
+  session?: {
+    widest: number;
+    channels: readonly string[];
+    proposals: readonly ContextTranslation[];
+    isNew: boolean;
+  };
 }) {
   const { t, i18n } = useTranslation();
   const where = [
@@ -287,6 +372,9 @@ export function ContextCard({
           accent
           testID="context-kind"
         />
+        {session?.isNew ? (
+          <Chip label={t("context.inSession.newTag")} testID="context-new" />
+        ) : null}
         {card.language ? <Chip label={card.language.toUpperCase()} /> : null}
         {card.status && card.status !== "established" ? (
           <Chip label={t(`context.status.${card.status}`)} testID="context-status" />
@@ -299,7 +387,15 @@ export function ContextCard({
       <ScrollView contentContainerClassName="gap-5 p-5">
         <Body card={card} scope={scope} />
 
-        {card.proposed || card.translation ? <Reach card={card} /> : null}
+        {session && session.proposals.length > 0 ? (
+          <Proposals proposals={session.proposals} />
+        ) : null}
+
+        {session && (card.reach || card.proposed || card.translation) ? (
+          <SessionReach card={card} widest={session.widest} channels={session.channels} />
+        ) : card.proposed || card.translation ? (
+          <Reach card={card} />
+        ) : null}
 
         <View className="gap-1">
           <Label>{t("context.appliesIn")}</Label>

@@ -50,6 +50,7 @@ func (s *Server) registerContextDeckRoutes(g *echo.Group) {
 	g.GET("/:id/context/deck/origins/:op", s.HandleContextDeckOrigin)
 	g.GET("/:id/context/deck/examples", s.HandleContextRuleExamples)
 	g.POST("/:id/context/deck/decide", s.refuseTool(s.HandleContextDeckDecide))
+	s.registerContextSessionRoutes(g)
 }
 
 // contextDeckResponse is a page of the context deck.
@@ -165,6 +166,9 @@ func (s *Server) HandleContextDeck(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	if cards, err = s.withoutHeld(c.Request().Context(), src.project.ID, rv.userID, cards); err != nil {
+		return serverErr(c, err)
+	}
 	out := contextDeckResponse{Mode: deckModePending, Bound: src.key != "", Counts: countDeck(cards)}
 	if kind := c.QueryParam("kind"); kind != "" {
 		cards = slices.DeleteFunc(cards, func(card contextDeckCard) bool { return card.Kind != kind })
@@ -267,7 +271,10 @@ func (s *Server) HandleContextDeckOrigin(c echo.Context) error {
 // in text, to the concept. Reject drops a term rule or a note from the ledger, deletes a
 // candidate term and records that it is not one, and proposes a change set
 // that deprecates the terms of any other concept. Later records nothing. A revision that has moved since the
-// card was dealt answers 409 stale with the card as it reads now.
+// card was dealt answers 409 stale with the card as it reads now. A card
+// another person's live session holds answers 409 held; a decision about a
+// card the caller's own session holds is recorded in that session and
+// releases the card.
 func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 	var req contextDeckDecideRequest
 	if err := c.Bind(&req); err != nil {
@@ -277,6 +284,32 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
+	css, sessions := s.contextSessionStore()
+	if !sessions || req.Action == deckActionLater {
+		return s.decideContextCard(c, req)
+	}
+	ctx := c.Request().Context()
+	userID := ledgerMemberOf(c).UserID
+	own, held, err := s.sessionHolding(ctx, css, projectParam(c), userID, req.Item.Key())
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if held {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: "another person's session holds this card", Code: deckCodeHeld})
+	}
+	if err := s.decideContextCard(c, req); err != nil || own == "" || c.Response().Status != http.StatusOK {
+		return err
+	}
+	now := sessionNow().UTC()
+	d := platstore.ContextSessionDecision{Item: req.Item.Key(), Outcome: sessionOutcome(req), At: now}
+	if err := css.RecordContextSessionDecision(ctx, own, d, now.Add(contextSessionIdle)); err != nil {
+		c.Logger().Errorf("record a decision in context session %s: %v", own, err)
+	}
+	return nil
+}
+
+// decideContextCard is HandleContextDeckDecide's decision itself.
+func (s *Server) decideContextCard(c echo.Context, req contextDeckDecideRequest) error {
 	if req.Action == deckActionLater {
 		return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckActionLater})
 	}
@@ -629,6 +662,9 @@ func (s *Server) contextInbox(ctx context.Context, ws *platauth.Workspace, p *pl
 		return contextInboxEntry{}, false, err
 	}
 	cards = slices.DeleteFunc(cards, func(c contextDeckCard) bool { return !slices.Contains(c.Actions, deckActionKeep) })
+	if cards, err = s.withoutHeld(ctx, p.ID, userID, cards); err != nil {
+		return contextInboxEntry{}, false, err
+	}
 	if len(cards) == 0 {
 		return contextInboxEntry{}, false, nil
 	}

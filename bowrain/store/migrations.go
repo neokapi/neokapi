@@ -1878,4 +1878,39 @@ var Migrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     55,
+		Description: "context sessions and the cards they hold",
+		SQL: `
+			-- A context session is one person's pass over a project's
+			-- context deck: the cards it dealt (cards), the reach of the
+			-- project's terms when it started (reach, concept id to
+			-- blocks), and the decisions made in it (decisions). It runs
+			-- until ended_at is set or expires_at passes; each decision
+			-- moves expires_at on.
+			CREATE TABLE IF NOT EXISTS context_sessions (
+				id              TEXT PRIMARY KEY,
+				project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				user_id         TEXT NOT NULL,
+				cards           JSONB NOT NULL DEFAULT '[]',
+				reach           JSONB NOT NULL DEFAULT '{}',
+				decisions       JSONB NOT NULL DEFAULT '[]',
+				started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				expires_at      TIMESTAMPTZ NOT NULL,
+				ended_at        TIMESTAMPTZ,
+				last_decided_at TIMESTAMPTZ
+			);
+			CREATE INDEX IF NOT EXISTS context_sessions_project ON context_sessions (project_id, started_at);
+			-- One row per card a session holds. The key makes a card held
+			-- by one session at a time; a row whose session ended or
+			-- expired is cleared before the next session takes cards.
+			CREATE TABLE IF NOT EXISTS context_session_holds (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_key   TEXT NOT NULL,
+				session_id TEXT NOT NULL REFERENCES context_sessions(id) ON DELETE CASCADE,
+				PRIMARY KEY (project_id, item_key)
+			);
+			CREATE INDEX IF NOT EXISTS context_session_holds_session ON context_session_holds (session_id);
+		`,
+	},
 }

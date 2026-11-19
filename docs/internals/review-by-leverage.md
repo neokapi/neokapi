@@ -114,6 +114,44 @@ decision like any other: a decide operation in the ledger, attributed to the
 person who set the policy, with the reason `review policy`, and reopened by any
 later rejection. The person decided a rule; the server applied it.
 
+### Key-language sessions
+
+Bowrain is a team tool, so a project has one context queue. The phone works
+it in sessions (`POST /:ws/:id/context/sessions`, `bowrain/server/context_sessions.go`):
+
+- A session deals up to ten pending cards the caller can keep or reject,
+  ranked by reach. A concept and the proposed translations that follow it
+  rank as one group. A card with no reach of its own (a kept concept with no
+  scan count, a term rule, a voice rule that lists its words) gets one
+  `CountBlocks` aggregate over the source blocks holding its words, for at
+  most 30 cards per start.
+- The session holds its cards (`context_session_holds`, one row per project
+  and item) until a decision releases one, the owner ends it
+  (`POST .../sessions/:sid/end`), or 30 minutes pass with no decision. A
+  hold row's key decides who takes a card, so two sessions started at once
+  get disjoint cards. Starting a session ends the caller's previous one.
+- The deck listing, the inbox count and the decide path exclude cards
+  another person's live session holds; a decision on such a card answers
+  409 `held`.
+- "What changed" compares against the team's last ended session, not a
+  baseline per person: candidates filed since it ended, concepts whose reach
+  grew against the reach the session recorded when it started, and the
+  decisions other people made in sessions since. Decisions made outside a
+  session are not in that count. What others decided reaches a person
+  through the feed, never as work.
+- The summary counts kept, changed (kept in the reviewer's wording) and
+  rejected cards, the blocks the kept terms reach (each concept once, as
+  dealt), and the source findings the last check counted for term rules the
+  session turned down. Translations that will be drafted again are not
+  counted: the server has no figure for them, so the summary leaves it out.
+- A second review happens only under the workspace's separation-of-duties
+  setting (`GetSoDMode`), which the decide path applies when a card retires
+  a rule in force. Nothing else asks a second person to look at a decided
+  card.
+
+Sessions make no AI calls: they deal candidates and proposals that already
+exist.
+
 ## How key language enters: term extraction today
 
 The key-language cards are only as good as the candidates behind them, and
@@ -281,7 +319,8 @@ The founder accepted each recommendation on 2026-11-19:
    project. Still to build: the plan's key-language step calling it, and
    term forms through `kapi terms expand` for a kept translation.
 4. Context deck ordered by reach. Built for candidate terms; the rest of the
-   deck keeps its order by kind.
+   deck keeps its order by kind. Sessions over the deck: built (see
+   [Key-language sessions](#key-language-sessions)).
 5. Exceptions grouped by rule. Built: the project-wide check's tally and
    each translation's deck facts keep a count per rule (rule id and subject:
    the term or the voice pattern, with the concept when a word rule comes

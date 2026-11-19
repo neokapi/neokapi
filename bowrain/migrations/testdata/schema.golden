@@ -382,6 +382,19 @@ context_scan_jobs.workspace_slug text NOT NULL DEFAULT ''::text
 context_scan_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 context_scan_schema_migrations.description text NOT NULL
 context_scan_schema_migrations.version integer NOT NULL
+context_session_holds.item_key text NOT NULL
+context_session_holds.project_id text NOT NULL
+context_session_holds.session_id text NOT NULL
+context_sessions.cards jsonb NOT NULL DEFAULT '[]'::jsonb
+context_sessions.decisions jsonb NOT NULL DEFAULT '[]'::jsonb
+context_sessions.ended_at timestamp with time zone NULL
+context_sessions.expires_at timestamp with time zone NOT NULL
+context_sessions.id text NOT NULL
+context_sessions.last_decided_at timestamp with time zone NULL
+context_sessions.project_id text NOT NULL
+context_sessions.reach jsonb NOT NULL DEFAULT '{}'::jsonb
+context_sessions.started_at timestamp with time zone NOT NULL DEFAULT now()
+context_sessions.user_id text NOT NULL
 convergence_run_events.payload text NOT NULL DEFAULT '{}'::text
 convergence_run_events.run_id text NOT NULL
 convergence_run_events.seq integer NOT NULL
@@ -1368,6 +1381,11 @@ context_objects context_objects_pkey PRIMARY KEY (project_id, name)
 context_objects context_objects_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 context_scan_jobs context_scan_jobs_pkey PRIMARY KEY (id)
 context_scan_schema_migrations context_scan_schema_migrations_pkey PRIMARY KEY (version)
+context_session_holds context_session_holds_pkey PRIMARY KEY (project_id, item_key)
+context_session_holds context_session_holds_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+context_session_holds context_session_holds_session_id_fkey FOREIGN KEY (session_id) REFERENCES context_sessions(id) ON DELETE CASCADE
+context_sessions context_sessions_pkey PRIMARY KEY (id)
+context_sessions context_sessions_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 convergence_run_events convergence_run_events_pkey PRIMARY KEY (run_id, seq)
 convergence_run_events convergence_run_events_run_id_fkey FOREIGN KEY (run_id) REFERENCES convergence_runs(id) ON DELETE CASCADE
 convergence_runs convergence_runs_pkey PRIMARY KEY (id)
@@ -1571,6 +1589,8 @@ CREATE INDEX annotations_p6_project_id_stream_kind_updated_at_idx ON public.anno
 CREATE INDEX annotations_p7_project_id_stream_block_id_idx ON public.annotations_p7 USING btree (project_id, stream, block_id)
 CREATE INDEX annotations_p7_project_id_stream_kind_updated_at_idx ON public.annotations_p7 USING btree (project_id, stream, kind, updated_at DESC)
 CREATE INDEX context_assignments_assignee ON public.context_assignments USING btree (assignee)
+CREATE INDEX context_session_holds_session ON public.context_session_holds USING btree (session_id)
+CREATE INDEX context_sessions_project ON public.context_sessions USING btree (project_id, started_at)
 CREATE INDEX idx_activities_actor ON public.activities USING btree (workspace_id, actor_id, created_at DESC)
 CREATE INDEX idx_activities_feed ON public.activities USING btree (workspace_id, project_id, created_at DESC, id DESC) WHERE (kind <> ''::text)
 CREATE INDEX idx_activities_project ON public.activities USING btree (workspace_id, project_id, created_at DESC)
@@ -1797,6 +1817,8 @@ CREATE UNIQUE INDEX context_assignments_pkey ON public.context_assignments USING
 CREATE UNIQUE INDEX context_objects_pkey ON public.context_objects USING btree (project_id, name)
 CREATE UNIQUE INDEX context_scan_jobs_pkey ON public.context_scan_jobs USING btree (id)
 CREATE UNIQUE INDEX context_scan_schema_migrations_pkey ON public.context_scan_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX context_session_holds_pkey ON public.context_session_holds USING btree (project_id, item_key)
+CREATE UNIQUE INDEX context_sessions_pkey ON public.context_sessions USING btree (id)
 CREATE UNIQUE INDEX convergence_run_events_pkey ON public.convergence_run_events USING btree (run_id, seq)
 CREATE UNIQUE INDEX convergence_runs_pkey ON public.convergence_runs USING btree (id)
 CREATE UNIQUE INDEX credit_allocations_pkey ON public.credit_allocations USING btree (id)

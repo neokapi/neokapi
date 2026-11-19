@@ -38,6 +38,9 @@ import type {
   ContextRuleExamples,
   ContextDecision,
   ContextDecisionResult,
+  ContextSession,
+  ContextSessionCard,
+  ContextSessionEnd,
   TermProposalsResult,
   Deck,
   DeckCard,
@@ -173,6 +176,18 @@ export interface BowrainClient {
    * each target language that has none. The proposals arrive in the context deck.
    */
   proposeTermTranslations(workspace: string, project: string): Promise<TermProposalsResult>;
+  /**
+   * Start a context session: up to ten cards from the project's one queue,
+   * widest reach first, held for the caller until the session ends or sits
+   * idle for half an hour. A session the caller had running ends first.
+   */
+  startContextSession(workspace: string, project: string): Promise<ContextSession>;
+  /** End a context session, release the cards it still holds, and read what it did. */
+  endContextSession(
+    workspace: string,
+    project: string,
+    session: string,
+  ): Promise<ContextSessionEnd>;
   pendingReview(
     scope: ProjectScope,
     opts?: { locales?: string[]; limit?: number; offset?: number },
@@ -300,6 +315,8 @@ export const ROUTES = {
   feed: (workspace: string, project: string) => `/${enc(workspace)}/${enc(project)}/feed`,
   contextDeck: (workspace: string, project: string) =>
     `/${enc(workspace)}/${enc(project)}/context/deck`,
+  contextSessions: (workspace: string, project: string) =>
+    `/${enc(workspace)}/${enc(project)}/context/sessions`,
 };
 
 /** The query string of a feed request; `coordinate` repeats once per axis. */
@@ -500,6 +517,27 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       return send(`/${enc(ws)}/${enc(pid)}/context/term-proposals`, { method: "POST" }).then(
         (r) => r.body as TermProposalsResult,
       );
+    },
+
+    async startContextSession(ws, pid) {
+      const r = await send(ROUTES.contextSessions(ws, pid), { method: "POST" });
+      const body = r.body as ContextSession;
+      return {
+        ...body,
+        cards: (body.cards ?? []).map(sessionCard),
+        since: body.since
+          ? { ...body.since, added: body.since.added ?? [], grew: body.since.grew ?? [] }
+          : undefined,
+        waiting: body.waiting ?? 0,
+        held_by_others: body.held_by_others ?? 0,
+      };
+    },
+
+    async endContextSession(ws, pid, sid) {
+      const r = await send(`${ROUTES.contextSessions(ws, pid)}/${enc(sid)}/end`, {
+        method: "POST",
+      });
+      return r.body as ContextSessionEnd;
     },
 
     pendingReview(scope, o = {}) {
@@ -1064,4 +1102,13 @@ function contextCard(card: ContextCard): ContextCard {
   const out: ContextCard = { ...card, proposed: card.proposed ?? false };
   if (card.reach) out.reach = { ...card.reach, collections: card.reach.collections ?? [] };
   return out;
+}
+
+/** A session's card, with no channels and no proposals when the server lists none. */
+function sessionCard(card: ContextSessionCard): ContextSessionCard {
+  return {
+    ...contextCard(card),
+    channels: card.channels ?? [],
+    proposals: card.proposals ?? [],
+  };
 }

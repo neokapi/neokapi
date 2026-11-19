@@ -590,6 +590,57 @@ describe("client", () => {
     });
     expect(JSON.parse(String(calls[1]?.init?.body))).toMatchObject({ text: "arbeidsområde" });
   });
+
+  it("starts a context session, fills what the server leaves out, and ends it", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        const body = url.endsWith("/end")
+          ? {
+              session: { id: "s1", started_at: "t0", expires_at: "t1", ended_at: "t2" },
+              summary: { decided: 3, kept: 2, changed: 0, rejected: 1, blocks: 65, waiting: 4 },
+            }
+          : {
+              session: { id: "s1", started_at: "t0", expires_at: "t1" },
+              bound: true,
+              cards: [
+                {
+                  item: { kind: "concept", id: "c1" },
+                  kind: "concept",
+                  revision: "u1",
+                  where: { level: "project" },
+                  author: { kind: "tool", agent_authored: true },
+                  own_work: false,
+                  actions: ["keep", "reject", "later"],
+                  proposed: true,
+                  reach: { blocks: 40 },
+                  channels: ["cli"],
+                },
+              ],
+              since: { at: "t-1", added_total: 1, added: [], grew_total: 0, decided_by_others: 2 },
+            };
+        return new Response(JSON.stringify(body), { status: 200 });
+      }) as typeof fetch,
+    });
+    const session = await client.startContextSession("ws", "p");
+    expect(calls[0]?.url).toBe("http://server/api/v1/ws/p/context/sessions");
+    expect(calls[0]?.init?.method).toBe("POST");
+    expect(session.cards[0]?.channels).toEqual(["cli"]);
+    expect(session.cards[0]?.proposals).toEqual([]);
+    expect(session.cards[0]?.reach).toEqual({ blocks: 40, collections: [] });
+    expect(session.since?.grew).toEqual([]);
+    expect(session.since?.decided_by_others).toBe(2);
+    expect(session.waiting).toBe(0);
+    expect(session.held_by_others).toBe(0);
+
+    const end = await client.endContextSession("ws", "p", "s1");
+    expect(calls[1]?.url).toBe("http://server/api/v1/ws/p/context/sessions/s1/end");
+    expect(calls[1]?.init?.method).toBe("POST");
+    expect(end.summary).toMatchObject({ kept: 2, rejected: 1, blocks: 65 });
+  });
 });
 
 describe("deckPages", () => {
