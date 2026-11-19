@@ -37,6 +37,13 @@
 // while a use outside a test remains outside core/model; -report prints the
 // same inventory and exits 0.
 //
+// -changed-since <ref> loads only the directories that hold a .go file changed
+// between ref and HEAD, which is what a pull request runs. A use the check
+// fails on sits in a file that reaches the field, and only a changed file can
+// start to: an unchanged file that reached it already failed the full run on
+// main. The whole tree loads instead when core/model, this command, go.work or
+// a go.mod changed, because those can move what every file resolves to.
+//
 // Run from the repository root:
 //
 //	go run ./scripts/fieldguard            # fail on a use outside a test
@@ -106,6 +113,7 @@ func main() {
 	report := flag.Bool("report", false, "print the inventory and exit 0")
 	verbose := flag.Bool("v", false, "list every use")
 	format := flag.String("format", "text", "output format: text, markdown or json")
+	since := flag.String("changed-since", "", "load only the directories with a .go file changed since this git ref")
 	flag.Parse()
 
 	root, err := os.Getwd()
@@ -121,7 +129,24 @@ func main() {
 		}
 		return
 	}
-	inv, err := check(root)
+	var only []string
+	if *since != "" {
+		files, whole, err := changedGoFiles(root, *since)
+		if err != nil {
+			fail(err)
+		}
+		switch {
+		case whole:
+			fmt.Fprintln(os.Stderr, "fieldguard: core/model, fieldguard or a module file changed; checking the whole tree")
+		case len(files) == 0:
+			fmt.Println("fieldguard: no .go file changed since", *since)
+			return
+		default:
+			only = files
+			fmt.Fprintf(os.Stderr, "fieldguard: checking the directories of %d changed .go files\n", len(files))
+		}
+	}
+	inv, err := check(root, only)
 	if err != nil {
 		fail(err)
 	}
@@ -303,8 +328,9 @@ func embedOnly(e packages.Error) bool {
 }
 
 // check loads every module under every configuration and returns the
-// inventory of uses.
-func check(root string) (*inventory, error) {
+// inventory of uses. A non-nil only narrows the load to the directories that
+// hold those files, and the unchecked list to those files.
+func check(root string, only []string) (*inventory, error) {
 	mods, err := modules(root)
 	if err != nil {
 		return nil, err
@@ -316,6 +342,13 @@ func check(root string) (*inventory, error) {
 	if err != nil {
 		return nil, err
 	}
+	if only != nil {
+		keep := map[string]bool{}
+		for _, f := range only {
+			keep[f] = true
+		}
+		all = slices.DeleteFunc(all, func(f string) bool { return !keep[f] })
+	}
 	inv := newInventory(root, mods)
 	built := map[string]bool{} // absolute .go files a configuration type-checked
 	var fatal []string
@@ -326,7 +359,7 @@ func check(root string) (*inventory, error) {
 		before := maps.Clone(built)
 		for _, m := range mods {
 			patterns := []string{"./..."}
-			if ci > 0 {
+			if ci > 0 || only != nil {
 				patterns = pending(root, mods, m, all, built)
 				if len(patterns) == 0 {
 					continue
@@ -880,4 +913,28 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 	}
 	_, err := w.Write(buf.Bytes())
 	return err
+}
+
+// changedGoFiles returns the .go files, as absolute paths, changed between the
+// merge base of ref and HEAD, and whether a change calls for the whole tree:
+// one in core/model, in this command, in go.work or in a go.mod.
+func changedGoFiles(root, ref string) ([]string, bool, error) {
+	out, err := exec.Command("git", "-C", root, "diff", "--name-only", "--diff-filter=d", ref+"...HEAD").Output()
+	if err != nil {
+		return nil, false, fmt.Errorf("list the files changed since %s: %w", ref, err)
+	}
+	var files []string
+	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		switch {
+		case name == "":
+			continue
+		case name == "go.work" || path.Base(name) == "go.mod",
+			strings.HasPrefix(name, "core/model/"),
+			strings.HasPrefix(name, "scripts/fieldguard/"):
+			return nil, true, nil
+		case strings.HasSuffix(name, ".go"):
+			files = append(files, filepath.Join(root, filepath.FromSlash(name)))
+		}
+	}
+	return files, false, nil
 }

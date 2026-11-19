@@ -991,21 +991,18 @@ jobs:
       - name: The committed index matches the eval datasets
         run: go test ./scripts/evalindex/
 
-  # ── Race pass over changed packages (PR only) ─────────────────────────────
-  # The PR test wall deliberately drops -race (Makefile fast profile) and main
-  # is unprotected, so a data race introduced in a PR could merge green and only
-  # surface on the push/nightly full gate. This job closes that window cheaply:
-  # it races ONLY the Go packages the PR changed (scripts/test-race-changed.sh;
-  # capped with a fixed-core-set fallback so a wide refactor can't turn it into
-  # a second full test wall). -short keeps the slow suites out. Each module's
-  # run has its own 480s timeout, which is what catches a hang; the job limit
-  # only has to fit a change that spans several modules (bowrain/server alone
-  # races for about four minutes).
+  # Races the Go packages a pull request changed (scripts/test-race-changed.sh),
+  # only when the PR carries the `race` label. Every push to main runs the full
+  # suite with -race (the Makefile's FULL profile) and so does the nightly, so a
+  # race that merges is reported on main within one CI run. Label a PR whose
+  # change is concurrency-heavy to race it before merge; the label is read when
+  # a run starts, so push or re-run after adding it. Each module's run has its
+  # own 900s timeout, which is what catches a hang.
   race-changed:
     name: Race (changed packages)
     runs-on: ubuntu-latest
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.any_go == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.any_go == 'true' && contains(github.event.pull_request.labels.*.name, 'race')
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
@@ -1216,9 +1213,13 @@ jobs:
     # No path gate: these guards are cheap, so running them on every PR is
     # belt-and-suspenders — a stray bowrain reference, absolute home path,
     # or gofmt drift (or a stale guard) can't merge and surface only post-merge.
-    # Most take seconds; fieldguard type-checks every module and takes minutes.
+    # Most take seconds. fieldguard type-checks every module on a push to main
+    # and only the directories a pull request changed on a PR.
     steps:
       - uses: actions/checkout@v7
+        with:
+          # fieldguard -changed-since needs the base branch to diff against.
+          fetch-depth: 0
       - name: Guard — neokapi docs must stay bowrain-clean
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
@@ -1282,6 +1283,8 @@ jobs:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
       - name: "Guard: only core/model reaches a block's edition storage"
         run: make fieldguard
+        env:
+          FIELDGUARD_ARGS: ${{ github.event_name == 'pull_request' && format('-changed-since origin/{0}', github.base_ref) || '' }}
 
       # The gate itself runs only in the nightly convergence, where nothing
       # exercises it on a pull request. Its self-test does: it drives the real
