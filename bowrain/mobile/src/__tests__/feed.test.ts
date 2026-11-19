@@ -101,6 +101,13 @@ describe("feed card sentences", () => {
     expect(parked("checks_failing")).toBe(
       "drafted 34,231 translations in Norwegian Bokmål, and some fail checks",
     );
+    expect(parked("quota_exceeded")).toBe(
+      "stopped because the workspace reached its monthly AI usage limit",
+    );
+    expect(parked("provider_quota_exhausted")).toBe(
+      "stopped because the AI provider's quota ran out",
+    );
+    expect(parked("no_target_locales")).toBe("stopped because the project has no target languages");
     expect(parked("something_new")).toBe("stopped before finishing");
   });
 
@@ -175,6 +182,16 @@ describe("feed rows", () => {
     expect(entryTitle(entry({ stream: "main" }), t, "en")).toBe("Push · main");
     expect(entryTitle(entry({ kind: "convergence_run", state: "converged" }), t, "en")).toBe(
       "Run · converged",
+    );
+    expect(
+      entryTitle(
+        entry({ kind: "convergence_run", state: "parked", stall_reason: "quota_exceeded" }),
+        t,
+        "en",
+      ),
+    ).toBe("Run · stopped");
+    expect(entryTitle(entry({ kind: "convergence_run", state: "parked" }), t, "en")).toBe(
+      "Run · waiting for review",
     );
     expect(entryTitle(entry({ kind: "review_summary", locales: ["fr"] }), t, "en")).toBe(
       "Review · French",
