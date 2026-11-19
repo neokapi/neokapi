@@ -122,6 +122,10 @@ type reviewDeckResponse struct {
 	Counts     deckCounts            `json:"counts"`
 	NextCursor string                `json:"next_cursor"`
 	Policy     reviewdeck.DeckPolicy `json:"policy"`
+	// Held is set while the plan holds translations back until the key
+	// language is decided: the deck then deals only the exceptions (the
+	// desk group), and Held counts the rest.
+	Held *deckHeld `json:"held,omitempty"`
 }
 
 // encodeDeckCursor is the opaque form of a deck position.
@@ -230,13 +234,28 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
-	rows, err := decks.ListReviewDeck(ctx, q, rank, after, limit+1)
+	// While the plan holds translations back, the deck deals the desk group
+	// alone: a request for another group gets no cards.
+	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj)
 	if err != nil {
 		return serverErr(c, err)
+	}
+	var rows []store.ReviewDeckRow
+	if desk := deckRank(reviewdeck.DeckDesk); !held || rank < 0 || rank == desk {
+		if held {
+			rank = desk
+		}
+		if rows, err = decks.ListReviewDeck(ctx, q, rank, after, limit+1); err != nil {
+			return serverErr(c, err)
+		}
 	}
 
 	out := reviewDeckResponse{Locale: loc, Cards: []deckCard{}, Policy: policy}
 	out.Counts.deckWaiting = deckWaitingOf(counts)
+	if held {
+		out.Counts.deckWaiting = out.Counts.held()
+		out.Held = &deckHeld{Count: out.Counts.Held, Reason: heldKeyLanguage}
+	}
 	out.Counts.Total = out.Counts.Waiting - out.Counts.Unclassified
 	if len(rows) > limit {
 		rows = rows[:limit]

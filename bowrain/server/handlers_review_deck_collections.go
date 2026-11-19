@@ -104,8 +104,12 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj)
+	if err != nil {
+		return serverErr(c, err)
+	}
 	out := reviewDeckCollectionsResponse{Locale: loc, Stream: stream, Collections: []deckCollection{}}
-	out.All = deckCollectionOf("", "", all)
+	out.All = deckCollectionOf("", "", all, held)
 	var waiting, done []deckCollection
 	add := func(coll *store.Collection) {
 		id, name := "", ""
@@ -116,7 +120,7 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		if !ok || n.Translations == 0 {
 			return
 		}
-		dc := deckCollectionOf(id, name, n)
+		dc := deckCollectionOf(id, name, n, held)
 		if coll != nil {
 			dc.Priority = coll.Priority()
 			dc.Channel = coll.ConnectorConfig[coreprofile.PropertyChannel]
@@ -145,14 +149,19 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
-func deckCollectionOf(id, name string, n store.ReviewDeckCollectionCounts) deckCollection {
+// deckCollectionOf is one collection's deck. While the plan holds
+// translations back, the held ones are neither waiting nor decided.
+func deckCollectionOf(id, name string, n store.ReviewDeckCollectionCounts, held bool) deckCollection {
 	dc := deckCollection{
 		CollectionID: id,
 		Name:         cmp.Or(name, id),
 		deckWaiting:  deckWaitingOf(n.ReviewDeckCounts),
 		Translations: n.Translations,
 	}
-	dc.Decided = dc.Translations - dc.Waiting
+	if held {
+		dc.deckWaiting = dc.held()
+	}
+	dc.Decided = dc.Translations - dc.Waiting - dc.Held
 	return dc
 }
 

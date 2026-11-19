@@ -1,158 +1,111 @@
-// A project's review plan as five rings: coordinates, key language,
-// exceptions, pages and policy. Each ring fills with the team's progress
-// through its step and carries what waits there. The server counts every
-// step (the inbox's plan in brief); a ring opens its step.
-import type { PlanLevel, PlanStep, ReviewInboxProject } from "@neokapi/bowrain-client";
+// A followed project's review plan on the Review tab: the step the team is
+// on, one button that opens it, the later steps as a short list, and one line
+// per language whose translations wait for the key language. The server
+// decides every state and count (the inbox's plan in brief); this card shows
+// them.
+import {
+  nextPlanStep,
+  type PlanLevel,
+  type PlanStep,
+  type ReviewInboxProject,
+} from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { memo, type ReactNode } from "react";
+import type { TFunction } from "i18next";
+import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
-import { formatCount } from "../../lib/format";
+import { languageLabel } from "../../lib/feed";
 import { Monogram } from "./Monogram";
 
-const RING = 40;
-const STROKE = 4;
-
-/**
- * A progress ring drawn with two clipped half circles, each a circle whose
- * left and bottom borders are coloured, turned to show its share of the arc.
- */
-export function Ring({
-  progress,
-  color,
-  track,
-  children,
-}: {
-  progress: number;
-  color: string;
-  track: string;
-  children?: ReactNode;
-}) {
-  const p = Math.max(0, Math.min(100, progress));
-  const half = RING / 2;
-  const arc = {
-    position: "absolute" as const,
-    width: RING,
-    height: RING,
-    borderRadius: half,
-    borderWidth: STROKE,
-    borderColor: "transparent",
-    borderLeftColor: color,
-    borderBottomColor: color,
-  };
-  const right = Math.min(p, 50) * 3.6;
-  const left = Math.max(p - 50, 0) * 3.6;
-  return (
-    <View style={{ width: RING, height: RING }}>
-      <View
-        style={{
-          position: "absolute",
-          width: RING,
-          height: RING,
-          borderRadius: half,
-          borderWidth: STROKE,
-          borderColor: track,
-        }}
-      />
-      {p > 0 ? (
-        <View
-          style={{
-            position: "absolute",
-            left: half,
-            width: half,
-            height: RING,
-            overflow: "hidden",
-          }}
-        >
-          <View style={{ ...arc, left: -half, transform: [{ rotate: `${45 + right}deg` }] }} />
-        </View>
-      ) : null}
-      {p > 50 ? (
-        <View
-          style={{ position: "absolute", left: 0, width: half, height: RING, overflow: "hidden" }}
-        >
-          <View style={{ ...arc, left: 0, transform: [{ rotate: `${left - 135}deg` }] }} />
-        </View>
-      ) : null}
-      <View className="absolute inset-0 items-center justify-center">{children}</View>
-    </View>
-  );
+/** The step's one fact for the Next card. */
+export function stepFact(step: PlanStep, t: TFunction): string {
+  switch (step.state) {
+    case "done":
+      return t("planCard.fact.done");
+    case "attention":
+      return t("planCard.fact.changed", { count: step.changed });
+    case "not_started":
+      if (step.level === "key_language") {
+        if (step.scan === "queued" || step.scan === "processing") {
+          return t("planCard.fact.keyScanning");
+        }
+        return step.scan === "failed"
+          ? t("planCard.fact.keyScanFailed")
+          : t("planCard.fact.keyNotStarted");
+      }
+      return t("planCard.fact.notStarted");
+  }
+  switch (step.level) {
+    case "coordinates":
+      return t("planCard.fact.coordinatesOpen");
+    case "policy":
+      return step.settle === "held"
+        ? t("planCard.fact.policyWaits")
+        : t("planCard.fact.policy", { count: step.count });
+    default:
+      return t(`planCard.fact.${step.level}`, { count: step.count });
+  }
 }
 
-/** One step: its ring, what waits inside it, and its name under it. */
-function StepRing({
+/** The step's one count or state word for the list of later steps. */
+export function stepValue(step: PlanStep, t: TFunction): string {
+  switch (step.state) {
+    case "done":
+      return t("planCard.state.done");
+    case "not_started":
+      return t("planCard.state.not_started");
+    case "attention":
+      return t("planCard.state.attention", { count: step.changed });
+  }
+  if (step.level === "coordinates") return t("planCard.state.toConfirm");
+  if (step.level === "policy" && step.settle === "held") return t("planCard.state.waits");
+  return t("planCard.count", { count: step.count });
+}
+
+/** One later step: its name and one count or state word. */
+function StepRow({
   step,
-  next,
   onPress,
   testID,
 }: {
   step: PlanStep;
-  next: boolean;
   onPress: () => void;
   testID: string;
 }) {
-  const { t, i18n } = useTranslation();
-  const [primary, approve, border, muted] = useCSSVariable([
-    "--color-primary",
-    "--color-approve",
-    "--color-border",
-    "--color-muted-foreground",
-  ]);
+  const { t } = useTranslation();
   const name = t(`planCard.steps.${step.level}`);
-  const held = step.level === "policy" && step.settle === "held";
-  const label = step.done
-    ? t("planCard.ringDone", { step: name })
-    : held
-      ? t("planCard.ringHeld", { step: name })
-      : t("planCard.ringWaiting", { step: name, count: step.count, progress: step.progress });
+  const value = stepValue(step, t);
+  const muted = step.state === "done" || step.state === "not_started";
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={t("planCard.rowLabel", { step: name, value })}
       onPress={onPress}
-      className="flex-1 items-center gap-1.5 active:opacity-70"
+      className="flex-row items-center py-1.5 active:opacity-70"
     >
-      <Ring
-        progress={step.done ? 100 : step.progress}
-        color={String(step.done ? approve : primary)}
-        track={String(border)}
-      >
-        {step.done ? (
-          <Ionicons name="checkmark" size={18} color={String(approve)} />
-        ) : held ? (
-          <Ionicons name="pause" size={16} color={String(muted)} />
-        ) : (
-          <Text className="text-foreground text-xs font-semibold tabular-nums">
-            {formatCount(step.count, i18n.language)}
-          </Text>
-        )}
-      </Ring>
+      <Text className="text-foreground flex-1 text-[15px]">{name}</Text>
       <Text
-        numberOfLines={2}
-        className={`text-center text-[11px] leading-[14px] ${
-          next ? "text-foreground font-semibold" : "text-muted-foreground"
+        className={`text-[15px] tabular-nums ${
+          step.state === "attention"
+            ? "text-warning font-semibold"
+            : muted
+              ? "text-muted-foreground"
+              : "text-foreground font-semibold"
         }`}
       >
-        {name}
+        {value}
       </Text>
-      {step.changed > 0 ? (
-        <View
-          testID={`${testID}-changed`}
-          className="bg-warning absolute top-0 right-1 min-w-4 items-center rounded-full px-1"
-        >
-          <Text className="text-warning-foreground text-[10px] font-bold">{step.changed}</Text>
-        </View>
-      ) : null}
     </Pressable>
   );
 }
 
 /**
- * A followed project's plan: its name, the five rings, and, before the person
- * has chosen their languages, the button that opens the setup.
+ * A followed project's plan: its name and the step it is on, the Next card,
+ * the later steps, the held translations, and, before the person has chosen
+ * their languages, the button that opens the setup.
  */
 export const PlanCard = memo(function PlanCard({
   project,
@@ -165,8 +118,12 @@ export const PlanCard = memo(function PlanCard({
   onStep: (p: ReviewInboxProject, level: PlanLevel) => void;
   onSetup: (p: ReviewInboxProject) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [primaryForeground] = useCSSVariable(["--color-primary-foreground"]);
   const plan = project.plan;
+  const next = plan ? nextPlanStep(plan.steps, plan.next) : undefined;
+  const index = next && plan ? plan.steps.indexOf(next) : -1;
+  const later = plan ? (next ? plan.steps.slice(index + 1) : plan.steps) : [];
   return (
     <View
       testID={`plan-card-${project.project}`}
@@ -184,25 +141,69 @@ export const PlanCard = memo(function PlanCard({
             </Text>
           ) : null}
         </View>
-        <Text className="text-muted-foreground text-xs font-semibold uppercase">
-          {t("planCard.title")}
-        </Text>
+        {plan ? (
+          <Text
+            testID={`plan-card-${project.project}-position`}
+            className="text-muted-foreground text-xs"
+          >
+            {next
+              ? t("planCard.stepOf", { n: index + 1, total: plan.steps.length })
+              : t("planCard.allDone")}
+          </Text>
+        ) : null}
       </View>
-      {plan ? (
-        <View className="flex-row">
-          {plan.steps.map((s) => (
-            <StepRing
+
+      {!plan ? <Text className="text-muted-foreground text-sm">{t("planCard.noPlan")}</Text> : null}
+
+      {next ? (
+        <View className="bg-primary/10 border-primary gap-1 rounded-2xl border p-3.5">
+          <Text className="text-primary text-xs font-semibold uppercase">{t("planCard.next")}</Text>
+          <Text className="text-foreground text-[17px] font-semibold">
+            {t(`planCard.titles.${next.level}`)}
+          </Text>
+          <Text
+            testID={`plan-card-${project.project}-fact`}
+            className="text-muted-foreground text-sm"
+          >
+            {stepFact(next, t)}
+          </Text>
+          <Pressable
+            testID={`plan-card-${project.project}-next`}
+            accessibilityRole="button"
+            onPress={() => onStep(project, next.level)}
+            className="bg-primary mt-2 flex-row items-center justify-center gap-1 rounded-xl py-2.5 active:opacity-80"
+          >
+            <Text className="text-primary-foreground text-sm font-semibold">
+              {next.level === "coordinates" ? t("planCard.openMap") : t("planCard.open")}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={String(primaryForeground)} />
+          </Pressable>
+        </View>
+      ) : null}
+
+      {later.length > 0 ? (
+        <View>
+          {later.map((s) => (
+            <StepRow
               key={s.level}
               testID={`plan-card-${project.project}-${s.level}`}
               step={s}
-              next={plan.next === s.level}
               onPress={() => onStep(project, s.level)}
             />
           ))}
         </View>
-      ) : (
-        <Text className="text-muted-foreground text-sm">{t("planCard.noPlan")}</Text>
-      )}
+      ) : null}
+
+      {plan?.held.map((h) => (
+        <Text
+          key={h.locale}
+          testID={`plan-card-${project.project}-held-${h.locale}`}
+          className="text-muted-foreground text-sm"
+        >
+          {t("planCard.held", { count: h.count, language: languageLabel(h.locale, i18n.language) })}
+        </Text>
+      ))}
+
       {!project.saved ? (
         <Pressable
           testID={`plan-card-${project.project}-setup`}

@@ -43,6 +43,9 @@ type deckWaiting struct {
 	// Unclassified is the part of Waiting the deck has not grouped yet. The
 	// deck groups it when the language is opened.
 	Unclassified int `json:"unclassified"`
+	// Held is the translations the plan holds back from the deck until the
+	// key language is decided; they are not part of Waiting.
+	Held int `json:"held,omitempty"`
 }
 
 // deckWaitingOf reads the store's deck counts.
@@ -88,25 +91,23 @@ type reviewInboxProject struct {
 	// languages waiting for the caller.
 	Waiting int `json:"waiting"`
 	// Plan is the plan in brief. It is computed only for a project with
-	// work waiting for the caller: a plan reads every level, so a project
-	// with nothing waiting is listed without one.
+	// work waiting for the caller or translations held back: a plan reads
+	// every level, so a project with neither is listed without one.
 	Plan *planSummaryDTO `json:"plan,omitempty"`
 }
 
 // HandleReviewInbox answers, for the signed-in person, every language they may
 // review in every project of every workspace they belong to, where anything is
-// waiting, most waiting first. A language counts as the review deck counts it,
-// so the number here is the number the deck shows on opening.
+// waiting, most waiting first. A language counts as its review deck counts it,
+// held translations excluded; the project's plan in brief names those.
 //
 // Access resolves as ProjectAccessMiddleware resolves it for a project route,
-// and an API token's scopes narrow it as they narrow a project route. It
-// counts from the deck's stored facts and classifies nothing, so the cost is
-// one count per reviewable language.
+// narrowed by an API token's scopes. It counts from the deck's stored facts
+// and classifies nothing: one count per reviewable language.
 //
 // A project where the caller has saved followed languages lists only those.
-// Each project with work waiting also carries its plan in brief, which costs
-// one plan computation per such project; the plan's queries are bounded as
-// the plan route's are.
+// Each project with work waiting or held carries its plan in brief, one plan
+// computation per such project, bounded as the plan route is.
 //
 // GET /api/v1/auth/me/review
 func (s *Server) HandleReviewInbox(c echo.Context) error {
@@ -177,6 +178,9 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 			if err != nil {
 				return serverErr(c, err)
 			}
+			// Whether the plan holds translations back is read once per
+			// project, and only when a language has any it could hold.
+			heldRead, held, heldAny := false, false, false
 			for _, loc := range locales {
 				q := store.ReviewDeckQuery{
 					ProjectID: p.ID,
@@ -198,12 +202,24 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 					Locale:        loc,
 					deckWaiting:   deckWaitingOf(counts),
 				}
+				if !heldRead && lang.Waiting > lang.Desk {
+					heldRead = true
+					if held, err = s.translationsHeld(ctx, ws, p); err != nil {
+						return serverErr(c, err)
+					}
+				}
+				if held {
+					lang.deckWaiting = lang.held()
+					heldAny = heldAny || lang.Held > 0
+				}
 				if lang.Waiting > 0 {
 					out.Languages = append(out.Languages, lang)
 					proj.Waiting += lang.Waiting
 				}
 			}
-			if proj.Waiting > 0 {
+			// A project whose translations are all held still shows its plan,
+			// so the person sees the step that releases them.
+			if proj.Waiting > 0 || heldAny {
 				plan, err := s.computeReviewPlan(ctx, ws, p, reviewInboxStream, planCaller{
 					userID: userID, perms: perms, reach: reach, locales: locales,
 				})
@@ -213,7 +229,7 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				summary := summarizePlan(plan)
 				proj.Plan = &summary
 			}
-			if proj.Waiting > 0 || proj.Saved {
+			if proj.Waiting > 0 || proj.Saved || heldAny {
 				out.Projects = append(out.Projects, proj)
 			}
 		}

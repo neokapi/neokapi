@@ -1,31 +1,22 @@
-// A project's review plan: what the project asks of its reviewers, ordered by
-// the reach of each decision. The coordinates and the key language generate
-// the text, so they come before any string; then the exceptions, then whole
-// interfaces read in context, and last what the involvement leaves to the
-// checks. The server counts every level (GET /:ws/:id/review/plan); each step
-// opens the screen that decides it. Opened with `step`, the screen scrolls to
-// that step, as a ring on the Review tab asks.
+// A project's review plan: five steps, one row each, ordered by the reach of
+// each decision. Each row shows its state, its title and one fact; only the
+// next step carries an action. The server decides every state and count
+// (GET /:ws/:id/review/plan), including which translations the language decks
+// hold until the key language is decided. The involvement setting lives on
+// the project's review languages screen.
 import {
-  coordinatesOpen,
-  planProducts,
+  ApiError,
   planRuleLabel,
   type PlanLevel,
   type PlanRule,
-  type ReviewInvolvement,
+  type PlanStep,
+  type PlanStepState,
   type ReviewPlan,
 } from "@neokapi/bowrain-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, type ComponentRef, type ReactNode } from "react";
-import {
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-  type LayoutChangeEvent,
-} from "react-native";
+import { useState, type ReactNode } from "react";
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { QueryState } from "../../../components/List";
@@ -33,68 +24,87 @@ import { useAuth } from "../../../lib/auth";
 import { reviewPlanKey } from "../../../lib/plan";
 import { languageLabel } from "../../../lib/feed";
 
-const INVOLVEMENTS: readonly ReviewInvolvement[] = ["context", "interfaces", "every"];
+const LEVELS: readonly PlanLevel[] = [
+  "coordinates",
+  "key_language",
+  "exceptions",
+  "interfaces",
+  "policy",
+];
 
-/** A step's state: done, the next one to work, or waiting behind it. */
-type StepState = "done" | "next" | "later";
-
-function stateOf(plan: ReviewPlan, level: PlanLevel, waiting: number): StepState {
-  if (plan.next === level) return "next";
-  return waiting > 0 ? "later" : "done";
+/**
+ * The plan's step for a level. A server that sends no steps reads as the plan
+ * named them: the next level open, the others done.
+ */
+function stepOf(p: ReviewPlan, level: PlanLevel): PlanStep {
+  return (
+    p.steps.find((s) => s.level === level) ?? {
+      level,
+      state: p.next === level ? "open" : "done",
+      count: 0,
+      progress: 0,
+      done: p.next !== level,
+      changed: 0,
+    }
+  );
 }
 
-function Step({
+/** The step's number, or a mark for its state. */
+function Marker({ n, state, next }: { n: number; state: PlanStepState; next: boolean }) {
+  const look = next
+    ? "bg-primary"
+    : state === "done"
+      ? "bg-approve"
+      : state === "attention"
+        ? "bg-warning"
+        : "bg-muted";
+  const ink = next || state === "done" ? "text-primary-foreground" : "text-muted-foreground";
+  return (
+    <View className={`h-7 w-7 items-center justify-center rounded-full ${look}`}>
+      <Text
+        className={`text-sm font-semibold ${state === "attention" ? "text-warning-foreground" : ink}`}
+      >
+        {state === "done" && !next ? "✓" : state === "attention" ? "!" : n}
+      </Text>
+    </View>
+  );
+}
+
+/** One step: its marker, title and one fact, and, on the next step, its action. */
+function Row({
   n,
   level,
   state,
+  next,
   title,
-  lines,
-  action,
-  onPress,
-  secondary,
+  fact,
   children,
-  onLayout,
 }: {
   n: number;
   level: PlanLevel;
-  state: StepState;
+  state: PlanStepState;
+  next: boolean;
   title: string;
-  lines: string[];
-  action?: string;
-  onPress?: () => void;
-  /** A second action of the step, drawn as its own button. */
-  secondary?: { label: string; onPress: () => void; testID: string };
+  fact: string;
   children?: ReactNode;
-  onLayout?: (e: LayoutChangeEvent) => void;
 }) {
   const { t } = useTranslation();
-  const ring =
-    state === "next"
-      ? "border-primary bg-primary/10"
-      : state === "done"
-        ? "border-border bg-card opacity-80"
-        : "border-border bg-card";
   return (
-    <Pressable
+    <View
       testID={`plan-${level}`}
-      accessibilityRole={onPress ? "button" : undefined}
-      disabled={!onPress}
-      onPress={onPress}
-      onLayout={onLayout}
-      className={`mx-4 mb-3 gap-2 rounded-3xl border p-4 ${ring}`}
+      className={`mx-4 mb-2 gap-2 rounded-2xl border px-4 py-3 ${
+        next ? "border-primary bg-primary/10" : "border-border bg-card"
+      }`}
     >
       <View className="flex-row items-center gap-3">
-        <View
-          className={`h-7 w-7 items-center justify-center rounded-full ${state === "done" ? "bg-approve" : state === "next" ? "bg-primary" : "bg-muted"}`}
-        >
-          <Text
-            className={`text-sm font-semibold ${state === "later" ? "text-muted-foreground" : "text-primary-foreground"}`}
-          >
-            {state === "done" ? "✓" : n}
+        <Marker n={n} state={state} next={next} />
+        <View className="flex-1">
+          <Text className="text-foreground text-base font-semibold">{title}</Text>
+          <Text testID={`plan-${level}-fact`} className="text-muted-foreground text-sm">
+            {fact}
           </Text>
         </View>
-        <Text className="text-foreground flex-1 text-[17px] font-semibold">{title}</Text>
-        {state === "next" ? (
+        {next ? (
           <Text
             testID={`plan-${level}-next`}
             className="text-primary text-xs font-semibold uppercase"
@@ -103,25 +113,29 @@ function Step({
           </Text>
         ) : null}
       </View>
-      {lines.map((line) => (
-        <Text key={line} className="text-muted-foreground text-sm leading-5">
-          {line}
-        </Text>
-      ))}
-      {children}
-      {action && onPress ? (
-        <Text className="text-primary text-sm font-semibold">{action} ›</Text>
-      ) : null}
-      {secondary ? (
-        <Pressable
-          testID={secondary.testID}
-          accessibilityRole="button"
-          onPress={secondary.onPress}
-          className="border-border self-start rounded-full border px-3 py-1.5"
-        >
-          <Text className="text-foreground text-sm font-semibold">{secondary.label}</Text>
-        </Pressable>
-      ) : null}
+      {next ? children : null}
+    </View>
+  );
+}
+
+/** The next step's button. */
+function Action({
+  testID,
+  label,
+  onPress,
+}: {
+  testID: string;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      onPress={onPress}
+      className="bg-primary items-center rounded-xl py-2.5 active:opacity-80"
+    >
+      <Text className="text-primary-foreground text-sm font-semibold">{label}</Text>
     </Pressable>
   );
 }
@@ -144,7 +158,7 @@ function RuleList({
   const { t } = useTranslation();
   if (rules.length === 0) return null;
   return (
-    <View testID={testID} className="gap-1 pt-1">
+    <View testID={testID} className="gap-1">
       <Text className="text-muted-foreground text-xs font-semibold uppercase">{title}</Text>
       {rules.map((r) => (
         <Pressable
@@ -172,11 +186,7 @@ function RuleList({
 
 export default function ReviewPlanScreen() {
   const { t, i18n } = useTranslation();
-  const { ws, project, step } = useLocalSearchParams<{
-    ws: string;
-    project: string;
-    step?: string;
-  }>();
+  const { ws, project } = useLocalSearchParams<{ ws: string; project: string; step?: string }>();
   const { client } = useAuth();
   const qc = useQueryClient();
   const scope = { workspace: ws, project };
@@ -188,28 +198,11 @@ export default function ReviewPlanScreen() {
     queryKey: ["permissions", ws, project],
     queryFn: () => client.permissions(ws, project),
   });
-  const mayManage = perms.data?.permissions.includes("manage_project") ?? false;
   const mayScan = perms.data?.permissions.includes("manage_voice") ?? false;
   const refresh = () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
 
-  // Where each step sits in the list, so the step a ring asked for is scrolled
-  // to once, when it has been laid out.
-  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
-  const scrolled = useRef(false);
-  const placed = (level: PlanLevel) => (e: LayoutChangeEvent) => {
-    if (level !== step || scrolled.current) return;
-    scrolled.current = true;
-    scroller.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 8), animated: false });
-  };
-  useEffect(() => {
-    scrolled.current = false;
-  }, [step]);
-
-  const involve = useMutation({
-    mutationFn: (v: ReviewInvolvement) => client.setInvolvement(scope, v),
-    onSuccess: refresh,
-    onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
-  });
+  // A scan the server refused for want of AI credits, shown in the step.
+  const [noCredits, setNoCredits] = useState(false);
   const settle = useMutation({
     mutationFn: (locales: string[]) => client.settlePlan(scope, locales),
     onSuccess: (r) => {
@@ -225,8 +218,14 @@ export default function ReviewPlanScreen() {
   });
   const scan = useMutation({
     mutationFn: () => client.startTermScan(scope),
-    onSuccess: refresh,
-    onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
+    onSuccess: () => {
+      setNoCredits(false);
+      refresh();
+    },
+    onError: (e: Error) => {
+      if (e instanceof ApiError && e.status === 402) setNoCredits(true);
+      else Alert.alert(t("plan.failed"), e.message);
+    },
   });
 
   if (!plan.data) {
@@ -239,13 +238,10 @@ export default function ReviewPlanScreen() {
   }
   const p = plan.data;
   const lang = (l: string) => languageLabel(l, i18n.language);
-  const products = planProducts(p.coordinates.points);
-  const untranslated = Object.entries(p.keyLanguage.untranslated).filter(([, n]) => n > 0);
   const failing = p.languages.reduce((n, l) => n + l.failing, 0);
   const pages = p.languages.reduce((n, l) => n + l.pages, 0);
   const pagesTotal = p.languages.reduce((n, l) => n + l.pagesTotal, 0);
   const settleable = p.languages.reduce((n, l) => n + l.settleable, 0);
-  const firstLocale = p.languages[0]?.locale;
   const openDeck = (locale: string | undefined, sample = false) =>
     locale
       ? router.push({
@@ -253,229 +249,200 @@ export default function ReviewPlanScreen() {
           params: sample ? { ws, project, locale, sample: "true" } : { ws, project, locale },
         })
       : undefined;
-  const scanState = p.keyLanguage.scan?.status;
-  const scanning = scanState === "queued" || scanState === "processing";
   const openRule = (locale: string, r: PlanRule) =>
     router.push({
       pathname: "/[ws]/[project]/[locale]",
       params: { ws, project, locale, rule: r.key, ruleName: planRuleLabel(r) },
     });
-  const byRule = p.exceptions.byRule;
-  const hasRules =
-    byRule.source.length > 0 || Object.values(byRule.targets).some((rs) => rs.length > 0);
-
-  const chooseInvolvement = () =>
-    Alert.alert(t("plan.involvement.title"), t("plan.involvement.body"), [
-      ...INVOLVEMENTS.map((v) => ({
-        text: t(`plan.involvement.${v}`),
-        onPress: () => involve.mutate(v),
-      })),
-      { text: t("common.cancel"), style: "cancel" as const },
-    ]);
-
-  const coordinateLines = [
-    t("plan.coordinates.languages", {
-      source: lang(p.coordinates.sourceLanguage),
-      targets: p.coordinates.targetLanguages.map(lang).join(", ") || "—",
-    }),
-    ...products.map((pr) => `${pr.product}: ${pr.channels.join(", ")}`),
-    p.coordinates.changed > 0
-      ? t("plan.coordinates.changed", { count: p.coordinates.changed })
-      : p.coordinates.confirmed
-        ? p.coordinates.confirmedByName
-          ? t("plan.coordinates.confirmedBy", { name: p.coordinates.confirmedByName })
-          : t("plan.coordinates.confirmed")
-        : mayManage
-          ? t("plan.coordinates.confirmHint")
-          : t("plan.coordinates.unconfirmed"),
-  ];
-
-  const keyLines = [
-    t("plan.key.waiting", { count: p.keyLanguage.waiting }),
-    t("plan.key.concepts", { count: p.keyLanguage.concepts }),
-    ...untranslated.map(([l, n]) => t("plan.key.untranslated", { count: n, language: lang(l) })),
-    ...(scanning
-      ? [t("plan.key.scanning", { progress: p.keyLanguage.scan?.progress ?? 0 })]
-      : scanState === "completed"
-        ? [t("plan.key.scanned")]
-        : scanState === "failed"
-          ? [t("plan.key.scanFailed")]
-          : []),
-  ];
-
-  const exceptionLines = [
-    p.exceptions.sourceFindings === null
-      ? t("plan.exceptions.notChecked")
-      : t("plan.exceptions.source", { count: p.exceptions.sourceFindings }),
-    t("plan.exceptions.translations", { count: failing }),
-    ...(hasRules ? [t("plan.exceptions.byRule")] : []),
-  ];
-
-  const interfaceLines =
-    p.involvement === "context"
-      ? [t("plan.interfaces.sample", { count: pages, total: pagesTotal })]
-      : [t("plan.interfaces.pages", { count: pages }), t("plan.interfaces.every")];
-
+  const scanState = p.keyLanguage.scan?.status;
+  const scanning = scanState === "queued" || scanState === "processing";
   const settleNow = p.policy.settle === "first_pass" || p.policy.settle === "policy";
-  const policyLines =
-    p.policy.settle === "none"
-      ? [t("plan.policy.none")]
-      : [
-          t("plan.policy.settleable", { count: settleable }),
-          p.policy.settle === "held"
-            ? t("plan.policy.held", { count: p.policy.keyLanguageOpen })
-            : p.policy.settle === "first_pass"
-              ? t("plan.policy.firstPass")
-              : t("plan.policy.how"),
-        ];
+
+  const fact = (s: PlanStep): string => {
+    switch (s.level) {
+      case "coordinates":
+        if (s.state === "attention") {
+          return t("plan.coordinates.changed", { count: p.coordinates.changed });
+        }
+        if (!p.coordinates.confirmed) return t("plan.coordinates.unconfirmed");
+        return p.coordinates.confirmedByName
+          ? t("plan.coordinates.confirmedBy", { name: p.coordinates.confirmedByName })
+          : t("plan.coordinates.confirmed");
+      case "key_language":
+        if (s.state === "not_started") {
+          if (scanning)
+            return t("plan.key.scanning", { progress: p.keyLanguage.scan?.progress ?? 0 });
+          if (noCredits) return t("plan.key.noCredits");
+          if (scanState === "failed") return t("plan.key.scanFailed");
+          return t("plan.key.notStarted");
+        }
+        if (s.state === "open") return t("plan.key.open_count", { count: s.count });
+        return t("plan.key.concepts", { count: p.keyLanguage.concepts });
+      case "exceptions":
+        if (s.state === "not_started") return t("plan.exceptions.notStarted");
+        if (failing > 0) return t("plan.exceptions.translations", { count: failing });
+        if ((p.exceptions.sourceFindings ?? 0) > 0) {
+          return t("plan.exceptions.source", { count: p.exceptions.sourceFindings ?? 0 });
+        }
+        return t("plan.exceptions.none");
+      case "interfaces":
+        if (pages === 0) return t("plan.interfaces.none");
+        return p.involvement === "context"
+          ? t("plan.interfaces.sampleShort", { count: pages, total: pagesTotal })
+          : t("plan.interfaces.pages", { count: pages });
+      case "policy":
+        if (p.policy.settle === "none") return t("plan.policy.none");
+        if (p.policy.settle === "held") return t("plan.policy.waits");
+        return settleable > 0
+          ? t("plan.policy.settleable", { count: settleable })
+          : t("plan.policy.nothing");
+    }
+  };
+
+  const action = (level: PlanLevel): ReactNode => {
+    switch (level) {
+      case "coordinates":
+        return (
+          <Action
+            testID="plan-coordinates-action"
+            label={t("plan.coordinates.open")}
+            onPress={() =>
+              router.push({
+                pathname: "/[ws]/[project]/coordinates",
+                params: { ws, project, languages: p.languages.map((l) => l.locale).join(",") },
+              })
+            }
+          />
+        );
+      case "key_language":
+        if (p.keyLanguage.waiting > 0) {
+          return (
+            <Action
+              testID="plan-key_language-action"
+              label={t("plan.key.open")}
+              onPress={() =>
+                router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
+              }
+            />
+          );
+        }
+        if (stepOf(p, "key_language").state === "not_started" && mayScan && !scanning) {
+          return (
+            <Action
+              testID="plan-scan"
+              label={t("plan.key.scan")}
+              onPress={() =>
+                Alert.alert(t("plan.key.scan"), t("plan.key.scanBody"), [
+                  { text: t("common.cancel"), style: "cancel" },
+                  { text: t("plan.key.scanStart"), onPress: () => scan.mutate() },
+                ])
+              }
+            />
+          );
+        }
+        return null;
+      case "exceptions":
+        return (
+          <>
+            <RuleList
+              testID="plan-rules-source"
+              title={t("plan.exceptions.inSource")}
+              rules={p.exceptions.byRule.source}
+            />
+            {p.languages.map((l) => (
+              <RuleList
+                key={l.locale}
+                testID={`plan-rules-${l.locale}`}
+                title={t("plan.exceptions.inLanguage", { language: lang(l.locale) })}
+                rules={p.exceptions.byRule.targets[l.locale] ?? []}
+                onOpen={(r) => openRule(l.locale, r)}
+              />
+            ))}
+            {failing > 0 ? (
+              <Action
+                testID="plan-exceptions-action"
+                label={t("plan.exceptions.open")}
+                onPress={() => openDeck(p.languages.find((l) => l.failing > 0)?.locale)}
+              />
+            ) : null}
+          </>
+        );
+      case "interfaces":
+        return pages > 0 ? (
+          <Action
+            testID="plan-interfaces-action"
+            label={t("plan.interfaces.open")}
+            onPress={() =>
+              openDeck(
+                p.languages.find((l) => l.pages > 0)?.locale ?? p.languages[0]?.locale,
+                p.involvement === "context",
+              )
+            }
+          />
+        ) : null;
+      case "policy":
+        return settleNow && settleable > 0 ? (
+          <Action
+            testID="plan-policy-action"
+            label={t("plan.policy.apply", { count: settleable })}
+            onPress={() =>
+              Alert.alert(
+                t("plan.policy.apply", { count: settleable }),
+                p.policy.settle === "first_pass"
+                  ? t("plan.policy.firstPass")
+                  : t("plan.policy.confirm"),
+                [
+                  { text: t("common.cancel"), style: "cancel" },
+                  {
+                    text: t("plan.policy.applyShort"),
+                    onPress: () => settle.mutate(p.languages.map((l) => l.locale)),
+                  },
+                ],
+              )
+            }
+          />
+        ) : null;
+    }
+  };
 
   return (
     <View collapsable={false} className="bg-background flex-1">
       <Stack.Screen options={{ title: t("plan.title") }} />
       <ScrollView
-        ref={scroller}
         testID="plan-list"
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerClassName="pt-2 pb-10"
+        contentContainerClassName="pt-3 pb-10"
         refreshControl={<RefreshControl refreshing={plan.isRefetching} onRefresh={refresh} />}
       >
-        <Text className="text-muted-foreground px-5 pb-4 text-sm leading-5">{t("plan.intro")}</Text>
-        <Pressable
-          testID="plan-involvement"
-          accessibilityRole={mayManage ? "button" : undefined}
-          disabled={!mayManage}
-          onPress={chooseInvolvement}
-          className="bg-muted mx-4 mb-4 rounded-2xl px-4 py-3"
-        >
-          <Text className="text-muted-foreground text-xs font-semibold uppercase">
-            {t("plan.involvement.title")}
-          </Text>
-          <Text className="text-foreground text-base font-semibold">
-            {t(`plan.involvement.${p.involvement}`)}
-          </Text>
-          <Text className="text-muted-foreground text-sm">
-            {t(`plan.involvement.${p.involvement}Detail`)}
-          </Text>
-        </Pressable>
-
-        <Step
-          n={1}
-          level="coordinates"
-          onLayout={placed("coordinates")}
-          state={coordinatesOpen(p.coordinates) ? "next" : "done"}
-          title={t("plan.coordinates.title")}
-          lines={coordinateLines}
-          action={t("plan.coordinates.open")}
-          onPress={() =>
-            router.push({
-              pathname: "/[ws]/[project]/coordinates",
-              params: { ws, project, languages: p.languages.map((l) => l.locale).join(",") },
-            })
-          }
-        />
-        <Step
-          n={2}
-          level="key_language"
-          onLayout={placed("key_language")}
-          state={stateOf(
-            p,
-            "key_language",
-            p.keyLanguage.waiting + untranslated.reduce((n, [, c]) => n + c, 0),
-          )}
-          title={t("plan.key.title")}
-          lines={keyLines}
-          action={p.keyLanguage.waiting > 0 ? t("plan.key.open") : undefined}
-          onPress={
-            p.keyLanguage.waiting > 0
-              ? () => router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
-              : undefined
-          }
-          secondary={
-            mayScan && !scanning
-              ? {
-                  label: t("plan.key.scan"),
-                  testID: "plan-scan",
-                  onPress: () =>
-                    Alert.alert(t("plan.key.scan"), t("plan.key.scanBody"), [
-                      { text: t("common.cancel"), style: "cancel" },
-                      { text: t("plan.key.scanStart"), onPress: () => scan.mutate() },
-                    ]),
-                }
-              : undefined
-          }
-        />
-        <Step
-          n={3}
-          level="exceptions"
-          onLayout={placed("exceptions")}
-          state={stateOf(p, "exceptions", (p.exceptions.sourceFindings ?? 0) + failing)}
-          title={t("plan.exceptions.title")}
-          lines={exceptionLines}
-          action={failing > 0 ? t("plan.exceptions.open") : undefined}
-          onPress={
-            failing > 0 ? () => openDeck(p.languages.find((l) => l.failing > 0)?.locale) : undefined
-          }
-        >
-          <RuleList
-            testID="plan-rules-source"
-            title={t("plan.exceptions.inSource")}
-            rules={byRule.source}
-          />
-          {p.languages.map((l) => (
-            <RuleList
-              key={l.locale}
-              testID={`plan-rules-${l.locale}`}
-              title={t("plan.exceptions.inLanguage", { language: lang(l.locale) })}
-              rules={byRule.targets[l.locale] ?? []}
-              onOpen={(r) => openRule(l.locale, r)}
-            />
-          ))}
-        </Step>
-        <Step
-          n={4}
-          level="interfaces"
-          onLayout={placed("interfaces")}
-          state={stateOf(p, "interfaces", pages)}
-          title={t("plan.interfaces.title")}
-          lines={interfaceLines}
-          action={pages > 0 ? t("plan.interfaces.open") : undefined}
-          onPress={
-            pages > 0
-              ? () =>
-                  openDeck(
-                    p.languages.find((l) => l.pages > 0)?.locale ?? firstLocale,
-                    p.involvement === "context",
-                  )
-              : undefined
-          }
-        />
-        <Step
-          n={5}
-          level="policy"
-          onLayout={placed("policy")}
-          state={stateOf(p, "policy", settleable)}
-          title={t("plan.policy.title")}
-          lines={policyLines}
-          action={
-            settleNow && settleable > 0 ? t("plan.policy.apply", { count: settleable }) : undefined
-          }
-          onPress={
-            settleNow && settleable > 0
-              ? () =>
-                  Alert.alert(
-                    t("plan.policy.apply", { count: settleable }),
-                    t("plan.policy.confirm"),
-                    [
-                      { text: t("common.cancel"), style: "cancel" },
-                      {
-                        text: t("plan.policy.applyShort"),
-                        onPress: () => settle.mutate(p.languages.map((l) => l.locale)),
-                      },
-                    ],
-                  )
-              : undefined
-          }
-        />
+        {LEVELS.map((level, i) => {
+          const s = stepOf(p, level);
+          return (
+            <Row
+              key={level}
+              n={i + 1}
+              level={level}
+              state={s.state}
+              next={p.next === level}
+              title={t(`planCard.steps.${level}`)}
+              fact={fact(s)}
+            >
+              {action(level)}
+            </Row>
+          );
+        })}
+        {p.held
+          ? p.languages
+              .filter((l) => l.held > 0)
+              .map((l) => (
+                <Text
+                  key={l.locale}
+                  testID={`plan-held-${l.locale}`}
+                  className="text-muted-foreground px-5 pt-2 text-sm"
+                >
+                  {t("plan.held", { count: l.held, language: lang(l.locale) })}
+                </Text>
+              ))
+          : null}
       </ScrollView>
     </View>
   );

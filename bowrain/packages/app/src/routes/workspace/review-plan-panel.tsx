@@ -16,6 +16,7 @@ import {
   planRuleLabel,
   type PlanLevel,
   type PlanRule,
+  type PlanStepState,
   type ReviewInvolvement,
   type ReviewPlan,
 } from "@neokapi/bowrain-client";
@@ -51,7 +52,8 @@ function Step({
   n,
   level,
   next,
-  done,
+  done: counted,
+  state,
   title,
   children,
 }: {
@@ -59,10 +61,13 @@ function Step({
   level: PlanLevel;
   next: PlanLevel | null;
   done: boolean;
+  /** The server's state for the step; a server that sends none leaves `done` to decide. */
+  state?: PlanStepState;
   title: string;
   children: React.ReactNode;
 }) {
   const isNext = next === level;
+  const done = state ? state === "done" : counted;
   return (
     <li
       data-testid={`plan-${level}`}
@@ -84,6 +89,14 @@ function Step({
         <div className="flex items-baseline gap-2">
           <span className="font-medium">{title}</span>
           {isNext && <span className="text-primary text-xs font-semibold uppercase">Next</span>}
+          {state === "not_started" && (
+            <span
+              data-testid={`plan-${level}-not-started`}
+              className="text-muted-foreground text-xs"
+            >
+              Not started
+            </span>
+          )}
         </div>
         <div className="text-muted-foreground space-y-0.5 text-sm">{children}</div>
       </div>
@@ -214,6 +227,8 @@ export function ReviewPlanSteps({
   const settleNow = plan.policy.settle === "first_pass" || plan.policy.settle === "policy";
   const settleable = plan.languages.reduce((n, l) => n + l.settleable, 0);
   const params = { workspace: ws, projectId, stream };
+  const stateOf = (level: PlanLevel) => plan.steps.find((st) => st.level === level)?.state;
+  const held = plan.held ? plan.languages.filter((l) => l.held > 0) : [];
 
   return (
     <section data-testid="review-plan" className="space-y-3 rounded-xl border p-4">
@@ -243,6 +258,7 @@ export function ReviewPlanSteps({
           n={1}
           level="coordinates"
           next={plan.next}
+          state={stateOf("coordinates")}
           done={!coordinatesOpen(plan.coordinates)}
           title="Coordinates"
         >
@@ -271,6 +287,7 @@ export function ReviewPlanSteps({
           n={2}
           level="key_language"
           next={plan.next}
+          state={stateOf("key_language")}
           done={plan.keyLanguage.waiting === 0 && untranslated.length === 0}
           title="Key language"
         >
@@ -311,6 +328,7 @@ export function ReviewPlanSteps({
           n={3}
           level="exceptions"
           next={plan.next}
+          state={stateOf("exceptions")}
           done={(plan.exceptions.sourceFindings ?? 0) === 0 && failing === 0}
           title="Exceptions"
         >
@@ -345,6 +363,7 @@ export function ReviewPlanSteps({
           n={4}
           level="interfaces"
           next={plan.next}
+          state={stateOf("interfaces")}
           done={pages === 0}
           title="Interfaces in context"
         >
@@ -372,6 +391,7 @@ export function ReviewPlanSteps({
           n={5}
           level="policy"
           next={plan.next}
+          state={stateOf("policy")}
           done={settleable === 0}
           title="Settled by the checks"
         >
@@ -407,6 +427,15 @@ export function ReviewPlanSteps({
           )}
         </Step>
       </ol>
+      {held.map((l) => (
+        <p
+          key={l.locale}
+          data-testid={`plan-held-${l.locale}`}
+          className="text-muted-foreground text-sm"
+        >
+          {l.held} {l.locale} translations are held until the key language is decided.
+        </p>
+      ))}
     </section>
   );
 }

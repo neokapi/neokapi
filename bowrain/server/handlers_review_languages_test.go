@@ -193,17 +193,17 @@ func TestSummarizePlan_CountsWithinFollowedLanguages(t *testing.T) {
 	for _, st := range got.Steps {
 		byLevel[st.Level] = st
 	}
-	assert.Equal(t, planStepDTO{Level: planCoordinates, Progress: 100, Done: true}, byLevel[planCoordinates])
+	assert.Equal(t, planStepDTO{Level: planCoordinates, State: stepDone, Progress: 100, Done: true}, byLevel[planCoordinates])
 	key := byLevel[planKeyLanguage]
 	assert.Equal(t, 6, key.Count, "two cards and four concepts without a Norwegian term; German is not followed")
 	assert.Equal(t, 16*100/22, key.Progress)
 	assert.Equal(t, 2, byLevel[planExceptions].Count, "the rules in followed languages")
 	assert.Equal(t, 50, byLevel[planExceptions].Progress)
 	assert.Equal(t, 3, byLevel[planInterfaces].Count)
-	assert.Equal(t, planStepDTO{Level: planPolicy, Count: 4, Settle: settleHeld}, byLevel[planPolicy])
+	assert.Equal(t, planStepDTO{Level: planPolicy, State: stepOpen, Count: 4, Settle: settleHeld}, byLevel[planPolicy])
 
 	p.Coordinates.Changed = 2
 	changed := summarizePlan(p).Steps[0]
-	assert.Equal(t, planStepDTO{Level: planCoordinates, Count: 2, Progress: 100, Changed: 2}, changed,
+	assert.Equal(t, planStepDTO{Level: planCoordinates, State: stepAttention, Count: 2, Progress: 100, Changed: 2}, changed,
 		"a change after the confirmation reopens the step for the team")
 }
