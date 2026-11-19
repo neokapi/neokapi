@@ -1,4 +1,4 @@
-import { planFromServer, type ReviewPlan } from "@neokapi/bowrain-client";
+import { ApiError, planFromServer, type ReviewPlan } from "@neokapi/bowrain-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { router } from "expo-router";
@@ -31,7 +31,17 @@ jest.mock("../lib/auth", () => ({
   }),
 }));
 
-const plan = (over: { confirmed?: boolean; next?: string; settle?: string; scan?: string } = {}) =>
+type Over = {
+  confirmed?: boolean;
+  next?: string;
+  settle?: string;
+  scan?: string;
+  keyState?: string;
+  waiting?: number;
+  concepts?: number;
+};
+
+const plan = (over: Over = {}) =>
   planFromServer({
     stream: "main",
     involvement: "context",
@@ -46,8 +56,8 @@ const plan = (over: { confirmed?: boolean; next?: string; settle?: string; scan?
       confirmed: over.confirmed ?? false,
     },
     key_language: {
-      waiting: 9,
-      concepts: 57,
+      waiting: over.waiting ?? 9,
+      concepts: over.concepts ?? 57,
       untranslated: { nb: 20 },
       scan: over.scan
         ? { id: "j1", status: over.scan, progress: 40, created_at: "", updated_at: "" }
@@ -89,9 +99,23 @@ const plan = (over: { confirmed?: boolean; next?: string; settle?: string; scan?
         pages_total: 300,
         pages_with_findings: 5,
         settleable: 800,
+        held: 1160,
       },
     ],
     policy: { settle: over.settle ?? "first_pass", key_language_open: 29 },
+    held: "key_language",
+    steps: [
+      {
+        level: "coordinates",
+        state: over.confirmed ? "done" : "open",
+        count: over.confirmed ? 0 : 1,
+        done: over.confirmed ?? false,
+      },
+      { level: "key_language", state: over.keyState ?? "open", count: 29 },
+      { level: "exceptions", state: "open", count: 2 },
+      { level: "interfaces", state: "open", count: 34 },
+      { level: "policy", state: "open", count: 800, settle: over.settle ?? "first_pass" },
+    ],
   });
 
 function wrap(children: ReactNode) {
@@ -107,21 +131,31 @@ describe("review plan", () => {
     });
   });
 
-  it("starts at the coordinates and lists each level's work", async () => {
+  it("shows one row per step and the held translations", async () => {
     mockPlan.mockResolvedValue(plan());
     await render(wrap(<ReviewPlanScreen />));
     expect(await screen.findByTestId("plan-coordinates-next")).toBeTruthy();
-    expect(screen.getByText("neokapi: cli, docs")).toBeTruthy();
-    expect(screen.getByText("9 terms and voice rules to decide")).toBeTruthy();
-    expect(screen.getByText("20 terms have no Norwegian Bokmål term yet")).toBeTruthy();
-    expect(screen.getByText("593 findings in the source")).toBeTruthy();
+    expect(screen.getByText("Not confirmed yet")).toBeTruthy();
+    expect(screen.getByText("29 decisions open")).toBeTruthy();
+    expect(screen.getByText("40 translations fail a check")).toBeTruthy();
+    expect(screen.getByText("Read 34 of 300 pages")).toBeTruthy();
     expect(screen.getByText("800 translations clear every check")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "1,160 Norwegian Bokmål translations are held until the key language is decided.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("plan-involvement")).toBeNull();
+    // Only the next step carries an action.
+    expect(screen.getByTestId("plan-coordinates-action")).toBeTruthy();
+    expect(screen.queryByTestId("plan-key_language-action")).toBeNull();
+    expect(screen.queryByTestId("plan-policy-action")).toBeNull();
   });
 
   it("opens the coordinates map", async () => {
     mockPlan.mockResolvedValue(plan());
     await render(wrap(<ReviewPlanScreen />));
-    await fireEvent.press(await screen.findByTestId("plan-coordinates"));
+    await fireEvent.press(await screen.findByTestId("plan-coordinates-action"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/coordinates",
       params: { ws: "ws", project: "p", languages: "nb" },
@@ -133,7 +167,7 @@ describe("review plan", () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "key_language" }));
     await render(wrap(<ReviewPlanScreen />));
     expect(await screen.findByTestId("plan-key_language-next")).toBeTruthy();
-    await fireEvent.press(screen.getByTestId("plan-key_language"));
+    await fireEvent.press(screen.getByTestId("plan-key_language-action"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/context",
       params: { ws: "ws", project: "p" },
@@ -143,12 +177,7 @@ describe("review plan", () => {
   it("reads the interface sample under Context", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "interfaces" }));
     await render(wrap(<ReviewPlanScreen />));
-    expect(
-      await screen.findByText(
-        "Read 34 of 300 pages: one in ten from each channel, and every page with a failing check.",
-      ),
-    ).toBeTruthy();
-    await fireEvent.press(screen.getByTestId("plan-interfaces"));
+    await fireEvent.press(await screen.findByTestId("plan-interfaces-action"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/[locale]",
       params: { ws: "ws", project: "p", locale: "nb", sample: "true" },
@@ -158,41 +187,67 @@ describe("review plan", () => {
   it("settles a first pass on the checks alone", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy" }));
     mockSettle.mockResolvedValue({ approved: 800, skipped: 0, firstPass: true });
-    jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
+    const alert = jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
       buttons?.find((b) => b.style !== "cancel")?.onPress?.();
     });
     await render(wrap(<ReviewPlanScreen />));
-    expect(await screen.findByText(/First pass: this settles on the checks alone/)).toBeTruthy();
-    await fireEvent.press(screen.getByTestId("plan-policy"));
+    await fireEvent.press(await screen.findByTestId("plan-policy-action"));
+    expect(alert.mock.calls[0]?.[1]).toMatch(/First pass: this settles on the checks alone/);
     expect(mockSettle).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, ["nb"]);
   });
 
   it("holds later passes until the key language is decided", async () => {
-    mockPlan.mockResolvedValue(plan({ confirmed: true, settle: "held" }));
+    mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy", settle: "held" }));
     await render(wrap(<ReviewPlanScreen />));
-    expect(
-      await screen.findByText(
-        "Held until the key language is decided: 29 decisions are still open.",
-      ),
-    ).toBeTruthy();
-    await fireEvent.press(screen.getByTestId("plan-policy"));
+    expect(await screen.findByText("Waits for the key language")).toBeTruthy();
+    expect(screen.queryByTestId("plan-policy-action")).toBeNull();
     expect(mockSettle).not.toHaveBeenCalled();
   });
 
-  it("starts a scan for terms, and shows one running", async () => {
+  it("says what starts a key language with no scan, and starts the scan", async () => {
     mockPermissions.mockResolvedValue({ permissions: ["review", "manage_voice"] });
-    mockPlan.mockResolvedValue(plan({ confirmed: true }));
+    const notStarted = {
+      confirmed: true,
+      next: "key_language",
+      keyState: "not_started",
+      waiting: 0,
+      concepts: 0,
+    };
+    mockPlan.mockResolvedValue(plan(notStarted));
     mockScan.mockResolvedValue({ id: "j1", status: "queued" });
     jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
       buttons?.find((b) => b.style !== "cancel")?.onPress?.();
     });
     await render(wrap(<ReviewPlanScreen />));
-    await fireEvent.press(await screen.findByTestId("plan-scan"));
+    expect(await screen.findByText("Not started: a scan for terms starts it")).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("plan-scan"));
     expect(mockScan).toHaveBeenCalledWith({ workspace: "ws", project: "p" });
 
-    mockPlan.mockResolvedValue(plan({ confirmed: true, scan: "processing" }));
+    mockPlan.mockResolvedValue(plan({ ...notStarted, scan: "processing" }));
     await render(wrap(<ReviewPlanScreen />));
-    expect(await screen.findByText("Scanning the project for terms, 40% done")).toBeTruthy();
+    expect(await screen.findByText("Scanning for terms, 40% done")).toBeTruthy();
+  });
+
+  it("says plainly when the scan needs AI credits", async () => {
+    mockPermissions.mockResolvedValue({ permissions: ["review", "manage_voice"] });
+    mockPlan.mockResolvedValue(
+      plan({
+        confirmed: true,
+        next: "key_language",
+        keyState: "not_started",
+        waiting: 0,
+        concepts: 0,
+      }),
+    );
+    mockScan.mockRejectedValue(new ApiError(402, "insufficient credits", null));
+    jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
+      buttons?.find((b) => b.style !== "cancel")?.onPress?.();
+    });
+    await render(wrap(<ReviewPlanScreen />));
+    await fireEvent.press(await screen.findByTestId("plan-scan"));
+    expect(
+      await screen.findByText("The scan needs AI credits, and this workspace has none left."),
+    ).toBeTruthy();
   });
 
   it("lists the exceptions by rule and opens the deck narrowed to one", async () => {

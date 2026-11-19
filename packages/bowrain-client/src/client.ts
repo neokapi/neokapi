@@ -821,6 +821,7 @@ export interface ServerDeck {
   cards?: ServerDeckCard[];
   counts?: DeckCounts;
   next_cursor?: string;
+  held?: { count: number; reason?: string } | null;
 }
 
 /** A card from the server's deck. */
@@ -1032,6 +1033,7 @@ function deckFromServer(body: ServerDeck, locale: string): Deck {
     counts: body.counts,
     nextCursor: body.next_cursor || undefined,
     ordered: true,
+    held: body.held ? { count: body.held.count, reason: "key_language" } : undefined,
   };
 }
 

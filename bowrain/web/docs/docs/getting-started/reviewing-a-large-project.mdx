@@ -59,11 +59,15 @@ The context deck holds the terms and voice rules that wait for your review.
 Decide each term in the source language first, then its term in each language
 you review, while you know what the term means.
 
-To find the terms a project uses, choose **Scan the project for terms** on this
-step. Bowrain reads a sample of every collection in the source language and
+To find the terms a project uses, choose **Scan for terms** on this step.
+Bowrain reads a sample of every collection in the source language and
 proposes the terms it uses most, ranked by how many blocks use each one. They
 arrive first in the context deck: keep a term, or mark it as not a term so it
-is not proposed again.
+is not proposed again. A scan uses AI credits. If your workspace has none
+left, the step says so.
+
+Until a scan has run or the project has terms, the step reads **Not
+started**. It never shows as done with no terms in it.
 
 A term you keep governs every block that uses it: the checks hold the source
 to it, translation uses it, and a translation that misses it fails. A term
@@ -119,17 +123,44 @@ until the key language is decided: every term reviewed, with a term in each
 target language. Until then the plan shows how many decisions are still
 open.
 
+## What waits until the key language is decided
+
+A translation reviewed before its terms are decided gets reviewed twice. So
+while the key language has open decisions, a language's deck holds only what
+the plan leaves for people at that point: the translations that fail a check,
+and the sample of pages. The other translations are held. The deck, the plan
+and the Review tab show them as one line, such as "1,200 Norwegian Bokmål
+translations are held until the key language is decided", and they reach the
+deck once the key language is decided.
+
+The exceptions stay open while you work on the key language, because each one
+breaks a rule you can decide on its own. Under **Every translation**, nothing
+is held.
+
+## Where each step stands
+
+Each step of the plan is in one of four states:
+
+| State | What it means |
+| --- | --- |
+| Not started | there is nothing to work from yet, such as a key language with no scan and no terms |
+| Open | something waits |
+| Done | nothing waits |
+| Changed | the team finished the step and it changed after, such as coordinates edited since the last confirmation |
+
 ## The languages you review
 
 Each person chooses the languages they review in each project. Your Review
 tab and the plan count only those languages. Until you choose, you follow
 every language your membership lets you review.
 
-On the phone, the Review tab shows each project you follow as five rings, one
-per step. A ring fills with the team's progress through its step and shows
-what still waits there. Tap a ring to open that step. The chip at the top of
-the tab names the languages you follow and opens their settings, which are
-also under **Languages you review** on the Account tab.
+On the phone, the Review tab shows each project you follow with the step it
+is on, such as "Step 2 of 5", and a **Next** card for that step with one fact
+and one button that opens it. The later steps follow as a short list, each
+with a count or its state, and one line per language names the translations
+held until the key language is decided. The chip at the top of the tab names
+the languages you follow and opens their settings, which are also under
+**Languages you review** on the Account tab.
 
 The first time you open a project's plan, Bowrain asks which languages you
 review. If you manage the project, the same screen also shows its
@@ -155,7 +186,8 @@ Set how much your reviewers can be involved, and the plan follows:
 up with on a large project. Choose **Interfaces** when a team can read every
 screen before a release, and **Every translation** for content where each
 sentence carries legal or safety weight. Changing it needs the permission to
-edit the project's settings.
+edit the project's settings. On the phone, it is on the project's
+**Languages you review** screen.
 
 ## Getting the source right first
 

@@ -217,6 +217,57 @@ numbers. Reach (blocks per concept and per rule, by coordinate) is computed by
 the engine's own term lookup over the project's blocks, in batches, and kept per
 terms snapshot and content revision.
 
+## The plan is the queue
+
+The plan decides what a language's review deck holds. Under `context` and
+`interfaces`, while the key language has open decisions (a context card
+waiting for anyone, or a concept with no term in a target language), the deck
+deals only what the plan leaves for people at that point:
+
+- the exceptions: translations a check fails, the deck's desk group;
+- the page sample, through the page deck.
+
+The other translations are held. The deck answers with `held: {count,
+reason: "key_language"}` in place of their cards, and `counts.held` beside
+`counts.waiting`. A translation the deck has not classified yet counts as
+held until a deck request classifies it and finds a failing check. The
+deck's collections, the plan's languages (`languages[].held`, and `held` on
+the plan) and the review inbox count the same way, so the Review tab never
+lists held work as waiting. A project whose translations are all held stays in
+the inbox's `projects` with its plan in brief, whose `held` lists the count
+per followed language. Under `every` nothing is held.
+
+The exceptions stay reviewable while the key language is open. A failing check
+names a rule, and a reviewer can decide that rule whatever terms are still open.
+
+Whether a project holds is read once per request, from the same code the
+settle pass uses (`planPolicy`): one read of the project's context deck and
+one of the workspace's concepts. The inbox reads it only for a project with a
+language that has translations outside the desk group.
+
+### Step states
+
+Each level of the plan reports a state in `steps[].state`, on the plan route
+and in the inbox's plan in brief:
+
+| State | Meaning |
+| --- | --- |
+| `not_started` | nothing to work from yet |
+| `open` | something waits |
+| `done` | nothing waits |
+| `attention` | the team finished the step and it changed after, such as coordinates changed since the last confirmation |
+
+The key language is `not_started` while the project has no concept with a
+source term, no context card waits for the caller, and no term scan has
+completed. It is never `done` at zero. `next` names it right after the
+coordinates. Exceptions are `not_started` before any project-wide check when
+no translation waits or is held.
+
+A key language that has not started does not hold translations. A project
+that cannot run a scan (a scan needs AI credits) would otherwise hold every
+translation with nothing a reviewer could do about it. The plan still names
+the scan as the next step.
+
 ## What the founder reviews on neokapi
 
 In order, with the counts from 2026-11-19:
@@ -339,8 +390,17 @@ The founder accepted each recommendation on 2026-11-19:
     through `POST /:ws/:id/review/languages/project`, which files a pending
     recipe change on `defaults.target_languages` and a `recipe.changed` feed
     entry; the project's languages change when the next pull applies it. On
-    the phone the Review tab draws the plan as five rings per project, a
-    header chip opens the language settings, and a project's first plan visit
-    opens a setup (managers: coordinates, project languages, involvement;
-    reviewers: their languages). Still to build: notifications filtered by the
-    followed list, key-language sessions, and the setting on the web Overview.
+    the phone the Review tab shows, per project, the step it is on ("step 2
+    of 5"), one Next card with the step's title, one fact and one button, the
+    later steps as a short list with a count or a state word, and one line per
+    language whose translations are held. A header chip opens the language
+    settings, and a project's first plan visit opens a setup (managers:
+    coordinates, project languages, involvement; reviewers: their languages).
+    Involvement is set on that languages screen, by a manager. Still to build:
+    notifications filtered by the followed list, key-language sessions, and
+    the setting on the web Overview.
+11. The plan gates the language decks, and each step reports its state (see
+    "The plan is the queue"). Built. The phone's plan screen is one row per
+    step (state, title, one fact) with the action on the next step only; a
+    scan refused for want of AI credits says so in the key-language row. The
+    web Overview marks a step not started and lists the held translations.

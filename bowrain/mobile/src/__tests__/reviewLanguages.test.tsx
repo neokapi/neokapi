@@ -1,5 +1,6 @@
 import {
   inboxProjectFromServer,
+  planFromServer,
   reviewLanguagesFromServer,
   type ReviewHome,
   type ReviewLanguages,
@@ -28,6 +29,7 @@ const mockLanguages = jest.fn<Promise<ReviewLanguages>, unknown[]>();
 const mockSetFollowed = jest.fn<Promise<ReviewLanguages>, unknown[]>();
 const mockSetProject = jest.fn<Promise<ReviewLanguages>, unknown[]>();
 const mockPlan = jest.fn();
+const mockInvolve = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     client: {
@@ -36,7 +38,7 @@ jest.mock("../lib/auth", () => ({
       setFollowedLanguages: (...a: unknown[]) => mockSetFollowed(...a),
       setProjectLanguage: (...a: unknown[]) => mockSetProject(...a),
       reviewPlan: (...a: unknown[]) => mockPlan(...a),
-      setInvolvement: jest.fn(),
+      setInvolvement: (...a: unknown[]) => mockInvolve(...a),
     },
   }),
 }));
@@ -60,12 +62,13 @@ const project = (saved: boolean) =>
       involvement: "context",
       next: "key_language",
       steps: [
-        { level: "coordinates", count: 0, progress: 100, done: true },
-        { level: "key_language", count: 9, progress: 62 },
-        { level: "exceptions", count: 3, progress: 50 },
-        { level: "interfaces", count: 34, progress: 0 },
-        { level: "policy", count: 800, progress: 0, settle: "held" },
+        { level: "coordinates", state: "done", count: 0, progress: 100, done: true },
+        { level: "key_language", state: "not_started", count: 0, progress: 0 },
+        { level: "exceptions", state: "open", count: 3, progress: 50 },
+        { level: "interfaces", state: "open", count: 34, progress: 0 },
+        { level: "policy", state: "open", count: 800, progress: 0, settle: "held" },
       ],
+      held: [{ locale: "nb", count: 1200, reason: "key_language" }],
     },
   });
 
@@ -83,34 +86,57 @@ const languages = (over: Partial<Parameters<typeof reviewLanguagesFromServer>[0]
 describe("the Review tab plan card", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("draws a ring per step and opens the step a ring names", async () => {
+  it("shows one next step, the later steps and the held translations", async () => {
     mockHome.mockResolvedValue({ context: [], languages: [], projects: [project(true)] });
     await render(wrap(<ReviewInbox />));
     expect(await screen.findByTestId("plan-card-p")).toBeTruthy();
-    expect(screen.getByLabelText("Coordinates, done")).toBeTruthy();
-    expect(screen.getByLabelText("Key language, 9 waiting, 62% done")).toBeTruthy();
-    expect(screen.getByLabelText("Policy, held until the key language is decided")).toBeTruthy();
+    expect(screen.getByText("Step 2 of 5")).toBeTruthy();
+    expect(screen.getByText("Decide the key language")).toBeTruthy();
+    expect(screen.getByText("Not started: scan for terms")).toBeTruthy();
+    expect(screen.queryByTestId("plan-card-p-coordinates")).toBeNull();
+    expect(screen.getByLabelText("Exceptions, 3")).toBeTruthy();
+    expect(screen.getByLabelText("Pages to read, 34")).toBeTruthy();
+    expect(screen.getByLabelText("Settle the rest, Waits")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "1,200 Norwegian Bokmål translations are held until the key language is decided.",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByTestId("plan-card-p-setup")).toBeNull();
 
-    await fireEvent.press(screen.getByTestId("plan-card-p-exceptions"));
+    await fireEvent.press(screen.getByTestId("plan-card-p-next"));
     expect(router.push).toHaveBeenCalledWith({
+      pathname: "/[ws]/[project]/plan",
+      params: { ws: "ws", project: "p", step: "key_language" },
+    });
+    await fireEvent.press(screen.getByTestId("plan-card-p-exceptions"));
+    expect(router.push).toHaveBeenLastCalledWith({
       pathname: "/[ws]/[project]/plan",
       params: { ws: "ws", project: "p", step: "exceptions" },
     });
-    await fireEvent.press(screen.getByTestId("plan-card-p-coordinates"));
-    expect(router.push).toHaveBeenLastCalledWith({
+  });
+
+  it("opens the map when the coordinates changed after the team confirmed them", async () => {
+    const p = project(true);
+    p.plan!.next = "coordinates";
+    p.plan!.steps[0] = {
+      level: "coordinates",
+      state: "attention",
+      count: 1,
+      progress: 100,
+      done: false,
+      changed: 1,
+    };
+    mockHome.mockResolvedValue({ context: [], languages: [], projects: [p] });
+    await render(wrap(<ReviewInbox />));
+    expect(await screen.findByText("Step 1 of 5")).toBeTruthy();
+    expect(screen.getByText("1 change since the last confirmation")).toBeTruthy();
+    expect(screen.getByLabelText("Key language, Not started")).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("plan-card-p-next"));
+    expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/coordinates",
       params: { ws: "ws", project: "p", languages: "nb" },
     });
-  });
-
-  it("marks the coordinates changed after the team confirmed them", async () => {
-    const p = project(true);
-    p.plan!.steps[0] = { level: "coordinates", count: 1, progress: 100, done: false, changed: 1 };
-    mockHome.mockResolvedValue({ context: [], languages: [], projects: [p] });
-    await render(wrap(<ReviewInbox />));
-    expect(await screen.findByLabelText("Coordinates, 1 waiting, 100% done")).toBeTruthy();
-    expect(screen.getByTestId("plan-card-p-coordinates-changed")).toBeTruthy();
   });
 
   it("opens the setup first while no languages are saved", async () => {
@@ -133,6 +159,24 @@ describe("the languages screen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockParams.current = { ws: "ws", project: "p" };
+  });
+
+  it("lets a manager set how involved the reviewers are", async () => {
+    mockLanguages.mockResolvedValue(languages({ can_manage: true }));
+    mockPlan.mockResolvedValue(
+      planFromServer({
+        stream: "main",
+        involvement: "context",
+        next: "",
+        coordinates: { source_language: "en", confirmed: true },
+        key_language: { waiting: 0, concepts: 0 },
+        exceptions: {},
+      }),
+    );
+    mockInvolve.mockResolvedValue(undefined);
+    await render(wrap(<ReviewLanguagesScreen />));
+    await fireEvent.press(await screen.findByTestId("follow-involvement-every"));
+    expect(mockInvolve).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, "every");
   });
 
   it("shows a reviewer only their languages and saves the choice", async () => {

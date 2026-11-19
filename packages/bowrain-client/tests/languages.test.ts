@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   createBowrainClient,
   inboxProjectFromServer,
+  nextPlanStep,
   projectLanguagesAfterSync,
   reviewLanguagesFromServer,
 } from "../src/index.ts";
@@ -85,12 +86,16 @@ describe("inbox projects", () => {
         involvement: "context",
         next: "key_language",
         steps: [
-          { level: "coordinates", count: 0, progress: 100, done: true },
-          { level: "key_language", count: 9, progress: 62 },
+          { level: "coordinates", state: "done", count: 0, progress: 100, done: true },
+          { level: "key_language", state: "not_started", count: 0, progress: 0, scan: "queued" },
           { level: "exceptions", count: 3, progress: 140 },
           { level: "interfaces", count: 34, progress: 0 },
           { level: "policy", count: 800, progress: 0, settle: "held" },
           { level: "something_new", count: 1 },
+        ],
+        held: [
+          { locale: "nb", count: 1200, reason: "key_language" },
+          { locale: "sv", count: 3, reason: "something_new" },
         ],
       },
     };
@@ -110,6 +115,10 @@ describe("inbox projects", () => {
     expect(p?.plan?.steps[2]?.progress).toBe(100);
     expect(p?.plan?.steps[4]?.settle).toBe("held");
     expect(p?.plan?.steps[1]?.changed).toBe(0);
+    expect(p?.plan?.steps[1]).toMatchObject({ state: "not_started", scan: "queued" });
+    expect(p?.plan?.steps[3]?.state).toBe("open");
+    expect(p?.plan?.held).toEqual([{ locale: "nb", count: 1200, reason: "key_language" }]);
+    expect(nextPlanStep(p!.plan!.steps, p!.plan!.next)?.level).toBe("key_language");
   });
 
   it("reads a project with no plan", () => {
@@ -123,5 +132,6 @@ describe("inbox projects", () => {
     });
     expect(p.plan).toBeUndefined();
     expect(p.waiting).toBe(0);
+    expect(nextPlanStep([], null)).toBeUndefined();
   });
 });

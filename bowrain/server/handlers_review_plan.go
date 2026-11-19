@@ -114,6 +114,11 @@ type reviewPlanResponse struct {
 	Exceptions  planExceptionsDTO  `json:"exceptions"`
 	Languages   []planLanguageDTO  `json:"languages"`
 	Policy      planPolicyDTO      `json:"policy"`
+	// Steps is each level in brief with its state, in order.
+	Steps []planStepDTO `json:"steps"`
+	// Held is set while the language decks hold translations back until the
+	// key language is decided; each language's Held counts them.
+	Held string `json:"held,omitempty"`
 }
 
 // planPolicyDTO is what the involvement leaves to the checks, and whether a
@@ -319,14 +324,19 @@ func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, 
 	if out.Exceptions, err = s.planExceptions(ctx, proj, stream); err != nil {
 		return out, err
 	}
-	if out.Languages, err = s.planLanguages(ctx, proj, stream, caller.locales, out.Involvement, out.Exceptions.ByRule.Targets); err != nil {
-		return out, err
-	}
 	out.KeyLanguage.Scan = s.planScan(ctx, proj, ws.ID)
 	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.KeyLanguage.Untranslated); err != nil {
 		return out, err
 	}
+	held := translationsHeldBy(out.Policy)
+	if held {
+		out.Held = heldKeyLanguage
+	}
+	if out.Languages, err = s.planLanguages(ctx, proj, stream, caller.locales, out.Involvement, held, out.Exceptions.ByRule.Targets); err != nil {
+		return out, err
+	}
 	out.Next = nextPlanLevel(out)
+	out.Steps = planSteps(out)
 	return out, nil
 }
 
@@ -399,12 +409,14 @@ func involvementOf(p *platstore.Project) string {
 	return involvementContext
 }
 
-// nextPlanLevel is the first level with something waiting.
+// nextPlanLevel is the first level with something waiting. A key language
+// that has not started (no scan and no concepts) is the next step once the
+// coordinates are confirmed.
 func nextPlanLevel(p reviewPlanResponse) string {
 	if !p.Coordinates.Confirmed || p.Coordinates.Changed > 0 {
 		return planCoordinates
 	}
-	if p.KeyLanguage.Waiting > 0 {
+	if p.KeyLanguage.Waiting > 0 || keyLanguageNotStarted(p.KeyLanguage) {
 		return planKeyLanguage
 	}
 	for _, n := range p.KeyLanguage.Untranslated {
@@ -584,7 +596,10 @@ func reviewLocalesOf(proj *platstore.Project, perms platauth.Permission, langs [
 
 // planLanguages counts, for each language, the deck's groups and pages, and
 // files the rules behind the deck's desk group in rules by language.
-func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, involvement string, rules map[string][]planRuleDTO) ([]planLanguageDTO, error) {
+//
+// While held, the translations the deck holds back move out of Waiting into
+// Held; Settleable still counts the fast group, which a first pass settles.
+func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, involvement string, held bool, rules map[string][]planRuleDTO) ([]planLanguageDTO, error) {
 	out := []planLanguageDTO{}
 	decks, ok := platstore.ReviewDeckStores(s.ContentStore)
 	if !ok {
@@ -615,6 +630,9 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 		}
 		if involvement != involvementEvery {
 			lang.Settleable = lang.Fast
+		}
+		if held {
+			lang.deckWaiting = lang.held()
 		}
 		pages, err := decks.ListReviewDeckPages(ctx, q, reviewPagesCountLimit+1)
 		if err != nil {

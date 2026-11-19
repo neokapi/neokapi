@@ -113,6 +113,34 @@ describe("planFromServer", () => {
     expect(bare.next).toBeNull();
     expect(bare.exceptions.sourceFindings).toBeNull();
     expect(bare.exceptions.byRule).toEqual({ source: [], targets: {} });
+    expect(bare.steps).toEqual([]);
+    expect(bare.held).toBeNull();
+    expect(bare.languages[0]?.held).toBe(0);
+  });
+
+  it("maps the step states and the held translations", () => {
+    const plan = planFromServer({
+      ...server,
+      held: "key_language",
+      languages: [{ ...server.languages[0]!, waiting: 40, held: 1160 }],
+      steps: [
+        { level: "coordinates", state: "attention", count: 2, progress: 100, changed: 2 },
+        { level: "key_language", state: "not_started", count: 0, progress: 0, scan: "failed" },
+        { level: "exceptions", state: "open", count: 3, progress: 50 },
+        { level: "interfaces", state: "something_new", count: 34, progress: 0 },
+        { level: "policy", count: 0, progress: 100, done: true },
+      ],
+    });
+    expect(plan.held).toBe("key_language");
+    expect(plan.languages[0]).toMatchObject({ waiting: 40, held: 1160 });
+    expect(plan.steps.map((s) => s.state)).toEqual([
+      "attention",
+      "not_started",
+      "open",
+      "open",
+      "done",
+    ]);
+    expect(plan.steps[1]?.scan).toBe("failed");
   });
 });
 

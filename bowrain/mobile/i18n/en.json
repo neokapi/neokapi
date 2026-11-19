@@ -145,19 +145,58 @@
     "failed": "That didn't go through"
   },
   "planCard": {
-    "title": "Plan",
     "setup": "Choose your languages",
     "noPlan": "Nothing waits in the languages you follow",
+    "stepOf": "Step {{n}} of {{total}}",
+    "allDone": "Every step is done",
+    "next": "Next",
+    "open": "Open",
+    "openMap": "Open the map",
     "steps": {
       "coordinates": "Coordinates",
       "key_language": "Key language",
       "exceptions": "Exceptions",
-      "interfaces": "Pages",
-      "policy": "Policy"
+      "interfaces": "Pages to read",
+      "policy": "Settle the rest"
     },
-    "ringDone": "{{step}}, done",
-    "ringWaiting": "{{step}}, {{count}} waiting, {{progress}}% done",
-    "ringHeld": "{{step}}, held until the key language is decided"
+    "titles": {
+      "coordinates": "Confirm the coordinates",
+      "key_language": "Decide the key language",
+      "exceptions": "Review the exceptions",
+      "interfaces": "Read the pages",
+      "policy": "Settle the rest"
+    },
+    "fact": {
+      "done": "Done",
+      "changed_one": "{{count, number}} change since the last confirmation",
+      "changed_other": "{{count, number}} changes since the last confirmation",
+      "notStarted": "Not started",
+      "keyNotStarted": "Not started: scan for terms",
+      "keyScanning": "Scanning for terms",
+      "keyScanFailed": "Not started: the last scan failed",
+      "coordinatesOpen": "Not confirmed yet",
+      "key_language_one": "{{count, number}} decision open",
+      "key_language_other": "{{count, number}} decisions open",
+      "exceptions_one": "{{count, number}} to review",
+      "exceptions_other": "{{count, number}} to review",
+      "interfaces_one": "{{count, number}} page to read",
+      "interfaces_other": "{{count, number}} pages to read",
+      "policy_one": "{{count, number}} translation clears every check",
+      "policy_other": "{{count, number}} translations clear every check",
+      "policyWaits": "Waits for the key language"
+    },
+    "state": {
+      "done": "Done",
+      "not_started": "Not started",
+      "attention_one": "{{count, number}} change",
+      "attention_other": "{{count, number}} changes",
+      "toConfirm": "To confirm",
+      "waits": "Waits"
+    },
+    "count": "{{count, number}}",
+    "rowLabel": "{{step}}, {{value}}",
+    "held_one": "{{count, number}} {{language}} translation is held until the key language is decided.",
+    "held_other": "{{count, number}} {{language}} translations are held until the key language is decided."
   },
   "context": {
     "title": "Context",
@@ -903,28 +942,21 @@
   },
   "plan": {
     "title": "Review plan",
-    "intro": "Decide what generates the text before you read the text. Each step reaches more content than the one below it, so start at the top.",
     "next": "Next",
     "failed": "That didn't go through",
     "home": "Review plan",
     "homeNext": "Next: {{step}}",
     "homeDone": "Nothing waits for you",
     "involvement": {
-      "title": "How involved your reviewers are",
-      "body": "This decides what a person reads and what the checks settle.",
       "context": "Context",
-      "contextDetail": "You decide the coordinates, the key language and the exceptions, and read a sample of interfaces. Content that clears every check is settled by them.",
       "interfaces": "Interfaces",
-      "interfacesDetail": "As Context, and you read every interface page. The rest is settled by the checks.",
-      "every": "Every translation",
-      "everyDetail": "A person establishes every translation. Nothing is settled by the checks."
+      "every": "Every translation"
     },
     "coordinates": {
       "title": "Coordinates",
       "languages": "{{source}} into {{targets}}",
       "confirmed": "Confirmed",
       "unconfirmed": "Not confirmed yet",
-      "confirmHint": "Confirm them once you agree with where each part of the project sits.",
       "confirm": "Confirm coordinates",
       "confirmBody": "The products, channels and languages listed here govern everything below them. Confirm them as they are?",
       "confirmedBy": "Confirmed by {{name}}",
@@ -971,49 +1003,47 @@
     },
     "key": {
       "title": "Key language",
-      "waiting_one": "{{count}} term or voice rule to decide",
-      "waiting_other": "{{count}} terms and voice rules to decide",
       "concepts_one": "{{count}} term in the source language",
       "concepts_other": "{{count}} terms in the source language",
-      "untranslated_one": "{{count}} term has no {{language}} term yet",
-      "untranslated_other": "{{count}} terms have no {{language}} term yet",
       "open": "Decide the key language",
-      "scan": "Scan the project for terms",
+      "scan": "Scan for terms",
       "scanBody": "Bowrain reads a sample of every collection in the source language and proposes the terms it uses most. They arrive in the context deck.",
       "scanStart": "Scan",
-      "scanning": "Scanning the project for terms, {{progress}}% done",
-      "scanned": "The last scan finished. Its terms are in the context deck.",
-      "scanFailed": "The last scan failed. You can start it again."
+      "scanning": "Scanning for terms, {{progress}}% done",
+      "scanFailed": "The last scan failed. You can start it again.",
+      "notStarted": "Not started: a scan for terms starts it",
+      "noCredits": "The scan needs AI credits, and this workspace has none left.",
+      "open_count_one": "{{count, number}} decision open",
+      "open_count_other": "{{count, number}} decisions open"
     },
     "exceptions": {
       "title": "Exceptions",
-      "notChecked": "The source has not been checked yet",
       "source_one": "{{count}} finding in the source",
       "source_other": "{{count}} findings in the source",
       "translations_one": "{{count}} translation fails a check",
       "translations_other": "{{count}} translations fail a check",
       "open": "Review the failing translations",
-      "byRule": "Most findings break one rule many times. Change the rule and its findings clear, or fix the source and its translations are drafted again.",
       "inSource": "Source, by rule",
       "inLanguage": "{{language}}, by rule",
       "ruleCount_one": "{{count}} finding",
-      "ruleCount_other": "{{count}} findings"
+      "ruleCount_other": "{{count}} findings",
+      "notStarted": "Not started: the first check of the source starts it",
+      "none": "Nothing fails a check"
     },
     "interfaces": {
       "title": "Interfaces in context",
       "pages_one": "{{count}} page with a translation waiting",
       "pages_other": "{{count}} pages with a translation waiting",
-      "every": "Read every page, source first, then each language.",
       "open": "Read the pages",
-      "sample_one": "Read {{count}} of {{total}} pages: one in ten from each channel, and every page with a failing check.",
-      "sample_other": "Read {{count}} of {{total}} pages: one in ten from each channel, and every page with a failing check."
+      "none": "No pages to read",
+      "sampleShort_one": "Read {{count, number}} of {{total, number}} pages",
+      "sampleShort_other": "Read {{count, number}} of {{total, number}} pages"
     },
     "policy": {
       "title": "Settled by the checks",
       "none": "Every translation is read by a person, so nothing is settled here.",
       "settleable_one": "{{count}} translation clears every check",
       "settleable_other": "{{count}} translations clear every check",
-      "how": "Each one is established as your decision, recorded in the ledger, and reopened if anyone rejects it later.",
       "apply_one": "Establish the {{count}} translation",
       "apply_other": "Establish the {{count}} translations",
       "applyShort": "Establish",
@@ -1022,10 +1052,12 @@
       "done_one": "{{count}} translation established.",
       "done_other": "{{count}} translations established.",
       "firstPass": "First pass: this settles on the checks alone. Later passes wait until the key language is decided.",
-      "held_one": "Held until the key language is decided: {{count}} decision is still open.",
-      "held_other": "Held until the key language is decided: {{count}} decisions are still open.",
       "doneFirstPass_one": "{{count}} translation established. Later passes wait until the key language is decided.",
-      "doneFirstPass_other": "{{count}} translations established. Later passes wait until the key language is decided."
-    }
+      "doneFirstPass_other": "{{count}} translations established. Later passes wait until the key language is decided.",
+      "waits": "Waits for the key language",
+      "nothing": "Nothing left to settle"
+    },
+    "held_one": "{{count, number}} {{language}} translation is held until the key language is decided.",
+    "held_other": "{{count, number}} {{language}} translations are held until the key language is decided."
   }
 }

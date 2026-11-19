@@ -4,6 +4,13 @@
 // the involvement in force leaves to the checks. The server counts; this file
 // maps its answer.
 
+import {
+  planStepsFromServer,
+  type PlanHeldReason,
+  type PlanStep,
+  type ServerPlanStep,
+} from "./languages.ts";
+
 /** How much a project's reviewers can be involved. */
 export type ReviewInvolvement = "context" | "interfaces" | "every";
 
@@ -102,6 +109,8 @@ export interface PlanLanguage {
   pagesWithFindings: number;
   /** Translations that clear every bar and the involvement leaves to the checks. */
   settleable: number;
+  /** Translations the deck holds back until the key language is decided. */
+  held: number;
 }
 
 /**
@@ -151,6 +160,10 @@ export interface ReviewPlan {
     keyLanguageOpen: number;
     firstPassAt?: string;
   };
+  /** Each level with its state, in order. */
+  steps: PlanStep[];
+  /** Set while the language decks hold translations back, with the reason. */
+  held: PlanHeldReason | null;
 }
 
 interface ServerPlanScan {
@@ -233,6 +246,7 @@ export interface ServerReviewPlan {
         pages_total?: number;
         pages_with_findings?: number;
         settleable: number;
+        held?: number;
       }[]
     | null;
   policy?: {
@@ -240,6 +254,8 @@ export interface ServerReviewPlan {
     key_language_open?: number;
     first_pass_at?: string;
   } | null;
+  steps?: ServerPlanStep[] | null;
+  held?: string;
 }
 
 const SETTLE: readonly PlanSettle[] = ["first_pass", "policy", "held", "none"];
@@ -379,6 +395,7 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
       pagesTotal: l.pages_total ?? l.pages,
       pagesWithFindings: l.pages_with_findings ?? 0,
       settleable: l.settleable,
+      held: l.held ?? 0,
     })),
     policy: {
       settle: (SETTLE as readonly string[]).includes(p.policy?.settle ?? "")
@@ -389,6 +406,8 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
       keyLanguageOpen: p.policy?.key_language_open ?? 0,
       firstPassAt: p.policy?.first_pass_at || undefined,
     },
+    steps: planStepsFromServer(p.steps),
+    held: p.held === "key_language" ? "key_language" : null,
   };
 }
 
