@@ -9,40 +9,19 @@
 // accessors), so how the editions are stored can change inside core/model
 // alone. This check finds code that reaches past them.
 //
-// It type-checks every package, with its tests, of every module in go.work and
-// of every other module in the tree (the plugins under plugins/ build on their
-// own), and reports each identifier that resolves to the field Block.Editions
-// or Block.Native, whether in a selector (b.Editions), a composite literal's
-// key (model.Block{Editions: m}) or a selector that reaches the field through
-// an embedded Block.
-//
+// It type-checks every package, with its tests, of every module in the tree,
+// and reports each identifier that resolves to Block.Editions or
+// Block.Native: a selector (b.Editions), a composite literal's key
+// (model.Block{Editions: m}) or a selector through an embedded Block.
 // Matching is by the object an identifier resolves to, so a field of another
-// type that shares a name (change.Description's Editions, a request's
-// Editions list) is not reported. core/model itself is exempt, and no other
-// package is: the plugin-wire mapping reaches the editions through the
-// accessors too.
+// type that shares a name is not reported. core/model itself is exempt.
 //
 // A test may write the storage directly to plant a state no accessor
-// produces, such as an edition filed under a key that is not canonical. Its
-// uses are counted and do not fail the check; a use outside a test does.
-//
-// Packages load under each build configuration in configs in turn. The first
-// covers the host with every test tag; each later one (the model tags,
-// js/wasm, windows, linux without cgo) loads only the directories that still
-// hold a file no earlier configuration built, and a Go file no configuration
-// builds is listed as unchecked.
-//
-// The output counts the uses per package, non-test and test separately,
-// grouped by module, with the totals and a count per field. The check fails
-// while a use outside a test remains outside core/model; -report prints the
-// same inventory and exits 0.
-//
-// -changed-since <ref> loads only the directories that hold a .go file changed
-// between ref and HEAD, which is what a pull request runs. A use the check
-// fails on sits in a file that reaches the field, and only a changed file can
-// start to: an unchanged file that reached it already failed the full run on
-// main. The whole tree loads instead when core/model, this command, go.work or
-// a go.mod changed, because those can move what every file resolves to.
+// produces. Its uses are counted and do not fail the check; a use outside a
+// test does. The output counts the uses per package and module, non-test and
+// test separately. -report prints the same inventory and exits 0.
+// -changed-since <ref> checks only the directories that hold a .go file
+// changed since ref, which is what a pull request runs.
 //
 // Run from the repository root:
 //
@@ -98,8 +77,9 @@ type config struct {
 const testTags = "fts5,integration,acceptance,e2e"
 
 // configs are the build configurations, in order. The first loads every
-// package; each later one loads only the directories that still hold a file
-// no earlier one built.
+// package with every test tag; each later one loads only the directories
+// that still hold a file no earlier one built. A Go file no configuration
+// builds is listed as unchecked.
 var configs = []config{
 	{name: "host", tags: testTags},
 	{name: "host with the model tags", tags: "fts5,onnx,satmodel,pdfium_experimental,storage_oneconn,notelemetry"},
@@ -328,8 +308,10 @@ func embedOnly(e packages.Error) bool {
 }
 
 // check loads every module under every configuration and returns the
-// inventory of uses. A non-nil only narrows the load to the directories that
-// hold those files, and the unchecked list to those files.
+// inventory of uses. The modules are those in go.work and every other module
+// in the tree, such as the plugins under plugins/, which build on their own.
+// A non-nil only narrows the load to the directories that hold those files,
+// and the unchecked list to those files.
 func check(root string, only []string) (*inventory, error) {
 	mods, err := modules(root)
 	if err != nil {
@@ -918,6 +900,11 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 // changedGoFiles returns the .go files, as absolute paths, changed between the
 // merge base of ref and HEAD, and whether a change calls for the whole tree:
 // one in core/model, in this command, in go.work or in a go.mod.
+//
+// Only a changed file can start to reach the field: an unchanged file that
+// reached it already failed the full run on main. A change to core/model,
+// this command, go.work or a go.mod can move what every file resolves to,
+// so it loads the whole tree.
 func changedGoFiles(root, ref string) ([]string, bool, error) {
 	out, err := exec.Command("git", "-C", root, "diff", "--name-only", "--diff-filter=d", ref+"...HEAD").Output()
 	if err != nil {
