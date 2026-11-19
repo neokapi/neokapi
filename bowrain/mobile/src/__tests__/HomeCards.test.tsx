@@ -121,7 +121,7 @@ describe("WorkspaceCard", () => {
 
 describe("ProjectCard", () => {
   it("puts the languages with work waiting first and folds the rest", async () => {
-    const waiting = summarize({ context: [], languages: [nb] }).byProject.get(
+    const waiting = summarize({ context: [], languages: [nb], projects: [] }).byProject.get(
       projectKey("acme", "p1"),
     );
     await render(<ProjectCard project={project} waiting={waiting} onPress={() => {}} />);

@@ -7,6 +7,8 @@
 import type { OverlayView, ReviewContext } from "@neokapi/contract-types";
 import type { Run } from "@neokapi/kapi-format";
 
+import type { ReviewInboxProject } from "./languages.ts";
+
 /** The access and refresh tokens the server issues (venueauth.TokenResponse). */
 export interface AuthTokens {
   access_token: string;
@@ -88,10 +90,14 @@ export interface ContextInboxEntry {
   by_kind: Partial<Record<ContextCardKind, number>>;
 }
 
-/** The review inbox: the context waiting first, then the languages. */
+/**
+ * The review inbox: the context waiting first, then the languages, and the
+ * projects with the languages the person follows and each plan in brief.
+ */
 export interface ReviewHome {
   context: ContextInboxEntry[];
   languages: ReviewInboxLanguage[];
+  projects: ReviewInboxProject[];
 }
 
 /**

@@ -1222,6 +1222,22 @@ var storeMigrations = []storage.Migration{
 			})
 		},
 	},
+	{
+		Version:     45,
+		Description: "the target languages each person follows in a project",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 54: one row per
+			-- person and project, the followed locales as a JSON array.
+			-- updated_at is RFC 3339 in UTC.
+			CREATE TABLE IF NOT EXISTS followed_languages (
+				user_id    TEXT NOT NULL,
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				locales    TEXT NOT NULL DEFAULT '[]',
+				updated_at TEXT NOT NULL,
+				PRIMARY KEY (user_id, project_id)
+			);
+		`,
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

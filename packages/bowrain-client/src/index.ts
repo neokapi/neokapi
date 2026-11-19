@@ -10,3 +10,4 @@ export * from "./feed.ts";
 export * from "./preview.ts";
 export * from "./terms.ts";
 export * from "./plan.ts";
+export * from "./languages.ts";

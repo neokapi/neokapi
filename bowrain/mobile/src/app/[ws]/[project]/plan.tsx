@@ -3,7 +3,8 @@
 // the text, so they come before any string; then the exceptions, then whole
 // interfaces read in context, and last what the involvement leaves to the
 // checks. The server counts every level (GET /:ws/:id/review/plan); each step
-// opens the screen that decides it.
+// opens the screen that decides it. Opened with `step`, the screen scrolls to
+// that step, as a ring on the Review tab asks.
 import {
   coordinatesOpen,
   planProducts,
@@ -15,8 +16,16 @@ import {
 } from "@neokapi/bowrain-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import type { ReactNode } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { useEffect, useRef, type ComponentRef, type ReactNode } from "react";
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { QueryState } from "../../../components/List";
@@ -44,6 +53,7 @@ function Step({
   onPress,
   secondary,
   children,
+  onLayout,
 }: {
   n: number;
   level: PlanLevel;
@@ -55,6 +65,7 @@ function Step({
   /** A second action of the step, drawn as its own button. */
   secondary?: { label: string; onPress: () => void; testID: string };
   children?: ReactNode;
+  onLayout?: (e: LayoutChangeEvent) => void;
 }) {
   const { t } = useTranslation();
   const ring =
@@ -69,6 +80,7 @@ function Step({
       accessibilityRole={onPress ? "button" : undefined}
       disabled={!onPress}
       onPress={onPress}
+      onLayout={onLayout}
       className={`mx-4 mb-3 gap-2 rounded-3xl border p-4 ${ring}`}
     >
       <View className="flex-row items-center gap-3">
@@ -160,7 +172,11 @@ function RuleList({
 
 export default function ReviewPlanScreen() {
   const { t, i18n } = useTranslation();
-  const { ws, project } = useLocalSearchParams<{ ws: string; project: string }>();
+  const { ws, project, step } = useLocalSearchParams<{
+    ws: string;
+    project: string;
+    step?: string;
+  }>();
   const { client } = useAuth();
   const qc = useQueryClient();
   const scope = { workspace: ws, project };
@@ -175,6 +191,19 @@ export default function ReviewPlanScreen() {
   const mayManage = perms.data?.permissions.includes("manage_project") ?? false;
   const mayScan = perms.data?.permissions.includes("manage_voice") ?? false;
   const refresh = () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
+
+  // Where each step sits in the list, so the step a ring asked for is scrolled
+  // to once, when it has been laid out.
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
+  const scrolled = useRef(false);
+  const placed = (level: PlanLevel) => (e: LayoutChangeEvent) => {
+    if (level !== step || scrolled.current) return;
+    scrolled.current = true;
+    scroller.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 8), animated: false });
+  };
+  useEffect(() => {
+    scrolled.current = false;
+  }, [step]);
 
   const involve = useMutation({
     mutationFn: (v: ReviewInvolvement) => client.setInvolvement(scope, v),
@@ -304,6 +333,7 @@ export default function ReviewPlanScreen() {
     <View collapsable={false} className="bg-background flex-1">
       <Stack.Screen options={{ title: t("plan.title") }} />
       <ScrollView
+        ref={scroller}
         testID="plan-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pt-2 pb-10"
@@ -331,17 +361,22 @@ export default function ReviewPlanScreen() {
         <Step
           n={1}
           level="coordinates"
+          onLayout={placed("coordinates")}
           state={coordinatesOpen(p.coordinates) ? "next" : "done"}
           title={t("plan.coordinates.title")}
           lines={coordinateLines}
           action={t("plan.coordinates.open")}
           onPress={() =>
-            router.push({ pathname: "/[ws]/[project]/coordinates", params: { ws, project } })
+            router.push({
+              pathname: "/[ws]/[project]/coordinates",
+              params: { ws, project, languages: p.languages.map((l) => l.locale).join(",") },
+            })
           }
         />
         <Step
           n={2}
           level="key_language"
+          onLayout={placed("key_language")}
           state={stateOf(
             p,
             "key_language",
@@ -372,6 +407,7 @@ export default function ReviewPlanScreen() {
         <Step
           n={3}
           level="exceptions"
+          onLayout={placed("exceptions")}
           state={stateOf(p, "exceptions", (p.exceptions.sourceFindings ?? 0) + failing)}
           title={t("plan.exceptions.title")}
           lines={exceptionLines}
@@ -398,6 +434,7 @@ export default function ReviewPlanScreen() {
         <Step
           n={4}
           level="interfaces"
+          onLayout={placed("interfaces")}
           state={stateOf(p, "interfaces", pages)}
           title={t("plan.interfaces.title")}
           lines={interfaceLines}
@@ -415,6 +452,7 @@ export default function ReviewPlanScreen() {
         <Step
           n={5}
           level="policy"
+          onLayout={placed("policy")}
           state={stateOf(p, "policy", settleable)}
           title={t("plan.policy.title")}
           lines={policyLines}

@@ -106,6 +106,14 @@ export default function Account() {
           onPress={() => router.push("/account/name")}
         />
         <Cell
+          testID="account-languages"
+          icon="language"
+          tile="amber"
+          title={t("follow.account")}
+          chevron
+          onPress={() => router.push("/review-languages")}
+        />
+        <Cell
           testID="account"
           icon="person"
           tile="blue"

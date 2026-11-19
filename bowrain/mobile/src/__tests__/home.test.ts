@@ -24,6 +24,7 @@ function lang(
 }
 
 const home: ReviewHome = {
+  projects: [],
   context: [
     {
       workspace: "acme",
@@ -62,7 +63,7 @@ describe("summarize", () => {
 });
 
 describe("nextUp", () => {
-  const translationsOnly = { context: [], languages: home.languages };
+  const translationsOnly = { context: [], languages: home.languages, projects: [] };
 
   it("offers the source context before any translations", () => {
     const n = nextUp(home);
@@ -88,7 +89,7 @@ describe("nextUp", () => {
   });
 
   it("offers nothing when nothing waits", () => {
-    expect(nextUp({ context: [], languages: [lang("a", "b", "nb", 0)] })).toBeNull();
+    expect(nextUp({ context: [], languages: [lang("a", "b", "nb", 0)], projects: [] })).toBeNull();
     expect(nextUp(null)).toBeNull();
   });
 });
