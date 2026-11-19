@@ -19,6 +19,13 @@ import {
   type ServerReviewCoordinates,
   type ServerReviewPlan,
 } from "./plan.ts";
+import {
+  inboxProjectFromServer,
+  reviewLanguagesFromServer,
+  type ReviewLanguages,
+  type ServerReviewInboxProject,
+  type ServerReviewLanguages,
+} from "./languages.ts";
 import type {
   Concept,
   AuthTokens,
@@ -239,6 +246,27 @@ export interface BowrainClient {
   ): Promise<{ approved: number; skipped: number; firstPass: boolean }>;
   /** Starts a scan of the project for candidate terms. */
   startTermScan(scope: ProjectScope): Promise<PlanScan>;
+  /** The languages the person follows in a project, the ones they may follow, and the project's own. */
+  reviewLanguages(workspace: string, project: string): Promise<ReviewLanguages>;
+  /**
+   * Saves the languages the person follows in a project. The server refuses
+   * (400) a language the person may not review; an empty list follows none.
+   */
+  setFollowedLanguages(
+    workspace: string,
+    project: string,
+    followed: string[],
+  ): Promise<ReviewLanguages>;
+  /**
+   * Turns one of the project's target languages on or off. The server files
+   * it as a recipe change the next sync applies, and needs manage_project.
+   */
+  setProjectLanguage(
+    workspace: string,
+    project: string,
+    locale: string,
+    enabled: boolean,
+  ): Promise<ReviewLanguages>;
   /** Establishes every waiting translation that clears every bar, in the languages given. */
   approvePassing(
     scope: ProjectScope,
@@ -417,8 +445,14 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
 
     async reviewHome() {
       try {
-        const body = await get<Partial<ReviewHome>>("/auth/me/review");
-        return { context: body.context ?? [], languages: body.languages ?? [] };
+        const body = await get<
+          Partial<Omit<ReviewHome, "projects">> & { projects?: ServerReviewInboxProject[] | null }
+        >("/auth/me/review");
+        return {
+          context: body.context ?? [],
+          languages: body.languages ?? [],
+          projects: (body.projects ?? []).map(inboxProjectFromServer),
+        };
       } catch (err) {
         if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return null;
         throw err;
@@ -605,6 +639,28 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         { method: "POST" },
       );
       return planScanFromServer((body as { scan: Parameters<typeof planScanFromServer>[0] }).scan);
+    },
+
+    async reviewLanguages(ws, pid) {
+      return reviewLanguagesFromServer(
+        await get<ServerReviewLanguages>(`/${enc(ws)}/${enc(pid)}/review/languages`),
+      );
+    },
+
+    async setFollowedLanguages(ws, pid, followed) {
+      const { body } = await send(`/${enc(ws)}/${enc(pid)}/review/languages`, {
+        method: "PUT",
+        body: JSON.stringify({ followed }),
+      });
+      return reviewLanguagesFromServer(body as ServerReviewLanguages);
+    },
+
+    async setProjectLanguage(ws, pid, locale, enabled) {
+      const { body } = await send(`/${enc(ws)}/${enc(pid)}/review/languages/project`, {
+        method: "POST",
+        body: JSON.stringify({ locale, enabled }),
+      });
+      return reviewLanguagesFromServer(body as ServerReviewLanguages);
     },
 
     async approvePassing(scope, locales) {

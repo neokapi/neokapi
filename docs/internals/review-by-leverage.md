@@ -320,5 +320,27 @@ The founder accepted each recommendation on 2026-11-19:
    a new snapshot and clears it for the team. A project confirmed before the
    snapshot existed reads as confirmed with no changes, and its next
    confirmation records one. A branch stream is not compared with the
-   snapshot. Still to build: the languages a person follows, to narrow the
-   coverage bars (the screen takes a `languages` parameter for it).
+   snapshot. The phone passes the languages a person follows as the screen's
+   `languages` parameter, which narrows the coverage bars.
+10. Followed languages and the plan in the Review tab. Built. A person follows
+    a list of target languages per project (`followed_languages`, Postgres
+    migration 54, SQLite 45), read and saved through `GET` and `PUT
+    /:ws/:id/review/languages`. No saved list means every language the
+    membership allows; a saved list is kept to what the membership allows, and
+    `PUT` refuses anything outside it. The list only filters: the review inbox
+    and the review plan count the followed languages, and the queues stay
+    shared. `GET /auth/me/review` also returns `projects`: each project with
+    work waiting or a saved list, with its followed languages and, for a
+    project with work waiting, the plan in brief (`plan.steps`: a count,
+    progress and done per level, `changed` from the coordinates' change count,
+    and the policy's settle state). The plan in brief is computed with the
+    plan route's own code, once per project with work waiting, and not for the
+    rest. A person with `manage_project` turns a target language on or off
+    through `POST /:ws/:id/review/languages/project`, which files a pending
+    recipe change on `defaults.target_languages` and a `recipe.changed` feed
+    entry; the project's languages change when the next pull applies it. On
+    the phone the Review tab draws the plan as five rings per project, a
+    header chip opens the language settings, and a project's first plan visit
+    opens a setup (managers: coordinates, project languages, involvement;
+    reviewers: their languages). Still to build: notifications filtered by the
+    followed list, key-language sessions, and the setting on the web Overview.

@@ -106,6 +106,59 @@
     "unsupported": "This server does not list review across projects",
     "unsupportedBody": "Open a project from Home to see its languages."
   },
+  "follow": {
+    "chipNone": "No languages",
+    "chipMore": "{{first}} +{{count}}",
+    "chipHint": "Opens the languages you review",
+    "title": "Languages you review",
+    "setupTitle": "Set up review",
+    "pickFooter": "Pick a project to choose the languages you review there.",
+    "pickEmpty": "You are not a member of any project yet.",
+    "account": "Languages you review",
+    "coordinates": {
+      "header": "Coordinates",
+      "title": "Products, channels and voices",
+      "confirmed": "Confirmed",
+      "unconfirmed": "Not confirmed"
+    },
+    "project": {
+      "header": "Project languages",
+      "footer": "A change goes to the recipe on the next sync and shows in the feed.",
+      "pending": "After the next sync",
+      "addPlaceholder": "Add a language, such as de",
+      "add": "Add",
+      "turnOn": "Turn on {{language}}?",
+      "turnOff": "Turn off {{language}}?",
+      "changeBody": "This files a recipe change. It applies on the next sync.",
+      "on": "Turn on",
+      "off": "Turn off"
+    },
+    "involvement": {
+      "header": "Involvement"
+    },
+    "mine": {
+      "header": "Languages you review",
+      "footer": "Only these appear in your Review tab. Everyone who reviews a language shares its one queue.",
+      "none": "You don't have review permission for any language in this project."
+    },
+    "save": "Save",
+    "failed": "That didn't go through"
+  },
+  "planCard": {
+    "title": "Plan",
+    "setup": "Choose your languages",
+    "noPlan": "Nothing waits in the languages you follow",
+    "steps": {
+      "coordinates": "Coordinates",
+      "key_language": "Key language",
+      "exceptions": "Exceptions",
+      "interfaces": "Pages",
+      "policy": "Policy"
+    },
+    "ringDone": "{{step}}, done",
+    "ringWaiting": "{{step}}, {{count}} waiting, {{progress}}% done",
+    "ringHeld": "{{step}}, held until the key language is decided"
+  },
   "context": {
     "title": "Context",
     "entry_one": "Context: 1 to review",

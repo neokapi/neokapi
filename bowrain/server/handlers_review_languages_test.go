@@ -185,7 +185,7 @@ func TestSummarizePlan_CountsWithinFollowedLanguages(t *testing.T) {
 		Exceptions: planExceptionsDTO{SourceFindings: &findings, ByRule: planRulesDTO{
 			Targets: map[string][]planRuleDTO{"nb": {{Key: "a"}, {Key: "b"}}, "de": {{Key: "c"}}},
 		}},
-		Languages: []planLanguageDTO{{Locale: "nb", deckWaiting: deckWaiting{Waiting: 10}, Failing: 5, Pages: 3, Settleable: 4}},
+		Languages: []planLanguageDTO{{Locale: "nb", Waiting: 10, Failing: 5, Pages: 3, Settleable: 4}},
 		Policy:    planPolicyDTO{Settle: settleHeld},
 	}
 	got := summarizePlan(p)
@@ -201,4 +201,9 @@ func TestSummarizePlan_CountsWithinFollowedLanguages(t *testing.T) {
 	assert.Equal(t, 50, byLevel[planExceptions].Progress)
 	assert.Equal(t, 3, byLevel[planInterfaces].Count)
 	assert.Equal(t, planStepDTO{Level: planPolicy, Count: 4, Settle: settleHeld}, byLevel[planPolicy])
+
+	p.Coordinates.Changed = 2
+	changed := summarizePlan(p).Steps[0]
+	assert.Equal(t, planStepDTO{Level: planCoordinates, Count: 2, Progress: 100, Changed: 2}, changed,
+		"a change after the confirmation reopens the step for the team")
 }

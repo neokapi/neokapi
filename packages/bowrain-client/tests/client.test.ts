@@ -474,8 +474,13 @@ describe("client", () => {
     expect(await answering({ context: [entry], languages: [] }).reviewHome()).toEqual({
       context: [entry],
       languages: [],
+      projects: [],
     });
-    expect(await answering({ languages: [] }).reviewHome()).toEqual({ context: [], languages: [] });
+    expect(await answering({ languages: [] }).reviewHome()).toEqual({
+      context: [],
+      languages: [],
+      projects: [],
+    });
   });
 
   it("pages the context deck and sends a decision", async () => {

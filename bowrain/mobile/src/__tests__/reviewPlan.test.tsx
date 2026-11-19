@@ -124,7 +124,7 @@ describe("review plan", () => {
     await fireEvent.press(await screen.findByTestId("plan-coordinates"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/coordinates",
-      params: { ws: "ws", project: "p" },
+      params: { ws: "ws", project: "p", languages: "nb" },
     });
     expect(mockConfirm).not.toHaveBeenCalled();
   });

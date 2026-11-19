@@ -20,10 +20,10 @@ type planStepDTO struct {
 	// Level is coordinates, key_language, exceptions, interfaces (the pages
 	// a reviewer reads whole) or policy.
 	Level string `json:"level"`
-	// Count is what waits at the level: 1 for unconfirmed coordinates, the
-	// key-language decisions open in the caller's languages, the rules
-	// behind the exceptions, the pages to read, the translations a settle
-	// pass would establish.
+	// Count is what waits at the level: 1 for unconfirmed coordinates or
+	// the changes since the last confirmation, the key-language decisions
+	// open in the caller's languages, the rules behind the exceptions, the
+	// pages to read, the translations a settle pass would establish.
 	Count int `json:"count"`
 	// Progress is the team's progress through the level, 0 to 100.
 	Progress int  `json:"progress"`
@@ -48,11 +48,16 @@ func summarizePlan(p reviewPlanResponse) planSummaryDTO {
 		settleable += l.Settleable
 	}
 
-	coordinates := planStepDTO{Level: planCoordinates, Done: p.Coordinates.Confirmed}
-	if coordinates.Done {
-		coordinates.Progress = 100
-	} else {
+	// Coordinates: confirmed by anyone settles the step for the team, until
+	// the map changes after that confirmation.
+	coordinates := planStepDTO{Level: planCoordinates, Changed: p.Coordinates.Changed}
+	switch {
+	case !p.Coordinates.Confirmed:
 		coordinates.Count = 1
+	case p.Coordinates.Changed > 0:
+		coordinates.Count, coordinates.Progress = p.Coordinates.Changed, 100
+	default:
+		coordinates.Done, coordinates.Progress = true, 100
 	}
 
 	// Key language: the project's concepts with a source term, and their
@@ -65,7 +70,7 @@ func summarizePlan(p reviewPlanResponse) planSummaryDTO {
 	}
 	open := p.KeyLanguage.Waiting + untranslated
 	decided := p.KeyLanguage.Concepts*(1+len(locales)) - untranslated
-	key := planStepDTO{Level: planKeyLanguage, Count: open, Done: open == 0, Progress: share(decided, decided+open)}
+	key := planStepDTO{Level: planKeyLanguage, Count: open, Done: open == 0, Progress: percentOf(decided, decided+open)}
 
 	// Exceptions: the rules behind the findings, in the source and in each
 	// followed language; progress is the share of waiting translations that
@@ -87,7 +92,7 @@ func summarizePlan(p reviewPlanResponse) planSummaryDTO {
 		Level:    planExceptions,
 		Count:    len(rules),
 		Done:     sourceFindings == 0 && failing == 0,
-		Progress: share(waiting-failing, waiting),
+		Progress: percentOf(waiting-failing, waiting),
 	}
 	if exceptions.Count == 0 && !exceptions.Done {
 		exceptions.Count = failing
@@ -111,8 +116,8 @@ func summarizePlan(p reviewPlanResponse) planSummaryDTO {
 	}
 }
 
-// share is part of whole as a percentage, 100 when whole is empty.
-func share(part, whole int) int {
+// percentOf is part of whole as a percentage, 100 when whole is empty.
+func percentOf(part, whole int) int {
 	if whole <= 0 {
 		return 100
 	}

@@ -166,6 +166,8 @@ function Screens() {
           options={{ title: t("pages.view.pages"), headerTransparent: false }}
         />
         <Stack.Screen name="[ws]/[project]/plan" options={{ title: t("plan.title") }} />
+        <Stack.Screen name="[ws]/[project]/languages" options={{ title: t("follow.title") }} />
+        <Stack.Screen name="review-languages" options={{ title: t("follow.title") }} />
         <Stack.Screen
           name="[ws]/[project]/coordinates"
           options={{ title: t("plan.coordinates.mapTitle") }}
