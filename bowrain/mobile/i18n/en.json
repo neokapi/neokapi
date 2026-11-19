@@ -282,7 +282,8 @@
     "doneEmpty": "Nothing in this language is waiting for review.",
     "deskTitle_one": "1 card for the desk",
     "deskTitle_other": "{{count, number}} cards for the desk",
-    "deskLead": "These need a closer look than a phone allows. Review them in Bowrain on a computer."
+    "deskLead": "These need a closer look than a phone allows. Review them in Bowrain on a computer.",
+    "sample": "A sample of the pages: one in ten from each channel, and every page with a failing check."
   },
   "pages": {
     "view": {
@@ -864,7 +865,13 @@
       "concepts_other": "{{count}} terms in the source language",
       "untranslated_one": "{{count}} term has no {{language}} term yet",
       "untranslated_other": "{{count}} terms have no {{language}} term yet",
-      "open": "Decide the key language"
+      "open": "Decide the key language",
+      "scan": "Scan the project for terms",
+      "scanBody": "Bowrain reads a sample of every collection in the source language and proposes the terms it uses most. They arrive in the context deck.",
+      "scanStart": "Scan",
+      "scanning": "Scanning the project for terms, {{progress}}% done",
+      "scanned": "The last scan finished. Its terms are in the context deck.",
+      "scanFailed": "The last scan failed. You can start it again."
     },
     "exceptions": {
       "title": "Exceptions",
@@ -879,9 +886,10 @@
       "title": "Interfaces in context",
       "pages_one": "{{count}} page with a translation waiting",
       "pages_other": "{{count}} pages with a translation waiting",
-      "sample": "Under Context, read a sample of pages to confirm the decisions above read right.",
       "every": "Read every page, source first, then each language.",
-      "open": "Read the pages"
+      "open": "Read the pages",
+      "sample_one": "Read {{count}} of {{total}} pages: one in ten from each channel, and every page with a failing check.",
+      "sample_other": "Read {{count}} of {{total}} pages: one in ten from each channel, and every page with a failing check."
     },
     "policy": {
       "title": "Settled by the checks",
@@ -895,7 +903,12 @@
       "confirm": "These translations pass the checks, the terms and the voice bar. Establish them now?",
       "doneTitle": "Established",
       "done_one": "{{count}} translation established.",
-      "done_other": "{{count}} translations established."
+      "done_other": "{{count}} translations established.",
+      "firstPass": "First pass: this settles on the checks alone. Later passes wait until the key language is decided.",
+      "held_one": "Held until the key language is decided: {{count}} decision is still open.",
+      "held_other": "Held until the key language is decided: {{count}} decisions are still open.",
+      "doneFirstPass_one": "{{count}} translation established. Later passes wait until the key language is decided.",
+      "doneFirstPass_other": "{{count}} translations established. Later passes wait until the key language is decided."
     }
   }
 }

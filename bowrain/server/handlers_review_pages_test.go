@@ -57,3 +57,26 @@ func TestReviewDeckPages_NeedsTheReviewPermissionForTheLanguage(t *testing.T) {
 	rec := deckCall(t, s, s.HandleGetReviewDeckPages, wsID, projID, "", "u-reviewer", testReviewer, []string{"de"}, url.Values{"locale": {"fr"}})
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
+
+func TestReviewDeckPages_SampleKeepsTheFirstPageOfEachCollection(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	projID, _ := containerProject(t, s, wsID)
+
+	all := readPages(t, s, wsID, projID)
+	first := map[string]string{}
+	var want []string
+	for _, p := range all.Pages {
+		if _, ok := first[p.CollectionID]; !ok && p.Findings == 0 {
+			first[p.CollectionID] = p.Title
+			want = append(want, p.Title)
+		}
+	}
+	rec := deckCall(t, s, s.HandleGetReviewDeckPages, wsID, projID, "", "u-reviewer", testReviewer, nil,
+		url.Values{"locale": {"fr"}, "sample": {"true"}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var got []string
+	for _, p := range decodeJSON[reviewDeckPagesResponse](t, rec).Pages {
+		got = append(got, p.Title)
+	}
+	assert.Equal(t, want, got, "fewer than ten pages per collection: the sample is each collection's first")
+}

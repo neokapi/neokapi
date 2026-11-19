@@ -38,6 +38,7 @@ function Step({
   lines,
   action,
   onPress,
+  secondary,
 }: {
   n: number;
   level: PlanLevel;
@@ -46,6 +47,8 @@ function Step({
   lines: string[];
   action?: string;
   onPress?: () => void;
+  /** A second action of the step, drawn as its own button. */
+  secondary?: { label: string; onPress: () => void; testID: string };
 }) {
   const { t } = useTranslation();
   const ring =
@@ -90,6 +93,16 @@ function Step({
       {action && onPress ? (
         <Text className="text-primary text-sm font-semibold">{action} ›</Text>
       ) : null}
+      {secondary ? (
+        <Pressable
+          testID={secondary.testID}
+          accessibilityRole="button"
+          onPress={secondary.onPress}
+          className="border-border self-start rounded-full border px-3 py-1.5"
+        >
+          <Text className="text-foreground text-sm font-semibold">{secondary.label}</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -109,6 +122,7 @@ export default function ReviewPlanScreen() {
     queryFn: () => client.permissions(ws, project),
   });
   const mayManage = perms.data?.permissions.includes("manage_project") ?? false;
+  const mayScan = perms.data?.permissions.includes("manage_voice") ?? false;
   const refresh = () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
 
   const confirm = useMutation({
@@ -122,11 +136,21 @@ export default function ReviewPlanScreen() {
     onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
   });
   const settle = useMutation({
-    mutationFn: (locales: string[]) => client.approvePassing(scope, locales),
+    mutationFn: (locales: string[]) => client.settlePlan(scope, locales),
     onSuccess: (r) => {
-      Alert.alert(t("plan.policy.doneTitle"), t("plan.policy.done", { count: r.approved }));
+      Alert.alert(
+        t("plan.policy.doneTitle"),
+        r.firstPass
+          ? t("plan.policy.doneFirstPass", { count: r.approved })
+          : t("plan.policy.done", { count: r.approved }),
+      );
       refresh();
     },
+    onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
+  });
+  const scan = useMutation({
+    mutationFn: () => client.startTermScan(scope),
+    onSuccess: refresh,
     onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
   });
 
@@ -144,12 +168,18 @@ export default function ReviewPlanScreen() {
   const untranslated = Object.entries(p.keyLanguage.untranslated).filter(([, n]) => n > 0);
   const failing = p.languages.reduce((n, l) => n + l.failing, 0);
   const pages = p.languages.reduce((n, l) => n + l.pages, 0);
+  const pagesTotal = p.languages.reduce((n, l) => n + l.pagesTotal, 0);
   const settleable = p.languages.reduce((n, l) => n + l.settleable, 0);
   const firstLocale = p.languages[0]?.locale;
-  const openDeck = (locale: string | undefined) =>
+  const openDeck = (locale: string | undefined, sample = false) =>
     locale
-      ? router.push({ pathname: "/[ws]/[project]/[locale]", params: { ws, project, locale } })
+      ? router.push({
+          pathname: "/[ws]/[project]/[locale]",
+          params: sample ? { ws, project, locale, sample: "true" } : { ws, project, locale },
+        })
       : undefined;
+  const scanState = p.keyLanguage.scan?.status;
+  const scanning = scanState === "queued" || scanState === "processing";
 
   const chooseInvolvement = () =>
     Alert.alert(t("plan.involvement.title"), t("plan.involvement.body"), [
@@ -177,6 +207,13 @@ export default function ReviewPlanScreen() {
     t("plan.key.waiting", { count: p.keyLanguage.waiting }),
     t("plan.key.concepts", { count: p.keyLanguage.concepts }),
     ...untranslated.map(([l, n]) => t("plan.key.untranslated", { count: n, language: lang(l) })),
+    ...(scanning
+      ? [t("plan.key.scanning", { progress: p.keyLanguage.scan?.progress ?? 0 })]
+      : scanState === "completed"
+        ? [t("plan.key.scanned")]
+        : scanState === "failed"
+          ? [t("plan.key.scanFailed")]
+          : []),
   ];
 
   const exceptionLines = [
@@ -186,15 +223,23 @@ export default function ReviewPlanScreen() {
     t("plan.exceptions.translations", { count: failing }),
   ];
 
-  const interfaceLines = [
-    t("plan.interfaces.pages", { count: pages }),
-    p.involvement === "context" ? t("plan.interfaces.sample") : t("plan.interfaces.every"),
-  ];
+  const interfaceLines =
+    p.involvement === "context"
+      ? [t("plan.interfaces.sample", { count: pages, total: pagesTotal })]
+      : [t("plan.interfaces.pages", { count: pages }), t("plan.interfaces.every")];
 
+  const settleNow = p.policy.settle === "first_pass" || p.policy.settle === "policy";
   const policyLines =
-    p.involvement === "every"
+    p.policy.settle === "none"
       ? [t("plan.policy.none")]
-      : [t("plan.policy.settleable", { count: settleable }), t("plan.policy.how")];
+      : [
+          t("plan.policy.settleable", { count: settleable }),
+          p.policy.settle === "held"
+            ? t("plan.policy.held", { count: p.policy.keyLanguageOpen })
+            : p.policy.settle === "first_pass"
+              ? t("plan.policy.firstPass")
+              : t("plan.policy.how"),
+        ];
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -257,6 +302,19 @@ export default function ReviewPlanScreen() {
               ? () => router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
               : undefined
           }
+          secondary={
+            mayScan && !scanning
+              ? {
+                  label: t("plan.key.scan"),
+                  testID: "plan-scan",
+                  onPress: () =>
+                    Alert.alert(t("plan.key.scan"), t("plan.key.scanBody"), [
+                      { text: t("common.cancel"), style: "cancel" },
+                      { text: t("plan.key.scanStart"), onPress: () => scan.mutate() },
+                    ]),
+                }
+              : undefined
+          }
         />
         <Step
           n={3}
@@ -276,7 +334,15 @@ export default function ReviewPlanScreen() {
           title={t("plan.interfaces.title")}
           lines={interfaceLines}
           action={pages > 0 ? t("plan.interfaces.open") : undefined}
-          onPress={pages > 0 ? () => openDeck(firstLocale) : undefined}
+          onPress={
+            pages > 0
+              ? () =>
+                  openDeck(
+                    p.languages.find((l) => l.pages > 0)?.locale ?? firstLocale,
+                    p.involvement === "context",
+                  )
+              : undefined
+          }
         />
         <Step
           n={5}
@@ -284,9 +350,11 @@ export default function ReviewPlanScreen() {
           state={stateOf(p, "policy", settleable)}
           title={t("plan.policy.title")}
           lines={policyLines}
-          action={settleable > 0 ? t("plan.policy.apply", { count: settleable }) : undefined}
+          action={
+            settleNow && settleable > 0 ? t("plan.policy.apply", { count: settleable }) : undefined
+          }
           onPress={
-            settleable > 0
+            settleNow && settleable > 0
               ? () =>
                   Alert.alert(
                     t("plan.policy.apply", { count: settleable }),

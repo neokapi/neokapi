@@ -843,6 +843,17 @@ export interface ApiAdapter {
     projectId: string,
     involvement: ReviewInvolvement,
   ): Promise<void>;
+  /**
+   * The plan's last step: establishes every waiting translation that clears
+   * every bar, recorded with the reason "review policy".
+   */
+  settleReviewPlan?(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<{ approved: number; first_pass: boolean }>;
+  /** Starts a scan of the project for candidate terms. */
+  startReviewPlanScan?(workspaceSlug: string, projectId: string): Promise<void>;
 
   // Back-to-source review (RV-F): a reviewer proposes a source-text fix; a source
   // owner (PermEditSource) approves it — applying it and re-drafting every locale

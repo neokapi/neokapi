@@ -237,19 +237,28 @@ In order, with the counts from 2026-11-19:
 5. **Settled by policy.** The documentation (21,996 blocks) and every other
    block that clears the bars.
 
-## Decisions for the founder
+## Decisions taken
 
-1. The default involvement for a new project is `context`. Agree?
-2. Policy establishment is attributed to the person who set the policy, with
-   the reason `review policy`. Or should it carry an actor of its own
-   (`policy`) in the ledger?
-3. A block settles by policy only when the context it was produced under is
-   approved. That holds back every block on neokapi until level 2 is decided.
-   Agree, or allow settling on checks alone for a project's first pass?
-4. Sample size for interfaces under `context`: one page in ten per channel,
-   with every page that has a finding. Agree?
-5. Does `priority:` stay as the ordering within a level, or is it replaced by
-   involvement per coordinate?
+The founder accepted each recommendation on 2026-11-19:
+
+1. The default involvement for a new project is `context`.
+2. A settle pass is attributed to the person who runs it, and each decision
+   carries the reason `review policy` in the ledger. There is no `policy`
+   actor.
+3. A project settles on the checks alone once, for its first pass. After
+   that, a settle pass waits until the key language is decided: no context
+   card waiting for anyone, and a target term for every concept in every
+   target language. The plan reports this as `policy.settle`: `first_pass`,
+   `policy`, `held` or `none`.
+4. Under `context`, a reviewer reads one page in ten of each collection, the
+   first of every ten in deck order, plus every page holding a translation
+   with a failing finding. The plan counts that sample, and the deck by page
+   answers it with `sample=true`.
+5. `priority:` stays as the order within a level; involvement decides depth.
+6. Keeping a candidate term makes it preferred directly; the keep is the
+   review, and the attestation records it.
+7. Kept terms govern the whole workspace. That needs a project scope in the
+   terms store before a second project shares a workspace.
 
 ## Build order
 
@@ -258,13 +267,17 @@ In order, with the counts from 2026-11-19:
 3. Term candidates: sampling across coordinates, one candidate shape (a
    proposed concept with its reach), keep promotes it to preferred, reject
    is remembered on the project. Built for the project scan. Still to build:
-   AI-proposed translations of kept terms, dealt to the same reviewer, and a
-   way to start a project scan from the apps.
+   AI-proposed translations of kept terms, dealt to the same reviewer. The
+   plan's key-language step starts a project scan (`POST
+   /:ws/:id/review/plan/scan`) and shows its state.
 4. Context deck ordered by reach. Built for candidate terms; the rest of the
    deck keeps its order by kind.
 5. Exceptions grouped by rule (the check tally gains a count per rule).
-6. Involvement in the recipe (`defaults.review.involvement`, per coordinate
-   under `when:`) and policy establishment on the server, through the approve
-   passing path, with the ledger reason. Until then the plan's last step
-   applies approve passing on request.
-7. User guide: reviewing a large project. Built (bowrain/web/docs, getting started).
+6. Settling: the plan's last step (`POST /:ws/:id/review/plan/settle`) runs
+   the approve passing path with the ledger reason `review policy`, under the
+   first-pass rule above. Built. Still to build: involvement in the recipe
+   (`defaults.review.involvement`, per coordinate under `when:`), and a settle
+   pass the server runs on its own after drafting, attributed to the person
+   who set the involvement.
+7. The interface sample under `context`. Built.
+8. User guide: reviewing a large project. Built (bowrain/web/docs, getting started).

@@ -29,6 +29,9 @@ type deckPage struct {
 	CollectionID string `json:"collection_id"`
 	Component    string `json:"component,omitempty"`
 	Waiting      int    `json:"waiting"`
+	// Findings counts the page's waiting translations with a failing
+	// finding.
+	Findings     int    `json:"findings,omitempty"`
 	FirstBlockID string `json:"first_block_id"`
 }
 
@@ -42,7 +45,9 @@ type reviewDeckPagesResponse struct {
 }
 
 // HandleGetReviewDeckPages answers GET /:ws/:id/review-deck/:ref/pages
-// ?locale=nb[&collection=c] with the deck's pages.
+// ?locale=nb[&collection=c][&sample=true] with the deck's pages. With sample,
+// it answers the pages a reviewer reads under the involvement context (see
+// interfaceSample).
 func (s *Server) HandleGetReviewDeckPages(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
@@ -71,9 +76,17 @@ func (s *Server) HandleGetReviewDeckPages(c echo.Context) error {
 		coll := strings.TrimSpace(c.QueryParam("collection"))
 		q.CollectionID = &coll
 	}
-	pages, err := decks.ListReviewDeckPages(ctx, q, reviewPagesLimit+1)
+	sample := c.QueryParam("sample") == "true"
+	limit := reviewPagesLimit + 1
+	if sample {
+		limit = reviewPagesCountLimit
+	}
+	pages, err := decks.ListReviewDeckPages(ctx, q, limit)
 	if err != nil {
 		return serverErr(c, err)
+	}
+	if sample {
+		pages = interfaceSample(pages)
 	}
 	out := reviewDeckPagesResponse{Locale: loc, Pages: []deckPage{}}
 	if len(pages) > reviewPagesLimit {
@@ -89,7 +102,7 @@ func (s *Server) HandleGetReviewDeckPages(c echo.Context) error {
 func deckPageOf(p store.ReviewDeckPage) deckPage {
 	out := deckPage{
 		Kind: "document", Title: path.Base(p.ItemName), ItemName: p.ItemName, CollectionID: p.CollectionID,
-		Waiting: p.Waiting, FirstBlockID: p.FirstBlockID,
+		Waiting: p.Waiting, Findings: p.Findings, FirstBlockID: p.FirstBlockID,
 	}
 	if p.Component != "" {
 		out.Kind, out.Title, out.Component = "component", p.Component, p.Component

@@ -732,6 +732,8 @@ export interface DeckPage {
   collectionId: string;
   component?: string;
   waiting: number;
+  /** The page's waiting translations with a failing finding. */
+  findings: number;
   /** The page's first waiting translation, which opens its container. */
   firstBlockId: string;
 }

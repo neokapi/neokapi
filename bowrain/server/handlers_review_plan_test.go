@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -111,4 +113,64 @@ func TestReviewPlan_InvolvementIsValidatedAndKept(t *testing.T) {
 	for _, l := range plan.Languages {
 		assert.Zero(t, l.Settleable, "nothing settles by policy when every translation is reviewed")
 	}
+}
+
+func TestInterfaceSample_TakesOneInTenPerCollectionAndEveryFinding(t *testing.T) {
+	var pages []platstore.ReviewDeckPage
+	for i := range 25 {
+		pages = append(pages, platstore.ReviewDeckPage{CollectionID: "docs", ItemName: fmt.Sprintf("d%02d", i)})
+	}
+	pages[7].Findings = 2
+	pages = append(pages, platstore.ReviewDeckPage{CollectionID: "cli", ItemName: "c00"})
+
+	var got []string
+	for _, p := range interfaceSample(pages) {
+		got = append(got, p.ItemName)
+	}
+	assert.Equal(t, []string{"d00", "d07", "d10", "d20", "c00"}, got,
+		"the first of every ten pages of each collection, and every page with a finding")
+}
+
+func TestReviewPlan_SettleTakesOneFirstPassThenWaitsForTheKeyLanguage(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	projID, _ := containerProject(t, s, wsID)
+	ctx := t.Context()
+	tb, err := s.wsStores.getTerms(ctx, "rc")
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-workspace",
+		Terms: []terms.Term{{Text: "workspace", Locale: "en", Status: model.TermPreferred}}}))
+
+	plan := readPlan(t, s, wsID, projID)
+	assert.Equal(t, settleFirstPass, plan.Policy.Settle, "the key language is open and no pass has run")
+	assert.Positive(t, plan.Policy.KeyLanguageOpen)
+
+	rec := planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.True(t, decodeJSON[reviewPlanSettleResponse](t, rec).FirstPass)
+
+	plan = readPlan(t, s, wsID, projID)
+	assert.Equal(t, settleHeld, plan.Policy.Settle)
+	assert.Equal(t, "u-owner", plan.Policy.FirstPassBy)
+	rec = planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
+	assert.Equal(t, http.StatusConflict, rec.Code, "a second pass waits for the key language")
+
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-workspace", Terms: []terms.Term{
+		{Text: "workspace", Locale: "en", Status: model.TermPreferred},
+		{Text: "espace de travail", Locale: "fr", Status: model.TermPreferred},
+	}}))
+	plan = readPlan(t, s, wsID, projID)
+	assert.Equal(t, settlePolicy, plan.Policy.Settle, "the key language is decided")
+	rec = planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.False(t, decodeJSON[reviewPlanSettleResponse](t, rec).FirstPass)
+}
+
+func TestReviewPlan_SettleRefusesUnderEvery(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	projID, _ := containerProject(t, s, wsID)
+	require.Equal(t, http.StatusNoContent,
+		planWrite(t, s, s.HandlePutReviewInvolvement, wsID, projID, `{"involvement":"every"}`, platauth.PermAll).Code)
+	assert.Equal(t, settleNone, readPlan(t, s, wsID, projID).Policy.Settle)
+	rec := planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
+	assert.Equal(t, http.StatusConflict, rec.Code)
 }

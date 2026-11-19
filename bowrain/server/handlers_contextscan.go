@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -200,31 +201,15 @@ func (s *Server) HandleCreateContextScan(c echo.Context) error {
 		}
 	}
 
-	// Credit pre-check (Epic 004 pattern): brand scans are always platform-key
-	// work, so a zero-credit workspace is refused before the job runs.
-	if s.insufficientPlatformCredits(ctx, wsID, "platform") {
-		return c.JSON(http.StatusPaymentRequired, errInsufficientCredits)
-	}
-
-	requestJSON, err := json.Marshal(req)
+	job, status, err := s.enqueueContextScan(ctx, wsID, c.Param("ws"), req)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	job := &jobs.ContextScanJob{
-		ID:            id.New(),
-		WorkspaceID:   wsID,
-		WorkspaceSlug: c.Param("ws"),
-		Status:        jobs.ContextScanStatusQueued,
-		Request:       requestJSON,
-	}
-	if err := s.ContextScanStore.CreateContextScanJob(ctx, job); err != nil {
+		if status == http.StatusPaymentRequired {
+			return c.JSON(status, errInsufficientCredits)
+		}
+		if status == http.StatusBadRequest {
+			return c.JSON(status, ErrorResponse{Error: err.Error()})
+		}
 		return serverErr(c, err)
-	}
-	if err := s.ContextScanQueue.Enqueue(ctx, job.ID); err != nil {
-		// Roll back the job record so no orphaned queued row lingers.
-		_ = s.ContextScanStore.DeleteContextScanJob(ctx, job.ID)
-		return serverErr(c, fmt.Errorf("enqueue failed: %w", err))
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{
@@ -601,4 +586,36 @@ func formatPoint(at map[string]string) string {
 		parts = append(parts, axis+"="+at[axis])
 	}
 	return strings.Join(parts, ",")
+}
+
+// enqueueContextScan files a context scan job and queues it, answering the
+// HTTP status for a refusal: 402 when the workspace has no spendable platform
+// credits (scans always run on the platform key, and deduction is post-hoc).
+func (s *Server) enqueueContextScan(ctx context.Context, wsID, wsSlug string, req jobs.ContextScanRequest) (*jobs.ContextScanJob, int, error) {
+	if s.ContextScanStore == nil || s.ContextScanQueue == nil {
+		return nil, http.StatusServiceUnavailable, errors.New("context scan system not configured")
+	}
+	if s.insufficientPlatformCredits(ctx, wsID, "platform") {
+		return nil, http.StatusPaymentRequired, errors.New(errInsufficientCredits.Error)
+	}
+	requestJSON, err := json.Marshal(req)
+	if err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+	job := &jobs.ContextScanJob{
+		ID:            id.New(),
+		WorkspaceID:   wsID,
+		WorkspaceSlug: wsSlug,
+		Status:        jobs.ContextScanStatusQueued,
+		Request:       requestJSON,
+	}
+	if err := s.ContextScanStore.CreateContextScanJob(ctx, job); err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	if err := s.ContextScanQueue.Enqueue(ctx, job.ID); err != nil {
+		// Roll back the job record so no orphaned queued row lingers.
+		_ = s.ContextScanStore.DeleteContextScanJob(ctx, job.ID)
+		return nil, http.StatusInternalServerError, fmt.Errorf("enqueue failed: %w", err)
+	}
+	return job, http.StatusAccepted, nil
 }

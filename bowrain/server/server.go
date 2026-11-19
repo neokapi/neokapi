@@ -1951,6 +1951,8 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/review/plan", s.HandleGetReviewPlan)
 	g.PUT("/:id/review/plan/involvement", s.refuseTool(s.HandlePutReviewInvolvement))
 	g.POST("/:id/review/plan/coordinates", s.refuseTool(s.HandleConfirmReviewCoordinates))
+	g.POST("/:id/review/plan/settle", s.refuseTool(s.HandleSettleReviewPlan))
+	g.POST("/:id/review/plan/scan", s.refuseTool(s.HandleStartReviewPlanScan), aiLimit, billing.QuotaGuard(s.BillingStore))
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.POST("/:id/revert", s.HandleRevertBatch)

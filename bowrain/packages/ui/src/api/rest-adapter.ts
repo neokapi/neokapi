@@ -1847,6 +1847,23 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
+  async settleReviewPlan(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<{ approved: number; first_pass: boolean }> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/settle`, {
+      method: "POST",
+      body: JSON.stringify({ stream }),
+    });
+  }
+
+  async startReviewPlanScan(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/scan`, {
+      method: "POST",
+    });
+  }
+
   async createSourceProposal(
     workspaceSlug: string,
     projectId: string,

@@ -10,6 +10,8 @@ import type { Run } from "@neokapi/kapi-format";
 
 import {
   planFromServer,
+  planScanFromServer,
+  type PlanScan,
   type ReviewInvolvement,
   type ReviewPlan,
   type ServerReviewPlan,
@@ -178,13 +180,15 @@ export interface BowrainClient {
   deckCollections(scope: ProjectScope, locale: string): Promise<DeckCollections | null>;
   /**
    * A language's review deck by page: each component and each document with
-   * its waiting count. `collection` narrows it to one collection. Null from a
-   * server without the route.
+   * its waiting count. `collection` narrows it to one collection; `sample`
+   * keeps the pages a reviewer reads under the involvement Context (one page
+   * in ten per collection, and every page with a failing finding). Null from
+   * a server without the route.
    */
   deckPages(
     scope: ProjectScope,
     locale: string,
-    opts?: { collection?: string },
+    opts?: { collection?: string; sample?: boolean },
   ): Promise<DeckPages | null>;
   reviewContext(scope: ProjectScope, blockId: string, locale: string): Promise<ReviewContext>;
   /** The block's container: its component, its section, or the blocks around it. */
@@ -199,6 +203,17 @@ export interface BowrainClient {
   confirmCoordinates(scope: ProjectScope): Promise<void>;
   /** Sets how much the project's reviewers can be involved. */
   setInvolvement(scope: ProjectScope, involvement: ReviewInvolvement): Promise<void>;
+  /**
+   * The plan's last step: establishes every waiting translation that clears
+   * every bar, recorded with the reason "review policy". The server refuses
+   * (409) once the first pass is taken and the key language is still open.
+   */
+  settlePlan(
+    scope: ProjectScope,
+    locales: string[],
+  ): Promise<{ approved: number; skipped: number; firstPass: boolean }>;
+  /** Starts a scan of the project for candidate terms. */
+  startTermScan(scope: ProjectScope): Promise<PlanScan>;
   /** Establishes every waiting translation that clears every bar, in the languages given. */
   approvePassing(
     scope: ProjectScope,
@@ -479,7 +494,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         const body = await get<ServerDeckPages>(
           `/${enc(scope.workspace)}/${enc(scope.project)}/review-deck/${stream(scope)}/pages${query({ locale })}${
             o.collection === undefined ? "" : `&collection=${enc(o.collection)}`
-          }`,
+          }${o.sample ? "&sample=true" : ""}`,
         );
         return deckPagesFromServer(body, locale);
       } catch (err) {
@@ -530,6 +545,27 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         method: "PUT",
         body: JSON.stringify({ involvement }),
       });
+    },
+
+    async settlePlan(scope, locales) {
+      const { body } = await send(
+        `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan/settle`,
+        { method: "POST", body: JSON.stringify({ stream: scope.stream, locales }) },
+      );
+      const r = body as { approved?: number; skipped?: number; first_pass?: boolean } | undefined;
+      return {
+        approved: r?.approved ?? 0,
+        skipped: r?.skipped ?? 0,
+        firstPass: r?.first_pass ?? false,
+      };
+    },
+
+    async startTermScan(scope) {
+      const { body } = await send(
+        `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan/scan`,
+        { method: "POST" },
+      );
+      return planScanFromServer((body as { scan: Parameters<typeof planScanFromServer>[0] }).scan);
     },
 
     async approvePassing(scope, locales) {
@@ -842,6 +878,7 @@ interface ServerDeckPages {
     collection_id?: string;
     component?: string;
     waiting: number;
+    findings?: number;
     first_block_id: string;
   }[];
   waiting?: number;
@@ -856,6 +893,7 @@ export function deckPagesFromServer(body: ServerDeckPages, locale: string): Deck
     collectionId: p.collection_id ?? "",
     component: p.component || undefined,
     waiting: p.waiting,
+    findings: p.findings ?? 0,
     firstBlockId: p.first_block_id,
   }));
   return {

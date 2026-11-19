@@ -96,8 +96,13 @@ export default function DeckScreen() {
     locale: string;
     collection?: string;
     name?: string;
+    sample?: string;
   }>();
   const { ws, project, locale } = params;
+  // The review plan opens the deck on the interface sample under the
+  // involvement Context: one page in ten per channel, and every page with a
+  // failing finding.
+  const sample = params.sample === "true";
   const collection = collectionFromParam(params.collection);
   const collectionName =
     collection === undefined ? undefined : params.name || t("collections.none");
@@ -115,8 +120,8 @@ export default function DeckScreen() {
 
   // The deck by page, which the screen opens on when the server has it.
   const pages = useQuery({
-    queryKey: ["deck-pages", ws, project, locale, collection ?? null],
-    queryFn: () => client.deckPages(scope, locale, { collection }),
+    queryKey: ["deck-pages", ws, project, locale, collection ?? null, sample],
+    queryFn: () => client.deckPages(scope, locale, { collection, sample }),
   });
   const refetchPages = pages.refetch;
   useFocusEffect(
@@ -367,6 +372,11 @@ export default function DeckScreen() {
       ) : null}
       {mode === "pages" && pages.data ? (
         <View className="flex-1 px-5 pt-3">
+          {sample ? (
+            <Text testID="deck-sample" className="text-muted-foreground pb-3 text-sm leading-5">
+              {t("deck.sample")}
+            </Text>
+          ) : null}
           <PagesList pages={pages.data} onOpen={openPage} />
         </View>
       ) : null}
