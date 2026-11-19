@@ -12,7 +12,7 @@ import (
 
 // QuotaStore tracks AI token usage per workspace and project.
 //
-// Accounting model (Epic 004 — hybrid AI providers and credits):
+// Accounting model (Epic 004, hybrid AI providers and credits):
 //
 //   - Credits (bowrain/billing) are the single user-facing ledger. The weekly
 //     plan allowance + purchased top-up packs are what a workspace spends, sees,
@@ -23,8 +23,8 @@ import (
 //     enforces a hard monthly token ceiling (DefaultMonthlyQuota) to bound
 //     runaway or abusive usage. It is never surfaced as the spendable balance.
 //
-// Keep recording usage for BOTH platform and BYO calls — the abuse cap must see
-// all traffic — while credit deduction is gated to platform-key calls only.
+// Keep recording usage for BOTH platform and BYO calls, the abuse cap must see
+// all traffic, while credit deduction is gated to platform-key calls only.
 type QuotaStore interface {
 	// CheckQuota returns the remaining tokens for a workspace (across all models).
 	// Returns (remaining, error). A negative remaining means over quota.
@@ -60,7 +60,7 @@ type UsageSummary struct {
 }
 
 // DefaultMonthlyQuota is the default monthly token ceiling per workspace. This
-// is an INTERNAL ABUSE CAP, not the product ledger — credits (bowrain/billing)
+// is an INTERNAL ABUSE CAP, not the product ledger, credits (bowrain/billing)
 // are the user-facing spend unit (Epic 004). It exists only to bound runaway or
 // abusive token usage (including on bring-your-own keys, which burn no credits);
 // it is deliberately set far above any normal weekly credit allowance so it
@@ -70,7 +70,7 @@ const DefaultMonthlyQuota int64 = 10_000_000 // 10M tokens/month (abuse ceiling)
 // QuotaMigrations is the AI-usage tracking schema as a single consolidated
 // baseline.
 //
-// LEDGER — every version this subsystem has ever issued, now folded in:
+// LEDGER, every version this subsystem has ever issued, now folded in:
 //
 //	1  create ai_usage table
 //	2  add operation column to ai_usage
@@ -78,7 +78,7 @@ const DefaultMonthlyQuota int64 = 10_000_000 // 10M tokens/month (abuse ceiling)
 //
 // CREATE includes the operation and workspace_id columns from versions 2 and 3.
 //
-// Baseline is version 4 — above every number issued, so an existing database
+// Baseline is version 4, above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
 // repaired. Retired numbers are never reused; the next migration is version 5.
 var QuotaMigrations = []storage.Migration{
@@ -257,11 +257,11 @@ type RunnerUsageRecord struct {
 // baseline. It carries its own ledger, separate from QuotaMigrations, so
 // runner accounting could be added without renumbering the quota history.
 //
-// LEDGER — every version this subsystem has ever issued, now folded in:
+// LEDGER, every version this subsystem has ever issued, now folded in:
 //
 //	1  create runner_usage table
 //
-// Baseline is version 2 — above every number issued, so an existing database
+// Baseline is version 2, above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
 // repaired. Retired numbers are never reused; the next migration is version 3.
 var RunnerMigrations = []storage.Migration{
@@ -338,6 +338,18 @@ func (s *QuotaStoreDB) GetRunnerUsage(ctx context.Context, workspaceID string, f
 
 // currentPeriodStart returns the start of the current billing month (1st of month, UTC).
 func currentPeriodStart() time.Time {
-	now := time.Now().UTC()
-	return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	return periodStart(time.Now())
+}
+
+// periodStart is the start of the quota month holding t: the 1st, UTC.
+func periodStart(t time.Time) time.Time {
+	t = t.UTC()
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+}
+
+// QuotaResetsAt is when the monthly quota in force at now starts over: the
+// 1st of the next month, UTC. A workspace over its limit can run AI work
+// again from then.
+func QuotaResetsAt(now time.Time) time.Time {
+	return periodStart(now).AddDate(0, 1, 0)
 }

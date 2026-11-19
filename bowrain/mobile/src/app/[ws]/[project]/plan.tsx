@@ -5,7 +5,6 @@
 // hold until the key language is decided. The involvement setting lives on
 // the project's review languages screen.
 import {
-  ApiError,
   planRuleLabel,
   type PlanLevel,
   type PlanRule,
@@ -15,10 +14,11 @@ import {
 } from "@neokapi/bowrain-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
+import { keyScanFact } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
 import { reviewPlanKey } from "../../../lib/plan";
@@ -194,15 +194,8 @@ export default function ReviewPlanScreen() {
     queryKey: reviewPlanKey(ws, project),
     queryFn: () => client.reviewPlan(scope),
   });
-  const perms = useQuery({
-    queryKey: ["permissions", ws, project],
-    queryFn: () => client.permissions(ws, project),
-  });
-  const mayScan = perms.data?.permissions.includes("manage_voice") ?? false;
   const refresh = () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
 
-  // A scan the server refused for want of AI credits, shown in the step.
-  const [noCredits, setNoCredits] = useState(false);
   const settle = useMutation({
     mutationFn: (locales: string[]) => client.settlePlan(scope, locales),
     onSuccess: (r) => {
@@ -215,17 +208,6 @@ export default function ReviewPlanScreen() {
       refresh();
     },
     onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
-  });
-  const scan = useMutation({
-    mutationFn: () => client.startTermScan(scope),
-    onSuccess: () => {
-      setNoCredits(false);
-      refresh();
-    },
-    onError: (e: Error) => {
-      if (e instanceof ApiError && e.status === 402) setNoCredits(true);
-      else Alert.alert(t("plan.failed"), e.message);
-    },
   });
 
   if (!plan.data) {
@@ -254,8 +236,6 @@ export default function ReviewPlanScreen() {
       pathname: "/[ws]/[project]/[locale]",
       params: { ws, project, locale, rule: r.key, ruleName: planRuleLabel(r) },
     });
-  const scanState = p.keyLanguage.scan?.status;
-  const scanning = scanState === "queued" || scanState === "processing";
   const settleNow = p.policy.settle === "first_pass" || p.policy.settle === "policy";
 
   const fact = (s: PlanStep): string => {
@@ -270,11 +250,10 @@ export default function ReviewPlanScreen() {
           : t("plan.coordinates.confirmed");
       case "key_language":
         if (s.state === "not_started") {
-          if (scanning)
-            return t("plan.key.scanning", { progress: p.keyLanguage.scan?.progress ?? 0 });
-          if (noCredits) return t("plan.key.noCredits");
-          if (scanState === "failed") return t("plan.key.scanFailed");
-          return t("plan.key.notStarted");
+          return keyScanFact(s.scan, t, i18n.language, {
+            progress: p.keyLanguage.scan?.progress,
+            quotaResetsAt: s.quotaResetsAt ?? p.keyLanguage.quotaResetsAt,
+          });
         }
         if (s.state === "open") return t("plan.key.open_count", { count: s.count });
         return t("plan.key.concepts", { count: p.keyLanguage.concepts });
@@ -322,20 +301,6 @@ export default function ReviewPlanScreen() {
               label={t("plan.key.open")}
               onPress={() =>
                 router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
-              }
-            />
-          );
-        }
-        if (stepOf(p, "key_language").state === "not_started" && mayScan && !scanning) {
-          return (
-            <Action
-              testID="plan-scan"
-              label={t("plan.key.scan")}
-              onPress={() =>
-                Alert.alert(t("plan.key.scan"), t("plan.key.scanBody"), [
-                  { text: t("common.cancel"), style: "cancel" },
-                  { text: t("plan.key.scanStart"), onPress: () => scan.mutate() },
-                ])
               }
             />
           );

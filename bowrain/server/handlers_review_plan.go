@@ -51,8 +51,8 @@ const (
 	// for the key language.
 	propFirstPassBy = "review_first_pass_by"
 	propFirstPassAt = "review_first_pass_at"
-	// propTermScanJob is the last context scan started for the project from
-	// the review plan.
+	// propTermScanJob is the last term scan started for the project, by a
+	// push or from the review plan.
 	propTermScanJob = "review_term_scan_job"
 )
 
@@ -178,9 +178,16 @@ type planKeyLanguageDTO struct {
 	// term and no usable term in that language, leaving out the ones marked
 	// do-not-translate. Each is a decision to make.
 	Untranslated map[string]int `json:"untranslated"`
-	// Scan is the last project scan for candidate terms started from the
-	// plan, if any.
+	// Scan is the project's last scan for candidate terms, started by a push
+	// or from the plan, if any.
 	Scan *planScanDTO `json:"scan,omitempty"`
+	// ScanWaiting is why no scan runs while the key language has not
+	// started: waiting_content, waiting_push, waiting_quota, waiting_credits
+	// or no_ai.
+	ScanWaiting string `json:"scan_waiting,omitempty"`
+	// QuotaResetsAt is when the workspace's monthly AI limit resets, set
+	// with waiting_quota.
+	QuotaResetsAt string `json:"quota_resets_at,omitempty"`
 }
 
 // planScanDTO is a project scan's state.
@@ -325,6 +332,7 @@ func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, 
 		return out, err
 	}
 	out.KeyLanguage.Scan = s.planScan(ctx, proj, ws.ID)
+	s.planScanWaiting(ctx, ws.ID, ws.Slug, proj, &out.KeyLanguage)
 	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.KeyLanguage.Untranslated); err != nil {
 		return out, err
 	}
@@ -340,7 +348,7 @@ func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, 
 	return out, nil
 }
 
-// planScan reads the state of the last project scan the plan started.
+// planScan reads the state of the project's last term scan.
 func (s *Server) planScan(ctx context.Context, proj *platstore.Project, wsID string) *planScanDTO {
 	id := proj.Properties[propTermScanJob]
 	if id == "" || s.ContextScanStore == nil {
@@ -758,9 +766,11 @@ type reviewPlanScanResponse struct {
 }
 
 // HandleStartReviewPlanScan answers POST /:ws/:id/review/plan/scan: it
-// starts a context scan of the project, which files the project's candidate
-// terms in the context deck, and records it so the plan shows its state. It
-// needs the permission to manage voice profiles, as any context scan does.
+// scans the project again, which files the project's candidate terms in the
+// context deck, and records it so the plan shows its state. A push starts
+// the scan on its own (review_plan_autoscan.go); this route is for a person
+// who wants a fresh one. It needs the permission to manage voice profiles,
+// as any context scan does.
 func (s *Server) HandleStartReviewPlanScan(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
@@ -777,11 +787,14 @@ func (s *Server) HandleStartReviewPlanScan(c echo.Context) error {
 	if prev := s.planScan(ctx, proj, wsID); prev != nil && scanRunning(prev.Status) {
 		return c.JSON(http.StatusOK, reviewPlanScanResponse{Scan: *prev})
 	}
-	job, status, err := s.enqueueContextScan(ctx, wsID, c.Param("ws"), jobs.ContextScanRequest{Project: proj.ID})
-	if err != nil {
+	if proj.WorkspaceID != wsID {
+		return apiErr(c, http.StatusNotFound, errNoProject.Error())
+	}
+	job, status, err := s.startProjectTermScan(ctx, proj, c.Param("ws"), nil)
+	if err != nil && job == nil {
 		return apiErr(c, status, err.Error())
 	}
-	if err := s.updatePlanProperties(ctx, proj.ID, map[string]string{propTermScanJob: job.ID}); err != nil {
+	if err != nil {
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusAccepted, reviewPlanScanResponse{Scan: planScanDTO{

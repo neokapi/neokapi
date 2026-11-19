@@ -142,6 +142,41 @@ describe("planFromServer", () => {
     ]);
     expect(plan.steps[1]?.scan).toBe("failed");
   });
+
+  it("maps why the term scan waits", () => {
+    const plan = planFromServer({
+      ...server,
+      key_language: {
+        ...server.key_language,
+        scan_waiting: "waiting_quota",
+        quota_resets_at: "2026-12-01T00:00:00Z",
+      },
+      steps: [
+        {
+          level: "key_language",
+          state: "not_started",
+          count: 0,
+          progress: 0,
+          scan: "waiting_quota",
+          quota_resets_at: "2026-12-01T00:00:00Z",
+        },
+      ],
+    });
+    expect(plan.keyLanguage.scanWaiting).toBe("waiting_quota");
+    expect(plan.keyLanguage.quotaResetsAt).toBe("2026-12-01T00:00:00Z");
+    expect(plan.steps[0]).toMatchObject({
+      scan: "waiting_quota",
+      quotaResetsAt: "2026-12-01T00:00:00Z",
+    });
+
+    const unknown = planFromServer({
+      ...server,
+      key_language: { ...server.key_language, scan_waiting: "waiting_for_godot" },
+      steps: [{ level: "key_language", state: "not_started", scan: "waiting_for_godot" }],
+    });
+    expect(unknown.keyLanguage.scanWaiting).toBeUndefined();
+    expect(unknown.steps[0]?.scan).toBeUndefined();
+  });
 });
 
 describe("planProducts", () => {

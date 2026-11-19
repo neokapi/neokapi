@@ -120,13 +120,44 @@ export interface PlanLanguage {
  */
 export type PlanSettle = "first_pass" | "policy" | "held" | "none";
 
-/** A project scan for candidate terms, started from the plan. */
+/** A project scan for candidate terms, started by a push or from the plan. */
 export interface PlanScan {
   id: string;
   status: "queued" | "processing" | "completed" | "failed";
   progress: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Why the term scan waits instead of running, while the key language has not
+ * started. A push starts the scan on its own once nothing holds it back.
+ * waiting_content: the project holds no source text yet. waiting_push: it
+ * holds text and has had no scan; the next push starts one. waiting_quota:
+ * the workspace used its monthly AI limit, which resets at `quotaResetsAt`.
+ * waiting_credits: the workspace has no AI credits left. no_ai: the platform
+ * has no AI provider configured.
+ */
+export type PlanScanWaiting =
+  | "waiting_content"
+  | "waiting_push"
+  | "waiting_quota"
+  | "waiting_credits"
+  | "no_ai";
+
+export const PLAN_SCAN_WAITING: readonly PlanScanWaiting[] = [
+  "waiting_content",
+  "waiting_push",
+  "waiting_quota",
+  "waiting_credits",
+  "no_ai",
+];
+
+/** A scan waiting reason the server sent, or undefined for one this client does not know. */
+export function planScanWaitingOf(v: string | undefined): PlanScanWaiting | undefined {
+  return (PLAN_SCAN_WAITING as readonly string[]).includes(v ?? "")
+    ? (v as PlanScanWaiting)
+    : undefined;
 }
 
 export interface ReviewPlan {
@@ -145,6 +176,10 @@ export interface ReviewPlan {
     untranslated: Record<string, number>;
     /** The last project scan for candidate terms, if one was started. */
     scan?: PlanScan;
+    /** Why no scan runs, while the key language has not started. */
+    scanWaiting?: PlanScanWaiting;
+    /** When the workspace's monthly AI limit resets, set with waiting_quota. */
+    quotaResetsAt?: string;
   };
   exceptions: {
     /** Findings in the source at the last project-wide check; null before one. */
@@ -227,6 +262,8 @@ export interface ServerReviewPlan {
     concepts: number;
     untranslated?: Record<string, number> | null;
     scan?: ServerPlanScan | null;
+    scan_waiting?: string;
+    quota_resets_at?: string;
   };
   exceptions: {
     source_findings?: number | null;
@@ -372,6 +409,8 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
       concepts: p.key_language.concepts,
       untranslated: p.key_language.untranslated ?? {},
       scan: p.key_language.scan ? planScanFromServer(p.key_language.scan) : undefined,
+      scanWaiting: planScanWaitingOf(p.key_language.scan_waiting),
+      quotaResetsAt: p.key_language.quota_resets_at || undefined,
     },
     exceptions: {
       sourceFindings: p.exceptions.source_findings ?? null,
