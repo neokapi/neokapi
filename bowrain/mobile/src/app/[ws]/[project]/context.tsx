@@ -1,13 +1,10 @@
 // A context session over a project's context deck. The server deals up to
-// ten cards from the project's one queue, widest reach first, and holds them
-// for this person while the session runs, so nobody else decides the same
-// cards. The session opens with what changed since the team's last session,
-// then one card at a time: right keeps a card, left retires it after a
-// confirmation, up puts it at the end. A proposed translation can also be
-// edited, then kept in the reviewer's wording. When every card is decided or
-// put off, the session ends and the summary says what it moved. Leaving the
-// screen or sending the app to the background ends the session too, which
-// releases its cards; the server's expiry covers a crash.
+// ten cards and holds them for this person while the session runs. It opens
+// with what changed since the team's last session. Right keeps a card, left
+// retires it after a confirmation, up puts it at the end, and a proposed
+// translation can be edited before it is kept. Once every card is decided or
+// put off, the summary says what the session moved. Leaving the screen or
+// backgrounding the app ends the session and releases its cards.
 import type {
   ContextCard as Card,
   ContextDecision,

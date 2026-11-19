@@ -25,7 +25,7 @@ func sessionClock(t *testing.T, at time.Time) *time.Time {
 	return &clock
 }
 
-// fileCandidateAt files a candidate term as a scan running at at would.
+// fileCandidateAt files a candidate term as a scan running at the time given would.
 func fileCandidateAt(t *testing.T, tb terms.Terminology, pid, term string, blocks int, at time.Time) string {
 	t.Helper()
 	res, err := termcandidate.File(t.Context(), tb, pid, "en", []termcandidate.Candidate{{

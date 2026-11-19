@@ -263,18 +263,10 @@ func (s *Server) HandleContextDeckOrigin(c echo.Context) error {
 }
 
 // HandleContextDeckDecide answers POST /:ws/:id/context/deck/decide: one
-// decision about one card. Keep records an attestation of the revision the
-// card showed, and for a suggestion keeps it first. Keep on a candidate term
-// makes its proposed term preferred, attests the concept as it then reads,
-// and starts proposing its term in each target language. Keep on a
-// term-translation card adds the proposed term, or the reviewer's wording
-// in text, to the concept. Reject drops a term rule or a note from the ledger, deletes a
-// candidate term and records that it is not one, and proposes a change set
-// that deprecates the terms of any other concept. Later records nothing. A revision that has moved since the
-// card was dealt answers 409 stale with the card as it reads now. A card
-// another person's live session holds answers 409 held; a decision about a
-// card the caller's own session holds is recorded in that session and
-// releases the card.
+// decision about one card (decideContextCard says what each action does). A
+// card another person's live session holds answers 409 held. A decision
+// about a card the caller's own session holds is recorded in that session
+// and releases the card.
 func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 	var req contextDeckDecideRequest
 	if err := c.Bind(&req); err != nil {
@@ -308,7 +300,16 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 	return nil
 }
 
-// decideContextCard is HandleContextDeckDecide's decision itself.
+// decideContextCard makes one decision about one card. Keep records an
+// attestation of the revision the card showed, and for a suggestion keeps it
+// first. Keep on a candidate term makes its proposed term preferred, attests
+// the concept as it then reads, and starts proposing its term in each target
+// language. Keep on a term-translation card adds the proposed term, or the
+// reviewer's wording in text, to the concept. Reject drops a term rule or a
+// note from the ledger. It deletes a candidate term and records that it is
+// not one, and proposes a change set that deprecates the terms of any other
+// concept. Later records nothing. A revision that has moved since the card
+// was dealt answers 409 stale with the card as it reads now.
 func (s *Server) decideContextCard(c echo.Context, req contextDeckDecideRequest) error {
 	if req.Action == deckActionLater {
 		return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckActionLater})

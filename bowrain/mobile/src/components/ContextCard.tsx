@@ -1,7 +1,8 @@
-// One context item as a card in the context deck: its kind, language and
-// status as chips, the rule, term, proposed translation of a term, voice rule
-// or note itself, how many blocks a proposed term reaches, where it applies,
-// who wrote it, and the bulk operation that brought it in. Dealt in a
+// One context item as a card in the context deck. Chips show its kind,
+// language and status. The body shows the rule, term, proposed translation,
+// voice rule or note itself. Below it come how many blocks a proposed term
+// reaches, where it applies, who wrote it, and the bulk operation that
+// brought it in. Dealt in a
 // session, it also shows its reach as a bar against the widest term in the
 // session, the channels it appears in and the target terms proposed for it.
 // The server decides every field; the card only lays them out.
