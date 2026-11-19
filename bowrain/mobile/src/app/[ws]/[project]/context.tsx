@@ -1,15 +1,17 @@
-// The context deck of a project: the voice rules, terms, term rules and notes
-// nobody has reviewed at their current revision, one card at a time. Right
-// keeps a card (an attestation on the server), left retires it after a
-// confirmation, up puts it at the end. The server says which actions each
-// card offers and what each one does.
+// The context deck of a project: the voice rules, terms, proposed
+// translations of terms, term rules and notes nobody has reviewed at their
+// current revision, one card at a time. Right keeps a card (an attestation on
+// the server), left retires it after a confirmation, up puts it at the end. A
+// proposed translation can also be edited, then kept in the reviewer's
+// wording. The server says which actions each card offers and what each one
+// does.
 import type { ContextCard as Card, ContextDecision } from "@neokapi/bowrain-client";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
@@ -27,6 +29,7 @@ import {
 import { useAuth } from "../../../lib/auth";
 import {
   contextCardId,
+  contextCopyPrefix,
   contextDeckView,
   mergeContextPages,
   refusalCode,
@@ -95,9 +98,9 @@ export default function ContextDeckScreen() {
   });
 
   const record = useCallback(
-    (card: Card, action: "keep" | "reject") => {
+    (card: Card, action: "keep" | "reject", text?: string) => {
       setDecided((ids) => [...ids, contextCardId(card)]);
-      decide.mutate({ item: card.item, revision: card.revision, action });
+      decide.mutate({ item: card.item, revision: card.revision, action, text });
       if (action === "keep")
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       else void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -106,10 +109,10 @@ export default function ContextDeckScreen() {
   );
 
   // A proposed term's actions say what they do to it: keep makes it a term
-  // of the project, and retire records that it is not one.
-  const proposed = top?.proposed ?? false;
+  // of the project, and retire records that it is not one. A proposed
+  // translation's keep adds the term in its language.
+  const prefix = contextCopyPrefix(top);
   const copy = useMemo(() => {
-    const prefix = proposed ? "context.candidate" : "context";
     return {
       keep: t(`${prefix}.keep`),
       keepHint: t(`${prefix}.keepHint`),
@@ -117,7 +120,18 @@ export default function ContextDeckScreen() {
       retireHint: t(`${prefix}.retireHint`),
       retireTitle: t(`${prefix}.retireTitle`),
     };
-  }, [proposed, t]);
+  }, [prefix, t]);
+
+  // The reviewer's own wording for a proposed translation, while they edit it.
+  // It is held against the card it was written for, so the next card opens
+  // with none.
+  const [edit, setEdit] = useState<{ id: string; text: string } | null>(null);
+  const topId = top ? contextCardId(top) : "";
+  const wording = edit && edit.id === topId ? edit.text : null;
+  const setWording = useCallback(
+    (text: string | null) => setEdit(text === null ? null : { id: topId, text }),
+    [topId],
+  );
 
   const onAction = useCallback(
     (action: SwipeAction) => {
@@ -239,6 +253,15 @@ export default function ContextDeckScreen() {
         onClose={() => setOriginOf(null)}
       />
 
+      {top?.translation && canKeep ? (
+        <TranslationEdit
+          wording={wording}
+          proposed={top.translation.proposed}
+          onEdit={setWording}
+          onKeep={(text) => record(top, "keep", text)}
+        />
+      ) : null}
+
       {top ? (
         <ActionBar
           canApprove={canKeep}
@@ -260,6 +283,70 @@ export default function ContextDeckScreen() {
         />
       ) : null}
     </SafeAreaView>
+  );
+}
+
+/**
+ * Edit, then keep: the reviewer writes the term in their own words and keeps
+ * that instead of the proposal.
+ */
+function TranslationEdit({
+  wording,
+  proposed,
+  onEdit,
+  onKeep,
+}: {
+  wording: string | null;
+  proposed: string;
+  onEdit: (text: string | null) => void;
+  onKeep: (text: string) => void;
+}) {
+  const { t } = useTranslation();
+  if (wording === null) {
+    return (
+      <Pressable
+        testID="context-translation-edit"
+        accessibilityRole="button"
+        accessibilityHint={t("context.translation.editHint")}
+        onPress={() => onEdit(proposed)}
+        hitSlop={8}
+        className="self-center px-4 pb-2 active:opacity-70"
+      >
+        <Text className="text-primary text-sm font-medium">{t("context.translation.edit")}</Text>
+      </Pressable>
+    );
+  }
+  const text = wording.trim();
+  return (
+    <View className="gap-2 px-5 pb-2">
+      <TextInput
+        testID="context-translation-input"
+        accessibilityLabel={t("context.translation.editLabel")}
+        value={wording}
+        onChangeText={onEdit}
+        autoFocus
+        autoCapitalize="none"
+        autoCorrect={false}
+        className="bg-muted text-foreground rounded-xl px-3 py-2 text-base"
+      />
+      <View className="flex-row justify-end gap-4">
+        <Pressable accessibilityRole="button" onPress={() => onEdit(null)} hitSlop={8}>
+          <Text className="text-muted-foreground text-sm font-medium">{t("common.cancel")}</Text>
+        </Pressable>
+        <Pressable
+          testID="context-translation-save"
+          accessibilityRole="button"
+          disabled={text === ""}
+          onPress={() => onKeep(text)}
+          hitSlop={8}
+          className={text === "" ? "opacity-50" : "active:opacity-70"}
+        >
+          <Text className="text-primary text-sm font-semibold">
+            {t("context.translation.save")}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 

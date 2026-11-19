@@ -59,6 +59,9 @@ type ContextScanRequest struct {
 	// samples every collection of it, extracts candidate terms in its source
 	// language and files them as proposed concepts of the project.
 	Project string `json:"project,omitempty"`
+	// TermProposals, set, makes the job propose target-language terms for
+	// the concepts of Project instead of scanning it (executeTermProposals).
+	TermProposals *TermProposalRequest `json:"term_proposals,omitempty"`
 }
 
 // HasSource reports whether the request names at least one scan source.
@@ -125,6 +128,8 @@ type ContextScanResult struct {
 	Artefacts []ArtefactProposal   `json:"artefacts"`
 	Sources   []ContextScanSource  `json:"sources"`
 	Truncated bool                 `json:"truncated"`
+	// TermProposals is what a term-proposal job did, for a job that was one.
+	TermProposals *TermProposalSummary `json:"term_proposals,omitempty"`
 }
 
 // Voice returns the first proposed voice profile and its evidence — what a

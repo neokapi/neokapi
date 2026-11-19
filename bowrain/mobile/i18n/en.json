@@ -117,6 +117,7 @@
     "kind": {
       "voice_rule": "Voice rule",
       "concept": "Term",
+      "term_translation": "Proposed translation",
       "term_rule": "Term rule",
       "note": "Note"
     },
@@ -176,6 +177,19 @@
       "retire": "Not a term",
       "retireHint": "Removes the proposal, and later scans skip it. Same as swiping left.",
       "retireTitle": "Not a term?"
+    },
+    "translation": {
+      "source": "Source term",
+      "proposed": "Proposed term",
+      "keep": "Keep",
+      "keepHint": "Adds this term to the concept in this language. Same as swiping right.",
+      "edit": "Edit",
+      "editHint": "Change the wording before you keep it.",
+      "editLabel": "Your wording",
+      "save": "Keep your wording",
+      "retire": "Not this term",
+      "retireHint": "Removes the proposal, and it is not proposed again. Same as swiping left.",
+      "retireTitle": "Not this term?"
     },
     "unbound": "Push this project from kapi before you keep items.",
     "outcome": {

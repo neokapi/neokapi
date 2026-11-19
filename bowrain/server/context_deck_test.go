@@ -36,6 +36,14 @@ func deckSQLiteServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitest
 // terms store the deck reads.
 func deckSQLiteServerWithTerms(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQLiteStore, *fakeKnowledgeStore, *testTermStore) {
 	t.Helper()
+	e, cs, ks, tb, _ := deckServer(t, caller)
+	return e, cs, ks, tb
+}
+
+// deckServer is deckSQLiteServerWithTerms that also returns the server, for
+// a test that wires more onto it.
+func deckServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQLiteStore, *fakeKnowledgeStore, *testTermStore, *Server) {
+	t.Helper()
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = cs.Close() })
@@ -60,13 +68,17 @@ func deckSQLiteServerWithTerms(t *testing.T, caller *decideCaller) (*echo.Echo, 
 			c.Set("workspace_id", "ws")
 			c.Set("project_permissions", caller.perms)
 			c.Set("project_coordinates", caller.reach)
+			if caller.languages != nil {
+				c.Set("project_languages", caller.languages)
+			}
 			return next(c)
 		}
 	})
 	srv.registerContextObjectRoutes(g)
 	srv.registerRulesDecideRoutes(g)
 	srv.registerContextDeckRoutes(g)
-	return e, cs, ks, tb
+	g.POST("/:id/context/term-proposals", srv.HandleProposeTermTranslations)
+	return e, cs, ks, tb, srv
 }
 
 func readContextDeck(t *testing.T, e *echo.Echo, pid, query string) contextDeckResponse {

@@ -39,6 +39,19 @@ export function contextDeckView(
   return [...now, ...putOff];
 }
 
+/**
+ * The i18n prefix of a card's action labels: a proposed translation of a term
+ * and a candidate term each say what keep and reject do to them, and every
+ * other card uses the plain wording.
+ */
+export function contextCopyPrefix(
+  card: Pick<ContextCard, "kind" | "proposed"> | undefined,
+): "context.translation" | "context.candidate" | "context" {
+  if (card?.kind === "term_translation") return "context.translation";
+  if (card?.proposed) return "context.candidate";
+  return "context";
+}
+
 /** The refusal code a failed decision carries, or "failed" when it carries none. */
 export function refusalCode(err: unknown): string {
   const body = (err as { body?: { code?: unknown } } | undefined)?.body;

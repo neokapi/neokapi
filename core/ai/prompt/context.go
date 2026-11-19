@@ -12,6 +12,7 @@ const (
 	IDVoiceCheck      = "voice.check"
 	IDVoiceInfer      = "voice.infer"
 	IDTermForms       = "term.forms"
+	IDTermTranslate   = "term.translate"
 	IDAxisDiscover    = "axis.discover"
 	IDEntityExtract   = "entity.extract"
 	IDTermExtract     = "term.extract"
@@ -38,6 +39,7 @@ func IDs() []string {
 		IDVoiceCheck,
 		IDVoiceInfer,
 		IDTermForms,
+		IDTermTranslate,
 		IDAxisDiscover,
 		IDQualityCheck,
 		IDReview,

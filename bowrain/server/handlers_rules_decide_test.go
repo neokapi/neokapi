@@ -33,6 +33,8 @@ type decideCaller struct {
 	userID string
 	perms  platauth.Permission
 	reach  platauth.CoordinateReach
+	// languages are the languages the caller may review; nil is all.
+	languages []string
 }
 
 // decideSQLiteServer serves the Decide and context object routes over a

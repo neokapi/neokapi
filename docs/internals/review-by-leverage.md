@@ -141,8 +141,9 @@ What this means for a project the size of neokapi:
 - **Nothing ranks by reach or by coordinate.** Scan candidates sit at the
   default point; the context deck orders by kind and time and does not show
   a concept's coordinates.
-- **Nothing proposes a translation.** Target terms arrive by hand or by
-  import; `kapi terms expand` adds forms to terms that already exist.
+- **Translations are proposed only on Bowrain.** A kept term gets a proposed
+  term per target language there; in kapi, target terms arrive by hand or by
+  import, and `kapi terms expand` adds forms to terms that already exist.
 
 The fix, in the order it pays:
 
@@ -266,10 +267,19 @@ The founder accepted each recommendation on 2026-11-19:
 2. The plan on mobile and on the web Overview. Built.
 3. Term candidates: sampling across coordinates, one candidate shape (a
    proposed concept with its reach), keep promotes it to preferred, reject
-   is remembered on the project. Built for the project scan. Still to build:
-   AI-proposed translations of kept terms, dealt to the same reviewer. The
-   plan's key-language step starts a project scan (`POST
-   /:ws/:id/review/plan/scan`) and shows its state.
+   is remembered on the project. Built for the project scan. The plan's
+   key-language step starts a project scan (`POST
+   /:ws/:id/review/plan/scan`) and shows its state. AI-proposed
+   translations of kept terms: built. Keeping a candidate starts a job that
+   proposes the term in each target language (prompt `term.translate`, with
+   the definition and up to three source blocks that use the term); the
+   proposal sits on the concept as the property `term_proposal.<locale>`
+   until a reviewer keeps it, edits it or turns it down
+   (`term_proposal_rejected.<locale>`), and the deck deals it right after
+   the source-term card, in the reviewer's languages.
+   `POST /:ws/:id/context/term-proposals` runs the same job for the whole
+   project. Still to build: the plan's key-language step calling it, and
+   term forms through `kapi terms expand` for a kept translation.
 4. Context deck ordered by reach. Built for candidate terms; the rest of the
    deck keeps its order by kind.
 5. Exceptions grouped by rule. Built: the project-wide check's tally and

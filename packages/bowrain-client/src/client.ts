@@ -28,6 +28,7 @@ import type {
   ContextRuleExamples,
   ContextDecision,
   ContextDecisionResult,
+  TermProposalsResult,
   Deck,
   DeckCard,
   DeckCollections,
@@ -157,6 +158,11 @@ export interface BowrainClient {
     project: string,
     decision: ContextDecision,
   ): Promise<ContextDecisionResult>;
+  /**
+   * Start proposing, with AI, the term each concept of the project takes in
+   * each target language that has none. The proposals arrive in the context deck.
+   */
+  proposeTermTranslations(workspace: string, project: string): Promise<TermProposalsResult>;
   pendingReview(
     scope: ProjectScope,
     opts?: { locales?: string[]; limit?: number; offset?: number },
@@ -442,6 +448,12 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         method: "POST",
         body: JSON.stringify(decision),
       }).then((r) => r.body as ContextDecisionResult);
+    },
+
+    proposeTermTranslations(ws, pid) {
+      return send(`/${enc(ws)}/${enc(pid)}/context/term-proposals`, { method: "POST" }).then(
+        (r) => r.body as TermProposalsResult,
+      );
     },
 
     pendingReview(scope, o = {}) {

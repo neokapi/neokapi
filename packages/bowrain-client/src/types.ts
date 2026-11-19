@@ -94,8 +94,12 @@ export interface ReviewHome {
   languages: ReviewInboxLanguage[];
 }
 
-/** The kinds of card the context deck holds, in the order it deals them. */
-export type ContextCardKind = "voice_rule" | "concept" | "term_rule" | "note";
+/**
+ * The kinds of card the context deck holds. A `term_translation` card
+ * proposes the term a kept concept takes in one target language, and is dealt
+ * right after its concept's card.
+ */
+export type ContextCardKind = "voice_rule" | "concept" | "term_translation" | "term_rule" | "note";
 
 /** What a context card offers. */
 export type ContextAction = "keep" | "reject" | "later";
@@ -105,7 +109,7 @@ export type ContextReviewBasis = "peer" | "agent_authored" | "solo_owner" | "sel
 
 /** The item a context card names, in whichever store holds it. */
 export interface ContextItemRef {
-  kind: "op" | "concept" | "voice_rule";
+  kind: "op" | "concept" | "voice_rule" | "term_proposal";
   id: string;
   profile?: string;
 }
@@ -213,6 +217,29 @@ export interface ContextCard {
   proposed?: boolean;
   /** How many blocks use a candidate term, in all and per collection. */
   reach?: ContextReach;
+  /**
+   * The target term a `term_translation` card proposes for a concept. Keep
+   * adds it, or the reviewer's wording in `ContextDecision.text`, as the
+   * concept's preferred term in `locale`; reject turns it down for good.
+   */
+  translation?: ContextTranslation;
+}
+
+/** A proposed target term: the source term, the term proposed and its language. */
+export interface ContextTranslation {
+  term: string;
+  proposed: string;
+  locale: string;
+}
+
+/**
+ * What a request to propose target terms did (POST .../context/term-proposals):
+ * how many concept and language pairs have no term, and the job proposing them.
+ */
+export interface TermProposalsResult {
+  waiting: number;
+  job_id?: string;
+  status?: string;
 }
 
 /** The blocks that use a candidate term, in all and per collection, most first. */
@@ -254,6 +281,8 @@ export interface ContextDecision {
   revision: string;
   action: ContextAction;
   note?: string;
+  /** The reviewer's own wording for a kept term-translation card. */
+  text?: string;
 }
 
 /** What a context decision did. */

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T09:59:05Z",
+  "generatedAt": "2026-11-19T07:34:42Z",
   "version": "v4",
   "prompts": [
     {
@@ -163,6 +163,33 @@
               "kind": "content",
               "origin": "terms",
               "text": "løsning\nutnytte"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "term.translate",
+      "tool": "term-translate",
+      "summary": "Propose the term a concept takes in a target language, from its source term, definition and sentences that use it, for a person to keep, edit or reject.",
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a terminologist. For each concept below, give the term it takes in Norwegian Bokmål (nb), translated from English (en).\n\nEach concept has an id, its source term, a definition when one is known, sentences from the content that use it, and terms a reviewer has already turned down.\n\nRules:\n- Give the term a careful writer in the target language would use for this concept in this content, in its dictionary form.\n- Read the sentences: they decide which sense of the source term is meant.\n- Keep a product name, a command or a code identifier unchanged when the target language uses it unchanged.\n- Never answer with a term listed as turned down.\n- Answer every id once. Leave the term empty when you cannot tell what it should be; an empty answer is better than a guess.\n- The note is one short sentence on the choice, in English, or empty.\n\nA person reviews each answer before it is used."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "concepts",
+              "text": "[{\"id\":\"c1\",\"term\":\"workspace\",\"definition\":\"\u003cwhat the term means\u003e\",\"examples\":[\"\u003ca sentence that uses it\u003e\"],\"turned_down\":[]}]"
             }
           ]
         }

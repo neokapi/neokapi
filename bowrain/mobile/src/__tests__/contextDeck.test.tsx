@@ -3,7 +3,13 @@ import { render, screen } from "@testing-library/react-native";
 
 import "../lib/i18n";
 import { ContextCard } from "../components/ContextCard";
-import { contextCardId, contextDeckView, mergeContextPages, refusalCode } from "../lib/contextDeck";
+import {
+  contextCardId,
+  contextCopyPrefix,
+  contextDeckView,
+  mergeContextPages,
+  refusalCode,
+} from "../lib/contextDeck";
 
 const rule: Card = {
   item: { kind: "op", id: "0a1" },
@@ -134,6 +140,32 @@ describe("ContextCard", () => {
     await render(<ContextCard card={concept} />);
     expect(screen.queryByTestId("context-reach")).toBeNull();
     expect(screen.getByTestId("context-kind")).toHaveTextContent("Term");
+  });
+
+  it("shows a proposed translation with its source term, language and reach", async () => {
+    const translation: Card = {
+      item: { kind: "term_proposal", id: "c9/nb" },
+      kind: "term_translation",
+      revision: "p1",
+      text: "A shared place for a team's projects.",
+      language: "nb",
+      translation: { term: "workspace", proposed: "arbeidsområde", locale: "nb" },
+      where: { level: "project" },
+      author: { kind: "tool", name: "term-proposal", agent_authored: true },
+      own_work: false,
+      basis: "agent_authored",
+      actions: ["keep", "reject", "later"],
+      reach: { blocks: 40, collections: [{ name: "docs", blocks: 40 }] },
+    };
+    await render(<ContextCard card={translation} />);
+    expect(screen.getByTestId("context-kind")).toHaveTextContent("Proposed translation");
+    expect(screen.getByText("NB")).toBeTruthy();
+    expect(screen.getByTestId("context-translation-source")).toHaveTextContent("workspace");
+    expect(screen.getByTestId("context-translation-proposed")).toHaveTextContent("arbeidsområde");
+    expect(screen.getByTestId("context-reach")).toHaveTextContent(/Used in 40 blocks/);
+    expect(contextCopyPrefix(translation)).toBe("context.translation");
+    expect(contextCopyPrefix({ kind: "concept", proposed: true })).toBe("context.candidate");
+    expect(contextCopyPrefix(concept)).toBe("context");
   });
 
   it("marks a note recorded in an agent host's shell, changed since its review", async () => {

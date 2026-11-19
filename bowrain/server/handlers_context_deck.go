@@ -72,6 +72,9 @@ type contextDeckDecideRequest struct {
 	// Action is keep, reject or later.
 	Action string `json:"action"`
 	Note   string `json:"note,omitempty"`
+	// Text is the reviewer's own wording for a kept term-translation card,
+	// in place of the proposed term.
+	Text string `json:"text,omitempty"`
 }
 
 // contextDeckDecideResponse is what a decision did.
@@ -112,12 +115,14 @@ func (s *Server) contextDeckSource(ctx context.Context, wsID, wsSlug string, pro
 func (s *Server) requestReviewer(c echo.Context, wsID string) deckReviewer {
 	member := ledgerMemberOf(c)
 	ctx := c.Request().Context()
+	languages, _ := c.Get("project_languages").([]string)
 	return deckReviewer{
-		userID: member.UserID,
-		name:   s.displayName(ctx, member.UserID),
-		perms:  member.Permissions,
-		reach:  member.Reach,
-		solo:   s.soleReviewer(ctx, wsID, member.UserID),
+		userID:    member.UserID,
+		name:      s.displayName(ctx, member.UserID),
+		perms:     member.Permissions,
+		reach:     member.Reach,
+		solo:      s.soleReviewer(ctx, wsID, member.UserID),
+		languages: languages,
 	}
 }
 
@@ -256,8 +261,10 @@ func (s *Server) HandleContextDeckOrigin(c echo.Context) error {
 // HandleContextDeckDecide answers POST /:ws/:id/context/deck/decide: one
 // decision about one card. Keep records an attestation of the revision the
 // card showed, and for a suggestion keeps it first. Keep on a candidate term
-// makes its proposed term preferred and attests the concept as it then
-// reads. Reject drops a term rule or a note from the ledger, deletes a
+// makes its proposed term preferred, attests the concept as it then reads,
+// and starts proposing its term in each target language. Keep on a
+// term-translation card adds the proposed term, or the reviewer's wording
+// in text, to the concept. Reject drops a term rule or a note from the ledger, deletes a
 // candidate term and records that it is not one, and proposes a change set
 // that deprecates the terms of any other concept. Later records nothing. A revision that has moved since the
 // card was dealt answers 409 stale with the card as it reads now.
@@ -304,6 +311,9 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: req.Action + " is not offered on this card", Code: deckCodeNotOffered})
 	}
 
+	if card.Kind == deckKindTermTranslation {
+		return s.decideTermTranslation(c, src, rv, cards, card, req)
+	}
 	promoted := false
 	if card.Proposed && card.Item.Kind == contextop.ItemConcept {
 		if req.Action == deckActionReject {
@@ -349,6 +359,7 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 	s.emitDecidedContext(c, st, card.Item.ID, recorded)
 	if promoted {
 		outcome = deckOutcomeKept
+		s.proposeAfterKeep(c, src, card.Item.ID)
 	}
 	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: outcome})
 }

@@ -1840,6 +1840,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// The context deck: the project's context items nobody has reviewed at
 	// their current revision, kept, rejected or put off one card at a time.
 	s.registerContextDeckRoutes(g)
+	// Propose, with AI, the term each concept takes in each target language
+	// that has none; the deck deals the proposals after their source terms.
+	g.POST("/:id/context/term-proposals", s.refuseTool(s.HandleProposeTermTranslations), aiLimit, billing.QuotaGuard(s.BillingStore))
 	// The Overview and the Reader: a project's stream at a glance, one item with
 	// its findings and the rules at it, a project-wide check as a job, and a
 	// fix filed as a source proposal.
