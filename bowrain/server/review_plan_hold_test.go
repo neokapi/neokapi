@@ -57,7 +57,7 @@ func TestReviewDeck_HoldsTranslationsWhileTheKeyLanguageIsOpen(t *testing.T) {
 	deck := readDeck(t, s, wsID, projID, query)
 	require.NotNil(t, deck.Held)
 	assert.Equal(t, deckHeld{Count: 4, Reason: heldKeyLanguage}, *deck.Held)
-	assert.Equal(t, deckCounts{deckWaiting: deckWaiting{Waiting: 1, Desk: 1, Held: 4}, Total: 1}, deck.Counts)
+	assert.Equal(t, deckCounts{Waiting: 1, Desk: 1, Held: 4, Total: 1}, deck.Counts)
 	require.Len(t, deck.Cards, 1, "the exceptions stay reviewable")
 	assert.Equal(t, reviewdeck.DeckDesk, deck.Cards[0].Group)
 
