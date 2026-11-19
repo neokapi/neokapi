@@ -638,6 +638,7 @@ describe("deckPages", () => {
       collectionId: "c1",
       component: "OfflineLaunch",
       waiting: 3,
+      findings: 0,
       firstBlockId: "b1",
     });
     expect(got?.pages[1]).toMatchObject({
