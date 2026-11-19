@@ -1957,6 +1957,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/review/plan/coordinates", s.refuseTool(s.HandleConfirmReviewCoordinates))
 	g.POST("/:id/review/plan/settle", s.refuseTool(s.HandleSettleReviewPlan))
 	g.POST("/:id/review/plan/scan", s.refuseTool(s.HandleStartReviewPlanScan), aiLimit, billing.QuotaGuard(s.BillingStore))
+	// The languages the caller follows in the project, and the project's own.
+	g.GET("/:id/review/languages", s.HandleGetReviewLanguages)
+	g.PUT("/:id/review/languages", s.refuseTool(s.HandlePutReviewLanguages))
+	g.POST("/:id/review/languages/project", s.refuseTool(s.HandleSetProjectLanguage))
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.POST("/:id/revert", s.HandleRevertBatch)

@@ -278,30 +278,56 @@ func (s *Server) HandleGetReviewPlan(c echo.Context) error {
 	perms, _ := c.Get("project_permissions").(platauth.Permission)
 	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
 	langs, _ := c.Get("project_languages").([]string)
+	locales, _, err := s.followedLocales(ctx, userID, proj.ID, reviewLocalesOf(proj, perms, langs))
+	if err != nil {
+		return serverErr(c, err)
+	}
+	out, err := s.computeReviewPlan(ctx, ws, proj, stream, planCaller{
+		userID: userID, perms: perms, reach: reach, locales: locales,
+	})
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, out)
+}
 
+// planCaller is who a plan is computed for: what they may do, the
+// coordinates their grants reach, and the languages the plan counts (the
+// ones they may review and follow).
+type planCaller struct {
+	userID  string
+	perms   platauth.Permission
+	reach   platauth.CoordinateReach
+	locales []string
+}
+
+// computeReviewPlan counts every level of a project's plan for one caller.
+// The review plan route and the review inbox both answer with it.
+func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, stream string, caller planCaller) (reviewPlanResponse, error) {
 	out := reviewPlanResponse{
 		Stream:      stream,
 		Involvement: involvementOf(proj),
 		Languages:   []planLanguageDTO{},
 	}
+	var err error
 	if out.Coordinates, err = s.planCoordinates(ctx, proj, stream); err != nil {
-		return serverErr(c, err)
+		return out, err
 	}
-	if out.KeyLanguage, err = s.planKeyLanguage(ctx, ws, proj, userID, perms, reach); err != nil {
-		return serverErr(c, err)
+	if out.KeyLanguage, err = s.planKeyLanguage(ctx, ws, proj, caller.userID, caller.perms, caller.reach); err != nil {
+		return out, err
 	}
 	if out.Exceptions, err = s.planExceptions(ctx, proj, stream); err != nil {
-		return serverErr(c, err)
+		return out, err
 	}
-	if out.Languages, err = s.planLanguages(ctx, proj, stream, reviewLocalesOf(proj, perms, langs), out.Involvement, out.Exceptions.ByRule.Targets); err != nil {
-		return serverErr(c, err)
+	if out.Languages, err = s.planLanguages(ctx, proj, stream, caller.locales, out.Involvement, out.Exceptions.ByRule.Targets); err != nil {
+		return out, err
 	}
-	out.KeyLanguage.Scan = s.planScan(ctx, proj, wsID)
+	out.KeyLanguage.Scan = s.planScan(ctx, proj, ws.ID)
 	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.KeyLanguage.Untranslated); err != nil {
-		return serverErr(c, err)
+		return out, err
 	}
 	out.Next = nextPlanLevel(out)
-	return c.JSON(http.StatusOK, out)
+	return out, nil
 }
 
 // planScan reads the state of the last project scan the plan started.

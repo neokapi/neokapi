@@ -63,6 +63,34 @@ type reviewInboxResponse struct {
 	// the context a translation is checked against is reviewed first.
 	Context   []contextInboxEntry   `json:"context"`
 	Languages []reviewInboxLanguage `json:"languages"`
+	// Projects lists the projects with work waiting for the caller, and the
+	// ones where the caller has saved followed languages, most waiting
+	// first, each with the languages the caller follows and the plan in
+	// brief.
+	Projects []reviewInboxProject `json:"projects"`
+}
+
+// reviewInboxProject is one project of the inbox: the languages the caller
+// follows there and its review plan in brief.
+type reviewInboxProject struct {
+	Workspace     string `json:"workspace"`
+	WorkspaceName string `json:"workspace_name"`
+	Project       string `json:"project"`
+	ProjectName   string `json:"project_name"`
+	// Followed is the languages the caller follows: the saved list, or every
+	// language they may review when none is saved.
+	Followed []string `json:"followed"`
+	// Saved is set once the caller has saved a list for the project.
+	Saved bool `json:"saved"`
+	// CanManage is set when the caller may change the project's settings.
+	CanManage bool `json:"can_manage"`
+	// Waiting is the context cards and the translations in followed
+	// languages waiting for the caller.
+	Waiting int `json:"waiting"`
+	// Plan is the plan in brief. It is computed only for a project with
+	// work waiting for the caller: a plan reads every level, so a project
+	// with nothing waiting is listed without one.
+	Plan *planSummaryDTO `json:"plan,omitempty"`
 }
 
 // HandleReviewInbox answers, for the signed-in person, every language they may
@@ -74,6 +102,11 @@ type reviewInboxResponse struct {
 // and an API token's scopes narrow it as they narrow a project route. It
 // counts from the deck's stored facts and classifies nothing, so the cost is
 // one count per reviewable language.
+//
+// A project where the caller has saved followed languages lists only those.
+// Each project with work waiting also carries its plan in brief, which costs
+// one plan computation per such project; the plan's queries are bounded as
+// the plan route's are.
 //
 // GET /api/v1/auth/me/review
 func (s *Server) HandleReviewInbox(c echo.Context) error {
@@ -101,7 +134,18 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 	scopes, _ := c.Get("api_token_scopes").(string)
 	policy := deckPolicyKey(s.deckPolicy())
 
-	out := reviewInboxResponse{Context: []contextInboxEntry{}, Languages: []reviewInboxLanguage{}}
+	followed := map[string][]string{}
+	if fs, ok := store.FollowedLanguages(s.ContentStore); ok {
+		if followed, err = fs.ListFollowedLanguages(ctx, userID); err != nil {
+			return serverErr(c, err)
+		}
+	}
+
+	out := reviewInboxResponse{
+		Context:   []contextInboxEntry{},
+		Languages: []reviewInboxLanguage{},
+		Projects:  []reviewInboxProject{},
+	}
 	for _, ws := range workspaces {
 		for _, p := range projects {
 			if p.WorkspaceID != ws.ID || p.Archived {
@@ -112,10 +156,23 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 			if err != nil {
 				return serverErr(c, err)
 			}
+			proj := reviewInboxProject{
+				Workspace:     ws.Slug,
+				WorkspaceName: ws.Name,
+				Project:       p.ID,
+				ProjectName:   p.Name,
+				CanManage:     perms.Has(platauth.PermManageProject),
+			}
 			if ok {
 				out.Context = append(out.Context, entry)
+				proj.Waiting += entry.Waiting
 			}
 			locales := s.reviewableLocales(ctx, userID, ws, p, scopes)
+			if saved, isSaved := followed[p.ID]; isSaved {
+				locales = keepFollowed(locales, saved)
+				proj.Saved = true
+			}
+			proj.Followed = append([]string{}, locales...)
 			scope, err := deckScopeOf(ctx, s.ContentStore, p.ID, reviewInboxStream)
 			if err != nil {
 				return serverErr(c, err)
@@ -143,10 +200,27 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				}
 				if lang.Waiting > 0 {
 					out.Languages = append(out.Languages, lang)
+					proj.Waiting += lang.Waiting
 				}
+			}
+			if proj.Waiting > 0 {
+				plan, err := s.computeReviewPlan(ctx, ws, p, reviewInboxStream, planCaller{
+					userID: userID, perms: perms, reach: reach, locales: locales,
+				})
+				if err != nil {
+					return serverErr(c, err)
+				}
+				summary := summarizePlan(plan)
+				proj.Plan = &summary
+			}
+			if proj.Waiting > 0 || proj.Saved {
+				out.Projects = append(out.Projects, proj)
 			}
 		}
 	}
+	slices.SortStableFunc(out.Projects, func(a, b reviewInboxProject) int {
+		return cmp.Or(cmp.Compare(b.Waiting, a.Waiting), cmp.Compare(a.ProjectName, b.ProjectName))
+	})
 	slices.SortStableFunc(out.Context, func(a, b contextInboxEntry) int {
 		return cmp.Or(cmp.Compare(b.Waiting, a.Waiting), cmp.Compare(a.ProjectName, b.ProjectName))
 	})

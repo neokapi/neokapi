@@ -1859,4 +1859,23 @@ var Migrations = []storage.Migration{
 			ALTER TABLE review_deck_facts ADD COLUMN IF NOT EXISTS rules JSONB NOT NULL DEFAULT '[]';
 		`,
 	},
+	{
+		Version:     54,
+		Description: "the target languages each person follows in a project",
+		SQL: `
+			-- One row per person and project: the target languages the
+			-- person follows there, as a JSON array of locales. The review
+			-- inbox lists only these. No row means every language the
+			-- person may review; an empty array is a choice to follow none.
+			-- user_id names an auth user, which lives in another subsystem,
+			-- so it carries no foreign key.
+			CREATE TABLE IF NOT EXISTS followed_languages (
+				user_id    TEXT NOT NULL,
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				locales    JSONB NOT NULL DEFAULT '[]',
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (user_id, project_id)
+			);
+		`,
+	},
 }

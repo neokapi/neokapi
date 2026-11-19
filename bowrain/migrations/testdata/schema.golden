@@ -492,6 +492,10 @@ flow_definitions.id text NOT NULL
 flow_definitions.name text NOT NULL
 flow_definitions.project_id text NOT NULL
 flow_definitions.updated_at timestamp with time zone NOT NULL DEFAULT now()
+followed_languages.locales jsonb NOT NULL DEFAULT '[]'::jsonb
+followed_languages.project_id text NOT NULL
+followed_languages.updated_at timestamp with time zone NOT NULL DEFAULT now()
+followed_languages.user_id text NOT NULL
 forge_installations.account text NOT NULL DEFAULT ''::text
 forge_installations.created_at text NOT NULL DEFAULT ''::text
 forge_installations.installation_id bigint NOT NULL
@@ -1387,6 +1391,8 @@ feature_overrides feature_overrides_pkey PRIMARY KEY (id)
 feature_overrides feature_overrides_workspace_id_feature_key UNIQUE (workspace_id, feature)
 flow_definitions flow_definitions_pkey PRIMARY KEY (project_id, id)
 flow_definitions flow_definitions_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+followed_languages followed_languages_pkey PRIMARY KEY (user_id, project_id)
+followed_languages followed_languages_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 forge_installations forge_installations_pkey PRIMARY KEY (installation_id)
 group_members group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
 group_members group_members_pkey PRIMARY KEY (group_id, user_id)
@@ -1810,6 +1816,7 @@ CREATE UNIQUE INDEX extraction_schema_migrations_pkey ON public.extraction_schem
 CREATE UNIQUE INDEX feature_overrides_pkey ON public.feature_overrides USING btree (id)
 CREATE UNIQUE INDEX feature_overrides_workspace_id_feature_key ON public.feature_overrides USING btree (workspace_id, feature)
 CREATE UNIQUE INDEX flow_definitions_pkey ON public.flow_definitions USING btree (project_id, id)
+CREATE UNIQUE INDEX followed_languages_pkey ON public.followed_languages USING btree (user_id, project_id)
 CREATE UNIQUE INDEX forge_installations_pkey ON public.forge_installations USING btree (installation_id)
 CREATE UNIQUE INDEX group_members_pkey ON public.group_members USING btree (group_id, user_id)
 CREATE UNIQUE INDEX group_role_bindings_pkey ON public.group_role_bindings USING btree (id)
