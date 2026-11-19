@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"net/http"
 	"slices"
@@ -12,6 +13,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/host/reviewdeck"
 	"github.com/neokapi/neokapi/terms"
@@ -40,6 +42,36 @@ const (
 	// person who confirmed the coordinates, and when.
 	propCoordinatesConfirmedBy = "review_coordinates_confirmed_by"
 	propCoordinatesConfirmedAt = "review_coordinates_confirmed_at"
+	// propFirstPassBy and propFirstPassAt record the person who settled the
+	// project's first pass on the checks alone, and when. Later passes wait
+	// for the key language.
+	propFirstPassBy = "review_first_pass_by"
+	propFirstPassAt = "review_first_pass_at"
+	// propTermScanJob is the last context scan started for the project from
+	// the review plan.
+	propTermScanJob = "review_term_scan_job"
+)
+
+// reasonReviewPolicy is the reason a settle pass records on each decision
+// in the ledger.
+const reasonReviewPolicy = "review policy"
+
+// interfaceSampleEvery is the share of each collection's pages a reviewer
+// reads under context: one page in this many, plus every page with a
+// failing finding.
+const interfaceSampleEvery = 10
+
+// How a settle pass may run, as the plan reports it.
+const (
+	// settleFirstPass settles on the checks alone: the key language is still
+	// open and the project has had no first pass.
+	settleFirstPass = "first_pass"
+	// settlePolicy settles under the full policy: the key language is decided.
+	settlePolicy = "policy"
+	// settleHeld waits for the key language: the first pass is taken.
+	settleHeld = "held"
+	// settleNone leaves nothing to the checks: involvement is every.
+	settleNone = "none"
 )
 
 // Review involvement levels.
@@ -73,6 +105,19 @@ type reviewPlanResponse struct {
 	KeyLanguage planKeyLanguageDTO `json:"key_language"`
 	Exceptions  planExceptionsDTO  `json:"exceptions"`
 	Languages   []planLanguageDTO  `json:"languages"`
+	Policy      planPolicyDTO      `json:"policy"`
+}
+
+// planPolicyDTO is what the involvement leaves to the checks, and whether a
+// settle pass may run now.
+type planPolicyDTO struct {
+	// Settle is first_pass, policy, held or none.
+	Settle string `json:"settle"`
+	// KeyLanguageOpen counts the project's open key-language decisions:
+	// context cards waiting for anyone, and target terms still missing.
+	KeyLanguageOpen int    `json:"key_language_open"`
+	FirstPassBy     string `json:"first_pass_by,omitempty"`
+	FirstPassAt     string `json:"first_pass_at,omitempty"`
 }
 
 // planPoint is one place in the project's context space: a collection's
@@ -107,6 +152,18 @@ type planKeyLanguageDTO struct {
 	// term and no usable term in that language, leaving out the ones marked
 	// do-not-translate. Each is a decision to make.
 	Untranslated map[string]int `json:"untranslated"`
+	// Scan is the last project scan for candidate terms started from the
+	// plan, if any.
+	Scan *planScanDTO `json:"scan,omitempty"`
+}
+
+// planScanDTO is a project scan's state.
+type planScanDTO struct {
+	ID        string `json:"id"`
+	Status    string `json:"status"`
+	Progress  int    `json:"progress"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type planExceptionsDTO struct {
@@ -125,9 +182,14 @@ type planLanguageDTO struct {
 	// Failing is the translations held back by a failing check or a stale
 	// approval: the deck's desk group.
 	Failing int `json:"failing"`
-	// Pages is the pages with a translation waiting.
+	// Pages is the pages the involvement asks a person to read: the sample
+	// under context, every page with a translation waiting otherwise.
 	Pages     int  `json:"pages"`
 	PagesMore bool `json:"pages_more,omitempty"`
+	// PagesTotal is every page with a translation waiting, and
+	// PagesWithFindings the ones holding a failing finding.
+	PagesTotal        int `json:"pages_total"`
+	PagesWithFindings int `json:"pages_with_findings"`
 	// Settleable is the translations the involvement in force leaves to the
 	// checks: the ones that clear every bar (the deck's fast group). Zero
 	// under every.
@@ -179,8 +241,72 @@ func (s *Server) HandleGetReviewPlan(c echo.Context) error {
 	if out.Languages, err = s.planLanguages(ctx, proj, stream, reviewLocalesOf(proj, perms, langs), out.Involvement); err != nil {
 		return serverErr(c, err)
 	}
+	out.KeyLanguage.Scan = s.planScan(ctx, proj, wsID)
+	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.KeyLanguage.Untranslated); err != nil {
+		return serverErr(c, err)
+	}
 	out.Next = nextPlanLevel(out)
 	return c.JSON(http.StatusOK, out)
+}
+
+// planScan reads the state of the last project scan the plan started.
+func (s *Server) planScan(ctx context.Context, proj *platstore.Project, wsID string) *planScanDTO {
+	id := proj.Properties[propTermScanJob]
+	if id == "" || s.ContextScanStore == nil {
+		return nil
+	}
+	job, err := s.ContextScanStore.GetContextScanJob(ctx, id)
+	if err != nil || job == nil || job.WorkspaceID != wsID {
+		return nil
+	}
+	return &planScanDTO{
+		ID: job.ID, Status: string(job.Status), Progress: job.Progress,
+		CreatedAt: job.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt: job.UpdatedAt.UTC().Format(time.RFC3339),
+	}
+}
+
+// planPolicy answers whether a settle pass may run. The key language is
+// counted for the whole project, whoever asks: a pass settles everyone's
+// content, so it waits on every open decision, not only the caller's.
+func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, involvement string, untranslated map[string]int) (planPolicyDTO, error) {
+	out := planPolicyDTO{
+		FirstPassBy: proj.Properties[propFirstPassBy],
+		FirstPassAt: proj.Properties[propFirstPassAt],
+	}
+	open, err := s.projectContextOpen(ctx, ws, proj)
+	if err != nil {
+		return out, err
+	}
+	for _, n := range untranslated {
+		open += n
+	}
+	out.KeyLanguageOpen = open
+	switch {
+	case involvement == involvementEvery:
+		out.Settle = settleNone
+	case open == 0:
+		out.Settle = settlePolicy
+	case out.FirstPassBy == "":
+		out.Settle = settleFirstPass
+	default:
+		out.Settle = settleHeld
+	}
+	return out, nil
+}
+
+// projectContextOpen counts the project's context cards waiting for review,
+// for any reviewer.
+func (s *Server) projectContextOpen(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project) (int, error) {
+	src, err := s.contextDeckSource(ctx, ws.ID, ws.Slug, proj, "")
+	if err != nil || src.key == "" {
+		return 0, err
+	}
+	cards, err := s.pendingContext(ctx, src, deckReviewer{perms: platauth.PermAll, solo: true})
+	if err != nil {
+		return 0, err
+	}
+	return len(cards), nil
 }
 
 // involvementOf is the project's review involvement, context when unset.
@@ -214,11 +340,15 @@ func nextPlanLevel(p reviewPlanResponse) string {
 		}
 	}
 	for _, l := range p.Languages {
-		if p.Involvement != involvementContext && l.Pages > 0 {
+		if l.Pages > 0 {
 			return planInterfaces
 		}
-		if l.Settleable > 0 {
-			return planPolicy
+	}
+	if p.Policy.Settle == settleFirstPass || p.Policy.Settle == settlePolicy {
+		for _, l := range p.Languages {
+			if l.Settleable > 0 {
+				return planPolicy
+			}
 		}
 	}
 	return ""
@@ -380,13 +510,161 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 			return nil, err
 		}
 		if len(pages) > reviewPagesCountLimit {
-			lang.Pages, lang.PagesMore = reviewPagesCountLimit, true
-		} else {
-			lang.Pages = len(pages)
+			pages, lang.PagesMore = pages[:reviewPagesCountLimit], true
+		}
+		lang.PagesTotal = len(pages)
+		for _, p := range pages {
+			if p.Findings > 0 {
+				lang.PagesWithFindings++
+			}
+		}
+		lang.Pages = lang.PagesTotal
+		if involvement == involvementContext {
+			lang.Pages = len(interfaceSample(pages))
 		}
 		out = append(out, lang)
 	}
 	return out, nil
+}
+
+// interfaceSample is the pages a reviewer reads under context: every page
+// with a failing finding, and the first of every interfaceSampleEvery pages of
+// each collection, in deck order. Each collection with a page waiting gives at
+// least one.
+func interfaceSample(pages []platstore.ReviewDeckPage) []platstore.ReviewDeckPage {
+	seen := map[string]int{}
+	var out []platstore.ReviewDeckPage
+	for _, p := range pages {
+		n := seen[p.CollectionID]
+		seen[p.CollectionID] = n + 1
+		if p.Findings > 0 || n%interfaceSampleEvery == 0 {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// reviewPlanSettleRequest scopes a settle pass.
+type reviewPlanSettleRequest struct {
+	Stream  string   `json:"stream,omitempty"`
+	Locales []string `json:"locales,omitempty"`
+}
+
+// reviewPlanSettleResponse reports a settle pass.
+type reviewPlanSettleResponse struct {
+	ApprovePassingResponse
+	// FirstPass is set when this pass was the project's first, on the checks
+	// alone.
+	FirstPass bool `json:"first_pass"`
+}
+
+// HandleSettleReviewPlan answers POST /:ws/:id/review/plan/settle: the
+// plan's last step. It establishes every waiting translation that clears
+// every bar, as approve-passing does, and records each decision in the ledger
+// as the caller's with the reason "review policy".
+//
+// A project settles on the checks alone once, for its first pass; after
+// that a pass waits until the key language is decided (409). Under the
+// involvement every nothing is left to the checks (409).
+func (s *Server) HandleSettleReviewPlan(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermReview); err != nil {
+		return err
+	}
+	if s.ContentStore == nil || s.AuthStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
+	}
+	var req reviewPlanSettleRequest
+	if err := c.Bind(&req); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	ctx := c.Request().Context()
+	proj, err := s.ContentStore.GetProject(ctx, projectParam(c))
+	if err != nil || proj == nil {
+		return apiErr(c, http.StatusNotFound, errNoProject.Error())
+	}
+	stream := strings.TrimSpace(req.Stream)
+	if stream == "" {
+		stream = reviewInboxStream
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	ws, err := s.AuthStore.GetWorkspace(ctx, wsID)
+	if err != nil || ws == nil {
+		return apiErr(c, http.StatusNotFound, "workspace not found")
+	}
+	key, err := s.planKeyLanguage(ctx, ws, proj, "", 0, nil)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), key.Untranslated)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	switch policy.Settle {
+	case settleNone:
+		return apiErr(c, http.StatusConflict, "under the involvement every, a person establishes every translation")
+	case settleHeld:
+		return apiErr(c, http.StatusConflict, "the first pass is taken; decide the key language before the next one")
+	}
+	resp, err := s.approvePassing(c, proj, stream, req.Locales, []string{reasonReviewPolicy})
+	if err != nil {
+		return serverErr(c, err)
+	}
+	out := reviewPlanSettleResponse{ApprovePassingResponse: resp}
+	if policy.Settle == settleFirstPass {
+		userID, _ := c.Get("user_id").(string)
+		if err := s.updatePlanProperties(ctx, proj.ID, map[string]string{
+			propFirstPassBy: userID,
+			propFirstPassAt: time.Now().UTC().Format(time.RFC3339),
+		}); err != nil {
+			return serverErr(c, err)
+		}
+		out.FirstPass = true
+	}
+	return c.JSON(http.StatusOK, out)
+}
+
+// reviewPlanScanResponse names the scan the plan started.
+type reviewPlanScanResponse struct {
+	Scan planScanDTO `json:"scan"`
+}
+
+// HandleStartReviewPlanScan answers POST /:ws/:id/review/plan/scan: it
+// starts a context scan of the project, which files the project's candidate
+// terms in the context deck, and records it so the plan shows its state. It
+// needs the permission to manage voice profiles, as any context scan does.
+func (s *Server) HandleStartReviewPlanScan(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
+		return err
+	}
+	if s.ContentStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
+	}
+	ctx := c.Request().Context()
+	proj, err := s.ContentStore.GetProject(ctx, projectParam(c))
+	if err != nil || proj == nil {
+		return apiErr(c, http.StatusNotFound, errNoProject.Error())
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	if prev := s.planScan(ctx, proj, wsID); prev != nil && scanRunning(prev.Status) {
+		return c.JSON(http.StatusOK, reviewPlanScanResponse{Scan: *prev})
+	}
+	job, status, err := s.enqueueContextScan(ctx, wsID, c.Param("ws"), jobs.ContextScanRequest{Project: proj.ID})
+	if err != nil {
+		return apiErr(c, status, err.Error())
+	}
+	if err := s.updatePlanProperties(ctx, proj.ID, map[string]string{propTermScanJob: job.ID}); err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusAccepted, reviewPlanScanResponse{Scan: planScanDTO{
+		ID: job.ID, Status: string(job.Status), Progress: job.Progress,
+		CreatedAt: job.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt: job.UpdatedAt.UTC().Format(time.RFC3339),
+	}})
+}
+
+// scanRunning reports a scan that has not finished.
+func scanRunning(status string) bool {
+	return status == string(jobs.ContextScanStatusQueued) || status == string(jobs.ContextScanStatusProcessing)
 }
 
 // reviewPlanInvolvementRequest sets the project's involvement.
@@ -433,17 +711,24 @@ func (s *Server) setPlanProperties(c echo.Context, props map[string]string) erro
 	if s.ContentStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
-	ctx := c.Request().Context()
-	proj, err := s.ContentStore.GetProject(ctx, projectParam(c))
+	if err := s.updatePlanProperties(c.Request().Context(), projectParam(c), props); err != nil {
+		if errors.Is(err, errNoProject) {
+			return apiErr(c, http.StatusNotFound, errNoProject.Error())
+		}
+		return serverErr(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+// updatePlanProperties writes plan properties on the project.
+func (s *Server) updatePlanProperties(ctx context.Context, projectID string, props map[string]string) error {
+	proj, err := s.ContentStore.GetProject(ctx, projectID)
 	if err != nil || proj == nil {
-		return apiErr(c, http.StatusNotFound, errNoProject.Error())
+		return errNoProject
 	}
 	if proj.Properties == nil {
 		proj.Properties = map[string]string{}
 	}
 	maps.Copy(proj.Properties, props)
-	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
-		return serverErr(c, err)
-	}
-	return c.NoContent(http.StatusNoContent)
+	return s.ContentStore.UpdateProject(ctx, proj)
 }

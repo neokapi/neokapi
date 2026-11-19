@@ -1518,7 +1518,18 @@ export async function injectMockBackend(page: Page) {
             key_language: { waiting: 0, by_kind: {}, concepts: 0, untranslated: {} },
             exceptions: {},
             languages: [],
+            policy: { settle: "first_pass", key_language_open: 0 },
           }),
+        ],
+        [
+          "POST",
+          /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/settle$/,
+          () => ({ approved: 0, first_pass: true }),
+        ],
+        [
+          "POST",
+          /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/scan$/,
+          () => ({ scan: { id: "scan-e2e-1", status: "queued", progress: 0 } }),
         ],
         ["POST", /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/coordinates$/, () => ({})],
         ["PUT", /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/involvement$/, () => ({})],

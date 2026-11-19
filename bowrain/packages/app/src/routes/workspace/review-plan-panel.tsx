@@ -95,6 +95,8 @@ export function ReviewPlanSteps({
   stream,
   onConfirmCoordinates,
   onInvolvement,
+  onSettle,
+  onScan,
   busy,
 }: {
   plan: ReviewPlan;
@@ -103,12 +105,18 @@ export function ReviewPlanSteps({
   stream: string;
   onConfirmCoordinates?: () => void;
   onInvolvement?: (v: ReviewInvolvement) => void;
+  onSettle?: () => void;
+  onScan?: () => void;
   busy?: boolean;
 }) {
   const products = planProducts(plan.coordinates.points);
   const untranslated = Object.entries(plan.keyLanguage.untranslated).filter(([, n]) => n > 0);
   const failing = plan.languages.reduce((n, l) => n + l.failing, 0);
   const pages = plan.languages.reduce((n, l) => n + l.pages, 0);
+  const pagesTotal = plan.languages.reduce((n, l) => n + l.pagesTotal, 0);
+  const scanning =
+    plan.keyLanguage.scan?.status === "queued" || plan.keyLanguage.scan?.status === "processing";
+  const settleNow = plan.policy.settle === "first_pass" || plan.policy.settle === "policy";
   const settleable = plan.languages.reduce((n, l) => n + l.settleable, 0);
   const params = { workspace: ws, projectId, stream };
 
@@ -174,7 +182,16 @@ export function ReviewPlanSteps({
               {n} terms have no {locale} term yet
             </p>
           ))}
-          <p>
+          {scanning && (
+            <p>Scanning the project for terms, {plan.keyLanguage.scan?.progress ?? 0}% done</p>
+          )}
+          {plan.keyLanguage.scan?.status === "completed" && (
+            <p>The last scan finished. Its terms are in the context deck.</p>
+          )}
+          {plan.keyLanguage.scan?.status === "failed" && (
+            <p>The last scan failed. You can start it again.</p>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               to="/$workspace/p/$projectId/s/$stream/rules"
               params={params}
@@ -182,7 +199,12 @@ export function ReviewPlanSteps({
             >
               Decide the key language
             </Link>
-          </p>
+            {onScan && !scanning && (
+              <Button size="sm" variant="outline" disabled={busy} onClick={onScan}>
+                Scan the project for terms
+              </Button>
+            )}
+          </div>
         </Step>
         <Step
           n={3}
@@ -205,12 +227,14 @@ export function ReviewPlanSteps({
           done={pages === 0}
           title="Interfaces in context"
         >
-          <p>
-            {pages} pages with a translation waiting.{" "}
-            {plan.involvement === "context"
-              ? "Read a sample to confirm the decisions above read right."
-              : "Read every page, source first."}
-          </p>
+          {plan.involvement === "context" ? (
+            <p>
+              Read {pages} of {pagesTotal} pages: one in ten from each channel, and every page with
+              a failing check.
+            </p>
+          ) : (
+            <p>{pages} pages with a translation waiting. Read every page, source first.</p>
+          )}
           {pages > 0 && (
             <p>
               <Link
@@ -230,11 +254,36 @@ export function ReviewPlanSteps({
           done={settleable === 0}
           title="Settled by the checks"
         >
-          <p>
-            {plan.involvement === "every"
-              ? "Every translation is read by a person, so nothing is settled here."
-              : `${settleable} translations clear every check. Each is established as your decision, recorded in the ledger, and reopened if anyone rejects it later.`}
-          </p>
+          {plan.policy.settle === "none" ? (
+            <p>Every translation is read by a person, so nothing is settled here.</p>
+          ) : (
+            <>
+              <p>{settleable} translations clear every check.</p>
+              {plan.policy.settle === "held" && (
+                <p>
+                  Held until the key language is decided: {plan.policy.keyLanguageOpen} decisions
+                  are still open.
+                </p>
+              )}
+              {plan.policy.settle === "first_pass" && (
+                <p>
+                  First pass: this settles on the checks alone. Later passes wait until the key
+                  language is decided.
+                </p>
+              )}
+              {plan.policy.settle === "policy" && (
+                <p>
+                  Each is established as your decision, recorded in the ledger, and reopened if
+                  anyone rejects it later.
+                </p>
+              )}
+              {settleNow && settleable > 0 && onSettle && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={onSettle}>
+                  Establish the {settleable} translations
+                </Button>
+              )}
+            </>
+          )}
         </Step>
       </ol>
     </section>
@@ -260,6 +309,14 @@ export function ReviewPlanPanel({ ws, projectId, stream }: ReviewPlanPanelProps)
     mutationFn: (v: ReviewInvolvement) => api.setReviewInvolvement!(ws, projectId, v),
     onSuccess: refresh,
   });
+  const settle = useMutation({
+    mutationFn: () => api.settleReviewPlan!(ws, projectId, stream),
+    onSuccess: refresh,
+  });
+  const scan = useMutation({
+    mutationFn: () => api.startReviewPlanScan!(ws, projectId),
+    onSuccess: refresh,
+  });
   if (!plan.data) return null;
   return (
     <ReviewPlanSteps
@@ -267,9 +324,11 @@ export function ReviewPlanPanel({ ws, projectId, stream }: ReviewPlanPanelProps)
       ws={ws}
       projectId={projectId}
       stream={stream}
-      busy={confirm.isPending || involve.isPending}
+      busy={confirm.isPending || involve.isPending || settle.isPending || scan.isPending}
       onConfirmCoordinates={api.confirmReviewCoordinates ? () => confirm.mutate() : undefined}
       onInvolvement={api.setReviewInvolvement ? (v) => involve.mutate(v) : undefined}
+      onSettle={api.settleReviewPlan ? () => settle.mutate() : undefined}
+      onScan={api.startReviewPlanScan ? () => scan.mutate() : undefined}
     />
   );
 }

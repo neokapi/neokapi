@@ -377,9 +377,11 @@ func (s *PostgresStore) ListReviewDeckPages(ctx context.Context, q platstore.Rev
 	args = append(args, limit)
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
 	query := `SELECT x.item_name, x.collection_id, x.component, x.prio, count(*),
+		count(*) FILTER (WHERE x.failing),
 		(array_agg(x.id ORDER BY x.position, x.id))[1]
 		FROM (SELECT b.id, b.item_name, COALESCE(i.collection_id, '') AS collection_id,
-			COALESCE(b.properties::jsonb->>'component', '') AS component, b.position, ` + prio + ` AS prio` +
+			COALESCE(b.properties::jsonb->>'component', '') AS component, b.position, ` + prio + ` AS prio,
+			COALESCE(` + reviewDeckFresh + ` AND f.failing > 0, false) AS failing` +
 		reviewDeckFrom + scope + reviewDeckWaiting + `) x
 		GROUP BY x.item_name, x.collection_id, x.component, x.prio` +
 		fmt.Sprintf(` ORDER BY x.prio, x.item_name, min(x.position), x.component LIMIT $%d`, len(args))
@@ -391,7 +393,7 @@ func (s *PostgresStore) ListReviewDeckPages(ctx context.Context, q platstore.Rev
 	var out []platstore.ReviewDeckPage
 	for rows.Next() {
 		var p platstore.ReviewDeckPage
-		if err := rows.Scan(&p.ItemName, &p.CollectionID, &p.Component, &p.Priority, &p.Waiting, &p.FirstBlockID); err != nil {
+		if err := rows.Scan(&p.ItemName, &p.CollectionID, &p.Component, &p.Priority, &p.Waiting, &p.Findings, &p.FirstBlockID); err != nil {
 			return nil, fmt.Errorf("scan review deck page: %w", err)
 		}
 		out = append(out, p)

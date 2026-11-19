@@ -25,11 +25,31 @@ export interface PlanLanguage {
   waiting: number;
   /** Translations held back by a failing check or a stale approval. */
   failing: number;
-  /** Pages with a translation waiting. */
+  /** Pages the involvement asks a person to read: the sample under Context. */
   pages: number;
   pagesMore: boolean;
+  /** Every page with a translation waiting. */
+  pagesTotal: number;
+  /** Pages holding a translation with a failing finding. */
+  pagesWithFindings: number;
   /** Translations that clear every bar and the involvement leaves to the checks. */
   settleable: number;
+}
+
+/**
+ * Whether the plan's last step may settle now: first_pass settles on the
+ * checks alone once, policy once the key language is decided, held waits for
+ * the key language after the first pass, none under the involvement every.
+ */
+export type PlanSettle = "first_pass" | "policy" | "held" | "none";
+
+/** A project scan for candidate terms, started from the plan. */
+export interface PlanScan {
+  id: string;
+  status: "queued" | "processing" | "completed" | "failed";
+  progress: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ReviewPlan {
@@ -52,6 +72,8 @@ export interface ReviewPlan {
     concepts: number;
     /** Per target language, concepts with no usable term there. */
     untranslated: Record<string, number>;
+    /** The last project scan for candidate terms, if one was started. */
+    scan?: PlanScan;
   };
   exceptions: {
     /** Findings in the source at the last project-wide check; null before one. */
@@ -59,6 +81,20 @@ export interface ReviewPlan {
     checkedAt?: string;
   };
   languages: PlanLanguage[];
+  policy: {
+    settle: PlanSettle;
+    /** The project's open key-language decisions, for any reviewer. */
+    keyLanguageOpen: number;
+    firstPassAt?: string;
+  };
+}
+
+interface ServerPlanScan {
+  id: string;
+  status: string;
+  progress: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ServerReviewPlan {
@@ -85,6 +121,7 @@ export interface ServerReviewPlan {
     by_kind?: Record<string, number> | null;
     concepts: number;
     untranslated?: Record<string, number> | null;
+    scan?: ServerPlanScan | null;
   };
   exceptions: { source_findings?: number | null; checked_at?: string };
   languages?:
@@ -94,9 +131,31 @@ export interface ServerReviewPlan {
         failing: number;
         pages: number;
         pages_more?: boolean;
+        pages_total?: number;
+        pages_with_findings?: number;
         settleable: number;
       }[]
     | null;
+  policy?: {
+    settle: string;
+    key_language_open?: number;
+    first_pass_at?: string;
+  } | null;
+}
+
+const SETTLE: readonly PlanSettle[] = ["first_pass", "policy", "held", "none"];
+const SCAN_STATUS: readonly PlanScan["status"][] = ["queued", "processing", "completed", "failed"];
+
+export function planScanFromServer(s: ServerPlanScan): PlanScan {
+  return {
+    id: s.id,
+    status: (SCAN_STATUS as readonly string[]).includes(s.status)
+      ? (s.status as PlanScan["status"])
+      : "failed",
+    progress: s.progress,
+    createdAt: s.created_at,
+    updatedAt: s.updated_at,
+  };
 }
 
 const LEVELS: readonly PlanLevel[] = [
@@ -134,6 +193,7 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
       byKind: p.key_language.by_kind ?? {},
       concepts: p.key_language.concepts,
       untranslated: p.key_language.untranslated ?? {},
+      scan: p.key_language.scan ? planScanFromServer(p.key_language.scan) : undefined,
     },
     exceptions: {
       sourceFindings: p.exceptions.source_findings ?? null,
@@ -145,8 +205,19 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
       failing: l.failing,
       pages: l.pages,
       pagesMore: l.pages_more ?? false,
+      pagesTotal: l.pages_total ?? l.pages,
+      pagesWithFindings: l.pages_with_findings ?? 0,
       settleable: l.settleable,
     })),
+    policy: {
+      settle: (SETTLE as readonly string[]).includes(p.policy?.settle ?? "")
+        ? (p.policy!.settle as PlanSettle)
+        : p.involvement === "every"
+          ? "none"
+          : "first_pass",
+      keyLanguageOpen: p.policy?.key_language_open ?? 0,
+      firstPassAt: p.policy?.first_pass_at || undefined,
+    },
   };
 }
 

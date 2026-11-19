@@ -99,11 +99,25 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		stream = req.Stream
 	}
 
+	resp, err := s.approvePassing(c, proj, stream, req.Locales, nil)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+// approvePassing runs one approve-passing pass over the stream, in the
+// project's target languages narrowed to wantedLocales (all when empty) and to
+// the caller's language scope. Each decision carries reasons in the ledger:
+// the review plan's settle step passes "review policy".
+func (s *Server) approvePassing(c echo.Context, proj *platstore.Project, stream string, wantedLocales, reasons []string) (ApprovePassingResponse, error) {
+	ctx := c.Request().Context()
+	pid := proj.ID
 	// Candidate locales: the project's target languages, narrowed by the optional
 	// locales filter and by the caller's own language scope (a reviewer scoped to
 	// fr cannot approve de). project_languages empty = all languages allowed.
 	wanted := map[string]bool{}
-	for _, l := range req.Locales {
+	for _, l := range wantedLocales {
 		wanted[l] = true
 	}
 	allowed, _ := c.Get("project_languages").([]string)
@@ -212,7 +226,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 						set.Ops = append(set.Ops, change.Op{Kind: change.KindDecide,
 							At:      change.Ref{Doc: sb.ItemName, Block: sb.Block.ID, Edition: model.EditionKey{Locale: loc}},
 							IfMatch: platstore.TargetRevision(sb, loc),
-							Body:    &change.Decide{Outcome: change.OutcomeEstablish}})
+							Body:    &change.Decide{Outcome: change.OutcomeEstablish, Reasons: reasons}})
 					}
 				}
 			}
@@ -249,7 +263,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 			return nil
 		})
 	if walkErr != nil {
-		return serverErr(c, walkErr)
+		return ApprovePassingResponse{}, walkErr
 	}
 
 	touched := make([]model.LocaleID, 0, len(touchedSet))
@@ -289,7 +303,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, ApprovePassingResponse{
+	return ApprovePassingResponse{
 		Approved:               approved,
 		Skipped:                skipped + sodRefused,
 		SkippedFailingChecks:   skippedBy[approveBlockerChecks],
@@ -300,5 +314,5 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		SkippedSelfAuthored:    sodRefused,
 		RemainingPending:       remaining,
 		ReviewCompleted:        reviewCompleted,
-	})
+	}, nil
 }

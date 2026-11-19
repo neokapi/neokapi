@@ -158,6 +158,8 @@ type ReviewDeckPage struct {
 	Priority int
 	// Waiting counts the page's translations waiting for review.
 	Waiting int
+	// Findings counts the waiting translations with a failing finding.
+	Findings int
 	// FirstBlockID is the page's first waiting translation in document order.
 	FirstBlockID string
 }

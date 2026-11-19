@@ -17,6 +17,7 @@ const pages: DeckPages = {
       collectionId: "c1",
       component: "OfflineLaunch",
       waiting: 3,
+      findings: 0,
       firstBlockId: "o1",
     },
     {
@@ -25,6 +26,7 @@ const pages: DeckPages = {
       item: "docs/guide.md",
       collectionId: "c2",
       waiting: 2,
+      findings: 0,
       firstBlockId: "p1",
     },
   ],
