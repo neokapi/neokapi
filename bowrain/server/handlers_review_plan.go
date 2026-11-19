@@ -42,6 +42,10 @@ const (
 	// person who confirmed the coordinates, and when.
 	propCoordinatesConfirmedBy = "review_coordinates_confirmed_by"
 	propCoordinatesConfirmedAt = "review_coordinates_confirmed_at"
+	// propCoordinatesSnapshot holds the map the last confirmation recorded:
+	// the points, their voices and the target languages, as JSON. The plan
+	// lists what changed since, for the whole team.
+	propCoordinatesSnapshot = "review_coordinates_snapshot"
 	// propFirstPassBy and propFirstPassAt record the person who settled the
 	// project's first pass on the checks alone, and when. Later passes wait
 	// for the key language.
@@ -130,8 +134,13 @@ type planPoint struct {
 	Collection  string            `json:"collection"`
 	Coordinates map[string]string `json:"coordinates"`
 	Voice       string            `json:"voice,omitempty"`
-	SourceOnly  bool              `json:"source_only,omitempty"`
-	Priority    string            `json:"priority,omitempty"`
+	// VoiceID is the voice profile's id, which a change of voice is
+	// compared by.
+	VoiceID    string `json:"voice_id,omitempty"`
+	SourceOnly bool   `json:"source_only,omitempty"`
+	Priority   string `json:"priority,omitempty"`
+	// id is the collection's id, which the coverage counts are keyed by.
+	id string
 }
 
 type planCoordinatesDTO struct {
@@ -141,7 +150,15 @@ type planCoordinatesDTO struct {
 	// Confirmed is set once a person has confirmed the coordinates.
 	Confirmed   bool   `json:"confirmed"`
 	ConfirmedBy string `json:"confirmed_by,omitempty"`
-	ConfirmedAt string `json:"confirmed_at,omitempty"`
+	// ConfirmedByName is the display name of the person who confirmed.
+	ConfirmedByName string `json:"confirmed_by_name,omitempty"`
+	ConfirmedAt     string `json:"confirmed_at,omitempty"`
+	// Changes lists what differs from the map the last confirmation
+	// recorded, whoever confirmed it, and Changed counts them. While Changed
+	// is above zero the step waits for the team again; one person confirming
+	// settles it for everyone.
+	Changes []planCoordinateChange `json:"changes"`
+	Changed int                    `json:"changed"`
 }
 
 type planKeyLanguageDTO struct {
@@ -358,7 +375,7 @@ func involvementOf(p *platstore.Project) string {
 
 // nextPlanLevel is the first level with something waiting.
 func nextPlanLevel(p reviewPlanResponse) string {
-	if !p.Coordinates.Confirmed {
+	if !p.Coordinates.Confirmed || p.Coordinates.Changed > 0 {
 		return planCoordinates
 	}
 	if p.KeyLanguage.Waiting > 0 {
@@ -400,8 +417,14 @@ func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, s
 		Points:          []planPoint{},
 		ConfirmedBy:     proj.Properties[propCoordinatesConfirmedBy],
 		ConfirmedAt:     proj.Properties[propCoordinatesConfirmedAt],
+		Changes:         []planCoordinateChange{},
 	}
 	out.Confirmed = out.ConfirmedBy != ""
+	if out.Confirmed && s.AuthStore != nil {
+		if u, err := s.AuthStore.GetUser(ctx, out.ConfirmedBy); err == nil && u != nil {
+			out.ConfirmedByName = u.Name
+		}
+	}
 	for _, l := range proj.TargetLanguages {
 		out.TargetLanguages = append(out.TargetLanguages, string(l))
 	}
@@ -412,6 +435,7 @@ func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, s
 	voiceNames := map[string]string{}
 	for _, c := range colls {
 		pt := planPoint{
+			id:          c.ID,
 			Collection:  c.Name,
 			Coordinates: map[string]string{},
 			SourceOnly:  c.SourceOnly(),
@@ -429,11 +453,19 @@ func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, s
 				}
 				voiceNames[id] = name
 			}
-			pt.Voice = name
+			pt.Voice, pt.VoiceID = name, id
 		}
 		out.Points = append(out.Points, pt)
 	}
 	slices.SortFunc(out.Points, func(a, b planPoint) int { return strings.Compare(a.Collection, b.Collection) })
+	// The confirmed map is the main stream's; a branch is not compared
+	// with it.
+	if out.Confirmed && stream == reviewInboxStream {
+		if snap, ok := coordinatesSnapshotOf(proj); ok {
+			out.Changes = coordinateChanges(snap, out)
+		}
+	}
+	out.Changed = len(out.Changes)
 	return out, nil
 }
 
@@ -746,16 +778,34 @@ func (s *Server) HandlePutReviewInvolvement(c echo.Context) error {
 
 // HandleConfirmReviewCoordinates answers POST
 // /:ws/:id/review/plan/coordinates: the caller confirms the project's
-// coordinates as the plan lists them. It needs the permission to edit the
-// project's settings.
+// coordinates as the plan lists them, and the main stream's map is recorded
+// as the baseline later changes are listed against. It needs the permission
+// to edit the project's settings.
 func (s *Server) HandleConfirmReviewCoordinates(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
+	}
+	if s.ContentStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
+	}
+	ctx := c.Request().Context()
+	proj, err := s.ContentStore.GetProject(ctx, projectParam(c))
+	if err != nil || proj == nil {
+		return apiErr(c, http.StatusNotFound, errNoProject.Error())
+	}
+	coords, err := s.planCoordinates(ctx, proj, reviewInboxStream)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	snap, err := encodeCoordinatesSnapshot(coords)
+	if err != nil {
+		return serverErr(c, err)
 	}
 	userID, _ := c.Get("user_id").(string)
 	return s.setPlanProperties(c, map[string]string{
 		propCoordinatesConfirmedBy: userID,
 		propCoordinatesConfirmedAt: time.Now().UTC().Format(time.RFC3339),
+		propCoordinatesSnapshot:    snap,
 	})
 }
 

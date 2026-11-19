@@ -167,6 +167,10 @@ function Screens() {
         />
         <Stack.Screen name="[ws]/[project]/plan" options={{ title: t("plan.title") }} />
         <Stack.Screen
+          name="[ws]/[project]/coordinates"
+          options={{ title: t("plan.coordinates.mapTitle") }}
+        />
+        <Stack.Screen
           name="[ws]/[project]/context"
           options={{ title: t("context.title"), headerTransparent: false }}
         />

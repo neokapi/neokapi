@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { planFromServer, planProducts, planRuleLabel } from "../src/index.ts";
+import {
+  coordinateGrid,
+  coordinatesFromServer,
+  coordinatesOpen,
+  planFromServer,
+  planProducts,
+  planRuleLabel,
+} from "../src/index.ts";
 
 const server = {
   stream: "main",
@@ -65,9 +72,13 @@ describe("planFromServer", () => {
       collection: "source-go-comments",
       coordinates: { product: "source", channel: "comments" },
       voice: undefined,
+      voiceId: undefined,
       sourceOnly: true,
       priority: undefined,
     });
+    expect(plan.coordinates.changes).toEqual([]);
+    expect(plan.coordinates.changed).toBe(0);
+    expect(coordinatesOpen(plan.coordinates)).toBe(false);
     expect(plan.keyLanguage.untranslated).toEqual({ nb: 20 });
     expect(plan.exceptions.sourceFindings).toBe(593);
     expect(plan.exceptions.byRule.source[0]).toEqual({
@@ -111,5 +122,73 @@ describe("planProducts", () => {
       { product: "neokapi", channels: ["cli", "docs"] },
       { product: "source", channels: ["comments"] },
     ]);
+  });
+});
+
+describe("coordinatesFromServer", () => {
+  const map = coordinatesFromServer({
+    stream: "main",
+    coordinates: {
+      ...server.coordinates,
+      confirmed_by: "u-ada",
+      confirmed_by_name: "Ada",
+      changes: [
+        {
+          kind: "point_added",
+          collection: "neokapi-mobile",
+          coordinates: { product: "neokapi", channel: "mobile" },
+          voice: "app",
+        },
+        { kind: "language_added", locale: "sv" },
+        { kind: "something_new" },
+      ],
+      changed: 3,
+    },
+    cells: [
+      {
+        product: "neokapi",
+        channel: "mobile",
+        collections: [
+          {
+            name: "neokapi-mobile",
+            coordinates: { product: "neokapi", channel: "mobile" },
+            voice: "app",
+            blocks: 412,
+            coverage: { nb: 0.25 },
+          },
+        ],
+        blocks: 412,
+        voices: ["app"],
+        coverage: { nb: 0.25 },
+        changes: ["point_added", "something_new"],
+      },
+      { product: "neokapi", channel: "cli", blocks: 2140, coverage: null },
+      { product: "bowrain", channel: "app", blocks: 3576 },
+    ],
+  });
+
+  it("maps the changes, the confirmer and the cells", () => {
+    expect(map.coordinates.confirmedByName).toBe("Ada");
+    expect(map.coordinates.changes.map((c) => c.kind)).toEqual(["point_added", "language_added"]);
+    expect(map.coordinates.changes[1]).toMatchObject({ locale: "sv", coordinates: {} });
+    expect(map.coordinates.changed).toBe(3);
+    expect(coordinatesOpen(map.coordinates)).toBe(true);
+    expect(map.cells[0]).toMatchObject({
+      blocks: 412,
+      voices: ["app"],
+      sourceOnly: false,
+      coverage: { nb: 0.25 },
+      changes: ["point_added"],
+    });
+    expect(map.cells[0]!.collections[0]).toMatchObject({ name: "neokapi-mobile", blocks: 412 });
+    expect(map.cells[1]).toMatchObject({ collections: [], voices: [], coverage: {}, changes: [] });
+  });
+
+  it("lays the cells out as products by channels", () => {
+    const grid = coordinateGrid(map.cells);
+    expect(grid.products).toEqual(["bowrain", "neokapi"]);
+    expect(grid.channels).toEqual(["app", "cli", "mobile"]);
+    expect(grid.at("neokapi", "cli")?.blocks).toBe(2140);
+    expect(grid.at("bowrain", "cli")).toBeUndefined();
   });
 });

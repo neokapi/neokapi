@@ -118,16 +118,15 @@ describe("review plan", () => {
     expect(screen.getByText("800 translations clear every check")).toBeTruthy();
   });
 
-  it("confirms the coordinates after asking", async () => {
+  it("opens the coordinates map", async () => {
     mockPlan.mockResolvedValue(plan());
-    mockConfirm.mockResolvedValue();
-    const alert = jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
-      buttons?.find((b) => b.style !== "cancel")?.onPress?.();
-    });
     await render(wrap(<ReviewPlanScreen />));
     await fireEvent.press(await screen.findByTestId("plan-coordinates"));
-    expect(alert).toHaveBeenCalled();
-    expect(mockConfirm).toHaveBeenCalledWith({ workspace: "ws", project: "p" });
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/[ws]/[project]/coordinates",
+      params: { ws: "ws", project: "p" },
+    });
+    expect(mockConfirm).not.toHaveBeenCalled();
   });
 
   it("opens the context deck for the key language", async () => {

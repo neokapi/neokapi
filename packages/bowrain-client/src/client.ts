@@ -9,11 +9,14 @@ import type { ChangeResult, ChangeSet, OverlayView } from "@neokapi/contract-typ
 import type { Run } from "@neokapi/kapi-format";
 
 import {
+  coordinatesFromServer,
   planFromServer,
   planScanFromServer,
   type PlanScan,
+  type ReviewCoordinates,
   type ReviewInvolvement,
   type ReviewPlan,
+  type ServerReviewCoordinates,
   type ServerReviewPlan,
 } from "./plan.ts";
 import type {
@@ -212,7 +215,16 @@ export interface BowrainClient {
   concept(workspace: string, conceptId: string): Promise<Concept>;
   /** The project's review plan for the caller. */
   reviewPlan(scope: ProjectScope): Promise<ReviewPlan>;
-  /** Confirms the project's coordinates as the plan lists them. */
+  /**
+   * The project's coordinates map: products by channels, with blocks, voices
+   * and coverage per target language, and what changed since the last
+   * confirmation.
+   */
+  reviewCoordinates(scope: ProjectScope): Promise<ReviewCoordinates>;
+  /**
+   * Confirms the project's coordinates as the plan lists them, and records
+   * them as the team's baseline for later changes.
+   */
   confirmCoordinates(scope: ProjectScope): Promise<void>;
   /** Sets how much the project's reviewers can be involved. */
   setInvolvement(scope: ProjectScope, involvement: ReviewInvolvement): Promise<void>;
@@ -549,6 +561,14 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       return planFromServer(
         await get<ServerReviewPlan>(
           `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan${query({ stream: scope.stream })}`,
+        ),
+      );
+    },
+
+    async reviewCoordinates(scope) {
+      return coordinatesFromServer(
+        await get<ServerReviewCoordinates>(
+          `/${enc(scope.workspace)}/${enc(scope.project)}/review/coordinates${query({ stream: scope.stream })}`,
         ),
       );
     },
