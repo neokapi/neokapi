@@ -9,7 +9,9 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, useApi } from "@neokapi/ui";
 import {
+  coordinatesOpen,
   planFromServer,
+  type CoordinateChange,
   planProducts,
   planRuleLabel,
   type PlanLevel,
@@ -111,6 +113,75 @@ function RuleList({ testId, title, rules }: { testId: string; title: string; rul
   );
 }
 
+function placeOf(coords: Record<string, string> | undefined): string {
+  return [coords?.product, coords?.channel].filter(Boolean).join(" / ");
+}
+
+/** One change against the confirmed coordinates, as a sentence. */
+function ChangeText({ change: c }: { change: CoordinateChange }) {
+  const where = placeOf(c.coordinates);
+  switch (c.kind) {
+    case "point_added":
+      return (
+        <>
+          New: {c.collection} at {where}
+        </>
+      );
+    case "point_removed":
+      return (
+        <>
+          Removed: {c.collection} at {where}
+        </>
+      );
+    case "point_moved":
+      return (
+        <>
+          Moved: {c.collection} from {placeOf(c.previousCoordinates)} to {where}
+        </>
+      );
+    case "voice_changed":
+      return c.voice ? (
+        <>
+          Voice: {c.collection} now uses {c.voice}
+        </>
+      ) : (
+        <>Voice: {c.collection} no longer has a voice</>
+      );
+    case "source_only_changed":
+      return c.sourceOnly ? (
+        <>{c.collection} is now source only</>
+      ) : (
+        <>{c.collection} now receives translations</>
+      );
+    case "language_added":
+      return <>Language added: {c.locale}</>;
+    case "language_removed":
+      return <>Language removed: {c.locale}</>;
+  }
+}
+
+/** What changed since the team last confirmed the coordinates. */
+function CoordinateChanges({ by, changes }: { by?: string; changes: CoordinateChange[] }) {
+  return (
+    <div data-testid="plan-coordinate-changes" className="pt-1">
+      <p className="text-xs font-semibold uppercase">
+        {by ? <>Since {by} confirmed</> : <>Since the last confirmation</>}
+      </p>
+      {changes.length === 0 ? (
+        <p>Nothing changed since the last confirmation.</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {changes.map((c, i) => (
+            <li key={`${c.kind}-${c.collection ?? c.locale}-${i}`} className="text-foreground">
+              <ChangeText change={c} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** The plan's steps, drawn from the server's answer. */
 export function ReviewPlanSteps({
   plan,
@@ -172,7 +243,7 @@ export function ReviewPlanSteps({
           n={1}
           level="coordinates"
           next={plan.next}
-          done={plan.coordinates.confirmed}
+          done={!coordinatesOpen(plan.coordinates)}
           title="Coordinates"
         >
           <p>
@@ -184,7 +255,13 @@ export function ReviewPlanSteps({
               {p.product}: {p.channels.join(", ")}
             </p>
           ))}
-          {!plan.coordinates.confirmed && onConfirmCoordinates && (
+          {plan.coordinates.confirmed && (
+            <CoordinateChanges
+              by={plan.coordinates.confirmedByName || plan.coordinates.confirmedBy}
+              changes={plan.coordinates.changes}
+            />
+          )}
+          {coordinatesOpen(plan.coordinates) && onConfirmCoordinates && (
             <Button size="sm" variant="outline" disabled={busy} onClick={onConfirmCoordinates}>
               Confirm coordinates
             </Button>

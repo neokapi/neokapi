@@ -3,3 +3,8 @@
 export function reviewPlanKey(ws: string, project: string) {
   return ["review-plan", ws, project] as const;
 }
+
+// The coordinates map's query key. Confirming refreshes it and the plan.
+export function reviewCoordinatesKey(ws: string, project: string) {
+  return ["review-coordinates", ws, project] as const;
+}

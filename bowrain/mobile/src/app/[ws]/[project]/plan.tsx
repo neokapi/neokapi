@@ -5,6 +5,7 @@
 // checks. The server counts every level (GET /:ws/:id/review/plan); each step
 // opens the screen that decides it.
 import {
+  coordinatesOpen,
   planProducts,
   planRuleLabel,
   type PlanLevel,
@@ -175,11 +176,6 @@ export default function ReviewPlanScreen() {
   const mayScan = perms.data?.permissions.includes("manage_voice") ?? false;
   const refresh = () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
 
-  const confirm = useMutation({
-    mutationFn: () => client.confirmCoordinates(scope),
-    onSuccess: refresh,
-    onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
-  });
   const involve = useMutation({
     mutationFn: (v: ReviewInvolvement) => client.setInvolvement(scope, v),
     onSuccess: refresh,
@@ -254,11 +250,15 @@ export default function ReviewPlanScreen() {
       targets: p.coordinates.targetLanguages.map(lang).join(", ") || "—",
     }),
     ...products.map((pr) => `${pr.product}: ${pr.channels.join(", ")}`),
-    p.coordinates.confirmed
-      ? t("plan.coordinates.confirmed")
-      : mayManage
-        ? t("plan.coordinates.confirmHint")
-        : t("plan.coordinates.unconfirmed"),
+    p.coordinates.changed > 0
+      ? t("plan.coordinates.changed", { count: p.coordinates.changed })
+      : p.coordinates.confirmed
+        ? p.coordinates.confirmedByName
+          ? t("plan.coordinates.confirmedBy", { name: p.coordinates.confirmedByName })
+          : t("plan.coordinates.confirmed")
+        : mayManage
+          ? t("plan.coordinates.confirmHint")
+          : t("plan.coordinates.unconfirmed"),
   ];
 
   const keyLines = [
@@ -331,18 +331,12 @@ export default function ReviewPlanScreen() {
         <Step
           n={1}
           level="coordinates"
-          state={p.coordinates.confirmed ? "done" : "next"}
+          state={coordinatesOpen(p.coordinates) ? "next" : "done"}
           title={t("plan.coordinates.title")}
           lines={coordinateLines}
-          action={!p.coordinates.confirmed && mayManage ? t("plan.coordinates.confirm") : undefined}
-          onPress={
-            !p.coordinates.confirmed && mayManage
-              ? () =>
-                  Alert.alert(t("plan.coordinates.confirm"), t("plan.coordinates.confirmBody"), [
-                    { text: t("common.cancel"), style: "cancel" },
-                    { text: t("plan.coordinates.confirm"), onPress: () => confirm.mutate() },
-                  ])
-              : undefined
+          action={t("plan.coordinates.open")}
+          onPress={() =>
+            router.push({ pathname: "/[ws]/[project]/coordinates", params: { ws, project } })
           }
         />
         <Step

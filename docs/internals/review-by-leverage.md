@@ -298,3 +298,27 @@ The founder accepted each recommendation on 2026-11-19:
    who set the involvement.
 7. The interface sample under `context`. Built.
 8. User guide: reviewing a large project. Built (bowrain/web/docs, getting started).
+9. The coordinates map. Built. `GET /:ws/:id/review/coordinates` returns the
+   plan's coordinates and the cells: one per product and channel, with the
+   collections there, their translatable blocks, the voices bound, whether
+   the cell is source only, and per target language the share of blocks
+   established. Two grouped queries count it
+   (`CollectionCoverageStore.CountCollectionCoverage`); no block is read.
+   The phone draws it as products by channels, with a coverage bar per
+   language, and the plan's coordinates step opens it.
+
+   The baseline is shared, per project (founder rule: no cross-review unless
+   a process asks for it). Confirming stores the main stream's map on the
+   project as `review_coordinates_snapshot`: the points by collection, their
+   coordinates, voice and source-only flag, and the target languages, with
+   no counts. The plan's `coordinates.changes` lists what differs from that
+   snapshot (`point_added`, `point_removed`, `point_moved`, `voice_changed`,
+   `source_only_changed`, `language_added`, `language_removed`) and
+   `coordinates.changed` counts them. A voice is compared by profile id, so
+   renaming a profile is no change. While `changed` is above zero,
+   `next` is `coordinates` for everyone; one confirmation by anyone records
+   a new snapshot and clears it for the team. A project confirmed before the
+   snapshot existed reads as confirmed with no changes, and its next
+   confirmation records one. A branch stream is not compared with the
+   snapshot. Still to build: the languages a person follows, to narrow the
+   coverage bars (the screen takes a `languages` parameter for it).

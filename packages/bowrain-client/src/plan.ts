@@ -15,8 +15,57 @@ export interface PlanPoint {
   collection: string;
   coordinates: Record<string, string>;
   voice?: string;
+  /** The voice profile's id. */
+  voiceId?: string;
   sourceOnly: boolean;
   priority?: string;
+}
+
+/** A kind of change against the project's last confirmed coordinates. */
+export type CoordinateChangeKind =
+  | "point_added"
+  | "point_removed"
+  | "point_moved"
+  | "voice_changed"
+  | "source_only_changed"
+  | "language_added"
+  | "language_removed";
+
+/**
+ * One difference between the coordinates the team last confirmed and the
+ * current ones. A point is named by its collection; a language change names
+ * its locale.
+ */
+export interface CoordinateChange {
+  kind: CoordinateChangeKind;
+  collection?: string;
+  /** The current coordinates, or the last confirmed ones for a removed point. */
+  coordinates: Record<string, string>;
+  previousCoordinates?: Record<string, string>;
+  voice?: string;
+  previousVoice?: string;
+  sourceOnly: boolean;
+  locale?: string;
+}
+
+/** The plan's coordinates: the points, who confirmed them, and what changed since. */
+export interface PlanCoordinates {
+  sourceLanguage: string;
+  targetLanguages: string[];
+  points: PlanPoint[];
+  /** Set once a person has confirmed the coordinates. */
+  confirmed: boolean;
+  confirmedBy?: string;
+  /** The display name of the person who confirmed. */
+  confirmedByName?: string;
+  confirmedAt?: string;
+  /**
+   * What differs from the coordinates the team last confirmed, whoever
+   * confirmed them. While `changed` is above zero the step waits for the team
+   * again; one confirmation settles it for everyone.
+   */
+  changes: CoordinateChange[];
+  changed: number;
 }
 
 /**
@@ -76,13 +125,7 @@ export interface ReviewPlan {
   involvement: ReviewInvolvement;
   /** The first level with something waiting, or null when nothing does. */
   next: PlanLevel | null;
-  coordinates: {
-    sourceLanguage: string;
-    targetLanguages: string[];
-    points: PlanPoint[];
-    confirmed: boolean;
-    confirmedAt?: string;
-  };
+  coordinates: PlanCoordinates;
   keyLanguage: {
     /** Context cards waiting for the caller, by kind. */
     waiting: number;
@@ -128,25 +171,43 @@ interface ServerPlanRule {
   count: number;
 }
 
+interface ServerCoordinateChange {
+  kind: string;
+  collection?: string;
+  coordinates?: Record<string, string> | null;
+  previous_coordinates?: Record<string, string> | null;
+  voice?: string;
+  previous_voice?: string;
+  source_only?: boolean;
+  locale?: string;
+}
+
+export interface ServerPlanCoordinates {
+  source_language: string;
+  target_languages?: string[] | null;
+  points?:
+    | {
+        collection: string;
+        coordinates?: Record<string, string> | null;
+        voice?: string;
+        voice_id?: string;
+        source_only?: boolean;
+        priority?: string;
+      }[]
+    | null;
+  confirmed: boolean;
+  confirmed_by?: string;
+  confirmed_by_name?: string;
+  confirmed_at?: string;
+  changes?: ServerCoordinateChange[] | null;
+  changed?: number;
+}
+
 export interface ServerReviewPlan {
   stream: string;
   involvement: string;
   next: string;
-  coordinates: {
-    source_language: string;
-    target_languages?: string[] | null;
-    points?:
-      | {
-          collection: string;
-          coordinates?: Record<string, string> | null;
-          voice?: string;
-          source_only?: boolean;
-          priority?: string;
-        }[]
-      | null;
-    confirmed: boolean;
-    confirmed_at?: string;
-  };
+  coordinates: ServerPlanCoordinates;
   key_language: {
     waiting: number;
     by_kind?: Record<string, number> | null;
@@ -225,24 +286,70 @@ export function planRuleLabel(r: PlanRule): string {
   return r.message || r.subject || r.rule;
 }
 
+const CHANGE_KINDS: readonly CoordinateChangeKind[] = [
+  "point_added",
+  "point_removed",
+  "point_moved",
+  "voice_changed",
+  "source_only_changed",
+  "language_added",
+  "language_removed",
+];
+
+function isChangeKind(k: string): k is CoordinateChangeKind {
+  return (CHANGE_KINDS as readonly string[]).includes(k);
+}
+
+export function planCoordinatesFromServer(c: ServerPlanCoordinates): PlanCoordinates {
+  // A kind this client does not know is left out rather than drawn wrong;
+  // the count stays the server's, so the step still reads as changed.
+  const changes = (c.changes ?? []).flatMap((ch): CoordinateChange[] =>
+    isChangeKind(ch.kind)
+      ? [
+          {
+            kind: ch.kind,
+            collection: ch.collection || undefined,
+            coordinates: ch.coordinates ?? {},
+            previousCoordinates: ch.previous_coordinates ?? undefined,
+            voice: ch.voice || undefined,
+            previousVoice: ch.previous_voice || undefined,
+            sourceOnly: ch.source_only ?? false,
+            locale: ch.locale || undefined,
+          },
+        ]
+      : [],
+  );
+  return {
+    sourceLanguage: c.source_language,
+    targetLanguages: c.target_languages ?? [],
+    points: (c.points ?? []).map((pt) => ({
+      collection: pt.collection,
+      coordinates: pt.coordinates ?? {},
+      voice: pt.voice || undefined,
+      voiceId: pt.voice_id || undefined,
+      sourceOnly: pt.source_only ?? false,
+      priority: pt.priority || undefined,
+    })),
+    confirmed: c.confirmed,
+    confirmedBy: c.confirmed_by || undefined,
+    confirmedByName: c.confirmed_by_name || undefined,
+    confirmedAt: c.confirmed_at || undefined,
+    changes,
+    changed: c.changed ?? (c.changes ?? []).length,
+  };
+}
+
+/** Whether the coordinates step waits for someone: never confirmed, or changed since. */
+export function coordinatesOpen(c: PlanCoordinates): boolean {
+  return !c.confirmed || c.changed > 0;
+}
+
 export function planFromServer(p: ServerReviewPlan): ReviewPlan {
   return {
     stream: p.stream,
     involvement: involvementOf(p.involvement),
     next: (LEVELS as readonly string[]).includes(p.next) ? (p.next as PlanLevel) : null,
-    coordinates: {
-      sourceLanguage: p.coordinates.source_language,
-      targetLanguages: p.coordinates.target_languages ?? [],
-      points: (p.coordinates.points ?? []).map((pt) => ({
-        collection: pt.collection,
-        coordinates: pt.coordinates ?? {},
-        voice: pt.voice || undefined,
-        sourceOnly: pt.source_only ?? false,
-        priority: pt.priority || undefined,
-      })),
-      confirmed: p.coordinates.confirmed,
-      confirmedAt: p.coordinates.confirmed_at || undefined,
-    },
+    coordinates: planCoordinatesFromServer(p.coordinates),
     keyLanguage: {
       waiting: p.key_language.waiting,
       byKind: p.key_language.by_kind ?? {},
@@ -298,4 +405,108 @@ export function planProducts(points: PlanPoint[]): { product: string; channels: 
   return [...byProduct.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([product, channels]) => ({ product, channels: [...channels].sort() }));
+}
+
+/** One collection of a coordinates cell. */
+export interface CoordinateCellCollection {
+  name: string;
+  coordinates: Record<string, string>;
+  voice?: string;
+  sourceOnly: boolean;
+  blocks: number;
+  /** Per target language, the share of the blocks established there (0 to 1). */
+  coverage: Record<string, number>;
+}
+
+/** One product and channel of the coordinates map. */
+export interface CoordinateCell {
+  product: string;
+  channel: string;
+  collections: CoordinateCellCollection[];
+  /** Translatable blocks of the cell's collections. */
+  blocks: number;
+  /** The voices bound at the cell, each once. */
+  voices: string[];
+  /** Every collection of the cell is source only. */
+  sourceOnly: boolean;
+  /** Per target language, the share of the cell's blocks established there (0 to 1). */
+  coverage: Record<string, number>;
+  /** The kinds of change touching the cell since the last confirmation. */
+  changes: CoordinateChangeKind[];
+}
+
+/** The coordinates map (GET /:ws/:id/review/coordinates). */
+export interface ReviewCoordinates {
+  stream: string;
+  coordinates: PlanCoordinates;
+  cells: CoordinateCell[];
+}
+
+interface ServerCoordinateCollection {
+  name: string;
+  coordinates?: Record<string, string> | null;
+  voice?: string;
+  source_only?: boolean;
+  blocks: number;
+  coverage?: Record<string, number> | null;
+}
+
+export interface ServerReviewCoordinates {
+  stream: string;
+  coordinates: ServerPlanCoordinates;
+  cells?:
+    | {
+        product: string;
+        channel: string;
+        collections?: ServerCoordinateCollection[] | null;
+        blocks: number;
+        voices?: string[] | null;
+        source_only?: boolean;
+        coverage?: Record<string, number> | null;
+        changes?: string[] | null;
+      }[]
+    | null;
+}
+
+export function coordinatesFromServer(r: ServerReviewCoordinates): ReviewCoordinates {
+  return {
+    stream: r.stream,
+    coordinates: planCoordinatesFromServer(r.coordinates),
+    cells: (r.cells ?? []).map((c) => ({
+      product: c.product,
+      channel: c.channel,
+      collections: (c.collections ?? []).map((col) => ({
+        name: col.name,
+        coordinates: col.coordinates ?? {},
+        voice: col.voice || undefined,
+        sourceOnly: col.source_only ?? false,
+        blocks: col.blocks,
+        coverage: col.coverage ?? {},
+      })),
+      blocks: c.blocks,
+      voices: c.voices ?? [],
+      sourceOnly: c.source_only ?? false,
+      coverage: c.coverage ?? {},
+      changes: (c.changes ?? []).filter(isChangeKind),
+    })),
+  };
+}
+
+/**
+ * The map's grid: the products as rows and the channels as columns, each
+ * sorted, with the cell at each place or undefined where none sits. A cell
+ * with no product or no channel takes the empty name.
+ */
+export function coordinateGrid(cells: CoordinateCell[]): {
+  products: string[];
+  channels: string[];
+  at: (product: string, channel: string) => CoordinateCell | undefined;
+} {
+  const byKey = new Map(cells.map((c) => [`${c.product}\u0000${c.channel}`, c]));
+  const sorted = (xs: string[]) => [...new Set(xs)].sort((a, b) => a.localeCompare(b));
+  return {
+    products: sorted(cells.map((c) => c.product)),
+    channels: sorted(cells.map((c) => c.channel)),
+    at: (product, channel) => byKey.get(`${product}\u0000${channel}`),
+  };
 }
