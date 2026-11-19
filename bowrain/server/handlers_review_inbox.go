@@ -98,22 +98,16 @@ type reviewInboxProject struct {
 
 // HandleReviewInbox answers, for the signed-in person, every language they may
 // review in every project of every workspace they belong to, where anything is
-// waiting, most waiting first. A language counts as the review deck counts it,
-// so the number here is the number the deck shows on opening.
+// waiting, most waiting first. A language counts as its review deck counts it,
+// held translations excluded; the project's plan in brief names those.
 //
 // Access resolves as ProjectAccessMiddleware resolves it for a project route,
-// and an API token's scopes narrow it as they narrow a project route. It
-// counts from the deck's stored facts and classifies nothing, so the cost is
-// one count per reviewable language.
-//
-// While a project's plan holds translations back until the key language is
-// decided, the held ones are not counted as waiting: a language lists only
-// what its deck deals, and the project's plan in brief names the held count.
+// narrowed by an API token's scopes. It counts from the deck's stored facts
+// and classifies nothing: one count per reviewable language.
 //
 // A project where the caller has saved followed languages lists only those.
-// Each project with work waiting also carries its plan in brief, which costs
-// one plan computation per such project; the plan's queries are bounded as
-// the plan route's are.
+// Each project with work waiting or held carries its plan in brief, one plan
+// computation per such project, bounded as the plan route is.
 //
 // GET /api/v1/auth/me/review
 func (s *Server) HandleReviewInbox(c echo.Context) error {

@@ -23,7 +23,7 @@ import (
 // gives each decision the most reach (docs/internals/review-by-leverage.md).
 //
 //  1. Coordinates: the products, channels and languages, and the voice each
-//     point binds. A few decisions, each governing everything under it.
+//     point binds. Each decision governs everything under it.
 //  2. Key language: the terms and voice rules, source first, then each
 //     term's translation in every target language.
 //  3. Exceptions: what fails a check against the key language.

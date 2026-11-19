@@ -7,18 +7,16 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 )
 
-// The plan decides what a language's review deck holds. Under involvement
-// context or interfaces, a translation reviewed before its terms are decided
-// is reviewed twice, so while the project's key language has open decisions
-// the deck deals only what the plan leaves for people at that point: the
-// exceptions (the translations a check fails, the deck's desk group) and the
-// page sample. The deck holds the other translations back, and the deck, its
-// collections, the plan and the review inbox report them as one count with a
-// reason instead of as cards. Under involvement every nothing is held.
+// The plan decides what a language's review deck holds. A translation
+// reviewed before its terms are decided is reviewed twice. So under
+// involvement context or interfaces, while the key language has open
+// decisions, the deck deals only the exceptions (its desk group) and the page
+// sample. The other translations are held, and the deck, its collections, the
+// plan and the inbox count them with a reason instead of dealing them. Under
+// involvement every nothing is held.
 //
-// Exceptions stay reviewable while the key language is open: a failing check
-// names a rule, and a reviewer can decide that rule whatever terms are still
-// open.
+// Exceptions stay reviewable: each names a rule a reviewer can decide
+// whatever terms are still open.
 
 // heldKeyLanguage is the reason translations are held while the project's
 // key language has open decisions.
