@@ -281,6 +281,89 @@ export interface ContextDeck {
   next_cursor?: string;
 }
 
+/**
+ * A context card as a session deals it: the deck's card, the channels its
+ * term appears in, and for a concept the target terms proposed for it in the
+ * languages the caller may review.
+ */
+export interface ContextSessionCard extends ContextCard {
+  channels: string[];
+  proposals: ContextTranslation[];
+}
+
+/** A context session's id and times. */
+export interface ContextSessionInfo {
+  id: string;
+  started_at: string;
+  expires_at: string;
+  ended_at?: string;
+}
+
+/** A term in the "since the last session" header. */
+export interface ContextSinceTerm {
+  item: ContextItemRef;
+  term: string;
+  blocks: number;
+  /** The blocks the term reached when the last session started. */
+  before?: number;
+}
+
+/**
+ * What changed in the project's context queue since the team's last session
+ * ended: candidates added, terms whose reach grew, and decisions other people
+ * made in their sessions. `added` and `grew` name the first few, widest first.
+ */
+export interface ContextSessionSince {
+  at: string;
+  /** Who ran the last session, when it was someone else. */
+  by?: string;
+  added_total: number;
+  added: ContextSinceTerm[];
+  grew_total: number;
+  grew: ContextSinceTerm[];
+  decided_by_others: number;
+}
+
+/**
+ * A context session as it starts (POST .../context/sessions): up to ten
+ * cards from the project's one queue, held for the caller while it runs.
+ */
+export interface ContextSession {
+  session: ContextSessionInfo;
+  bound: boolean;
+  cards: ContextSessionCard[];
+  /** Absent on a project's first session. */
+  since?: ContextSessionSince;
+  /** Cards the caller could decide that the session did not deal. */
+  waiting: number;
+  /** Cards other people's sessions hold. */
+  held_by_others: number;
+}
+
+/**
+ * What a session's decisions did. A figure the server cannot count is left
+ * out rather than estimated.
+ */
+export interface ContextSessionSummary {
+  decided: number;
+  kept: number;
+  changed: number;
+  rejected: number;
+  /** Blocks that use the terms kept or changed. */
+  blocks?: number;
+  /** Source findings the term rules turned down raised at the last check. */
+  findings_cleared?: number;
+  /** Cards still waiting for the caller, and the first of them. */
+  waiting: number;
+  next?: string;
+}
+
+/** A context session as it ends (POST .../context/sessions/:sid/end). */
+export interface ContextSessionEnd {
+  session: ContextSessionInfo;
+  summary: ContextSessionSummary;
+}
+
 /** One decision about a context card. */
 export interface ContextDecision {
   item: ContextItemRef;

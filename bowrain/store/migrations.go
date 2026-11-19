@@ -2,64 +2,70 @@ package store
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
+// The ledger of every version this subsystem has issued. Versions 1 to 23
+// are folded into the consolidated baseline:
+//
+//	 1  content store schema (baseline).
+//	 2  workspace-scoped AI provider configs (Epic 004 hybrid AI).
+//	 3  Live Preview: per-project settings + block content key (AD-023/AD-036).
+//	 4  block occurrences (AD-036).
+//	 5  workspace-scoped connector configs (durable connectors).
+//	 6  stream properties (extensible metadata, incl. voice binding).
+//	 7  convergence run loop-observability columns (stall_reason, stage, activity).
+//	 8  source-first convergence: blocked-on-source count on a run.
+//	 9  connector last-sync timestamp (real status, not fabricated now).
+//	10  connector last-error (observable background ingest failures).
+//	11  proposed source changes (back-to-source review, RV-F).
+//	12  block stand-off overlays column.
+//	13  GitHub App installation ownership.
+//	14  collection context: coordinates, ownership, and the entry hash.
+//	15  the first consolidated baseline (folded 1-14).
+//	16  unit decisions ledger (decisions travel the sync protocol).
+//	17  stream scope for convergence runs.
+//	18  source word count computed at write.
+//	19  blocks access ladder renamed (open|restricted|published).
+//	20  the second consolidated baseline (folded 1-19).
+//	21  the audit log keyed on the bus event it records.
+//	22  channel alias proposals.
+//	23  the third consolidated baseline (folded 1-22) + channel alias judgements.
+//
+// Version 24 is the consolidated baseline. The versions after it:
+//
+//	25  where a collection's strings can be read in place.
+//	26  the ship gate's per-block verdict.
+//	27  a stream owns its content, and a file is identified by what it is.
+//	30  the ledger records the source the platform last drafted a unit against.
+//	31  the ledger records the governing context a decision was made under.
+//	34  the ship gate's verdict records the terminology verdict.
+//	36  the jobs a grouped notification counts.
+//	37  who wrote each translation a checkout holds by hand.
+//	38  block notes moved onto their blocks as note annotations; the table retired.
+//	39  an agent's pre-review of a translation.
+//	40  a decision records the revisions of the pairing it blesses.
+//	41  a block records its source revision; decisions drop their text hashes.
+//	42  an edition write names its unit by the venue's key alone.
+//	43  spent: issued by #3074 and removed by #3076; re-issued as 45.
+//	44  a project's context objects, as the context layout names them.
+//	45  the block history records the basis each translation carried.
+//	46  a project's context key; term candidates leave the review queue.
+//	47  the members a project's suggestions are assigned to.
+//	48  the findings a project-wide check counted in each item.
+//	49  the review deck's group for each translation waiting for review.
+//	50  the project feed's columns on activities, and the events a roll-up row counts.
+//	51  the pushes a worker has applied, so a redelivered push job applies once.
+//	52  the tool and token a context object was pushed with.
+//	53  the findings of each rule in a check tally and in a translation's deck facts.
+//	54  the target languages each person follows in a project.
+//	55  context sessions and the cards they hold.
+
 // Migrations is the complete PostgreSQL content store schema as a single
 // consolidated baseline and subsequent migrations, including hash-partitioned
 // blocks, translations, annotations and overlays_ext tables.
 //
-// LEDGER: every version this subsystem has ever issued, now folded in:
-//
-//	 1  content store schema (baseline)
-//	 2  workspace-scoped AI provider configs (Epic 004 hybrid AI)
-//	 3  Live Preview: per-project settings + block content key (AD-023/AD-036)
-//	 4  block occurrences (AD-036)
-//	 5  workspace-scoped connector configs (durable connectors)
-//	 6  stream properties (extensible metadata, incl. voice binding)
-//	 7  convergence run loop-observability columns (stall_reason, stage, activity)
-//	 8  source-first convergence: blocked-on-source count on a run
-//	 9  connector last-sync timestamp (real status, not fabricated now)
-//	10  connector last-error (observable background ingest failures)
-//	11  proposed source changes (back-to-source review, RV-F)
-//	12  block stand-off overlays column
-//	13  GitHub App installation ownership
-//	14  collection context: coordinates, ownership, and the entry hash
-//	15  the first consolidated baseline (folded 1-14)
-//	16  unit decisions ledger (decisions travel the sync protocol)
-//	17  stream scope for convergence runs
-//	18  source word count computed at write
-//	19  blocks access ladder renamed (open|restricted|published)
-//	20  the second consolidated baseline (folded 1-19)
-//	21  the audit log keyed on the bus event it records
-//	22  channel alias proposals
-//	23  the third consolidated baseline (folded 1-22) + channel alias judgements
-//
-// Version 24 is the consolidated baseline. Preserve the issued version numbers
-// above: databases record applied versions, so reusing one would skip new SQL.
-// Baseline changes belong in CREATE statements; subsequent versions are listed
-// below. Choose new versions above the highest version already issued.
-//
-// 25  where a collection's strings can be read in place
-// 26  the ship gate's per-block verdict
-// 27  a stream owns its content, and a file is identified by what it is
-// 30  the ledger records the source the platform last drafted a unit against
-// 31  the ledger records the governing context a decision was made under
-// 34  the ship gate's verdict records the terminology verdict
-// 36  the jobs a grouped notification counts
-// 37  who wrote each translation a checkout holds by hand
-// 38  block notes moved onto their blocks as note annotations; the table retired
-// 39  an agent's pre-review of a translation
-// 40  a decision records the revisions of the pairing it blesses
-// 41  a block records its source revision; decisions drop their text hashes
-// 42  an edition write names its unit by the venue's key alone
-// 43  spent: issued by #3074 and removed by #3076; re-issued as 45
-// 44  a project's context objects, as the context layout names them
-// 45  the block history records the basis each translation carried
-// 46  a project's context key; term candidates leave the review queue
-// 47  the members a project's suggestions are assigned to
-// 48  the findings a project-wide check counted in each item
-// 49  the review deck's group for each translation waiting for review
-// 50  the project feed's columns on activities, and the events a roll-up row counts
-// 51  the pushes a worker has applied, so a redelivered push job applies once
-// 52  the tool and token a context object was pushed with
+// Preserve the issued version numbers in the ledger above: databases record
+// applied versions, so reusing one would skip new SQL. Baseline changes
+// belong in CREATE statements. Choose new versions above the highest version
+// already issued, and add each one to the ledger.
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1876,6 +1882,41 @@ var Migrations = []storage.Migration{
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (user_id, project_id)
 			);
+		`,
+	},
+	{
+		Version:     55,
+		Description: "context sessions and the cards they hold",
+		SQL: `
+			-- A context session is one person's pass over a project's
+			-- context deck: the cards it dealt (cards), the reach of the
+			-- project's terms when it started (reach, concept id to
+			-- blocks), and the decisions made in it (decisions). It runs
+			-- until ended_at is set or expires_at passes; each decision
+			-- moves expires_at on.
+			CREATE TABLE IF NOT EXISTS context_sessions (
+				id              TEXT PRIMARY KEY,
+				project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				user_id         TEXT NOT NULL,
+				cards           JSONB NOT NULL DEFAULT '[]',
+				reach           JSONB NOT NULL DEFAULT '{}',
+				decisions       JSONB NOT NULL DEFAULT '[]',
+				started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				expires_at      TIMESTAMPTZ NOT NULL,
+				ended_at        TIMESTAMPTZ,
+				last_decided_at TIMESTAMPTZ
+			);
+			CREATE INDEX IF NOT EXISTS context_sessions_project ON context_sessions (project_id, started_at);
+			-- One row per card a session holds. The key makes a card held
+			-- by one session at a time; a row whose session ended or
+			-- expired is cleared before the next session takes cards.
+			CREATE TABLE IF NOT EXISTS context_session_holds (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_key   TEXT NOT NULL,
+				session_id TEXT NOT NULL REFERENCES context_sessions(id) ON DELETE CASCADE,
+				PRIMARY KEY (project_id, item_key)
+			);
+			CREATE INDEX IF NOT EXISTS context_session_holds_session ON context_session_holds (session_id);
 		`,
 	},
 }

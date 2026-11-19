@@ -254,11 +254,10 @@
       "action_not_offered": "You cannot do that with this item.",
       "retire_needs_approval": "Retiring this needs a second person's approval.",
       "no_context_key": "Push this project from kapi before you keep items.",
-      "failed": "The decision was not saved. The item is back at the end of the deck."
+      "failed": "The decision was not saved. The item is back at the end of the deck.",
+      "held": "Someone else's session holds this item."
     },
     "doneTitle": "Context reviewed",
-    "doneBody_one": "You reviewed 1 item.",
-    "doneBody_other": "You reviewed {{count, number}} items.",
     "doneEmpty": "Nothing waits for review.",
     "origin": {
       "line": {
@@ -309,6 +308,50 @@
       "noMatchesYet_other": "No matches in the first {{count}} blocks.",
       "show": "Show the pattern",
       "hide": "Hide the pattern"
+    },
+    "inSession": {
+      "newTag": "New since the last session",
+      "proposals": "Proposed translations",
+      "start": "Start",
+      "heldByOthers_one": "1 item is in someone else's session now.",
+      "heldByOthers_other": "{{count, number}} items are in other people's sessions now.",
+      "since": {
+        "title": "Since the last session",
+        "ended": "The last session ended on {{date}}.",
+        "endedBy": "{{name}} ended the last session on {{date}}.",
+        "added_one": "1 new term found",
+        "added_other": "{{count, number}} new terms found",
+        "addedItem_one": "{{term}}: 1 block",
+        "addedItem_other": "{{term}}: {{count, number}} blocks",
+        "grew_one": "1 term is used in more blocks",
+        "grew_other": "{{count, number}} terms are used in more blocks",
+        "grewItem_one": "{{term}}: from {{before, number}} to 1 block",
+        "grewItem_other": "{{term}}: from {{before, number}} to {{count, number}} blocks",
+        "others_one": "Others decided 1 item. The feed shows it.",
+        "others_other": "Others decided {{count, number}} items. The feed shows them."
+      },
+      "summary": {
+        "title": "Session done",
+        "decided_one": "You decided 1 item.",
+        "decided_other": "You decided {{count, number}} items.",
+        "none": "You decided nothing in this session.",
+        "kept_one": "1 kept",
+        "kept_other": "{{count, number}} kept",
+        "changed_one": "1 changed",
+        "changed_other": "{{count, number}} changed",
+        "rejected_one": "1 turned down",
+        "rejected_other": "{{count, number}} turned down",
+        "blocks_one": "1 block now follows your terms.",
+        "blocks_other": "{{count, number}} blocks now follow your terms.",
+        "findings_one": "1 source finding clears.",
+        "findings_other": "{{count, number}} source findings clear.",
+        "left_one": "1 item left",
+        "left_other": "{{count, number}} items left",
+        "next": "next: {{term}}",
+        "leftNone": "Nothing else waits for you.",
+        "more": "Ten more",
+        "stop": "Done for now"
+      }
     }
   },
   "collections": {
