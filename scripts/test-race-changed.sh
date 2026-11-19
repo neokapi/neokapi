@@ -166,8 +166,11 @@ for i in "${!mod_names[@]}"; do
   mod="${mod_names[$i]}"
   # shellcheck disable=SC2086 # package lists are intentionally word-split
   set -- ${mod_pkgs[$i]}
-  echo "race-changed: (cd $mod && go test -tags $GOTAGS -race -short -count=1 -timeout 480s $*)"
-  if ! (cd "$mod" && go test -tags "$GOTAGS" -race -short -count=1 -timeout 480s "$@"); then
+  # bowrain/server alone takes about 300s under -race on a normal runner and
+  # up to 1.7 times that on a slow one, so the per-binary budget leaves room
+  # for both. The job's own timeout-minutes bounds the whole run.
+  echo "race-changed: (cd $mod && go test -tags $GOTAGS -race -short -count=1 -timeout 900s $*)"
+  if ! (cd "$mod" && go test -tags "$GOTAGS" -race -short -count=1 -timeout 900s "$@"); then
     status=1
   fi
 done
