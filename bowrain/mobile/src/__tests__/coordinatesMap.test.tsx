@@ -99,23 +99,41 @@ describe("coordinates map", () => {
     mockPermissions.mockResolvedValue({ permissions: ["review", "manage_project"] });
   });
 
-  it("lists what changed since the last confirmation above the grid", async () => {
+  it("lists what changed as chips and draws the cells as tiles", async () => {
     mockMap.mockResolvedValue(map(true));
     await render(wrap(<CoordinatesScreen />));
     expect(await screen.findByText("Since Ada confirmed")).toBeTruthy();
-    expect(screen.getByText("New: neokapi-mobile at neokapi / mobile")).toBeTruthy();
-    expect(screen.getByText("Removed: neokapi-demos at neokapi / demos")).toBeTruthy();
-    expect(screen.getByText("18420 blocks")).toBeTruthy();
-    expect(screen.getByText("neokapi documentation")).toBeTruthy();
+    expect(screen.getByText("New: neokapi / mobile")).toBeTruthy();
+    expect(screen.getByText("Removed: neokapi / demos")).toBeTruthy();
+    expect(screen.getByTestId("coordinates-removed")).toBeTruthy();
+    expect(screen.getByText("neokapi / demos · neokapi-demos")).toBeTruthy();
+    expect(screen.getByLabelText("neokapi docs, 18420 blocks, 40% established")).toBeTruthy();
+    expect(screen.getByLabelText("neokapi mobile, 412 blocks, 0% established, New")).toBeTruthy();
+    expect(screen.getByLabelText("bowrain app, 3576 blocks, 100% established")).toBeTruthy();
+    expect(screen.getByText("Shade: share established in Norwegian Bokmål")).toBeTruthy();
   });
 
-  it("opens a cell's collections", async () => {
+  it("zooms into a product, opens a tile's collections, and zooms out", async () => {
     mockMap.mockResolvedValue(map(false));
     await render(wrap(<CoordinatesScreen />));
-    await fireEvent.press(await screen.findByTestId("coordinates-cell-neokapi-docs"));
+    // Zoomed out, a tile zooms into its product rather than opening.
+    await fireEvent.press(await screen.findByTestId("coordinates-tile-neokapi-docs"));
+    expect(screen.queryByTestId("coordinates-cell-detail")).toBeNull();
+    expect(screen.getByTestId("coordinates-zoom-out")).toBeTruthy();
+    expect(screen.queryByTestId("coordinates-tile-bowrain-app")).toBeNull();
+    expect(screen.getByLabelText("docs, 18420 blocks, 40% established")).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId("coordinates-tile-neokapi-docs"));
     expect(screen.getByTestId("coordinates-cell-detail")).toBeTruthy();
     expect(screen.getByText("neokapi-docs")).toBeTruthy();
     expect(screen.getByText("40%")).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("coordinates-cell-close"));
+    expect(screen.queryByTestId("coordinates-cell-detail")).toBeNull();
+
+    await fireEvent.press(screen.getByTestId("coordinates-zoom-out"));
+    expect(screen.getByTestId("coordinates-tile-bowrain-app")).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("coordinates-product-bowrain"));
+    expect(screen.queryByTestId("coordinates-tile-neokapi-docs")).toBeNull();
   });
 
   it("confirms the changes after asking, and offers nothing when settled", async () => {

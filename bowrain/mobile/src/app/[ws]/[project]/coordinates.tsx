@@ -1,10 +1,10 @@
-// The coordinates map: the products as rows and the channels as columns, each
-// cell with its blocks, its voice and a coverage bar per target language. What
-// changed since the team last confirmed comes first, and the changed cells are
-// outlined. One confirmation records the map for the whole team
+// The coordinates map: a treemap of the products and their channels, each
+// tile sized by its blocks, shaded by the share established in the languages
+// shown, and outlined when it changed since the team last confirmed. What
+// changed comes first as chips, the removed points sit under the map, and one
+// confirmation records the map for the whole team
 // (GET /:ws/:id/review/coordinates, POST /:ws/:id/review/plan/coordinates).
 import {
-  coordinateGrid,
   coordinatesOpen,
   type CoordinateCell,
   type CoordinateChange,
@@ -12,16 +12,28 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 
+import {
+  CoordinateCellSheet,
+  CoordinatesTreemap,
+  shadeSwatches,
+  useMapColors,
+  ZoomOut,
+} from "../../../components/CoordinatesTreemap";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
 import { languageLabel } from "../../../lib/feed";
 import { reviewCoordinatesKey, reviewPlanKey } from "../../../lib/plan";
-
-const CELL_WIDTH = 136;
-const LABEL_WIDTH = 96;
 
 /** A point's place as a person reads it: product / channel. */
 function placeOf(coords: Record<string, string> | undefined): string {
@@ -29,108 +41,72 @@ function placeOf(coords: Record<string, string> | undefined): string {
   return [coords.product, coords.channel].filter(Boolean).join(" / ");
 }
 
-function ChangeLine({ change, lang }: { change: CoordinateChange; lang: (l: string) => string }) {
+function ChangeChip({ change, lang }: { change: CoordinateChange; lang: (l: string) => string }) {
   const { t } = useTranslation();
-  const where = placeOf(change.coordinates);
-  const collection = change.collection ?? "";
-  let text: string;
-  switch (change.kind) {
-    case "voice_changed":
-      text = change.voice
-        ? t("plan.coordinates.change.voice_changed", { collection, voice: change.voice })
-        : t("plan.coordinates.change.voice_removed", { collection });
-      break;
-    case "source_only_changed":
-      text = change.sourceOnly
-        ? t("plan.coordinates.change.source_only_changed", { collection })
-        : t("plan.coordinates.change.source_only_cleared", { collection });
-      break;
-    case "point_moved":
-      text = t("plan.coordinates.change.point_moved", {
-        collection,
-        from: placeOf(change.previousCoordinates),
-        where,
-      });
-      break;
-    case "language_added":
-    case "language_removed":
-      text = t(`plan.coordinates.change.${change.kind}`, { language: lang(change.locale ?? "") });
-      break;
-    default:
-      text = t(`plan.coordinates.change.${change.kind}`, { collection, where });
-  }
+  const where = placeOf(change.coordinates) || change.collection || "";
+  let key: string = change.kind;
+  if (change.kind === "voice_changed" && !change.voice) key = "voice_removed";
+  if (change.kind === "source_only_changed" && !change.sourceOnly) key = "source_only_cleared";
+  const text = t(`plan.coordinates.chip.${key}`, { where, language: lang(change.locale ?? "") });
   const tone =
     change.kind === "point_removed" || change.kind === "language_removed"
-      ? "bg-destructive"
-      : "bg-primary";
+      ? "bg-removed"
+      : change.kind === "point_added" || change.kind === "language_added"
+        ? "bg-added"
+        : "bg-warning";
   return (
-    <View className="flex-row items-start gap-2">
-      <View className={`mt-1.5 h-2 w-2 rounded-full ${tone}`} />
-      <Text className="text-foreground flex-1 text-sm leading-5">{text}</Text>
+    <View className={`rounded-full px-2.5 py-1 ${tone}`}>
+      <Text numberOfLines={1} className="text-foreground text-xs">
+        {text}
+      </Text>
     </View>
   );
 }
 
-function CoverageBar({ share }: { share: number }) {
-  const pct = Math.max(0, Math.min(1, share)) * 100;
-  return (
-    <View className="bg-muted h-1 overflow-hidden rounded-full">
-      <View className="bg-approve h-1 rounded-full" style={{ width: `${pct}%` }} />
-    </View>
-  );
-}
-
-function Cell({
-  cell,
-  languages,
-  height,
-  selected,
-  onPress,
-}: {
-  cell: CoordinateCell;
-  languages: string[];
-  height: number;
-  selected: boolean;
-  onPress: () => void;
-}) {
+function Legend({ shown, lang }: { shown: string[]; lang: (l: string) => string }) {
   const { t } = useTranslation();
-  const changed = cell.changes.length > 0;
-  const border = selected
-    ? "border-foreground border-2"
-    : changed
-      ? "border-primary border-2"
-      : "border-border border";
+  const colors = useMapColors();
   return (
-    <Pressable
-      testID={`coordinates-cell-${cell.product}-${cell.channel}`}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={{ width: CELL_WIDTH - 8, height }}
-      className={`bg-card m-1 gap-1 rounded-2xl p-2 ${border}`}
-    >
-      <Text className="text-foreground text-[15px] font-semibold">
-        {t("plan.coordinates.blocks", { count: cell.blocks })}
-      </Text>
-      <Text numberOfLines={1} className="text-muted-foreground text-xs">
-        {cell.voices.length > 0 ? cell.voices.join(", ") : t("plan.coordinates.noVoice")}
-      </Text>
-      {cell.sourceOnly ? (
-        <Text className="text-muted-foreground text-xs">{t("plan.coordinates.sourceOnly")}</Text>
-      ) : (
-        <View className="gap-1 pt-1">
-          {languages.map((l) => (
-            <CoverageBar key={l} share={cell.coverage[l] ?? 0} />
+    <View testID="coordinates-legend" className="gap-2 px-5 pt-3">
+      <View className="flex-row flex-wrap items-center gap-x-4 gap-y-2">
+        <View className="flex-row items-center gap-1">
+          <Text className="text-muted-foreground text-[11px]">0%</Text>
+          {shadeSwatches(colors).map((fill, i) => (
+            <View
+              key={`${fill}-${i}`}
+              className="border-border h-3 w-4 rounded-sm border"
+              style={{ backgroundColor: fill }}
+            />
           ))}
+          <Text className="text-muted-foreground text-[11px]">100%</Text>
         </View>
-      )}
-    </Pressable>
+        <View className="flex-row items-center gap-1">
+          <View className="h-3 w-4 rounded-sm border-2" style={{ borderColor: colors.added }} />
+          <Text className="text-muted-foreground text-[11px]">
+            {t("plan.coordinates.outlineNew")}
+          </Text>
+        </View>
+        <View className="flex-row items-center gap-1">
+          <View className="h-3 w-4 rounded-sm border-2" style={{ borderColor: colors.changed }} />
+          <Text className="text-muted-foreground text-[11px]">
+            {t("plan.coordinates.outlineChanged")}
+          </Text>
+        </View>
+      </View>
+      {shown.length > 0 ? (
+        <Text className="text-muted-foreground text-xs leading-4">
+          {t(shown.length > 1 ? "plan.coordinates.shadeLowest" : "plan.coordinates.shade", {
+            languages: shown.map(lang).join(", "),
+          })}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
 export default function CoordinatesScreen() {
   const { t, i18n } = useTranslation();
-  // languages narrows the coverage bars to the named target languages,
+  // languages narrows the shading to the named target languages,
   // comma-separated; every target language when unset.
   const { ws, project, languages } = useLocalSearchParams<{
     ws: string;
@@ -140,7 +116,9 @@ export default function CoordinatesScreen() {
   const { client } = useAuth();
   const qc = useQueryClient();
   const scope = { workspace: ws, project };
-  const [selected, setSelected] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
+  const [picked, setPicked] = useState<CoordinateCell | null>(null);
+  const window = useWindowDimensions();
   const map = useQuery({
     queryKey: reviewCoordinatesKey(ws, project),
     queryFn: () => client.reviewCoordinates(scope),
@@ -173,13 +151,15 @@ export default function CoordinatesScreen() {
   const wanted = languages ? languages.split(",").filter(Boolean) : [];
   const shown =
     wanted.length > 0 ? c.targetLanguages.filter((l) => wanted.includes(l)) : c.targetLanguages;
-  const grid = coordinateGrid(cells);
-  const rowHeight = 72 + shown.length * 8;
   const open = coordinatesOpen(c);
-  const picked = selected
-    ? cells.find((cell) => `${cell.product}\u0000${cell.channel}` === selected)
-    : undefined;
   const name = c.confirmedByName || c.confirmedBy;
+  const products = [...new Set(cells.map((cell) => cell.product))];
+  // One product needs no zooming: its channels fill the map from the start.
+  const only = products.length === 1 ? products[0] : null;
+  const zoomed = only ?? (zoom !== null && products.includes(zoom) ? zoom : null);
+  const mapWidth = Math.max(0, window.width - 32);
+  const mapHeight = Math.min(560, Math.round(mapWidth * 1.15));
+  const removed = c.changes.filter((ch) => ch.kind === "point_removed");
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -197,7 +177,7 @@ export default function CoordinatesScreen() {
           })}
         </Text>
 
-        <View testID="coordinates-changes" className="bg-muted mx-4 mb-4 gap-2 rounded-2xl p-4">
+        <View testID="coordinates-changes" className="mx-4 mb-3 gap-2">
           {!c.confirmed ? (
             <Text className="text-foreground text-sm leading-5">
               {t("plan.coordinates.neverConfirmed")}
@@ -210,13 +190,15 @@ export default function CoordinatesScreen() {
               {c.changes.length === 0 ? (
                 <Text className="text-foreground text-sm">{t("plan.coordinates.noChanges")}</Text>
               ) : (
-                c.changes.map((ch, i) => (
-                  <ChangeLine
-                    key={`${ch.kind}-${ch.collection ?? ch.locale}-${i}`}
-                    change={ch}
-                    lang={lang}
-                  />
-                ))
+                <View className="flex-row flex-wrap gap-1.5">
+                  {c.changes.map((ch, i) => (
+                    <ChangeChip
+                      key={`${ch.kind}-${ch.collection ?? ch.locale}-${i}`}
+                      change={ch}
+                      lang={lang}
+                    />
+                  ))}
+                </View>
               )}
             </>
           )}
@@ -225,106 +207,42 @@ export default function CoordinatesScreen() {
         {cells.length === 0 ? (
           <Text className="text-muted-foreground px-5 text-sm">{t("plan.coordinates.empty")}</Text>
         ) : (
-          <View className="flex-row px-3">
-            <View style={{ width: LABEL_WIDTH }}>
-              <View style={{ height: 28 }} />
-              {grid.products.map((p) => (
-                <View key={p} style={{ height: rowHeight + 8 }} className="justify-center pr-2">
-                  <Text numberOfLines={2} className="text-foreground text-sm font-semibold">
-                    {p || t("plan.coordinates.noProduct")}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <ScrollView testID="coordinates-grid" horizontal showsHorizontalScrollIndicator>
-              <View>
-                <View className="flex-row" style={{ height: 28 }}>
-                  {grid.channels.map((ch) => (
-                    <Text
-                      key={ch}
-                      numberOfLines={1}
-                      style={{ width: CELL_WIDTH }}
-                      className="text-muted-foreground px-2 text-xs font-semibold uppercase"
-                    >
-                      {ch || t("plan.coordinates.noChannel")}
-                    </Text>
-                  ))}
-                </View>
-                {grid.products.map((p) => (
-                  <View key={p} className="flex-row">
-                    {grid.channels.map((ch) => {
-                      const cell = grid.at(p, ch);
-                      const key = `${p}\u0000${ch}`;
-                      return cell ? (
-                        <Cell
-                          key={ch}
-                          cell={cell}
-                          languages={shown}
-                          height={rowHeight}
-                          selected={selected === key}
-                          onPress={() => setSelected(selected === key ? null : key)}
-                        />
-                      ) : (
-                        <View
-                          key={ch}
-                          style={{ width: CELL_WIDTH - 8, height: rowHeight }}
-                          className="border-border m-1 rounded-2xl border border-dashed opacity-40"
-                        />
-                      );
-                    })}
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-        {cells.length > 0 ? (
-          <Text className="text-muted-foreground px-5 pt-2 text-xs leading-4">
-            {shown.length > 1
-              ? `${t("plan.coordinates.legend")} ${t("plan.coordinates.barOrder", { languages: shown.map(lang).join(", ") })}`
-              : t("plan.coordinates.legend")}
-          </Text>
-        ) : null}
-
-        {picked ? (
-          <View
-            testID="coordinates-cell-detail"
-            className="bg-card border-border mx-4 mt-4 gap-3 rounded-2xl border p-4"
-          >
-            <Text className="text-foreground text-base font-semibold">
-              {t("plan.coordinates.cellTitle", {
-                product: picked.product || t("plan.coordinates.noProduct"),
-                channel: picked.channel || t("plan.coordinates.noChannel"),
-              })}
-            </Text>
-            {picked.collections.map((col) => (
-              <View key={col.name} className="gap-1">
-                <Text className="text-foreground text-sm font-semibold">{col.name}</Text>
+          <>
+            <View className="min-h-8 justify-center px-4 pb-1">
+              {zoomed !== null && only === null ? (
+                <ZoomOut product={zoomed} onPress={() => setZoom(null)} />
+              ) : (
                 <Text className="text-muted-foreground text-xs">
-                  {[
-                    t("plan.coordinates.blocks", { count: col.blocks }),
-                    col.voice ?? t("plan.coordinates.noVoice"),
-                    col.sourceOnly ? t("plan.coordinates.sourceOnly") : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {zoomed === null
+                    ? t("plan.coordinates.zoomHint")
+                    : t("plan.coordinates.tileHint")}
                 </Text>
-                {col.sourceOnly
-                  ? null
-                  : shown.map((l) => (
-                      <View key={l} className="flex-row items-center gap-2">
-                        <Text className="text-muted-foreground w-28 text-xs" numberOfLines={1}>
-                          {lang(l)}
-                        </Text>
-                        <View className="flex-1">
-                          <CoverageBar share={col.coverage[l] ?? 0} />
-                        </View>
-                        <Text className="text-muted-foreground w-10 text-right text-xs">
-                          {Math.round((col.coverage[l] ?? 0) * 100)}%
-                        </Text>
-                      </View>
-                    ))}
-              </View>
+              )}
+            </View>
+            <View className="px-4">
+              <CoordinatesTreemap
+                cells={cells}
+                languages={shown}
+                width={mapWidth}
+                height={mapHeight}
+                zoomed={zoomed}
+                onZoom={setZoom}
+                onOpen={setPicked}
+              />
+            </View>
+            <Legend shown={shown} lang={lang} />
+          </>
+        )}
+
+        {removed.length > 0 ? (
+          <View testID="coordinates-removed" className="gap-1 px-5 pt-4">
+            <Text className="text-muted-foreground text-xs font-semibold uppercase">
+              {t("plan.coordinates.removed")}
+            </Text>
+            {removed.map((ch, i) => (
+              <Text key={`${ch.collection}-${i}`} className="text-foreground text-sm">
+                {[placeOf(ch.coordinates), ch.collection].filter(Boolean).join(" · ")}
+              </Text>
             ))}
           </View>
         ) : null}
@@ -344,7 +262,7 @@ export default function CoordinatesScreen() {
                 ],
               )
             }
-            className="bg-primary mx-4 mt-6 items-center rounded-full px-4 py-3"
+            className="bg-primary mx-4 mt-5 items-center rounded-full px-4 py-3"
           >
             <Text className="text-primary-foreground text-base font-semibold">
               {t("plan.coordinates.confirmChanges")}
@@ -352,6 +270,12 @@ export default function CoordinatesScreen() {
           </Pressable>
         ) : null}
       </ScrollView>
+      <CoordinateCellSheet
+        cell={picked}
+        languages={shown}
+        languageLabel={lang}
+        onClose={() => setPicked(null)}
+      />
     </View>
   );
 }
