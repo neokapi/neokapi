@@ -174,3 +174,67 @@ func TestReviewPlan_SettleRefusesUnderEvery(t *testing.T) {
 	rec := planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
 	assert.Equal(t, http.StatusConflict, rec.Code)
 }
+
+// The exceptions are grouped by rule: the source's rules summed across the
+// items the last project-wide check counted, and each language's rules over
+// the translations the deck holds back, the most findings first. A rule's key
+// narrows the deck to the translations that break it.
+func TestReviewPlan_ExceptionsByRule(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := t.Context()
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
+		pendingFrBlock("b1", "Open the workspace", "Ouvrez l'atelier"),
+		pendingFrBlock("b2", "Close the workspace", "Fermez l'atelier"),
+		placeholderBlock("b3", "Hello", false),
+		pendingFrBlock("b4", "Fine", "Bien"),
+	})
+	tb, err := s.wsStores.getTerms(ctx, "rc")
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-ws", Terms: []terms.Term{
+		{Text: "workspace", Locale: "en", Status: model.TermPreferred},
+		{Text: "espace de travail", Locale: "fr", Status: model.TermPreferred},
+		{Text: "atelier", Locale: "fr", Status: model.TermForbidden},
+	}}))
+
+	tallies, ok := platstore.ItemCheckTallies(s.ContentStore)
+	require.True(t, ok)
+	voice := platstore.RuleTally{Key: "voice.style:!", Rule: "voice.style", Subject: "!", Message: "Prohibited pattern: exclamation", Count: 2}
+	utilize := platstore.RuleTally{Key: "terms.vocabulary:utilize", Rule: "terms.vocabulary", Subject: "utilize", ConceptID: "c-use", Fails: true, Count: 3}
+	require.NoError(t, tallies.PutItemCheckTally(ctx, platstore.ItemCheckTally{ProjectID: projID, ItemID: "item-a", Findings: 5, Rules: []platstore.RuleTally{utilize, voice}}))
+	utilize.Count = 2
+	require.NoError(t, tallies.PutItemCheckTally(ctx, platstore.ItemCheckTally{ProjectID: projID, ItemID: "item-b", Findings: 2, Rules: []platstore.RuleTally{utilize}}))
+
+	// Reading the deck classifies it; the plan counts what is classified.
+	readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}})
+	plan := readPlan(t, s, wsID, projID)
+
+	require.NotNil(t, plan.Exceptions.SourceFindings)
+	assert.Equal(t, 7, *plan.Exceptions.SourceFindings)
+	require.Len(t, plan.Exceptions.ByRule.Source, 2)
+	assert.Equal(t, planRuleDTO{Key: "terms.vocabulary:utilize", Rule: "terms.vocabulary", Subject: "utilize", ConceptID: "c-use", Fails: true, Count: 5},
+		plan.Exceptions.ByRule.Source[0], "one rule broken in two items counts once")
+	assert.Equal(t, "voice.style:!", plan.Exceptions.ByRule.Source[1].Key)
+
+	fr := plan.Exceptions.ByRule.Targets["fr"]
+	require.Len(t, fr, 4, "%+v", fr)
+	assert.Equal(t, "terms.vocabulary:atelier", fr[0].Key)
+	assert.Equal(t, "atelier", fr[0].Subject)
+	assert.Equal(t, "c-ws", fr[0].ConceptID)
+	assert.Equal(t, 2, fr[0].Count, "the forbidden term breaks two translations")
+	assert.True(t, fr[0].Fails)
+	assert.NotEmpty(t, fr[0].Message)
+	for _, r := range fr[1:] {
+		assert.Equal(t, 1, r.Count, "the lost placeholder breaks the checks of one translation: %s", r.Key)
+		assert.Equal(t, "qa", strings.SplitN(r.Rule, ".", 2)[0])
+	}
+	require.Len(t, plan.Languages, 1)
+	assert.Equal(t, 3, plan.Languages[0].Failing)
+
+	deck := readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}, "rule": {fr[0].Key}})
+	got := map[string]bool{}
+	for _, c := range deck.Cards {
+		got[c.BlockID] = true
+	}
+	assert.Equal(t, map[string]bool{ids["Open the workspace"]: true, ids["Close the workspace"]: true}, got)
+	assert.Equal(t, 2, deck.Counts.Desk)
+}

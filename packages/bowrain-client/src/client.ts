@@ -166,12 +166,19 @@ export interface BowrainClient {
   /**
    * One page of the review deck for a language, in the server's group order.
    * `collection` narrows it to one collection; an empty string selects the
-   * blocks in no collection.
+   * blocks in no collection. `rule` narrows it to the translations with a
+   * finding of one rule (a review plan rule's `key`).
    */
   deck(
     scope: ProjectScope,
     locale: string,
-    opts?: { limit?: number; cursor?: string; group?: DeckGroup; collection?: string },
+    opts?: {
+      limit?: number;
+      cursor?: string;
+      group?: DeckGroup;
+      collection?: string;
+      rule?: string;
+    },
   ): Promise<Deck>;
   /**
    * A language's review deck split by collection, in the server's order. Null
@@ -455,7 +462,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     async deck(scope, locale, o = {}) {
       try {
         const body = await get<ServerDeck>(
-          `${ROUTES.deck(scope)}${query({ locale, limit: o.limit, cursor: o.cursor, group: o.group })}${
+          `${ROUTES.deck(scope)}${query({ locale, limit: o.limit, cursor: o.cursor, group: o.group, rule: o.rule })}${
             o.collection === undefined ? "" : `&collection=${enc(o.collection)}`
           }`,
         );
@@ -466,7 +473,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       // A server without the deck route: the pending-review queue, in the
       // server's order, ungrouped and on one page. That queue has no
       // collection filter, so a collection's deck reads as empty.
-      if (o.cursor || o.collection !== undefined)
+      if (o.cursor || o.collection !== undefined || o.rule)
         return { locale, cards: [], total: 0, ordered: false };
       const page = await client.pendingReview(scope, { locales: [locale], limit: o.limit ?? 200 });
       return {

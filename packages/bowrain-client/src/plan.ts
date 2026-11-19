@@ -19,6 +19,25 @@ export interface PlanPoint {
   priority?: string;
 }
 
+/**
+ * One rule and the findings it raised. Most exceptions are one rule broken
+ * many times, so a reviewer decides the rule before the blocks.
+ */
+export interface PlanRule {
+  /** What the review deck's rule filter takes. */
+  key: string;
+  /** The check's rule id, such as `terms.vocabulary`. */
+  rule: string;
+  /** The term or the pattern the rule names. */
+  subject?: string;
+  /** One finding's wording, which names the rule to a person. */
+  message?: string;
+  /** The terms-store concept a word rule comes from. */
+  conceptId?: string;
+  fails: boolean;
+  count: number;
+}
+
 /** The plan's part for one target language the caller may review. */
 export interface PlanLanguage {
   locale: string;
@@ -79,6 +98,8 @@ export interface ReviewPlan {
     /** Findings in the source at the last project-wide check; null before one. */
     sourceFindings: number | null;
     checkedAt?: string;
+    /** The rules behind the most findings, in the source and per target language. */
+    byRule: { source: PlanRule[]; targets: Record<string, PlanRule[]> };
   };
   languages: PlanLanguage[];
   policy: {
@@ -95,6 +116,16 @@ interface ServerPlanScan {
   progress: number;
   created_at: string;
   updated_at: string;
+}
+
+interface ServerPlanRule {
+  key: string;
+  rule: string;
+  subject?: string;
+  message?: string;
+  concept_id?: string;
+  fails?: boolean;
+  count: number;
 }
 
 export interface ServerReviewPlan {
@@ -123,7 +154,14 @@ export interface ServerReviewPlan {
     untranslated?: Record<string, number> | null;
     scan?: ServerPlanScan | null;
   };
-  exceptions: { source_findings?: number | null; checked_at?: string };
+  exceptions: {
+    source_findings?: number | null;
+    checked_at?: string;
+    by_rule?: {
+      source?: ServerPlanRule[] | null;
+      targets?: Record<string, ServerPlanRule[] | null> | null;
+    } | null;
+  };
   languages?:
     | {
         locale: string;
@@ -170,6 +208,23 @@ function involvementOf(v: string): ReviewInvolvement {
   return v === "interfaces" || v === "every" ? v : "context";
 }
 
+function ruleFromServer(r: ServerPlanRule): PlanRule {
+  return {
+    key: r.key,
+    rule: r.rule,
+    subject: r.subject || undefined,
+    message: r.message || undefined,
+    conceptId: r.concept_id || undefined,
+    fails: r.fails ?? false,
+    count: r.count,
+  };
+}
+
+/** A rule's name for a person: its message, else its subject, else its id. */
+export function planRuleLabel(r: PlanRule): string {
+  return r.message || r.subject || r.rule;
+}
+
 export function planFromServer(p: ServerReviewPlan): ReviewPlan {
   return {
     stream: p.stream,
@@ -198,6 +253,15 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
     exceptions: {
       sourceFindings: p.exceptions.source_findings ?? null,
       checkedAt: p.exceptions.checked_at || undefined,
+      byRule: {
+        source: (p.exceptions.by_rule?.source ?? []).map(ruleFromServer),
+        targets: Object.fromEntries(
+          Object.entries(p.exceptions.by_rule?.targets ?? {}).map(([locale, rules]) => [
+            locale,
+            (rules ?? []).map(ruleFromServer),
+          ]),
+        ),
+      },
     },
     languages: (p.languages ?? []).map((l) => ({
       locale: l.locale,

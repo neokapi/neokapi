@@ -16,6 +16,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -166,7 +167,7 @@ func deckRank(g reviewdeck.DeckGroup) int { return slices.Index(reviewdeck.DeckG
 
 // HandleGetReviewDeck answers the review deck for one language.
 //
-// GET /:ws/:id/review-deck/:ref?locale=nb&limit=50&cursor=&group=&collection=
+// GET /:ws/:id/review-deck/:ref?locale=nb&limit=50&cursor=&group=&collection=&rule=
 func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
@@ -221,6 +222,10 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	if _, err := s.classifyDeck(ctx, wsID, decks, proj, q, policy, deckClassifyBudget); err != nil {
 		return serverErr(c, err)
 	}
+	// rule narrows the classified deck to the translations with a finding of
+	// one rule (the review plan's exceptions by rule), after classifying the
+	// whole deck.
+	q.Rule = strings.TrimSpace(c.QueryParam("rule"))
 	counts, err := decks.CountReviewDeck(ctx, q)
 	if err != nil {
 		return serverErr(c, err)
@@ -345,18 +350,26 @@ func deckFactsFor(
 	facts := reviewdeck.DeckFacts{SourceChars: utf8.RuneCountInString(model.RunsText(b.SourceRuns()))}
 	out := store.ReviewDeckFacts{BlockID: e.BlockID, Locale: e.Locale, Basis: e.Basis, Policy: policyKey}
 
-	if issues, err := runChecksOnBlock(ctx, b, pointChecks{TargetLocale: loc}); err == nil {
-		for _, issue := range issues {
+	var rules store.RuleTallies
+	if found, err := standardFindings(ctx, b, pointChecks{TargetLocale: loc}); err == nil {
+		for _, f := range found {
 			facts.Findings++
-			if issue.Severity == "error" {
+			if f.Fails && !f.Suggested {
 				facts.FailingFindings++
 			}
+			family := f.Check
+			if family == "" {
+				family = f.Category
+			}
+			rules.Add(jobs.FindingRuleTally(family, f))
 		}
 	}
-	out.TermCompliance = gate.compliance(ctx, b, loc)
+	var broken store.RuleTally
+	out.TermCompliance, broken = gate.verdict(ctx, b, loc)
 	if out.TermCompliance == store.TermComplianceViolation {
 		facts.Findings++
 		facts.FailingFindings++
+		rules.Add(broken)
 	}
 	switch gate.voiceCompliance(ctx, b.ID, loc, scored) {
 	case store.VoiceCompliancePassing, store.VoiceComplianceBelowBar:
@@ -385,6 +398,7 @@ func deckFactsFor(
 	group, reason := reviewdeck.ClassifyDeckCard(facts, policy)
 	out.Group, out.GroupRank, out.Reason = string(group), deckRank(group), reason
 	out.Findings, out.Failing = facts.Findings, facts.FailingFindings
+	out.Rules = rules.Top(store.RuleTallyLimit)
 	return out
 }
 

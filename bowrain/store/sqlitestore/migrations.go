@@ -1212,6 +1212,16 @@ var storeMigrations = []storage.Migration{
 			})
 		},
 	},
+	{
+		Version:     44,
+		Description: "the findings of each rule in a check tally",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 53 for item_check_tallies; Apply adds the column.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "item_check_tallies", []string{
+				"rules TEXT NOT NULL DEFAULT '[]'",
+			})
+		},
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

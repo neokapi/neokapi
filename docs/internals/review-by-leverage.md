@@ -272,7 +272,14 @@ The founder accepted each recommendation on 2026-11-19:
    /:ws/:id/review/plan/scan`) and shows its state.
 4. Context deck ordered by reach. Built for candidate terms; the rest of the
    deck keeps its order by kind.
-5. Exceptions grouped by rule (the check tally gains a count per rule).
+5. Exceptions grouped by rule. Built: the project-wide check's tally and
+   each translation's deck facts keep a count per rule (rule id and subject:
+   the term or the voice pattern, with the concept when a word rule comes
+   from one), the plan's `exceptions.by_rule` names the top rules for the
+   source and per language, and the review deck takes `?rule=` to narrow a
+   language to one rule. The phone links each language's rule to that deck;
+   the web Overview lists the rules without a link, because the web has no
+   card deck to narrow.
 6. Settling: the plan's last step (`POST /:ws/:id/review/plan/settle`) runs
    the approve passing path with the ledger reason `review policy`, under the
    first-pass rule above. Built. Still to build: involvement in the recipe

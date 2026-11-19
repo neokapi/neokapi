@@ -1516,7 +1516,7 @@ export async function injectMockBackend(page: Page) {
               confirmed: false,
             },
             key_language: { waiting: 0, by_kind: {}, concepts: 0, untranslated: {} },
-            exceptions: {},
+            exceptions: { by_rule: { source: [], targets: {} } },
             languages: [],
             policy: { settle: "first_pass", key_language_open: 0 },
           }),

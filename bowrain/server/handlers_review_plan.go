@@ -93,6 +93,10 @@ const (
 // reviewPagesCountLimit bounds the pages the plan counts per language.
 const reviewPagesCountLimit = 5000
 
+// planRuleLimit bounds the rules the plan names for the source and for each
+// language: the ones with the most findings.
+const planRuleLimit = 5
+
 type reviewPlanResponse struct {
 	Stream string `json:"stream"`
 	// Involvement is the project's: context (the default), interfaces or
@@ -171,6 +175,40 @@ type planExceptionsDTO struct {
 	// the source; nil before any check.
 	SourceFindings *int   `json:"source_findings,omitempty"`
 	CheckedAt      string `json:"checked_at,omitempty"`
+	// ByRule names the rules behind the most findings: in the source, as the
+	// last project-wide check counted them, and in each language the caller
+	// may review, over the translations the deck holds back.
+	ByRule planRulesDTO `json:"by_rule"`
+}
+
+// planRulesDTO is the exceptions grouped by rule.
+type planRulesDTO struct {
+	Source  []planRuleDTO            `json:"source"`
+	Targets map[string][]planRuleDTO `json:"targets"`
+}
+
+// planRuleDTO is one rule and the findings it raised. Key is what the review
+// deck's rule filter takes (?rule=).
+type planRuleDTO struct {
+	Key     string `json:"key"`
+	Rule    string `json:"rule"`
+	Subject string `json:"subject,omitempty"`
+	Message string `json:"message,omitempty"`
+	// ConceptID is the terms-store concept a word rule comes from.
+	ConceptID string `json:"concept_id,omitempty"`
+	Fails     bool   `json:"fails,omitempty"`
+	Count     int    `json:"count"`
+}
+
+func planRulesOf(tallies []platstore.RuleTally) []planRuleDTO {
+	out := make([]planRuleDTO, 0, len(tallies))
+	for _, t := range tallies {
+		out = append(out, planRuleDTO{
+			Key: t.Key, Rule: t.Rule, Subject: t.Subject, Message: t.Message,
+			ConceptID: t.ConceptID, Fails: t.Fails, Count: t.Count,
+		})
+	}
+	return out
 }
 
 // planLanguageDTO is the plan's part for one target language the caller
@@ -238,7 +276,7 @@ func (s *Server) HandleGetReviewPlan(c echo.Context) error {
 	if out.Exceptions, err = s.planExceptions(ctx, proj, stream); err != nil {
 		return serverErr(c, err)
 	}
-	if out.Languages, err = s.planLanguages(ctx, proj, stream, reviewLocalesOf(proj, perms, langs), out.Involvement); err != nil {
+	if out.Languages, err = s.planLanguages(ctx, proj, stream, reviewLocalesOf(proj, perms, langs), out.Involvement, out.Exceptions.ByRule.Targets); err != nil {
 		return serverErr(c, err)
 	}
 	out.KeyLanguage.Scan = s.planScan(ctx, proj, wsID)
@@ -441,9 +479,9 @@ func (s *Server) planKeyLanguage(ctx context.Context, ws *platauth.Workspace, pr
 }
 
 // planExceptions sums the source findings the last project-wide check
-// recorded.
+// recorded, and their rules across items.
 func (s *Server) planExceptions(ctx context.Context, proj *platstore.Project, stream string) (planExceptionsDTO, error) {
-	var out planExceptionsDTO
+	out := planExceptionsDTO{ByRule: planRulesDTO{Source: []planRuleDTO{}, Targets: map[string][]planRuleDTO{}}}
 	ts, ok := platstore.ItemCheckTallies(s.ContentStore)
 	if !ok {
 		return out, nil
@@ -454,13 +492,18 @@ func (s *Server) planExceptions(ctx context.Context, proj *platstore.Project, st
 	}
 	findings := 0
 	var at time.Time
+	var rules platstore.RuleTallies
 	for _, t := range tallies {
 		findings += t.Findings
 		if t.CheckedAt.After(at) {
 			at = t.CheckedAt
 		}
+		for _, r := range t.Rules {
+			rules.Add(r)
+		}
 	}
 	out.SourceFindings = &findings
+	out.ByRule.Source = planRulesOf(rules.Top(planRuleLimit))
 	out.CheckedAt = at.UTC().Format(time.RFC3339)
 	return out, nil
 }
@@ -481,8 +524,9 @@ func reviewLocalesOf(proj *platstore.Project, perms platauth.Permission, langs [
 	return out
 }
 
-// planLanguages counts, for each language, the deck's groups and pages.
-func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, involvement string) ([]planLanguageDTO, error) {
+// planLanguages counts, for each language, the deck's groups and pages, and
+// files the rules behind the deck's desk group in rules by language.
+func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, involvement string, rules map[string][]planRuleDTO) ([]planLanguageDTO, error) {
 	out := []planLanguageDTO{}
 	decks, ok := platstore.ReviewDeckStores(s.ContentStore)
 	if !ok {
@@ -502,6 +546,15 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 		}
 		lang := planLanguageDTO{Locale: loc, deckWaiting: deckWaitingOf(counts)}
 		lang.Failing = counts.ByRank[deckRank(reviewdeck.DeckDesk)]
+		if lang.Failing > 0 {
+			top, err := decks.CountReviewDeckRules(ctx, q, deckRank(reviewdeck.DeckDesk), planRuleLimit)
+			if err != nil {
+				return nil, err
+			}
+			if len(top) > 0 {
+				rules[loc] = planRulesOf(top)
+			}
+		}
 		if involvement != involvementEvery {
 			lang.Settleable = lang.Fast
 		}

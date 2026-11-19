@@ -14,6 +14,9 @@ type ItemCheckTally struct {
 	ItemID    string
 	Findings  int
 	Fixable   int
+	// Rules counts the findings by the rule that raised them, the most
+	// findings first, at most RuleTallyLimit rules.
+	Rules     []RuleTally
 	CheckedAt time.Time
 }
 

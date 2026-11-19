@@ -1846,4 +1846,17 @@ var Migrations = []storage.Migration{
 			ALTER TABLE context_objects ADD COLUMN IF NOT EXISTS pushed_token TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     53,
+		Description: "the findings of each rule in a check tally and in a translation's deck facts",
+		SQL: `
+			-- rules is a JSON array of rule tallies (store.RuleTally): a
+			-- rule id, its subject (a term or a pattern), a message, the
+			-- concept, whether it fails, and the count. The review plan
+			-- groups exceptions by rule from it. Rows written before this
+			-- version hold '[]' until they are counted again: no backfill.
+			ALTER TABLE item_check_tallies ADD COLUMN IF NOT EXISTS rules JSONB NOT NULL DEFAULT '[]';
+			ALTER TABLE review_deck_facts ADD COLUMN IF NOT EXISTS rules JSONB NOT NULL DEFAULT '[]';
+		`,
+	},
 }

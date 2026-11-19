@@ -28,6 +28,11 @@ type ReviewDeckQuery struct {
 	// Policy names the thresholds the facts were computed under. Facts
 	// computed under another policy are classified again.
 	Policy string
+	// Rule narrows the deck to the translations whose facts count a finding
+	// of one rule (RuleTally.Key). Translations without facts are left out
+	// of the pages and counted as unclassified, so a caller classifies with
+	// Rule empty.
+	Rule string
 }
 
 // ReviewDeckBasis is what a translation's facts are computed from, as the
@@ -69,6 +74,9 @@ type ReviewDeckFacts struct {
 	TermCompliance TermCompliance
 	VoiceScore     *int
 	VoiceBar       *int
+	// Rules counts the findings by the rule that raised them, at most
+	// RuleTallyLimit rules.
+	Rules []RuleTally
 }
 
 // ReviewDeckKey is a position in a deck: the keyset its pages are cut on.
@@ -131,6 +139,11 @@ type ReviewDeckStore interface {
 	// CountReviewDeckByCollection counts one collection, so a set of copies
 	// in several collections counts once.
 	CountReviewDeckLanguage(ctx context.Context, q ReviewDeckQuery) (ReviewDeckCollectionCounts, error)
+	// CountReviewDeckRules counts, over the classified translations of one
+	// group rank, the findings of each rule, and returns up to limit rules,
+	// the most findings first. A set of copies counts once, as
+	// CountReviewDeck counts it.
+	CountReviewDeckRules(ctx context.Context, q ReviewDeckQuery, groupRank, limit int) ([]RuleTally, error)
 	// ReviewDeckCopies returns, for each of blockIDs, the other translations
 	// waiting for review in the language with the same source and the same
 	// translation, up to limit in all, keyed by the block they copy. It

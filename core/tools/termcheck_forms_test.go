@@ -117,3 +117,22 @@ func TestTermCheckOverlays_AnchorsEachForm(t *testing.T) {
 	assert.Equal(t, model.PluralOther, span.Range.Path[1].PluralForm)
 	assert.Equal(t, "arbeidsområde", span.Range.TextIn(tgt))
 }
+
+func TestTermCheckRunMissed_NamesTheRuleOnceAcrossForms(t *testing.T) {
+	t.Parallel()
+	polish := model.LocaleID("pl")
+	cfg := workspaceRule(polish, "obszar roboczy")
+	tgt := []model.Run{plural(map[model.PluralForm]string{
+		model.PluralOne:   "# obszar roboczy",
+		model.PluralFew:   "# obszary",
+		model.PluralMany:  "# obszarów roboczych",
+		model.PluralOther: "# obszaru roboczego",
+	})}
+	missed := tools.TermCheckRunMissed(cfg, enWorkspaces(), tgt)
+	require.Len(t, missed, 1, "three forms miss one rule")
+	assert.Equal(t, "workspace", missed[0].Term)
+	assert.Equal(t, "c-ws", missed[0].ConceptID)
+
+	cfg.TermRules[0].Advisory = true
+	assert.Empty(t, tools.TermCheckRunMissed(cfg, enWorkspaces(), tgt), "an advisory rule does not fail")
+}
