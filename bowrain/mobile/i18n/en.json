@@ -519,6 +519,9 @@
       "runNoCredits": "stopped because the workspace is out of AI credits",
       "runNoProvider": "stopped because no AI provider is set up",
       "runRateLimited": "stopped because the AI provider is limiting requests",
+      "runUsageLimit": "stopped because the workspace reached its monthly AI usage limit",
+      "runProviderQuota": "stopped because the AI provider's quota ran out",
+      "runNoLanguages": "stopped because the project has no target languages",
       "runStopped": "stopped before finishing",
       "runFailed": "could not finish a run",
       "runCanceled": "canceled a run",
@@ -645,6 +648,7 @@
     "state": {
       "converged": "converged",
       "parked": "waiting for review",
+      "stopped": "stopped",
       "failed": "failed",
       "canceled": "canceled",
       "submitted": "submitted",

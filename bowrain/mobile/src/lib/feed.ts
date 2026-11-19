@@ -312,6 +312,9 @@ const STOPPED_KEYS: Record<string, string> = {
   needs_credits: "runNoCredits",
   needs_ai_key: "runNoProvider",
   rate_limited: "runRateLimited",
+  quota_exceeded: "runUsageLimit",
+  provider_quota_exhausted: "runProviderQuota",
+  no_target_locales: "runNoLanguages",
   source_not_ready: "runSourceFirst",
 };
 
@@ -407,6 +410,8 @@ function objectOf(e: FeedEntry, t: TFunction, uiLanguage: string): string | unde
     case "push":
       return e.stream;
     case "convergence_run":
+      if (e.state === "parked" && !waitsForReview(e)) return t("feed.state.stopped");
+      return e.state ? stateLabel(t, e.state) : undefined;
     case "change_set":
       return e.state ? stateLabel(t, e.state) : undefined;
     case "review_summary":
