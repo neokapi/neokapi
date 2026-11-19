@@ -880,7 +880,12 @@
       "source_other": "{{count}} findings in the source",
       "translations_one": "{{count}} translation fails a check",
       "translations_other": "{{count}} translations fail a check",
-      "open": "Review the failing translations"
+      "open": "Review the failing translations",
+      "byRule": "Most findings break one rule many times. Change the rule and its findings clear, or fix the source and its translations are drafted again.",
+      "inSource": "Source, by rule",
+      "inLanguage": "{{language}}, by rule",
+      "ruleCount_one": "{{count}} finding",
+      "ruleCount_other": "{{count}} findings"
     },
     "interfaces": {
       "title": "Interfaces in context",

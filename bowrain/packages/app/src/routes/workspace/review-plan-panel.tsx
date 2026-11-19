@@ -11,7 +11,9 @@ import { Button, useApi } from "@neokapi/ui";
 import {
   planFromServer,
   planProducts,
+  planRuleLabel,
   type PlanLevel,
+  type PlanRule,
   type ReviewInvolvement,
   type ReviewPlan,
 } from "@neokapi/bowrain-client";
@@ -84,6 +86,28 @@ function Step({
         <div className="text-muted-foreground space-y-0.5 text-sm">{children}</div>
       </div>
     </li>
+  );
+}
+
+/** The rules behind the most findings in one place: the source or a language. */
+function RuleList({ testId, title, rules }: { testId: string; title: string; rules: PlanRule[] }) {
+  if (rules.length === 0) return null;
+  return (
+    <div data-testid={testId} className="pt-1">
+      <p className="text-xs font-semibold uppercase">{title}</p>
+      <ul className="space-y-0.5">
+        {rules.map((r) => (
+          <li key={r.key} className="flex items-baseline gap-2">
+            <span className="text-foreground min-w-0 flex-1 truncate" title={r.rule}>
+              {planRuleLabel(r)}
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {r.count} {r.count === 1 ? "finding" : "findings"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -219,6 +243,26 @@ export function ReviewPlanSteps({
               : `${plan.exceptions.sourceFindings} findings in the source`}{" "}
             · {failing} translations fail a check
           </p>
+          {(plan.exceptions.byRule.source.length > 0 ||
+            Object.values(plan.exceptions.byRule.targets).some((rs) => rs.length > 0)) && (
+            <p>
+              Most findings break one rule many times. Change the rule and its findings clear, or
+              fix the source and its translations are drafted again.
+            </p>
+          )}
+          <RuleList
+            testId="plan-rules-source"
+            title="Source, by rule"
+            rules={plan.exceptions.byRule.source}
+          />
+          {plan.languages.map((l) => (
+            <RuleList
+              key={l.locale}
+              testId={`plan-rules-${l.locale}`}
+              title={`${l.locale}, by rule`}
+              rules={plan.exceptions.byRule.targets[l.locale] ?? []}
+            />
+          ))}
         </Step>
         <Step
           n={4}

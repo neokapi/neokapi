@@ -143,6 +143,27 @@ func blockSourceFindings(ctx context.Context, b *model.Block, checks PointChecks
 	return out, nil
 }
 
+// FindingRuleTally is the rule tally of one finding: its rule id as `kapi
+// check` reports it (family and category), the term or pattern it names, the
+// concept a word rule comes from, and whether it fails.
+func FindingRuleTally(family string, f check.Finding) store.RuleTally {
+	t := store.RuleTally{
+		Rule:    check.RuleID(family, f.Category),
+		Message: f.Message,
+		Fails:   f.Fails && !f.Suggested,
+		Count:   1,
+	}
+	if f.Metadata != nil {
+		t.Subject = f.Metadata["term"]
+		if t.Subject == "" {
+			t.Subject = f.Metadata["pattern"]
+		}
+		t.ConceptID = f.Metadata["concept_id"]
+	}
+	t.Key = store.RuleTallyKey(t.Rule, t.Subject)
+	return t
+}
+
 // ProjectCheck is one project-wide check of a stream.
 type ProjectCheck struct {
 	Binding     PointCheckBinding
@@ -195,6 +216,7 @@ func (pc ProjectCheck) Run(ctx context.Context) (ProjectCheckResult, error) {
 			doc = it.Name
 		}
 		tally := store.ItemCheckTally{ProjectID: pc.ProjectID, Stream: stream, ItemID: it.ID, CheckedAt: res.CheckedAt}
+		var rules store.RuleTallies
 		_, err := CheckItemSource(ctx, pc.Binding, ItemCheck{
 			ProjectID: pc.ProjectID, Stream: stream, WorkspaceID: pc.WorkspaceID, Item: it.Name, Doc: doc,
 		}, func(_ *venue.StoredBlock, found []ItemFinding) error {
@@ -203,12 +225,14 @@ func (pc ProjectCheck) Run(ctx context.Context) (ProjectCheckResult, error) {
 				if f.Fix != nil {
 					tally.Fixable++
 				}
+				rules.Add(FindingRuleTally(f.Family, f.Finding))
 			}
 			return nil
 		})
 		if err != nil {
 			return res, fmt.Errorf("project check: %s: %w", it.Name, err)
 		}
+		tally.Rules = rules.Top(store.RuleTallyLimit)
 		if err := pc.Tallies.PutItemCheckTally(ctx, tally); err != nil {
 			return res, err
 		}

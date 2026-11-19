@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { planFromServer, planProducts } from "../src/index.ts";
+import { planFromServer, planProducts, planRuleLabel } from "../src/index.ts";
 
 const server = {
   stream: "main",
@@ -32,7 +32,27 @@ const server = {
     concepts: 57,
     untranslated: { nb: 20 },
   },
-  exceptions: { source_findings: 593, checked_at: "2026-11-19T00:00:00Z" },
+  exceptions: {
+    source_findings: 593,
+    checked_at: "2026-11-19T00:00:00Z",
+    by_rule: {
+      source: [
+        {
+          key: "terms.vocabulary:utilize",
+          rule: "terms.vocabulary",
+          subject: "utilize",
+          message: 'Use "use" instead of "utilize"',
+          concept_id: "c-use",
+          fails: true,
+          count: 210,
+        },
+      ],
+      targets: {
+        nb: [{ key: "qa.trailing-whitespace", rule: "qa.trailing-whitespace", count: 12 }],
+        de: null,
+      },
+    },
+  },
   languages: [{ locale: "nb", waiting: 1200, failing: 40, pages: 300, settleable: 800 }],
 };
 
@@ -50,12 +70,38 @@ describe("planFromServer", () => {
     });
     expect(plan.keyLanguage.untranslated).toEqual({ nb: 20 });
     expect(plan.exceptions.sourceFindings).toBe(593);
+    expect(plan.exceptions.byRule.source[0]).toEqual({
+      key: "terms.vocabulary:utilize",
+      rule: "terms.vocabulary",
+      subject: "utilize",
+      message: 'Use "use" instead of "utilize"',
+      conceptId: "c-use",
+      fails: true,
+      count: 210,
+    });
+    expect(plan.exceptions.byRule.targets).toEqual({
+      nb: [
+        {
+          key: "qa.trailing-whitespace",
+          rule: "qa.trailing-whitespace",
+          subject: undefined,
+          message: undefined,
+          conceptId: undefined,
+          fails: false,
+          count: 12,
+        },
+      ],
+      de: [],
+    });
+    expect(planRuleLabel(plan.exceptions.byRule.source[0]!)).toBe('Use "use" instead of "utilize"');
+    expect(planRuleLabel(plan.exceptions.byRule.targets.nb![0]!)).toBe("qa.trailing-whitespace");
     expect(plan.languages[0]).toMatchObject({ locale: "nb", settleable: 800, pagesMore: false });
 
     const bare = planFromServer({ ...server, involvement: "sometimes", next: "", exceptions: {} });
     expect(bare.involvement).toBe("context");
     expect(bare.next).toBeNull();
     expect(bare.exceptions.sourceFindings).toBeNull();
+    expect(bare.exceptions.byRule).toEqual({ source: [], targets: {} });
   });
 });
 

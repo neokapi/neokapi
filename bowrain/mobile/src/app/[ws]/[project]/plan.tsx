@@ -6,12 +6,15 @@
 // opens the screen that decides it.
 import {
   planProducts,
+  planRuleLabel,
   type PlanLevel,
+  type PlanRule,
   type ReviewInvolvement,
   type ReviewPlan,
 } from "@neokapi/bowrain-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import type { ReactNode } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
@@ -39,6 +42,7 @@ function Step({
   action,
   onPress,
   secondary,
+  children,
 }: {
   n: number;
   level: PlanLevel;
@@ -49,6 +53,7 @@ function Step({
   onPress?: () => void;
   /** A second action of the step, drawn as its own button. */
   secondary?: { label: string; onPress: () => void; testID: string };
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const ring =
@@ -90,6 +95,7 @@ function Step({
           {line}
         </Text>
       ))}
+      {children}
       {action && onPress ? (
         <Text className="text-primary text-sm font-semibold">{action} ›</Text>
       ) : null}
@@ -104,6 +110,50 @@ function Step({
         </Pressable>
       ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * The rules behind the most findings in one place: the source, or a target
+ * language. A rule with onOpen opens the deck narrowed to it.
+ */
+function RuleList({
+  testID,
+  title,
+  rules,
+  onOpen,
+}: {
+  testID: string;
+  title: string;
+  rules: PlanRule[];
+  onOpen?: (r: PlanRule) => void;
+}) {
+  const { t } = useTranslation();
+  if (rules.length === 0) return null;
+  return (
+    <View testID={testID} className="gap-1 pt-1">
+      <Text className="text-muted-foreground text-xs font-semibold uppercase">{title}</Text>
+      {rules.map((r) => (
+        <Pressable
+          key={r.key}
+          testID={`${testID}-${r.key}`}
+          accessibilityRole={onOpen ? "button" : undefined}
+          disabled={!onOpen}
+          onPress={onOpen ? () => onOpen(r) : undefined}
+          className="flex-row items-baseline gap-2"
+        >
+          <Text
+            numberOfLines={2}
+            className={`flex-1 text-sm leading-5 ${onOpen ? "text-primary" : "text-foreground"}`}
+          >
+            {planRuleLabel(r)}
+          </Text>
+          <Text className="text-muted-foreground text-sm">
+            {t("plan.exceptions.ruleCount", { count: r.count })}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -180,6 +230,14 @@ export default function ReviewPlanScreen() {
       : undefined;
   const scanState = p.keyLanguage.scan?.status;
   const scanning = scanState === "queued" || scanState === "processing";
+  const openRule = (locale: string, r: PlanRule) =>
+    router.push({
+      pathname: "/[ws]/[project]/[locale]",
+      params: { ws, project, locale, rule: r.key, ruleName: planRuleLabel(r) },
+    });
+  const byRule = p.exceptions.byRule;
+  const hasRules =
+    byRule.source.length > 0 || Object.values(byRule.targets).some((rs) => rs.length > 0);
 
   const chooseInvolvement = () =>
     Alert.alert(t("plan.involvement.title"), t("plan.involvement.body"), [
@@ -221,6 +279,7 @@ export default function ReviewPlanScreen() {
       ? t("plan.exceptions.notChecked")
       : t("plan.exceptions.source", { count: p.exceptions.sourceFindings }),
     t("plan.exceptions.translations", { count: failing }),
+    ...(hasRules ? [t("plan.exceptions.byRule")] : []),
   ];
 
   const interfaceLines =
@@ -326,7 +385,22 @@ export default function ReviewPlanScreen() {
           onPress={
             failing > 0 ? () => openDeck(p.languages.find((l) => l.failing > 0)?.locale) : undefined
           }
-        />
+        >
+          <RuleList
+            testID="plan-rules-source"
+            title={t("plan.exceptions.inSource")}
+            rules={byRule.source}
+          />
+          {p.languages.map((l) => (
+            <RuleList
+              key={l.locale}
+              testID={`plan-rules-${l.locale}`}
+              title={t("plan.exceptions.inLanguage", { language: lang(l.locale) })}
+              rules={byRule.targets[l.locale] ?? []}
+              onOpen={(r) => openRule(l.locale, r)}
+            />
+          ))}
+        </Step>
         <Step
           n={4}
           level="interfaces"

@@ -275,6 +275,25 @@ func TermCheckRunViolations(cfg *TermCheckConfig, sourceRuns, targetRuns []model
 	return errs, warns
 }
 
+// TermCheckRunMissed returns the demanded rules that some form of the
+// translation does not satisfy, in TermRules order, each once. Advisory rules
+// are left out, so the result is the rules behind TermCheckRunViolations'
+// errs. A surface that groups failures by rule reads it.
+func TermCheckRunMissed(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) []profile.TermRule {
+	seen := map[int]bool{}
+	var out []profile.TermRule
+	for _, r := range termReadings(sourceRuns, targetRuns) {
+		for _, use := range TermCheckUses(cfg, r.source.Text, r.target.Text) {
+			if use.Satisfied || use.Rule.Advisory || seen[use.Index] {
+				continue
+			}
+			seen[use.Index] = true
+			out = append(out, use.Rule)
+		}
+	}
+	return out
+}
+
 // TermCheckOverlays draws term-check's decision as term overlays: one over
 // the source runs, a span for each place the source uses a demanded term, and
 // one over the translation in cfg.TargetLocale, a span for each rendering the

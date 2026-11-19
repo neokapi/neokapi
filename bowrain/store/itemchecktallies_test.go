@@ -57,3 +57,27 @@ func TestItemCheckTallies_OnePerItem(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, draft, 1, "another stream's tally of the same item stays")
 }
+
+// A tally keeps its rules: each rule's key, subject, message, concept, failing
+// mark and count read back as they were recorded, and recording the item
+// again replaces them.
+func TestItemCheckTallies_KeepTheRules(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	at := time.Date(2026, 11, 19, 9, 0, 0, 0, time.UTC)
+	rules := []platstore.RuleTally{
+		{Key: "terms.vocabulary:utilize", Rule: "terms.vocabulary", Subject: "utilize", Message: "Use \"use\"", ConceptID: "c-use", Fails: true, Count: 4},
+		{Key: "voice.style", Rule: "voice.style", Message: "Prohibited pattern: exclamation", Count: 1},
+	}
+	require.NoError(t, s.PutItemCheckTally(ctx, platstore.ItemCheckTally{ProjectID: p.ID, ItemID: "item-a", Findings: 5, Rules: rules, CheckedAt: at}))
+	got, err := s.ListItemCheckTallies(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, rules, got[0].Rules)
+
+	require.NoError(t, s.PutItemCheckTally(ctx, platstore.ItemCheckTally{ProjectID: p.ID, ItemID: "item-a", CheckedAt: at}))
+	got, err = s.ListItemCheckTallies(ctx, p.ID, "main")
+	require.NoError(t, err)
+	assert.Empty(t, got[0].Rules, "a clean item holds no rules")
+}

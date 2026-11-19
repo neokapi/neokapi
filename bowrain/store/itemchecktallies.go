@@ -23,11 +23,12 @@ func (s *PostgresStore) PutItemCheckTally(ctx context.Context, t platstore.ItemC
 		at = time.Now()
 	}
 	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO item_check_tallies (project_id, stream, item_id, findings, fixable, checked_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO item_check_tallies (project_id, stream, item_id, findings, fixable, rules, checked_at)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
 		ON CONFLICT (project_id, stream, item_id) DO UPDATE
-		   SET findings = EXCLUDED.findings, fixable = EXCLUDED.fixable, checked_at = EXCLUDED.checked_at`,
-		t.ProjectID, stream, t.ItemID, t.Findings, t.Fixable, at.UTC()); err != nil {
+		   SET findings = EXCLUDED.findings, fixable = EXCLUDED.fixable, rules = EXCLUDED.rules,
+		       checked_at = EXCLUDED.checked_at`,
+		t.ProjectID, stream, t.ItemID, t.Findings, t.Fixable, platstore.EncodeRuleTallies(t.Rules), at.UTC()); err != nil {
 		return fmt.Errorf("record the check tally of item %s: %w", t.ItemID, err)
 	}
 	return nil
@@ -39,7 +40,7 @@ func (s *PostgresStore) ListItemCheckTallies(ctx context.Context, projectID, str
 		stream = "main"
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT item_id, findings, fixable, checked_at
+		SELECT item_id, findings, fixable, rules, checked_at
 		  FROM item_check_tallies WHERE project_id = $1 AND stream = $2 ORDER BY item_id`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list the check tallies of project %s: %w", projectID, err)
@@ -48,9 +49,11 @@ func (s *PostgresStore) ListItemCheckTallies(ctx context.Context, projectID, str
 	out := []platstore.ItemCheckTally{}
 	for rows.Next() {
 		t := platstore.ItemCheckTally{ProjectID: projectID, Stream: stream}
-		if err := rows.Scan(&t.ItemID, &t.Findings, &t.Fixable, &t.CheckedAt); err != nil {
+		var rules []byte
+		if err := rows.Scan(&t.ItemID, &t.Findings, &t.Fixable, &rules, &t.CheckedAt); err != nil {
 			return nil, fmt.Errorf("list the check tallies of project %s: %w", projectID, err)
 		}
+		t.Rules = platstore.DecodeRuleTallies(rules)
 		t.CheckedAt = t.CheckedAt.UTC()
 		out = append(out, t)
 	}

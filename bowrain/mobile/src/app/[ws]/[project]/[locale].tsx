@@ -97,12 +97,17 @@ export default function DeckScreen() {
     collection?: string;
     name?: string;
     sample?: string;
+    rule?: string;
+    ruleName?: string;
   }>();
   const { ws, project, locale } = params;
   // The review plan opens the deck on the interface sample under the
   // involvement Context: one page in ten per channel, and every page with a
   // failing finding.
   const sample = params.sample === "true";
+  // A rule narrows the deck to the translations with a finding of it (the
+  // review plan's exceptions by rule). Such a deck is dealt as cards.
+  const rule = params.rule || undefined;
   const collection = collectionFromParam(params.collection);
   const collectionName =
     collection === undefined ? undefined : params.name || t("collections.none");
@@ -131,7 +136,7 @@ export default function DeckScreen() {
   );
   const [chosenView, setView] = useState<"pages" | "cards" | null>(null);
   const hasPages = opensOnPages(pages.data);
-  const mode = chosenView ?? (hasPages ? "pages" : "cards");
+  const mode = rule ? "cards" : (chosenView ?? (hasPages ? "pages" : "cards"));
   const openPage = (p: {
     firstBlockId: string;
     kind: string;
@@ -152,9 +157,9 @@ export default function DeckScreen() {
     });
 
   const deck = useInfiniteQuery({
-    queryKey: ["deck", ws, project, locale, collection ?? null],
+    queryKey: ["deck", ws, project, locale, collection ?? null, rule ?? null],
     queryFn: ({ pageParam }) =>
-      client.deck(scope, locale, { limit: PAGE, cursor: pageParam, collection }),
+      client.deck(scope, locale, { limit: PAGE, cursor: pageParam, collection, rule }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor,
   });
@@ -341,6 +346,7 @@ export default function DeckScreen() {
       <Stack.Screen
         options={{
           ...(collectionName ? { title: collectionName } : {}),
+          ...(rule && params.ruleName ? { title: params.ruleName } : {}),
           headerRight: () =>
             madeHere > 0 ? (
               <Pressable
@@ -365,7 +371,7 @@ export default function DeckScreen() {
           headerShadowVisible: false,
         }}
       />
-      {hasPages || chosenView === "pages" ? (
+      {!rule && (hasPages || chosenView === "pages") ? (
         <View className="px-5 pt-2">
           <ViewSwitch value={mode} onChange={setView} />
         </View>

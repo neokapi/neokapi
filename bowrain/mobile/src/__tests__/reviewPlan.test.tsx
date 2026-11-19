@@ -53,7 +53,33 @@ const plan = (over: { confirmed?: boolean; next?: string; settle?: string; scan?
         ? { id: "j1", status: over.scan, progress: 40, created_at: "", updated_at: "" }
         : null,
     },
-    exceptions: { source_findings: 593 },
+    exceptions: {
+      source_findings: 593,
+      by_rule: {
+        source: [
+          {
+            key: "terms.vocabulary:utilize",
+            rule: "terms.vocabulary",
+            subject: "utilize",
+            message: 'Use "use" instead of "utilize"',
+            fails: true,
+            count: 210,
+          },
+        ],
+        targets: {
+          nb: [
+            {
+              key: "terms.vocabulary:verksted",
+              rule: "terms.vocabulary",
+              subject: "verksted",
+              message: '"verksted" is not to be used in nb',
+              fails: true,
+              count: 31,
+            },
+          ],
+        },
+      },
+    },
     languages: [
       {
         locale: "nb",
@@ -168,5 +194,24 @@ describe("review plan", () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, scan: "processing" }));
     await render(wrap(<ReviewPlanScreen />));
     expect(await screen.findByText("Scanning the project for terms, 40% done")).toBeTruthy();
+  });
+
+  it("lists the exceptions by rule and opens the deck narrowed to one", async () => {
+    mockPlan.mockResolvedValue(plan({ confirmed: true, next: "exceptions" }));
+    await render(wrap(<ReviewPlanScreen />));
+    expect(await screen.findByText('Use "use" instead of "utilize"')).toBeTruthy();
+    expect(screen.getByText("210 findings")).toBeTruthy();
+    expect(screen.getByText("Norwegian Bokmål, by rule")).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("plan-rules-nb-terms.vocabulary:verksted"));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/[ws]/[project]/[locale]",
+      params: {
+        ws: "ws",
+        project: "p",
+        locale: "nb",
+        rule: "terms.vocabulary:verksted",
+        ruleName: '"verksted" is not to be used in nb',
+      },
+    });
   });
 });

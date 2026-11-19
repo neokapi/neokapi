@@ -84,6 +84,10 @@ func reviewDeckArgs(q platstore.ReviewDeckQuery) (scope string, args []any) {
 		args = append(args, q.ExcludeCollections)
 		scope += fmt.Sprintf(` AND COALESCE(i.collection_id, '') <> ALL($%d)`, len(args))
 	}
+	if q.Rule != "" {
+		args = append(args, q.Rule)
+		scope += fmt.Sprintf(` AND f.rules @> jsonb_build_array(jsonb_build_object('key', $%d::text))`, len(args))
+	}
 	return scope, args
 }
 
@@ -140,14 +144,15 @@ func (s *PostgresStore) RecordReviewDeckFacts(ctx context.Context, projectID, st
 	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO review_deck_facts (project_id, stream, block_id, locale,
 		target_updated_at, source_revision, prereview_at, decision_at, policy,
-		group_rank, deck_group, reason, findings, failing, term_compliance, voice_score, voice_bar, computed_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+		group_rank, deck_group, reason, findings, failing, term_compliance, voice_score, voice_bar, rules, computed_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, NOW())
 		ON CONFLICT (project_id, stream, block_id, locale) DO UPDATE SET
 			target_updated_at = EXCLUDED.target_updated_at, source_revision = EXCLUDED.source_revision,
 			prereview_at = EXCLUDED.prereview_at, decision_at = EXCLUDED.decision_at, policy = EXCLUDED.policy,
 			group_rank = EXCLUDED.group_rank, deck_group = EXCLUDED.deck_group, reason = EXCLUDED.reason,
 			findings = EXCLUDED.findings, failing = EXCLUDED.failing, term_compliance = EXCLUDED.term_compliance,
-			voice_score = EXCLUDED.voice_score, voice_bar = EXCLUDED.voice_bar, computed_at = NOW()`)
+			voice_score = EXCLUDED.voice_score, voice_bar = EXCLUDED.voice_bar, rules = EXCLUDED.rules,
+			computed_at = NOW()`)
 	if err != nil {
 		return fmt.Errorf("record review deck facts: %w", err)
 	}
@@ -155,7 +160,8 @@ func (s *PostgresStore) RecordReviewDeckFacts(ctx context.Context, projectID, st
 	for _, f := range facts {
 		if _, err := stmt.ExecContext(ctx, projectID, stream, f.BlockID, f.Locale,
 			f.Basis.TargetUpdatedAt, f.Basis.SourceRevision, f.Basis.PreReviewAt, f.Basis.DecisionAt, f.Policy,
-			f.GroupRank, f.Group, f.Reason, f.Findings, f.Failing, string(f.TermCompliance), f.VoiceScore, f.VoiceBar); err != nil {
+			f.GroupRank, f.Group, f.Reason, f.Findings, f.Failing, string(f.TermCompliance), f.VoiceScore, f.VoiceBar,
+			platstore.EncodeRuleTallies(f.Rules)); err != nil {
 			return fmt.Errorf("record review deck facts of block %s: %w", f.BlockID, err)
 		}
 	}
@@ -294,6 +300,42 @@ func (s *PostgresStore) CountReviewDeck(ctx context.Context, q platstore.ReviewD
 			continue
 		}
 		out.ByRank[rank] += n
+	}
+	return out, rows.Err()
+}
+
+// CountReviewDeckRules counts the findings of each rule over one group of the
+// deck. See platstore.ReviewDeckStore.
+func (s *PostgresStore) CountReviewDeckRules(ctx context.Context, q platstore.ReviewDeckQuery, groupRank, limit int) ([]platstore.RuleTally, error) {
+	scope, args := reviewDeckArgs(q)
+	prio, args := reviewDeckPriority(q, args)
+	args = append(args, groupRank)
+	rank := len(args)
+	args = append(args, limit)
+	// A set of copies counts once, at its first card in deck order; each of
+	// its rules then counts what that translation's facts hold.
+	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
+	query := `SELECT r->>'key', MIN(COALESCE(r->>'rule', '')), MIN(COALESCE(r->>'subject', '')),
+		MIN(COALESCE(r->>'message', '')), MAX(COALESCE(r->>'concept_id', '')),
+		COALESCE(BOOL_OR((r->>'fails')::boolean), FALSE), SUM(COALESCE((r->>'count')::integer, 0))
+		FROM (SELECT DISTINCT ON (` + reviewDeckSame + `) f.rules` +
+		reviewDeckFrom + scope + ` AND ` + reviewDeckFresh + fmt.Sprintf(` AND f.group_rank = $%d`, rank) +
+		` ORDER BY ` + reviewDeckSame + `, ` + prio + `, b.item_name, b.position, b.id) x
+		CROSS JOIN LATERAL jsonb_array_elements(x.rules) r
+		WHERE COALESCE(r->>'key', '') <> ''
+		GROUP BY 1 ORDER BY 7 DESC, 1` + fmt.Sprintf(` LIMIT $%d`, len(args))
+	rows, err := s.db.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("count review deck rules: %w", err)
+	}
+	defer rows.Close()
+	out := []platstore.RuleTally{}
+	for rows.Next() {
+		var t platstore.RuleTally
+		if err := rows.Scan(&t.Key, &t.Rule, &t.Subject, &t.Message, &t.ConceptID, &t.Fails, &t.Count); err != nil {
+			return nil, fmt.Errorf("scan review deck rule count: %w", err)
+		}
+		out = append(out, t)
 	}
 	return out, rows.Err()
 }

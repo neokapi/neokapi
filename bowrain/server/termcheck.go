@@ -11,6 +11,8 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -69,70 +71,103 @@ func blockTermCompliance(ctx context.Context, block *model.Block, srcLoc, tgtLoc
 // declared rule marked advisory reports in kapi and never makes a violation
 // here.
 func blockTermComplianceWith(ctx context.Context, block *model.Block, srcLoc, tgtLoc model.LocaleID, tb terms.Terminology, profile *coreprofile.VoiceProfile, declared []coreprofile.TermRule) store.TermCompliance {
+	c, _ := blockTermVerdict(ctx, block, srcLoc, tgtLoc, tb, profile, declared)
+	return c
+}
+
+// blockTermVerdict is blockTermComplianceWith with, for a violation, the rule
+// the target breaks first, as a rule tally of one finding: a forbidden or
+// competitor term the target holds, a voice profile rule it matches, or a
+// mandated term it lacks.
+func blockTermVerdict(ctx context.Context, block *model.Block, srcLoc, tgtLoc model.LocaleID, tb terms.Terminology, profile *coreprofile.VoiceProfile, declared []coreprofile.TermRule) (store.TermCompliance, store.RuleTally) {
 	if tb == nil && coreprofile.BlockRuleCount(profile) == 0 && len(declared) == 0 {
-		return store.TermComplianceNotGoverned
+		return store.TermComplianceNotGoverned, store.RuleTally{}
 	}
 	if block == nil {
-		return store.TermComplianceUnchecked
+		return store.TermComplianceUnchecked, store.RuleTally{}
 	}
 	targetText := block.TargetText(tgtLoc)
 	if strings.TrimSpace(targetText) == "" {
-		return store.TermComplianceUnchecked
+		return store.TermComplianceUnchecked, store.RuleTally{}
 	}
 	// PRESENCE (terms): a forbidden/competitor term appears in the target.
-	if tb != nil && targetHasForbiddenTerm(ctx, tb, targetText, tgtLoc) {
-		return store.TermComplianceViolation
+	if tb != nil {
+		if m, ok := targetForbiddenTerm(ctx, tb, targetText, tgtLoc); ok {
+			return store.TermComplianceViolation, termRuleTally(m.Term.Text, m.Concept.ID,
+				fmt.Sprintf("%q is not to be used in %s", m.Term.Text, tgtLoc))
+		}
 	}
 	// PRESENCE (voice profile): a forbidden/competitor rule or a prohibited style
 	// pattern matches the target. core/profile.Findings is the canonical
 	// deterministic gate, and reads the target's runs as `kapi check` does.
-	if profile != nil && len(coreprofile.Findings(profile, targetText, block.TargetRuns(tgtLoc))) > 0 {
-		return store.TermComplianceViolation
+	if profile != nil {
+		if found := coreprofile.Findings(profile, targetText, block.TargetRuns(tgtLoc)); len(found) > 0 {
+			family := "voice"
+			if found[0].Category == string(coreprofile.DimensionVocabulary) {
+				family = "terms"
+			}
+			return store.TermComplianceViolation, jobs.FindingRuleTally(family, found[0])
+		}
 	}
 	// ABSENCE (terms and the recipe's rules): the source uses a concept or a
 	// declared rule whose mandated rendering for the target locale, or whose
 	// do-not-translate term, is missing from the target.
-	if targetMissingMandatedTerm(ctx, tb, declared, block.SourceRuns(), block.TargetRuns(tgtLoc), srcLoc, tgtLoc) {
-		return store.TermComplianceViolation
+	if missed := targetMissedMandatedTerms(ctx, tb, declared, block.SourceRuns(), block.TargetRuns(tgtLoc), srcLoc, tgtLoc); len(missed) > 0 {
+		r := missed[0]
+		msg := fmt.Sprintf("%q is to be translated as %q", r.Term, r.Replacement)
+		if r.DoNotTranslate {
+			msg = fmt.Sprintf("%q is to be kept as it is", r.Term)
+		}
+		return store.TermComplianceViolation, termRuleTally(r.Term, r.ConceptID, msg)
 	}
-	return store.TermComplianceCompliant
+	return store.TermComplianceCompliant, store.RuleTally{}
 }
 
-// targetHasForbiddenTerm reports whether targetText (a translation in locale loc)
-// contains any forbidden or competitor term drawn from tb. It runs the canonical
-// terms LookupAll keyed on the target locale so a per-locale terminology
-// decision is matched in the language it governs — the same oracle the concept
-// blast radius and RV-E's presence direction use.
-func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetText string, loc model.LocaleID) bool {
+// termRuleTally is the rule tally of one finding of a word rule.
+func termRuleTally(term, conceptID, message string) store.RuleTally {
+	rule := check.RuleID("terms", string(coreprofile.DimensionVocabulary))
+	return store.RuleTally{
+		Key: store.RuleTallyKey(rule, term), Rule: rule, Subject: term,
+		ConceptID: conceptID, Message: message, Fails: true, Count: 1,
+	}
+}
+
+// targetForbiddenTerm returns a forbidden or competitor term drawn from tb
+// that targetText (a translation in locale loc) contains. It runs the
+// canonical terms LookupAll keyed on the target locale so a per-locale
+// terminology decision is matched in the language it governs: the same
+// oracle the concept blast radius and RV-E's presence direction use.
+func targetForbiddenTerm(ctx context.Context, tb terms.Terminology, targetText string, loc model.LocaleID) (terms.TermMatch, bool) {
 	matches, err := tb.LookupAll(ctx, targetText, terms.LookupOptions{SourceLocale: loc})
 	if err != nil {
-		return false
+		return terms.TermMatch{}, false
 	}
 	for _, m := range matches {
 		if m.Term.Status == model.TermForbidden || m.Term.CompetitorTerm {
-			return true
+			return m, true
 		}
 	}
-	return false
+	return terms.TermMatch{}, false
 }
 
-// targetMissingMandatedTerm reports whether the target VIOLATES terminology by
-// ABSENCE: the source uses a concept's term, and the target holds none of the
+// targetMissedMandatedTerms returns the rules the target VIOLATES by ABSENCE:
+// the source uses a concept's term, and the target holds none of the
 // renderings that concept accepts for tgtLoc. It determines exactly what the
 // term-check tool determines, by deriving the rules with terms.RulesFromConcepts
-// and asking coretools.TermCheckRunViolations, form by form, so a translation
-// the CLI gate passes is compliant here and one it fails is a violation. That includes an
-// admitted or approved term, a declared form of any rendering, an English
-// source term's regular inflections, placeholder names read as syntax, and a
-// do-not-translate term, which the target must keep verbatim. Redirection
-// through USE_INSTEAD / REPLACED_BY relations is not followed, as in term-check.
+// and asking coretools.TermCheckRunMissed, form by form, so a translation the
+// CLI gate passes misses nothing here and one it fails misses a rule. That
+// includes an admitted or approved term, a declared form of any rendering, an
+// English source term's regular inflections, placeholder names read as
+// syntax, and a do-not-translate term, which the target must keep verbatim.
+// Redirection through USE_INSTEAD / REPLACED_BY relations is not followed, as
+// in term-check.
 //
 // declared are the term rules the recipe declares for tgtLoc. They join the
 // concepts' rules as kapi's gate joins them, and tb may be nil when they are
 // all that governs the locale.
-func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, declared []coreprofile.TermRule, sourceRuns, targetRuns []model.Run, srcLoc, tgtLoc model.LocaleID) bool {
+func targetMissedMandatedTerms(ctx context.Context, tb terms.Terminology, declared []coreprofile.TermRule, sourceRuns, targetRuns []model.Run, srcLoc, tgtLoc model.LocaleID) []coreprofile.TermRule {
 	if strings.TrimSpace(model.RunsText(sourceRuns)) == "" || strings.TrimSpace(model.RunsText(targetRuns)) == "" {
-		return false
+		return nil
 	}
 	var rules []coreprofile.TermRule
 	if tb != nil {
@@ -142,14 +177,13 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, declar
 	}
 	rules = coreprofile.WithDeclaredTermRules(rules, declared)
 	if len(rules) == 0 {
-		return false
+		return nil
 	}
-	errs, _ := coretools.TermCheckRunViolations(&coretools.TermCheckConfig{
+	return coretools.TermCheckRunMissed(&coretools.TermCheckConfig{
 		TermRules:    rules,
 		SourceLocale: srcLoc,
 		TargetLocale: tgtLoc,
 	}, sourceRuns, targetRuns)
-	return len(errs) > 0
 }
 
 // termGate carries the governance context for one ship/compliant pass: an
@@ -274,14 +308,21 @@ func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *coreprof
 // takes part only for a locale it governs, the recipe's term rules for the
 // locale always, and a nil gate governs nothing.
 func (g *termGate) compliance(ctx context.Context, block *model.Block, tgtLoc model.LocaleID) store.TermCompliance {
+	c, _ := g.verdict(ctx, block, tgtLoc)
+	return c
+}
+
+// verdict is compliance with, for a violation, the rule the target breaks
+// first (blockTermVerdict).
+func (g *termGate) verdict(ctx context.Context, block *model.Block, tgtLoc model.LocaleID) (store.TermCompliance, store.RuleTally) {
 	if g == nil {
-		return store.TermComplianceNotGoverned
+		return store.TermComplianceNotGoverned, store.RuleTally{}
 	}
 	var tb terms.Terminology
 	if g.snapshotGoverns(ctx, tgtLoc) {
 		tb = g.tb
 	}
-	return blockTermComplianceWith(ctx, block, g.srcLoc, tgtLoc, tb, g.profileFor(ctx, tgtLoc), g.declaredFor(tgtLoc))
+	return blockTermVerdict(ctx, block, g.srcLoc, tgtLoc, tb, g.profileFor(ctx, tgtLoc), g.declaredFor(tgtLoc))
 }
 
 // termCheckConfig is the term-check a translation into tgtLoc is held to: the
