@@ -18,6 +18,9 @@ const (
 	SourceURL   SourceKind = "url"
 	SourceFile  SourceKind = "file"
 	SourceRepo  SourceKind = "repo"
+	// SourceProject is a sample of a project's own content, drawn from every
+	// collection.
+	SourceProject SourceKind = "project"
 )
 
 // Source is one ingested piece of brand material, already reduced to plain
@@ -55,8 +58,10 @@ func kindRank(k SourceKind) int {
 		return 2
 	case SourceRepo:
 		return 3
+	case SourceProject:
+		return 4
 	}
-	return 4
+	return 5
 }
 
 // sourceHeader renders the tag line that precedes a source's text.

@@ -205,6 +205,20 @@ export interface ContextCard {
   origin?: ContextOrigin;
   /** An attestation covers the item at its current revision (origin listings only). */
   reviewed?: boolean;
+  /**
+   * A candidate term: a concept whose source-language term is proposed. Keep
+   * makes it a term of the project; reject deletes it, and no later scan
+   * proposes it again. The deck deals candidates first, widest reach first.
+   */
+  proposed?: boolean;
+  /** How many blocks use a candidate term, in all and per collection. */
+  reach?: ContextReach;
+}
+
+/** The blocks that use a candidate term, in all and per collection, most first. */
+export interface ContextReach {
+  blocks: number;
+  collections: { name: string; blocks: number }[];
 }
 
 /** A page of the items one bulk operation brought in (GET .../context/deck/origins/:op). */
@@ -225,6 +239,8 @@ export interface ContextDeck {
   counts: {
     total: number;
     by_kind: Record<ContextCardKind, number>;
+    /** Candidate terms among the concepts. */
+    proposed: number;
     agent: number;
     person: number;
   };

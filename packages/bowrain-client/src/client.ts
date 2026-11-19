@@ -19,6 +19,7 @@ import type {
   AuthTokens,
   BlockInfo,
   CallerPermissions,
+  ContextCard,
   ContextCardKind,
   ContextDeck,
   ContextOriginPage,
@@ -388,14 +389,23 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       const deck = await get<ContextDeck>(
         `${ROUTES.contextDeck(ws, pid)}${query({ mode: "pending", limit: o.limit, cursor: o.cursor, kind: o.kind })}`,
       );
-      return { ...deck, cards: deck.cards ?? [], next_cursor: deck.next_cursor || undefined };
+      return {
+        ...deck,
+        counts: { ...deck.counts, proposed: deck.counts?.proposed ?? 0 },
+        cards: (deck.cards ?? []).map(contextCard),
+        next_cursor: deck.next_cursor || undefined,
+      };
     },
 
     async contextOrigin(ws, pid, op, o = {}) {
       const page = await get<ContextOriginPage>(
         `${ROUTES.contextDeck(ws, pid)}/origins/${enc(op)}${query({ limit: o.limit, cursor: o.cursor })}`,
       );
-      return { ...page, cards: page.cards ?? [], next_cursor: page.next_cursor || undefined };
+      return {
+        ...page,
+        cards: (page.cards ?? []).map(contextCard),
+        next_cursor: page.next_cursor || undefined,
+      };
     },
 
     async contextRuleExamples(ws, pid, rule) {
@@ -910,4 +920,15 @@ function fixesFromServer(body: ServerFixCandidates): FixCandidates {
     notes: body.notes ?? [],
     targetRevision: body.target_revision,
   };
+}
+
+/**
+ * A context card as the server sends it, with the candidate fields filled in
+ * when a server leaves them out: not proposed, and a reach with no
+ * collections listed.
+ */
+function contextCard(card: ContextCard): ContextCard {
+  const out: ContextCard = { ...card, proposed: card.proposed ?? false };
+  if (card.reach) out.reach = { ...card.reach, collections: card.reach.collections ?? [] };
+  return out;
 }

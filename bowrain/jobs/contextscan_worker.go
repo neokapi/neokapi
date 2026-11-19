@@ -20,8 +20,10 @@ import (
 	"github.com/neokapi/neokapi/bowrain/connector"
 	"github.com/neokapi/neokapi/bowrain/contextscan"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/safehttp"
+	"github.com/neokapi/neokapi/bowrain/termcandidate"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
@@ -58,6 +60,12 @@ type ContextScanWorkerDeps struct {
 	// LogFunc emits structured step logs. Optional.
 	// Signature: func(stepID, level, message string, data map[string]string).
 	LogFunc func(stepID, level, message string, data map[string]string)
+	// ContentStore reads the project a scan names (ContextScanRequest.Project).
+	// Optional; nil skips the project source.
+	ContentStore platstore.ContentStore
+	// TermsResolver opens a workspace's terms store, where a project scan
+	// files its candidates. Optional; nil leaves them in the result only.
+	TermsResolver TermsResolver
 	// MaxJobAttempts bounds transient-failure retries before a job is failed.
 	// Zero uses defaultMaxJobAttempts.
 	MaxJobAttempts int
@@ -261,6 +269,31 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressReading, "reading-sources")
 
 	sources, skipped := gatherContextScanSources(ctx, deps, job.ID, &req)
+
+	// A project is read as a sample of every collection rather than its
+	// front, and its terms are extracted in its own source language. The
+	// sample joins the corpus as one more source, and the term extraction
+	// reads the sample alone.
+	var proj *scanProject
+	var termChunks []string
+	termLocale := model.LocaleEnglish
+	if projectID := strings.TrimSpace(req.Project); projectID != "" {
+		sp, segments, perr := readScanProject(ctx, deps, job, projectID)
+		switch {
+		case perr != nil:
+			slog.WarnContext(ctx, "context-scan project source failed", "job_id", job.ID, "project", projectID, "error", perr)
+			skipped = append(skipped, skippedContextScanSource{kind: string(contextscan.SourceProject), label: projectID, reason: perr.Error()})
+			emitContextScanLog(deps, job.ID, "warn", fmt.Sprintf("Skipped project source %q: %s", projectID, perr), nil)
+		case len(segments) == 0:
+			skipped = append(skipped, skippedContextScanSource{kind: string(contextscan.SourceProject), label: sp.project.Name, reason: "the project holds no text"})
+		default:
+			proj = sp
+			sources = append(sources, contextscan.Source{Kind: contextscan.SourceProject, Label: sp.project.Name, Text: termcandidate.Text(segments)})
+			termChunks = termcandidate.Chunks(segments, contextScanTermChunkRunes, contextScanMaxTermChunks)
+			termLocale = sourceLocale(sp.project)
+		}
+	}
+
 	if len(sources) == 0 {
 		reasons := make([]string, 0, len(skipped))
 		for _, sk := range skipped {
@@ -345,13 +378,29 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	// existing term-extract tool machinery. A failure here degrades to the
 	// vocabulary-derived candidates rather than discarding the drafted voice.
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressTerms, "extracting-terms")
-	terms, termUsage, termErr := extractContextScanTerms(ctx, prov, corpus.Text, req.Domain)
+	if termChunks == nil {
+		termChunks = chunkRunes(corpus.Text, contextScanTermChunkRunes, contextScanMaxTermChunks)
+	}
+	terms, termUsage, termErr := extractContextScanTerms(ctx, prov, termChunks, termLocale, req.Domain)
 	if termErr != nil {
 		slog.WarnContext(ctx, "brand-scan term extraction failed; keeping vocabulary-derived candidates only",
 			"job_id", job.ID, "error", termErr)
 		emitContextScanLog(deps, job.ID, "warn", "Term extraction failed: "+termErr.Error(), nil)
 	}
 	terms = mergeContextScanTerms(terms, draft, req.Domain)
+
+	// Count each candidate over the whole project and file it as a proposed
+	// concept. A failure here costs the filing and the reach; the candidates
+	// stay in the result for the review screen.
+	var reach []CandidateReach
+	if proj != nil && len(terms) > 0 {
+		var ferr error
+		reach, ferr = fileProjectCandidates(ctx, deps, job, proj, terms)
+		if ferr != nil {
+			slog.WarnContext(ctx, "context-scan candidate filing failed", "job_id", job.ID, "error", ferr)
+			emitContextScanLog(deps, job.ID, "warn", "Filing candidate terms failed: "+ferr.Error(), nil)
+		}
+	}
 
 	if termTokens := termUsage.TotalTokens(); termTokens > 0 {
 		owner, lerr := deps.Store.RenewLease(ctx, job.ID, epoch)
@@ -421,7 +470,7 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	}
 	if len(terms) > 0 {
 		result.Artefacts = append(result.Artefacts, ArtefactProposal{
-			Kind: ArtefactTerms, Terms: terms,
+			Kind: ArtefactTerms, Terms: terms, Reach: reach,
 		})
 	}
 	for _, s := range corpus.Sources {
@@ -722,16 +771,15 @@ func recordContextScanUsage(ctx context.Context, deps *ContextScanWorkerDeps, jo
 	}
 }
 
-// extractContextScanTerms drives the existing term-extract tool over the corpus
-// (chunked into prompt-sized blocks) and returns the deduplicated candidate
-// terms plus the provider token usage of the pass.
-func extractContextScanTerms(ctx context.Context, prov aiprovider.LLMProvider, corpusText, domain string) ([]tools.TermEntry, aiprovider.TokenUsage, error) {
+// extractContextScanTerms drives the existing term-extract tool over
+// prompt-sized chunks of text in locale and returns the deduplicated
+// candidate terms plus the provider token usage of the pass.
+func extractContextScanTerms(ctx context.Context, prov aiprovider.LLMProvider, chunks []string, locale model.LocaleID, domain string) ([]tools.TermEntry, aiprovider.TokenUsage, error) {
 	termTool := tools.NewAITerminologyTool(prov, tools.AITerminologyConfig{
-		Locale: model.LocaleEnglish,
+		Locale: locale,
 		Domain: domain,
 	})
 
-	chunks := chunkRunes(corpusText, contextScanTermChunkRunes, contextScanMaxTermChunks)
 	parts := make([]*model.Part, 0, len(chunks))
 	for i, chunk := range chunks {
 		block := model.NewBlock(fmt.Sprintf("contextscan-corpus-%d", i), chunk)

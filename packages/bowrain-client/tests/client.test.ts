@@ -511,6 +511,51 @@ describe("client", () => {
     expect(calls[1]?.url).toBe("http://server/api/v1/ws/p/context/deck/decide");
     expect(calls[1]?.init?.method).toBe("POST");
   });
+
+  it("maps a candidate term's reach and fills what an older server leaves out", async () => {
+    const card = (extra: object) => ({
+      item: { kind: "concept", id: "c1" },
+      kind: "concept",
+      revision: "u1",
+      where: { level: "project", coordinates: { product: "bowrain" } },
+      author: { kind: "tool", name: "context-scan", agent_authored: true },
+      own_work: false,
+      actions: ["keep", "reject", "later"],
+      ...extra,
+    });
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () =>
+        new Response(
+          JSON.stringify({
+            mode: "pending",
+            bound: true,
+            counts: { total: 3, by_kind: { concept: 3 }, agent: 3, person: 0 },
+            cards: [
+              card({
+                proposed: true,
+                reach: { blocks: 6, collections: [{ name: "bowrain-app", blocks: 6 }] },
+              }),
+              card({ proposed: true, reach: { blocks: 0 } }),
+              card({}),
+            ],
+          }),
+          { status: 200 },
+        )) as typeof fetch,
+    });
+    const deck = await client.contextDeck("ws", "p");
+    expect(deck.counts.proposed).toBe(0);
+    expect(deck.cards[0]?.proposed).toBe(true);
+    expect(deck.cards[0]?.reach).toEqual({
+      blocks: 6,
+      collections: [{ name: "bowrain-app", blocks: 6 }],
+    });
+    expect(deck.cards[0]?.where.coordinates).toEqual({ product: "bowrain" });
+    expect(deck.cards[1]?.reach).toEqual({ blocks: 0, collections: [] });
+    expect(deck.cards[2]?.proposed).toBe(false);
+    expect(deck.cards[2]?.reach).toBeUndefined();
+  });
 });
 
 describe("deckPages", () => {

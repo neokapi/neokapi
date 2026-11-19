@@ -17,6 +17,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/termcandidate"
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
@@ -83,6 +84,44 @@ type contextDeckCard struct {
 	// Reviewed says an attestation covers the item at its current revision.
 	// Only a listing of an origin's items deals reviewed ones.
 	Reviewed bool `json:"reviewed,omitempty"`
+	// Proposed says the card is a candidate term: a concept whose
+	// source-language term is proposed. Keep makes it a term of the project
+	// (its proposed term becomes preferred); reject deletes it and records
+	// that it is not a term, so no later scan proposes it again.
+	Proposed bool `json:"proposed,omitempty"`
+	// Reach is how many blocks of the project use a candidate, as the scan
+	// that filed it counted them.
+	Reach *contextDeckReach `json:"reach,omitempty"`
+}
+
+// contextDeckReach is the blocks that use a candidate term, in all and per
+// collection, most first.
+type contextDeckReach struct {
+	Blocks      int                          `json:"blocks"`
+	Collections []contextDeckCollectionReach `json:"collections"`
+}
+
+type contextDeckCollectionReach struct {
+	Name   string `json:"name"`
+	Blocks int    `json:"blocks"`
+}
+
+// reachBlocks is a card's reach, zero when it carries none.
+func (card contextDeckCard) reachBlocks() int {
+	if card.Reach == nil {
+		return 0
+	}
+	return card.Reach.Blocks
+}
+
+// contextDeckRank is where a card's group sits in the deck: candidate terms first,
+// because a term decided once governs every block that uses it, then the
+// kinds in deckKindOrder.
+func contextDeckRank(card contextDeckCard) int {
+	if card.Proposed {
+		return -1
+	}
+	return slices.Index(deckKindOrder, card.Kind)
 }
 
 // The kinds of bulk operation an origin names.
@@ -172,11 +211,13 @@ type contextDeckAuthor struct {
 }
 
 // contextDeckCounts counts the cards by kind and by who wrote them.
+// Proposed counts the candidate terms among the concepts.
 type contextDeckCounts struct {
-	Total  int            `json:"total"`
-	ByKind map[string]int `json:"by_kind"`
-	Agent  int            `json:"agent"`
-	Person int            `json:"person"`
+	Total    int            `json:"total"`
+	ByKind   map[string]int `json:"by_kind"`
+	Proposed int            `json:"proposed"`
+	Agent    int            `json:"agent"`
+	Person   int            `json:"person"`
 }
 
 func countDeck(cards []contextDeckCard) contextDeckCounts {
@@ -187,6 +228,9 @@ func countDeck(cards []contextDeckCard) contextDeckCounts {
 	for _, c := range cards {
 		out.Total++
 		out.ByKind[c.Kind]++
+		if c.Proposed {
+			out.Proposed++
+		}
 		if c.Author.AgentAuthored {
 			out.Agent++
 		} else {
@@ -415,7 +459,8 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 	}
 	slices.SortStableFunc(cards, func(a, b contextDeckCard) int {
 		return cmp.Or(
-			cmp.Compare(slices.Index(deckKindOrder, a.Kind), slices.Index(deckKindOrder, b.Kind)),
+			cmp.Compare(contextDeckRank(a), contextDeckRank(b)),
+			cmp.Compare(b.reachBlocks(), a.reachBlocks()),
 			a.At.Compare(b.At),
 			strings.Compare(a.Item.ID, b.Item.ID),
 		)
@@ -571,7 +616,8 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 	source := src.project.DefaultSourceLanguage
 	out := make([]contextDeckCard, 0, len(concepts))
 	for _, cp := range concepts {
-		if cp.ProjectID != "" && cp.ProjectID != src.project.ID {
+		project := termcandidate.ProjectOf(cp)
+		if project != "" && project != src.project.ID {
 			continue
 		}
 		card := contextDeckCard{
@@ -579,11 +625,18 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 			Kind:     deckKindConcept,
 			Text:     cp.Definition,
 			Language: string(source),
-			Where:    contextDeckWhere{Level: string(contextop.LevelWorkspace)},
+			Where:    contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
 			At:       cp.CreatedAt,
 		}
-		if cp.ProjectID != "" {
+		if project != "" {
 			card.Where.Level = string(contextop.LevelProject)
+		}
+		card.Proposed = termcandidate.IsCandidate(cp, source)
+		if reach, ok := termcandidate.ReachOf(cp); ok {
+			card.Reach = &contextDeckReach{Blocks: reach.Blocks, Collections: []contextDeckCollectionReach{}}
+			for _, cc := range reach.Collections {
+				card.Reach.Collections = append(card.Reach.Collections, contextDeckCollectionReach{Name: cc.Name, Blocks: cc.Blocks})
+			}
 		}
 		card.Terms = conceptTerms(cp, source)
 		if cp.Advisory {
@@ -604,6 +657,11 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 		} else {
 			card.Revision = "u" + strconv.FormatInt(cp.UpdatedAt.UnixNano(), 10)
 			card.Author = contextDeckAuthor{Kind: string(contextop.ActorPerson)}
+			// A candidate the scan filed names the scan as its author, so
+			// the person who keeps it reviews a tool's work.
+			if by := cp.Properties[termcandidate.PropProposedBy]; by != "" {
+				card.Author = s.memberAuthor(ctx, by, names)
+			}
 		}
 		out = append(out, card)
 	}

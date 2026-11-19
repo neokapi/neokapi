@@ -123,14 +123,15 @@ on a large project the candidates are the weakest link. What exists:
 | --- | --- | --- | --- |
 | `term-extract` (AI, `core/ai/tools/terminology.go`) | one block | term, definition, domain | a block property; the overlay the schema promises is never written |
 | DeeperLook (`kapi context suggest --ai`, `host/contextdeeper.go`) | the first 12 chunks of 2,000 characters, in file order | the 10 terms used in the most blocks | a term rule when the term appears in two spellings, otherwise a note |
-| Context scan (`bowrain/jobs/contextscan_worker.go`) | the first 6 chunks of 12,000 characters, English hard-coded | terms plus the drafted voice's preferred forms | a scan result; approving one creates a concept with status proposed |
+| Context scan for a project (`bowrain/jobs/contextscan_project.go`, `bowrain/termcandidate`) | a sample drawn from every collection in turn, in the project's source language | terms plus the drafted voice's preferred forms, each with its reach counted over the whole stream | proposed concepts, scoped to the coordinates their blocks share, dealt first in the context deck |
 | `entity-extract` (AI) | one block | text, category, translatability, confidence | term-candidate overlay spans no queue reads |
 | Spelling variants (no AI, `host/contextsuggest.go`) | the whole corpus | words and two-word phrases written two or more ways | ledger suggestions with a block count and the shared coordinates |
 
 What this means for a project the size of neokapi:
 
-- **The sample is the front of the corpus.** Both AI paths read the first 24k
-  or 72k characters. On neokapi that is a slice of whichever collection sorts
+- **The sample was the front of the corpus.** A project scan now samples every
+  collection; DeeperLook still reads the first 24k characters, and a scan
+  started without a project the first 72k. On neokapi that is a slice of whichever collection sorts
   first, so the key language of the CLI, the apps and most of the docs is
   never seen.
 - **Candidates live in four places**, each with its own shape: ledger
@@ -254,9 +255,13 @@ In order, with the counts from 2026-11-19:
 
 1. The review plan endpoint (server), with the levels and counts. Built.
 2. The plan on mobile and on the web Overview. Built.
-3. Term candidates: sampling across coordinates, one candidate shape, keep
-   creates a scoped concept, translations proposed (the section above).
-4. Context deck ordered by reach, source term and translations together.
+3. Term candidates: sampling across coordinates, one candidate shape (a
+   proposed concept with its reach), keep promotes it to preferred, reject
+   is remembered on the project. Built for the project scan. Still to build:
+   AI-proposed translations of kept terms, dealt to the same reviewer, and a
+   way to start a project scan from the apps.
+4. Context deck ordered by reach. Built for candidate terms; the rest of the
+   deck keeps its order by kind.
 5. Exceptions grouped by rule (the check tally gains a count per rule).
 6. Involvement in the recipe (`defaults.review.involvement`, per coordinate
    under `when:`) and policy establishment on the server, through the approve

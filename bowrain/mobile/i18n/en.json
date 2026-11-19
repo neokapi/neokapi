@@ -164,6 +164,19 @@
     "retire": "Retire",
     "retireHint": "Retires the item. Same as swiping left.",
     "retireTitle": "Retire this item?",
+    "candidate": {
+      "label": "Proposed term",
+      "reach_one": "Used in 1 block",
+      "reach_other": "Used in {{count, number}} blocks",
+      "reachNone": "Not counted yet",
+      "collection": "{{name}}: {{count, number}}",
+      "noCollection": "Files outside a collection",
+      "keep": "Keep as a term",
+      "keepHint": "Keeps it as a term of this project. Same as swiping right.",
+      "retire": "Not a term",
+      "retireHint": "Removes the proposal, and later scans skip it. Same as swiping left.",
+      "retireTitle": "Not a term?"
+    },
     "unbound": "Push this project from kapi before you keep items.",
     "outcome": {
       "proposed": "Sent for review as a change set."
