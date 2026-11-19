@@ -517,6 +517,7 @@ item_check_tallies.findings integer NOT NULL DEFAULT 0
 item_check_tallies.fixable integer NOT NULL DEFAULT 0
 item_check_tallies.item_id text NOT NULL
 item_check_tallies.project_id text NOT NULL
+item_check_tallies.rules jsonb NOT NULL DEFAULT '[]'::jsonb
 item_check_tallies.stream text NOT NULL DEFAULT 'main'::text
 items.block_index text NOT NULL DEFAULT '{}'::text
 items.collection_id text NOT NULL DEFAULT ''::text
@@ -815,6 +816,7 @@ review_deck_facts.policy text NOT NULL DEFAULT ''::text
 review_deck_facts.prereview_at timestamp with time zone NULL
 review_deck_facts.project_id text NOT NULL
 review_deck_facts.reason text NOT NULL DEFAULT ''::text
+review_deck_facts.rules jsonb NOT NULL DEFAULT '[]'::jsonb
 review_deck_facts.source_revision text NOT NULL DEFAULT ''::text
 review_deck_facts.stream text NOT NULL DEFAULT 'main'::text
 review_deck_facts.target_updated_at timestamp with time zone NOT NULL
