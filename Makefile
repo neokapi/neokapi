@@ -976,7 +976,7 @@ check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where 
 # placeholder bundle lets its main package type-check.
 fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its tests reaches Block.Editions or Block.Native past the edition accessors
 	@$(GO) run ./scripts/fieldguard -self-test
-	@$(GO) run ./scripts/fieldguard
+	@$(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
 check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
 	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \

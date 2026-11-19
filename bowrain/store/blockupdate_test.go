@@ -92,8 +92,11 @@ func TestUpdateBlock_AnotherWriteWaitsForTheUpdate(t *testing.T) {
 		waited := assert.Eventually(t, func() bool { return sessionsWaitingOnLocks(t, s) > 0 },
 			10*time.Second, 20*time.Millisecond, "the other write waits on the held block")
 		select {
-		case <-other:
+		case otherErr := <-other:
 			otherDoneDuringUpdate = true
+			// Put the result back for the read after the update, which would
+			// otherwise wait forever and hang the test instead of failing it.
+			other <- otherErr
 		default:
 		}
 		if !waited {

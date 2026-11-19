@@ -9,33 +9,19 @@
 // accessors), so how the editions are stored can change inside core/model
 // alone. This check finds code that reaches past them.
 //
-// It type-checks every package, with its tests, of every module in go.work and
-// of every other module in the tree (the plugins under plugins/ build on their
-// own), and reports each identifier that resolves to the field Block.Editions
-// or Block.Native, whether in a selector (b.Editions), a composite literal's
-// key (model.Block{Editions: m}) or a selector that reaches the field through
-// an embedded Block.
-//
+// It type-checks every package, with its tests, of every module in the tree,
+// and reports each identifier that resolves to Block.Editions or
+// Block.Native: a selector (b.Editions), a composite literal's key
+// (model.Block{Editions: m}) or a selector through an embedded Block.
 // Matching is by the object an identifier resolves to, so a field of another
-// type that shares a name (change.Description's Editions, a request's
-// Editions list) is not reported. core/model itself is exempt, and no other
-// package is: the plugin-wire mapping reaches the editions through the
-// accessors too.
+// type that shares a name is not reported. core/model itself is exempt.
 //
 // A test may write the storage directly to plant a state no accessor
-// produces, such as an edition filed under a key that is not canonical. Its
-// uses are counted and do not fail the check; a use outside a test does.
-//
-// Packages load under each build configuration in configs in turn. The first
-// covers the host with every test tag; each later one (the model tags,
-// js/wasm, windows, linux without cgo) loads only the directories that still
-// hold a file no earlier configuration built, and a Go file no configuration
-// builds is listed as unchecked.
-//
-// The output counts the uses per package, non-test and test separately,
-// grouped by module, with the totals and a count per field. The check fails
-// while a use outside a test remains outside core/model; -report prints the
-// same inventory and exits 0.
+// produces. Its uses are counted and do not fail the check; a use outside a
+// test does. The output counts the uses per package and module, non-test and
+// test separately. -report prints the same inventory and exits 0.
+// -changed-since <ref> checks only the directories that hold a .go file
+// changed since ref, which is what a pull request runs.
 //
 // Run from the repository root:
 //
@@ -91,8 +77,9 @@ type config struct {
 const testTags = "fts5,integration,acceptance,e2e"
 
 // configs are the build configurations, in order. The first loads every
-// package; each later one loads only the directories that still hold a file
-// no earlier one built.
+// package with every test tag; each later one loads only the directories
+// that still hold a file no earlier one built. A Go file no configuration
+// builds is listed as unchecked.
 var configs = []config{
 	{name: "host", tags: testTags},
 	{name: "host with the model tags", tags: "fts5,onnx,satmodel,pdfium_experimental,storage_oneconn,notelemetry"},
@@ -106,6 +93,7 @@ func main() {
 	report := flag.Bool("report", false, "print the inventory and exit 0")
 	verbose := flag.Bool("v", false, "list every use")
 	format := flag.String("format", "text", "output format: text, markdown or json")
+	since := flag.String("changed-since", "", "load only the directories with a .go file changed since this git ref")
 	flag.Parse()
 
 	root, err := os.Getwd()
@@ -121,7 +109,24 @@ func main() {
 		}
 		return
 	}
-	inv, err := check(root)
+	var only []string
+	if *since != "" {
+		files, whole, err := changedGoFiles(root, *since)
+		if err != nil {
+			fail(err)
+		}
+		switch {
+		case whole:
+			fmt.Fprintln(os.Stderr, "fieldguard: core/model, fieldguard or a module file changed; checking the whole tree")
+		case len(files) == 0:
+			fmt.Println("fieldguard: no .go file changed since", *since)
+			return
+		default:
+			only = files
+			fmt.Fprintf(os.Stderr, "fieldguard: checking the directories of %d changed .go files\n", len(files))
+		}
+	}
+	inv, err := check(root, only)
 	if err != nil {
 		fail(err)
 	}
@@ -303,8 +308,11 @@ func embedOnly(e packages.Error) bool {
 }
 
 // check loads every module under every configuration and returns the
-// inventory of uses.
-func check(root string) (*inventory, error) {
+// inventory of uses. The modules are those in go.work and every other module
+// in the tree, such as the plugins under plugins/, which build on their own.
+// A non-nil only narrows the load to the directories that hold those files,
+// and the unchecked list to those files.
+func check(root string, only []string) (*inventory, error) {
 	mods, err := modules(root)
 	if err != nil {
 		return nil, err
@@ -316,6 +324,13 @@ func check(root string) (*inventory, error) {
 	if err != nil {
 		return nil, err
 	}
+	if only != nil {
+		keep := map[string]bool{}
+		for _, f := range only {
+			keep[f] = true
+		}
+		all = slices.DeleteFunc(all, func(f string) bool { return !keep[f] })
+	}
 	inv := newInventory(root, mods)
 	built := map[string]bool{} // absolute .go files a configuration type-checked
 	var fatal []string
@@ -326,7 +341,7 @@ func check(root string) (*inventory, error) {
 		before := maps.Clone(built)
 		for _, m := range mods {
 			patterns := []string{"./..."}
-			if ci > 0 {
+			if ci > 0 || only != nil {
 				patterns = pending(root, mods, m, all, built)
 				if len(patterns) == 0 {
 					continue
@@ -880,4 +895,33 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 	}
 	_, err := w.Write(buf.Bytes())
 	return err
+}
+
+// changedGoFiles returns the .go files, as absolute paths, changed between the
+// merge base of ref and HEAD, and whether a change calls for the whole tree:
+// one in core/model, in this command, in go.work or in a go.mod.
+//
+// Only a changed file can start to reach the field: an unchanged file that
+// reached it already failed the full run on main. A change to core/model,
+// this command, go.work or a go.mod can move what every file resolves to,
+// so it loads the whole tree.
+func changedGoFiles(root, ref string) ([]string, bool, error) {
+	out, err := exec.Command("git", "-C", root, "diff", "--name-only", "--diff-filter=d", ref+"...HEAD").Output()
+	if err != nil {
+		return nil, false, fmt.Errorf("list the files changed since %s: %w", ref, err)
+	}
+	var files []string
+	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		switch {
+		case name == "":
+			continue
+		case name == "go.work" || path.Base(name) == "go.mod",
+			strings.HasPrefix(name, "core/model/"),
+			strings.HasPrefix(name, "scripts/fieldguard/"):
+			return nil, true, nil
+		case strings.HasSuffix(name, ".go"):
+			files = append(files, filepath.Join(root, filepath.FromSlash(name)))
+		}
+	}
+	return files, false, nil
 }
