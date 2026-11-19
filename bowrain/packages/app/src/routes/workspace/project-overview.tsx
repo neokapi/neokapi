@@ -14,6 +14,7 @@ import type { WorkspaceRouteContext } from "..";
 import { projectQueryOptions } from "../../queries";
 import { bowrainOpens, useProjectScreensPort } from "./project-screens-port";
 import { useScreenNavigate } from "./project-screens-nav";
+import { ReviewPlanPanel } from "./review-plan-panel";
 
 export interface ProjectOverviewPageProps {
   port: ProjectScreensPort;
@@ -48,5 +49,12 @@ export function ProjectOverviewRoute() {
     document.title = `${projectName} · Bowrain`;
   }, [projectName]);
 
-  return <ProjectOverviewPage port={port} projectName={projectName} navigate={navigate} />;
+  return (
+    <>
+      <div className="mx-auto w-full max-w-5xl px-6 pt-6">
+        <ReviewPlanPanel ws={ws} projectId={projectId} stream={stream} />
+      </div>
+      <ProjectOverviewPage port={port} projectName={projectName} navigate={navigate} />
+    </>
+  );
 }

@@ -26,6 +26,7 @@ const sidebars: SidebarsConfig = {
         "getting-started/introduction",
         "getting-started/the-context-graph",
         "getting-started/the-loop",
+        "getting-started/reviewing-a-large-project",
         "getting-started/quickstart",
         "getting-started/installation",
         "getting-started/kapi-vs-bowrain",

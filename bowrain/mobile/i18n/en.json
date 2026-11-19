@@ -828,5 +828,74 @@
       "deprecated": "avoid",
       "forbidden": "do not use"
     }
+  },
+  "plan": {
+    "title": "Review plan",
+    "intro": "Decide what generates the text before you read the text. Each step reaches more content than the one below it, so start at the top.",
+    "next": "Next",
+    "failed": "That didn't go through",
+    "home": "Review plan",
+    "homeNext": "Next: {{step}}",
+    "homeDone": "Nothing waits for you",
+    "involvement": {
+      "title": "How involved your reviewers are",
+      "body": "This decides what a person reads and what the checks settle.",
+      "context": "Context",
+      "contextDetail": "You decide the coordinates, the key language and the exceptions, and read a sample of interfaces. Content that clears every check is settled by them.",
+      "interfaces": "Interfaces",
+      "interfacesDetail": "As Context, and you read every interface page. The rest is settled by the checks.",
+      "every": "Every translation",
+      "everyDetail": "A person establishes every translation. Nothing is settled by the checks."
+    },
+    "coordinates": {
+      "title": "Coordinates",
+      "languages": "{{source}} into {{targets}}",
+      "confirmed": "Confirmed",
+      "unconfirmed": "Not confirmed yet",
+      "confirmHint": "Confirm them once you agree with where each part of the project sits.",
+      "confirm": "Confirm coordinates",
+      "confirmBody": "The products, channels and languages listed here govern everything below them. Confirm them as they are?"
+    },
+    "key": {
+      "title": "Key language",
+      "waiting_one": "{{count}} term or voice rule to decide",
+      "waiting_other": "{{count}} terms and voice rules to decide",
+      "concepts_one": "{{count}} term in the source language",
+      "concepts_other": "{{count}} terms in the source language",
+      "untranslated_one": "{{count}} term has no {{language}} term yet",
+      "untranslated_other": "{{count}} terms have no {{language}} term yet",
+      "open": "Decide the key language"
+    },
+    "exceptions": {
+      "title": "Exceptions",
+      "notChecked": "The source has not been checked yet",
+      "source_one": "{{count}} finding in the source",
+      "source_other": "{{count}} findings in the source",
+      "translations_one": "{{count}} translation fails a check",
+      "translations_other": "{{count}} translations fail a check",
+      "open": "Review the failing translations"
+    },
+    "interfaces": {
+      "title": "Interfaces in context",
+      "pages_one": "{{count}} page with a translation waiting",
+      "pages_other": "{{count}} pages with a translation waiting",
+      "sample": "Under Context, read a sample of pages to confirm the decisions above read right.",
+      "every": "Read every page, source first, then each language.",
+      "open": "Read the pages"
+    },
+    "policy": {
+      "title": "Settled by the checks",
+      "none": "Every translation is read by a person, so nothing is settled here.",
+      "settleable_one": "{{count}} translation clears every check",
+      "settleable_other": "{{count}} translations clear every check",
+      "how": "Each one is established as your decision, recorded in the ledger, and reopened if anyone rejects it later.",
+      "apply_one": "Establish the {{count}} translation",
+      "apply_other": "Establish the {{count}} translations",
+      "applyShort": "Establish",
+      "confirm": "These translations pass the checks, the terms and the voice bar. Establish them now?",
+      "doneTitle": "Established",
+      "done_one": "{{count}} translation established.",
+      "done_other": "{{count}} translations established."
+    }
   }
 }

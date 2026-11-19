@@ -200,6 +200,33 @@ draws the card's own empty case, so the same block reads the same way on either
 surface. The origin kinds, the decision states, the tone a finding takes and
 the neutral chip a term rule takes are all named once, in the cards.
 
+### Review follows reach
+
+A project of any size produces more blocks than a person reads. Review is
+ordered by the reach of each decision, widest first, and what a person does
+not read is settled by the checks under a policy that person set:
+
+1. **Coordinates**: the products, channels, brand and languages, and the voice
+   each point binds. Each decision governs every block at the point.
+2. **Key language**: terms and voice rules, the source term first and its
+   translation in each target language right after, dealt to the same
+   reviewer and ranked by the blocks each one governs.
+3. **Exceptions**: what fails a check against the key language, grouped by
+   the rule it breaks, so one decision about the rule or the source clears
+   the group.
+4. **Interfaces**: complete components, sections and pages read in context
+   (the container, below), source first.
+5. **Policy**: everything else. A block that clears every bar is established
+   as a decision of the person who set the policy, recorded in the ledger
+   and reopened by any later rejection.
+
+How much a person reads at levels 4 and 5 is the project's involvement:
+`context` (the coordinates, the key language, the exceptions and a sample of
+interfaces), `interfaces` (and every interface page) or `every`. It can be
+narrowed per coordinate. Reviewing by kind of content ("the interface first",
+"the docs last") is the wrong axis: both share the key language, and deciding
+it once at the coordinates it spans is what makes both right.
+
 ### A block is reviewed inside its container
 
 A translation is a decision about a block, and a reader never meets a block

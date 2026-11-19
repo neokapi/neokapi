@@ -1948,6 +1948,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Bulk approve every passing draft in one action, then continue the loop to
 	// delivery (RV-D). Distinct path segment from /:id/review-queue below.
 	g.POST("/:id/review/approve-passing", s.refuseTool(s.HandleApprovePassing))
+	g.GET("/:id/review/plan", s.HandleGetReviewPlan)
+	g.PUT("/:id/review/plan/involvement", s.refuseTool(s.HandlePutReviewInvolvement))
+	g.POST("/:id/review/plan/coordinates", s.refuseTool(s.HandleConfirmReviewCoordinates))
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.POST("/:id/revert", s.HandleRevertBatch)

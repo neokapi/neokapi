@@ -1501,6 +1501,27 @@ export async function injectMockBackend(page: Page) {
         // The project screens: the Overview a project opens on, the Reader, Decide,
         // the kept rules, the project-wide check and the workspace's queue.
         ["GET", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+$/, () => screens.overviewSummary],
+        // The review plan the Overview opens with (GET /:ws/:id/review/plan).
+        [
+          "GET",
+          /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan$/,
+          () => ({
+            stream: "main",
+            involvement: "context",
+            next: "coordinates",
+            coordinates: {
+              source_language: "en",
+              target_languages: ["fr"],
+              points: [],
+              confirmed: false,
+            },
+            key_language: { waiting: 0, by_kind: {}, concepts: 0, untranslated: {} },
+            exceptions: {},
+            languages: [],
+          }),
+        ],
+        ["POST", /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/coordinates$/, () => ({})],
+        ["PUT", /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/involvement$/, () => ({})],
         ["POST", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+\/check$/, () => ({ job_id: "job-check-1" })],
         [
           "GET",
