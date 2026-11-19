@@ -66,18 +66,21 @@ func (c *Counter) Add(collection, sourceText string) {
 	}
 	p := check.PrepareText(check.TermText(sourceText))
 	for i, t := range c.terms {
-		var hits [][2]int
-		if c.english {
-			hits = check.FindEnglishInflectionsIn(p, t, false)
-		} else {
-			hits = check.FindTermFormsIn(p, []string{t}, false)
-		}
-		if len(hits) == 0 {
+		if !uses(p, t, c.english) {
 			continue
 		}
 		c.total[i]++
 		c.per[i][collection]++
 	}
+}
+
+// uses reports whether prepared text uses term: an English term with its
+// regular inflections, any other by its exact spelling.
+func uses(p *check.PreparedText, term string, english bool) bool {
+	if english {
+		return len(check.FindEnglishInflectionsIn(p, term, false)) > 0
+	}
+	return len(check.FindTermFormsIn(p, []string{term}, false)) > 0
 }
 
 // Reach is the count for term, which compares case-insensitively.

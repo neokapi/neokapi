@@ -265,6 +265,9 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	if !req.HasSource() {
 		return errors.New("context scan has no sources")
 	}
+	if req.TermProposals != nil {
+		return executeTermProposals(ctx, deps, job, epoch, &req)
+	}
 
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressReading, "reading-sources")
 

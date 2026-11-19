@@ -556,6 +556,35 @@ describe("client", () => {
     expect(deck.cards[2]?.proposed).toBe(false);
     expect(deck.cards[2]?.reach).toBeUndefined();
   });
+
+  it("asks for proposed target terms and sends a reviewer's wording with a keep", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        const body = url.endsWith("/term-proposals")
+          ? { waiting: 3, job_id: "j1", status: "queued" }
+          : { outcome: "kept" };
+        return new Response(JSON.stringify(body), { status: url.endsWith("/decide") ? 200 : 202 });
+      }) as typeof fetch,
+    });
+    expect(await client.proposeTermTranslations("ws", "p")).toEqual({
+      waiting: 3,
+      job_id: "j1",
+      status: "queued",
+    });
+    expect(calls[0]?.url).toBe("http://server/api/v1/ws/p/context/term-proposals");
+    expect(calls[0]?.init?.method).toBe("POST");
+    await client.decideContext("ws", "p", {
+      item: { kind: "term_proposal", id: "c1/nb" },
+      revision: "p1",
+      action: "keep",
+      text: "arbeidsområde",
+    });
+    expect(JSON.parse(String(calls[1]?.init?.body))).toMatchObject({ text: "arbeidsområde" });
+  });
 });
 
 describe("deckPages", () => {

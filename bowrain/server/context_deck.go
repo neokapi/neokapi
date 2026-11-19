@@ -35,7 +35,10 @@ const (
 )
 
 // deckKindOrder is the order the deck deals its kinds in: the voice first,
-// then the terms, then the rules and notes recorded in the ledger.
+// then the terms, then the rules and notes recorded in the ledger. A
+// term-translation card is dealt with the candidate terms or after its
+// concept (contextDeckRank, followConcepts), and is counted by kind only
+// when the deck holds one.
 var deckKindOrder = []string{deckKindVoiceRule, deckKindConcept, deckKindTermRule, deckKindNote}
 
 // The actions a context card offers.
@@ -92,6 +95,8 @@ type contextDeckCard struct {
 	// Reach is how many blocks of the project use a candidate, as the scan
 	// that filed it counted them.
 	Reach *contextDeckReach `json:"reach,omitempty"`
+	// Translation is the target term a term-translation card proposes.
+	Translation *contextDeckTranslation `json:"translation,omitempty"`
 }
 
 // contextDeckReach is the blocks that use a candidate term, in all and per
@@ -114,11 +119,11 @@ func (card contextDeckCard) reachBlocks() int {
 	return card.Reach.Blocks
 }
 
-// contextDeckRank is where a card's group sits in the deck: candidate terms first,
-// because a term decided once governs every block that uses it, then the
-// kinds in deckKindOrder.
+// contextDeckRank is where a card's group sits in the deck: candidate terms
+// and proposed translations of terms first, because a term decided once
+// governs every block that uses it, then the kinds in deckKindOrder.
 func contextDeckRank(card contextDeckCard) int {
-	if card.Proposed {
+	if card.Proposed || card.Kind == deckKindTermTranslation {
 		return -1
 	}
 	return slices.Index(deckKindOrder, card.Kind)
@@ -248,6 +253,9 @@ type deckReviewer struct {
 	perms  platauth.Permission
 	reach  platauth.CoordinateReach
 	solo   bool
+	// languages are the target languages the reviewer may review; empty is
+	// every language.
+	languages []string
 }
 
 // deckSource is what the deck of one project is dealt from.
@@ -426,7 +434,7 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 
 	origins := s.deckOrigins(ctx, bulk, names)
 
-	concepts, err := s.conceptCards(ctx, src, names)
+	concepts, translations, err := s.conceptCards(ctx, src, names)
 	if err != nil {
 		return nil, err
 	}
@@ -435,6 +443,13 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 		concepts[i].Origin = conceptOrigin(origins, concepts[i].At)
 	}
 	cards = append(cards, concepts...)
+	for _, tr := range translations {
+		if !rv.mayReviewLanguage(tr.Language) {
+			continue
+		}
+		tr.judge(rv, platauth.PermManageTerms, rv.reach.Unconstrained(), bound)
+		cards = append(cards, tr)
+	}
 
 	voice, err := s.voiceRuleCards(ctx, src, bulk, origins, names)
 	if err != nil {
@@ -465,7 +480,7 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 			strings.Compare(a.Item.ID, b.Item.ID),
 		)
 	})
-	return cards, nil
+	return followConcepts(cards), nil
 }
 
 // bulkRecords are the bulk operations of the project's ledger.
@@ -594,27 +609,29 @@ func termRuleFlags(rule coreprofile.TermRule) []string {
 // conceptCards are the cards of the concepts the workspace's terms store
 // holds for the project: those of the whole workspace and the project's own.
 // A concept's revision is its latest revision in the knowledge store, or the
-// time it was last written when it has none.
-func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, error) {
+// time it was last written when it has none. The second list is the cards
+// of the target terms proposed for those concepts (translationCards).
+func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, []contextDeckCard, error) {
 	if s.wsStores == nil || src.wsSlug == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 	tb, err := s.wsStores.getTerms(ctx, src.wsSlug)
 	if err != nil || tb == nil {
-		return nil, nil //nolint:nilerr // a workspace with no terms store has no concept cards
+		return nil, nil, nil //nolint:nilerr // a workspace with no terms store has no concept cards
 	}
 	concepts, err := tb.Concepts(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("read the terms store: %w", err)
+		return nil, nil, fmt.Errorf("read the terms store: %w", err)
 	}
 	latest := map[string]*knowledge.ConceptRevision{}
 	if s.KnowledgeStore != nil && src.wsID != "" {
 		if latest, err = s.KnowledgeStore.LatestRevisions(ctx, src.wsID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	source := src.project.DefaultSourceLanguage
 	out := make([]contextDeckCard, 0, len(concepts))
+	var translations []contextDeckCard
 	for _, cp := range concepts {
 		project := termcandidate.ProjectOf(cp)
 		if project != "" && project != src.project.ID {
@@ -664,8 +681,9 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 			}
 		}
 		out = append(out, card)
+		translations = append(translations, s.translationCards(ctx, cp, card, source, names)...)
 	}
-	return out, nil
+	return out, translations, nil
 }
 
 // conceptTerms lists a concept's terms with the source language first.

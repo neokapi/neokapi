@@ -1,7 +1,7 @@
 // One context item as a card in the context deck: its kind, language and
-// status as chips, the rule, term, voice rule or note itself, how many blocks
-// a proposed term reaches, where it applies, who wrote it, and the bulk
-// operation that brought it in. The
+// status as chips, the rule, term, proposed translation of a term, voice rule
+// or note itself, how many blocks a proposed term reaches, where it applies,
+// who wrote it, and the bulk operation that brought it in. The
 // server decides every field; the card only lays them out.
 import type { ContextCard as Card } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -131,6 +131,28 @@ function Body({ card, scope }: { card: Card; scope?: CardScope }) {
           <Label>{t("context.avoid")}</Label>
           <Text testID="context-avoid" className="text-foreground text-lg">
             {avoid.join(", ")}
+          </Text>
+        </View>
+        {card.text ? <Text className="text-muted-foreground text-sm">{card.text}</Text> : null}
+      </View>
+    );
+  }
+  if (card.translation) {
+    return (
+      <View className="gap-3">
+        <View className="gap-1">
+          <Label>{t("context.translation.source")}</Label>
+          <Text testID="context-translation-source" className="text-foreground text-lg">
+            {card.translation.term}
+          </Text>
+        </View>
+        <View className="gap-1">
+          <Label>{t("context.translation.proposed")}</Label>
+          <Text
+            testID="context-translation-proposed"
+            className="text-foreground text-2xl font-semibold"
+          >
+            {card.translation.proposed}
           </Text>
         </View>
         {card.text ? <Text className="text-muted-foreground text-sm">{card.text}</Text> : null}
@@ -277,7 +299,7 @@ export function ContextCard({
       <ScrollView contentContainerClassName="gap-5 p-5">
         <Body card={card} scope={scope} />
 
-        {card.proposed ? <Reach card={card} /> : null}
+        {card.proposed || card.translation ? <Reach card={card} /> : null}
 
         <View className="gap-1">
           <Label>{t("context.appliesIn")}</Label>

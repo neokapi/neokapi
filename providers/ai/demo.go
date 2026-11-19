@@ -110,6 +110,8 @@ func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, s
 		content = demoVoiceInference(userTurn)
 	case "terminology_extraction":
 		content = demoTermExtraction(userTurn)
+	case "term_translations":
+		content = demoTermTranslations(userTurn, demoTargetLocale(ctx))
 	default:
 		content = neutralSchemaJSON(schema)
 	}
@@ -700,6 +702,33 @@ func demoTermExtraction(userTurn string) string {
 		}
 		seen[name] = true
 		out.Terms = append(out.Terms, entry{Term: name, Definition: "⟦demo⟧ a capitalised name in the text"})
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return `{"terms":[]}`
+	}
+	return string(b)
+}
+
+// demoTermTranslations answers a term-translate prompt: each concept's
+// source term run through the demo translation engine.
+func demoTermTranslations(userTurn string, target model.LocaleID) string {
+	var concepts []struct {
+		ID   string `json:"id"`
+		Term string `json:"term"`
+	}
+	type entry struct {
+		ID   string `json:"id"`
+		Term string `json:"term"`
+		Note string `json:"note"`
+	}
+	out := struct {
+		Terms []entry `json:"terms"`
+	}{Terms: []entry{}}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(userTurn)), &concepts); err == nil {
+		for _, c := range concepts {
+			out.Terms = append(out.Terms, entry{ID: c.ID, Term: demoTranslate(c.Term, target, nil), Note: "⟦demo⟧"})
+		}
 	}
 	b, err := json.Marshal(out)
 	if err != nil {
