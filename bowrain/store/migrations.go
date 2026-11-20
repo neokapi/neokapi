@@ -1919,4 +1919,30 @@ var Migrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS context_session_holds_session ON context_session_holds (session_id);
 		`,
 	},
+	{
+		Version:     56,
+		Description: "index the translations waiting for review",
+		SQL: `
+			-- The review deck, the review plan and the review inbox read a
+			-- language's translations waiting for review: non-empty and not
+			-- established. They are a small share of a project's
+			-- translations, so a partial index holds just them.
+			CREATE INDEX IF NOT EXISTS idx_translations_waiting
+				ON translations (project_id, stream, locale, block_id)
+				WHERE text <> '' AND COALESCE(target_json->>'status', '') <> 'established';
+			-- The planner estimates the share from statistics on the
+			-- status expression, kept per partition because a query on one
+			-- project reads one partition. Without them it takes nearly
+			-- every translation to be waiting and plans for that.
+			CREATE STATISTICS IF NOT EXISTS translations_p0_status ON (COALESCE(target_json->>'status', '')) FROM translations_p0;
+			CREATE STATISTICS IF NOT EXISTS translations_p1_status ON (COALESCE(target_json->>'status', '')) FROM translations_p1;
+			CREATE STATISTICS IF NOT EXISTS translations_p2_status ON (COALESCE(target_json->>'status', '')) FROM translations_p2;
+			CREATE STATISTICS IF NOT EXISTS translations_p3_status ON (COALESCE(target_json->>'status', '')) FROM translations_p3;
+			CREATE STATISTICS IF NOT EXISTS translations_p4_status ON (COALESCE(target_json->>'status', '')) FROM translations_p4;
+			CREATE STATISTICS IF NOT EXISTS translations_p5_status ON (COALESCE(target_json->>'status', '')) FROM translations_p5;
+			CREATE STATISTICS IF NOT EXISTS translations_p6_status ON (COALESCE(target_json->>'status', '')) FROM translations_p6;
+			CREATE STATISTICS IF NOT EXISTS translations_p7_status ON (COALESCE(target_json->>'status', '')) FROM translations_p7;
+			ANALYZE translations;
+		`,
+	},
 }

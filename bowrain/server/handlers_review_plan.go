@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"golang.org/x/sync/errgroup"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -621,49 +622,62 @@ func reviewLocalesOf(proj *platstore.Project, perms platauth.Permission, langs [
 }
 
 // planLanguages counts, for each language, the deck's groups and pages, and
-// files the rules behind the deck's desk group in rules by language.
+// files the rules behind the deck's desk group in rules by language. Each
+// read is one query over every language.
 //
 // While held, the translations the deck holds back move out of Waiting into
 // Held; Settleable still counts the fast group, which a first pass settles.
 func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, involvement string, held bool, rules map[string][]planRuleDTO) ([]planLanguageDTO, error) {
 	out := []planLanguageDTO{}
 	decks, ok := platstore.ReviewDeckStores(s.ContentStore)
-	if !ok {
+	if !ok || len(locales) == 0 {
 		return out, nil
 	}
 	scope, err := deckScopeOf(ctx, s.ContentStore, proj.ID, stream)
 	if err != nil {
 		return nil, err
 	}
-	policy := deckPolicyKey(s.deckPolicy())
+	q := platstore.ReviewDeckQuery{ProjectID: proj.ID, Stream: stream, Policy: deckPolicyKey(s.deckPolicy())}
+	scope.apply(&q)
+	desk := deckRank(reviewdeck.DeckDesk)
+	// The three reads are independent, so they run at once. A language with
+	// nothing in the desk group counts no rule.
+	var (
+		counts  map[string]platstore.ReviewDeckCounts
+		top     map[string][]platstore.RuleTally
+		pagesOf map[string][]platstore.ReviewDeckPage
+	)
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) {
+		counts, err = decks.CountReviewDeckByLocale(gctx, q, locales)
+		return err
+	})
+	g.Go(func() (err error) {
+		top, err = decks.CountReviewDeckRulesByLocale(gctx, q, locales, desk, planRuleLimit)
+		return err
+	})
+	g.Go(func() (err error) {
+		pagesOf, err = decks.ListReviewDeckPagesByLocale(gctx, q, locales, reviewPagesCountLimit+1)
+		return err
+	})
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	for loc, t := range top {
+		if len(t) > 0 {
+			rules[loc] = planRulesOf(t)
+		}
+	}
 	for _, loc := range locales {
-		q := platstore.ReviewDeckQuery{ProjectID: proj.ID, Stream: stream, Locale: loc, Policy: policy}
-		scope.apply(&q)
-		counts, err := decks.CountReviewDeck(ctx, q)
-		if err != nil {
-			return nil, err
-		}
-		lang := planLanguageDTO{Locale: loc, deckWaiting: deckWaitingOf(counts)}
-		lang.Failing = counts.ByRank[deckRank(reviewdeck.DeckDesk)]
-		if lang.Failing > 0 {
-			top, err := decks.CountReviewDeckRules(ctx, q, deckRank(reviewdeck.DeckDesk), planRuleLimit)
-			if err != nil {
-				return nil, err
-			}
-			if len(top) > 0 {
-				rules[loc] = planRulesOf(top)
-			}
-		}
+		lang := planLanguageDTO{Locale: loc, deckWaiting: deckWaitingOf(counts[loc])}
+		lang.Failing = counts[loc].ByRank[desk]
 		if involvement != involvementEvery {
 			lang.Settleable = lang.Fast
 		}
 		if held {
 			lang.deckWaiting = lang.held()
 		}
-		pages, err := decks.ListReviewDeckPages(ctx, q, reviewPagesCountLimit+1)
-		if err != nil {
-			return nil, err
-		}
+		pages := pagesOf[loc]
 		if len(pages) > reviewPagesCountLimit {
 			pages, lang.PagesMore = pages[:reviewPagesCountLimit], true
 		}

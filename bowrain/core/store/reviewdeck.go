@@ -131,6 +131,10 @@ type ReviewDeckStore interface {
 	// CountReviewDeck counts the deck by group, and what is not classified.
 	// A translation set aside is not counted.
 	CountReviewDeck(ctx context.Context, q ReviewDeckQuery) (ReviewDeckCounts, error)
+	// CountReviewDeckByLocale counts the deck of each of locales as
+	// CountReviewDeck counts q.Locale's, in one read, keyed by locale. Every
+	// locale asked for is present.
+	CountReviewDeckByLocale(ctx context.Context, q ReviewDeckQuery, locales []string) (map[string]ReviewDeckCounts, error)
 	// CountReviewDeckByCollection counts the deck as CountReviewDeck does,
 	// once per collection, keyed by collection id ("" for blocks in none).
 	// A collection with translations and nothing waiting is present.
@@ -144,6 +148,10 @@ type ReviewDeckStore interface {
 	// the most findings first. A set of copies counts once, as
 	// CountReviewDeck counts it.
 	CountReviewDeckRules(ctx context.Context, q ReviewDeckQuery, groupRank, limit int) ([]RuleTally, error)
+	// CountReviewDeckRulesByLocale counts the rules of each of locales as
+	// CountReviewDeckRules counts q.Locale's, in one read, keyed by locale. A
+	// locale with no rule is absent.
+	CountReviewDeckRulesByLocale(ctx context.Context, q ReviewDeckQuery, locales []string, groupRank, limit int) (map[string][]RuleTally, error)
 	// ReviewDeckCopies returns, for each of blockIDs, the other translations
 	// waiting for review in the language with the same source and the same
 	// translation, up to limit in all, keyed by the block they copy. It
@@ -155,6 +163,10 @@ type ReviewDeckStore interface {
 	// and the position of their first waiting translation. A translation set
 	// aside is not counted, and each copy counts on its own page.
 	ListReviewDeckPages(ctx context.Context, q ReviewDeckQuery, limit int) ([]ReviewDeckPage, error)
+	// ListReviewDeckPagesByLocale returns up to limit pages of each of
+	// locales as ListReviewDeckPages returns q.Locale's, in one read, keyed by
+	// locale. A locale with no page is absent.
+	ListReviewDeckPagesByLocale(ctx context.Context, q ReviewDeckQuery, locales []string, limit int) (map[string][]ReviewDeckPage, error)
 	// NextReviewInItem returns the first translation waiting in the item
 	// after the block, in document order, or "" when none waits.
 	NextReviewInItem(ctx context.Context, q ReviewDeckQuery, itemName, afterBlockID string) (string, error)

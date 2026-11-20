@@ -17,8 +17,19 @@ var _ platstore.ReviewDeckStore = (*PostgresStore)(nil)
 // ListPendingReview applies) with the rows a deck's facts are computed from
 // beside each translation: its pre-review, its ledger row and its facts.
 //
-// $1 project, $2 stream, $3 locale, $4 policy; a collection scope binds $5.
-const reviewDeckFrom = reviewDeckTranslations + reviewDeckPending
+// The language's waiting translations are read first, on their own, and the
+// blocks joined to them by key. Read the other way round, the planner walks
+// every block of the project and probes each one's translations in every
+// language, which costs a large project hundreds of milliseconds per query.
+//
+// $1 project, $2 stream, $3 the languages (an array), $4 policy; a collection
+// scope binds $5.
+const reviewDeckFrom = ` FROM (SELECT t.* FROM translations t
+		WHERE t.project_id = $1 AND t.stream = $2 AND t.locale = ANY($3) AND t.text <> ''` + reviewDeckPending + `
+		OFFSET 0) t
+	JOIN blocks b
+	ON b.project_id = t.project_id AND b.stream = $2 AND b.id = t.block_id` +
+	reviewDeckJoins + reviewDeckWhere + reviewDeckPending
 
 // reviewDeckPending keeps, of reviewDeckTranslations, those waiting for
 // review: an established translation has been approved.
@@ -27,7 +38,11 @@ const reviewDeckPending = ` AND COALESCE(t.target_json->>'status', '') <> 'estab
 // reviewDeckTranslations is every translation of one language, reviewed or
 // not, joined as reviewDeckFrom joins it.
 const reviewDeckTranslations = ` FROM blocks b JOIN translations t
-	ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2
+	ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2` +
+	reviewDeckJoins + reviewDeckWhere
+
+// reviewDeckJoins are the rows beside each translation of a deck query.
+const reviewDeckJoins = `
 	LEFT JOIN items i
 	ON i.project_id = b.project_id AND i.stream = $2 AND i.name = b.item_name
 	LEFT JOIN pre_reviews pr
@@ -36,9 +51,13 @@ const reviewDeckTranslations = ` FROM blocks b JOIN translations t
 	ON b.source_id <> '' AND d.project_id = b.project_id AND d.stream = $2
 		AND d.item_name = b.item_name AND d.unit = b.source_id AND d.variant = t.locale
 	LEFT JOIN review_deck_facts f
-	ON f.project_id = b.project_id AND f.stream = $2 AND f.block_id = b.id AND f.locale = t.locale
+	ON f.project_id = b.project_id AND f.stream = $2 AND f.block_id = b.id AND f.locale = t.locale`
+
+// reviewDeckWhere keeps the translatable blocks of the project and the
+// non-empty translations of the languages.
+const reviewDeckWhere = `
 	WHERE b.project_id = $1 AND b.stream = $2 AND b.translatable AND t.text <> ''
-	AND t.locale = $3`
+	AND t.locale = ANY($3)`
 
 // reviewDeckFresh holds when a translation's facts were computed from the
 // rows as they stand, under the policy asked for, within the last day.
@@ -74,8 +93,15 @@ func reviewDeckPriority(q platstore.ReviewDeckQuery, args []any) (string, []any)
 	return expr + " ELSE 1 END", args
 }
 
+// reviewDeckArgs binds a deck query's scope for its one language.
 func reviewDeckArgs(q platstore.ReviewDeckQuery) (scope string, args []any) {
-	args = []any{q.ProjectID, storeutil.DefaultStream(q.Stream), q.Locale, q.Policy}
+	return reviewDeckLocalesArgs(q, []string{q.Locale})
+}
+
+// reviewDeckLocalesArgs binds a deck query's scope for several languages at
+// once, in place of q.Locale.
+func reviewDeckLocalesArgs(q platstore.ReviewDeckQuery, locales []string) (scope string, args []any) {
+	args = []any{q.ProjectID, storeutil.DefaultStream(q.Stream), locales, q.Policy}
 	if q.CollectionID != nil {
 		scope = ` AND COALESCE(i.collection_id, '') = $5`
 		args = append(args, *q.CollectionID)
@@ -275,31 +301,50 @@ func nullIntPtr(n sql.NullInt64) *int {
 // CountReviewDeck counts the deck by group, and what is not classified. See
 // platstore.ReviewDeckStore.
 func (s *PostgresStore) CountReviewDeck(ctx context.Context, q platstore.ReviewDeckQuery) (platstore.ReviewDeckCounts, error) {
-	scope, args := reviewDeckArgs(q)
+	out, err := s.CountReviewDeckByLocale(ctx, q, []string{q.Locale})
+	if err != nil {
+		return platstore.ReviewDeckCounts{ByRank: map[int]int{}}, err
+	}
+	return out[q.Locale], nil
+}
+
+// CountReviewDeckByLocale counts the deck of each language as CountReviewDeck
+// does, in one query. See platstore.ReviewDeckStore.
+func (s *PostgresStore) CountReviewDeckByLocale(ctx context.Context, q platstore.ReviewDeckQuery, locales []string) (map[string]platstore.ReviewDeckCounts, error) {
+	scope, args := reviewDeckLocalesArgs(q, locales)
 	prio, args := reviewDeckPriority(q, args)
-	out := platstore.ReviewDeckCounts{ByRank: map[int]int{}}
+	out := make(map[string]platstore.ReviewDeckCounts, len(locales))
+	for _, loc := range locales {
+		out[loc] = platstore.ReviewDeckCounts{ByRank: map[int]int{}}
+	}
 	// A set of copies counts once, at the card ListReviewDeck deals for it; a
 	// fresh row ranked below 0 is set aside and is not in the deck.
 	rank := `CASE WHEN ` + reviewDeckFresh + ` THEN f.group_rank ELSE -1 END`
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
-	query := `SELECT rank, count(*) FROM (SELECT DISTINCT ON (` + reviewDeckSame + `) ` + rank + ` AS rank` +
+	query := `SELECT locale, rank, count(*) FROM (SELECT DISTINCT ON (t.locale, ` + reviewDeckSame + `) t.locale, ` + rank + ` AS rank` +
 		reviewDeckFrom + scope + ` AND NOT (` + reviewDeckFresh + ` AND f.group_rank < 0)
-		ORDER BY ` + reviewDeckSame + `, (` + rank + ` < 0), ` + prio + `, ` + rank + `) x GROUP BY rank`
+		ORDER BY t.locale, ` + reviewDeckSame + `, (` + rank + ` < 0), ` + prio + `, ` + rank + `) x GROUP BY locale, rank`
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return out, fmt.Errorf("count review deck: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var loc string
 		var rank, n int
-		if err := rows.Scan(&rank, &n); err != nil {
+		if err := rows.Scan(&loc, &rank, &n); err != nil {
 			return out, fmt.Errorf("scan review deck count: %w", err)
 		}
-		if rank < 0 {
-			out.Unclassified += n
+		c, ok := out[loc]
+		if !ok {
 			continue
 		}
-		out.ByRank[rank] += n
+		if rank < 0 {
+			c.Unclassified += n
+		} else {
+			c.ByRank[rank] += n
+		}
+		out[loc] = c
 	}
 	return out, rows.Err()
 }
@@ -307,35 +352,55 @@ func (s *PostgresStore) CountReviewDeck(ctx context.Context, q platstore.ReviewD
 // CountReviewDeckRules counts the findings of each rule over one group of the
 // deck. See platstore.ReviewDeckStore.
 func (s *PostgresStore) CountReviewDeckRules(ctx context.Context, q platstore.ReviewDeckQuery, groupRank, limit int) ([]platstore.RuleTally, error) {
-	scope, args := reviewDeckArgs(q)
+	out, err := s.CountReviewDeckRulesByLocale(ctx, q, []string{q.Locale}, groupRank, limit)
+	if err != nil {
+		return nil, err
+	}
+	if rules := out[q.Locale]; rules != nil {
+		return rules, nil
+	}
+	return []platstore.RuleTally{}, nil
+}
+
+// CountReviewDeckRulesByLocale counts the findings of each rule over one
+// group of each language's deck, as CountReviewDeckRules does, in one query.
+// See platstore.ReviewDeckStore.
+func (s *PostgresStore) CountReviewDeckRulesByLocale(ctx context.Context, q platstore.ReviewDeckQuery, locales []string, groupRank, limit int) (map[string][]platstore.RuleTally, error) {
+	scope, args := reviewDeckLocalesArgs(q, locales)
 	prio, args := reviewDeckPriority(q, args)
 	args = append(args, groupRank)
 	rank := len(args)
 	args = append(args, limit)
 	// A set of copies counts once, at its first card in deck order; each of
-	// its rules then counts what that translation's facts hold.
+	// its rules then counts what that translation's facts hold. Each language
+	// keeps its limit rules with the most findings.
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
-	query := `SELECT r->>'key', MIN(COALESCE(r->>'rule', '')), MIN(COALESCE(r->>'subject', '')),
-		MIN(COALESCE(r->>'message', '')), MAX(COALESCE(r->>'concept_id', '')),
-		COALESCE(BOOL_OR((r->>'fails')::boolean), FALSE), SUM(COALESCE((r->>'count')::integer, 0))
-		FROM (SELECT DISTINCT ON (` + reviewDeckSame + `) f.rules` +
+	query := `SELECT locale, key, rule, subject, message, concept_id, fails, n FROM (
+		SELECT x.locale, r->>'key' AS key, MIN(COALESCE(r->>'rule', '')) AS rule,
+		MIN(COALESCE(r->>'subject', '')) AS subject, MIN(COALESCE(r->>'message', '')) AS message,
+		MAX(COALESCE(r->>'concept_id', '')) AS concept_id,
+		COALESCE(BOOL_OR((r->>'fails')::boolean), FALSE) AS fails, SUM(COALESCE((r->>'count')::integer, 0)) AS n,
+		row_number() OVER (PARTITION BY x.locale ORDER BY SUM(COALESCE((r->>'count')::integer, 0)) DESC, r->>'key') AS place
+		FROM (SELECT DISTINCT ON (t.locale, ` + reviewDeckSame + `) t.locale, f.rules` +
 		reviewDeckFrom + scope + ` AND ` + reviewDeckFresh + fmt.Sprintf(` AND f.group_rank = $%d`, rank) +
-		` ORDER BY ` + reviewDeckSame + `, ` + prio + `, b.item_name, b.position, b.id) x
+		` ORDER BY t.locale, ` + reviewDeckSame + `, ` + prio + `, b.item_name, b.position, b.id) x
 		CROSS JOIN LATERAL jsonb_array_elements(x.rules) r
 		WHERE COALESCE(r->>'key', '') <> ''
-		GROUP BY 1 ORDER BY 7 DESC, 1` + fmt.Sprintf(` LIMIT $%d`, len(args))
+		GROUP BY x.locale, r->>'key') y` +
+		fmt.Sprintf(` WHERE place <= $%d ORDER BY locale, place`, len(args))
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("count review deck rules: %w", err)
 	}
 	defer rows.Close()
-	out := []platstore.RuleTally{}
+	out := map[string][]platstore.RuleTally{}
 	for rows.Next() {
+		var loc string
 		var t platstore.RuleTally
-		if err := rows.Scan(&t.Key, &t.Rule, &t.Subject, &t.Message, &t.ConceptID, &t.Fails, &t.Count); err != nil {
+		if err := rows.Scan(&loc, &t.Key, &t.Rule, &t.Subject, &t.Message, &t.ConceptID, &t.Fails, &t.Count); err != nil {
 			return nil, fmt.Errorf("scan review deck rule count: %w", err)
 		}
-		out = append(out, t)
+		out[loc] = append(out[loc], t)
 	}
 	return out, rows.Err()
 }
@@ -414,31 +479,44 @@ const reviewDeckWaiting = ` AND NOT (` + reviewDeckFresh + ` AND f.group_rank < 
 // ListReviewDeckPages returns the deck's pages with their waiting counts.
 // See platstore.ReviewDeckStore.
 func (s *PostgresStore) ListReviewDeckPages(ctx context.Context, q platstore.ReviewDeckQuery, limit int) ([]platstore.ReviewDeckPage, error) {
-	scope, args := reviewDeckArgs(q)
+	out, err := s.ListReviewDeckPagesByLocale(ctx, q, []string{q.Locale}, limit)
+	if err != nil {
+		return nil, err
+	}
+	return out[q.Locale], nil
+}
+
+// ListReviewDeckPagesByLocale returns each language's pages as
+// ListReviewDeckPages does, in one query. See platstore.ReviewDeckStore.
+func (s *PostgresStore) ListReviewDeckPagesByLocale(ctx context.Context, q platstore.ReviewDeckQuery, locales []string, limit int) (map[string][]platstore.ReviewDeckPage, error) {
+	scope, args := reviewDeckLocalesArgs(q, locales)
 	prio, args := reviewDeckPriority(q, args)
 	args = append(args, limit)
 	//nolint:gosec // the skeleton is fixed literals and $N tokens; every value binds through args
-	query := `SELECT x.item_name, x.collection_id, x.component, x.prio, count(*),
-		count(*) FILTER (WHERE x.failing),
-		(array_agg(x.id ORDER BY x.position, x.id))[1]
-		FROM (SELECT b.id, b.item_name, COALESCE(i.collection_id, '') AS collection_id,
+	query := `SELECT locale, item_name, collection_id, component, prio, waiting, findings, first_block FROM (
+		SELECT x.locale, x.item_name, x.collection_id, x.component, x.prio, count(*) AS waiting,
+		count(*) FILTER (WHERE x.failing) AS findings,
+		(array_agg(x.id ORDER BY x.position, x.id))[1] AS first_block,
+		row_number() OVER (PARTITION BY x.locale ORDER BY x.prio, x.item_name, min(x.position), x.component) AS place
+		FROM (SELECT t.locale, b.id, b.item_name, COALESCE(i.collection_id, '') AS collection_id,
 			COALESCE(b.properties::jsonb->>'component', '') AS component, b.position, ` + prio + ` AS prio,
 			COALESCE(` + reviewDeckFresh + ` AND f.failing > 0, false) AS failing` +
 		reviewDeckFrom + scope + reviewDeckWaiting + `) x
-		GROUP BY x.item_name, x.collection_id, x.component, x.prio` +
-		fmt.Sprintf(` ORDER BY x.prio, x.item_name, min(x.position), x.component LIMIT $%d`, len(args))
+		GROUP BY x.locale, x.item_name, x.collection_id, x.component, x.prio) y` +
+		fmt.Sprintf(` WHERE place <= $%d ORDER BY locale, place`, len(args))
 	rows, err := s.db.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list review deck pages: %w", err)
 	}
 	defer rows.Close()
-	var out []platstore.ReviewDeckPage
+	out := map[string][]platstore.ReviewDeckPage{}
 	for rows.Next() {
+		var loc string
 		var p platstore.ReviewDeckPage
-		if err := rows.Scan(&p.ItemName, &p.CollectionID, &p.Component, &p.Priority, &p.Waiting, &p.Findings, &p.FirstBlockID); err != nil {
+		if err := rows.Scan(&loc, &p.ItemName, &p.CollectionID, &p.Component, &p.Priority, &p.Waiting, &p.Findings, &p.FirstBlockID); err != nil {
 			return nil, fmt.Errorf("scan review deck page: %w", err)
 		}
-		out = append(out, p)
+		out[loc] = append(out[loc], p)
 	}
 	return out, rows.Err()
 }

@@ -103,7 +103,7 @@ type reviewInboxProject struct {
 //
 // Access resolves as ProjectAccessMiddleware resolves it for a project route,
 // narrowed by an API token's scopes. It counts from the deck's stored facts
-// and classifies nothing: one count per reviewable language.
+// and classifies nothing: one count per project, over its reviewable languages.
 //
 // A project where the caller has saved followed languages lists only those.
 // Each project with work waiting or held carries its plan in brief, one plan
@@ -174,25 +174,24 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				proj.Saved = true
 			}
 			proj.Followed = append([]string{}, locales...)
-			scope, err := deckScopeOf(ctx, s.ContentStore, p.ID, reviewInboxStream)
+			counts, err := s.inboxDeckCounts(ctx, p.ID, locales, policy, decks)
 			if err != nil {
 				return serverErr(c, err)
 			}
-			// Whether the plan holds translations back is read once per
-			// project, and only when a language has any it could hold.
-			heldRead, held, heldAny := false, false, false
-			for _, loc := range locales {
-				q := store.ReviewDeckQuery{
-					ProjectID: p.ID,
-					Stream:    reviewInboxStream,
-					Locale:    loc,
-					Policy:    policy,
-				}
-				scope.apply(&q)
-				counts, err := decks.CountReviewDeck(ctx, q)
+			// The plan is computed for a project with anything waiting, and
+			// says whether it holds translations back.
+			var plan *reviewPlanResponse
+			if proj.Waiting > 0 || anyWaiting(counts) {
+				computed, err := s.computeReviewPlan(ctx, ws, p, reviewInboxStream, planCaller{
+					userID: userID, perms: perms, reach: reach, locales: locales,
+				})
 				if err != nil {
 					return serverErr(c, err)
 				}
+				plan = &computed
+			}
+			held, heldAny := plan != nil && plan.Held != "", false
+			for _, loc := range locales {
 				lang := reviewInboxLanguage{
 					Workspace:     ws.Slug,
 					WorkspaceName: ws.Name,
@@ -200,13 +199,7 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 					ProjectName:   p.Name,
 					Stream:        reviewInboxStream,
 					Locale:        loc,
-					deckWaiting:   deckWaitingOf(counts),
-				}
-				if !heldRead && lang.Waiting > lang.Desk {
-					heldRead = true
-					if held, err = s.translationsHeld(ctx, ws, p); err != nil {
-						return serverErr(c, err)
-					}
+					deckWaiting:   deckWaitingOf(counts[loc]),
 				}
 				if held {
 					lang.deckWaiting = lang.held()
@@ -219,14 +212,8 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 			}
 			// A project whose translations are all held still shows its plan,
 			// so the person sees the step that releases them.
-			if proj.Waiting > 0 || heldAny {
-				plan, err := s.computeReviewPlan(ctx, ws, p, reviewInboxStream, planCaller{
-					userID: userID, perms: perms, reach: reach, locales: locales,
-				})
-				if err != nil {
-					return serverErr(c, err)
-				}
-				summary := summarizePlan(plan)
+			if plan != nil && (proj.Waiting > 0 || heldAny) {
+				summary := summarizePlan(*plan)
 				proj.Plan = &summary
 			}
 			if proj.Waiting > 0 || proj.Saved || heldAny {
@@ -248,6 +235,31 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 		)
 	})
 	return c.JSON(http.StatusOK, out)
+}
+
+// inboxDeckCounts counts the deck of each of a project's locales in the
+// inbox's stream, in one query.
+func (s *Server) inboxDeckCounts(ctx context.Context, projectID string, locales []string, policy string, decks store.ReviewDeckStore) (map[string]store.ReviewDeckCounts, error) {
+	if len(locales) == 0 {
+		return nil, nil
+	}
+	scope, err := deckScopeOf(ctx, s.ContentStore, projectID, reviewInboxStream)
+	if err != nil {
+		return nil, err
+	}
+	q := store.ReviewDeckQuery{ProjectID: projectID, Stream: reviewInboxStream, Policy: policy}
+	scope.apply(&q)
+	return decks.CountReviewDeckByLocale(ctx, q, locales)
+}
+
+// anyWaiting reports whether any language's deck holds a translation.
+func anyWaiting(counts map[string]store.ReviewDeckCounts) bool {
+	for _, n := range counts {
+		if deckWaitingOf(n).Waiting > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // inboxProjectAccess is what the user may do in the project and the
