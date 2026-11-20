@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"golang.org/x/sync/errgroup"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -634,8 +633,8 @@ func reviewLocalesOf(proj *platstore.Project, perms platauth.Permission, langs [
 }
 
 // planLanguages counts, for each language, the deck's groups and pages, and
-// files the rules behind the deck's desk group in rules by language. Each
-// read is one query over every language.
+// files the rules behind the deck's desk group in rules by language. The
+// counts come from the project's deck summary (deckSummaryOf).
 //
 // While held, the translations the deck holds back move out of Waiting into
 // Held; Settleable still counts the fast group, which a first pass settles.
@@ -645,37 +644,16 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 	if !ok || len(locales) == 0 {
 		return out, nil
 	}
-	scope, err := deckScopeOf(ctx, s.ContentStore, proj.ID, stream)
+	q, err := s.deckSummaryQuery(ctx, proj.ID, stream)
 	if err != nil {
 		return nil, err
 	}
-	q := platstore.ReviewDeckQuery{ProjectID: proj.ID, Stream: stream, Policy: deckPolicyKey(s.deckPolicy())}
-	scope.apply(&q)
-	desk := deckRank(reviewdeck.DeckDesk)
-	// The three reads are independent, so they run at once. A language with
-	// nothing in the desk group counts no rule.
-	var (
-		counts  map[string]platstore.ReviewDeckCounts
-		top     map[string][]platstore.RuleTally
-		pagesOf map[string][]platstore.ReviewDeckPage
-	)
-	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() (err error) {
-		counts, err = decks.CountReviewDeckByLocale(gctx, q, locales)
-		return err
-	})
-	g.Go(func() (err error) {
-		top, err = decks.CountReviewDeckRulesByLocale(gctx, q, locales, desk, planRuleLimit)
-		return err
-	})
-	g.Go(func() (err error) {
-		pagesOf, err = decks.ListReviewDeckPagesByLocale(gctx, q, locales, reviewPagesCountLimit+1)
-		return err
-	})
-	if err := g.Wait(); err != nil {
+	sum, err := s.deckSummaryOf(ctx, decks, q, locales)
+	if err != nil {
 		return nil, err
 	}
-	for loc, t := range top {
+	counts, pagesOf, desk := sum.counts, sum.pages, deckRank(reviewdeck.DeckDesk)
+	for loc, t := range sum.rules {
 		if len(t) > 0 {
 			rules[loc] = planRulesOf(t)
 		}
@@ -706,6 +684,18 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 		out = append(out, lang)
 	}
 	return out, nil
+}
+
+// deckSummaryQuery scopes a project's language decks in a stream: the
+// server's deck policy and the project's collection scope.
+func (s *Server) deckSummaryQuery(ctx context.Context, projectID, stream string) (platstore.ReviewDeckQuery, error) {
+	scope, err := deckScopeOf(ctx, s.ContentStore, projectID, stream)
+	if err != nil {
+		return platstore.ReviewDeckQuery{}, err
+	}
+	q := platstore.ReviewDeckQuery{ProjectID: projectID, Stream: stream, Policy: deckPolicyKey(s.deckPolicy())}
+	scope.apply(&q)
+	return q, nil
 }
 
 // interfaceSample is the pages a reviewer reads under context: every page

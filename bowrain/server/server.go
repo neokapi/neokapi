@@ -82,6 +82,9 @@ type Server struct {
 	// contextLogs keeps each project's context ledger log as last read,
 	// under the segments it was read from (ContextLedger).
 	contextLogs contextLogCache
+	// deckSummaries keeps each project's language decks as last counted,
+	// under the deck revision they were counted at (deckSummaryOf).
+	deckSummaries deckSummaryCache
 
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store

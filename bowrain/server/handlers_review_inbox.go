@@ -133,7 +133,6 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	scopes, _ := c.Get("api_token_scopes").(string)
-	policy := deckPolicyKey(s.deckPolicy())
 
 	followed := map[string][]string{}
 	if fs, ok := store.FollowedLanguages(s.ContentStore); ok {
@@ -174,7 +173,7 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				proj.Saved = true
 			}
 			proj.Followed = append([]string{}, locales...)
-			counts, err := s.inboxDeckCounts(ctx, p.ID, locales, policy, decks)
+			counts, err := s.inboxDeckCounts(ctx, p.ID, locales, decks)
 			if err != nil {
 				return serverErr(c, err)
 			}
@@ -238,18 +237,18 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 }
 
 // inboxDeckCounts counts the deck of each of a project's locales in the
-// inbox's stream, in one query.
-func (s *Server) inboxDeckCounts(ctx context.Context, projectID string, locales []string, policy string, decks store.ReviewDeckStore) (map[string]store.ReviewDeckCounts, error) {
+// inbox's stream, from the project's deck summary (deckSummaryOf). The plan
+// the inbox computes next reads the same summary.
+func (s *Server) inboxDeckCounts(ctx context.Context, projectID string, locales []string, decks store.ReviewDeckStore) (map[string]store.ReviewDeckCounts, error) {
 	if len(locales) == 0 {
 		return nil, nil
 	}
-	scope, err := deckScopeOf(ctx, s.ContentStore, projectID, reviewInboxStream)
+	q, err := s.deckSummaryQuery(ctx, projectID, reviewInboxStream)
 	if err != nil {
 		return nil, err
 	}
-	q := store.ReviewDeckQuery{ProjectID: projectID, Stream: reviewInboxStream, Policy: policy}
-	scope.apply(&q)
-	return decks.CountReviewDeckByLocale(ctx, q, locales)
+	sum, err := s.deckSummaryOf(ctx, decks, q, locales)
+	return sum.counts, err
 }
 
 // anyWaiting reports whether any language's deck holds a translation.

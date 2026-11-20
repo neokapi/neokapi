@@ -1945,4 +1945,108 @@ var Migrations = []storage.Migration{
 			ANALYZE translations;
 		`,
 	},
+	{
+		Version:     57,
+		Description: "record the changes that move a project's review deck",
+		SQL: `
+			-- A project's review deck revision is base + the number of its
+			-- rows in review_deck_changes. Every transaction that writes a
+			-- row the deck is counted from appends one row per project it
+			-- touches, so the revision moves when that transaction commits,
+			-- and a reader sees the revision and the rows it was counted
+			-- from in one snapshot. Appending never waits on a lock, so a
+			-- writer never waits on another writer for it. Compaction folds
+			-- a project's rows into base in one statement, which leaves the
+			-- sum as it was.
+			CREATE TABLE IF NOT EXISTS review_deck_changes (
+				id         BIGSERIAL PRIMARY KEY,
+				project_id TEXT NOT NULL
+			);
+			CREATE INDEX IF NOT EXISTS review_deck_changes_project ON review_deck_changes (project_id);
+			CREATE TABLE IF NOT EXISTS review_deck_revisions (
+				project_id TEXT PRIMARY KEY,
+				base       BIGINT NOT NULL DEFAULT 0
+			);
+			-- One row per project and transaction: a transaction-local
+			-- setting records that the row is written.
+			CREATE OR REPLACE FUNCTION review_deck_note_change() RETURNS TRIGGER AS $rdc$
+			DECLARE
+				p   TEXT;
+				key TEXT;
+			BEGIN
+				FOR p IN SELECT DISTINCT project_id FROM changed LOOP
+					key := 'review_deck_changed.p' || md5(p);
+					IF current_setting(key, true) IS DISTINCT FROM 'on' THEN
+						INSERT INTO review_deck_changes (project_id) VALUES (p);
+						PERFORM set_config(key, 'on', true);
+					END IF;
+				END LOOP;
+				RETURN NULL;
+			END;
+			$rdc$ LANGUAGE plpgsql;
+			CREATE OR REPLACE TRIGGER blocks_review_deck_insert
+				AFTER INSERT ON blocks REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER blocks_review_deck_update
+				AFTER UPDATE ON blocks REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER blocks_review_deck_delete
+				AFTER DELETE ON blocks REFERENCING OLD TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER translations_review_deck_insert
+				AFTER INSERT ON translations REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER translations_review_deck_update
+				AFTER UPDATE ON translations REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER translations_review_deck_delete
+				AFTER DELETE ON translations REFERENCING OLD TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER items_review_deck_insert
+				AFTER INSERT ON items REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER items_review_deck_update
+				AFTER UPDATE ON items REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER items_review_deck_delete
+				AFTER DELETE ON items REFERENCING OLD TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER collections_review_deck_insert
+				AFTER INSERT ON collections REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER collections_review_deck_update
+				AFTER UPDATE ON collections REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER collections_review_deck_delete
+				AFTER DELETE ON collections REFERENCING OLD TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER pre_reviews_review_deck_insert
+				AFTER INSERT ON pre_reviews REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER pre_reviews_review_deck_update
+				AFTER UPDATE ON pre_reviews REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER pre_reviews_review_deck_delete
+				AFTER DELETE ON pre_reviews REFERENCING OLD TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER unit_decisions_review_deck_insert
+				AFTER INSERT ON unit_decisions REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER unit_decisions_review_deck_update
+				AFTER UPDATE ON unit_decisions REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER unit_decisions_review_deck_delete
+				AFTER DELETE ON unit_decisions REFERENCING OLD TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER review_deck_facts_review_deck_insert
+				AFTER INSERT ON review_deck_facts REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER review_deck_facts_review_deck_update
+				AFTER UPDATE ON review_deck_facts REFERENCING NEW TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+			CREATE OR REPLACE TRIGGER review_deck_facts_review_deck_delete
+				AFTER DELETE ON review_deck_facts REFERENCING OLD TABLE AS changed
+				FOR EACH STATEMENT EXECUTE FUNCTION review_deck_note_change();
+		`,
+	},
 }

@@ -541,3 +541,31 @@ func (s *PostgresStore) NextReviewInItem(ctx context.Context, q platstore.Review
 	}
 	return id, nil
 }
+
+// reviewDeckCompactAt is the number of a project's change rows past which
+// reading its revision folds them into its base.
+const reviewDeckCompactAt = 500
+
+// ReviewDeckRevision returns the project's review deck revision: its base
+// plus its rows in review_deck_changes, read in one snapshot. See
+// platstore.ReviewDeckStore.
+func (s *PostgresStore) ReviewDeckRevision(ctx context.Context, projectID string) (int64, error) {
+	var base, pending int64
+	err := s.db.DB.QueryRowContext(ctx, `SELECT
+		COALESCE((SELECT base FROM review_deck_revisions WHERE project_id = $1), 0),
+		(SELECT count(*) FROM review_deck_changes WHERE project_id = $1)`, projectID).Scan(&base, &pending)
+	if err != nil {
+		return 0, fmt.Errorf("read review deck revision: %w", err)
+	}
+	if pending > reviewDeckCompactAt {
+		// One statement deletes the rows it sees and adds their number to the
+		// base, so the sum a reader sees stays as it was.
+		if _, err := s.db.DB.ExecContext(ctx, `WITH gone AS (
+				DELETE FROM review_deck_changes WHERE project_id = $1 RETURNING 1)
+			INSERT INTO review_deck_revisions (project_id, base) VALUES ($1, (SELECT count(*) FROM gone))
+			ON CONFLICT (project_id) DO UPDATE SET base = review_deck_revisions.base + EXCLUDED.base`, projectID); err != nil {
+			return 0, fmt.Errorf("compact review deck revision: %w", err)
+		}
+	}
+	return base + pending, nil
+}

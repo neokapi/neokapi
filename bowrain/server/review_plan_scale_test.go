@@ -67,6 +67,36 @@ func TestReviewPlan_ReadsNoBlocks(t *testing.T) {
 	assert.Zero(t, counter.getBlocks.Load(), "the plan and the inbox read no block")
 }
 
+// The plan's language counts are kept between requests, and a change to a
+// translation is in the next plan all the same.
+func TestReviewPlan_CountsAChangeMadeAfterTheLastRead(t *testing.T) {
+	s, wsID, owner := newRecheckHarness(t)
+	projID, _ := containerProject(t, s, wsID)
+	read := func() planLanguageDTO {
+		t.Helper()
+		rec := deckCall(t, s, s.HandleGetReviewPlan, wsID, projID, "", owner, platauth.PermAll, nil, url.Values{})
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		plan := decodeJSON[reviewPlanResponse](t, rec)
+		require.Len(t, plan.Languages, 1)
+		return plan.Languages[0]
+	}
+	before := read()
+	require.Equal(t, before, read(), "an unchanged project counts the same")
+
+	db := s.ContentStore.(interface{ DB() *storage.PgDB }).DB()
+	res, err := db.DB.ExecContext(context.Background(), `UPDATE translations
+		SET target_json = jsonb_set(target_json, '{status}', '"established"')
+		WHERE project_id = $1 AND block_id = (SELECT min(block_id) FROM translations
+			WHERE project_id = $1 AND COALESCE(target_json->>'status', '') <> 'established')`, projID)
+	require.NoError(t, err)
+	n, err := res.RowsAffected()
+	require.NoError(t, err)
+	require.EqualValues(t, 1, n)
+
+	after := read()
+	assert.Equal(t, before.Waiting+before.Held-1, after.Waiting+after.Held, "the approved translation no longer waits")
+}
+
 func TestReviewPlan_Scale(t *testing.T) {
 	if os.Getenv("BOWRAIN_PLAN_SCALE") == "" {
 		t.Skip("set BOWRAIN_PLAN_SCALE to seed a large project and time the plan")
@@ -108,17 +138,29 @@ func TestReviewPlan_Scale(t *testing.T) {
 			_ = f.Close()
 		}()
 	}
+	// A change to one translation moves the deck revision, so the next read
+	// counts the decks again; the reads after it are served from the cache.
+	touch := func() {
+		_, err := db.DB.ExecContext(context.Background(),
+			`UPDATE translations SET provider = provider WHERE project_id = $1 AND block_id = 'b-0'`, projID)
+		require.NoError(t, err)
+	}
 	const runs = 5
-	var plans, inboxes []time.Duration
+	var coldPlans, coldInboxes, plans, inboxes []time.Duration
 	for range runs {
+		touch()
+		coldPlans = append(coldPlans, plan())
+		touch()
+		coldInboxes = append(coldInboxes, inbox())
 		plans = append(plans, plan())
 		inboxes = append(inboxes, inbox())
 	}
-	slices.Sort(plans)
-	slices.Sort(inboxes)
-	t.Logf("%d blocks, %d languages: plan median %v (min %v, max %v); inbox median %v (min %v, max %v)",
-		blocks, len(planScaleLocales),
-		plans[runs/2], plans[0], plans[runs-1], inboxes[runs/2], inboxes[0], inboxes[runs-1])
+	median := func(ds []time.Duration) time.Duration {
+		slices.Sort(ds)
+		return ds[len(ds)/2]
+	}
+	t.Logf("%d blocks, %d languages: plan median %v after a change, %v unchanged; inbox median %v after a change, %v unchanged",
+		blocks, len(planScaleLocales), median(coldPlans), median(plans), median(coldInboxes), median(inboxes))
 }
 
 // newPlanScaleHarness is the recheck harness with the workspace terms store on

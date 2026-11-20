@@ -170,6 +170,12 @@ type ReviewDeckStore interface {
 	// NextReviewInItem returns the first translation waiting in the item
 	// after the block, in document order, or "" when none waits.
 	NextReviewInItem(ctx context.Context, q ReviewDeckQuery, itemName, afterBlockID string) (string, error)
+	// ReviewDeckRevision returns a number that moves whenever a transaction
+	// commits a change to anything a deck of the project is counted from:
+	// its blocks, translations, items, collections, pre-reviews, decisions
+	// and facts. Equal numbers mean nothing changed in between. Facts also go
+	// stale with time, which the number does not track.
+	ReviewDeckRevision(ctx context.Context, projectID string) (int64, error)
 }
 
 // ReviewDeckPage is a part of the deck a reviewer reads whole: the strings
