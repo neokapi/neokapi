@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { Alert } from "react-native";
 
 import "../lib/i18n";
 import ReviewPlanScreen from "../app/[ws]/[project]/plan";
@@ -17,14 +16,12 @@ jest.mock("expo-router", () => ({
 const mockPlan = jest.fn<Promise<ReviewPlan>, unknown[]>();
 const mockConfirm = jest.fn<Promise<void>, unknown[]>();
 const mockPermissions = jest.fn();
-const mockSettle = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     client: {
       reviewPlan: (...a: unknown[]) => mockPlan(...a),
       confirmCoordinates: (...a: unknown[]) => mockConfirm(...a),
       permissions: (...a: unknown[]) => mockPermissions(...a),
-      settlePlan: (...a: unknown[]) => mockSettle(...a),
     },
   }),
 }));
@@ -40,6 +37,8 @@ type Over = {
   keyState?: string;
   waiting?: number;
   concepts?: number;
+  auto?: { by?: string; by_name?: string; source?: string; skip?: string };
+  last?: { at: string; approved: number; by?: string; by_name?: string; automatic?: boolean };
 };
 
 const plan = (over: Over = {}) =>
@@ -103,7 +102,12 @@ const plan = (over: Over = {}) =>
         held: 1160,
       },
     ],
-    policy: { settle: over.settle ?? "first_pass", context_open: 29 },
+    policy: {
+      settle: over.settle ?? "first_pass",
+      context_open: 29,
+      auto: over.auto,
+      last: over.last,
+    },
     held: "context",
     steps: [
       {
@@ -191,24 +195,61 @@ describe("review plan", () => {
     });
   });
 
-  it("settles a first pass on the checks alone", async () => {
-    mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy" }));
-    mockSettle.mockResolvedValue({ approved: 800, skipped: 0, firstPass: true });
-    const alert = jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
-      buttons?.find((b) => b.style !== "cancel")?.onPress?.();
-    });
+  it("shows how the server settles after each run, with no settle button", async () => {
+    mockPlan.mockResolvedValue(
+      plan({
+        confirmed: true,
+        next: "policy",
+        auto: { by: "u-ada", by_name: "Ada", source: "involvement" },
+        last: {
+          at: new Date().toISOString(),
+          approved: 412,
+          by: "u-ada",
+          by_name: "Ada",
+          automatic: true,
+        },
+      }),
+    );
     await render(wrap(<ReviewPlanScreen />));
-    await fireEvent.press(await screen.findByTestId("plan-policy-action"));
-    expect(alert.mock.calls[0]?.[1]).toMatch(/First pass: this settles on the checks alone/);
-    expect(mockSettle).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, ["nb"]);
+    expect(await screen.findByText("Settles after each run, credited to Ada")).toBeTruthy();
+    expect(screen.getByTestId("plan-policy-last").props.children).toMatch(
+      /^Last pass after a run, .+: 412 translations established$/,
+    );
+    expect(screen.queryByTestId("plan-policy-action")).toBeNull();
+  });
+
+  it("says why nothing settles after a run", async () => {
+    mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy", auto: { skip: "no_one" } }));
+    await render(wrap(<ReviewPlanScreen />));
+    expect(await screen.findByTestId("plan-policy-auto")).toBeTruthy();
+    expect(screen.getByTestId("plan-policy-auto").props.children).toMatch(
+      /until a manager sets the involvement or confirms the coordinates/,
+    );
+
+    mockPlan.mockResolvedValue(
+      plan({
+        confirmed: true,
+        next: "policy",
+        auto: { by: "u-bo", by_name: "Bo", skip: "no_permission" },
+        last: { at: "2026-11-01T10:00:00Z", approved: 3, by: "u-cy", by_name: "Cy" },
+      }),
+    );
+    await render(wrap(<ReviewPlanScreen />));
+    expect(
+      await screen.findByText(
+        "Nothing settles after a run: Bo no longer has review access to this project",
+      ),
+    ).toBeTruthy();
+    expect(screen.getAllByTestId("plan-policy-last").at(-1)?.props.children).toMatch(
+      /^Last pass by Cy, .+: 3 translations established$/,
+    );
   });
 
   it("holds later passes until the context is decided", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy", settle: "held" }));
     await render(wrap(<ReviewPlanScreen />));
     expect(await screen.findByText("Waits for the context")).toBeTruthy();
-    expect(screen.queryByTestId("plan-policy-action")).toBeNull();
-    expect(mockSettle).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("plan-policy-auto")).toBeNull();
   });
 
   const notStarted = {

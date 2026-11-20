@@ -3,7 +3,9 @@
 // next step carries an action. The server decides every state and count
 // (GET /:ws/:id/review/plan), including which translations the language decks
 // hold until the context is decided. The involvement setting lives on
-// the project's review languages screen.
+// the project's review languages screen. The policy step shows how the
+// server settles after each run and its last pass; the phone has no settle
+// button.
 import {
   planRuleLabel,
   type PlanLevel,
@@ -12,17 +14,17 @@ import {
   type PlanStepState,
   type ReviewPlan,
 } from "@neokapi/bowrain-client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import type { ReactNode } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { contextScanFact } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
 import { reviewPlanKey } from "../../../lib/plan";
-import { languageLabel } from "../../../lib/feed";
+import { ageLabel, languageLabel } from "../../../lib/feed";
 
 const LEVELS: readonly PlanLevel[] = [
   "coordinates",
@@ -78,6 +80,7 @@ function Row({
   next,
   title,
   fact,
+  note,
   children,
 }: {
   n: number;
@@ -86,6 +89,8 @@ function Row({
   next: boolean;
   title: string;
   fact: string;
+  /** Shown on the step whether or not it is next. */
+  note?: ReactNode;
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -113,6 +118,7 @@ function Row({
           </Text>
         ) : null}
       </View>
+      {note}
       {next ? children : null}
     </View>
   );
@@ -196,20 +202,6 @@ export default function ReviewPlanScreen() {
   });
   const refresh = () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
 
-  const settle = useMutation({
-    mutationFn: (locales: string[]) => client.settlePlan(scope, locales),
-    onSuccess: (r) => {
-      Alert.alert(
-        t("plan.policy.doneTitle"),
-        r.firstPass
-          ? t("plan.policy.doneFirstPass", { count: r.approved })
-          : t("plan.policy.done", { count: r.approved }),
-      );
-      refresh();
-    },
-    onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
-  });
-
   if (!plan.data) {
     return (
       <View className="bg-background flex-1">
@@ -276,6 +268,43 @@ export default function ReviewPlanScreen() {
           ? t("plan.policy.settleable", { count: settleable })
           : t("plan.policy.nothing");
     }
+  };
+
+  // How the server settles after each run, and the last pass. Under every
+  // nothing settles, so the step says nothing more.
+  const policyNote = (): ReactNode => {
+    if (p.policy.settle === "none") return null;
+    const auto = p.policy.auto;
+    const last = p.policy.last;
+    const name = auto?.byName ?? auto?.by ?? "";
+    let autoLine: string | null = null;
+    if (auto?.skip === "no_one") autoLine = t("plan.policy.autoNoOne");
+    else if (auto?.skip === "no_permission") autoLine = t("plan.policy.autoNoPermission", { name });
+    else if (auto && settleNow) autoLine = t("plan.policy.auto", { name });
+    if (!autoLine && !last) return null;
+    return (
+      <View testID="plan-policy-state" className="gap-0.5 pl-10">
+        {autoLine ? (
+          <Text testID="plan-policy-auto" className="text-muted-foreground text-sm">
+            {autoLine}
+          </Text>
+        ) : null}
+        {last ? (
+          <Text testID="plan-policy-last" className="text-muted-foreground text-sm">
+            {last.automatic
+              ? t("plan.policy.lastAuto", {
+                  count: last.approved,
+                  when: ageLabel(last.at, t, i18n.language),
+                })
+              : t("plan.policy.lastBy", {
+                  count: last.approved,
+                  when: ageLabel(last.at, t, i18n.language),
+                  name: last.byName ?? last.by ?? "",
+                })}
+          </Text>
+        ) : null}
+      </View>
+    );
   };
 
   const action = (level: PlanLevel): ReactNode => {
@@ -346,27 +375,7 @@ export default function ReviewPlanScreen() {
           />
         ) : null;
       case "policy":
-        return settleNow && settleable > 0 ? (
-          <Action
-            testID="plan-policy-action"
-            label={t("plan.policy.apply", { count: settleable })}
-            onPress={() =>
-              Alert.alert(
-                t("plan.policy.apply", { count: settleable }),
-                p.policy.settle === "first_pass"
-                  ? t("plan.policy.firstPass")
-                  : t("plan.policy.confirm"),
-                [
-                  { text: t("common.cancel"), style: "cancel" },
-                  {
-                    text: t("plan.policy.applyShort"),
-                    onPress: () => settle.mutate(p.languages.map((l) => l.locale)),
-                  },
-                ],
-              )
-            }
-          />
-        ) : null;
+        return null;
     }
   };
 
@@ -390,6 +399,7 @@ export default function ReviewPlanScreen() {
               next={p.next === level}
               title={t(`planCard.steps.${level}`)}
               fact={fact(s)}
+              note={level === "policy" ? policyNote() : undefined}
             >
               {action(level)}
             </Row>

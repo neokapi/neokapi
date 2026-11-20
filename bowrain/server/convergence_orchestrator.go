@@ -624,6 +624,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 			Timestamp: time.Now().UTC(),
 			Data: map[string]string{
 				"run_id":         run.ID,
+				"stream":         run.Stream,
 				"state":          run.State,
 				"passes":         strconv.Itoa(run.Passes),
 				"stall_reason":   run.StallReason,

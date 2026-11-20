@@ -38,6 +38,11 @@ const (
 	// propReviewInvolvement is how much the project's reviewers can be
 	// involved: context, interfaces or every.
 	propReviewInvolvement = "review_involvement"
+	// propInvolvementSetBy and propInvolvementSetAt record the person who
+	// last set the involvement, and when. The settle pass the server runs
+	// after a run is credited to that person.
+	propInvolvementSetBy = "review_involvement_set_by"
+	propInvolvementSetAt = "review_involvement_set_at"
 	// propCoordinatesConfirmedBy and propCoordinatesConfirmedAt record the
 	// person who confirmed the coordinates, and when.
 	propCoordinatesConfirmedBy = "review_coordinates_confirmed_by"
@@ -131,6 +136,11 @@ type planPolicyDTO struct {
 	ContextOpen int    `json:"context_open"`
 	FirstPassBy string `json:"first_pass_by,omitempty"`
 	FirstPassAt string `json:"first_pass_at,omitempty"`
+	// Auto is who the settle pass the server runs after each run is
+	// credited to, or why it does not run. Only the plan route sets it.
+	Auto *planAutoSettleDTO `json:"auto,omitempty"`
+	// Last is the project's last settle pass, by hand or after a run.
+	Last *planSettleResultDTO `json:"last,omitempty"`
 }
 
 // planPoint is one place in the project's context space: a collection's
@@ -300,6 +310,13 @@ func (s *Server) HandleGetReviewPlan(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	auto := s.autoSettleActorOf(ctx, ws, proj)
+	out.Policy.Auto = &auto.planAutoSettleDTO
+	if last := out.Policy.Last; last != nil && last.By != "" {
+		if u, err := s.AuthStore.GetUser(ctx, last.By); err == nil && u != nil {
+			last.ByName = u.Name
+		}
+	}
 	return c.JSON(http.StatusOK, out)
 }
 
@@ -381,6 +398,7 @@ func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *p
 		open += n
 	}
 	out.ContextOpen = open
+	out.Last = lastSettleOf(proj)
 	switch {
 	case involvement == involvementEvery:
 		out.Settle = settleNone
@@ -696,13 +714,14 @@ type reviewPlanSettleResponse struct {
 }
 
 // HandleSettleReviewPlan answers POST /:ws/:id/review/plan/settle: the
-// plan's last step. It establishes every waiting translation that clears
-// every bar, as approve-passing does, and records each decision in the ledger
-// as the caller's with the reason "review policy".
+// plan's last step, run by hand. The pass is settleReviewPlan's, credited to
+// the caller. The server runs the same pass after each run
+// (review_plan_autosettle.go).
 //
 // A project settles on the checks alone once, for its first pass; after
 // that a pass waits until the context is decided (409). Under the
-// involvement every nothing is left to the checks (409).
+// involvement every nothing is left to the checks (409). A pass already
+// running for the project answers 409 too.
 func (s *Server) HandleSettleReviewPlan(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
@@ -728,34 +747,12 @@ func (s *Server) HandleSettleReviewPlan(c echo.Context) error {
 	if err != nil || ws == nil {
 		return apiErr(c, http.StatusNotFound, "workspace not found")
 	}
-	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
-	if err != nil {
+	out, err := s.settleReviewPlan(c, ws, proj.ID, stream, req.Locales, false)
+	switch {
+	case errors.Is(err, errSettleNone), errors.Is(err, errSettleHeld), errors.Is(err, errSettleBusy):
+		return apiErr(c, http.StatusConflict, err.Error())
+	case err != nil:
 		return serverErr(c, err)
-	}
-	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), counts.Untranslated)
-	if err != nil {
-		return serverErr(c, err)
-	}
-	switch policy.Settle {
-	case settleNone:
-		return apiErr(c, http.StatusConflict, "under the involvement every, a person establishes every translation")
-	case settleHeld:
-		return apiErr(c, http.StatusConflict, "the first pass is taken; decide the context before the next one")
-	}
-	resp, err := s.approvePassing(c, proj, stream, req.Locales, []string{reasonReviewPolicy})
-	if err != nil {
-		return serverErr(c, err)
-	}
-	out := reviewPlanSettleResponse{ApprovePassingResponse: resp}
-	if policy.Settle == settleFirstPass {
-		userID, _ := c.Get("user_id").(string)
-		if err := s.updatePlanProperties(ctx, proj.ID, map[string]string{
-			propFirstPassBy: userID,
-			propFirstPassAt: time.Now().UTC().Format(time.RFC3339),
-		}); err != nil {
-			return serverErr(c, err)
-		}
-		out.FirstPass = true
 	}
 	return c.JSON(http.StatusOK, out)
 }
@@ -816,7 +813,8 @@ type reviewPlanInvolvementRequest struct {
 
 // HandlePutReviewInvolvement answers PUT /:ws/:id/review/plan/involvement
 // {"involvement": "context"|"interfaces"|"every"}. It needs the permission to
-// edit the project's settings.
+// edit the project's settings, and records the caller as the person the
+// settle pass after each run is credited to.
 func (s *Server) HandlePutReviewInvolvement(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
@@ -830,7 +828,12 @@ func (s *Server) HandlePutReviewInvolvement(c echo.Context) error {
 	default:
 		return apiErr(c, http.StatusBadRequest, "involvement is context, interfaces or every")
 	}
-	return s.setPlanProperties(c, map[string]string{propReviewInvolvement: req.Involvement})
+	userID, _ := c.Get("user_id").(string)
+	return s.setPlanProperties(c, map[string]string{
+		propReviewInvolvement: req.Involvement,
+		propInvolvementSetBy:  userID,
+		propInvolvementSetAt:  time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 // HandleConfirmReviewCoordinates answers POST

@@ -336,6 +336,39 @@ next month in UTC, `waiting_credits` or `no_ai`. `POST
 /:ws/:id/review/plan/scan` scans again on request and records the same
 coverage; the web Overview offers it as **Scan again**.
 
+### The settle pass runs after a run
+
+The server subscribes to `convergence.run.completed` (consumer group
+`review-settle-after-run`, `bowrain/server/review_plan_autosettle.go`). For a
+run on the plan's stream that converged or parked after at least one
+production pass, it runs the settle step's own code (`settleReviewPlan`) when
+`policy.settle` is `first_pass` or `policy`, over every target language the
+credited person may review.
+
+- **Who it is credited to.** The person who last set the involvement
+  (`review_involvement_set_by`, recorded by `PUT .../review/plan/involvement`),
+  else the person who confirmed the coordinates. That person must be a
+  member who holds the review permission on the project when the pass runs.
+  The plan's `policy.auto` names them (`by`, `source`: `involvement` or
+  `coordinates`), or says why no pass runs (`skip`: `no_one` or
+  `no_permission`).
+- **One pass at a time.** A pass claims the project on the instance and
+  takes a PostgreSQL advisory lock keyed by the project, held on its own
+  connection for the pass. A pass that finds the project claimed does not
+  run: the manual step answers 409, and the pass after a run is skipped; the
+  next run settles what it left. The lock is per project, so passes over
+  different projects run side by side.
+- **What the plan shows.** `policy.last` is the last pass, by hand or after a
+  run: `at`, `approved`, `by`, and `automatic`. The phone shows it with the
+  person the pass after a run is credited to, and has no settle button; the
+  web Overview keeps the button.
+- **The feed.** The pass files the same `review.bulk_approved` record per
+  language as a pass by hand, with the credited person as the actor, so the
+  feed's review summary counts it.
+
+A completing run, the one a review that empties the queue starts, has no
+production pass and is not followed by a settle pass.
+
 ## What the founder reviews on neokapi
 
 In order, with the counts from 2026-11-19:
@@ -363,8 +396,9 @@ The founder accepted each recommendation on 2026-11-19:
 
 1. The default involvement for a new project is `context`.
 2. A settle pass is attributed to the person who runs it, and each decision
-   carries the reason `review policy` in the ledger. There is no `policy`
-   actor.
+   carries the reason `review policy` in the ledger. The pass the server runs
+   after a run is attributed to the person who set the involvement, or who
+   confirmed the coordinates. There is no `policy` actor.
 3. A project settles on the checks alone once, for its first pass. After
    that, a settle pass waits until the context is decided: no context
    card waiting for anyone, and a target term for every concept in every
@@ -410,10 +444,10 @@ The founder accepted each recommendation on 2026-11-19:
    language to one rule. The phone links each language's rule to that deck;
    the web Overview lists the rules without a link, because the web has no
    card deck to narrow.
-6. Settling: the plan's last step (`POST /:ws/:id/review/plan/settle`) runs
-   the approve passing path with the ledger reason `review policy`, under the
-   first-pass rule above. Built. Still to build: a settle pass the server runs
-   on its own after drafting, attributed to the person who set the involvement.
+6. Settling: built. The plan's last step (`POST /:ws/:id/review/plan/settle`)
+   runs the approve passing path with the ledger reason `review policy`, under
+   the first-pass rule above, credited to the caller. The server runs the same
+   pass after each run (see "The settle pass runs after a run").
 7. The interface sample under `context`. Built.
 8. User guide: reviewing a large project. Built (bowrain/web/docs, getting started).
 9. The coordinates map. Built. `GET /:ws/:id/review/coordinates` returns the
@@ -464,8 +498,8 @@ The founder accepted each recommendation on 2026-11-19:
     settings, and a project's first plan visit opens a setup (managers:
     coordinates, project languages, involvement; reviewers: their languages).
     Involvement is set on that languages screen, by a manager. Still to build:
-    notifications filtered by the followed list, context sessions, and
-    the setting on the web Overview.
+    notifications filtered by the followed list, and the setting on the web
+    Overview.
 11. The plan gates the language decks, and each step reports its state (see
     "The plan is the queue"). Built. The phone's plan screen is one row per
     step (state, title, one fact) with the action on the next step only; the
