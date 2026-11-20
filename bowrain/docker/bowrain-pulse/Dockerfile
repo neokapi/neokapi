@@ -55,6 +55,10 @@ COPY packages/status-views/ packages/status-views/
 COPY packages/ui/ packages/ui/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 COPY bowrain/apps/pulse/ bowrain/apps/pulse/
+# The vite config imports the qps plugin from scripts/. It is skipped here
+# (CI=true): an image carries a qps dictionary only when the build context
+# already holds one (make bowrain-app-qps, bowrain-ctrl-qps, bowrain-pulse-qps).
+COPY scripts/vite-qps-catalog.mjs scripts/
 
 # @neokapi/i18n-react/runtime is a built ./dist subpath export consumed by
 # @neokapi/ui-primitives (reached from pulse via @neokapi/ui); build it before

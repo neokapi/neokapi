@@ -1,4 +1,5 @@
 import { createMainConfig } from "@neokapi/storybook-config/main";
+import { generateQpsCatalog } from "../../scripts/vite-qps-catalog.mjs";
 
 const config = createMainConfig(
   {
@@ -24,6 +25,8 @@ const config = createMainConfig(
 
 const sharedViteFinal = config.viteFinal;
 config.viteFinal = async (viteConfig, options) => {
+  // The desktop qps dictionary under staticDirs is build output (make kapi-desktop-qps).
+  generateQpsCatalog("kapi-desktop-qps");
   const configured = sharedViteFinal ? await sharedViteFinal(viteConfig, options) : viteConfig;
   // The website preserves JSX for Docusaurus; Storybook compiles those components itself.
   configured.oxc = { ...configured.oxc, jsx: { runtime: "automatic" } };

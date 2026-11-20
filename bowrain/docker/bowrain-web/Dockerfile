@@ -82,6 +82,10 @@ COPY bowrain/packages/ui/ bowrain/packages/ui/
 # in the build context.
 COPY bowrain/packages/app/ bowrain/packages/app/
 COPY bowrain/apps/web/ bowrain/apps/web/
+# The vite config imports the qps plugin from scripts/. It is skipped here
+# (CI=true): an image carries a qps dictionary only when the build context
+# already holds one (make bowrain-app-qps, bowrain-ctrl-qps, bowrain-pulse-qps).
+COPY scripts/vite-qps-catalog.mjs scripts/
 
 # @neokapi/i18n-react/runtime is a built ./dist subpath export consumed by
 # @neokapi/ui; build it before the web app so the import resolves.

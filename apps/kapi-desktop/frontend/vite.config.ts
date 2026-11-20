@@ -3,6 +3,7 @@ import type { PluginOption } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import neokapi from "@neokapi/i18n-react/vite";
+import qpsCatalog from "../../../scripts/vite-qps-catalog.mjs";
 import neokapiI18nConfig from "./neokapi-i18n.config.json" with { type: "json" };
 
 export default defineConfig({
@@ -12,12 +13,14 @@ export default defineConfig({
   // PluginOption keeps the plugin fully type-safe while stopping the recursion.
   plugins: [
     // componentMap stabilises i18n hashes for app-local wrapper components
-    // (kept in neokapi-i18n.config.json so the extract CLI and this
-    // transform hash identically — a map that exists on one side only
-    // makes those strings unresolvable at runtime)
-    // that render translatable text — without it the extractor warns and the
-    // hash could shift once a mapping is added. Map each to its rendered tag.
+    // that render text, mapping each to its rendered tag. Without it the
+    // extractor warns, and a hash could shift once a mapping is added. It is
+    // kept in neokapi-i18n.config.json so the extract CLI and this transform
+    // hash identically. A map present on one side only makes those strings
+    // unresolvable at runtime.
     neokapi({ mode: "runtime", componentMap: neokapiI18nConfig.componentMap }) as PluginOption,
+    // public/translations/qps.json is build output: regenerated here (make kapi-desktop-qps).
+    qpsCatalog("kapi-desktop-qps"),
     react(),
     tailwindcss(),
   ],

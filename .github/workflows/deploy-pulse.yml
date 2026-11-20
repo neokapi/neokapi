@@ -40,6 +40,13 @@ jobs:
         working-directory: packages/i18n-react
         run: vp run build
 
+      # public/translations/qps.json is build output that the vite config
+      # skips under CI, so it is generated here before the build ships it.
+      - name: Generate the qps dictionary
+        uses: ./.github/actions/app-pseudo-locale
+        with:
+          targets: bowrain-pulse-qps
+
       - name: Build pulse app
         working-directory: bowrain/apps/pulse
         env:
@@ -88,7 +95,7 @@ jobs:
   deploy:
     name: Deploy
     # Pulse has no deployment target yet (no ECS service, no S3 bucket in the
-    # prod cluster — unlike web/ctrl it was never wired up). Gate on a
+    # prod cluster; unlike web/ctrl it was never wired up). Gate on a
     # pulse-specific var that is currently unset so the job stays dormant and the
     # workflow is build + publish only; wiring pulse (e.g. its own S3+CloudFront,
     # like web/ctrl) will set SPA_PULSE_BUCKET and activate an s3-sync deploy here.

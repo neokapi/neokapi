@@ -3,16 +3,19 @@ import type { PluginOption } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import neokapi from "@neokapi/i18n-react/vite";
+import qpsCatalog from "../../../scripts/vite-qps-catalog.mjs";
 import neokapiI18nConfig from "../../packages/app/neokapi-i18n.config.json" with { type: "json" };
 
 export default defineConfig({
   // neokapi() is bounded to vite's own PluginOption to stop a type-instantiation
-  // overflow against vite-plus's UserConfig — see apps/kapi-desktop/frontend/
+  // overflow against vite-plus's UserConfig; see apps/kapi-desktop/frontend/
   // vite.config.ts for the full rationale. The componentMap is the SAME file the
   // extract CLI reads (bowrain/packages/app/neokapi-i18n.config.json) so the
   // build-time transform and the extracted catalogs hash identically.
   plugins: [
     neokapi({ mode: "runtime", componentMap: neokapiI18nConfig.componentMap }) as PluginOption,
+    // public/translations/qps.json is build output: regenerated here (make bowrain-app-qps).
+    qpsCatalog("bowrain-app-qps"),
     react(),
     tailwindcss(),
   ],

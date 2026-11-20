@@ -7,7 +7,7 @@ on:
       # on plain v* tags via release.yml; the per-plugin workflows own their own
       # <plugin>-v* namespaces. This filter matches neither.
       - "bowrain-v[0-9]*"
-  # Reusable entry point for release-coordinated.yml — see release.yml for the
+  # Reusable entry point for release-coordinated.yml; see release.yml for the
   # mirror. Lets the coordinator run the bowrain track with an explicit version
   # and gate the publish jobs so kapi + bowrain land together.
   workflow_call:
@@ -110,7 +110,7 @@ jobs:
 
       # ---- ICU provisioning (sets PKG_CONFIG_PATH for the static .pc) ----
       # macOS and Linux build ICU from source with the trimmed data set
-      # (scripts/icu-data-filter.json) — see the matching comment in
+      # (scripts/icu-data-filter.json); see the matching comment in
       # release.yml's build-cli job. Cached on the filter + script hash.
       - name: Cache static ICU
         if: matrix.target.goos != 'windows'
@@ -160,7 +160,7 @@ jobs:
           mkdir -p out
           ( cd bowrain/plugin && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain ./cmd/kapi-bowrain )
 
-      # Guard the trimmed ICU data against the exact static ICU just linked —
+      # Guard the trimmed ICU data against the exact static ICU just linked:
       # see the matching step in release.yml's build-cli job.
       - name: ICU trimmed-data smoke test
         if: matrix.target.goos != 'windows'
@@ -210,7 +210,7 @@ jobs:
   # archives, checksums, cosign signatures, the bowrain-cli brew formula, the
   # GitHub release upload, and the manifest-plugins.json registration that backs
   # `kapi plugin install bowrain`. Mirrors release.yml's package-cli, but for the
-  # plugin only — no deb/rpm, no apt/yum, no cli.json.
+  # plugin only: no deb/rpm, no apt/yum, no cli.json.
   package-bowrain-cli:
     name: Package + publish kapi-bowrain
     needs: [setup, build-bowrain-cli]
@@ -258,7 +258,7 @@ jobs:
             bowrain/plugin/cmd/kapi-bowrain/manifest.json
 
       # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
-      # tarballs — kapi's plugin-install verifier requires it.
+      # tarballs; kapi's plugin-install verifier requires it.
       - name: Sign plugin archives (cosign)
         env:
           COSIGN_EXPERIMENTAL: "true"
@@ -294,10 +294,10 @@ jobs:
               dist/checksums.txt brew-formulae "$ch" bowrain "bowrain-v${VERSION}"
           done
 
-      # Generate categorized release notes — feat / fix / perf / docs / chore /
-      # Other, derived from the conventional-commit subjects of every squash
+      # Generate categorized release notes by type (feat / fix / perf / docs / chore /
+      # Other), derived from the conventional-commit subjects of every squash
       # merge since the previous bowrain-v* tag, with the install footer
-      # appended — written to scripts/release-notes/<tag>.md for the publish
+      # appended, written to scripts/release-notes/<tag>.md for the publish
       # step's body_path. The generator preserves a committed, hand-authored
       # notes file for this tag; the fetch-depth: 0 checkout above gives it full
       # history + tags. REF_NAME is the job env.
@@ -370,8 +370,8 @@ jobs:
 
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           # See release.yml's registry step: Fulcio's SAN is the OIDC
-          # `job_workflow_ref` claim — this workflow file at the ref the run
-          # resolved it from — which is refs/tags/<tag> on a tag push and the
+          # `job_workflow_ref` claim (this workflow file at the ref the run
+          # resolved it from), which is refs/tags/<tag> on a tag push and the
           # coordinator's ref under release-coordinated.yml's workflow_call.
           # $GITHUB_REF is that ref in both modes.
           CERT_ID="https://github.com/${REPO}/.github/workflows/release-bowrain.yml@${GITHUB_REF}"
@@ -614,7 +614,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       # macOS and Linux build ICU from source with the trimmed data set
-      # (scripts/icu-data-filter.json), same as the CLI jobs — see the
+      # (scripts/icu-data-filter.json), same as the CLI jobs; see the
       # provisioning comment in release.yml's build-cli job. Cached on the
       # filter + script hash.
       - name: Cache static ICU
@@ -632,7 +632,7 @@ jobs:
           # Statically link our ICU usage (FTS5 tokenizer + UAX-29) so the
           # distributed Linux binary doesn't bind to the build host's libicu
           # major version. Built PIC + from source, same as the CLI. GTK/WebKit
-          # still load the system libicu at runtime — that's their own, separate,
+          # still load the system libicu at runtime; that's their own, separate,
           # version-suffixed dependency and does not clash with our static copy.
           [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
           PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
@@ -660,8 +660,8 @@ jobs:
           } >> "$GITHUB_ENV"
 
       # Windows: mingw toolchain + static ICU for the cgo build step below.
-      # (Bindings generation stays CGO=0 — it reflects the app's service API,
-      # which doesn't depend on cgo — so only the final build needs this.)
+      # (Bindings generation stays CGO=0: it reflects the app's service API,
+      # which doesn't depend on cgo, so only the final build needs this.)
       - name: Set up MSYS2 (Windows)
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
@@ -689,7 +689,7 @@ jobs:
           # On macOS/Linux the icu cgo packages compile during bindings analysis
           # (toolchain + static .pc are present), so keep cgo on. On Windows the
           # mingw toolchain isn't on this shell's PATH; bindings reflect the
-          # service API (cgo-independent), so build them with cgo off — the final
+          # service API (cgo-independent), so build them with cgo off; the final
           # Windows build step (msys2) does the cgo + static-ICU compile.
           CGO_ENABLED: ${{ runner.os == 'Windows' && '0' || '1' }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
@@ -701,12 +701,19 @@ jobs:
           rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
       # The bowrain frontend bundles @neokapi/flow-editor, which imports
-      # @neokapi/i18n-react/runtime — a built ./dist subpath export (not
+      # @neokapi/i18n-react/runtime, a built ./dist subpath export (not
       # committed). Build neokapi-i18n first so the import resolves (mirrors the
       # kapi-desktop job).
       - name: Build @neokapi/i18n-react
         working-directory: packages/i18n-react
         run: vp run build
+
+      # public/translations/qps.json is build output that the vite config
+      # skips under CI, so it is generated here before the build ships it.
+      - name: Generate the qps dictionary
+        uses: ./.github/actions/app-pseudo-locale
+        with:
+          targets: bowrain-app-qps
 
       - name: Build Bowrain frontend
         working-directory: bowrain/apps/bowrain/frontend
@@ -749,7 +756,7 @@ jobs:
           wails3 generate syso -arch "$ARCH" -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.gen.json -out "wails_windows_${ARCH}.syso"
           rm -f build/windows/info.gen.json
 
-      # The desktop app links core/i18n and host/i18n — same build-time
+      # The desktop app links core/i18n and host/i18n, same build-time
       # catalog compile as every other binary here.
       - name: Compile the embedded i18n catalogs
         if: runner.os != 'Windows'
@@ -836,7 +843,7 @@ jobs:
           APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
         run: |
           if [ -z "$APPLE_DEVELOPER_ID_P12_BASE64" ]; then
-            echo "No Developer ID certificate configured — will use ad-hoc signing"
+            echo "No Developer ID certificate configured; will use ad-hoc signing"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -892,7 +899,7 @@ jobs:
               --notarize \
               --keychain-profile neokapi-notary
           else
-            echo "No Developer ID — using ad-hoc signing (not distributable)"
+            echo "No Developer ID; using ad-hoc signing (not distributable)"
             codesign --force --deep --sign - bin/Bowrain.app
           fi
 
@@ -967,7 +974,7 @@ jobs:
         # so a registry git stall here (a known macOS-runner connect-phase hang)
         # must never block cask publication or zombie the runner for hours. The
         # with_timeout retries inside publish-appcast.sh handle the common stall;
-        # these caps bound the worst case — the in-app-update feed is recoverable.
+        # these caps bound the worst case; the in-app-update feed is recoverable.
         if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
         timeout-minutes: 25
         continue-on-error: true
@@ -988,7 +995,7 @@ jobs:
             bowrain/apps/bowrain/bin/Bowrain.app darwin arm64
 
       # continue-on-error keeps the release moving, and would otherwise leave a
-      # green job whose in-app-update feed never published — indistinguishable,
+      # green job whose in-app-update feed never published, indistinguishable,
       # from the outside, from "no update available". Say so where the release is
       # read.
       - name: Report a skipped macOS update feed

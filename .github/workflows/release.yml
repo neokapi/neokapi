@@ -4,8 +4,8 @@ on:
   push:
     tags:
       # CLI/desktop version tags only (v1.2.3). Must NOT be the broad "v*", which
-      # also matches plugin tags that begin with a "v" — notably "vision-v*" and
-      # the "vision-models-*" asset tag — and would wrongly trigger a full
+      # also matches plugin tags that begin with a "v" (notably "vision-v*" and
+      # the "vision-models-*" asset tag) and would wrongly trigger a full
       # CLI+desktop release. Plugins release via their own release-<plugin>.yml.
       - "v[0-9]*"
   # Reusable entry point for release-coordinated.yml: lets the coordinator run
@@ -65,24 +65,16 @@ jobs:
             echo "prerelease=$pre"
           } >> "$GITHUB_OUTPUT"
 
-  # Build the kapi CLI binary natively per OS/arch with cgo + statically-linked
-  # ICU + the fts5 tag, so it matches the framework the desktop apps use (native
-  # mattn SQLite + ICU FTS5 tokenizer + UAX-29). cgo rules out single-runner
-  # cross-compilation, so each target builds on its own native runner and
-  # uploads the binary as an artifact; the package-cli job below
-  # archives/checksums/signs it and publishes the brew formula.
+  # Build the kapi CLI natively per OS/arch with cgo, statically linked ICU
+  # and the fts5 tag, matching the framework the desktop apps use. cgo rules
+  # out cross-compiling, so each target builds on its own runner and uploads
+  # an artifact; package-cli archives, signs and publishes it. The kapi-bowrain
+  # plugin is released by release-bowrain.yml (tag bowrain-v*).
   #
-  # The kapi-bowrain plugin is built and released separately by
-  # release-bowrain.yml (tag bowrain-v*).
-  #
-  # ICU provisioning (see the per-OS steps): built from source with the
-  # trimmed data set (scripts/icu-data-filter.json) on macOS + Linux; MSYS2
-  # mingw (full ICU data — no filtered-source path there yet) on Windows. All
-  # feed scripts/gen-icu-static-pc.sh, which forces static linking.
-  #
-  # NOTE: this matrix is new and only macOS has been validated locally; the
-  # Linux (source ICU + PIE/PIC) and Windows (MSYS2 mingw, -static C++ runtime,
-  # ICU archive names) legs are expected to need CI iteration.
+  # ICU: built from source with the trimmed data (scripts/icu-data-filter.json)
+  # on macOS and Linux, MSYS2 mingw with full data on Windows, all fed through
+  # scripts/gen-icu-static-pc.sh. Only macOS was validated locally; the Linux
+  # and Windows legs may need CI iteration.
   build-cli:
     name: Build CLI (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
     needs: [setup]
@@ -128,7 +120,7 @@ jobs:
 
       # ---- ICU provisioning (sets PKG_CONFIG_PATH for the static .pc) ----
       # macOS and Linux build ICU from source with the trimmed data set
-      # (scripts/icu-data-filter.json — break iteration + normalization only),
+      # (scripts/icu-data-filter.json: break iteration + normalization only),
       # which cuts ~27MB of unused ICU data out of every shipped binary and
       # shortens macOS Gatekeeper's first-exec scan. The build (~5-10 min) is
       # cached on the ICU version + filter + script hash.
@@ -162,8 +154,8 @@ jobs:
           PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
-      # The embedded gettext catalogs are build output — the repository carries
-      # the translated JSON they are compiled from — and core/i18n / host/i18n
+      # The embedded gettext catalogs are build output (the repository carries
+      # the translated JSON they are compiled from), and core/i18n / host/i18n
       # resolve `//go:embed catalogs/*.mo` at compile time. A release that
       # skipped this would fail the build rather than ship English silently,
       # but it must not get the chance.
@@ -189,7 +181,7 @@ jobs:
       # tokenizer incl. its transliterator fold pipeline) against the exact
       # static ICU the binary just linked. If a future feature starts using an
       # ICU service whose data the filter excludes, this fails the release
-      # instead of shipping a binary that errors at runtime — the fix is one
+      # instead of shipping a binary that errors at runtime; the fix is one
       # line in scripts/icu-data-filter.json.
       - name: ICU trimmed-data smoke test
         if: matrix.target.goos != 'windows'
@@ -261,7 +253,7 @@ jobs:
           retention-days: 14
 
       # Windows kapi.exe is published out of band (Authenticode-signed locally
-      # with Certum, scripts/publish-windows-signed.sh) — keep its zip artifact.
+      # with Certum, scripts/publish-windows-signed.sh); keep its zip artifact.
       # git-bash on the Windows runner has no `zip`; use PowerShell's
       # Compress-Archive (as the desktop Windows zip steps do).
       - name: Package Windows kapi CLI zip (out-of-band signing)
@@ -282,16 +274,12 @@ jobs:
           path: out/kapi-cli_*_windows_${{ matrix.target.goarch }}.zip
           retention-days: 90
 
-  # Package + publish the kapi CLI binary built by build-cli. This replaces the
-  # former GoReleaser job: GoReleaser OSS can't consume externally-built (cgo +
-  # static-ICU) binaries (`builder: prebuilt` is Pro only), so we reproduce its
-  # CLI outputs directly — archives, checksums, cosign signatures for the kapi
-  # CLI archives, the kapi-cli brew formula, the cli.json self-update index, and
-  # the GitHub release upload — using the same artifact names downstream
-  # consumers (formula, docs, self-update) already expect.
-  #
-  # The kapi-bowrain plugin archive, the bowrain-cli formula, and the
-  # manifest-plugins.json registration are produced by release-bowrain.yml.
+  # Package and publish the CLI binaries build-cli produced. GoReleaser OSS
+  # cannot consume prebuilt cgo binaries, so this reproduces its outputs with
+  # the artifact names downstream consumers expect: archives, checksums,
+  # cosign signatures, the kapi-cli brew formula, the cli.json self-update
+  # index and the GitHub release upload. The kapi-bowrain plugin archive, its
+  # formula and the manifest-plugins.json entry come from release-bowrain.yml.
   package-cli:
     name: Package + publish CLI
     needs: [setup, build-cli]
@@ -394,7 +382,7 @@ jobs:
           bash scripts/publish-packages.sh "$VERSION" dist
 
       # Keyless cosign signature (sigstore bundle) for the kapi CLI archives, so
-      # `kapi update` can verify a self-replace — see cli/selfupdate. Mirrors the
+      # `kapi update` can verify a self-replace; see cli/selfupdate. Mirrors the
       # former GoReleaser `signs` block. (The kapi-bowrain plugin tarballs are
       # cosign-signed by release-bowrain.yml.)
       - name: Sign CLI archives (cosign)
@@ -437,9 +425,9 @@ jobs:
               dist/checksums.txt brew-formulae "$ch" kapi
           done
 
-      # Generate categorized release notes — feat / fix / perf / docs / chore /
-      # Other, derived from the conventional-commit subjects of every squash
-      # merge since the previous v* tag, with the install footer appended —
+      # Generate categorized release notes by type (feat / fix / perf / docs / chore /
+      # Other), derived from the conventional-commit subjects of every squash
+      # merge since the previous v* tag, with the install footer appended,
       # written to scripts/release-notes/<tag>.md for the publish step's
       # body_path. The generator preserves a committed, hand-authored notes file
       # for this tag (so rc → final hand-edits survive), and the fetch-depth: 0
@@ -466,7 +454,7 @@ jobs:
           body_path: scripts/release-notes/${{ needs.setup.outputs.tag }}.md
 
       # Push the generated kapi-cli formula (stable: kapi-cli; beta:
-      # kapi-cli-beta) to the tap. Both stable and prerelease tags publish — only
+      # kapi-cli-beta) to the tap. Both stable and prerelease tags publish; only
       # the formula name and channel differ. (bowrain-cli is pushed by
       # release-bowrain.yml.)
       - name: Push brew formulae to homebrew-tap
@@ -491,7 +479,7 @@ jobs:
       # Push the new kapi CLI version into the cli.json self-update index so
       # `kapi update` resolves to this build. Includes cosign signature URLs +
       # cert-identity so kapi's verifier can validate the self-replace.
-      # (manifest-plugins.json — `kapi plugin install bowrain` — is updated by
+      # (manifest-plugins.json, which `kapi plugin install bowrain` reads, is updated by
       # release-bowrain.yml.)
       - name: Update kapi self-update index
         env:
@@ -523,7 +511,7 @@ jobs:
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           # The signer identity cosign put in the certificate, not the one this
           # release "ought" to have: Fulcio's SAN is the OIDC `job_workflow_ref`
-          # claim — this workflow file at the ref the run resolved it from. On a
+          # claim: this workflow file at the ref the run resolved it from. On a
           # tag push that is refs/tags/<tag>; under release-coordinated.yml's
           # workflow_call it is the coordinator's ref, and a recorded
           # refs/tags/<tag> would make `kapi update` reject its own archive.
@@ -581,17 +569,14 @@ jobs:
           source "${GITHUB_WORKSPACE}/scripts/lib/registry-push.sh"
           registry_commit_and_push /tmp/registry "Register kapi ${VERSION} (${CHANNEL})" register cli.json
 
-  # Publish the kapi CLI container image — the supported path for
-  # container-first CI (GitLab CI, Bitbucket, Jenkins, Dagger). Assembled from
-  # the same prebuilt cgo + static-ICU linux binaries the archives ship
-  # (GoReleaser can't consume externally-built binaries; see package-cli), so
-  # the image is bit-identical to the tarball install. One image from
-  # docker/kapi/Dockerfile, with the kapi-bowrain plugin baked into the system
-  # plugin root (no separate -bowrain variant) so both standalone and
-  # server-connected projects work out of the box:
+  # Publish the kapi CLI container image for container-first CI (GitLab CI,
+  # Bitbucket, Jenkins, Dagger). It is built from docker/kapi/Dockerfile with
+  # the same prebuilt linux binaries the archives ship, so it matches the
+  # tarball install. The kapi-bowrain plugin is baked into the system plugin
+  # root, so standalone and server-connected projects both work:
   #   ghcr.io/neokapi/kapi:<v>   (+ :<major>, :<major.minor>, :latest on stable)
-  # Bundling the plugin means the image REQUIRES the same-version plugin
-  # archives; a CLI-only RC without them skips the image (see the stage step).
+  # The image needs the same-version plugin archives; a CLI-only RC without
+  # them skips the image (see the stage step).
   publish-cli-image:
     name: Publish CLI container image
     needs: [setup, package-cli]
@@ -652,11 +637,11 @@ jobs:
               test -f "docker/kapi/plugins/${arch}/bowrain/manifest.json"
             done
           else
-            echo "::warning::CLI image SKIPPED — kapi-bowrain ${VERSION} archives not found at ${PLUGIN_TAG}. ${IMAGE}:${VERSION} bundles the bowrain plugin, so image consumers (samples, GitLab CI) will get 'manifest unknown' until a matching bowrain-v${VERSION} release exists. Cut releases together: 'make release-coordinated' or 'make release-bowrain v=${VERSION}'."
+            echo "::warning::CLI image SKIPPED: kapi-bowrain ${VERSION} archives not found at ${PLUGIN_TAG}. ${IMAGE}:${VERSION} bundles the bowrain plugin, so image consumers (samples, GitLab CI) will get 'manifest unknown' until a matching bowrain-v${VERSION} release exists. Cut releases together: 'make release-coordinated' or 'make release-bowrain v=${VERSION}'."
             {
               echo "### ⚠️ CLI container image was NOT published"
               echo ""
-              echo "\`${IMAGE}:${VERSION}\` was skipped — no matching \`bowrain-v${VERSION}\` plugin release, and the image bundles the kapi-bowrain plugin."
+              echo "\`${IMAGE}:${VERSION}\` was skipped: no matching \`bowrain-v${VERSION}\` plugin release, and the image bundles the kapi-bowrain plugin."
               echo ""
               echo "Image consumers (samples, GitLab CI) will fail with \`manifest unknown\`. Fix: cut \`make release-bowrain v=${VERSION}\` (or a \`make release-coordinated\`) and re-run this job."
             } >> "$GITHUB_STEP_SUMMARY"
@@ -768,7 +753,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       # macOS and Linux build ICU from source with the trimmed data set
-      # (scripts/icu-data-filter.json), same as the CLI job — see that job's
+      # (scripts/icu-data-filter.json), same as the CLI job; see that job's
       # provisioning comment. Cached on the ICU version + filter + script hash.
       - name: Cache static ICU
         if: runner.os != 'Windows'
@@ -785,7 +770,7 @@ jobs:
           # Statically link our ICU usage (FTS5 tokenizer + UAX-29) so the
           # distributed Linux binary doesn't bind to the build host's libicu
           # major version. Built PIC + from source, same as the CLI. GTK/WebKit
-          # still load the system libicu at runtime — that's their own, separate,
+          # still load the system libicu at runtime; that's their own, separate,
           # version-suffixed dependency and does not clash with our static copy.
           [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
           PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
@@ -813,8 +798,8 @@ jobs:
           } >> "$GITHUB_ENV"
 
       # Windows: mingw toolchain + static ICU for the cgo build step below.
-      # (Bindings generation stays CGO=0 — it reflects the app's service API,
-      # which doesn't depend on cgo — so only the final build needs this.)
+      # (Bindings generation stays CGO=0: it reflects the app's service API,
+      # which doesn't depend on cgo, so only the final build needs this.)
       - name: Set up MSYS2 (Windows)
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
@@ -836,7 +821,7 @@ jobs:
           # On macOS/Linux the icu cgo packages compile during bindings analysis
           # (toolchain + static .pc are present), so keep cgo on. On Windows the
           # mingw toolchain isn't on this shell's PATH; bindings reflect the
-          # service API (cgo-independent), so build them with cgo off — the final
+          # service API (cgo-independent), so build them with cgo off; the final
           # Windows build step (msys2) does the cgo + static-ICU compile.
           CGO_ENABLED: ${{ runner.os == 'Windows' && '0' || '1' }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
@@ -850,6 +835,13 @@ jobs:
       - name: Build @neokapi/i18n-react
         working-directory: packages/i18n-react
         run: vp run build
+
+      # public/translations/qps.json is build output that the vite config
+      # skips under CI, so it is generated here before the build ships it.
+      - name: Generate the qps dictionary
+        uses: ./.github/actions/app-pseudo-locale
+        with:
+          targets: kapi-desktop-qps
 
       - name: Build Kapi Desktop frontend
         working-directory: apps/kapi-desktop/frontend
@@ -907,7 +899,7 @@ jobs:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
 
-      # cgo build under MSYS2 mingw with statically-linked ICU — see the matching
+      # cgo build under MSYS2 mingw with statically-linked ICU; see the matching
       # Bowrain step for rationale (native SQLite + ICU parity, no divergence).
       - name: Build Kapi Desktop (Windows)
         if: runner.os == 'Windows'
@@ -976,7 +968,7 @@ jobs:
           APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
         run: |
           if [ -z "$APPLE_DEVELOPER_ID_P12_BASE64" ]; then
-            echo "No Developer ID certificate configured — will use ad-hoc signing"
+            echo "No Developer ID certificate configured; will use ad-hoc signing"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -1032,7 +1024,7 @@ jobs:
               --notarize \
               --keychain-profile neokapi-notary
           else
-            echo "No Developer ID — using ad-hoc signing (not distributable)"
+            echo "No Developer ID; using ad-hoc signing (not distributable)"
             codesign --force --deep --sign - bin/Kapi.app
           fi
 
@@ -1093,14 +1085,14 @@ jobs:
           tag_name: ${{ needs.setup.outputs.tag }}
           files: "kapi-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
-      # Publish the in-app-update feed (Phase 2) — see the bowrain job for notes.
+      # Publish the in-app-update feed (Phase 2); see the bowrain job for notes.
       - name: Publish updater appcast (macOS)
         id: appcast
         # Non-blocking: the cask's .dmg is already uploaded to the release above,
         # so a registry git stall here (a known macOS-runner connect-phase hang)
         # must never block cask publication or zombie the runner for hours. The
         # with_timeout retries inside publish-appcast.sh handle the common stall;
-        # these caps bound the worst case — the in-app-update feed is recoverable.
+        # these caps bound the worst case; the in-app-update feed is recoverable.
         if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
         timeout-minutes: 25
         continue-on-error: true
@@ -1121,7 +1113,7 @@ jobs:
             apps/kapi-desktop/bin/Kapi.app darwin arm64
 
       # continue-on-error keeps the release moving, and would otherwise leave a
-      # green job whose in-app-update feed never published — indistinguishable,
+      # green job whose in-app-update feed never published, indistinguishable,
       # from the outside, from "no update available". Say so where the release is
       # read.
       - name: Report a skipped macOS update feed

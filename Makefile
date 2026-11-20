@@ -1724,10 +1724,12 @@ L10N_COMPILE_TARGETS := \
 #
 # BUILD-DERIVED (L10N_DERIVED) — committed source alone. The two generated
 # inventories the extract stage writes out of the Go registries and the cobra
-# command tree; the English email renders; and the whole `qps` probe tier, which
-# is a mechanical expansion of the extracted source catalogs and is then
+# command tree; the English email renders; and the committed `qps` probe tier,
+# which is a mechanical expansion of the extracted source catalogs and is then
 # compiled like any other locale. Nothing here passes through the project store,
-# so regenerating it must reproduce it byte for byte — l10n-verify says so.
+# so regenerating it must reproduce it byte for byte, and l10n-verify checks it.
+# The app surfaces' qps dictionaries are in neither tier: they are build output
+# that each app regenerates (`make app-qps`), so git carries none of them.
 #
 # LOOP-OWNED (L10N_LOOP_OWNED) — the target-language tier `kapi up` writes out
 # of the project store, which holds the union of what git carries and what a
@@ -1746,9 +1748,9 @@ L10N_COMPILE_TARGETS := \
 #
 # The compiled runtime dictionaries split the same way, and by the same rule:
 # `translations/qps.json` is compiled from the pseudo expansion of the source
-# catalogs, `translations/<lang>.json` from what the loop materialized. The qps
-# side keeps every surface's compiler under the byte gate, so a compiler change
-# still surfaces as drift.
+# catalogs, `translations/<lang>.json` from what the loop materialized. The
+# landing page's qps dictionary keeps the compiler under the byte gate, so a
+# compiler change still surfaces as drift.
 #
 # Two entries are git magic pathspecs, and they are kept OUT of the plain lists
 # because the two contexts that consume them need opposite quoting. A Make
@@ -1772,11 +1774,6 @@ L10N_DERIVED := \
 	scripts/gen-refs/nativedocs/qps \
 	packages/reference-data/data/qps \
 	bowrain/mailer/subjects/qps.json \
-	$(KAPI_DESKTOP_FRONTEND)/public/translations/qps.json \
-	bowrain/apps/web/public/translations/qps.json \
-	bowrain/apps/bowrain/frontend/public/translations/qps.json \
-	bowrain/apps/ctrl/public/translations/qps.json \
-	bowrain/apps/pulse/public/translations/qps.json \
 	$(LANDING_DIR)/translations/qps.json \
 	$(LANDING_DIR)/head/qps.json \
 	bowrain/mailer/templates/qps
@@ -1857,6 +1854,51 @@ l10n-extract-globs: ## Print each extract surface as "<dir><TAB><extract flags>"
 
 check-extract-fixtures: ## Guard: no test/story file is extracted, and each surface's make and package invocations agree
 	@node scripts/check-extract-fixtures.mjs
+
+# The app surfaces' qps dictionaries (public/translations/qps.json) are build
+# output, not committed. Each one is a function of the app's source, so the app
+# regenerates it where it is built: the vite build and dev server through
+# scripts/vite-qps-catalog.mjs, and every workflow that ships an app through
+# .github/actions/app-pseudo-locale. One target per surface, run from the
+# repository root: extract the surface's source catalogs, pseudo-translate them
+# into a scratch directory, and compile that into each shell's dictionary.
+#
+# The scratch directory keeps two concurrent runs apart (the web and desktop
+# shells compile from the same bowrain app catalogs), and keeps this target out
+# of the i18n-qps trees l10n-pseudo owns.
+#
+# The extractor's warnings are the l10n workflow's to ratchet, so this target
+# prints its log only when the extract fails.
+#
+# QPS_KAPI is any kapi that can pseudo-translate: the one `make build` wrote,
+# else the one on PATH. CI installs a pinned release. The extractor and compiler
+# are @neokapi/i18n-react's CLI, which this target does not rebuild: a vite
+# build that calls it has already loaded that package's dist/.
+QPS_KAPI ?= $(if $(wildcard bin/kapi),$(CURDIR)/bin/kapi,kapi)
+
+# $(1) surface dir, $(2) extract flags, $(3) compile outputs relative to $(1).
+define app-qps-recipe
+	@test -f packages/i18n-react/dist/cli.js || { echo "app-qps: @neokapi/i18n-react is not built; run 'make i18n-react-build'" >&2; exit 1; }
+	@command -v $(QPS_KAPI) >/dev/null 2>&1 || { echo "app-qps: no kapi at '$(QPS_KAPI)'; run 'make build' or put kapi on PATH" >&2; exit 1; }
+	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
+		{ (cd $(1) && $(NEOKAPI_I18N_CLI) extract $(2)) > "$$tmp/extract.log" 2>&1 || { cat "$$tmp/extract.log" >&2; exit 1; }; } && \
+		$(KAPI_ISO_ENV) $(QPS_KAPI) pseudo-translate $(1)/i18n --target-lang qps -o "$$tmp/qps" -q && \
+		for out in $(3); do (cd $(1) && $(NEOKAPI_I18N_CLI) compile "$$tmp/qps" --out $$out >/dev/null) || exit 1; done
+endef
+
+kapi-desktop-qps: ## Regenerate the Kapi Desktop qps dictionary (build output, not committed)
+	$(call app-qps-recipe,$(KAPI_DESKTOP_FRONTEND),$(KAPI_DESKTOP_EXTRACT_FLAGS),public/translations)
+
+bowrain-app-qps: ## Regenerate the qps dictionary of both shells of the bowrain app (web, desktop)
+	$(call app-qps-recipe,$(BOWRAIN_APP_DIR),$(BOWRAIN_APP_EXTRACT_FLAGS),../../apps/web/public/translations ../../apps/bowrain/frontend/public/translations)
+
+bowrain-ctrl-qps: ## Regenerate the ctrl qps dictionary
+	$(call app-qps-recipe,bowrain/apps/ctrl,$(BOWRAIN_SHELL_EXTRACT_FLAGS),public/translations)
+
+bowrain-pulse-qps: ## Regenerate the pulse qps dictionary
+	$(call app-qps-recipe,bowrain/apps/pulse,$(BOWRAIN_SHELL_EXTRACT_FLAGS),public/translations)
+
+app-qps: kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps ## Regenerate every app's qps dictionary
 
 check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go embed + one TS copy) and they agree
 	@node scripts/format-ops/check-vocab-packs.mjs
@@ -2098,7 +2140,7 @@ L10N_REPORT_PAIRS = \
 	$(LANDING_DIR)/translations/$(1).json:$(LANDING_DIR)/translations/qps.json \
 	bowrain/mobile/i18n/$(1).json:bowrain/mobile/i18n/en.json
 
-l10n-report: ## Report per-locale coverage and placeholder parity over the loop-owned tier (never gates)
+l10n-report: app-qps ## Report per-locale coverage and placeholder parity over the loop-owned tier (never gates)
 	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-loop-report.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
 
 # What a derived artifact derives from, printed one locale per line, so the
@@ -2113,7 +2155,7 @@ l10n-content-pairs: ## Print <artifact>:<reference> for every derived artifact w
 # wrote, which is where it gates; here it is a reading, run when someone wants
 # the list. Not in `make l10n`: content soundness gates the return leg, never an
 # ordinary build.
-l10n-content-check: ## Read every committed derived artifact for parse, placeholder parity and machine identifiers
+l10n-content-check: app-qps ## Read every committed derived artifact for parse, placeholder parity and machine identifiers
 	@$(foreach lang,$(L10N_LANGS),node scripts/check-derived-content.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
 
 # Everything the loop materializes for one locale — the corpus the orphan report
@@ -3388,7 +3430,7 @@ help: ## Show this help
         l10n-context-import \
         l10n-collapse-check l10n-report l10n-content-pairs l10n-content-check \
         l10n-orphans l10n-orphans-report l10n-stale-report \
-        check-extract-fixtures \
+        check-extract-fixtures app-qps kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud test-e2e-dev \

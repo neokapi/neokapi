@@ -73,6 +73,13 @@ jobs:
         working-directory: packages/i18n-react
         run: vp run build
 
+      # Both Storybooks serve an app's public/ tree, whose qps dictionary is build
+      # output (see .github/actions/app-pseudo-locale).
+      - name: Generate the qps dictionary
+        uses: ./.github/actions/app-pseudo-locale
+        with:
+          targets: bowrain-app-qps kapi-desktop-qps
+
       - name: Determine base paths
         id: base
         run: |
