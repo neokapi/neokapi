@@ -137,45 +137,21 @@ is the reason the runtime and the command shell are separate modules at all:
 
 ### How the rules are enforced
 
-`make audit-modules`, run by `make pre-push`, builds every workspace module
-except the build-support ones with `GOWORK=off`, so each module resolves against
-its own `go.mod` rather than the workspace overlay that would otherwise hide a
-boundary violation:
+Each application module declares the dependencies it can build against on its
+own. `make audit-modules` builds its packages with `GOWORK=off` and checks
+whether `go mod tidy -diff` proposes changes to its manifest or checksums.
 
-```bash
-GOWORK=off go build ./...                                            # framework
-GOWORK=off bash -c "cd host && go build ./..."                       # host
-GOWORK=off bash -c "cd cli && go build ./..."                        # cli
-GOWORK=off bash -c "cd kapi && go build ./..."                       # kapi
-GOWORK=off bash -c "cd apps/kapi-desktop && go build ./backend/..."  # kapi-desktop
-```
+`make check-module-boundaries` inspects the modules that supply each
+application's transitive package imports. The framework and host must stay
+independent of the command shell. The desktop can import host services and the
+framework. Its entry point and backend follow the same rules. An unresolved
+package or a forbidden dependency fails the check.
 
-A successful `GOWORK=off` build proves every cross-module import is a real
-dependency declared in that module's `go.mod`. The desktop build is scoped to
-`./backend/...` because the module's top-level package embeds `frontend/dist`,
-which does not exist until the frontend has been built; an unscoped `./...` fails
-on the missing embed before it ever typechecks. `go mod tidy` still resolves the
-whole module graph (embeds do not affect dependency resolution), so the boundary
-contract holds.
-
-Three further assertions run on top of the builds, and CI runs them on every
-change through two targets: `make check-module-boundaries` (the
-`module-boundaries` job) carries the import assertions, and `make ci-tidy` (the
-tidy-check job) carries tidiness.
-
-- `go mod tidy` must be a no-op per module. A stale require, a missing one, or a
-  require that pulls in a forbidden module all leave a diff.
-- The desktop backend's transitive package list (`go list -deps ./backend/...`)
-  must contain neither Cobra nor the cli module. Matching on *packages* rather
-  than modules means a transitive dependency cannot dodge it.
-- No Apache-2.0 module may reach a package under a separately-licensed tree.
-  There is no exception, and adding one is the failure mode this assertion
-  exists to prevent: a type both sides need belongs below the line, not on an
-  allowlist above it.
-
-The plugin modules are outside `go.work`, which means no workspace build would
-notice them drifting. `make ci-tidy` therefore tidies them alongside the
-workspace modules, so a module no ordinary job builds still cannot rot.
+The same target checks frontend imports against the nearest ancestor
+`LICENSE` and compares direct dependency versions between workspace and
+isolated builds. CI also runs `make ci-tidy` for application modules and the
+plugins under `plugins/`. To apply a reported diff, run `GOWORK=off go mod tidy`
+in the affected module.
 
 ### License posture
 

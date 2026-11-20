@@ -35,7 +35,7 @@ project up to date through the same venue the CLI uses, a tool reference, and
 an OS-keychain credential vault. It depends on the framework and `host` only. It
 links neither Cobra nor the `cli` module, and no package from the platform
 layer, which `make audit-modules` asserts by inspecting the transitive package
-list of `./backend/...`.
+list of the entire desktop module.
 
 ## Context
 
@@ -79,12 +79,11 @@ apps/kapi-desktop/
 └── build/                   # per-platform build configuration
 ```
 
-Four assertions run in `make audit-modules`: an isolated `GOWORK=off` build of
-`./backend/...` (so the module resolves against its own `go.mod`, not the
-workspace overlay), a tidiness check that fails on any stale or
-boundary-crossing requirement, an import-level check that the transitive
-package list contains no Cobra and no `cli` package, and the same check for any
-platform package.
+`make audit-modules` builds the desktop with `GOWORK=off` and checks its
+manifest and checksums. It inspects the dependencies of every package,
+including the Wails entry point. The desktop uses the host runtime and the
+framework. A dependency on Cobra, the CLI module or a platform module fails
+the import check.
 
 ### One bound service, many open projects
 
