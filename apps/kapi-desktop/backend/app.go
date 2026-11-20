@@ -201,6 +201,7 @@ func NewApp() *App {
 	formatReg.SetDefaultEngine(aiCfg.FormatEngine())
 
 	app := &App{
+		runState:      newRunner(),
 		formatReg:     formatReg,
 		toolReg:       toolReg,
 		schemaReg:     schemaReg,

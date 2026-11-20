@@ -26,9 +26,6 @@ func (a *App) recycleExactMatches(op *openProject) (int, error) {
 	if op.Project == nil || op.Path == "" || op.unsaved.Load() || !op.Project.DeclaresTargetLanguages() {
 		return 0, nil
 	}
-	if a.runState == nil {
-		a.runState = newRunner()
-	}
 	a.runState.mu.Lock()
 	if a.runState.running {
 		a.runState.mu.Unlock()

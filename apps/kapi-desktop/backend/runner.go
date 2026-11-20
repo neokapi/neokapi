@@ -121,6 +121,7 @@ type runner struct {
 	mu      sync.Mutex
 	state   RunState
 	cancel  context.CancelFunc
+	done    chan struct{}
 	running bool
 	events  []RunEvent // accumulated events for reconnection
 	// The last run's replayable record: the flow and steps it ran, and the
@@ -142,15 +143,50 @@ func newRunner() *runner {
 	return &runner{state: RunStateIdle}
 }
 
-// recordRunFailure stores (or, with nil, clears) the classified failure of the
-// most recent run. Safe on a nil runner so callers need no guard.
-func (a *App) recordRunFailure(re *RunError) {
-	if a.runState == nil {
-		return
+func (r *runner) start(traceFlow string, steps []flow.FlowStep) (context.Context, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.running {
+		return nil, errors.New("a flow is already running. Cancel it first")
 	}
-	a.runState.mu.Lock()
-	a.runState.lastFailure = re
-	a.runState.mu.Unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	r.state, r.cancel, r.running = RunStateRunning, cancel, true
+	r.done = make(chan struct{})
+	r.events = nil
+	r.resetTracesLocked(traceFlow, steps)
+	return ctx, nil
+}
+
+func (r *runner) release() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	close(r.done)
+	r.done = nil
+	r.running = false
+}
+
+func (a *App) finishRun(ctx context.Context, event RunEvent, err error) RunState {
+	r := a.runState
+	r.mu.Lock()
+	state := RunStateComplete
+	if ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	if err != nil {
+		state = RunStateError
+		event = RunEvent{Type: "error", FlowID: event.FlowID, Message: runErrorMessage(err), Error: classifyRunError(err)}
+		if errors.Is(err, context.Canceled) {
+			state = RunStateCanceled
+			event.Message = "run canceled (context canceled)"
+		}
+	}
+	r.cancel()
+	r.cancel = nil
+	r.state, r.lastFailure = state, event.Error
+	r.events = append(r.events, event)
+	r.mu.Unlock()
+	a.emitEvent("flow:event", event)
+	return state
 }
 
 // GetLastRunError returns the classified failure of the most recent run, or nil
@@ -191,23 +227,10 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 		return err
 	}
 
-	if a.runState == nil {
-		a.runState = newRunner()
+	ctx, err := a.runState.start(flowName, spec.Steps)
+	if err != nil {
+		return err
 	}
-
-	a.runState.mu.Lock()
-	if a.runState.running {
-		a.runState.mu.Unlock()
-		return errors.New("a flow is already running. Cancel it first")
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	a.runState.state = RunStateRunning
-	a.runState.cancel = cancel
-	a.runState.running = true
-	a.runState.events = nil // clear events from previous run
-	a.runState.resetTracesLocked(flowName, spec)
-	a.runState.mu.Unlock()
 
 	go a.executeFlowRun(ctx, op, flowName, spec, inputPaths, targetLangs)
 	return nil
@@ -224,11 +247,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 // AI-default + credential-resolving config preprocessor already wired on
 // toolReg.
 func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName string, spec *flow.StepsSpec, inputPaths, targetLangs []string) {
-	defer func() {
-		a.runState.mu.Lock()
-		a.runState.running = false
-		a.runState.mu.Unlock()
-	}()
+	defer a.runState.release()
 
 	// Attribute this flow's model calls to it in the session's AI activity log.
 	ctx = withAIScope(ctx, AIActivityScope{Surface: "flow", Action: flowName})
@@ -241,6 +260,7 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 		Config:      a.aiConfig,
 		Quiet:       true,
 	})
+	completion := RunEvent{Type: "complete", FlowID: flowName}
 	_, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
 		FlowName:      flowName,
 		Spec:          spec,
@@ -274,38 +294,14 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 				})
 			}
 		case host.FlowEventComplete:
-			// State transition before the closing event, preserving the order
-			// the frontend has always observed.
-			a.runState.mu.Lock()
-			if a.runState.state == RunStateRunning {
-				a.runState.state = RunStateComplete
-			}
-			a.runState.mu.Unlock()
-			a.emitRunEvent(RunEvent{
-				Type: "complete", FlowID: flowName,
-				DurationMs: ev.DurationMs, FilesProcessed: ev.FilesProcessed,
-				Message: ev.Message,
-			})
+			completion.DurationMs = ev.DurationMs
+			completion.FilesProcessed = ev.FilesProcessed
+			completion.Message = ev.Message
 		}
 	})
-	if err != nil {
-		a.emitRunEvent(RunEvent{
-			Type:    "error",
-			FlowID:  flowName,
-			Message: runErrorMessage(err),
-			Error:   classifyRunError(err),
-		})
-		a.runState.mu.Lock()
-		a.runState.state = RunStateError
-		a.runState.lastFailure = classifyRunError(err)
-		a.runState.mu.Unlock()
-		// The failed run may still have written some outputs; re-derive so the
-		// home surfaces reflect the real on-disk state rather than the pre-run
-		// snapshot (which a partial failure would otherwise present as done).
+	if a.finishRun(ctx, completion, err) != RunStateComplete {
 		a.emitEvent("outputs-changed", map[string]any{})
-		return
 	}
-	a.recordRunFailure(nil)
 }
 
 // runErrorMessage renders an orchestrator failure for the run feed: tool
@@ -333,17 +329,20 @@ func toolBuildErrorMessage(toolName, lang string, err error) string {
 	return fmt.Sprintf("tool %q for %s: %v", toolName, lang, err)
 }
 
-// CancelRun cancels the currently running flow.
+// CancelRun waits for the active run to stop and publish its final events.
 func (a *App) CancelRun() {
 	if a.runState == nil {
 		return
 	}
 	a.runState.mu.Lock()
+	done := a.runState.done
 	if a.runState.cancel != nil {
 		a.runState.cancel()
-		a.runState.state = RunStateCanceled
 	}
 	a.runState.mu.Unlock()
+	if done != nil {
+		<-done
+	}
 }
 
 // GetRunState returns the current run state.
@@ -397,12 +396,10 @@ func traceRetainedMessage(ev host.FlowRunEvent) string {
 	return "Recorded a trace of " + name + " for " + ev.Locale
 }
 
-// resetTracesLocked starts the run record over for a run of flowName with
-// spec. The steps are copied so a later edit of the flow leaves the record
-// describing what actually ran. Caller holds mu.
-func (r *runner) resetTracesLocked(flowName string, spec *flow.StepsSpec) {
+// resetTracesLocked copies the steps for replay. The caller holds mu.
+func (r *runner) resetTracesLocked(flowName string, steps []flow.FlowStep) {
 	r.traceFlow = flowName
-	r.traceSteps = cloneSteps(spec.Steps)
+	r.traceSteps = cloneSteps(steps)
 	r.traces = nil
 	r.traceBytes = 0
 }

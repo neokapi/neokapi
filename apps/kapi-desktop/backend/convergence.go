@@ -155,20 +155,10 @@ func (a *App) BringUpToDate(tabID string) error {
 		return err
 	}
 
-	if a.runState == nil {
-		a.runState = newRunner()
+	ctx, err := a.runState.start("", nil)
+	if err != nil {
+		return err
 	}
-	a.runState.mu.Lock()
-	if a.runState.running {
-		a.runState.mu.Unlock()
-		return errors.New("a flow is already running. Cancel it first")
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	a.runState.state = RunStateRunning
-	a.runState.cancel = cancel
-	a.runState.running = true
-	a.runState.events = nil
-	a.runState.mu.Unlock()
 
 	src := string(op.Project.Defaults.SourceLanguage)
 	go a.executeConvergeRun(ctx, tabID, op.Path, flowName, src)
@@ -195,11 +185,7 @@ func (a *App) BringUpToDate(tabID string) error {
 // dispatch decodes them line by line into this callback. The run view renders
 // one stream and never asks which venue produced it.
 func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowName, sourceLang string) {
-	defer func() {
-		a.runState.mu.Lock()
-		a.runState.running = false
-		a.runState.mu.Unlock()
-	}()
+	defer a.runState.release()
 
 	start := time.Now()
 	a.emitRunEvent(RunEvent{Type: "state", FlowID: flowName, Message: "running"})
@@ -238,73 +224,19 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 		},
 		LogWriter: &runEventWriter{app: a, flowID: flowName},
 	})
-	if err != nil {
-		// A cancelled run is a terminal "canceled", not an error: the message
-		// keeps the "context canceled" marker the frontend's job feed maps to
-		// its cancelled state (mirroring a plain flow-run cancel).
-		if errors.Is(err, context.Canceled) {
-			a.emitRunEvent(RunEvent{Type: "error", FlowID: flowName, Message: "run canceled (context canceled)"})
-			a.runState.mu.Lock()
-			if a.runState.state == RunStateRunning {
-				a.runState.state = RunStateCanceled
-			}
-			a.runState.mu.Unlock()
-			// A cancelled run still wrote whatever it finished before the stop,
-			// so the derived state must be recomputed exactly as on the success
-			// path — see the note below.
-			a.recordRunFailure(classifyRunError(err))
-			a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
-			a.emitEvent("outputs-changed", map[string]any{})
-			return
+	event := RunEvent{Type: "complete", FlowID: flowName, DurationMs: time.Since(start).Milliseconds(), ConvergeResult: out}
+	if err == nil {
+		elapsed := time.Since(start).Round(time.Millisecond)
+		switch {
+		case out.Monolingual || out.NoTargets:
+			event.Message = "Reconciled the source."
+		case out.Converged:
+			event.Message = fmt.Sprintf("Up to date in %d pass(es) in %s", out.Passes, elapsed)
+		default:
+			event.Message = fmt.Sprintf("Finished %d pass(es) in %s: %d scope(s) waiting for review", out.Passes, elapsed, len(out.ParkedScopes))
 		}
-		a.emitRunEvent(RunEvent{
-			Type:    "error",
-			FlowID:  flowName,
-			Message: err.Error(),
-			Error:   classifyRunError(err),
-		})
-		a.runState.mu.Lock()
-		if a.runState.state == RunStateRunning {
-			a.runState.state = RunStateError
-		}
-		a.runState.mu.Unlock()
-		// A partly-failed run has already materialized the passes that DID
-		// succeed (the engine writes files as it goes), so the on-disk state has
-		// moved while the UI's derived state has not. Without these two events
-		// the home surfaces keep showing the pre-run numbers — which, for a run
-		// that failed on its very first locale, reads as "up to date". Re-derive
-		// on failure exactly as on success; recordRunFailure then makes the
-		// failure itself visible rather than leaving the UI to infer it.
-		a.recordRunFailure(classifyRunError(err))
-		a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
-		a.emitEvent("outputs-changed", map[string]any{})
-		return
 	}
-
-	a.runState.mu.Lock()
-	if a.runState.state == RunStateRunning {
-		a.runState.state = RunStateComplete
-	}
-	a.runState.mu.Unlock()
-	a.recordRunFailure(nil)
-
-	parked := len(out.ParkedScopes)
-	msg := fmt.Sprintf("Up to date in %d pass(es) in %s", out.Passes, time.Since(start).Round(time.Millisecond))
-	if out.Monolingual || out.NoTargets {
-		msg = "Reconciled the source."
-	} else if !out.Converged {
-		msg = fmt.Sprintf("Finished %d pass(es) in %s: %d scope(s) waiting for review",
-			out.Passes, time.Since(start).Round(time.Millisecond), parked)
-	}
-	a.emitRunEvent(RunEvent{
-		Type:           "complete",
-		FlowID:         flowName,
-		DurationMs:     time.Since(start).Milliseconds(),
-		Message:        msg,
-		ConvergeResult: out,
-	})
-	// The run may have re-extracted and materialized files — nudge the home
-	// surfaces to re-derive coverage and refresh their file tables.
+	a.finishRun(ctx, event, err)
 	a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
 	a.emitEvent("outputs-changed", map[string]any{})
 }

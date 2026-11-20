@@ -145,8 +145,6 @@ export function RunnerPage({
       const runState = await api.getRunState();
       if (runState === "running") {
         await api.cancelRun();
-        // Wait briefly for the goroutine to stop.
-        await new Promise((r) => setTimeout(r, 300));
       }
 
       startJob(flowName, projectName, undefined, paths.length);
@@ -183,7 +181,6 @@ export function RunnerPage({
     const runState = await api.getRunState();
     if (runState === "running") {
       await api.cancelRun();
-      await new Promise((r) => setTimeout(r, 300));
     }
     startJob(flowName, projectName);
     try {
