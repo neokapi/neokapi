@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
@@ -190,31 +191,41 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	// A target is re-checked only in a locale the workspace terms govern, by the
 	// same per-locale test the ship gate applies (terms.RuleForConcept), so
 	// a concept change cannot demote a target the gate does not hold to terms.
+	//
+	// A project the concept does not apply in (termscope.AppliesIn) is not
+	// re-checked, and a project's governed locales are those of the concepts
+	// that apply in it.
 	workspaceConcepts, err := tb.Concepts(ctx)
 	if err != nil {
 		return fmt.Errorf("read workspace concepts: %w", err)
 	}
-	governs := map[[2]model.LocaleID]bool{}
-	governed := func(srcLoc, tgtLoc model.LocaleID) bool {
-		key := [2]model.LocaleID{srcLoc, tgtLoc}
-		if g, ok := governs[key]; ok {
+	oracleFor := func(proj *platstore.Project) recheckOracle {
+		if !termscope.AppliesIn(concept, proj.ID) {
+			return nil
+		}
+		projectConcepts := termscope.Filter(workspaceConcepts, proj.ID)
+		governs := map[[2]model.LocaleID]bool{}
+		governed := func(srcLoc, tgtLoc model.LocaleID) bool {
+			key := [2]model.LocaleID{srcLoc, tgtLoc}
+			if g, ok := governs[key]; ok {
+				return g
+			}
+			g := false
+			for i := range projectConcepts {
+				if _, ok := terms.RuleForConcept(projectConcepts[i], srcLoc, tgtLoc); ok {
+					g = true
+					break
+				}
+			}
+			governs[key] = g
 			return g
 		}
-		g := false
-		for i := range workspaceConcepts {
-			if _, ok := terms.RuleForConcept(workspaceConcepts[i], srcLoc, tgtLoc); ok {
-				g = true
-				break
-			}
+		return func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
+			return governed(srcLoc, tgtLoc) &&
+				blockTermCompliance(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil) == platstore.TermComplianceViolation
 		}
-		governs[key] = g
-		return g
 	}
-	violates := func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
-		return governed(srcLoc, tgtLoc) &&
-			blockTermCompliance(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil) == platstore.TermComplianceViolation
-	}
-	return s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
+	return s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, oracleFor, actor)
 }
 
 // recheckRuleViolations re-checks existing established targets against a
@@ -227,24 +238,32 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 	if lowerTerm == "" {
 		return nil
 	}
-	rules, err := s.workspaceWordRules(ctx, s.workspaceSlug(ctx, "", wsID), "")
-	if err != nil {
-		return fmt.Errorf("read the word rules of workspace %s: %w", wsID, err)
-	}
-	var promoted []coreprofile.TermRule
-	for _, r := range rules {
-		if strings.ToLower(r.Term) == lowerTerm {
-			promoted = append(promoted, r)
+	slug := s.workspaceSlug(ctx, "", wsID)
+	// The rules are read per project: a term limited to some projects of the
+	// workspace (termscope) re-checks only those.
+	var readErr error
+	oracleFor := func(proj *platstore.Project) recheckOracle {
+		rules, err := s.workspaceWordRules(ctx, slug, proj.ID, "")
+		if err != nil {
+			readErr = fmt.Errorf("read the word rules of workspace %s: %w", wsID, err)
+			return nil
+		}
+		var promoted []coreprofile.TermRule
+		for _, r := range rules {
+			if strings.ToLower(r.Term) == lowerTerm {
+				promoted = append(promoted, r)
+			}
+		}
+		if len(promoted) == 0 {
+			return nil
+		}
+		sets := voicescope.WordRuleSets(promoted)
+		return func(sb *venue.StoredBlock, _, tgtLoc model.LocaleID) bool {
+			return targetUsesRules(sets, sb.Block, tgtLoc)
 		}
 	}
-	if len(promoted) == 0 {
-		return nil
-	}
-	sets := voicescope.WordRuleSets(promoted)
-	violates := func(sb *venue.StoredBlock, _, tgtLoc model.LocaleID) bool {
-		return targetUsesRules(sets, sb.Block, tgtLoc)
-	}
-	return s.recheckWorkspaceTargets(ctx, wsID, "rule:"+profileID+":"+lowerTerm, violates, actor)
+	err := s.recheckWorkspaceTargets(ctx, wsID, "rule:"+profileID+":"+lowerTerm, oracleFor, actor)
+	return errors.Join(readErr, err)
 }
 
 // targetUsesRules reports whether the block's target in tgtLoc uses a term the
@@ -256,11 +275,13 @@ func targetUsesRules(sets []coreprofile.TermRuleSet, b *model.Block, tgtLoc mode
 }
 
 // recheckWorkspaceTargets walks the governed projects of one workspace and
-// re-checks their targets with `violates`, demoting + re-queuing the failures.
+// re-checks their targets with the oracle oracleFor gives for each project,
+// demoting + re-queuing the failures. A project oracleFor gives no oracle for
+// is skipped.
 // The scan is bounded to each project's "main" stream (the same bound the
 // dashboard ship-state pass and ConceptUsage's default walk apply); non-governed
 // projects are skipped because they have no review queue to pull work back into.
-func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason string, violates recheckOracle, actor string) error {
+func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason string, oracleFor func(*platstore.Project) recheckOracle, actor string) error {
 	if s.ContentStore == nil {
 		return nil
 	}
@@ -278,6 +299,10 @@ func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason strin
 			continue
 		}
 		if !workflowReviewEnabled(proj) {
+			continue
+		}
+		violates := oracleFor(proj)
+		if violates == nil {
 			continue
 		}
 		if err := s.recheckProjectTargets(ctx, proj, reason, violates, actor); err != nil {

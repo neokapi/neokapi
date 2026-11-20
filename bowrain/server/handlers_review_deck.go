@@ -447,7 +447,7 @@ func (s *Server) deckPage(ctx context.Context, c echo.Context, proj *store.Proje
 			slog.WarnContext(ctx, "review deck: read target authors failed", "project", proj.ID, "error", err)
 		}
 	}
-	tb := s.deckTerms(ctx, c.Param("ws"))
+	tb := s.deckTerms(ctx, c.Param("ws"), proj.ID)
 
 	cards := make([]deckCard, 0, len(rows))
 	for _, r := range rows {
@@ -591,12 +591,13 @@ func (s *Server) deckNotes(ctx context.Context, b *model.Block, loc model.Locale
 	return notes
 }
 
-// deckTerms is the workspace's terms store when it holds terms, else nil.
-func (s *Server) deckTerms(ctx context.Context, ws string) terms.Terminology {
+// deckTerms is the terms that apply in the project when there are any, else
+// nil.
+func (s *Server) deckTerms(ctx context.Context, ws, projectID string) terms.Terminology {
 	if s.wsStores == nil || ws == "" {
 		return nil
 	}
-	tb, err := s.wsStores.getTerms(ctx, ws)
+	tb, err := s.wsStores.getProjectTerms(ctx, ws, projectID)
 	if err != nil || tb == nil {
 		return nil
 	}

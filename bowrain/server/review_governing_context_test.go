@@ -91,7 +91,7 @@ func TestPlatformApprovalRecordsTheGoverningContext(t *testing.T) {
 		Store:            cs,
 		Voice:            srv.VoiceStore,
 		WorkspaceDefault: srv.editorVoiceContext().WorkspaceDefault,
-		Terms:            editorTerms(t.Context(), srv.editorVoiceContext(), "acme"),
+		Terms:            editorTerms(t.Context(), srv.editorVoiceContext(), "acme", proj.ID),
 		Project:          proj,
 		WorkspaceID:      proj.WorkspaceID,
 		ProjectID:        proj.ID,

@@ -80,6 +80,9 @@ func NewProjectBearerClient(serverURL, projectID, authToken string) *BowrainClie
 	}
 }
 
+// ProjectID is the id of the project the client acts for.
+func (c *BowrainClient) ProjectID() string { return c.projectID }
+
 // projectPrefix returns the URL prefix for project-scoped endpoints.
 // Bowrain AD-011: workspace project uses bare slug /:ws/:pid, unclaimed uses /projects/:pid.
 func (c *BowrainClient) projectPrefix() string {

@@ -179,10 +179,10 @@ func (s *Server) termScanBlocked(ctx context.Context, wsID, wsSlug string) (stri
 	return "", time.Time{}
 }
 
-// sourceConcepts counts the workspace's concepts with a term in the
-// language, zero when the workspace has no terms store.
-func (s *Server) sourceConcepts(ctx context.Context, wsID string, src model.LocaleID) (int, error) {
-	tb, err := s.workspaceTermsByID(ctx, wsID)
+// sourceConcepts counts the concepts that apply in the project with a term
+// in the language, zero when the workspace has no terms store.
+func (s *Server) sourceConcepts(ctx context.Context, wsID, projectID string, src model.LocaleID) (int, error) {
+	tb, err := s.projectTermsByID(ctx, wsID, projectID)
 	if err != nil || tb == nil {
 		return 0, nil //nolint:nilerr // a workspace with no terms store has no concepts to count
 	}
@@ -275,7 +275,7 @@ func (s *Server) maybeStartTermScan(ctx context.Context, projectID, stream, wsSl
 		}
 		return nil
 	}
-	concepts, err := s.sourceConcepts(ctx, proj.WorkspaceID, proj.DefaultSourceLanguage)
+	concepts, err := s.sourceConcepts(ctx, proj.WorkspaceID, proj.ID, proj.DefaultSourceLanguage)
 	if err != nil {
 		slog.WarnContext(ctx, "term scan: could not count the concepts", "project", proj.ID, "error", err)
 		return nil

@@ -1214,7 +1214,10 @@ export interface TermInfo {
 /** Concept info */
 export interface ConceptInfo {
   id: string;
+  /** The project the concept is limited to, when it is limited to one. */
   project_id?: string;
+  /** The projects the concept is limited to; absent for one of the whole workspace. */
+  projects?: string[];
   stream?: string;
   domain: string;
   definition: string;

@@ -35,8 +35,8 @@ and governance.
 ## Opening the Concepts page
 
 Click **Context** in the main sidebar, then **Concepts**. The **Terminology**
-button in a project's source view opens the same page, because every project
-shares the workspace's terms. A link to one concept, from Activity, the
+button in a project's source view opens the same page, because the projects
+of a workspace share one terms store. A link to one concept, from Activity, the
 dashboard or a review, opens the list with that concept selected.
 
 ## The list
@@ -89,9 +89,8 @@ Select a concept to see it beside the list:
   in its place;
 - **By language**: its terms in each language, the source language first, each
   with its status and its other forms, and the markets that cover the language;
-- **Where it came from**: its domain, voice profile and coordinates, whether it
-  belongs to one project or the whole workspace, and who added it and changed it
-  last;
+- **Where it came from**: its domain, voice profile and coordinates, the
+  projects it applies in, and who added it and changed it last;
 - **Relations** to other concepts; select one to open it;
 - **History**, **Discussion** and **Evidence**: the concept's
   [story](/server/context#the-concept-story), the comments on it, and the
@@ -137,6 +136,22 @@ Concepts arrive from your projects and from review:
 To load terms from a spreadsheet or a TBX file, import them into a project with
 `kapi terms import`, then push the project.
 
+## Where a concept applies
+
+A concept applies in every project of the workspace, or only in the projects it
+is limited to. A term you keep from a project's context deck applies in that
+project alone. Other projects can share coordinate names, so a term kept in one
+project would otherwise govern content it was never checked against.
+
+To make a kept term apply in every project, open it and select **Apply in every
+project** under **Where it came from**. You need permission to manage terms. The
+checks, translations and review plans of the other projects pick it up from
+then on, and their established translations are checked against it again.
+
+A concept limited to one project is invisible to the others: their checks and
+translations ignore it, their context decks and review plans do not count it,
+and `kapi pull` in another project does not bring it.
+
 ## Deleting concepts
 
 Deleting a concept is a governed action. The delete goes into a
@@ -157,13 +172,14 @@ terms and displays them alongside memory matches. See
 
 ## Concept model
 
-The terms system is concept-oriented, in the manner of the TBX (TermBase
-eXchange) standard:
+The terms system is concept-oriented, in the manner of the TBX standard
+(ISO 30042):
 
 - A **concept** represents a single meaning or notion
 - Each concept has **terms** in one or more languages
 - Terms have **metadata**: lifecycle status, domain, and notes
-- Concepts are scoped to the workspace and shared across all projects
+- Concepts live in the workspace and apply in every project, unless they are
+  limited to some of them
 
 The framework owns this concept and term model; for its architecture, see the
 [framework terms reference](https://neokapi.github.io/framework/terminology).

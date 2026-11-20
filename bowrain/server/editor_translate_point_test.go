@@ -198,7 +198,7 @@ func TestEditorAndWorkerAssembleOneConfig(t *testing.T) {
 		Store:            cs,
 		Voice:            voiceCtx.Voice,
 		WorkspaceDefault: voiceCtx.WorkspaceDefault,
-		Terms:            editorTerms(ctx, voiceCtx, "acme"),
+		Terms:            editorTerms(ctx, voiceCtx, "acme", "p1"),
 		Memory:           tm,
 		Project:          proj,
 		WorkspaceID:      "ws-1",

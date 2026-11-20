@@ -12,6 +12,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -65,7 +66,7 @@ func termProposalTargets(concepts []terms.Concept, project *platstore.Project, o
 	source := sourceLocale(project)
 	var out []termProposalTarget
 	for _, cp := range concepts {
-		if p := termcandidate.ProjectOf(cp); p != "" && p != project.ID {
+		if !termscope.AppliesIn(cp, project.ID) {
 			continue
 		}
 		if len(only) > 0 && !slices.Contains(only, cp.ID) {

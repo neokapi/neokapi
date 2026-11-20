@@ -981,6 +981,8 @@ export interface ApiAdapter {
   getTermCount(workspaceSlug: string): Promise<number>;
   addConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo>;
   updateConcept(workspaceSlug: string, req: UpdateConceptRequest): Promise<void>;
+  /** Make a concept limited to some projects apply in every project of the workspace. */
+  widenConcept?(workspaceSlug: string, conceptId: string): Promise<void>;
   deleteConcept(workspaceSlug: string, conceptId: string): Promise<void>;
   /**
    * Reject concept deletion with status 409 and a GovernedRefusal envelope.

@@ -28,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/id"
@@ -405,8 +406,13 @@ type TermInfoResponse struct {
 
 // ConceptInfoResponse is the API response for a concept.
 type ConceptInfoResponse struct {
-	ID             string             `json:"id"`
-	ProjectID      string             `json:"project_id,omitempty"` // empty = workspace-scoped
+	ID string `json:"id"`
+	// ProjectID is the project the concept is limited to when it is limited
+	// to one.
+	ProjectID string `json:"project_id,omitempty"`
+	// Projects are the projects the concept applies in, empty for a concept
+	// of the whole workspace (termscope.Projects).
+	Projects       []string           `json:"projects,omitempty"`
 	Domain         string             `json:"domain"`
 	Definition     string             `json:"definition"`
 	DoNotTranslate bool               `json:"do_not_translate,omitempty"`
@@ -834,19 +840,19 @@ func editorTranslateConfig(
 		BatchSize:        req.BatchSize,
 		BatchConcurrency: req.Concurrency,
 	}
-	b.Terms = editorTerms(ctx, voiceCtx, workspaceSlug)
+	b.Terms = editorTerms(ctx, voiceCtx, workspaceSlug, projectID)
 	b.Memory = editorMemory(ctx, voiceCtx, workspaceSlug)
 	return jobs.BuildTranslateConfig(ctx, b)
 }
 
-// editorTerms returns the workspace terms an editor translation derives its
-// terminology from, or nil (and logs) when the store cannot be opened:
+// editorTerms returns the terms an editor translation in a project derives
+// its terminology from, or nil (and logs) when the store cannot be opened:
 // terminology must never fail an interactive translation.
-func editorTerms(ctx context.Context, voiceCtx editorVoiceContext, workspaceSlug string) terms.Terminology {
+func editorTerms(ctx context.Context, voiceCtx editorVoiceContext, workspaceSlug, projectID string) terms.Terminology {
 	if voiceCtx.Stores == nil || workspaceSlug == "" {
 		return nil
 	}
-	tb, err := voiceCtx.Stores.getTerms(ctx, workspaceSlug)
+	tb, err := voiceCtx.Stores.getProjectTerms(ctx, workspaceSlug, projectID)
 	if err != nil {
 		slog.WarnContext(ctx, "terms resolution failed; translating without terminology",
 			"workspace", workspaceSlug, "error", err)
@@ -1043,7 +1049,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, commit co
 	// The rules the workspace terms impose, the derivation the translate jobs
 	// use, so a match that breaks one is left untranslated here as it is there.
 	var rules []coreprofile.TermRule
-	if tb, terr := wsStores.getTerms(ctx, ws); terr == nil {
+	if tb, terr := wsStores.getProjectTerms(ctx, ws, projectID); terr == nil {
 		rules, err = jobs.TermRulesFromConcepts(ctx, tb, projectID, proj.DefaultSourceLanguage, model.LocaleID(targetLocale))
 		if err != nil {
 			slog.WarnContext(ctx, "terms read failed; recycling without term rules", "project_id", projectID, "error", err)
@@ -1089,7 +1095,7 @@ func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *wor
 		return nil, err
 	}
 
-	tb, err := wsStores.getTerms(ctx, ws)
+	tb, err := wsStores.getProjectTerms(ctx, ws, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}
@@ -1260,7 +1266,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, err
 	}
 
-	tb, err := wsStores.getTerms(ctx, ws)
+	tb, err := wsStores.getProjectTerms(ctx, ws, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}
@@ -1758,9 +1764,15 @@ func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
 			Forms:        t.Forms,
 		}
 	}
+	projects := termscope.Projects(c)
+	projectID := c.ProjectID
+	if len(projects) == 1 {
+		projectID = projects[0]
+	}
 	return ConceptInfoResponse{
 		ID:             c.ID,
-		ProjectID:      c.ProjectID,
+		ProjectID:      projectID,
+		Projects:       projects,
 		Domain:         c.Domain,
 		Definition:     c.Definition,
 		DoNotTranslate: c.DoNotTranslate,

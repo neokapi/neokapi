@@ -545,8 +545,9 @@ func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, s
 	return out, nil
 }
 
-// planContextCounts counts the context waiting for the caller and the
-// concepts that lack a term in a target language.
+// planContextCounts counts the context waiting for the caller and, of the
+// concepts that apply in the project, the ones that lack a term in a target
+// language.
 func (s *Server) planContextCounts(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, userID string, perms platauth.Permission, reach platauth.CoordinateReach) (planContextDTO, error) {
 	out := planContextDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}
 	entry, ok, err := s.contextInbox(ctx, ws, proj, userID, perms, reach)
@@ -556,7 +557,7 @@ func (s *Server) planContextCounts(ctx context.Context, ws *platauth.Workspace, 
 	if ok {
 		out.Waiting, out.ByKind = entry.Waiting, entry.ByKind
 	}
-	tb, err := s.workspaceTermsByID(ctx, ws.ID)
+	tb, err := s.projectTermsByID(ctx, ws.ID, proj.ID)
 	if err != nil || tb == nil {
 		return out, nil //nolint:nilerr // a workspace with no terms store has no concepts to count
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
@@ -633,8 +634,7 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 	out := make([]contextDeckCard, 0, len(concepts))
 	var translations []contextDeckCard
 	for _, cp := range concepts {
-		project := termcandidate.ProjectOf(cp)
-		if project != "" && project != src.project.ID {
+		if !termscope.AppliesIn(cp, src.project.ID) {
 			continue
 		}
 		card := contextDeckCard{
@@ -645,7 +645,7 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 			Where:    contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
 			At:       cp.CreatedAt,
 		}
-		if project != "" {
+		if !termscope.Workspace(cp) {
 			card.Where.Level = string(contextop.LevelProject)
 		}
 		card.Proposed = termcandidate.IsCandidate(cp, source)

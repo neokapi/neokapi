@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
@@ -55,7 +56,7 @@ func File(ctx context.Context, tb terms.Terminology, projectID string, source mo
 	}
 	byTerm := map[string]terms.Concept{}
 	for _, cp := range concepts {
-		if p := ProjectOf(cp); p != "" && p != projectID {
+		if !termscope.AppliesIn(cp, projectID) {
 			continue
 		}
 		for _, t := range cp.Terms {
@@ -119,16 +120,6 @@ func File(ctx context.Context, tb terms.Terminology, projectID string, source mo
 func scope(cp *terms.Concept, cand Candidate) {
 	cp.ScopeToPoint("", cand.Coordinates)
 	cand.Reach.Apply(cp)
-}
-
-// ProjectOf is the project a concept belongs to, "" for one of the whole
-// workspace. A store that keeps no project column carries it in the
-// PropProject property.
-func ProjectOf(cp terms.Concept) string {
-	if cp.ProjectID != "" {
-		return cp.ProjectID
-	}
-	return cp.Properties[PropProject]
 }
 
 // IsCandidate reports whether a concept is waiting to be kept: its term in
