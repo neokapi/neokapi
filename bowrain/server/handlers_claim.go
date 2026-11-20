@@ -144,13 +144,15 @@ func (s *Server) HandleClaimProject(c echo.Context) error {
 	}
 
 	// Associate the project with the workspace in the content store.
-	if s.Services.Project != nil && s.AuthStore != nil {
+	if s.ContentStore != nil && s.AuthStore != nil {
 		ws, err := s.AuthStore.GetWorkspaceBySlug(ctx, wsSlug)
 		if err == nil {
-			p, err := s.Services.Project.GetProject(ctx, projectID)
-			if err == nil {
+			_, _, err = s.ContentStore.EditProject(ctx, projectID, func(p *store.Project) (bool, error) {
 				p.WorkspaceID = ws.ID
-				_ = s.Services.Project.UpdateProject(ctx, p)
+				return true, nil
+			})
+			if err != nil {
+				slog.WarnContext(ctx, "could not associate claimed project with workspace", "project", projectID, "error", err)
 			}
 		}
 	}

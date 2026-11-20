@@ -14,17 +14,18 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Separate review workers can update the same project. Each write owns only its keys.
-func TestMergeProjectProperties(t *testing.T) {
-	for name, open := range map[string]func(*testing.T) platstore.ProjectStore{
-		"postgres": func(t *testing.T) platstore.ProjectStore {
+func TestEditProjectPreservesConcurrentChanges(t *testing.T) {
+	for name, open := range map[string]func(*testing.T) platstore.ContentStore{
+		"postgres": func(t *testing.T) platstore.ContentStore {
 			s, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 			require.NoError(t, err)
 			return s
 		},
-		"sqlite": func(t *testing.T) platstore.ProjectStore {
+		"sqlite": func(t *testing.T) platstore.ContentStore {
 			s, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "project.db"))
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, s.Close()) })
@@ -34,11 +35,16 @@ func TestMergeProjectProperties(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			s := open(t)
 			ctx := t.Context()
-			p := &platstore.Project{Name: "Settings", WorkspaceID: "ws"}
+			p := &platstore.Project{Name: "Settings", WorkspaceID: "ws", DefaultSourceLanguage: "en"}
 			require.NoError(t, s.CreateProject(ctx, p))
-			first, err := s.MergeProjectProperties(ctx, p.ID, map[string]string{"mode": "manual"})
-			require.NoError(t, err)
-			require.Equal(t, "manual", first.Properties["mode"])
+			writeProperty := func(id, key, value string) error {
+				_, _, err := s.EditProject(ctx, id, func(p *platstore.Project) (bool, error) {
+					p.Properties[key] = value
+					return true, nil
+				})
+				return err
+			}
+			require.NoError(t, writeProperty(p.ID, "mode", "manual"))
 
 			var g errgroup.Group
 			start := make(chan struct{})
@@ -48,19 +54,38 @@ func TestMergeProjectProperties(t *testing.T) {
 				want[key] = "set"
 				g.Go(func() error {
 					<-start
-					_, err := s.MergeProjectProperties(ctx, p.ID, map[string]string{key: "set"})
-					return err
+					return writeProperty(p.ID, key, "set")
 				})
 			}
+			g.Go(func() error {
+				<-start
+				_, _, err := s.EditProject(ctx, p.ID, func(p *platstore.Project) (bool, error) {
+					p.Name = "Renamed"
+					return true, nil
+				})
+				return err
+			})
 			close(start)
 			require.NoError(t, g.Wait())
 			got, err := s.GetProject(ctx, p.ID)
 			require.NoError(t, err)
 			assert.Equal(t, want, got.Properties)
-			assert.Equal(t, p.Name, got.Name)
+			assert.Equal(t, "Renamed", got.Name)
 			assert.Equal(t, p.WorkspaceID, got.WorkspaceID)
 
-			_, err = s.MergeProjectProperties(ctx, "absent", map[string]string{"mode": "auto"})
+			require.NoError(t, s.StoreBlocks(ctx, p.ID, "main", []*model.Block{model.NewBlock("source", "Hello")}))
+			_, changed, err := s.EditProject(ctx, p.ID, func(p *platstore.Project) (bool, error) {
+				p.DefaultSourceLanguage = "fr"
+				p.Name = "Invalid"
+				return true, nil
+			})
+			require.ErrorIs(t, err, platstore.ErrSourceLanguageFixed)
+			require.False(t, changed)
+			got, err = s.GetProject(ctx, p.ID)
+			require.NoError(t, err)
+			assert.Equal(t, "Renamed", got.Name)
+
+			err = writeProperty("absent", "mode", "auto")
 			assert.ErrorIs(t, err, sql.ErrNoRows)
 		})
 	}

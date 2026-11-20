@@ -13,14 +13,17 @@ import (
 // the umbrella the concrete server store satisfies; it is exactly the union of
 // the roles below, so existing implementations and callers are unchanged.
 
+// ProjectEdit changes the current project under a write lock. It returns true
+// to persist the edit. Properties is initialized before the edit runs.
+type ProjectEdit func(*Project) (bool, error)
+
 // ProjectStore persists projects and their archive lifecycle.
 type ProjectStore interface {
 	CreateProject(ctx context.Context, p *Project) error
 	GetProject(ctx context.Context, id string) (*Project, error)
 	ListProjects(ctx context.Context) ([]*Project, error)
 	UpdateProject(ctx context.Context, p *Project) error
-	// MergeProjectProperties updates only the named keys and returns the stored project.
-	MergeProjectProperties(ctx context.Context, id string, values map[string]string) (*Project, error)
+	EditProject(ctx context.Context, id string, edit ProjectEdit) (project *Project, changed bool, err error)
 	DeleteProject(ctx context.Context, id string) error
 	ArchiveProject(ctx context.Context, id string) error
 	RestoreProject(ctx context.Context, id string) error

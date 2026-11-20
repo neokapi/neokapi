@@ -85,12 +85,12 @@ func (s *EventEmittingStore) UpdateProject(ctx context.Context, p *store.Project
 	return nil
 }
 
-func (s *EventEmittingStore) MergeProjectProperties(ctx context.Context, id string, values map[string]string) (*store.Project, error) {
-	p, err := s.inner.MergeProjectProperties(ctx, id, values)
-	if err == nil && len(values) > 0 {
+func (s *EventEmittingStore) EditProject(ctx context.Context, id string, edit store.ProjectEdit) (*store.Project, bool, error) {
+	p, changed, err := s.inner.EditProject(ctx, id, edit)
+	if err == nil && changed {
 		s.publishProjectUpdated(ctx, p)
 	}
-	return p, err
+	return p, changed, err
 }
 
 func (s *EventEmittingStore) publishProjectUpdated(ctx context.Context, p *store.Project) {

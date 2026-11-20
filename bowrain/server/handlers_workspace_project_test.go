@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v4"
+	bauth "github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -443,4 +446,50 @@ func TestProjectSettingsPreserveReviewAttribution(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, proj.Properties, propInvolvementSetBy)
 	assert.NotContains(t, proj.Properties, "colour")
+}
+
+type workspaceReadWithReviewWrite struct {
+	bauth.AuthStore
+	write func()
+}
+
+func (a workspaceReadWithReviewWrite) GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error) {
+	a.write()
+	return a.AuthStore.GetWorkspace(ctx, id)
+}
+
+func TestProjectSettingsPreserveInterleavedReviewWrite(t *testing.T) {
+	srv, _ := newTestServerWithWorkspace(t, platauth.WorkspaceTypeTeam)
+	for _, tc := range []struct {
+		name, body string
+		wantStatus int
+		wantName   string
+	}{
+		{"rename", `{"name":"New","dashboard_visibility":"public"}`, http.StatusOK, "New"},
+		{"stale attribution", `{"name":"New","dashboard_visibility":"public","properties":{"review_involvement_set_by":"before"}}`, http.StatusBadRequest, "Original"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &store.Project{Name: "Original", WorkspaceID: "test-ws", Properties: map[string]string{propInvolvementSetBy: "before"}}
+			require.NoError(t, srv.ContentStore.CreateProject(t.Context(), p))
+			update := &Server{ContentStore: srv.ContentStore, AuthStore: workspaceReadWithReviewWrite{
+				AuthStore: srv.AuthStore, write: func() {
+					require.NoError(t, srv.updatePlanProperties(t.Context(), p.ID, map[string]string{propInvolvementSetBy: "after"}))
+				},
+			}}
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(tc.body))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			c := echo.New().NewContext(req, rec)
+			c.SetParamNames("id")
+			c.SetParamValues(p.ID)
+			c.Set("workspace_id", p.WorkspaceID)
+			c.Set("project_permissions", platauth.PermManageProject)
+			require.NoError(t, update.HandleUpdateEditorProject(c))
+			require.Equal(t, tc.wantStatus, rec.Code, rec.Body.String())
+			got, err := srv.ContentStore.GetProject(t.Context(), p.ID)
+			require.NoError(t, err)
+			assert.Equal(t, "after", got.Properties[propInvolvementSetBy])
+			assert.Equal(t, tc.wantName, got.Name)
+		})
+	}
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -483,19 +482,11 @@ func (s *Server) forgetCandidate(c echo.Context, src deckSource, rv deckReviewer
 	if term == "" && len(card.Terms) > 0 {
 		term = card.Terms[0].Text
 	}
-	project, err := s.ContentStore.GetProject(ctx, src.project.ID)
-	if err != nil || project == nil {
-		return serverErr(c, fmt.Errorf("read the project: %w", err))
-	}
-	props := maps.Clone(project.Properties)
-	if props == nil {
-		props = map[string]string{}
-	}
-	if termcandidate.AddRejected(props, term) {
-		project.Properties = props
-		if err := s.ContentStore.UpdateProject(ctx, project); err != nil {
-			return serverErr(c, err)
-		}
+	_, _, err = s.ContentStore.EditProject(ctx, src.project.ID, func(p *platstore.Project) (bool, error) {
+		return termcandidate.AddRejected(p.Properties, term), nil
+	})
+	if err != nil {
+		return serverErr(c, err)
 	}
 	if ok {
 		if err := tb.DeleteConcept(ctx, concept.ID); err != nil {

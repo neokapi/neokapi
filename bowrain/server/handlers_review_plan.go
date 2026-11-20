@@ -63,6 +63,8 @@ const (
 	propTermScanJob = "review_term_scan_job"
 )
 
+var errReviewPlanProperty = errors.New("the review plan manages this project property")
+
 func isReviewPlanProperty(key string) bool {
 	switch key {
 	case propReviewInvolvement, propInvolvementOverrides, propInvolvementSetBy, propInvolvementSetAt,
@@ -976,7 +978,10 @@ func (s *Server) setPlanProperties(c echo.Context, props map[string]string) erro
 
 // updatePlanProperties writes plan properties on the project.
 func (s *Server) updatePlanProperties(ctx context.Context, projectID string, props map[string]string) error {
-	_, err := s.ContentStore.MergeProjectProperties(ctx, projectID, props)
+	_, _, err := s.ContentStore.EditProject(ctx, projectID, func(proj *platstore.Project) (bool, error) {
+		maps.Copy(proj.Properties, props)
+		return len(props) > 0, nil
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return errNoProject
 	}

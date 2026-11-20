@@ -102,6 +102,10 @@ func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*platstore.Project, e
 }
 
 func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) error {
+	return updateProject(ctx, s.db, p)
+}
+
+func updateProject(ctx context.Context, db storage.Runner, p *platstore.Project) error {
 	p.UpdatedAt = time.Now().UTC()
 	locales := storeutil.JoinLocales(p.TargetLanguages)
 	propsJSON, err := json.Marshal(p.Properties)
@@ -118,7 +122,7 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) e
 	// The source language stays while the project holds content: every
 	// source revision stamped on its blocks is taken under it
 	// (platstore.ErrSourceLanguageFixed).
-	res, err := s.db.ExecContext(ctx,
+	res, err := db.ExecContext(ctx,
 		`UPDATE projects SET name=?, default_source_language=?, target_languages=?, target_language_mode=?, default_stream=?, dashboard_visibility=?, properties=?, workspace_id=?, converge_policy=?, updated_at=?
 		 WHERE id=? AND (default_source_language=? OR NOT EXISTS (SELECT 1 FROM blocks WHERE project_id=?))`,
 		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
@@ -130,7 +134,7 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) e
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		var exists bool
-		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM projects WHERE id=?)`, p.ID).Scan(&exists); err != nil {
+		if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM projects WHERE id=?)`, p.ID).Scan(&exists); err != nil {
 			return fmt.Errorf("update project: %w", err)
 		}
 		if exists {
@@ -141,17 +145,9 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) e
 	return nil
 }
 
-func (s *SQLiteStore) MergeProjectProperties(ctx context.Context, id string, values map[string]string) (*platstore.Project, error) {
-	if len(values) == 0 {
-		return s.GetProject(ctx, id)
-	}
-	patch, err := json.Marshal(values)
-	if err != nil {
-		return nil, fmt.Errorf("marshal project properties: %w", err)
-	}
-	return scanProject(s.db.QueryRowContext(ctx, `UPDATE projects SET properties = json_patch(properties, ?),
-			updated_at = ? WHERE id = ?
-		RETURNING `+storeutil.ProjectColumns, string(patch), time.Now().UTC().Format(time.RFC3339), id))
+func (s *SQLiteStore) EditProject(ctx context.Context, id string, edit platstore.ProjectEdit) (*platstore.Project, bool, error) {
+	const lockQuery = "UPDATE projects SET updated_at = updated_at WHERE id = ? RETURNING " + storeutil.ProjectColumns
+	return storeutil.EditProject(ctx, s.db.DB, id, lockQuery, scanProject, updateProject, edit)
 }
 
 func (s *SQLiteStore) DeleteProject(ctx context.Context, id string) error {
