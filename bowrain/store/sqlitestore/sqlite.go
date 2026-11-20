@@ -86,14 +86,14 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) e
 
 func (s *SQLiteStore) GetProject(ctx context.Context, id string) (*platstore.Project, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, archived, archived_at, created_at, updated_at
+		`SELECT `+storeutil.ProjectColumns+`
 		 FROM projects WHERE id = ?`, id)
 	return scanProject(row)
 }
 
 func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, archived, archived_at, created_at, updated_at
+		`SELECT `+storeutil.ProjectColumns+`
 		 FROM projects WHERE archived=0 ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
@@ -139,6 +139,19 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) e
 		return fmt.Errorf("project %s not found", p.ID)
 	}
 	return nil
+}
+
+func (s *SQLiteStore) MergeProjectProperties(ctx context.Context, id string, values map[string]string) (*platstore.Project, error) {
+	if len(values) == 0 {
+		return s.GetProject(ctx, id)
+	}
+	patch, err := json.Marshal(values)
+	if err != nil {
+		return nil, fmt.Errorf("marshal project properties: %w", err)
+	}
+	return scanProject(s.db.QueryRowContext(ctx, `UPDATE projects SET properties = json_patch(properties, ?),
+			updated_at = ? WHERE id = ?
+		RETURNING `+storeutil.ProjectColumns, string(patch), time.Now().UTC().Format(time.RFC3339), id))
 }
 
 func (s *SQLiteStore) DeleteProject(ctx context.Context, id string) error {
@@ -201,7 +214,7 @@ func (s *SQLiteStore) RestoreProject(ctx context.Context, id string) error {
 
 func (s *SQLiteStore) ListArchivedProjects(ctx context.Context, workspaceID string) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, archived, archived_at, created_at, updated_at
+		`SELECT `+storeutil.ProjectColumns+`
 		 FROM projects WHERE workspace_id=? AND archived=1 ORDER BY archived_at DESC`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list archived projects: %w", err)

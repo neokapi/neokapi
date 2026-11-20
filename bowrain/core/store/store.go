@@ -19,6 +19,8 @@ type ProjectStore interface {
 	GetProject(ctx context.Context, id string) (*Project, error)
 	ListProjects(ctx context.Context) ([]*Project, error)
 	UpdateProject(ctx context.Context, p *Project) error
+	// MergeProjectProperties updates only the named keys and returns the stored project.
+	MergeProjectProperties(ctx context.Context, id string, values map[string]string) (*Project, error)
 	DeleteProject(ctx context.Context, id string) error
 	ArchiveProject(ctx context.Context, id string) error
 	RestoreProject(ctx context.Context, id string) error

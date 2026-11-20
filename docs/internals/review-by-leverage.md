@@ -230,9 +230,11 @@ point of the project's context space: `product=docs` at `context`,
 
 - **Storage.** The project property `review_involvement_overrides` holds the
   list as JSON: `[{"coordinates": {"product": "app"}, "involvement":
-  "every"}]`. A project holds a handful, every plan request loads the project
-  already, and no query joins on them, so a table would add a migration and
-  a read for nothing.
+  "every"}]`. Each review action merges its own property keys in a single
+  database update. Concurrent scan, settle and involvement writes preserve
+  each other's results. The review plan owns the involvement, job references
+  and attribution fields. An edit through the general project settings route
+  cannot change them.
 - **API.** `GET /:ws/:id/review/plan/involvement` answers the involvement, the
   overrides with the collections each decides, and the axes an override may
   name with the values the main stream's collections hold. `PUT

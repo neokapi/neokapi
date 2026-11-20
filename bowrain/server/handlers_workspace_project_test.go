@@ -428,3 +428,19 @@ func TestProjectPublicationRequiresReadableWorkspace(t *testing.T) {
 	require.ErrorIs(t, err, errWorkspaceUnreadable)
 	assert.False(t, allowed)
 }
+
+func TestProjectSettingsPreserveReviewAttribution(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/test/"+pid,
+		strings.NewReader(`{"properties":{"review_involvement_set_by":"other-user","colour":"blue"}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	srv.GetEcho().ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	proj, err := srv.ContentStore.GetProject(t.Context(), pid)
+	require.NoError(t, err)
+	assert.NotContains(t, proj.Properties, propInvolvementSetBy)
+	assert.NotContains(t, proj.Properties, "colour")
+}

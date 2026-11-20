@@ -81,13 +81,25 @@ func (s *EventEmittingStore) UpdateProject(ctx context.Context, p *store.Project
 	if err := s.inner.UpdateProject(ctx, p); err != nil {
 		return err
 	}
+	s.publishProjectUpdated(ctx, p)
+	return nil
+}
+
+func (s *EventEmittingStore) MergeProjectProperties(ctx context.Context, id string, values map[string]string) (*store.Project, error) {
+	p, err := s.inner.MergeProjectProperties(ctx, id, values)
+	if err == nil && len(values) > 0 {
+		s.publishProjectUpdated(ctx, p)
+	}
+	return p, err
+}
+
+func (s *EventEmittingStore) publishProjectUpdated(ctx context.Context, p *store.Project) {
 	s.publish(ctx, platev.Event{
 		Type:      platev.EventProjectUpdated,
 		Source:    "store",
 		ProjectID: p.ID,
 		Data:      map[string]string{"name": p.Name},
 	})
-	return nil
 }
 
 func (s *EventEmittingStore) DeleteProject(ctx context.Context, id string) error {

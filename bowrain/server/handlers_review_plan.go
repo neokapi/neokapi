@@ -3,6 +3,7 @@ package server
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"errors"
 	"maps"
 	"net/http"
@@ -61,6 +62,17 @@ const (
 	// push or from the review plan.
 	propTermScanJob = "review_term_scan_job"
 )
+
+func isReviewPlanProperty(key string) bool {
+	switch key {
+	case propReviewInvolvement, propInvolvementOverrides, propInvolvementSetBy, propInvolvementSetAt,
+		propCoordinatesConfirmedBy, propCoordinatesConfirmedAt, propCoordinatesSnapshot,
+		propFirstPassBy, propFirstPassAt, propSettleLastAt, propSettleLastApproved, propSettleLastBy, propSettleLastAutomatic,
+		propTermScanJob, propTermScanBlocks, propTermScanCollections, propTermProposalJob:
+		return true
+	}
+	return false
+}
 
 // reasonReviewPolicy is the reason a settle pass records on each decision
 // in the ledger.
@@ -964,15 +976,11 @@ func (s *Server) setPlanProperties(c echo.Context, props map[string]string) erro
 
 // updatePlanProperties writes plan properties on the project.
 func (s *Server) updatePlanProperties(ctx context.Context, projectID string, props map[string]string) error {
-	proj, err := s.ContentStore.GetProject(ctx, projectID)
-	if err != nil || proj == nil {
+	_, err := s.ContentStore.MergeProjectProperties(ctx, projectID, props)
+	if errors.Is(err, sql.ErrNoRows) {
 		return errNoProject
 	}
-	if proj.Properties == nil {
-		proj.Properties = map[string]string{}
-	}
-	maps.Copy(proj.Properties, props)
-	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
+	if err != nil {
 		return err
 	}
 	s.touchPlanSnapshot(projectID)

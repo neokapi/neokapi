@@ -127,6 +127,11 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		proj.DashboardVisibility = string(visibility)
 	}
 	if req.Properties != nil {
+		for key, value := range req.Properties {
+			if isReviewPlanProperty(key) && value != proj.Properties[key] {
+				return apiErr(c, http.StatusBadRequest, "the review plan manages this project property")
+			}
+		}
 		if proj.Properties == nil {
 			proj.Properties = make(map[string]string)
 		}
