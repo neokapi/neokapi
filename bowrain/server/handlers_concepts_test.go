@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -112,7 +113,7 @@ func TestCreateConceptAcceptsHarnessSeedPayload(t *testing.T) {
 	assert.Equal(t, "proj-seed", created.ProjectID)
 	assert.Equal(t, "security", created.Domain)
 	require.Len(t, created.Terms, 4)
-	assert.Equal(t, "deprecated", created.Terms[2].Status)
+	assert.Equal(t, model.TermDeprecated, created.Terms[2].Status)
 
 	stored, ok, err := h.tb(t).GetConcept(ctx, created.ID)
 	require.NoError(t, err)
@@ -137,4 +138,28 @@ func TestCreateConceptAcceptsHarnessSeedPayload(t *testing.T) {
 	var refusal map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
 	assert.Equal(t, "governed change requires a change-set", refusal["error"])
+}
+
+func TestOrdinaryConceptEditKeepsGovernanceOnRead(t *testing.T) {
+	h := newKGHarness(t)
+	old := gtConcept("scoped", "product", model.TermApproved)
+	old.Advisory = true
+	old.Source = terms.TermSourceBrandVocabulary
+	old.Terms[0].CompetitorTerm = true
+	old.Terms[0].Validity = &graph.Validity{Tags: map[string]string{"market": "UK"}}
+	require.NoError(t, h.tb(t).AddConcept(t.Context(), old))
+
+	c, rec := h.req(http.MethodPut, "/concepts/scoped", `{"domain":"product","terms":[{"text":"scoped-approved","locale":"en","note":"Edited","competitor_term":false,"validity":{}}]}`, platauth.PermManageTerms, "cid", old.ID)
+	require.NoError(t, h.srv.HandleUpdateConcept(c))
+	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+
+	c, rec = h.req(http.MethodGet, "/concepts/scoped", "", platauth.PermViewContent, "cid", old.ID)
+	require.NoError(t, h.srv.HandleGetConcept(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var got ConceptInfoResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	assert.Equal(t, old.Source, got.Source)
+	assert.True(t, got.Advisory)
+	old.Terms[0].Note = "Edited"
+	assert.Equal(t, old.Terms, got.Terms)
 }

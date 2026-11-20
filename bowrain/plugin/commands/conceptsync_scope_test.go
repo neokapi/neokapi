@@ -27,8 +27,8 @@ func TestPullConceptsAsksForTheProjectsTerms(t *testing.T) {
 		mu       sync.Mutex
 		asked    []string
 		concepts = []apiclient.ConceptInfo{
-			{ID: "c-all", Terms: []apiclient.TermInfo{{Text: "dashboard", Locale: "en", Status: "approved"}}},
-			{ID: "c-mine", Terms: []apiclient.TermInfo{{Text: "flowgraph", Locale: "en", Status: "approved"}}},
+			{ID: "c-all", Terms: []terms.Term{{Text: "dashboard", Locale: "en", Status: "approved"}}},
+			{ID: "c-mine", Terms: []terms.Term{{Text: "flowgraph", Locale: "en", Status: "approved"}}},
 		}
 	)
 	mux := http.NewServeMux()

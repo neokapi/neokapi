@@ -24,7 +24,6 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/venue"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -46,7 +45,7 @@ func Validate(edits *apiclient.TermsEdits) error {
 		if c.DoNotTranslate {
 			return fmt.Errorf("%w: concept %d is created with its do-not-translate flag set", ErrGoverned, i+1)
 		}
-		if terms.GovernedCreate(termsFromInfo(c.Terms)) {
+		if terms.GovernedCreate(venue.EditedTerms(nil, c.Terms)) {
 			return fmt.Errorf("%w: concept %d is created with a forbidden or preferred term", ErrGoverned, i+1)
 		}
 	}
@@ -161,7 +160,7 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 			ProjectID:  c.ProjectID,
 			Domain:     c.Domain,
 			Definition: c.Definition,
-			Terms:      termsFromInfo(c.Terms),
+			Terms:      venue.EditedTerms(nil, c.Terms),
 			CreatedAt:  now,
 			UpdatedAt:  now,
 		}
@@ -186,7 +185,7 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 		if !ok {
 			return nil, fmt.Errorf("edit concept %s: the workspace holds no such concept", u.ConceptID)
 		}
-		next := termsFromInfo(u.Concept.Terms)
+		next := venue.EditedTerms(existing.Terms, u.Concept.Terms)
 		if terms.GovernedUpdate(existing.Terms, next) {
 			return nil, fmt.Errorf("%w: concept %s: a term status transition to or from forbidden or preferred", ErrGoverned, u.ConceptID)
 		}
@@ -299,25 +298,4 @@ func propose(ctx context.Context, ks knowledge.Store, p Params, in *apiclient.Te
 	}
 	res.Governed, _ = knowledge.ChangeSetIsGoverned(values)
 	return nil
-}
-
-// termsFromInfo reads wire terms the way the concept routes do: a term with
-// no status is approved.
-func termsFromInfo(infos []apiclient.TermInfo) []terms.Term {
-	out := make([]terms.Term, len(infos))
-	for i, t := range infos {
-		out[i] = terms.Term{
-			Text:         t.Text,
-			Locale:       model.LocaleID(t.Locale),
-			Status:       model.TermStatus(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		}
-		if out[i].Status == "" {
-			out[i].Status = model.TermApproved
-		}
-	}
-	return out
 }

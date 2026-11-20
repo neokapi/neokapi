@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -30,36 +31,11 @@ import (
 // Response DTOs (mirror the server handlers' JSON shapes)
 // ---------------------------------------------------------------------------
 
-// TermInfo is one term within a concept, mirroring the server's
-// TermInfoResponse. Status is a lifecycle status string (proposed, approved,
-// admitted, preferred, deprecated, forbidden); Locale is a BCP-47 tag.
-type TermInfo struct {
-	Text         string   `json:"text"`
-	Locale       string   `json:"locale"`
-	Status       string   `json:"status"`
-	PartOfSpeech string   `json:"part_of_speech,omitempty"`
-	Gender       string   `json:"gender,omitempty"`
-	Note         string   `json:"note,omitempty"`
-	Forms        []string `json:"forms,omitempty"`
-}
+// TermInfo holds the fields accepted on an ordinary concept write.
+type TermInfo = venue.TermEdit
 
-// ConceptInfo is a single concept, mirroring the server's ConceptInfoResponse.
-// ProjectID is empty for workspace-scoped concepts; timestamps are RFC3339
-// strings as emitted by the server DTO.
-type ConceptInfo struct {
-	ID        string `json:"id"`
-	ProjectID string `json:"project_id,omitempty"`
-	// Projects are the projects the concept is limited to, empty for a
-	// concept of the whole workspace.
-	Projects       []string          `json:"projects,omitempty"`
-	Domain         string            `json:"domain"`
-	Definition     string            `json:"definition"`
-	DoNotTranslate bool              `json:"do_not_translate,omitempty"`
-	Terms          []TermInfo        `json:"terms"`
-	Properties     map[string]string `json:"properties,omitempty"`
-	CreatedAt      string            `json:"created_at"`
-	UpdatedAt      string            `json:"updated_at"`
-}
+// ConceptInfo holds the full concept returned by the read API.
+type ConceptInfo = venue.ConceptInfo
 
 // ConceptSearchResult is a page of concept search results, mirroring the
 // server's TermSearchResponse.

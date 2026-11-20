@@ -114,7 +114,7 @@ func conceptSyncServer(t *testing.T) (*httptest.Server, *conceptSyncRecorder) {
 			ID:         "c-greeting",
 			Domain:     "ui",
 			Definition: "A salutation.",
-			Terms: []apiclient.TermInfo{
+			Terms: []terms.Term{
 				{Text: "Hi", Locale: "en", Status: "approved"},
 				{Text: "Hello", Locale: "en", Status: "approved"},
 			},
@@ -125,8 +125,10 @@ func conceptSyncServer(t *testing.T) (*httptest.Server, *conceptSyncRecorder) {
 			ID:         "c-cta",
 			Domain:     "ui",
 			Definition: "Call to action.",
-			Terms: []apiclient.TermInfo{
-				{Text: "Get started", Locale: "en", Status: "approved"},
+			Source:     terms.TermSourceBrandVocabulary,
+			Advisory:   true,
+			Terms: []terms.Term{
+				{Text: "Get started", Locale: "en", Status: "approved", CompetitorTerm: true, Validity: &graph.Validity{Tags: map[string]string{"market": "UK"}}},
 			},
 			CreatedAt: "2026-01-01T10:00:00Z",
 			UpdatedAt: "2026-01-02T10:00:00Z",
@@ -273,6 +275,14 @@ func TestPullConceptsWritesTermsAndBaseline(t *testing.T) {
 	concepts, err := tb.Concepts(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, concepts, 2)
+	stored, ok, err := tb.GetConcept(t.Context(), "c-cta")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.True(t, stored.Advisory)
+	assert.Equal(t, terms.TermSourceBrandVocabulary, stored.Source)
+	require.Len(t, stored.Terms, 1)
+	assert.True(t, stored.Terms[0].CompetitorTerm)
+	assert.Equal(t, &graph.Validity{Tags: map[string]string{"market": "UK"}}, stored.Terms[0].Validity)
 	rels, err := tb.RelationsOf(context.Background(), "c-greeting", nil)
 	require.NoError(t, err)
 	require.Len(t, rels, 1)

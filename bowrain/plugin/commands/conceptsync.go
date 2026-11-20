@@ -351,8 +351,7 @@ func buildBaseline(concepts []terms.Concept, relations []terms.ConceptRelation) 
 }
 
 // conceptInfoToConcept maps a server concept DTO into the framework terms
-// concept type, casting the term status/locale strings and parsing the RFC3339
-// timestamps.
+// concept type, parsing the RFC3339 timestamps.
 func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 	concept := terms.Concept{
 		ID:             ci.ID,
@@ -361,17 +360,9 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 		Definition:     ci.Definition,
 		Properties:     ci.Properties,
 		DoNotTranslate: ci.DoNotTranslate,
-	}
-	for _, t := range ci.Terms {
-		concept.Terms = append(concept.Terms, terms.Term{
-			Text:         t.Text,
-			Locale:       model.LocaleID(t.Locale),
-			Status:       model.TermStatus(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		})
+		Advisory:       ci.Advisory,
+		Source:         ci.Source,
+		Terms:          ci.Terms,
 	}
 	if ts, err := time.Parse(time.RFC3339, ci.CreatedAt); err == nil {
 		concept.CreatedAt = ts
