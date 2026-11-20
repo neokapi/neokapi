@@ -70,7 +70,7 @@ export interface ConvergenceHeroProps {
   plan?: ConvergePlan;
   /** Pre-loaded run venue for Storybook/tests — skips api.getProjectServer(). */
   server?: ProjectServer;
-  /** Pre-loaded last-run failure for Storybook/tests — skips api.getProjectLastRunError(tabID). */
+  /** Preloaded failure from this project’s last run. */
   lastRunError?: RunError | null;
   /** Open an in-app settings view named by a remediation action's target. */
   onOpenSettings?: (target: string) => void;
