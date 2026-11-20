@@ -26,6 +26,7 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
   }, [editingID]);
 
   const startEditing = (tab: TabInfo) => {
+    onSelect(tab.id);
     setEditingID(tab.id);
     setEditValue(tab.name);
   };

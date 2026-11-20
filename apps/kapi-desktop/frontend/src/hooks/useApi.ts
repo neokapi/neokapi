@@ -146,6 +146,8 @@ export const api = {
   browseProjectLocation: () => call<string>("BrowseProjectLocation"),
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),
   listTabs: () => call<TabInfo[]>("ListTabs"),
+  saveProjectSnapshot: (tabID: string, snapshot: KapiProject, saveAs: boolean) =>
+    call<{ tab: TabInfo; name: string }>("SaveProjectSnapshot", tabID, snapshot, saveAs),
   saveProject: (tabID: string) => call<void>("SaveProject", tabID),
   saveProjectAs: (tabID: string, path: string) => call<void>("SaveProjectAs", tabID, path),
   saveProjectDialog: (tabID: string) => call<TabInfo>("SaveProjectDialog", tabID),
