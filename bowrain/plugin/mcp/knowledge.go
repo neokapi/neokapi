@@ -112,7 +112,7 @@ func handleConceptSearch(ctx context.Context, a *cli.App, input MCPConceptSearch
 	for _, c := range result.Concepts {
 		match := MCPConceptMatch{ID: c.ID, Domain: c.Domain, Definition: c.Definition}
 		for _, t := range c.Terms {
-			match.Terms = append(match.Terms, MCPConceptTerm{Text: t.Text, Locale: string(t.Locale), Status: string(t.Status)})
+			match.Terms = append(match.Terms, MCPConceptTerm{Text: t.Text, Locale: t.Locale, Status: t.Status})
 		}
 		out.Concepts = append(out.Concepts, match)
 	}

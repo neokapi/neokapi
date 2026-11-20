@@ -362,7 +362,10 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 		DoNotTranslate: ci.DoNotTranslate,
 		Advisory:       ci.Advisory,
 		Source:         ci.Source,
-		Terms:          ci.Terms,
+		Terms:          make([]terms.Term, len(ci.Terms)),
+	}
+	for i, t := range ci.Terms {
+		concept.Terms[i] = t.Term()
 	}
 	if ts, err := time.Parse(time.RFC3339, ci.CreatedAt); err == nil {
 		concept.CreatedAt = ts
@@ -507,7 +510,7 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 					ProjectID:  c.ProjectID,
 					Domain:     c.Domain,
 					Definition: c.Definition,
-					Terms:      termsToInfo(c.Terms),
+					Terms:      venue.TermInfos(c.Terms),
 				})
 			}
 			continue
@@ -527,7 +530,7 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 				params: apiclient.UpdateConceptParams{
 					Domain:     c.Domain,
 					Definition: c.Definition,
-					Terms:      termsToInfo(ordinaryTerms),
+					Terms:      venue.TermInfos(ordinaryTerms),
 				},
 			})
 		}
@@ -1083,23 +1086,6 @@ func baselineTermsSignature(terms []bproject.BaselineTerm) string {
 	}
 	sort.Strings(parts)
 	return strings.Join(parts, "\x1e")
-}
-
-// termsToInfo maps framework terms to the client's term DTO.
-func termsToInfo(terms []terms.Term) []apiclient.TermInfo {
-	out := make([]apiclient.TermInfo, 0, len(terms))
-	for _, t := range terms {
-		out = append(out, apiclient.TermInfo{
-			Text:         t.Text,
-			Locale:       string(t.Locale),
-			Status:       string(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		})
-	}
-	return out
 }
 
 // baselineTermToTerm reconstructs a framework term from its baseline snapshot.

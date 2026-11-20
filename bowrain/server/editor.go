@@ -1729,10 +1729,6 @@ func editorEntryToInfo(e memory.Entry, sourceLocale, targetLocale string) Memory
 }
 
 func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
-	termList := c.Terms
-	if termList == nil {
-		termList = []terms.Term{}
-	}
 	projects := termscope.Projects(c)
 	projectID := c.ProjectID
 	if len(projects) == 1 {
@@ -1747,7 +1743,7 @@ func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
 		DoNotTranslate: c.DoNotTranslate,
 		Advisory:       c.Advisory,
 		Source:         c.Source,
-		Terms:          termList,
+		Terms:          venue.TermInfos(c.Terms),
 		Properties:     c.Properties,
 		CreatedAt:      c.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      c.UpdatedAt.Format(time.RFC3339),

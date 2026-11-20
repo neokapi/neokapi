@@ -30,7 +30,7 @@ func returnLegServer(t *testing.T) *httptest.Server {
 			ID:         "c-terms",
 			Domain:     "product",
 			Definition: "The project's vocabulary.",
-			Terms: []terms.Term{
+			Terms: []apiclient.TermInfo{
 				{Text: "terms", Locale: "en", Status: "preferred"},
 				{Text: "termbase", Locale: "en", Status: "forbidden"},
 			},
@@ -41,7 +41,7 @@ func returnLegServer(t *testing.T) *httptest.Server {
 			ID:         "c-draft",
 			Domain:     "ui",
 			Definition: "Somebody's scratch entry.",
-			Terms: []terms.Term{
+			Terms: []apiclient.TermInfo{
 				{Text: "scratchpad", Locale: "en", Status: "proposed"},
 			},
 			CreatedAt: "2026-01-01T10:00:00Z",

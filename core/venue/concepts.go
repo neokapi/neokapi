@@ -1,6 +1,7 @@
 package venue
 
 import (
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -16,6 +17,56 @@ type TermEdit struct {
 	Forms        []string `json:"forms,omitempty"`
 }
 
+// TermInfo carries a term's wording, lifecycle and scope in a concept response.
+type TermInfo struct {
+	Text           string          `json:"text"`
+	Locale         string          `json:"locale"`
+	Status         string          `json:"status"`
+	PartOfSpeech   string          `json:"part_of_speech,omitempty"`
+	Gender         string          `json:"gender,omitempty"`
+	Note           string          `json:"note,omitempty"`
+	Forms          []string        `json:"forms,omitempty"`
+	CompetitorTerm bool            `json:"competitor_term,omitempty"`
+	Validity       *graph.Validity `json:"validity,omitempty"`
+}
+
+// TermInfos projects all term fields onto the read API.
+func TermInfos(ts []terms.Term) []TermInfo {
+	out := make([]TermInfo, len(ts))
+	for i, t := range ts {
+		out[i] = TermInfo{
+			Text: t.Text, Locale: string(t.Locale), Status: string(t.Status),
+			PartOfSpeech: t.PartOfSpeech, Gender: t.Gender, Note: t.Note, Forms: t.Forms,
+			CompetitorTerm: t.CompetitorTerm, Validity: t.Validity,
+		}
+	}
+	return out
+}
+
+// Term reconstructs the stored term with its governance fields.
+func (t TermInfo) Term() terms.Term {
+	return terms.Term{
+		Text: t.Text, Locale: model.LocaleID(t.Locale), Status: model.TermStatus(t.Status),
+		PartOfSpeech: t.PartOfSpeech, Gender: t.Gender, Note: t.Note, Forms: t.Forms,
+		CompetitorTerm: t.CompetitorTerm, Validity: t.Validity,
+	}
+}
+
+// TermEdits selects the fields an ordinary create or update may send.
+func TermEdits(ts []TermInfo) []TermEdit {
+	if ts == nil {
+		return nil
+	}
+	edits := make([]TermEdit, len(ts))
+	for i, t := range ts {
+		edits[i] = TermEdit{
+			Text: t.Text, Locale: t.Locale, Status: t.Status,
+			PartOfSpeech: t.PartOfSpeech, Gender: t.Gender, Note: t.Note, Forms: t.Forms,
+		}
+	}
+	return edits
+}
+
 // ConceptInfo carries a concept and its project scope on the read API.
 type ConceptInfo struct {
 	ID        string `json:"id"`
@@ -28,7 +79,7 @@ type ConceptInfo struct {
 	DoNotTranslate bool              `json:"do_not_translate,omitempty"`
 	Source         terms.TermSource  `json:"source,omitempty"`
 	Advisory       bool              `json:"advisory,omitempty"`
-	Terms          []terms.Term      `json:"terms"`
+	Terms          []TermInfo        `json:"terms"`
 	Properties     map[string]string `json:"properties,omitempty"`
 	CreatedAt      string            `json:"created_at"`
 	UpdatedAt      string            `json:"updated_at"`

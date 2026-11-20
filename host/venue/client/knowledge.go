@@ -31,8 +31,8 @@ import (
 // Response DTOs (mirror the server handlers' JSON shapes)
 // ---------------------------------------------------------------------------
 
-// TermInfo holds the fields accepted on an ordinary concept write.
-type TermInfo = venue.TermEdit
+// TermInfo carries the terminology fields returned by the concept API.
+type TermInfo = venue.TermInfo
 
 // ConceptInfo holds the full concept returned by the read API.
 type ConceptInfo = venue.ConceptInfo
@@ -618,6 +618,22 @@ type UpdateConceptParams struct {
 	// change-set.
 	DoNotTranslate *bool      `json:"do_not_translate,omitempty"`
 	Terms          []TermInfo `json:"terms"`
+}
+
+func (p CreateConceptParams) MarshalJSON() ([]byte, error) {
+	type fields CreateConceptParams
+	return json.Marshal(struct {
+		fields
+		Terms []venue.TermEdit `json:"terms"`
+	}{fields(p), venue.TermEdits(p.Terms)})
+}
+
+func (p UpdateConceptParams) MarshalJSON() ([]byte, error) {
+	type fields UpdateConceptParams
+	return json.Marshal(struct {
+		fields
+		Terms []venue.TermEdit `json:"terms"`
+	}{fields(p), venue.TermEdits(p.Terms)})
 }
 
 // AddRelationParams adds an ordinary typed relation from the path concept to a

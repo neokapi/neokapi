@@ -114,7 +114,7 @@ func conceptSyncServer(t *testing.T) (*httptest.Server, *conceptSyncRecorder) {
 			ID:         "c-greeting",
 			Domain:     "ui",
 			Definition: "A salutation.",
-			Terms: []terms.Term{
+			Terms: []apiclient.TermInfo{
 				{Text: "Hi", Locale: "en", Status: "approved"},
 				{Text: "Hello", Locale: "en", Status: "approved"},
 			},
@@ -127,7 +127,7 @@ func conceptSyncServer(t *testing.T) (*httptest.Server, *conceptSyncRecorder) {
 			Definition: "Call to action.",
 			Source:     terms.TermSourceBrandVocabulary,
 			Advisory:   true,
-			Terms: []terms.Term{
+			Terms: []apiclient.TermInfo{
 				{Text: "Get started", Locale: "en", Status: "approved", CompetitorTerm: true, Validity: &graph.Validity{Tags: map[string]string{"market": "UK"}}},
 			},
 			CreatedAt: "2026-01-01T10:00:00Z",

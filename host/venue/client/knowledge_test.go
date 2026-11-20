@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/graph"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -84,7 +83,7 @@ func TestListConcepts(t *testing.T) {
 	assert.Equal(t, "c1", res.Concepts[0].ID)
 	require.Len(t, res.Concepts[0].Terms, 2)
 	assert.Equal(t, "Get started", res.Concepts[0].Terms[0].Text)
-	assert.Equal(t, model.TermForbidden, res.Concepts[0].Terms[1].Status)
+	assert.Equal(t, "forbidden", res.Concepts[0].Terms[1].Status)
 }
 
 func TestListConceptsOmitsZeroParams(t *testing.T) {
@@ -400,4 +399,29 @@ func TestKnowledgePropagatesServerError(t *testing.T) {
 	_, err := c.ListConcepts(context.Background(), ListConceptsParams{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "403")
+}
+
+func TestConceptTermsUseStringFieldsAndRestrictOrdinaryWrites(t *testing.T) {
+	locale, status := "en", "approved"
+	concept := ConceptInfo{Terms: []TermInfo{{
+		Text: "Sample", Locale: locale, Status: status, CompetitorTerm: true,
+		Validity: &graph.Validity{Tags: map[string]string{"market": "UK"}},
+	}}}
+	var readLocale, readStatus string = concept.Terms[0].Locale, concept.Terms[0].Status
+	assert.Equal(t, locale, readLocale)
+	assert.Equal(t, status, readStatus)
+	read, err := json.Marshal(concept)
+	require.NoError(t, err)
+	assert.Contains(t, string(read), `"competitor_term":true`)
+	assert.Contains(t, string(read), `"validity":`)
+
+	expected := `{"domain":"ui","definition":"A term","terms":[{"text":"Sample","locale":"en","status":"approved"}]}`
+	for _, params := range []any{
+		CreateConceptParams{Domain: "ui", Definition: "A term", Terms: concept.Terms},
+		UpdateConceptParams{Domain: "ui", Definition: "A term", Terms: concept.Terms},
+	} {
+		body, err := json.Marshal(params)
+		require.NoError(t, err)
+		assert.JSONEq(t, expected, string(body))
+	}
 }

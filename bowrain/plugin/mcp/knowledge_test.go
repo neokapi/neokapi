@@ -11,7 +11,6 @@ import (
 	coreproj "github.com/neokapi/neokapi/core/project"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
-	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +30,7 @@ func knowledgeTestServer(t *testing.T) *httptest.Server {
 			ID:         "c-dashboard",
 			Domain:     "ui",
 			Definition: "The product's main landing screen.",
-			Terms: []terms.Term{
+			Terms: []apiclient.TermInfo{
 				{Text: "Dashboard", Locale: "en", Status: "preferred"},
 				{Text: "Cockpit", Locale: "en", Status: "forbidden"},
 			},

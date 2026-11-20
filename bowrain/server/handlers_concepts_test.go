@@ -113,7 +113,7 @@ func TestCreateConceptAcceptsHarnessSeedPayload(t *testing.T) {
 	assert.Equal(t, "proj-seed", created.ProjectID)
 	assert.Equal(t, "security", created.Domain)
 	require.Len(t, created.Terms, 4)
-	assert.Equal(t, model.TermDeprecated, created.Terms[2].Status)
+	assert.Equal(t, "deprecated", created.Terms[2].Status)
 
 	stored, ok, err := h.tb(t).GetConcept(ctx, created.ID)
 	require.NoError(t, err)
@@ -161,5 +161,6 @@ func TestOrdinaryConceptEditKeepsGovernanceOnRead(t *testing.T) {
 	assert.Equal(t, old.Source, got.Source)
 	assert.True(t, got.Advisory)
 	old.Terms[0].Note = "Edited"
-	assert.Equal(t, old.Terms, got.Terms)
+	require.Len(t, got.Terms, 1)
+	assert.Equal(t, old.Terms[0], got.Terms[0].Term())
 }

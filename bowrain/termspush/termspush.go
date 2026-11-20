@@ -45,7 +45,7 @@ func Validate(edits *apiclient.TermsEdits) error {
 		if c.DoNotTranslate {
 			return fmt.Errorf("%w: concept %d is created with its do-not-translate flag set", ErrGoverned, i+1)
 		}
-		if terms.GovernedCreate(venue.EditedTerms(nil, c.Terms)) {
+		if terms.GovernedCreate(venue.EditedTerms(nil, venue.TermEdits(c.Terms))) {
 			return fmt.Errorf("%w: concept %d is created with a forbidden or preferred term", ErrGoverned, i+1)
 		}
 	}
@@ -160,7 +160,7 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 			ProjectID:  c.ProjectID,
 			Domain:     c.Domain,
 			Definition: c.Definition,
-			Terms:      venue.EditedTerms(nil, c.Terms),
+			Terms:      venue.EditedTerms(nil, venue.TermEdits(c.Terms)),
 			CreatedAt:  now,
 			UpdatedAt:  now,
 		}
@@ -185,7 +185,7 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 		if !ok {
 			return nil, fmt.Errorf("edit concept %s: the workspace holds no such concept", u.ConceptID)
 		}
-		next := venue.EditedTerms(existing.Terms, u.Concept.Terms)
+		next := venue.EditedTerms(existing.Terms, venue.TermEdits(u.Concept.Terms))
 		if terms.GovernedUpdate(existing.Terms, next) {
 			return nil, fmt.Errorf("%w: concept %s: a term status transition to or from forbidden or preferred", ErrGoverned, u.ConceptID)
 		}
