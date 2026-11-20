@@ -337,9 +337,6 @@ func ensureLocalFiltersGitignored(layout project.Layout) error {
 		content += "\n"
 	}
 	content += project.LocalFiltersFilename + "\n"
-	_, err = atomicfile.Replace(path, func(w io.Writer) error {
-		_, err := io.WriteString(w, content)
-		return err
-	})
+	_, err = atomicfile.ReplaceBytes(path, []byte(content))
 	return err
 }
