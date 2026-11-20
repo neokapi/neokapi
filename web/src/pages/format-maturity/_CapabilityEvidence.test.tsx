@@ -44,7 +44,7 @@ vi.mock("../../../static/data/content-capabilities-history.json", () => ({
 afterEach(cleanup);
 
 it("filters evidence by operation, state and inventory", () => {
-  render(<CapabilityEvidence />);
+  render(<CapabilityEvidence dataBaseUrl="/data/" />);
   const table = within(screen.getAllByRole("table")[0]);
   fireEvent.change(screen.getByLabelText("Find"), { target: { value: "sample-format" } });
   expect(table.getByRole("link", { name: "TestWrite" })).toBeTruthy();
@@ -57,7 +57,9 @@ it("filters evidence by operation, state and inventory", () => {
 });
 
 it("links prior format observations and shows when operation history begins", () => {
-  render(<CapabilityEvidence />);
+  render(<CapabilityEvidence dataBaseUrl="/preview/data/" />);
+  expect(screen.getByRole("link", { name: "Historical observations (JSON)" }).getAttribute("href"))
+    .toBe("/preview/data/content-capabilities-history.json");
   const table = within(screen.getAllByRole("table")[1]);
   expect(table.getByText("First observation")).toBeTruthy();
   expect(table.getAllByText("No observation").length).toBeGreaterThan(0);

@@ -13,6 +13,15 @@ make check-content-maturity
 
 The check uses the date of the committed observation. It runs format tests, the Prose probe, output conversions and connector fixtures. A missing required test or a stale projection fails the check. A recorded conversion failure describes the fixture that failed. A skipped connector check carries an unverified result.
 
+To view the dashboard from this checkout, build and serve the documentation.
+Open `/format-maturity` on the local server. Use the inventory and evidence
+filters to inspect an operation or download its data.
+
+```sh
+pnpm --dir web exec docusaurus build --locale en
+pnpm --dir web exec docusaurus serve --host 127.0.0.1 --port 4178 --no-open
+```
+
 `make refresh-content-maturity` records observations for the current UTC date. The weekly GitHub Actions job uses that target. A manual dispatch on a branch produces a downloadable patch and agent brief. On the default branch the job also proposes the patch through the repository’s rolling pull request. A maintainer reviews changes to the published data. The job uses local fixtures and requires no model or CMS credentials.
 
 ## Give an agent a task

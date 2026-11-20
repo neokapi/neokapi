@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import Layout from "@theme/Layout";
 import useBrokenLinks from "@docusaurus/useBrokenLinks";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import CapabilityEvidence from "./_CapabilityEvidence";
 import maturity from "@site/static/data/format-maturity.json";
 import history from "@site/static/data/format-maturity-history.json";
@@ -464,6 +465,7 @@ function Trend() {
 // ── page ────────────────────────────────────────────────────────────────────
 
 export default function FormatMaturity() {
+  const dataBaseUrl = useBaseUrl("/data/");
   const links = useBrokenLinks();
   for (const id of ["format-evidence", "capability-evidence", "observation-history"]) links.collectAnchor(id);
   const [search, setSearch] = useState("");
@@ -699,7 +701,7 @@ export default function FormatMaturity() {
         </div>
         {rows.length === 0 && <p>No formats match the current filters.</p>}
         {axis === "prose" && <LanguagesTable />}
-        <CapabilityEvidence />
+        <CapabilityEvidence dataBaseUrl={dataBaseUrl} />
       </main>
     </Layout>
   );

@@ -95,7 +95,7 @@ function coverage(profile?: Profile, previous?: Profile) {
   );
 }
 
-export default function CapabilityEvidence() {
+export default function CapabilityEvidence({ dataBaseUrl }: { dataBaseUrl: string }) {
   const [group, setGroup] = useState<keyof typeof groups>("outputs");
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState("");
@@ -261,9 +261,9 @@ export default function CapabilityEvidence() {
         </table>
       </div>
       <p>
-        <a href="/data/content-capabilities.json">Current capability evidence (JSON)</a>
+        <a href={dataBaseUrl + "content-capabilities.json"}>Current capability evidence (JSON)</a>
         {" · "}
-        <a href="/data/content-capabilities-history.json">Historical observations (JSON)</a>
+        <a href={dataBaseUrl + "content-capabilities-history.json"}>Historical observations (JSON)</a>
       </p>
     </section>
   );
