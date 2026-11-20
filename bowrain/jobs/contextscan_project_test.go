@@ -13,6 +13,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	fwterms "github.com/neokapi/neokapi/terms"
@@ -117,7 +118,7 @@ func TestContextScanWorker_ProjectCandidates(t *testing.T) {
 	}
 	require.Contains(t, filed, "Dashpanel")
 	dash := filed["Dashpanel"]
-	assert.Equal(t, projectID, termcandidate.ProjectOf(dash))
+	assert.Equal(t, []string{projectID}, termscope.Projects(dash))
 	assert.True(t, termcandidate.IsCandidate(dash, "en"))
 	assert.Equal(t, map[string]string{"product": "bowrain"}, dash.Coordinates())
 	assert.Equal(t, termcandidate.ScanIdentity, dash.Properties[termcandidate.PropProposedBy])

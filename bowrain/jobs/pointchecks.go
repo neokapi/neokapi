@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -63,7 +64,8 @@ type PointCheckBinding struct {
 // ResolvePointChecks resolves the checks in force where an item sits: the
 // standard per-locale set, plus the voice profile bound at the item's own
 // point (its collection, then the stream, the project, and the workspace
-// default), the workspace vocabulary, and the project's protected terms.
+// default), the workspace terms that apply in the project, and the
+// project's protected terms.
 //
 // Resolution failures are operational errors. They cannot silently narrow
 // the configured checks and leave a surface displaying a clean assessment.
@@ -88,6 +90,9 @@ func ResolvePointChecks(ctx context.Context, b PointCheckBinding, projectID, str
 		if checks.Terms, err = b.Terms(ctx); err != nil {
 			return checks, fmt.Errorf("check terms: %w", err)
 		}
+		// The workspace's terms, narrowed to the concepts that apply in
+		// this project.
+		checks.Terms = termscope.View(checks.Terms, projectID)
 	}
 	rc := coreprofile.ResolveContext{Locale: locale, ProjectProperties: proj.Properties}
 	if stream != "" {

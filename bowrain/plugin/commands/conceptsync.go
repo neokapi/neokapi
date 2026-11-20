@@ -197,8 +197,10 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms
 }
 
 // fetchServerConcepts reads the workspace's governed terminology without
-// touching the local store: every concept, plus the typed relations whose
-// endpoints were pulled (the terms store rejects dangling edges).
+// touching the local store: every concept that applies in the client's
+// project, plus the typed relations whose endpoints were pulled (the terms
+// store rejects dangling edges). A term another project of the workspace
+// keeps is not part of the answer.
 //
 // Split out of PullConcepts so a PUSH can ask the same question. Terminology is
 // recipe-owned — the local store is the authority — so the only thing a push
@@ -214,8 +216,9 @@ func fetchServerConcepts(ctx context.Context, client *apiclient.BowrainClient) (
 	offset := 0
 	for {
 		page, err := client.ListConcepts(ctx, apiclient.ListConceptsParams{
-			Offset: offset,
-			Limit:  conceptPullPageSize,
+			Project: client.ProjectID(),
+			Offset:  offset,
+			Limit:   conceptPullPageSize,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("list workspace concepts: %w", err)
@@ -718,10 +721,39 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 	if dryRun {
 		return res, nil, nil
 	}
+	if err := dropWithdrawnConcepts(ctx, tb, before, baseline); err != nil {
+		return nil, nil, err
+	}
 	if err := recordConceptArrival(ctx, proj, res, before, baseline); err != nil {
 		return nil, nil, err
 	}
 	return res, baseline, nil
+}
+
+// dropWithdrawnConcepts deletes from the project's terms store the concepts
+// the last pull brought and this one did not: concepts the workspace deleted,
+// and terms that now apply only in other projects of the workspace. Left in
+// place, the local checks would keep enforcing them, and the next push would
+// propose each one again as a new concept.
+func dropWithdrawnConcepts(ctx context.Context, tb terms.Store, before, after *bproject.ConceptBaseline) error {
+	if tb == nil || before == nil || after == nil {
+		return nil
+	}
+	for _, id := range before.SortedConceptIDs() {
+		if _, kept := after.Concepts[id]; kept {
+			continue
+		}
+		// The person may have deleted it already.
+		if _, held, err := tb.GetConcept(ctx, id); err != nil {
+			return fmt.Errorf("read withdrawn concept %s: %w", id, err)
+		} else if !held {
+			continue
+		}
+		if err := tb.DeleteConcept(ctx, id); err != nil {
+			return fmt.Errorf("drop withdrawn concept %s: %w", id, err)
+		}
+	}
+	return nil
 }
 
 // recordConceptArrival puts a line in the project's context history saying that

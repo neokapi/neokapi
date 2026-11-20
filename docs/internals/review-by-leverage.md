@@ -486,8 +486,16 @@ The founder accepted each recommendation on 2026-11-19:
 5. `priority:` stays as the order within a level; involvement decides depth.
 6. Keeping a candidate term makes it preferred directly; the keep is the
    review, and the attestation records it.
-7. Kept terms govern the whole workspace. That needs a project scope in the
-   terms store before a second project shares a workspace.
+7. A kept term applies in the project it was kept in. Built. A concept carries
+   the projects it is limited to in its `project_id` property (one id or
+   several, comma-separated, read by `bowrain/termscope`); a concept without
+   it applies in the whole workspace. Every surface that applies terms to a
+   project reads the store through `termscope.StoreView`: the checks, the
+   term gate, the translate prompts, the context deck, the plan's counts, the
+   term scan and term proposals, and `GET /:ws/concepts?project=`, which a
+   client's `kapi pull` asks with. `POST /:ws/concepts/:cid/widen`
+   (`manage_terms`) makes a term apply in every project; the web Concepts
+   page offers it as **Apply in every project**.
 
 ## Build order
 

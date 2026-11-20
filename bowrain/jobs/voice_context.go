@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
@@ -54,9 +55,10 @@ func resolveJobVoiceProfile(ctx context.Context, deps *WorkerDeps, job *Translat
 	return b.VoiceProfile(ctx, b.Collection(ctx))
 }
 
-// resolveJobTerms returns the workspace terms a job's terminology derives from,
-// or nil when the worker has no resolver, the workspace has no store, or the
-// read fails: terminology must never fail a translation job.
+// resolveJobTerms returns the terms a job's terminology derives from: the
+// workspace's concepts that apply in the job's project (termscope.View). It
+// returns nil when the worker has no resolver, the workspace has no store, or
+// the read fails: terminology must never fail a translation job.
 func resolveJobTerms(deps *WorkerDeps, job *TranslationJob) terms.Terminology {
 	if deps == nil || deps.TermsResolver == nil {
 		return nil
@@ -74,7 +76,7 @@ func resolveJobTerms(deps *WorkerDeps, job *TranslationJob) terms.Terminology {
 	if tb == nil {
 		return nil
 	}
-	return tb
+	return termscope.View(tb, job.ProjectID)
 }
 
 // TermRulesFromConcepts derives the term rules a translation carries from a
@@ -84,9 +86,10 @@ func resolveJobTerms(deps *WorkerDeps, job *TranslationJob) terms.Terminology {
 // verbatim, which names no replacement and answers for every target language,
 // including one the store has never heard of.
 //
-// Workspace-scoped concepts (empty ProjectID) and concepts scoped to this
-// project both apply; concepts scoped to other projects are excluded, and a
-// project-scoped claim wins over a workspace-scoped one for the same term.
+// Concepts of the whole workspace and concepts limited to this project both
+// apply (termscope.AppliesIn); concepts limited to other projects are
+// excluded, and a project-scoped claim wins over a workspace-scoped one for
+// the same term.
 // Returns nil (not an empty slice) when the terms store has no terms for the
 // locale pair.
 //
@@ -110,7 +113,7 @@ func TermRulesFromConcepts(ctx context.Context, tb terms.Terminology, projectID 
 	byClaim := make(map[termClaim]coreprofile.TermRule)
 	projectScoped := make(map[termClaim]bool)
 	for _, concept := range concepts {
-		if concept.ProjectID != "" && concept.ProjectID != projectID {
+		if !termscope.AppliesIn(concept, projectID) {
 			continue // another project's terminology
 		}
 		// The one derivation every surface shares (terms.RuleForConcept), so
@@ -122,7 +125,7 @@ func TermRulesFromConcepts(ctx context.Context, tb terms.Terminology, projectID 
 			continue
 		}
 		claim := termClaim{term: rule.Term, keepVerbatim: rule.DoNotTranslate}
-		scoped := concept.ProjectID == projectID && concept.ProjectID != ""
+		scoped := projectID != "" && !termscope.Workspace(concept)
 		if _, exists := byClaim[claim]; exists && (projectScoped[claim] || !scoped) {
 			// Keep the existing rule unless this one is more specific: a
 			// project-scoped claim replaces a workspace-scoped one; equal

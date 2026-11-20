@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -312,7 +313,7 @@ func (s *Server) HandleProposeTermTranslations(c echo.Context) error {
 	out := termProposalsResponse{}
 	source := project.DefaultSourceLanguage
 	for _, cp := range concepts {
-		if p := termcandidate.ProjectOf(cp); p != "" && p != project.ID {
+		if !termscope.AppliesIn(cp, project.ID) {
 			continue
 		}
 		for _, loc := range project.TargetLanguages {

@@ -28,11 +28,13 @@ import { Check, Globe, Pencil, Plus } from "../../components/icons";
 import { ErrorNotice } from "../../errors";
 import { useAnalytics } from "../../context/AnalyticsContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
+import { useApi } from "../../context/ApiContext";
 import { AnalyticsEvents } from "../../analytics-events";
 import {
   invalidateConceptAggregates,
   useConcept,
   useConceptStory,
+  useWidenConcept,
 } from "../../hooks/useConceptsApi";
 import { useUserDisplayNames } from "../../hooks/useMembersApi";
 import { useProjects } from "../../hooks/useProjectApi";
@@ -44,6 +46,7 @@ import {
   headlineTerm,
   languagesInOrder,
   marketsFor,
+  projectsOf,
   provenanceOf,
   replacementFor,
 } from "./conceptFacts";
@@ -291,7 +294,8 @@ export function ConceptDetail({
         domain={concept.domain}
         profile={profile}
         coordinates={coordinates}
-        projectId={full.data?.project_id}
+        conceptId={concept.id}
+        projectIds={projectsOf(full.data)}
         createdAt={full.data?.created_at}
         updatedAt={full.data?.updated_at}
         story={story.data?.entries}
@@ -351,12 +355,17 @@ function TermLine({ term }: { term: Term }) {
   );
 }
 
-/** Where a concept came from: its domain, profile and point, its project, and who added and changed it. */
+/**
+ * Where a concept came from: its domain, profile and point, the projects it
+ * applies in, and who added and changed it. A term limited to some projects
+ * can be widened to every project of the workspace.
+ */
 function Provenance({
   domain,
   profile,
   coordinates,
-  projectId,
+  conceptId,
+  projectIds,
   createdAt,
   updatedAt,
   story,
@@ -364,15 +373,18 @@ function Provenance({
   domain?: string;
   profile?: string;
   coordinates: Array<[string, string]>;
-  projectId?: string;
+  conceptId: string;
+  projectIds: string[];
   createdAt?: string;
   updatedAt?: string;
   story?: ConceptStoryEntry[];
 }) {
   const { nameOf } = useUserDisplayNames();
   const { data: projects } = useProjects();
+  const api = useApi();
+  const widen = useWidenConcept();
   const { added, changed } = provenanceOf(story);
-  const project = projectId ? projects?.find((p) => p.id === projectId) : undefined;
+  const projectNames = projectIds.map((id) => projects?.find((p) => p.id === id)?.name ?? id);
   return (
     <section data-slot="concept-provenance" aria-label={t("Where it came from")}>
       <h3 className="mb-1.5 text-[11px] font-medium text-muted-foreground">Where it came from</h3>
@@ -398,13 +410,39 @@ function Provenance({
             </span>
           </Fact>
         )}
-        <Fact label={<>Scope</>}>
-          {projectId ? (
-            <span translate="no">{project?.name ?? projectId}</span>
+        <Fact label={<>Applies in</>}>
+          {projectNames.length > 0 ? (
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span data-slot="concept-projects" translate="no">
+                {projectNames.join(", ")}
+              </span>
+              {api.widenConcept && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-slot="concept-widen"
+                  disabled={widen.isPending}
+                  onClick={() => widen.mutate(conceptId)}
+                >
+                  <Globe size={13} />
+                  Apply in every project
+                </Button>
+              )}
+            </span>
           ) : (
             <>Every project in the workspace</>
           )}
         </Fact>
+        {widen.error ? (
+          <dd className="col-span-2">
+            <ErrorNotice
+              variant="inline"
+              error={widen.error}
+              title={t("The term still applies in its own project only")}
+              hint={t("Widening a term needs permission to edit terms in this workspace.")}
+            />
+          </dd>
+        ) : null}
         {createdAt && (
           <Fact label={<>Added</>}>
             <span className="inline-flex flex-wrap items-center gap-x-1.5">

@@ -186,9 +186,10 @@ func (s *Server) fillReviewPoint(
 		}
 	}
 
-	// The word rules are terms: the workspace terms store's in the source
-	// language, and any the bound voice's file carries.
-	if rules, rerr := s.workspaceWordRules(ctx, ws, proj.DefaultSourceLanguage); rerr != nil {
+	// The word rules are terms: those of the workspace terms store that apply
+	// in the project, in the source language, and any the bound voice's file
+	// carries.
+	if rules, rerr := s.workspaceWordRules(ctx, ws, proj.ID, proj.DefaultSourceLanguage); rerr != nil {
 		p.Notes = append(p.Notes, "the word rules here could not be read: "+rerr.Error())
 	} else {
 		rules = rulesWithTerm(append(rules, profile.CarriedTerms().Rules...))

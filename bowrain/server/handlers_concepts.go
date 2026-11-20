@@ -15,6 +15,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -48,6 +49,7 @@ func (s *Server) registerConceptRoutes(g *echo.Group) {
 	g.GET("/concepts/:cid", s.HandleGetConcept)
 	g.PUT("/concepts/:cid", s.HandleUpdateConcept)
 	g.DELETE("/concepts/:cid", s.HandleDeleteConcept)
+	g.POST("/concepts/:cid/widen", s.HandleWidenConcept)
 
 	// Concept story — the merged chronological timeline.
 	g.GET("/concepts/:cid/story", s.HandleGetConceptStory)
@@ -156,6 +158,11 @@ const conceptSortUpdatedAt = "updated_at"
 // text search to a source locale; stream inheritance is honored when a non-main
 // stream is given; sort=updated_at pages the workspace newest-changed first.
 //
+// ?project= narrows the search to the concepts that apply in that project:
+// the ones of the whole workspace and the ones limited to it
+// (termscope.StoreView). A client syncing one project's terms asks this way,
+// so it never receives a term another project keeps.
+//
 // ?at= resolves the page at an instant: a term whose own validity window does
 // not cover it drops out, and a concept left with no term in force drops with
 // it. Without it the answer is the as-declared view — every term the workspace
@@ -189,7 +196,7 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 		})
 	}
 
-	tb, err := s.wsStores.getTerms(c.Request().Context(), ws)
+	tb, err := s.wsStores.getProjectTerms(c.Request().Context(), ws, c.QueryParam("project"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
@@ -403,13 +410,15 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 	}
 	concept := terms.Concept{
 		ID:         id.New(),
-		ProjectID:  req.ProjectID,
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Terms:      termList,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
+	// The PostgreSQL store keeps no project column, so the limit travels as
+	// the property every reader honours.
+	termscope.Limit(&concept, req.ProjectID)
 	stream := streamParam(c)
 	if stream != "" && stream != "main" {
 		err = tb.AddConceptWithStream(c.Request().Context(), concept, stream)

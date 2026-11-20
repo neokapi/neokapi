@@ -18,6 +18,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -403,7 +404,8 @@ func (s *Server) decideContextCard(c echo.Context, req contextDeckDecideRequest)
 var errCandidateGone = errors.New("the candidate term is gone")
 
 // keepCandidate makes a candidate term a term of the project: its proposed
-// source-language term becomes preferred. It returns the card as the deck
+// source-language term becomes preferred, and the term applies in this
+// project only. It returns the card as the deck
 // deals it after the write, whose revision the keep then attests, so the
 // concept does not come back for review as changed.
 //
@@ -429,6 +431,13 @@ func (s *Server) keepCandidate(c echo.Context, src deckSource, rv deckReviewer, 
 		return card, errCandidateGone
 	}
 	if termcandidate.Promote(&concept, src.project.DefaultSourceLanguage) {
+		// A term kept in a project applies in that project. A candidate the
+		// scan filed is limited to it already; one with no limit is limited
+		// here. Widening it to the whole workspace is a separate decision
+		// (HandleWidenConcept).
+		if termscope.Workspace(concept) {
+			termscope.Limit(&concept, src.project.ID)
+		}
 		concept.UpdatedAt = time.Now().UTC()
 		if err := tb.AddConcept(ctx, concept); err != nil {
 			return card, err

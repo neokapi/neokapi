@@ -43,7 +43,7 @@ func setupVoiceLoopServer(t *testing.T) *Server {
 // in every language.
 func workspaceWordRulesFor(t *testing.T, srv *Server, wsSlug string) []coreprofile.TermRule {
 	t.Helper()
-	rules, err := srv.workspaceWordRules(t.Context(), wsSlug, "")
+	rules, err := srv.workspaceWordRules(t.Context(), wsSlug, "", "")
 	require.NoError(t, err)
 	return rules
 }

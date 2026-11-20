@@ -397,7 +397,8 @@ func (g *termGate) voiceGoverned(ctx context.Context, tgtLoc model.LocaleID) boo
 }
 
 // resolveTermGate builds the terminology-governance gate for a project's
-// ship/compliant pass: an in-memory snapshot of the workspace terms (one read,
+// ship/compliant pass: an in-memory snapshot of the terms that apply in the
+// project (termscope.StoreView; one read,
 // reused across every block and locale), a per-locale voice profile resolver
 // (resolved at most once per locale) and the term rules the project's recipe
 // declares. The gate is deterministic and offline, with no per-block DB or LLM
@@ -413,8 +414,8 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 	// terms leaves the snapshot nil (the terms store half of the predicate skips).
 	var snap terms.Terminology
 	var snapFP string
-	if tb, err := s.workspaceTermsByID(ctx, wsID); err == nil && tb != nil {
-		snap, snapFP = s.termSnapshots.snapshot(ctx, wsID, tb)
+	if tb, err := s.projectTermsByID(ctx, wsID, proj.ID); err == nil && tb != nil {
+		snap, snapFP = s.termSnapshots.snapshot(ctx, termSnapshotKey(wsID, proj.ID), tb)
 	}
 
 	// Voice profile resolver: the same hierarchical binding ladder the editor and
@@ -571,6 +572,13 @@ func (c *termSnapshotCache) snapshot(ctx context.Context, wsID string, tb terms.
 	}
 	c.keep(wsID, termSnapshot{revision: rev, snap: snap, fp: fp})
 	return snap, fp
+}
+
+// termSnapshotKey is the key a project's terms snapshot is kept under. The
+// projects of a workspace read one store at one revision, but each sees the
+// concepts that apply in it, so each keeps a snapshot of its own.
+func termSnapshotKey(wsID, projectID string) string {
+	return wsID + "\x00" + projectID
 }
 
 // keep keeps s as workspace wsID's snapshot, dropping the snapshot used least

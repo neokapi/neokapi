@@ -135,7 +135,7 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	if err != nil || project == nil || project.WorkspaceID != profile.Scope {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
 	}
-	rules, err := s.workspaceWordRules(ctx, c.Param("ws"), project.DefaultSourceLanguage)
+	rules, err := s.workspaceWordRules(ctx, c.Param("ws"), project.ID, project.DefaultSourceLanguage)
 	if err != nil {
 		return serverErr(c, err)
 	}

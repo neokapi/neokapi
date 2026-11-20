@@ -47,8 +47,11 @@ type TermInfo struct {
 // ProjectID is empty for workspace-scoped concepts; timestamps are RFC3339
 // strings as emitted by the server DTO.
 type ConceptInfo struct {
-	ID             string            `json:"id"`
-	ProjectID      string            `json:"project_id,omitempty"`
+	ID        string `json:"id"`
+	ProjectID string `json:"project_id,omitempty"`
+	// Projects are the projects the concept is limited to, empty for a
+	// concept of the whole workspace.
+	Projects       []string          `json:"projects,omitempty"`
 	Domain         string            `json:"domain"`
 	Definition     string            `json:"definition"`
 	DoNotTranslate bool              `json:"do_not_translate,omitempty"`
@@ -350,8 +353,11 @@ type ListConceptsParams struct {
 	Locale string // source locale to scope the text search to
 	Source string // term source facet (terminology, brand_vocabulary)
 	Sort   string // "updated_at" pages the workspace newest-changed first
-	Offset int    // page offset
-	Limit  int    // page size (server defaults to 50)
+	// Project narrows the list to the concepts that apply in that project:
+	// the ones of the whole workspace and the ones limited to it.
+	Project string
+	Offset  int // page offset
+	Limit   int // page size (server defaults to 50)
 }
 
 // SortConceptsUpdatedAt is the one value ListConceptsParams.Sort accepts.
@@ -395,6 +401,9 @@ func (c *BowrainClient) ListConcepts(ctx context.Context, params ListConceptsPar
 	}
 	if params.Sort != "" {
 		q.Set("sort", params.Sort)
+	}
+	if params.Project != "" {
+		q.Set("project", params.Project)
 	}
 	if params.Offset > 0 {
 		q.Set("offset", strconv.Itoa(params.Offset))

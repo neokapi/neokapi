@@ -12,6 +12,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/expand"
@@ -125,11 +126,11 @@ func (s *Server) subscribeTermProposals() {
 
 // termProposalsWaiting counts the concept and language pairs of the project
 // waiting for a proposed term (termcandidate.NeedsTranslation), over the
-// concepts of the project and those of no project.
+// concepts that apply in the project (termscope.AppliesIn).
 func termProposalsWaiting(concepts []terms.Concept, proj *platstore.Project) int {
 	n := 0
 	for i := range concepts {
-		if p := termcandidate.ProjectOf(concepts[i]); p != "" && p != proj.ID {
+		if !termscope.AppliesIn(concepts[i], proj.ID) {
 			continue
 		}
 		for _, loc := range proj.TargetLanguages {
@@ -176,7 +177,7 @@ func (s *Server) maybeProposeTerms(ctx context.Context, projectID, wsSlug string
 	if last := s.lastTermProposals(ctx, proj, proj.WorkspaceID); last != nil && scanRunning(last.Status) {
 		return ""
 	}
-	tb, err := s.workspaceTermsByID(ctx, proj.WorkspaceID)
+	tb, err := s.projectTermsByID(ctx, proj.WorkspaceID, proj.ID)
 	if err != nil || tb == nil {
 		return ""
 	}

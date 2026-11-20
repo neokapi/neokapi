@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
@@ -168,10 +169,10 @@ const (
 	// PropProposedBy is the identity that filed the candidate, such as
 	// "tool/context-scan". The context deck names it as the author.
 	PropProposedBy = "proposed_by"
-	// PropProject is the project a candidate was found in. The PostgreSQL
-	// terms store keeps no project column, so the id travels as a property
-	// beside terms.Concept.ProjectID.
-	PropProject = "project_id"
+	// PropProject is the project a candidate was found in, which limits the
+	// candidate, and the term it becomes when it is kept, to that project
+	// (termscope.PropProjects).
+	PropProject = termscope.PropProjects
 )
 
 // Apply writes the reach onto a concept's properties.

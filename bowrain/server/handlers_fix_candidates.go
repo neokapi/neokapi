@@ -101,7 +101,7 @@ func (s *Server) HandleGetFixCandidates(c echo.Context) error {
 	}
 	var notes []string
 	profile := s.fixVoiceProfile(ctx, proj, stream, target)
-	if rules, rerr := s.workspaceWordRules(ctx, ws, target); rerr != nil {
+	if rules, rerr := s.workspaceWordRules(ctx, ws, proj.ID, target); rerr != nil {
 		notes = append(notes, "the word rules could not be read: "+rerr.Error())
 	} else {
 		req.TermRules = append(voicescope.WordRuleSets(rules), coreprofile.CarriedRuleSets(profile)...)

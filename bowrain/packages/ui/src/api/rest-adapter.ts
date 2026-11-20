@@ -2343,6 +2343,12 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
+  async widenConcept(workspaceSlug: string, conceptId: string): Promise<void> {
+    await this.fetchJSON(`${this.termsEp(workspaceSlug)}/${conceptId}/widen`, {
+      method: "POST",
+    });
+  }
+
   async deleteConcept(workspaceSlug: string, conceptId: string): Promise<void> {
     await this.fetchJSON(`${this.termsEp(workspaceSlug)}/${conceptId}`, {
       method: "DELETE",

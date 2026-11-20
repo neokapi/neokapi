@@ -107,6 +107,23 @@ export function useUpdateConcept() {
   });
 }
 
+/** Make a concept apply in every project of the workspace. */
+export function useWidenConcept() {
+  const { api, ws } = useWs();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (conceptId: string) => {
+      if (!api.widenConcept) throw new Error("this server cannot widen a term");
+      await api.widenConcept(ws, conceptId);
+    },
+    onSuccess: (_r, conceptId) => {
+      invalidateConceptAggregates(qc, ws);
+      void qc.invalidateQueries({ queryKey: ["concept", ws, conceptId] });
+      void qc.invalidateQueries({ queryKey: ["concept-story", ws, conceptId] });
+    },
+  });
+}
+
 export function useDeleteConcept() {
   const { api, ws } = useWs();
   const qc = useQueryClient();

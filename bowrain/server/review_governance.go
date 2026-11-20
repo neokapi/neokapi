@@ -201,7 +201,7 @@ func (l *reviewLedger) governingFingerprint(ctx context.Context, itemName, local
 		Store:            l.srv.ContentStore,
 		Voice:            voiceCtx.Voice,
 		WorkspaceDefault: voiceCtx.WorkspaceDefault,
-		Terms:            editorTerms(ctx, voiceCtx, l.workspaceSlug),
+		Terms:            editorTerms(ctx, voiceCtx, l.workspaceSlug, l.projectID),
 		Project:          l.project,
 		WorkspaceID:      l.project.WorkspaceID,
 		ProjectID:        l.projectID,

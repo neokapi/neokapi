@@ -388,7 +388,7 @@ func (s *Server) contextProfileVoices(ctx context.Context, wsID, wsSlug string) 
 	if err != nil {
 		return out
 	}
-	rules, _ := s.workspaceWordRules(ctx, wsSlug, "")
+	rules, _ := s.workspaceWordRules(ctx, wsSlug, "", "")
 	preferred, forbidden, competitor := voicescope.WordRuleCounts(rules)
 	for _, p := range profiles {
 		if p == nil {

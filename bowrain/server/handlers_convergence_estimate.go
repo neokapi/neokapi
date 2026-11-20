@@ -79,7 +79,7 @@ func (o *convergenceOrchestrator) buildConvergenceEstimate(ctx context.Context, 
 		if resolved, err := s.wsStores.getMemory(ctx, slug); err == nil {
 			tm = resolved
 		}
-		if resolved, err := s.wsStores.getTerms(ctx, slug); err == nil {
+		if resolved, err := s.wsStores.getProjectTerms(ctx, slug, proj.ID); err == nil {
 			tb = resolved
 		}
 	}
