@@ -121,7 +121,7 @@ func addSourceBlocks(t *testing.T, s *Server, projID, item string, n int) {
 
 func keyStep(p reviewPlanResponse) planStepDTO {
 	for _, st := range p.Steps {
-		if st.Level == planKeyLanguage {
+		if st.Level == planContext {
 			return st
 		}
 	}
@@ -156,7 +156,7 @@ func TestAutoScan_WaitsForContent(t *testing.T) {
 	projID := emptyProject(t, s, wsID)
 	assert.Nil(t, s.maybeStartTermScan(t.Context(), projID, "main", "rc"))
 	plan := readPlan(t, s, wsID, projID)
-	assert.Equal(t, scanWaitingContent, plan.KeyLanguage.ScanWaiting)
+	assert.Equal(t, scanWaitingContent, plan.Context.ScanWaiting)
 	assert.Equal(t, scanWaitingContent, keyStep(plan).Scan)
 }
 
@@ -215,9 +215,9 @@ func TestAutoScan_WaitsForTheAILimit(t *testing.T) {
 	assert.Empty(t, projectProps(t, s, projID)[propTermScanJob])
 
 	plan := readPlan(t, s, wsID, projID)
-	assert.Equal(t, scanWaitingQuota, plan.KeyLanguage.ScanWaiting)
+	assert.Equal(t, scanWaitingQuota, plan.Context.ScanWaiting)
 	want := jobs.QuotaResetsAt(time.Now()).Format(time.RFC3339)
-	assert.Equal(t, want, plan.KeyLanguage.QuotaResetsAt)
+	assert.Equal(t, want, plan.Context.QuotaResetsAt)
 	step := keyStep(plan)
 	assert.Equal(t, scanWaitingQuota, step.Scan)
 	assert.Equal(t, want, step.QuotaResetsAt)

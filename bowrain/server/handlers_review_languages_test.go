@@ -158,7 +158,7 @@ func TestReviewInbox_HonoursFollowedLanguagesAndSummarizesThePlan(t *testing.T) 
 	for _, st := range p.Plan.Steps {
 		levels = append(levels, st.Level)
 	}
-	assert.Equal(t, []string{planCoordinates, planKeyLanguage, planExceptions, planInterfaces, planPolicy}, levels)
+	assert.Equal(t, []string{planCoordinates, planContext, planExceptions, planInterfaces, planPolicy}, levels)
 	assert.Equal(t, planCoordinates, p.Plan.Next)
 	assert.False(t, p.Plan.Steps[0].Done, "the coordinates are not confirmed")
 	assert.Equal(t, 1, p.Plan.Steps[0].Count)
@@ -179,9 +179,9 @@ func TestSummarizePlan_CountsWithinFollowedLanguages(t *testing.T) {
 	findings := 0
 	p := reviewPlanResponse{
 		Involvement: involvementContext,
-		Next:        planKeyLanguage,
+		Next:        planContext,
 		Coordinates: planCoordinatesDTO{Confirmed: true},
-		KeyLanguage: planKeyLanguageDTO{Waiting: 2, Concepts: 10, Untranslated: map[string]int{"nb": 4, "de": 9}},
+		Context:     planContextDTO{Waiting: 2, Concepts: 10, Untranslated: map[string]int{"nb": 4, "de": 9}},
 		Exceptions: planExceptionsDTO{SourceFindings: &findings, ByRule: planRulesDTO{
 			Targets: map[string][]planRuleDTO{"nb": {{Key: "a"}, {Key: "b"}}, "de": {{Key: "c"}}},
 		}},
@@ -194,9 +194,9 @@ func TestSummarizePlan_CountsWithinFollowedLanguages(t *testing.T) {
 		byLevel[st.Level] = st
 	}
 	assert.Equal(t, planStepDTO{Level: planCoordinates, State: stepDone, Progress: 100, Done: true}, byLevel[planCoordinates])
-	key := byLevel[planKeyLanguage]
-	assert.Equal(t, 6, key.Count, "two cards and four concepts without a Norwegian term; German is not followed")
-	assert.Equal(t, 16*100/22, key.Progress)
+	step := byLevel[planContext]
+	assert.Equal(t, 6, step.Count, "two cards and four concepts without a Norwegian term; German is not followed")
+	assert.Equal(t, 16*100/22, step.Progress)
 	assert.Equal(t, 2, byLevel[planExceptions].Count, "the rules in followed languages")
 	assert.Equal(t, 50, byLevel[planExceptions].Progress)
 	assert.Equal(t, 3, byLevel[planInterfaces].Count)

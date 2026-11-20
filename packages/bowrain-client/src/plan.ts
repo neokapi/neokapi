@@ -1,6 +1,6 @@
 // The review plan: what a project asks of its reviewers, ordered by the reach
-// of each decision (GET /:ws/:id/review/plan). Coordinates first, then the key
-// language, then exceptions, then interfaces read in context, and last what
+// of each decision (GET /:ws/:id/review/plan). Coordinates first, then the
+// context, then exceptions, then interfaces read in context, and last what
 // the involvement in force leaves to the checks. The server counts; this file
 // maps its answer.
 
@@ -15,7 +15,7 @@ import {
 export type ReviewInvolvement = "context" | "interfaces" | "every";
 
 /** A level of the plan, in the order a reviewer works it. */
-export type PlanLevel = "coordinates" | "key_language" | "exceptions" | "interfaces" | "policy";
+export type PlanLevel = "coordinates" | "context" | "exceptions" | "interfaces" | "policy";
 
 /** One place in the project's context space: a collection's coordinates and its voice. */
 export interface PlanPoint {
@@ -109,14 +109,14 @@ export interface PlanLanguage {
   pagesWithFindings: number;
   /** Translations that clear every bar and the involvement leaves to the checks. */
   settleable: number;
-  /** Translations the deck holds back until the key language is decided. */
+  /** Translations the deck holds back until the context is decided. */
   held: number;
 }
 
 /**
  * Whether the plan's last step may settle now: first_pass settles on the
- * checks alone once, policy once the key language is decided, held waits for
- * the key language after the first pass, none under the involvement every.
+ * checks alone once, policy once the context is decided, held waits for
+ * the context after the first pass, none under the involvement every.
  */
 export type PlanSettle = "first_pass" | "policy" | "held" | "none";
 
@@ -130,7 +130,7 @@ export interface PlanScan {
 }
 
 /**
- * Why the term scan waits instead of running, while the key language has not
+ * Why the term scan waits instead of running, while the context has not
  * started. A push starts the scan on its own once nothing holds it back.
  * waiting_content: the project holds no source text yet. waiting_push: it
  * holds text and has had no scan; the next push starts one. waiting_quota:
@@ -166,7 +166,7 @@ export interface ReviewPlan {
   /** The first level with something waiting, or null when nothing does. */
   next: PlanLevel | null;
   coordinates: PlanCoordinates;
-  keyLanguage: {
+  context: {
     /** Context cards waiting for the caller, by kind. */
     waiting: number;
     byKind: Record<string, number>;
@@ -176,7 +176,7 @@ export interface ReviewPlan {
     untranslated: Record<string, number>;
     /** The last project scan for candidate terms, if one was started. */
     scan?: PlanScan;
-    /** Why no scan runs, while the key language has not started. */
+    /** Why no scan runs, while the context has not started. */
     scanWaiting?: PlanScanWaiting;
     /** When the workspace's monthly AI limit resets, set with waiting_quota. */
     quotaResetsAt?: string;
@@ -191,8 +191,8 @@ export interface ReviewPlan {
   languages: PlanLanguage[];
   policy: {
     settle: PlanSettle;
-    /** The project's open key-language decisions, for any reviewer. */
-    keyLanguageOpen: number;
+    /** The project's open context decisions, for any reviewer. */
+    contextOpen: number;
     firstPassAt?: string;
   };
   /** Each level with its state, in order. */
@@ -256,7 +256,7 @@ export interface ServerReviewPlan {
   involvement: string;
   next: string;
   coordinates: ServerPlanCoordinates;
-  key_language: {
+  context: {
     waiting: number;
     by_kind?: Record<string, number> | null;
     concepts: number;
@@ -288,7 +288,7 @@ export interface ServerReviewPlan {
     | null;
   policy?: {
     settle: string;
-    key_language_open?: number;
+    context_open?: number;
     first_pass_at?: string;
   } | null;
   steps?: ServerPlanStep[] | null;
@@ -312,7 +312,7 @@ export function planScanFromServer(s: ServerPlanScan): PlanScan {
 
 const LEVELS: readonly PlanLevel[] = [
   "coordinates",
-  "key_language",
+  "context",
   "exceptions",
   "interfaces",
   "policy",
@@ -403,14 +403,14 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
     involvement: involvementOf(p.involvement),
     next: (LEVELS as readonly string[]).includes(p.next) ? (p.next as PlanLevel) : null,
     coordinates: planCoordinatesFromServer(p.coordinates),
-    keyLanguage: {
-      waiting: p.key_language.waiting,
-      byKind: p.key_language.by_kind ?? {},
-      concepts: p.key_language.concepts,
-      untranslated: p.key_language.untranslated ?? {},
-      scan: p.key_language.scan ? planScanFromServer(p.key_language.scan) : undefined,
-      scanWaiting: planScanWaitingOf(p.key_language.scan_waiting),
-      quotaResetsAt: p.key_language.quota_resets_at || undefined,
+    context: {
+      waiting: p.context.waiting,
+      byKind: p.context.by_kind ?? {},
+      concepts: p.context.concepts,
+      untranslated: p.context.untranslated ?? {},
+      scan: p.context.scan ? planScanFromServer(p.context.scan) : undefined,
+      scanWaiting: planScanWaitingOf(p.context.scan_waiting),
+      quotaResetsAt: p.context.quota_resets_at || undefined,
     },
     exceptions: {
       sourceFindings: p.exceptions.source_findings ?? null,
@@ -442,11 +442,11 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
         : p.involvement === "every"
           ? "none"
           : "first_pass",
-      keyLanguageOpen: p.policy?.key_language_open ?? 0,
+      contextOpen: p.policy?.context_open ?? 0,
       firstPassAt: p.policy?.first_pass_at || undefined,
     },
     steps: planStepsFromServer(p.steps),
-    held: p.held === "key_language" ? "key_language" : null,
+    held: p.held === "context" ? "context" : null,
   };
 }
 
@@ -547,24 +547,5 @@ export function coordinatesFromServer(r: ServerReviewCoordinates): ReviewCoordin
       coverage: c.coverage ?? {},
       changes: (c.changes ?? []).filter(isChangeKind),
     })),
-  };
-}
-
-/**
- * The map's grid: the products as rows and the channels as columns, each
- * sorted, with the cell at each place or undefined where none sits. A cell
- * with no product or no channel takes the empty name.
- */
-export function coordinateGrid(cells: CoordinateCell[]): {
-  products: string[];
-  channels: string[];
-  at: (product: string, channel: string) => CoordinateCell | undefined;
-} {
-  const byKey = new Map(cells.map((c) => [`${c.product}\u0000${c.channel}`, c]));
-  const sorted = (xs: string[]) => [...new Set(xs)].sort((a, b) => a.localeCompare(b));
-  return {
-    products: sorted(cells.map((c) => c.product)),
-    channels: sorted(cells.map((c) => c.channel)),
-    at: (product, channel) => byKey.get(`${product}\u0000${channel}`),
   };
 }

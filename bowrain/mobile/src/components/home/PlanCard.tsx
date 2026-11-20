@@ -1,6 +1,6 @@
 // A followed project's review plan on the Review tab: the step the team is
 // on, one button that opens it, the later steps as a short list, and one line
-// per language whose translations wait for the key language. The server
+// per language whose translations wait for the context. The server
 // decides every state and count (the inbox's plan in brief); this card shows
 // them.
 import {
@@ -20,11 +20,11 @@ import { languageLabel } from "../../lib/feed";
 import { Monogram } from "./Monogram";
 
 /**
- * What the key language's term scan is doing while the level has not started.
+ * What the context's term scan is doing while the level has not started.
  * The server starts the scan when content arrives; this names the scan's state
  * or what it waits for.
  */
-export function keyScanFact(
+export function contextScanFact(
   scan: PlanStep["scan"],
   t: TFunction,
   language: string,
@@ -34,22 +34,22 @@ export function keyScanFact(
     case "queued":
     case "processing":
       return opts.progress
-        ? t("plan.key.readingProgress", { progress: opts.progress })
-        : t("plan.key.reading");
+        ? t("plan.context.readingProgress", { progress: opts.progress })
+        : t("plan.context.reading");
     case "failed":
-      return t("plan.key.scanFailed");
+      return t("plan.context.scanFailed");
     case "waiting_quota":
       return opts.quotaResetsAt
-        ? t("plan.key.waitsForQuota", { date: resetDate(opts.quotaResetsAt, language) })
-        : t("plan.key.waitsForQuotaSoon");
+        ? t("plan.context.waitsForQuota", { date: resetDate(opts.quotaResetsAt, language) })
+        : t("plan.context.waitsForQuotaSoon");
     case "waiting_credits":
-      return t("plan.key.waitsForCredits");
+      return t("plan.context.waitsForCredits");
     case "no_ai":
-      return t("plan.key.waitsForProvider");
+      return t("plan.context.waitsForProvider");
     case "waiting_push":
-      return t("plan.key.waitsForPush");
+      return t("plan.context.waitsForPush");
     default:
-      return t("plan.key.waitsForContent");
+      return t("plan.context.waitsForContent");
   }
 }
 
@@ -68,8 +68,8 @@ export function stepFact(step: PlanStep, t: TFunction, language = "en"): string 
     case "attention":
       return t("planCard.fact.changed", { count: step.changed });
     case "not_started":
-      if (step.level === "key_language") {
-        return keyScanFact(step.scan, t, language, { quotaResetsAt: step.quotaResetsAt });
+      if (step.level === "context") {
+        return contextScanFact(step.scan, t, language, { quotaResetsAt: step.quotaResetsAt });
       }
       return t("planCard.fact.notStarted");
   }

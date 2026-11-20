@@ -253,7 +253,7 @@ export interface BowrainClient {
   /**
    * The plan's last step: establishes every waiting translation that clears
    * every bar, recorded with the reason "review policy". The server refuses
-   * (409) once the first pass is taken and the key language is still open.
+   * (409) once the first pass is taken and the context is still open.
    */
   settlePlan(
     scope: ProjectScope,
@@ -1071,7 +1071,7 @@ function deckFromServer(body: ServerDeck, locale: string): Deck {
     counts: body.counts,
     nextCursor: body.next_cursor || undefined,
     ordered: true,
-    held: body.held ? { count: body.held.count, reason: "key_language" } : undefined,
+    held: body.held ? { count: body.held.count, reason: "context" } : undefined,
   };
 }
 

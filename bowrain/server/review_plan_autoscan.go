@@ -298,10 +298,10 @@ func (s *Server) maybeStartTermScan(ctx context.Context, projectID, stream, wsSl
 	return job
 }
 
-// planScanWaiting sets why the key language's term scan waits, while the key
+// planScanWaiting sets why the context's term scan waits, while the
 // language has not started and no scan is running.
-func (s *Server) planScanWaiting(ctx context.Context, wsID, wsSlug string, proj *platstore.Project, k *planKeyLanguageDTO) {
-	if !keyLanguageNotStarted(*k) || (k.Scan != nil && scanRunning(k.Scan.Status)) {
+func (s *Server) planScanWaiting(ctx context.Context, wsID, wsSlug string, proj *platstore.Project, k *planContextDTO) {
+	if !contextNotStarted(*k) || (k.Scan != nil && scanRunning(k.Scan.Status)) {
 		return
 	}
 	cov, err := s.termScanCoverageOf(ctx, proj)

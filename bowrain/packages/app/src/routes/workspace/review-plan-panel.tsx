@@ -1,6 +1,6 @@
 // The review plan on a project's Overview: what the project asks of its
-// reviewers, ordered by the reach of each decision. The coordinates and the key
-// language generate the text, so they come first; then the exceptions, the
+// reviewers, ordered by the reach of each decision. The coordinates and the
+// context generate the text, so they come first; then the exceptions, the
 // interfaces read in context, and what the involvement leaves to the checks.
 // The server counts every level (GET /:ws/:id/review/plan); each step links to
 // the page that decides it.
@@ -29,7 +29,7 @@ function ScanWaiting({
   waiting,
   quotaResetsAt,
 }: {
-  waiting: ReviewPlan["keyLanguage"]["scanWaiting"];
+  waiting: ReviewPlan["context"]["scanWaiting"];
   quotaResetsAt?: string;
 }) {
   switch (waiting) {
@@ -70,8 +70,8 @@ function InvolvementDetail({ involvement }: { involvement: ReviewInvolvement }) 
     default:
       return (
         <>
-          You decide the coordinates, the key language and the exceptions, and read a sample of
-          pages. Content that clears every check is settled by the checks.
+          You decide the coordinates, the context and the exceptions, and read a sample of pages.
+          Content that clears every check is settled by the checks.
         </>
       );
   }
@@ -251,12 +251,12 @@ export function ReviewPlanSteps({
   busy?: boolean;
 }) {
   const products = planProducts(plan.coordinates.points);
-  const untranslated = Object.entries(plan.keyLanguage.untranslated).filter(([, n]) => n > 0);
+  const untranslated = Object.entries(plan.context.untranslated).filter(([, n]) => n > 0);
   const failing = plan.languages.reduce((n, l) => n + l.failing, 0);
   const pages = plan.languages.reduce((n, l) => n + l.pages, 0);
   const pagesTotal = plan.languages.reduce((n, l) => n + l.pagesTotal, 0);
   const scanning =
-    plan.keyLanguage.scan?.status === "queued" || plan.keyLanguage.scan?.status === "processing";
+    plan.context.scan?.status === "queued" || plan.context.scan?.status === "processing";
   const settleNow = plan.policy.settle === "first_pass" || plan.policy.settle === "policy";
   const settleable = plan.languages.reduce((n, l) => n + l.settleable, 0);
   const params = { workspace: ws, projectId, stream };
@@ -318,15 +318,15 @@ export function ReviewPlanSteps({
         </Step>
         <Step
           n={2}
-          level="key_language"
+          level="context"
           next={plan.next}
-          state={stateOf("key_language")}
-          done={plan.keyLanguage.waiting === 0 && untranslated.length === 0}
-          title="Key language"
+          state={stateOf("context")}
+          done={plan.context.waiting === 0 && untranslated.length === 0}
+          title="Context"
         >
           <p>
-            {plan.keyLanguage.waiting} terms and voice rules to decide · {plan.keyLanguage.concepts}{" "}
-            terms in the source language
+            {plan.context.waiting} terms and voice rules to decide · {plan.context.concepts} terms
+            in the source language
           </p>
           {untranslated.map(([locale, n]) => (
             <p key={locale}>
@@ -334,17 +334,17 @@ export function ReviewPlanSteps({
             </p>
           ))}
           {scanning && (
-            <p>Scanning the project for terms, {plan.keyLanguage.scan?.progress ?? 0}% done</p>
+            <p>Scanning the project for terms, {plan.context.scan?.progress ?? 0}% done</p>
           )}
-          {plan.keyLanguage.scan?.status === "completed" && (
+          {plan.context.scan?.status === "completed" && (
             <p>The last scan finished. Its terms are in the context deck.</p>
           )}
-          {plan.keyLanguage.scan?.status === "failed" && !plan.keyLanguage.scanWaiting && (
+          {plan.context.scan?.status === "failed" && !plan.context.scanWaiting && (
             <p>The last scan failed. The next push starts it again, or you can scan again now.</p>
           )}
           <ScanWaiting
-            waiting={plan.keyLanguage.scanWaiting}
-            quotaResetsAt={plan.keyLanguage.quotaResetsAt}
+            waiting={plan.context.scanWaiting}
+            quotaResetsAt={plan.context.quotaResetsAt}
           />
           <div className="flex flex-wrap items-center gap-3">
             <Link
@@ -352,7 +352,7 @@ export function ReviewPlanSteps({
               params={params}
               className="text-primary"
             >
-              Decide the key language
+              Review context
             </Link>
             {onScan && !scanning && (
               <Button size="sm" variant="outline" disabled={busy} onClick={onScan}>
@@ -439,14 +439,14 @@ export function ReviewPlanSteps({
               <p>{settleable} translations clear every check.</p>
               {plan.policy.settle === "held" && (
                 <p>
-                  Held until the key language is decided: {plan.policy.keyLanguageOpen} decisions
-                  are still open.
+                  Held until the context is decided: {plan.policy.contextOpen} context cards are
+                  still open.
                 </p>
               )}
               {plan.policy.settle === "first_pass" && (
                 <p>
-                  First pass: this settles on the checks alone. Later passes wait until the key
-                  language is decided.
+                  First pass: this settles on the checks alone. Later passes wait until the context
+                  is decided.
                 </p>
               )}
               {plan.policy.settle === "policy" && (
@@ -470,7 +470,7 @@ export function ReviewPlanSteps({
           data-testid={`plan-held-${l.locale}`}
           className="text-muted-foreground text-sm"
         >
-          {l.held} {l.locale} translations are held until the key language is decided.
+          {l.held} {l.locale} translations are held until the context is decided.
         </p>
       ))}
     </section>

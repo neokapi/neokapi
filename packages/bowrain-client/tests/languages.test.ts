@@ -84,17 +84,17 @@ describe("inbox projects", () => {
       waiting: 40,
       plan: {
         involvement: "context",
-        next: "key_language",
+        next: "context",
         steps: [
           { level: "coordinates", state: "done", count: 0, progress: 100, done: true },
-          { level: "key_language", state: "not_started", count: 0, progress: 0, scan: "queued" },
+          { level: "context", state: "not_started", count: 0, progress: 0, scan: "queued" },
           { level: "exceptions", count: 3, progress: 140 },
           { level: "interfaces", count: 34, progress: 0 },
           { level: "policy", count: 800, progress: 0, settle: "held" },
           { level: "something_new", count: 1 },
         ],
         held: [
-          { locale: "nb", count: 1200, reason: "key_language" },
+          { locale: "nb", count: 1200, reason: "context" },
           { locale: "sv", count: 3, reason: "something_new" },
         ],
       },
@@ -104,10 +104,10 @@ describe("inbox projects", () => {
     const p = home?.projects[0];
     expect(p?.projectName).toBe("Site");
     expect(p?.canManage).toBe(true);
-    expect(p?.plan?.next).toBe("key_language");
+    expect(p?.plan?.next).toBe("context");
     expect(p?.plan?.steps.map((s) => s.level)).toEqual([
       "coordinates",
-      "key_language",
+      "context",
       "exceptions",
       "interfaces",
       "policy",
@@ -117,8 +117,8 @@ describe("inbox projects", () => {
     expect(p?.plan?.steps[1]?.changed).toBe(0);
     expect(p?.plan?.steps[1]).toMatchObject({ state: "not_started", scan: "queued" });
     expect(p?.plan?.steps[3]?.state).toBe("open");
-    expect(p?.plan?.held).toEqual([{ locale: "nb", count: 1200, reason: "key_language" }]);
-    expect(nextPlanStep(p!.plan!.steps, p!.plan!.next)?.level).toBe("key_language");
+    expect(p?.plan?.held).toEqual([{ locale: "nb", count: 1200, reason: "context" }]);
+    expect(nextPlanStep(p!.plan!.steps, p!.plan!.next)?.level).toBe("context");
   });
 
   it("reads a project with no plan", () => {

@@ -122,8 +122,8 @@ type reviewDeckResponse struct {
 	Counts     deckCounts            `json:"counts"`
 	NextCursor string                `json:"next_cursor"`
 	Policy     reviewdeck.DeckPolicy `json:"policy"`
-	// Held is set while the plan holds translations back until the key
-	// language is decided: the deck then deals only the exceptions (the
+	// Held is set while the plan holds translations back until the
+	// context is decided: the deck then deals only the exceptions (the
 	// desk group), and Held counts the rest.
 	Held *deckHeld `json:"held,omitempty"`
 }
@@ -254,7 +254,7 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	out.Counts.deckWaiting = deckWaitingOf(counts)
 	if held {
 		out.Counts.deckWaiting = out.Counts.held()
-		out.Held = &deckHeld{Count: out.Counts.Held, Reason: heldKeyLanguage}
+		out.Held = &deckHeld{Count: out.Counts.Held, Reason: heldContext}
 	}
 	out.Counts.Total = out.Counts.Waiting - out.Counts.Unclassified
 	if len(rows) > limit {

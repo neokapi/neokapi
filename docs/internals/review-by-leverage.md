@@ -47,7 +47,7 @@ translation is made from. The same reviewer carries each decision into the
 languages the profile is configured for, while it is fresh.
 
 Reviewing "the interfaces first" or "the docs first" is the wrong axis. The
-interfaces and the docs share the key language. Deciding it once, at the
+interfaces and the docs share the same terms and voice rules. Deciding them once, at the
 coordinates it spans, is what makes both right.
 
 ## The pyramid
@@ -55,8 +55,8 @@ coordinates it spans, is what makes both right.
 | Level | What is decided | Unit | Reach of one decision |
 | --- | --- | --- | --- |
 | 1. Coordinates | products, channels, brand, languages; which voice governs each point; what each language receives | one decision per axis or binding | every block at the point |
-| 2. Key language | terms (the source term, its forms, its translation per language, do-not-translate), names, voice rules per product | one card per concept or rule | every block that uses it |
-| 3. Exceptions | blocks that fail a check against the key language, grouped by the rule they break | one decision per rule, then per block | the blocks the rule names |
+| 2. Context | terms (the source term, its forms, its translation per language, do-not-translate), names, voice rules per product | one card per concept or rule | every block that uses it |
+| 3. Exceptions | blocks that fail a check against the context, grouped by the rule they break | one decision per rule, then per block | the blocks the rule names |
 | 4. Interfaces | complete components, sections and pages, read in context | one page | the strings on the page |
 | 5. Settled by policy | everything else | none | |
 
@@ -76,7 +76,7 @@ everything under it, so they come first and they are confirmed explicitly,
 even when the recipe already states them: a recipe written by an agent is a
 proposal until a person keeps it.
 
-### Level 2: key language
+### Level 2: context
 
 The context deck, ordered by reach instead of by kind. For each concept: the
 source term and its forms, then the term in each target language the reviewer
@@ -114,7 +114,7 @@ decision like any other: a decide operation in the ledger, attributed to the
 person who set the policy, with the reason `review policy`, and reopened by any
 later rejection. The person decided a rule; the server applied it.
 
-### Key-language sessions
+### Context sessions
 
 Bowrain is a team tool, so a project has one context queue. The phone works
 it in sessions (`POST /:ws/:id/context/sessions`, `bowrain/server/context_sessions.go`):
@@ -152,9 +152,9 @@ it in sessions (`POST /:ws/:id/context/sessions`, `bowrain/server/context_sessio
 Sessions make no AI calls: they deal candidates and proposals that already
 exist.
 
-## How key language enters: term extraction today
+## How terms enter the context: term extraction today
 
-The key-language cards are only as good as the candidates behind them, and
+The context cards are only as good as the candidates behind them, and
 on a large project the candidates are the weakest link. What exists:
 
 | Path | Reads | Proposes | Lands as |
@@ -170,7 +170,7 @@ What this means for a project the size of neokapi:
 - **The sample was the front of the corpus.** A project scan now samples every
   collection; DeeperLook still reads the first 24k characters, and a scan
   started without a project the first 72k. On neokapi that is a slice of whichever collection sorts
-  first, so the key language of the CLI, the apps and most of the docs is
+  first, so the terms of the CLI, the apps and most of the docs is
   never seen.
 - **Candidates live in four places**, each with its own shape: ledger
   suggestions, proposed concepts, the scan's result, overlay spans.
@@ -217,10 +217,11 @@ The default is `context`. It is the only setting a single founder can sustain
 on a project of this size, and it is the setting where the founder's attention
 has the most reach.
 
-Involvement can be narrowed per coordinate, with the `when:` selector the ship
-gates already use: a product's public channels at `interfaces`, its reference
-docs at `context`. It is a property of a point in the context graph, not of a
-file.
+Involvement is a Bowrain project setting, set by a manager on the project's
+languages screen. A per-coordinate involvement is still to build, as part of
+the same project setting: a product's public channels at `interfaces`, its
+reference docs at `context`. It belongs to a point in the context graph, not
+to a file.
 
 Before a gate is set, the review plan shows what each involvement would ask of
 the reviewer at the project's current size: how many context cards, how many
@@ -231,7 +232,7 @@ of them.
 
 The source is reviewed through the same pyramid and ahead of the targets:
 
-- the key language is decided in the source language first;
+- the context is decided in the source language first;
 - source exceptions (a source block breaking a source-language rule) come
   before target exceptions;
 - an interface page is read in the source before its translations;
@@ -258,7 +259,7 @@ terms snapshot and content revision.
 ## The plan is the queue
 
 The plan decides what a language's review deck holds. Under `context` and
-`interfaces`, while the key language has open decisions (a context card
+`interfaces`, while the context has open decisions (a context card
 waiting for anyone, or a concept with no term in a target language), the deck
 deals only what the plan leaves for people at that point:
 
@@ -266,7 +267,7 @@ deals only what the plan leaves for people at that point:
 - the page sample, through the page deck.
 
 The other translations are held. The deck answers with `held: {count,
-reason: "key_language"}` in place of their cards, and `counts.held` beside
+reason: "context"}` in place of their cards, and `counts.held` beside
 `counts.waiting`. A translation the deck has not classified yet counts as
 held until a deck request classifies it and finds a failing check. The
 deck's collections, the plan's languages (`languages[].held`, and `held` on
@@ -275,7 +276,7 @@ lists held work as waiting. A project whose translations are all held stays in
 the inbox's `projects` with its plan in brief, whose `held` lists the count
 per followed language. Under `every` nothing is held.
 
-The exceptions stay reviewable while the key language is open. A failing check
+The exceptions stay reviewable while the context is open. A failing check
 names a rule, and a reviewer can decide that rule whatever terms are still open.
 
 Whether a project holds is read once per request, from the same code the
@@ -295,13 +296,13 @@ and in the inbox's plan in brief:
 | `done` | nothing waits |
 | `attention` | the team finished the step and it changed after, such as coordinates changed since the last confirmation |
 
-The key language is `not_started` while the project has no concept with a
+The context level is `not_started` while the project has no concept with a
 source term, no context card waits for the caller, and no term scan has
 completed. It is never `done` at zero. `next` names it right after the
 coordinates. Exceptions are `not_started` before any project-wide check when
 no translation waits or is held.
 
-A key language that has not started does not hold translations. A project
+A context level that has not started does not hold translations. A project
 that cannot run a scan (a scan needs AI credits) would otherwise hold every
 translation with nothing a reviewer could do about it.
 
@@ -327,8 +328,8 @@ would fail on arrival: no platform AI provider, the workspace over its
 monthly AI limit (`jobs.QuotaStore`), or no AI credits left. The next push
 decides again.
 
-While the key language has not started and no scan runs, the plan says why
-in `key_language.scan_waiting` and on the key-language step's `scan`:
+While the context has not started and no scan runs, the plan says why
+in `context.scan_waiting` and on the context step's `scan`:
 `waiting_content`, `waiting_push` (content exists and no scan has run; the
 next push starts it), `waiting_quota` with `quota_resets_at`, the first of the
 next month in UTC, `waiting_credits` or `no_ai`. `POST
@@ -345,7 +346,7 @@ In order, with the counts from 2026-11-19:
    the voice bound to each (`neokapi-documentation`, `bowrain-platform`,
    `source-comments`); the target language `nb` (with `qps` as a demo locale,
    not a translation); and that `source/comments` is source only.
-2. **Key language (tens of cards).** The project's concepts (57 in the last
+2. **Context (tens of cards).** The project's concepts (57 in the last
    local snapshot), ranked by reach, each with its Norwegian term; the voice
    rules of the three profiles; the pending terms change set.
 3. **Exceptions (593 blocks, expected to collapse to a few dozen rules).** The
@@ -365,7 +366,7 @@ The founder accepted each recommendation on 2026-11-19:
    carries the reason `review policy` in the ledger. There is no `policy`
    actor.
 3. A project settles on the checks alone once, for its first pass. After
-   that, a settle pass waits until the key language is decided: no context
+   that, a settle pass waits until the context is decided: no context
    card waiting for anyone, and a target term for every concept in every
    target language. The plan reports this as `policy.settle`: `first_pass`,
    `policy`, `held` or `none`.
@@ -387,7 +388,7 @@ The founder accepted each recommendation on 2026-11-19:
    proposed concept with its reach), keep promotes it to preferred, reject
    is remembered on the project. Built for the project scan. A push starts
    the project scan when one is due (see "The term scan starts on a push"),
-   and the plan's key-language step shows its state. AI-proposed
+   and the plan's context step shows its state. AI-proposed
    translations of kept terms: built. Keeping a candidate starts a job that
    proposes the term in each target language (prompt `term.translate`, with
    the definition and up to three source blocks that use the term); the
@@ -396,11 +397,11 @@ The founder accepted each recommendation on 2026-11-19:
    (`term_proposal_rejected.<locale>`), and the deck deals it right after
    the source-term card, in the reviewer's languages.
    `POST /:ws/:id/context/term-proposals` runs the same job for the whole
-   project. Still to build: the plan's key-language step calling it, and
+   project. Still to build: the plan's context step calling it, and
    term forms through `kapi terms expand` for a kept translation.
 4. Context deck ordered by reach. Built for candidate terms; the rest of the
    deck keeps its order by kind. Sessions over the deck: built (see
-   [Key-language sessions](#key-language-sessions)).
+   [Context sessions](#context-sessions)).
 5. Exceptions grouped by rule. Built: the project-wide check's tally and
    each translation's deck facts keep a count per rule (rule id and subject:
    the term or the voice pattern, with the concept when a word rule comes
@@ -411,10 +412,8 @@ The founder accepted each recommendation on 2026-11-19:
    card deck to narrow.
 6. Settling: the plan's last step (`POST /:ws/:id/review/plan/settle`) runs
    the approve passing path with the ledger reason `review policy`, under the
-   first-pass rule above. Built. Still to build: involvement in the recipe
-   (`defaults.review.involvement`, per coordinate under `when:`), and a settle
-   pass the server runs on its own after drafting, attributed to the person
-   who set the involvement.
+   first-pass rule above. Built. Still to build: a settle pass the server runs
+   on its own after drafting, attributed to the person who set the involvement.
 7. The interface sample under `context`. Built.
 8. User guide: reviewing a large project. Built (bowrain/web/docs, getting started).
 9. The coordinates map. Built. `GET /:ws/:id/review/coordinates` returns the
@@ -465,11 +464,11 @@ The founder accepted each recommendation on 2026-11-19:
     settings, and a project's first plan visit opens a setup (managers:
     coordinates, project languages, involvement; reviewers: their languages).
     Involvement is set on that languages screen, by a manager. Still to build:
-    notifications filtered by the followed list, key-language sessions, and
+    notifications filtered by the followed list, context sessions, and
     the setting on the web Overview.
 11. The plan gates the language decks, and each step reports its state (see
     "The plan is the queue"). Built. The phone's plan screen is one row per
     step (state, title, one fact) with the action on the next step only; the
-    key-language row reads the term scan's state, or what the scan waits
+    context row reads the term scan's state, or what the scan waits
     for. The
     web Overview marks a step not started and lists the held translations.

@@ -60,11 +60,11 @@ const project = (saved: boolean) =>
     waiting: 40,
     plan: {
       involvement: "context",
-      next: "key_language",
+      next: "context",
       steps: [
         { level: "coordinates", state: "done", count: 0, progress: 100, done: true },
         {
-          level: "key_language",
+          level: "context",
           state: "not_started",
           count: 0,
           progress: 0,
@@ -75,7 +75,7 @@ const project = (saved: boolean) =>
         { level: "interfaces", state: "open", count: 34, progress: 0 },
         { level: "policy", state: "open", count: 800, progress: 0, settle: "held" },
       ],
-      held: [{ locale: "nb", count: 1200, reason: "key_language" }],
+      held: [{ locale: "nb", count: 1200, reason: "context" }],
     },
   });
 
@@ -98,7 +98,7 @@ describe("the Review tab plan card", () => {
     await render(wrap(<ReviewInbox />));
     expect(await screen.findByTestId("plan-card-p")).toBeTruthy();
     expect(screen.getByText("Step 2 of 5")).toBeTruthy();
-    expect(screen.getByText("Decide the key language")).toBeTruthy();
+    expect(screen.getByText("Review context")).toBeTruthy();
     expect(screen.getByText("Waits for the AI limit to reset on December 1, 2026")).toBeTruthy();
     expect(screen.queryByTestId("plan-card-p-coordinates")).toBeNull();
     expect(screen.getByLabelText("Exceptions, 3")).toBeTruthy();
@@ -106,7 +106,7 @@ describe("the Review tab plan card", () => {
     expect(screen.getByLabelText("Settle the rest, Waits")).toBeTruthy();
     expect(
       screen.getByText(
-        "1,200 Norwegian Bokmål translations are held until the key language is decided.",
+        "1,200 Norwegian Bokmål translations are held until the context is decided.",
       ),
     ).toBeTruthy();
     expect(screen.queryByTestId("plan-card-p-setup")).toBeNull();
@@ -114,7 +114,7 @@ describe("the Review tab plan card", () => {
     await fireEvent.press(screen.getByTestId("plan-card-p-next"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/plan",
-      params: { ws: "ws", project: "p", step: "key_language" },
+      params: { ws: "ws", project: "p", step: "context" },
     });
     await fireEvent.press(screen.getByTestId("plan-card-p-exceptions"));
     expect(router.push).toHaveBeenLastCalledWith({
@@ -138,7 +138,7 @@ describe("the Review tab plan card", () => {
     await render(wrap(<ReviewInbox />));
     expect(await screen.findByText("Step 1 of 5")).toBeTruthy();
     expect(screen.getByText("1 change since the last confirmation")).toBeTruthy();
-    expect(screen.getByLabelText("Key language, Not started")).toBeTruthy();
+    expect(screen.getByLabelText("Context, Not started")).toBeTruthy();
     await fireEvent.press(screen.getByTestId("plan-card-p-next"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/coordinates",
@@ -176,7 +176,7 @@ describe("the languages screen", () => {
         involvement: "context",
         next: "",
         coordinates: { source_language: "en", confirmed: true },
-        key_language: { waiting: 0, concepts: 0 },
+        context: { waiting: 0, concepts: 0 },
         exceptions: {},
       }),
     );
