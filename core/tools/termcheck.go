@@ -119,30 +119,21 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 		Cfg:             cfg,
 	}
 	t.Annotate = func(v tool.BlockView) error {
-		if !v.Translatable() {
-			return nil
-		}
-
 		conf := t.Cfg.(*TermCheckConfig)
-		if len(conf.TermRules) == 0 {
-			return nil
+		var passed string
+		var errs, warns []string
+		if v.Translatable() && len(conf.TermRules) > 0 && v.HasTarget(conf.TargetLocale) {
+			errs, warns = TermCheckRunViolations(conf, v.SourceRuns(), v.TargetRuns(conf.TargetLocale))
+			passed = strconv.FormatBool(len(errs) == 0)
 		}
-
-		if !v.HasTarget(conf.TargetLocale) {
-			return nil
+		set := func(key, value string) {
+			if v.Property(key) != value {
+				v.SetProperty(key, value)
+			}
 		}
-
-		errs, warns := TermCheckRunViolations(conf, v.SourceRuns(), v.TargetRuns(conf.TargetLocale))
-
-		if len(errs) == 0 {
-			v.SetProperty(PropTermCheckPassed, "true")
-		} else {
-			v.SetProperty(PropTermCheckPassed, "false")
-			v.SetProperty(PropTermCheckErrors, strings.Join(errs, "; "))
-		}
-		if len(warns) > 0 {
-			v.SetProperty(PropTermCheckWarnings, strings.Join(warns, "; "))
-		}
+		set(PropTermCheckPassed, passed)
+		set(PropTermCheckErrors, strings.Join(errs, "; "))
+		set(PropTermCheckWarnings, strings.Join(warns, "; "))
 
 		return nil
 	}
@@ -228,21 +219,24 @@ type termReading struct {
 func termReadings(sourceRuns, targetRuns []model.Run) []termReading {
 	sources := model.FormReadings(sourceRuns)
 	targets := model.FormReadings(targetRuns)
-	out := make([]termReading, 0, len(targets))
-	for _, t := range targets {
+	if len(targets[0].Choices) == 0 {
+		out := make([]termReading, len(sources))
+		for i, src := range sources {
+			out[i] = termReading{source: src, target: targets[0], form: src.Form()}
+		}
+		return out
+	}
+	out := make([]termReading, len(targets))
+	for i, target := range targets {
 		src := sources[0]
-		if t.Varied != nil {
-			src = model.FormReadingFor(sourceRuns, t.Varied.Pivot, t.Varied.Key)
+		choice := target.Varied
+		if choice == nil && len(target.Choices) == 1 {
+			choice = &target.Choices[0]
 		}
-		out = append(out, termReading{source: src, target: t, form: t.Form()})
-	}
-	if len(targets) == 1 {
-		for _, s := range sources[1:] {
-			out = append(out, termReading{source: s, target: targets[0], form: s.Form()})
+		if choice != nil {
+			src = model.FormReadingFor(sourceRuns, choice.Pivot, choice.Key)
 		}
-	}
-	if len(out) == 1 && len(sources) == 1 {
-		out[0].form = ""
+		out[i] = termReading{source: src, target: target, form: target.Form()}
 	}
 	return out
 }
@@ -280,15 +274,18 @@ func TermCheckRunViolations(cfg *TermCheckConfig, sourceRuns, targetRuns []model
 // are left out, so the result is the rules behind TermCheckRunViolations'
 // errs. A surface that groups failures by rule reads it.
 func TermCheckRunMissed(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) []profile.TermRule {
-	seen := map[int]bool{}
-	var out []profile.TermRule
+	missed := make([]bool, len(cfg.TermRules))
 	for _, r := range termReadings(sourceRuns, targetRuns) {
 		for _, use := range TermCheckUses(cfg, r.source.Text, r.target.Text) {
-			if use.Satisfied || use.Rule.Advisory || seen[use.Index] {
-				continue
+			if !use.Satisfied && !use.Rule.Advisory {
+				missed[use.Index] = true
 			}
-			seen[use.Index] = true
-			out = append(out, use.Rule)
+		}
+	}
+	var out []profile.TermRule
+	for i, rule := range cfg.TermRules {
+		if missed[i] {
+			out = append(out, rule)
 		}
 	}
 	return out

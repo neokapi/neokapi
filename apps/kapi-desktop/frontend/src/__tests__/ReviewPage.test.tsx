@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vite-plus/test";
 import { render, screen, waitFor, fireEvent, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 
+import type { CodeRead } from "@neokapi/contract-types";
 import { ReviewPage } from "../components/ReviewPage";
 import { ErrorProvider } from "../components/ErrorBanner";
 import type { PreReviewResult, ReviewContext, ReviewItem, ReviewUnitDetail } from "../types/api";
@@ -485,7 +486,7 @@ describe("ReviewPage", () => {
   // form that changed is its own set_content, addressed by the path the read
   // lists for it, and every code keeps its id whatever it displays. Each form
   // leads with text, where the typing lands.
-  it.each([
+  it.each<{ name: string; codes: Record<string, CodeRead>; one: string; kept: string[] }>([
     {
       name: "a placeholder",
       codes: { "n/": { kind: "placeholder", type: "jsx:var", equiv: "count" } },
@@ -624,7 +625,7 @@ describe("ReviewPage", () => {
     const explain = await screen.findByRole("button", { name: /Explain/ });
     await userEvent.click(explain);
     await waitFor(() => expect(onAIAction).toHaveBeenCalledTimes(1));
-    expect(onAIAction.mock.calls[0][1]).toBe("explain");
+    expect(onAIAction).toHaveBeenCalledWith(ITEMS[0], "explain", "");
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-ai-explanation']")).not.toBeNull(),
     );
@@ -641,8 +642,7 @@ describe("ReviewPage", () => {
     await userEvent.click(retranslate);
     await answerAsk("more informal");
     await waitFor(() => expect(onAIAction).toHaveBeenCalledTimes(1));
-    expect(onAIAction.mock.calls[0][1]).toBe("retranslate");
-    expect(onAIAction.mock.calls[0][2]).toBe("more informal");
+    expect(onAIAction).toHaveBeenCalledWith(ITEMS[0], "retranslate", "more informal");
 
     // The diff shows current vs proposed; Accept routes through the save path.
     const proposal = await waitFor(() => {
@@ -807,8 +807,7 @@ describe("ReviewPage", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: /AI pre-review/ }));
     await userEvent.click(await screen.findByRole("button", { name: /Run pre-review/ }));
     await waitFor(() => expect(onPreReview).toHaveBeenCalledTimes(1));
-    expect(onPreReview.mock.calls[0][0]).toBe("fr-FR");
-    expect(onPreReview.mock.calls[0][1]).toEqual({ collection: "Docs" });
+    expect(onPreReview).toHaveBeenCalledWith("fr-FR", { collection: "Docs" });
   });
 });
 

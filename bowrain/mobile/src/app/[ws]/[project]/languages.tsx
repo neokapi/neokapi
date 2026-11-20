@@ -11,7 +11,7 @@ import {
   pointLabel,
   projectLanguagesAfterSync,
   type InvolvementOverride,
-  type PlanLevel,
+  planLevelOf,
   type ReviewInvolvement,
   type ReviewPlan,
 } from "@neokapi/bowrain-client";
@@ -28,6 +28,7 @@ import { languageLabel } from "../../../lib/feed";
 import { inboxKey } from "../../../lib/home";
 import { reviewLanguagesKey } from "../../../lib/languages";
 import { reviewPlanKey } from "../../../lib/plan";
+import { planStepRoute } from "../../../lib/reviewNav";
 
 const INVOLVEMENTS: readonly ReviewInvolvement[] = ["context", "interfaces", "every"];
 
@@ -93,9 +94,9 @@ export default function ReviewLanguagesScreen() {
       qc.setQueryData(reviewLanguagesKey(ws, project), next);
       void qc.invalidateQueries({ queryKey: inboxKey });
       void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
-      const step = params.next as PlanLevel | undefined;
+      const step = planLevelOf(params.next);
       if (setup && step) {
-        router.replace({ pathname: "/[ws]/[project]/plan", params: { ws, project, step } });
+        router.replace(planStepRoute(ws, project, step, next.followed));
       } else {
         router.back();
       }

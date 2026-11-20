@@ -209,7 +209,7 @@ func FixCandidates(ctx context.Context, req FixCandidatesRequest) (*FixCandidate
 		}
 		offered := 0
 		for _, m := range matches {
-			runs := copyRuns(m.Entry.Variant(req.Target))
+			runs := model.CloneRuns(m.Entry.Variant(req.Target))
 			if len(runs) == 0 || offered == memoryAlternatives {
 				continue
 			}
@@ -306,7 +306,7 @@ func TermFix(runs []model.Run, sets []profile.TermRuleSet) ([]model.Run, []FixCh
 		return runs, nil
 	}
 	work := &model.Block{ID: "term-fix", Translatable: true}
-	work.SetSourceRuns(copyRuns(runs))
+	work.SetSourceRuns(model.CloneRuns(runs))
 	var changes []FixChange
 	skip := map[string]bool{}
 	for range termFixPasses {
@@ -362,7 +362,7 @@ func fixRefusal(b *model.Block, target model.LocaleID, runs []model.Run) string 
 		Kind:    change.KindSetContent,
 		At:      change.Ref{Block: b.ID, Edition: key},
 		IfMatch: model.EditionRevision(work, key),
-		Body:    &change.SetContent{Runs: copyRuns(runs)},
+		Body:    &change.SetContent{Runs: model.CloneRuns(runs)},
 	}
 	res := change.ApplyBlock(work, []change.Op{op}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}, Preview: true})
 	if len(res) == 1 && res[0].Error != nil {

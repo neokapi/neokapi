@@ -1,9 +1,15 @@
 package host
 
 import (
+	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -135,4 +141,54 @@ func presetString(preset map[string]any, key string) string {
 		return ""
 	}
 	return strings.TrimSpace(s)
+}
+
+// ProjectFlowNeedsAISetup reports whether a step needs a provider choice after
+// applying the recipe and locale presets. An empty flow name selects convergence.
+func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, flowName string) (bool, error) {
+	if proj == nil {
+		return false, nil
+	}
+	root := filepath.Dir(projectPath)
+	var spec *flow.StepsSpec
+	if flowName == "" {
+		if !proj.DeclaresTargetLanguages() || !proj.WritesTargets() {
+			return false, nil
+		}
+		resolved, err := convergeFlowSpec(proj, root)
+		if err != nil {
+			return false, err
+		}
+		spec = resolved.spec
+	} else {
+		resolved, err := ResolveProjectFlow(proj, root, flowName, nil)
+		if err != nil || resolved == nil {
+			return false, err
+		}
+		spec = resolved.Spec
+	}
+	a.InitRegistries()
+	locales := []model.LocaleID{""}
+	if len(proj.Defaults.Locales) > 0 {
+		files, err := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
+		if err != nil {
+			return false, err
+		}
+		if targets := contentTargetLocales(proj.Defaults, files); len(targets) > 0 {
+			locales = targets
+		}
+	}
+	bindings := recipePresets(proj)
+	for _, step := range spec.Steps {
+		name := registry.ToolID(step.Tool)
+		for _, locale := range locales {
+			cfg := a.applyBindingsFor(bindings, step.Tool, a.ToolReg.Schema(name), step.Config, string(locale))
+			info := a.ToolReg.ResolveToolInfo(name, cfg)
+			if info != nil && slices.Contains(info.Requires, schema.RequiresCredentials) &&
+				presetString(cfg, "provider") == "" && presetString(cfg, "credential") == "" && presetString(cfg, "api_key") == "" {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

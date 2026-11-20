@@ -200,6 +200,7 @@ export interface RunTraceFile {
  * and the files whose traces the backend kept, in completion order.
  */
 export interface RunTraces {
+  tab_id?: string;
   flow_name: string;
   steps: FlowStep[];
   files: RunTraceFile[];

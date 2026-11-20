@@ -13,7 +13,7 @@ const meta: Meta<typeof VoiceProfileEditor> = {
     tabID: "t1",
     profileName: "",
     valueSets: valueSetsFixture,
-    save: async () => ({ saved: true, changed: true, target: ".kapi/voice.yaml", problems: [] }),
+    save: async () => ({ saved: true, changed: true, profile: "northsea", problems: [] }),
     onSaved: () => {},
     onCancel: () => {},
   },
@@ -26,7 +26,7 @@ type Story = StoryObj<typeof VoiceProfileEditor>;
 export const Editing: Story = {
   args: {
     profile,
-    target: { target: ".kapi/voice.yaml", writable: true, exists: true, inherited: false },
+    target: { profile: "northsea", writable: true, exists: true, inherited: false },
   },
 };
 
@@ -35,7 +35,7 @@ export const Creating: Story = {
   args: {
     profile: { name: "Northsea Support" },
     target: {
-      target: ".kapi/profiles/support/voice.yaml",
+      profile: "northsea-support",
       writable: true,
       exists: false,
       inherited: true,
@@ -47,7 +47,7 @@ export const Creating: Story = {
 export const Refused: Story = {
   args: {
     profile,
-    target: { target: ".kapi/voice.yaml", writable: true, exists: true, inherited: false },
+    target: { profile: "northsea", writable: true, exists: true, inherited: false },
     save: async () => ({
       saved: false,
       changed: false,

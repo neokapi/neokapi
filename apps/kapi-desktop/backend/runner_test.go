@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,6 +80,7 @@ func TestRunFlowExecutesViaSharedOrchestrator(t *testing.T) {
 
 	byType := map[string][]RunEvent{}
 	for _, ev := range events {
+		assert.Equal(t, tab.ID, ev.TabID)
 		assert.Equal(t, "pseudo", ev.FlowID)
 		byType[ev.Type] = append(byType[ev.Type], ev)
 	}
@@ -111,6 +115,7 @@ func TestRunFlowExecutesViaSharedOrchestrator(t *testing.T) {
 
 	run := app.ListRunTraces()
 	require.NotNil(t, run)
+	assert.Equal(t, tab.ID, run.TabID)
 	assert.Equal(t, "pseudo", run.FlowName)
 	assert.Equal(t, []flow.FlowStep{{Tool: "pseudo-translate"}}, run.Steps)
 	assert.Equal(t, desktopTraceLimits.MaxParts, run.MaxParts)
@@ -123,6 +128,9 @@ func TestRunFlowExecutesViaSharedOrchestrator(t *testing.T) {
 	require.NotNil(t, tr, "the last completed file's trace")
 	assert.Same(t, tr, app.GetLastTrace(src, ""))
 	assert.Same(t, tr, app.GetLastTrace(src, "qps"))
+	assert.Same(t, tr, app.GetProjectLastTrace(tab.ID, src, "qps"))
+	assert.Nil(t, app.GetProjectLastTrace("another tab", src, "qps"))
+	assert.Nil(t, app.GetProjectLastTrace("", src, "qps"))
 	assert.Nil(t, app.GetLastTrace(filepath.Join(root, "other.json"), ""))
 	assert.Nil(t, app.GetLastTrace(src, "fr-FR"))
 	assert.Equal(t, "pseudo", tr.Name)
@@ -166,7 +174,7 @@ func TestRetainTrace_KeepsTheLastFilesByCompletion(t *testing.T) {
 	app := NewApp()
 	app.runState = newRunner()
 	app.runState.mu.Lock()
-	app.runState.resetTracesLocked("f", &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "qa"}}})
+	app.runState.resetTracesLocked("f", []flow.FlowStep{{Tool: "qa"}})
 	app.runState.mu.Unlock()
 
 	for i := range maxRetainedTraces + 2 {
@@ -187,7 +195,7 @@ func TestRetainTrace_KeepsTheLastFilesByCompletion(t *testing.T) {
 func TestRetainTrace_ByteCap(t *testing.T) {
 	r := newRunner()
 	r.mu.Lock()
-	r.resetTracesLocked("f", &flow.StepsSpec{})
+	r.resetTracesLocked("f", nil)
 	r.mu.Unlock()
 
 	// Size each trace at three tenths of the cap, measured rather than
@@ -220,7 +228,7 @@ func TestRetainTrace_LocalePasses(t *testing.T) {
 	app := NewApp()
 	app.runState = newRunner()
 	app.runState.mu.Lock()
-	app.runState.resetTracesLocked("f", &flow.StepsSpec{})
+	app.runState.resetTracesLocked("f", nil)
 	app.runState.mu.Unlock()
 
 	require.True(t, app.runState.retainTrace(traceEvent("/in/a.json", "nb", 1)))
@@ -247,7 +255,7 @@ func TestRunTraces_TruncatedFlagAndReset(t *testing.T) {
 	app := NewApp()
 	app.runState = newRunner()
 	app.runState.mu.Lock()
-	app.runState.resetTracesLocked("first", &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "qa"}}})
+	app.runState.resetTracesLocked("first", []flow.FlowStep{{Tool: "qa"}})
 	app.runState.mu.Unlock()
 
 	ev := traceEvent("/in/a.json", "", 1)
@@ -259,7 +267,7 @@ func TestRunTraces_TruncatedFlagAndReset(t *testing.T) {
 
 	spec := &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "translate", Config: map[string]any{"provider": "demo"}}}}
 	app.runState.mu.Lock()
-	app.runState.resetTracesLocked("second", spec)
+	app.runState.resetTracesLocked("second", spec.Steps)
 	app.runState.mu.Unlock()
 	spec.Steps[0].Config["provider"] = "edited"
 
@@ -278,6 +286,54 @@ func TestGetRunStateIdle(t *testing.T) {
 func TestCancelRunNoOp(t *testing.T) {
 	app := NewApp()
 	app.CancelRun()
+}
+
+type waitForCancelTool struct {
+	tool.BaseTool
+	started chan struct{}
+}
+
+func (w *waitForCancelTool) Process(ctx context.Context, _ <-chan *model.Part, _ chan<- *model.Part) error {
+	close(w.started)
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestRunFlowCancelWaitsForTermination(t *testing.T) {
+	app := NewApp()
+	tab, root := newConvergenceProject(t, app)
+	started := make(chan struct{})
+	app.toolReg.RegisterWithSchema("wait-for-cancel", func() tool.Tool {
+		return &waitForCancelTool{ToolName: "wait-for-cancel", started: started}
+	}, app.toolReg.Schema("pseudo-translate"))
+	require.NoError(t, app.SaveFlow(tab.ID, "waiting", &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "wait-for-cancel"}}}))
+	require.NoError(t, app.RunFlow(tab.ID, "waiting", []string{filepath.Join(root, "locales", "en.json")}, nil))
+	select {
+	case <-started:
+	case <-time.After(10 * time.Second):
+		t.Fatal("flow did not start")
+	}
+	app.CancelProjectRun("another tab")
+	require.Equal(t, string(RunStateRunning), app.GetRunState())
+	app.CancelProjectRun(tab.ID)
+	require.Equal(t, string(RunStateCanceled), app.GetRunState())
+	failure := app.GetLastRunError()
+	require.NotNil(t, failure)
+	assert.Equal(t, RunErrCanceled, failure.Kind)
+	var terminal []RunEvent
+	for _, event := range app.GetRunEvents() {
+		if event.Type == "complete" || event.Type == "error" {
+			terminal = append(terminal, event)
+		}
+	}
+	require.Len(t, terminal, 1)
+	assert.Equal(t, "error", terminal[0].Type)
+	assert.Equal(t, failure, terminal[0].Error)
+	require.NoError(t, app.BringUpToDate(tab.ID))
+	assert.Nil(t, app.ListRunTraces())
+	awaitTerminalRun(t, app)
+	app.CancelRun()
+	require.Equal(t, string(RunStateComplete), app.GetRunState())
 }
 
 func TestRunnerState(t *testing.T) {

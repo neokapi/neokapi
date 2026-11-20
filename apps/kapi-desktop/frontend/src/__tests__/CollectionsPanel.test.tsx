@@ -45,6 +45,7 @@ const status: ProjectStatus = {
       name: "Website",
       blockCount: 12,
       coverage: { "fr-FR": 6 },
+      units: { "fr-FR": 12 },
       targetLanguages: ["fr-FR"],
     },
   ],

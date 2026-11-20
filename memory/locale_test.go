@@ -150,3 +150,40 @@ func TestNormalizeEntryLocales(t *testing.T) {
 
 	NormalizeEntryLocales(nil)
 }
+
+func TestCanonicalLocaleWinsOverAliases(t *testing.T) {
+	for _, canonical := range []bool{false, true} {
+		variants := map[model.LocaleID][]model.Run{
+			"EN-us": textRuns("First"), "en_US": textRuns("Second"),
+		}
+		want := "First"
+		if canonical {
+			variants["en-US"] = textRuns("Canonical")
+			want = "Canonical"
+		}
+		for range 32 {
+			entry := Entry{Variants: variants}
+			NormalizeEntryLocales(&entry)
+			assert.Equal(t, want, entry.VariantText("en-US"))
+		}
+	}
+}
+
+func TestSQLiteBulkAddPreservesInputsOnRollback(t *testing.T) {
+	tb, err := NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tb.Close() })
+	entries := []Entry{{
+		ID: "first", HintSrcLang: "en_US",
+		Variants: map[model.LocaleID][]model.Run{"en_US": textRuns("Save")},
+		Entities: []EntityMapping{{PlaceholderID: "one", Values: map[model.LocaleID]EntityValue{"en_US": {Text: "Save"}}}},
+	}, {}}
+	require.ErrorIs(t, tb.BulkAddWithStream(t.Context(), entries, ""), ErrEntryIDRequired)
+	assert.Zero(t, entries[0].CreatedAt)
+	assert.Equal(t, model.LocaleID("en_US"), entries[0].HintSrcLang)
+	assert.Contains(t, entries[0].Variants, model.LocaleID("en_US"))
+	assert.Contains(t, entries[0].Entities[0].Values, model.LocaleID("en_US"))
+	count, err := tb.Count(t.Context())
+	require.NoError(t, err)
+	assert.Zero(t, count)
+}

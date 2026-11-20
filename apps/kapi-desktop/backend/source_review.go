@@ -62,7 +62,7 @@ func (a *App) GetSourceUnitContext(tabID, file, key string) (*host.ReviewContext
 	if cerr != nil {
 		return nil, cerr
 	}
-	return a.hostEngine().AssembleReviewContext(ctx, host.ReviewContextRequest{
+	return a.newProjectEngine(op).AssembleReviewContext(ctx, host.ReviewContextRequest{
 		Cmd:        cmd,
 		Root:       filepath.Dir(op.Path),
 		SourcePath: rf.Path,

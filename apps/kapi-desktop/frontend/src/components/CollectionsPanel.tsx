@@ -2008,7 +2008,9 @@ export function CollectionsPanel({
             variant="link"
             size="xs"
             className="ml-auto h-auto px-0"
-            onClick={() => void setActiveFilter("")}
+            onClick={() =>
+              void setActiveFilter("").catch((err) => showError(t("Active filter"), err))
+            }
           >
             {t("Show all")}
           </Button>

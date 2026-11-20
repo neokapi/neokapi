@@ -37,7 +37,7 @@ recipe changes and every context write.
 | Operations carrying an agent session | 0 |
 | Terms store | 67 concepts, 141 terms (74 en, 67 nb) |
 | Term statuses | 125 preferred, 8 deprecated, 4 forbidden, 4 admitted |
-| Log records naming terms | 1 import, "terms bundle .kapi/terms.json, 61 concepts" |
+| Log records naming terms | One import recorded 61 concepts |
 | Voice profile edits | 6, each recorded as "edited whole" |
 | Content-memory bundles imported | 12 records, 2,444 entries |
 

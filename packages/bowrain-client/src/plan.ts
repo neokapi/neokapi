@@ -4,18 +4,22 @@
 // the involvement in force leaves to the checks. The server counts; this file
 // maps its answer.
 
-import {
-  planStepsFromServer,
-  type PlanHeldReason,
-  type PlanStep,
-  type ServerPlanStep,
-} from "./languages.ts";
-
 /** How much a project's reviewers can be involved. */
 export type ReviewInvolvement = "context" | "interfaces" | "every";
 
 /** A level of the plan, in the order a reviewer works it. */
-export type PlanLevel = "coordinates" | "context" | "exceptions" | "interfaces" | "policy";
+export const PLAN_LEVELS = [
+  "coordinates",
+  "context",
+  "exceptions",
+  "interfaces",
+  "policy",
+] as const;
+export type PlanLevel = (typeof PLAN_LEVELS)[number];
+
+export function planLevelOf(value: string | undefined): PlanLevel | null {
+  return PLAN_LEVELS.find((level) => level === value) ?? null;
+}
 
 /** One place in the project's context space: a collection's coordinates and its voice. */
 export interface PlanPoint {
@@ -269,16 +273,55 @@ export interface ServerPlanWait {
 export function planWaitingFromServer(waiting: ServerPlanWait[] | null | undefined): PlanWait[] {
   const out: PlanWait[] = [];
   for (const w of waiting ?? []) {
-    if (!(LEVELS as readonly string[]).includes(w.level)) continue;
+    const level = planLevelOf(w.level);
+    if (!level) continue;
     if (!(PLAN_WAIT_REASONS as readonly string[]).includes(w.reason)) continue;
     out.push({
-      level: w.level as PlanLevel,
+      level,
       reason: w.reason as PlanWaitReason,
       quotaResetsAt: w.quota_resets_at || undefined,
     });
   }
   return out;
 }
+
+/**
+ * A plan level's state. not_started: nothing to work from yet, such as a key
+ * language with no scan and no concepts. open: something waits. done:
+ * nothing waits. attention: done, then changed, such as coordinates changed
+ * since the last confirmation.
+ */
+export type PlanStepState = "not_started" | "open" | "done" | "attention";
+
+/** One level of a project's plan in brief. */
+export interface PlanStep {
+  level: PlanLevel;
+  state: PlanStepState;
+  /** What waits at the level. */
+  count: number;
+  /** The team's progress through the level, 0 to 100. */
+  progress: number;
+  done: boolean;
+  /** What changed at the level after the team finished it. */
+  changed: number;
+  /** The policy level's settle state. */
+  settle?: PlanSettle;
+  /**
+   * The context's term scan: the last scan's state, or why the scan
+   * waits while the level has not started.
+   */
+  scan?: PlanScan["status"] | PlanScanWaiting;
+  /**
+   * The context's job proposing target terms: queued or processing while it
+   * runs, or why it waits while concepts wait for a proposed term.
+   */
+  proposals?: PlanProposals;
+  /** When the workspace's monthly AI limit resets, set with waiting_quota. */
+  quotaResetsAt?: string;
+}
+
+/** Why a language deck holds translations back: the context is open. */
+export type PlanHeldReason = "context";
 
 export interface ReviewPlan {
   stream: string;
@@ -335,6 +378,19 @@ export interface ReviewPlan {
   held: PlanHeldReason | null;
   /** When the server took the plan's counts; they trail a change by a few seconds. */
   asOf?: string;
+}
+
+export interface ServerPlanStep {
+  level: string;
+  state?: string;
+  count?: number;
+  progress?: number;
+  done?: boolean;
+  changed?: number;
+  settle?: string;
+  scan?: string;
+  proposals?: string;
+  quota_resets_at?: string;
 }
 
 interface ServerPlanScan {
@@ -464,22 +520,51 @@ const SCAN_STATUS: readonly PlanScan["status"][] = ["queued", "processing", "com
 export function planScanFromServer(s: ServerPlanScan): PlanScan {
   return {
     id: s.id,
-    status: (SCAN_STATUS as readonly string[]).includes(s.status)
-      ? (s.status as PlanScan["status"])
-      : "failed",
+    status: SCAN_STATUS.find((value) => value === s.status) ?? "failed",
     progress: s.progress,
     createdAt: s.created_at,
     updatedAt: s.updated_at,
   };
 }
 
-const LEVELS: readonly PlanLevel[] = [
-  "coordinates",
-  "context",
-  "exceptions",
-  "interfaces",
-  "policy",
-];
+const STATES: readonly PlanStepState[] = ["not_started", "open", "done", "attention"];
+
+/**
+ * A step's state as the server reports it. An older server sends none, so
+ * the state follows `done` and `changed`, as that server meant them.
+ */
+function stateOf(s: ServerPlanStep): PlanStepState {
+  if ((STATES as readonly string[]).includes(s.state ?? "")) return s.state as PlanStepState;
+  if ((s.changed ?? 0) > 0) return "attention";
+  return s.done ? "done" : "open";
+}
+
+/** The plan's steps, in order, leaving out a level this client does not know. */
+export function planStepsFromServer(steps: ServerPlanStep[] | null | undefined): PlanStep[] {
+  const out: PlanStep[] = [];
+  for (const s of steps ?? []) {
+    const level = planLevelOf(s.level);
+    if (!level) continue;
+    out.push({
+      level,
+      state: stateOf(s),
+      count: s.count ?? 0,
+      progress: Math.max(0, Math.min(100, s.progress ?? 0)),
+      done: s.done ?? false,
+      changed: s.changed ?? 0,
+      settle: SETTLE.find((value) => value === s.settle),
+      scan: SCAN_STATUS.find((value) => value === s.scan) ?? planScanWaitingOf(s.scan),
+      proposals: planProposalsOf(s.proposals),
+      quotaResetsAt: s.quota_resets_at || undefined,
+    });
+  }
+  return out;
+}
+
+/** The step the plan names next, or undefined when nothing waits. */
+export function nextPlanStep(steps: PlanStep[], next: PlanLevel | null): PlanStep | undefined {
+  return next ? steps.find((s) => s.level === next) : undefined;
+}
 
 function involvementOf(v: string): ReviewInvolvement {
   return v === "interfaces" || v === "every" ? v : "context";
@@ -524,7 +609,7 @@ export function pointLabel(coords: Record<string, string>): string {
 export function pointKey(coords: Record<string, string>): string {
   return Object.keys(coords)
     .sort()
-    .map((a) => `${a}=${coords[a]}`)
+    .map((a) => `${encodeURIComponent(a)}=${encodeURIComponent(coords[a])}`)
     .join(",");
 }
 
@@ -653,7 +738,7 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
     stream: p.stream,
     involvement: involvementOf(p.involvement),
     overrides: (p.overrides ?? []).map(overrideFromServer),
-    next: (LEVELS as readonly string[]).includes(p.next) ? (p.next as PlanLevel) : null,
+    next: planLevelOf(p.next),
     waiting: planWaitingFromServer(p.waiting),
     coordinates: planCoordinatesFromServer(p.coordinates),
     context: {
@@ -693,11 +778,9 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
       held: l.held ?? 0,
     })),
     policy: {
-      settle: (SETTLE as readonly string[]).includes(p.policy?.settle ?? "")
-        ? (p.policy!.settle as PlanSettle)
-        : p.involvement === "every"
-          ? "none"
-          : "first_pass",
+      settle:
+        SETTLE.find((value) => value === p.policy?.settle) ??
+        (p.involvement === "every" ? "none" : "first_pass"),
       contextOpen: p.policy?.context_open ?? 0,
       firstPassAt: p.policy?.first_pass_at || undefined,
       auto: p.policy?.auto ? autoSettleFromServer(p.policy.auto) : undefined,

@@ -174,21 +174,6 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		return errors.New("--pre-review scores translations after a run; --print-ops writes nothing")
 	}
 
-	// First-run onboarding: a converge run needs an AI provider; when
-	// none is configured anywhere and this is a terminal, walk through
-	// the compact provider wizard inline, then continue. Non-TTY runs
-	// keep the existing keys-only error path.
-	//
-	// A monolingual project is asked for none: it makes no provider calls, so
-	// demanding a key would stop the front-door journey — and in CI, where the
-	// wizard cannot run, stop it with an error about a provider nothing was
-	// going to use.
-	if proj.DeclaresTargetLanguages() {
-		if err := a.EnsureAIProviderInteractive(cmd); err != nil {
-			return err
-		}
-	}
-
 	passes, _ := cmd.Flags().GetInt("passes")
 	if passes < 0 {
 		return fmt.Errorf("--passes must be >= 0 (0 = loop until up to date), got %d", passes)
@@ -205,6 +190,21 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	recycleOnly := BoolFlag(cmd, "recycle-only")
 	if recycleOnly {
 		untilGate, maxPasses = false, 1
+	}
+	if a.DefaultAISetupIO(cmd).IsTTY() {
+		needsSetup := preReview && proj.DeclaresTargetLanguages() && proj.WritesTargets()
+		if !preReview && !recycleOnly {
+			var err error
+			needsSetup, err = a.ProjectFlowNeedsAISetup(proj, projectPath, "")
+			if err != nil {
+				return err
+			}
+		}
+		if needsSetup {
+			if err := a.EnsureAIProviderInteractive(cmd); err != nil {
+				return err
+			}
+		}
 	}
 	jobs, _ := cmd.Flags().GetInt("jobs")
 	if jobs <= 0 {

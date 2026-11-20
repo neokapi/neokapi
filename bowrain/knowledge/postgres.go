@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
+	pgterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/id"
 )
 
@@ -879,17 +880,8 @@ func (s *PostgresKnowledgeStore) AppendOp(ctx context.Context, op *ChangeSetOp) 
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Lock the parent change-set row so concurrent appends serialize; this also
-	// confirms the change-set exists before we number an orphan op.
-	var locked int
-	err = tx.QueryRowContext(ctx,
-		`SELECT 1 FROM kg_changesets WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
-		op.WorkspaceID, op.ChangesetID).Scan(&locked)
-	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("change-set %s not found", op.ChangesetID)
-	}
-	if err != nil {
-		return fmt.Errorf("lock change-set: %w", err)
+	if _, err := lockChangeSet(ctx, tx, op.WorkspaceID, op.ChangesetID); err != nil {
+		return err
 	}
 
 	var next int64
@@ -909,6 +901,20 @@ func (s *PostgresKnowledgeStore) AppendOp(ctx context.Context, op *ChangeSetOp) 
 	}
 	op.Seq = next
 	return nil
+}
+
+func lockChangeSet(ctx context.Context, tx storage.Runner, workspaceID, changesetID string) (ChangeSetStatus, error) {
+	var status ChangeSetStatus
+	err := tx.QueryRowContext(ctx,
+		`SELECT status FROM kg_changesets WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
+		workspaceID, changesetID).Scan(&status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("change-set %s not found", changesetID)
+	}
+	if err != nil {
+		return "", fmt.Errorf("lock change-set: %w", err)
+	}
+	return status, nil
 }
 
 func (s *PostgresKnowledgeStore) RemoveOp(ctx context.Context, workspaceID, changesetID string, seq int64) error {
@@ -1045,6 +1051,66 @@ func scanReview(row scanner) (*ChangeSetReview, error) {
 // Pilots
 // ---------------------------------------------------------------------------
 
+func (e *Engine) withGovernanceTransaction(ctx context.Context, store Store, apply func(*Engine, Store) error) error {
+	if store == nil {
+		return errors.New("knowledge: change set requires a governance store")
+	}
+	kg, ok := store.(*PostgresKnowledgeStore)
+	if !ok {
+		return apply(e, store)
+	}
+	tx, err := kg.begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	concepts := e.concepts
+	if tb, ok := concepts.(*pgterms.PostgresStore); ok {
+		concepts = tb.Bind(tx)
+	}
+	bound := kg.Bind(tx)
+	if err := apply(NewEngine(e.blocks, concepts, bound), bound); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (e *Engine) withLockedChangeSet(ctx context.Context, store Store, workspaceID, changesetID string, apply func(*Engine, Store, ChangeSetStatus) error) error {
+	return e.withLockedProposal(ctx, store, workspaceID, changesetID, "", apply)
+}
+
+func (e *Engine) withLockedProposal(ctx context.Context, store Store, workspaceID, changesetID, origin string, apply func(*Engine, Store, ChangeSetStatus) error) error {
+	return e.withGovernanceTransaction(ctx, store, func(engine *Engine, store Store) error {
+		if kg, ok := store.(*PostgresKnowledgeStore); ok {
+			if origin != "" {
+				if err := kg.lockProposalOrigin(ctx, workspaceID, origin); err != nil {
+					return err
+				}
+			}
+			status, err := lockChangeSet(ctx, kg.run(), workspaceID, changesetID)
+			if err != nil {
+				return err
+			}
+			return apply(engine, store, status)
+		}
+		cs, err := store.GetChangeSet(ctx, workspaceID, changesetID)
+		if err != nil {
+			return err
+		}
+		return apply(engine, store, cs.Status)
+	})
+}
+
+func (s *PostgresKnowledgeStore) lockProposalOrigin(ctx context.Context, workspaceID, origin string) error {
+	_, err := s.run().ExecContext(ctx,
+		`SELECT pg_advisory_xact_lock(hashtext('kg_changeset_origin'), hashtext($1::text || ':' || $2::text))`,
+		workspaceID, origin)
+	if err != nil {
+		return fmt.Errorf("lock change-set origin: %w", err)
+	}
+	return nil
+}
+
 // AddPilot binds a change-set to a project stream. The binding is idempotent: a
 // re-bind of the same (change-set, project, stream) leaves the existing row.
 func (s *PostgresKnowledgeStore) AddPilot(ctx context.Context, p *Pilot) error {
@@ -1052,11 +1118,13 @@ func (s *PostgresKnowledgeStore) AddPilot(ctx context.Context, p *Pilot) error {
 		p.CreatedAt = time.Now().UTC()
 	}
 
-	_, err := s.run().ExecContext(ctx,
+	err := s.run().QueryRowContext(ctx,
 		`INSERT INTO kg_pilots (workspace_id, changeset_id, project_id, stream, created_by, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)
-		 ON CONFLICT (workspace_id, changeset_id, project_id, stream) DO NOTHING`,
-		p.WorkspaceID, p.ChangesetID, p.ProjectID, p.Stream, p.CreatedBy, p.CreatedAt)
+		 ON CONFLICT (workspace_id, changeset_id, project_id, stream)
+		 DO UPDATE SET project_id = EXCLUDED.project_id
+		 RETURNING created_by, created_at`,
+		p.WorkspaceID, p.ChangesetID, p.ProjectID, p.Stream, p.CreatedBy, p.CreatedAt).Scan(&p.CreatedBy, &p.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert pilot: %w", err)
 	}

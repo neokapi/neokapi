@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useNeokapi } from "@neokapi/i18n-react/runtime";
 import type { KapiProject } from "./types/api";
 import { api } from "./hooks/useApi";
+import { useSaveProjectTab } from "./hooks/useSaveProjectTab";
 import { useProjectHistory } from "./hooks/useProjectHistory";
 import { GLOBAL_OVERLAYS, useTabManager } from "./hooks/useTabManager";
 import { useAppInit } from "./hooks/useAppInit";
 import { useMenuEvents } from "./hooks/useMenuEvents";
 import { useProjectStoreSync } from "./hooks/useProjectStoreSync";
-import { ErrorProvider } from "./components/ErrorBanner";
+import { ErrorProvider, useError } from "./components/ErrorBanner";
 import { JobFeedProvider, useJobFeed } from "./context/JobFeedContext";
 import { ActiveFilterProvider } from "./context/ActiveFilterContext";
 import { IconSidebar } from "./components/IconSidebar";
@@ -48,13 +49,10 @@ export default function App() {
 }
 
 function AppInner() {
-  // Subscribe the root to neokapi-i18n's translation store so the tree
-  // re-renders when the user toggles UI language from Settings —
-  // plugin-injected __t/__tx calls read the module-level dict, so a
-  // root re-render is enough to roll out the new language without
-  // waiting for navigation.
+  // Refresh the tree when the translation dictionary changes.
   useNeokapi();
 
+  const { showError } = useError();
   const shortenHome = useShortenHome();
   const {
     workspace,
@@ -81,13 +79,10 @@ function AppInner() {
     },
     [workspace, standings, tm],
   );
-  const { hasActive: hasRunningFlow } = useJobFeed();
+  const { activeJob, hasActive: hasRunningFlow } = useJobFeed();
 
   const emptyProject: KapiProject = { version: "v1", name: "" };
-  const history = useProjectHistory(
-    tm.activeTab?.project ?? emptyProject,
-    tm.activeTabID,
-  ) as ReturnType<typeof useProjectHistory> & { cleanup: (id: string) => void };
+  const history = useProjectHistory(tm.activeTab?.project ?? emptyProject, tm.activeTabID);
 
   // Opening or closing a tab moves the workspace's last-active times.
   useEffect(() => {
@@ -114,23 +109,18 @@ function AppInner() {
   // Warn before window close/quit if there are unsaved changes or running flows.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (history.isDirty || hasRunningFlow) e.preventDefault();
+      if (history.hasChanges() || hasRunningFlow) e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [history.isDirty, hasRunningFlow]);
+  }, [history.hasChanges, hasRunningFlow]);
 
   // --- Project save ---
+  const saveTab = useSaveProjectTab(history, tm, showError);
+
   const handleSaveProject = useCallback(async () => {
-    if (!tm.activeTabID) return;
-    const proj = history.project;
-    await api.updateProject(tm.activeTabID, proj);
-    await api.saveProject(tm.activeTabID);
-    history.markSaved();
-    tm.updateTab(tm.activeTabID, { project: proj });
-    // Re-check plugin status — user may have edited plugin requirements.
-    void tm.checkPluginStatus(tm.activeTabID);
-  }, [tm, history]);
+    if (tm.activeTabID) await saveTab(tm.activeTabID);
+  }, [tm.activeTabID, saveTab]);
 
   // --- Keyboard shortcuts ---
   useEffect(() => {
@@ -156,45 +146,47 @@ function AppInner() {
   const [pendingCloseTabID, setPendingCloseTabID] = useState<string | null>(null);
   const [pendingFlowCloseTabID, setPendingFlowCloseTabID] = useState<string | null>(null);
 
+  const confirmClose = useCallback(
+    (tabID: string) => {
+      if (history.hasChanges(tabID)) {
+        tm.selectTab(tabID);
+        setPendingCloseTabID(tabID);
+      } else {
+        history.cleanup(tabID);
+        tm.closeTab(tabID);
+      }
+    },
+    [history, tm],
+  );
+
   const handleCloseTab = useCallback(
     (tabID: string) => {
-      // Guard: running flow.
-      if (hasRunningFlow) {
-        setPendingFlowCloseTabID(tabID);
-        return;
-      }
-      // Guard: unsaved changes.
-      if (tabID === tm.activeTabID && history.isDirty) {
-        setPendingCloseTabID(tabID);
-        return;
-      }
-      history.cleanup(tabID);
-      tm.closeTab(tabID);
+      if (activeJob?.tabID === tabID) setPendingFlowCloseTabID(tabID);
+      else confirmClose(tabID);
     },
-    [tm, history, hasRunningFlow],
+    [confirmClose, activeJob],
   );
 
   const handleFlowCancelAndClose = useCallback(async () => {
     if (!pendingFlowCloseTabID) return;
-    await api.cancelRun();
-    const tabID = pendingFlowCloseTabID;
+    await api.cancelProjectRun(pendingFlowCloseTabID);
     setPendingFlowCloseTabID(null);
-    // After canceling, check for unsaved changes before closing.
-    if (tabID === tm.activeTabID && history.isDirty) {
-      setPendingCloseTabID(tabID);
-      return;
-    }
-    history.cleanup(tabID);
-    tm.closeTab(tabID);
-  }, [pendingFlowCloseTabID, tm, history]);
+    confirmClose(pendingFlowCloseTabID);
+  }, [pendingFlowCloseTabID, confirmClose]);
 
+  const [savingBeforeClose, setSavingBeforeClose] = useState(false);
   const handleUnsavedSave = useCallback(async () => {
-    if (!pendingCloseTabID) return;
-    setPendingCloseTabID(null);
-    await handleSaveProject();
-    history.cleanup(pendingCloseTabID);
-    tm.closeTab(pendingCloseTabID);
-  }, [pendingCloseTabID, handleSaveProject, history, tm]);
+    if (!pendingCloseTabID || savingBeforeClose) return;
+    setSavingBeforeClose(true);
+    try {
+      if (await saveTab(pendingCloseTabID)) {
+        setPendingCloseTabID(null);
+        confirmClose(pendingCloseTabID);
+      }
+    } finally {
+      setSavingBeforeClose(false);
+    }
+  }, [pendingCloseTabID, savingBeforeClose, saveTab, confirmClose]);
 
   const handleUnsavedDiscard = useCallback(() => {
     if (!pendingCloseTabID) return;
@@ -212,15 +204,12 @@ function AppInner() {
     openProject: tm.openProject,
     openRecent: tm.openRecent,
     addTab: tm.addTab,
-    updateTabInfo: tm.updateTabInfo,
+    saveTab,
     setShowNewProjectForm: tm.setShowNewProjectForm,
   });
 
   // --- Render ---
-  // macOS uses a hidden-inset titlebar (traffic lights overlay the top-left), so
-  // the sidebar reserves a top strip and the top bar insets its left content to
-  // clear them. Windows/Linux have a native frame — drop those insets so the
-  // sidebar's Home icon sits at the very top instead of an empty gap.
+  // The hidden macOS title bar places the window controls over the sidebar.
   const isMac = isMacDesktop();
   // The Active Filter is per-project-tab and applies with a project loaded.
   const filterTabID = tm.activeTabID;
@@ -361,15 +350,17 @@ function AppInner() {
                 >
                   {tm.tabs.length > 1 && (
                     <TabBar
-                      tabs={tm.tabs.map((t) => t.info)}
+                      tabs={tm.tabs.map(({ info }) => ({
+                        ...info,
+                        name: history.snapshot(info.id)?.name || info.name,
+                      }))}
                       activeTabID={tm.activeTabID}
                       onSelect={tm.selectTab}
                       onClose={handleCloseTab}
-                      onRename={(id, name) =>
-                        tm.updateTab(id, {
-                          info: { ...tm.tabs.find((t) => t.info.id === id)!.info, name },
-                        })
-                      }
+                      onRename={(id, name) => {
+                        const project = history.snapshot(id);
+                        if (project) history.set({ ...project, name }, id);
+                      }}
                     />
                   )}
                 </div>
@@ -378,13 +369,11 @@ function AppInner() {
                   className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
                   style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                 >
-                  {filterEnabled && <FilterMenu project={history.project} />}
+                  {filterEnabled && <FilterMenu key={tm.activeTabID} project={history.project} />}
                   <JobFeedButton
-                    onViewJob={() => {
-                      // Navigate to runner view for the job's flow.
-                      if (tm.activeTabID) {
-                        tm.navigate("runner");
-                      }
+                    canViewJob={(job) => tm.tabs.some((tab) => tab.info.id === job.tabID)}
+                    onViewJob={(job) => {
+                      if (job.tabID) tm.openTabOn(job.tabID, `runner:${job.id}`);
                     }}
                   />
                   <AIActivityButton />
@@ -394,6 +383,7 @@ function AppInner() {
               {/* Content */}
               <main className="flex-1 overflow-auto">
                 <ViewSwitch
+                  key={tm.activeTabID}
                   effectiveView={tm.effectiveView}
                   activeTab={tm.activeTab}
                   history={history}
@@ -414,7 +404,10 @@ function AppInner() {
                   onNewProject={() => tm.setShowNewProjectForm(true)}
                   onOpenProject={tm.openProject}
                   onCreateSampleProject={tm.createSampleProject}
-                  onResetSample={tm.resetSample}
+                  onResetSample={async (id) => {
+                    const project = await tm.resetSample(id);
+                    if (project) history.replace(project, id);
+                  }}
                   onOpenPath={(path) => void tm.openRecent(path)}
                   openScreen={openScreen}
                 />
@@ -422,8 +415,9 @@ function AppInner() {
             </div>
           </div>
 
-          {/* Save bar — full width below sidebar + content */}
-          {tm.activeTab && <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />}
+          {tm.activeTab && (
+            <SaveBar key={tm.activeTabID} isDirty={history.isDirty} onSave={handleSaveProject} />
+          )}
 
           {/* Dialogs */}
           {dialogs}
@@ -435,6 +429,7 @@ function AppInner() {
           )}
           {pendingCloseTabID && (
             <UnsavedDialog
+              saving={savingBeforeClose}
               onSave={() => void handleUnsavedSave()}
               onDiscard={handleUnsavedDiscard}
               onCancel={() => setPendingCloseTabID(null)}

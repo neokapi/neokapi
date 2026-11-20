@@ -12,6 +12,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// ProjectColumns is the column order expected by the project scanners.
+const ProjectColumns = "id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, archived, archived_at, created_at, updated_at"
+
 // NewBlockID generates a short random block ID.
 func NewBlockID() string { return id.New() }
 

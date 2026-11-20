@@ -84,7 +84,7 @@ type yamlEntry struct {
 // yamlDoc is a YAML stream read into its mappings and keys.
 type yamlDoc struct {
 	content  []byte
-	lines    []int
+	lines    sourceLines
 	eol      string
 	roots    []*yamlv3.Node
 	mappings []*yamlMapping
@@ -202,15 +202,15 @@ func (d *yamlDoc) find(i int, path string) (*yamlEntry, error) {
 }
 
 // offset is the byte offset of a node's line and column.
-func (d *yamlDoc) offset(n *yamlv3.Node) int { return lineColToOffset(d.lines, n.Line, n.Column) }
+func (d *yamlDoc) offset(n *yamlv3.Node) int { return d.lines.offset(n.Line, n.Column) }
 
 // ownLine returns the offset of the line a key starts, when nothing but
 // indentation precedes the key on it.
 func (d *yamlDoc) ownLine(key *yamlv3.Node) (int, bool) {
-	if key.Line < 1 || key.Line > len(d.lines) {
+	if key.Line < 1 || key.Line > len(d.lines.starts) {
 		return 0, false
 	}
-	start := d.lines[key.Line-1]
+	start := d.lines.starts[key.Line-1]
 	at := d.offset(key)
 	if at < start || at > len(d.content) {
 		return 0, false
@@ -220,10 +220,10 @@ func (d *yamlDoc) ownLine(key *yamlv3.Node) (int, bool) {
 
 // lineText is line l (1-based) without its line break.
 func (d *yamlDoc) lineText(l int) string {
-	start := d.lines[l-1]
+	start := d.lines.starts[l-1]
 	end := len(d.content)
-	if l < len(d.lines) {
-		end = d.lines[l]
+	if l < len(d.lines.starts) {
+		end = d.lines.starts[l]
 	}
 	return strings.TrimRight(string(d.content[start:end]), "\r\n")
 }
@@ -245,7 +245,7 @@ func (d *yamlDoc) headStart(key *yamlv3.Node) int {
 			return start
 		}
 	}
-	return d.lines[first-1]
+	return d.lines.starts[first-1]
 }
 
 // lineEnd is the offset just past the line break of the line at holds.
@@ -284,19 +284,7 @@ func (d *yamlDoc) valueStart(n *yamlv3.Node) int {
 	if at < 0 {
 		return len(d.content)
 	}
-	for at < len(d.content) && (d.content[at] == '!' || d.content[at] == '&') {
-		if d.content[at] == '!' {
-			at += scanTagPrefix(d.content, at)
-			continue
-		}
-		for at < len(d.content) && d.content[at] != ' ' && d.content[at] != '\n' {
-			at++
-		}
-		for at < len(d.content) && d.content[at] == ' ' {
-			at++
-		}
-	}
-	return at
+	return skipNodeProperties(d.content, at)
 }
 
 // flowEnd is the offset past the bracket that closes the flow collection
@@ -445,13 +433,9 @@ func yamlInsert(content []byte, i int, e format.StructuralEdit) ([]byte, error) 
 	return out, checkInserted(out, i, e)
 }
 
-// place finds where a key with key path path goes: the deepest mapping of the
-// document whose own key path starts path (nil for the top level of an empty
-// document), and the keys that lead from it to the new value. One key is a
-// key of that mapping. Several build mappings inside one another under the
-// first, unless the mapping already names values by flat key paths
-// ("nav.home"), where the rest of path is one key. A new key with an anchor
-// goes in the anchor's mapping.
+// place returns the deepest existing mapping along the requested path and the
+// keys needed to reach the new value from there. In a flat mapping, the
+// remaining path is a single key. An anchor selects its own mapping.
 func (d *yamlDoc) place(i int, path string, anchor *yamlEntry) (*yamlMapping, []string, error) {
 	var m *yamlMapping
 	rest := path

@@ -423,7 +423,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope) (*PreRe
 		opts.Languages = []string{locale}
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
-	res, err := a.hostEngine().RunAIPreReview(ctx, op.Path, src, opts)
+	res, err := a.newProjectEngine(op).RunAIPreReview(ctx, op.Path, src, opts)
 	if err != nil {
 		return nil, err
 	}

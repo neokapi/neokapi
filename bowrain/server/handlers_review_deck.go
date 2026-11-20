@@ -237,7 +237,7 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	// While the plan holds translations back, the deck deals the desk group
 	// alone, outside the collections under every: a request for another
 	// group gets their cards only.
-	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj, pi)
+	held, err := s.translationsHeld(ctx, wsID, proj, pi)
 	if err != nil {
 		return serverErr(c, err)
 	}

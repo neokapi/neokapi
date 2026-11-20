@@ -26,7 +26,7 @@ one-way and enforced; violating one breaks `make audit-modules`.
 | Kapi — the `kapi` binary | `kapi/` | framework, host, cli |
 | Kapi Desktop — Wails v3 app | `apps/kapi-desktop/` | framework, host |
 | Bowrain Core | `bowrain/core/` | framework |
-| Bowrain Plugin — `kapi-bowrain` binary | `bowrain/plugin/` | framework, host, cli, bowrain/core |
+| Bowrain Plugin — `kapi-bowrain` binary | `bowrain/plugin/` | framework, host, cli |
 | Bowrain — server/web/connectors | `bowrain/` | framework, host, bowrain/core |
 | SaT segmenter plugin | `plugins/sat/` | framework |
 
@@ -39,7 +39,7 @@ Non-obvious constraints:
   (context + `*pflag.FlagSet` + IO), which `*cobra.Command` satisfies natively;
   embedded runs use `host.EnvCommand`.
 - **kapi-desktop links neither cobra nor the cli module** — asserted by
-  `make audit-modules` via `go list -deps ./backend/...`.
+  `make audit-modules` via `go list -deps ./...`.
 - **License boundary.** Framework, host, cli, kapi and kapi-desktop are
   Apache-2.0; `bowrain/` is AGPL-3.0, **except `bowrain/plugin/`, which is
   Apache-2.0** — the `kapi-bowrain` binary is a client of the server, not a part

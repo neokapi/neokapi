@@ -42,6 +42,7 @@ export const NothingBound: Story = {
           label: "project default",
           point: { default: true },
           collections: ["Docs"],
+          edit: { profile: "default", writable: true, exists: false, inherited: false },
           notes: ["no voice profile binds at this point"],
         },
       ],

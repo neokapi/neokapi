@@ -3,12 +3,11 @@ package main
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
-	"io"
-	"os"
 	"strings"
+
+	"github.com/neokapi/neokapi/scripts/internal/guardpackages"
 )
 
 // fixtures are packages the check must report, or must pass, each with the
@@ -52,24 +51,12 @@ func where(p string) (string, error) { t, _, _, err := atomicfile.Resolve(p); re
 // runSelfTest checks every fixture and fails when one reports other than it
 // expects.
 func runSelfTest() error {
-	pkgs, err := list([]string{"github.com/neokapi/neokapi/core/format", "github.com/neokapi/neokapi/core/atomicfile", "github.com/spf13/pflag", "log"})
+	pkgs, err := guardpackages.List("github.com/neokapi/neokapi/core/format", "github.com/neokapi/neokapi/core/atomicfile", "github.com/spf13/pflag", "log")
 	if err != nil {
 		return err
 	}
-	exports := map[string]string{}
-	for _, p := range pkgs {
-		if p.Export != "" {
-			exports[p.ImportPath] = p.Export
-		}
-	}
 	fset := token.NewFileSet()
-	imp := importer.ForCompiler(fset, "gc", func(path string) (io.ReadCloser, error) {
-		file, ok := exports[path]
-		if !ok {
-			return nil, fmt.Errorf("no export data for %s", path)
-		}
-		return os.Open(file)
-	})
+	imp := pkgs.Importer(fset)
 	var failures []string
 	for _, fx := range fixtures {
 		f, err := parser.ParseFile(fset, "fixture.go", fx.src, 0)

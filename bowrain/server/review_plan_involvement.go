@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"sort"
 	"strings"
@@ -491,6 +492,9 @@ func validateOverrides(in []involvementOverride, axes map[string][]string) ([]in
 			if !slices.Contains(values, v) {
 				return nil, fmt.Errorf("no collection sits at %s=%s", axis, v)
 			}
+			if _, exists := coords[axis]; exists {
+				return nil, fmt.Errorf("override repeats axis %q", axis)
+			}
 			coords[axis] = v
 		}
 		key := overridePoint(coords)
@@ -514,7 +518,7 @@ func overridePoint(coords map[string]string) string {
 	keys := slices.Sorted(maps.Keys(coords))
 	parts := make([]string, 0, len(keys))
 	for _, k := range keys {
-		parts = append(parts, k+"="+coords[k])
+		parts = append(parts, url.QueryEscape(k)+"="+url.QueryEscape(coords[k]))
 	}
 	return strings.Join(parts, ",")
 }

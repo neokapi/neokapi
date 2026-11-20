@@ -329,16 +329,10 @@ func blockByKey(blocks []*model.Block, key string) *model.Block {
 	return nil
 }
 
-// checksCLI lazily builds the host.App behind RunChecks, sharing the desktop's
-// plugin-wired format and tool registries so plugin-provided formats read
-// exactly as they do everywhere else in the app. It owns the document cache a
-// checks run opens, which is why it is a second App rather than the engine —
-// but it borrows the engine's project stores, so a check that resolves
-// terminology or brand governance reads through the same handle everything else
-// does. Callers must hold checksMu.
+// checksCLI holds the checks engine. Callers serialize its use with checksMu.
 func (a *App) checksCLI() *host.App {
 	if a.checks == nil {
-		a.checks = a.borrowEngine(&host.App{FormatReg: a.formatReg, ToolReg: a.toolReg})
+		a.checks = a.newProjectEngine(nil)
 	}
 	return a.checks
 }

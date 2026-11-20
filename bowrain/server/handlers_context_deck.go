@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -483,19 +482,11 @@ func (s *Server) forgetCandidate(c echo.Context, src deckSource, rv deckReviewer
 	if term == "" && len(card.Terms) > 0 {
 		term = card.Terms[0].Text
 	}
-	project, err := s.ContentStore.GetProject(ctx, src.project.ID)
-	if err != nil || project == nil {
-		return serverErr(c, fmt.Errorf("read the project: %w", err))
-	}
-	props := maps.Clone(project.Properties)
-	if props == nil {
-		props = map[string]string{}
-	}
-	if termcandidate.AddRejected(props, term) {
-		project.Properties = props
-		if err := s.ContentStore.UpdateProject(ctx, project); err != nil {
-			return serverErr(c, err)
-		}
+	_, _, err = s.ContentStore.EditProject(ctx, src.project.ID, func(p *platstore.Project) (bool, error) {
+		return termcandidate.AddRejected(p.Properties, term), nil
+	})
+	if err != nil {
+		return serverErr(c, err)
 	}
 	if ok {
 		if err := tb.DeleteConcept(ctx, concept.ID); err != nil {
@@ -624,20 +615,27 @@ func (s *Server) proposeConceptRetire(c echo.Context, src deckSource, rv deckRev
 		}
 		ops = append(ops, op)
 	}
-	res, err := knowledge.SubmitChangeSet(ctx, s.KnowledgeStore, cs, ops)
+	engine := knowledge.NewEngine(nil, tb, s.KnowledgeStore)
+	res, err := engine.SubmitChangeSet(ctx, cs, ops)
 	if errors.Is(err, knowledge.ErrSubmitRefused) {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 	if err != nil {
 		return serverErr(c, err)
 	}
+	var events []knowledge.MergeEvent
 	if !res.Unchanged {
-		events := []knowledge.MergeEvent{changesetEvent(knowledge.EventChangeSetCreated, src.wsID, cs.ID, rv.userID)}
-		for _, prior := range res.Superseded {
-			events = append(events, changesetEvent(knowledge.EventChangeSetSuperseded, src.wsID, prior, rv.userID))
-		}
+		events = append(events, changesetEvent(knowledge.EventChangeSetCreated, src.wsID, cs.ID, rv.userID))
+	}
+	events = append(events, res.RetirementEvents(rv.userID, "")...)
+	if !res.Unchanged {
 		events = append(events, changesetEvent(knowledge.EventChangeSetSubmitted, src.wsID, cs.ID, rv.userID))
-		s.publishKnowledgeEvents(c, events)
+	}
+	s.publishKnowledgeEvents(c, events)
+	for _, prior := range res.Superseded {
+		s.closeChangeSetReviewTasks(ctx, src.wsID, prior, rv.userID)
+	}
+	if !res.Unchanged {
 		governed, _ := knowledge.ChangeSetIsGoverned(changeSetOpValues(ops))
 		s.summonChangeSetReviewers(c, cs, len(ops), governed)
 	}

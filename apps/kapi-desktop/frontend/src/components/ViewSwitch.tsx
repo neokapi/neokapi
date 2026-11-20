@@ -37,15 +37,18 @@ import { useJobFeed } from "../context/JobFeedContext";
  * Falls back to project-home if there's no selected job to display.
  */
 function RunnerViewFallback({
+  jobID,
   tabID,
   project,
   navigate,
 }: {
+  jobID?: string;
   tabID: string;
   project: KapiProject;
   navigate: (view: string) => void;
 }) {
-  const { selectedJob } = useJobFeed();
+  const { jobs } = useJobFeed();
+  const selectedJob = jobs.find((job) => job.tabID === tabID && (!jobID || job.id === jobID));
 
   useEffect(() => {
     if (!selectedJob) {
@@ -58,6 +61,8 @@ function RunnerViewFallback({
   return (
     <RunnerPage
       tabID={tabID}
+      jobID={selectedJob.id}
+      converge={selectedJob.converge && declaresTargetLanguages(project)}
       flowName={selectedJob.flowName}
       project={project}
       onClose={() => navigate("map")}
@@ -489,7 +494,7 @@ export function ViewSwitch({
         // Catch up is language work: on a project whose saved recipe
         // declares no target language, a convergence request opens the
         // selected job instead of the Catch up view.
-        if (runnerState && (!runnerState.converge || languages)) {
+        if (effectiveView === "runner" && runnerState && (!runnerState.converge || languages)) {
           return (
             <RunnerPage
               tabID={tabID}
@@ -512,7 +517,14 @@ export function ViewSwitch({
           );
         }
         // View-only runner for a job selected from the feed (no runnerState).
-        return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
+        return (
+          <RunnerViewFallback
+            jobID={effectiveView.split(":")[1]}
+            tabID={tabID}
+            project={history.project}
+            navigate={navigate}
+          />
+        );
 
       case "context":
       // The stores are sections of the hub. Their view ids stay routable, so a

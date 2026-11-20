@@ -11,7 +11,7 @@ vi.mock("../hooks/useApi", () => ({
   api: {
     getRunState: (...args: unknown[]) => getRunStateMock(...args),
     getRunEvents: (...args: unknown[]) => getRunEventsMock(...args),
-    cancelRun: (...args: unknown[]) => cancelRunMock(...args),
+    cancelProjectRun: (...args: unknown[]) => cancelRunMock(...args),
     aiNeedsModelChoice: vi.fn().mockResolvedValue(false),
     matchContent: vi.fn().mockResolvedValue([]),
     bringUpToDate: (...args: unknown[]) => bringUpToDateMock(...args),
@@ -90,7 +90,7 @@ describe("RunnerPage converge mode (Catch up)", () => {
     const cancel = await screen.findByRole("button", { name: "Cancel flow execution" });
     const { default: userEvent } = await import("@testing-library/user-event");
     await userEvent.click(cancel);
-    await waitFor(() => expect(cancelRunMock).toHaveBeenCalled());
+    await waitFor(() => expect(cancelRunMock).toHaveBeenCalledWith("t1"));
   });
 
   it("settles into the cancelled state when the backend reports the run canceled", async () => {
@@ -99,7 +99,12 @@ describe("RunnerPage converge mode (Catch up)", () => {
     // produces through the shared up engine).
     getRunStateMock.mockResolvedValue("canceled");
     getRunEventsMock.mockResolvedValue([
-      { type: "error", flow_id: "translate", message: "run canceled (context canceled)" },
+      {
+        type: "error",
+        tab_id: "t1",
+        flow_id: "translate",
+        message: "run canceled (context canceled)",
+      },
     ]);
     renderWithProviders(
       <RunnerPage

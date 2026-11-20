@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 
@@ -68,5 +69,59 @@ func TestFuzzyLengthWindow_AdmitsEveryScoringCandidate(t *testing.T) {
 			assert.LessOrEqual(t, n, maxLen,
 				"minScore=%v: %q scores %v but the window excludes it", minScore, cand, score)
 		}
+	}
+}
+
+func TestLookupUsesFirstEligibleTierAndProjectScope(t *testing.T) {
+	for name, tb := range relationBackends(t) {
+		t.Run(name, func(t *testing.T) {
+			for _, row := range []struct{ id, project, text string }{
+				{"shared", "", "alert"}, {"local", "here", "alert"}, {"other", "there", "alerts"},
+			} {
+				require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+					ID: row.id, ProjectID: row.project, Terms: []terms.Term{{Text: row.text, Locale: "en"}},
+				}))
+			}
+			for _, tc := range []struct {
+				scope             terms.ProjectScope
+				ids               map[string]bool
+				query             string
+				tier              model.MatchStrategy
+				justTerm, passage []string
+			}{
+				{terms.ProjectScopeAll, nil, "alert", model.MatchStrategyExact, []string{"local", "shared"}, []string{"local", "other"}},
+				{terms.ProjectScopeOnly, nil, "alert", model.MatchStrategyExact, []string{"local"}, []string{"local"}},
+				{terms.ProjectScopeExclude, nil, "alert", model.MatchStrategyExact, []string{"shared"}, []string{"shared", "other"}},
+				{terms.ProjectScopeAll, map[string]bool{"other": true}, "alert", model.MatchStrategyFuzzy, []string{"other"}, []string{"other"}},
+				{terms.ProjectScopeAll, map[string]bool{}, "alert", "", nil, nil},
+			} {
+				opts := terms.LookupOptions{SourceLocale: "en", ProjectID: "here", ProjectScope: tc.scope, ConceptIDs: tc.ids}
+				matches := mustLookup(t, tb, tc.query, opts)
+				assert.Equal(t, tc.justTerm, terms.MatchedConceptIDs(matches), "%+v", opts)
+				for _, m := range matches {
+					assert.Equal(t, tc.tier, m.MatchType)
+				}
+				assert.Equal(t, tc.passage, terms.MatchedConceptIDs(mustLookupAll(t, tb, "alert and alerts", opts)), "%+v", opts)
+			}
+		})
+	}
+}
+
+func TestLookupPropagatesUnreadableCandidateConcept(t *testing.T) {
+	tb, err := terms.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, tb.Close()) })
+	for _, id := range []string{"healthy", "unreadable"} {
+		require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+			ID: id, Terms: []terms.Term{{Text: "alert", Locale: "en"}},
+		}))
+	}
+	corruptProperties(t, tb, "unreadable")
+	for _, mode := range []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized, model.MatchStrategyFuzzy} {
+		t.Run(string(mode), func(t *testing.T) {
+			matches, err := tb.Lookup(t.Context(), "alert", terms.LookupOptions{SourceLocale: "en", MatchModes: []model.MatchStrategy{mode}})
+			require.ErrorContains(t, err, "unreadable")
+			assert.Empty(t, matches)
+		})
 	}
 }

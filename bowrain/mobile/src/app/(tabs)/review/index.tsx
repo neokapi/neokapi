@@ -8,7 +8,6 @@
 // settings.
 import type { ReviewInboxLanguage } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
@@ -19,13 +18,11 @@ import { ContextEntryCard, LanguageCard } from "../../../components/home/HomeCar
 import { EmptyState, SkeletonCards } from "../../../components/home/parts";
 import { PlanCard } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
-import { useAuth } from "../../../lib/auth";
+import { useReviewHome } from "../../../lib/home";
 import { languageLabel } from "../../../lib/feed";
 import { followedChipLabel } from "../../../lib/languages";
 import { setRecentProject } from "../../../lib/recentProject";
 import { openContext, openSetup, openStep } from "../../../lib/reviewNav";
-
-const inboxKey = ["review-inbox"] as const;
 
 /** Where an inbox entry sits: its project, and its workspace when the list spans several. */
 function whereOf(
@@ -58,8 +55,7 @@ export function FollowChip({ label, onPress }: { label: string; onPress: () => v
 
 export default function ReviewInbox() {
   const { t, i18n } = useTranslation();
-  const { client } = useAuth();
-  const inbox = useQuery({ queryKey: inboxKey, queryFn: () => client.reviewHome() });
+  const inbox = useReviewHome();
   const { refetch } = inbox;
 
   // Back from a deck, the counts have moved.

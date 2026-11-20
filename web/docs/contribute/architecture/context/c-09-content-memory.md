@@ -88,6 +88,12 @@ across every variant with its per-locale value and position. `Point` records
 where the answer was approved (see [Where an answer was
 approved](#where-an-answer-was-approved)) and `Unit` which block it was approved
 for (see [Version chains and governed reuse](#version-chains-and-governed-reuse)).
+The in-memory store takes ownership of an entry when you write it. Each read
+returns an independent copy of the entry and its metadata. The store, review
+editor and recycling jobs use `model.CloneRuns` to copy nested inline content.
+You can edit a returned variant without changing the stored text or its lookup
+keys.
+
 Each `Origin` carries a `ContextFingerprint`, the governing context in force
 when that answer was produced, so an answer absorbed into the corpus keeps the
 statement about what governed it; it is empty for an import, a seed, or a

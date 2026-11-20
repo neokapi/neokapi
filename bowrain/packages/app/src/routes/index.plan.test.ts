@@ -21,6 +21,7 @@ const WORKSPACE: Workspace = {
   description: "",
   logo_url: "",
   type: "personal",
+  role: "owner",
 };
 
 const ONBOARDED: User = {

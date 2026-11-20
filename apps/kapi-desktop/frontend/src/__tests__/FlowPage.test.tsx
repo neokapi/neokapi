@@ -6,7 +6,7 @@ import type { FlowTrace } from "@neokapi/flow-editor";
 import type { FlowSpec, RunTraces } from "../types/api";
 
 const listRunTraces = vi.fn();
-const getLastTrace = vi.fn();
+const getProjectLastTrace = vi.fn();
 vi.mock("../hooks/useApi", () => ({
   api: {
     listTools: vi.fn().mockResolvedValue([]),
@@ -14,7 +14,7 @@ vi.mock("../hooks/useApi", () => ({
     getToolSchema: vi.fn().mockResolvedValue(null),
     listProviders: vi.fn().mockResolvedValue([]),
     listRunTraces: (...args: unknown[]) => listRunTraces(...args),
-    getLastTrace: (...args: unknown[]) => getLastTrace(...args),
+    getProjectLastTrace: (...args: unknown[]) => getProjectLastTrace(...args),
   },
 }));
 
@@ -25,6 +25,7 @@ const FILE = "/p/src/messages.json";
 const OTHER = "/p/src/other.json";
 
 const RUN: RunTraces = {
+  tab_id: "project-A",
   flow_name: "translate",
   steps: [{ tool: "translate" }, { tool: "qa" }],
   files: [{ file_path: FILE, locale: "fr-FR", output_path: "/p/out/fr-FR/messages.json" }],
@@ -53,7 +54,15 @@ const TRACE: FlowTrace = {
 };
 
 function renderPage(flow: FlowSpec = LINEAR, flowName = "translate") {
-  return render(<FlowPage flowName={flowName} flow={flow} onChange={vi.fn()} onRun={vi.fn()} />);
+  return render(
+    <FlowPage
+      tabID="project-A"
+      flowName={flowName}
+      flow={flow}
+      onChange={vi.fn()}
+      onRun={vi.fn()}
+    />,
+  );
 }
 
 const pressed = (testId: string) =>
@@ -75,8 +84,8 @@ describe("FlowPage", () => {
   beforeEach(() => {
     listRunTraces.mockReset();
     listRunTraces.mockResolvedValue(null);
-    getLastTrace.mockReset();
-    getLastTrace.mockResolvedValue(TRACE);
+    getProjectLastTrace.mockReset();
+    getProjectLastTrace.mockResolvedValue(TRACE);
     vi.mocked(Events.On).mockClear();
   });
 
@@ -88,7 +97,7 @@ describe("FlowPage", () => {
     expect(screen.getByTestId("flow-view-diagram")).toBeInTheDocument();
     await waitFor(() => expect(listRunTraces).toHaveBeenCalled());
     expect(screen.queryByTestId("flow-view-run")).not.toBeInTheDocument();
-    expect(getLastTrace).not.toHaveBeenCalled();
+    expect(getProjectLastTrace).not.toHaveBeenCalled();
   });
 
   it("shows the flow as a read-only diagram", async () => {
@@ -130,7 +139,7 @@ describe("FlowPage", () => {
 
     await screen.findByTestId("flow-view-run");
     expect(pressed("flow-view-run")).toBe(true);
-    expect(getLastTrace).toHaveBeenCalledWith(FILE, "fr-FR");
+    expect(getProjectLastTrace).toHaveBeenCalledWith("project-A", FILE, "fr-FR");
     await screen.findByLabelText("Playback position");
     expect(screen.getByTestId("run-trace-file")).toHaveTextContent("messages.json · fr-FR");
     expect(screen.queryByTestId("run-trace-truncated")).not.toBeInTheDocument();
@@ -142,7 +151,16 @@ describe("FlowPage", () => {
     await waitFor(() => expect(listRunTraces).toHaveBeenCalled());
     await tick();
     expect(screen.queryByTestId("flow-view-run")).not.toBeInTheDocument();
-    expect(getLastTrace).not.toHaveBeenCalled();
+    expect(getProjectLastTrace).not.toHaveBeenCalled();
+  });
+
+  it("withholds the same flow's traces in another project", async () => {
+    listRunTraces.mockResolvedValue({ ...RUN, tab_id: "project-B" });
+    renderPage();
+    await waitFor(() => expect(listRunTraces).toHaveBeenCalled());
+    await tick();
+    expect(screen.queryByTestId("flow-view-run")).not.toBeInTheDocument();
+    expect(getProjectLastTrace).not.toHaveBeenCalled();
   });
 
   it("withholds another flow's run", async () => {
@@ -151,7 +169,7 @@ describe("FlowPage", () => {
     await waitFor(() => expect(listRunTraces).toHaveBeenCalled());
     await tick();
     expect(screen.queryByTestId("flow-view-run")).not.toBeInTheDocument();
-    expect(getLastTrace).not.toHaveBeenCalled();
+    expect(getProjectLastTrace).not.toHaveBeenCalled();
   });
 
   it("loads the run when the backend reports a trace, and ignores progress ticks", async () => {
@@ -172,7 +190,7 @@ describe("FlowPage", () => {
     });
     await screen.findByTestId("flow-view-run");
     expect(pressed("flow-view-run")).toBe(true);
-    expect(getLastTrace).toHaveBeenCalledWith(FILE, "fr-FR");
+    expect(getProjectLastTrace).toHaveBeenCalledWith("project-A", FILE, "fr-FR");
   });
 
   it("lets the reader pick another file of the run", async () => {
@@ -186,13 +204,17 @@ describe("FlowPage", () => {
     renderPage();
     await screen.findByTestId("flow-view-run");
     // The file that completed last replays first.
-    await waitFor(() => expect(getLastTrace).toHaveBeenCalledWith(FILE, "fr-FR"));
+    await waitFor(() =>
+      expect(getProjectLastTrace).toHaveBeenCalledWith("project-A", FILE, "fr-FR"),
+    );
     const picker = screen.getByTestId("run-trace-file");
     expect(picker).toHaveTextContent("messages.json · fr-FR");
 
     await userEvent.click(picker);
     await userEvent.click(await screen.findByRole("option", { name: "other.json · fr-FR" }));
-    await waitFor(() => expect(getLastTrace).toHaveBeenCalledWith(OTHER, "fr-FR"));
+    await waitFor(() =>
+      expect(getProjectLastTrace).toHaveBeenCalledWith("project-A", OTHER, "fr-FR"),
+    );
     expect(screen.getByTestId("run-trace-file")).toHaveTextContent("other.json · fr-FR");
   });
 

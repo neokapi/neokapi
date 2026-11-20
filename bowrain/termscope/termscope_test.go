@@ -1,6 +1,7 @@
 package termscope_test
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -132,6 +133,145 @@ func TestStoreView(t *testing.T) {
 			n, err = same.Count(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, 4, n, "no project reads the whole store")
+		})
+	}
+}
+
+func TestProjectEligibilityPrecedesTermRanking(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			for _, c := range []struct{ id, term, project string }{
+				{"visible", "dashboard", "a"},
+				{"plural", "dashboards", "b"},
+				{"phrase", "dashboard settings", "b"},
+			} {
+				cp := terms.Concept{ID: c.id, Terms: []terms.Term{{Text: c.term, Locale: "en", Status: model.TermPreferred}}}
+				termscope.Limit(&cp, c.project)
+				require.NoError(t, tb.AddConcept(ctx, cp))
+			}
+			v := termscope.StoreView(tb, "a")
+			opts := terms.LookupOptions{SourceLocale: "en", MinScore: .8}
+			hits, err := v.Lookup(ctx, "dashboards", opts)
+			require.NoError(t, err)
+			require.Len(t, hits, 1)
+			assert.Equal(t, "visible", hits[0].Concept.ID)
+			assert.Equal(t, model.MatchStrategyFuzzy, hits[0].MatchType)
+			hits, err = v.LookupAll(ctx, "dashboard settings", opts)
+			require.NoError(t, err)
+			require.Len(t, hits, 1)
+			assert.Equal(t, "visible", hits[0].Concept.ID)
+			opts.ConceptIDs = map[string]bool{"phrase": true}
+			hits, err = v.LookupAll(ctx, "dashboard settings", opts)
+			require.NoError(t, err)
+			assert.Empty(t, hits)
+			assert.True(t, opts.ConceptIDs["phrase"])
+		})
+	}
+}
+
+func TestProjectLookupPreservesTermGovernance(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			for _, c := range []terms.Concept{
+				{ID: "eligible", Domain: "Santé", Source: terms.TermSourceBrandVocabulary, Terms: []terms.Term{{Text: "Acme", Locale: "en", Status: model.TermForbidden, CompetitorTerm: true}}},
+				{ID: "ordinary", Domain: "Santé", Terms: []terms.Term{{Text: "Acme", Locale: "en", Status: model.TermAdmitted}}},
+				{ID: "other-domain", Domain: "Other", Source: terms.TermSourceBrandVocabulary, Terms: []terms.Term{{Text: "Acme", Locale: "en", Status: model.TermPreferred}}},
+			} {
+				require.NoError(t, tb.AddConcept(ctx, c))
+			}
+			project := termscope.StoreView(tb, "a")
+			opts := terms.LookupOptions{
+				SourceLocale: "en", Domains: []string{"SANTÉ"},
+				SourceFilter: []terms.TermSource{terms.TermSourceBrandVocabulary},
+			}
+			for _, lookup := range []func(context.Context, string, terms.LookupOptions) ([]terms.TermMatch, error){project.Lookup, project.LookupAll} {
+				hits, err := lookup(ctx, "Acme", opts)
+				require.NoError(t, err)
+				require.Len(t, hits, 1)
+				assert.Equal(t, "eligible", hits[0].Concept.ID)
+				assert.True(t, hits[0].Term.CompetitorTerm)
+			}
+		})
+	}
+}
+
+func TestWorkspaceSearchExcludesProposalCopies(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			live := terms.Concept{ID: "live", Terms: []terms.Term{{Text: "workbench", Locale: "en", Status: model.TermAdmitted}}}
+			shadow := live
+			shadow.ID = terms.ShadowIDPrefix + ":proposal:live"
+			require.NoError(t, tb.AddConcept(ctx, live))
+			require.NoError(t, tb.AddConceptWithStream(ctx, shadow, "proposal"))
+			r := terms.ConceptRelation{ID: terms.ShadowIDPrefix + ":relation", SourceID: live.ID, TargetID: shadow.ID, RelationType: graph.LabelRelated}
+			require.NoError(t, tb.AddRelationWithStream(ctx, r, "proposal"))
+			count, err := tb.Count(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, 1, count)
+			for _, query := range []string{"", "workbench"} {
+				page, total, err := tb.Search(ctx, query, "en", "", 0, 10)
+				require.NoError(t, err)
+				assert.Equal(t, 1, total)
+				require.Len(t, page, 1)
+				assert.Equal(t, live.ID, page[0].ID)
+			}
+			relations, err := tb.RelationsOf(ctx, live.ID, nil)
+			require.NoError(t, err)
+			assert.Empty(t, relations)
+			relations, err = tb.RelationsForStream(ctx, live.ID, "proposal", nil, nil)
+			require.NoError(t, err)
+			require.Len(t, relations, 1)
+			assert.Equal(t, r.ID, relations[0].ID)
+		})
+	}
+}
+
+func TestStoreViewRelationsFollowStreamAndProject(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			const pilot = "pilot/rebrand"
+			add := func(name, stream string, projects ...string) string {
+				cp := terms.Concept{ID: terms.ShadowIDPrefix + ":" + name, Terms: []terms.Term{{Text: name, Locale: "en", Status: model.TermAdmitted}}}
+				termscope.Limit(&cp, projects...)
+				require.NoError(t, tb.AddConceptWithStream(ctx, cp, stream))
+				return cp.ID
+			}
+			left := add("left", pilot, "project-a")
+			right := add("right", "parent")
+			hidden := add("private", pilot, "project-b")
+			unrelated := add("unrelated", "other")
+			for _, target := range []string{right, hidden, unrelated} {
+				require.NoError(t, tb.AddRelationWithStream(ctx, terms.ConceptRelation{
+					ID: terms.ShadowIDPrefix + ":relation:" + target, SourceID: left, TargetID: target, RelationType: graph.LabelRelated,
+				}, pilot))
+			}
+
+			a := termscope.StoreView(tb, "project-a")
+			rels, err := a.RelationsOf(ctx, left, nil)
+			require.NoError(t, err)
+			require.Empty(t, rels)
+
+			rels, err = a.RelationsForStream(ctx, left, pilot, []string{"parent", ""}, nil)
+			require.NoError(t, err)
+			require.Len(t, rels, 1)
+			assert.Equal(t, right, rels[0].TargetID)
+
+			rels, err = a.RelationsForStream(ctx, left, "main", []string{""}, nil)
+			require.NoError(t, err)
+			require.Empty(t, rels)
+
+			b := termscope.StoreView(tb, "project-b")
+			rels, err = b.RelationsForStream(ctx, hidden, pilot, []string{"parent", ""}, nil)
+			require.NoError(t, err)
+			require.Empty(t, rels)
 		})
 	}
 }

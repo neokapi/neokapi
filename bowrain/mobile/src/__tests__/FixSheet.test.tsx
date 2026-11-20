@@ -1,9 +1,7 @@
 import type { DeckCard, FixCandidates } from "@neokapi/bowrain-client";
 import type { Run } from "@neokapi/kapi-format";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import "../lib/i18n";
 import { FixSheetBody } from "../components/FixSheet";
@@ -41,20 +39,6 @@ const fixes: FixCandidates = {
   notes: [],
 };
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <SafeAreaProvider
-      initialMetrics={{
-        frame: { x: 0, y: 0, width: 390, height: 844 },
-        insets: { top: 0, left: 0, right: 0, bottom: 0 },
-      }}
-    >
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-    </SafeAreaProvider>
-  );
-}
-
 function setup() {
   const onFix = jest.fn();
   const onReject = jest.fn();
@@ -65,7 +49,7 @@ function setup() {
 describe("FixSheet", () => {
   it("applies a ready-made fix with the chosen reason", async () => {
     const h = setup();
-    await render(wrap(<FixSheetBody card={card} onClose={() => {}} {...h} />));
+    await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
     await fireEvent.press(screen.getByTestId("reason-wrong_term"));
     await fireEvent.press(await screen.findByTestId("use-term-0"));
     expect(h.onFix).toHaveBeenCalledWith(card, fixes.candidates[0].runs, ["wrong_term"]);
@@ -74,7 +58,7 @@ describe("FixSheet", () => {
 
   it("edits the text with the placeholder locked and keeps it in the correction", async () => {
     const h = setup();
-    await render(wrap(<FixSheetBody card={card} onClose={() => {}} {...h} />));
+    await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
     await fireEvent.press(screen.getByTestId("fix-start-edit"));
     expect(screen.getAllByTestId("editor-chip")).toHaveLength(1);
     await fireEvent.changeText(screen.getByTestId("editor-field-0"), "Lagre arbeidsområdet for ");
@@ -84,7 +68,7 @@ describe("FixSheet", () => {
 
   it("rejects only with a reason, and carries the note", async () => {
     const h = setup();
-    await render(wrap(<FixSheetBody card={card} onClose={() => {}} {...h} />));
+    await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
     await fireEvent.press(screen.getByTestId("fix-reject"));
     expect(h.onReject).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByTestId("reason-meaning"));
@@ -95,7 +79,9 @@ describe("FixSheet", () => {
 
   it("opens on the rejection from a left swipe, with the fixes one tap away", async () => {
     const h = setup();
-    await render(wrap(<FixSheetBody card={card} mode="reject" onClose={() => {}} {...h} />));
+    await render(
+      withTestProviders(<FixSheetBody card={card} mode="reject" onClose={() => {}} {...h} />),
+    );
     expect(screen.queryByTestId("fix-start-edit")).toBeNull();
     expect(h.loadFixes).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByTestId("reason-tone"));

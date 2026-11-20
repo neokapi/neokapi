@@ -80,7 +80,7 @@ jobs:
             for pattern in "$@"; do
               # Support negation patterns (prefixed with !)
               if [[ "$pattern" == !* ]]; then continue; fi
-              if echo "$CHANGED" | grep -qE "$pattern"; then
+              if grep -qE "$pattern" <<< "$CHANGED"; then
                 echo "${label}=true" >> "$GITHUB_OUTPUT"
                 return
               fi
@@ -157,7 +157,7 @@ jobs:
           # or TS source, every manifest and tsconfig that can alias one, the
           # workspace globs that decide which package names resolve, and the
           # LICENSE files that draw the line itself.
-          check_paths ts_boundary '\.(ts|tsx|js|jsx|mjs|cjs)$' '(^|/)package\.json$' '(^|/)tsconfig[^/]*\.json$' '(^|/)LICENSE$' '^pnpm-workspace\.yaml$'
+          check_paths ts_boundary '\.([cm]?[tj]s|[tj]sx)$' '^scripts/check-(go-module-boundaries|ts-license-boundary|workspace-versions)[.-]' '^Makefile$' '(^|/)package\.json$' '(^|/)tsconfig[^/]*\.json$' '(^|/)LICENSE$' '^pnpm-workspace\.yaml$'
           # The walkthrough harness is a standalone pnpm tree with its own
           # lockfile, so none of the filters above reach it and the shared JS
           # dependency graph does not either. It imports nothing outside
@@ -1124,9 +1124,7 @@ jobs:
           go-version: "1.27.1"
 
       - name: Create embed placeholders
-        run: |
-          mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-          mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+        run: make go-embed-placeholders
 
       - name: Download modules
         uses: ./.github/actions/go-mod-download
@@ -1394,6 +1392,11 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: plain
+
+      - name: Install Wails libraries for desktop package analysis
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev
 
       # Job body lives in `make check-module-boundaries` (single source of truth).
       - name: Assert package-level module boundaries

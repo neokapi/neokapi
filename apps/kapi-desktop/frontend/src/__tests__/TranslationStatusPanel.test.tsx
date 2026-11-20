@@ -70,6 +70,8 @@ describe("TranslationStatusPanel", () => {
 
     it("invokes api.runExtract and surfaces the log", async () => {
       const runExtract = vi.spyOn(api, "runExtract").mockResolvedValue({
+        files: 3,
+        blocks: 12,
         log: "  ui → @neokapi/i18n-react (3 file(s))\n",
       });
 

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,5 +27,5 @@ func TestOrdinaryConceptChanged_SeesFormsEdits(t *testing.T) {
 	rebased := buildBaseline([]terms.Concept{edited}, nil).Concepts["alert"]
 	assert.False(t, ordinaryConceptChanged(edited, rebased, edited.Terms), "forms survive the baseline snapshot")
 	assert.Equal(t, []string{"varsler"}, baselineTermToTerm(rebased.Terms[0]).Forms)
-	assert.Equal(t, []string{"varsler"}, termsToInfo(edited.Terms)[0].Forms)
+	assert.Equal(t, []string{"varsler"}, venue.TermInfos(edited.Terms)[0].Forms)
 }

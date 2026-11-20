@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v4"
+	bauth "github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -18,6 +21,11 @@ import (
 )
 
 func newTestServer(t *testing.T) (*Server, string) {
+	t.Helper()
+	return newTestServerWithWorkspace(t, platauth.WorkspaceTypePersonal)
+}
+
+func newTestServerWithWorkspace(t *testing.T, kind platauth.WorkspaceType) (*Server, string) {
 	t.Helper()
 	cfg := DefaultConfig()
 
@@ -31,7 +39,7 @@ func newTestServer(t *testing.T) (*Server, string) {
 	ctx := t.Context()
 	user := &platauth.User{ID: "test-user", Email: "test@example.com", Name: "Test"}
 	require.NoError(t, s.AuthStore.CreateUser(ctx, user))
-	ws := &platauth.Workspace{ID: "test-ws", Name: "Test", Slug: "test", Type: platauth.WorkspaceTypePersonal}
+	ws := &platauth.Workspace{ID: "test-ws", Name: "Test", Slug: "test", Type: kind}
 	require.NoError(t, s.AuthStore.CreateWorkspace(ctx, ws))
 	require.NoError(t, s.AuthStore.AddMember(ctx, ws.ID, user.ID, platauth.RoleOwner))
 
@@ -405,5 +413,83 @@ func TestRetiredProjectHandlersAreOffTheRouter(t *testing.T) {
 			name = name[i+1:]
 		}
 		assert.False(t, retired[name], "%s %s still routes to %s", r.Method, r.Path, r.Name)
+	}
+}
+
+func TestPublicShipFeedRequiresTeamWorkspace(t *testing.T) {
+	srv, _ := newTestServer(t)
+	p := &store.Project{Name: "Personal", WorkspaceID: "test-ws", Properties: map[string]string{ShipFeedProperty: "true"}}
+	require.NoError(t, srv.ContentStore.CreateProject(t.Context(), p))
+	rec := httptest.NewRecorder()
+	srv.GetEcho().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+p.ID+"/ship.json", nil))
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestProjectPublicationRequiresReadableWorkspace(t *testing.T) {
+	s := &Server{AuthStore: unreadableWorkspace{}}
+	allowed, err := s.workspaceMayPublishProjects(t.Context(), "ws")
+	require.ErrorIs(t, err, errWorkspaceUnreadable)
+	assert.False(t, allowed)
+}
+
+func TestProjectSettingsPreserveReviewAttribution(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/test/"+pid,
+		strings.NewReader(`{"properties":{"review_involvement_set_by":"other-user","colour":"blue"}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	srv.GetEcho().ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	proj, err := srv.ContentStore.GetProject(t.Context(), pid)
+	require.NoError(t, err)
+	assert.NotContains(t, proj.Properties, propInvolvementSetBy)
+	assert.NotContains(t, proj.Properties, "colour")
+}
+
+type workspaceReadWithReviewWrite struct {
+	bauth.AuthStore
+	write func()
+}
+
+func (a workspaceReadWithReviewWrite) GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error) {
+	a.write()
+	return a.AuthStore.GetWorkspace(ctx, id)
+}
+
+func TestProjectSettingsPreserveInterleavedReviewWrite(t *testing.T) {
+	srv, _ := newTestServerWithWorkspace(t, platauth.WorkspaceTypeTeam)
+	for _, tc := range []struct {
+		name, body string
+		wantStatus int
+		wantName   string
+	}{
+		{"rename", `{"name":"New","dashboard_visibility":"public"}`, http.StatusOK, "New"},
+		{"stale attribution", `{"name":"New","dashboard_visibility":"public","properties":{"review_involvement_set_by":"before"}}`, http.StatusBadRequest, "Original"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &store.Project{Name: "Original", WorkspaceID: "test-ws", Properties: map[string]string{propInvolvementSetBy: "before"}}
+			require.NoError(t, srv.ContentStore.CreateProject(t.Context(), p))
+			update := &Server{ContentStore: srv.ContentStore, AuthStore: workspaceReadWithReviewWrite{
+				AuthStore: srv.AuthStore, write: func() {
+					require.NoError(t, srv.updatePlanProperties(t.Context(), p.ID, map[string]string{propInvolvementSetBy: "after"}))
+				},
+			}}
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(tc.body))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			c := echo.New().NewContext(req, rec)
+			c.SetParamNames("id")
+			c.SetParamValues(p.ID)
+			c.Set("workspace_id", p.WorkspaceID)
+			c.Set("project_permissions", platauth.PermManageProject)
+			require.NoError(t, update.HandleUpdateEditorProject(c))
+			require.Equal(t, tc.wantStatus, rec.Code, rec.Body.String())
+			got, err := srv.ContentStore.GetProject(t.Context(), p.ID)
+			require.NoError(t, err)
+			assert.Equal(t, "after", got.Properties[propInvolvementSetBy])
+			assert.Equal(t, tc.wantName, got.Name)
+		})
 	}
 }

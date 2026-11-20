@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -42,6 +43,12 @@ type InMemoryStore struct {
 
 // InMemoryStoreOption configures an InMemoryStore instance.
 type InMemoryStoreOption func(*InMemoryStore)
+
+// WithMaxEntries bounds the store by entry count. Adding a new entry at capacity
+// evicts the oldest remaining entry. A nonpositive limit leaves the store unbounded.
+func WithMaxEntries(limit int) InMemoryStoreOption {
+	return func(tm *InMemoryStore) { tm.maxEntries = max(limit, 0) }
+}
 
 // NewInMemoryStore creates a new empty in-memory content memory.
 func NewInMemoryStore(opts ...InMemoryStoreOption) *InMemoryStore {
@@ -94,6 +101,7 @@ func (tm *InMemoryStore) AddWithStream(_ context.Context, entry Entry, _ string)
 		entry.UpdatedAt = now
 	}
 
+	entry = cloneEntry(entry)
 	NormalizeEntryLocales(&entry)
 
 	tm.mu.Lock()
@@ -107,7 +115,7 @@ func (tm *InMemoryStore) AddWithStream(_ context.Context, entry Entry, _ string)
 
 	stored := storedEntry{entry: entry, keys: buildVariantKeys(entry)}
 	if tm.maxEntries > 0 && len(tm.entries) >= tm.maxEntries {
-		tm.evictOldest()
+		tm.deleteAt(0)
 	}
 	tm.byID[entry.ID] = len(tm.entries)
 	tm.entries = append(tm.entries, stored)
@@ -132,6 +140,20 @@ func mergedVariants(stored, incoming map[model.LocaleID][]model.Run) map[model.L
 	return out
 }
 
+func cloneEntry(entry Entry) Entry {
+	entry.Properties = maps.Clone(entry.Properties)
+	entry.Origins = slices.Clone(entry.Origins)
+	entry.Variants = maps.Clone(entry.Variants)
+	for loc, runs := range entry.Variants {
+		entry.Variants[loc] = model.CloneRuns(runs)
+	}
+	entry.Entities = slices.Clone(entry.Entities)
+	for i := range entry.Entities {
+		entry.Entities[i].Values = maps.Clone(entry.Entities[i].Values)
+	}
+	return entry
+}
+
 func buildVariantKeys(entry Entry) map[model.LocaleID]variantKeys {
 	keys := make(map[model.LocaleID]variantKeys, len(entry.Variants))
 	for loc, runs := range entry.Variants {
@@ -147,16 +169,11 @@ func buildVariantKeys(entry Entry) map[model.LocaleID]variantKeys {
 	return keys
 }
 
-func (tm *InMemoryStore) evictOldest() {
-	if len(tm.entries) == 0 {
-		return
-	}
-	oldest := tm.entries[0]
-	delete(tm.byID, oldest.entry.ID)
-	copy(tm.entries, tm.entries[1:])
-	tm.entries = tm.entries[:len(tm.entries)-1]
-	for id, idx := range tm.byID {
-		tm.byID[id] = idx - 1
+func (tm *InMemoryStore) deleteAt(index int) {
+	delete(tm.byID, tm.entries[index].entry.ID)
+	tm.entries = slices.Delete(tm.entries, index, index+1)
+	for i := index; i < len(tm.entries); i++ {
+		tm.byID[tm.entries[i].entry.ID] = i
 	}
 }
 
@@ -166,15 +183,9 @@ func (tm *InMemoryStore) Delete(_ context.Context, id string) error {
 	defer tm.mu.Unlock()
 	idx, ok := tm.byID[id]
 	if !ok {
-		return ErrImportSessionMiss // reuse "not found" style error — matches sqlite behavior
+		return ErrImportSessionMiss
 	}
-	lastIdx := len(tm.entries) - 1
-	if idx != lastIdx {
-		tm.entries[idx] = tm.entries[lastIdx]
-		tm.byID[tm.entries[idx].entry.ID] = idx
-	}
-	tm.entries = tm.entries[:lastIdx]
-	delete(tm.byID, id)
+	tm.deleteAt(idx)
 	return nil
 }
 
@@ -319,7 +330,7 @@ func (tm *InMemoryStore) tieredLookup(plainKey, structKey, generalKey string, en
 				kept = append(kept, m)
 			}
 		}
-		return LimitResults(sortMatches(kept), opts.MaxResults)
+		return matchSnapshots(kept, opts.MaxResults)
 	}
 
 	// Tier 4-6: fuzzy.
@@ -378,7 +389,15 @@ func (tm *InMemoryStore) tieredLookup(plainKey, structKey, generalKey string, en
 		})
 	}
 
-	return LimitResults(sortMatches(matches), opts.MaxResults)
+	return matchSnapshots(matches, opts.MaxResults)
+}
+
+func matchSnapshots(matches []Match, limit int) []Match {
+	result := LimitResults(sortMatches(matches), limit)
+	for i := range result {
+		result[i].Entry = cloneEntry(result[i].Entry)
+	}
+	return result
 }
 
 func projectAllowed(entryProject string, opts LookupOptions) bool {
@@ -403,7 +422,7 @@ func (tm *InMemoryStore) GetEntry(_ context.Context, id string) (Entry, bool, er
 	if !ok {
 		return Entry{}, false, nil
 	}
-	return tm.entries[idx].entry, true, nil
+	return cloneEntry(tm.entries[idx].entry), true, nil
 }
 
 // Entries returns a snapshot of all entries.
@@ -412,7 +431,7 @@ func (tm *InMemoryStore) Entries(_ context.Context) ([]Entry, error) {
 	defer tm.mu.RUnlock()
 	out := make([]Entry, len(tm.entries))
 	for i, se := range tm.entries {
-		out[i] = se.entry
+		out[i] = cloneEntry(se.entry)
 	}
 	return out, nil
 }
@@ -473,8 +492,14 @@ func (tm *InMemoryStore) searchInternal(_ context.Context, params SearchParams) 
 	if offset >= total {
 		return nil, total, nil
 	}
-	end := min(offset+limit, total)
-	return matched[offset:end], total, nil
+	page := matched[max(offset, 0):]
+	if limit >= 0 {
+		page = page[:min(limit, len(page))]
+	}
+	for i := range page {
+		page[i] = cloneEntry(page[i])
+	}
+	return page, total, nil
 }
 
 // variantTextContains checks if any variant's plain text contains the
@@ -747,12 +772,8 @@ func (tm *InMemoryStore) CreateImportSession(_ context.Context, session ImportSe
 	}
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
-	copySession := session
-	if session.Properties != nil {
-		copySession.Properties = make(map[string]string, len(session.Properties))
-		maps.Copy(copySession.Properties, session.Properties)
-	}
-	tm.sessions[session.ID] = copySession
+	session.Properties = maps.Clone(session.Properties)
+	tm.sessions[session.ID] = session
 	return nil
 }
 
@@ -761,6 +782,7 @@ func (tm *InMemoryStore) GetImportSession(_ context.Context, id string) (ImportS
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	s, ok := tm.sessions[id]
+	s.Properties = maps.Clone(s.Properties)
 	return s, ok, nil
 }
 
@@ -783,6 +805,7 @@ func (tm *InMemoryStore) FindImportSessionByHash(_ context.Context, hash string)
 	if best == nil {
 		return ImportSession{}, false, nil
 	}
+	best.Properties = maps.Clone(best.Properties)
 	return *best, true, nil
 }
 
@@ -792,6 +815,7 @@ func (tm *InMemoryStore) ListImportSessions(_ context.Context) ([]ImportSession,
 	defer tm.mu.RUnlock()
 	out := make([]ImportSession, 0, len(tm.sessions))
 	for _, s := range tm.sessions {
+		s.Properties = maps.Clone(s.Properties)
 		out = append(out, s)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ImportedAt.After(out[j].ImportedAt) })

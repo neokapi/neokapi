@@ -96,6 +96,12 @@ footer: "Footer"
 `,
 		},
 		{
+			name:  "removing a tagged multiline value with a Unicode key",
+			doc:   "日本語: !!str |2-\n    First\n  Second\nnext: Text\n",
+			edits: []format.StructuralEdit{del("日本語")},
+			want:  "next: Text\n",
+		},
+		{
 			name:  "removing a key removes every line of its value",
 			doc:   structureDoc,
 			edits: []format.StructuralEdit{del("nav.help")},

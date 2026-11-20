@@ -1,8 +1,6 @@
-import * as matchers from "@testing-library/jest-dom/matchers";
+import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach, expect } from "vite-plus/test";
-
-expect.extend(matchers);
+import { afterEach } from "vite-plus/test";
 
 // JSDOM doesn't implement matchMedia — provide a minimal stub.
 Object.defineProperty(window, "matchMedia", {

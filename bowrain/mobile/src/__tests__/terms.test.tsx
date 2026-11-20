@@ -1,7 +1,6 @@
 import type { ReviewContainer } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
 
 import "../lib/i18n";
 import { InContextView } from "../components/InContextView";
@@ -79,11 +78,6 @@ const container: ReviewContainer = {
   ],
 };
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
-
 describe("terms in a string", () => {
   it("marks the parts of the text runs an anchor covers, skipping codes", () => {
     const runs = [
@@ -112,7 +106,7 @@ describe("terms in a string", () => {
       ],
     }));
     await render(
-      wrap(
+      withTestProviders(
         <InContextView
           card={{
             key: "o1:nb",
@@ -213,7 +207,7 @@ describe("terms inside plural forms", () => {
       ],
     };
     await render(
-      wrap(
+      withTestProviders(
         <InContextView
           card={{
             key: "p1:nb",

@@ -36,7 +36,7 @@ export function feedGroup(group: Partial<ContextFeedGroup> & { id: string }): Co
   const entries = group.entries ?? [];
   return {
     actor: { kind: "agent", name: "claude", session: "sess-1", host: "studio" },
-    first: entries.at(-1)?.at ?? "2026-09-21T09:00:00Z",
+    first: entries[entries.length - 1]?.at ?? "2026-09-21T09:00:00Z",
     last: entries[0]?.at ?? "2026-09-21T09:00:00Z",
     awaiting: entries.filter((e) => e.decidable).length,
     recorded: 0,
@@ -88,7 +88,6 @@ export const CANDIDATE = feedEntry({
     kind: "term",
     term: "sign in",
     replacement: "log in",
-    severity: "major",
     describe: 'term "sign in", use "log in"',
   },
   evidence: [
@@ -117,7 +116,7 @@ export const IN_FORCE = feedEntry({
     kind: "term",
     term: "utilise",
     replacement: "use",
-    severity: "minor",
+    advisory: true,
     describe: 'voice "utilise", use "use"',
   },
   evidence: [{ path: "docs/guide.md", quote: "Utilise the bulk import." }],

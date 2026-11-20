@@ -244,3 +244,22 @@ func TestTermCheckConfigValidation(t *testing.T) {
 	err = cfg.Validate()
 	require.NoError(t, err)
 }
+
+func TestTermCheckReplacesFindingsAfterCorrection(t *testing.T) {
+	cfg := &tools.TermCheckConfig{TargetLocale: "fr", TermRules: []coreprofile.TermRule{
+		{Term: "Save", Replacement: "Enregistrer"},
+		{Term: "file", Replacement: "fichier", Advisory: true},
+	}}
+	check := tools.NewTermCheckTool(cfg)
+	block := model.NewBlock("file", "Save the file")
+	block.SetTargetText("fr", "OK")
+	part := processPart(t, check, &model.Part{Type: model.PartBlock, Resource: block})
+	b := part.Resource.(*model.Block)
+	require.NotEmpty(t, b.Properties[tools.PropTermCheckErrors])
+	require.NotEmpty(t, b.Properties[tools.PropTermCheckWarnings])
+	b.SetTargetText("fr", "Enregistrer le fichier")
+	got := processPart(t, check, part).Resource.(*model.Block)
+	assert.Equal(t, "true", got.Properties[tools.PropTermCheckPassed])
+	assert.Empty(t, got.Properties[tools.PropTermCheckErrors])
+	assert.Empty(t, got.Properties[tools.PropTermCheckWarnings])
+}

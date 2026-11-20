@@ -1,18 +1,5 @@
-// A small, dependency-free glob matcher over a flat list of virtual paths —
-// matching the shapes the kapi CLI accepts for its content globs (doublestar
-// semantics: `*`, `**`, `?`, `{a,b}` alternation, `[abc]` classes). The lab's
-// file library is an in-memory list, so we match against strings rather than a
-// real filesystem; that keeps this framework- and platform-agnostic.
-//
-// Supported:
-//   *            any run of characters except "/"
-//   **           any run of characters including "/" (recursive)
-//   ?            any single character except "/"
-//   {a,b,c}      alternation
-//   [abc] [a-z]  character class
-//   literal . /  matched literally
-//
-// `**/*.json`, `*.{json,xliff}`, `src/**`, `messages.*` all work.
+// Project globs use slash-separated paths, recursive directory wildcards,
+// brace alternatives and character classes.
 
 const SPECIAL = /[*?{}[\]]/;
 
@@ -22,56 +9,79 @@ export function isGlob(s: string): boolean {
 }
 
 function escapeLiteral(ch: string): string {
-  return ch.replace(/[.+^$()|\\]/g, "\\$&");
+  return ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Compile a glob to an anchored RegExp. Alternation is expanded inline; `**`
- * spans path separators while `*` and `?` do not.
- */
+/** Compile a project glob. An incomplete pattern matches no path. */
 export function globToRegExp(pattern: string): RegExp {
-  let re = "";
+  const never = /(?!)/;
+  let source = "";
+  let braces = 0;
   for (let i = 0; i < pattern.length; i++) {
-    const c = pattern[i];
-    if (c === "*") {
-      if (pattern[i + 1] === "*") {
-        // `**` — cross directory boundaries. Consume an optional trailing slash
-        // so `src/**` matches `src/a` and `src/a/b` alike.
-        i++;
-        if (pattern[i + 1] === "/") i++;
-        re += "(?:.*?/)?.*?";
-        // Collapse `**` followed by content into a single greedy-enough segment;
-        // the lazy quantifiers above keep it well-behaved for our short paths.
-      } else {
-        re += "[^/]*";
+    const ch = pattern[i];
+    switch (ch) {
+      case "*": {
+        const atStart = i === 0 || "/{,".includes(pattern[i - 1]);
+        const start = i;
+        while (pattern[i + 1] === "*") i++;
+        const next = pattern[i + 1];
+        if (atStart && i === start + 1 && next === "/") {
+          source += "(?:[^/]+/)*";
+          i++;
+        } else if (atStart && i === start + 1 && (!next || (braces && ",}".includes(next)))) {
+          if (source.endsWith("/")) {
+            source = source.slice(0, -1) + "(?:/.*)?";
+          } else {
+            source += ".*";
+          }
+        } else {
+          source += "[^/]*";
+        }
+        break;
       }
-    } else if (c === "?") {
-      re += "[^/]";
-    } else if (c === "{") {
-      const close = pattern.indexOf("}", i);
-      if (close === -1) {
-        re += "\\{";
-      } else {
-        const alts = pattern
-          .slice(i + 1, close)
-          .split(",")
-          .map((a) => a.split("").map(escapeLiteral).join(""));
-        re += `(?:${alts.join("|")})`;
-        i = close;
+      case "?":
+        source += "[^/]";
+        break;
+      case "{":
+        braces++;
+        source += "(?:";
+        break;
+      case "}":
+        if (braces) {
+          braces--;
+          source += ")";
+        } else {
+          source += "\\}";
+        }
+        break;
+      case ",":
+        source += braces ? "|" : ",";
+        break;
+      case "[": {
+        const cls = /^\[([!^]?)((?:\\.|[^\]\\])+)\]/su.exec(pattern.slice(i));
+        if (!cls) return never;
+        const chars = cls[2].replace(
+          /\\(.)/gsu,
+          (_, c: string) => `\\u{${c.codePointAt(0)!.toString(16)}}`,
+        );
+        source += `[${cls[1] ? "^" : ""}${chars}]`;
+        i += cls[0].length - 1;
+        break;
       }
-    } else if (c === "[") {
-      const close = pattern.indexOf("]", i);
-      if (close === -1) {
-        re += "\\[";
-      } else {
-        re += `[${pattern.slice(i + 1, close)}]`;
-        i = close;
-      }
-    } else {
-      re += escapeLiteral(c);
+      case "\\":
+        if (++i === pattern.length) return never;
+        source += escapeLiteral(pattern[i]);
+        break;
+      default:
+        source += escapeLiteral(ch);
     }
   }
-  return new RegExp(`^${re}$`);
+  if (braces) return never;
+  try {
+    return new RegExp(`^${source}$`, "su");
+  } catch {
+    return never;
+  }
 }
 
 /** The subset of paths matching the glob, in input order. */

@@ -230,9 +230,12 @@ point of the project's context space: `product=docs` at `context`,
 
 - **Storage.** The project property `review_involvement_overrides` holds the
   list as JSON: `[{"coordinates": {"product": "app"}, "involvement":
-  "every"}]`. A project holds a handful, every plan request loads the project
-  already, and no query joins on them, so a table would add a migration and
-  a read for nothing.
+  "every"}]`. Each review action edits the current project in a database
+  transaction. The store holds a write lock while the edit reads and changes
+  the row. Project settings, scans and settle passes use the same operation.
+  A settings change that overlaps a review action preserves its decisions. The review plan owns the involvement, job references
+  and attribution fields. An edit through the general project settings route
+  cannot change them.
 - **API.** `GET /:ws/:id/review/plan/involvement` answers the involvement, the
   overrides with the collections each decides, and the axes an override may
   name with the values the main stream's collections hold. `PUT
@@ -320,10 +323,28 @@ per followed language. Under `every` nothing is held.
 The exceptions stay reviewable while the context is open. A failing check
 names a rule, and a reviewer can decide that rule whatever terms are still open.
 
-Whether a project holds is read once per request, from the same code the
-settle pass uses (`planPolicy`): one read of the project's context deck and
-one of the workspace's concepts. The inbox reads it only for a project with a
-language that has translations outside the desk group.
+### Review plan counts
+
+The main-stream review plan and the inbox share a stored snapshot per
+project. It holds deck counts by language and involvement, page counts,
+source check totals, and project-wide context counts. The server adds the
+caller's followed languages and the context decisions they can make on
+each request. `as_of` gives the time of the counts.
+
+Project and workspace events mark affected snapshots for refresh. The
+server groups changes and claims a database lease before each background
+refresh. A change during the refresh schedules another count. A request
+counts immediately if the snapshot is missing or its inputs have changed.
+Those inputs include the deck policy, source and target languages, collection
+scope and priority, and the resolved involvement of each collection.
+Changing a collection from `context` to `interfaces` updates the page
+count on the next read. Branch plans count on each request.
+
+Language deck holds and settle passes read current project data. Both use
+`planPolicy` to count open context cards and concepts that lack a target
+term. A failed read from a configured terms store stops the decision.
+The automatic settle pass evaluates the policy while holding the same
+project lock as a manual pass.
 
 ### Step states
 

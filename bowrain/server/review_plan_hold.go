@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
+	"fmt"
 
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 )
 
@@ -35,15 +35,18 @@ type deckHeld struct {
 // counts them. It reads the project's context deck and the workspace's
 // concepts once. A hold reaches only the collections not under every
 // (projectInvolvement.heldIn).
-func (s *Server) translationsHeld(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, pi projectInvolvement) (bool, error) {
-	if ws == nil || pi.allEvery() {
+func (s *Server) translationsHeld(ctx context.Context, wsID string, proj *platstore.Project, pi projectInvolvement) (bool, error) {
+	if s.AuthStore == nil || wsID == "" || pi.allEvery() {
 		return false, nil
 	}
-	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
+	ws, err := s.AuthStore.GetWorkspace(ctx, wsID)
 	if err != nil {
 		return false, err
 	}
-	policy, err := s.planPolicy(ctx, ws, proj, pi, counts.Untranslated)
+	if ws == nil {
+		return false, fmt.Errorf("workspace %q not found", wsID)
+	}
+	policy, err := s.planPolicy(ctx, ws, proj, pi)
 	if err != nil {
 		return false, err
 	}
@@ -66,16 +69,4 @@ func (w deckWaiting) held() deckWaiting {
 	w.Waiting = w.Desk
 	w.Fast, w.Closer, w.Unclassified = 0, 0, 0
 	return w
-}
-
-// requestWorkspace is the workspace a project route resolved, or nil.
-func (s *Server) requestWorkspace(ctx context.Context, wsID string) *platauth.Workspace {
-	if s.AuthStore == nil || wsID == "" {
-		return nil
-	}
-	ws, err := s.AuthStore.GetWorkspace(ctx, wsID)
-	if err != nil {
-		return nil
-	}
-	return ws
 }

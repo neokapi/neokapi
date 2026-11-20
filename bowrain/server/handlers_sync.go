@@ -445,17 +445,20 @@ func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, s
 		return nil, nil, nil
 	}
 	ctx := c.Request().Context()
-	proj, err := s.ContentStore.GetProject(ctx, projectID)
+	pusher := s.settingsPusher(c, stream)
+	var refused []venue.SettingRefusal
+	var changes []store.SettingChange
+	proj, changed, err := s.ContentStore.EditProject(ctx, projectID, func(proj *store.Project) (bool, error) {
+		var apply venue.ProjectSettings
+		apply, refused = store.DecideRecipeSettings(proj, settings, pusher)
+		changes = store.ApplyRecipeSettings(proj, apply)
+		return len(changes) > 0, nil
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("read project settings: %w", err)
-	}
-	apply, refused := store.DecideRecipeSettings(proj, settings, s.settingsPusher(c, stream))
-	changes := store.ApplyRecipeSettings(proj, apply)
-	if len(changes) == 0 {
-		return nil, refused, nil
-	}
-	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
 		return nil, nil, fmt.Errorf("apply project settings: %w", err)
+	}
+	if !changed {
+		return nil, refused, nil
 	}
 	applied := venue.ProjectSettings{}
 	recipe := platev.RecipeChange{Source: "push", Stream: stream}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -28,7 +29,18 @@ type SubmitResult struct {
 	Unchanged bool
 	// Superseded lists the open change-sets of the same origin that this one
 	// replaced, in the order they were superseded.
-	Superseded []string
+	Superseded  []string
+	retirements []MergeEvent
+}
+
+// RetirementEvents attributes the stopped pilots and superseded proposals to the submitter.
+func (r SubmitResult) RetirementEvents(actor, onBehalfOf string) []MergeEvent {
+	events := slices.Clone(r.retirements)
+	for i := range events {
+		events[i].Actor = actor
+		events[i].OnBehalfOf = onBehalfOf
+	}
+	return events
 }
 
 // SubmitChangeSet moves the draft cs, holding ops, into review.
@@ -43,6 +55,27 @@ type SubmitResult struct {
 // The caller checks that cs is a non-empty draft, and publishes the events
 // and summons that follow.
 func SubmitChangeSet(ctx context.Context, st Store, cs *ChangeSet, ops []*ChangeSetOp) (SubmitResult, error) {
+	return NewEngine(nil, nil, st).SubmitChangeSet(ctx, cs, ops)
+}
+
+// SubmitChangeSet retires replaced proposals and their pilots in the submission transaction.
+func (e *Engine) SubmitChangeSet(ctx context.Context, cs *ChangeSet, ops []*ChangeSetOp) (SubmitResult, error) {
+	var result SubmitResult
+	err := e.withLockedProposal(ctx, e.store, cs.WorkspaceID, cs.ID, cs.Origin, func(engine *Engine, st Store, status ChangeSetStatus) error {
+		if status != ChangeSetDraft {
+			return fmt.Errorf("%w: change-set %q is %s", ErrSubmitRefused, cs.ID, status)
+		}
+		var err error
+		result, err = engine.submitDraft(ctx, st, cs, ops)
+		return err
+	})
+	if err != nil {
+		return SubmitResult{ID: cs.ID}, err
+	}
+	return result, nil
+}
+
+func (e *Engine) submitDraft(ctx context.Context, st Store, cs *ChangeSet, ops []*ChangeSetOp) (SubmitResult, error) {
 	res := SubmitResult{ID: cs.ID}
 	if cs.Origin != "" {
 		open, err := st.ListOpenChangeSetsByOrigin(ctx, cs.WorkspaceID, cs.Origin)
@@ -50,25 +83,38 @@ func SubmitChangeSet(ctx context.Context, st Store, cs *ChangeSet, ops []*Change
 			return res, err
 		}
 		for _, prior := range open {
-			if prior.ID == cs.ID {
+			if prior.ID == cs.ID || prior.Status != ChangeSetInReview {
 				continue
 			}
 			priorOps, err := st.ListOps(ctx, cs.WorkspaceID, prior.ID)
 			if err != nil {
 				return res, err
 			}
-			if prior.Status == ChangeSetInReview && SameOps(priorOps, ops) {
-				if err := st.SetChangeSetStatus(ctx, cs.WorkspaceID, cs.ID, ChangeSetAbandoned); err != nil {
-					return res, fmt.Errorf("%w: %w", ErrSubmitRefused, err)
-				}
+			if SameOps(priorOps, ops) {
 				res.ID, res.Unchanged = prior.ID, true
-				return res, nil
+				break
 			}
-			if err := st.SupersedeChangeSet(ctx, cs.WorkspaceID, prior.ID, cs.ID); err != nil {
+		}
+		for _, prior := range open {
+			if prior.ID == cs.ID || prior.ID == res.ID {
+				continue
+			}
+			events, err := e.SupersedeChangeSet(ctx, cs.WorkspaceID, st, *prior, res.ID)
+			if err != nil {
 				return res, fmt.Errorf("%w: %w", ErrSubmitRefused, err)
 			}
+			res.retirements = append(res.retirements, events...)
+			res.retirements = append(res.retirements, MergeEvent{Type: EventChangeSetSuperseded, WorkspaceID: cs.WorkspaceID, ChangesetID: prior.ID})
 			res.Superseded = append(res.Superseded, prior.ID)
 		}
+	}
+	if res.Unchanged {
+		events, err := e.AbandonChangeSet(ctx, cs.WorkspaceID, st, *cs)
+		if err != nil {
+			return res, fmt.Errorf("%w: %w", ErrSubmitRefused, err)
+		}
+		res.retirements = append(res.retirements, events...)
+		return res, nil
 	}
 	if err := st.SetChangeSetStatus(ctx, cs.WorkspaceID, cs.ID, ChangeSetInReview); err != nil {
 		return res, fmt.Errorf("%w: %w", ErrSubmitRefused, err)

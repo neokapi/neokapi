@@ -44,20 +44,33 @@ func TestEventEmittingStoreProject(t *testing.T) {
 
 	p.Name = "Updated"
 	require.NoError(t, es.UpdateProject(ctx, p))
+	_, changed, err := es.EditProject(ctx, p.ID, func(p *store.Project) (bool, error) {
+		p.Name = "Renamed"
+		return true, nil
+	})
+	require.NoError(t, err)
+	require.True(t, changed)
+	_, changed, err = es.EditProject(ctx, p.ID, func(*store.Project) (bool, error) {
+		return false, nil
+	})
+	require.NoError(t, err)
+	require.False(t, changed)
 
 	require.NoError(t, es.DeleteProject(ctx, p.ID))
 
 	require.Eventually(t, func() bool {
 		mu.Lock()
 		defer mu.Unlock()
-		return len(events) == 3
+		return len(events) == 4
 	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Equal(t, platev.EventProjectCreated, events[0].Type)
 	assert.Equal(t, platev.EventProjectUpdated, events[1].Type)
-	assert.Equal(t, platev.EventProjectDeleted, events[2].Type)
+	assert.Equal(t, platev.EventProjectUpdated, events[2].Type)
+	assert.Equal(t, "Renamed", events[2].Data["name"])
+	assert.Equal(t, platev.EventProjectDeleted, events[3].Type)
 }
 
 func TestEventEmittingStoreBlocks(t *testing.T) {

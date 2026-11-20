@@ -23,11 +23,8 @@ type RecycledNote struct {
 // no target languages, and while a run holds the project, which it claims for
 // the pass so a run cannot start beside it. The caller holds storeSyncMu.
 func (a *App) recycleExactMatches(op *openProject) (int, error) {
-	if op.Project == nil || op.Path == "" || op.unsaved.Load() || len(op.Project.Defaults.TargetLanguages) == 0 {
+	if op.Project == nil || op.Path == "" || op.unsaved.Load() || !op.Project.DeclaresTargetLanguages() {
 		return 0, nil
-	}
-	if a.runState == nil {
-		a.runState = newRunner()
 	}
 	a.runState.mu.Lock()
 	if a.runState.running {
@@ -45,7 +42,7 @@ func (a *App) recycleExactMatches(op *openProject) (int, error) {
 	// A run-scoped App over the engine's stores, as a convergence run uses:
 	// the pass sets per-run state (the source language, the target locale)
 	// that the tab's own reads must not see.
-	capp := a.borrowEngine(&host.App{})
+	capp := a.newProjectEngine(op)
 	res, err := capp.RecycleExactMatches(context.Background(), op.Path,
 		string(op.Project.Defaults.SourceLanguage), host.RecycleOptions{NoExtract: true})
 	if err != nil {

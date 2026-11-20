@@ -35,7 +35,6 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  parseAppError,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type {
@@ -71,7 +70,7 @@ export interface ConvergenceHeroProps {
   plan?: ConvergePlan;
   /** Pre-loaded run venue for Storybook/tests — skips api.getProjectServer(). */
   server?: ProjectServer;
-  /** Pre-loaded last-run failure for Storybook/tests — skips api.getLastRunError(). */
+  /** Preloaded failure from this project’s last run. */
   lastRunError?: RunError | null;
   /** Open an in-app settings view named by a remediation action's target. */
   onOpenSettings?: (target: string) => void;
@@ -105,7 +104,7 @@ export function ConvergenceHero({
   onOpenReview,
   onOpenChecks,
 }: ConvergenceHeroProps) {
-  const { hasActive, startJob, failActiveJob } = useJobFeed();
+  const { hasActive, launchJob } = useJobFeed();
   const sync = useStoreSyncState(tabID);
   const [planOpen, setPlanOpen] = useState(false);
   const [heldOpen, setHeldOpen] = useState(false);
@@ -125,7 +124,7 @@ export function ConvergenceHero({
         propConvergence ? Promise.resolve(null) : api.getConvergence(tabID),
         propPlan ? Promise.resolve(null) : api.getConvergePlan(tabID),
         propServer ? Promise.resolve(null) : api.getProjectServer(tabID),
-        api.getLastRunError(),
+        api.getProjectLastRunError(tabID),
       ]);
       // The backend answers both derivations with a single typed error when the
       // recipe is gone from disk — render the quiet reopen state.
@@ -189,18 +188,14 @@ export function ConvergenceHero({
   // to the runner only once the launch call succeeded. A rejected launch
   // settles the pre-created job and surfaces the message inline right here.
   const doLaunch = useCallback(async () => {
-    startJob("up");
     try {
-      await api.bringUpToDate(tabID);
+      await launchJob({ flowName: "up", tabID, converge: true }, () => api.bringUpToDate(tabID));
     } catch (err) {
-      // Keep the friendly line in the job feed; keep the full error here for
-      // the inline notice (the user stays on home — no navigation on failure).
-      failActiveJob(parseAppError(err).title);
       setLaunchError(err);
       return;
     }
     onBringUpToDate?.();
-  }, [tabID, startJob, failActiveJob, onBringUpToDate]);
+  }, [tabID, launchJob, onBringUpToDate]);
 
   // ── Derived standing ──────────────────────────────────────────────────────
   // Source files that changed since the cache was built. The cache follows

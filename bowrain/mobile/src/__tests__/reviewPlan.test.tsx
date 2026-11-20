@@ -1,8 +1,7 @@
 import { planFromServer, type ReviewPlan } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { router } from "expo-router";
-import type { ReactNode } from "react";
 
 import "../lib/i18n";
 import ReviewPlanScreen from "../app/[ws]/[project]/plan";
@@ -132,11 +131,6 @@ const plan = (over: Over = {}) =>
     ],
   });
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
-
 describe("review plan", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -147,7 +141,7 @@ describe("review plan", () => {
 
   it("shows one row per step and the held translations", async () => {
     mockPlan.mockResolvedValue(plan());
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByTestId("plan-coordinates-next")).toBeTruthy();
     expect(screen.getByText("Not confirmed yet")).toBeTruthy();
     expect(screen.getByText("29 context cards")).toBeTruthy();
@@ -168,7 +162,7 @@ describe("review plan", () => {
 
   it("opens the coordinates map", async () => {
     mockPlan.mockResolvedValue(plan());
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     await fireEvent.press(await screen.findByTestId("plan-coordinates-action"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/coordinates",
@@ -179,7 +173,7 @@ describe("review plan", () => {
 
   it("opens the context deck for the context level", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "context" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByTestId("plan-context-next")).toBeTruthy();
     await fireEvent.press(screen.getByTestId("plan-context-action"));
     expect(router.push).toHaveBeenCalledWith({
@@ -190,7 +184,7 @@ describe("review plan", () => {
 
   it("reads the interface sample under Context", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "interfaces" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     await fireEvent.press(await screen.findByTestId("plan-interfaces-action"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/[locale]",
@@ -213,7 +207,7 @@ describe("review plan", () => {
         },
       }),
     );
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByText("Settles after each run, credited to Ada")).toBeTruthy();
     expect(screen.getByTestId("plan-policy-last").props.children).toMatch(
       /^Last pass after a run, .+: 412 translations established$/,
@@ -223,7 +217,7 @@ describe("review plan", () => {
 
   it("says why nothing settles after a run", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy", auto: { skip: "no_one" } }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByTestId("plan-policy-auto")).toBeTruthy();
     expect(screen.getByTestId("plan-policy-auto").props.children).toMatch(
       /until a manager sets the involvement or confirms the coordinates/,
@@ -237,7 +231,7 @@ describe("review plan", () => {
         last: { at: "2026-11-01T10:00:00Z", approved: 3, by: "u-cy", by_name: "Cy" },
       }),
     );
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(
       await screen.findByText(
         "Nothing settles after a run: Bo no longer has review access to this project",
@@ -250,7 +244,7 @@ describe("review plan", () => {
 
   it("holds later passes until the context is decided", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy", settle: "held" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByText("Waits for the context")).toBeTruthy();
     expect(screen.queryByTestId("plan-policy-auto")).toBeNull();
   });
@@ -265,17 +259,17 @@ describe("review plan", () => {
 
   it("reads the term scan's state and offers no button to start it", async () => {
     mockPlan.mockResolvedValue(plan({ ...notStarted, stepScan: "waiting_content" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByText("Starts when content arrives")).toBeTruthy();
     expect(screen.queryByTestId("plan-scan")).toBeNull();
     expect(screen.queryByTestId("plan-context-action")).toBeNull();
 
     mockPlan.mockResolvedValue(plan({ ...notStarted, scan: "processing" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByText("Reading your content, 40% done")).toBeTruthy();
 
     mockPlan.mockResolvedValue(plan({ ...notStarted, stepScan: "waiting_push" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByText("Starts with the next push")).toBeTruthy();
   });
 
@@ -287,7 +281,7 @@ describe("review plan", () => {
         quotaResetsAt: "2026-12-01T00:00:00Z",
       }),
     );
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(
       await screen.findByText("Waits for the AI limit to reset on December 1, 2026"),
     ).toBeTruthy();
@@ -295,32 +289,32 @@ describe("review plan", () => {
 
   it("says the server proposes target terms, or why the proposals wait", async () => {
     mockPlan.mockResolvedValue(plan({ proposals: "processing" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByText("Proposing terms in your target languages")).toBeTruthy();
 
     mockPlan.mockResolvedValue(
       plan({ proposals: "waiting_quota", quotaResetsAt: "2026-12-01T00:00:00Z" }),
     );
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(
       await screen.findByText("Term proposals wait for the AI limit to reset on December 1, 2026"),
     ).toBeTruthy();
 
     mockPlan.mockResolvedValue(plan({ proposals: "waiting_credits" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(
       await screen.findByText("Term proposals wait for AI credits: this workspace has none left"),
     ).toBeTruthy();
 
     mockPlan.mockResolvedValue(plan());
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     await screen.findByTestId("plan-list");
     expect(screen.queryByTestId("plan-context-proposals")).toBeNull();
   });
 
   it("lists the exceptions by rule and opens the deck narrowed to one", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "exceptions" }));
-    await render(wrap(<ReviewPlanScreen />));
+    await render(withTestProviders(<ReviewPlanScreen />));
     expect(await screen.findByText('Use "use" instead of "utilize"')).toBeTruthy();
     expect(screen.getByText("210 findings")).toBeTruthy();
     expect(screen.getByText("Norwegian Bokmål, by rule")).toBeTruthy();

@@ -146,6 +146,8 @@ export const api = {
   browseProjectLocation: () => call<string>("BrowseProjectLocation"),
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),
   listTabs: () => call<TabInfo[]>("ListTabs"),
+  saveProjectSnapshot: (tabID: string, snapshot: KapiProject, saveAs: boolean) =>
+    call<{ tab: TabInfo; name: string }>("SaveProjectSnapshot", tabID, snapshot, saveAs),
   saveProject: (tabID: string) => call<void>("SaveProject", tabID),
   saveProjectAs: (tabID: string, path: string) => call<void>("SaveProjectAs", tabID, path),
   saveProjectDialog: (tabID: string) => call<TabInfo>("SaveProjectDialog", tabID),
@@ -288,6 +290,7 @@ export const api = {
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLangs: string[]) =>
     call<void>("RunFlow", tabID, name, inputPaths, targetLangs),
+  cancelProjectRun: (tabID: string) => call<void>("CancelProjectRun", tabID),
   cancelRun: () => call<void>("CancelRun"),
   getRunState: () => call<string>("GetRunState"),
   getRunEvents: () => call<unknown[]>("GetRunEvents"),
@@ -297,7 +300,7 @@ export const api = {
    * was supposed to write these files failed", so the home surfaces read this
    * to avoid presenting a failed catch-up as convergence.
    */
-  getLastRunError: () => call<RunError | null>("GetLastRunError"),
+  getProjectLastRunError: (tabID: string) => call<RunError>("GetProjectLastRunError", tabID),
 
   // Tools
   listTools: () => call<ToolInfo[]>("ListTools"),
@@ -749,7 +752,8 @@ export const api = {
    * arguments, else the named input file's (its newest locale pass unless one
    * is given). Null when nothing retained matches.
    */
-  getLastTrace: (filePath = "", locale = "") => call<FlowTrace>("GetLastTrace", filePath, locale),
+  getProjectLastTrace: (tabID: string, filePath: string, locale: string) =>
+    call<FlowTrace>("GetProjectLastTrace", tabID, filePath, locale),
 
   // Outputs — generated target files per source file in a content collection.
   listOutputs: (tabID: string) => call<Record<string, OutputFileInfo[]>>("ListOutputs", tabID),

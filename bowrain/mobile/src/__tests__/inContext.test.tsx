@@ -1,8 +1,6 @@
 import type { DeckCard, ReviewContainer } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import "../lib/i18n";
 import { ContextSheetBody } from "../components/ContextSheet";
@@ -59,24 +57,10 @@ const container: ReviewContainer = {
   ],
 };
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <SafeAreaProvider
-      initialMetrics={{
-        frame: { x: 0, y: 0, width: 390, height: 844 },
-        insets: { top: 0, left: 0, right: 0, bottom: 0 },
-      }}
-    >
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-    </SafeAreaProvider>
-  );
-}
-
 describe("InContextView", () => {
   it("draws the component's strings in their roles, in the translation, with the card's text marked", async () => {
     await render(
-      wrap(
+      withTestProviders(
         <InContextView
           card={card}
           scope={{ workspace: "w", project: "p" }}
@@ -102,7 +86,7 @@ describe("InContextView", () => {
   it("approves a unit in place, and all the waiting ones at once", async () => {
     const onApprove = jest.fn();
     await render(
-      wrap(
+      withTestProviders(
         <InContextView
           card={card}
           scope={{ workspace: "w", project: "p" }}
@@ -133,7 +117,7 @@ describe("InContextView", () => {
   it("offers to approve every waiting translation when more than one waits", async () => {
     const onApprove = jest.fn();
     await render(
-      wrap(
+      withTestProviders(
         <InContextView
           card={card}
           scope={{ workspace: "w", project: "p" }}
@@ -152,7 +136,7 @@ describe("InContextView", () => {
 describe("ContextSheetBody", () => {
   it("opens on In context when it can draw it, and switches to the details", async () => {
     await render(
-      wrap(
+      withTestProviders(
         <ContextSheetBody
           card={card}
           scope={{ workspace: "w", project: "p" }}
