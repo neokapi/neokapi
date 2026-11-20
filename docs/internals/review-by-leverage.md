@@ -364,7 +364,7 @@ source term has no proposal and no usable term in a target language
 Keeping a proposed target term starts a term-forms job
 (`jobs.TermFormsRequest`) for that concept and language, under the same
 guard. The worker asks the platform AI for the forms through
-`host.ProposeTermForms`, the code behind `kapi terms expand`, bills the
+`terms/expand`, the code behind `kapi terms expand`, bills the
 tokens like a scan phase, and writes the forms onto the term as read when
 the answer arrives. A term that declares forms already is not asked about.
 The concept's revision time stays as the keep left it, so the context deck
@@ -468,7 +468,7 @@ The founder accepted each recommendation on 2026-11-19:
    project, and the server runs it on its own (see "Target terms are
    proposed on their own"). Keeping a proposal, as filed or in the
    reviewer's wording, starts a job that writes the kept term's forms through
-   the code behind `kapi terms expand` (`host.ProposeTermForms`).
+   the code behind `kapi terms expand` (`terms/expand`).
 4. Context deck ordered by reach. Built for candidate terms; the rest of the
    deck keeps its order by kind. Sessions over the deck: built (see
    [Context sessions](#context-sessions)).

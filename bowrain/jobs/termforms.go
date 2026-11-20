@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/host"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/expand"
 )
 
 // termFormsMaxConcepts caps the concepts one term-forms job asks about, so a
@@ -40,7 +40,7 @@ type TermFormsSummary struct {
 
 // executeTermForms runs a term-forms job: it reads the workspace's concepts,
 // asks the platform AI for the forms of each selected term through the same
-// code as `kapi terms expand` (host.ProposeTermForms), and writes the forms
+// code as `kapi terms expand` (expand.Propose), and writes the forms
 // onto each concept as read now, so a decision made while the job ran is not
 // overwritten. The usage is billed and recorded like a scan phase, after a
 // fresh lease check.
@@ -67,12 +67,12 @@ func executeTermForms(ctx context.Context, deps *ContextScanWorkerDeps, job *Con
 		return fmt.Errorf("read the terms store: %w", err)
 	}
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressReading, "reading-terms")
-	opts := host.TermsExpandOptions{
+	opts := expand.Options{
 		SourceLocale: sourceLocale(project),
 		Locales:      req.TermForms.Locales,
 		Concepts:     req.TermForms.Concepts,
 	}
-	summary := TermFormsSummary{Asked: host.ExpandableTerms(concepts, opts)}
+	summary := TermFormsSummary{Asked: expand.Count(concepts, opts)}
 
 	totalTokens := 0
 	if summary.Asked > 0 {
@@ -88,7 +88,7 @@ func executeTermForms(ctx context.Context, deps *ContextScanWorkerDeps, job *Con
 
 		setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressTerms, "expanding-terms")
 		meter := &usageMeter{LLMProvider: prov}
-		proposals, perr := host.ProposeTermForms(ctx, meter, concepts, opts)
+		proposals, perr := expand.Propose(ctx, meter, concepts, opts)
 		usage := meter.total()
 		if tokens := usage.TotalTokens(); tokens > 0 {
 			owner, lerr := deps.Store.RenewLease(ctx, job.ID, epoch)
@@ -134,8 +134,8 @@ func executeTermForms(ctx context.Context, deps *ContextScanWorkerDeps, job *Con
 // and returns how many terms gained forms. The concept's UpdatedAt is left
 // as it was: the forms change how a check finds the term, not the decision
 // the context deck attested.
-func fileTermForms(ctx context.Context, tb terms.Terminology, proposals []host.FormsProposal) (int, error) {
-	byConcept := map[string][]host.FormsProposal{}
+func fileTermForms(ctx context.Context, tb terms.Terminology, proposals []expand.Proposal) (int, error) {
+	byConcept := map[string][]expand.Proposal{}
 	var order []string
 	for _, p := range proposals {
 		if len(p.Forms) == 0 {
@@ -156,7 +156,7 @@ func fileTermForms(ctx context.Context, tb terms.Terminology, proposals []host.F
 			continue
 		}
 		one := []terms.Concept{cp}
-		changed, n := host.ApplyFormsProposals(one, byConcept[cid], false)
+		changed, n := expand.Apply(one, byConcept[cid], false)
 		if !changed[cid] {
 			continue
 		}

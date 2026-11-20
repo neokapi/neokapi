@@ -13,8 +13,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/expand"
 )
 
 // The review plan's context step proposes target terms on its own. When a
@@ -234,12 +234,12 @@ func (s *Server) expandFormsAfterKeep(c echo.Context, src deckSource, concept te
 	if s.ContextScanStore == nil || s.ContextScanQueue == nil {
 		return ""
 	}
-	opts := host.TermsExpandOptions{
+	opts := expand.Options{
 		SourceLocale: src.project.DefaultSourceLanguage,
 		Locales:      []model.LocaleID{locale},
 		Concepts:     []string{concept.ID},
 	}
-	if host.ExpandableTerms([]terms.Concept{concept}, opts) == 0 {
+	if expand.Count([]terms.Concept{concept}, opts) == 0 {
 		return ""
 	}
 	if reason, _ := s.termScanBlocked(ctx, src.wsID, src.wsSlug); reason != "" {
