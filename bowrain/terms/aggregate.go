@@ -71,9 +71,10 @@ func (tb *PostgresStore) ConceptCounts(ctx context.Context) (ConceptCounts, erro
 	}
 	out.Total = total
 
+	notShadow, shadowArg := fw.NotShadowSQL("concept_id", "$2")
 	rows, err := tb.run().QueryContext(ctx,
 		`SELECT status, COUNT(DISTINCT concept_id) FROM tb_terms
-		 WHERE workspace_id = $1 GROUP BY status`, tb.workspaceID)
+		 WHERE workspace_id = $1 AND `+notShadow+` GROUP BY status`, tb.workspaceID, shadowArg)
 	if err != nil {
 		return out, fmt.Errorf("count concepts by status: %w", err)
 	}
@@ -102,13 +103,14 @@ func (tb *PostgresStore) ConceptLocaleCoverage(ctx context.Context) ([]LocaleCov
 		return nil, nil
 	}
 
+	notShadow, shadowArg := fw.NotShadowSQL("t.concept_id", "$2")
 	rows, err := tb.run().QueryContext(ctx,
 		`SELECT t.locale, COUNT(DISTINCT t.concept_id) AS present
 		 FROM tb_terms t
 		 JOIN tb_concepts c ON c.workspace_id = t.workspace_id AND c.id = t.concept_id
-		 WHERE t.workspace_id = $1 AND t.locale <> ''
+		 WHERE t.workspace_id = $1 AND t.locale <> '' AND `+notShadow+`
 		 GROUP BY t.locale
-		 ORDER BY present DESC, t.locale`, tb.workspaceID)
+		 ORDER BY present DESC, t.locale`, tb.workspaceID, shadowArg)
 	if err != nil {
 		return nil, fmt.Errorf("concept locale coverage: %w", err)
 	}
