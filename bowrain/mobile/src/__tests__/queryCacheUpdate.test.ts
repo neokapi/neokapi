@@ -2,34 +2,42 @@ import type { PersistedClient } from "@tanstack/react-query-persist-client";
 
 import { forRunningUpdate } from "../lib/queryClient";
 
-const client = (): PersistedClient => ({
+const query = (key: string) => ({ queryKey: [key], queryHash: key, state: {} }) as never;
+
+const client = (updateId?: string): PersistedClient & { updateId?: string } => ({
   timestamp: 1,
   buster: "1",
+  updateId,
   clientState: {
-    queries: [{ queryKey: ["review-home"], queryHash: "h", state: {} } as never],
+    queries: [query("review-home"), query("decision-log"), query("decision-notices")],
     mutations: [{ mutationKey: ["decide"], state: {} } as never],
   },
 });
 
+const keys = (c: PersistedClient | undefined) =>
+  c?.clientState.queries.map((q) => String((q.queryKey as unknown[])[0]));
+
 describe("persisted cache across updates", () => {
   it("keeps everything when the running update wrote it", () => {
-    const c = client();
-    expect(forRunningUpdate(c, "u1", "u1")).toBe(c);
+    const out = forRunningUpdate(client("u1"), "u1");
+    expect(keys(out)).toEqual(["review-home", "decision-log", "decision-notices"]);
+    expect(out).not.toHaveProperty("updateId");
   });
 
-  it("drops the queries and keeps queued decisions after an update", () => {
-    const out = forRunningUpdate(client(), "u1", "u2");
-    expect(out?.clientState.queries).toEqual([]);
+  it("drops server responses but keeps the decision log, notices and queue after an update", () => {
+    const out = forRunningUpdate(client("u1"), "u2");
+    expect(keys(out)).toEqual(["decision-log", "decision-notices"]);
     expect(out?.clientState.mutations).toHaveLength(1);
   });
 
   it("treats a cache with no recorded update as written by another", () => {
-    const out = forRunningUpdate(client(), null, "embedded");
-    expect(out?.clientState.queries).toEqual([]);
-    expect(out?.clientState.mutations).toHaveLength(1);
+    expect(keys(forRunningUpdate(client(), "embedded"))).toEqual([
+      "decision-log",
+      "decision-notices",
+    ]);
   });
 
   it("passes through an empty store", () => {
-    expect(forRunningUpdate(undefined, null, "u1")).toBeUndefined();
+    expect(forRunningUpdate(undefined, "u1")).toBeUndefined();
   });
 });
