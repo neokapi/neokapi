@@ -315,7 +315,15 @@ export function BrowseProjectLocation() {
 }
 
 /**
- * CancelRun cancels the currently running flow.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<void>}
+ */
+export function CancelProjectRun(tabID) {
+    return $Call.ByID(3888483076, tabID);
+}
+
+/**
+ * CancelRun waits for the active run to stop and publish its final events.
  * @returns {$CancellablePromise<void>}
  */
 export function CancelRun() {
@@ -1368,6 +1376,28 @@ export function GetProjectFilters(tabID) {
 export function GetProjectHandles(tabID) {
     return $Call.ByID(1036900364, tabID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType92($result);
+    }));
+}
+
+/**
+ * @param {string} tabID
+ * @returns {$CancellablePromise<$models.RunError | null>}
+ */
+export function GetProjectLastRunError(tabID) {
+    return $Call.ByID(1307641828, tabID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType76($result);
+    }));
+}
+
+/**
+ * @param {string} tabID
+ * @param {string} filePath
+ * @param {string} locale
+ * @returns {$CancellablePromise<flow$0.FlowTrace | null>}
+ */
+export function GetProjectLastTrace(tabID, filePath, locale) {
+    return $Call.ByID(3397065878, tabID, filePath, locale).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType78($result);
     }));
 }
 

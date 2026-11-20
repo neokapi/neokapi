@@ -155,13 +155,13 @@ func (a *App) BringUpToDate(tabID string) error {
 		return err
 	}
 
-	ctx, err := a.runState.start("", nil)
+	ctx, err := a.runState.start(tabID, "", nil)
 	if err != nil {
 		return err
 	}
 
 	src := string(op.Project.Defaults.SourceLanguage)
-	go a.executeConvergeRun(ctx, tabID, op.Path, flowName, src)
+	go a.executeConvergeRun(ctx, op, op.Path, flowName, src)
 	return nil
 }
 
@@ -184,7 +184,7 @@ func (a *App) BringUpToDate(tabID string) error {
 // plumbing writes the same typed events to its stdout as NDJSON, and the
 // dispatch decodes them line by line into this callback. The run view renders
 // one stream and never asks which venue produced it.
-func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowName, sourceLang string) {
+func (a *App) executeConvergeRun(ctx context.Context, op *openProject, projectPath, flowName, sourceLang string) {
 	defer a.runState.release()
 
 	start := time.Now()
@@ -236,8 +236,8 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 			event.Message = fmt.Sprintf("Finished %d pass(es) in %s: %d scope(s) waiting for review", out.Passes, elapsed, len(out.ParkedScopes))
 		}
 	}
-	a.finishRun(ctx, event, err)
-	a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
+	a.finishRun(ctx, op, event, err)
+	a.emitEvent("project:extracted", map[string]any{"tabID": op.ID})
 	a.emitEvent("outputs-changed", map[string]any{})
 }
 

@@ -162,8 +162,14 @@ func TestBringUpToDate_SuccessClearsARecordedFailure(t *testing.T) {
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)
 
-	// Seed a stale failure as though a previous run had died.
-	app.runState.lastFailure = &RunError{Kind: RunErrModelNotInstalled, Headline: "stale", Raw: "stale"}
+	other, _ := newPartialFailureProject(t, app)
+	require.NoError(t, app.BringUpToDate(other.ID))
+	awaitTerminalRun(t, app)
+	app.CancelRun()
+	previous := app.GetProjectLastRunError(other.ID)
+	require.NotNil(t, previous)
+	require.Nil(t, app.GetProjectLastRunError(tab.ID))
+	app.getOpenProject(tab.ID).lastRunError.Store(previous)
 	require.NotNil(t, app.GetLastRunError())
 
 	require.NoError(t, app.BringUpToDate(tab.ID))
@@ -173,6 +179,8 @@ func TestBringUpToDate_SuccessClearsARecordedFailure(t *testing.T) {
 	}, 60*time.Second, 50*time.Millisecond)
 	require.Equal(t, string(RunStateComplete), app.GetRunState())
 
+	assert.Same(t, previous, app.GetProjectLastRunError(other.ID))
+	assert.Nil(t, app.GetProjectLastRunError(tab.ID))
 	assert.Nil(t, app.GetLastRunError(),
 		"a successful run clears the recorded failure — otherwise the home stays red forever")
 }

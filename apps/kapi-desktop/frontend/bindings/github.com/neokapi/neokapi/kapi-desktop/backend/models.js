@@ -9733,6 +9733,13 @@ export class RunEvent {
      * @param {Partial<RunEvent>} [$$source = {}] - The source object to create the RunEvent.
      */
     constructor($$source = {}) {
+        if (!("tab_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tab_id"] = "";
+        }
         if (!("type" in $$source)) {
             /**
              * "state", "progress", "trace", "pipeline_metrics", "error", "complete", "converge_event"
@@ -9853,22 +9860,22 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType169;
-        const $$createField8_0 = $$createType171;
-        const $$createField11_0 = $$createType173;
-        const $$createField12_0 = $$createType175;
+        const $$createField5_0 = $$createType169;
+        const $$createField9_0 = $$createType171;
+        const $$createField12_0 = $$createType173;
+        const $$createField13_0 = $$createType175;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
-            $$parsedSource["error"] = $$createField4_0($$parsedSource["error"]);
+            $$parsedSource["error"] = $$createField5_0($$parsedSource["error"]);
         }
         if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField8_0($$parsedSource["steps"]);
+            $$parsedSource["steps"] = $$createField9_0($$parsedSource["steps"]);
         }
         if ("converge_event" in $$parsedSource) {
-            $$parsedSource["converge_event"] = $$createField11_0($$parsedSource["converge_event"]);
+            $$parsedSource["converge_event"] = $$createField12_0($$parsedSource["converge_event"]);
         }
         if ("converge_result" in $$parsedSource) {
-            $$parsedSource["converge_result"] = $$createField12_0($$parsedSource["converge_result"]);
+            $$parsedSource["converge_result"] = $$createField13_0($$parsedSource["converge_result"]);
         }
         return new RunEvent(/** @type {Partial<RunEvent>} */($$parsedSource));
     }
@@ -9938,6 +9945,13 @@ export class RunTraces {
      * @param {Partial<RunTraces>} [$$source = {}] - The source object to create the RunTraces.
      */
     constructor($$source = {}) {
+        if (!("tab_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tab_id"] = "";
+        }
         if (!("flow_name" in $$source)) {
             /**
              * @member
@@ -9978,14 +9992,14 @@ export class RunTraces {
      * @returns {RunTraces}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType177;
-        const $$createField2_0 = $$createType179;
+        const $$createField2_0 = $$createType177;
+        const $$createField3_0 = $$createType179;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
+            $$parsedSource["steps"] = $$createField2_0($$parsedSource["steps"]);
         }
         if ("files" in $$parsedSource) {
-            $$parsedSource["files"] = $$createField2_0($$parsedSource["files"]);
+            $$parsedSource["files"] = $$createField3_0($$parsedSource["files"]);
         }
         return new RunTraces(/** @type {Partial<RunTraces>} */($$parsedSource));
     }

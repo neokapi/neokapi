@@ -33,6 +33,7 @@ const (
 
 // RunEvent is emitted to the frontend during flow execution.
 type RunEvent struct {
+	TabID   string `json:"tab_id"`
 	Type    string `json:"type"` // "state", "progress", "trace", "pipeline_metrics", "error", "complete", "converge_event"
 	FlowID  string `json:"flow_id"`
 	Message string `json:"message,omitempty"`
@@ -75,6 +76,7 @@ type RunEvent struct {
 // it ran with (so a reader can tell a trace from an edited flow apart), and
 // the files whose traces the desktop kept, in completion order.
 type RunTraces struct {
+	TabID    string          `json:"tab_id"`
 	FlowName string          `json:"flow_name"`
 	Steps    []flow.FlowStep `json:"steps"`
 	Files    []RunTraceFile  `json:"files"`
@@ -118,6 +120,7 @@ var desktopTraceLimits = flow.TraceLimits{MaxParts: 500, MaxEvents: 20_000}
 // runner manages flow execution state with proper synchronization.
 // All fields are guarded by mu.
 type runner struct {
+	tabID   string
 	mu      sync.Mutex
 	state   RunState
 	cancel  context.CancelFunc
@@ -143,7 +146,7 @@ func newRunner() *runner {
 	return &runner{state: RunStateIdle}
 }
 
-func (r *runner) start(traceFlow string, steps []flow.FlowStep) (context.Context, error) {
+func (r *runner) start(tabID, traceFlow string, steps []flow.FlowStep) (context.Context, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.running {
@@ -152,6 +155,7 @@ func (r *runner) start(traceFlow string, steps []flow.FlowStep) (context.Context
 	ctx, cancel := context.WithCancel(context.Background())
 	r.state, r.cancel, r.running = RunStateRunning, cancel, true
 	r.done = make(chan struct{})
+	r.tabID = tabID
 	r.events = nil
 	r.resetTracesLocked(traceFlow, steps)
 	return ctx, nil
@@ -165,7 +169,7 @@ func (r *runner) release() {
 	r.running = false
 }
 
-func (a *App) finishRun(ctx context.Context, event RunEvent, err error) RunState {
+func (a *App) finishRun(ctx context.Context, op *openProject, event RunEvent, err error) RunState {
 	r := a.runState
 	r.mu.Lock()
 	state := RunStateComplete
@@ -182,6 +186,8 @@ func (a *App) finishRun(ctx context.Context, event RunEvent, err error) RunState
 	}
 	r.cancel()
 	r.cancel = nil
+	op.lastRunError.Store(event.Error)
+	event.TabID = op.ID
 	r.state, r.lastFailure = state, event.Error
 	r.events = append(r.events, event)
 	r.mu.Unlock()
@@ -199,6 +205,14 @@ func (a *App) GetLastRunError() *RunError {
 	a.runState.mu.Lock()
 	defer a.runState.mu.Unlock()
 	return a.runState.lastFailure
+}
+
+func (a *App) GetProjectLastRunError(tabID string) *RunError {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil
+	}
+	return op.lastRunError.Load()
 }
 
 // RunFlow executes a flow by name from the current project. Target locales
@@ -227,7 +241,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 		return err
 	}
 
-	ctx, err := a.runState.start(flowName, spec.Steps)
+	ctx, err := a.runState.start(tabID, flowName, spec.Steps)
 	if err != nil {
 		return err
 	}
@@ -299,7 +313,7 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 			completion.Message = ev.Message
 		}
 	})
-	if a.finishRun(ctx, completion, err) != RunStateComplete {
+	if a.finishRun(ctx, op, completion, err) != RunStateComplete {
 		a.emitEvent("outputs-changed", map[string]any{})
 	}
 }
@@ -331,10 +345,24 @@ func toolBuildErrorMessage(toolName, lang string, err error) string {
 
 // CancelRun waits for the active run to stop and publish its final events.
 func (a *App) CancelRun() {
+	a.cancelRun("")
+}
+
+func (a *App) CancelProjectRun(tabID string) {
+	if tabID != "" {
+		a.cancelRun(tabID)
+	}
+}
+
+func (a *App) cancelRun(tabID string) {
 	if a.runState == nil {
 		return
 	}
 	a.runState.mu.Lock()
+	if tabID != "" && tabID != a.runState.tabID {
+		a.runState.mu.Unlock()
+		return
+	}
 	done := a.runState.done
 	if a.runState.cancel != nil {
 		a.runState.cancel()
@@ -373,6 +401,7 @@ func (a *App) GetRunEvents() []RunEvent {
 // appending to prevent the reconnection buffer from growing at 5 events/second.
 func (a *App) emitRunEvent(event RunEvent) {
 	a.runState.mu.Lock()
+	event.TabID = a.runState.tabID
 	if event.Type == "pipeline_metrics" && len(a.runState.events) > 0 {
 		last := a.runState.events[len(a.runState.events)-1]
 		if last.Type == "pipeline_metrics" {
@@ -471,6 +500,7 @@ func (a *App) ListRunTraces() *RunTraces {
 		return nil
 	}
 	out := &RunTraces{
+		TabID:    a.runState.tabID,
 		FlowName: a.runState.traceFlow,
 		Steps:    a.runState.traceSteps,
 		Files:    make([]RunTraceFile, 0, len(a.runState.traces)),
@@ -488,11 +518,25 @@ func (a *App) ListRunTraces() *RunTraces {
 // pass for the locale (an empty locale picks the file's newest pass). Nil
 // when nothing retained matches; ListRunTraces names what would.
 func (a *App) GetLastTrace(filePath, locale string) *flow.FlowTrace {
+	return a.lastTrace("", filePath, locale)
+}
+
+func (a *App) GetProjectLastTrace(tabID, filePath, locale string) *flow.FlowTrace {
+	if tabID == "" {
+		return nil
+	}
+	return a.lastTrace(tabID, filePath, locale)
+}
+
+func (a *App) lastTrace(tabID, filePath, locale string) *flow.FlowTrace {
 	if a.runState == nil {
 		return nil
 	}
 	a.runState.mu.Lock()
 	defer a.runState.mu.Unlock()
+	if tabID != "" && a.runState.tabID != tabID {
+		return nil
+	}
 	for _, rt := range slices.Backward(a.runState.traces) {
 		if filePath != "" && rt.file.FilePath != filePath {
 			continue

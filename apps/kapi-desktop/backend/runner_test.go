@@ -80,6 +80,7 @@ func TestRunFlowExecutesViaSharedOrchestrator(t *testing.T) {
 
 	byType := map[string][]RunEvent{}
 	for _, ev := range events {
+		assert.Equal(t, tab.ID, ev.TabID)
 		assert.Equal(t, "pseudo", ev.FlowID)
 		byType[ev.Type] = append(byType[ev.Type], ev)
 	}
@@ -114,6 +115,7 @@ func TestRunFlowExecutesViaSharedOrchestrator(t *testing.T) {
 
 	run := app.ListRunTraces()
 	require.NotNil(t, run)
+	assert.Equal(t, tab.ID, run.TabID)
 	assert.Equal(t, "pseudo", run.FlowName)
 	assert.Equal(t, []flow.FlowStep{{Tool: "pseudo-translate"}}, run.Steps)
 	assert.Equal(t, desktopTraceLimits.MaxParts, run.MaxParts)
@@ -126,6 +128,9 @@ func TestRunFlowExecutesViaSharedOrchestrator(t *testing.T) {
 	require.NotNil(t, tr, "the last completed file's trace")
 	assert.Same(t, tr, app.GetLastTrace(src, ""))
 	assert.Same(t, tr, app.GetLastTrace(src, "qps"))
+	assert.Same(t, tr, app.GetProjectLastTrace(tab.ID, src, "qps"))
+	assert.Nil(t, app.GetProjectLastTrace("another tab", src, "qps"))
+	assert.Nil(t, app.GetProjectLastTrace("", src, "qps"))
 	assert.Nil(t, app.GetLastTrace(filepath.Join(root, "other.json"), ""))
 	assert.Nil(t, app.GetLastTrace(src, "fr-FR"))
 	assert.Equal(t, "pseudo", tr.Name)
@@ -308,7 +313,9 @@ func TestRunFlowCancelWaitsForTermination(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("flow did not start")
 	}
-	app.CancelRun()
+	app.CancelProjectRun("another tab")
+	require.Equal(t, string(RunStateRunning), app.GetRunState())
+	app.CancelProjectRun(tab.ID)
 	require.Equal(t, string(RunStateCanceled), app.GetRunState())
 	failure := app.GetLastRunError()
 	require.NotNil(t, failure)
