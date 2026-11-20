@@ -855,6 +855,19 @@ review_items.project_id text NOT NULL
 review_items.push_id text NOT NULL DEFAULT ''::text
 review_items.status text NOT NULL DEFAULT 'pending'::text
 review_items.type text NOT NULL
+review_plan_snapshots.claimed_at timestamp with time zone NULL
+review_plan_snapshots.computed_at timestamp with time zone NULL
+review_plan_snapshots.computed_seq bigint NOT NULL DEFAULT 0
+review_plan_snapshots.data jsonb NULL
+review_plan_snapshots.dirty_at timestamp with time zone NULL
+review_plan_snapshots.dirty_seq bigint NOT NULL DEFAULT 0
+review_plan_snapshots.first_dirty_at timestamp with time zone NULL
+review_plan_snapshots.lease_token text NOT NULL DEFAULT ''::text
+review_plan_snapshots.lease_until timestamp with time zone NULL
+review_plan_snapshots.project_id text NOT NULL
+review_plan_snapshots.stream text NOT NULL
+review_plan_snapshots.workspace_id text NOT NULL DEFAULT ''::text
+review_plan_snapshots.workspace_slug text NOT NULL DEFAULT ''::text
 role_templates.created_at timestamp with time zone NOT NULL DEFAULT now()
 role_templates.description text NOT NULL DEFAULT ''::text
 role_templates.display_name text NOT NULL DEFAULT ''::text
@@ -1480,6 +1493,8 @@ review_deck_facts review_deck_facts_pkey PRIMARY KEY (project_id, stream, block_
 review_deck_facts review_deck_facts_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 review_items review_items_pkey PRIMARY KEY (id)
 review_items review_items_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+review_plan_snapshots review_plan_snapshots_pkey PRIMARY KEY (project_id, stream)
+review_plan_snapshots review_plan_snapshots_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 role_templates role_templates_pkey PRIMARY KEY (workspace_id, id)
 role_templates role_templates_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 role_templates role_templates_workspace_id_name_key UNIQUE (workspace_id, name)
@@ -1755,6 +1770,8 @@ CREATE INDEX overlays_ext_p6_project_id_stream_block_id_idx ON public.overlays_e
 CREATE INDEX overlays_ext_p6_project_id_stream_kind_idx ON public.overlays_ext_p6 USING btree (project_id, stream, kind)
 CREATE INDEX overlays_ext_p7_project_id_stream_block_id_idx ON public.overlays_ext_p7 USING btree (project_id, stream, block_id)
 CREATE INDEX overlays_ext_p7_project_id_stream_kind_idx ON public.overlays_ext_p7 USING btree (project_id, stream, kind)
+CREATE INDEX review_plan_snapshots_due ON public.review_plan_snapshots USING btree (first_dirty_at) WHERE (dirty_seq > computed_seq)
+CREATE INDEX review_plan_snapshots_workspace ON public.review_plan_snapshots USING btree (workspace_id)
 CREATE INDEX translations_p0_project_id_stream_block_id_idx ON public.translations_p0 USING btree (project_id, stream, block_id)
 CREATE INDEX translations_p0_project_id_stream_locale_block_id_idx ON public.translations_p0 USING btree (project_id, stream, locale, block_id) WHERE ((text <> ''::text) AND (COALESCE((target_json ->> 'status'::text), ''::text) <> 'established'::text))
 CREATE INDEX translations_p0_project_id_stream_locale_updated_at_idx ON public.translations_p0 USING btree (project_id, stream, locale, updated_at DESC)
@@ -1906,6 +1923,7 @@ CREATE UNIQUE INDEX refresh_tokens_pkey ON public.refresh_tokens USING btree (id
 CREATE UNIQUE INDEX refresh_tokens_token_hash_key ON public.refresh_tokens USING btree (token_hash)
 CREATE UNIQUE INDEX review_deck_facts_pkey ON public.review_deck_facts USING btree (project_id, stream, block_id, locale)
 CREATE UNIQUE INDEX review_items_pkey ON public.review_items USING btree (id)
+CREATE UNIQUE INDEX review_plan_snapshots_pkey ON public.review_plan_snapshots USING btree (project_id, stream)
 CREATE UNIQUE INDEX role_templates_pkey ON public.role_templates USING btree (workspace_id, id)
 CREATE UNIQUE INDEX role_templates_workspace_id_name_key ON public.role_templates USING btree (workspace_id, name)
 CREATE UNIQUE INDEX runner_schema_migrations_pkey ON public.runner_schema_migrations USING btree (version)

@@ -1945,4 +1945,41 @@ var Migrations = []storage.Migration{
 			ANALYZE translations;
 		`,
 	},
+	{
+		Version:     57,
+		Description: "the review plan's snapshots",
+		SQL: `
+			-- One row per project and stream: the review plan's counts that
+			-- read the project's translations (data), taken at computed_at.
+			-- The server recomputes a row in the background after changes.
+			-- A change bumps dirty_seq and a compute records the sequence it
+			-- read at in computed_seq, so a row is due while dirty_seq is the
+			-- greater. dirty_at is the last change and first_dirty_at the
+			-- first one not yet computed: a row is due once quiet, or once
+			-- changed long enough ago. lease_until and lease_token hold the
+			-- one compute running for the row. workspace_id and
+			-- workspace_slug let a change to a workspace's terms mark its
+			-- projects.
+			CREATE TABLE IF NOT EXISTS review_plan_snapshots (
+				project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream         TEXT NOT NULL,
+				workspace_id   TEXT NOT NULL DEFAULT '',
+				workspace_slug TEXT NOT NULL DEFAULT '',
+				data           JSONB,
+				computed_at    TIMESTAMPTZ,
+				computed_seq   BIGINT NOT NULL DEFAULT 0,
+				dirty_seq      BIGINT NOT NULL DEFAULT 0,
+				dirty_at       TIMESTAMPTZ,
+				first_dirty_at TIMESTAMPTZ,
+				claimed_at     TIMESTAMPTZ,
+				lease_until    TIMESTAMPTZ,
+				lease_token    TEXT NOT NULL DEFAULT '',
+				PRIMARY KEY (project_id, stream)
+			);
+			CREATE INDEX IF NOT EXISTS review_plan_snapshots_due
+				ON review_plan_snapshots (first_dirty_at) WHERE dirty_seq > computed_seq;
+			CREATE INDEX IF NOT EXISTS review_plan_snapshots_workspace
+				ON review_plan_snapshots (workspace_id);
+		`,
+	},
 }

@@ -341,6 +341,10 @@ type Server struct {
 	// settling holds the projects a settle pass runs for on this instance.
 	settling sync.Map // map[string]struct{}
 
+	// planSnapshots keeps the review plan's snapshots fresh; nil when the
+	// content store keeps none, and the plan then counts on each request.
+	planSnapshots *planSnapshotRefresher
+
 	// proposeLater coalesces the triggers that start a project's term
 	// proposals into one job per quiet period.
 	proposeLater projectDebouncer
@@ -916,6 +920,9 @@ func NewServer(cfg Config) *Server {
 	// A run that drafted translations is followed by the review plan's
 	// settle pass, when the policy in force leaves them to the checks.
 	s.subscribeSettleAfterRun()
+	// The review plan and the review inbox read a snapshot of each
+	// project's counts, recomputed in the background after changes.
+	s.startPlanSnapshots(defaultPlanSnapshotConfig)
 	// A completed term scan or a new target language can leave concepts with
 	// no term in a target language, so the server proposes them.
 	s.subscribeTermProposals()
@@ -2225,6 +2232,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	// below and the phases after this one are about to close, and each is
 	// already bounded by its own timeout.
 	s.awaitActions(ctx)
+	s.planSnapshots.Close(ctx)
 	if s.DailyDigestWorker != nil {
 		s.DailyDigestWorker.Close()
 	}
