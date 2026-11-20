@@ -407,6 +407,11 @@ terminology without a separate graph database, and drive deprecation workflows:
 the `term-enforce` tool resolves *use-instead* and *replaced-by* to name the
 replacement.
 
+The SQLite store reserves `terms.ShadowIDPrefix` for stream-specific copies of
+concepts and relations. Ordinary searches, counts and relation lists exclude
+these copies. `SearchForStream` and `RelationsForStream` include copies on the
+requested stream and the ancestors the caller supplies.
+
 ### Validity
 
 A term and a relation each carry an optional half-open `[valid-from, valid-to)`

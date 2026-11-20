@@ -203,9 +203,11 @@ can evaluate a draft in two ways before approval:
   resolved, with a source word count as a proxy for re-translation effort and a
   sample of affected blocks to inspect. The preview leaves stored content
   unchanged.
-- **Pilots on selected streams.** Bind a change-set to one or more content
-  [streams](/server/workspaces) to evaluate it before merging. Voice checks use
-  the pilot's candidate profile on those streams. The trial report compares
+- **Pilots on selected streams.** Select a project and a content
+  [stream](/server/workspaces) to pilot a change-set before merging. You can
+  pilot the same draft in several projects. Stopping one pilot preserves the
+  others, even when their streams share a name. Voice checks use
+  the pilot's candidate profile on its stream. The trial report compares
   proposed term changes without applying them to ordinary term checks, which
   continue to use workspace terms. Merging applies the operations and
   removes the pilot overrides. Abandoning removes the overrides without applying
