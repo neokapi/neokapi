@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
@@ -247,4 +248,19 @@ func TestTermScope_WidenNeedsManageTerms(t *testing.T) {
 	cp, _, err := f.tb.GetConcept(t.Context(), cid)
 	require.NoError(t, err)
 	assert.Equal(t, []string{f.a}, termscope.Projects(cp))
+}
+
+// TestTermScope_ProposalsCountOnlyTheProjectsTerms: the automatic proposal
+// job of project B waits for no concept limited to project A.
+func TestTermScope_ProposalsCountOnlyTheProjectsTerms(t *testing.T) {
+	cand := func(cid string, projects ...string) terms.Concept {
+		cp := terms.Concept{ID: cid, Terms: []terms.Term{{Text: cid, Locale: "en", Status: model.TermPreferred}}}
+		termscope.Limit(&cp, projects...)
+		return cp
+	}
+	concepts := []terms.Concept{cand("all"), cand("in-a", "a"), cand("in-ab", "a", "b")}
+	a := &platstore.Project{ID: "a", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}}
+	b := &platstore.Project{ID: "b", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}}
+	assert.Equal(t, 3, termProposalsWaiting(concepts, a))
+	assert.Equal(t, 2, termProposalsWaiting(concepts, b))
 }

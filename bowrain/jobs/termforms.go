@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/model"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/terms"
@@ -66,6 +67,8 @@ func executeTermForms(ctx context.Context, deps *ContextScanWorkerDeps, job *Con
 	if err != nil {
 		return fmt.Errorf("read the terms store: %w", err)
 	}
+	// Only the concepts that apply in the project take forms from its job.
+	concepts = termscope.Filter(concepts, project.ID)
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressReading, "reading-terms")
 	opts := expand.Options{
 		SourceLocale: sourceLocale(project),
