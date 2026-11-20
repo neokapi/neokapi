@@ -24,6 +24,25 @@ pnpm --dir web exec docusaurus serve --host 127.0.0.1 --port 4178 --no-open
 
 `make refresh-content-maturity` records observations for the current UTC date. The weekly GitHub Actions job uses that target. A manual dispatch on a branch produces a downloadable patch and agent brief. On the default branch the job also proposes the patch through the repository’s rolling pull request. A maintainer reviews changes to the published data. The job uses local fixtures and requires no model or CMS credentials.
 
+## Hosted consumer checks
+
+On weekly and manual runs, the content maturity job calls the format acceptance
+workflow at the same Git revision. The macOS job uploads `acceptance-receipts`.
+The measurement job checks the revision and run ID before importing the artifact
+into the operations ledger. A retry retains the attempt that produced the
+receipt. Pull requests replay the committed evidence.
+
+Each receipt names the format, workflow, GitHub Actions run and attempt, tested
+commit, and external consumer tests. The receipt includes the result for each
+fixture and a SHA-256 digest of those results. Only a complete set of passing
+consumer checks qualifies as passing acceptance. A mix of passes and skips
+records partial coverage. Internal reparsing and unregistered tests provide no
+consumer evidence. To add a consumer, declare its Go suite in
+`scripts/format-ops/acceptance-receipts.mjs`. Use `single` when the top-level test runs the
+consumer itself, or `fixtures` when each subtest runs a consumer. The
+`jq-ajv` suites run both validators in separate subtests for each fixture. A support-tier renewal also requires evidence
+for every other gate in the format's declaration.
+
 ## Give an agent a task
 
 Generate a brief for the fleet, one subject or a candidate. The brief is plain text. Pass it to the coding agent that has access to the checkout. The following commands print the briefs without starting an agent.

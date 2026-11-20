@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/content-maturity.yml'
+      - '.github/workflows/format-acceptance.yml'
       - '.claude/workflows/format-triage.js'
       - '.skills/**'
       - 'Makefile'
@@ -41,7 +42,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  consumers:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/format-acceptance.yml
+    with:
+      collect-receipts: true
+
   measure:
+    needs: consumers
+    if: >-
+      ${{ !cancelled() && ((github.event_name == 'pull_request' && needs.consumers.result == 'skipped')
+          || (github.event_name != 'pull_request' && contains(fromJSON('["success","failure"]'), needs.consumers.result))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -65,6 +76,16 @@ jobs:
         env:
           MATURITY_HISTORY_BASE: ${{ github.event.pull_request.base.sha }}
         run: make check-content-maturity
+      - uses: actions/download-artifact@v8
+        if: github.event_name != 'pull_request'
+        with:
+          name: acceptance-receipts
+          path: ${{ runner.temp }}/consumer-results
+      - name: Import same-revision consumer results
+        if: github.event_name != 'pull_request'
+        env:
+          ACCEPTANCE_JOB_RESULT: ${{ needs.consumers.result }}
+        run: node scripts/format-ops/acceptance-receipts.mjs ingest "$RUNNER_TEMP/consumer-results/acceptance.json"
       - name: Record a new observation
         if: github.event_name != 'pull_request'
         run: make refresh-content-maturity
@@ -88,7 +109,7 @@ jobs:
 
   propose:
     needs: measure
-    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    if: ${{ !cancelled() && needs.measure.result == 'success' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

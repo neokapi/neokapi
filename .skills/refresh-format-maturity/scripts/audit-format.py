@@ -45,9 +45,12 @@ Env:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import shlex
+from functools import lru_cache
 import subprocess
 import sys
 
@@ -365,24 +368,95 @@ def _integrations_doc():
     return _CACHE["integrations"], _CACHE["integrations_present"]
 
 
-def _ledger_check(ledger, fmt: str, needles: tuple[str, ...]) -> str:
-    """Latest runs[].evidence entry whose check names this format + needle.
+def _named_check(evidence, fmt, commands):
+    name = evidence.get("check")
+    if evidence.get("format", fmt) != fmt or not isinstance(name, str):
+        return False
+    try:
+        args = shlex.split(name)
+    except ValueError:
+        return False
+    if args[:1] == ["node"]:
+        args = args[1:]
+    if not args or os.path.basename(args[0]).removesuffix(".mjs") not in commands:
+        return False
+    # A receipt may name the format directly or use the checker's positional argument.
+    if len(args) == 1:
+        return evidence.get("format") == fmt
+    return args[1] == fmt and "--all" not in args
 
-    green = exit 0, red = nonzero; 'unknown' when never recorded (or no ledger).
-    """
+
+@lru_cache(maxsize=None)
+def _tested_inputs_match(root, revision):
+    if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+        return False
+    ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", revision, "HEAD"],
+                              cwd=root, capture_output=True, timeout=30)
+    if ancestor.returncode != 0:
+        return False
+    paths = ["core", "memory", "providers", "terms", "voice", "go.mod", "go.sum", "go.work",
+             "go.work.sum", "Makefile", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
+             ".github/workflows/format-acceptance.yml", ".github/actions",
+             "scripts/format-ops/acceptance-receipts.mjs"]
+    changed = subprocess.run(["git", "diff", "--quiet", revision, "--", *paths], cwd=root,
+                             capture_output=True, timeout=30)
+    if changed.returncode != 0:
+        return False
+    new = subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "--", *paths],
+                         cwd=root, capture_output=True, timeout=30)
+    return new.returncode == 0 and not new.stdout
+
+
+def _acceptance_result(evidence, fmt):
+    if (evidence.get("check") != "format-acceptance" or evidence.get("format") != fmt
+            or evidence.get("workflow") != ".github/workflows/format-acceptance.yml"
+            or evidence.get("environment") != "github-actions"
+            or any(type(evidence.get(key)) is not int or evidence[key] <= 0 for key in ("run_id", "run_attempt"))):
+        return None
+    revision = evidence.get("head_sha")
+    if not isinstance(revision, str) or not _tested_inputs_match(REPO, revision):
+        return "unknown"
+    checks = evidence.get("checks")
+    if not isinstance(checks, list):
+        return "unknown"
+    outcomes = set()
+    for check in checks:
+        if (not isinstance(check, dict) or not isinstance(check.get("test"), str) or not check["test"]
+                or check.get("outcome") not in ("pass", "skip", "fail")):
+            return "unknown"
+        outcomes.add(check["outcome"])
+    payload = json.dumps(checks, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    if hashlib.sha256(payload).hexdigest() != evidence.get("output_sha") or type(evidence.get("exit")) is not int:
+        return "unknown"
+    outcome = evidence.get("test_outcome")
+    if outcome == "fail" and evidence.get("conclusion") == "failure" and evidence["exit"] != 0:
+        return "red"
+    if (outcome == "pass" and outcomes == {"pass"} and evidence.get("conclusion") == "success"
+            and evidence["exit"] == 0):
+        return "green"
+    return "unknown"
+
+
+def _ledger_check(ledger, fmt, check):
+    """Read the most recent scoped result. Local receipts can establish knowledge checks."""
     if not isinstance(ledger, dict):
         return "unknown"
-    res = "unknown"
-    for r in ledger.get("runs", []) or []:
-        if not isinstance(r, dict):
+    commands = {"citations": {"check-citations", "citation", "citations"},
+                "context-pack": {"context-pack", "contextpack", "context_pack"},
+                "structure": {"structure", "structure-certification"}}
+    for run in reversed(ledger.get("runs", []) or []):
+        if not isinstance(run, dict):
             continue
-        for e in r.get("evidence", []) or []:
-            if not isinstance(e, dict):
+        for evidence in reversed(run.get("evidence", []) or []):
+            if not isinstance(evidence, dict):
                 continue
-            chk = str(e.get("check", "")).lower()
-            if fmt.lower() in chk and any(n in chk for n in needles):
-                res = "green" if e.get("exit", 1) == 0 else "red"
-    return res
+            if check == "acceptance":
+                result = _acceptance_result(evidence, fmt)
+                if result is not None:
+                    return result
+            elif _named_check(evidence, fmt, commands[check]) and type(evidence.get("exit")) is int:
+                return "green" if evidence["exit"] == 0 else "red"
+    return "unknown"
 
 
 # ── engine axis ──
@@ -755,8 +829,8 @@ def _knowledge_axis(d: str, fmt: str, has: dict, kinds: list[str],
         # harvest ladder stands in for spec.yaml refs (rubric K2 "or the harvest ladder")
         refs_ok = k("okapi_skip") and k("invariants") and k("corpus")
 
-    citations = _ledger_check(ledger, fmt, ("citation",))
-    contextpack = _ledger_check(ledger, fmt, ("context-pack", "contextpack", "context_pack"))
+    citations = _ledger_check(ledger, fmt, "citations")
+    contextpack = _ledger_check(ledger, fmt, "context-pack")
 
     k1 = dossier_ok and sidecar_ok
     k2 = k1 and has["schema"] and refs_ok
@@ -831,7 +905,7 @@ def _corpus_axis(d: str, fmt: str, kinds: list[str], ledger) -> dict:
                                   and doc["na"].get("reviewed_by"))))
 
     # ledger-only signals
-    acceptance_ci = _ledger_check(ledger, fmt, ("acceptance",))
+    acceptance_ci = _ledger_check(ledger, fmt, "acceptance")
     has_acceptance_test = "acceptance" in kinds
     acceptance = ("complete" if has_acceptance_test and acceptance_ci == "green"
                   else "partial" if has_acceptance_test else "none")
@@ -1151,7 +1225,7 @@ def _structure_axis(d: str, fmt: str, ftype: str, ledger=None) -> dict:
     plugin_certified = False
     if plugin_declared_ceiling and RANK_STRUCT[plugin_declared_ceiling] > RANK_STRUCT[ceiling]:
         ceiling = plugin_declared_ceiling  # declared/promotable ceiling
-        if _ledger_check(ledger, fmt, ("structure",)) == "green":
+        if _ledger_check(ledger, fmt, "structure") == "green":
             plugin_certified = True
             # Fill the published cells up to the certified plugin ceiling so the
             # gate (gateStructure over signals.cells) publishes it.

@@ -1,19 +1,7 @@
 name: Format acceptance
 
-# Verifies that translated output from the native formats is accepted by the
-# REAL downstream consumer toolchains — not just by our own reader. Each check
-# is gated on tool availability: if a validator is absent OR cannot execute, the
-# subtest skips; it fails only when the validator runs and rejects kapi output.
-#
-#   plutil          Apple .strings / .stringsdict lint
-#   resgen (mono)   .NET RESX -> .resources compile (the real .resx consumer)
-#   xmllint         XML well-formedness (RESX, Android strings.xml)
-#   @mdx-js/mdx     compile translated MDX
-#   ajv             JSON Schema validation (xcstrings, arb, i18next, DTCG tokens)
-#
-# Runs on macOS because plutil/xcrun are macOS-only; the cross-platform checks
-# (xmllint, node, mono/resgen, ajv) also run here. aapt2/flutter self-skip.
-
+# The macOS runner exercises native output with the installed consumer tools.
+# Tests record a skip when a tool is unavailable and fail when it rejects output.
 on:
   push:
     branches: [main]
@@ -32,10 +20,15 @@ on:
       - "Makefile"
       - ".github/workflows/format-acceptance.yml"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      collect-receipts:
+        type: boolean
+        default: false
 
 # Cancel superseded PR runs; never cancel a push to main.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: format-acceptance-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -49,11 +42,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install Go build dependencies
+        run: brew install icu4c pkg-config
 
       - name: Set up Node
         uses: actions/setup-node@v7
@@ -64,10 +66,7 @@ jobs:
           node-version: "22"
 
       - name: Install ajv-cli
-        # A real `ajv` on PATH (the global bin is reliably executable) — the
-        # schema checks use it in place of `pnpm dlx`, whose cached bin can be
-        # non-executable on the runner ("Permission denied"). Best-effort: if it
-        # fails the checks fall back to `pnpm dlx` and self-skip when unavailable.
+        # The tests prefer the global executable and can use pnpm when it is absent.
         run: |
           corepack enable
           export PNPM_HOME="$HOME/.local/share/pnpm"; export PATH="$PNPM_HOME:$PATH"
@@ -80,9 +79,29 @@ jobs:
 
       - name: Report available validators
         run: |
-          for t in plutil resgen xmllint node corepack ajv; do
+          for t in plutil resgen xmllint python3 node corepack ajv; do
             printf '%-8s ' "$t"; command -v "$t" || echo '(missing — will self-skip)'
           done
 
       - name: Run format acceptance tests
-        run: make format-acceptance
+        id: acceptance
+        env:
+          COLLECT: ${{ inputs.collect-receipts }}
+        run: |
+          if [[ "$COLLECT" == true ]]; then
+            make format-acceptance ACCEPTANCE_EVENTS="$RUNNER_TEMP/acceptance.jsonl"
+          else
+            make format-acceptance
+          fi
+      - name: Collect external consumer results
+        if: ${{ !cancelled() && inputs.collect-receipts && (steps.acceptance.outcome == 'success' || steps.acceptance.outcome == 'failure') }}
+        run: |
+          node scripts/format-ops/acceptance-receipts.mjs collect \
+            "$RUNNER_TEMP/acceptance.json" "$RUNNER_TEMP/acceptance.jsonl"
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && inputs.collect-receipts }}
+        with:
+          name: acceptance-receipts
+          overwrite: true
+          path: ${{ runner.temp }}/acceptance.json
+          if-no-files-found: error

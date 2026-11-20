@@ -224,8 +224,8 @@ test-integration: ## Run the //go:build integration lane (Postgres-backed cross-
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
 
-format-acceptance: ## Run consumer checks for format packages with acceptance tests
-	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 $(sort $(dir $(wildcard ./core/formats/*/acceptance_test.go)))
+format-acceptance: i18n-catalogs ## Run consumer checks for format packages with acceptance tests
+	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 $(if $(ACCEPTANCE_EVENTS),-json) $(sort $(dir $(wildcard ./core/formats/*/acceptance_test.go))) $(if $(ACCEPTANCE_EVENTS),> "$(ACCEPTANCE_EVENTS)")
 
 # NOTE: this is a FIXER, not a check — it rewrites files and exits 0. The
 # corresponding check is `make check-gofmt`, which is what CI gates on.
@@ -2844,6 +2844,7 @@ publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (me
 test-content-maturity: i18n-catalogs i18n-react-build go-embed-placeholders ## Test the format contracts and maturity report tooling
 	$(GO) test $(GOTAGS) -short ./core/formats/...
 	$(GO) test -tags fts5,e2e -count=1 ./kapi/e2e -run '^TestKpzEmailDelivery$$'
+	python3 -B scripts/format-ops/test_audit_receipts.py
 	node --test scripts/format-ops/*.test.mjs
 	cd web && vp test run src/pages/format-maturity/_CapabilityEvidence.test.tsx
 	node scripts/format-ops/check-support-gates.mjs
