@@ -65,7 +65,7 @@ var exempt = map[string]bool{
 var writes = map[string]map[string]bool{
 	"github.com/neokapi/neokapi/memory.SQLiteStore": set("Add", "AddWithStream", "BulkAddWithStream", "ReplayWithStream", "Delete",
 		"CreateImportSession", "UpdateImportSessionCount", "DeleteImportSession"),
-	"github.com/neokapi/neokapi/terms.SQLiteStore": set("AddConcept", "AddConceptWithStream", "DeleteConcept",
+	"github.com/neokapi/neokapi/terms.SQLiteStore": set("AddConcept", "AddConceptWithStream", "DeleteConcept", "DeleteShadowConcepts",
 		"AddRelation", "AddRelationWithStream", "DeleteRelation"),
 	"github.com/neokapi/neokapi/voice.SQLiteStore": set("CreateProfile", "UpdateProfile", "UpdateProfileAt", "DeleteProfile",
 		"CreateProfileTag", "DeleteProfileTag", "StoreScore", "StoreCorrection", "RecordRuleDecision"),
