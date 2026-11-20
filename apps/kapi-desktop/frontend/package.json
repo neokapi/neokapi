@@ -44,7 +44,7 @@
     "lexical": "^0.53.0",
     "lucide-react": "^1.70.0",
     "mutative": "^2.0.0",
-    "posthog-js": "^1.438.9",
+    "posthog-js": "^1.448.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
