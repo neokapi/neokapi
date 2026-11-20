@@ -10,7 +10,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/connector"
 	platform "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/host/venue/source"
 )
 
 type entry struct {
@@ -39,8 +38,7 @@ func main() {
 		}
 	}
 
-	project := &source.BowrainSourceConnector{}
-	rows := []entry{{project.ID(), string(project.Category()), []string{"project"}}}
+	rows := make([]entry, 0, len(entries))
 	for _, item := range entries {
 		rows = append(rows, *item)
 	}

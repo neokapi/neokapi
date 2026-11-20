@@ -98,7 +98,7 @@ func TestEncodedWordAndLongSubjectRemainLiteral(t *testing.T) {
 		subject, err := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject"))
 		require.NoError(t, err)
 		require.Equal(t, value, subject)
-		for _, line := range bytes.Split(out, []byte("\r\n")) {
+		for line := range bytes.SplitSeq(out, []byte("\r\n")) {
 			require.LessOrEqual(t, len(line), 998)
 		}
 	}

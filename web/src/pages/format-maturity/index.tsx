@@ -156,9 +156,7 @@ function dotLabel(d: string, s: DimScore, rungs?: Partial<Record<string, ProseRu
 /** The gap toward the next level on the selected axis, falling back to the
  * engine gap for datasets that carry no per-axis gaps. */
 function gapFor(f: FormatRow, axis: AxisId): string | undefined {
-  return axis === "engine"
-    ? f.blocking_gaps[0]
-    : f.axes?.[axis]?.blocking_gaps?.[0];
+  return axis === "engine" ? f.blocking_gaps[0] : f.axes?.[axis]?.blocking_gaps?.[0];
 }
 
 // ── support-tier staleness (client-side, rubric §1) ─────────────────────────
@@ -467,7 +465,8 @@ function Trend() {
 export default function FormatMaturity() {
   const dataBaseUrl = useBaseUrl("/data/");
   const links = useBrokenLinks();
-  for (const id of ["format-evidence", "capability-evidence", "observation-history"]) links.collectAnchor(id);
+  for (const id of ["format-evidence", "capability-evidence", "observation-history"])
+    links.collectAnchor(id);
   const [search, setSearch] = useState("");
   const [axis, setAxis] = useState<AxisId>("engine");
   const [grade, setGrade] = useState<Grade | null>(null);
@@ -800,10 +799,13 @@ function RowGroup({
               {f.id} — {g ?? "—"} → {next}
             </strong>
             {axis === "engine" && f.type === "harvest" && f.level === "L3" && (
-              <p>L3 is the highest Engine grade for a native format without an Okapi counterpart.</p>
+              <p>
+                L3 is the highest Engine grade for a native format without an Okapi counterpart.
+              </p>
             )}
             {f.last_review && (
-              <p>Quality review from {f.last_review.date}. Confidence was {f.last_review.confidence}.
+              <p>
+                Quality review from {f.last_review.date}. Confidence was {f.last_review.confidence}.
                 {f.last_review.levels?.[axis] && <> Reviewed grade {f.last_review.levels[axis]}.</>}
               </p>
             )}

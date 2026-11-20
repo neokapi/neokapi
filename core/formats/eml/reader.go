@@ -16,10 +16,10 @@ type Reader struct {
 }
 
 func NewReader() *Reader {
-	return &Reader{BaseFormatReader: format.BaseFormatReader{
+	return &Reader{
 		FormatName: name, FormatDisplayName: displayName, FormatMimeType: mediaType,
 		FormatExtensions: Signature().Extensions, Cfg: &Config{},
-	}}
+	}
 }
 
 func (*Reader) Signature() format.FormatSignature { return Signature() }

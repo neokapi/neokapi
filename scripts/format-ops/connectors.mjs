@@ -65,14 +65,24 @@ export function connectorCapabilities(rows, events) {
 export function connectorRows(root) {
   const rows = JSON.parse(execFileSync('go', ['run', '-tags', 'fts5', './bowrain/scripts/connector-inventory'],
     { cwd: root, encoding: 'utf8' }));
-  for (const id of Object.keys(probes)) {
-    if (!rows.some(row => row.id === id)) throw new Error('Connector evidence refers to missing connector ' + id);
-  }
+  const projectIdentity = 'TestNewSourceConnector_ClaimTokenFromCache';
   const tests = Object.values(probes).flatMap(ops => Object.values(ops).map(([, test]) => test));
+  tests.push(projectIdentity);
   const run = spawnSync('go', ['test', '-tags', 'fts5', '-count=1', '-json', '-run', '^(' + tests.join('|') + ')$',
     './' + integrations, './' + project], { cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error('Connector probes failed\n' + run.stderr + run.stdout);
   const events = run.stdout.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  const identityEvents = events.filter(e => e.Package === 'github.com/neokapi/neokapi/' + project && e.Test === projectIdentity);
+  const identities = identityEvents.filter(e => e.Action === 'output')
+    .map(e => e.Output.match(/: KAPI_PROJECT_CONNECTOR ([\w-]+) ([\w-]+)\s*$/)).filter(Boolean);
+  if (identities.length !== 1 || !identityEvents.some(e => e.Action === 'pass')) {
+    throw new Error('Missing verified project connector identity.');
+  }
+  const [, id, category] = identities[0];
+  rows.push({ id, category, surfaces: ['project'] });
+  for (const id of Object.keys(probes)) {
+    if (!rows.some(row => row.id === id)) throw new Error('Connector evidence refers to missing connector ' + id);
+  }
   return connectorCapabilities(rows, events);
 }

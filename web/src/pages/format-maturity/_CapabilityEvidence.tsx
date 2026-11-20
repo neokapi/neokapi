@@ -263,7 +263,9 @@ export default function CapabilityEvidence({ dataBaseUrl }: { dataBaseUrl: strin
       <p>
         <a href={dataBaseUrl + "content-capabilities.json"}>Current capability evidence (JSON)</a>
         {" · "}
-        <a href={dataBaseUrl + "content-capabilities-history.json"}>Historical observations (JSON)</a>
+        <a href={dataBaseUrl + "content-capabilities-history.json"}>
+          Historical observations (JSON)
+        </a>
       </p>
     </section>
   );

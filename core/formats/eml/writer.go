@@ -26,7 +26,7 @@ type Writer struct {
 }
 
 func NewWriter() *Writer {
-	return &Writer{BaseFormatWriter: format.BaseFormatWriter{FormatName: name, RequiresSkeleton: true, Binary: true}}
+	return &Writer{FormatName: name, RequiresSkeleton: true, Binary: true}
 }
 
 func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) { w.store = store }

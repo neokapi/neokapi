@@ -58,8 +58,9 @@ it("filters evidence by operation, state and inventory", () => {
 
 it("links prior format observations and shows when operation history begins", () => {
   render(<CapabilityEvidence dataBaseUrl="/preview/data/" />);
-  expect(screen.getByRole("link", { name: "Historical observations (JSON)" }).getAttribute("href"))
-    .toBe("/preview/data/content-capabilities-history.json");
+  expect(
+    screen.getByRole("link", { name: "Historical observations (JSON)" }).getAttribute("href"),
+  ).toBe("/preview/data/content-capabilities-history.json");
   const table = within(screen.getAllByRole("table")[1]);
   expect(table.getByText("First observation")).toBeTruthy();
   expect(table.getAllByText("No observation").length).toBeGreaterThan(0);
