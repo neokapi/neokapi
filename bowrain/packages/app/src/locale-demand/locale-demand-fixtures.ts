@@ -651,12 +651,11 @@ const snapshots: Record<TimeRange, DemandSnapshot> = {
   "90d": buildSnapshot("90d"),
 };
 
-/** Sample-data implementation of the seam. Replace with the ingest-backed source. */
-export const sampleDemandDataSource: DemandDataSource = {
+export const sampleDemandDataSource = {
   getSnapshot(range: TimeRange): DemandSnapshot {
     return snapshots[range];
   },
-};
+} satisfies DemandDataSource;
 
 // ---------------------------------------------------------------------------
 // Shared helpers
