@@ -2846,7 +2846,7 @@ test-content-maturity: i18n-catalogs i18n-react-build ## Test the format contrac
 	$(GO) test -tags fts5,e2e -count=1 ./kapi/e2e -run '^TestKpzEmailDelivery$$'
 	python3 -B scripts/format-ops/test_audit_receipts.py
 	node --test scripts/format-ops/*.test.mjs
-	cd web && vp test run src/pages/format-maturity/_CapabilityEvidence.test.tsx
+	cd web && vp test run src/pages/format-maturity
 	node scripts/format-ops/check-support-gates.mjs
 	node scripts/format-ops/validate-ledger.mjs
 

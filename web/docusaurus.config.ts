@@ -225,6 +225,7 @@ const config: Config = {
   },
 
   customFields: {
+    sourceRevision: git(["rev-parse", "HEAD"]) || process.env.GITHUB_SHA || "main",
     docsChannel,
     cdnBaseUrl,
     cdnSitePrefix: "kapi",

@@ -1,68 +1,192 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import CapabilityEvidence from "./_CapabilityEvidence";
+import CapabilityEvidence, { ObservationHistory } from "./_CapabilityEvidence";
 
 vi.mock("../../../static/data/content-capabilities.json", () => ({
   default: {
     date: "2026-11-20",
     outputs: [
       {
-        id: "sample-format",
+        id: "doclang",
         capabilities: [
           {
-            id: "write",
+            id: "project-text",
             status: "verified",
-            detail: "Writes text.",
-            evidence: ["writer_test.go#TestWrite"],
+            detail: "Recovered the fixture text.",
+            evidence: [],
+          },
+        ],
+      },
+      {
+        id: "markdown",
+        capabilities: [
+          {
+            id: "structure",
+            status: "verified",
+            detail: "Retained the heading.",
+            evidence: ["tools/structure.go"],
+          },
+          {
+            id: "email",
+            status: "failed",
+            detail: "The output lost the subject.",
+            evidence: ["tools/mail_test.go#TestConvertEmail"],
           },
         ],
       },
     ],
     connectors: [
       {
-        id: "sample-connector",
+        id: "wordpress",
         capabilities: [
-          { id: "fetch", status: "unverified", detail: "No observation.", evidence: [] },
+          {
+            id: "list",
+            status: "unverified",
+            detail: "The audit has no listing fixture.",
+            evidence: [],
+          },
+          {
+            id: "fetch",
+            status: "verified",
+            detail: "Read a post from the fixture.",
+            evidence: ["connect/post.go"],
+          },
         ],
       },
     ],
   },
 }));
+
 vi.mock("../../../static/data/content-capabilities-history.json", () => ({
   default: [
-    { date: "2026-06-01", revision: "a".repeat(40), formats: { "sample-format": "L1" } },
+    { date: "2026-05-01", revision: "a".repeat(40), formats: { markdown: "L1" } },
+    {
+      date: "2026-06-01",
+      revision: "b".repeat(40),
+      formats: { markdown: "L2" },
+      outputs: { markdown: { email: "failed", structure: "verified" } },
+      connectors: { wordpress: { fetch: "verified" } },
+    },
     {
       date: "2026-11-20",
-      formats: { "sample-format": "L2" },
-      outputs: { "sample-format": { write: "verified" } },
-      connectors: { "sample-connector": { fetch: "unverified" } },
+      formats: { markdown: "L2" },
+      outputs: { markdown: { email: "verified" }, doclang: { structure: "verified" } },
+      connectors: { wordpress: { fetch: "verified" } },
     },
   ],
 }));
 
 afterEach(cleanup);
 
-it("filters evidence by operation, state and inventory", () => {
-  render(<CapabilityEvidence dataBaseUrl="/data/" />);
-  const table = within(screen.getAllByRole("table")[0]);
-  fireEvent.change(screen.getByLabelText("Find"), { target: { value: "sample-format" } });
-  expect(table.getByRole("link", { name: "TestWrite" })).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Evidence"), { target: { value: "unverified" } });
-  expect(screen.getByText("No operations match these filters.")).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Inventory"), { target: { value: "connectors" } });
-  fireEvent.change(screen.getByLabelText("Find"), { target: { value: "" } });
-  expect(table.getAllByText("unverified").length).toBeGreaterThan(0);
-  expect(table.queryByText("verified")).toBeNull();
+it("collapses evidence by subject and leads with the failed operation", () => {
+  render(
+    <CapabilityEvidence
+      group="outputs"
+      evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
+    />,
+  );
+  const subjects = within(screen.getByRole("list")).getAllByRole("button");
+  expect(subjects).toHaveLength(2);
+  expect(subjects[0].textContent).toMatch(/Markdown.*Convert email.*Failed/);
+  expect(subjects[0].getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByText("The output lost the subject.")).toBeNull();
+  expect(screen.queryByRole("link")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Observation history" })).toBeNull();
+  fireEvent.click(subjects[0]);
+  const details = within(document.getElementById(subjects[0].getAttribute("aria-controls")!)!);
+  expect(subjects[0].getAttribute("aria-expanded")).toBe("true");
+  expect(details.getByText("The output lost the subject.")).toBeTruthy();
+  expect(details.getByText("Retained the heading.")).toBeTruthy();
+  expect(details.getByRole("link", { name: "TestConvertEmail" }).getAttribute("href")).toBe(
+    "https://github.com/neokapi/neokapi/blob/review-commit/tools/mail_test.go",
+  );
+  fireEvent.click(subjects[0]);
+  expect(screen.queryByRole("link")).toBeNull();
 });
 
-it("links prior format observations and shows when operation history begins", () => {
-  render(<CapabilityEvidence dataBaseUrl="/preview/data/" />);
+it("filters subjects and disclosed operations by status and text, including raw operation IDs", () => {
+  const view = render(
+    <CapabilityEvidence
+      group="outputs"
+      initialStatus="failed"
+      evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
+    />,
+  );
+  expect((screen.getByLabelText("Evidence status") as HTMLSelectElement).value).toBe("failed");
+  expect(screen.getByRole("status").textContent).toBe("1 of 2 output formats");
+  const subject = screen.getByRole("button", { name: /Markdown/ });
+  fireEvent.click(subject);
+  expect(screen.getByText("The output lost the subject.")).toBeTruthy();
+  expect(screen.queryByText("Retained the heading.")).toBeNull();
+
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "structure" } });
+  expect(screen.getByText("No operations match these filters.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+  expect(screen.getByRole("status").textContent).toBe("2 of 2 output formats");
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: " PROJECT-TEXT " } });
+  expect(screen.getByRole("button", { name: /DocLang.*Convert text/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Markdown/ })).toBeNull();
+
+  view.rerender(
+    <CapabilityEvidence
+      group="connectors"
+      initialStatus="unverified"
+      evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
+    />,
+  );
+  expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "WordPreSS" } });
+  fireEvent.click(screen.getByRole("button", { name: /WordPress.*List content.*Unverified/ }));
+  expect(screen.getByText("The audit has no listing fixture.")).toBeTruthy();
+  expect(screen.queryByText("Read a post from the fixture.")).toBeNull();
+
+  fireEvent.change(screen.getByLabelText("Evidence status"), { target: { value: "verified" } });
+  expect(screen.getByText("Read a post from the fixture.")).toBeTruthy();
+  expect(screen.queryByText("The audit has no listing fixture.")).toBeNull();
+  view.rerender(
+    <CapabilityEvidence
+      group="connectors"
+      initialStatus="failed"
+      evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
+    />,
+  );
+  expect(screen.getByRole("status").textContent).toBe("0 of 1 connectors");
+});
+
+it("shows published observations newest first, preserving missing coverage, deltas and source links", () => {
+  render(<ObservationHistory dataBaseUrl="/preview/data/" />);
+  expect(screen.queryByRole("searchbox")).toBeNull();
+  const dates = screen.getAllByRole("heading", { level: 3 }).slice(0, 3);
+  expect(dates.map((date) => date.textContent)).toEqual(["2026-11-20", "2026-06-01", "2026-05-01"]);
+  const earliest = within(dates[2].closest("li")!);
+  expect(earliest.getByText("First observation")).toBeTruthy();
+  expect(earliest.getAllByText("No observation")).toHaveLength(2);
+  expect(earliest.getByRole("link").getAttribute("href")).toBe(
+    "https://github.com/neokapi/neokapi/blob/" +
+      "a".repeat(40) +
+      "/web/static/data/format-maturity.json",
+  );
+  const second = within(dates[1].closest("li")!);
+  expect(second.getByText("Markdown · L1 → L2")).toBeTruthy();
+  expect(second.getByText("1 subject · 1 verified · 1 failed")).toBeTruthy();
+  const latest = within(dates[0].closest("li")!);
+  expect(latest.getByText("No Engine grade changes")).toBeTruthy();
+  expect(latest.getByText("2 subjects · 2 verified · 0 failed · 3 changes")).toBeTruthy();
+  expect(latest.getByText("Markdown / Convert email · Failed → Verified")).toBeTruthy();
   expect(
-    screen.getByRole("link", { name: "Historical observations (JSON)" }).getAttribute("href"),
-  ).toBe("/preview/data/content-capabilities-history.json");
-  const table = within(screen.getAllByRole("table")[1]);
-  expect(table.getByText("First observation")).toBeTruthy();
-  expect(table.getAllByText("No observation").length).toBeGreaterThan(0);
-  expect(table.getAllByRole("link")[0].getAttribute("href")).toMatch(/\/blob\/[a-f0-9]{40}\//);
+    latest.getByText("Markdown / Preserve document structure · Verified → absent"),
+  ).toBeTruthy();
+  expect(
+    latest.getByText("DocLang / Preserve document structure · absent → Verified"),
+  ).toBeTruthy();
+  for (const [label, file] of [
+    ["Current capability evidence (JSON)", "content-capabilities.json"],
+    ["Historical observations (JSON)", "content-capabilities-history.json"],
+    ["Format grade totals by axis and date (JSON)", "format-maturity-history.json"],
+  ]) {
+    expect(screen.getByRole("link", { name: label }).getAttribute("href")).toBe(
+      "/preview/data/" + file,
+    );
+  }
 });

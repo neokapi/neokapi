@@ -71,7 +71,7 @@ must be able to generate a document from the blocks the source provides.
   `--to yaml-catalog` to write keyed strings from catalog input.
 - CSV and TSV require cell positions. WebVTT and SubRip use cue times.
 
-The [output evidence dashboard](/format-maturity#capability-evidence) lists the
+The [output evidence dashboard](/format-maturity#outputs) lists the
 built-in targets, the fixtures the tests convert, and the values each target
 reader recovers. You can also try the [Conversion lab](/learn/conversion).
 

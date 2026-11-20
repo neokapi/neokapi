@@ -1,69 +1,267 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
+import { formats } from "@neokapi/reference-data";
 import current from "../../../static/data/content-capabilities.json";
 import observations from "../../../static/data/content-capabilities-history.json";
-import styles from "./index.module.css";
+import styles from "./_CapabilityEvidence.module.css";
 
+type Group = "outputs" | "connectors";
 type Capability = { id: string; status: string; evidence: string[]; detail: string };
 type Subject = { id: string; capabilities: Capability[] };
+type Profile = Record<string, Record<string, string>>;
 type History = {
   date: string;
   revision?: string;
   formats: Partial<Record<string, string>>;
-  outputs?: Record<string, Record<string, string>>;
-  connectors?: Record<string, Record<string, string>>;
+  outputs?: Profile;
+  connectors?: Profile;
 };
+type InventoryProps = { group: Group; initialStatus?: string; evidenceBaseUrl: string };
 
-const groups = {
-  outputs: t("Output formats", "capability inventory"),
-  connectors: t("Connectors", "capability inventory"),
-};
-const labels: Record<string, string> = {
-  verified: t("verified", "capability state"),
-  declared: t("declared", "capability state"),
-  unverified: t("unverified", "capability state"),
-  failed: t("failed", "capability state"),
-  unsupported: t("unsupported", "capability state"),
-};
-const absent = t("absent", "historical observation");
-const meanings: Record<string, string> = {
-  verified: t("The operation passed its behavioral check.", "capability evidence"),
-  declared: t("The registry declares this capability.", "capability evidence"),
-  unverified: t("The audit has no passing check for this operation.", "capability evidence"),
-  failed: t("The operation failed its behavioral check.", "capability evidence"),
-  unsupported: t("The implementation explicitly excludes this operation.", "capability evidence"),
-};
 const repo = "https://github.com/neokapi/neokapi";
+const outputNames = new Map(
+  formats.entries
+    .filter((entry) => entry.source === "built-in")
+    .map((entry) => [entry.id, entry.displayName]),
+);
 
-function Files({ evidence }: { evidence: string[] }) {
-  return evidence.map((ref) => {
-    const [file, test] = ref.split("#");
-    return (
-      <div key={ref}>
-        <a href={repo + "/blob/main/" + file}>{test || file}</a>
-      </div>
-    );
-  });
+function subjectName(group: Group, id: string) {
+  if (group === "outputs") {
+    if (id === "json-catalog") return t("JSON catalog", "output format");
+    if (id === "yaml-catalog") return t("YAML catalog", "output format");
+    return outputNames.get(id) ?? id;
+  }
+  const connectors: Record<string, string> = {
+    "bowrain-source": t("Bowrain source", "connector name"),
+    figma: "Figma",
+    file: t("Local files", "connector name"),
+    forge: t("Git forge", "connector name"),
+    git: "Git",
+    hubspot: "HubSpot",
+    wordpress: "WordPress",
+  };
+  return connectors[id] ?? id;
 }
 
-type Profile = Record<string, Record<string, string>>;
+function operationName(id: string) {
+  const names: Record<string, string> = {
+    "project-text": t("Convert text", "output operation"),
+    "project-cells": t("Convert spreadsheet cells", "output operation"),
+    "project-cues": t("Convert subtitle cues", "output operation"),
+    email: t("Convert email", "output operation"),
+    structure: t("Preserve document structure", "output operation"),
+    fetch: t("Fetch content", "connector operation"),
+    list: t("List content", "connector operation"),
+    publish: t("Publish content", "connector operation"),
+    registration: t("Register connector", "connector operation"),
+    pull: t("Pull content", "connector operation"),
+    push: t("Push content", "connector operation"),
+  };
+  return names[id] ?? id;
+}
 
-function coverage(profile?: Profile, previous?: Profile) {
+function statusNames(): Record<string, string> {
+  return {
+    failed: t("Failed", "capability state"),
+    unverified: t("Unverified", "capability state"),
+    verified: t("Verified", "capability state"),
+    declared: t("Declared", "capability state"),
+    unsupported: t("Unsupported", "capability state"),
+  };
+}
+
+function State({ status }: { status: string }) {
+  return (
+    <span className={styles.state} data-state={status}>
+      {statusNames()[status] ?? status}
+    </span>
+  );
+}
+
+function SubjectRow({
+  name,
+  operations,
+  evidenceBaseUrl,
+}: {
+  name: string;
+  operations: Capability[];
+  evidenceBaseUrl: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+  const first = operations[0];
+  return (
+    <li className={styles.row}>
+      <button
+        className={styles.disclosure}
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={id}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <strong>{name}</strong>
+        <span className={styles.operation}>{operationName(first.id)}</span>
+        <State status={first.status} />
+        <ChevronDown aria-hidden="true" size={16} className={styles.chevron} />
+      </button>
+      <div hidden={!expanded} id={id}>
+        {expanded && (
+          <ul className={styles.operations}>
+            {operations.map((cap) => (
+              <li key={cap.id}>
+                <div className={styles.operationHeading}>
+                  <strong>{operationName(cap.id)}</strong>
+                  <State status={cap.status} />
+                </div>
+                <p>{cap.detail}</p>
+                {cap.evidence.length > 0 && (
+                  <ul className={styles.files}>
+                    {cap.evidence.map((ref) => {
+                      const [file, test] = ref.split("#");
+                      return (
+                        <li key={ref}>
+                          <a href={evidenceBaseUrl + file}>{test || file}</a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function Inventory({ group, initialStatus = "", evidenceBaseUrl }: InventoryProps) {
+  const labels = statusNames();
+  const [filter, setFilter] = useState("");
+  const [status, setStatus] = useState(initialStatus in labels ? initialStatus : "");
+  const priority = (state: string) => {
+    const order = Object.keys(labels).indexOf(state);
+    return order < 0 ? Object.keys(labels).length : order;
+  };
+  const subjects: Subject[] = current[group];
+  const query = filter.toLowerCase().trim();
+  const rows = subjects
+    .flatMap((subject) => {
+      const name = subjectName(group, subject.id);
+      const subjectMatch = (name + " " + subject.id).toLowerCase().includes(query);
+      const operations = subject.capabilities
+        .filter(
+          (cap) =>
+            (!status || cap.status === status) &&
+            (subjectMatch || (operationName(cap.id) + " " + cap.id).toLowerCase().includes(query)),
+        )
+        .sort((a, b) => priority(a.status) - priority(b.status));
+      return operations.length ? [{ id: subject.id, name, operations }] : [];
+    })
+    .sort(
+      (a, b) =>
+        priority(a.operations[0].status) - priority(b.operations[0].status) ||
+        a.name.localeCompare(b.name),
+    );
+  return (
+    <section className={styles.section} aria-labelledby="capability-evidence">
+      <h2 id="capability-evidence">
+        {group === "outputs"
+          ? t("Output formats", "capability inventory")
+          : t("Connectors", "capability inventory")}
+      </h2>
+      <div className={styles.controls}>
+        <label>
+          {group === "outputs"
+            ? t("Find an output format or operation", "capability filter")
+            : t("Find a connector or operation", "capability filter")}
+          <input type="search" value={filter} onChange={(event) => setFilter(event.target.value)} />
+        </label>
+        <label>
+          {t("Evidence status", "capability filter")}
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="">{t("All statuses", "capability filter")}</option>
+            {Object.entries(labels).map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className={styles.meta} role="status">
+        {group === "outputs"
+          ? t("{shown} of {total} output formats", "inventory count", {
+              shown: rows.length,
+              total: subjects.length,
+            })
+          : t("{shown} of {total} connectors", "inventory count", {
+              shown: rows.length,
+              total: subjects.length,
+            })}
+      </p>
+      {rows.length ? (
+        <ul className={styles.subjects}>
+          {rows.map(({ id, name, operations }) => (
+            <SubjectRow
+              key={id}
+              name={name}
+              operations={operations}
+              evidenceBaseUrl={evidenceBaseUrl}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className={styles.empty}>
+          <p>{t("No operations match these filters.", "capability filter")}</p>
+          {(filter || status) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilter("");
+                setStatus("");
+              }}
+            >
+              {t("Clear filters", "capability filter")}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function CapabilityEvidence(props: InventoryProps) {
+  return <Inventory key={props.group + "/" + (props.initialStatus ?? "")} {...props} />;
+}
+
+function changeCount(count: number) {
+  return count === 1
+    ? t("1 change", "observation history")
+    : t("{count} changes", "observation history", { count });
+}
+
+function coverage(group: Group, profile?: Profile, previous?: Profile) {
   if (!profile) return t("No observation", "capability history");
   const checks = Object.values(profile).flatMap((states) => Object.values(states));
-  const verified = checks.filter((state) => state === "verified").length;
-  const failed = checks.filter((state) => state === "failed").length;
-  const summary = t(
-    "{subjects} subjects · {verified} verified · {failed} failed",
-    "capability history",
-    {
-      subjects: Object.keys(profile).length,
-      verified,
-      failed,
-    },
-  );
+  const counts = {
+    subjects: Object.keys(profile).length,
+    verified: checks.filter((state) => state === "verified").length,
+    failed: checks.filter((state) => state === "failed").length,
+  };
+  const summary =
+    counts.subjects === 1
+      ? t("1 subject · {verified} verified · {failed} failed", "capability history", counts)
+      : t(
+          "{subjects} subjects · {verified} verified · {failed} failed",
+          "capability history",
+          counts,
+        );
   if (!previous) return summary;
   const differences = [];
+  const labels = statusNames();
+  const absent = t("absent", "historical observation");
   for (const subject of [...new Set([...Object.keys(profile), ...Object.keys(previous)])].sort()) {
     const now = profile[subject] ?? {};
     const before = previous[subject] ?? {};
@@ -71,10 +269,10 @@ function coverage(profile?: Profile, previous?: Profile) {
       if (before[operation] !== now[operation]) {
         differences.push(
           t("{subject} / {operation} · {before} → {after}", "capability change", {
-            subject,
-            operation,
-            before: labels[before[operation]] ?? absent,
-            after: labels[now[operation]] ?? absent,
+            subject: subjectName(group, subject),
+            operation: operationName(operation),
+            before: labels[before[operation]] ?? before[operation] ?? absent,
+            after: labels[now[operation]] ?? now[operation] ?? absent,
           }),
         );
       }
@@ -84,7 +282,7 @@ function coverage(profile?: Profile, previous?: Profile) {
   return (
     <details>
       <summary>
-        {summary} · {t("{count} changes", "observation history", { count: differences.length })}
+        {summary} · {changeCount(differences.length)}
       </summary>
       <ul>
         {differences.map((change) => (
@@ -95,178 +293,97 @@ function coverage(profile?: Profile, previous?: Profile) {
   );
 }
 
-export default function CapabilityEvidence({ dataBaseUrl }: { dataBaseUrl: string }) {
-  const [group, setGroup] = useState<keyof typeof groups>("outputs");
-  const [filter, setFilter] = useState("");
-  const [status, setStatus] = useState("");
-  const history = observations as History[];
-  const subjects: Subject[] = current[group];
-  const query = filter.toLowerCase().trim();
-  const rows = subjects.flatMap((row) =>
-    row.capabilities
-      .filter(
-        (cap) =>
-          (!status || cap.status === status) && (row.id.includes(query) || cap.id.includes(query)),
-      )
-      .map((cap) => ({ subject: row.id, ...cap })),
-  );
+function formatChanges(entry: History, previous?: History) {
+  if (!previous) return t("First observation", "capability history");
+  const ids = [
+    ...new Set([...Object.keys(previous.formats), ...Object.keys(entry.formats)]),
+  ].sort();
+  const changes = ids.filter((id) => previous.formats[id] !== entry.formats[id]);
+  if (!changes.length) return t("No Engine grade changes", "format history");
+  const absent = t("absent", "historical observation");
   return (
-    <section id="capability-evidence">
-      <h2>Output formats and connectors</h2>
+    <details>
+      <summary>{changeCount(changes.length)}</summary>
+      <ul>
+        {changes.map((id) => (
+          <li key={id}>
+            {subjectName("outputs", id)} · {previous.formats[id] ?? absent} →{" "}
+            {entry.formats[id] ?? absent}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+export function ObservationHistory({ dataBaseUrl }: { dataBaseUrl: string }) {
+  const history = observations as History[];
+  const headingId = useId();
+  return (
+    <section className={styles.section} aria-labelledby={headingId}>
+      <h2 id={headingId}>{t("Observation history", "maturity dashboard")}</h2>
       <p>
-        The audit records each operation separately. Open the evidence for the file or test behind a
-        result.
+        {t(
+          "Each observation compares with the preceding published date. Output and connector measurements begin with the first operation audit.",
+          "capability history",
+        )}
       </p>
-      <div className={styles.controls}>
-        <label>
-          Inventory{" "}
-          <select
-            value={group}
-            onChange={(event) => setGroup(event.target.value as keyof typeof groups)}
-          >
-            {Object.entries(groups).map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Evidence{" "}
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
-            <option value="">All states</option>
-            {Object.keys(meanings).map((id) => (
-              <option key={id} value={id}>
-                {labels[id]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Find{" "}
-          <input
-            className={styles.search}
-            value={filter}
-            placeholder="Subject or operation"
-            onChange={(event) => setFilter(event.target.value)}
-          />
-        </label>
-      </div>
-      <p className={styles.meta} aria-live="polite">
-        {t("{operations} operations · measured {date}", "capability audit", {
-          operations: rows.length,
-          date: current.date,
-        })}
-      </p>
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Subject</th>
-              <th>Operation</th>
-              <th>State</th>
-              <th>Coverage</th>
-              <th>Evidence</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.subject + "/" + row.id}>
-                <td>
-                  <code>{row.subject}</code>
-                </td>
-                <td>{row.id}</td>
-                <td title={meanings[row.status]}>
-                  <strong>{labels[row.status]}</strong>
-                </td>
-                <td>{row.detail}</td>
-                <td>
-                  <Files evidence={row.evidence} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {!rows.length && <p>No operations match these filters.</p>}
-      <h2 id="observation-history">Observation history</h2>
-      <p>
-        Earlier publications recorded format grades. Output and connector counts start with the
-        first operation audit.
-      </p>
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Format changes since the preceding observation</th>
-              <th>Output formats</th>
-              <th>Connectors</th>
-            </tr>
-          </thead>
-          <tbody>
-            {history
-              .map((entry, index) => {
-                const previous = history[index - 1]?.formats;
-                const changes = previous
-                  ? [...new Set([...Object.keys(previous), ...Object.keys(entry.formats)])]
-                      .sort()
-                      .filter((id) => previous[id] !== entry.formats[id])
-                  : [];
-                return (
-                  <tr key={entry.date}>
-                    <td>
-                      {entry.revision ? (
-                        <a
-                          href={
-                            repo +
-                            "/blob/" +
-                            entry.revision +
-                            "/web/static/data/format-maturity.json"
-                          }
-                        >
-                          {entry.date}
-                        </a>
-                      ) : (
-                        entry.date
-                      )}
-                    </td>
-                    <td>
-                      {!previous ? (
-                        t("First observation", "capability history")
-                      ) : changes.length ? (
-                        <details>
-                          <summary>
-                            {t("{count} changes", "observation history", { count: changes.length })}
-                          </summary>
-                          <ul>
-                            {changes.map((id) => (
-                              <li key={id}>
-                                {id} · {previous[id] ?? absent} → {entry.formats[id] ?? absent}
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
-                      ) : (
-                        t("No Engine grade changes", "format history")
-                      )}
-                    </td>
-                    <td>{coverage(entry.outputs, history[index - 1]?.outputs)}</td>
-                    <td>{coverage(entry.connectors, history[index - 1]?.connectors)}</td>
-                  </tr>
-                );
-              })
-              .reverse()}
-          </tbody>
-        </table>
-      </div>
-      <p>
-        <a href={dataBaseUrl + "content-capabilities.json"}>Current capability evidence (JSON)</a>
-        {" · "}
-        <a href={dataBaseUrl + "content-capabilities-history.json"}>
-          Historical observations (JSON)
-        </a>
-      </p>
+      <ol className={styles.history}>
+        {history
+          .map((entry, index) => {
+            const previous = history[index - 1];
+            return (
+              <li key={entry.date}>
+                <h3>
+                  {entry.revision ? (
+                    <a
+                      href={
+                        repo + "/blob/" + entry.revision + "/web/static/data/format-maturity.json"
+                      }
+                    >
+                      <time dateTime={entry.date}>{entry.date}</time>
+                    </a>
+                  ) : (
+                    <time dateTime={entry.date}>{entry.date}</time>
+                  )}
+                </h3>
+                <dl>
+                  <div>
+                    <dt>{t("Engine grades", "observation history")}</dt>
+                    <dd>{formatChanges(entry, previous)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("Output formats", "capability inventory")}</dt>
+                    <dd>{coverage("outputs", entry.outputs, previous?.outputs)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("Connectors", "capability inventory")}</dt>
+                    <dd>{coverage("connectors", entry.connectors, previous?.connectors)}</dd>
+                  </div>
+                </dl>
+              </li>
+            );
+          })
+          .reverse()}
+      </ol>
+      <h3>{t("Source data", "observation history")}</h3>
+      <ul className={styles.datasets}>
+        <li>
+          <a href={dataBaseUrl + "content-capabilities.json"}>
+            {t("Current capability evidence (JSON)", "observation history")}
+          </a>
+        </li>
+        <li>
+          <a href={dataBaseUrl + "content-capabilities-history.json"}>
+            {t("Historical observations (JSON)", "observation history")}
+          </a>
+        </li>
+        <li>
+          <a href={dataBaseUrl + "format-maturity-history.json"}>
+            {t("Format grade totals by axis and date (JSON)", "observation history")}
+          </a>
+        </li>
+      </ul>
     </section>
   );
 }

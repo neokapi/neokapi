@@ -34,8 +34,9 @@ make check-content-maturity
 The check uses the date of the committed observation. It runs format tests, the Prose probe, output conversions and connector fixtures. A missing required test or a stale projection fails the check. A recorded conversion failure describes the fixture that failed. A skipped connector check carries an unverified result.
 
 To view the dashboard from this checkout, build and serve the documentation.
-Open `/format-maturity` on the local server. Use the inventory and evidence
-filters to inspect an operation or download its data.
+Open `/format-maturity` for the support counts and the latest changes.
+Select a check to see its evidence. Use History to compare observations or
+download the published data.
 
 ```sh
 pnpm --dir web exec docusaurus build --locale en
