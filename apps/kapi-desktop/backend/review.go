@@ -137,7 +137,7 @@ func (a *App) reviewPoints(ctx context.Context, op *openProject) *host.ReviewPoi
 	if err != nil {
 		return nil
 	}
-	return a.hostEngine().NewReviewPointResolver(cmd, filepath.Dir(op.Path))
+	return a.newProjectEngine(op).NewReviewPointResolver(cmd, filepath.Dir(op.Path))
 }
 
 // blockCheckFindings flattens the checkset the host holds one translated unit
@@ -277,7 +277,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	// found, and who decided last. Assembled here rather than in the desktop so
 	// the Review page, an MCP agent and the CLI read one answer.
 	if cmd, cerr := a.contextCommand(ctx, op); cerr == nil {
-		detail.Context = a.hostEngine().AssembleReviewContext(ctx, host.ReviewContextRequest{
+		detail.Context = a.newProjectEngine(op).AssembleReviewContext(ctx, host.ReviewContextRequest{
 			Cmd:        cmd,
 			Root:       root,
 			SourcePath: rf.Path,
@@ -334,7 +334,7 @@ func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue,
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	queue, err := a.hostEngine().ReviewQueue(ctx, op.Path, sourceLang,
+	queue, err := a.newProjectEngine(op).ReviewQueue(ctx, op.Path, sourceLang,
 		host.ReviewQueueOptions{Languages: langs, MarkFindings: true})
 	if err != nil {
 		return host.ReviewQueue{}, err

@@ -63,7 +63,7 @@ func (a *App) GetConvergence(tabID string) (*host.ConvergenceReport, error) {
 		return nil, err
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
-	return a.hostEngine().ProjectConvergence(context.Background(), op.Path, src)
+	return a.newProjectEngine(op).ProjectConvergence(context.Background(), op.Path, src)
 }
 
 // ConvergePlan is the desktop's pre-flight picture for "Bring up to date": the
@@ -103,7 +103,7 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 		return nil, err
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
-	plan, err := a.hostEngine().UpPlan(context.Background(), op.Path, src)
+	plan, err := a.newProjectEngine(op).UpPlan(context.Background(), op.Path, src)
 	if err != nil {
 		return nil, err
 	}
@@ -119,20 +119,8 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	}, nil
 }
 
-// BringUpToDate reconciles the project toward its ship gates through the same
-// dispatch as the CLI's `kapi up` and the MCP `up` tool (host.App.RunUpDispatch
-// → host.App.ResolveUpVenue): a project whose recipe binds a convergence venue
-// runs on the server — pushed, converged on the org's keys against the shared
-// content memory and terminology, streamed back, pulled — and every other
-// project runs the loop here, loop-to-gate over the project's default flow,
-// auto-extract on block-store drift before each pass, bound checks in the loop,
-// and the recipe's materialize policy.
-//
-// It returns once the run is launched; per-pass progress streams through the
-// run-event channel as typed "converge_event" events and the final structured
-// result rides the "complete" event, so the runner renders passes and locale
-// rows rather than raw flow logs, at either venue. Whatever the loop can't carry
-// to the ship gate parks for review (never an error).
+// BringUpToDate starts convergence at the venue selected by the host.
+// The run publishes progress and its result through flow:event.
 func (a *App) BringUpToDate(tabID string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -144,9 +132,6 @@ func (a *App) BringUpToDate(tabID string) error {
 	if op.Path == "" {
 		return errors.New("project has no file path; save it before bringing it up to date")
 	}
-	// No defaults.flow is fine: the shared up engine synthesizes the built-in
-	// default flow (#1078 G6 — content memory reuse then AI translate). The label only
-	// tags the run's events for the UI.
 	flowName := op.Project.Defaults.Flow
 	if flowName == "" {
 		flowName = "up"
@@ -165,25 +150,6 @@ func (a *App) BringUpToDate(tabID string) error {
 	return nil
 }
 
-// executeConvergeRun drives the shared up dispatch on a run-scoped host.App and
-// translates its progress into run events.
-//
-// The App is its own so the per-run state is: TargetLang, the tool slots each
-// locale worker fills, the progress tap. A concurrent GetConvergence on the
-// engine therefore cannot race it. What it does NOT own is the project store —
-// it borrows the engine's, so the run, the tab's status panel and the review
-// loop all write through one pool and the in-process write gate can order them.
-// Two pools on `.kapi/work/store.db` would leave the gate with nothing to gate, and a
-// review decision recorded while a pass was learning wording would go back to
-// losing on SQLite's busy backoff. It borrows the engine's plugin host too, so
-// the venue route it resolves is the one the tab surfaces see.
-//
-// Borrowed, therefore never Shut down: the stores belong to the engine.
-//
-// OnEvent carries a server run's events as well as a local one's: the venue
-// plumbing writes the same typed events to its stdout as NDJSON, and the
-// dispatch decodes them line by line into this callback. The run view renders
-// one stream and never asks which venue produced it.
 func (a *App) executeConvergeRun(ctx context.Context, op *openProject, projectPath, flowName, sourceLang string) {
 	defer a.runState.release()
 
@@ -195,16 +161,7 @@ func (a *App) executeConvergeRun(ctx context.Context, op *openProject, projectPa
 	// in batches, so the exchange itself is where the content is.
 	ctx = withAIScope(ctx, AIActivityScope{Surface: "convergence", Action: flowName})
 
-	// Share the desktop's AI defaulting + credential resolution with the run's
-	// registries, exactly like the CLI's Init does — so the built-in default
-	// flow's translate step resolves the configured ai.provider/ai.model and
-	// its saved key with no per-flow pinning.
-	capp := a.borrowEngine(&host.App{Credentials: a.credentials, Config: a.aiConfig})
-	capp.InitRegistries()
-	// The same preprocessor the desktop's own registry carries — one definition,
-	// so a converge run resolves provider/model/credentials identically to a
-	// plain flow run and to the CLI.
-	capp.ToolReg.SetConfigPreprocessor(a.aiConfigPreprocessor())
+	capp := a.newProjectEngine(op)
 	out, err := capp.RunUpDispatch(ctx, projectPath, sourceLang, host.UpOptions{
 		UntilGate: true,
 		// OnEvent is the stream the live run view renders from: one typed event

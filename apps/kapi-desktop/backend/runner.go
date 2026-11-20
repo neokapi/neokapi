@@ -215,12 +215,8 @@ func (a *App) GetProjectLastRunError(tabID string) *RunError {
 	return op.lastRunError.Load()
 }
 
-// RunFlow executes a flow by name from the current project. Target locales
-// are inferred from the flow's tool chain metadata (Framework AD-006) — the
-// frontend passes project target languages as a fallback, and the shared
-// orchestrator (host.App.RunFlowAllLocales → flow.ResolveFlowLocales)
-// determines the actual locale passes based on tool cardinality, exactly as
-// the CLI's project flow-run does.
+// RunFlow starts a named project flow. The host resolves its locale passes
+// from the tools and the supplied target languages.
 func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -250,30 +246,13 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	return nil
 }
 
-// executeFlowRun drives the shared multi-locale flow orchestrator
-// (host.App.RunFlowAllLocales) and adapts its event stream to Wails run
-// events. Locale-pass selection, per-pass tool assembly (with the cleanup
-// contract the former hand-rolled loop leaked), per-file execution, and
-// event emission all live in the cli module now — shared with the CLI's
-// project flow-run, so the two surfaces agree about which locales a flow
-// runs for. The run uses a fresh host.App carrying the desktop's own
-// registries (plugin-provided formats and segmenters stay available) and its
-// AI-default + credential-resolving config preprocessor already wired on
-// toolReg.
 func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName string, spec *flow.StepsSpec, inputPaths, targetLangs []string) {
 	defer a.runState.release()
 
 	// Attribute this flow's model calls to it in the session's AI activity log.
 	ctx = withAIScope(ctx, AIActivityScope{Surface: "flow", Action: flowName})
 
-	capp := a.borrowEngine(&host.App{
-		FormatReg:   a.formatReg,
-		ToolReg:     a.toolReg,
-		SchemaReg:   a.schemaReg,
-		Credentials: a.credentials,
-		Config:      a.aiConfig,
-		Quiet:       true,
-	})
+	capp := a.newProjectEngine(op)
 	completion := RunEvent{Type: "complete", FlowID: flowName}
 	_, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
 		FlowName:      flowName,
@@ -594,14 +573,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	// placement gate, the trust decision an exec-class step needs, the project
 	// bindings, and the redaction policy that governs the sample, which sits in
 	// no collection and so reads under defaults.redaction.
-	capp := a.borrowEngine(&host.App{
-		FormatReg:   a.formatReg,
-		ToolReg:     a.toolReg,
-		SchemaReg:   a.schemaReg,
-		Credentials: a.credentials,
-		Config:      a.aiConfig,
-		Quiet:       true,
-	})
+	capp := a.newProjectEngine(op)
 	tools, cleanup, err := capp.BuildProjectFlowTools(ctx, flowName, spec, pctx, op.Path, tmpFile.Name(), sourceLang, targetLang)
 	if err != nil {
 		return nil, err

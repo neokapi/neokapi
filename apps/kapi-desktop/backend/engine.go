@@ -3,35 +3,11 @@ package backend
 import (
 	"context"
 	"errors"
-	"github.com/neokapi/neokapi/core/contextop"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host"
 )
-
-// Store ownership in the desktop.
-//
-// A project keeps one local store, `.kapi/work/store.db`, holding its content
-// memory, terms, block cache and unit working set. The rule the whole
-// arrangement rests on is that ONE connection pool per store file per process
-// exists: the in-process write gate that stops a converge run's content-memory
-// writes from starving the review loop's working-set writes orders writers
-// within a pool, and can do nothing across two.
-//
-// The desktop cannot meet that with a single host.App — TargetLang and the
-// per-run tool slots are single-occupancy, so a run needs its own — and it
-// cannot meet it by having each surface open the store itself, which is what a
-// tab-cached block store and a per-tab content-memory pool amounted to. So one
-// App owns the stores and every other borrows them:
-//
-//	hostEngine()          the owner. Derives convergence reports, records review
-//	                      decisions, and holds every open project store.
-//	borrowEngine(app)     any App built for one run or one job. It gets its own
-//	                      per-run state and the owner's stores.
-//	projectStore(op)      the tab-side reach into a project's store.
-//
-// A borrower must never be Shut down: its stores belong to the owner, and
-// shutdownEngine closes them once, on service teardown.
 
 // hostEngine returns the desktop's shared host.App, building it on first use so
 // its format and tool registries register once rather than per request. It is
@@ -59,18 +35,24 @@ func (a *App) hostEngine() *host.App {
 	return a.engine
 }
 
-// borrowEngine binds a run-scoped host.App to the engine's project stores and
-// discovered plugins, and returns it, so a run reads and writes the same
-// handles the tab surfaces do rather than opening a second pool on the
-// project's store file, and resolves a command route from the same plugins.
-//
-// The caller keeps ownership of everything else on the App it passed —
-// registries, credentials, the config preprocessor — and must not Shut it down.
-func (a *App) borrowEngine(run *host.App) *host.App {
+// newProjectEngine gives one operation its own locale, encoding, and parse cache.
+// The desktop owns its registries, credentials, and store handles.
+func (a *App) newProjectEngine(op *openProject) *host.App {
 	owner := a.hostEngine()
+	run := &host.App{
+		FormatReg:   a.formatReg,
+		ToolReg:     a.toolReg,
+		SchemaReg:   a.schemaReg,
+		Config:      a.aiConfig,
+		Credentials: a.credentials,
+		PluginHost:  owner.PluginHost,
+		Quiet:       true,
+	}
+	if op != nil && op.Project != nil {
+		run.ResolveSourceLang(op.Project.Defaults.SourceLanguage)
+		run.ResolveEncoding(op.Project.Defaults.Encoding)
+	}
 	owner.ShareProjectStores(run)
-	run.PluginHost = owner.PluginHost
-	// A borrowed App records as the owner does: the person at the keyboard.
 	run.ActAs(contextop.Actor{Kind: contextop.ActorPerson})
 	return run
 }

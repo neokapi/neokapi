@@ -42,7 +42,7 @@ func (a *App) recycleExactMatches(op *openProject) (int, error) {
 	// A run-scoped App over the engine's stores, as a convergence run uses:
 	// the pass sets per-run state (the source language, the target locale)
 	// that the tab's own reads must not see.
-	capp := a.borrowEngine(&host.App{})
+	capp := a.newProjectEngine(op)
 	res, err := capp.RecycleExactMatches(context.Background(), op.Path,
 		string(op.Project.Defaults.SourceLanguage), host.RecycleOptions{NoExtract: true})
 	if err != nil {

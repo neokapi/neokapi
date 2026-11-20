@@ -244,7 +244,7 @@ func TestBringUpToDate_VenueDecisionMatchesTheEmbeddedSurfaces(t *testing.T) {
 	recipe := filepath.Join(root, project.RecipeFileName)
 
 	// The App a run is driven on, built exactly as executeConvergeRun builds it.
-	capp := app.borrowEngine(&host.App{})
+	capp := app.newProjectEngine(nil)
 	desktop, err := capp.ResolveUpVenue(recipe, host.UpOptions{UntilGate: true}.VenueOptions())
 	require.NoError(t, err)
 

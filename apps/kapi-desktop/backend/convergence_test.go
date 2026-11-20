@@ -3,6 +3,7 @@ package backend
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,6 +54,34 @@ func newConvergenceProject(t *testing.T, app *App) (*TabInfo, string) {
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	return tab, root
+}
+
+func TestConcurrentProjectReportsKeepTheirSourceLanguages(t *testing.T) {
+	app := NewApp()
+	first, _ := newConvergenceProject(t, app)
+	second, _ := newConvergenceProject(t, app)
+	op := app.getOpenProject(second.ID)
+	op.Project.Defaults.SourceLanguage = "it"
+	require.NoError(t, app.SaveProject(second.ID))
+	owner := app.hostEngine()
+
+	var workers sync.WaitGroup
+	for _, tab := range []*TabInfo{first, second} {
+		workers.Go(func() {
+			_, err := app.GetConvergence(tab.ID)
+			assert.NoError(t, err)
+		})
+		workers.Go(func() {
+			_, err := app.GetConvergePlan(tab.ID)
+			assert.NoError(t, err)
+		})
+		workers.Go(func() {
+			_, err := app.ReviewQueue(tab.ID, ProjectFilter{})
+			assert.NoError(t, err)
+		})
+	}
+	workers.Wait()
+	assert.Empty(t, owner.SourceLang)
 }
 
 func TestGetConvergence_DerivesCoverage(t *testing.T) {

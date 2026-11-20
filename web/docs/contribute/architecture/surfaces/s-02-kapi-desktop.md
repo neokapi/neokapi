@@ -103,6 +103,12 @@ project context, and resolved stores, and closing one releases them. A file
 watcher refreshes the tab when the recipe changes, including edits made through
 the CLI or git.
 
+The desktop host owns the project database handles and closes them at service
+shutdown. Each convergence run, plan, and review queue request borrows those
+handles and the desktop registries. Each operation has its own source locale,
+encoding, and parse cache. Two open tabs can therefore derive reports at the
+same time using different recipe settings.
+
 ### Every edit is a change set
 
 The desktop changes content through the change service and nothing else
@@ -694,8 +700,9 @@ Live progress survives the dispatch. The venue route reads the plumbing's
 NDJSON line by line as it arrives, folding framing records into the result and
 handing the run's own events to the run view; a buffered document and a
 streamed one are read by the same fold. The shared engine discovers plugins
-once, and a run borrows that engine, so the venue a run resolves is the one the
-tab's other surfaces see.
+once. A run resolves its venue through the same plugin host as the tab.
+The host resolves target languages from the recipe defaults, collections, and
+content items. A project with no target languages reconciles its source.
 
 <SwimlaneDiagram
   actors={[
@@ -708,16 +715,21 @@ tab's other surfaces see.
     { from: 1, to: 2, label: "execute", detail: "flow spec + project context" },
     { from: 2, to: 1, label: "trace records", detail: "step, block, log, error" },
     { from: 1, to: 0, label: "flow:event", detail: "emitted + buffered for reconnect" },
-    { from: 0, to: 1, label: "CancelRun()" },
+    { from: 0, to: 1, label: "CancelProjectRun(tabID)" },
     { from: 1, to: 2, label: "context cancel" },
   ]}
   caption="A run is one call in and a stream of events out. The backend buffers the stream so a reloaded window replays the run rather than losing it."
 />
 
-A desktop window can reload mid-run, and a run that only existed as a live
-event stream would vanish. The backend keeps the events, collapsing consecutive
-metric snapshots so a long run does not grow the buffer at the sampling rate.
-The runner asks for a target language only when the flow produces one.
+The runner admits one active run across the open tabs. Each event and retained
+trace list carries the owning tab ID. A reloaded window can replay the buffered
+events. Consecutive metric snapshots share one buffer entry. Each tab retains
+its own last run error until a run in that tab succeeds.
+
+Cancellation checks the tab ID and signals the active run. The call returns
+after the worker publishes its terminal event and releases the runner. A
+replacement run can then start. The runner asks for a target language only
+when the flow produces one.
 
 ### Tools are described in the flow editor; flows run through the runner
 

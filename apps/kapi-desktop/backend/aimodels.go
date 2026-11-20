@@ -76,13 +76,7 @@ func (a *App) GetEffectiveModel(tabID, locale string) host.AIModelResolution {
 	return host.EffectiveAIModel(a.aiConfig, proj, "translate", locale)
 }
 
-// aiConfigPreprocessor is the tool-registry config preprocessor the desktop
-// installs on every registry it runs tools through: fill the configured default
-// AI provider/model for tools that pin none, then resolve that provider's key
-// from the credential store. It is the CLI's composition (host/app.go), and it
-// is defined once here because the desktop wires it in more than one place — a
-// second copy is how the run path and the converge path start disagreeing about
-// which model is active.
+// aiConfigPreprocessor resolves the provider and model before looking up credentials.
 func (a *App) aiConfigPreprocessor() func(string, []string, map[string]any) (map[string]any, error) {
 	return func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
 		cfg = host.ApplyAIDefaults(a.aiConfig, toolName, requires, cfg)

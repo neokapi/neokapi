@@ -163,7 +163,7 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 // does, from the files in the tree rather than from the block store.
 func (a *App) workingTreeCoverage(ctx context.Context, op *openProject) (*convergence.CoverageTally, error) {
 	root := filepath.Dir(op.Path)
-	engine := a.hostEngine()
+	engine := a.newProjectEngine(op)
 	units, err := engine.UnitsFromProject(op.Project, root, "")
 	if err != nil {
 		return nil, fmt.Errorf("resolve verify blocks: %w", err)
