@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { InfoIcon } from "lucide-react";
 
