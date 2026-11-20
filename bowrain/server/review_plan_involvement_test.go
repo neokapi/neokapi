@@ -26,8 +26,9 @@ func TestValidateOverrideCoordinates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, distinct, got)
 
+	paddedAxis := " channel "
 	_, err = validateOverrides([]involvementOverride{{
-		Coordinates: map[string]string{"channel": "ui", " channel ": "ui,product=app"}, Involvement: involvementEvery,
+		Coordinates: map[string]string{"channel": "ui", paddedAxis: "ui,product=app"}, Involvement: involvementEvery,
 	}}, axes)
 	require.ErrorContains(t, err, "repeats axis")
 }
