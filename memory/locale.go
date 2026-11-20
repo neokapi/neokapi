@@ -2,6 +2,7 @@ package memory
 
 import (
 	"maps"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -14,8 +15,8 @@ import (
 
 // NormalizeEntryLocales rewrites an entry's locale keys to their canonical
 // form, in place: the variants, the source-language hint and every entity's
-// per-locale values. Two spellings of one locale in a single entry collapse to
-// the one written last, which is what the store would have done row by row.
+// per-locale values. The canonical spelling takes precedence. When only aliases
+// are present, the first spelling in lexical order supplies the value.
 //
 // Every backend applies it on the write path, so a caller that builds an entry
 // by hand (an importer, `kapi apply`) and a caller that reads one back from
@@ -48,8 +49,11 @@ func normalizeLocaleKeys[V any](m map[model.LocaleID]V) map[model.LocaleID]V {
 		return m
 	}
 	out := make(map[model.LocaleID]V, len(m))
-	for loc, v := range maps.All(m) {
-		out[model.NormalizeLocale(loc)] = v
+	for _, loc := range slices.Sorted(maps.Keys(m)) {
+		canonical := model.NormalizeLocale(loc)
+		if _, set := out[canonical]; !set || loc == canonical {
+			out[canonical] = m[loc]
+		}
 	}
 	return out
 }

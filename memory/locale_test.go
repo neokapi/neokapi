@@ -150,3 +150,21 @@ func TestNormalizeEntryLocales(t *testing.T) {
 
 	NormalizeEntryLocales(nil)
 }
+
+func TestCanonicalLocaleWinsOverAliases(t *testing.T) {
+	for _, canonical := range []bool{false, true} {
+		variants := map[model.LocaleID][]model.Run{
+			"EN-us": textRuns("First"), "en_US": textRuns("Second"),
+		}
+		want := "First"
+		if canonical {
+			variants["en-US"] = textRuns("Canonical")
+			want = "Canonical"
+		}
+		for range 32 {
+			entry := Entry{Variants: variants}
+			NormalizeEntryLocales(&entry)
+			assert.Equal(t, want, entry.VariantText("en-US"))
+		}
+	}
+}
