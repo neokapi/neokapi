@@ -7,6 +7,7 @@ import {
   projectLanguagesAfterSync,
   type PlanLevel,
   type ReviewInvolvement,
+  type ReviewPlan,
 } from "@neokapi/bowrain-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -104,10 +105,23 @@ export default function ReviewLanguagesScreen() {
     },
     onError: failed,
   });
+  // The tick moves on the tap. The plan is recomputed over the whole project,
+  // so it is refreshed in the background and the earlier choice comes back
+  // only when the save fails.
   const involve = useMutation({
     mutationFn: (v: ReviewInvolvement) => client.setInvolvement({ workspace: ws, project }, v),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) }),
-    onError: failed,
+    onMutate: async (v) => {
+      const key = reviewPlanKey(ws, project);
+      await qc.cancelQueries({ queryKey: key });
+      const before = qc.getQueryData<ReviewPlan>(key);
+      if (before) qc.setQueryData<ReviewPlan>(key, { ...before, involvement: v });
+      return { before };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.before) qc.setQueryData(reviewPlanKey(ws, project), ctx.before);
+      failed(e);
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) }),
   });
 
   const title = setup ? t("follow.setupTitle") : t("follow.title");
