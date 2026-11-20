@@ -304,6 +304,17 @@ func (tb *SQLiteStore) DeleteConcept(ctx context.Context, id string) error {
 	return nil
 }
 
+// DeleteShadowConcepts clears a namespace within the reserved shadow IDs.
+// Foreign keys remove the copies' terms and relations.
+func (tb *SQLiteStore) DeleteShadowConcepts(ctx context.Context, namespace string) error {
+	prefix, err := ShadowNamespacePrefix(namespace)
+	if err != nil {
+		return err
+	}
+	_, err = tb.db.ExecContext(ctx, "DELETE FROM tb_concepts WHERE substr(id, 1, length(?1)) = ?1", prefix)
+	return err
+}
+
 // AddRelation inserts or updates (by ID) a relation between two concepts
 // using an empty stream.
 func (tb *SQLiteStore) AddRelation(ctx context.Context, rel ConceptRelation) error {

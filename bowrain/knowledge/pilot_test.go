@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
@@ -32,12 +33,12 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 	require.NoError(t, err)
 
 	e := NewEngine(nil, tb, store)
-	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
+	pilot, err := e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
 	require.NoError(t, err)
 
 	// Shadow concepts exist under namespaced IDs.
-	oldID := pilotConceptID(cs.ID, pilotStream, "old")
-	newID := pilotConceptID(cs.ID, pilotStream, "new")
+	oldID := pilot.shadowID("c", "old")
+	newID := pilot.shadowID("c", "new")
 	sc, ok, err := tb.GetConcept(ctx, oldID)
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -120,7 +121,7 @@ func TestStopAllPilots_StopsEveryBoundStream(t *testing.T) {
 	require.NoError(t, err)
 
 	e := NewEngine(nil, tb, store)
-	_, err = e.StartPilot(ctx, ws, store, *loaded, "projA", "pilot/a")
+	pilotA, err := e.StartPilot(ctx, ws, store, *loaded, "projA", "pilot/a")
 	require.NoError(t, err)
 	_, err = e.StartPilot(ctx, ws, store, *loaded, "projB", "pilot/b")
 	require.NoError(t, err)
@@ -136,7 +137,7 @@ func TestStopAllPilots_StopsEveryBoundStream(t *testing.T) {
 	pilots, err := store.ListPilots(ctx, ws, cs.ID)
 	require.NoError(t, err)
 	assert.Empty(t, pilots)
-	_, ok, err := tb.GetConcept(ctx, pilotConceptID(cs.ID, "pilot/a", "c1"))
+	_, ok, err := tb.GetConcept(ctx, pilotA.shadowID("c", "c1"))
 	require.NoError(t, err)
 	assert.False(t, ok)
 }
@@ -171,11 +172,11 @@ func TestStartPilot_ShadowsAreInvisibleToStreamBlindReads(t *testing.T) {
 	require.NoError(t, err)
 
 	e := NewEngine(nil, tb, store)
-	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
+	pilot, err := e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
 	require.NoError(t, err)
 
 	// The shadow was written — the pilot did its job.
-	_, ok, err := tb.GetConcept(ctx, pilotConceptID(cs.ID, pilotStream, "old"))
+	_, ok, err := tb.GetConcept(ctx, pilot.shadowID("c", "old"))
 	require.NoError(t, err)
 	require.True(t, ok, "the pilot must write its stream shadow")
 
@@ -194,4 +195,92 @@ func TestStartPilot_ShadowsAreInvisibleToStreamBlindReads(t *testing.T) {
 		assert.NotEqual(t, model.TermForbidden, m.Term.Status,
 			"the draft's ban reached a lookup nobody bound the pilot to")
 	}
+}
+
+func TestPilotProjectsSharingAStream(t *testing.T) {
+	t.Run("SQLite", func(t *testing.T) {
+		testPilotProjectsSharingAStream(t, newSQLiteTB(t), newMemStore())
+	})
+	t.Run("Store", func(t *testing.T) {
+		testPilotProjectsSharingAStream(t, struct{ terms.Store }{newSQLiteTB(t)}, newMemStore())
+	})
+}
+
+func testPilotProjectsSharingAStream(t *testing.T, tb terms.Store, store Store) {
+	t.Helper()
+	ctx := t.Context()
+	const stream = "pilot:copy"
+	cs := ChangeSet{ID: "cs:1", WorkspaceID: "ws", Name: "New guidance", CreatedBy: "alice"}
+	require.NoError(t, store.CreateChangeSet(ctx, &cs))
+	replacement := concept("new", term("replacement", "en-US", model.TermPreferred))
+	replacement.Properties = map[string]string{termscope.PropProjects: "project:A,project:B"}
+	restricted := concept("local", term("restricted", "en-US", model.TermApproved))
+	restricted.Properties = map[string]string{termscope.PropProjects: "project:A"}
+	for _, cp := range []terms.Concept{concept("old:term", term("original", "en-US", model.TermDeprecated)), replacement, restricted} {
+		require.NoError(t, tb.AddConcept(ctx, cp))
+	}
+	appendOp(t, store, cs.WorkspaceID, cs.ID, 0, OpRelationAdd, RelationAddPayload{
+		Relation: terms.ConceptRelation{ID: "r:1", SourceID: "old:term", TargetID: "new", RelationType: graph.LabelUseInstead},
+	})
+	appendOp(t, store, cs.WorkspaceID, cs.ID, 0, OpRelationAdd, RelationAddPayload{
+		Relation: terms.ConceptRelation{ID: "local", SourceID: "old:term", TargetID: "local", RelationType: graph.LabelUseInstead},
+	})
+	appendOp(t, store, cs.WorkspaceID, cs.ID, 0, OpConceptUpdate, ConceptUpdatePayload{ConceptID: "local", Properties: map[string]string{}})
+
+	engine := NewEngine(nil, tb, store)
+	start := func(projectID string) *Pilot {
+		p, err := engine.StartPilot(ctx, cs.WorkspaceID, store, cs, projectID, stream)
+		require.NoError(t, err)
+		return p
+	}
+	check := func(projectID string, pilot *Pilot, want []string, numRelations int) {
+		t.Helper()
+		view := termscope.StoreView(tb, projectID)
+		page, total, err := view.SearchForStream(ctx, "", "", "", stream, nil, 0, 20)
+		require.NoError(t, err)
+		assert.Equal(t, len(want), total)
+		var ids []string
+		for _, cp := range page {
+			assert.Equal(t, []string{projectID}, termscope.Projects(cp))
+			ids = append(ids, cp.ID)
+		}
+		assert.ElementsMatch(t, want, ids)
+		rels, err := view.RelationsForStream(ctx, pilot.shadowID("c", "old:term"), stream, nil, nil)
+		require.NoError(t, err)
+		assert.Len(t, rels, numRelations)
+		for _, rel := range rels {
+			assert.Contains(t, ids, rel.TargetID)
+		}
+	}
+	a := start("project:A")
+	b := start("project:B")
+	aIDs := []string{a.shadowID("c", "old:term"), a.shadowID("c", "new"), a.shadowID("c", "local")}
+	bIDs := []string{b.shadowID("c", "old:term"), b.shadowID("c", "new")}
+	if bulk, ok := tb.(interface {
+		DeleteShadowConcepts(context.Context, string) error
+	}); ok {
+		require.Error(t, bulk.DeleteShadowConcepts(ctx, ""))
+	}
+	check(a.ProjectID, a, aIDs, 2)
+	check(b.ProjectID, b, bIDs, 1)
+	check("unbound", a, nil, 0)
+	live, ok, err := tb.GetConcept(ctx, "new")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, []string{a.ProjectID, b.ProjectID}, termscope.Projects(live))
+
+	ops, err := store.ListOps(ctx, cs.WorkspaceID, cs.ID)
+	require.NoError(t, err)
+	for _, op := range ops {
+		require.NoError(t, store.RemoveOp(ctx, cs.WorkspaceID, cs.ID, op.Seq))
+	}
+	start(a.ProjectID)
+	check(a.ProjectID, a, nil, 0)
+	check(b.ProjectID, b, bIDs, 1)
+	for range 2 {
+		require.NoError(t, engine.StopPilot(ctx, cs.WorkspaceID, store, cs, a.ProjectID, stream))
+		check(b.ProjectID, b, bIDs, 1)
+	}
+	require.NoError(t, engine.StopPilot(ctx, cs.WorkspaceID, store, cs, b.ProjectID, stream))
+	check(b.ProjectID, b, nil, 0)
 }

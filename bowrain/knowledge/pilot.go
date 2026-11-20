@@ -4,103 +4,64 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/terms"
 )
 
-// pilotShadowPrefix namespaces every row the pilot lifecycle writes to the
-// terms. The framework concept/relation tables key on ID alone (stream is a
-// plain column), so a pilot shadow must use a *distinct* ID per (change-set,
-// stream, original) — writing a live concept's own ID with a pilot stream would
-// re-home the single live row onto the pilot branch and destroy the workspace
-// graph. Namespacing keeps the live graph untouched and makes StopPilot a clean,
-// deterministic delete-by-ID.
-//
-// The namespace is the framework's, not this package's: a store has to filter it
-// out of its stream-blind reads for a pilot to stay on its own stream, so the
-// reservation belongs where every store can see it.
-const pilotShadowPrefix = terms.ShadowIDPrefix
+var ErrInvalidPilotProject = errors.New("pilot requires one project ID")
 
-// pilotConceptID is the stream-shadow ID for a concept under a pilot.
-func pilotConceptID(changesetID, stream, conceptID string) string {
-	return pilotShadowPrefix + ":c:" + changesetID + ":" + stream + ":" + conceptID
+func (p Pilot) shadowNamespace(kind string) string {
+	return fmt.Sprintf(":v2:%s:%x:%x:%x:", kind, p.ChangesetID, p.ProjectID, p.Stream)
 }
 
-// pilotRelationID is the stream-shadow ID for a relation under a pilot.
-func pilotRelationID(changesetID, stream, relationID string) string {
-	return pilotShadowPrefix + ":r:" + changesetID + ":" + stream + ":" + relationID
+func (p Pilot) shadowID(kind, originalID string) string {
+	return terms.ShadowIDPrefix + p.shadowNamespace(kind) + originalID
 }
 
-// StartPilot binds a change-set to one content stream as a pilot so real content
-// and real checks resolve through the draft before it merges (AD-021). It writes
-// the change-set's resulting concepts and added relations into the terms store's
-// stream-scoped shadow (AddConceptWithStream / AddRelationWithStream on the pilot
-// stream, under namespaced IDs), then records the pilot. It returns the recorded pilot so callers
-// surface the persisted creator and creation time rather than reconstructing
-// them. It is safe to re-run: shadow writes are upserts and the pilot record
-// upserts by its key.
+// StartPilot publishes the proposed terms and relations that apply to one project and stream.
+// A retry replaces the binding's copies with the current proposal.
 func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store, cs ChangeSet, projectID, stream string) (*Pilot, error) {
-	if store == nil {
-		return nil, errors.New("knowledge: StartPilot requires a non-nil store")
+	if projectID == "" || projectID != strings.TrimSpace(projectID) || strings.Contains(projectID, ",") {
+		return nil, ErrInvalidPilotProject
 	}
-	if stream == "" {
+	if strings.TrimSpace(stream) == "" {
 		return nil, errors.New("knowledge: StartPilot requires a stream")
 	}
-
-	ops, err := e.loadOps(ctx, store, workspaceID, cs.ID)
+	pilot := &Pilot{
+		WorkspaceID: workspaceID, ChangesetID: cs.ID, ProjectID: projectID, Stream: stream,
+		CreatedBy: mergeActor(cs), CreatedAt: time.Now().UTC(),
+	}
+	err := e.withPilot(ctx, store, pilot, func(engine *Engine, store Store) error {
+		ops, err := engine.loadOps(ctx, store, workspaceID, cs.ID)
+		if err != nil {
+			return err
+		}
+		if err := engine.replacePilotShadow(ctx, pilot, ops); err != nil {
+			return err
+		}
+		return store.AddPilot(ctx, pilot)
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	// Write the change-set's resulting concepts and relations into the terms store
-	// stream shadow. An empty change-set writes none.
-	if len(ops) > 0 {
-		if err := e.writePilotShadow(ctx, cs, ops, stream); err != nil {
-			return nil, err
-		}
-	}
-
-	pilot := &Pilot{
-		WorkspaceID: workspaceID,
-		ChangesetID: cs.ID,
-		ProjectID:   projectID,
-		Stream:      stream,
-		CreatedBy:   mergeActor(cs),
-		CreatedAt:   time.Now().UTC(),
-	}
-	if err := store.AddPilot(ctx, pilot); err != nil {
-		return nil, fmt.Errorf("record pilot: %w", err)
 	}
 	return pilot, nil
 }
 
-// StopPilot retires a pilot: it removes the change-set's stream-shadow concepts
-// and relations and removes the pilot record. It is idempotent — every removal
-// tolerates an already-absent row — so merge and abandon can call it
-// unconditionally.
+// StopPilot removes one binding and its copies, including copies whose operations have since been removed.
 func (e *Engine) StopPilot(ctx context.Context, workspaceID string, store Store, cs ChangeSet, projectID, stream string) error {
-	if store == nil {
-		return errors.New("knowledge: StopPilot requires a non-nil store")
-	}
-
-	ops, err := e.loadOps(ctx, store, workspaceID, cs.ID)
-	if err != nil {
-		return err
-	}
-
-	// Remove the terms store stream shadow (relations first, then their concepts).
-	// An empty change-set wrote none.
-	if len(ops) > 0 {
-		if err := e.removePilotShadow(ctx, cs, ops, stream); err != nil {
+	pilot := &Pilot{WorkspaceID: workspaceID, ChangesetID: cs.ID, ProjectID: projectID, Stream: stream}
+	return e.withPilot(ctx, store, pilot, func(engine *Engine, store Store) error {
+		if err := engine.replacePilotShadow(ctx, pilot, nil); err != nil {
 			return err
 		}
-	}
-
-	if err := store.RemovePilot(ctx, workspaceID, cs.ID, projectID, stream); err != nil && !isNotFound(err) {
-		return fmt.Errorf("remove pilot: %w", err)
-	}
-	return nil
+		if err := store.RemovePilot(ctx, workspaceID, cs.ID, projectID, stream); err != nil && !isNotFound(err) {
+			return fmt.Errorf("remove pilot: %w", err)
+		}
+		return nil
+	})
 }
 
 // StopAllPilots retires every pilot of a change-set, returning how many were
@@ -137,15 +98,19 @@ func (e *Engine) StopAllPilots(ctx context.Context, workspaceID string, store St
 	return stopped, events, nil
 }
 
-// writePilotShadow writes the change-set's resulting concepts and added
-// relations into the terms store stream shadow under namespaced IDs.
-func (e *Engine) writePilotShadow(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, stream string) error {
-	shadow, err := e.shadowStore()
-	if err != nil {
-		return err
+func (e *Engine) replacePilotShadow(ctx context.Context, pilot *Pilot, ops []ChangeSetOp) error {
+	shadow, ok := e.concepts.(terms.Store)
+	if !ok {
+		if len(ops) == 0 {
+			return nil
+		}
+		return errors.New("knowledge: concept store does not support pilot shadows")
 	}
 
-	// Build the "after" graph the change-set would produce, purely in memory.
+	if len(ops) == 0 {
+		return pilot.clearShadow(ctx, shadow)
+	}
+
 	before, err := e.buildBeforeTerms(ctx, ops)
 	if err != nil {
 		return fmt.Errorf("build before terms: %w", err)
@@ -154,77 +119,85 @@ func (e *Engine) writePilotShadow(ctx context.Context, cs ChangeSet, ops []Chang
 	if err != nil {
 		return fmt.Errorf("build after terms: %w", err)
 	}
-
-	// Shadow every touched concept that survives, under a namespaced ID.
-	for _, cid := range touchedConceptIDs(ops) {
-		c, ok, err := after.GetConcept(ctx, cid)
-		if err != nil {
-			return fmt.Errorf("resolve resulting concept %q: %w", cid, err)
-		}
-		if !ok {
-			continue // deleted by the change-set; nothing to shadow
-		}
-		sc := deepCopyConcept(c)
-		sc.ID = pilotConceptID(cs.ID, stream, cid)
-		if err := shadow.AddConceptWithStream(ctx, sc, stream); err != nil {
-			return fmt.Errorf("write shadow concept %q: %w", cid, err)
-		}
+	if err := pilot.clearShadow(ctx, shadow); err != nil {
+		return fmt.Errorf("clear pilot concepts: %w", err)
 	}
 
-	// Shadow the relations the change-set adds, with endpoints remapped to the
-	// namespaced shadow concepts (both endpoints are touched, so both exist).
-	for _, op := range ops {
-		if op.Op != OpRelationAdd {
-			continue
-		}
-		var p RelationAddPayload
-		if err := decodePayload(op, &p); err != nil {
+	visible := make(map[string]bool)
+	for _, cid := range touchedConceptIDs(ops) {
+		original, _, err := before.GetConcept(ctx, cid)
+		if err != nil {
 			return err
 		}
-		rel := p.Relation
-		rel.ID = pilotRelationID(cs.ID, stream, p.Relation.ID)
-		rel.SourceID = pilotConceptID(cs.ID, stream, p.Relation.SourceID)
-		rel.TargetID = pilotConceptID(cs.ID, stream, p.Relation.TargetID)
-		if err := shadow.AddRelationWithStream(ctx, rel, stream); err != nil {
-			return fmt.Errorf("write shadow relation %q: %w", p.Relation.ID, err)
+		c, ok, err := after.GetConcept(ctx, cid)
+		if err != nil {
+			return err
+		}
+		if !ok || !termscope.AppliesIn(original, pilot.ProjectID) || !termscope.AppliesIn(c, pilot.ProjectID) {
+			continue
+		}
+		termscope.Limit(&c, pilot.ProjectID)
+		c.ID = pilot.shadowID("c", cid)
+		if err := shadow.AddConceptWithStream(ctx, c, pilot.Stream); err != nil {
+			return fmt.Errorf("write pilot concept %q: %w", cid, err)
+		}
+		visible[cid] = true
+	}
+	added := make(map[string]bool)
+	for _, op := range ops {
+		if op.Op == OpRelationAdd {
+			var p RelationAddPayload
+			if err := decodePayload(op, &p); err != nil {
+				return err
+			}
+			added[p.Relation.ID] = true
 		}
 	}
-	return nil
-}
-
-// removePilotShadow deletes the change-set's stream-shadow relations and
-// concepts. Every delete tolerates an already-absent row, so it is idempotent.
-func (e *Engine) removePilotShadow(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, stream string) error {
-	shadow, err := e.shadowStore()
+	relations, err := after.ListRelations(ctx, nil)
 	if err != nil {
 		return err
 	}
-	for _, op := range ops {
-		if op.Op != OpRelationAdd {
+	for _, rel := range relations {
+		if !added[rel.ID] || !visible[rel.SourceID] || !visible[rel.TargetID] {
 			continue
 		}
-		var p RelationAddPayload
-		if err := decodePayload(op, &p); err != nil {
-			return err
-		}
-		if err := shadow.DeleteRelation(ctx, pilotRelationID(cs.ID, stream, p.Relation.ID)); err != nil && !isNotFound(err) {
-			return fmt.Errorf("remove shadow relation %q: %w", p.Relation.ID, err)
-		}
-	}
-	for _, cid := range touchedConceptIDs(ops) {
-		if err := shadow.DeleteConcept(ctx, pilotConceptID(cs.ID, stream, cid)); err != nil && !isNotFound(err) {
-			return fmt.Errorf("remove shadow concept %q: %w", cid, err)
+		rel.ID = pilot.shadowID("r", rel.ID)
+		rel.SourceID = pilot.shadowID("c", rel.SourceID)
+		rel.TargetID = pilot.shadowID("c", rel.TargetID)
+		if err := shadow.AddRelationWithStream(ctx, rel, pilot.Stream); err != nil {
+			return fmt.Errorf("write pilot relation %q: %w", rel.ID, err)
 		}
 	}
 	return nil
 }
 
-// shadowStore returns the engine's concept store as the stream-shadow write
-// surface the pilot lifecycle needs (the framework terms Store).
-func (e *Engine) shadowStore() (terms.Store, error) {
-	s, ok := e.concepts.(terms.Store)
-	if !ok {
-		return nil, errors.New("knowledge: concept store does not support stream shadows (need terms.Store)")
+func (p Pilot) clearShadow(ctx context.Context, store terms.Store) error {
+	namespace := p.shadowNamespace("c")
+	if bulk, ok := store.(interface {
+		DeleteShadowConcepts(context.Context, string) error
+	}); ok {
+		return bulk.DeleteShadowConcepts(ctx, namespace)
 	}
-	return s, nil
+	var ids []string
+	for offset := 0; ; {
+		page, total, err := store.SearchForStream(ctx, "", "", "", p.Stream, nil, offset, 128)
+		if err != nil {
+			return err
+		}
+		for _, cp := range page {
+			if strings.HasPrefix(cp.ID, terms.ShadowIDPrefix+namespace) {
+				ids = append(ids, cp.ID)
+			}
+		}
+		offset += len(page)
+		if len(page) == 0 || offset >= total {
+			break
+		}
+	}
+	for _, id := range ids {
+		if err := store.DeleteConcept(ctx, id); err != nil && !isNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }

@@ -4,9 +4,12 @@ package knowledge
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/storage"
+	pgterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
@@ -422,4 +425,61 @@ func TestListChangeSetsStatusFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, inReview, 1)
 	assert.Equal(t, ChangeSetInReview, inReview[0].Status)
+}
+
+func TestPostgresPilotProjectsSharingAStream(t *testing.T) {
+	kg := newTestStore(t)
+	tb, err := pgterms.NewPostgresStoreFromDB(kg.db, "workspace-slug")
+	require.NoError(t, err)
+	testPilotProjectsSharingAStream(t, tb, kg)
+}
+
+func TestPostgresPilotRollbackAndRetry(t *testing.T) {
+	ctx := t.Context()
+	kg := newTestStore(t)
+	tb, err := pgterms.NewPostgresStoreFromDB(kg.db, "workspace-slug")
+	require.NoError(t, err)
+	cs := ChangeSet{ID: "cs", WorkspaceID: testWS, Name: "Pilot", CreatedBy: "alice"}
+	require.NoError(t, kg.CreateChangeSet(ctx, &cs))
+	appendOp(t, kg, testWS, cs.ID, 0, OpConceptCreate, ConceptCreatePayload{Concept: concept("new", term("name", "en-US", model.TermPreferred))})
+	engine := NewEngine(nil, tb, kg)
+	_, err = kg.db.ExecContext(ctx, "ALTER TABLE kg_pilots ADD CONSTRAINT reject_test_project CHECK (project_id <> 'blocked')")
+	require.NoError(t, err)
+	_, err = engine.StartPilot(ctx, testWS, kg, cs, "blocked", "main")
+	require.Error(t, err)
+	page, total, err := tb.SearchForStream(ctx, "", "", "", "main", nil, 0, 20)
+	require.NoError(t, err)
+	assert.Empty(t, page)
+	assert.Zero(t, total)
+	_, err = kg.db.ExecContext(ctx, "ALTER TABLE kg_pilots DROP CONSTRAINT reject_test_project")
+	require.NoError(t, err)
+	first, err := engine.StartPilot(ctx, testWS, kg, cs, "blocked", "main")
+	require.NoError(t, err)
+	retry, err := engine.StartPilot(ctx, testWS, kg, cs, "blocked", "main")
+	require.NoError(t, err)
+	assert.Equal(t, first, retry)
+	page, total, err = tb.SearchForStream(ctx, "", "", "", "main", nil, 0, 20)
+	require.NoError(t, err)
+	require.Len(t, page, 1)
+	assert.Equal(t, 1, total)
+	assert.Equal(t, first.shadowID("c", "new"), page[0].ID)
+
+	abort := errors.New("abort enclosing change")
+	err = kg.db.Transition(ctx, func(tx storage.Runner) error {
+		bound := kg.Bind(tx)
+		inner := NewEngine(nil, tb.Bind(tx), bound)
+		stopped, _, err := inner.StopAllPilots(ctx, testWS, bound, cs)
+		if err != nil {
+			return err
+		}
+		assert.Equal(t, 1, stopped)
+		return abort
+	})
+	require.ErrorIs(t, err, abort)
+	pilots, err := kg.ListPilots(ctx, testWS, cs.ID)
+	require.NoError(t, err)
+	require.Len(t, pilots, 1)
+	_, found, err := tb.GetConcept(ctx, first.shadowID("c", "new"))
+	require.NoError(t, err)
+	assert.True(t, found)
 }
