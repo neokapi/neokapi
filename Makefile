@@ -224,18 +224,8 @@ test-integration: ## Run the //go:build integration lane (Postgres-backed cross-
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
 
-format-acceptance: ## Run native-format consumer-toolchain acceptance tests (plutil/resgen/xmllint/node; each check auto-skips if its tool is absent)
-	# Scoped to the formats that ship a //go:build acceptance suite — running
-	# ./core/formats/... would also pull in unrelated packages' fixture-dependent
-	# tests (e.g. xliff2's okapi byte-equal corpus). Add new formats here as they
-	# gain acceptance coverage.
-	# Clear NODE_OPTIONS so node tooling spawned by the JSON-schema + MDX checks do
-	# not inherit a flag the runner's node rejects (e.g. CI sets
-	# --experimental-strip-types, which Node 20 refuses). These checks need none.
-	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 \
-		./core/formats/xcstrings/ ./core/formats/arb/ ./core/formats/resx/ \
-		./core/formats/androidxml/ ./core/formats/applestrings/ \
-		./core/formats/i18next/ ./core/formats/designtokens/ ./core/formats/mdx/
+format-acceptance: ## Run consumer checks for format packages with acceptance tests
+	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 $(sort $(dir $(wildcard ./core/formats/*/acceptance_test.go)))
 
 # NOTE: this is a FIXER, not a check — it rewrites files and exits 0. The
 # corresponding check is `make check-gofmt`, which is what CI gates on.

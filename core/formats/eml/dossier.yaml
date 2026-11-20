@@ -1,0 +1,33 @@
+format: eml
+spec_sources:
+  - id: rfc-5322
+    version: '5322'
+    url: https://www.rfc-editor.org/rfc/rfc5322
+    watch: null
+  - id: rfc-2045
+    version: '2045'
+    url: https://www.rfc-editor.org/rfc/rfc2045
+    watch: null
+  - id: rfc-2046
+    version: '2046'
+    url: https://www.rfc-editor.org/rfc/rfc2046
+    watch: null
+  - id: rfc-2047
+    version: '2047'
+    url: https://www.rfc-editor.org/rfc/rfc2047
+    watch: null
+  - id: rfc-2183
+    version: '2183'
+    url: https://www.rfc-editor.org/rfc/rfc2183
+    watch: null
+implementations:
+  - name: Python email
+    kind: standard-library
+    pointer: https://docs.python.org/3/library/email.html
+  - name: Go net/mail and mime
+    kind: standard-library
+    pointer: https://pkg.go.dev/net/mail
+learning_materials:
+  - core/formats/eml/spec.yaml
+  - scripts/gen-refs/nativedocs/formats/eml.yaml
+divergences: []

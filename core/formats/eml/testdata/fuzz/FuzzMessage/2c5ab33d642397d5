@@ -1,0 +1,2 @@
+go test fuzz v1
+string("Subject: =?UTF-8?Q?Folded?=\r\n =?UTF-8?Q?_subject?=\r\nContent-Type: multipart/mixed; boundary=b\r\n\r\n--b\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nTwo=\r\n lines.\r\n--b--\r\n")

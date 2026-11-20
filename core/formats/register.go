@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/designtokens"
 	"github.com/neokapi/neokapi/core/formats/doclang"
 	"github.com/neokapi/neokapi/core/formats/docling"
+	"github.com/neokapi/neokapi/core/formats/eml"
 	"github.com/neokapi/neokapi/core/formats/epub"
 	execfmt "github.com/neokapi/neokapi/core/formats/exec"
 	"github.com/neokapi/neokapi/core/formats/html"
@@ -66,6 +67,11 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	if len(opts) > 0 {
 		o = opts[0]
 	}
+
+	emlReader := func() format.DataFormatReader { return eml.NewReader() }
+	reg.RegisterReader(EML, emlReader, eml.Signature(), "Email message (EML)")
+	reg.RegisterWriter(EML, func() format.DataFormatWriter { return eml.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "eml", emlReader)
 
 	// Plain Text
 	reg.RegisterReader("plaintext",

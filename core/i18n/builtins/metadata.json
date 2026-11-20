@@ -1534,6 +1534,17 @@
         "application/json"
       ]
     },
+    "eml": {
+      "displayName": "Email message (EML)",
+      "description": "Extract the subject and plain-text MIME bodies from an email message.",
+      "family": "plain-text",
+      "extensions": [
+        ".eml"
+      ],
+      "mimeTypes": [
+        "message/rfc822"
+      ]
+    },
     "epub": {
       "displayName": "EPUB E-Book",
       "description": "Configuration for the EPUB e-book format reader/writer",

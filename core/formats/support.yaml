@@ -81,6 +81,13 @@ formats:
     notes: "DoclingDocument JSON reader (read-only consume-Docling boundary); awaits first multi-axis certification."
     gates:
       - .github/workflows/format-acceptance.yml
+  eml:
+    tier: available
+    tier_since: "2026-11-20"
+    notes: "Extracts the subject and inline plain-text MIME bodies. Writes edits into the source message."
+    gates:
+      - make test
+      - .github/workflows/format-acceptance.yml
   image:
     tier: available
     tier_since: "2026-06-18"

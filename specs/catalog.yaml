@@ -505,6 +505,31 @@ specs:
     version: Qt 6
     url: https://doc.qt.io/qt-6/linguist-ts-file-format.html
     rights: link-only
+  - id: rfc-2045
+    name: RFC 2045 (MIME message bodies)
+    version: '2045'
+    url: https://www.rfc-editor.org/rfc/rfc2045
+    rights: link-only
+  - id: rfc-2046
+    name: RFC 2046 (MIME media types)
+    version: '2046'
+    url: https://www.rfc-editor.org/rfc/rfc2046
+    rights: link-only
+  - id: rfc-2047
+    name: RFC 2047 (MIME message header extensions)
+    version: '2047'
+    url: https://www.rfc-editor.org/rfc/rfc2047
+    rights: link-only
+  - id: rfc-2183
+    name: RFC 2183 (Content-Disposition header)
+    version: '2183'
+    url: https://www.rfc-editor.org/rfc/rfc2183
+    rights: link-only
+  - id: rfc-5322
+    name: RFC 5322 (Internet Message Format)
+    version: '5322'
+    url: https://www.rfc-editor.org/rfc/rfc5322
+    rights: link-only
   - id: rfc-4180
     name: RFC 4180 (CSV)
     version: 2005-10

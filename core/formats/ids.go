@@ -25,6 +25,7 @@ const (
 	TS            registry.FormatID = "ts"
 	MessageFormat registry.FormatID = "messageformat"
 	ODF           registry.FormatID = "odf"
+	EML           registry.FormatID = "eml"
 	EPUB          registry.FormatID = "epub"
 	XCStrings     registry.FormatID = "xcstrings"
 	ARB           registry.FormatID = "arb"

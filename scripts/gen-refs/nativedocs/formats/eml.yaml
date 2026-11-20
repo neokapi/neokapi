@@ -1,0 +1,13 @@
+description: Read the subject and plain-text bodies of an email message and write edits into the original message.
+overview: |
+  An EML file contains one Internet message. The reader extracts the subject
+  and eligible inline plain-text MIME parts. The subject has a heading role.
+  Each extracted body has a paragraph role. You can convert these blocks to
+  Markdown or DocLang with kconv.
+processingNotes:
+  - The reader decodes MIME encoded words in the subject and transfer encodings in plain-text bodies.
+  - The writer uses the source skeleton to preserve headers, MIME boundaries and attachment bytes around edits.
+limitations:
+  - The reader leaves HTML, attachments, flowed text and signed or encrypted MIME bodies in the source skeleton.
+  - The reader supports plain-text bodies in UTF-8, US-ASCII and ISO-8859-1.
+  - Writing an EML file requires its source message.

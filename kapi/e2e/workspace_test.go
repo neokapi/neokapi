@@ -148,6 +148,27 @@ func TestKpzExtractTransformMerge(t *testing.T) {
 		"each document's targets must stay isolated through the workspace")
 }
 
+func TestKpzEmailDelivery(t *testing.T) {
+	dir := t.TempDir()
+	original, err := os.ReadFile(filepath.Join(findRoot(), "core", "formats", "eml", "testdata", "multipart.eml"))
+	require.NoError(t, err)
+	source := writeWS(t, dir, "message.eml", string(original))
+	expected := filepath.Join(dir, "direct.eml")
+	kapi(t, "pseudo-translate", source, "-o", expected, "--target-lang", "qps")
+	work := filepath.Join(dir, "work.kpz")
+	kapi(t, "extract", source, "-o", work, "--target-lang", "qps")
+	require.NoError(t, os.Remove(source))
+	kapi(t, "pseudo-translate", work)
+	kapi(t, "merge", work, "-o", filepath.Join(dir, "out"))
+
+	got := readFileBytes(t, filepath.Join(dir, "out", "message.eml"))
+	require.Equal(t, readFileBytes(t, expected), got)
+	require.NotEqual(t, original, got)
+	for _, preserved := range []string{"Attached text", "AP8KAA==", "<p>HTML alternative</p>", "Epilogue."} {
+		require.Contains(t, string(got), preserved)
+	}
+}
+
 // TestKpzMultiLocaleAccumulates verifies transforms accumulate locales and
 // merge emits one file per source × locale under <out>/<lang>/.
 func TestKpzMultiLocaleAccumulates(t *testing.T) {
