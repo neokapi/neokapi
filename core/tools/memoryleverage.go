@@ -390,7 +390,7 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	if m.Exact {
 		matchType, propType = model.MatchExact, "exact"
 	}
-	targetRuns := cloneRuns(m.TargetRuns)
+	targetRuns := model.CloneRuns(m.TargetRuns)
 	v.AddAltTranslation(&model.AltTranslation{
 		Source:    v.SourceRuns(),
 		Target:    targetRuns,
@@ -450,69 +450,6 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	})
 	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 	return true
-}
-
-// cloneRuns deep-copies a Run sequence so a TM entry's stored runs are
-// never aliased into block targets (an in-memory TM hands out its own
-// slices; a later edit to one filled block must not rewrite the entry or
-// another block).
-func cloneRuns(runs []model.Run) []model.Run {
-	if runs == nil {
-		return nil
-	}
-	out := make([]model.Run, len(runs))
-	for i, r := range runs {
-		out[i] = cloneRun(r)
-	}
-	return out
-}
-
-func cloneRun(r model.Run) model.Run {
-	var c model.Run
-	switch {
-	case r.Text != nil:
-		t := *r.Text
-		c.Text = &t
-	case r.Ph != nil:
-		p := *r.Ph
-		if p.Constraints != nil {
-			cc := *p.Constraints
-			p.Constraints = &cc
-		}
-		c.Ph = &p
-	case r.PcOpen != nil:
-		p := *r.PcOpen
-		if p.Constraints != nil {
-			cc := *p.Constraints
-			p.Constraints = &cc
-		}
-		c.PcOpen = &p
-	case r.PcClose != nil:
-		p := *r.PcClose
-		c.PcClose = &p
-	case r.Sub != nil:
-		s := *r.Sub
-		c.Sub = &s
-	case r.Plural != nil:
-		p := model.PluralRun{Pivot: r.Plural.Pivot}
-		if r.Plural.Forms != nil {
-			p.Forms = make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
-			for k, form := range r.Plural.Forms {
-				p.Forms[k] = cloneRuns(form)
-			}
-		}
-		c.Plural = &p
-	case r.Select != nil:
-		s := model.SelectRun{Pivot: r.Select.Pivot}
-		if r.Select.Cases != nil {
-			s.Cases = make(map[string][]model.Run, len(r.Select.Cases))
-			for k, cs := range r.Select.Cases {
-				s.Cases[k] = cloneRuns(cs)
-			}
-		}
-		c.Select = &s
-	}
-	return c
 }
 
 // leverageSegments attempts sentence-level content-memory leverage over a multi-segment

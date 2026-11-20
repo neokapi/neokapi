@@ -114,8 +114,8 @@ func PromoteDecisionsToMemory(
 			entry := memory.Entry{
 				ID: entryID,
 				Variants: map[model.LocaleID][]model.Run{
-					sourceLocale:   cloneRunsForMemory(sourceRuns),
-					variant.Locale: cloneRunsForMemory(targetRuns),
+					sourceLocale:   model.CloneRuns(sourceRuns),
+					variant.Locale: model.CloneRuns(targetRuns),
 				},
 				HintSrcLang: sourceLocale,
 				ProjectID:   projectID,

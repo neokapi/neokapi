@@ -59,3 +59,21 @@ func TestRunValid(t *testing.T) {
 		}
 	})
 }
+
+func TestCloneRunsOwnsNestedEdits(t *testing.T) {
+	leaf := PhR(PlaceholderRun{ID: "1", Attrs: map[string]string{"href": "first"}, Constraints: &RunConstraints{Cloneable: true}})
+	runs := []Run{PluralR(PluralRun{Forms: map[PluralForm][]Run{
+		PluralOther: {SelectR(SelectRun{Cases: map[string][]Run{"other": {leaf}}})},
+	}})}
+	got := CloneRuns(runs)
+	require.Equal(t, runs, got)
+	ph := got[0].Plural.Forms[PluralOther][0].Select.Cases["other"][0].Ph
+	ph.Attrs["href"] = "second"
+	ph.Constraints.Cloneable = false
+	delete(got[0].Plural.Forms, PluralOther)
+	assert.Contains(t, runs[0].Plural.Forms, PluralOther)
+	assert.Equal(t, "first", leaf.Ph.Attrs["href"])
+	assert.True(t, leaf.Ph.Constraints.Cloneable)
+	assert.Nil(t, CloneRuns(nil))
+	assert.NotNil(t, CloneRuns([]Run{}))
+}

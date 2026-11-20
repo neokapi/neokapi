@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -198,6 +200,51 @@ type Run struct {
 	Sub     *SubRun         `json:"sub,omitempty"`
 	Plural  *PluralRun      `json:"plural,omitempty"`
 	Select  *SelectRun      `json:"select,omitempty"`
+}
+
+// CloneRuns returns independent copies of the runs and their nested content.
+func CloneRuns(runs []Run) []Run {
+	out := slices.Clone(runs)
+	for i := range out {
+		run := &out[i]
+		run.Text = clonePointer(run.Text)
+		run.Ph = clonePointer(run.Ph)
+		run.PcOpen = clonePointer(run.PcOpen)
+		run.PcClose = clonePointer(run.PcClose)
+		run.Sub = clonePointer(run.Sub)
+		run.Plural = clonePointer(run.Plural)
+		run.Select = clonePointer(run.Select)
+		if ph := run.Ph; ph != nil {
+			ph.Attrs = maps.Clone(ph.Attrs)
+			ph.Constraints = clonePointer(ph.Constraints)
+		}
+		if open := run.PcOpen; open != nil {
+			open.Attrs = maps.Clone(open.Attrs)
+			open.Constraints = clonePointer(open.Constraints)
+		}
+		if plural := run.Plural; plural != nil {
+			plural.Forms = cloneBranches(plural.Forms)
+		}
+		if selectRun := run.Select; selectRun != nil {
+			selectRun.Cases = cloneBranches(selectRun.Cases)
+		}
+	}
+	return out
+}
+
+func clonePointer[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(*p)
+}
+
+func cloneBranches[K comparable](branches map[K][]Run) map[K][]Run {
+	out := maps.Clone(branches)
+	for key, runs := range branches {
+		out[key] = CloneRuns(runs)
+	}
+	return out
 }
 
 // Intention-revealing constructors for the seven Run kinds. Each returns a
