@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 )
 
 // These cover what the governance dashboard used to buy with one request per
@@ -159,6 +161,26 @@ func TestBlastRadiusWithoutASummaryWalks(t *testing.T) {
 	c, _ := h.req(http.MethodGet, "/changesets/"+cs.ID+"/blast-radius", "",
 		platauth.PermViewContent, "id", cs.ID)
 	assertEngineUnavailable(t, h.srv.HandleChangeSetBlastRadius(c))
+}
+
+func TestStartPilotRejectsAmbiguousProjectIDs(t *testing.T) {
+	dir := t.TempDir()
+	h := newKGHarness(t)
+	content, err := sqlitestore.NewSQLiteStore(filepath.Join(dir, "content.db"))
+	require.NoError(t, err)
+	h.srv.ContentStore = content
+	cs := h.seedChangeSet(t, "pilot", 0)
+
+	for _, project := range []string{"project-a,project-b", " project-a"} {
+		t.Run(project, func(t *testing.T) {
+			body, err := json.Marshal(StartPilotRequest{ProjectID: project, Stream: "main"})
+			require.NoError(t, err)
+			c, rec := h.req(http.MethodPost, "/changesets/"+cs.ID+"/pilots", string(body), platauth.PermManageTerms, "id", cs.ID)
+			require.NoError(t, h.srv.HandleStartPilot(c))
+			require.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Contains(t, rec.Body.String(), "project_id")
+		})
+	}
 }
 
 // The trial endpoint sits under the pilot path, which already carries a

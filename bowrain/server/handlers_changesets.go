@@ -836,6 +836,9 @@ func (s *Server) HandleStartPilot(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "stream is required"})
 	}
 	pilot, err := engine.StartPilot(ctx, wsID, s.KnowledgeStore, *cs, req.ProjectID, req.Stream)
+	if errors.Is(err, knowledge.ErrInvalidPilotProject) {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project_id must identify one project without surrounding whitespace or commas"})
+	}
 	if err != nil {
 		return serverErr(c, err)
 	}
