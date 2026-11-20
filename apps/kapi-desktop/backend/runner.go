@@ -370,9 +370,7 @@ func (a *App) GetRunEvents() []RunEvent {
 	}
 	a.runState.mu.Lock()
 	defer a.runState.mu.Unlock()
-	out := make([]RunEvent, len(a.runState.events))
-	copy(out, a.runState.events)
-	return out
+	return slices.Clone(a.runState.events)
 }
 
 // emitRunEvent emits a flow event to the frontend and stores it for reconnection.
