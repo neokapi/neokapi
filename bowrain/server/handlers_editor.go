@@ -110,24 +110,23 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	if req.DefaultStream != nil {
 		proj.DefaultStream = *req.DefaultStream
 	}
-	if req.DashboardVisibility != "" {
-		if req.DashboardVisibility != string(platauth.DashboardPrivate) && s.AuthStore != nil {
-			if ws, wsErr := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); wsErr == nil && ws.Type == platauth.WorkspaceTypePersonal {
-				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
-			}
+	visibility := platauth.DashboardVisibility(req.DashboardVisibility)
+	if visibility != "" && !platauth.ValidDashboardVisibility[visibility] {
+		return apiErr(c, http.StatusBadRequest, "invalid dashboard visibility")
+	}
+	if visibility == platauth.DashboardPublic || visibility == platauth.DashboardUnlisted || req.Properties[ShipFeedProperty] == "true" {
+		allowed, err := s.workspaceMayPublishProjects(ctx, proj.WorkspaceID)
+		if err != nil {
+			return serverErrStatus(c, http.StatusServiceUnavailable, err)
 		}
-		proj.DashboardVisibility = req.DashboardVisibility
+		if !allowed {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
+		}
+	}
+	if visibility != "" {
+		proj.DashboardVisibility = string(visibility)
 	}
 	if req.Properties != nil {
-		// Turning on the public ship feed is the same disclosure decision as a
-		// public dashboard, and properties are written raw, so the personal-
-		// workspace refusal has to be made here rather than only on the field
-		// that reads more like a setting.
-		if req.Properties[ShipFeedProperty] == "true" && s.AuthStore != nil {
-			if ws, wsErr := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); wsErr == nil && ws.Type == platauth.WorkspaceTypePersonal {
-				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
-			}
-		}
 		if proj.Properties == nil {
 			proj.Properties = make(map[string]string)
 		}

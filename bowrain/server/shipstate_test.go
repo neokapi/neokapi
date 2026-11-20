@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -433,7 +434,7 @@ func TestApplyShipStates_MissingBasisShipsAndIsCounted(t *testing.T) {
 // end: the public manifest a picker reads must drop a locale whose source moved
 // under its approval, exactly as the dashboard does.
 func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
-	srv, _ := newTestServer(t)
+	srv, _ := newTestServerWithWorkspace(t, platauth.WorkspaceTypeTeam)
 	ctx := t.Context()
 
 	proj := &platstore.Project{

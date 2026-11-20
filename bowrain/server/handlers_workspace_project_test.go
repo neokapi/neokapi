@@ -19,6 +19,11 @@ import (
 
 func newTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
+	return newTestServerWithWorkspace(t, platauth.WorkspaceTypePersonal)
+}
+
+func newTestServerWithWorkspace(t *testing.T, kind platauth.WorkspaceType) (*Server, string) {
+	t.Helper()
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
@@ -31,7 +36,7 @@ func newTestServer(t *testing.T) (*Server, string) {
 	ctx := t.Context()
 	user := &platauth.User{ID: "test-user", Email: "test@example.com", Name: "Test"}
 	require.NoError(t, s.AuthStore.CreateUser(ctx, user))
-	ws := &platauth.Workspace{ID: "test-ws", Name: "Test", Slug: "test", Type: platauth.WorkspaceTypePersonal}
+	ws := &platauth.Workspace{ID: "test-ws", Name: "Test", Slug: "test", Type: kind}
 	require.NoError(t, s.AuthStore.CreateWorkspace(ctx, ws))
 	require.NoError(t, s.AuthStore.AddMember(ctx, ws.ID, user.ID, platauth.RoleOwner))
 
@@ -406,4 +411,20 @@ func TestRetiredProjectHandlersAreOffTheRouter(t *testing.T) {
 		}
 		assert.False(t, retired[name], "%s %s still routes to %s", r.Method, r.Path, r.Name)
 	}
+}
+
+func TestPublicShipFeedRequiresTeamWorkspace(t *testing.T) {
+	srv, _ := newTestServer(t)
+	p := &store.Project{Name: "Personal", WorkspaceID: "test-ws", Properties: map[string]string{ShipFeedProperty: "true"}}
+	require.NoError(t, srv.ContentStore.CreateProject(t.Context(), p))
+	rec := httptest.NewRecorder()
+	srv.GetEcho().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+p.ID+"/ship.json", nil))
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestProjectPublicationRequiresReadableWorkspace(t *testing.T) {
+	s := &Server{AuthStore: unreadableWorkspace{}}
+	allowed, err := s.workspaceMayPublishProjects(t.Context(), "ws")
+	require.ErrorIs(t, err, errWorkspaceUnreadable)
+	assert.False(t, allowed)
 }
