@@ -1124,9 +1124,7 @@ jobs:
           go-version: "1.27.1"
 
       - name: Create embed placeholders
-        run: |
-          mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-          mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+        run: make go-embed-placeholders
 
       - name: Download modules
         uses: ./.github/actions/go-mod-download
