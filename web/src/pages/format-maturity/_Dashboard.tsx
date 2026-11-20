@@ -13,7 +13,8 @@ import {
 import { t } from "@neokapi/i18n-react/runtime";
 import formats from "../../../static/data/format-maturity.json";
 import capabilities from "../../../static/data/content-capabilities.json";
-import history from "../../../static/data/content-capabilities-history.json";
+import observations from "../../../static/data/content-capabilities-history.json";
+import { operationChanges, type History } from "./_history";
 import Formats from "./_Formats";
 import { TIER_LABEL, TIER_MEANING, TIER_ORDER } from "./_types";
 import CapabilityEvidence, { ObservationHistory } from "./_CapabilityEvidence";
@@ -105,6 +106,7 @@ const issues = (["failed", "unverified"] as const).flatMap((status) =>
 );
 
 function RecentChanges() {
+  const history: History[] = observations;
   const latest = history.at(-1);
   const previous = history.at(-2);
   if (!latest || !previous) return null;
@@ -114,6 +116,8 @@ function RecentChanges() {
   const added = ids.filter((id) => !before[id]);
   const moved = ids.filter((id) => before[id] && before[id] !== now[id]);
   const removed = Object.keys(before).filter((id) => !now[id]);
+  const outputs = operationChanges(latest.outputs, previous.outputs).length;
+  const connectors = operationChanges(latest.connectors, previous.connectors).length;
   return (
     <section className={styles.recent}>
       <div className={styles.sectionHeading}>
@@ -157,10 +161,26 @@ function RecentChanges() {
             )}
           </span>
         )}
-        {added.length + moved.length + removed.length === 0 && (
+        {outputs > 0 && (
           <span>
-            {t("No changes to format coverage or implementation grades.", "latest audit")}
+            {t(
+              "{count, plural, one {# output check changed} other {# output checks changed}}",
+              "operation changes",
+              { count: outputs },
+            )}
           </span>
+        )}
+        {connectors > 0 && (
+          <span>
+            {t(
+              "{count, plural, one {# connector check changed} other {# connector checks changed}}",
+              "operation changes",
+              { count: connectors },
+            )}
+          </span>
+        )}
+        {added.length + moved.length + removed.length + outputs + connectors === 0 && (
+          <span>{t("No changes in comparable results.", "latest audit")}</span>
         )}
       </div>
     </section>

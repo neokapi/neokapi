@@ -4,19 +4,12 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { formats } from "@neokapi/reference-data";
 import current from "../../../static/data/content-capabilities.json";
 import observations from "../../../static/data/content-capabilities-history.json";
+import { operationChanges, type History, type Profile } from "./_history";
 import styles from "./_CapabilityEvidence.module.css";
 
 type Group = "outputs" | "connectors";
 type Capability = { id: string; status: string; evidence: string[]; detail: string };
 type Subject = { id: string; capabilities: Capability[] };
-type Profile = Record<string, Record<string, string>>;
-type History = {
-  date: string;
-  revision?: string;
-  formats: Partial<Record<string, string>>;
-  outputs?: Profile;
-  connectors?: Profile;
-};
 type InventoryProps = { group: Group; initialStatus?: string; evidenceBaseUrl: string };
 
 const repo = "https://github.com/neokapi/neokapi";
@@ -258,26 +251,17 @@ function coverage(group: Group, profile?: Profile, previous?: Profile) {
           "capability history",
           counts,
         );
-  if (!previous) return summary;
-  const differences = [];
   const labels = statusNames();
   const absent = t("absent", "historical observation");
-  for (const subject of [...new Set([...Object.keys(profile), ...Object.keys(previous)])].sort()) {
-    const now = profile[subject] ?? {};
-    const before = previous[subject] ?? {};
-    for (const operation of [...new Set([...Object.keys(now), ...Object.keys(before)])].sort()) {
-      if (before[operation] !== now[operation]) {
-        differences.push(
-          t("{subject} / {operation} · {before} → {after}", "capability change", {
-            subject: subjectName(group, subject),
-            operation: operationName(operation),
-            before: labels[before[operation]] ?? before[operation] ?? absent,
-            after: labels[now[operation]] ?? now[operation] ?? absent,
-          }),
-        );
-      }
-    }
-  }
+  const differences = operationChanges(profile, previous).map(
+    ({ subject, operation, before, after }) =>
+      t("{subject} / {operation} · {before} → {after}", "capability change", {
+        subject: subjectName(group, subject),
+        operation: operationName(operation),
+        before: labels[before] ?? before ?? absent,
+        after: labels[after] ?? after ?? absent,
+      }),
+  );
   if (!differences.length) return summary;
   return (
     <details>

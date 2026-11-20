@@ -37,8 +37,18 @@ vi.mock("../../../static/data/content-capabilities.json", () => ({
 }));
 vi.mock("../../../static/data/content-capabilities-history.json", () => ({
   default: [
-    { date: "2026-09-15", formats: { csv: "L1" } },
-    { date: "2026-11-20", formats: { csv: "L2", eml: "L3" } },
+    {
+      date: "2026-09-15",
+      formats: { csv: "L1" },
+      outputs: { html: { text: "failed" } },
+      connectors: { file: { fetch: "unverified", list: "unverified" } },
+    },
+    {
+      date: "2026-11-20",
+      formats: { csv: "L2", eml: "L3" },
+      outputs: { html: { text: "verified" } },
+      connectors: { file: { fetch: "verified", list: "verified" } },
+    },
   ],
 }));
 
@@ -57,6 +67,8 @@ it("starts with counts and changes and opens the selected evidence filter", asyn
   show();
   expect(screen.getByRole("link", { name: "Input formats 2" })).toBeTruthy();
   expect(screen.getByText("1 implementation grade changed")).toBeTruthy();
+  expect(screen.getByText("1 output check changed")).toBeTruthy();
+  expect(screen.getByText("2 connector checks changed")).toBeTruthy();
   expect(screen.queryByRole("table")).toBeNull();
   fireEvent.click(screen.getByRole("link", { name: "Failed output checks 1" }));
   await waitFor(() => expect(screen.getByRole("heading", { name: "outputs failed" })).toBeTruthy());
