@@ -136,3 +136,21 @@ func TestTermCheckRunMissed_NamesTheRuleOnceAcrossForms(t *testing.T) {
 	cfg.TermRules[0].Advisory = true
 	assert.Empty(t, tools.TermCheckRunMissed(cfg, enWorkspaces(), tgt), "an advisory rule does not fail")
 }
+
+func TestTermCheckSingleTargetFormUsesOnlyItsSourceForm(t *testing.T) {
+	cfg := workspaceRule("ja", "作業領域")
+	source := []model.Run{plural(map[model.PluralForm]string{model.PluralOne: "workspace", model.PluralOther: "projects"})}
+	target := []model.Run{plural(map[model.PluralForm]string{model.PluralOther: "プロジェクト"})}
+	errs, _ := tools.TermCheckRunViolations(cfg, source, target)
+	assert.Empty(t, errs)
+	assert.Empty(t, tools.TermCheckRunMissed(cfg, source, target))
+	assert.Empty(t, tools.TermCheckOverlays(cfg, source, target))
+}
+
+func TestTermCheckMissedFollowsConfiguredRuleOrder(t *testing.T) {
+	cfg := workspaceRule("fr", "espace")
+	cfg.TermRules = append(cfg.TermRules, coreprofile.TermRule{Term: "folder", Replacement: "dossier"})
+	source := []model.Run{plural(map[model.PluralForm]string{model.PluralOne: "workspace", model.PluralOther: "folder"})}
+	target := []model.Run{plural(map[model.PluralForm]string{model.PluralOne: "un", model.PluralOther: "plusieurs"})}
+	assert.Equal(t, cfg.TermRules, tools.TermCheckRunMissed(cfg, source, target))
+}
