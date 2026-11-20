@@ -171,6 +171,12 @@ if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/.*\.go$' '^bowrain/go\.
     run_check "Go lint (bowrain)" make check-bowrain
 fi
 
+if matches '^bowrain/.*\.(go|sql)$' '^(core|host|kpz|memory|providers|terms|voice)/.*\.go$' \
+    '^(bowrain/(core/|plugin/)?|host/)?go\.(mod|sum)$' '^go\.work(\.sum)?$' \
+    '^(Makefile|bowrain/Makefile|scripts/pre-push-check\.sh)$'; then
+    run_check "Bowrain tests (pull request)" make GITHUB_EVENT_NAME=pull_request ci-test-bowrain
+fi
+
 # The /evals index copies each eval dataset's date and headline number, so a
 # republished dataset leaves the committed index stale until `make eval-index`
 # regenerates it. The datasets sit under web/static/data/ and beside their pages

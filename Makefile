@@ -620,8 +620,11 @@ ci-test-kapi: ## Run kapi tests with full CI flags locally
 ci-test-platform: ## Run platform tests with full CI flags locally
 	$(MAKE) -C bowrain CI=true test-platform
 
-ci-test-bowrain: ## Run bowrain tests with full CI flags locally
-	$(MAKE) -C bowrain CI=true test-bowrain
+ci-test-bowrain: go-embed-placeholders ## Run Bowrain tests with the CI profile for the current event
+	@: > test-results-bowrain.json
+	$(MAKE) -C bowrain CI=true test-bowrain || { \
+		status=$$?; ./scripts/print-go-test-failures.sh test-results-bowrain.json; exit $$status; \
+	}
 
 ci-test-kapi-desktop: ## Run Kapi Desktop tests with full CI flags locally
 	$(MAKE) CI=true kapi-desktop-test
