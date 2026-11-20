@@ -1,8 +1,6 @@
 import type { DeckCard, ReviewContext } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import "../lib/i18n";
 import { ContextSheetBody } from "../components/ContextSheet";
@@ -27,20 +25,6 @@ const card: DeckCard = {
   failingFindingsCount: 0,
   ownWork: false,
 };
-
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <SafeAreaProvider
-      initialMetrics={{
-        frame: { x: 0, y: 0, width: 390, height: 844 },
-        insets: { top: 0, left: 0, right: 0, bottom: 0 },
-      }}
-    >
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-    </SafeAreaProvider>
-  );
-}
 
 describe("whereParts", () => {
   it("reads product and surface from a product/channel binding", () => {
@@ -67,7 +51,7 @@ describe("ReviewCard", () => {
   it("shows where the text ships, why it needs a look, and opens the details", async () => {
     const onDetails = jest.fn();
     await render(
-      wrap(
+      withTestProviders(
         <ReviewCard
           card={card}
           sourceLanguage="en"
@@ -93,7 +77,7 @@ describe("ReviewCard", () => {
       targetRevision: "r:9",
     };
     await render(
-      wrap(
+      withTestProviders(
         <ReviewCard
           card={{ ...card, copies: [copy, { ...copy, blockId: "b8" }] }}
           sourceLanguage="en"
@@ -105,7 +89,7 @@ describe("ReviewCard", () => {
 
   it("words no reason for a quick card", async () => {
     await render(
-      wrap(
+      withTestProviders(
         <ReviewCard card={{ ...card, group: "fast", reasonCode: "fast" }} sourceLanguage="en" />,
       ),
     );
@@ -131,7 +115,7 @@ describe("ContextSheetBody", () => {
       provenance: {},
     } as unknown as ReviewContext;
     await render(
-      wrap(
+      withTestProviders(
         <ContextSheetBody
           card={card}
           scope={{ workspace: "w", project: "p" }}
@@ -152,7 +136,7 @@ describe("ContextSheetBody", () => {
 
   it("lists the copies a decision covers", async () => {
     await render(
-      wrap(
+      withTestProviders(
         <ContextSheetBody
           card={{
             ...card,

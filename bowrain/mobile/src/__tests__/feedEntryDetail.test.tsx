@@ -1,5 +1,5 @@
 import type { FeedEntry, FeedPage } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient, withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import "../lib/i18n";
@@ -37,16 +37,12 @@ const recipe: FeedEntry = {
 
 describe("a feed entry's detail page", () => {
   it("reads a recipe change as a sentence and sections of collections", async () => {
-    const qc = new QueryClient();
+    const qc = createTestQueryClient();
     qc.setQueryData<{ pages: FeedPage[]; pageParams: string[] }>(feedKey("ws", "p"), {
       pages: [{ entries: [recipe] }],
       pageParams: [""],
     });
-    await render(
-      <QueryClientProvider client={qc}>
-        <FeedEntryDetail />
-      </QueryClientProvider>,
-    );
+    await render(withTestProviders(<FeedEntryDetail />, qc));
     expect(screen.getByText("You")).toBeTruthy();
     expect(screen.getByTestId("detail-languages")).toBeTruthy();
     expect(screen.getByText("Japanese")).toBeTruthy();

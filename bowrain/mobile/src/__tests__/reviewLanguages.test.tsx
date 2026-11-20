@@ -5,10 +5,9 @@ import {
   type ReviewHome,
   type ReviewLanguages,
 } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
-import type { ReactNode } from "react";
 import { Alert } from "react-native";
 
 import i18n from "../lib/i18n";
@@ -44,11 +43,6 @@ jest.mock("../lib/auth", () => ({
     },
   }),
 }));
-
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
 
 const project = (saved: boolean) =>
   inboxProjectFromServer({
@@ -97,7 +91,7 @@ describe("the Review tab plan card", () => {
 
   it("shows one next step, the later steps and the held translations", async () => {
     mockHome.mockResolvedValue({ context: [], languages: [], projects: [project(true)] });
-    await render(wrap(<ReviewInbox />));
+    await render(withTestProviders(<ReviewInbox />));
     expect(await screen.findByTestId("plan-card-p")).toBeTruthy();
     expect(screen.getByText("Step 2 of 5")).toBeTruthy();
     expect(screen.getByText("Review context")).toBeTruthy();
@@ -137,7 +131,7 @@ describe("the Review tab plan card", () => {
       changed: 1,
     };
     mockHome.mockResolvedValue({ context: [], languages: [], projects: [p] });
-    await render(wrap(<ReviewInbox />));
+    await render(withTestProviders(<ReviewInbox />));
     expect(await screen.findByText("Step 1 of 5")).toBeTruthy();
     expect(screen.getByText("1 change since the last confirmation")).toBeTruthy();
     expect(screen.getByLabelText("Context, Not started")).toBeTruthy();
@@ -150,7 +144,7 @@ describe("the Review tab plan card", () => {
 
   it("opens the setup first while no languages are saved", async () => {
     mockHome.mockResolvedValue({ context: [], languages: [], projects: [project(false)] });
-    await render(wrap(<ReviewInbox />));
+    await render(withTestProviders(<ReviewInbox />));
     await fireEvent.press(await screen.findByTestId("plan-card-p-interfaces"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/languages",
@@ -185,7 +179,7 @@ describe("the languages screen", () => {
     // The save answers only after the checks: the tick must move on the tap.
     let answer: () => void = () => {};
     mockInvolve.mockReturnValue(new Promise<void>((resolve) => (answer = resolve)));
-    await render(wrap(<ReviewLanguagesScreen />));
+    await render(withTestProviders(<ReviewLanguagesScreen />));
     await fireEvent.press(await screen.findByTestId("follow-involvement-every"));
     expect(mockInvolve).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, "every");
     // The optimistic update lands after the query is cancelled, a microtask
@@ -223,7 +217,7 @@ describe("the languages screen", () => {
     );
     let answer: () => void = () => {};
     mockOverrides.mockReturnValue(new Promise<void>((resolve) => (answer = resolve)));
-    await render(wrap(<ReviewLanguagesScreen />));
+    await render(withTestProviders(<ReviewLanguagesScreen />));
     const docs = await screen.findByTestId("follow-override-product=docs");
     expect(docs.props.accessibilityLabel).toBe("docs: Context");
 
@@ -252,7 +246,7 @@ describe("the languages screen", () => {
   it("shows a reviewer only their languages and saves the choice", async () => {
     mockLanguages.mockResolvedValue(languages());
     mockSetFollowed.mockResolvedValue(languages({ followed: ["nb"], saved: true }));
-    await render(wrap(<ReviewLanguagesScreen />));
+    await render(withTestProviders(<ReviewLanguagesScreen />));
     expect(await screen.findByTestId("follow-mine-sv")).toBeTruthy();
     expect(screen.queryByTestId("follow-project-nb")).toBeNull();
     expect(screen.queryByTestId("follow-coordinates")).toBeNull();
@@ -268,7 +262,7 @@ describe("the languages screen", () => {
     mockParams.current = { ws: "ws", project: "p", setup: "1", next: "exceptions" };
     mockLanguages.mockResolvedValue(languages());
     mockSetFollowed.mockResolvedValue(languages({ saved: true }));
-    await render(wrap(<ReviewLanguagesScreen />));
+    await render(withTestProviders(<ReviewLanguagesScreen />));
     await fireEvent.press(await screen.findByTestId("follow-save"));
     expect(router.replace).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/plan",
@@ -280,7 +274,7 @@ describe("the languages screen", () => {
     mockParams.current = { ws: "ws", project: "p", setup: "1", next: "coordinates" };
     mockLanguages.mockResolvedValue(languages());
     mockSetFollowed.mockResolvedValue(languages({ saved: true, followed: ["sv"] }));
-    await render(wrap(<ReviewLanguagesScreen />));
+    await render(withTestProviders(<ReviewLanguagesScreen />));
     await fireEvent.press(await screen.findByTestId("follow-save"));
     expect(router.replace).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/coordinates",
@@ -295,7 +289,7 @@ describe("the languages screen", () => {
     jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
       buttons?.find((b) => b.style !== "cancel")?.onPress?.();
     });
-    await render(wrap(<ReviewLanguagesScreen />));
+    await render(withTestProviders(<ReviewLanguagesScreen />));
     const sv = await screen.findByTestId("follow-project-sv");
     expect(sv.props.value).toBe(false);
     expect(screen.getByText("After the next sync")).toBeTruthy();

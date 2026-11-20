@@ -1,8 +1,6 @@
 import type { ContextCard, ContextOrigin, ContextOriginPage } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import i18n from "../lib/i18n";
 import { ContextCard as Card } from "../components/ContextCard";
@@ -62,20 +60,6 @@ const current = concept(
 );
 const sibling = { ...concept("c-kapi", [["en", "kapi"]]), reviewed: true };
 
-function wrap(ui: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <SafeAreaProvider
-      initialMetrics={{
-        frame: { x: 0, y: 0, width: 390, height: 844 },
-        insets: { top: 0, left: 0, right: 0, bottom: 0 },
-      }}
-    >
-      <QueryClientProvider client={qc}>{ui}</QueryClientProvider>
-    </SafeAreaProvider>
-  );
-}
-
 describe("the origin of a context item", () => {
   it("names the file and how many items it carried", () => {
     expect(originLine(t, termsImport)).toBe("Imported from .kapi/terms.json · 61 items");
@@ -100,13 +84,13 @@ describe("the origin of a context item", () => {
 
   it("opens from the card's provenance line", async () => {
     const open = jest.fn();
-    await render(wrap(<Card card={current} onOpenOrigin={open} />));
+    await render(withTestProviders(<Card card={current} onOpenOrigin={open} />));
     await fireEvent.press(screen.getByTestId("context-origin"));
     expect(open).toHaveBeenCalledTimes(1);
   });
 
   it("shows no provenance line on an item no bulk operation brought in", async () => {
-    await render(wrap(<Card card={{ ...current, origin: undefined }} />));
+    await render(withTestProviders(<Card card={{ ...current, origin: undefined }} />));
     expect(screen.queryByTestId("context-origin")).toBeNull();
   });
 });
@@ -123,7 +107,9 @@ describe("the origin sheet", () => {
   it("says who ran the operation, from where, and lists what it brought in", async () => {
     const load = jest.fn(async () => page);
     await render(
-      wrap(<OriginSheetBody card={current} origin={termsImport} load={load} onClose={() => {}} />),
+      withTestProviders(
+        <OriginSheetBody card={current} origin={termsImport} load={load} onClose={() => {}} />,
+      ),
     );
 
     expect(screen.getByTestId("origin-summary")).toHaveTextContent(
@@ -143,7 +129,7 @@ describe("the origin sheet", () => {
 
   it("expands a concept to its definition and its other languages", async () => {
     await render(
-      wrap(
+      withTestProviders(
         <OriginSheetBody
           card={sibling}
           origin={termsImport}
@@ -166,7 +152,9 @@ describe("the origin sheet", () => {
         : page,
     );
     await render(
-      wrap(<OriginSheetBody card={current} origin={termsImport} load={load} onClose={() => {}} />),
+      withTestProviders(
+        <OriginSheetBody card={current} origin={termsImport} load={load} onClose={() => {}} />,
+      ),
     );
     await fireEvent.press(screen.getByTestId("origin-why"));
     expect(screen.getByTestId("origin-why-body")).toBeTruthy();

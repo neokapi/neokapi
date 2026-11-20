@@ -1,7 +1,6 @@
 import type { ReviewContainer, StoryIndex } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import type { ReactNode } from "react";
 
 import "../lib/i18n";
 import { InContextView } from "../components/InContextView";
@@ -68,13 +67,8 @@ const index: StoryIndex = {
 const frameURL = (id: string) =>
   JSON.stringify(`https://example.org/sb/iframe.html?id=${id}&viewMode=story`);
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
-
 function live(over: Partial<React.ComponentProps<typeof LiveView>> = {}) {
-  return wrap(
+  return withTestProviders(
     <LiveView
       container={container}
       scope={{ workspace: "w", project: "p" }}
@@ -171,7 +165,7 @@ describe("LiveView", () => {
 describe("InContextView live", () => {
   it("opens the component running, full page, and closes it", async () => {
     await render(
-      wrap(
+      withTestProviders(
         <InContextView
           card={{
             key: "o2:nb",
@@ -205,7 +199,7 @@ describe("InContextView live", () => {
   it("offers no live view for a component its Storybook has no story for", async () => {
     const loadIndex = jest.fn(async () => ({ entries: {} }));
     await render(
-      wrap(
+      withTestProviders(
         <InContextView
           card={{
             key: "o2:nb",

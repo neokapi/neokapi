@@ -1,7 +1,6 @@
 import type { ContextCard as Card, ContextRuleExamples } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactElement } from "react";
 
 import "../lib/i18n";
 import { ContextCard } from "../components/ContextCard";
@@ -27,11 +26,6 @@ const hype: Card = {
   own_work: false,
   actions: ["keep", "later"],
 };
-
-async function wrap(ui: ReactElement) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  await render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
-}
 
 describe("regexTokens", () => {
   it("splits a regex into parts that join back to it", () => {
@@ -67,7 +61,9 @@ describe("voice rule card", () => {
       scanned: 3,
       complete: false,
     });
-    await wrap(<ContextCard card={hype} scope={{ ws: "hq", project: "p1" }} />);
+    await render(
+      withTestProviders(<ContextCard card={hype} scope={{ ws: "hq", project: "p1" }} />),
+    );
     expect(screen.getByTestId("context-pattern-description")).toHaveTextContent(
       "Marketing superlatives",
     );
@@ -86,7 +82,9 @@ describe("voice rule card", () => {
 
   it("says when nothing in the content matches", async () => {
     mockExamples.mockResolvedValue({ examples: [], scanned: 40, complete: true });
-    await wrap(<ContextCard card={hype} scope={{ ws: "hq", project: "p1" }} />);
+    await render(
+      withTestProviders(<ContextCard card={hype} scope={{ ws: "hq", project: "p1" }} />),
+    );
     expect(await screen.findByTestId("rule-examples-none")).toHaveTextContent(
       "Nothing in your content matches this rule.",
     );
@@ -94,7 +92,7 @@ describe("voice rule card", () => {
 
   it("shows the regex when the rule has neither a description nor a word list", async () => {
     const bare: Card = { ...hype, pattern: { list: "prohibited", regex: String.raw`\b\w+ly\b` } };
-    await wrap(<ContextCard card={bare} />);
+    await render(withTestProviders(<ContextCard card={bare} />));
     expect(screen.getByTestId("context-pattern")).toHaveTextContent(String.raw`\b\w+ly\b`);
     expect(screen.queryByTestId("context-pattern-toggle")).toBeNull();
     expect(mockExamples).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import "../lib/i18n";
 import { ReviewDecisions } from "../components/feed/ReviewDecisions";
 import { setDecisionClient } from "../lib/decisions";
-import { createQueryClient } from "../lib/queryClient";
+import { createDecisionTestClient } from "./testProviders";
 
 const mockFeedDecisions = jest.fn<Promise<FeedDecisions>, unknown[]>();
 jest.mock("../lib/auth", () => ({
@@ -66,8 +66,8 @@ describe("a review entry's decisions", () => {
         };
       },
     } as unknown as BowrainClient);
-    const qc = createQueryClient();
-    await render(
+    const qc = createDecisionTestClient();
+    const view = await render(
       <QueryClientProvider client={qc}>
         <ReviewDecisions ws="ws" project="p" entry="rvw_1" />
       </QueryClientProvider>,
@@ -82,6 +82,7 @@ describe("a review entry's decisions", () => {
     expect(sent[0]).toMatchObject({
       ops: [{ op: "decide", outcome: "withdraw", if_match: "r:t1", at: { block: "b1" } }],
     });
+    await view.unmount();
     qc.clear();
   });
 });
