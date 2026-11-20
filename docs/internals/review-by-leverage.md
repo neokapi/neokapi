@@ -339,9 +339,32 @@ and in the inbox's plan in brief:
 
 The context level is `not_started` while the project has no concept with a
 source term, no context card waits for the caller, and no term scan has
-completed. It is never `done` at zero. `next` names it right after the
-coordinates. Exceptions are `not_started` before any project-wide check when
-no translation waits or is held.
+completed. It is never `done` at zero. Exceptions are `not_started` before
+any project-wide check when no translation waits or is held.
+
+### The next step is the first one a person can act on
+
+`next`, on the plan and on the inbox's plan in brief, names the first level
+the caller can act on, computed per request where the caller's context cards
+and followed languages join the snapshot's counts
+(`nextPlanLevel`, `handlers_review_plan.go`). A level with work ahead and
+nothing to decide yet is skipped and listed in `waiting`, each entry a
+`level`, a `reason` and, for `waiting_quota`, `quota_resets_at`. Today only
+the context level can wait this way: it has not started and its term scan is
+`queued` or `processing`, or cannot start (`waiting_content`,
+`waiting_quota`, `waiting_credits`, `no_ai`). A context that waits for the
+next push, or whose scan failed, stays `next`, because a person can start a
+scan. A target term missing in a language the caller does not follow is not
+the caller's step. When every level waits or is done, `next` is `""` and
+`waiting` says why.
+
+The phone's Home tab opens on the same step, for the project the person last
+opened when it has one, else the first project in the inbox with one: the
+setup while the person has chosen no languages, the coordinates map, the
+context cards, the language deck for exceptions and pages, or the settle
+pass. The waiting levels sit beside it as one row each. With no step to act
+on, the card names what waits; with nothing waiting, it reads as caught up.
+The Review tab's plan card shows the same `next` and rows.
 
 A context level that has not started does not hold translations. A project
 that cannot run a scan (a scan needs AI credits) would otherwise hold every

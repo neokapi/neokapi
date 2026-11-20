@@ -72,7 +72,13 @@
       "languageLabel_one": "{{language}}, {{where}}, 1 translation waiting",
       "languageLabel_other": "{{language}}, {{where}}, {{count, number}} translations waiting",
       "more_one": "1 more deck waiting",
-      "more_other": "{{count, number}} more decks waiting"
+      "more_other": "{{count, number}} more decks waiting",
+      "decks_one": "1 deck waiting",
+      "decks_other": "{{count, number}} decks waiting",
+      "step": "Next step",
+      "setupTitle": "Set up review",
+      "setupFact": "Choose the languages you review in this project",
+      "waitingTitle": "Nothing to decide yet"
     },
     "mix": {
       "fast_one": "1 quick",

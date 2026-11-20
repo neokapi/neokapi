@@ -1,4 +1,11 @@
-import type { FeedEntry, Project, ReviewInboxLanguage } from "@neokapi/bowrain-client";
+import type {
+  FeedEntry,
+  PlanStep,
+  PlanWait,
+  Project,
+  ReviewInboxLanguage,
+  ReviewInboxProject,
+} from "@neokapi/bowrain-client";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import "../lib/i18n";
@@ -53,12 +60,44 @@ describe("ReviewMix", () => {
 });
 
 describe("NextUpCard", () => {
+  const website: ReviewInboxProject = {
+    workspace: "acme",
+    workspaceName: "Acme",
+    project: "p1",
+    projectName: "Website",
+    followed: ["nb"],
+    saved: true,
+    canManage: false,
+    waiting: 12,
+  };
+  const step = (level: PlanStep["level"], extra: Partial<PlanStep> = {}): PlanStep => ({
+    level,
+    state: "open",
+    count: 1,
+    progress: 0,
+    done: false,
+    changed: 0,
+    ...extra,
+  });
+  const quota: PlanWait = {
+    level: "context",
+    reason: "waiting_quota",
+    quotaResetsAt: "2026-12-01T00:00:00Z",
+  };
+
   it("opens the deck and links to the other decks", async () => {
     const onOpen = jest.fn();
     const onMore = jest.fn();
     await render(
       <NextUpCard
-        next={{ kind: "language", entry: nb, more: 2 }}
+        next={{
+          kind: "deck",
+          project: website,
+          step: step("interfaces"),
+          entry: nb,
+          waiting: [],
+          more: 2,
+        }}
         showWorkspace
         onOpen={onOpen}
         onMore={onMore}
@@ -66,6 +105,7 @@ describe("NextUpCard", () => {
     );
     expect(screen.getByText("Website · Acme")).toBeTruthy();
     expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText("Continue reviewing")).toBeTruthy();
     await fireEvent.press(screen.getByTestId("home-next-open"));
     expect(onOpen).toHaveBeenCalled();
     expect(screen.getByText("2 more decks waiting")).toBeTruthy();
@@ -73,27 +113,86 @@ describe("NextUpCard", () => {
     expect(onMore).toHaveBeenCalled();
   });
 
-  it("offers the context deck with its kinds", async () => {
+  it("shows the waiting step beside the deck", async () => {
     await render(
       <NextUpCard
         next={{
-          kind: "context",
-          entry: {
-            workspace: "acme",
-            workspace_name: "Acme",
-            project: "p1",
-            project_name: "Website",
-            waiting: 4,
-            by_kind: { concept: 3, note: 1 },
-          },
+          kind: "deck",
+          project: website,
+          step: step("exceptions"),
+          entry: nb,
+          waiting: [quota],
           more: 0,
         }}
         showWorkspace={false}
         onOpen={() => {}}
       />,
     );
-    expect(screen.getByText("0 voice · 3 terms · 0 rules · 1 notes")).toBeTruthy();
+    expect(screen.getByTestId("home-next-waiting-context")).toBeTruthy();
+    expect(screen.getByText("Waits for the AI limit to reset on December 1, 2026")).toBeTruthy();
+  });
+
+  it("offers the setup before the person has chosen their languages", async () => {
+    const onOpen = jest.fn();
+    await render(
+      <NextUpCard
+        next={{ kind: "setup", project: { ...website, saved: false }, waiting: [], more: 0 }}
+        showWorkspace={false}
+        onOpen={onOpen}
+      />,
+    );
+    expect(screen.getByText("Set up review")).toBeTruthy();
+    expect(screen.getByText("Choose your languages")).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("home-next-open"));
+    expect(onOpen).toHaveBeenCalled();
     expect(screen.queryByTestId("home-next-more")).toBeNull();
+  });
+
+  it("asks for the coordinates to be confirmed", async () => {
+    await render(
+      <NextUpCard
+        next={{ kind: "step", project: website, step: step("coordinates"), waiting: [], more: 3 }}
+        showWorkspace={false}
+        onOpen={() => {}}
+        onMore={() => {}}
+      />,
+    );
+    expect(screen.getByText("Confirm the coordinates")).toBeTruthy();
+    expect(screen.getByText("Not confirmed yet")).toBeTruthy();
+    expect(screen.getByText("Open the map")).toBeTruthy();
+    expect(screen.getByText("3 decks waiting")).toBeTruthy();
+  });
+
+  it("opens the context with what waits there", async () => {
+    await render(
+      <NextUpCard
+        next={{
+          kind: "step",
+          project: website,
+          step: step("context", { count: 4 }),
+          waiting: [],
+          more: 0,
+        }}
+        showWorkspace={false}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByText("Review context")).toBeTruthy();
+    expect(screen.getByText("4 context cards")).toBeTruthy();
+  });
+
+  it("states what waits when no step can be acted on", async () => {
+    await render(
+      <NextUpCard
+        next={{ kind: "waiting", project: website, waiting: [quota], more: 0 }}
+        showWorkspace={false}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByText("Nothing to decide yet")).toBeTruthy();
+    expect(screen.getByText("Context")).toBeTruthy();
+    expect(screen.getByText("Waits for the AI limit to reset on December 1, 2026")).toBeTruthy();
+    expect(screen.queryByTestId("home-next-open")).toBeNull();
   });
 
   it("says when nothing waits", async () => {

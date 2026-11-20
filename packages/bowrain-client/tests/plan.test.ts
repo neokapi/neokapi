@@ -114,11 +114,24 @@ describe("planFromServer", () => {
     const bare = planFromServer({ ...server, involvement: "sometimes", next: "", exceptions: {} });
     expect(bare.involvement).toBe("context");
     expect(bare.next).toBeNull();
+    expect(bare.waiting).toEqual([]);
     expect(bare.exceptions.sourceFindings).toBeNull();
     expect(bare.exceptions.byRule).toEqual({ source: [], targets: {} });
     expect(bare.steps).toEqual([]);
     expect(bare.held).toBeNull();
     expect(bare.languages[0]?.held).toBe(0);
+  });
+
+  it("maps the levels skipped for the next step", () => {
+    const plan = planFromServer({
+      ...server,
+      next: "",
+      waiting: [{ level: "context", reason: "processing" }],
+    });
+    expect(plan.next).toBeNull();
+    expect(plan.waiting).toEqual([
+      { level: "context", reason: "processing", quotaResetsAt: undefined },
+    ]);
   });
 
   it("maps the step states and the held translations", () => {

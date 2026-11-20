@@ -7,11 +7,14 @@
 import {
   planProposalsOf,
   planScanWaitingOf,
+  planWaitingFromServer,
   type PlanLevel,
   type PlanProposals,
   type PlanScan,
   type PlanScanWaiting,
   type PlanSettle,
+  type PlanWait,
+  type ServerPlanWait,
 } from "./plan.ts";
 
 /** The languages a person follows in one project, and the project's own. */
@@ -107,8 +110,13 @@ export interface PlanHeld {
 /** A project's review plan in brief: one step per level, in order. */
 export interface PlanSummary {
   involvement: string;
-  /** The first level with something waiting, or null when nothing does. */
+  /** The first level the person can act on, or null when none can be. */
   next: PlanLevel | null;
+  /**
+   * The levels skipped for `next` because they only wait, with the reason,
+   * so a client can show them beside the next step.
+   */
+  waiting: PlanWait[];
   steps: PlanStep[];
   /** Per followed language, the translations held until the context is decided. */
   held: PlanHeld[];
@@ -163,6 +171,7 @@ export interface ServerReviewInboxProject {
   plan?: {
     involvement?: string;
     next?: string;
+    waiting?: ServerPlanWait[] | null;
     steps?: ServerPlanStep[] | null;
     held?: ServerPlanHeld[] | null;
   } | null;
@@ -245,6 +254,7 @@ export function inboxProjectFromServer(p: ServerReviewInboxProject): ReviewInbox
       ? {
           involvement: p.plan.involvement ?? "context",
           next: levelOf(p.plan.next),
+          waiting: planWaitingFromServer(p.plan.waiting),
           steps: planStepsFromServer(p.plan.steps),
           held: planHeldFromServer(p.plan.held),
         }

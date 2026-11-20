@@ -1,6 +1,11 @@
-import type { ReviewHome, ReviewInboxLanguage } from "@neokapi/bowrain-client";
+import type {
+  PlanStep,
+  ReviewHome,
+  ReviewInboxLanguage,
+  ReviewInboxProject,
+} from "@neokapi/bowrain-client";
 
-import { nextUp, projectKey, summarize } from "../lib/home";
+import { homeStep, projectKey, summarize } from "../lib/home";
 
 function lang(
   workspace: string,
@@ -62,34 +67,107 @@ describe("summarize", () => {
   });
 });
 
-describe("nextUp", () => {
-  const translationsOnly = { context: [], languages: home.languages, projects: [] };
+describe("homeStep", () => {
+  const step = (level: PlanStep["level"]): PlanStep => ({
+    level,
+    state: "open",
+    count: 1,
+    progress: 0,
+    done: false,
+    changed: 0,
+  });
+  const quota = {
+    level: "context" as const,
+    reason: "waiting_quota" as const,
+    quotaResetsAt: "2026-12-01T00:00:00Z",
+  };
+  function proj(
+    workspace: string,
+    project: string,
+    over: Partial<ReviewInboxProject> & { next?: PlanStep["level"] | null } = {},
+  ): ReviewInboxProject {
+    const { next = null, ...rest } = over;
+    return {
+      workspace,
+      workspaceName: workspace.toUpperCase(),
+      project,
+      projectName: `Project ${project}`,
+      followed: ["nb"],
+      saved: true,
+      canManage: false,
+      waiting: 1,
+      plan: {
+        involvement: "context",
+        next,
+        waiting: [],
+        held: [],
+        steps: [
+          step("coordinates"),
+          step("context"),
+          step("exceptions"),
+          step("interfaces"),
+          step("policy"),
+        ],
+      },
+      ...rest,
+    };
+  }
+  const withProjects = (...projects: ReviewInboxProject[]): ReviewHome => ({ ...home, projects });
 
-  it("offers the source context before any translations", () => {
-    const n = nextUp(home);
-    expect(n?.kind).toBe("context");
-    expect(n?.kind === "context" && n.entry.project).toBe("p2");
+  it("opens the setup before anything else in a project not set up", () => {
+    const n = homeStep(withProjects(proj("acme", "p1", { saved: false, next: "coordinates" })));
+    expect(n?.kind).toBe("setup");
+    expect(n?.more).toBe(4);
+  });
+
+  it("names the coordinates and the context as their own steps", () => {
+    expect(homeStep(withProjects(proj("acme", "p1", { next: "coordinates" })))).toMatchObject({
+      kind: "step",
+      step: { level: "coordinates" },
+    });
+    expect(homeStep(withProjects(proj("acme", "p2", { next: "context" })))).toMatchObject({
+      kind: "step",
+      step: { level: "context" },
+    });
+  });
+
+  it("opens the project's language deck for the exceptions and the pages", () => {
+    const n = homeStep(withProjects(proj("acme", "p1", { next: "interfaces" })));
+    expect(n?.kind).toBe("deck");
+    expect(n?.kind === "deck" && n.entry.locale).toBe("nb");
     expect(n?.more).toBe(3);
   });
 
-  it("offers the inbox's first language when no context waits", () => {
-    const n = nextUp(translationsOnly);
-    expect(n?.kind === "language" && n.entry.locale).toBe("nb");
-    expect(n?.more).toBe(2);
+  it("carries the steps that only wait beside the next one", () => {
+    const p = proj("acme", "p1", { next: "exceptions" });
+    p.plan!.waiting = [quota];
+    expect(homeStep(withProjects(p))?.waiting).toEqual([quota]);
   });
 
-  it("prefers a language waiting in the project opened last", () => {
-    const n = nextUp(translationsOnly, { ws: "beta", project: "p9" });
-    expect(n?.kind === "language" && n.entry.locale).toBe("fr");
+  it("prefers the project opened last when it has a next step", () => {
+    const both = withProjects(
+      proj("acme", "p1", { next: "interfaces" }),
+      proj("beta", "p9", { next: "context" }),
+    );
+    expect(homeStep(both, { ws: "beta", project: "p9" })?.project.project).toBe("p9");
   });
 
-  it("falls back to the inbox order when nothing waits in the project opened last", () => {
-    const n = nextUp(translationsOnly, { ws: "acme", project: "p2" });
-    expect(n?.kind === "language" && n.entry.locale).toBe("nb");
+  it("passes over the project opened last when it has nothing to act on", () => {
+    const idle = proj("beta", "p9");
+    idle.plan!.waiting = [quota];
+    const both = withProjects(idle, proj("acme", "p1", { next: "interfaces" }));
+    expect(homeStep(both, { ws: "beta", project: "p9" })?.project.project).toBe("p1");
+  });
+
+  it("says why when every step only waits or is done", () => {
+    const idle = proj("acme", "p1");
+    idle.plan!.waiting = [quota];
+    expect(homeStep(withProjects(idle))).toMatchObject({ kind: "waiting", waiting: [quota] });
   });
 
   it("offers nothing when nothing waits", () => {
-    expect(nextUp({ context: [], languages: [lang("a", "b", "nb", 0)], projects: [] })).toBeNull();
-    expect(nextUp(null)).toBeNull();
+    expect(homeStep(withProjects(proj("acme", "p1")))).toBeNull();
+    expect(homeStep({ context: [], languages: [], projects: [] })).toBeNull();
+    expect(homeStep(null)).toBeNull();
   });
 });

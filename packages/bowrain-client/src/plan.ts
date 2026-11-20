@@ -229,13 +229,66 @@ export function planProposalsOf(v: string | undefined): PlanProposals | undefine
   return (PLAN_PROPOSALS as readonly string[]).includes(v ?? "") ? (v as PlanProposals) : undefined;
 }
 
+/**
+ * Why a level the plan skips for `next` only waits: the context's term scan
+ * runs (queued, processing), or it cannot start (waiting_content,
+ * waiting_quota, waiting_credits, no_ai).
+ */
+export type PlanWaitReason =
+  | "queued"
+  | "processing"
+  | "waiting_content"
+  | "waiting_quota"
+  | "waiting_credits"
+  | "no_ai";
+
+const PLAN_WAIT_REASONS: readonly PlanWaitReason[] = [
+  "queued",
+  "processing",
+  "waiting_content",
+  "waiting_quota",
+  "waiting_credits",
+  "no_ai",
+];
+
+/** A level with work ahead and nothing to decide yet, which `next` skips. */
+export interface PlanWait {
+  level: PlanLevel;
+  reason: PlanWaitReason;
+  /** When the workspace's monthly AI limit resets, set with waiting_quota. */
+  quotaResetsAt?: string;
+}
+
+export interface ServerPlanWait {
+  level: string;
+  reason: string;
+  quota_resets_at?: string;
+}
+
+/** The levels the plan skips for `next`, leaving out a level or reason this client does not know. */
+export function planWaitingFromServer(waiting: ServerPlanWait[] | null | undefined): PlanWait[] {
+  const out: PlanWait[] = [];
+  for (const w of waiting ?? []) {
+    if (!(LEVELS as readonly string[]).includes(w.level)) continue;
+    if (!(PLAN_WAIT_REASONS as readonly string[]).includes(w.reason)) continue;
+    out.push({
+      level: w.level as PlanLevel,
+      reason: w.reason as PlanWaitReason,
+      quotaResetsAt: w.quota_resets_at || undefined,
+    });
+  }
+  return out;
+}
+
 export interface ReviewPlan {
   stream: string;
   involvement: ReviewInvolvement;
   /** The involvement at points of the project's context space. */
   overrides: InvolvementOverride[];
-  /** The first level with something waiting, or null when nothing does. */
+  /** The first level the caller can act on, or null when none can be. */
   next: PlanLevel | null;
+  /** The levels skipped for `next` because they only wait, with the reason. */
+  waiting: PlanWait[];
   coordinates: PlanCoordinates;
   context: {
     /** Context cards waiting for the caller, by kind. */
@@ -352,6 +405,7 @@ export interface ServerReviewPlan {
   involvement: string;
   overrides?: ServerInvolvementOverride[] | null;
   next: string;
+  waiting?: ServerPlanWait[] | null;
   coordinates: ServerPlanCoordinates;
   context: {
     waiting: number;
@@ -600,6 +654,7 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
     involvement: involvementOf(p.involvement),
     overrides: (p.overrides ?? []).map(overrideFromServer),
     next: (LEVELS as readonly string[]).includes(p.next) ? (p.next as PlanLevel) : null,
+    waiting: planWaitingFromServer(p.waiting),
     coordinates: planCoordinatesFromServer(p.coordinates),
     context: {
       waiting: p.context.waiting,

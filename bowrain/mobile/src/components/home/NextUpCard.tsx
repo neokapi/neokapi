@@ -1,16 +1,37 @@
-// The first card on Home: the deck that waits for the person, with how much
-// waits in it and a button that opens it. Below it, a link to the other decks
-// waiting, which the Review tab lists.
+// The first card on Home: the next step of one project's plan, as the server
+// names it, with one button that opens it. A deck step shows the language and
+// how much waits there; the setup, the coordinates, the context and the
+// settle pass show the step's title and one fact. The steps the server
+// skipped because they only wait sit beside it, each with what it waits for.
+// Below, a link to the other decks waiting, which the Review tab lists.
 import Ionicons from "@expo/vector-icons/Ionicons";
+import type { ComponentProps } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { languageLabel } from "../../lib/feed";
 import { formatCount } from "../../lib/format";
-import type { NextUp } from "../../lib/home";
+import type { HomeStep } from "../../lib/home";
 import { LocaleBadge } from "./parts";
+import { PlanWaitingNote, stepFact } from "./PlanCard";
 import { ReviewMix } from "./ReviewMix";
+
+type IconName = ComponentProps<typeof Ionicons>["name"];
+
+/** The icon a step's card leads with. */
+function iconOf(next: HomeStep): IconName {
+  if (next.kind === "setup") return "language";
+  if (next.kind === "waiting") return "hourglass-outline";
+  switch (next.step.level) {
+    case "coordinates":
+      return "map-outline";
+    case "context":
+      return "sparkles";
+    default:
+      return "checkmark-done";
+  }
+}
 
 export function NextUpCard({
   next,
@@ -18,7 +39,7 @@ export function NextUpCard({
   onOpen,
   onMore,
 }: {
-  next: NextUp;
+  next: HomeStep;
   showWorkspace: boolean;
   onOpen: () => void;
   onMore?: () => void;
@@ -28,15 +49,39 @@ export function NextUpCard({
     "--color-primary-foreground",
     "--color-primary",
   ]);
-  const e = next.entry;
-  const where = showWorkspace ? `${e.project_name} · ${e.workspace_name}` : e.project_name;
-  const title =
-    next.kind === "language" ? languageLabel(next.entry.locale, i18n.language) : t("context.title");
-  const count = e.waiting;
-  const label =
-    next.kind === "language"
-      ? t("home.next.languageLabel", { language: title, where, count })
-      : t("context.entryLabel", { where, count });
+  const p = next.project;
+  const where = showWorkspace ? `${p.projectName} · ${p.workspaceName}` : p.projectName;
+
+  let eyebrow = t("home.next.step");
+  let title: string;
+  let fact: string | null = null;
+  let button: string | null;
+  let label: string;
+  switch (next.kind) {
+    case "deck":
+      eyebrow = t("home.next.eyebrow");
+      title = languageLabel(next.entry.locale, i18n.language);
+      button = t("home.next.start");
+      label = t("home.next.languageLabel", { language: title, where, count: next.entry.waiting });
+      break;
+    case "setup":
+      title = t("home.next.setupTitle");
+      fact = t("home.next.setupFact");
+      button = t("planCard.setup");
+      label = `${title}, ${where}`;
+      break;
+    case "step":
+      title = t(`planCard.titles.${next.step.level}`);
+      fact = stepFact(next.step, t, i18n.language);
+      button = next.step.level === "coordinates" ? t("planCard.openMap") : t("planCard.open");
+      label = `${title}, ${where}, ${fact}`;
+      break;
+    case "waiting":
+      title = t("home.next.waitingTitle");
+      button = null;
+      label = `${title}, ${where}`;
+      break;
+  }
 
   return (
     <View
@@ -45,11 +90,14 @@ export function NextUpCard({
     >
       <View className="from-prism-1 via-prism-3 to-prism-5 h-1.5 bg-linear-to-r" />
       <View className="gap-4 p-5">
-        <Text className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-          {t("home.next.eyebrow")}
+        <Text
+          testID="home-next-eyebrow"
+          className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+        >
+          {eyebrow}
         </Text>
         <View className="flex-row items-center gap-3">
-          {next.kind === "language" ? (
+          {next.kind === "deck" ? (
             <LocaleBadge locale={next.entry.locale} />
           ) : (
             <View
@@ -57,49 +105,50 @@ export function NextUpCard({
               importantForAccessibility="no-hide-descendants"
               className="from-prism-4 to-prism-5 h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br"
             >
-              <Ionicons name="sparkles" size={22} color="#ffffff" />
+              <Ionicons name={iconOf(next)} size={22} color="#ffffff" />
             </View>
           )}
           <View className="flex-1 gap-0.5">
-            <Text className="text-foreground text-2xl font-bold" numberOfLines={2}>
+            <Text
+              testID="home-next-title"
+              className="text-foreground text-2xl font-bold"
+              numberOfLines={2}
+            >
               {title}
             </Text>
             <Text className="text-muted-foreground text-sm" numberOfLines={1}>
               {where}
             </Text>
           </View>
-          <View className="items-end">
-            <Text className="text-foreground text-3xl font-bold tabular-nums">
-              {formatCount(count, i18n.language)}
-            </Text>
-            <Text className="text-muted-foreground text-xs">{t("home.waiting")}</Text>
-          </View>
+          {next.kind === "deck" ? (
+            <View className="items-end">
+              <Text className="text-foreground text-3xl font-bold tabular-nums">
+                {formatCount(next.entry.waiting, i18n.language)}
+              </Text>
+              <Text className="text-muted-foreground text-xs">{t("home.waiting")}</Text>
+            </View>
+          ) : null}
         </View>
-        {next.kind === "language" ? (
-          <ReviewMix testID="home-next-mix" mix={next.entry} />
-        ) : (
-          <Text className="text-muted-foreground text-xs tabular-nums">
-            {t("context.kinds", {
-              voice: next.entry.by_kind.voice_rule ?? 0,
-              terms: next.entry.by_kind.concept ?? 0,
-              rules: next.entry.by_kind.term_rule ?? 0,
-              notes: next.entry.by_kind.note ?? 0,
-            })}
+        {next.kind === "deck" ? <ReviewMix testID="home-next-mix" mix={next.entry} /> : null}
+        {fact ? (
+          <Text testID="home-next-fact" className="text-muted-foreground text-sm">
+            {fact}
           </Text>
-        )}
-        <Pressable
-          testID="home-next-open"
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          accessibilityHint={t("home.next.hint")}
-          onPress={onOpen}
-          className="bg-primary min-h-[50px] flex-row items-center justify-center gap-2 rounded-2xl px-4 py-3 active:opacity-80"
-        >
-          <Text className="text-primary-foreground text-base font-semibold">
-            {t("home.next.start")}
-          </Text>
-          <Ionicons name="arrow-forward" size={18} color={String(primaryForeground)} />
-        </Pressable>
+        ) : null}
+        <PlanWaitingNote testID="home-next-waiting" waiting={next.waiting} />
+        {button ? (
+          <Pressable
+            testID="home-next-open"
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityHint={next.kind === "deck" ? t("home.next.hint") : undefined}
+            onPress={onOpen}
+            className="bg-primary min-h-[50px] flex-row items-center justify-center gap-2 rounded-2xl px-4 py-3 active:opacity-80"
+          >
+            <Text className="text-primary-foreground text-base font-semibold">{button}</Text>
+            <Ionicons name="arrow-forward" size={18} color={String(primaryForeground)} />
+          </Pressable>
+        ) : null}
       </View>
       {next.more > 0 && onMore ? (
         <Pressable
@@ -109,7 +158,9 @@ export function NextUpCard({
           className="border-border min-h-[48px] flex-row items-center justify-between border-t px-5 py-3 active:opacity-70"
         >
           <Text className="text-primary text-sm font-medium">
-            {t("home.next.more", { count: next.more })}
+            {next.kind === "deck"
+              ? t("home.next.more", { count: next.more })
+              : t("home.next.decks", { count: next.more })}
           </Text>
           <Ionicons name="chevron-forward" size={16} color={String(primary)} />
         </Pressable>

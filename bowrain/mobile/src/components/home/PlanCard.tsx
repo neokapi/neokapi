@@ -1,12 +1,13 @@
 // A followed project's review plan on the Review tab: the step the team is
-// on, one button that opens it, the later steps as a short list, and one line
-// per language whose translations wait for the context. The server
-// decides every state and count (the inbox's plan in brief); this card shows
-// them.
+// on, one button that opens it, the steps that only wait and why, the later
+// steps as a short list, and one line per language whose translations wait
+// for the context. The server decides every state and count and which step
+// is next (the inbox's plan in brief); this card shows them.
 import {
   nextPlanStep,
   type PlanLevel,
   type PlanStep,
+  type PlanWait,
   type ReviewInboxProject,
 } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -128,6 +129,35 @@ export function stepValue(step: PlanStep, t: TFunction): string {
   return t("planCard.count", { count: step.count });
 }
 
+/**
+ * The steps the server skipped for the next one because they only wait: one
+ * row per step, its name and what it waits for. Home and the Review tab show
+ * it beside the next step.
+ */
+export function PlanWaitingNote({ waiting, testID }: { waiting: PlanWait[]; testID: string }) {
+  const { t, i18n } = useTranslation();
+  if (waiting.length === 0) return null;
+  return (
+    <View testID={testID} className="gap-1">
+      {waiting.map((w) => (
+        <View
+          key={w.level}
+          testID={`${testID}-${w.level}`}
+          accessible
+          className="flex-row items-start gap-2"
+        >
+          <Text className="text-muted-foreground text-sm font-semibold">
+            {t(`planCard.steps.${w.level}`)}
+          </Text>
+          <Text className="text-muted-foreground flex-1 text-sm">
+            {contextScanFact(w.reason, t, i18n.language, { quotaResetsAt: w.quotaResetsAt })}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** One later step: its name and one count or state word. */
 function StepRow({
   step,
@@ -212,7 +242,9 @@ export const PlanCard = memo(function PlanCard({
           >
             {next
               ? t("planCard.stepOf", { n: index + 1, total: plan.steps.length })
-              : t("planCard.allDone")}
+              : plan.waiting.length > 0
+                ? t("planCard.state.waits")
+                : t("planCard.allDone")}
           </Text>
         ) : null}
       </View>
@@ -243,6 +275,10 @@ export const PlanCard = memo(function PlanCard({
             <Ionicons name="chevron-forward" size={14} color={String(primaryForeground)} />
           </Pressable>
         </View>
+      ) : null}
+
+      {plan ? (
+        <PlanWaitingNote testID={`plan-card-${project.project}-waiting`} waiting={plan.waiting} />
       ) : null}
 
       {later.length > 0 ? (
