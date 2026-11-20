@@ -43,12 +43,20 @@ type planWaitDTO struct {
 	Level string `json:"level"`
 	// Reason is the context level's scan state: queued or processing while
 	// the term scan reads the content, or waiting_content, waiting_quota,
-	// waiting_credits or no_ai while it cannot start.
+	// waiting_credits or no_ai while it cannot start. It is other_languages
+	// when the context's open decisions are target terms missing only in
+	// languages the caller does not follow, which other reviewers decide.
 	Reason string `json:"reason"`
 	// QuotaResetsAt is when the workspace's monthly AI limit resets, set
 	// with waiting_quota.
 	QuotaResetsAt string `json:"quota_resets_at,omitempty"`
+	// Locales is the languages with missing terms, set with other_languages.
+	Locales []string `json:"locales,omitempty"`
 }
+
+// planWaitOtherLanguages is the wait reason for a context whose open
+// decisions are target terms in languages the caller does not follow.
+const planWaitOtherLanguages = "other_languages"
 
 // planHeldDTO is the translations one language's deck holds back, and why.
 type planHeldDTO struct {
@@ -65,10 +73,16 @@ type planStepDTO struct {
 	// State is not_started, open, done or attention.
 	State string `json:"state"`
 	// Count is what waits at the level: 1 for unconfirmed coordinates or
-	// the changes since the last confirmation, the context decisions
-	// open in the caller's languages, the rules behind the exceptions, the
-	// pages to read, the translations a settle pass would establish.
+	// the changes since the last confirmation, the context decisions open
+	// for the team, the rules behind the exceptions, the pages to read, the
+	// translations a settle pass would establish. The context's open
+	// decisions are the caller's context cards and the missing target terms
+	// in every target language.
 	Count int `json:"count"`
+	// Mine is the part of Count the caller can decide. It differs from
+	// Count only at the context level, where a missing target term is the
+	// caller's to decide only in a language they follow.
+	Mine int `json:"mine"`
 	// Progress is the team's progress through the level, 0 to 100.
 	Progress int  `json:"progress"`
 	Done     bool `json:"done"`
@@ -153,17 +167,22 @@ func planSteps(p reviewPlanResponse) []planStepDTO {
 		coordinates.Done, coordinates.Progress, coordinates.State = true, 100, stepDone
 	}
 
-	// Context: the project's concepts with a source term, and their
-	// term in each followed language, against what is still open.
-	untranslated := 0
+	// Context: the project's concepts with a source term, and their term in
+	// every target language, against what is still open. The state and the
+	// progress are the team's; Mine keeps to the followed languages.
+	untranslated, mine := 0, 0
 	for loc, n := range p.Context.Untranslated {
+		untranslated += n
 		if slices.Contains(locales, loc) {
-			untranslated += n
+			mine += n
 		}
 	}
 	open := p.Context.Waiting + untranslated
-	decided := p.Context.Concepts*(1+len(locales)) - untranslated
-	contextStep := planStepDTO{Level: planContext, Count: open, Progress: percentOf(decided, decided+open)}
+	decided := p.Context.Concepts*(1+len(p.Context.Untranslated)) - untranslated
+	contextStep := planStepDTO{
+		Level: planContext, Count: open, Mine: p.Context.Waiting + mine,
+		Progress: percentOf(decided, decided+open),
+	}
 	if p.Context.Scan != nil {
 		contextStep.Scan = p.Context.Scan.Status
 	}
@@ -230,6 +249,9 @@ func planSteps(p reviewPlanResponse) []planStepDTO {
 		policy.Count, policy.Progress, policy.State = 0, 100, stepDone
 	}
 
+	for _, st := range []*planStepDTO{&coordinates, &exceptions, &pagesStep, &policy} {
+		st.Mine = st.Count
+	}
 	return []planStepDTO{coordinates, contextStep, exceptions, pagesStep, policy}
 }
 

@@ -1074,6 +1074,8 @@
       "proposalsWaitForQuotaSoon": "Term proposals wait for the AI limit to reset",
       "proposalsWaitForCredits": "Term proposals wait for AI credits: this workspace has none left",
       "proposalsWaitForProvider": "Term proposals wait for an AI provider: this server has none set up",
+      "otherLanguages": "Terms missing in {{languages}}, reviewed by others",
+      "otherLanguagesUnnamed": "Terms missing in languages reviewed by others",
       "open_count_one": "{{count, number}} context card",
       "open_count_other": "{{count, number}} context cards"
     },

@@ -303,6 +303,10 @@ export function ReviewPlanSteps({
   const settleable = plan.languages.reduce((n, l) => n + l.settleable, 0);
   const params = { workspace: ws, projectId, stream };
   const stateOf = (level: PlanLevel) => plan.steps.find((st) => st.level === level)?.state;
+  // The context step counts the team's open decisions in every target
+  // language; `mine` is the part in the languages this person follows.
+  const contextStep = plan.steps.find((st) => st.level === "context");
+  const otherLanguages = (plan.waiting ?? []).find((w) => w.reason === "other_languages");
   const held = plan.held ? plan.languages.filter((l) => l.held > 0) : [];
 
   return (
@@ -384,6 +388,18 @@ export function ReviewPlanSteps({
               {n} terms have no {locale} term yet
             </p>
           ))}
+          {contextStep &&
+            contextStep.mine !== undefined &&
+            contextStep.mine !== contextStep.count && (
+              <p data-testid="plan-context-team">
+                {contextStep.count} open for the team, {contextStep.mine} in your languages
+              </p>
+            )}
+          {otherLanguages?.locales?.length ? (
+            <p data-testid="plan-context-other-languages">
+              Terms missing in {otherLanguages.locales.join(", ")}, reviewed by others
+            </p>
+          ) : null}
           {scanning && (
             <p>Scanning the project for terms, {plan.context.scan?.progress ?? 0}% done</p>
           )}

@@ -74,8 +74,18 @@ export type PlanStepState = "not_started" | "open" | "done" | "attention";
 export interface PlanStep {
   level: PlanLevel;
   state: PlanStepState;
-  /** What waits at the level. */
+  /**
+   * What waits at the level for the team. At the context level this counts
+   * the missing target terms in every target language.
+   */
   count: number;
+  /**
+   * The part of `count` the person can decide. It differs from `count` only
+   * at the context level, where a missing target term is the person's to
+   * decide only in a language they follow. A step cached from an older
+   * server has none.
+   */
+  mine?: number;
   /** The team's progress through the level, 0 to 100. */
   progress: number;
   done: boolean;
@@ -144,6 +154,7 @@ export interface ServerPlanStep {
   level: string;
   state?: string;
   count?: number;
+  mine?: number;
   progress?: number;
   done?: boolean;
   changed?: number;
@@ -212,6 +223,7 @@ export function planStepsFromServer(steps: ServerPlanStep[] | null | undefined):
       level,
       state: stateOf(s),
       count: s.count ?? 0,
+      mine: s.mine ?? s.count ?? 0,
       progress: Math.max(0, Math.min(100, s.progress ?? 0)),
       done: s.done ?? false,
       changed: s.changed ?? 0,

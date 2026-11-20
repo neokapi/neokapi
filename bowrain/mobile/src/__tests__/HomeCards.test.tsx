@@ -195,6 +195,40 @@ describe("NextUpCard", () => {
     expect(screen.queryByTestId("home-next-open")).toBeNull();
   });
 
+  it("counts the person's own context decisions, not the team's", async () => {
+    await render(
+      <NextUpCard
+        next={{
+          kind: "step",
+          project: website,
+          step: step("context", { count: 9, mine: 2 }),
+          waiting: [],
+          more: 0,
+        }}
+        showWorkspace={false}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByText("2 context cards")).toBeTruthy();
+  });
+
+  it("names the languages whose terms other reviewers decide", async () => {
+    await render(
+      <NextUpCard
+        next={{
+          kind: "waiting",
+          project: website,
+          waiting: [{ level: "context", reason: "other_languages", locales: ["de"] }],
+          more: 0,
+        }}
+        showWorkspace={false}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByText("Nothing to decide yet")).toBeTruthy();
+    expect(screen.getByText("Terms missing in German, reviewed by others")).toBeTruthy();
+  });
+
   it("says when nothing waits", async () => {
     await render(<CaughtUpCard />);
     expect(screen.getByText("All caught up")).toBeTruthy();

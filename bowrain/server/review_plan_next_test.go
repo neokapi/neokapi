@@ -70,9 +70,17 @@ func TestNextPlanLevel_SkipsALevelThatOnlyWaits(t *testing.T) {
 		{
 			name: "a missing term in a language not followed is not the caller's step",
 			edit: func(p *reviewPlanResponse) {
-				p.Context = planContextDTO{Concepts: 4, Untranslated: map[string]int{"de": 2}}
+				p.Context = planContextDTO{Concepts: 4, Untranslated: map[string]int{"nb": 0, "de": 2, "fr": 1}}
 			},
 			next:    planInterfaces,
+			waiting: []planWaitDTO{{Level: planContext, Reason: planWaitOtherLanguages, Locales: []string{"de", "fr"}}},
+		},
+		{
+			name: "a missing term in a followed language is the caller's step",
+			edit: func(p *reviewPlanResponse) {
+				p.Context = planContextDTO{Concepts: 4, Untranslated: map[string]int{"nb": 1, "de": 2}}
+			},
+			next:    planContext,
 			waiting: []planWaitDTO{},
 		},
 		{
@@ -100,4 +108,38 @@ func TestNextPlanLevel_SkipsALevelThatOnlyWaits(t *testing.T) {
 			assert.Equal(t, tt.waiting, brief.Waiting)
 		})
 	}
+}
+
+// The context step is the team's: terms missing in a language the caller
+// does not follow keep it open, and only the caller's own count is zero.
+func TestPlanSteps_ContextCountsEveryTargetLanguage(t *testing.T) {
+	none := 0
+	plan := func(followed string) planSummaryDTO {
+		p := reviewPlanResponse{
+			Coordinates: planCoordinatesDTO{Confirmed: true},
+			Context:     planContextDTO{Concepts: 5, Untranslated: map[string]int{"nb": 0, "de": 3}},
+			Exceptions:  planExceptionsDTO{SourceFindings: &none},
+			Languages:   []planLanguageDTO{{Locale: followed}},
+			Policy:      planPolicyDTO{Settle: settleHeld},
+		}
+		p.Next, p.Waiting = nextPlanLevel(p)
+		return summarizePlan(p)
+	}
+
+	nb := plan("nb")
+	step := keyStep(reviewPlanResponse{Steps: nb.Steps})
+	assert.Equal(t, stepOpen, step.State, "German still lacks terms, so the step is open for the team")
+	assert.False(t, step.Done)
+	assert.Equal(t, 3, step.Count)
+	assert.Zero(t, step.Mine, "a Norwegian reviewer has no German term to decide")
+	assert.Equal(t, 12*100/15, step.Progress)
+	assert.Empty(t, nb.Next, "the context is not the Norwegian reviewer's next step")
+	assert.Equal(t, []planWaitDTO{{Level: planContext, Reason: planWaitOtherLanguages, Locales: []string{"de"}}}, nb.Waiting)
+
+	de := plan("de")
+	assert.Equal(t, planContext, de.Next)
+	assert.Empty(t, de.Waiting)
+	step = keyStep(reviewPlanResponse{Steps: de.Steps})
+	assert.Equal(t, 3, step.Count)
+	assert.Equal(t, 3, step.Mine)
 }

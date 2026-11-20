@@ -355,8 +355,16 @@ the context level can wait this way: it has not started and its term scan is
 `waiting_quota`, `waiting_credits`, `no_ai`). A context that waits for the
 next push, or whose scan failed, stays `next`, because a person can start a
 scan. A target term missing in a language the caller does not follow is not
-the caller's step. When every level waits or is done, `next` is `""` and
+the caller's step: when those are the context's only open decisions, the
+level is listed in `waiting` with the reason `other_languages` and the
+languages in `locales`. When every level waits or is done, `next` is `""` and
 `waiting` says why.
+
+The context step's state, `count` and progress are the team's: they count
+the missing target terms in every target language, so the step stays open
+while any language lacks a term. Its `mine` is the part the caller can
+decide, the context cards waiting for them and the missing terms in the
+languages they follow. On every other step `mine` equals `count`.
 
 The phone's Home tab opens on the same step, for the project the person last
 opened when it has one, else the first project in the inbox with one: the
@@ -591,11 +599,12 @@ The founder accepted each recommendation on 2026-11-19:
     and the review plan count the followed languages, and the queues stay
     shared. `GET /auth/me/review` also returns `projects`: each project with
     work waiting or a saved list, with its followed languages and, for a
-    project with work waiting, the plan in brief (`plan.steps`: a count,
+    project with work waiting or held, or a saved one whose plan names a next
+    step or a step that only waits, the plan in brief (`plan.steps`: a count,
     progress and done per level, `changed` from the coordinates' change count,
     and the policy's settle state). The plan in brief is computed with the
-    plan route's own code, once per project with work waiting, and not for the
-    rest. A person with `manage_project` turns a target language on or off
+    plan route's own code from the plan's snapshot, once per project with
+    work waiting or a saved list, and not for the rest. A person with `manage_project` turns a target language on or off
     through `POST /:ws/:id/review/languages/project`, which files a pending
     recipe change on `defaults.target_languages` and a `recipe.changed` feed
     entry; the project's languages change when the next pull applies it. On

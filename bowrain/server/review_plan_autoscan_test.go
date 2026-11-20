@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -269,4 +270,35 @@ func TestHandleStartReviewPlanScan_RecordsTheCoverage(t *testing.T) {
 	props := projectProps(t, s, projID)
 	assert.NotEmpty(t, props[propTermScanJob])
 	assert.Equal(t, "12", props[propTermScanBlocks])
+}
+
+// A saved project whose only state is a context waiting for the AI limit
+// carries its plan in brief, so a client shows the wait rather than nothing.
+func TestReviewInbox_CarriesThePlanOfASavedProjectThatOnlyWaits(t *testing.T) {
+	s, wsID, owner := newRecheckHarness(t)
+	wireTermProposalJobs(t, s)
+	s.PlatformConfig = platformconfig.NewService(nil, platformconfig.Defaults{AIProvider: "openai"})
+	db := pgtest.NewTestDB(t)
+	quota, err := jobs.NewQuotaStore(db)
+	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO ai_quotas (workspace_slug, workspace_id, monthly_limit) VALUES ('rc', $1, 10)`, wsID)
+	require.NoError(t, err)
+	require.NoError(t, quota.RecordUsage(t.Context(), jobs.AIUsageRecord{
+		WorkspaceSlug: "rc", WorkspaceID: wsID, ProjectID: "p", Model: "m", TotalTokens: 11,
+	}))
+	s.QuotaStore = quota
+	projID, _ := containerProject(t, s, wsID)
+	confirmAs(t, s, wsID, projID, owner)
+	rec := languagesCall(t, s, s.HandlePutReviewLanguages, http.MethodPut, wsID, projID, owner, platauth.PermAll, nil, `{"followed":[]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	inbox := readInbox(t, s, owner)
+	require.Len(t, inbox.Projects, 1)
+	p := inbox.Projects[0]
+	assert.True(t, p.Saved)
+	assert.Zero(t, p.Waiting, "nothing waits in the languages followed")
+	require.NotNil(t, p.Plan, "the step that waits is carried")
+	assert.Empty(t, p.Plan.Next)
+	want := jobs.QuotaResetsAt(time.Now()).Format(time.RFC3339)
+	assert.Equal(t, []planWaitDTO{{Level: planContext, Reason: scanWaitingQuota, QuotaResetsAt: want}}, p.Plan.Waiting)
 }
