@@ -85,7 +85,12 @@ export default function Workspaces() {
         onMore={() => router.navigate("/review")}
       />
     );
-  } else if (inbox.isSuccess && inbox.data) {
+  } else if (
+    inbox.isSuccess &&
+    inbox.data &&
+    !summary.total.context &&
+    !summary.total.translations
+  ) {
     hero = <CaughtUpCard />;
   }
 

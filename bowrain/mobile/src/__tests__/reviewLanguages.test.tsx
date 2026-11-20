@@ -276,6 +276,18 @@ describe("the languages screen", () => {
     });
   });
 
+  it("opens the coordinates map with the saved languages after setup", async () => {
+    mockParams.current = { ws: "ws", project: "p", setup: "1", next: "coordinates" };
+    mockLanguages.mockResolvedValue(languages());
+    mockSetFollowed.mockResolvedValue(languages({ saved: true, followed: ["sv"] }));
+    await render(wrap(<ReviewLanguagesScreen />));
+    await fireEvent.press(await screen.findByTestId("follow-save"));
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: "/[ws]/[project]/coordinates",
+      params: { ws: "ws", project: "p", languages: "sv" },
+    });
+  });
+
   it("lets a manager turn a project language on as a recipe change", async () => {
     mockLanguages.mockResolvedValue(languages({ can_manage: true, pending_project: ["nb"] }));
     mockPlan.mockReturnValue(new Promise(() => undefined));
