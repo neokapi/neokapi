@@ -26,15 +26,28 @@ const (
 // planSummaryDTO is a project's plan in brief, for one caller.
 type planSummaryDTO struct {
 	Involvement string `json:"involvement"`
-	// Next is the first level with something waiting for the caller, or ""
-	// when nothing does.
-	Next  string        `json:"next"`
-	Steps []planStepDTO `json:"steps"`
+	// Next is the first level the caller can act on, or "" when none can be.
+	Next string `json:"next"`
+	// Waiting lists the levels skipped for Next because they only wait.
+	Waiting []planWaitDTO `json:"waiting"`
+	Steps   []planStepDTO `json:"steps"`
 	// Held lists, per followed language, the translations the language deck
 	// holds back until the context is decided.
 	Held []planHeldDTO `json:"held"`
 	// AsOf is when the plan's counts were taken.
 	AsOf string `json:"as_of,omitempty"`
+}
+
+// planWaitDTO is a level with work ahead and nothing to decide yet, and why.
+type planWaitDTO struct {
+	Level string `json:"level"`
+	// Reason is the context level's scan state: queued or processing while
+	// the term scan reads the content, or waiting_content, waiting_quota,
+	// waiting_credits or no_ai while it cannot start.
+	Reason string `json:"reason"`
+	// QuotaResetsAt is when the workspace's monthly AI limit resets, set
+	// with waiting_quota.
+	QuotaResetsAt string `json:"quota_resets_at,omitempty"`
 }
 
 // planHeldDTO is the translations one language's deck holds back, and why.
@@ -94,12 +107,16 @@ func summarizePlan(p reviewPlanResponse) planSummaryDTO {
 	out := planSummaryDTO{
 		Involvement: p.Involvement,
 		Next:        p.Next,
+		Waiting:     p.Waiting,
 		Steps:       p.Steps,
 		Held:        []planHeldDTO{},
 		AsOf:        p.AsOf,
 	}
 	if out.Steps == nil {
 		out.Steps = planSteps(p)
+	}
+	if out.Waiting == nil {
+		out.Waiting = []planWaitDTO{}
 	}
 	if p.Held != "" {
 		for _, l := range p.Languages {

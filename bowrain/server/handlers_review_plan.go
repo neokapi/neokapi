@@ -113,9 +113,12 @@ type reviewPlanResponse struct {
 	// space, and each point's Involvement is the one that applies there.
 	Involvement string                   `json:"involvement"`
 	Overrides   []involvementOverrideDTO `json:"overrides"`
-	// Next is the first level with something waiting for the caller, or ""
-	// when nothing does.
-	Next        string             `json:"next"`
+	// Next is the first level the caller can act on, or "" when none can be.
+	// A level that only waits is skipped and listed in Waiting.
+	Next string `json:"next"`
+	// Waiting lists the levels skipped for Next: work lies ahead there and
+	// nothing waits for a decision yet. Each carries the reason.
+	Waiting     []planWaitDTO      `json:"waiting"`
 	Coordinates planCoordinatesDTO `json:"coordinates"`
 	Context     planContextDTO     `json:"context"`
 	Exceptions  planExceptionsDTO  `json:"exceptions"`
@@ -407,7 +410,7 @@ func (s *Server) reviewPlanFrom(ctx context.Context, ws *platauth.Workspace, pro
 		out.Held = heldContext
 	}
 	out.Languages = planLanguagesFrom(b.snap, caller.locales, held, out.Exceptions.ByRule.Targets)
-	out.Next = nextPlanLevel(out)
+	out.Next, out.Waiting = nextPlanLevel(out)
 	out.Steps = planSteps(out)
 	return out, nil
 }
@@ -490,42 +493,72 @@ func involvementOf(p *platstore.Project) string {
 	return involvementContext
 }
 
-// nextPlanLevel is the first level with something waiting. A context
-// that has not started (no scan and no concepts) is the next step once the
-// coordinates are confirmed.
-func nextPlanLevel(p reviewPlanResponse) string {
+// nextPlanLevel is the first level the caller can act on, and the levels
+// before it that only wait. A context that has not started is the next
+// step once the coordinates are confirmed, unless its term scan runs or
+// cannot start: then nothing waits for a decision there, and the level is
+// listed with the reason instead.
+func nextPlanLevel(p reviewPlanResponse) (string, []planWaitDTO) {
+	waiting := []planWaitDTO{}
 	if !p.Coordinates.Confirmed || p.Coordinates.Changed > 0 {
-		return planCoordinates
+		return planCoordinates, waiting
 	}
-	if p.Context.Waiting > 0 || contextNotStarted(p.Context) {
-		return planContext
+	locales := make([]string, 0, len(p.Languages))
+	for _, l := range p.Languages {
+		locales = append(locales, l.Locale)
 	}
-	for _, n := range p.Context.Untranslated {
-		if n > 0 {
-			return planContext
-		}
+	untranslated := false
+	for loc, n := range p.Context.Untranslated {
+		untranslated = untranslated || (n > 0 && slices.Contains(locales, loc))
+	}
+	if reason, resets := contextWaitReason(p.Context); reason != "" {
+		waiting = append(waiting, planWaitDTO{Level: planContext, Reason: reason, QuotaResetsAt: resets})
+	} else if p.Context.Waiting > 0 || untranslated || contextNotStarted(p.Context) {
+		return planContext, waiting
 	}
 	if p.Exceptions.SourceFindings != nil && *p.Exceptions.SourceFindings > 0 {
-		return planExceptions
+		return planExceptions, waiting
 	}
 	for _, l := range p.Languages {
 		if l.Failing > 0 {
-			return planExceptions
+			return planExceptions, waiting
 		}
 	}
 	for _, l := range p.Languages {
 		if l.Pages > 0 {
-			return planInterfaces
+			return planInterfaces, waiting
 		}
 	}
 	if p.Policy.Settle == settleFirstPass || p.Policy.Settle == settlePolicy {
 		for _, l := range p.Languages {
 			if l.Settleable > 0 {
-				return planPolicy
+				return planPolicy, waiting
 			}
 		}
 	}
-	return ""
+	return "", waiting
+}
+
+// contextWaitReason names why a context level that has not started has
+// nothing to decide yet: the term scan runs (queued or processing), or it
+// cannot start (waiting_content, waiting_quota, waiting_credits or no_ai),
+// with when the AI limit resets for waiting_quota. It is "" for a level a
+// person can act on, including one whose scan starts with the next push or
+// failed, which a person may start again.
+func contextWaitReason(k planContextDTO) (reason, quotaResetsAt string) {
+	if !contextNotStarted(k) {
+		return "", ""
+	}
+	if k.Scan != nil && scanRunning(k.Scan.Status) {
+		return k.Scan.Status, ""
+	}
+	switch k.ScanWaiting {
+	case scanWaitingQuota:
+		return k.ScanWaiting, k.QuotaResetsAt
+	case scanWaitingContent, scanWaitingCredits, scanNoAI:
+		return k.ScanWaiting, ""
+	}
+	return "", ""
 }
 
 // planCoordinates reads the project's points from its collections.

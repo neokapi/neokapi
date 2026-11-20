@@ -1,6 +1,6 @@
-// The first screen of the Home tab: the deck that waits for the person, one
-// tap from opening, then the workspaces they belong to, each with what waits
-// in it. The person's avatar sits at the top right.
+// The first screen of the Home tab: the next step of the review plan, one tap
+// from opening, then the workspaces the person belongs to, each with what
+// waits in it. Their avatar sits at the top right.
 import type { Workspace } from "@neokapi/bowrain-client";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
@@ -14,20 +14,29 @@ import { WorkspaceCard } from "../../../components/home/HomeCards";
 import { CaughtUpCard, NextUpCard } from "../../../components/home/NextUpCard";
 import { EmptyState, SectionHeader, SkeletonCards } from "../../../components/home/parts";
 import { useAuth } from "../../../lib/auth";
-import { nextUp, summarize, useReviewHome, type NextUp } from "../../../lib/home";
-import { setRecentProject, useRecentProject } from "../../../lib/recentProject";
+import { homeStep, summarize, useReviewHome, type HomeStep } from "../../../lib/home";
+import { useRecentProject } from "../../../lib/recentProject";
+import { openContext, openDeck, openSetup, openStep } from "../../../lib/reviewNav";
 
-function openNext(next: NextUp) {
+function openNext(next: HomeStep) {
   void Haptics.selectionAsync().catch(() => undefined);
-  const { workspace: ws, project, project_name: name } = next.entry;
-  setRecentProject({ ws, project, name });
-  if (next.kind === "language") {
-    router.push({
-      pathname: "/[ws]/[project]/[locale]",
-      params: { ws, project, locale: next.entry.locale },
-    });
-  } else {
-    router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } });
+  const p = next.project;
+  switch (next.kind) {
+    case "setup":
+      openSetup(p, p.plan?.next ?? undefined);
+      return;
+    case "deck":
+      openDeck(next.entry);
+      return;
+    case "step":
+      if (next.step.level === "context") {
+        openContext({ workspace: p.workspace, project: p.project, project_name: p.projectName });
+      } else {
+        openStep(p, next.step.level);
+      }
+      return;
+    case "waiting":
+      return;
   }
 }
 
@@ -51,7 +60,7 @@ export default function Workspaces() {
   );
 
   const summary = useMemo(() => summarize(inbox.data), [inbox.data]);
-  const next = useMemo(() => nextUp(inbox.data, recent), [inbox.data, recent]);
+  const next = useMemo(() => homeStep(inbox.data, recent), [inbox.data, recent]);
   const showWorkspace = (workspaces.data?.length ?? 0) > 1;
 
   const renderItem = useCallback(

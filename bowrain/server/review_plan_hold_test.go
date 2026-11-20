@@ -134,7 +134,9 @@ func TestReviewPlan_ContextWithNoScanHasNotStarted(t *testing.T) {
 	assert.Equal(t, planContext, step.Level)
 	assert.Equal(t, stepNotStarted, step.State, "no scan and no concepts")
 	assert.False(t, step.Done)
-	assert.Equal(t, planContext, plan.Next, "a context level that has not started comes after the coordinates")
+	assert.Equal(t, scanNoAI, step.Scan, "the harness has no AI provider")
+	assert.NotEqual(t, planContext, plan.Next, "a context level whose scan cannot start is skipped for the next step")
+	assert.Equal(t, []planWaitDTO{{Level: planContext, Reason: scanNoAI}}, plan.Waiting)
 
 	openContext(t, s)
 	plan = readPlan(t, s, wsID, projID)

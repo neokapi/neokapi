@@ -121,6 +121,41 @@ describe("inbox projects", () => {
     expect(nextPlanStep(p!.plan!.steps, p!.plan!.next)?.level).toBe("context");
   });
 
+  it("maps the levels the plan skips for the next step", () => {
+    const p = inboxProjectFromServer({
+      workspace: "ws",
+      workspace_name: "WS",
+      project: "p",
+      project_name: "Site",
+      saved: true,
+      plan: {
+        next: "interfaces",
+        waiting: [
+          { level: "context", reason: "waiting_quota", quota_resets_at: "2026-12-01T00:00:00Z" },
+          { level: "context", reason: "something_new" },
+          { level: "something_new", reason: "no_ai" },
+        ],
+        steps: [{ level: "interfaces", state: "open", count: 4 }],
+      },
+    });
+    expect(p.plan?.next).toBe("interfaces");
+    expect(p.plan?.waiting).toEqual([
+      { level: "context", reason: "waiting_quota", quotaResetsAt: "2026-12-01T00:00:00Z" },
+    ]);
+  });
+
+  it("reads a plan from a server that sends no waiting list", () => {
+    const p = inboxProjectFromServer({
+      workspace: "ws",
+      workspace_name: "WS",
+      project: "p",
+      project_name: "Site",
+      plan: { next: "" },
+    });
+    expect(p.plan?.next).toBeNull();
+    expect(p.plan?.waiting).toEqual([]);
+  });
+
   it("reads a project with no plan", () => {
     const p = inboxProjectFromServer({
       workspace: "ws",

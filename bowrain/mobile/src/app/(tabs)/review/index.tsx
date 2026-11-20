@@ -6,12 +6,7 @@
 // as they come. A ring opens its step of the plan, a language its
 // collections. The header chip names the languages followed and opens their
 // settings.
-import type {
-  ContextInboxEntry,
-  PlanLevel,
-  ReviewInboxLanguage,
-  ReviewInboxProject,
-} from "@neokapi/bowrain-client";
+import type { ReviewInboxLanguage } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useFocusEffect } from "expo-router";
@@ -28,6 +23,7 @@ import { useAuth } from "../../../lib/auth";
 import { languageLabel } from "../../../lib/feed";
 import { followedChipLabel } from "../../../lib/languages";
 import { setRecentProject } from "../../../lib/recentProject";
+import { openContext, openSetup, openStep } from "../../../lib/reviewNav";
 
 const inboxKey = ["review-inbox"] as const;
 
@@ -58,39 +54,6 @@ export function FollowChip({ label, onPress }: { label: string; onPress: () => v
       <Ionicons name="chevron-down" size={14} color={String(chip)} />
     </Pressable>
   );
-}
-
-/** Opens the review setup for a project, then the step the person asked for. */
-function openSetup(p: ReviewInboxProject, next?: PlanLevel) {
-  router.push({
-    pathname: "/[ws]/[project]/languages",
-    params: next
-      ? { ws: p.workspace, project: p.project, setup: "1", next }
-      : { ws: p.workspace, project: p.project, setup: "1" },
-  });
-}
-
-/**
- * Opens one step of a project's plan; before the setup, the setup first. The
- * coordinates open their map, narrowed to the languages the person follows.
- */
-function openStep(p: ReviewInboxProject, level: PlanLevel) {
-  setRecentProject({ ws: p.workspace, project: p.project, name: p.projectName });
-  if (!p.saved) {
-    openSetup(p, level);
-    return;
-  }
-  if (level === "coordinates") {
-    router.push({
-      pathname: "/[ws]/[project]/coordinates",
-      params: { ws: p.workspace, project: p.project, languages: p.followed.join(",") },
-    });
-    return;
-  }
-  router.push({
-    pathname: "/[ws]/[project]/plan",
-    params: { ws: p.workspace, project: p.project, step: level },
-  });
 }
 
 export default function ReviewInbox() {
@@ -138,13 +101,6 @@ export default function ReviewInbox() {
       params: { ws: item.workspace, project: item.project, locale: item.locale },
     });
   }, []);
-  const openContext = (item: ContextInboxEntry) => {
-    setRecentProject({ ws: item.workspace, project: item.project, name: item.project_name });
-    router.push({
-      pathname: "/[ws]/[project]/context",
-      params: { ws: item.workspace, project: item.project },
-    });
-  };
   const renderItem = useCallback(
     ({ item }: { item: ReviewInboxLanguage }) => (
       <LanguageCard

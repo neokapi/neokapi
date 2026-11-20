@@ -1,8 +1,17 @@
 // The Home tab's view of the review inbox (GET /auth/me/review): what waits
-// for the person, totalled per workspace and per project, and the one deck
-// the Home screen offers first. The server counts and orders the inbox; this
-// file only sums and looks up what it returned.
-import type { ContextInboxEntry, ReviewHome, ReviewInboxLanguage } from "@neokapi/bowrain-client";
+// for the person, totalled per workspace and per project, and the project
+// whose plan Home shows first. The server counts and orders the inbox and
+// names each plan's next step; this file only sums and looks up what it
+// returned.
+import {
+  nextPlanStep,
+  type ContextInboxEntry,
+  type PlanStep,
+  type PlanWait,
+  type ReviewHome,
+  type ReviewInboxLanguage,
+  type ReviewInboxProject,
+} from "@neokapi/bowrain-client";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "./auth";
@@ -84,33 +93,76 @@ export function summarize(home: ReviewHome | null | undefined): HomeSummary {
   return { total, byWorkspace, byProject };
 }
 
-/** The deck the Home screen offers first. */
-export type NextUp =
-  | { kind: "language"; entry: ReviewInboxLanguage; more: number }
-  | { kind: "context"; entry: ContextInboxEntry; more: number };
+/**
+ * The first card on Home: the next step of one project's plan, as the server
+ * names it. `waiting` lists the steps the server skipped because they only
+ * wait; `more` counts the other decks waiting, which the Review tab lists.
+ *
+ * - setup: the person has not chosen their languages in the project.
+ * - step: the next step opens its own screen (coordinates, context, policy),
+ *   or its deck holds nothing in a followed language.
+ * - deck: the next step is reviewed in a language deck (exceptions, pages).
+ * - waiting: no step can be acted on, and at least one waits.
+ */
+export type HomeStep =
+  | { kind: "setup"; project: ReviewInboxProject; waiting: PlanWait[]; more: number }
+  | {
+      kind: "step";
+      project: ReviewInboxProject;
+      step: PlanStep;
+      waiting: PlanWait[];
+      more: number;
+    }
+  | {
+      kind: "deck";
+      project: ReviewInboxProject;
+      step: PlanStep;
+      entry: ReviewInboxLanguage;
+      waiting: PlanWait[];
+      more: number;
+    }
+  | { kind: "waiting"; project: ReviewInboxProject; waiting: PlanWait[]; more: number };
+
+/** A project the person can act on: one to set up, or one whose plan names a next step. */
+function actionable(p: ReviewInboxProject): boolean {
+  return !p.saved || (p.plan?.next ?? null) !== null;
+}
+
+/** A project with a step that only waits. */
+function waits(p: ReviewInboxProject): boolean {
+  return (p.plan?.waiting.length ?? 0) > 0;
+}
 
 /**
- * The first deck to offer. Source context comes before translations, since
- * the translations are drafted from it: a project whose context waits,
- * preferring the project the person last opened. With no context waiting, a
- * language in the project last opened, and otherwise the inbox's first
- * language, which the server puts first because the most waits there.
- * `more` counts the other decks waiting.
+ * The card Home shows first, or null when nothing waits. The project is the
+ * one the person last opened when it has a next step, else the first in the
+ * inbox's order with one; with none to act on, a project whose steps wait.
+ * The step is the plan's `next`, which the server computes.
  */
-export function nextUp(
+export function homeStep(
   home: ReviewHome | null | undefined,
   recent?: RecentProject | null,
-): NextUp | null {
+): HomeStep | null {
+  const projects = home?.projects ?? [];
   const languages = (home?.languages ?? []).filter((l) => l.waiting > 0);
-  const context = (home?.context ?? []).filter((c) => c.waiting > 0);
-  const more = languages.length + context.length - 1;
-  const inRecent = <T extends { workspace: string; project: string }>(list: T[]) =>
-    recent
-      ? list.find((e) => e.workspace === recent.ws && e.project === recent.project)
-      : undefined;
-  const ctx = inRecent(context) ?? context[0];
-  if (ctx) return { kind: "context", entry: ctx, more };
-  const language = inRecent(languages) ?? languages[0];
-  if (language) return { kind: "language", entry: language, more };
-  return null;
+  const decks = languages.length + (home?.context ?? []).filter((c) => c.waiting > 0).length;
+  const isRecent = (p: ReviewInboxProject) =>
+    !!recent && p.workspace === recent.ws && p.project === recent.project;
+  const project =
+    projects.find((p) => isRecent(p) && actionable(p)) ??
+    projects.find(actionable) ??
+    projects.find((p) => isRecent(p) && waits(p)) ??
+    projects.find(waits);
+  if (!project) return null;
+  const waiting = project.plan?.waiting ?? [];
+  if (!project.saved) return { kind: "setup", project, waiting, more: decks };
+  const step = project.plan ? nextPlanStep(project.plan.steps, project.plan.next) : undefined;
+  if (!step) return { kind: "waiting", project, waiting, more: decks };
+  if (step.level === "exceptions" || step.level === "interfaces") {
+    const entry = languages.find(
+      (l) => l.workspace === project.workspace && l.project === project.project,
+    );
+    if (entry) return { kind: "deck", project, step, entry, waiting, more: decks - 1 };
+  }
+  return { kind: "step", project, step, waiting, more: decks };
 }
