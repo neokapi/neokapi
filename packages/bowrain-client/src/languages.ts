@@ -5,15 +5,14 @@
 // and counts every step; this file maps its answers.
 
 import {
-  planProposalsOf,
-  planScanWaitingOf,
+  planLevelOf,
+  planStepsFromServer,
   planWaitingFromServer,
+  type PlanHeldReason,
   type PlanLevel,
-  type PlanProposals,
-  type PlanScan,
-  type PlanScanWaiting,
-  type PlanSettle,
+  type PlanStep,
   type PlanWait,
+  type ServerPlanStep,
   type ServerPlanWait,
 } from "./plan.ts";
 
@@ -62,44 +61,6 @@ export function projectLanguagesAfterSync(l: ReviewLanguages): string[] {
   return l.pendingProject ?? l.project;
 }
 
-/**
- * A plan level's state. not_started: nothing to work from yet, such as a key
- * language with no scan and no concepts. open: something waits. done:
- * nothing waits. attention: done, then changed, such as coordinates changed
- * since the last confirmation.
- */
-export type PlanStepState = "not_started" | "open" | "done" | "attention";
-
-/** One level of a project's plan in brief. */
-export interface PlanStep {
-  level: PlanLevel;
-  state: PlanStepState;
-  /** What waits at the level. */
-  count: number;
-  /** The team's progress through the level, 0 to 100. */
-  progress: number;
-  done: boolean;
-  /** What changed at the level after the team finished it. */
-  changed: number;
-  /** The policy level's settle state. */
-  settle?: PlanSettle;
-  /**
-   * The context's term scan: the last scan's state, or why the scan
-   * waits while the level has not started.
-   */
-  scan?: PlanScan["status"] | PlanScanWaiting;
-  /**
-   * The context's job proposing target terms: queued or processing while it
-   * runs, or why it waits while concepts wait for a proposed term.
-   */
-  proposals?: PlanProposals;
-  /** When the workspace's monthly AI limit resets, set with waiting_quota. */
-  quotaResetsAt?: string;
-}
-
-/** Why a language deck holds translations back: the context is open. */
-export type PlanHeldReason = "context";
-
 /** The translations one language's deck holds back, and why. */
 export interface PlanHeld {
   locale: string;
@@ -140,19 +101,6 @@ export interface ReviewInboxProject {
   plan?: PlanSummary;
 }
 
-export interface ServerPlanStep {
-  level: string;
-  state?: string;
-  count?: number;
-  progress?: number;
-  done?: boolean;
-  changed?: number;
-  settle?: string;
-  scan?: string;
-  proposals?: string;
-  quota_resets_at?: string;
-}
-
 export interface ServerPlanHeld {
   locale: string;
   count: number;
@@ -177,67 +125,11 @@ export interface ServerReviewInboxProject {
   } | null;
 }
 
-const LEVELS: readonly PlanLevel[] = [
-  "coordinates",
-  "context",
-  "exceptions",
-  "interfaces",
-  "policy",
-];
-const SETTLE: readonly PlanSettle[] = ["first_pass", "policy", "held", "none"];
-const STATES: readonly PlanStepState[] = ["not_started", "open", "done", "attention"];
-const SCAN_STATUS: readonly PlanScan["status"][] = ["queued", "processing", "completed", "failed"];
-
-function levelOf(v: string | undefined): PlanLevel | null {
-  return (LEVELS as readonly string[]).includes(v ?? "") ? (v as PlanLevel) : null;
-}
-
-/**
- * A step's state as the server reports it. An older server sends none, so
- * the state follows `done` and `changed`, as that server meant them.
- */
-function stateOf(s: ServerPlanStep): PlanStepState {
-  if ((STATES as readonly string[]).includes(s.state ?? "")) return s.state as PlanStepState;
-  if ((s.changed ?? 0) > 0) return "attention";
-  return s.done ? "done" : "open";
-}
-
-/** The plan's steps, in order, leaving out a level this client does not know. */
-export function planStepsFromServer(steps: ServerPlanStep[] | null | undefined): PlanStep[] {
-  const out: PlanStep[] = [];
-  for (const s of steps ?? []) {
-    const level = levelOf(s.level);
-    if (!level) continue;
-    out.push({
-      level,
-      state: stateOf(s),
-      count: s.count ?? 0,
-      progress: Math.max(0, Math.min(100, s.progress ?? 0)),
-      done: s.done ?? false,
-      changed: s.changed ?? 0,
-      settle: (SETTLE as readonly string[]).includes(s.settle ?? "")
-        ? (s.settle as PlanSettle)
-        : undefined,
-      scan: (SCAN_STATUS as readonly string[]).includes(s.scan ?? "")
-        ? (s.scan as PlanScan["status"])
-        : planScanWaitingOf(s.scan),
-      proposals: planProposalsOf(s.proposals),
-      quotaResetsAt: s.quota_resets_at || undefined,
-    });
-  }
-  return out;
-}
-
 /** The held translations per language; a reason this client does not know is left out. */
 export function planHeldFromServer(held: ServerPlanHeld[] | null | undefined): PlanHeld[] {
   return (held ?? [])
     .filter((h) => (h.reason ?? "context") === "context" && h.count > 0)
     .map((h) => ({ locale: h.locale, count: h.count, reason: "context" }));
-}
-
-/** The step the plan names next, or undefined when nothing waits. */
-export function nextPlanStep(steps: PlanStep[], next: PlanLevel | null): PlanStep | undefined {
-  return next ? steps.find((s) => s.level === next) : undefined;
 }
 
 export function inboxProjectFromServer(p: ServerReviewInboxProject): ReviewInboxProject {
@@ -253,7 +145,7 @@ export function inboxProjectFromServer(p: ServerReviewInboxProject): ReviewInbox
     plan: p.plan
       ? {
           involvement: p.plan.involvement ?? "context",
-          next: levelOf(p.plan.next),
+          next: planLevelOf(p.plan.next),
           waiting: planWaitingFromServer(p.plan.waiting),
           steps: planStepsFromServer(p.plan.steps),
           held: planHeldFromServer(p.plan.held),
