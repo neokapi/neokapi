@@ -26,17 +26,24 @@ func NormalizeEntryLocales(e *Entry) {
 		return
 	}
 	e.HintSrcLang = model.NormalizeLocale(e.HintSrcLang)
-	e.Variants = normalizeLocaleKeys(e.Variants)
+	e.Variants, _ = normalizeLocaleKeys(e.Variants)
+	detached := false
 	for i := range e.Entities {
-		e.Entities[i].Values = normalizeLocaleKeys(e.Entities[i].Values)
+		if values, changed := normalizeLocaleKeys(e.Entities[i].Values); changed {
+			if !detached {
+				e.Entities = slices.Clone(e.Entities)
+				detached = true
+			}
+			e.Entities[i].Values = values
+		}
 	}
 }
 
 // normalizeLocaleKeys returns m with every key normalized. A map whose keys are
 // already canonical is returned as it is, so the common path allocates nothing.
-func normalizeLocaleKeys[V any](m map[model.LocaleID]V) map[model.LocaleID]V {
+func normalizeLocaleKeys[V any](m map[model.LocaleID]V) (map[model.LocaleID]V, bool) {
 	if len(m) == 0 {
-		return m
+		return m, false
 	}
 	clean := true
 	for loc := range m {
@@ -46,7 +53,7 @@ func normalizeLocaleKeys[V any](m map[model.LocaleID]V) map[model.LocaleID]V {
 		}
 	}
 	if clean {
-		return m
+		return m, false
 	}
 	out := make(map[model.LocaleID]V, len(m))
 	for _, loc := range slices.Sorted(maps.Keys(m)) {
@@ -55,7 +62,7 @@ func normalizeLocaleKeys[V any](m map[model.LocaleID]V) map[model.LocaleID]V {
 			out[canonical] = m[loc]
 		}
 	}
-	return out
+	return out, true
 }
 
 // NormalizeSearchLocales returns the search parameters with their locale
