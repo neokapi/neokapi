@@ -5,8 +5,7 @@ import type { ServerReviewPlan } from "@neokapi/bowrain-client";
 import { ApiProvider, WorkspaceProvider, type ApiAdapter, type PermissionName } from "@neokapi/ui";
 import { ReviewPlanPanel } from "./review-plan-panel";
 
-vi.mock("@tanstack/react-router", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children?: React.ReactNode }) => <a>{children}</a>,
 }));
 
