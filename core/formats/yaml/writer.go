@@ -115,20 +115,12 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 	return []byte(encoded), nil
 }
 
-// encodeYAMLScalarWithIndicatorIndent encodes a string value using the
-// specified YAML scalar style. The caller passes the original block-scalar
-// indicator (`|`, `|-`, `|+`, `|2`, `>-`, …) so the chomp / explicit-indent
-// modifier carries through on round-trip; empty indicator falls back to the
-// bare `|` / `>` defaults. The original block-scalar content indent
-// (decimal string, e.g. "12") captured by the reader as `yaml.indent` is
-// also threaded through; empty indent falls back to a compact 2-space
-// default suitable for fresh emission.
+// encodeYAMLScalarWithIndicatorIndent uses the source style and indentation
+// when they can represent the edited text.
 func encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent string) string {
-	// A plain, single-quoted, literal or folded scalar can only carry the
-	// characters of YAML 1.2's printable production. Anything else has to be
-	// written as a double-quoted scalar with an escape, whatever style the
-	// source used — the alternative is emitting a raw control byte, which
-	// yaml.v3 (and every other parser) rejects on the way back in.
+	if style == "literal" || style == "folded" {
+		return encodeBlockScalar(text, style, indicator, indent)
+	}
 	if needsDoubleQuoting(text) {
 		return encodeDoubleQuoted(text)
 	}
@@ -137,10 +129,6 @@ func encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent string) 
 		return encodeDoubleQuoted(text)
 	case "single-quoted":
 		return encodeSingleQuoted(text)
-	case "literal":
-		return encodeLiteralBlockWithIndicatorIndent(text, indicator, indent)
-	case "folded":
-		return encodeFoldedBlockWithIndicatorIndent(text, indicator, indent)
 	default:
 		if !plainScalarSafe(text) || !plainReadsAsString(text) {
 			return encodeDoubleQuoted(text)
@@ -336,124 +324,63 @@ func encodePlain(s string) string {
 	return s
 }
 
-// encodeLiteralBlockWithIndicatorIndent emits a literal block scalar
-// (| style) using the given indicator line and explicit content indent
-// (decimal string). Empty indicator falls back to bare `|`; empty indent
-// falls back to "  " (2 spaces).
-func encodeLiteralBlockWithIndicatorIndent(s, indicator, indent string) string {
+// encodeBlockScalar keeps the indicator comment and the line boundary before
+// the next YAML node, including when the value requires double quotes.
+func encodeBlockScalar(text, style, indicator, indent string) string {
 	if indicator == "" {
 		indicator = "|"
-	}
-	pad := indentPad(indent)
-	if !strings.Contains(s, "\n") {
-		return indicator + "\n" + pad + s + "\n"
-	}
-	var b strings.Builder
-	b.WriteString(indicator)
-	b.WriteByte('\n')
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		if i == len(lines)-1 && line == "" {
-			continue
+		if style == "folded" {
+			indicator = ">"
 		}
-		// Blank lines stay blank — emitting `pad + "\n"` would leave
-		// trailing whitespace, which okapi's writer (and a strict YAML
-		// linter) avoid. The block-scalar indent still applies to
-		// content lines but is omitted on truly empty lines.
-		if line == "" {
-			b.WriteByte('\n')
-			continue
-		}
-		b.WriteString(pad)
-		b.WriteString(line)
-		b.WriteByte('\n')
 	}
-	return b.String()
-}
+	end := strings.IndexAny(indicator, " \t\r")
+	if end < 0 {
+		end = len(indicator)
+	}
+	header, comment := indicator[:end], indicator[end:]
+	first := strings.TrimLeft(text, "\n")
+	if needsDoubleQuoting(text) || (isMoreIndentedLine(first) && !strings.ContainsAny(header, "123456789")) {
+		return encodeDoubleQuoted(text) + comment + "\n"
+	}
 
-// encodeFoldedBlockWithIndicatorIndent emits a folded block scalar
-// (> style) using the given indicator and explicit content indent
-// (decimal string). Empty indicator falls back to bare `>`; empty indent
-// falls back to "  " (2 spaces).
-//
-// Folded scalars (`>`) collapse single line breaks between content
-// lines into spaces and preserve blank-line gaps as single `\n`s in
-// the parsed value. Re-emitting therefore can NOT simply mirror value
-// lines back as source lines: a value of `"para1\npara2"` must come
-// out as two source lines separated by a blank line, otherwise it
-// re-folds to `"para1 para2"` — which is the divergence the
-// folded_indented and folded_literal_examples parity fixtures hit.
-//
-// Encoding rule (per YAML 1.2 §8.1.3 folding semantics):
-//   - For each `\n` in the value between two non-empty value lines,
-//     source needs one blank line. We have already terminated the
-//     previous source line with `\n`, so for N `\n`s in value we add
-//     N more `\n`s before the next content line.
-//   - More-indented value lines (lines starting with whitespace, which
-//     yaml.v3 returns at the relative indent past the block's content
-//     indent) absorb one `\n` via the indentation itself — the
-//     leading newline before a more-indented run is preserved without
-//     a blank line. So we add (N - 1) blank `\n`s instead.
-//   - Clip-chomp `>` (and the bare `>` default) preserves a single
-//     trailing newline if and only if the source body ended with one.
-//     If the parsed value lacks a trailing `\n`, suppress the
-//     terminator after the last content line so the chomp shape
-//     round-trips.
-func encodeFoldedBlockWithIndicatorIndent(s, indicator, indent string) string {
-	if indicator == "" {
-		indicator = ">"
+	body := strings.TrimRight(text, "\n")
+	trailing := len(text) - len(body)
+	chomp := ""
+	switch {
+	case trailing == 0:
+		chomp = "-"
+	case trailing > 1 || body == "" || strings.Contains(header, "+"):
+		chomp = "+"
 	}
+	if chomp == "" || !strings.Contains(header, chomp) {
+		header = strings.ReplaceAll(strings.ReplaceAll(header, "-", ""), "+", "") + chomp
+	}
+
+	var out strings.Builder
+	out.WriteString(header)
+	out.WriteString(comment)
+	out.WriteByte('\n')
 	pad := indentPad(indent)
-	endsWithNewline := strings.HasSuffix(s, "\n")
-	if !strings.Contains(s, "\n") {
-		// Single-line bodies always need a final terminator so the
-		// next sibling key (or EOF) lands on its own line.
-		return indicator + "\n" + pad + s + "\n"
-	}
-	var b strings.Builder
-	b.WriteString(indicator)
-	b.WriteByte('\n')
-	lines := strings.Split(s, "\n")
-	// Drop a trailing empty entry from a value ending in `\n` — that
-	// trailing newline is encoded by the final content line's
-	// terminator, not by an additional blank source line.
-	if len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	// Find the index of the last non-empty entry so we can suppress the
-	// trailing `\n` after it when the value didn't end with one.
-	lastNonEmptyIdx := -1
-	for i, line := range lines {
-		if line != "" {
-			lastNonEmptyIdx = i
-		}
-	}
-	prevNonEmptyIdx := -1
-	for i, line := range lines {
-		if line == "" {
-			continue
-		}
-		isMoreIndented := strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")
-		if prevNonEmptyIdx >= 0 {
-			n := i - prevNonEmptyIdx // # of \n's in value between previous non-empty and this one
-			gap := n
-			if isMoreIndented {
-				gap--
+	var previous string
+	if body != "" {
+		for line := range strings.SplitSeq(body, "\n") {
+			if line != "" {
+				// YAML folds a break between two ordinary lines to a space.
+				if style == "folded" && previous != "" && !isMoreIndentedLine(previous) && !isMoreIndentedLine(line) {
+					out.WriteByte('\n')
+				}
+				out.WriteString(pad)
+				out.WriteString(line)
+				previous = line
 			}
-			for range gap {
-				b.WriteByte('\n')
-			}
+			out.WriteByte('\n')
 		}
-		b.WriteString(pad)
-		b.WriteString(line)
-		// Suppress the final terminator when the value didn't end with
-		// a newline, so re-parsing yields the same chomp shape.
-		if i != lastNonEmptyIdx || endsWithNewline {
-			b.WriteByte('\n')
-		}
-		prevNonEmptyIdx = i
+		trailing--
 	}
-	return b.String()
+	for range trailing {
+		out.WriteByte('\n')
+	}
+	return out.String()
 }
 
 // applyEOL rewrites every line break in s to the given line-ending

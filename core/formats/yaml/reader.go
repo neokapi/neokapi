@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -370,24 +371,37 @@ func detectDominantEOL(data []byte) string {
 	return "\n"
 }
 
-// buildLineOffsets returns a slice where lineOffsets[i] is the byte offset of
-// the start of line i+1 (1-based, matching yaml.v3 convention).
-func buildLineOffsets(data []byte) []int {
-	offsets := []int{0} // line 1 starts at offset 0
-	for i, b := range data {
-		if b == '\n' {
-			offsets = append(offsets, i+1)
-		}
-	}
-	return offsets
+type sourceLines struct {
+	starts []int
+	// For each UTF-8 continuation byte, record the column of its rune.
+	wideColumns map[int][]int
 }
 
-// lineColToOffset converts 1-based line and column to a byte offset.
-func lineColToOffset(lineOffsets []int, line, col int) int {
-	if line < 1 || line > len(lineOffsets) {
+func buildLineOffsets(data []byte) sourceLines {
+	lines := sourceLines{starts: []int{0}, wideColumns: make(map[int][]int)}
+	column := 0
+	for i, b := range data {
+		switch {
+		case b == '\n':
+			lines.starts = append(lines.starts, i+1)
+			column = 0
+		case utf8.RuneStart(b):
+			column++
+		default:
+			line := len(lines.starts)
+			lines.wideColumns[line] = append(lines.wideColumns[line], column)
+		}
+	}
+	return lines
+}
+
+// offset translates yaml.v3's one-based character column to a source byte offset.
+func (lines sourceLines) offset(line, column int) int {
+	if line < 1 || line > len(lines.starts) || column < 1 {
 		return -1
 	}
-	return lineOffsets[line-1] + col - 1
+	extra, _ := slices.BinarySearch(lines.wideColumns[line], column)
+	return lines.starts[line-1] + column - 1 + extra
 }
 
 // collectScalarRanges walks the yaml.v3 node tree and collects translatable
@@ -401,7 +415,7 @@ func lineColToOffset(lineOffsets []int, line, col int) int {
 // looping forever.
 func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, ranges *[]scalarRange,
+	content []byte, lineOffsets sourceLines, ranges *[]scalarRange,
 	visiting map[*yamlv3.Node]bool, insideAlias bool, notes *noteState) {
 
 	switch node.Kind {
@@ -456,7 +470,7 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 // position, not the original anchor position).
 func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, ranges *[]scalarRange,
+	content []byte, lineOffsets sourceLines, ranges *[]scalarRange,
 	insideAlias bool, notes *noteState) {
 
 	// The value node's own head comment (sequence items / document scalars)
@@ -477,7 +491,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	}
 
 	text := node.Value
-	if node.Style == yamlv3.FoldedStyle {
+	if node.Style&yamlv3.FoldedStyle != 0 {
 		text = foldMoreIndentedRuns(text)
 	}
 	if strings.TrimSpace(text) == "" {
@@ -490,7 +504,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	}
 
 	// Compute the byte range of this scalar value in the raw content.
-	start := lineColToOffset(lineOffsets, node.Line, node.Column)
+	start := lineOffsets.offset(node.Line, node.Column)
 	if start < 0 || start >= len(content) {
 		// Fallback: emit block without span tracking.
 		*blockCounter++
@@ -502,22 +516,9 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 		return
 	}
 
-	// yaml.v3 reports node.Line/Column at the first node property when
-	// the scalar carries an explicit tag (`! 'value'`, `!!str x`) or an
-	// anchor (`&name value`). The properties stay in the skeleton, so a
-	// translated write keeps the anchor that aliases elsewhere refer to,
-	// and scanScalarEnd's scanners start on the scalar's own first byte
-	// (`'`, `"`, `|`, `>` or plain text).
 	start = skipNodeProperties(content, start)
-	if node.Anchor != "" || node.Style&yamlv3.TaggedStyle != 0 {
-		// A property alone on its line puts the value on the next one.
-		for start < len(content) && (content[start] == '\n' || content[start] == '\r' ||
-			content[start] == ' ' || content[start] == '\t') {
-			start++
-		}
-	}
-
-	end := scanScalarEnd(content, start, node.Style, node.Value)
+	style := node.Style &^ yamlv3.TaggedStyle
+	end := scanScalarEnd(content, start, style, node.Value)
 
 	*blockCounter++
 	blockID := fmt.Sprintf("tu%d", *blockCounter)
@@ -526,7 +527,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	block.Name = keyPath
 
 	// Store the scalar style so the writer can re-encode in the same style.
-	block.Properties["yaml.style"] = scalarStyleName(node.Style)
+	block.Properties["yaml.style"] = scalarStyleName(style)
 	// Store the raw original bytes so the writer can reproduce them byte-exact
 	// while they still represent the scalar's text. The text is recorded
 	// alongside them: a YAML scalar's bytes cannot be decoded back to text
@@ -553,23 +554,15 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	// hardcodes 2-space indent and a `street: |\n            123…\n…`
 	// fixture round-trips to `street: |\n  123…\n…`, diverging from the
 	// upstream byte-exact output.
-	if node.Style == yamlv3.LiteralStyle || node.Style == yamlv3.FoldedStyle {
+	if style == yamlv3.LiteralStyle || style == yamlv3.FoldedStyle {
 		if start < len(content) && (content[start] == '|' || content[start] == '>') {
 			j := start
 			for j < len(content) && content[j] != '\n' {
 				j++
 			}
 			block.Properties["yaml.indicator"] = string(content[start:j])
-			// j is at '\n' (or end). Walk past newline to the first
-			// content line and count its leading spaces.
-			if j < len(content) && content[j] == '\n' {
-				k := j + 1
-				indent := 0
-				for k < len(content) && content[k] == ' ' {
-					indent++
-					k++
-				}
-				if k < len(content) && content[k] != '\n' && indent > 0 {
+			if j < len(content) {
+				if indent := blockContentIndent(content, j+1, node.Value); indent > 0 {
 					block.Properties["yaml.indent"] = strconv.Itoa(indent)
 				}
 			}
@@ -583,7 +576,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 			start:   start,
 			end:     end,
 			blockID: blockID,
-			style:   node.Style,
+			style:   style,
 		})
 	}
 
@@ -598,16 +591,16 @@ func scanScalarEnd(content []byte, start int, style yamlv3.Style, value string) 
 		return start
 	}
 
-	switch {
-	case style == yamlv3.DoubleQuotedStyle:
+	switch style &^ yamlv3.TaggedStyle {
+	case yamlv3.DoubleQuotedStyle:
 		// Scan past the opening quote to find the closing quote.
 		return scanQuotedEnd(content, start, '"')
 
-	case style == yamlv3.SingleQuotedStyle:
+	case yamlv3.SingleQuotedStyle:
 		return scanQuotedEnd(content, start, '\'')
 
-	case style == yamlv3.LiteralStyle || style == yamlv3.FoldedStyle:
-		return scanBlockScalarEnd(content, start)
+	case yamlv3.LiteralStyle, yamlv3.FoldedStyle:
+		return scanBlockScalarEnd(content, start, value)
 
 	default:
 		// Plain scalar: extends to end of line (before comment), or
@@ -677,8 +670,32 @@ func scanQuotedEnd(content []byte, start int, quote byte) int {
 	return i
 }
 
+// blockContentIndent excludes any leading spaces that belong to the value.
+func blockContentIndent(content []byte, at int, value string) int {
+	for at < len(content) {
+		start := at
+		for at < len(content) && content[at] == ' ' {
+			at++
+		}
+		indent := at - start
+		if at < len(content) && content[at] == '\r' {
+			at++
+		}
+		if at == len(content) || content[at] != '\n' {
+			for line := range strings.SplitSeq(value, "\n") {
+				if text := strings.TrimLeft(line, " "); text != "" {
+					return max(0, indent-(len(line)-len(text)))
+				}
+			}
+			return 0
+		}
+		at++
+	}
+	return 0
+}
+
 // scanBlockScalarEnd finds the end of a literal (|) or folded (>) block scalar.
-func scanBlockScalarEnd(content []byte, start int) int {
+func scanBlockScalarEnd(content []byte, start int, value string) int {
 	// The indicator line: |, |+, |-, |2, >+, >-, etc., up to and including its newline.
 	i := start
 	// Skip the indicator character (| or >)
@@ -693,13 +710,7 @@ func scanBlockScalarEnd(content []byte, start int) int {
 		i++ // past the newline after indicator
 	}
 
-	// Determine the indentation of the first content line.
-	contentIndent := 0
-	j := i
-	for j < len(content) && content[j] == ' ' {
-		contentIndent++
-		j++
-	}
+	contentIndent := blockContentIndent(content, i, value)
 	if contentIndent == 0 {
 		return i // no content lines
 	}
@@ -716,6 +727,9 @@ func scanBlockScalarEnd(content []byte, start int) int {
 		if i >= len(content) {
 			// Trailing spaces at EOF
 			return i
+		}
+		if content[i] == '\r' && i+1 < len(content) && content[i+1] == '\n' {
+			i++
 		}
 		if content[i] == '\n' {
 			// Empty line (or line with only spaces) — part of block scalar
@@ -1052,7 +1066,7 @@ func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, nod
 	}
 
 	text := node.Value
-	if node.Style == yamlv3.FoldedStyle {
+	if node.Style&yamlv3.FoldedStyle != 0 {
 		text = foldMoreIndentedRuns(text)
 	}
 	if strings.TrimSpace(text) == "" {

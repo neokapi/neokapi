@@ -2,7 +2,6 @@ package yaml
 
 import (
 	"fmt"
-	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -78,16 +77,26 @@ func TestModifiedValueReEscapes(t *testing.T) {
 					require.NoError(t, yamlv3.Unmarshal([]byte(out), &got),
 						"output must reparse: %q", out)
 
-					// A block scalar's clip chomping restores the terminating
-					// line break the style itself carries, so the value comes
-					// back with it whatever the writer does.
-					reparsed := modifiedValues(t, out)
-					require.Truef(t,
-						slices.Contains(reparsed, want) || slices.Contains(reparsed, want+"\n"),
-						"value must survive: want %q, got %q from %q", want, reparsed, out)
+					require.Contains(t, modifiedValues(t, out), want)
 				})
 			}
 		})
+	}
+}
+
+func TestEditedBlockValueKeepsLineBreaksAndSibling(t *testing.T) {
+	for _, indicator := range []string{"|", ">-", "|2+", ">2"} {
+		for _, value := range []string{"word", "first\nlast", "\nfirst\nlast\n\n", "\n\n", "first\n  indented\nlast\n", "  first\nlast", "with\x07bell"} {
+			t.Run(fmt.Sprintf("%s/%q", indicator, value), func(t *testing.T) {
+				source := "key: " + indicator + " # keep this note\n  original\nnext: 7\n"
+				out := modifyAndWrite(t, source, value)
+				var doc map[string]any
+				require.NoError(t, yamlv3.Unmarshal([]byte(out), &doc), "%q", out)
+				require.Equal(t, value, doc["key"])
+				require.Equal(t, 7, doc["next"])
+				require.Contains(t, out, "# keep this note")
+			})
+		}
 	}
 }
 

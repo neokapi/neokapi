@@ -115,3 +115,23 @@ func TestRead_BareURLIsNotTranslatable(t *testing.T) {
 	assert.Contains(t, out, "url: https://example.com/path\n")
 	assert.Contains(t, out, "link: XSee https://example.com for more\n")
 }
+
+func TestTranslatedScalarSpans(t *testing.T) {
+	for _, tc := range []struct{ name, source, translated string }{
+		{"Unicode key", "日本語: 'Hello # world' # note\n", "日本語: 'XHello # world' # note\n"},
+		{"tagged quoted scalar", "value: !!str 'Hello # world' # note\n", "value: !!str 'XHello # world' # note\n"},
+		{"separated properties", "value: &ref # anchor\n  !!str 'Hello # world' # value\ncopy: *ref\n", "value: &ref # anchor\n  !!str 'XHello # world' # value\ncopy: *ref\n"},
+		{"tagged folded scalar", "section:\n  text: !!str &ref >-\n\n    Hello\n  copy: *ref\n", "section:\n  text: !!str &ref >-\n    X\n\n    Hello\n  copy: *ref\n"},
+		{"explicit indent", "key: |2-\n    First\n  Second\nnext: Here\n", "key: |2-\n  X  First\n  Second\nnext: XHere\n"},
+		{"leading blank with CRLF", "key: |-\r\n\r\n  Hello\r\nnext: Here\r\n", "key: |-\r\n  X\r\n  Hello\r\nnext: XHere\r\n"},
+		{"block scalar with leading blank", "value: |-\n\n  Hello\nnext: here\n", "value: |-\n  X\n  Hello\nnext: Xhere\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.source, snippetRoundtripWithSkeleton(t, tc.source))
+			out := translateRoundtripWithSkeleton(t, tc.source)
+			var doc yamlv3.Node
+			require.NoError(t, yamlv3.Unmarshal([]byte(out), &doc))
+			assert.Equal(t, tc.translated, out)
+		})
+	}
+}
