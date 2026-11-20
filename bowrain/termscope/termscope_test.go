@@ -231,3 +231,47 @@ func TestWorkspaceSearchExcludesProposalCopies(t *testing.T) {
 		})
 	}
 }
+
+func TestStoreViewRelationsFollowStreamAndProject(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			const pilot = "pilot/rebrand"
+			add := func(name, stream string, projects ...string) string {
+				cp := terms.Concept{ID: terms.ShadowIDPrefix + ":" + name, Terms: []terms.Term{{Text: name, Locale: "en", Status: model.TermAdmitted}}}
+				termscope.Limit(&cp, projects...)
+				require.NoError(t, tb.AddConceptWithStream(ctx, cp, stream))
+				return cp.ID
+			}
+			left := add("left", pilot, "project-a")
+			right := add("right", "parent")
+			hidden := add("private", pilot, "project-b")
+			unrelated := add("unrelated", "other")
+			for _, target := range []string{right, hidden, unrelated} {
+				require.NoError(t, tb.AddRelationWithStream(ctx, terms.ConceptRelation{
+					ID: terms.ShadowIDPrefix + ":relation:" + target, SourceID: left, TargetID: target, RelationType: graph.LabelRelated,
+				}, pilot))
+			}
+
+			a := termscope.StoreView(tb, "project-a")
+			rels, err := a.RelationsOf(ctx, left, nil)
+			require.NoError(t, err)
+			require.Empty(t, rels)
+
+			rels, err = a.RelationsForStream(ctx, left, pilot, []string{"parent", ""}, nil)
+			require.NoError(t, err)
+			require.Len(t, rels, 1)
+			assert.Equal(t, right, rels[0].TargetID)
+
+			rels, err = a.RelationsForStream(ctx, left, "main", []string{""}, nil)
+			require.NoError(t, err)
+			require.Empty(t, rels)
+
+			b := termscope.StoreView(tb, "project-b")
+			rels, err = b.RelationsForStream(ctx, hidden, pilot, []string{"parent", ""}, nil)
+			require.NoError(t, err)
+			require.Empty(t, rels)
+		})
+	}
+}

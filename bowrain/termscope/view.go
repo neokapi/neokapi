@@ -2,6 +2,7 @@ package termscope
 
 import (
 	"context"
+	"iter"
 	"maps"
 	"sync"
 
@@ -19,7 +20,7 @@ const searchPage = 500
 // else. Writes go to the store unchanged, so a concept written through a view
 // keeps the limit it carries. An empty project id returns tb itself.
 //
-// A view records the eligible concept IDs on its first lookup or relation read.
+// Lookups and relation reads without a stream share a snapshot of eligible IDs.
 // Create a view for each request or job.
 func View(tb terms.Terminology, projectID string) terms.Terminology {
 	if tb == nil || projectID == "" {
@@ -31,6 +32,7 @@ func View(tb terms.Terminology, projectID string) terms.Terminology {
 // StoreView is View for a terms.Store: the stream-aware reads are narrowed
 // the same way. The view names the store's revision when the store names
 // one, so a cache keyed by the revision must also key by the project.
+// A stream relation requires both endpoints to apply in the project and stream chain.
 func StoreView(tb terms.Store, projectID string) terms.Store {
 	if tb == nil || projectID == "" {
 		return tb
@@ -132,34 +134,42 @@ func (v *view) Search(ctx context.Context, query string, sourceLocale, targetLoc
 	}, offset, limit)
 }
 
-// search reads every page of an underlying search, keeps the concepts that
-// apply in the project, and pages what is left, so the total and the pages
-// agree with each other.
-func (v *view) search(page func(offset, limit int) ([]terms.Concept, int, error), offset, limit int) ([]terms.Concept, int, error) {
-	var kept []terms.Concept
-	for off := 0; ; {
-		got, total, err := page(off, searchPage)
+type conceptPage func(offset, limit int) ([]terms.Concept, int, error)
+
+func (v *view) projectConcepts(page conceptPage) iter.Seq2[terms.Concept, error] {
+	return func(yield func(terms.Concept, error) bool) {
+		for offset := 0; ; {
+			got, total, err := page(offset, searchPage)
+			if err != nil {
+				yield(terms.Concept{}, err)
+				return
+			}
+			for _, cp := range got {
+				if AppliesIn(cp, v.project) && !yield(cp, nil) {
+					return
+				}
+			}
+			offset += len(got)
+			if len(got) == 0 || offset >= total {
+				return
+			}
+		}
+	}
+}
+
+func (v *view) search(page conceptPage, offset, limit int) ([]terms.Concept, int, error) {
+	kept := []terms.Concept{}
+	total := 0
+	for cp, err := range v.projectConcepts(page) {
 		if err != nil {
 			return nil, 0, err
 		}
-		kept = append(kept, Filter(got, v.project)...)
-		off += len(got)
-		if len(got) == 0 || off >= total {
-			break
+		if total >= offset && (limit <= 0 || len(kept) < limit) {
+			kept = append(kept, cp)
 		}
+		total++
 	}
-	total := len(kept)
-	if offset < 0 {
-		offset = 0
-	}
-	if offset >= total {
-		return []terms.Concept{}, total, nil
-	}
-	end := total
-	if limit > 0 && limit < total-offset {
-		end = offset + limit
-	}
-	return kept[offset:end], total, nil
+	return kept, total, nil
 }
 
 func (v *view) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]terms.ConceptRelation, error) {
@@ -187,13 +197,17 @@ func (v *view) relations(ctx context.Context, rels []terms.ConceptRelation) ([]t
 	if err != nil {
 		return nil, err
 	}
+	return relationsWithin(rels, visible), nil
+}
+
+func relationsWithin(rels []terms.ConceptRelation, visible map[string]bool) []terms.ConceptRelation {
 	out := make([]terms.ConceptRelation, 0, len(rels))
 	for _, r := range rels {
 		if visible[r.SourceID] && visible[r.TargetID] {
 			out = append(out, r)
 		}
 	}
-	return out, nil
+	return out
 }
 
 type storeView struct {
@@ -209,10 +223,14 @@ func (v *storeView) AddRelationWithStream(ctx context.Context, rel terms.Concept
 	return v.store.AddRelationWithStream(ctx, rel, stream)
 }
 
+func (v *storeView) streamPage(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string) conceptPage {
+	return func(offset, limit int) ([]terms.Concept, int, error) {
+		return v.store.SearchForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+	}
+}
+
 func (v *storeView) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]terms.Concept, int, error) {
-	return v.search(func(off, lim int) ([]terms.Concept, int, error) {
-		return v.store.SearchForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, off, lim)
-	}, offset, limit)
+	return v.search(v.streamPage(ctx, query, sourceLocale, targetLocale, stream, streamChain), offset, limit)
 }
 
 func (v *storeView) RelationsForStream(ctx context.Context, conceptID string, stream string, streamChain []string, scope *graph.Scope) ([]terms.ConceptRelation, error) {
@@ -220,7 +238,28 @@ func (v *storeView) RelationsForStream(ctx context.Context, conceptID string, st
 	if err != nil {
 		return nil, err
 	}
-	return v.relations(ctx, rels)
+	if len(rels) == 0 {
+		return rels, nil
+	}
+	visible := make(map[string]bool)
+	for _, rel := range rels {
+		visible[rel.SourceID] = false
+		visible[rel.TargetID] = false
+	}
+	missing := len(visible)
+	for cp, err := range v.projectConcepts(v.streamPage(ctx, "", "", "", stream, streamChain)) {
+		if err != nil {
+			return nil, err
+		}
+		if found, needed := visible[cp.ID]; needed && !found {
+			visible[cp.ID] = true
+			missing--
+			if missing == 0 {
+				break
+			}
+		}
+	}
+	return relationsWithin(rels, visible), nil
 }
 
 // Revision is the store's revision, empty when the store names none. The
