@@ -714,7 +714,7 @@ ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (G
 	cd packages/i18n-react && vp run build
 	cd packages/ui && vp check
 	cd packages/flow-editor && vp check
-	cd apps/kapi-desktop/frontend && vp check
+	cd apps/kapi-desktop/frontend && vp run check
 	cd packages/flow-editor && vp test
 	cd apps/kapi-desktop/frontend && vp test
 	# The production bundle, which nothing above evaluates.
@@ -1368,7 +1368,7 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp test
 
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp run check
 
 # Invoke the neokapi-i18n CLI by its built entrypoint rather than `vpx neokapi-i18n`,
 # which resolves the bin via the workspace and falls back to an npm fetch (404)
