@@ -27,6 +27,8 @@ import (
 // only. The SQLite-only project_id column (absent on Postgres, which partitions
 // instead) carries an empty Postgres spec so the seam omits it there.
 var (
+	initialTermIndexes = []string{"idx_tb_terms_concept", "idx_tb_terms_locale", "idx_tb_terms_text"}
+
 	tbConcepts = sq.Table{
 		Name:        "tb_concepts",
 		Partitioned: true,
@@ -66,6 +68,7 @@ var (
 			{Name: "concept_id", SQLite: "TEXT NOT NULL REFERENCES tb_concepts(id) ON DELETE CASCADE", PG: "TEXT NOT NULL"},
 			{Name: "text", SQLite: "TEXT NOT NULL", PG: "TEXT NOT NULL"},
 			{Name: "text_lower", SQLite: "TEXT NOT NULL", PG: "TEXT NOT NULL"},
+			{Name: "text_normalized", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
 			{Name: "locale", SQLite: "TEXT NOT NULL", PG: "TEXT NOT NULL"},
 			{Name: "status", SQLite: "TEXT NOT NULL DEFAULT 'approved'", PG: "TEXT NOT NULL DEFAULT 'approved'"},
 			{Name: "part_of_speech", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
@@ -86,6 +89,7 @@ var (
 			{Name: "idx_tb_terms_concept", PGName: "idx_tb_terms_ws_concept", Cols: []string{"concept_id"}},
 			{Name: "idx_tb_terms_locale", PGName: "idx_tb_terms_ws_locale", Cols: []string{"locale"}},
 			{Name: "idx_tb_terms_text", PGName: "idx_tb_terms_ws_text", Cols: []string{"text_lower", "locale"}},
+			{Name: "idx_tb_terms_normalized", PGName: "idx_tb_terms_ws_normalized", Cols: []string{"locale", "text_normalized"}},
 		},
 	}
 
@@ -209,10 +213,10 @@ var pgTermsFuzzyBaselineBlock = strings.NewReplacer(
 // migrations.
 func RenderTermsSQLiteV1() string {
 	conceptsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"source", "do_not_translate", "advisory"}}
-	termsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms"}}
+	termsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms", "text_normalized"}}
 	sections := []string{
 		tbConcepts.Create(sq.SQLite, conceptsOpt) + tbConcepts.CreateIndexes(sq.SQLite, conceptsOpt),
-		tbTerms.Create(sq.SQLite, termsOpt) + tbTerms.CreateIndexes(sq.SQLite, termsOpt),
+		tbTerms.Create(sq.SQLite, termsOpt) + tbTerms.CreateIndexes(sq.SQLite, termsOpt, initialTermIndexes...),
 		tbTermsTrigramBlock,
 		tbTermsTrigramTriggers,
 	}
@@ -265,10 +269,10 @@ func RenderTermsSQLiteV6() string {
 // order is cosmetic and the semantic-equivalence test is order-insensitive.
 func RenderTermsPostgresV1(tenantColumn string) string {
 	conceptsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"stream", "source", "do_not_translate", "advisory"}}
-	termsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms"}}
+	termsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms", "text_normalized"}}
 	return tbConcepts.Create(sq.Postgres, conceptsOpt) +
 		tbTerms.Create(sq.Postgres, termsOpt) +
-		tbTerms.CreateIndexes(sq.Postgres, termsOpt)
+		tbTerms.CreateIndexes(sq.Postgres, termsOpt, initialTermIndexes...)
 }
 
 // RenderTermsPostgresV2 renders the v2 Postgres migration: the stream column on
@@ -301,10 +305,12 @@ func RenderTermsPostgresV3() string {
 // the two backends from drifting.
 func RenderTermsPostgresBaseline(tenantColumn string) string {
 	o := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true}
+	termsOpt := o
+	termsOpt.Exclude = []string{"text_normalized"}
 	return tbConcepts.Create(sq.Postgres, o) +
 		tbConcepts.CreateIndexes(sq.Postgres, o) +
-		tbTerms.Create(sq.Postgres, o) +
-		tbTerms.CreateIndexes(sq.Postgres, o) +
+		tbTerms.Create(sq.Postgres, termsOpt) +
+		tbTerms.CreateIndexes(sq.Postgres, o, initialTermIndexes...) +
 		tbRelations.Create(sq.Postgres, o) +
 		tbRelations.CreateIndexes(sq.Postgres, o) +
 		pgTermsFuzzyBaselineBlock
@@ -345,4 +351,17 @@ func RenderTermsPostgresV7() string {
 // database created from the baseline after the column was declared has it.
 func RenderTermsPostgresV8() string {
 	return tbConcepts.AddColumn(sq.Postgres, sq.Opt{IfNotExists: true}, "advisory")
+}
+
+// RenderTermsSQLiteV7 adds the normalized lookup key. Older writers leave it empty.
+func RenderTermsSQLiteV7() string {
+	return tbTerms.AddColumn(sq.SQLite, sq.Opt{}, "text_normalized") +
+		tbTerms.CreateIndexes(sq.SQLite, sq.Opt{IfNotExists: true}, "idx_tb_terms_normalized")
+}
+
+// RenderTermsPostgresV10 adds the workspace index for normalized term lookup.
+func RenderTermsPostgresV10() string {
+	opts := sq.Opt{TenantColumn: "workspace_id", IfNotExists: true}
+	return tbTerms.AddColumn(sq.Postgres, opts, "text_normalized") +
+		tbTerms.CreateIndexes(sq.Postgres, opts, "idx_tb_terms_normalized")
 }

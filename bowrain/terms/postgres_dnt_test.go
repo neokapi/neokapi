@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,6 +95,30 @@ func TestPostgresTerms_MigratesASchemaWithoutDoNotTranslate(t *testing.T) {
 	got, _, err := tb.GetConcept(ctx, "kapi")
 	require.NoError(t, err)
 	assert.True(t, got.DoNotTranslate, "the flag persists once the column exists")
+}
+
+func TestPostgresTerms_NormalizedLookupAcrossMigration(t *testing.T) {
+	ctx := t.Context()
+	db := scratchTermsDatabase(t)
+	require.NoError(t, storage.MigratePostgresNS(db, "tb_schema_migrations", pgterms.Migrations[:5]))
+	const legacy = "  Cafe\u0301\t\tAu  Lait "
+	for _, row := range []struct{ id, text string }{{"old", legacy}, {"other", "milk"}} {
+		_, err := db.ExecContext(ctx, `INSERT INTO tb_concepts (workspace_id, id) VALUES ('ws', $1)`, row.id)
+		require.NoError(t, err)
+		_, err = db.ExecContext(ctx, `INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, locale) VALUES ('ws', $1, $2, $3, 'en')`, row.id, row.text, strings.ToLower(row.text))
+		require.NoError(t, err)
+	}
+
+	tb, err := pgterms.NewPostgresStoreFromDB(db, "ws")
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "new", Terms: []terms.Term{{Text: "Café Au Lait", Locale: "en"}}}))
+	var key string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT text_normalized FROM tb_terms WHERE workspace_id = 'ws' AND concept_id = 'new'`).Scan(&key))
+	require.Equal(t, "café au lait", key)
+	opts := terms.LookupOptions{SourceLocale: "en", MatchModes: []model.MatchStrategy{model.MatchStrategyNormalized}}
+	matches, err := tb.Lookup(ctx, "CAFÉ AU LAIT", opts)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"new", "old"}, terms.MatchedConceptIDs(matches))
 }
 
 // scratchTermsDatabase creates a database of its own on the test server, so a
