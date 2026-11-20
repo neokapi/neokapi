@@ -338,6 +338,32 @@
     },
     {
       "date": "2026-11-20",
+      "ritual": "tier-review",
+      "commit": "557261cf7153f2fe237c3bca9e2d1be16f5b1bab",
+      "model_id": "deterministic",
+      "outcome": "The local repository suite and format acceptance suite passed. The EML promotion proposal awaits review.",
+      "evidence": [
+        {
+          "check": "make test",
+          "format": "eml",
+          "environment": "local",
+          "exit": 0,
+          "output_sha": "b3447898396abaeeb7788d872e33d82055bccdb8598a34fe89c5fba60e118afc"
+        },
+        {
+          "check": "make format-acceptance",
+          "format": "eml",
+          "environment": "local",
+          "exit": 0,
+          "output_sha": "563da620f6f9e77fa839643ab0a54ed89efaff1580c29198c4804f4ee27b4545"
+        }
+      ],
+      "followups": [
+        "Review the Maintained proposal after the named hosted gates run."
+      ]
+    },
+    {
+      "date": "2026-11-20",
       "ritual": "triage-score",
       "commit": "pending",
       "model_id": "deterministic",
