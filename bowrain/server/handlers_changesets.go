@@ -438,21 +438,24 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 		}
 		return serverErr(c, err)
 	}
-	// An origin-carrying change-set is an automated proposal, and the origin
-	// admits one open proposal at a time (see knowledge.SubmitChangeSet).
-	res, err := knowledge.SubmitChangeSet(ctx, s.KnowledgeStore, cs, ops)
-	for _, prior := range res.Superseded {
-		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-			changesetEvent(knowledge.EventChangeSetSuperseded, wsID, prior, actor),
-		})
-		// The superseded review is over; nobody should keep a task for it.
-		s.closeChangeSetReviewTasks(ctx, wsID, prior, actor)
+	var tb knowledge.ConceptStore
+	if cs.Origin != "" && s.wsStores != nil {
+		tb, err = s.wsStores.getTerms(ctx, c.Param("ws"))
+		if err != nil {
+			return serverErrStatus(c, http.StatusServiceUnavailable, err)
+		}
 	}
+	engine := knowledge.NewEngine(nil, tb, s.KnowledgeStore)
+	res, err := engine.SubmitChangeSet(ctx, cs, ops)
 	if errors.Is(err, knowledge.ErrSubmitRefused) {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 	if err != nil {
 		return serverErr(c, err)
+	}
+	s.publishKnowledgeEvents(c, res.RetirementEvents(actor, ""))
+	for _, prior := range res.Superseded {
+		s.closeChangeSetReviewTasks(ctx, wsID, prior, actor)
 	}
 	if res.Unchanged {
 		return s.refreshedChangeSet(c, wsID, res.ID)

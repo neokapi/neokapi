@@ -229,7 +229,7 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 	}
 
 	if edits.Proposal != nil && len(edits.Proposal.Ops) > 0 {
-		if err := propose(ctx, st.Knowledge, p, edits.Proposal, res); err != nil {
+		if err := propose(ctx, st, p, edits.Proposal, res); err != nil {
 			return nil, err
 		}
 	}
@@ -237,7 +237,8 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 }
 
 // propose records the governed operations as one change-set and submits it.
-func propose(ctx context.Context, ks knowledge.Store, p Params, in *apiclient.TermsProposal, res *Result) error {
+func propose(ctx context.Context, stores Stores, p Params, in *apiclient.TermsProposal, res *Result) error {
+	ks := stores.Knowledge
 	if ks == nil {
 		return errors.New("terms: governed edits need the workspace's knowledge store, which is unavailable")
 	}
@@ -270,7 +271,8 @@ func propose(ctx context.Context, ks knowledge.Store, p Params, in *apiclient.Te
 		}
 		ops = append(ops, op)
 	}
-	submitted, err := knowledge.SubmitChangeSet(ctx, ks, cs, ops)
+	engine := knowledge.NewEngine(nil, stores.Terms, ks)
+	submitted, err := engine.SubmitChangeSet(ctx, cs, ops)
 	if err != nil {
 		return fmt.Errorf("submit change-set: %w", err)
 	}
@@ -283,12 +285,12 @@ func propose(ctx context.Context, ks knowledge.Store, p Params, in *apiclient.Te
 	res.Outcome.ChangesetID = submitted.ID
 	res.Outcome.ChangesetUnchanged = submitted.Unchanged
 	res.Digest = knowledge.DigestChangeSet(cs.Name, ops)
+	if !submitted.Unchanged {
+		changeset(knowledge.EventChangeSetCreated, cs.ID)
+	}
+	res.Events = append(res.Events, submitted.RetirementEvents(p.Actor, p.OnBehalfOf)...)
 	if submitted.Unchanged {
 		return nil
-	}
-	changeset(knowledge.EventChangeSetCreated, cs.ID)
-	for _, prior := range submitted.Superseded {
-		changeset(knowledge.EventChangeSetSuperseded, prior)
 	}
 	changeset(knowledge.EventChangeSetSubmitted, cs.ID)
 	res.Submitted = cs

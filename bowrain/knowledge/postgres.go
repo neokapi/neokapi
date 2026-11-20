@@ -1076,8 +1076,17 @@ func (e *Engine) withGovernanceTransaction(ctx context.Context, store Store, app
 }
 
 func (e *Engine) withLockedChangeSet(ctx context.Context, store Store, workspaceID, changesetID string, apply func(*Engine, Store, ChangeSetStatus) error) error {
+	return e.withLockedProposal(ctx, store, workspaceID, changesetID, "", apply)
+}
+
+func (e *Engine) withLockedProposal(ctx context.Context, store Store, workspaceID, changesetID, origin string, apply func(*Engine, Store, ChangeSetStatus) error) error {
 	return e.withGovernanceTransaction(ctx, store, func(engine *Engine, store Store) error {
 		if kg, ok := store.(*PostgresKnowledgeStore); ok {
+			if origin != "" {
+				if err := kg.lockProposalOrigin(ctx, workspaceID, origin); err != nil {
+					return err
+				}
+			}
 			status, err := lockChangeSet(ctx, kg.run(), workspaceID, changesetID)
 			if err != nil {
 				return err
@@ -1090,6 +1099,16 @@ func (e *Engine) withLockedChangeSet(ctx context.Context, store Store, workspace
 		}
 		return apply(engine, store, cs.Status)
 	})
+}
+
+func (s *PostgresKnowledgeStore) lockProposalOrigin(ctx context.Context, workspaceID, origin string) error {
+	_, err := s.run().ExecContext(ctx,
+		`SELECT pg_advisory_xact_lock(hashtext('kg_changeset_origin'), hashtext($1::text || ':' || $2::text))`,
+		workspaceID, origin)
+	if err != nil {
+		return fmt.Errorf("lock change-set origin: %w", err)
+	}
+	return nil
 }
 
 // AddPilot binds a change-set to a project stream. The binding is idempotent: a

@@ -615,20 +615,27 @@ func (s *Server) proposeConceptRetire(c echo.Context, src deckSource, rv deckRev
 		}
 		ops = append(ops, op)
 	}
-	res, err := knowledge.SubmitChangeSet(ctx, s.KnowledgeStore, cs, ops)
+	engine := knowledge.NewEngine(nil, tb, s.KnowledgeStore)
+	res, err := engine.SubmitChangeSet(ctx, cs, ops)
 	if errors.Is(err, knowledge.ErrSubmitRefused) {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 	if err != nil {
 		return serverErr(c, err)
 	}
+	var events []knowledge.MergeEvent
 	if !res.Unchanged {
-		events := []knowledge.MergeEvent{changesetEvent(knowledge.EventChangeSetCreated, src.wsID, cs.ID, rv.userID)}
-		for _, prior := range res.Superseded {
-			events = append(events, changesetEvent(knowledge.EventChangeSetSuperseded, src.wsID, prior, rv.userID))
-		}
+		events = append(events, changesetEvent(knowledge.EventChangeSetCreated, src.wsID, cs.ID, rv.userID))
+	}
+	events = append(events, res.RetirementEvents(rv.userID, "")...)
+	if !res.Unchanged {
 		events = append(events, changesetEvent(knowledge.EventChangeSetSubmitted, src.wsID, cs.ID, rv.userID))
-		s.publishKnowledgeEvents(c, events)
+	}
+	s.publishKnowledgeEvents(c, events)
+	for _, prior := range res.Superseded {
+		s.closeChangeSetReviewTasks(ctx, src.wsID, prior, rv.userID)
+	}
+	if !res.Unchanged {
 		governed, _ := knowledge.ChangeSetIsGoverned(changeSetOpValues(ops))
 		s.summonChangeSetReviewers(c, cs, len(ops), governed)
 	}
