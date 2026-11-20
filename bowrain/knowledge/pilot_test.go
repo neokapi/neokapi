@@ -48,12 +48,19 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 	require.True(t, ok)
 
 	// The shadow relation links the shadow concepts.
-	rels, err := tb.RelationsOf(ctx, oldID, nil)
+	rels, err := tb.RelationsForStream(ctx, oldID, pilotStream, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, rels, 1)
 	assert.Equal(t, graph.LabelUseInstead, rels[0].RelationType)
 	assert.Equal(t, oldID, rels[0].SourceID)
 	assert.Equal(t, newID, rels[0].TargetID)
+
+	rels, err = tb.RelationsOf(ctx, oldID, nil)
+	require.NoError(t, err)
+	assert.Empty(t, rels)
+	rels, err = tb.RelationsForStream(ctx, oldID, "main", nil, nil)
+	require.NoError(t, err)
+	assert.Empty(t, rels)
 
 	// The live graph is untouched.
 	liveOld, ok, err := tb.GetConcept(ctx, "old")
@@ -70,6 +77,9 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 
 	// Stop the pilot — shadow concepts and relations are removed.
 	require.NoError(t, e.StopPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
+	rels, err = tb.RelationsForStream(ctx, oldID, pilotStream, nil, nil)
+	require.NoError(t, err)
+	assert.Empty(t, rels)
 	_, ok, err = tb.GetConcept(ctx, oldID)
 	require.NoError(t, err)
 	assert.False(t, ok)
