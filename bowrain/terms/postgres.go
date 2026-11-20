@@ -414,10 +414,11 @@ func (tb *PostgresStore) DeleteRelation(ctx context.Context, id string) error {
 // RelationsOf returns all relations touching the concept, in either direction,
 // filtered by the validity scope when one is given.
 func (tb *PostgresStore) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]fw.ConceptRelation, error) {
+	notShadow, arg := fw.NotShadowSQL("id", "$3")
 	rows, err := tb.run().QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
-		FROM tb_relations WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) ORDER BY id
-	`, tb.workspaceID, conceptID)
+		FROM tb_relations WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) AND `+notShadow+` ORDER BY id
+	`, tb.workspaceID, conceptID, arg)
 	if err != nil {
 		return nil, fmt.Errorf("query relations: %w", err)
 	}
@@ -558,9 +559,10 @@ func (tb *PostgresStore) Search(ctx context.Context, query string, sourceLocale,
 }
 
 func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
-	where := "t.workspace_id = $1 AND t.text_lower % $2"
-	args := []any{tb.workspaceID, strings.ToLower(query)}
-	argN := 3
+	notShadow, arg := fw.NotShadowSQL("t.concept_id", "$3")
+	where := "t.workspace_id = $1 AND t.text_lower % $2 AND " + notShadow
+	args := []any{tb.workspaceID, strings.ToLower(query), arg}
+	argN := 4
 
 	if sourceLocale != "" {
 		where += fmt.Sprintf(" AND t.locale = $%d", argN)
@@ -601,15 +603,8 @@ func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceL
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, 0, fmt.Errorf("scan concept id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, 0, err
 	}
 	concepts, err := tb.scanConcepts(ctx, ids)
@@ -620,9 +615,10 @@ func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceL
 }
 
 func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
-	where := "workspace_id = $1"
-	args := []any{tb.workspaceID}
-	argN := 2
+	notShadow, arg := fw.NotShadowSQL("c.id", "$2")
+	where := "workspace_id = $1 AND " + notShadow
+	args := []any{tb.workspaceID, arg}
+	argN := 3
 
 	if query != "" {
 		where += fmt.Sprintf(` AND (LOWER(c.definition) LIKE $%d OR LOWER(c.domain) LIKE $%d
@@ -646,7 +642,9 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count concepts: %w", err)
+	}
 
 	// No DISTINCT: c.id is the table PK (single-table query), so rows are already
 	// unique — and DISTINCT would make ORDER BY c.updated_at illegal in Postgres.
@@ -658,15 +656,8 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
@@ -752,15 +743,8 @@ func (tb *PostgresStore) pgSearchTrgmForStream(ctx context.Context, query string
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -810,7 +794,9 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count concepts: %w", err)
+	}
 
 	// Build CASE expression for stream priority ordering.
 	var caseExpr strings.Builder
@@ -832,15 +818,8 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
@@ -853,14 +832,14 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 
 // Count returns the total number of concepts for this workspace.
 func (tb *PostgresStore) Count(ctx context.Context) (int, error) {
+	notShadow, arg := fw.NotShadowSQL("id", "$2")
 	var count int
-	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1 AND "+notShadow, tb.workspaceID, arg).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count concepts: %w", err)
 	}
 	return count, nil
 }
 
-// Concepts returns all concepts for this workspace.
 // Concepts returns the workspace's concepts. The shadow namespace is not among
 // them: a stream-scoped shadow belongs to the branch it was written for, and
 // this list is what the sync carries into a project's own terms.
@@ -874,15 +853,8 @@ func (tb *PostgresStore) Concepts(ctx context.Context) ([]fw.Concept, error) {
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, fmt.Errorf("iterate concepts: %w", err)
 	}
 

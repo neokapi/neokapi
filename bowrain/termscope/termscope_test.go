@@ -198,3 +198,36 @@ func TestProjectLookupPreservesTermGovernance(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkspaceSearchExcludesProposalCopies(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			live := terms.Concept{ID: "live", Terms: []terms.Term{{Text: "workbench", Locale: "en", Status: model.TermAdmitted}}}
+			shadow := live
+			shadow.ID = terms.ShadowIDPrefix + ":proposal:live"
+			require.NoError(t, tb.AddConcept(ctx, live))
+			require.NoError(t, tb.AddConceptWithStream(ctx, shadow, "proposal"))
+			r := terms.ConceptRelation{ID: terms.ShadowIDPrefix + ":relation", SourceID: live.ID, TargetID: shadow.ID, RelationType: graph.LabelRelated}
+			require.NoError(t, tb.AddRelationWithStream(ctx, r, "proposal"))
+			count, err := tb.Count(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, 1, count)
+			for _, query := range []string{"", "workbench"} {
+				page, total, err := tb.Search(ctx, query, "en", "", 0, 10)
+				require.NoError(t, err)
+				assert.Equal(t, 1, total)
+				require.Len(t, page, 1)
+				assert.Equal(t, live.ID, page[0].ID)
+			}
+			relations, err := tb.RelationsOf(ctx, live.ID, nil)
+			require.NoError(t, err)
+			assert.Empty(t, relations)
+			relations, err = tb.RelationsForStream(ctx, live.ID, "proposal", nil, nil)
+			require.NoError(t, err)
+			require.Len(t, relations, 1)
+			assert.Equal(t, r.ID, relations[0].ID)
+		})
+	}
+}

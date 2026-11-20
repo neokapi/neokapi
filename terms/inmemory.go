@@ -221,7 +221,7 @@ func (tb *InMemoryStore) RelationsOf(_ context.Context, conceptID string, scope 
 		if rel.SourceID != conceptID && rel.TargetID != conceptID {
 			continue
 		}
-		if !MatchesScope(rel.Validity, scope) {
+		if IsShadowID(rel.ID) || !MatchesScope(rel.Validity, scope) {
 			continue
 		}
 		rel.Validity = cloneValidity(rel.Validity)
@@ -239,7 +239,7 @@ func (tb *InMemoryStore) ListRelations(_ context.Context, scope *graph.Scope) ([
 
 	var out []ConceptRelation
 	for _, rel := range tb.relations {
-		if !MatchesScope(rel.Validity, scope) {
+		if IsShadowID(rel.ID) || !MatchesScope(rel.Validity, scope) {
 			continue
 		}
 		rel.Validity = cloneValidity(rel.Validity)
@@ -363,7 +363,7 @@ func (tb *InMemoryStore) Search(_ context.Context, query string, sourceLocale, t
 	var matched []Concept
 
 	for _, concept := range tb.concepts {
-		if matchesConcept(concept, lowerQuery, sourceLocale, targetLocale) {
+		if !IsShadowID(concept.ID) && matchesConcept(concept, lowerQuery, sourceLocale, targetLocale) {
 			matched = append(matched, concept)
 		}
 	}
@@ -386,16 +386,24 @@ func (tb *InMemoryStore) Search(_ context.Context, query string, sourceLocale, t
 func (tb *InMemoryStore) Count(_ context.Context) (int, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
-	return len(tb.concepts), nil
+	total := 0
+	for _, c := range tb.concepts {
+		if !IsShadowID(c.ID) {
+			total++
+		}
+	}
+	return total, nil
 }
 
 // Concepts returns a copy of all concepts.
 func (tb *InMemoryStore) Concepts(_ context.Context) ([]Concept, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
-	out := make([]Concept, len(tb.concepts))
-	for i, concept := range tb.concepts {
-		out[i] = cloneConcept(concept)
+	out := make([]Concept, 0, len(tb.concepts))
+	for _, concept := range tb.concepts {
+		if !IsShadowID(concept.ID) {
+			out = append(out, cloneConcept(concept))
+		}
 	}
 	return out, nil
 }

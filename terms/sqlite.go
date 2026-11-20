@@ -380,10 +380,11 @@ func (tb *SQLiteStore) DeleteRelation(ctx context.Context, id string) error {
 // RelationsOf returns all relations touching the concept, in either direction,
 // filtered by the validity scope when one is given.
 func (tb *SQLiteStore) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]ConceptRelation, error) {
+	notShadow, arg := NotShadowSQL("id", "?")
 	rows, err := tb.db.QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
-		FROM tb_relations WHERE source_id = ? OR target_id = ? ORDER BY id
-	`, conceptID, conceptID)
+		FROM tb_relations WHERE (source_id = ? OR target_id = ?) AND `+notShadow+` ORDER BY id
+	`, conceptID, conceptID, arg)
 	if err != nil {
 		return nil, fmt.Errorf("query relations: %w", err)
 	}
@@ -526,8 +527,9 @@ func (tb *SQLiteStore) Search(ctx context.Context, query string, sourceLocale, t
 func (tb *SQLiteStore) searchFTS5(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
 	trigramQuery := `"` + strings.ReplaceAll(query, `"`, `""`) + `"`
 
-	localeWhere := ""
-	var localeArgs []any
+	notShadow, arg := NotShadowSQL("c.id", "?")
+	localeWhere := " AND " + notShadow
+	localeArgs := []any{arg}
 	if sourceLocale != "" {
 		localeWhere += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
 		localeArgs = append(localeArgs, string(sourceLocale))
@@ -561,7 +563,7 @@ func (tb *SQLiteStore) searchFTS5(ctx context.Context, query string, sourceLocal
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -574,8 +576,8 @@ func (tb *SQLiteStore) searchFTS5(ctx context.Context, query string, sourceLocal
 }
 
 func (tb *SQLiteStore) searchLike(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
-	where := "1=1"
-	var args []any
+	where, arg := NotShadowSQL("c.id", "?")
+	args := []any{arg}
 
 	if query != "" {
 		where += ` AND (LOWER(c.definition) LIKE ? OR LOWER(c.domain) LIKE ?
@@ -608,7 +610,7 @@ func (tb *SQLiteStore) searchLike(ctx context.Context, query string, sourceLocal
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, total, err
 	}
@@ -681,7 +683,7 @@ func (tb *SQLiteStore) searchFTS5ForStream(ctx context.Context, query string, so
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -745,7 +747,7 @@ func (tb *SQLiteStore) searchLikeForStream(ctx context.Context, query string, so
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, total, err
 	}
@@ -768,8 +770,9 @@ func (tb *SQLiteStore) Count(ctx context.Context) (int, error) {
 // not create, counts here instead. Ask IsStore first when db may not carry
 // the schema.
 func CountConcepts(ctx context.Context, db *storage.DB) (int, error) {
+	notShadow, arg := NotShadowSQL("id", "?")
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE "+notShadow, arg).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count concepts: %w", err)
 	}
 	return count, nil
@@ -791,7 +794,7 @@ func (tb *SQLiteStore) Concepts(ctx context.Context) ([]Concept, error) {
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, err
 	}
@@ -861,7 +864,8 @@ func (tb *SQLiteStore) Close() error {
 // --- internal helpers ---
 
 // scanConceptIDs collects a single-column result set of concept IDs.
-func scanConceptIDs(rows *sql.Rows) ([]string, error) {
+// ScanConceptIDs reads an ordered ID column from a terms store query.
+func ScanConceptIDs(rows *sql.Rows) ([]string, error) {
 	var ids []string
 	for rows.Next() {
 		var id string
