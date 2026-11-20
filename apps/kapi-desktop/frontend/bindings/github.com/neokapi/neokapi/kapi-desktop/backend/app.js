@@ -808,8 +808,7 @@ export function DeleteMemoryImportSession(handle, sessionID) {
 }
 
 /**
- * DeleteProjectFilter removes a filter from wherever it is kept and clears the
- * active selection if it pointed at the deleted filter.
+ * DeleteProjectFilter deletes the filter and clears its active selection.
  * @param {string} tabID
  * @param {string} filterID
  * @returns {$CancellablePromise<void>}
@@ -1343,8 +1342,7 @@ export function GetProject(tabID) {
 }
 
 /**
- * GetProjectFilters returns the project's saved filters (shared + personal) and
- * the active selection. Empty when the project isn't saved to disk yet.
+ * GetProjectFilters reads the shared filters and this checkout’s personal filters and selection.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ProjectFilters>}
  */
@@ -2872,10 +2870,7 @@ export function SaveProjectDialog(tabID) {
 }
 
 /**
- * SaveProjectFilter creates or updates a filter: a shared one in the project's
- * context store, a personal one in this checkout's local file, per f.Shared. A
- * filter that changes scope moves between the two. Returns the saved filter
- * (with its assigned id).
+ * SaveProjectFilter saves a filter in its requested scope and returns its ID.
  * @param {string} tabID
  * @param {$models.ProjectFilter} f
  * @returns {$CancellablePromise<$models.ProjectFilter | null>}
@@ -3057,8 +3052,7 @@ export function SelectAIProvider(providerID, model) {
 }
 
 /**
- * SetActiveFilter records the active filter id (a personal preference, stored in
- * the local file). Pass "" to clear (back to "All").
+ * SetActiveFilter records the selection for this checkout. An empty ID clears it.
  * @param {string} tabID
  * @param {string} filterID
  * @returns {$CancellablePromise<void>}

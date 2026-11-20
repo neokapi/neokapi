@@ -5,15 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
 // ProjectFilter is a saved "Active Filter" — a named narrowing of the project to
@@ -48,131 +52,207 @@ type filtersFile struct {
 	Filters []ProjectFilter `json:"filters"`
 }
 
-// layoutForTab resolves the .kapi layout for a tab's project, or ok=false when
-// the tab has no saved-on-disk project (e.g. an unsaved/empty project).
-func (a *App) layoutForTab(tabID string) (project.Layout, bool) {
-	op := a.getOpenProject(tabID)
-	if op == nil || op.Path == "" {
-		return project.Layout{}, false
-	}
-	layout, err := project.LayoutFor(op.Path)
-	if err != nil {
-		return project.Layout{}, false
-	}
-	return layout, true
+type filterSettings struct {
+	local  filtersFile
+	shared []ProjectFilter
 }
 
-// GetProjectFilters returns the project's saved filters (shared + personal) and
-// the active selection. Empty when the project isn't saved to disk yet.
-func (a *App) GetProjectFilters(tabID string) ProjectFilters {
-	layout, ok := a.layoutForTab(tabID)
-	if !ok {
-		return ProjectFilters{}
+// GetProjectFilters reads the shared filters and this checkout’s personal filters and selection.
+func (a *App) GetProjectFilters(tabID string) (ProjectFilters, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil || op.Path == "" {
+		return ProjectFilters{}, nil
 	}
-	local := readFiltersFile(layout.LocalFiltersPath())
-
-	out := ProjectFilters{Active: local.Active}
-	// Rendering the filter menu must not bring a store into being, so the
-	// shared set is read only from a store the project already has.
-	var shared []ProjectFilter
-	if db, ok := a.existingProjectStore(a.getOpenProject(tabID)); ok {
-		var err error
-		if shared, err = readSharedFilters(db); err != nil {
-			a.logger.Printf("read shared filters: %v", err)
-		}
+	op.filtersMu.RLock()
+	defer op.filtersMu.RUnlock()
+	layout, err := project.LayoutFor(op.Path)
+	if err != nil {
+		return ProjectFilters{}, err
 	}
-	for _, f := range shared {
+	db, err := a.projectStoreIfPresent(op)
+	if err != nil {
+		return ProjectFilters{}, err
+	}
+	settings, err := readFilterSettings(layout, db)
+	if err != nil {
+		return ProjectFilters{}, err
+	}
+	out := ProjectFilters{Active: settings.local.Active}
+	for _, f := range settings.shared {
 		f.Shared = true
 		out.Filters = append(out.Filters, f)
 	}
-	for _, f := range local.Filters {
+	for _, f := range settings.local.Filters {
 		f.Shared = false
 		out.Filters = append(out.Filters, f)
 	}
-	return out
+	return out, nil
 }
 
-// SaveProjectFilter creates or updates a filter: a shared one in the project's
-// context store, a personal one in this checkout's local file, per f.Shared. A
-// filter that changes scope moves between the two. Returns the saved filter
-// (with its assigned id).
+// SaveProjectFilter saves a filter in its requested scope and returns its ID.
 func (a *App) SaveProjectFilter(tabID string, f ProjectFilter) (*ProjectFilter, error) {
-	layout, ok := a.layoutForTab(tabID)
-	if !ok {
-		return nil, errors.New("project must be saved before filters can be stored")
-	}
-	if err := project.EnsureLayout(layout); err != nil {
-		return nil, err
-	}
 	if f.ID == "" {
 		f.ID = id.New()
 	}
-	// Any existing copy is dropped from both places (an update, or a move
-	// between shared and personal).
-	removeFilterFromFile(layout.LocalFiltersPath(), f.ID)
-
-	if f.Shared {
-		db, err := a.projectStore(a.getOpenProject(tabID))
-		if err != nil {
-			return nil, fmt.Errorf("open the project store: %w", err)
+	err := a.editFilters(tabID, f.Shared, func(next *filterSettings) {
+		next.remove(f.ID)
+		saved := f
+		saved.Shared = false
+		if f.Shared {
+			next.shared = append(slices.Clone(next.shared), saved)
+		} else {
+			next.local.Filters = append(slices.Clone(next.local.Filters), saved)
 		}
-		shared, err := readSharedFilters(db)
-		if err != nil {
-			return nil, err
-		}
-		if err := writeSharedFilters(db, append(withoutFilter(shared, f.ID), f)); err != nil {
-			return nil, err
-		}
-		return &f, nil
-	}
-	if err := a.removeSharedFilter(tabID, f.ID); err != nil {
-		return nil, err
-	}
-	if err := ensureLocalFiltersGitignored(layout); err != nil {
-		return nil, err
-	}
-	if err := appendFilterToFile(layout.LocalFiltersPath(), f); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 	return &f, nil
 }
 
-// DeleteProjectFilter removes a filter from wherever it is kept and clears the
-// active selection if it pointed at the deleted filter.
+// DeleteProjectFilter deletes the filter and clears its active selection.
 func (a *App) DeleteProjectFilter(tabID, filterID string) error {
-	layout, ok := a.layoutForTab(tabID)
-	if !ok {
-		return errors.New("no project for tab")
-	}
-	if err := a.removeSharedFilter(tabID, filterID); err != nil {
-		return err
-	}
-	removeFilterFromFile(layout.LocalFiltersPath(), filterID)
-
-	local := readFiltersFile(layout.LocalFiltersPath())
-	if local.Active == filterID {
-		local.Active = ""
-		_ = writeFiltersFile(layout.LocalFiltersPath(), local)
-	}
-	return nil
+	return a.editFilters(tabID, false, func(next *filterSettings) {
+		next.remove(filterID)
+		if next.local.Active == filterID {
+			next.local.Active = ""
+		}
+	})
 }
 
-// SetActiveFilter records the active filter id (a personal preference, stored in
-// the local file). Pass "" to clear (back to "All").
+// SetActiveFilter records the selection for this checkout. An empty ID clears it.
 func (a *App) SetActiveFilter(tabID, filterID string) error {
-	layout, ok := a.layoutForTab(tabID)
-	if !ok {
-		return errors.New("no project for tab")
+	return a.editFilters(tabID, false, func(next *filterSettings) {
+		next.local.Active = filterID
+	})
+}
+
+func (s *filterSettings) remove(id string) {
+	s.local.Filters = withoutFilter(s.local.Filters, id)
+	s.shared = withoutFilter(s.shared, id)
+}
+
+func (a *App) editFilters(tabID string, createShared bool, edit func(*filterSettings)) error {
+	op := a.getOpenProject(tabID)
+	if op == nil || op.Path == "" {
+		return errors.New("project must be saved before filters can be stored")
+	}
+	op.filtersMu.Lock()
+	defer op.filtersMu.Unlock()
+	layout, err := project.LayoutFor(op.Path)
+	if err != nil {
+		return err
 	}
 	if err := project.EnsureLayout(layout); err != nil {
 		return err
 	}
+	unlock, err := lockFilters(filepath.Join(layout.CacheDir(), "filters.lock"))
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	var db *projectdb.DB
+	if createShared {
+		db, err = a.projectStore(op)
+	} else {
+		db, err = a.projectStoreIfPresent(op)
+	}
+	if err != nil {
+		return err
+	}
+	if db != nil {
+		unlock, err := lockFilters(db.ContextPath() + ".filters.lock")
+		if err != nil {
+			return err
+		}
+		defer unlock()
+	}
+	previous, err := readFilterSettings(layout, db)
+	if err != nil {
+		return err
+	}
+	next := previous
+	edit(&next)
+	return next.persist(layout, db, previous, createShared)
+}
+
+func lockFilters(path string) (func(), error) {
+	lock, err := filelock.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := lock.Lock(context.Background()); err != nil {
+		return nil, errors.Join(err, lock.Close())
+	}
+	return func() {
+		lock.Unlock()
+		_ = lock.Close()
+	}, nil
+}
+
+func readFilterSettings(layout project.Layout, db *projectdb.DB) (filterSettings, error) {
+	var s filterSettings
+	data, err := os.ReadFile(layout.LocalFiltersPath())
+	switch {
+	case err == nil:
+		if err := json.Unmarshal(data, &s.local); err != nil {
+			return s, fmt.Errorf("decode personal filters: %w", err)
+		}
+	case !errors.Is(err, os.ErrNotExist):
+		return s, err
+	}
+	if db != nil {
+		s.shared, err = readSharedFilters(db)
+		return s, err
+	}
+	return s, nil
+}
+
+// A scope change writes the destination before removing the source. Both locks stay held through rollback.
+func (s filterSettings) persist(layout project.Layout, db *projectdb.DB, previous filterSettings, sharedFirst bool) error {
+	sharedChanged := !reflect.DeepEqual(s.shared, previous.shared)
+	if reflect.DeepEqual(s.local, previous.local) {
+		if sharedChanged {
+			return writeSharedFilters(db, s.shared)
+		}
+		return nil
+	}
 	if err := ensureLocalFiltersGitignored(layout); err != nil {
 		return err
 	}
-	local := readFiltersFile(layout.LocalFiltersPath())
-	local.Active = filterID
-	return writeFiltersFile(layout.LocalFiltersPath(), local)
+	path := layout.LocalFiltersPath()
+	if !sharedChanged {
+		return writeFiltersFile(path, s.local)
+	}
+	if sharedFirst {
+		if err := writeSharedFilters(db, s.shared); err != nil {
+			return err
+		}
+		if err := writeFiltersFile(path, s.local); err != nil {
+			return errors.Join(err, writeSharedFilters(db, previous.shared))
+		}
+		return nil
+	}
+	if err := writeFiltersFile(path, s.local); err != nil {
+		return err
+	}
+	if err := writeSharedFilters(db, s.shared); err != nil {
+		return errors.Join(err, writeFiltersFile(path, previous.local))
+	}
+	return nil
+}
+
+func writeFiltersFile(path string, local filtersFile) error {
+	if local.Filters == nil {
+		local.Filters = []ProjectFilter{}
+	}
+	_, err := atomicfile.Replace(path, func(w io.Writer) error {
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		return enc.Encode(local)
+	})
+	return err
 }
 
 // ─── filter application ──────────────────────────────────────────────────────
@@ -258,9 +338,6 @@ func writeSharedFilters(db *projectdb.DB, filters []ProjectFilter) error {
 	if filters == nil {
 		filters = []ProjectFilter{}
 	}
-	for i := range filters {
-		filters[i].Shared = false // implied by where it is kept
-	}
 	data, err := json.Marshal(filters)
 	if err != nil {
 		return err
@@ -268,81 +345,12 @@ func writeSharedFilters(db *projectdb.DB, filters []ProjectFilter) error {
 	return db.PutSetting(context.Background(), projectdb.SettingSavedFilters, string(data))
 }
 
-// removeSharedFilter drops a filter from the shared set. A project with no
-// store yet has no shared filter to remove, and none is created for it.
-func (a *App) removeSharedFilter(tabID, filterID string) error {
-	db, ok := a.existingProjectStore(a.getOpenProject(tabID))
-	if !ok {
-		return nil
-	}
-	shared, err := readSharedFilters(db)
-	if err != nil {
-		return err
-	}
-	kept := withoutFilter(shared, filterID)
-	if len(kept) == len(shared) {
-		return nil
-	}
-	return writeSharedFilters(db, kept)
-}
-
-// withoutFilter returns filters with the one carrying filterID left out.
 func withoutFilter(filters []ProjectFilter, filterID string) []ProjectFilter {
-	kept := make([]ProjectFilter, 0, len(filters))
-	for _, f := range filters {
-		if f.ID != filterID {
-			kept = append(kept, f)
-		}
+	matches := func(f ProjectFilter) bool { return f.ID == filterID }
+	if !slices.ContainsFunc(filters, matches) {
+		return filters
 	}
-	return kept
-}
-
-// ─── personal filters: this checkout's local file ───────────────────────────
-
-func readFiltersFile(path string) filtersFile {
-	var f filtersFile
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return f
-	}
-	// A corrupt filters file reads as no filters so the app still starts; the next write replaces it.
-	_ = json.Unmarshal(data, &f)
-	return f
-}
-
-func writeFiltersFile(path string, f filtersFile) error {
-	if f.Filters == nil {
-		f.Filters = []ProjectFilter{}
-	}
-	data, err := json.MarshalIndent(f, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
-}
-
-func appendFilterToFile(path string, nf ProjectFilter) error {
-	ff := readFiltersFile(path)
-	ff.Filters = append(ff.Filters, nf)
-	return writeFiltersFile(path, ff)
-}
-
-func removeFilterFromFile(path, filterID string) {
-	ff := readFiltersFile(path)
-	kept := make([]ProjectFilter, 0, len(ff.Filters))
-	for _, f := range ff.Filters {
-		if f.ID != filterID {
-			kept = append(kept, f)
-		}
-	}
-	if len(kept) == len(ff.Filters) {
-		return // not present — leave the file untouched
-	}
-	ff.Filters = kept
-	_ = writeFiltersFile(path, ff)
+	return slices.DeleteFunc(slices.Clone(filters), matches)
 }
 
 // ensureLocalFiltersGitignored makes sure .kapi/.gitignore keeps the personal
@@ -352,7 +360,10 @@ func removeFilterFromFile(path, filterID string) {
 // way it only ever adds the one line naming the personal file.
 func ensureLocalFiltersGitignored(layout project.Layout) error {
 	path := filepath.Join(layout.StateDir, project.StateGitignoreFilename)
-	existing, _ := os.ReadFile(path)
+	existing, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	content := string(existing)
 	if project.GitignoreCovers(content, project.LocalFiltersFilename) {
 		return nil
@@ -361,5 +372,9 @@ func ensureLocalFiltersGitignored(layout project.Layout) error {
 		content += "\n"
 	}
 	content += project.LocalFiltersFilename + "\n"
-	return os.WriteFile(path, []byte(content), 0o644)
+	_, err = atomicfile.Replace(path, func(w io.Writer) error {
+		_, err := io.WriteString(w, content)
+		return err
+	})
+	return err
 }

@@ -278,6 +278,7 @@ type openProject struct {
 	// directory is moved (e.g. mid sample reset). Reset when the file is back.
 	missingWarned atomic.Bool
 	lastRunError  atomic.Pointer[RunError]
+	filtersMu     sync.RWMutex
 
 	// What the Overview shows from this session's own reads (mapsummary.go): when
 	// the store sync last found the block cache current, and the counts of
