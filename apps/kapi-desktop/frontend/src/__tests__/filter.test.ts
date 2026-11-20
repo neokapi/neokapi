@@ -24,13 +24,19 @@ describe("isEmptyFilter", () => {
 
 describe("matchGlob", () => {
   it("matches a bare glob anywhere in the tree", () => {
+    expect(matchGlob("*.json", "en.json")).toBe(true);
     expect(matchGlob("*.json", "src/locales/en.json")).toBe(true);
+    expect(matchGlob("api.md", "docs/otherapi.md")).toBe(false);
+    expect(matchGlob("**/api.md", "docs/otherapi.md")).toBe(false);
     expect(matchGlob("*.json", "src/readme.md")).toBe(false);
   });
   it("respects path separators with * vs **", () => {
     expect(matchGlob("src/*.json", "src/en.json")).toBe(true);
     expect(matchGlob("src/*.json", "src/locales/en.json")).toBe(false);
     expect(matchGlob("src/**/*.json", "src/locales/en.json")).toBe(true);
+    expect(matchGlob("src/**/*.json", "src/en.json")).toBe(true);
+    expect(matchGlob("**/{api,guide}.[md][dx]", "api.md")).toBe(true);
+    expect(matchGlob("[broken", "docs/[broken")).toBe(false);
   });
   it("empty glob matches everything", () => {
     expect(matchGlob("", "anything")).toBe(true);
@@ -48,7 +54,10 @@ describe("filterFiles", () => {
     expect(filterFiles(files, null)).toHaveLength(3);
   });
   it("narrows by collection", () => {
-    const out = filterFiles(files, f({ collections: ["Website"] }));
+    const out = filterFiles(
+      [...files, { path: "/p/api.md", relative: "api.md" }],
+      f({ collections: ["Website"] }),
+    );
     expect(out.map((x) => x.relative)).toEqual(["docs/a.md", "docs/api.md"]);
   });
   it("narrows by glob within collections", () => {

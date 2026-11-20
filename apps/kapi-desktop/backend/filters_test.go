@@ -228,6 +228,7 @@ func TestConcurrentFilterEditsAcrossCheckouts(t *testing.T) {
 func TestProjectFilter_MatchesFile(t *testing.T) {
 	f := ProjectFilter{Collections: []string{"Website"}, Glob: "**/api*.md"}
 	assert.True(t, f.MatchesFile("Website", "docs/api-reference.md"))
+	assert.False(t, f.MatchesFile("", "docs/api-reference.md"), "no collection")
 	assert.False(t, f.MatchesFile("Store", "docs/api-reference.md"), "wrong collection")
 	assert.False(t, f.MatchesFile("Website", "docs/guide.md"), "glob miss")
 
@@ -241,6 +242,12 @@ func TestMatchGlobPath(t *testing.T) {
 	assert.False(t, matchGlobPath("src/*.json", "src/locales/en.json"), "* stays within a segment")
 	assert.True(t, matchGlobPath("src/**/*.json", "src/locales/en.json"), "** crosses segments")
 	assert.True(t, matchGlobPath("", "anything"), "empty glob matches all")
+	assert.True(t, matchGlobPath("*.json", "en.json"))
+	assert.True(t, matchGlobPath("src/**/*.json", "src/en.json"))
+	assert.False(t, matchGlobPath("api.md", "docs/otherapi.md"))
+	assert.False(t, matchGlobPath("**/api.md", "docs/otherapi.md"))
+	assert.True(t, matchGlobPath("**/{api,guide}.[md][dx]", "api.md"))
+	assert.False(t, matchGlobPath("[broken", "docs/[broken"))
 }
 
 func TestProjectFilters_NoProjectIsEmpty(t *testing.T) {

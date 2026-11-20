@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -266,56 +265,22 @@ func (f ProjectFilter) FilesNarrowed() bool {
 // MatchesFile reports whether a resolved file (by its collection and
 // project-relative path) passes the filter's collection + glob narrowing.
 func (f ProjectFilter) MatchesFile(collection, relative string) bool {
-	if len(f.Collections) > 0 && collection != "" {
-		found := slices.Contains(f.Collections, collection)
-		if !found {
-			return false
-		}
-	}
-	if g := strings.TrimSpace(f.Glob); g != "" && !matchGlobPath(g, relative) {
+	if len(f.Collections) > 0 && (collection == "" || !slices.Contains(f.Collections, collection)) {
 		return false
 	}
-	return true
+	return matchGlobPath(f.Glob, relative)
 }
 
-// matchGlobPath matches a project-relative path against a simple glob, mirroring
-// the frontend (lib/filter.ts): `*` within a segment, `**` across segments, `?`
-// one non-separator char; a glob with no `/` matches anywhere in the tree.
+// matchGlobPath matches a bare pattern at any depth of the project tree.
 func matchGlobPath(glob, path string) bool {
-	g := strings.TrimSpace(glob)
-	if g == "" {
+	pattern := strings.TrimSpace(glob)
+	if pattern == "" {
 		return true
 	}
-	if !strings.Contains(g, "/") {
-		g = "**/" + g
+	if !strings.Contains(pattern, "/") {
+		pattern = "**/" + pattern
 	}
-	var b strings.Builder
-	b.WriteString("^")
-	for i := 0; i < len(g); i++ {
-		c := g[i]
-		switch {
-		case c == '*':
-			if i+1 < len(g) && g[i+1] == '*' {
-				b.WriteString(".*")
-				i++
-			} else {
-				b.WriteString("[^/]*")
-			}
-		case c == '?':
-			b.WriteString("[^/]")
-		case strings.IndexByte(`\^$.|+()[]{}`, c) >= 0:
-			b.WriteByte('\\')
-			b.WriteByte(c)
-		default:
-			b.WriteByte(c)
-		}
-	}
-	b.WriteString("$")
-	re, err := regexp.Compile(b.String())
-	if err != nil {
-		return true // a malformed glob shouldn't hide files
-	}
-	return re.MatchString(path)
+	return project.MatchGlob(pattern, path)
 }
 
 // ─── shared filters: the project's context store ────────────────────────────

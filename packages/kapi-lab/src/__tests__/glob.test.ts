@@ -23,6 +23,23 @@ describe("glob", () => {
     );
   });
 
+  it.each([
+    ["**/api.md", "api.md", true],
+    ["**/api.md", "docs/api.md", true],
+    ["**/api.md", "docs/otherapi.md", false],
+    ["src/**/*.json", "src/en.json", true],
+    ["src/*.json", "src/locale/en.json", false],
+    ["a**b", "a/x/b", false],
+    ["docs/**", "docs", true],
+    ["**/{api,guide}.[!x]d", "docs/api.md", true],
+    ["?.json", "𐐀.json", true],
+    ["[z-a].json", "b.json", false],
+    ["[unfinished", "[unfinished", false],
+    ["{api,guide", "{api,guide", false],
+  ])("matches %s against %s", (pattern, path, matched) => {
+    expect(globMatches(pattern, path)).toBe(matched);
+  });
+
   it("matches brace alternation", () => {
     expect(matchGlob("*.{json,xliff}", ["a.json", "b.xliff", "c.xml"])).toEqual([
       "a.json",
