@@ -84,6 +84,31 @@ describe("VirtualList", () => {
     expect(document.querySelectorAll("[data-testid^='row-']").length).toBe(120);
   });
 
+  it("follows selection and imperative navigation in a plain list", () => {
+    const scroll = vi.fn();
+    const ref = createRef<VirtualListHandle>();
+    const list = (index: number) => (
+      <VirtualList
+        ref={ref}
+        items={rows(12)}
+        estimateSize={40}
+        scrollToIndex={index}
+        renderRow={(row, { rowProps }) => (
+          <div key={row.id} {...rowProps}>
+            {row.label}
+          </div>
+        )}
+      />
+    );
+    const { rerender } = render(list(0));
+    const selected = screen.getByText("Row 8");
+    selected.scrollIntoView = scroll;
+    rerender(list(8));
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+    ref.current?.scrollToIndex(8, { align: "center" });
+    expect(scroll).toHaveBeenCalledWith({ block: "center", inline: "nearest" });
+  });
+
   it("exposes an imperative scrollToIndex handle", () => {
     const ref = createRef<VirtualListHandle>();
     render(

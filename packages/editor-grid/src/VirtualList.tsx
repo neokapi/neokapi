@@ -1,5 +1,5 @@
 import {
-  forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -40,6 +40,7 @@ export interface VirtualListHandle {
 }
 
 export interface VirtualListProps<T> {
+  ref?: Ref<VirtualListHandle>;
   /** The full row set. Only the rows near the viewport are mounted. */
   items: T[];
   /** Estimated row height in px (used before a row is measured). */
@@ -93,25 +94,23 @@ export interface VirtualListProps<T> {
  * via `renderRow`, keeping each surface's cells, handlers, and test hooks
  * exactly as they were (Apache-2.0 — imports only React + the MIT virtualizer).
  */
-function VirtualListInner<T>(
-  {
-    items,
-    estimateSize,
-    overscan = 12,
-    getItemKey,
-    initialRect,
-    scrollToIndex,
-    scrollAlign = "auto",
-    virtualizeThreshold = 80,
-    className,
-    dataSlot,
-    dataTestId,
-    header,
-    empty,
-    renderRow,
-  }: VirtualListProps<T>,
-  ref: Ref<VirtualListHandle>,
-) {
+export function VirtualList<T>({
+  ref,
+  items,
+  estimateSize,
+  overscan = 12,
+  getItemKey,
+  initialRect,
+  scrollToIndex,
+  scrollAlign = "auto",
+  virtualizeThreshold = 80,
+  className,
+  dataSlot,
+  dataTestId,
+  header,
+  empty,
+  renderRow,
+}: VirtualListProps<T>) {
   const parentRef = useRef<HTMLDivElement>(null);
   const wantVirtual = items.length > virtualizeThreshold;
 
@@ -131,23 +130,27 @@ function VirtualListInner<T>(
   // there so nothing is silently dropped.
   const useVirtual = wantVirtual && virtualItems.length > 0;
 
-  // Selection-follow: scroll the requested index into view. The row may not be
-  // mounted yet, so route through the virtualizer.
-  const { scrollToIndex: scrollIndex } = virtualizer;
-  useEffect(() => {
-    if (!useVirtual) return;
-    if (scrollToIndex === undefined || scrollToIndex < 0) return;
-    scrollIndex(scrollToIndex, { align: scrollAlign });
-  }, [scrollToIndex, scrollAlign, useVirtual, scrollIndex]);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      scrollToIndex: (index: number, opts?: { align?: ScrollAlign }) =>
-        virtualizer.scrollToIndex(index, { align: opts?.align ?? "auto" }),
-    }),
-    [virtualizer],
+  const scrollToRow = useCallback(
+    (index: number, opts?: { align?: ScrollAlign }) => {
+      if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+      const align = opts?.align ?? "auto";
+      if (useVirtual) {
+        virtualizer.scrollToIndex(index, { align });
+      } else {
+        parentRef.current?.querySelector<HTMLElement>(`[data-index="${index}"]`)?.scrollIntoView?.({
+          block: align === "auto" ? "nearest" : align,
+          inline: "nearest",
+        });
+      }
+    },
+    [items.length, useVirtual, virtualizer],
   );
+
+  useEffect(() => {
+    if (scrollToIndex !== undefined) scrollToRow(scrollToIndex, { align: scrollAlign });
+  }, [scrollToIndex, scrollAlign, scrollToRow]);
+
+  useImperativeHandle(ref, () => ({ scrollToIndex: scrollToRow }), [scrollToRow]);
 
   const keyFor = (index: number): string | number => getItemKey?.(index, items[index]) ?? index;
 
@@ -190,11 +193,3 @@ function VirtualListInner<T>(
     </div>
   );
 }
-
-/**
- * Generic-friendly wrapper: `forwardRef` erases the type parameter, so re-cast
- * to keep `VirtualList<T>` inference at call sites.
- */
-export const VirtualList = forwardRef(VirtualListInner) as <T>(
-  props: VirtualListProps<T> & { ref?: Ref<VirtualListHandle> },
-) => ReactNode;
