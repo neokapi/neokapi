@@ -304,7 +304,7 @@ func TestRunFlowCancelWaitsForTermination(t *testing.T) {
 	tab, root := newConvergenceProject(t, app)
 	started := make(chan struct{})
 	app.toolReg.RegisterWithSchema("wait-for-cancel", func() tool.Tool {
-		return &waitForCancelTool{BaseTool: tool.BaseTool{ToolName: "wait-for-cancel"}, started: started}
+		return &waitForCancelTool{ToolName: "wait-for-cancel", started: started}
 	}, app.toolReg.Schema("pseudo-translate"))
 	require.NoError(t, app.SaveFlow(tab.ID, "waiting", &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "wait-for-cancel"}}}))
 	require.NoError(t, app.RunFlow(tab.ID, "waiting", []string{filepath.Join(root, "locales", "en.json")}, nil))
