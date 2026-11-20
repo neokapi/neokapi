@@ -71,6 +71,18 @@ describe("project undo history", () => {
     expect(result.current.canUndo).toBe(false);
   });
 
+  it("replaces a reloaded tab's draft and undo history while another tab is visible", () => {
+    const { result, rerender } = renderHistory("a");
+    act(() => result.current.set({ ...base, name: "Old draft" }));
+    rerender({ tab: "b" });
+    act(() => result.current.replace({ ...base, name: "Bundled sample" }, "a"));
+    expect(result.current.project).toEqual(base);
+    rerender({ tab: "a" });
+    expect(result.current.project.name).toBe("Bundled sample");
+    expect(result.current.isDirty).toBe(false);
+    expect(result.current.canUndo).toBe(false);
+  });
+
   it("keeps each tab's history when switching tabs", () => {
     const { result, rerender } = renderHistory("tab-1");
     act(() => result.current.set({ ...base, name: "One" }));

@@ -86,12 +86,12 @@ export function useProjectHistory(initialProject: KapiProject, tabId: string | n
   );
 
   const replace = useCallback(
-    (project: KapiProject) => {
-      clearTimeout(entry.timer);
-      histories.set(key, { timeline: makeTravels(project), saved: serialize(project) });
+    (project: KapiProject, id = key) => {
+      clearTimeout(histories.get(id)?.timer);
+      histories.set(id, { timeline: makeTravels(project), saved: serialize(project) });
       refresh();
     },
-    [histories, key, entry],
+    [histories, key],
   );
 
   const undo = useCallback(() => {

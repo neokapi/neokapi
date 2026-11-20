@@ -49,11 +49,7 @@ export default function App() {
 }
 
 function AppInner() {
-  // Subscribe the root to neokapi-i18n's translation store so the tree
-  // re-renders when the user toggles UI language from Settings —
-  // plugin-injected __t/__tx calls read the module-level dict, so a
-  // root re-render is enough to roll out the new language without
-  // waiting for navigation.
+  // Refresh the tree when the translation dictionary changes.
   useNeokapi();
 
   const { showError } = useError();
@@ -83,7 +79,7 @@ function AppInner() {
     },
     [workspace, standings, tm],
   );
-  const { hasActive: hasRunningFlow } = useJobFeed();
+  const { activeJob, hasActive: hasRunningFlow } = useJobFeed();
 
   const emptyProject: KapiProject = { version: "v1", name: "" };
   const history = useProjectHistory(tm.activeTab?.project ?? emptyProject, tm.activeTabID);
@@ -165,15 +161,15 @@ function AppInner() {
 
   const handleCloseTab = useCallback(
     (tabID: string) => {
-      if (hasRunningFlow) setPendingFlowCloseTabID(tabID);
+      if (activeJob?.tabID === tabID) setPendingFlowCloseTabID(tabID);
       else confirmClose(tabID);
     },
-    [confirmClose, hasRunningFlow],
+    [confirmClose, activeJob],
   );
 
   const handleFlowCancelAndClose = useCallback(async () => {
     if (!pendingFlowCloseTabID) return;
-    await api.cancelRun();
+    await api.cancelProjectRun(pendingFlowCloseTabID);
     setPendingFlowCloseTabID(null);
     confirmClose(pendingFlowCloseTabID);
   }, [pendingFlowCloseTabID, confirmClose]);
@@ -213,10 +209,7 @@ function AppInner() {
   });
 
   // --- Render ---
-  // macOS uses a hidden-inset titlebar (traffic lights overlay the top-left), so
-  // the sidebar reserves a top strip and the top bar insets its left content to
-  // clear them. Windows/Linux have a native frame — drop those insets so the
-  // sidebar's Home icon sits at the very top instead of an empty gap.
+  // The hidden macOS title bar places the window controls over the sidebar.
   const isMac = isMacDesktop();
   // The Active Filter is per-project-tab and applies with a project loaded.
   const filterTabID = tm.activeTabID;
@@ -376,13 +369,11 @@ function AppInner() {
                   className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
                   style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                 >
-                  {filterEnabled && <FilterMenu project={history.project} />}
+                  {filterEnabled && <FilterMenu key={tm.activeTabID} project={history.project} />}
                   <JobFeedButton
-                    onViewJob={() => {
-                      // Navigate to runner view for the job's flow.
-                      if (tm.activeTabID) {
-                        tm.navigate("runner");
-                      }
+                    canViewJob={(job) => tm.tabs.some((tab) => tab.info.id === job.tabID)}
+                    onViewJob={(job) => {
+                      if (job.tabID) tm.openTabOn(job.tabID, `runner:${job.id}`);
                     }}
                   />
                   <AIActivityButton />
@@ -413,7 +404,10 @@ function AppInner() {
                   onNewProject={() => tm.setShowNewProjectForm(true)}
                   onOpenProject={tm.openProject}
                   onCreateSampleProject={tm.createSampleProject}
-                  onResetSample={tm.resetSample}
+                  onResetSample={async (id) => {
+                    const project = await tm.resetSample(id);
+                    if (project) history.replace(project, id);
+                  }}
                   onOpenPath={(path) => void tm.openRecent(path)}
                   openScreen={openScreen}
                 />
@@ -421,7 +415,6 @@ function AppInner() {
             </div>
           </div>
 
-          {/* Save bar — full width below sidebar + content */}
           {tm.activeTab && (
             <SaveBar key={tm.activeTabID} isDirty={history.isDirty} onSave={handleSaveProject} />
           )}
