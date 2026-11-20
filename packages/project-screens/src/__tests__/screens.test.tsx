@@ -59,6 +59,55 @@ describe("the screens over a read-only port", () => {
   });
 });
 
+describe("Reader scope", () => {
+  it("discards a pending fix when the file changes", async () => {
+    let finish!: (file: typeof READER_WITH_FIXES) => void;
+    const fixFinding = vi.fn(
+      () =>
+        new Promise<typeof READER_WITH_FIXES>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const port = readOnly({
+      fixFinding,
+      readerFile: async (path) => ({ ...READER_WITH_FIXES, path }),
+    });
+    const reader = (path: string) => <ReaderScreen port={port} path={path} navigate={vi.fn()} />;
+    const { rerender } = render(reader("first.md"));
+    await screen.findByRole("heading", { name: "first.md" });
+    await userEvent.click(screen.getAllByRole("button", { name: "Fix" })[0]);
+    rerender(reader("second.md"));
+    await screen.findByRole("heading", { name: "second.md" });
+    await act(async () => finish(READER_WITH_FIXES));
+    expect(screen.getByRole("heading", { name: "second.md" })).toBeInTheDocument();
+  });
+
+  it("ignores earlier reads after a newer refresh or a switch to another port", async () => {
+    const pending: ((file: typeof READER_WITH_FIXES) => void)[] = [];
+    let refresh!: (scope: "reader") => void;
+    const port = readOnly({
+      readerFile: () => new Promise((resolve) => pending.push(resolve)),
+      subscribe: (listener) => {
+        refresh = listener;
+        return () => {};
+      },
+    });
+    const reader = (current: ProjectScreensPort) => (
+      <ReaderScreen port={current} path="same.md" navigate={vi.fn()} />
+    );
+    const { rerender } = render(reader(port));
+    act(() => refresh("reader"));
+    await act(async () => pending[1]({ ...READER_WITH_FIXES, path: "fresh.md" }));
+    await act(async () => pending[0]({ ...READER_WITH_FIXES, path: "stale.md" }));
+    expect(screen.getByRole("heading", { name: "fresh.md" })).toBeInTheDocument();
+    act(() => refresh("reader"));
+    rerender(reader(readOnly({ readerFile: () => new Promise(() => {}) })));
+    expect(screen.queryByRole("heading", { name: "fresh.md" })).toBeNull();
+    await act(async () => pending[2](READER_WITH_FIXES));
+    expect(screen.queryByRole("heading", { name: READER_WITH_FIXES.path })).toBeNull();
+  });
+});
+
 describe("the screens over a port that acts", () => {
   it("run the checks and read the Overview again", async () => {
     const overviewSummary = vi.fn(async () => MAP_PENDING);

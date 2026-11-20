@@ -3,7 +3,7 @@
 // the actions the port implements. A host with a data layer of its own can
 // draw the views directly instead.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ErrorNotice, LoadingSpinner } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { DecideView, answerArgs } from "./DecideView";
@@ -22,6 +22,14 @@ import type {
 /** How long a typed form rests before what keeping it does is read. */
 const OTHER_DEBOUNCE_MS = 250;
 
+function PortScope({ port, children }: { port: ProjectScreensPort; children: ReactNode }) {
+  const [scope, setScope] = useState({ port, version: 0 });
+  if (scope.port !== port) {
+    setScope({ port, version: scope.version + 1 });
+  }
+  return <Fragment key={scope.version}>{children}</Fragment>;
+}
+
 /**
  * One read through the port: its answer, its error, and a way to read again.
  * It reads again when the port reports a change to what it reads, and when
@@ -33,24 +41,42 @@ function usePortRead<T>(
   read: () => Promise<T>,
   of = "",
 ) {
-  const [data, setData] = useState<T | null>(null);
+  const [data, storeData] = useState<T | null>(null);
+  const sequence = useRef(0);
+  const mounted = useRef(false);
+  const setData = (next: T) => {
+    sequence.current++;
+    storeData(next);
+    setError(null);
+  };
   const [error, setError] = useState<unknown>(null);
   const readRef = useRef(read);
   readRef.current = read;
   const reload = useCallback(() => {
+    if (!mounted.current) return;
+    const request = ++sequence.current;
     readRef.current().then(
       (next) => {
-        setData(next);
+        if (request !== sequence.current) return;
+        storeData(next);
         setError(null);
       },
-      (err: unknown) => setError(err),
+      (err: unknown) => {
+        if (request === sequence.current) setError(err);
+      },
     );
   }, []);
   useEffect(() => {
+    mounted.current = true;
     reload();
-    return port.subscribe?.((changed) => {
+    const unsubscribe = port.subscribe?.((changed) => {
       if (changed === what) reload();
     });
+    return () => {
+      mounted.current = false;
+      sequence.current++;
+      unsubscribe?.();
+    };
   }, [port, what, reload, of]);
   return { data, setData, error, reload };
 }
@@ -76,7 +102,15 @@ export interface OverviewScreenProps
 }
 
 /** The Overview, read through the port. */
-export function OverviewScreen({ port, projectName, ...rest }: OverviewScreenProps) {
+export function OverviewScreen(props: OverviewScreenProps) {
+  return (
+    <PortScope port={props.port}>
+      <OverviewContent {...props} />
+    </PortScope>
+  );
+}
+
+function OverviewContent({ port, projectName, ...rest }: OverviewScreenProps) {
   const { data, error, reload } = usePortRead(port, "overview", () => port.overviewSummary());
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<unknown>(null);
@@ -123,7 +157,15 @@ function filed(answer: ReaderFile | ReaderFixFiled): answer is ReaderFixFiled {
 }
 
 /** The Reader on one file, read through the port. */
-export function ReaderScreen({ port, path, ...rest }: ReaderScreenProps) {
+export function ReaderScreen(props: ReaderScreenProps) {
+  return (
+    <PortScope port={props.port}>
+      <ReaderContent key={props.path} {...props} />
+    </PortScope>
+  );
+}
+
+function ReaderContent({ port, path, ...rest }: ReaderScreenProps) {
   const { data, setData, error } = usePortRead(port, "reader", () => port.readerFile(path), path);
   // A fix answers with the file read again, or with the proposals it filed.
   // Its refusals are kept apart from the read: a later read carries no
@@ -184,10 +226,17 @@ export interface DecideScreenProps extends ScreenNavigation {
 }
 
 /** Decide for one project, read through the port. */
-export function DecideScreen({ port, assignedToMe, ...rest }: DecideScreenProps) {
+export function DecideScreen(props: DecideScreenProps) {
+  return (
+    <PortScope port={props.port}>
+      <DecideContent {...props} />
+    </PortScope>
+  );
+}
+
+function DecideContent({ port, assignedToMe, ...rest }: DecideScreenProps) {
   const { data, error, reload } = usePortRead(port, "decide", () => port.decideView());
   const decide = port.decide?.bind(port);
-  const decideConsequence = port.decideConsequence?.bind(port);
   const assign = port.assign?.bind(port);
 
   // The members a question can be assigned to, read once per port: null
@@ -217,18 +266,24 @@ export function DecideScreen({ port, assignedToMe, ...rest }: DecideScreenProps)
     text: string;
   } | null>(null);
   useEffect(() => {
-    if (!decideConsequence || !typed?.id || !typed.form) return;
+    if (!port.decideConsequence || !typed?.id || !typed.form) return;
+    const readConsequence = port.decideConsequence.bind(port);
     let current = true;
     const handle = window.setTimeout(() => {
-      void decideConsequence(typed.id, typed.form).then((text) => {
-        if (current) setConsequence({ ...typed, text });
-      });
+      void readConsequence(typed.id, typed.form).then(
+        (text) => {
+          if (current) setConsequence({ ...typed, text });
+        },
+        () => {
+          if (current) setConsequence(null);
+        },
+      );
     }, OTHER_DEBOUNCE_MS);
     return () => {
       current = false;
       window.clearTimeout(handle);
     };
-  }, [typed, decideConsequence]);
+  }, [typed, port]);
 
   return (
     <DecideView
@@ -272,7 +327,15 @@ export interface KeptRulesScreenProps {
 }
 
 /** Kept by, read through the port. A port with no keptRules draws nothing. */
-export function KeptRulesScreen({ port }: KeptRulesScreenProps) {
+export function KeptRulesScreen(props: KeptRulesScreenProps) {
+  return (
+    <PortScope port={props.port}>
+      <KeptRulesContent {...props} />
+    </PortScope>
+  );
+}
+
+function KeptRulesContent({ port }: KeptRulesScreenProps) {
   const read = port.keptRules?.bind(port);
   const { data, error } = usePortRead(port, "decide", () => read?.() ?? Promise.resolve([]));
   if (!read) return null;
