@@ -165,6 +165,12 @@ describe("homeStep", () => {
     expect(homeStep(withProjects(idle))).toMatchObject({ kind: "waiting", waiting: [quota] });
   });
 
+  it("reads a plan cached by an older update without its waiting list", () => {
+    const old = proj("acme", "p1");
+    delete (old.plan as { waiting?: unknown }).waiting;
+    expect(() => homeStep(withProjects(old))).not.toThrow();
+  });
+
   it("offers nothing when nothing waits", () => {
     expect(homeStep(withProjects(proj("acme", "p1")))).toBeNull();
     expect(homeStep({ context: [], languages: [], projects: [] })).toBeNull();
