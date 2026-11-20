@@ -6,7 +6,7 @@ import {
   type ReviewLanguages,
 } from "@neokapi/bowrain-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import type { ReactNode } from "react";
 import { Alert } from "react-native";
@@ -30,6 +30,7 @@ const mockSetFollowed = jest.fn<Promise<ReviewLanguages>, unknown[]>();
 const mockSetProject = jest.fn<Promise<ReviewLanguages>, unknown[]>();
 const mockPlan = jest.fn();
 const mockInvolve = jest.fn();
+const mockOverrides = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     client: {
@@ -39,6 +40,7 @@ jest.mock("../lib/auth", () => ({
       setProjectLanguage: (...a: unknown[]) => mockSetProject(...a),
       reviewPlan: (...a: unknown[]) => mockPlan(...a),
       setInvolvement: (...a: unknown[]) => mockInvolve(...a),
+      setInvolvementOverrides: (...a: unknown[]) => mockOverrides(...a),
     },
   }),
 }));
@@ -186,12 +188,64 @@ describe("the languages screen", () => {
     await render(wrap(<ReviewLanguagesScreen />));
     await fireEvent.press(await screen.findByTestId("follow-involvement-every"));
     expect(mockInvolve).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, "every");
-    expect(screen.getByTestId("follow-involvement-every").props.accessibilityState).toEqual({
-      selected: true,
-    });
-    expect(screen.getByTestId("follow-involvement-context").props.accessibilityState).toEqual({
-      selected: false,
-    });
+    // The optimistic update lands after the query is cancelled, a microtask
+    // later; the save is still unanswered.
+    await waitFor(() =>
+      expect(screen.getByTestId("follow-involvement-every").props.accessibilityState.selected).toBe(
+        true,
+      ),
+    );
+    expect(screen.getByTestId("follow-involvement-context").props.accessibilityState.selected).toBe(
+      false,
+    );
+    answer();
+  });
+
+  it("lets a manager set the involvement for a product or channel", async () => {
+    mockLanguages.mockResolvedValue(languages({ can_manage: true }));
+    mockPlan.mockResolvedValue(
+      planFromServer({
+        stream: "main",
+        involvement: "context",
+        overrides: [{ coordinates: { product: "docs" }, involvement: "context", collections: 1 }],
+        next: "",
+        coordinates: {
+          source_language: "en",
+          confirmed: true,
+          points: [
+            { collection: "docs", coordinates: { product: "docs" } },
+            { collection: "app-ui", coordinates: { product: "app", channel: "ui" } },
+          ],
+        },
+        context: { waiting: 0, concepts: 0 },
+        exceptions: {},
+      }),
+    );
+    let answer: () => void = () => {};
+    mockOverrides.mockReturnValue(new Promise<void>((resolve) => (answer = resolve)));
+    await render(wrap(<ReviewLanguagesScreen />));
+    const docs = await screen.findByTestId("follow-override-product=docs");
+    expect(docs.props.accessibilityLabel).toBe("docs: Context");
+
+    await fireEvent.press(screen.getByTestId("follow-override-add"));
+    await fireEvent.press(screen.getByTestId("follow-override-point-channel=ui,product=app"));
+    await fireEvent.press(screen.getByTestId("follow-override-level-every"));
+    expect(mockOverrides).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, [
+      { coordinates: { product: "docs" }, involvement: "context" },
+      { coordinates: { product: "app", channel: "ui" }, involvement: "every" },
+    ]);
+    // The row appears on the tap, before the save answers.
+    expect(
+      (await screen.findByTestId("follow-override-channel=ui,product=app")).props
+        .accessibilityLabel,
+    ).toBe("app · ui: Every translation");
+
+    await fireEvent.press(screen.getByTestId("follow-override-product=docs"));
+    await fireEvent.press(screen.getByTestId("follow-override-remove"));
+    expect(mockOverrides).toHaveBeenLastCalledWith({ workspace: "ws", project: "p" }, [
+      { coordinates: { product: "app", channel: "ui" }, involvement: "every" },
+    ]);
+    await waitFor(() => expect(screen.queryByTestId("follow-override-product=docs")).toBeNull());
     answer();
   });
 

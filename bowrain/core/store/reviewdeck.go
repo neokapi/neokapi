@@ -21,6 +21,12 @@ type ReviewDeckQuery struct {
 	// ExcludeCollections leaves out the items of these collections: the
 	// source-only ones, whose content has no target language.
 	ExcludeCollections []string
+	// OnlyCollections, when set, keeps the items of these collections alone
+	// ("" names the items in no collection).
+	OnlyCollections []string
+	// Hold narrows what ListReviewDeck deals while the review plan holds
+	// translations back. Counts ignore it.
+	Hold *ReviewDeckHold
 	// HighCollections and LowCollections are dealt first and last: the
 	// collections whose review priority is high or low. The rest are normal.
 	HighCollections []string
@@ -33,6 +39,15 @@ type ReviewDeckQuery struct {
 	// of the pages and counted as unclassified, so a caller classifies with
 	// Rule empty.
 	Rule string
+}
+
+// ReviewDeckHold is a hold on a deck's cards: outside the collections Open
+// names, only the translations of one group rank are dealt.
+type ReviewDeckHold struct {
+	Rank int
+	// Open names the collections the hold does not reach ("" for the items
+	// in no collection).
+	Open []string
 }
 
 // ReviewDeckBasis is what a translation's facts are computed from, as the

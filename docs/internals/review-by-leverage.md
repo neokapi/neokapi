@@ -218,10 +218,51 @@ on a project of this size, and it is the setting where the founder's attention
 has the most reach.
 
 Involvement is a Bowrain project setting, set by a manager on the project's
-languages screen. A per-coordinate involvement is still to build, as part of
-the same project setting: a product's public channels at `interfaces`, its
-reference docs at `context`. It belongs to a point in the context graph, not
-to a file.
+languages screen. It is never a recipe key: team settings live on the Bowrain
+project.
+
+### Involvement per coordinate
+
+The project's involvement is the default. A manager may override it at a
+point of the project's context space: `product=docs` at `context`,
+`product=app` with `channel=ui` at `every`
+(`bowrain/server/review_plan_involvement.go`).
+
+- **Storage.** The project property `review_involvement_overrides` holds the
+  list as JSON: `[{"coordinates": {"product": "app"}, "involvement":
+  "every"}]`. A project holds a handful, every plan request loads the project
+  already, and no query joins on them, so a table would add a migration and
+  a read for nothing.
+- **API.** `GET /:ws/:id/review/plan/involvement` answers the involvement, the
+  overrides with the collections each decides, and the axes an override may
+  name with the values the main stream's collections hold. `PUT
+  .../involvement/overrides {"overrides": [...]}` replaces the list and
+  answers the same. It needs `manage_project`, refuses an axis no collection
+  declares, a value no collection holds, a level other than the three, an
+  override with no axis, and two overrides at the same point (400), and
+  records the caller in `review_involvement_set_by`, as setting the
+  involvement does.
+- **Resolution.** An override applies to a collection when every axis it
+  names has the collection's value. Of those that apply, the one naming the
+  most axes wins; between two naming as many, the deeper involvement wins
+  (`every`, then `interfaces`, then `context`), so a tie never leaves people
+  less to review than either override asks. A collection no override
+  reaches, and a block in no collection, takes the project's involvement.
+- **Where it applies.** Involvement resolves once per collection, from the
+  collection's coordinates, never per block. The plan's points carry the
+  involvement in force (`coordinates.points[].involvement`), and the plan
+  lists the overrides (`overrides`). The deck counts run once, or twice
+  when some collections are under `every` and others are not: once over the
+  collections a hold reaches, once over the `every` ones
+  (`ReviewDeckQuery.OnlyCollections`). Held translations, `settleable` and
+  the language decks count the first part only; a held deck deals the desk
+  group outside the `every` collections and every group inside them
+  (`ReviewDeckQuery.Hold`). The page sample applies to the collections under
+  `context`, every page elsewhere. The settle pass, by hand or after a run,
+  leaves the items of the `every` collections alone, and `policy.settle` is
+  `none` only when the project and every translated collection are under
+  `every`. At 70,000 blocks and five languages the plan stays near 215 ms
+  with two overrides in force (`TestReviewPlan_Scale`).
 
 Before a gate is set, the review plan shows what each involvement would ask of
 the reviewer at the project's current size: how many context cards, how many

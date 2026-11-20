@@ -18,11 +18,13 @@ import (
 )
 
 // The review plan's settle pass runs on its own after a run drafts
-// translations. When a convergence run that produced work completes on the
-// plan's stream, the server runs the same pass the plan's settle step runs by
-// hand (settleReviewPlan), when the policy in force leaves translations to
+// translations. A convergence run that produced work completes on the plan's
+// stream, and the server runs the same pass the settle step runs by hand
+// (settleReviewPlan). It runs when the policy in force leaves translations to
 // the checks: a first pass, or a pass under the full policy once the context
-// is decided. The pass is credited to the person who last set the project's
+// is decided.
+
+// The pass is credited to the person who last set the project's
 // involvement, or, when nobody has, to the person who confirmed the
 // coordinates. That person must still hold the permission the settle step
 // asks for; the plan says why the pass does not run when nobody qualifies.
@@ -108,7 +110,8 @@ func lastSettleOf(p *platstore.Project) *planSettleResultDTO {
 // project, and the first pass when it is one. The settle step and the pass
 // after a run both call it.
 //
-// It refuses under the involvement every (errSettleNone), once the first
+// It leaves out the collections under every, and refuses when the whole
+// project is under every (errSettleNone), once the first
 // pass is taken while the context is open (errSettleHeld), and while
 // another pass runs for the project (errSettleBusy).
 func (s *Server) settleReviewPlan(c echo.Context, ws *platauth.Workspace, projectID, stream string, locales []string, automatic bool) (reviewPlanSettleResponse, error) {
@@ -124,11 +127,15 @@ func (s *Server) settleReviewPlan(c echo.Context, ws *platauth.Workspace, projec
 	if err != nil || proj == nil {
 		return reviewPlanSettleResponse{}, errNoProject
 	}
+	_, pi, err := s.involvementScopeOf(ctx, proj, stream)
+	if err != nil {
+		return reviewPlanSettleResponse{}, err
+	}
 	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
 	if err != nil {
 		return reviewPlanSettleResponse{}, err
 	}
-	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), counts.Untranslated)
+	policy, err := s.planPolicy(ctx, ws, proj, pi, counts.Untranslated)
 	if err != nil {
 		return reviewPlanSettleResponse{}, err
 	}
@@ -138,7 +145,9 @@ func (s *Server) settleReviewPlan(c echo.Context, ws *platauth.Workspace, projec
 	case settleHeld:
 		return reviewPlanSettleResponse{}, errSettleHeld
 	}
-	resp, err := s.approvePassing(c, proj, stream, locales, []string{reasonReviewPolicy})
+	// The collections under every, by the project's involvement or an
+	// override at their point, are a person's to establish.
+	resp, err := s.approvePassing(c, proj, stream, locales, []string{reasonReviewPolicy}, pi.every())
 	if err != nil {
 		return reviewPlanSettleResponse{}, err
 	}
@@ -292,12 +301,17 @@ func (s *Server) settleAfterRun(ctx context.Context, projectID, stream string) *
 		slog.WarnContext(ctx, "review settle: could not load the workspace", "project", projectID, "error", err)
 		return nil
 	}
+	_, pi, err := s.involvementScopeOf(ctx, proj, reviewInboxStream)
+	if err != nil {
+		slog.WarnContext(ctx, "review settle: could not read the involvement", "project", projectID, "error", err)
+		return nil
+	}
 	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
 	if err != nil {
 		slog.WarnContext(ctx, "review settle: could not count the context", "project", projectID, "error", err)
 		return nil
 	}
-	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), counts.Untranslated)
+	policy, err := s.planPolicy(ctx, ws, proj, pi, counts.Untranslated)
 	if err != nil {
 		slog.WarnContext(ctx, "review settle: could not read the policy", "project", projectID, "error", err)
 		return nil

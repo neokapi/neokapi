@@ -174,7 +174,7 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				proj.Saved = true
 			}
 			proj.Followed = append([]string{}, locales...)
-			counts, err := s.inboxDeckCounts(ctx, p.ID, locales, policy, decks)
+			counts, err := s.inboxDeckCounts(ctx, p, locales, policy, decks)
 			if err != nil {
 				return serverErr(c, err)
 			}
@@ -199,12 +199,9 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 					ProjectName:   p.Name,
 					Stream:        reviewInboxStream,
 					Locale:        loc,
-					deckWaiting:   deckWaitingOf(counts[loc]),
+					deckWaiting:   counts[loc].waiting(held),
 				}
-				if held {
-					lang.deckWaiting = lang.held()
-					heldAny = heldAny || lang.Held > 0
-				}
+				heldAny = heldAny || lang.Held > 0
 				if lang.Waiting > 0 {
 					out.Languages = append(out.Languages, lang)
 					proj.Waiting += lang.Waiting
@@ -238,24 +235,25 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 }
 
 // inboxDeckCounts counts the deck of each of a project's locales in the
-// inbox's stream, in one query.
-func (s *Server) inboxDeckCounts(ctx context.Context, projectID string, locales []string, policy string, decks store.ReviewDeckStore) (map[string]store.ReviewDeckCounts, error) {
+// inbox's stream: one query, or two when some of its collections are under
+// every and others are not.
+func (s *Server) inboxDeckCounts(ctx context.Context, p *store.Project, locales []string, policy string, decks store.ReviewDeckStore) (map[string]deckSplit, error) {
 	if len(locales) == 0 {
 		return nil, nil
 	}
-	scope, err := deckScopeOf(ctx, s.ContentStore, projectID, reviewInboxStream)
+	scope, pi, err := s.involvementScopeOf(ctx, p, reviewInboxStream)
 	if err != nil {
 		return nil, err
 	}
-	q := store.ReviewDeckQuery{ProjectID: projectID, Stream: reviewInboxStream, Policy: policy}
+	q := store.ReviewDeckQuery{ProjectID: p.ID, Stream: reviewInboxStream, Policy: policy}
 	scope.apply(&q)
-	return decks.CountReviewDeckByLocale(ctx, q, locales)
+	return countDeckSplitByLocale(ctx, decks, q, locales, pi)
 }
 
 // anyWaiting reports whether any language's deck holds a translation.
-func anyWaiting(counts map[string]store.ReviewDeckCounts) bool {
+func anyWaiting(counts map[string]deckSplit) bool {
 	for _, n := range counts {
-		if deckWaitingOf(n).Waiting > 0 {
+		if n.waiting(false).Waiting > 0 {
 			return true
 		}
 	}

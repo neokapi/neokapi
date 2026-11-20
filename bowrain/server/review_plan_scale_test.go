@@ -109,16 +109,26 @@ func TestReviewPlan_Scale(t *testing.T) {
 		}()
 	}
 	const runs = 5
-	var plans, inboxes []time.Duration
-	for range runs {
-		plans = append(plans, plan())
-		inboxes = append(inboxes, inbox())
+	measure := func(label string) {
+		var plans, inboxes []time.Duration
+		for range runs {
+			plans = append(plans, plan())
+			inboxes = append(inboxes, inbox())
+		}
+		slices.Sort(plans)
+		slices.Sort(inboxes)
+		t.Logf("%d blocks, %d languages, %s: plan median %v (min %v, max %v); inbox median %v (min %v, max %v)",
+			blocks, len(planScaleLocales), label,
+			plans[runs/2], plans[0], plans[runs-1], inboxes[runs/2], inboxes[0], inboxes[runs-1])
 	}
-	slices.Sort(plans)
-	slices.Sort(inboxes)
-	t.Logf("%d blocks, %d languages: plan median %v (min %v, max %v); inbox median %v (min %v, max %v)",
-		blocks, len(planScaleLocales),
-		plans[runs/2], plans[0], plans[runs-1], inboxes[runs/2], inboxes[0], inboxes[runs-1])
+	measure("no override")
+	// Overrides put one product under every and another under interfaces,
+	// which splits each deck count in two.
+	require.NoError(t, s.updatePlanProperties(context.Background(), projID, map[string]string{
+		propInvolvementOverrides: `[{"coordinates":{"product":"p1"},"involvement":"every"},{"coordinates":{"product":"p2"},"involvement":"interfaces"}]`,
+	}))
+	plan()
+	measure("overrides")
 }
 
 // newPlanScaleHarness is the recheck harness with the workspace terms store on

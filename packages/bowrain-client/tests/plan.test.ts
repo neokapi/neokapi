@@ -3,7 +3,11 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   coordinatesFromServer,
   coordinatesOpen,
+  overridePoints,
   planFromServer,
+  pointKey,
+  pointLabel,
+  reviewInvolvementFromServer,
   planProducts,
   planRuleLabel,
 } from "../src/index.ts";
@@ -346,5 +350,56 @@ describe("coordinatesFromServer", () => {
     });
     expect(map.cells[0]!.collections[0]).toMatchObject({ name: "neokapi-mobile", blocks: 412 });
     expect(map.cells[1]).toMatchObject({ collections: [], voices: [], coverage: {}, changes: [] });
+  });
+});
+
+describe("involvement overrides", () => {
+  it("maps the plan's overrides and each point's involvement", () => {
+    const plan = planFromServer({
+      ...server,
+      overrides: [{ coordinates: { product: "docs" }, involvement: "every", collections: 2 }],
+      coordinates: {
+        source_language: "en",
+        confirmed: true,
+        points: [{ collection: "docs", coordinates: { product: "docs" }, involvement: "every" }],
+      },
+    });
+    expect(plan.overrides).toEqual([
+      { coordinates: { product: "docs" }, involvement: "every", collections: 2 },
+    ]);
+    expect(plan.coordinates.points[0]?.involvement).toBe("every");
+    expect(planFromServer(server).overrides).toEqual([]);
+  });
+
+  it("reads the settings with the axes", () => {
+    expect(
+      reviewInvolvementFromServer({
+        involvement: "interfaces",
+        overrides: null,
+        axes: { product: ["app", "docs"], channel: null },
+      }),
+    ).toEqual({
+      involvement: "interfaces",
+      overrides: [],
+      axes: { product: ["app", "docs"], channel: [] },
+    });
+  });
+
+  it("names a point in reading order and keys it by axis", () => {
+    const c = { channel: "ui", brand: "acme", product: "app" };
+    expect(pointLabel(c)).toBe("app · ui · acme");
+    expect(pointKey(c)).toBe("brand=acme,channel=ui,product=app");
+  });
+
+  it("offers each product and product with a channel not yet set", () => {
+    const points = [
+      { collection: "a", coordinates: { product: "app", channel: "ui" }, sourceOnly: false },
+      { collection: "b", coordinates: { product: "docs" }, sourceOnly: false },
+      { collection: "c", coordinates: { product: "src", channel: "comments" }, sourceOnly: true },
+    ];
+    expect(overridePoints(points, [{ coordinates: { product: "docs" } }])).toEqual([
+      { product: "app" },
+      { product: "app", channel: "ui" },
+    ]);
   });
 });

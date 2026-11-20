@@ -14,6 +14,8 @@ import {
   type CoordinateChange,
   planProducts,
   planRuleLabel,
+  pointKey,
+  pointLabel,
   type PlanLevel,
   type PlanRule,
   type PlanStepState,
@@ -92,6 +94,13 @@ export interface ReviewPlanPanelProps {
   projectId: string;
   stream: string;
 }
+
+/** Each involvement's name, as the selector shows it. */
+const INVOLVEMENT_LABELS: Record<ReviewInvolvement, string> = {
+  context: "Context",
+  interfaces: "Interfaces",
+  every: "Every translation",
+};
 
 /** What each involvement leaves to a person and to the checks. */
 function InvolvementDetail({ involvement }: { involvement: ReviewInvolvement }) {
@@ -319,6 +328,15 @@ export function ReviewPlanSteps({
         Decide what generates the text before you read the text.{" "}
         <InvolvementDetail involvement={plan.involvement} />
       </p>
+      {plan.overrides.length > 0 ? (
+        <ul data-testid="plan-involvement-overrides" className="text-muted-foreground text-sm">
+          {plan.overrides.map((o) => (
+            <li key={pointKey(o.coordinates)}>
+              {pointLabel(o.coordinates)}: {INVOLVEMENT_LABELS[o.involvement]}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <ol className="space-y-2">
         <Step
           n={1}

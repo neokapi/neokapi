@@ -46,8 +46,8 @@ type reviewDeckPagesResponse struct {
 
 // HandleGetReviewDeckPages answers GET /:ws/:id/review-deck/:ref/pages
 // ?locale=nb[&collection=c][&sample=true] with the deck's pages. With sample,
-// it answers the pages a reviewer reads under the involvement context (see
-// interfaceSample).
+// it answers the pages the involvement asks a reviewer to read: the sample
+// in a collection under context (see interfaceSample), every page elsewhere.
 func (s *Server) HandleGetReviewDeckPages(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
@@ -66,7 +66,11 @@ func (s *Server) HandleGetReviewDeckPages(c echo.Context) error {
 	ctx := c.Request().Context()
 	pid := projectParam(c)
 	stream := streamParam(c)
-	scope, err := deckScopeOf(ctx, s.ContentStore, pid, stream)
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil || proj == nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: errNoProject.Error()})
+	}
+	scope, pi, err := s.involvementScopeOf(ctx, proj, stream)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -86,7 +90,7 @@ func (s *Server) HandleGetReviewDeckPages(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	if sample {
-		pages = interfaceSample(pages)
+		pages = interfacePages(pages, pi)
 	}
 	out := reviewDeckPagesResponse{Locale: loc, Pages: []deckPage{}}
 	if len(pages) > reviewPagesLimit {

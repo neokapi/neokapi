@@ -79,12 +79,13 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	policy := s.deckPolicy()
-	scope, err := deckScopeOf(ctx, s.ContentStore, pid, stream)
+	colls, err := s.ContentStore.ListCollections(ctx, pid, stream)
 	if err != nil {
 		return serverErr(c, err)
 	}
+	pi := involvementFor(proj, colls)
 	q := store.ReviewDeckQuery{ProjectID: pid, Stream: stream, Locale: loc, Policy: deckPolicyKey(policy)}
-	scope.apply(&q)
+	deckScopeFrom(colls).apply(&q)
 	wsID, _ := c.Get("workspace_id").(string)
 	if _, err := s.classifyDeck(ctx, wsID, decks, proj, q, policy, deckClassifyBudget); err != nil {
 		return serverErr(c, err)
@@ -93,23 +94,27 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
-	colls, err := s.ContentStore.ListCollections(ctx, pid, stream)
-	if err != nil {
-		return serverErr(c, err)
-	}
 
 	// The language counts a set of copies once, as the deck and the inbox
 	// do, though each collection holding a copy counts it.
-	all, err := decks.CountReviewDeckLanguage(ctx, q)
-	if err != nil {
-		return serverErr(c, err)
-	}
-	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj)
+	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj, pi)
 	if err != nil {
 		return serverErr(c, err)
 	}
 	out := reviewDeckCollectionsResponse{Locale: loc, Stream: stream, Collections: []deckCollection{}}
-	out.All = deckCollectionOf("", "", all, held)
+	// The hold reaches the collections not under every, so the language is
+	// counted in two parts when the project has both.
+	rest, open := pi.split(q)
+	for _, part := range []*store.ReviewDeckQuery{rest, open} {
+		if part == nil {
+			continue
+		}
+		n, err := decks.CountReviewDeckLanguage(ctx, *part)
+		if err != nil {
+			return serverErr(c, err)
+		}
+		out.All = out.All.plus(deckCollectionOf("", "", n, held && part == rest))
+	}
 	var waiting, done []deckCollection
 	add := func(coll *store.Collection) {
 		id, name := "", ""
@@ -120,7 +125,7 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 		if !ok || n.Translations == 0 {
 			return
 		}
-		dc := deckCollectionOf(id, name, n, held)
+		dc := deckCollectionOf(id, name, n, held && pi.heldIn(id))
 		if coll != nil {
 			dc.Priority = coll.Priority()
 			dc.Channel = coll.ConnectorConfig[coreprofile.PropertyChannel]
@@ -162,6 +167,14 @@ func deckCollectionOf(id, name string, n store.ReviewDeckCollectionCounts, held 
 		dc.deckWaiting = dc.held()
 	}
 	dc.Decided = dc.Translations - dc.Waiting - dc.Held
+	return dc
+}
+
+// plus adds another part of a deck to a collection's counts.
+func (dc deckCollection) plus(o deckCollection) deckCollection {
+	dc.deckWaiting = dc.deckWaiting.plus(o.deckWaiting)
+	dc.Translations += o.Translations
+	dc.Decided += o.Decided
 	return dc
 }
 
