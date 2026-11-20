@@ -58,7 +58,7 @@ fi
 matches() {
     [ "$RUN_ALL" = true ] && return 0
     for pattern in "$@"; do
-        echo "$CHANGED" | grep -qE "$pattern" && return 0
+        grep -qE "$pattern" <<< "$CHANGED" && return 0
     done
     return 1
 }
@@ -152,6 +152,10 @@ run_check "Go formatting (gofmt -l -s)" ./scripts/check-gofmt.sh
 
 # ── Go checks ──────────────────────────────────────────────────────────────
 
+if matches '\.go$' '(^|/)go\.(mod|sum|work)$' '\.([cm]?[tj]s|[tj]sx)$' '(^|/)(LICENSE|package\.json|tsconfig[^/]*\.json)$' '^scripts/check-(go-module-boundaries|ts-license-boundary|workspace-versions)[.-]' '^pnpm-workspace\.yaml$' '^Makefile$'; then
+    run_check "Module boundaries" make check-module-boundaries
+fi
+
 # The gate has to name every directory `make check-framework` reaches, and that
 # is `golangci-lint run ./...` from the ROOT module plus host, cli, kapi and
 # gen-refs. The root module is more than core/: kpz/, memory/, terms/,
@@ -220,12 +224,7 @@ fi
 # ── go mod tidy drift check ───────────────────────────────────────────────
 
 if matches '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then
-    # shellcheck disable=SC2016  # the child shell expands $dir
-    run_check "go mod tidy" bash -c '
-      for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain; do
-        (cd "$dir" && go mod tidy)
-      done
-      git diff --exit-code -- "**go.mod" "**go.sum"'
+    run_check "go mod tidy" make ci-tidy
 fi
 
 # ── Build-derived multilingual artifacts ──────────────────────────────────
