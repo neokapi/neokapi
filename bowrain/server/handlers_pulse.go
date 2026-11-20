@@ -58,7 +58,7 @@ func (s *Server) HandlePulseFrontPage(c echo.Context) error {
 
 	cacheKey := pulseCacheKey("_front", "front", "")
 	if cached, ok := s.pulseCache.Get(cacheKey); ok {
-		return c.JSON(http.StatusOK, cached)
+		return pulseJSON(c, 120, cached)
 	}
 
 	ctx := c.Request().Context()
@@ -81,6 +81,9 @@ func (s *Server) HandlePulseFrontPage(c echo.Context) error {
 	var totalProjects, totalLanguages int
 
 	for _, ws := range workspaces {
+		if pulseWorkspaceVisibility(ws) != platauth.DashboardPublic {
+			continue
+		}
 		projects, err := s.pulseVisibleProjects(ctx, ws.ID)
 		if err != nil {
 			continue
@@ -125,8 +128,7 @@ func (s *Server) HandlePulseFrontPage(c echo.Context) error {
 	}
 
 	s.pulseCache.Set(cacheKey, "overview", resp)
-	setCDNCacheHeaders(c, 120)
-	return c.JSON(http.StatusOK, resp)
+	return pulseJSON(c, 120, resp)
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +146,7 @@ func (s *Server) HandlePulseOverview(c echo.Context) error {
 	wsID := ws.ID
 	cacheKey := pulseCacheKey(wsID, "overview", "")
 	if cached, ok := s.pulseCache.Get(cacheKey); ok {
-		return c.JSON(http.StatusOK, cached)
+		return pulseJSON(c, 60, cached)
 	}
 
 	ctx := c.Request().Context()
@@ -156,8 +158,7 @@ func (s *Server) HandlePulseOverview(c echo.Context) error {
 	overview := s.buildPulseOverview(ctx, ws, projects)
 
 	s.pulseCache.Set(cacheKey, "overview", overview)
-	setCDNCacheHeaders(c, 60)
-	return c.JSON(http.StatusOK, overview)
+	return pulseJSON(c, 60, overview)
 }
 
 // ---------------------------------------------------------------------------
@@ -183,8 +184,7 @@ func (s *Server) HandlePulseProjects(c echo.Context) error {
 		summaries = append(summaries, s.buildProjectSummary(ctx, p))
 	}
 
-	setCDNCacheHeaders(c, 60)
-	return c.JSON(http.StatusOK, map[string]any{"projects": summaries})
+	return pulseJSON(c, 60, map[string]any{"projects": summaries})
 }
 
 // ---------------------------------------------------------------------------
@@ -212,8 +212,7 @@ func (s *Server) HandlePulseProjectDetail(c echo.Context) error {
 		Items:   s.buildItemStats(ctx, p),
 	}
 
-	setCDNCacheHeaders(c, 60)
-	return c.JSON(http.StatusOK, detail)
+	return pulseJSON(c, 60, detail)
 }
 
 // ---------------------------------------------------------------------------
@@ -259,8 +258,7 @@ func (s *Server) HandlePulseLocaleDetail(c echo.Context) error {
 		Items:  s.buildItemStats(ctx, p),
 	}
 
-	setCDNCacheHeaders(c, 60)
-	return c.JSON(http.StatusOK, detail)
+	return pulseJSON(c, 60, detail)
 }
 
 // ---------------------------------------------------------------------------
@@ -325,8 +323,7 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 	if nextCursor != "" {
 		resp["next_cursor"] = nextCursor
 	}
-	setCDNCacheHeaders(c, 30)
-	return c.JSON(http.StatusOK, resp)
+	return pulseJSON(c, 30, resp)
 }
 
 // ---------------------------------------------------------------------------
@@ -355,8 +352,7 @@ func (s *Server) HandlePulseActivityHeatmap(c echo.Context) error {
 
 	cacheKey := pulseCacheKey(ws.ID, "heatmap", "")
 	s.pulseCache.Set(cacheKey, "heatmap", map[string]any{"days": days})
-	setCDNCacheHeaders(c, 120)
-	return c.JSON(http.StatusOK, map[string]any{"days": days})
+	return pulseJSON(c, 120, map[string]any{"days": days})
 }
 
 // ---------------------------------------------------------------------------
@@ -374,7 +370,7 @@ func (s *Server) HandlePulseLeaderboard(c echo.Context) error {
 	wsID := ws.ID
 	cacheKey := pulseCacheKey(wsID, "leaderboard", c.QueryString())
 	if cached, ok := s.pulseCache.Get(cacheKey); ok {
-		return c.JSON(http.StatusOK, cached)
+		return pulseJSON(c, 120, cached)
 	}
 
 	ctx := c.Request().Context()
@@ -418,8 +414,7 @@ func (s *Server) HandlePulseLeaderboard(c echo.Context) error {
 	}
 
 	s.pulseCache.Set(cacheKey, "leaderboard", leaderboard)
-	setCDNCacheHeaders(c, 120)
-	return c.JSON(http.StatusOK, leaderboard)
+	return pulseJSON(c, 120, leaderboard)
 }
 
 // ---------------------------------------------------------------------------
@@ -436,8 +431,7 @@ func (s *Server) HandlePulseTerms(c echo.Context) error {
 
 	terms := make([]store.PulseTermEntry, 0)
 
-	setCDNCacheHeaders(c, 300)
-	return c.JSON(http.StatusOK, map[string]any{
+	return pulseJSON(c, 300, map[string]any{
 		"terms":        terms,
 		"term_sources": ws.PulseTermSources,
 	})
@@ -453,8 +447,7 @@ func (s *Server) HandlePulseTermDetail(c echo.Context) error {
 
 	_ = c.Param("cid")
 
-	setCDNCacheHeaders(c, 300)
-	return c.JSON(http.StatusOK, store.PulseTermEntry{})
+	return pulseJSON(c, 300, store.PulseTermEntry{})
 }
 
 // ---------------------------------------------------------------------------
@@ -486,13 +479,7 @@ func (s *Server) pulseVisibleProjects(ctx context.Context, workspaceID string) (
 
 	visible := make([]*store.Project, 0)
 	for _, p := range allProjects {
-		if p.WorkspaceID != workspaceID {
-			continue
-		}
-		if p.Archived {
-			continue
-		}
-		if p.DashboardVisibility == "public" || p.DashboardVisibility == "unlisted" {
+		if pulseProjectVisible(p, workspaceID) {
 			visible = append(visible, p)
 		}
 	}
@@ -610,7 +597,11 @@ func (s *Server) buildItemStats(ctx context.Context, p *store.Project) []store.I
 	return stats.ItemStats
 }
 
-// setCDNCacheHeaders sets Cache-Control and CDN headers for public endpoints.
-func setCDNCacheHeaders(c echo.Context, maxAge int) {
-	c.Response().Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", maxAge))
+func pulseJSON(c echo.Context, maxAge int, body any) error {
+	cacheControl := fmt.Sprintf("public, max-age=%d", maxAge)
+	if ws := pulseWorkspace(c); ws != nil && pulseWorkspaceVisibility(ws) == platauth.DashboardPrivate {
+		cacheControl = "private, no-store"
+	}
+	c.Response().Header().Set("Cache-Control", cacheControl)
+	return c.JSON(http.StatusOK, body)
 }
