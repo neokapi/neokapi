@@ -482,4 +482,74 @@ func TestPostgresPilotRollbackAndRetry(t *testing.T) {
 	_, found, err := tb.GetConcept(ctx, first.shadowID("c", "new"))
 	require.NoError(t, err)
 	assert.True(t, found)
+
+	_, err = kg.db.ExecContext(ctx, `CREATE TABLE held_concepts (
+		workspace_id TEXT, id TEXT,
+		FOREIGN KEY (workspace_id, id) REFERENCES tb_concepts (workspace_id, id)
+	)`)
+	require.NoError(t, err)
+	_, err = kg.db.ExecContext(ctx, "INSERT INTO held_concepts VALUES ($1, $2)", "workspace-slug", first.shadowID("c", "new"))
+	require.NoError(t, err)
+	events, err := engine.AbandonChangeSet(ctx, testWS, kg, cs)
+	require.Error(t, err)
+	assert.Empty(t, events)
+	after, err := kg.GetChangeSet(ctx, testWS, cs.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ChangeSetDraft, after.Status)
+	pilots, err = kg.ListPilots(ctx, testWS, cs.ID)
+	require.NoError(t, err)
+	require.Len(t, pilots, 1)
+}
+
+func TestPostgresStartPilotWaitsForChangeSetRetirement(t *testing.T) {
+	for _, status := range []ChangeSetStatus{ChangeSetMerged, ChangeSetAbandoned, ChangeSetSuperseded} {
+		t.Run(string(status), func(t *testing.T) {
+			ctx := t.Context()
+			kg := newTestStore(t)
+			tb, err := pgterms.NewPostgresStoreFromDB(kg.db, "workspace-slug")
+			require.NoError(t, err)
+			engine := NewEngine(nil, tb, kg)
+			cs := ChangeSet{ID: "draft", WorkspaceID: testWS, Name: "Pilot", CreatedBy: "alice"}
+			require.NoError(t, kg.CreateChangeSet(ctx, &cs))
+			appendOp(t, kg, testWS, cs.ID, 0, OpConceptCreate, ConceptCreatePayload{Concept: concept("new", term("name", "en-US", model.TermPreferred))})
+			first, err := engine.StartPilot(ctx, testWS, kg, cs, "project", "main")
+			require.NoError(t, err)
+
+			closeTx, err := kg.db.BeginTx(ctx, nil)
+			require.NoError(t, err)
+			defer func() { _ = closeTx.Rollback() }()
+			var closingPID int
+			require.NoError(t, closeTx.QueryRowContext(ctx, "SELECT pg_backend_pid()").Scan(&closingPID))
+			bound := kg.Bind(closeTx)
+			closing := NewEngine(nil, tb.Bind(closeTx), bound)
+			switch status {
+			case ChangeSetMerged:
+				_, err = closing.MergeChangeSet(ctx, testWS, bound, cs)
+			case ChangeSetAbandoned:
+				_, err = closing.AbandonChangeSet(ctx, testWS, bound, cs)
+			case ChangeSetSuperseded:
+				_, err = closing.SupersedeChangeSet(ctx, testWS, bound, cs, "next")
+			}
+			require.NoError(t, err)
+			started := make(chan error, 1)
+			go func() {
+				_, err := engine.StartPilot(ctx, testWS, kg, cs, first.ProjectID, first.Stream)
+				started <- err
+			}()
+			require.Eventually(t, func() bool {
+				var waiting bool
+				err := kg.db.QueryRowContext(ctx, "SELECT EXISTS (SELECT FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid)))", closingPID).Scan(&waiting)
+				return err == nil && waiting
+			}, 10*time.Second, 20*time.Millisecond)
+			require.NoError(t, closeTx.Commit())
+			require.ErrorIs(t, <-started, ErrPilotChangeSetClosed)
+
+			pilots, err := kg.ListPilots(ctx, testWS, cs.ID)
+			require.NoError(t, err)
+			assert.Empty(t, pilots)
+			_, found, err := tb.GetConcept(ctx, first.shadowID("c", "new"))
+			require.NoError(t, err)
+			assert.False(t, found)
+		})
+	}
 }

@@ -880,7 +880,7 @@ func (s *PostgresKnowledgeStore) AppendOp(ctx context.Context, op *ChangeSetOp) 
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if err := lockChangeSet(ctx, tx, op.WorkspaceID, op.ChangesetID); err != nil {
+	if _, err := lockChangeSet(ctx, tx, op.WorkspaceID, op.ChangesetID); err != nil {
 		return err
 	}
 
@@ -903,18 +903,18 @@ func (s *PostgresKnowledgeStore) AppendOp(ctx context.Context, op *ChangeSetOp) 
 	return nil
 }
 
-func lockChangeSet(ctx context.Context, tx storage.Runner, workspaceID, changesetID string) error {
-	var locked int
+func lockChangeSet(ctx context.Context, tx storage.Runner, workspaceID, changesetID string) (ChangeSetStatus, error) {
+	var status ChangeSetStatus
 	err := tx.QueryRowContext(ctx,
-		`SELECT 1 FROM kg_changesets WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
-		workspaceID, changesetID).Scan(&locked)
+		`SELECT status FROM kg_changesets WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
+		workspaceID, changesetID).Scan(&status)
 	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("change-set %s not found", changesetID)
+		return "", fmt.Errorf("change-set %s not found", changesetID)
 	}
 	if err != nil {
-		return fmt.Errorf("lock change-set: %w", err)
+		return "", fmt.Errorf("lock change-set: %w", err)
 	}
-	return nil
+	return status, nil
 }
 
 func (s *PostgresKnowledgeStore) RemoveOp(ctx context.Context, workspaceID, changesetID string, seq int64) error {
@@ -1051,13 +1051,12 @@ func scanReview(row scanner) (*ChangeSetReview, error) {
 // Pilots
 // ---------------------------------------------------------------------------
 
-func (e *Engine) withPilot(ctx context.Context, store Store, p *Pilot, apply func(*Engine, Store) error) error {
+func (e *Engine) withGovernanceTransaction(ctx context.Context, store Store, apply func(*Engine, Store) error) error {
 	if store == nil {
-		return errors.New("knowledge: pilot requires a governance store")
+		return errors.New("knowledge: change set requires a governance store")
 	}
-	kg, hasKnowledge := store.(*PostgresKnowledgeStore)
-	tb, hasTerms := e.concepts.(*pgterms.PostgresStore)
-	if !hasKnowledge || !hasTerms {
+	kg, ok := store.(*PostgresKnowledgeStore)
+	if !ok {
 		return apply(e, store)
 	}
 	tx, err := kg.begin(ctx)
@@ -1065,14 +1064,32 @@ func (e *Engine) withPilot(ctx context.Context, store Store, p *Pilot, apply fun
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := lockChangeSet(ctx, tx, p.WorkspaceID, p.ChangesetID); err != nil {
-		return err
+	concepts := e.concepts
+	if tb, ok := concepts.(*pgterms.PostgresStore); ok {
+		concepts = tb.Bind(tx)
 	}
 	bound := kg.Bind(tx)
-	if err := apply(NewEngine(e.blocks, tb.Bind(tx), bound), bound); err != nil {
+	if err := apply(NewEngine(e.blocks, concepts, bound), bound); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+func (e *Engine) withLockedChangeSet(ctx context.Context, store Store, workspaceID, changesetID string, apply func(*Engine, Store, ChangeSetStatus) error) error {
+	return e.withGovernanceTransaction(ctx, store, func(engine *Engine, store Store) error {
+		if kg, ok := store.(*PostgresKnowledgeStore); ok {
+			status, err := lockChangeSet(ctx, kg.run(), workspaceID, changesetID)
+			if err != nil {
+				return err
+			}
+			return apply(engine, store, status)
+		}
+		cs, err := store.GetChangeSet(ctx, workspaceID, changesetID)
+		if err != nil {
+			return err
+		}
+		return apply(engine, store, cs.Status)
+	})
 }
 
 // AddPilot binds a change-set to a project stream. The binding is idempotent: a

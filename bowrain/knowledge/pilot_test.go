@@ -284,3 +284,30 @@ func testPilotProjectsSharingAStream(t *testing.T, tb terms.Store, store Store) 
 	require.NoError(t, engine.StopPilot(ctx, cs.WorkspaceID, store, cs, b.ProjectID, stream))
 	check(b.ProjectID, b, nil, 0)
 }
+
+func TestPilotUsesPersistedChangeSetStatus(t *testing.T) {
+	for _, status := range []ChangeSetStatus{ChangeSetDraft, ChangeSetInReview, ChangeSetApproved, ChangeSetMerged, ChangeSetAbandoned, ChangeSetSuperseded} {
+		t.Run(string(status), func(t *testing.T) {
+			ctx := t.Context()
+			store := newMemStore()
+			cs := ChangeSet{ID: "draft", WorkspaceID: "ws", Status: status}
+			require.NoError(t, store.CreateChangeSet(ctx, &cs))
+			engine := NewEngine(nil, newSQLiteTB(t), store)
+			switch status {
+			case ChangeSetDraft, ChangeSetInReview, ChangeSetApproved:
+				cs.Status = ChangeSetMerged
+				_, err := engine.StartPilot(ctx, cs.WorkspaceID, store, cs, "project", "main")
+				require.NoError(t, err)
+			default:
+				cs.Status = ChangeSetDraft
+				_, err := engine.StartPilot(ctx, cs.WorkspaceID, store, cs, "project", "main")
+				require.ErrorIs(t, err, ErrPilotChangeSetClosed)
+				_, err = engine.AbandonChangeSet(ctx, cs.WorkspaceID, store, cs)
+				require.ErrorIs(t, err, ErrPilotChangeSetClosed)
+				pilots, err := store.ListPilots(ctx, cs.WorkspaceID, cs.ID)
+				require.NoError(t, err)
+				assert.Empty(t, pilots)
+			}
+		})
+	}
+}

@@ -11,7 +11,17 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-var ErrInvalidPilotProject = errors.New("pilot requires one project ID")
+var (
+	ErrInvalidPilotProject  = errors.New("pilot requires one project ID")
+	ErrPilotChangeSetClosed = errors.New("change set is closed")
+)
+
+func checkPilotStatus(status ChangeSetStatus) error {
+	if len(allowedChangeSetTransitions[status]) == 0 {
+		return fmt.Errorf("%w: %s", ErrPilotChangeSetClosed, status)
+	}
+	return nil
+}
 
 func (p Pilot) shadowNamespace(kind string) string {
 	return fmt.Sprintf(":v2:%s:%x:%x:%x:", kind, p.ChangesetID, p.ProjectID, p.Stream)
@@ -34,7 +44,10 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 		WorkspaceID: workspaceID, ChangesetID: cs.ID, ProjectID: projectID, Stream: stream,
 		CreatedBy: mergeActor(cs), CreatedAt: time.Now().UTC(),
 	}
-	err := e.withPilot(ctx, store, pilot, func(engine *Engine, store Store) error {
+	err := e.withLockedChangeSet(ctx, store, workspaceID, cs.ID, func(engine *Engine, store Store, status ChangeSetStatus) error {
+		if err := checkPilotStatus(status); err != nil {
+			return err
+		}
 		ops, err := engine.loadOps(ctx, store, workspaceID, cs.ID)
 		if err != nil {
 			return err
@@ -53,7 +66,7 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 // StopPilot removes one binding and its copies, including copies whose operations have since been removed.
 func (e *Engine) StopPilot(ctx context.Context, workspaceID string, store Store, cs ChangeSet, projectID, stream string) error {
 	pilot := &Pilot{WorkspaceID: workspaceID, ChangesetID: cs.ID, ProjectID: projectID, Stream: stream}
-	return e.withPilot(ctx, store, pilot, func(engine *Engine, store Store) error {
+	return e.withLockedChangeSet(ctx, store, workspaceID, cs.ID, func(engine *Engine, store Store, _ ChangeSetStatus) error {
 		if err := engine.replacePilotShadow(ctx, pilot, nil); err != nil {
 			return err
 		}
@@ -62,6 +75,49 @@ func (e *Engine) StopPilot(ctx context.Context, workspaceID string, store Store,
 		}
 		return nil
 	})
+}
+
+// AbandonChangeSet abandons the proposal and retires its active pilots.
+func (e *Engine) AbandonChangeSet(ctx context.Context, workspaceID string, store Store, cs ChangeSet) ([]MergeEvent, error) {
+	return e.retireChangeSet(ctx, workspaceID, store, cs, func(store Store) error {
+		return store.SetChangeSetStatus(ctx, workspaceID, cs.ID, ChangeSetAbandoned)
+	})
+}
+
+// SupersedeChangeSet records the successor and retires the prior proposal's active pilots.
+func (e *Engine) SupersedeChangeSet(ctx context.Context, workspaceID string, store Store, cs ChangeSet, successorID string) ([]MergeEvent, error) {
+	return e.retireChangeSet(ctx, workspaceID, store, cs, func(store Store) error {
+		return store.SupersedeChangeSet(ctx, workspaceID, cs.ID, successorID)
+	})
+}
+
+func (e *Engine) retireChangeSet(ctx context.Context, workspaceID string, store Store, cs ChangeSet, transition func(Store) error) ([]MergeEvent, error) {
+	var events []MergeEvent
+	err := e.withLockedChangeSet(ctx, store, workspaceID, cs.ID, func(engine *Engine, store Store, status ChangeSetStatus) error {
+		if err := checkPilotStatus(status); err != nil {
+			return err
+		}
+		if _, ok := engine.concepts.(terms.Store); !ok {
+			pilots, err := store.ListPilots(ctx, workspaceID, cs.ID)
+			if err != nil {
+				return err
+			}
+			if len(pilots) != 0 {
+				return errors.New("retiring active pilots requires the workspace terms store")
+			}
+			return transition(store)
+		}
+		if err := transition(store); err != nil {
+			return err
+		}
+		_, stopped, err := engine.StopAllPilots(ctx, workspaceID, store, cs)
+		events = stopped
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
 // StopAllPilots retires every pilot of a change-set, returning how many were
