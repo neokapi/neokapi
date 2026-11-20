@@ -245,6 +245,7 @@
   "4031946285": "GetTermsActivityStats",
   "4093406560": "DeleteMemoryEntry",
   "4108387416": "ReviewAIAction",
+  "4111395842": "SaveProjectSnapshot",
   "4111750941": "AddConcept",
   "4115064890": "MarkProjectContextDigestSeen",
   "4120871974": "InspectFileAnnotated",

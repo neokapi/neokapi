@@ -148,6 +148,7 @@ export {
     RunTraces,
     SampleInfo,
     SaveUserFlowRequest,
+    SavedProjectSnapshot,
     SessionState,
     SetTermStatusRequest,
     ShareView,

@@ -10129,6 +10129,48 @@ export class SaveUserFlowRequest {
 }
 
 /**
+ * SavedProjectSnapshot identifies the written recipe and the name stored in it.
+ */
+export class SavedProjectSnapshot {
+    /**
+     * Creates a new SavedProjectSnapshot instance.
+     * @param {Partial<SavedProjectSnapshot>} [$$source = {}] - The source object to create the SavedProjectSnapshot.
+     */
+    constructor($$source = {}) {
+        if (!("tab" in $$source)) {
+            /**
+             * @member
+             * @type {TabInfo}
+             */
+            this["tab"] = (new TabInfo());
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SavedProjectSnapshot instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SavedProjectSnapshot}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType180;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tab" in $$parsedSource) {
+            $$parsedSource["tab"] = $$createField0_0($$parsedSource["tab"]);
+        }
+        return new SavedProjectSnapshot(/** @type {Partial<SavedProjectSnapshot>} */($$parsedSource));
+    }
+}
+
+/**
  * SessionState is the persisted session the frontend restores at startup:
  * which projects to reopen and which of them was active.
  */
@@ -10332,7 +10374,7 @@ export class ShareView {
      * @returns {ShareView}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType181;
+        const $$createField1_0 = $$createType182;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sharing" in $$parsedSource) {
             $$parsedSource["sharing"] = $$createField1_0($$parsedSource["sharing"]);
@@ -10791,8 +10833,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
         const $$createField7_0 = $$createType6;
-        const $$createField10_0 = $$createType183;
-        const $$createField11_0 = $$createType183;
+        const $$createField10_0 = $$createType184;
+        const $$createField11_0 = $$createType184;
         const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -11593,12 +11635,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType13;
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType6;
-        const $$createField7_0 = $$createType185;
-        const $$createField9_0 = $$createType187;
+        const $$createField7_0 = $$createType186;
+        const $$createField9_0 = $$createType188;
         const $$createField11_0 = $$createType145;
         const $$createField12_0 = $$createType147;
         const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType188;
+        const $$createField14_0 = $$createType189;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -11713,8 +11755,8 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType190;
-        const $$createField6_0 = $$createType192;
+        const $$createField4_0 = $$createType191;
+        const $$createField6_0 = $$createType193;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField4_0($$parsedSource["problems"]);
@@ -11872,7 +11914,7 @@ export class WorkspaceHome {
      * @returns {WorkspaceHome}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType194;
+        const $$createField2_0 = $$createType195;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField2_0($$parsedSource["projects"]);
@@ -11975,10 +12017,10 @@ export class WorkspaceProject {
      * @returns {WorkspaceProject}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType196;
+        const $$createField3_0 = $$createType197;
         const $$createField4_0 = $$createType155;
-        const $$createField5_0 = $$createType198;
-        const $$createField6_0 = $$createType181;
+        const $$createField5_0 = $$createType199;
+        const $$createField6_0 = $$createType182;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("checkouts" in $$parsedSource) {
             $$parsedSource["checkouts"] = $$createField3_0($$parsedSource["checkouts"]);
@@ -12142,7 +12184,7 @@ export class WorkspaceRule {
      * @returns {WorkspaceRule}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType199;
+        const $$createField3_0 = $$createType200;
         const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subject" in $$parsedSource) {
@@ -12336,23 +12378,24 @@ const $$createType176 = flow$0.FlowStep.createFrom;
 const $$createType177 = $Create.Array($$createType176);
 const $$createType178 = RunTraceFile.createFrom;
 const $$createType179 = $Create.Array($$createType178);
-const $$createType180 = ProjectSharing.createFrom;
-const $$createType181 = $Create.Nullable($$createType180);
-const $$createType182 = IOPort.createFrom;
-const $$createType183 = $Create.Array($$createType182);
-const $$createType184 = VoiceBindingDTO.createFrom;
-const $$createType185 = $Create.Nullable($$createType184);
-const $$createType186 = profile$0.VoiceProfile.createFrom;
-const $$createType187 = $Create.Nullable($$createType186);
-const $$createType188 = VoiceEditTargetDTO.createFrom;
-const $$createType189 = profile$0.ProfileProblem.createFrom;
-const $$createType190 = $Create.Array($$createType189);
-const $$createType191 = RulesFilesDTO.createFrom;
-const $$createType192 = $Create.Nullable($$createType191);
-const $$createType193 = WorkspaceProject.createFrom;
-const $$createType194 = $Create.Array($$createType193);
-const $$createType195 = WorkspaceCheckout.createFrom;
-const $$createType196 = $Create.Array($$createType195);
-const $$createType197 = host$0.ContextProjectStanding.createFrom;
-const $$createType198 = $Create.Nullable($$createType197);
-const $$createType199 = contextop$0.Subject.createFrom;
+const $$createType180 = TabInfo.createFrom;
+const $$createType181 = ProjectSharing.createFrom;
+const $$createType182 = $Create.Nullable($$createType181);
+const $$createType183 = IOPort.createFrom;
+const $$createType184 = $Create.Array($$createType183);
+const $$createType185 = VoiceBindingDTO.createFrom;
+const $$createType186 = $Create.Nullable($$createType185);
+const $$createType187 = profile$0.VoiceProfile.createFrom;
+const $$createType188 = $Create.Nullable($$createType187);
+const $$createType189 = VoiceEditTargetDTO.createFrom;
+const $$createType190 = profile$0.ProfileProblem.createFrom;
+const $$createType191 = $Create.Array($$createType190);
+const $$createType192 = RulesFilesDTO.createFrom;
+const $$createType193 = $Create.Nullable($$createType192);
+const $$createType194 = WorkspaceProject.createFrom;
+const $$createType195 = $Create.Array($$createType194);
+const $$createType196 = WorkspaceCheckout.createFrom;
+const $$createType197 = $Create.Array($$createType196);
+const $$createType198 = host$0.ContextProjectStanding.createFrom;
+const $$createType199 = $Create.Nullable($$createType198);
+const $$createType200 = contextop$0.Subject.createFrom;
