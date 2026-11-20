@@ -1393,6 +1393,11 @@ jobs:
         with:
           cache-flavor: plain
 
+      - name: Install Wails libraries for desktop package analysis
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev
+
       # Job body lives in `make check-module-boundaries` (single source of truth).
       - name: Assert package-level module boundaries
         run: make check-module-boundaries

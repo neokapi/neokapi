@@ -803,7 +803,7 @@ check-projection-writes: i18n-catalogs ## Guard: only the projector writes a pro
 # type-checks every module that writes documents and reports each such call
 # outside the format packages and the places scripts/editguard lists with what
 # each writes, and proves itself on fixtures first.
-check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where scripts/editguard lists it
+check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reaches a file only where scripts/editguard lists it
 	@$(GO) run ./scripts/editguard -self-test
 	@$(GO) run ./scripts/editguard
 
