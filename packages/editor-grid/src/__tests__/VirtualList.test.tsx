@@ -68,7 +68,7 @@ describe("VirtualList", () => {
     // jsdom has no layout engine, so the virtualizer measures every row as
     // zero-height and getVirtualItems() stays empty regardless of initialRect.
     // The fallback must then render the complete list rather than silently
-    // dropping rows — true windowing is exercised in a real browser (Storybook).
+    // dropping rows. Storybook exercises windowing in a browser.
     renderList({
       items: rows(500),
       virtualizeThreshold: 80,
