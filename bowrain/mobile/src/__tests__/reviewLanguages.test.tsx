@@ -63,7 +63,14 @@ const project = (saved: boolean) =>
       next: "key_language",
       steps: [
         { level: "coordinates", state: "done", count: 0, progress: 100, done: true },
-        { level: "key_language", state: "not_started", count: 0, progress: 0 },
+        {
+          level: "key_language",
+          state: "not_started",
+          count: 0,
+          progress: 0,
+          scan: "waiting_quota",
+          quota_resets_at: "2026-12-01T00:00:00Z",
+        },
         { level: "exceptions", state: "open", count: 3, progress: 50 },
         { level: "interfaces", state: "open", count: 34, progress: 0 },
         { level: "policy", state: "open", count: 800, progress: 0, settle: "held" },
@@ -92,7 +99,7 @@ describe("the Review tab plan card", () => {
     expect(await screen.findByTestId("plan-card-p")).toBeTruthy();
     expect(screen.getByText("Step 2 of 5")).toBeTruthy();
     expect(screen.getByText("Decide the key language")).toBeTruthy();
-    expect(screen.getByText("Not started: scan for terms")).toBeTruthy();
+    expect(screen.getByText("Waits for the AI limit to reset on December 1, 2026")).toBeTruthy();
     expect(screen.queryByTestId("plan-card-p-coordinates")).toBeNull();
     expect(screen.getByLabelText("Exceptions, 3")).toBeTruthy();
     expect(screen.getByLabelText("Pages to read, 34")).toBeTruthy();

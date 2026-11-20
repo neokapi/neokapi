@@ -59,14 +59,22 @@ The context deck holds the terms and voice rules that wait for your review.
 Decide each term in the source language first, then its term in each language
 you review, while you know what the term means.
 
-To find the terms a project uses, choose **Scan for terms** on this step.
-Bowrain reads a sample of every collection in the source language and
-proposes the terms it uses most, ranked by how many blocks use each one. They
+Bowrain finds the terms a project uses on its own. When the first content
+arrives, it reads a sample of every collection in the source language and
+proposes the terms the project uses most, ranked by how many blocks use each
+one. It reads the project again when a push adds a collection, or when the
+source grows by a fifth or by 500 blocks since the last read. The terms
 arrive first in the context deck: keep a term, or mark it as not a term so it
-is not proposed again. A scan uses AI credits. If your workspace has none
-left, the step says so.
+is not proposed again.
 
-Until a scan has run or the project has terms, the step reads **Not
+While Bowrain reads, the step says **Reading your content**. Before any
+content arrives, it says **Starts when content arrives**. Reading uses AI. If
+your workspace has used its monthly AI limit, the step names the day the limit
+resets, and the read starts with the first push after that. If your workspace
+has no AI credits left, the step says so. To read the project again at any
+time, choose **Scan again** on the project's Overview in Bowrain on the web.
+
+Until a read has finished or the project has terms, the step reads **Not
 started**. It never shows as done with no terms in it.
 
 A term you keep governs every block that uses it: the checks hold the source

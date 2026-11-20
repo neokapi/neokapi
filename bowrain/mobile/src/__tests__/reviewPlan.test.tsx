@@ -1,4 +1,4 @@
-import { ApiError, planFromServer, type ReviewPlan } from "@neokapi/bowrain-client";
+import { planFromServer, type ReviewPlan } from "@neokapi/bowrain-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { router } from "expo-router";
@@ -18,7 +18,6 @@ const mockPlan = jest.fn<Promise<ReviewPlan>, unknown[]>();
 const mockConfirm = jest.fn<Promise<void>, unknown[]>();
 const mockPermissions = jest.fn();
 const mockSettle = jest.fn();
-const mockScan = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     client: {
@@ -26,7 +25,6 @@ jest.mock("../lib/auth", () => ({
       confirmCoordinates: (...a: unknown[]) => mockConfirm(...a),
       permissions: (...a: unknown[]) => mockPermissions(...a),
       settlePlan: (...a: unknown[]) => mockSettle(...a),
-      startTermScan: (...a: unknown[]) => mockScan(...a),
     },
   }),
 }));
@@ -36,6 +34,9 @@ type Over = {
   next?: string;
   settle?: string;
   scan?: string;
+  /** The key-language step's scan state, the job's status or a waiting reason. */
+  stepScan?: string;
+  quotaResetsAt?: string;
   keyState?: string;
   waiting?: number;
   concepts?: number;
@@ -111,7 +112,13 @@ const plan = (over: Over = {}) =>
         count: over.confirmed ? 0 : 1,
         done: over.confirmed ?? false,
       },
-      { level: "key_language", state: over.keyState ?? "open", count: 29 },
+      {
+        level: "key_language",
+        state: over.keyState ?? "open",
+        count: 29,
+        scan: over.stepScan ?? over.scan,
+        quota_resets_at: over.quotaResetsAt,
+      },
       { level: "exceptions", state: "open", count: 2 },
       { level: "interfaces", state: "open", count: 34 },
       { level: "policy", state: "open", count: 800, settle: over.settle ?? "first_pass" },
@@ -204,49 +211,41 @@ describe("review plan", () => {
     expect(mockSettle).not.toHaveBeenCalled();
   });
 
-  it("says what starts a key language with no scan, and starts the scan", async () => {
-    mockPermissions.mockResolvedValue({ permissions: ["review", "manage_voice"] });
-    const notStarted = {
-      confirmed: true,
-      next: "key_language",
-      keyState: "not_started",
-      waiting: 0,
-      concepts: 0,
-    };
-    mockPlan.mockResolvedValue(plan(notStarted));
-    mockScan.mockResolvedValue({ id: "j1", status: "queued" });
-    jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
-      buttons?.find((b) => b.style !== "cancel")?.onPress?.();
-    });
+  const notStarted = {
+    confirmed: true,
+    next: "key_language",
+    keyState: "not_started",
+    waiting: 0,
+    concepts: 0,
+  };
+
+  it("reads the term scan's state and offers no button to start it", async () => {
+    mockPlan.mockResolvedValue(plan({ ...notStarted, stepScan: "waiting_content" }));
     await render(wrap(<ReviewPlanScreen />));
-    expect(await screen.findByText("Not started: a scan for terms starts it")).toBeTruthy();
-    await fireEvent.press(screen.getByTestId("plan-scan"));
-    expect(mockScan).toHaveBeenCalledWith({ workspace: "ws", project: "p" });
+    expect(await screen.findByText("Starts when content arrives")).toBeTruthy();
+    expect(screen.queryByTestId("plan-scan")).toBeNull();
+    expect(screen.queryByTestId("plan-key_language-action")).toBeNull();
 
     mockPlan.mockResolvedValue(plan({ ...notStarted, scan: "processing" }));
     await render(wrap(<ReviewPlanScreen />));
-    expect(await screen.findByText("Scanning for terms, 40% done")).toBeTruthy();
+    expect(await screen.findByText("Reading your content, 40% done")).toBeTruthy();
+
+    mockPlan.mockResolvedValue(plan({ ...notStarted, stepScan: "waiting_push" }));
+    await render(wrap(<ReviewPlanScreen />));
+    expect(await screen.findByText("Starts with the next push")).toBeTruthy();
   });
 
-  it("says plainly when the scan needs AI credits", async () => {
-    mockPermissions.mockResolvedValue({ permissions: ["review", "manage_voice"] });
+  it("says when the scan waits for the AI limit to reset", async () => {
     mockPlan.mockResolvedValue(
       plan({
-        confirmed: true,
-        next: "key_language",
-        keyState: "not_started",
-        waiting: 0,
-        concepts: 0,
+        ...notStarted,
+        stepScan: "waiting_quota",
+        quotaResetsAt: "2026-12-01T00:00:00Z",
       }),
     );
-    mockScan.mockRejectedValue(new ApiError(402, "insufficient credits", null));
-    jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
-      buttons?.find((b) => b.style !== "cancel")?.onPress?.();
-    });
     await render(wrap(<ReviewPlanScreen />));
-    await fireEvent.press(await screen.findByTestId("plan-scan"));
     expect(
-      await screen.findByText("The scan needs AI credits, and this workspace has none left."),
+      await screen.findByText("Waits for the AI limit to reset on December 1, 2026"),
     ).toBeTruthy();
   });
 

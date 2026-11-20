@@ -303,8 +303,37 @@ no translation waits or is held.
 
 A key language that has not started does not hold translations. A project
 that cannot run a scan (a scan needs AI credits) would otherwise hold every
-translation with nothing a reviewer could do about it. The plan still names
-the scan as the next step.
+translation with nothing a reviewer could do about it.
+
+### The term scan starts on a push
+
+Nobody presses a button to start the term scan. The server subscribes to
+`connector.push.completed` (consumer group `term-scan-on-push`,
+`bowrain/server/review_plan_autoscan.go`) and, for a push to the project's
+default stream, starts a scan when one is due:
+
+- the project has never had a term scan, and the workspace has no concept
+  with a source term;
+- the last scan failed;
+- a collection exists that the last scan did not read;
+- the translatable source blocks grew by 500, or by a fifth of the blocks the
+  last scan read, whichever comes first.
+
+Starting a scan records the job in the project property
+`review_term_scan_job`, and the blocks and collection names it reads in
+`review_term_scan_blocks` and `review_term_scan_collections`. A scan never
+starts while another is queued or processing. It also never starts when it
+would fail on arrival: no platform AI provider, the workspace over its
+monthly AI limit (`jobs.QuotaStore`), or no AI credits left. The next push
+decides again.
+
+While the key language has not started and no scan runs, the plan says why
+in `key_language.scan_waiting` and on the key-language step's `scan`:
+`waiting_content`, `waiting_push` (content exists and no scan has run; the
+next push starts it), `waiting_quota` with `quota_resets_at`, the first of the
+next month in UTC, `waiting_credits` or `no_ai`. `POST
+/:ws/:id/review/plan/scan` scans again on request and records the same
+coverage; the web Overview offers it as **Scan again**.
 
 ## What the founder reviews on neokapi
 
@@ -356,9 +385,9 @@ The founder accepted each recommendation on 2026-11-19:
 2. The plan on mobile and on the web Overview. Built.
 3. Term candidates: sampling across coordinates, one candidate shape (a
    proposed concept with its reach), keep promotes it to preferred, reject
-   is remembered on the project. Built for the project scan. The plan's
-   key-language step starts a project scan (`POST
-   /:ws/:id/review/plan/scan`) and shows its state. AI-proposed
+   is remembered on the project. Built for the project scan. A push starts
+   the project scan when one is due (see "The term scan starts on a push"),
+   and the plan's key-language step shows its state. AI-proposed
    translations of kept terms: built. Keeping a candidate starts a job that
    proposes the term in each target language (prompt `term.translate`, with
    the definition and up to three source blocks that use the term); the
@@ -440,6 +469,7 @@ The founder accepted each recommendation on 2026-11-19:
     the setting on the web Overview.
 11. The plan gates the language decks, and each step reports its state (see
     "The plan is the queue"). Built. The phone's plan screen is one row per
-    step (state, title, one fact) with the action on the next step only; a
-    scan refused for want of AI credits says so in the key-language row. The
+    step (state, title, one fact) with the action on the next step only; the
+    key-language row reads the term scan's state, or what the scan waits
+    for. The
     web Overview marks a step not started and lists the held translations.

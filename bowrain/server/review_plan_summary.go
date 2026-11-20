@@ -62,9 +62,14 @@ type planStepDTO struct {
 	// Settle is the policy level's settle state: first_pass, policy, held
 	// or none.
 	Settle string `json:"settle,omitempty"`
-	// Scan is the key-language level's last term scan state: queued,
-	// processing, completed or failed.
+	// Scan is the key-language level's term scan state: queued, processing,
+	// completed or failed for the last scan, or, while the level has not
+	// started and no scan runs, why the scan waits: waiting_content,
+	// waiting_push, waiting_quota, waiting_credits or no_ai.
 	Scan string `json:"scan,omitempty"`
+	// QuotaResetsAt is when the workspace's monthly AI limit resets, set
+	// with the scan state waiting_quota.
+	QuotaResetsAt string `json:"quota_resets_at,omitempty"`
 }
 
 // keyLanguageNotStarted reports a key language with nothing to decide from:
@@ -136,6 +141,9 @@ func planSteps(p reviewPlanResponse) []planStepDTO {
 	key := planStepDTO{Level: planKeyLanguage, Count: open, Progress: percentOf(decided, decided+open)}
 	if p.KeyLanguage.Scan != nil {
 		key.Scan = p.KeyLanguage.Scan.Status
+	}
+	if p.KeyLanguage.ScanWaiting != "" {
+		key.Scan, key.QuotaResetsAt = p.KeyLanguage.ScanWaiting, p.KeyLanguage.QuotaResetsAt
 	}
 	switch {
 	case keyLanguageNotStarted(p.KeyLanguage):

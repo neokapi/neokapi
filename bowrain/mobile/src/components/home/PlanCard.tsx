@@ -19,8 +19,49 @@ import { useCSSVariable } from "uniwind";
 import { languageLabel } from "../../lib/feed";
 import { Monogram } from "./Monogram";
 
+/**
+ * What the key language's term scan is doing while the level has not started.
+ * The server starts the scan when content arrives; this names the scan's state
+ * or what it waits for.
+ */
+export function keyScanFact(
+  scan: PlanStep["scan"],
+  t: TFunction,
+  language: string,
+  opts: { progress?: number; quotaResetsAt?: string } = {},
+): string {
+  switch (scan) {
+    case "queued":
+    case "processing":
+      return opts.progress
+        ? t("plan.key.readingProgress", { progress: opts.progress })
+        : t("plan.key.reading");
+    case "failed":
+      return t("plan.key.scanFailed");
+    case "waiting_quota":
+      return opts.quotaResetsAt
+        ? t("plan.key.waitsForQuota", { date: resetDate(opts.quotaResetsAt, language) })
+        : t("plan.key.waitsForQuotaSoon");
+    case "waiting_credits":
+      return t("plan.key.waitsForCredits");
+    case "no_ai":
+      return t("plan.key.waitsForProvider");
+    case "waiting_push":
+      return t("plan.key.waitsForPush");
+    default:
+      return t("plan.key.waitsForContent");
+  }
+}
+
+/** The AI limit's reset day in the reader's language. The limit resets at midnight UTC. */
+function resetDate(iso: string, language: string): string {
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return iso;
+  return new Intl.DateTimeFormat(language, { dateStyle: "long", timeZone: "UTC" }).format(when);
+}
+
 /** The step's one fact for the Next card. */
-export function stepFact(step: PlanStep, t: TFunction): string {
+export function stepFact(step: PlanStep, t: TFunction, language = "en"): string {
   switch (step.state) {
     case "done":
       return t("planCard.fact.done");
@@ -28,12 +69,7 @@ export function stepFact(step: PlanStep, t: TFunction): string {
       return t("planCard.fact.changed", { count: step.changed });
     case "not_started":
       if (step.level === "key_language") {
-        if (step.scan === "queued" || step.scan === "processing") {
-          return t("planCard.fact.keyScanning");
-        }
-        return step.scan === "failed"
-          ? t("planCard.fact.keyScanFailed")
-          : t("planCard.fact.keyNotStarted");
+        return keyScanFact(step.scan, t, language, { quotaResetsAt: step.quotaResetsAt });
       }
       return t("planCard.fact.notStarted");
   }
@@ -165,7 +201,7 @@ export const PlanCard = memo(function PlanCard({
             testID={`plan-card-${project.project}-fact`}
             className="text-muted-foreground text-sm"
           >
-            {stepFact(next, t)}
+            {stepFact(next, t, i18n.language)}
           </Text>
           <Pressable
             testID={`plan-card-${project.project}-next`}

@@ -21,6 +21,39 @@ import {
   type ReviewPlan,
 } from "@neokapi/bowrain-client";
 
+/**
+ * Why the term scan waits, in a sentence, or nothing while nothing holds it
+ * back. A push starts the scan on its own.
+ */
+function ScanWaiting({
+  waiting,
+  quotaResetsAt,
+}: {
+  waiting: ReviewPlan["keyLanguage"]["scanWaiting"];
+  quotaResetsAt?: string;
+}) {
+  switch (waiting) {
+    case "waiting_content":
+      return <p>The scan for terms starts when content arrives.</p>;
+    case "waiting_push":
+      return <p>The scan for terms starts with the next push.</p>;
+    case "waiting_quota": {
+      if (!quotaResetsAt) return <p>The scan for terms waits for the AI limit to reset.</p>;
+      const date = new Date(quotaResetsAt).toLocaleDateString(undefined, {
+        dateStyle: "long",
+        timeZone: "UTC",
+      });
+      return <p>The scan for terms waits for the AI limit to reset on {date}.</p>;
+    }
+    case "waiting_credits":
+      return <p>The scan for terms waits for AI credits: this workspace has none left.</p>;
+    case "no_ai":
+      return <p>The scan for terms waits for an AI provider: this server has none set up.</p>;
+    default:
+      return null;
+  }
+}
+
 export interface ReviewPlanPanelProps {
   ws: string;
   projectId: string;
@@ -306,9 +339,13 @@ export function ReviewPlanSteps({
           {plan.keyLanguage.scan?.status === "completed" && (
             <p>The last scan finished. Its terms are in the context deck.</p>
           )}
-          {plan.keyLanguage.scan?.status === "failed" && (
-            <p>The last scan failed. You can start it again.</p>
+          {plan.keyLanguage.scan?.status === "failed" && !plan.keyLanguage.scanWaiting && (
+            <p>The last scan failed. The next push starts it again, or you can scan again now.</p>
           )}
+          <ScanWaiting
+            waiting={plan.keyLanguage.scanWaiting}
+            quotaResetsAt={plan.keyLanguage.quotaResetsAt}
+          />
           <div className="flex flex-wrap items-center gap-3">
             <Link
               to="/$workspace/p/$projectId/s/$stream/rules"
@@ -319,7 +356,7 @@ export function ReviewPlanSteps({
             </Link>
             {onScan && !scanning && (
               <Button size="sm" variant="outline" disabled={busy} onClick={onScan}>
-                Scan the project for terms
+                Scan again
               </Button>
             )}
           </div>

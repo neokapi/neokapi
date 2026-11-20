@@ -129,13 +129,13 @@ type Server struct {
 	// is configured, in which case Bowrain-managed email change is unavailable.
 	// The concrete implementation is chosen by Config.AuthProvider: the Keycloak
 	// service-account admin client (self-host/dev) or the Cognito
-	// AdminUpdateUserAttributes adapter (hosted prod) — the call sites are
+	// AdminUpdateUserAttributes adapter (hosted prod), the call sites are
 	// unaware of which is in play.
 	IdentityAdmin auth.IdentityAdmin
 
 	// CredentialManager is the provider-neutral seam for a user's self-service
 	// credential management (passkeys). Like IdentityAdmin its concrete
-	// implementation is chosen by Config.AuthProvider — Cognito relays the
+	// implementation is chosen by Config.AuthProvider, Cognito relays the
 	// WebAuthn ceremony in-app (hosted prod), Keycloak hands off to its account
 	// console (self-host). Nil when OIDC is not configured, in which case the
 	// account-security endpoints return 503.
@@ -151,7 +151,7 @@ type Server struct {
 	collabHub *collabHub
 
 	// posthogDemand caches PostHog locale-demand snapshots per (project,
-	// range) — the PostHog query API is rate-limited.
+	// range), the PostHog query API is rate-limited.
 	posthogDemand *posthogDemandCache
 
 	// notificationHub manages per-user WebSocket connections for real-time notifications.
@@ -287,7 +287,7 @@ type Server struct {
 	// subscribers. Nil when the run store is not configured.
 	convergence *convergenceOrchestrator
 
-	// unclaimedPurger periodically removes expired anonymous projects — their
+	// unclaimedPurger periodically removes expired anonymous projects, their
 	// unclaimed auth records and orphaned content-store projects. Nil when auth
 	// / content stores are not configured.
 	unclaimedPurger *jobs.UnclaimedProjectPurger
@@ -534,7 +534,7 @@ func NewServer(cfg Config) *Server {
 	}
 
 	// Initialize the provider-neutral CredentialManager (self-service passkey
-	// management) for the configured provider — the parallel of IdentityAdmin.
+	// management) for the configured provider, the parallel of IdentityAdmin.
 	// Cognito relays the WebAuthn ceremony in-app; Keycloak hands off to its
 	// account console. Gated behind PasskeysEnabled so it ships dark (nil →
 	// account-security endpoints report 503 → the web Security card hides) until
@@ -593,7 +593,7 @@ func NewServer(cfg Config) *Server {
 			// Workspace-scoped connector configs, sealed at rest with the same
 			// cipher. Backs the /:ws/connectors handlers and boot rehydration.
 			s.ConnectorConfigStore = bstore.NewConnectorConfigStore(pgSQL, secretsCipher)
-			// GitHub App installation ownership — the tenancy record the
+			// GitHub App installation ownership, the tenancy record the
 			// post-install setup endpoints gate on.
 			s.ForgeInstallationStore = bstore.NewForgeInstallationStore(pgSQL)
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
@@ -682,7 +682,7 @@ func NewServer(cfg Config) *Server {
 
 	// Rehydrate persisted connectors into the (now-final) ConnectorService so
 	// remote connectors and their credentials survive a restart. Fail-soft per
-	// connector; never aborts boot. Startup wiring — no request context exists.
+	// connector; never aborts boot. Startup wiring, no request context exists.
 	s.rehydrateConnectors(context.Background())
 
 	// Wire up automation engine with run manager (Bowrain AD-013).
@@ -700,7 +700,7 @@ func NewServer(cfg Config) *Server {
 		s.convergence = newConvergenceOrchestrator(s)
 		// Reconcile zombie runs left 'running' by a crash/restart before
 		// accepting new work, so the one-run guard is never blocked by a dead
-		// row (F3). Startup wiring — no request context exists yet.
+		// row (F3). Startup wiring, no request context exists yet.
 		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
 		s.subscribeForgeDelivery()
@@ -711,13 +711,13 @@ func NewServer(cfg Config) *Server {
 		// Review loop fan-out to translations (RV-E): when a term/concept is marked
 		// forbidden or a brand rule is promoted, re-check existing reviewed targets
 		// and pull the violating ones back into the review queue. Durable, and
-		// deliberately does not start a run — it only re-queues; the human (or bulk
+		// deliberately does not start a run, it only re-queues; the human (or bulk
 		// approve-passing) re-drives completion through the path wired above.
 		s.subscribeReviewRecheck()
 	}
 
 	// Unclaimed-project purge (epic 003 item 6): periodically remove expired
-	// anonymous projects — both the unclaimed auth records
+	// anonymous projects, both the unclaimed auth records
 	// (auth.PurgeExpiredUnclaimed, which nothing else calls) and the orphaned
 	// content-store projects the anonymous-create flow leaves behind
 	// (handlers_claim.go). Claimed projects are guarded. Same ticker/goroutine
@@ -757,7 +757,7 @@ func NewServer(cfg Config) *Server {
 		// change propagates cluster-wide without a redeploy. Subscribe (not
 		// SubscribeGroup) so all instances react. Fine-to-miss: this only
 		// refreshes a cache that is loaded fresh at startup and re-read on the
-		// next change event — no state advances here, so an event lost during a
+		// next change event, no state advances here, so an event lost during a
 		// rollover cannot strand work.
 		if s.PlatformConfig != nil && s.PlatformConfig.Persistent() {
 			s.EventBus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
@@ -897,6 +897,9 @@ func NewServer(cfg Config) *Server {
 	// A landed push can open or clear a quality gate, so its gates are announced
 	// from the push rather than from whoever reads the project next.
 	s.subscribeShipGatesOnPush()
+	// A landed push can make the project's term scan due, so the server
+	// starts it rather than waiting for someone to ask.
+	s.subscribeTermScanOnPush()
 
 	// Initialize MCP server for voice + agent tools when stores are available.
 	if s.VoiceStore != nil {
@@ -966,7 +969,7 @@ func NewServer(cfg Config) *Server {
 				slog.Info("agent pool initialized", "runtime", cfg.AgentRuntime)
 			}
 		case "":
-			// No runtime — mock mode.
+			// No runtime, mock mode.
 		default:
 			slog.Warn("unknown agent runtime", "runtime", cfg.AgentRuntime)
 		}
@@ -1017,7 +1020,7 @@ func NewServer(cfg Config) *Server {
 
 	// Initialize admin OIDC verifier (Bowrain AD-018).
 	if cfg.AdminOIDCIssuerURL != "" && cfg.AdminOIDCClientID != "" {
-		// Startup wiring — no request context exists yet.
+		// Startup wiring, no request context exists yet.
 		ctx := context.Background()
 		verifier, err := auth.NewOIDCVerifier(ctx, cfg.AdminOIDCIssuerURL, cfg.AdminOIDCClientID)
 		if err != nil {
@@ -1082,10 +1085,10 @@ func NewServer(cfg Config) *Server {
 // proxy (Caddy on the box, or a cloud ALB). That proxy overwrites/append the
 // real client IP as the right-most X-Forwarded-For hop; anything to its left is
 // client-controlled and untrusted. echo.ExtractIPFromXFFHeader walks the header
-// right-to-left, skipping trusted hops, and returns the first UNtrusted IP —
+// right-to-left, skipping trusted hops, and returns the first UNtrusted IP,
 // i.e. exactly the address the proxy appended.
 //
-// Trust set: loopback + link-local + private ranges (echo defaults — covers a
+// Trust set: loopback + link-local + private ranges (echo defaults, covers a
 // same-box Caddy or an ALB on a private subnet) plus any extra CIDRs from
 // BOWRAIN_TRUSTED_PROXIES (comma/space-separated), for a proxy that presents a
 // non-private source address. Invalid CIDRs are logged and skipped.
@@ -1103,7 +1106,7 @@ func configureIPExtractor(e *echo.Echo) {
 		}
 		// Reject a default-route (/0) trust range. Trusting 0.0.0.0/0 or ::/0
 		// makes EVERY hop trusted, so ExtractIPFromXFFHeader returns the
-		// left-most (fully client-controlled) X-Forwarded-For entry — reopening
+		// left-most (fully client-controlled) X-Forwarded-For entry, reopening
 		// the XFF-spoofing hole this extractor exists to close (rate-limit key
 		// forgery, audit-IP forgery, /metrics bypass). This is the one
 		// misconfiguration that fails OPEN, so drop it with a loud warning.
@@ -1149,11 +1152,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// 5xx, and the Sentry capture seam. Replaces Echo's default handler.
 	e.HTTPErrorHandler = s.httpErrorHandler
 
-	// Middleware — order matters:
+	// Middleware, order matters:
 	// 1. Request ID (propagate/generate correlation ID)
 	// 2. Structured request logging (slog-echo, includes request_id)
 	// 3. Prometheus metrics
-	// 4. Sentry transaction — after the request id it tags itself with, and
+	// 4. Sentry transaction, after the request id it tags itself with, and
 	//    before Recover so a recovered panic is still recorded on it
 	// 5. Recovery, body limit, CORS
 	// 6. Security response headers
@@ -1175,7 +1178,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		"/api/v1/:ws/:id/dashboard/:ref",
 	))
 	// One Sentry transaction per request. sentry-go does not auto-instrument, so
-	// without this the traces sample rate the deployment sets samples nothing —
+	// without this the traces sample rate the deployment sets samples nothing,
 	// see observe/tracing.go. No-op when Sentry is unconfigured.
 	e.Use(observe.TracingMiddleware())
 	e.Use(middleware.Recover())
@@ -1184,8 +1187,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// Baseline response headers (nosniff, frame policy, referrer policy, HSTS
 	// over TLS, and a content policy for this server's own responses). Runs
 	// after CORS so a preflight carries them too, and before every handler, so a
-	// handler that needs a different policy — the document previews, the SPA in
-	// development — overrides it rather than adding it.
+	// handler that needs a different policy, the document previews, the SPA in
+	// development, overrides it rather than adding it.
 	e.Use(securityHeaders())
 
 	// Per-IP throttle knobs (env-overridable) used across the abuse-prone
@@ -1215,8 +1218,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Public per-project ship-status feed (D-3): the hosted twin of `kapi status
 	// --ship --emit ship.json`, byte-shape-identical so @neokapi/i18n-react's
-	// loadShipStatus consumes it without a second code path. No auth — a language
-	// picker on a public site reads it — and off unless the project opts in
+	// loadShipStatus consumes it without a second code path. No auth, a language
+	// picker on a public site reads it, and off unless the project opts in
 	// (ShipFeedProperty), because a public feed is a disclosure. `?stream=`
 	// selects a stream; the project's default otherwise.
 	v1.GET("/projects/:id/ship.json", s.HandlePublicShipManifest)
@@ -1229,18 +1232,18 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	}
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
 	if s.Config.JWTSecret != "" {
-		// Anonymous project creation (no auth required) — IP-throttled: it
+		// Anonymous project creation (no auth required), IP-throttled: it
 		// writes a project + claim token (and optionally sends an email) with no
 		// credential, so it is a prime abuse target.
 		v1.POST("/projects/anonymous", s.HandleCreateAnonymousProject,
 			RateLimitByIP(rl.AnonPerMin, rl.AnonBurst))
 
 		// Shared per-IP throttle for the unauthenticated / pre-auth token
-		// endpoints (login, refresh, and every leg of the device flow — start,
+		// endpoints (login, refresh, and every leg of the device flow, start,
 		// verify, poll). One bucket across them so a client cannot fan a
 		// brute-force / token-mint flood across endpoints; verify and poll are
 		// in it because together they are what turns a guessed user code into a
-		// session. OIDC redirect callbacks are intentionally excluded — they
+		// session. OIDC redirect callbacks are intentionally excluded, they
 		// carry provider state and must not be dropped.
 		authThrottle := newIPThrottle(rl.AuthPerMin, rl.AuthBurst)
 		authLimit := authThrottle.middleware(nil)
@@ -1250,7 +1253,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// to say "wait longer" in the device flow's own vocabulary (RFC 8628
 		// slow_down); the generic throttle error reads as fatal to the client,
 		// which would abandon a sign-in that was going fine. Same bucket, so the
-		// throttle still holds — only the way it answers changes.
+		// throttle still holds, only the way it answers changes.
 		pollLimit := authThrottle.middleware(func(c echo.Context) error {
 			c.Response().Header().Set("Retry-After", "5")
 			return apiErr(c, http.StatusTooManyRequests, "slow_down")
@@ -1286,19 +1289,19 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Back-channel logout (called server-to-server by Keycloak, unauthenticated)
 		authGroup.POST("/backchannel-logout", s.HandleBackChannelLogout)
 
-		// Slug availability check — public; reused by onboarding and the
+		// Slug availability check, public; reused by onboarding and the
 		// profile rename form. Format and reservation rules enforced here
 		// rather than the client.
 		authGroup.GET("/check-slug", s.HandleCheckSlug)
 
-		// Display-only identity probe — intentionally OUTSIDE the auth-required
+		// Display-only identity probe, intentionally OUTSIDE the auth-required
 		// group: it resolves the session cookie itself and always answers 200
 		// ({authenticated:false} when there is none). The same-site marketing
 		// landing reads it cross-origin (credentialed CORS) to render the
-		// signed-in CTA. It returns only display fields — never a token.
+		// signed-in CTA. It returns only display fields, never a token.
 		authGroup.GET("/whoami", s.HandleAuthWhoami)
 
-		// Email-change confirmation — token-authenticated, intentionally
+		// Email-change confirmation, token-authenticated, intentionally
 		// outside the JWT-protected group so the link works in any browser
 		// session (incl. one without an active Bowrain login).
 		authGroup.POST("/email/confirm", s.HandleConfirmEmailChange)
@@ -1320,13 +1323,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// provider-neutral CredentialManager. Cookie-authenticated (CSRF gate on
 		// the POST/DELETE routes is enforced by AuthMiddleware); state-changing
 		// IdP calls run server-side with a user-scoped access token minted on
-		// demand from the retained upstream refresh token — no IdP token reaches
+		// demand from the retained upstream refresh token, no IdP token reaches
 		// the browser.
 		accountGroup := v1.Group("/account")
 		accountGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		accountGroup.GET("/security", s.HandleAccountSecurity)
 		// Step-up elevation for credential management (top-level browser GET
-		// navigations — cookie-authenticated, CSRF-exempt).
+		// navigations, cookie-authenticated, CSRF-exempt).
 		accountGroup.GET("/security/elevate", s.HandleSecurityElevate)
 		accountGroup.GET("/security/elevate/callback", s.HandleSecurityElevateCallback)
 		accountGroup.GET("/passkeys", s.HandleListPasskeys)
@@ -1418,13 +1421,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.PUT("/members/:uid/role", s.HandleUpdateMemberRole)
 		wsSpecific.DELETE("/members/:uid", s.HandleRemoveMember)
 
-		// Unified change-event stream (SSE) — keeps web views fresh on any
+		// Unified change-event stream (SSE), keeps web views fresh on any
 		// external change (other users, kapi push, connector sync, automations).
 		// Optional ?project=<id> narrows the stream to one project.
 		wsSpecific.GET("/events", s.HandleWorkspaceEventsSSE)
 
 		// Invite routes (workspace-scoped, admin/owner only). Creation is
-		// IP-throttled — it can trigger an outbound invite email per call.
+		// IP-throttled, it can trigger an outbound invite email per call.
 		wsSpecific.POST("/invites", s.HandleCreateInvite, inviteLimit)
 		wsSpecific.GET("/invites", s.HandleListInvites)
 		wsSpecific.DELETE("/invites/:id", s.HandleDeleteInvite)
@@ -1474,7 +1477,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		billingGroup.GET("/model-usage", s.HandleGetBillingModelUsage)
 		billingGroup.GET("/invoices", s.HandleGetInvoices)
 		// The three POSTs each reach out to Stripe and mint an object (a Checkout
-		// session, a portal session, and — on first checkout — a Customer that is
+		// session, a portal session, and, on first checkout, a Customer that is
 		// only persisted later by the webhook). An owner looping any of them would
 		// accumulate orphaned Stripe objects and API cost, so throttle the
 		// money-moving verbs. The GETs above power the billing page and stay
@@ -1500,7 +1503,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	//     route with AdminGuard (validates an admin-realm token).
 	//   - Otherwise the routes are NOT mounted. The plain user-JWT fallback is
 	//     only used when explicitly opted in via AllowInsecureAdminAuth (local
-	//     dev) — because that fallback performs NO admin-role check and would
+	//     dev), because that fallback performs NO admin-role check and would
 	//     otherwise let any regular-user JWT/session reach impersonation,
 	//     credit-grant, and plan-management handlers (privilege escalation).
 	//     Critically, AdminVerifier==nil && JWTSecret!="" is the normal
@@ -1608,7 +1611,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 // This path exists only in development and E2E; production builds the SPAs in
 // CI and serves them from the CDN, which owns their content policy. The
 // server's own policy is cleared here so the document behaves the same in both
-// places — see clearCSPForSPA.
+// places, see clearCSPForSPA.
 func serveSPAFile(c echo.Context, dir string) error {
 	clearCSPForSPA(c)
 
@@ -1662,7 +1665,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Workspace-level resources (no project context)
 	// -----------------------------------------------------------------------
 
-	// content memory CRUD — Bowrain AD-011: /:ws/translation-memory
+	// content memory CRUD, Bowrain AD-011: /:ws/translation-memory
 	g.GET("/translation-memory", s.HandleGetMemoryEntries)
 	g.GET("/translation-memory/count", s.HandleGetMemoryCount)
 	g.POST("/translation-memory", s.HandleAddMemoryEntry)
@@ -1670,20 +1673,20 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.DELETE("/translation-memory/:eid", s.HandleDeleteMemoryEntry)
 	g.POST("/translation-memory/bulk-delete", s.HandleBulkDeleteMemoryEntries)
 
-	// Brand knowledge graph — Bowrain AD-021. The concept API (/:ws/concepts)
+	// Brand knowledge graph, Bowrain AD-021. The concept API (/:ws/concepts)
 	// is the workspace terminology surface; it replaces the former /:ws/terms
 	// routes, and every consumer (web, desktop, Pulse, MCP) uses it. Change-sets
 	// (/:ws/changesets) carry the governed-edit lifecycle.
 	s.registerConceptRoutes(g)
 	s.registerChangesetRoutes(g)
 
-	// Provider configs — Bowrain AD-011: /:ws/providers
+	// Provider configs, Bowrain AD-011: /:ws/providers
 	g.GET("/providers", s.HandleListProviderConfigs)
 	g.POST("/providers", s.HandleSaveProviderConfig)
 	g.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
 	g.POST("/providers/test", s.HandleTestProviderConfig)
 
-	// Connectors — Bowrain AD-011: /:ws/connectors (workspace-scoped, not public)
+	// Connectors, Bowrain AD-011: /:ws/connectors (workspace-scoped, not public)
 	g.GET("/connectors", s.HandleListActiveConnectors)
 	// GitHub App post-install setup: mint the state that ties an installation
 	// to this workspace, redeem it on the way back, then list the
@@ -1704,14 +1707,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/connectors/:id/fetch", s.HandleFetch)
 	g.POST("/connectors/:id/publish", s.HandlePublish)
 
-	// Governance profiles — the points the workspace's content occupies in the
+	// Governance profiles, the points the workspace's content occupies in the
 	// context space, aggregated read-only from collections, voices and
 	// vocabulary: /:ws/profiles
 	g.GET("/profiles", s.HandleListContextProfiles)
 
 	// Channel-slug equivalence the workspace observed between projects and
 	// proposes without resolving: /:ws/context/channel-proposals. The judge
-	// write settles a proposal — accepted or dismissed — and still rewrites no
+	// write settles a proposal, accepted or dismissed, and still rewrites no
 	// project's slug.
 	g.GET("/context/channel-proposals", s.HandleListChannelAliasProposals)
 	g.POST("/context/channel-proposals/judge", s.HandleJudgeChannelAliasProposal)
@@ -1719,7 +1722,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// The read surface over the workspace context graph the push writes.
 	s.registerContextGraphRoutes(g)
 
-	// Brand profiles — Bowrain AD-011: /:ws/voice-profiles
+	// Brand profiles, Bowrain AD-011: /:ws/voice-profiles
 	g.GET("/voice-profiles", s.HandleListVoiceProfiles)
 	g.POST("/voice-profiles", s.HandleCreateVoiceProfile)
 	g.GET("/voice-profiles/:id", s.HandleGetVoiceProfile)
@@ -1744,11 +1747,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/projects/:id/recipe-changes", s.HandleListPendingRecipeChanges)
 	g.POST("/projects/:id/recipe-changes/:changeID/applied", s.HandleMarkRecipeChangeApplied)
 
-	// Workspace voice compliance rollup — the all-surfaces board aggregating
+	// Workspace voice compliance rollup, the all-surfaces board aggregating
 	// every project's stored scores/trends into one matrix: /:ws/voice/rollup
 	g.GET("/voice/rollup", s.HandleGetVoiceRollup)
 
-	// AI brand onboarding scans — epic 016: /:ws/context-scans. The scan
+	// AI brand onboarding scans, epic 016: /:ws/context-scans. The scan
 	// endpoint burns platform credits (QuotaGuard + the handler's 402
 	// pre-check); the draft tester is deterministic (aiLimit only).
 	g.POST("/context-scans/uploads", s.HandleContextScanUploads)
@@ -1757,14 +1760,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/context-scans/:id/approve", s.refuseTool(s.HandleApproveContextScan))
 	g.POST("/context-scans/check-draft", s.HandleCheckVoiceDraft, aiLimit)
 
-	// Translation jobs — Bowrain AD-011: /:ws/jobs
+	// Translation jobs, Bowrain AD-011: /:ws/jobs
 	g.POST("/jobs/translate", s.HandleCreateTranslationJob)
 	g.GET("/jobs", s.HandleListJobs)
 	g.GET("/jobs/:id", s.HandleGetJob)
 	g.DELETE("/jobs/:id", s.HandleDeleteJob)
 	g.GET("/ai-usage", s.HandleGetAIUsage)
 
-	// Notifications — Bowrain AD-011: /:ws/notifications
+	// Notifications, Bowrain AD-011: /:ws/notifications
 	g.GET("/notifications", s.HandleListNotifications)
 	g.POST("/notifications/:nid/read", s.HandleMarkNotificationRead)
 	g.POST("/notifications/read-all", s.HandleMarkAllNotificationsRead)
@@ -1775,15 +1778,15 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/digest-settings", s.HandleGetDigestSettings)
 	g.PUT("/digest-settings", s.HandleUpdateDigestSettings)
 
-	// Activities — Bowrain AD-011: /:ws/activities
+	// Activities, Bowrain AD-011: /:ws/activities
 	g.GET("/activities", s.HandleListActivities)
 	g.POST("/activities/seen", s.HandleMarkActivitiesSeen)
 
-	// Loop rollup — workspace-home aggregate (latest convergence run +
+	// Loop rollup, workspace-home aggregate (latest convergence run +
 	// ship-state rollup): /:ws/loop-rollup
 	g.GET("/loop-rollup", s.HandleWorkspaceLoopRollup)
 
-	// Tasks — Bowrain AD-011: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
+	// Tasks, Bowrain AD-011: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
 	g.GET("/tasks", s.HandleListTasks)
 	g.GET("/tasks/counts", s.HandleGetTaskCounts)
 	g.POST("/tasks", s.HandleCreateTask)
@@ -1794,11 +1797,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/tasks/:taskId/complete", s.HandleCompleteTask)
 	g.POST("/tasks/:taskId/cancel", s.HandleCancelTask)
 
-	// Workspace audit log — Bowrain AD-011: /:ws/audit-log
+	// Workspace audit log, Bowrain AD-011: /:ws/audit-log
 	g.GET("/audit-log", s.HandleListWorkspaceAuditLog)
 	g.GET("/audit-log/verify", s.HandleVerifyWorkspaceAuditChain)
 
-	// Archived projects — Bowrain AD-011: /:ws/archived-projects
+	// Archived projects, Bowrain AD-011: /:ws/archived-projects
 	g.GET("/archived-projects", s.HandleListArchivedProjects)
 
 	// -----------------------------------------------------------------------
@@ -1825,7 +1828,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// will accept.
 	g.GET("/:id/permissions", s.HandleGetCallerPermissions)
 
-	// Project members — Bowrain AD-011: /:ws/:id/members
+	// Project members, Bowrain AD-011: /:ws/:id/members
 	g.GET("/:id/members", s.HandleListProjectMembers)
 	g.POST("/:id/members", s.HandleAddProjectMember)
 	g.PUT("/:id/members/:uid", s.HandleUpdateProjectMember)
@@ -1848,27 +1851,27 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// fix filed as a source proposal.
 	s.registerOverviewReaderRoutes(g)
 
-	// Presence — /:ws/:id/presence. Reports the caller's editing focus; the
+	// Presence, /:ws/:id/presence. Reports the caller's editing focus; the
 	// change relay fans it out to project watchers over the /:ws/events SSE
 	// stream (per-cursor presence uses the Yjs awareness channel).
 	g.POST("/:id/presence", s.HandleUpdatePresence)
 
-	// Project settings — Bowrain AD-011: /:ws/:id/settings
+	// Project settings, Bowrain AD-011: /:ws/:id/settings
 	g.GET("/:id/settings/extraction", s.HandleGetExtractionSettings)
 	g.PUT("/:id/settings/extraction", s.HandleUpdateExtractionSettings)
 
-	// Measured steerability — model recommendation sweeps: /:ws/:id/model-recommendations
+	// Measured steerability, model recommendation sweeps: /:ws/:id/model-recommendations
 	g.GET("/:id/model-recommendations", s.HandleGetModelRecommendations)
 	g.POST("/:id/model-recommendations/refresh", s.HandleRefreshModelRecommendations)
 
-	// Project audit log — Bowrain AD-011: /:ws/:id/audit-log
+	// Project audit log, Bowrain AD-011: /:ws/:id/audit-log
 	g.GET("/:id/audit-log", s.HandleListAuditLog)
 
 	// Project feed: /:ws/:id/feed. One timeline of how the project changes.
 	g.GET("/:id/feed", s.HandleProjectFeed)
 	g.GET("/:id/feed/:entry/decisions", s.HandleFeedDecisions)
 
-	// Automations — Bowrain AD-011: /:ws/:id/automations
+	// Automations, Bowrain AD-011: /:ws/:id/automations
 	g.GET("/:id/automations", s.HandleListAutomationRules)
 	g.POST("/:id/automations", s.HandleCreateAutomationRule)
 	g.PUT("/:id/automations/:ruleId", s.HandleUpdateAutomationRule)
@@ -1877,7 +1880,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/automations/events", s.HandleListAutomationEvents)
 	g.GET("/:id/automations/history", s.HandleListAutomationHistory)
 
-	// Flow definitions — Bowrain AD-013: /:ws/:id/flows
+	// Flow definitions, Bowrain AD-013: /:ws/:id/flows
 	// Server-side, project-scoped pipeline graphs that automation run_flow
 	// actions reference. Built-in flows are merged into the listing; project
 	// flows are persisted in the FlowDefStore.
@@ -1887,7 +1890,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/:id/flows/:flowId", s.HandleUpdateFlowDefinition)
 	g.DELETE("/:id/flows/:flowId", s.HandleDeleteFlowDefinition)
 
-	// Automation runs — Bowrain AD-011: /:ws/:id/automations/runs (nested)
+	// Automation runs, Bowrain AD-011: /:ws/:id/automations/runs (nested)
 	g.GET("/:id/automations/runs", s.HandleListAutomationRuns)
 	g.GET("/:id/automations/runs/:runId", s.HandleGetAutomationRun)
 	g.GET("/:id/automations/runs/:runId/steps", s.HandleListAutomationRunSteps)
@@ -1895,7 +1898,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/automations/runs/:runId/cancel", s.HandleCancelAutomationRun)
 	g.GET("/:id/automations/runs/:runId/events", s.HandleAutomationRunSSE)
 
-	// Stream management — Bowrain AD-011: /:ws/:id/streams
+	// Stream management, Bowrain AD-011: /:ws/:id/streams
 	g.GET("/:id/streams", s.HandleListStreams)
 	g.POST("/:id/streams", s.HandleCreateStream)
 	g.GET("/:id/streams/:stream", s.HandleGetStream)
@@ -1912,13 +1915,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// annotates a block. Each operation addresses an item by its path.
 	g.POST("/projects/:id/streams/:stream/changes", s.HandleApplyChanges)
 
-	// Tags — Bowrain AD-011: /:ws/:id/tags (peer to streams)
+	// Tags, Bowrain AD-011: /:ws/:id/tags (peer to streams)
 	g.GET("/:id/tags", s.HandleListProjectTags)
 	g.POST("/:id/tags", s.HandleCreateStreamTag)
 	g.GET("/:id/tags/:tag", s.HandleGetStreamTag)
 	g.DELETE("/:id/tags/:tag", s.HandleDeleteStreamTag)
 
-	// Refs — Bowrain AD-011: /:ws/:id/refs (unified streams + tags listing)
+	// Refs, Bowrain AD-011: /:ws/:id/refs (unified streams + tags listing)
 	g.GET("/:id/refs", s.HandleListProjectRefs)
 
 	// -----------------------------------------------------------------------
@@ -1931,7 +1934,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// more generous per-project bucket (see the flat sync group above).
 	chunkRateLimit := RateLimitSyncPush(600, 120)
 
-	// Items — Bowrain AD-011: /:ws/:id/items/:ref
+	// Items, Bowrain AD-011: /:ws/:id/items/:ref
 	g.GET("/:id/items/:ref", s.HandleGetFileBlocks) // list items
 	// One item's metadata. Item names carry slashes, so the name is a query
 	// parameter and the route needs its own segment beside the list route.
@@ -1939,7 +1942,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/items/:ref", s.HandleUploadFiles)
 	g.DELETE("/:id/items/:ref", s.HandleRemoveFile) // ?item=path/to/file
 
-	// Blocks — Bowrain AD-011: /:ws/:id/blocks/:ref
+	// Blocks, Bowrain AD-011: /:ws/:id/blocks/:ref
 	g.GET("/:id/blocks/:ref", s.HandleGetFileBlocks) // ?item=&locale=&status=&q=&translatable=
 	g.GET("/:id/blocks/:ref/counts", s.HandleGetBlockCounts)
 	g.POST("/:id/blocks/:ref/bulk-review", s.refuseTool(s.HandleBulkReviewBlocks))
@@ -1981,7 +1984,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote", s.HandlePromoteEntity)
 	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote-to-concept", s.HandlePromoteEntityToConcept)
 
-	// Actions — Bowrain AD-011: /:ws/:id/actions/:ref/<verb>
+	// Actions, Bowrain AD-011: /:ws/:id/actions/:ref/<verb>
 	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
 	// ai-translate enforces the credit gate INSIDE the handler via
 	// billing.GuardSyncCredits (not QuotaGuard middleware) so it can exempt
@@ -1994,14 +1997,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/actions/:ref/qa-check-block", s.HandleCheckBlock)
 	g.POST("/:id/actions/:ref/term-enforce", s.HandleTermEnforce)
 
-	// Preview and word count — Bowrain AD-011: /:ws/:id/preview/:ref, /:ws/:id/word-count/:ref
+	// Preview and word count, Bowrain AD-011: /:ws/:id/preview/:ref, /:ws/:id/word-count/:ref
 	g.GET("/:id/preview/:ref", s.HandleRenderDocumentPreview)
 	g.GET("/:id/word-count/:ref", s.HandleGetWordCount)
 
-	// Dashboard — Bowrain AD-011: /:ws/:id/dashboard/:ref
+	// Dashboard, Bowrain AD-011: /:ws/:id/dashboard/:ref
 	g.GET("/:id/dashboard/:ref", s.HandleGetTranslationDashboard)
 
-	// Sync — Bowrain AD-011: /:ws/:id/sync/:ref
+	// Sync, Bowrain AD-011: /:ws/:id/sync/:ref
 	g.GET("/:id/sync/:ref/pull", s.HandleSyncPull)
 	g.GET("/:id/sync/:ref/ref", s.HandleSyncRef)
 	g.GET("/:id/sync/:ref/blocks", s.HandleSyncGetBlocks)
@@ -2016,7 +2019,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/sync/:ref/push/diff", s.HandleSyncPushDiffRetired)
 	g.POST("/:id/sync/:ref/translate", s.HandleCreateProjectTranslationJob)
 
-	// PostHog locale-demand connector — /:ws/:id/connectors/posthog
+	// PostHog locale-demand connector, /:ws/:id/connectors/posthog
 	// Per-project analytics connector config (secret stored sealed, masked on
 	// read) plus the cached demand snapshot endpoint.
 	g.GET("/:id/connectors/posthog", s.HandleGetPostHogConfig)
@@ -2024,7 +2027,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.DELETE("/:id/connectors/posthog", s.HandleDeletePostHogConfig)
 	g.GET("/:id/connectors/posthog/demand", s.HandlePostHogDemand)
 
-	// Collections — Bowrain AD-011: /:ws/:id/collections/:ref
+	// Collections, Bowrain AD-011: /:ws/:id/collections/:ref
 	g.GET("/:id/collections/:ref", s.HandleListCollections)
 	g.POST("/:id/collections/:ref", s.HandleCreateCollection)
 	g.GET("/:id/collections/:ref/:cid", s.HandleGetCollection)
@@ -2033,10 +2036,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/collections/:ref/:cid/items", s.HandleUploadToCollection)
 	// The story index the collection's preview host publishes, read here so the
 	// application's connect-src stays 'self' and CORS stops being the
-	// customer's problem — see handlers_preview_index.go.
+	// customer's problem, see handlers_preview_index.go.
 	g.GET("/:id/collections/:ref/:cid/preview/index", s.HandlePreviewIndex)
 
-	// Assets — Bowrain AD-011: /:ws/:id/assets/:ref
+	// Assets, Bowrain AD-011: /:ws/:id/assets/:ref
 	g.POST("/:id/assets/:ref/upload-url", s.HandleAssetUploadURL)
 	g.GET("/:id/assets/:ref", s.HandleListAssets)
 	g.POST("/:id/assets/:ref", s.HandleCreateAsset)
@@ -2046,7 +2049,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/assets/:ref/:aid/variants", s.HandleListVariants)
 	g.POST("/:id/assets/:ref/:aid/variants", s.HandleCreateVariant)
 
-	// Pending translation review — the session's server-side queue.
+	// Pending translation review, the session's server-side queue.
 	g.GET("/:id/pending-review/:ref", s.HandleListPendingReview)
 	// The same queue for one language, grouped and ordered as a review deck.
 	g.GET("/:id/review-deck/:ref", s.HandleGetReviewDeck)
@@ -2056,7 +2059,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// waiting count.
 	g.GET("/:id/review-deck/:ref/pages", s.HandleGetReviewDeckPages)
 
-	// Review queue — Bowrain AD-011: /:ws/:id/review-queue/:ref
+	// Review queue, Bowrain AD-011: /:ws/:id/review-queue/:ref
 	g.GET("/:id/review-queue/:ref", s.HandleListReviewQueue)
 	g.GET("/:id/review-queue/:ref/:itemId", s.HandleGetReviewQueueItem)
 	g.POST("/:id/review-queue/:ref/:itemId/decide", s.refuseTool(s.HandleDecideReviewItem))
@@ -2072,7 +2075,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/source-proposals", s.HandleCreateSourceProposal)
 	g.POST("/:id/source-proposals/:pid/decide", s.refuseTool(s.HandleDecideSourceProposal))
 
-	// Voice — Bowrain AD-011: /:ws/:id/voice/:ref
+	// Voice, Bowrain AD-011: /:ws/:id/voice/:ref
 	g.GET("/:id/voice/:ref/scores", s.HandleGetVoiceScores)
 	g.GET("/:id/voice/:ref/scores/:locale", s.HandleGetVoiceScoresByLocale)
 	g.GET("/:id/voice/:ref/trends", s.HandleGetVoiceTrends)
@@ -2080,10 +2083,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/voice/:ref/drift-check", s.HandleRunVoiceDriftCheck)
 	g.POST("/:id/voice/:ref/corrections", s.HandleCreateVoiceCorrection)
 
-	// Collab — Bowrain AD-011: /:ws/:id/collab/:ref
+	// Collab, Bowrain AD-011: /:ws/:id/collab/:ref
 	g.GET("/:id/collab/:ref", s.HandleCollabWebSocket)
 
-	// Convergence runs (strategy 2026-07-kapi-up doc 03) — project-scoped, not
+	// Convergence runs (strategy 2026-07-kapi-up doc 03), project-scoped, not
 	// ref-scoped: /:ws/:id/convergence/runs
 	s.registerConvergenceRoutes(g)
 }
@@ -2129,7 +2132,7 @@ func (s *Server) Start(addr string) error {
 			Addr:              addr,
 			ReadHeaderTimeout: readHeaderTimeout,
 		}
-		// Recorded for Shutdown, which prefers httpServer over Echo's own —
+		// Recorded for Shutdown, which prefers httpServer over Echo's own,
 		// e.Shutdown would stop the server Echo built, not this one.
 		s.httpServer = srv
 		slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP")
@@ -2235,7 +2238,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		s.NotificationDispatcher.Close()
 	}
 
-	// Phase 3: close event infrastructure. Order matters — stop consumers
+	// Phase 3: close event infrastructure. Order matters, stop consumers
 	// before closing the bus so in-flight events can drain.
 	slog.Info("shutdown phase 3: closing event infrastructure")
 	if s.AutomationEngine != nil {
@@ -2293,7 +2296,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // OpenBlockstore returns a `blockstore.Store` bound to the given
-// project/stream on this Server's ContentStore — the in-process
+// project/stream on this Server's ContentStore, the in-process
 // adapter used by automation actions and server-side flow execution.
 // See AD-013 and #385 for the design.
 func (s *Server) OpenBlockstore(projectID, stream string) (coreblockstore.Store, error) {
@@ -2364,7 +2367,7 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 
 	if !s.Config.DevMode {
 		// Production: a fixed allowlist of this app's own origin plus the
-		// landing. Whether it ends up empty is not a reason to widen it — an
+		// landing. Whether it ends up empty is not a reason to widen it, an
 		// unset or unparsable AppPublicURL means no cross-origin caller is
 		// credentialed, which breaks the landing's signed-in CTA and nothing
 		// else. Same-origin requests never consult CORS.
@@ -2384,7 +2387,7 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 	}
 
 	// Development: allow localhost origins and the configured landing origin.
-	// Echo reflects only the matching origin — never "*" — so this stays
+	// Echo reflects only the matching origin, never "*", so this stays
 	// credential-safe. Reached only when DevMode was set deliberately.
 	cfg.AllowOriginFunc = func(origin string) (bool, error) {
 		u, err := url.Parse(origin)
@@ -2403,7 +2406,7 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 }
 
 // originOf reduces a URL to its scheme://host origin (dropping any path, query,
-// or fragment). Returns "" when the input is empty or unparsable — callers omit
+// or fragment). Returns "" when the input is empty or unparsable, callers omit
 // it from the allowlist rather than allow a malformed origin.
 func originOf(rawURL string) string {
 	if rawURL == "" {
@@ -2419,37 +2422,16 @@ func originOf(rawURL string) string {
 // wsOriginPatterns lists the origins allowed to open one of this server's
 // WebSockets, in the host-pattern form websocket.AcceptOptions expects.
 //
-// Both sockets authenticate through AuthMiddleware, and an upgrade is a GET —
-// a CSRF-safe method — so a browser that already holds the session cookie needs
-// nothing else to connect. SameSite=Lax keeps a genuinely cross-site page out,
-// but "same-site" is a registrable-domain relation, not an origin one: any
-// sibling host under the same domain still sends the cookie. The origin check
-// is what makes the socket same-origin, so it has to be a real allowlist.
+// An upgrade is a GET, and SameSite=Lax still sends the session cookie from a
+// sibling host under the same domain, so this origin check is what keeps the
+// socket same-origin. It is narrower than corsConfig: the landing origin may
+// read whoami, but nothing off-origin needs the notification stream or a
+// collaboration room.
 //
-// The policy is deliberately narrower than corsConfig's. CORS grants the
-// landing origin one credentialed read (GET whoami, display JSON only); a
-// socket is a different privilege — the notification stream, and join-and-write
-// access to a collaboration room — and nothing off-origin needs it. So the
-// landing is not here, and the app's own origin arrives via AppPublicURL rather
-// than via the identity provider's URL, which never names this application.
-//
-// What is allowed:
-//
-//   - The origin the request itself arrived on. The library already accepts an
-//     Origin matching r.Host; this adds the public host from X-Forwarded-Host
-//     for deployments where the proxy rewrites Host, the same header
-//     requestBaseURL trusts when it builds OIDC redirect URIs. A browser cannot
-//     set that header on a WebSocket handshake, so it does not widen the
-//     browser-driven surface this check exists to close.
-//   - This app's own public host (AppPublicURL), for a deployment whose proxy
-//     leaves Host alone and where the browser therefore arrives on a name the
-//     library's Origin-equals-Host check would not match.
-//   - Any localhost origin in development, mirroring corsConfig's dev branch,
-//     so a Vite dev server on another port can connect. Development means
-//     Config.DevMode, set deliberately — not "some unrelated field is empty".
-//
-// An absent Origin — every non-browser client, so the CLI and the Go SDK — is
-// accepted by the library before these patterns are consulted.
+// Allowed: the public host from X-Forwarded-Host (a browser cannot set it on a
+// handshake), the app's own public host (AppPublicURL), and any localhost
+// origin when Config.DevMode is set. The library itself accepts an Origin
+// matching r.Host, and a request with no Origin (the CLI, the Go SDK).
 func (s *Server) wsOriginPatterns(c echo.Context) []string {
 	var patterns []string
 
@@ -2467,7 +2449,7 @@ func (s *Server) wsOriginPatterns(c echo.Context) []string {
 		patterns = append(patterns, h)
 	}
 
-	// Development, gated exactly as corsConfig gates its dynamic branch — on
+	// Development, gated exactly as corsConfig gates its dynamic branch, on
 	// the explicit discriminator, not on whether some other field is populated.
 	if s.Config.DevMode {
 		patterns = append(patterns,

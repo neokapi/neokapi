@@ -4,7 +4,13 @@
 // for one person; it never copies work. The server decides what is allowed
 // and counts every step; this file maps its answers.
 
-import type { PlanLevel, PlanScan, PlanSettle } from "./plan.ts";
+import {
+  planScanWaitingOf,
+  type PlanLevel,
+  type PlanScan,
+  type PlanScanWaiting,
+  type PlanSettle,
+} from "./plan.ts";
 
 /** The languages a person follows in one project, and the project's own. */
 export interface ReviewLanguages {
@@ -72,8 +78,13 @@ export interface PlanStep {
   changed: number;
   /** The policy level's settle state. */
   settle?: PlanSettle;
-  /** The key language's last term scan state, if a scan was started. */
-  scan?: PlanScan["status"];
+  /**
+   * The key language's term scan: the last scan's state, or why the scan
+   * waits while the level has not started.
+   */
+  scan?: PlanScan["status"] | PlanScanWaiting;
+  /** When the workspace's monthly AI limit resets, set with waiting_quota. */
+  quotaResetsAt?: string;
 }
 
 /** Why a language deck holds translations back: the key language is open. */
@@ -123,6 +134,7 @@ export interface ServerPlanStep {
   changed?: number;
   settle?: string;
   scan?: string;
+  quota_resets_at?: string;
 }
 
 export interface ServerPlanHeld {
@@ -191,7 +203,8 @@ export function planStepsFromServer(steps: ServerPlanStep[] | null | undefined):
         : undefined,
       scan: (SCAN_STATUS as readonly string[]).includes(s.scan ?? "")
         ? (s.scan as PlanScan["status"])
-        : undefined,
+        : planScanWaitingOf(s.scan),
+      quotaResetsAt: s.quota_resets_at || undefined,
     });
   }
   return out;
