@@ -3,6 +3,7 @@ import type { PluginOption } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import neokapi from "@neokapi/i18n-react/vite";
+import qpsCatalog from "../../../scripts/vite-qps-catalog.mjs";
 import neokapiI18nConfig from "../../packages/app/neokapi-i18n.config.json" with { type: "json" };
 
 export default defineConfig({
@@ -11,6 +12,8 @@ export default defineConfig({
   // (bowrain/packages/app/neokapi-i18n.config.json) so hashes match the catalog.
   plugins: [
     neokapi({ mode: "runtime", componentMap: neokapiI18nConfig.componentMap }) as PluginOption,
+    // public/translations/qps.json is build output: regenerated here (make bowrain-ctrl-qps).
+    qpsCatalog("bowrain-ctrl-qps"),
     react(),
     tailwindcss(),
   ],

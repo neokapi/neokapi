@@ -1,4 +1,4 @@
-# Customer #1 dogfood — neokapi's own content, converged on bowrain.cloud.
+# Customer #1 dogfood: neokapi's own content, converged on bowrain.cloud.
 #
 # This is the workflow the product tells everyone else to write, run against the
 # repository that builds the product: install the CLI with setup-kapi, sync the
@@ -14,8 +14,8 @@
 # gate and skip.
 #
 # Arming it needs two settings that are not in this file:
-#   * repo secret   BOWRAIN_AUTH_TOKEN     — a bwt_ workspace API token
-#   * repo variable DOGFOOD_SYNC_ENABLED   — set to 'true'
+#   * repo secret   BOWRAIN_AUTH_TOKEN     : a bwt_ workspace API token
+#   * repo variable DOGFOOD_SYNC_ENABLED   : set to 'true'
 # Unset the variable to disarm; no secret is read and no content moves.
 
 name: Dogfood Sync
@@ -59,7 +59,7 @@ jobs:
       # This is the ONE in-repo kapi invocation that binds the root recipe (the
       # isolation contract in CLAUDE.md), so nothing here sets KAPI_NO_PROJECT.
       # setup-kapi installs the released CLI and the bowrain plugin from the
-      # registry — the same path a customer takes. Neither is built from this
+      # registry, the same path a customer takes. Neither is built from this
       # checkout, so the run tests the product rather than the working tree.
       - name: Install kapi and the bowrain plugin
         uses: neokapi/setup-kapi@v1
@@ -91,7 +91,7 @@ jobs:
       # i18n/**/*.kbf.json catalogs that the neokapi-i18n extractor produces
       # from React source; they are build artifacts, gitignored by design, so a
       # bare run from a clean checkout would carry nothing for them. Stage 1
-      # only (source catalogs) — the target side is the loop's job, and target
+      # only (source catalogs). The target side is the loop's job, and target
       # drift must never gate a push.
       - uses: ./.github/actions/setup-node-ui
 
@@ -103,7 +103,7 @@ jobs:
       # workspace, and priming the ones these stages never touch writes hashes
       # into `go.work.sum`. The gate below reads the whole tree and refuses a
       # convergence run that changed a file outside the loop's scope, which is
-      # exactly right — a run that delivers content must not also be the run
+      # exactly right: a run that delivers content must not also be the run
       # that edits the module graph.
       - uses: actions/setup-go@v7
         with:
@@ -200,6 +200,12 @@ jobs:
         if: ${{ !inputs.plan }}
         run: make l10n-compile
 
+      # The gate below measures each app's target dictionary against that app's
+      # qps dictionary, which is build output and absent from a fresh checkout.
+      # The installed kapi writes it; nothing here commits it.
+      - name: Generate the apps' qps dictionaries the gate reads
+        run: make app-qps QPS_KAPI="$(command -v kapi)"
+
       # Delivery is conditional on what the run wrote being sound. Every artifact
       # the loop owns is re-materialized on the next regeneration rather than
       # repaired, so a defect delivered here is a defect the next run reproduces:
@@ -265,7 +271,7 @@ jobs:
           # (`:(glob)…`), which the shell must not expand against the tree.
           set -f
           # An unreadable derived set would deliver the context change and leave
-          # every artifact it backs behind, green — the silent half-delivery this
+          # every artifact it backs behind, green: the silent half-delivery this
           # whole sequence exists to prevent. The gate above refuses it first;
           # this refuses it again rather than trusting step order to hold.
           #
@@ -274,7 +280,7 @@ jobs:
           # request carries exactly what the gate classified.
           derived="$(make -s l10n-owned-paths)"
           if [ -z "${derived//[[:space:]]/}" ]; then
-            echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
+            echo "::error title=Delivery refused::the derived set is empty; refusing to deliver a partial tree"
             exit 1
           fi
           AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${RECORD_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound."

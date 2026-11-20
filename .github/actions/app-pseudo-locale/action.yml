@@ -1,0 +1,44 @@
+name: Generate an app's qps dictionary
+description: >
+  Write an app's qps (pseudo-locale) dictionary, public/translations/qps.json,
+  with a released kapi, immediately before the build that ships it.
+
+  The dictionary is build output and git carries none of it. Each app's vite
+  config regenerates it on a developer's machine and skips that step under CI,
+  so a workflow that ships an app runs this action first, and a failure here
+  fails the job.
+
+  Run it after @neokapi/i18n-react is built: the make targets call its
+  extractor and compiler from packages/i18n-react/dist.
+
+inputs:
+  targets:
+    description: >
+      Space-separated make targets, one per surface: kapi-desktop-qps,
+      bowrain-app-qps (the web and desktop shells), bowrain-ctrl-qps,
+      bowrain-pulse-qps.
+    required: true
+  kapi-version:
+    description: >
+      Released kapi that pseudo-translates the catalogs. Pinned, as in the
+      pseudo-locale action, so the dictionary depends on the app source and
+      this version only.
+    required: false
+    default: "1.4.0-rc5"
+
+runs:
+  using: composite
+  steps:
+    - name: Install kapi
+      uses: neokapi/setup-kapi@v1
+      with:
+        version: ${{ inputs.kapi-version }}
+
+    - name: Generate the qps dictionaries
+      shell: bash
+      env:
+        TARGETS: ${{ inputs.targets }}
+      run: |
+        set -euo pipefail
+        # shellcheck disable=SC2086  # TARGETS is a list of make targets
+        make $TARGETS QPS_KAPI="$(command -v kapi)"

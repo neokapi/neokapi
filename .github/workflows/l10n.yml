@@ -1,27 +1,18 @@
 name: l10n
 
-# The one place the build-derived multilingual artifacts are regenerated in CI.
-# No other workflow may run a subset of `make l10n-build`: subsets do not add up
-# to the whole, and a surface covered by none of them goes stale unnoticed.
+# The one place CI regenerates the build-derived multilingual artifacts, with
+# `make l10n-build`. It asserts that every committed BUILD-DERIVED artifact is
+# what the current source produces: the two generated inventories, the English
+# email renders and the committed qps probe tier. The app surfaces' qps
+# dictionaries are build output (`make app-qps`) and are outside it. It never
+# touches the target-language tier, which `kapi up` writes from the project
+# store; that tier's standing is reported below and gates nothing.
 #
-# What it asserts: every committed BUILD-DERIVED artifact is exactly what the
-# current source produces — the two generated inventories, the English email
-# renders, and the whole qps probe tier. That is a generated-vs-source gate.
-#
-# What it deliberately does not touch: the target-language tier. `kapi up`
-# writes that out of the project store, which holds the union of what git
-# carries and what a venue pull brought home, so no checkout can be asked to
-# reproduce it — a job that regenerated and committed it would overwrite
-# approved wording with whatever the committed seeds happen to hold, green every
-# time and silent. The walk this runs has no convergence in it. The target tier's
-# standing is reported instead, below, and gated by nothing: an English change
-# that leaves nb behind is pending work, not a build break (CLAUDE.md,
-# "Target-language drift must never block the build").
-#
-# On a same-repo pull request the drift is committed back rather than failed:
-# regeneration is deterministic, so asking a human to run `make l10n-build` and
-# push is asking them to be a build step. Fork PRs and pushes to main keep the
-# strict gate. See scripts/l10n-autofix.sh.
+# On a same-repo pull request, drift is committed back as a bot commit. GitHub
+# runs no checks on that commit, so the pull request needs a close and reopen,
+# or another push, before it can merge. `make pre-push` runs `make l10n-verify`
+# to catch the drift first. Fork PRs and pushes to main fail on drift. See
+# scripts/l10n-autofix.sh and docs/internals/l10n-ci.md.
 
 on:
   push:
@@ -169,7 +160,7 @@ jobs:
       # --require-extracted can insist on it. This is the only job that can ask
       # the question: the catalogs are gitignored build artefacts, so no other
       # workflow (and no fresh clone) has them on disk.
-      - name: Guard — no em dash in the English source of any catalog
+      - name: "Guard: no em dash in the English source of any catalog"
         run: ./scripts/check-em-dashes.sh --part catalogs --require-extracted
 
       # Standing, never gating. Coverage and placeholder parity over the tier
@@ -180,9 +171,9 @@ jobs:
       # human should act on: coverage below a bar is pending work, and an
       # artifact that translated a machine identifier or dropped a placeholder is
       # a defect already committed. It gates on the return leg
-      # (scripts/check-loop-output.sh), never on a pull request — a source change
+      # (scripts/check-loop-output.sh), never on a pull request. A source change
       # must not fail because a target has not caught up with it.
-      - name: Target-language standing (informational — never gates)
+      - name: Target-language standing (informational, never gates)
         if: always()
         run: |
           {

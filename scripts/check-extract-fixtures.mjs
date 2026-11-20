@@ -14,7 +14,7 @@
 //   1. Scan set. Each surface's real `--src`/`--ignore` flags are expanded
 //      exactly as `neokapi-i18n extract` expands them (`fs/promises.glob` with
 //      `{ exclude }`), and no yielded path may be a fixture. This catches a new
-//      `--src` root added without the rooted ignores beside it — the shape of
+//      `--src` root added without the rooted ignores beside it, the shape of
 //      the defect it exists for.
 //
 //      That defect: an --ignore is matched against the path glob yields, `../`
@@ -28,8 +28,8 @@
 //      against renames and vocabulary sweeps, and its reappearance means the
 //      leak is back however it got back.
 //
-//   3. Invocation parity. A surface is extracted from two places — a make
-//      target and, where one exists, the package's own `extract` script — and
+//   3. Invocation parity. A surface is extracted from two places (a make
+//      target and, where one exists, the package's own `extract` script), and
 //      the two must pass the same flags. A `--config` on one side only is the
 //      shape that defect takes: the componentMap decides how a JSX path
 //      resolves, a key is a hash over that path, and the vite transform reads
@@ -60,13 +60,17 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // A fixture by name. Mirrors what every surface's ignore set excludes.
 const FIXTURE = /(\.(test|stories)\.[jt]sx?$)|((^|\/)(__tests__|stories)\/)/;
 
-// Committed runtime catalogs, and the key that must not be in one.
+// Runtime catalogs, and the key that must not be in one.
 // "2Lo0Nu5k0DP" = hash of the JSX text "app" in
-// bowrain/apps/bowrain/frontend/src/App.test.tsx.
+// bowrain/apps/bowrain/frontend/src/App.test.tsx. The qps dictionaries cover
+// the whole extraction and are build output, so they are read when a build has
+// written them; the committed nb dictionaries are read always.
 const SENTINEL_KEY = "2Lo0Nu5k0DP";
 const SENTINEL_CATALOGS = [
   "bowrain/apps/bowrain/frontend/public/translations/qps.json",
   "bowrain/apps/web/public/translations/qps.json",
+  "bowrain/apps/bowrain/frontend/public/translations/nb.json",
+  "bowrain/apps/web/public/translations/nb.json",
 ];
 
 // The extract flags that consume the next token. Anything else is a switch.
@@ -170,7 +174,7 @@ for (const { dir, src, exclude, config, tokens } of surfaces()) {
   }
 
   if (src.length === 0) {
-    console.error(`${dir}: no --src patterns — l10n-extract-globs is out of step`);
+    console.error(`${dir}: no --src patterns; l10n-extract-globs is out of step`);
     failed = true;
     continue;
   }
@@ -190,13 +194,14 @@ for (const { dir, src, exclude, config, tokens } of surfaces()) {
     for (const f of leaked.slice(0, 10)) console.error(`    ${f}`);
     if (leaked.length > 10) console.error(`    … and ${leaked.length - 10} more`);
     console.error(
-      `  Each --src root needs the exclude set rooted at its own prefix — ` +
+      `  Each --src root needs the exclude set rooted at its own prefix; ` +
         `see src-ignores in the Makefile.`,
     );
   }
 }
 
 for (const rel of SENTINEL_CATALOGS) {
+  if (!existsSync(resolve(root, rel))) continue;
   const catalog = JSON.parse(readFileSync(resolve(root, rel), "utf8"));
   const messages = catalog.messages ?? catalog;
   if (Object.hasOwn(messages, SENTINEL_KEY)) {

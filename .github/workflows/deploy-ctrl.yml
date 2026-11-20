@@ -34,6 +34,13 @@ jobs:
         working-directory: packages/i18n-react
         run: vp run build
 
+      # public/translations/qps.json is build output that the vite config
+      # skips under CI, so it is generated here before the build ships it.
+      - name: Generate the qps dictionary
+        uses: ./.github/actions/app-pseudo-locale
+        with:
+          targets: bowrain-ctrl-qps
+
       # The ctrl SPA runs the admin OIDC flow in the browser and resolves the
       # provider's endpoints from discovery, so it only needs the issuer + client
       # id at build time. Set for hosted prod (Cognito admin pool); left empty for

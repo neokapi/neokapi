@@ -1,4 +1,5 @@
 import { createMainConfig } from "@neokapi/storybook-config/main";
+import { generateQpsCatalog } from "../../../scripts/vite-qps-catalog.mjs";
 
 const config = createMainConfig(
   {
@@ -29,9 +30,16 @@ const config = createMainConfig(
   import.meta,
 );
 
-// The web shell's committed catalogs, so a story can be read in a target
-// language: the locale toolbar fetches `<base>/translations/<locale>.json`, and
-// without a static root there is nothing at that path to fetch.
+// The web shell's catalogs, so a story can be read in a target language: the
+// locale toolbar fetches `<base>/translations/<locale>.json`, and without a
+// static root there is nothing at that path to fetch. Its qps dictionary is
+// build output, regenerated before Storybook builds (make bowrain-app-qps).
 config.staticDirs = ["../../apps/web/public"];
+
+const sharedViteFinal = config.viteFinal;
+config.viteFinal = async (viteConfig, options) => {
+  generateQpsCatalog("bowrain-app-qps");
+  return sharedViteFinal ? sharedViteFinal(viteConfig, options) : viteConfig;
+};
 
 export default config;

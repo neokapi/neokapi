@@ -220,11 +220,29 @@ fi
 # ── go mod tidy drift check ───────────────────────────────────────────────
 
 if matches '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then
+    # shellcheck disable=SC2016  # the child shell expands $dir
     run_check "go mod tidy" bash -c '
       for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain; do
         (cd "$dir" && go mod tidy)
       done
       git diff --exit-code -- "**go.mod" "**go.sum"'
+fi
+
+# ── Build-derived multilingual artifacts ──────────────────────────────────
+
+# On a same-repo pull request the l10n workflow commits drift in this tier back
+# as a bot commit. GitHub runs no checks on that commit, so branch protection
+# holds the pull request until someone closes and reopens it. Regenerating here
+# finds the drift before the push. The patterns are the sources the committed
+# tier derives from: the Go registries and command tree, the Go catalogs, the
+# reference dossiers, the emails, the landing page and the extractor itself.
+# The app surfaces are not among them, because their qps dictionaries are build
+# output. About a minute and a half warm; it rebuilds bin/kapi.
+if matches '^(core|providers|memory|terms|cli|host)/.*\.go$' '^host/i18n/' '^core/i18n/catalogs/' \
+    '^scripts/gen-refs/' '^packages/reference-data/data/' '^bowrain/emails/src/' \
+    '^bowrain/mailer/subjects/en\.json$' '^bowrain/web/landing/(src/|index\.html$)' \
+    '^packages/(i18n-react|kapi-format)/'; then
+    run_check "Build-derived multilingual artifacts are fresh" make l10n-verify
 fi
 
 # ── Frontend checks ────────────────────────────────────────────────────────
