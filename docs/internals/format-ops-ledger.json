@@ -3,11 +3,11 @@
   "rituals": {
     "triage-score": {
       "cadence_days": 14,
-      "last_run": "2026-09-15",
+      "last_run": "2026-11-20",
       "watermarks": {
-        "core_formats_sha": "3ba6992acbaba014b700a17d0c892f2e90f30dbc",
+        "core_formats_sha": "95c3401b40938282053ec285dd2fd0691e9ea440",
         "scorer_version": 5,
-        "audit_sha": "38cd495049f95feebfb5bc842abbe50fe9cfaae6fca21f49e20678df38e2a532",
+        "audit_sha": "ae90d09ec8d8ff5624539b4dd37cd100abe677edfaf8c625470d3d27f5be7be8",
         "model_id": "",
         "prompt_sha": "",
         "axes_published": [
@@ -19,7 +19,8 @@
           "security",
           "structure",
           "prose"
-        ]
+        ],
+        "format_tree_sha256": "852431b9feafe28b7038c48855165ca9bbca0823c47b082918eb6d03e5e8db69"
       }
     },
     "remediate": {
@@ -95,7 +96,9 @@
       "cadence_days": 90,
       "last_run": null,
       "decided": {
-        "accepted": [],
+        "accepted": [
+          "eml"
+        ],
         "rejected": {}
       }
     },
@@ -129,7 +132,23 @@
       }
     }
   },
-  "pending": [],
+  "pending": [
+    {
+      "id": "eml-maintained-2026-11-20",
+      "ritual": "tier-review",
+      "type": "tier-change",
+      "proposal": "Promote EML from Available to Maintained for the documented subject and inline plain-text MIME operations.",
+      "evidence": [
+        "core/formats/eml/malformed_test.go",
+        "core/formats/eml/corpus_test.go",
+        "core/formats/eml/acceptance_test.go",
+        "kapi/e2e/workspace_test.go#TestKpzEmailDelivery",
+        ".github/workflows/ci.yml",
+        ".github/workflows/format-acceptance.yml"
+      ],
+      "created": "2026-11-20"
+    }
+  ],
   "runs": [
     {
       "date": "2026-06-13",
@@ -238,6 +257,104 @@
         "vocabulary.yaml backfill (#859)",
         "corpus C2 fetch wiring (#859 D)"
       ]
+    },
+    {
+      "date": "2026-11-20",
+      "ritual": "triage-score",
+      "commit": "6ec5e11c1c868a030a907ac5eefa36c988120274",
+      "model_id": "codex-gpt-6",
+      "outcome": "The pre-edit prompt passed A1 through A5. A passing audit alone permitted bulk certification.",
+      "benchmark": {
+        "fixture": ".skills/format-ops/benchmarks/triage-score",
+        "variant": "before",
+        "prompt_sha256": "8e78fe774d4999b05d2322fd94010c8b09aa1eb197610b9e5e9785883ec6bc4c",
+        "assertions": {
+          "A1": "pass",
+          "A2": "pass",
+          "A3": "pass",
+          "A4": "pass",
+          "A5": "pass"
+        },
+        "proposed_engine": {
+          "po": "L1",
+          "csv": "L2",
+          "html": "L3"
+        },
+        "history": "replace by generated_at date and retain earlier dates",
+        "certification_without_receipts": "renew all dates"
+      },
+      "evidence": [
+        {
+          "check": "benchmark:triage-score",
+          "exit": 0,
+          "output_sha": "2611e814c092f3127ff505fb00cabe46b77763c7c60309ff5de41ef141f1357a"
+        },
+        {
+          "check": "benchmark:triage-score:certification-without-receipts",
+          "exit": 1,
+          "output_sha": "35a6f21a442b2734803601bc74a22b48d5e10e5cd1c1d8344d69564c37da0d0f"
+        }
+      ],
+      "followups": []
+    },
+    {
+      "date": "2026-11-20",
+      "ritual": "triage-score",
+      "commit": "pending",
+      "model_id": "codex-gpt-6",
+      "outcome": "The revised prompt passed A1 through A5. Certification requires passing results for all named gates.",
+      "benchmark": {
+        "fixture": ".skills/format-ops/benchmarks/triage-score",
+        "variant": "after",
+        "prompt_sha256": "636baf4b574bc22f53ab6f772ab0858c603b70813033155e48916bb55f67daaa",
+        "assertions": {
+          "A1": "pass",
+          "A2": "pass",
+          "A3": "pass",
+          "A4": "pass",
+          "A5": "pass"
+        },
+        "proposed_engine": {
+          "po": "L1",
+          "csv": "L2",
+          "html": "L3"
+        },
+        "history": "replace by generated_at date and retain earlier dates",
+        "certification_without_receipts": "preserve all dates"
+      },
+      "evidence": [
+        {
+          "check": "benchmark:triage-score",
+          "exit": 0,
+          "output_sha": "2611e814c092f3127ff505fb00cabe46b77763c7c60309ff5de41ef141f1357a"
+        },
+        {
+          "check": "benchmark:triage-score:certification-without-receipts",
+          "exit": 0,
+          "output_sha": "73b012b632e2eccfa1d8e9c626fe0483553057a16bac0287537e9a482b54e044"
+        }
+      ],
+      "followups": []
+    },
+    {
+      "date": "2026-11-20",
+      "ritual": "triage-score",
+      "commit": "pending",
+      "model_id": "deterministic",
+      "outcome": "Published the repository audit and Prose probe. The format dashboard records the measured grades.",
+      "evidence": [
+        {
+          "check": "audit-format.py --all --json --repository-only --ledger docs/internals/format-ops-ledger.json",
+          "exit": 0,
+          "output_sha": "ae90d09ec8d8ff5624539b4dd37cd100abe677edfaf8c625470d3d27f5be7be8"
+        },
+        {
+          "check": "make prose-probe",
+          "exit": 0,
+          "output_sha": "1b20770357a49d11a6e0c957d33029bca20d471fed0357fed9550fe1d8e131a8"
+        }
+      ],
+      "followups": []
     }
   ]
 }

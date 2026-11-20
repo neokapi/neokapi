@@ -15,8 +15,14 @@ those updates and records their results.
 
 ## The runbook loop
 
-A maintainer starts the runbook with an AI assistant every week or two. Delayed
-runs produce stale badges. The assistant then follows this cycle:
+The weekly content maturity job runs the format audit and tests conversion
+targets and connector operations. It proposes dated observations for review.
+Run `make check-content-maturity` in a checkout to reproduce the results.
+The [output and connector dashboard](/format-maturity#capability-evidence)
+lists the fixtures and tests behind each operation.
+
+A maintainer can give the same measurements to a coding agent. The agent
+uses the runbook to review evidence and select implementation work.
 
 <CycleDiagram
   steps={[

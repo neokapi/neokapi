@@ -133,6 +133,14 @@ artifacts:
     freshness_field: null
     owner: maintainer
     bootstrap: true
+  - id: capability-dashboard
+    path: web/static/data/content-capabilities.json
+    freshness_field: date
+    owner: triage-score
+  - id: capability-history
+    path: web/static/data/content-capabilities-history.json
+    freshness_field: null
+    owner: triage-score
   - id: maturity-dashboard
     path: web/static/data/format-maturity.json
     freshness_field: generated_at

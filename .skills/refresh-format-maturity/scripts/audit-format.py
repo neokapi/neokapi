@@ -24,6 +24,7 @@ Usage:
 Flags:
     --json            machine output (2-space indented JSON)
     --all             every real format under core/formats/
+    --repository-only use committed specs for counterpart discovery
     --ledger <path>   the format-ops ledger; unlocks the ledger-dependent
                       signals (mutation-check demotions, corpus external
                       verification, acceptance CI conclusions, citations /
@@ -189,8 +190,17 @@ def applymap_rejects_unknown(cfg_path: str) -> str:
 
 
 def okapi_counterpart(fmt: str) -> str:
+    # The committed spec identifies the parity peer even when the Java checkout is absent.
+    spec = _load_yaml(os.path.join(REPO, "core", "formats", fmt, "spec.yaml")) or {}
+    peer = spec.get("format")
+    if isinstance(peer, str) and peer.startswith("okf_"):
+        return peer
+    if peer == fmt:
+        return "none (native spec)"
     if fmt in KNOWN_HARVEST:
         return "none (harvest cohort)"
+    if "--repository-only" in sys.argv:
+        return "unknown (no declared counterpart)"
     if not os.path.isdir(OKAPI_FILTERS):
         return f"unknown (Okapi clone not found at {OKAPI}; set NEOKAPI_OKAPI_DIR)"
     dirs = {d for d in os.listdir(OKAPI_FILTERS)
@@ -251,7 +261,7 @@ def coarse_level(d: str, fmt: str, parity_test: bool, counterpart: str,
     l3 = parity_test and (k("corpus") or k("upstream"))
     if not l3:
         miss = []
-        if not parity_test: miss.append("cli/parity/formats/%s_spec_test.go" % fmt)
+        if not parity_test: miss.append("a verified okapi-bridge parity result")
         if not (k("corpus") or k("upstream")): miss.append("corpus/upstream_test")
         return f"L2 (to L3 add: {', '.join(miss)})"
     # L3 met. The L4 ceiling requires schema_test (rubric §2.1 L4: "schema_test
@@ -1300,7 +1310,8 @@ def audit_one(fmt: str, ledger=None) -> dict:
     """Deterministic file-signal audit for one format as a machine contract."""
     d = os.path.join(REPO, "core", "formats", fmt)
     counterpart = okapi_counterpart(fmt)
-    parity_test = has_file(os.path.join(REPO, "cli", "parity", "formats"), f"{fmt}_spec_test.go")
+    # okapi-bridge publishes release parity. An offline file audit cannot verify its result.
+    parity_test = False
     ftype = _ftype(fmt, counterpart)
     coarse = coarse_level(d, fmt, parity_test, counterpart, ftype)
     base, ceiling = floor_ceiling(coarse)
@@ -1412,10 +1423,6 @@ def main() -> int:
         print(json.dumps(audit_one(fmt, ledger), indent=2))
         return 0
 
-    parity_test = has_file(os.path.join(REPO, "cli", "parity", "formats"),
-                           f"{fmt}_spec_test.go")
-    bridge_cfg = has_file(os.path.join(REPO, "cli", "parity", "formats"),
-                          f"{fmt}_bridge_config.go")
     counterpart = okapi_counterpart(fmt)
     annotations = has_file(d, "parity-annotations.yaml")
     audit = audit_one(fmt, ledger)
@@ -1431,10 +1438,10 @@ def main() -> int:
     print(f"spec.yaml      : {has_file(d, 'spec.yaml')}")
     print(f"testdata/      : {os.path.isdir(os.path.join(d, 'testdata'))}")
     print(f"test kinds     : {', '.join(test_kinds(d)) or '(none)'}")
-    print(f"parity spec_test : {parity_test}  | bridge_config: {bridge_cfg}")
+    print("external parity  : unverified by the repository audit")
     print(f"parity-annotations.yaml : {annotations}")
     print(f"okapi counterpart : {counterpart}")
-    print(f"coarse level   : {coarse_level(d, fmt, parity_test, counterpart, _ftype(fmt, counterpart))}")
+    print(f"coarse level   : {audit['coarse_level']}")
     print(f"axes           : {_axes_summary(audit['axes'])}")
     for hint in _axis_hints(fmt, audit["axes"]):
         print(f"  {hint}")

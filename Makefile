@@ -2840,6 +2840,22 @@ fetch-corpus: ## Download Tier B format corpora from the format-corpus release (
 publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (merges per-format, never drops)
 	@bash scripts/publish-corpus.sh
 
+.PHONY: test-content-maturity check-content-maturity refresh-content-maturity
+test-content-maturity: i18n-catalogs i18n-react-build go-embed-placeholders ## Test the format contracts and maturity report tooling
+	$(GO) test $(GOTAGS) -short ./core/formats/...
+	$(GO) test -tags fts5,e2e -count=1 ./kapi/e2e -run '^TestKpzEmailDelivery$$'
+	node --test scripts/format-ops/*.test.mjs
+	cd web && vp test run src/pages/format-maturity/_CapabilityEvidence.test.tsx
+	node scripts/format-ops/check-support-gates.mjs
+	node scripts/format-ops/validate-ledger.mjs
+
+check-content-maturity: test-content-maturity ## Measure format, output and connector evidence and check the published reports
+	node scripts/format-ops/content-maturity.mjs --check $${MATURITY_HISTORY_BASE:+--history-base "$$MATURITY_HISTORY_BASE"}
+
+refresh-content-maturity: test-content-maturity ## Measure content support and update the dated reports
+	node scripts/format-ops/content-maturity.mjs --write
+	node scripts/format-ops/validate-ledger.mjs
+
 # prose-probe scores the Prose maturity axis (docs/internals/format-maturity.md
 # §2.8). It runs every TestProseP<n>_<subject> rung test in the workspace and
 # plugin modules, and writes the report the dashboard publish reads. A run

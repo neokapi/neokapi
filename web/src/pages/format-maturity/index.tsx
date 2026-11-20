@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import Layout from "@theme/Layout";
+import useBrokenLinks from "@docusaurus/useBrokenLinks";
+import CapabilityEvidence from "./_CapabilityEvidence";
 import maturity from "@site/static/data/format-maturity.json";
 import history from "@site/static/data/format-maturity-history.json";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -38,13 +40,6 @@ import {
   PRESENCE_MEANING,
 } from "./_types";
 
-// The committed dataset is still scorer v1 (no `scorer_version`; rows carry
-// no `levels`/`dims`/`tier`), so the double-cast must stay: resolveJsonModule
-// widens every string literal to `string`, which can never satisfy the
-// `Level`/`DimScore` unions, regardless of dataset version. All v2/v3 fields
-// are optional in `MaturityData`, so this cast is the single unchecked seam —
-// every usage site below typechecks against the unions and guards the
-// additive fields.
 const data = maturity as unknown as MaturityData;
 const hist = history as unknown as HistorySnapshot[];
 
@@ -162,7 +157,7 @@ function dotLabel(d: string, s: DimScore, rungs?: Partial<Record<string, ProseRu
 function gapFor(f: FormatRow, axis: AxisId): string | undefined {
   return axis === "engine"
     ? f.blocking_gaps[0]
-    : (f.axes?.[axis]?.blocking_gaps?.[0] ?? f.blocking_gaps[0]);
+    : f.axes?.[axis]?.blocking_gaps?.[0];
 }
 
 // ── support-tier staleness (client-side, rubric §1) ─────────────────────────
@@ -414,8 +409,7 @@ function Trend() {
     <>
       <h2>Progress over time</h2>
       <p className={styles.subtitle}>
-        Each bar is one run of the <code>format-triage</code> workflow. Watch the green (L3) and
-        teal (L4) grow as formats are hardened.
+        Each bar counts the formats at each Engine grade on that publication date.
       </p>
       <div className={styles.trend}>
         {hist.map((h) => (
@@ -470,6 +464,8 @@ function Trend() {
 // ── page ────────────────────────────────────────────────────────────────────
 
 export default function FormatMaturity() {
+  const links = useBrokenLinks();
+  for (const id of ["format-evidence", "capability-evidence", "observation-history"]) links.collectAnchor(id);
   const [search, setSearch] = useState("");
   const [axis, setAxis] = useState<AxisId>("engine");
   const [grade, setGrade] = useState<Grade | null>(null);
@@ -589,6 +585,9 @@ export default function FormatMaturity() {
             </p>
             <p className={styles.learnMore}>
               <span className={styles.learnMoreLabel}>Learn more</span>
+              <a href="#format-evidence">Format evidence</a>
+              <a href="#capability-evidence">Output formats and connectors</a>
+              <a href="#observation-history">Observation history</a>
               <a href="/framework/format-maturity">Overview</a>
               <a href="/framework/format-maturity/axes">The axes</a>
               <a href="/framework/format-maturity/keeping-it-alive">Keeping it alive</a>
@@ -599,6 +598,7 @@ export default function FormatMaturity() {
           </div>
         </div>
 
+        <h2 id="format-evidence">Format evidence</h2>
         <DistBar />
         <AxisBars />
         <Trend />
@@ -699,6 +699,7 @@ export default function FormatMaturity() {
         </div>
         {rows.length === 0 && <p>No formats match the current filters.</p>}
         {axis === "prose" && <LanguagesTable />}
+        <CapabilityEvidence />
       </main>
     </Layout>
   );
@@ -722,6 +723,7 @@ function RowGroup({
   const colSpan = 3 + (hasTiers ? 1 : 0) + dimCols.length;
   const g = gradeOf(f, axis);
   const next = axis === "engine" ? f.next_level : (f.next?.[axis] ?? "—");
+  const gaps = axis === "engine" ? f.blocking_gaps : (f.axes?.[axis]?.blocking_gaps ?? []);
   return (
     <>
       <tr className={styles.rowExpand} onClick={onToggle}>
@@ -795,9 +797,17 @@ function RowGroup({
             <strong>
               {f.id} — {g ?? "—"} → {next}
             </strong>
-            {f.blocking_gaps.length > 0 && (
+            {axis === "engine" && f.type === "harvest" && f.level === "L3" && (
+              <p>L3 is the highest Engine grade for a native format without an Okapi counterpart.</p>
+            )}
+            {f.last_review && (
+              <p>Quality review from {f.last_review.date}. Confidence was {f.last_review.confidence}.
+                {f.last_review.levels?.[axis] && <> Reviewed grade {f.last_review.levels[axis]}.</>}
+              </p>
+            )}
+            {gaps.length > 0 && (
               <ul>
-                {f.blocking_gaps.map((gap, i) => (
+                {gaps.map((gap, i) => (
                   <li key={i}>{gap}</li>
                 ))}
               </ul>

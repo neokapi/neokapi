@@ -123,6 +123,7 @@ export interface FormatRow {
   dimensions: Record<string, DimScore>;
   blocking_gaps: string[];
   top_risk: string;
+  last_review?: { date: string; confidence: string; levels?: Partial<Record<AxisId, Grade>> };
   confidence: string;
   // ── scorer v2 additive fields (emitted since v2, previously untyped) ──
   evidence?: Record<string, string>;
@@ -199,7 +200,7 @@ export const LEVEL_NAME: Record<Level, string> = {
   L0: t("Experimental", "format maturity level"),
   L1: t("Readable + writable", "format maturity level"),
   L2: t("Specified", "format maturity level"),
-  L3: t("Parity-verified", "format maturity level"),
+  L3: t("Parity or native contract", "format maturity level"),
   L4: t("Rock-solid", "format maturity level"),
 };
 

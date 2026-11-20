@@ -1,8 +1,10 @@
 package connector
 
 import (
+	"net/http"
 	"testing"
 
+	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -37,4 +39,27 @@ func TestFigmaExtractTextNodes(t *testing.T) {
 func TestFigmaCategory(t *testing.T) {
 	c := &FigmaConnector{id: "test", config: map[string]string{}}
 	assert.Equal(t, venueconn.CategoryDesign, c.Category())
+}
+
+func TestFigmaPublishIsReadOnly(t *testing.T) {
+	c, err := NewFigmaConnector(map[string]string{"file_key": "design", "token": "fixture"})
+	require.NoError(t, err)
+	err = c.Publish(t.Context(), nil, platconn.PublishOptions{})
+	require.ErrorContains(t, err, "read-only")
+}
+
+func TestFigmaFetch(t *testing.T) {
+	c, err := NewFigmaConnector(map[string]string{"file_key": "design", "token": "fixture"})
+	require.NoError(t, err)
+	c.client = &http.Client{Transport: fixtureEndpoint(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "https://api.figma.com/v1/files/design", r.URL.String())
+		assert.Equal(t, "fixture", r.Header.Get("X-Figma-Token"))
+		_, _ = w.Write([]byte(`{"name":"Page","document":{"type":"DOCUMENT","children":[{"id":"1:1","type":"TEXT","characters":"Heading"}]}}`))
+	})}
+	items, err := c.Fetch(t.Context(), platconn.FetchOptions{})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, "design", items[0].ID)
+	require.Len(t, items[0].Blocks, 1)
+	require.Equal(t, "Heading", items[0].Blocks[0].SourceText())
 }
