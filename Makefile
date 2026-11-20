@@ -2841,7 +2841,7 @@ publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (me
 	@bash scripts/publish-corpus.sh
 
 .PHONY: test-content-maturity check-content-maturity refresh-content-maturity
-test-content-maturity: i18n-catalogs i18n-react-build go-embed-placeholders ## Test the format contracts and maturity report tooling
+test-content-maturity: i18n-catalogs i18n-react-build ## Test the format contracts and maturity report tooling
 	$(GO) test $(GOTAGS) -short ./core/formats/...
 	$(GO) test -tags fts5,e2e -count=1 ./kapi/e2e -run '^TestKpzEmailDelivery$$'
 	python3 -B scripts/format-ops/test_audit_receipts.py
