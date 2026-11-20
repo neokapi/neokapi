@@ -204,7 +204,7 @@ describe("ConvergenceHero honesty", () => {
       new Error("compute coverage: open project block store: permission denied"),
     );
     vi.spyOn(api, "getProjectServer").mockResolvedValue(null as never);
-    vi.spyOn(api, "getLastRunError").mockResolvedValue(null);
+    vi.spyOn(api, "getProjectLastRunError").mockResolvedValue(null);
 
     render(<ConvergenceHero tabID="t1" onBringUpToDate={vi.fn()} />);
 

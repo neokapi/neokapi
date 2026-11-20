@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { act, renderHook, waitFor } from "./testUtils";
+import { deferred, act, renderHook, waitFor } from "./testUtils";
 import { useProjectHistory } from "../hooks/useProjectHistory";
 import { useSaveProjectTab } from "../hooks/useSaveProjectTab";
 import { api } from "../hooks/useApi";
@@ -30,7 +30,7 @@ describe("saving edited projects", () => {
 
   it("saves each submitted snapshot in order while another tab is active", async () => {
     const { result, rerender } = setup();
-    const writing = Promise.withResolvers<Awaited<ReturnType<typeof api.saveProjectSnapshot>>>();
+    const writing = deferred<Awaited<ReturnType<typeof api.saveProjectSnapshot>>>();
     vi.mocked(api.saveProjectSnapshot).mockReturnValueOnce(writing.promise);
     act(() => result.current.history.set({ ...project, name: "Edit" }));
     const first = result.current.save("a");
@@ -73,7 +73,7 @@ describe("saving edited projects", () => {
 
   it("keeps newer edits and undo history when Save As changes the project name", async () => {
     const { result } = setup();
-    const dialog = Promise.withResolvers<Awaited<ReturnType<typeof api.saveProjectSnapshot>>>();
+    const dialog = deferred<Awaited<ReturnType<typeof api.saveProjectSnapshot>>>();
     vi.mocked(api.saveProjectSnapshot).mockReturnValueOnce(dialog.promise);
     act(() => result.current.history.set({ ...project, preset: "web" }));
     const saving = result.current.save("a", true);

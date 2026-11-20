@@ -14,6 +14,10 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   Label,
   Input,
   ScrollArea,
@@ -50,11 +54,7 @@ export interface RunnerPageProps {
   project?: KapiProject;
   /** When true, automatically resolve content and run for all target languages on mount. */
   autoRun?: boolean;
-  /**
-   * Called once the auto-run has been initiated. The parent uses this to mark
-   * the run request consumed so navigating back to the runner (which remounts
-   * this component) does not relaunch — and duplicate — the same flow.
-   */
+  /** Marks an automatic run request as consumed across navigation. */
   onLaunched?: () => void;
   /**
    * Explicit input paths to run, scoping the flow to a single collection's
@@ -72,6 +72,7 @@ export interface RunnerPageProps {
    * the classic runner view.
    */
   converge?: boolean;
+  jobID?: string;
   /** Open the Review page filtered to a (collection, locale) scope waiting for review. */
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
 }
@@ -87,17 +88,16 @@ export function RunnerPage({
   scopePaths,
   scopeLabel,
   converge,
+  jobID,
   onOpenReview,
 }: RunnerPageProps) {
-  const { activeJob, selectedJob, jobs, startJob, failActiveJob, hasActive } = useJobFeed();
+  const { jobs, launchJob, hasActive } = useJobFeed();
   const { active: activeFilter } = useActiveFilter();
-
-  // Show selected job, or active job for this flow, or most recent matching.
-  const job =
-    selectedJob ??
-    (activeJob?.flowName === flowName ? activeJob : null) ??
-    jobs.find((j) => j.flowName === flowName) ??
-    activeJob;
+  const job = jobs.find(
+    (item) =>
+      item.tabID === tabID &&
+      (jobID ? item.id === jobID : converge ? item.converge : item.flowName === flowName),
+  );
 
   // Derive state from job feed.
   const state: RunState = job?.status ?? "idle";
@@ -107,15 +107,10 @@ export function RunnerPage({
   const error = job?.error ?? null;
 
   const [inputFiles, setInputFiles] = useState<string[]>([]);
+  const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [targetLang, setTargetLang] = useState("");
 
-  // Whether this flow produces a target variant, from the locale cardinality
-  // each tool declares. A flow whose every step is monolingual (word counts,
-  // format conversion, checks over the source) has nothing to target, so the
-  // manual run does not ask for a language. Anything not yet known — tools
-  // still loading, a step naming a tool the registry has no entry for — counts
-  // as needing one, so an unanswered question never launches a bilingual flow
-  // with no target.
+  // Unknown tools can require a target language.
   const toolsQuery = useQuery({
     queryKey: qk.projectTools(tabID),
     queryFn: () => api.listProjectTools(tabID),
@@ -139,25 +134,18 @@ export function RunnerPage({
     converge?: boolean;
   } | null>(null);
 
-  // runNow cancels any in-flight run, then starts this flow.
   const runNow = useCallback(
     async (paths: string[], targets: string[]) => {
-      const runState = await api.getRunState();
-      if (runState === "running") {
-        await api.cancelRun();
-      }
-
-      startJob(flowName, projectName, undefined, paths.length);
       try {
-        await api.runFlow(tabID, flowName, paths, targets);
+        await launchJob(
+          { tabID, flowName, projectName, targetLangs: targets, fileCount: paths.length },
+          () => api.runFlow(tabID, flowName, paths, targets),
+        );
       } catch (err) {
-        // The launch itself failed — the backend never started, so settle the
-        // pre-created job (no terminal event will arrive to do it).
-        failActiveJob(String(err));
         setLaunchError(String(err));
       }
     },
-    [tabID, flowName, projectName, startJob, failActiveJob],
+    [tabID, flowName, projectName, launchJob],
   );
 
   // launchFlow prompts for a default AI model first when the flow needs one and
@@ -174,22 +162,15 @@ export function RunnerPage({
     [tabID, flowName, runNow],
   );
 
-  // convergeNow launches Catch up — the shared `kapi up` engine on the
-  // backend (loop-to-gate, auto-extract, checks in the loop). The engine
-  // resolves content and locales itself; no paths/targets travel from here.
   const convergeNow = useCallback(async () => {
-    const runState = await api.getRunState();
-    if (runState === "running") {
-      await api.cancelRun();
-    }
-    startJob(flowName, projectName);
     try {
-      await api.bringUpToDate(tabID);
+      await launchJob({ flowName, tabID, projectName, converge: true }, () =>
+        api.bringUpToDate(tabID),
+      );
     } catch (err) {
-      failActiveJob(String(err));
       setLaunchError(String(err));
     }
-  }, [tabID, flowName, projectName, startJob, failActiveJob]);
+  }, [tabID, flowName, projectName, launchJob]);
 
   const launchConverge = useCallback(async () => {
     setLaunchError(null);
@@ -211,15 +192,17 @@ export function RunnerPage({
   // Auto-run: resolve content and execute for all target languages.
   useEffect(() => {
     if (converge || !autoRun || !project || autoRunStarted.current) return;
+    const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
+    if (targets.length === 0 && toolsQuery.isPending) return;
     autoRunStarted.current = true;
     // Mark the run request consumed so a remount (navigating back to the runner
     // while this flow runs) doesn't relaunch and duplicate it.
     onLaunched?.();
 
-    // Apply the project's Active Filter so the run only covers the chosen
-    // languages and (below) the chosen collections/glob.
-    const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
-    if (targets.length === 0) return;
+    if (targets.length === 0 && needsTargetLanguage) {
+      setLaunchError(t("Choose a target language before running this flow."));
+      return;
+    }
 
     void (async () => {
       // An explicit per-collection scope wins over the matched-content ∩ filter
@@ -231,29 +214,49 @@ export function RunnerPage({
         const matches = await api.matchContent(tabID);
         paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
       }
-      if (paths.length === 0) return;
+      if (paths.length === 0) {
+        setLaunchError(t("No project files match this run."));
+        return;
+      }
 
       setInputFiles(paths);
-      await launchFlow(paths, targets);
-    })();
-  }, [converge, autoRun, project, tabID, launchFlow, onLaunched, activeFilter, scopePaths]);
+      await launchFlow(paths, needsTargetLanguage ? targets : []);
+    })().catch((error: unknown) => setLaunchError(String(error)));
+  }, [
+    converge,
+    autoRun,
+    project,
+    tabID,
+    launchFlow,
+    onLaunched,
+    activeFilter,
+    scopePaths,
+    toolsQuery.isPending,
+    needsTargetLanguage,
+  ]);
 
-  // Manual path: when a project is in scope, pre-populate target language(s)
-  // from the project defaults and input files from the matched content — so the
-  // manual runner is consistent with the autoRun path instead of starting blank.
-  // The Active Filter narrows both, and re-runs when the filter changes.
   useEffect(() => {
     if (converge || autoRun || !project) return;
-
+    let current = true;
     const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
     setProjectTargets(targets);
-    if (targets.length > 0) setTargetLang((prev) => (targets.includes(prev) ? prev : targets[0]));
-
-    void (async () => {
-      const matches = await api.matchContent(tabID);
-      const paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
-      setInputFiles(paths);
-    })();
+    setTargetLang((value) => (targets.includes(value) ? value : (targets[0] ?? "")));
+    setInputFiles([]);
+    setAvailableFiles([]);
+    void api
+      .matchContent(tabID)
+      .then((matches) => {
+        if (!current) return;
+        const paths = filterFiles(matches ?? [], activeFilter).map((file) => file.path);
+        setAvailableFiles(paths);
+        setInputFiles(paths);
+      })
+      .catch((error: unknown) => {
+        if (current) setLaunchError(String(error));
+      });
+    return () => {
+      current = false;
+    };
   }, [converge, autoRun, project, tabID, activeFilter]);
 
   // Manual run (single language).
@@ -265,11 +268,11 @@ export function RunnerPage({
 
   const handleCancel = useCallback(async () => {
     try {
-      await api.cancelRun();
-    } catch {
-      // ignore
+      await api.cancelProjectRun(tabID);
+    } catch (error) {
+      setLaunchError(String(error));
     }
-  }, []);
+  }, [tabID]);
 
   const stateIcon = {
     idle: null,
@@ -302,7 +305,6 @@ export function RunnerPage({
         }
       />
 
-      {/* Pipeline preview — the convergence view speaks passes, not steps. */}
       {flow && !converge && (
         <Card className="mb-4">
           <CardHeader className="px-4">
@@ -323,19 +325,40 @@ export function RunnerPage({
             <Label htmlFor="runner-files" className="mb-1 block">
               Input Files
             </Label>
-            <Button
-              id="runner-files"
-              variant="outline"
-              className="flex items-center gap-2 border-dashed text-muted-foreground hover:border-primary hover:text-primary"
-              aria-label="Select input files for flow"
-            >
-              <FileText size={16} />
-              {inputFiles.length > 0
-                ? t("{count, plural, one {# file} other {# files}} selected", {
-                    count: inputFiles.length,
-                  })
-                : t("Select files…")}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  id="runner-files"
+                  disabled={availableFiles.length === 0}
+                  variant="outline"
+                  className="flex items-center gap-2 border-dashed text-muted-foreground hover:border-primary hover:text-primary"
+                  aria-label="Select input files for flow"
+                >
+                  <FileText size={16} />
+                  {inputFiles.length > 0
+                    ? t("{count, plural, one {# file} other {# files}} selected", {
+                        count: inputFiles.length,
+                      })
+                    : t("Select files…")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72 overflow-auto">
+                {availableFiles.map((path) => (
+                  <DropdownMenuCheckboxItem
+                    key={path}
+                    checked={inputFiles.includes(path)}
+                    onSelect={(event) => event.preventDefault()}
+                    onCheckedChange={(checked) =>
+                      setInputFiles((files) =>
+                        checked ? [...files, path] : files.filter((file) => file !== path),
+                      )
+                    }
+                  >
+                    {path}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {project && inputFiles.length > 0 && (
               <p className="mt-1 text-xs text-muted-foreground">{t("From project content")}</p>
             )}
@@ -453,7 +476,6 @@ export function RunnerPage({
         </div>
       )}
 
-      {/* Convergence view — passes instead of raw flow logs (Catch up). */}
       {converge && (
         <ConvergeRunView
           events={events}
