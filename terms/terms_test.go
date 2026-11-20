@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -107,6 +109,118 @@ func TestInMemoryTerms_Update(t *testing.T) {
 	assert.Equal(t, "software-ui", c.Domain)
 	assert.Equal(t, "Updated definition", c.Definition)
 	assert.Len(t, c.Terms, 1)
+}
+
+func sampleValidity() *graph.Validity {
+	return &graph.Validity{
+		ValidFrom: new(time.Unix(10, 0).UTC()),
+		ValidTo:   new(time.Unix(20, 0).UTC()),
+		Tags:      map[string]string{"market": "eu"},
+	}
+}
+
+func changeValidity(v *graph.Validity) {
+	*v.ValidFrom = time.Time{}
+	*v.ValidTo = time.Time{}
+	v.Tags["market"] = "changed"
+}
+
+func TestInMemoryTerms_ConceptOwnership(t *testing.T) {
+	tb := terms.NewInMemoryStore()
+	concept := func() terms.Concept {
+		return terms.Concept{
+			ID: "alert", Properties: map[string]string{"source": "review"},
+			Terms: []terms.Term{{Text: "alert", Locale: "en", Forms: []string{"alerts"}, Validity: sampleValidity()}},
+		}
+	}
+	mutateTerm := func(term *terms.Term) {
+		term.Forms[0] = "changed"
+		changeValidity(term.Validity)
+		term.Text = "changed"
+	}
+	mutate := func(c terms.Concept) {
+		c.Properties["source"] = "changed"
+		mutateTerm(&c.Terms[0])
+	}
+	check := func(t *testing.T) {
+		t.Helper()
+		stored, ok := mustGetConcept(t, tb, "alert")
+		require.True(t, ok)
+		assert.Equal(t, concept().Properties, stored.Properties)
+		assert.Equal(t, concept().Terms, stored.Terms)
+	}
+	for _, definition := range []string{"original", "updated"} {
+		input := concept()
+		input.Definition = definition
+		require.NoError(t, tb.AddConcept(t.Context(), input))
+		mutate(input)
+		check(t)
+	}
+
+	got, ok := mustGetConcept(t, tb, "alert")
+	require.True(t, ok)
+	mutate(got)
+	check(t)
+	all := mustConcepts(t, tb)
+	require.Len(t, all, 1)
+	mutate(all[0])
+	check(t)
+	page, _ := mustSearch(t, tb, "alert", "en", "", 0, 1)
+	require.Len(t, page, 1)
+	mutate(page[0])
+	check(t)
+	for name, lookup := range map[string]func(context.Context, string, terms.LookupOptions) ([]terms.TermMatch, error){
+		"lookup": tb.Lookup, "lookupAll": tb.LookupAll,
+	} {
+		t.Run(name, func(t *testing.T) {
+			matches, err := lookup(t.Context(), "alerts", terms.LookupOptions{SourceLocale: "en"})
+			require.NoError(t, err)
+			require.Len(t, matches, 1)
+			mutate(matches[0].Concept)
+			mutateTerm(&matches[0].Term)
+			check(t)
+		})
+	}
+}
+
+func TestInMemoryTerms_RelationOwnership(t *testing.T) {
+	tb := terms.NewInMemoryStore()
+	seedRelationConcepts(t, tb)
+	for _, target := range []string{"c2", "c3"} {
+		rel := terms.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: target, RelationType: graph.LabelRelated, Validity: sampleValidity()}
+		require.NoError(t, tb.AddRelation(t.Context(), rel))
+		changeValidity(rel.Validity)
+		listed := mustListRelations(t, tb, nil)
+		require.Len(t, listed, 1)
+		assert.Equal(t, sampleValidity(), listed[0].Validity)
+		changeValidity(listed[0].Validity)
+		touching := mustRelationsOf(t, tb, target, nil)
+		require.Len(t, touching, 1)
+		assert.Equal(t, sampleValidity(), touching[0].Validity)
+		changeValidity(touching[0].Validity)
+		assert.Equal(t, sampleValidity(), mustListRelations(t, tb, nil)[0].Validity)
+	}
+}
+
+func TestInMemoryTerms_EvictsOldestSurvivorAfterDeletion(t *testing.T) {
+	tb := terms.NewInMemoryStore(terms.WithMaxConcepts(3))
+	seedRelationConcepts(t, tb)
+	require.NoError(t, tb.AddRelation(t.Context(), terms.ConceptRelation{
+		ID: "r", SourceID: "c2", TargetID: "c3", RelationType: graph.LabelRelated,
+	}))
+	require.NoError(t, tb.DeleteConcept(t.Context(), "c1"))
+	for _, id := range []string{"c4", "c5"} {
+		require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{ID: id}))
+	}
+	var ids []string
+	for _, c := range mustConcepts(t, tb) {
+		ids = append(ids, c.ID)
+		got, ok := mustGetConcept(t, tb, c.ID)
+		require.True(t, ok)
+		require.Equal(t, c.ID, got.ID)
+	}
+	assert.Equal(t, []string{"c3", "c4", "c5"}, ids)
+	assert.Empty(t, mustListRelations(t, tb, nil))
 }
 
 func TestInMemoryTerms_LookupExact(t *testing.T) {
