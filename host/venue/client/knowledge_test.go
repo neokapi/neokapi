@@ -407,9 +407,8 @@ func TestConceptTermsUseStringFieldsAndRestrictOrdinaryWrites(t *testing.T) {
 		Text: "Sample", Locale: locale, Status: status, CompetitorTerm: true,
 		Validity: &graph.Validity{Tags: map[string]string{"market": "UK"}},
 	}}}
-	var readLocale, readStatus string = concept.Terms[0].Locale, concept.Terms[0].Status
-	assert.Equal(t, locale, readLocale)
-	assert.Equal(t, status, readStatus)
+	assert.Equal(t, locale, concept.Terms[0].Locale)
+	assert.Equal(t, status, concept.Terms[0].Status)
 	read, err := json.Marshal(concept)
 	require.NoError(t, err)
 	assert.Contains(t, string(read), `"competitor_term":true`)
