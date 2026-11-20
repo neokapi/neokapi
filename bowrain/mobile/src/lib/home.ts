@@ -130,7 +130,7 @@ function actionable(p: ReviewInboxProject): boolean {
 
 /** A project with a step that only waits. */
 function waits(p: ReviewInboxProject): boolean {
-  return (p.plan?.waiting.length ?? 0) > 0;
+  return (p.plan?.waiting?.length ?? 0) > 0;
 }
 
 /**

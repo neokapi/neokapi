@@ -136,7 +136,7 @@ export function stepValue(step: PlanStep, t: TFunction): string {
  */
 export function PlanWaitingNote({ waiting, testID }: { waiting: PlanWait[]; testID: string }) {
   const { t, i18n } = useTranslation();
-  if (waiting.length === 0) return null;
+  if (!waiting?.length) return null;
   return (
     <View testID={testID} className="gap-1">
       {waiting.map((w) => (
@@ -242,7 +242,7 @@ export const PlanCard = memo(function PlanCard({
           >
             {next
               ? t("planCard.stepOf", { n: index + 1, total: plan.steps.length })
-              : plan.waiting.length > 0
+              : (plan.waiting?.length ?? 0) > 0
                 ? t("planCard.state.waits")
                 : t("planCard.allDone")}
           </Text>
@@ -278,7 +278,10 @@ export const PlanCard = memo(function PlanCard({
       ) : null}
 
       {plan ? (
-        <PlanWaitingNote testID={`plan-card-${project.project}-waiting`} waiting={plan.waiting} />
+        <PlanWaitingNote
+          testID={`plan-card-${project.project}-waiting`}
+          waiting={plan.waiting ?? []}
+        />
       ) : null}
 
       {later.length > 0 ? (

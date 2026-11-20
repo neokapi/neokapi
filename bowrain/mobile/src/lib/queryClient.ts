@@ -2,8 +2,10 @@
 // when the phone is online and the app is in the foreground.
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { focusManager, onlineManager, QueryClient } from "@tanstack/react-query";
+import type { PersistedClient, Persister } from "@tanstack/react-query-persist-client";
 import * as Network from "expo-network";
 import Storage from "expo-sqlite/kv-store";
+import * as Updates from "expo-updates";
 import { AppState, Platform } from "react-native";
 
 import { isNetworkError } from "@neokapi/bowrain-client";
@@ -34,11 +36,47 @@ export function createQueryClient(): QueryClient {
 /** The persisted cache's version: a different value discards what a device holds. */
 export const CACHE_BUSTER = "1";
 
-export const persister = createAsyncStoragePersister({
+const stored = createAsyncStoragePersister({
   storage: Storage,
   key: "bowrain.query-cache",
   throttleTime: 500,
 });
+
+/** Where the device records which update wrote the persisted cache. */
+const CACHE_UPDATE_KEY = "bowrain.query-cache.update";
+
+/** The JavaScript update running now, or "embedded" for the build's own bundle. */
+function runningUpdate(): string {
+  return Updates.updateId ?? "embedded";
+}
+
+/**
+ * Keeps the cached queries only when the update that wrote them is the one
+ * running. A new update may read fields an older response lacks, so its first
+ * launch starts from fresh queries. Queued decisions are mutations, and they
+ * are kept across updates so an offline review is never lost.
+ */
+export function forRunningUpdate(
+  client: PersistedClient | undefined,
+  writtenBy: string | null,
+  running: string,
+): PersistedClient | undefined {
+  if (!client || writtenBy === running) return client;
+  return { ...client, clientState: { ...client.clientState, queries: [] } };
+}
+
+export const persister: Persister = {
+  persistClient: async (client) => {
+    await stored.persistClient(client);
+    await Storage.setItem(CACHE_UPDATE_KEY, runningUpdate());
+  },
+  restoreClient: async () => {
+    const client = await stored.restoreClient();
+    const writtenBy = await Storage.getItem(CACHE_UPDATE_KEY);
+    return forRunningUpdate(client, writtenBy, runningUpdate());
+  },
+  removeClient: () => stored.removeClient(),
+};
 
 let wired = false;
 
