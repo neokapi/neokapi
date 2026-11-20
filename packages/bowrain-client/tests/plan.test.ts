@@ -176,6 +176,50 @@ describe("planFromServer", () => {
     expect(unknown.context.scanWaiting).toBeUndefined();
     expect(unknown.steps[0]?.scan).toBeUndefined();
   });
+
+  it("maps who the settle pass after a run is credited to and the last pass", () => {
+    const plan = planFromServer({
+      ...server,
+      policy: {
+        settle: "policy",
+        context_open: 0,
+        auto: { by: "u-ada", by_name: "Ada", source: "involvement" },
+        last: {
+          at: "2026-11-20T08:00:00Z",
+          approved: 412,
+          by: "u-ada",
+          by_name: "Ada",
+          automatic: true,
+        },
+      },
+    });
+    expect(plan.policy.auto).toEqual({
+      by: "u-ada",
+      byName: "Ada",
+      source: "involvement",
+      skip: undefined,
+    });
+    expect(plan.policy.last).toEqual({
+      at: "2026-11-20T08:00:00Z",
+      approved: 412,
+      by: "u-ada",
+      byName: "Ada",
+      automatic: true,
+    });
+
+    const skipped = planFromServer({
+      ...server,
+      policy: { settle: "policy", auto: { source: "elsewhere", skip: "no_one" } },
+    });
+    expect(skipped.policy.auto).toEqual({
+      by: undefined,
+      byName: undefined,
+      source: undefined,
+      skip: "no_one",
+    });
+    expect(skipped.policy.last).toBeUndefined();
+    expect(planFromServer(server).policy.auto).toBeUndefined();
+  });
 });
 
 describe("planProducts", () => {

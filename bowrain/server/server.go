@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -219,6 +220,10 @@ type Server struct {
 
 	// deckSorter sorts the review decks in the background. Nil without PostgreSQL.
 	deckSorter *deckSorter
+	// lockDB is the PostgreSQL database the server takes advisory locks on,
+	// such as the one that keeps two settle passes of a project apart. Nil
+	// without PostgreSQL.
+	lockDB *sql.DB
 
 	// SIEMExporter forwards events to an external SIEM/log sink. Nil when disabled.
 	SIEMExporter *event.SIEMExporter
@@ -332,6 +337,9 @@ type Server struct {
 
 	// dashboardCache caches translation dashboard stats per project/stream.
 	dashboardCache sync.Map // map[string]*dashboardCacheEntry
+
+	// settling holds the projects a settle pass runs for on this instance.
+	settling sync.Map // map[string]struct{}
 
 	// pulseCache caches Pulse public dashboard responses with TTL-based expiry.
 	pulseCache *pulseCache
@@ -616,6 +624,7 @@ func NewServer(cfg Config) *Server {
 			s.PreferenceStore = bstore.NewPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewDigestStore(pgSQL)
 			s.deckSorter = s.startDeckSorter(pgSQL)
+			s.lockDB = pgSQL
 			s.VoiceStore = pg.Brand
 			s.KnowledgeStore = pg.Knowledge
 			s.GraphStore = pg.GraphStore
@@ -900,6 +909,9 @@ func NewServer(cfg Config) *Server {
 	// A landed push can make the project's term scan due, so the server
 	// starts it rather than waiting for someone to ask.
 	s.subscribeTermScanOnPush()
+	// A run that drafted translations is followed by the review plan's
+	// settle pass, when the policy in force leaves them to the checks.
+	s.subscribeSettleAfterRun()
 
 	// Initialize MCP server for voice + agent tools when stores are available.
 	if s.VoiceStore != nil {

@@ -120,6 +120,29 @@ export interface PlanLanguage {
  */
 export type PlanSettle = "first_pass" | "policy" | "held" | "none";
 
+/**
+ * Who the settle pass the server runs after each run is credited to: the
+ * person who set the involvement, else the person who confirmed the
+ * coordinates. `skip` says why the pass does not run: nobody to credit
+ * (`no_one`), or that person no longer holds the review permission
+ * (`no_permission`).
+ */
+export interface PlanAutoSettle {
+  by?: string;
+  byName?: string;
+  source?: "involvement" | "coordinates";
+  skip?: "no_one" | "no_permission";
+}
+
+/** The project's last settle pass, by hand or after a run. */
+export interface PlanSettleResult {
+  at: string;
+  approved: number;
+  by?: string;
+  byName?: string;
+  automatic: boolean;
+}
+
 /** A project scan for candidate terms, started by a push or from the plan. */
 export interface PlanScan {
   id: string;
@@ -194,6 +217,10 @@ export interface ReviewPlan {
     /** The project's open context decisions, for any reviewer. */
     contextOpen: number;
     firstPassAt?: string;
+    /** Who the settle pass after each run is credited to, or why it does not run. */
+    auto?: PlanAutoSettle;
+    /** The last settle pass. */
+    last?: PlanSettleResult;
   };
   /** Each level with its state, in order. */
   steps: PlanStep[];
@@ -290,6 +317,14 @@ export interface ServerReviewPlan {
     settle: string;
     context_open?: number;
     first_pass_at?: string;
+    auto?: { by?: string; by_name?: string; source?: string; skip?: string } | null;
+    last?: {
+      at: string;
+      approved: number;
+      by?: string;
+      by_name?: string;
+      automatic?: boolean;
+    } | null;
   } | null;
   steps?: ServerPlanStep[] | null;
   held?: string;
@@ -397,6 +432,20 @@ export function coordinatesOpen(c: PlanCoordinates): boolean {
   return !c.confirmed || c.changed > 0;
 }
 
+function autoSettleFromServer(a: {
+  by?: string;
+  by_name?: string;
+  source?: string;
+  skip?: string;
+}): PlanAutoSettle {
+  return {
+    by: a.by || undefined,
+    byName: a.by_name || undefined,
+    source: a.source === "involvement" || a.source === "coordinates" ? a.source : undefined,
+    skip: a.skip === "no_one" || a.skip === "no_permission" ? a.skip : undefined,
+  };
+}
+
 export function planFromServer(p: ServerReviewPlan): ReviewPlan {
   return {
     stream: p.stream,
@@ -444,6 +493,16 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
           : "first_pass",
       contextOpen: p.policy?.context_open ?? 0,
       firstPassAt: p.policy?.first_pass_at || undefined,
+      auto: p.policy?.auto ? autoSettleFromServer(p.policy.auto) : undefined,
+      last: p.policy?.last
+        ? {
+            at: p.policy.last.at,
+            approved: p.policy.last.approved,
+            by: p.policy.last.by || undefined,
+            byName: p.policy.last.by_name || undefined,
+            automatic: p.policy.last.automatic ?? false,
+          }
+        : undefined,
     },
     steps: planStepsFromServer(p.steps),
     held: p.held === "context" ? "context" : null,
