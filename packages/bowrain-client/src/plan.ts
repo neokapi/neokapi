@@ -524,7 +524,7 @@ export function pointLabel(coords: Record<string, string>): string {
 export function pointKey(coords: Record<string, string>): string {
   return Object.keys(coords)
     .sort()
-    .map((a) => `${a}=${coords[a]}`)
+    .map((a) => `${encodeURIComponent(a)}=${encodeURIComponent(coords[a])}`)
     .join(",");
 }
 

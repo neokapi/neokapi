@@ -16,6 +16,22 @@ import (
 	"github.com/neokapi/neokapi/host/reviewdeck"
 )
 
+func TestValidateOverrideCoordinates(t *testing.T) {
+	axes := map[string][]string{"channel": {"ui", "ui,product=app"}, "product": {"app"}}
+	distinct := []involvementOverride{
+		{Coordinates: map[string]string{"channel": "ui,product=app"}, Involvement: involvementEvery},
+		{Coordinates: map[string]string{"channel": "ui", "product": "app"}, Involvement: involvementContext},
+	}
+	got, err := validateOverrides(distinct, axes)
+	require.NoError(t, err)
+	assert.Equal(t, distinct, got)
+
+	_, err = validateOverrides([]involvementOverride{{
+		Coordinates: map[string]string{"channel": "ui", " channel ": "ui,product=app"}, Involvement: involvementEvery,
+	}}, axes)
+	require.ErrorContains(t, err, "repeats axis")
+}
+
 func TestResolveInvolvement(t *testing.T) {
 	overrides := []involvementOverride{
 		{Coordinates: map[string]string{"product": "docs"}, Involvement: involvementContext},
