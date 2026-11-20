@@ -118,7 +118,7 @@ func (l planSnapshotLanguage) split() deckSplit {
 }
 
 // planFingerprint covers the deck policy, languages, collection scope and
-// the involvement used to count each collection's held work and page sample.
+// the involvement that determines each collection's held work and page sample.
 func planFingerprint(policy string, proj *platstore.Project, scope deckScope, pi projectInvolvement) string {
 	h := sha256.New()
 	fmt.Fprintf(h, "%q\n%q\n%q\n%q\n", planSnapshotVersion, policy, proj.DefaultSourceLanguage, slices.Sorted(slices.Values(proj.TargetLanguages)))

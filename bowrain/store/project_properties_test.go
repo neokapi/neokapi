@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 )
 
+// Separate review workers can update the same project. Each write owns only its keys.
 func TestMergeProjectProperties(t *testing.T) {
 	for name, open := range map[string]func(*testing.T) platstore.ProjectStore{
 		"postgres": func(t *testing.T) platstore.ProjectStore {
