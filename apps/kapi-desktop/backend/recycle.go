@@ -23,7 +23,7 @@ type RecycledNote struct {
 // no target languages, and while a run holds the project, which it claims for
 // the pass so a run cannot start beside it. The caller holds storeSyncMu.
 func (a *App) recycleExactMatches(op *openProject) (int, error) {
-	if op.Project == nil || op.Path == "" || op.unsaved.Load() || len(op.Project.Defaults.TargetLanguages) == 0 {
+	if op.Project == nil || op.Path == "" || op.unsaved.Load() || !op.Project.DeclaresTargetLanguages() {
 		return 0, nil
 	}
 	if a.runState == nil {

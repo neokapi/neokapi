@@ -143,6 +143,46 @@ func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 	assert.Empty(t, result.ParkedScopes)
 }
 
+func TestBringUpToDate_ResolvesRecipeLanguages(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		targets []model.LocaleID
+	}{
+		{name: "source only"},
+		{name: "collection targets", targets: []model.LocaleID{"fr-FR"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := NewApp()
+			tab, root := newConvergenceProject(t, app)
+			op := app.getOpenProject(tab.ID)
+			op.Project.Defaults.TargetLanguages = nil
+			op.Project.Collections[0].TargetLanguages = tc.targets
+			require.NoError(t, app.SaveProject(tab.ID))
+			plan, err := app.GetConvergePlan(tab.ID)
+			require.NoError(t, err)
+			require.Equal(t, len(tc.targets) == 0, plan.Plan.Monolingual)
+
+			require.NoError(t, app.BringUpToDate(tab.ID))
+			awaitTerminalRun(t, app)
+			require.Equal(t, string(RunStateComplete), app.GetRunState())
+			events := app.GetRunEvents()
+			require.NotEmpty(t, events)
+			event := events[len(events)-1]
+			require.Equal(t, "complete", event.Type)
+			require.NotNil(t, event.ConvergeResult)
+			assert.Equal(t, plan.Plan.Monolingual, event.ConvergeResult.Monolingual)
+			assert.Len(t, event.ConvergeResult.Locales, len(tc.targets))
+			if plan.Plan.Monolingual {
+				assert.Equal(t, "Reconciled the source.", event.Message)
+				assert.Positive(t, event.ConvergeResult.ExtractedBlocks)
+			}
+			for _, target := range tc.targets {
+				assert.FileExists(t, filepath.Join(root, "locales", string(target)+".json"))
+			}
+		})
+	}
+}
+
 func TestBringUpToDate_RefusesConcurrentRun(t *testing.T) {
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)

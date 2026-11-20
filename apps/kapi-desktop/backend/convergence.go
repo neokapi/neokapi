@@ -151,9 +151,6 @@ func (a *App) BringUpToDate(tabID string) error {
 	if flowName == "" {
 		flowName = "up"
 	}
-	if len(op.Project.Defaults.TargetLanguages) == 0 {
-		return errors.New("no target languages configured (defaults.target_languages)")
-	}
 	if err := a.ensureRecipe(op); err != nil {
 		return err
 	}
@@ -293,7 +290,9 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 
 	parked := len(out.ParkedScopes)
 	msg := fmt.Sprintf("Up to date in %d pass(es) in %s", out.Passes, time.Since(start).Round(time.Millisecond))
-	if !out.Converged {
+	if out.Monolingual || out.NoTargets {
+		msg = "Reconciled the source."
+	} else if !out.Converged {
 		msg = fmt.Sprintf("Finished %d pass(es) in %s: %d scope(s) waiting for review",
 			out.Passes, time.Since(start).Round(time.Millisecond), parked)
 	}

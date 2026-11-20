@@ -18,7 +18,11 @@ import (
 func TestSyncProjectStore_RecyclesExactMatches(t *testing.T) {
 	app := NewApp()
 	tab, root := newCoverageProject(t, app)
-	db, err := app.projectStore(app.getOpenProject(tab.ID))
+	op := app.getOpenProject(tab.ID)
+	op.Project.Collections[0].TargetLanguages = op.Project.Defaults.TargetLanguages
+	op.Project.Defaults.TargetLanguages = nil
+	require.NoError(t, app.SaveProject(tab.ID))
+	db, err := app.projectStore(op)
 	require.NoError(t, err)
 	require.NoError(t, db.Memory().Add(t.Context(), memory.Entry{
 		ID:          "farewell",
