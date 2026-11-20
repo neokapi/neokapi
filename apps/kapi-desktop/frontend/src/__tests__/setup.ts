@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 
 // Polyfill ResizeObserver, which several UI primitives observe, for jsdom.
 if (typeof globalThis.ResizeObserver === "undefined") {

@@ -119,7 +119,7 @@ describe("GovernanceSettings", () => {
     const onUpdate = renderSettings();
     const input = screen.getByPlaceholderText("Add a pattern, e.g. **/vendor/**");
     await userEvent.type(input, "**/vendor/**{Enter}");
-    expect(onUpdate.mock.calls.at(-1)?.[0].defaults.exclude).toEqual(["**/vendor/**"]);
+    expect(onUpdate.mock.lastCall?.[0].defaults.exclude).toEqual(["**/vendor/**"]);
   });
 
   it("reads as complete for a project that declares nothing", () => {

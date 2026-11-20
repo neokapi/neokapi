@@ -10,11 +10,7 @@ import { MemoryChanges } from "../stories/memoryChanges";
 function sourceBlocks(text = "Please utilize the dashboard") {
   return new MemoryChanges([{ doc: "src/locales/en.json", block: "greeting", text }]);
 }
-const REV = sourceBlocks().rev({
-  doc: "src/locales/en.json",
-  block: "greeting",
-  text: "Please utilize the dashboard",
-});
+const REV = sourceBlocks().rev({ text: "Please utilize the dashboard" });
 
 const FAILING: CheckRunResult = {
   pass: false,
@@ -176,6 +172,7 @@ describe("ChecksPanel", () => {
   it("renders a finding's offending text in its own locale's direction", () => {
     const RTL_FINDING: CheckRunResult = {
       pass: false,
+      verdict: "failed",
       score: 80,
       files: [
         {

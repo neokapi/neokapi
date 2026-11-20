@@ -82,7 +82,7 @@ const DETAILS: Record<string, Partial<ReviewUnitDetail>> = {
     findings: [
       {
         category: "placeholder",
-        severity: "major",
+        fails: true,
         message: "placeholder {product} missing from target",
         suggestion: "Carry {product} into the translation verbatim",
       },
@@ -200,11 +200,9 @@ const CONTEXT: ReviewContext = {
       field: "defaults.voice",
       guide: "Write in the second person. Keep sentences under twenty words.",
     },
-    // Context, not findings. Most of these come from the terms store and carry
-    // no severity, which is why the card draws them all in one neutral chip.
     term_rules: [
-      { term: "cart", replacement: "basket", severity: "major" },
-      { term: "sign in", replacement: "log in", severity: "minor" },
+      { term: "cart", replacement: "basket" },
+      { term: "sign in", replacement: "log in", advisory: true },
       { term: "checkout", replacement: "pay" },
       { term: "Kapimart", do_not_translate: true },
     ],

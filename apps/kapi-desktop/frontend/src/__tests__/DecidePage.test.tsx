@@ -21,7 +21,7 @@ describe("Decide wired to the backend", () => {
     vi.spyOn(api, "rulesDecideView").mockResolvedValue(WORD_VIEW);
     vi.spyOn(api, "markProjectContextDigestSeen").mockResolvedValue("");
     const onOpenFile = vi.fn();
-    render(<DecidePage tabID="t1" onOpenFile={onOpenFile} onOpenMap={vi.fn()} />);
+    render(<DecidePage tabID="t1" onOpenFile={onOpenFile} />);
     await userEvent.click(await screen.findByRole("button", { name: "about.html" }));
     expect(onOpenFile).toHaveBeenCalledWith("site/about.html");
   });

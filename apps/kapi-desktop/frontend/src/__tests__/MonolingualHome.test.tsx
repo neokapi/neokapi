@@ -54,7 +54,7 @@ const status: ProjectStatus = {
   projectPath: "/p/handbook/kapi.yaml",
   projectName: "Handbook",
   hasData: true,
-  collections: [{ name: "Handbook", blockCount: 84, coverage: {}, targetLanguages: [] }],
+  collections: [{ name: "Handbook", blockCount: 84, coverage: {}, units: {}, targetLanguages: [] }],
 };
 
 const points: ProjectPointsResult = {
@@ -76,7 +76,13 @@ const points: ProjectPointsResult = {
 const statusWithFrench: ProjectStatus = {
   ...status,
   collections: [
-    { name: "Handbook", blockCount: 84, coverage: { "fr-FR": 42 }, targetLanguages: ["fr-FR"] },
+    {
+      name: "Handbook",
+      blockCount: 84,
+      coverage: { "fr-FR": 42 },
+      units: { "fr-FR": 84 },
+      targetLanguages: ["fr-FR"],
+    },
   ],
 };
 

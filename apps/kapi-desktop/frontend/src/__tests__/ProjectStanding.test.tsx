@@ -16,8 +16,8 @@ const status: ProjectStatus = {
   projectName: "Northsea",
   hasData: true,
   collections: [
-    { name: "Docs", blockCount: 12, coverage: {}, targetLanguages: [] },
-    { name: "App", blockCount: 30, coverage: {}, targetLanguages: [] },
+    { name: "Docs", blockCount: 12, coverage: {}, units: {}, targetLanguages: [] },
+    { name: "App", blockCount: 30, coverage: {}, units: {}, targetLanguages: [] },
   ],
 };
 

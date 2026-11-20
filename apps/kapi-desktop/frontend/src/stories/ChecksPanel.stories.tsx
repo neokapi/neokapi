@@ -82,7 +82,7 @@ const FAILING: CheckRunResult = {
       findings: [
         {
           category: "do-not-translate",
-          severity: "critical",
+          fails: true,
           message:
             'Do-not-translate term "Acme Cloud" is missing from the de target: it appears to have been translated or altered',
           suggestion: 'Keep "Acme Cloud" verbatim in the target',
@@ -96,7 +96,7 @@ const FAILING: CheckRunResult = {
         },
         {
           category: "vocabulary",
-          severity: "major",
+          fails: true,
           message: 'Forbidden term "utilize" found',
           suggestion: 'Use "use" instead',
           original_text: "utilize",
@@ -110,7 +110,7 @@ const FAILING: CheckRunResult = {
         },
         {
           category: "vocabulary",
-          severity: "minor",
+          fails: false,
           message: 'Prefer "overview" to "dashboard" in product copy',
           suggestion: 'Use "overview" instead',
           original_text: "dashboard",
@@ -124,7 +124,7 @@ const FAILING: CheckRunResult = {
         },
         {
           category: "vocabulary",
-          severity: "minor",
+          fails: false,
           message: 'Forbidden term "leverage" found',
           suggestion: 'Use "use" instead',
           original_text: "leverage",
@@ -147,7 +147,7 @@ const FAILING: CheckRunResult = {
       findings: [
         {
           category: "placeholder",
-          severity: "critical",
+          fails: true,
           message: "Placeholder {count} is missing from the de target",
           original_text: "{count}",
           block_id: "blk-4",
@@ -162,7 +162,7 @@ const FAILING: CheckRunResult = {
         },
         {
           category: "register",
-          severity: "neutral",
+          fails: false,
           message: "Tone reads more formal than the brand's casual register",
           block_id: "blk-5",
           field: "source",
@@ -246,7 +246,7 @@ const meta: Meta<typeof ChecksPanel> = {
     docs: {
       description: {
         component:
-          "Runs content checks (do-not-translate, placeholder integrity, brand vocabulary) over a project's files like tests over code, grouped by file and severity, with a one-click fix for findings that carry a safe structured replacement.",
+          "Runs content checks (do-not-translate, placeholder integrity, brand vocabulary) over a project's files like tests over code, grouped by file and check outcome, with a one-click fix for findings that carry a safe structured replacement.",
       },
     },
   },
