@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-09-15",
+  "generated_at": "2026-11-20",
   "target_level": "L4",
-  "source": "format-ops bootstrap-publish (deterministic per-axis floor; no quality demotions)",
+  "source": "Repository audit and Prose probe with prior quality reviews retained",
   "scorer_version": 5,
   "run_integrity": {
-    "samples": 1,
-    "anchored": true,
+    "samples": 0,
+    "anchored": false,
     "moves": {
       "published": 0,
       "suppressed": 0,
@@ -45,7 +45,6 @@
       }
     },
     "low_agreement": [],
-    "golden_passed": true,
     "prose": {
       "probe_version": 2,
       "tags": "fts5",
@@ -74,30 +73,30 @@
     }
   },
   "summary": {
-    "total": 37,
+    "total": 38,
     "by_level": {
-      "L0": 7,
-      "L1": 10,
-      "L2": 13,
-      "L3": 7,
+      "L0": 6,
+      "L1": 9,
+      "L2": 18,
+      "L3": 5,
       "L4": 0
     },
     "by_axis": {
       "engine": {
-        "L0": 7,
-        "L1": 10,
-        "L2": 13,
-        "L3": 7,
+        "L0": 6,
+        "L1": 9,
+        "L2": 18,
+        "L3": 5,
         "L4": 0
       },
       "vocabulary": {
-        "V0": 32,
+        "V0": 33,
         "V1": 5,
         "V2": 0,
         "V3": 0
       },
       "editor": {
-        "E0": 34,
+        "E0": 35,
         "E1": 3,
         "E2": 0,
         "E3": 0,
@@ -106,11 +105,11 @@
       "knowledge": {
         "K0": 8,
         "K1": 16,
-        "K2": 13,
+        "K2": 14,
         "K3": 0
       },
       "corpus": {
-        "C0": 23,
+        "C0": 24,
         "C1": 14,
         "C2": 0,
         "C3": 0
@@ -118,19 +117,19 @@
       "security": {
         "S0": 7,
         "S1": 26,
-        "S2": 4,
+        "S2": 5,
         "S3": 0,
         "S4": 0
       },
       "structure": {
-        "G0": 23,
+        "G0": 24,
         "G1": 1,
         "G2": 6,
         "G3": 4,
         "G4": 3
       },
       "prose": {
-        "P0": 26,
+        "P0": 27,
         "P1": 0,
         "P2": 11,
         "P3": 0,
@@ -487,8 +486,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -497,9 +495,8 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go"
+            "test the reader with malformed input"
           ]
         },
         "vocabulary": {
@@ -509,11 +506,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -523,11 +518,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -537,8 +529,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -547,11 +541,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -561,10 +552,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -574,11 +563,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -588,7 +574,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_androidxml (P3)"
           ],
@@ -617,10 +602,12 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go"
+        "test the reader with malformed input"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -696,8 +683,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -706,9 +692,8 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go"
+            "test the reader with malformed input"
           ]
         },
         "vocabulary": {
@@ -718,11 +703,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -732,11 +715,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -746,8 +726,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -756,11 +738,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -770,10 +749,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -783,11 +760,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -797,7 +771,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_applestrings (P1)"
           ],
@@ -826,10 +799,12 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go"
+        "test the reader with malformed input"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -838,7 +813,7 @@
       "id": "arb",
       "type": "harvest",
       "level": "L3",
-      "next_level": "L4",
+      "next_level": "—",
       "levels": {
         "engine": "L3",
         "vocabulary": "V0",
@@ -850,7 +825,7 @@
         "prose": "P0"
       },
       "next": {
-        "engine": "L4",
+        "engine": "—",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
@@ -905,17 +880,15 @@
       "ceiling": "L3",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L3",
-          "next": "L4",
+          "next": "—",
           "floor": "L2",
           "ceiling": "L3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": []
         },
         "vocabulary": {
@@ -925,11 +898,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -939,11 +910,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -953,8 +921,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -963,11 +933,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -977,10 +944,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -990,11 +955,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -1004,7 +966,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_arb (P1)"
           ],
@@ -1033,7 +994,9 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [],
       "top_risk": "",
@@ -1064,7 +1027,7 @@
         "structure": "G1",
         "prose": "P1"
       },
-      "okapi_counterpart": "okf_archive",
+      "okapi_counterpart": "",
       "dimensions": {
         "reader": "complete",
         "writer": "none",
@@ -1110,8 +1073,7 @@
       "ceiling": "L0",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L0",
@@ -1120,11 +1082,8 @@
           "ceiling": "L0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add spec.yaml + spec_test.go",
-            "add cli/parity spec_test"
+            "provide a writer"
           ]
         },
         "vocabulary": {
@@ -1134,11 +1093,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -1148,11 +1105,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -1162,10 +1116,8 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "populate spec_refs/native_refs + divergence_kind"
+            "cite a registered specification and implementation in dossier.yaml"
           ]
         },
         "corpus": {
@@ -1175,11 +1127,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -1189,10 +1139,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -1202,11 +1150,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -1216,7 +1161,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_archive (P1)"
           ],
@@ -1245,12 +1189,12 @@
         "declared": "available",
         "since": "2026-06-26",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add spec.yaml + spec_test.go",
-        "add cli/parity spec_test"
+        "provide a writer"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -1259,7 +1203,7 @@
       "id": "asciidoc",
       "type": "harvest",
       "level": "L3",
-      "next_level": "L4",
+      "next_level": "—",
       "levels": {
         "engine": "L3",
         "vocabulary": "V1",
@@ -1271,7 +1215,7 @@
         "prose": "P0"
       },
       "next": {
-        "engine": "L4",
+        "engine": "—",
         "vocabulary": "V2",
         "editor": "E1",
         "knowledge": "K3",
@@ -1326,17 +1270,15 @@
       "ceiling": "L3",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L3",
-          "next": "L4",
+          "next": "—",
           "floor": "L2",
           "ceiling": "L3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": []
         },
         "vocabulary": {
@@ -1346,10 +1288,9 @@
           "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "evidence write cells (author-from-canonical)",
-            "add the vocab equivalence case"
+            "verify writing from canonical content",
+            "add a vocabulary equivalence case"
           ]
         },
         "editor": {
@@ -1359,11 +1300,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -1373,8 +1311,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -1383,10 +1323,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -1396,10 +1334,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -1409,9 +1345,8 @@
           "ceiling": "G3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test geometry"
           ]
         },
         "prose": {
@@ -1421,7 +1356,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_asciidoc (P1)"
           ],
@@ -1450,7 +1384,9 @@
         "declared": "available",
         "since": "2026-06-19",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [],
       "top_risk": "",
@@ -1458,7 +1394,7 @@
     },
     {
       "id": "audio",
-      "type": "harvest",
+      "type": "parity",
       "level": "L0",
       "next_level": "L1",
       "levels": {
@@ -1486,8 +1422,8 @@
         "reader": "complete",
         "writer": "complete",
         "config": "none",
-        "spec": "na",
-        "parity": "na",
+        "spec": "none",
+        "parity": "none",
         "malformed": "none",
         "corpus": "none",
         "detection": "complete",
@@ -1527,8 +1463,7 @@
       "ceiling": "L0",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L0",
@@ -1537,10 +1472,8 @@
           "ceiling": "L0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add a corpus/upstream test"
+            "declare the format configuration"
           ]
         },
         "vocabulary": {
@@ -1550,11 +1483,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -1564,11 +1495,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -1578,11 +1506,9 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "wire the nativedocs sidecar",
-            "populate spec_refs/native_refs + divergence_kind"
+            "cite a registered specification and implementation in dossier.yaml",
+            "complete the format reference sidecar"
           ]
         },
         "corpus": {
@@ -1592,11 +1518,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -1606,11 +1530,8 @@
           "ceiling": "S0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "apply core/safeio budgets to the reader"
           ]
         },
         "structure": {
@@ -1620,11 +1541,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -1634,7 +1552,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_audio (P1)"
           ],
@@ -1663,11 +1580,12 @@
         "declared": "available",
         "since": "2026-06-19",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add a corpus/upstream test"
+        "declare the format configuration"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -1675,10 +1593,10 @@
     {
       "id": "csv",
       "type": "parity",
-      "level": "L3",
-      "next_level": "L4",
+      "level": "L2",
+      "next_level": "L3",
       "levels": {
-        "engine": "L3",
+        "engine": "L2",
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
@@ -1688,7 +1606,7 @@
         "prose": "P0"
       },
       "next": {
-        "engine": "L4",
+        "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
@@ -1697,13 +1615,13 @@
         "structure": "G4",
         "prose": "P1"
       },
-      "okapi_counterpart": "okf_table (via alias 'table')",
+      "okapi_counterpart": "okf_commaseparatedvalues",
       "dimensions": {
         "reader": "complete",
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "complete",
         "detection": "complete",
@@ -1739,22 +1657,22 @@
         "allforms": "none"
       },
       "evidence": {},
-      "floor": "L3",
-      "ceiling": "L3",
+      "floor": "L2",
+      "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
-          "level": "L3",
-          "next": "L4",
-          "floor": "L3",
-          "ceiling": "L3",
+          "level": "L2",
+          "next": "L3",
+          "floor": "L2",
+          "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "review the matching release evidence from okapi-bridge"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -1763,11 +1681,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -1777,11 +1693,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -1791,9 +1704,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -1803,11 +1715,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -1817,10 +1726,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -1830,9 +1737,8 @@
           "ceiling": "G3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test geometry"
           ]
         },
         "prose": {
@@ -1842,7 +1748,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_csv (P1)"
           ],
@@ -1871,9 +1776,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
-      "blocking_gaps": [],
+      "blocking_gaps": [
+        "review the matching release evidence from okapi-bridge"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1948,8 +1857,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -1958,9 +1866,8 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go"
+            "test the reader with malformed input"
           ]
         },
         "vocabulary": {
@@ -1970,11 +1877,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -1984,11 +1889,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -1998,8 +1900,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -2008,11 +1912,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -2022,10 +1923,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -2035,11 +1934,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -2049,7 +1945,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_designtokens (P1)"
           ],
@@ -2078,10 +1973,12 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go"
+        "test the reader with malformed input"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -2157,8 +2054,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -2167,9 +2063,10 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go"
+            "test the reader with malformed input",
+            "add the native okapi_skip test",
+            "add the native invariants test"
           ]
         },
         "vocabulary": {
@@ -2179,11 +2076,8 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "evidence write cells (author-from-canonical)",
-            "add the vocab equivalence case"
+            "document the read cells and resolve their evidence"
           ]
         },
         "editor": {
@@ -2193,11 +2087,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -2207,9 +2098,8 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source"
+            "cite a registered specification and implementation in dossier.yaml"
           ]
         },
         "corpus": {
@@ -2219,11 +2109,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -2233,10 +2120,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -2246,7 +2131,6 @@
           "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": []
         },
         "prose": {
@@ -2256,7 +2140,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_doclang (P3)"
           ],
@@ -2285,10 +2168,14 @@
         "declared": "available",
         "since": "2026-06-14",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go"
+        "test the reader with malformed input",
+        "add the native okapi_skip test",
+        "add the native invariants test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -2364,8 +2251,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -2374,10 +2260,7 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add cli/parity spec_test"
-          ]
+          "blocking_gaps": []
         },
         "vocabulary": {
           "level": "V0",
@@ -2386,11 +2269,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "add the vocab equivalence case"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -2400,11 +2281,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -2414,9 +2292,8 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source"
+            "cite a registered specification and implementation in dossier.yaml"
           ]
         },
         "corpus": {
@@ -2426,11 +2303,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -2440,10 +2314,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -2453,7 +2325,6 @@
           "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": []
         },
         "prose": {
@@ -2463,7 +2334,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_docling (P1)"
           ],
@@ -2492,21 +2362,214 @@
         "declared": "available",
         "since": "2026-06-14",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
-      "blocking_gaps": [
-        "add cli/parity spec_test"
-      ],
+      "blocking_gaps": [],
+      "top_risk": "",
+      "confidence": "floor"
+    },
+    {
+      "id": "eml",
+      "type": "harvest",
+      "level": "L3",
+      "next_level": "—",
+      "levels": {
+        "engine": "L3",
+        "vocabulary": "V0",
+        "editor": "E0",
+        "knowledge": "K2",
+        "corpus": "C1",
+        "security": "S2",
+        "structure": "G0",
+        "prose": "P0"
+      },
+      "next": {
+        "engine": "—",
+        "vocabulary": "V1",
+        "editor": "E1",
+        "knowledge": "K3",
+        "corpus": "C2",
+        "security": "S3",
+        "structure": "G1",
+        "prose": "P1"
+      },
+      "okapi_counterpart": "",
+      "dimensions": {
+        "reader": "complete",
+        "writer": "complete",
+        "config": "complete",
+        "spec": "na",
+        "parity": "na",
+        "malformed": "complete",
+        "corpus": "complete",
+        "detection": "complete",
+        "docs": "complete",
+        "vocabmap": "complete",
+        "vocabtypes": "none",
+        "writecells": "none",
+        "equivalence": "none",
+        "preview": "none",
+        "identity": "none",
+        "embedded": "none",
+        "events": "none",
+        "dossier": "complete",
+        "sidecar": "complete",
+        "refs": "complete",
+        "citations": "none",
+        "contextpack": "none",
+        "corpusmanifest": "complete",
+        "fetchwiring": "partial",
+        "acceptance": "partial",
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "complete",
+        "sweepclean": "none",
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "evidence": {},
+      "floor": "L2",
+      "ceiling": "L3",
+      "derived_from": "dimensions",
+      "delta": null,
+      "samples": 0,
+      "axes": {
+        "engine": {
+          "level": "L3",
+          "next": "—",
+          "floor": "L2",
+          "ceiling": "L3",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": []
+        },
+        "vocabulary": {
+          "level": "V0",
+          "next": "V1",
+          "floor": "V0",
+          "ceiling": "V0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": [
+            "emit canonical run types in the reader"
+          ]
+        },
+        "editor": {
+          "level": "E0",
+          "next": "E1",
+          "floor": "E0",
+          "ceiling": "E0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": [
+            "implement format.PreviewBuilder"
+          ]
+        },
+        "knowledge": {
+          "level": "K2",
+          "next": "K3",
+          "floor": "K2",
+          "ceiling": "K2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
+        },
+        "corpus": {
+          "level": "C1",
+          "next": "C2",
+          "floor": "C1",
+          "ceiling": "C1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": [
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
+          ]
+        },
+        "security": {
+          "level": "S2",
+          "next": "S3",
+          "floor": "S2",
+          "ceiling": "S2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": [
+            "record a clean corpus sweep"
+          ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": [
+            "classify metadata and caption text"
+          ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "blocking_gaps": [
+            "add TestProseP1_eml (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
+        }
+      },
+      "tier": {
+        "declared": "available",
+        "since": "2026-11-20",
+        "last_certified": null,
+        "gates": [
+          "make test",
+          ".github/workflows/format-acceptance.yml"
+        ]
+      },
+      "blocking_gaps": [],
       "top_risk": "",
       "confidence": "floor"
     },
     {
       "id": "epub",
       "type": "parity",
-      "level": "L0",
-      "next_level": "L1",
+      "level": "L2",
+      "next_level": "L3",
       "levels": {
-        "engine": "L0",
+        "engine": "L2",
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
@@ -2516,7 +2579,7 @@
         "prose": "P0"
       },
       "next": {
-        "engine": "L1",
+        "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
@@ -2531,7 +2594,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -2567,23 +2630,22 @@
         "allforms": "none"
       },
       "evidence": {},
-      "floor": "L0",
-      "ceiling": "L0",
+      "floor": "L2",
+      "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
-          "level": "L0",
-          "next": "L1",
-          "floor": "L0",
-          "ceiling": "L0",
+          "level": "L2",
+          "next": "L3",
+          "floor": "L2",
+          "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -2593,11 +2655,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -2607,11 +2667,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -2621,9 +2678,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -2633,11 +2689,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -2647,10 +2700,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -2660,11 +2711,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -2674,7 +2722,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_epub (P1)"
           ],
@@ -2703,10 +2750,13 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -2742,7 +2792,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "none",
         "corpus": "partial",
         "detection": "complete",
@@ -2782,8 +2832,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -2792,10 +2841,8 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add a corpus/upstream test"
+            "test the reader with malformed input"
           ]
         },
         "vocabulary": {
@@ -2805,9 +2852,8 @@
           "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "evidence write cells (author-from-canonical)"
+            "verify writing from canonical content"
           ]
         },
         "editor": {
@@ -2817,10 +2863,7 @@
           "ceiling": "E1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "ship a committed add-in/connector manifest"
-          ]
+          "blocking_gaps": []
         },
         "knowledge": {
           "level": "K1",
@@ -2829,9 +2872,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -2841,11 +2883,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -2855,9 +2894,8 @@
           "ceiling": "S2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "record a clean corpus-sweep in the ledger (S3)"
+            "record a clean corpus sweep"
           ]
         },
         "structure": {
@@ -2867,9 +2905,8 @@
           "ceiling": "G3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test geometry"
           ]
         },
         "prose": {
@@ -2879,7 +2916,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_html (P3)"
           ],
@@ -2908,11 +2944,12 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add a corpus/upstream test"
+        "test the reader with malformed input"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -2988,8 +3025,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -2998,9 +3034,8 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go"
+            "test the reader with malformed input"
           ]
         },
         "vocabulary": {
@@ -3010,11 +3045,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -3024,11 +3057,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -3038,8 +3068,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -3048,11 +3080,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -3062,11 +3091,8 @@
           "ceiling": "S0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "apply core/safeio budgets to the reader"
           ]
         },
         "structure": {
@@ -3076,11 +3102,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -3090,7 +3113,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_i18next (P1)"
           ],
@@ -3119,17 +3141,19 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go"
+        "test the reader with malformed input"
       ],
       "top_risk": "",
       "confidence": "floor"
     },
     {
       "id": "image",
-      "type": "harvest",
+      "type": "parity",
       "level": "L1",
       "next_level": "L2",
       "levels": {
@@ -3157,8 +3181,8 @@
         "reader": "complete",
         "writer": "complete",
         "config": "complete",
-        "spec": "na",
-        "parity": "na",
+        "spec": "none",
+        "parity": "none",
         "malformed": "none",
         "corpus": "none",
         "detection": "complete",
@@ -3198,8 +3222,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -3208,10 +3231,9 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add a corpus/upstream test"
+            "test the reader with malformed input",
+            "run the native examples in spec.yaml"
           ]
         },
         "vocabulary": {
@@ -3221,11 +3243,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -3235,11 +3255,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -3249,10 +3266,8 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "populate spec_refs/native_refs + divergence_kind"
+            "cite a registered specification and implementation in dossier.yaml"
           ]
         },
         "corpus": {
@@ -3262,11 +3277,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -3276,11 +3289,8 @@
           "ceiling": "S0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "apply core/safeio budgets to the reader"
           ]
         },
         "structure": {
@@ -3290,11 +3300,8 @@
           "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)",
-            "set SetGeometry + a geometry test (G4)"
+            "emit grouped body text in reading order"
           ]
         },
         "prose": {
@@ -3304,7 +3311,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_image (P1)"
           ],
@@ -3333,11 +3339,13 @@
         "declared": "available",
         "since": "2026-06-18",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add a corpus/upstream test"
+        "test the reader with malformed input",
+        "run the native examples in spec.yaml"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -3373,7 +3381,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -3413,8 +3421,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -3423,9 +3430,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -3435,11 +3442,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -3449,11 +3454,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -3463,8 +3465,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -3473,11 +3477,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -3487,9 +3489,8 @@
           "ceiling": "S2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "record a clean corpus-sweep in the ledger (S3)"
+            "record a clean corpus sweep"
           ]
         },
         "structure": {
@@ -3499,11 +3500,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -3513,7 +3511,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_json (P1)"
           ],
@@ -3542,10 +3539,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -3553,24 +3553,24 @@
     {
       "id": "markdown",
       "type": "parity",
-      "level": "L3",
-      "next_level": "L4",
+      "level": "L2",
+      "next_level": "L3",
       "levels": {
-        "engine": "L3",
+        "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K1",
-        "corpus": "C1",
+        "corpus": "C0",
         "security": "S2",
         "structure": "G3",
         "prose": "P2"
       },
       "next": {
-        "engine": "L4",
+        "engine": "L3",
         "vocabulary": "V2",
         "editor": "E2",
         "knowledge": "K2",
-        "corpus": "C2",
+        "corpus": "C1",
         "security": "S3",
         "structure": "G4",
         "prose": "P3"
@@ -3581,7 +3581,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "complete",
         "detection": "complete",
@@ -3599,7 +3599,7 @@
         "refs": "partial",
         "citations": "none",
         "contextpack": "none",
-        "corpusmanifest": "complete",
+        "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
@@ -3617,22 +3617,22 @@
         "allforms": "none"
       },
       "evidence": {},
-      "floor": "L3",
-      "ceiling": "L3",
+      "floor": "L2",
+      "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
-          "level": "L3",
-          "next": "L4",
-          "floor": "L3",
-          "ceiling": "L3",
+          "level": "L2",
+          "next": "L3",
+          "floor": "L2",
+          "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "review the matching release evidence from okapi-bridge"
+          ]
         },
         "vocabulary": {
           "level": "V1",
@@ -3641,9 +3641,8 @@
           "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "evidence write cells (author-from-canonical)"
+            "verify writing from canonical content"
           ]
         },
         "editor": {
@@ -3653,10 +3652,7 @@
           "ceiling": "E1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "ship a committed add-in/connector manifest"
-          ]
+          "blocking_gaps": []
         },
         "knowledge": {
           "level": "K1",
@@ -3665,22 +3661,19 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -3690,9 +3683,8 @@
           "ceiling": "S2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "record a clean corpus-sweep in the ledger (S3)"
+            "record a clean corpus sweep"
           ]
         },
         "structure": {
@@ -3702,9 +3694,8 @@
           "ceiling": "G3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test geometry"
           ]
         },
         "prose": {
@@ -3714,7 +3705,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_markdown (P3)"
           ],
@@ -3743,9 +3733,13 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
-      "blocking_gaps": [],
+      "blocking_gaps": [
+        "review the matching release evidence from okapi-bridge"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3820,8 +3814,7 @@
       "ceiling": "L1",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L1",
@@ -3830,9 +3823,8 @@
           "ceiling": "L1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go"
+            "test the reader with malformed input"
           ]
         },
         "vocabulary": {
@@ -3842,11 +3834,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -3856,10 +3846,8 @@
           "ceiling": "E1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "declare and exercise the identity-binding round-trip test"
           ]
         },
         "knowledge": {
@@ -3869,8 +3857,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -3879,11 +3869,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -3893,10 +3880,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -3906,10 +3891,8 @@
           "ceiling": "G2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)",
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test structural roles and relationships"
           ]
         },
         "prose": {
@@ -3919,7 +3902,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_mdx (P3)"
           ],
@@ -3948,10 +3930,12 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go"
+        "test the reader with malformed input"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -3987,7 +3971,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -4027,8 +4011,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -4037,9 +4020,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -4049,11 +4032,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -4063,11 +4044,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -4077,9 +4055,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -4089,11 +4066,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -4103,10 +4077,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -4116,11 +4088,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -4130,7 +4099,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_messageformat (P1)"
           ],
@@ -4159,10 +4127,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -4238,8 +4209,7 @@
       "ceiling": "L0",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L0",
@@ -4248,10 +4218,8 @@
           "ceiling": "L0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add a corpus/upstream test"
+            "exercise the reader and writer with a fidelity test"
           ]
         },
         "vocabulary": {
@@ -4261,11 +4229,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -4275,11 +4241,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -4289,8 +4252,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -4299,11 +4264,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -4313,11 +4276,8 @@
           "ceiling": "S0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "apply core/safeio budgets to the reader"
           ]
         },
         "structure": {
@@ -4327,11 +4287,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -4341,7 +4298,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_mo (P1)"
           ],
@@ -4370,22 +4326,23 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add a corpus/upstream test"
+        "exercise the reader and writer with a fidelity test"
       ],
       "top_risk": "",
       "confidence": "floor"
     },
     {
       "id": "odf",
-      "type": "harvest",
-      "level": "L1",
-      "next_level": "L2",
+      "type": "parity",
+      "level": "L2",
+      "next_level": "L3",
       "levels": {
-        "engine": "L1",
+        "engine": "L2",
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
@@ -4395,7 +4352,7 @@
         "prose": "P0"
       },
       "next": {
-        "engine": "L2",
+        "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
@@ -4404,13 +4361,13 @@
         "structure": "G3",
         "prose": "P1"
       },
-      "okapi_counterpart": "",
+      "okapi_counterpart": "okf_openoffice",
       "dimensions": {
         "reader": "complete",
         "writer": "complete",
         "config": "complete",
-        "spec": "na",
-        "parity": "na",
+        "spec": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "complete",
         "detection": "complete",
@@ -4446,22 +4403,22 @@
         "allforms": "none"
       },
       "evidence": {},
-      "floor": "L1",
-      "ceiling": "L1",
+      "floor": "L2",
+      "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
-          "level": "L1",
-          "next": "L2",
-          "floor": "L1",
-          "ceiling": "L1",
+          "level": "L2",
+          "next": "L3",
+          "floor": "L2",
+          "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "review the matching release evidence from okapi-bridge"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4470,11 +4427,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -4484,11 +4439,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -4498,8 +4450,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -4508,11 +4462,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -4522,10 +4473,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -4535,9 +4484,8 @@
           "ceiling": "G2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "emit and test structural roles and relationships"
           ]
         },
         "prose": {
@@ -4547,7 +4495,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_odf (P1)"
           ],
@@ -4576,19 +4523,23 @@
         "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
-      "blocking_gaps": [],
+      "blocking_gaps": [
+        "review the matching release evidence from okapi-bridge"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
     {
       "id": "openxml",
       "type": "parity",
-      "level": "L3",
-      "next_level": "L4",
+      "level": "L2",
+      "next_level": "L3",
       "levels": {
-        "engine": "L3",
+        "engine": "L2",
         "vocabulary": "V1",
         "editor": "E0",
         "knowledge": "K1",
@@ -4598,7 +4549,7 @@
         "prose": "P0"
       },
       "next": {
-        "engine": "L4",
+        "engine": "L3",
         "vocabulary": "V2",
         "editor": "E1",
         "knowledge": "K2",
@@ -4613,7 +4564,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "complete",
         "detection": "complete",
@@ -4649,22 +4600,22 @@
         "allforms": "none"
       },
       "evidence": {},
-      "floor": "L3",
-      "ceiling": "L3",
+      "floor": "L2",
+      "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
-          "level": "L3",
-          "next": "L4",
-          "floor": "L3",
-          "ceiling": "L3",
+          "level": "L2",
+          "next": "L3",
+          "floor": "L2",
+          "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "review the matching release evidence from okapi-bridge"
+          ]
         },
         "vocabulary": {
           "level": "V1",
@@ -4673,9 +4624,8 @@
           "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add the vocab equivalence case"
+            "add a vocabulary equivalence case"
           ]
         },
         "editor": {
@@ -4685,11 +4635,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -4699,9 +4646,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -4711,11 +4657,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -4725,10 +4668,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -4738,7 +4679,6 @@
           "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": []
         },
         "prose": {
@@ -4748,7 +4688,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_openxml (P1)"
           ],
@@ -4777,9 +4716,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
-      "blocking_gaps": [],
+      "blocking_gaps": [
+        "review the matching release evidence from okapi-bridge"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4808,7 +4751,7 @@
         "structure": "G1",
         "prose": "P1"
       },
-      "okapi_counterpart": "okf_pdf",
+      "okapi_counterpart": "",
       "dimensions": {
         "reader": "none",
         "writer": "na",
@@ -4854,8 +4797,7 @@
       "ceiling": "L0",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L0",
@@ -4864,11 +4806,8 @@
           "ceiling": "L0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add spec.yaml + spec_test.go",
-            "add cli/parity spec_test"
+            "provide a reader"
           ]
         },
         "vocabulary": {
@@ -4878,11 +4817,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "add the vocab equivalence case"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -4892,11 +4829,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -4906,11 +4840,9 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "wire the nativedocs sidecar",
-            "populate spec_refs/native_refs + divergence_kind"
+            "cite a registered specification and implementation in dossier.yaml",
+            "complete the format reference sidecar"
           ]
         },
         "corpus": {
@@ -4920,11 +4852,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -4934,10 +4864,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -4947,11 +4875,8 @@
           "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -4961,7 +4886,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_pdf (P1)"
           ],
@@ -4990,12 +4914,12 @@
         "declared": "available",
         "since": "2026-06-19",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add spec.yaml + spec_test.go",
-        "add cli/parity spec_test"
+        "provide a reader"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -5031,7 +4955,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -5071,8 +4995,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -5081,9 +5004,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -5093,11 +5016,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -5107,11 +5028,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -5121,9 +5039,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -5133,11 +5050,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -5147,10 +5061,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -5160,11 +5072,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -5174,7 +5083,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_plaintext (P1)"
           ],
@@ -5203,10 +5111,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -5242,7 +5153,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -5282,8 +5193,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -5292,9 +5202,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -5304,11 +5214,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -5318,11 +5226,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -5332,9 +5237,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -5344,11 +5248,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -5358,10 +5259,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -5371,10 +5270,8 @@
           "ceiling": "G2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)",
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test structural roles and relationships"
           ]
         },
         "prose": {
@@ -5384,7 +5281,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_po (P3)"
           ],
@@ -5413,10 +5309,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -5452,7 +5351,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -5492,8 +5391,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -5502,9 +5400,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -5514,11 +5412,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -5528,11 +5424,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -5542,9 +5435,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -5554,11 +5446,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -5568,10 +5457,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -5581,11 +5468,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -5595,7 +5479,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_properties (P3)"
           ],
@@ -5624,10 +5507,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -5636,7 +5522,7 @@
       "id": "resx",
       "type": "harvest",
       "level": "L3",
-      "next_level": "L4",
+      "next_level": "—",
       "levels": {
         "engine": "L3",
         "vocabulary": "V0",
@@ -5648,7 +5534,7 @@
         "prose": "P2"
       },
       "next": {
-        "engine": "L4",
+        "engine": "—",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
@@ -5703,17 +5589,15 @@
       "ceiling": "L3",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L3",
-          "next": "L4",
+          "next": "—",
           "floor": "L2",
           "ceiling": "L3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": []
         },
         "vocabulary": {
@@ -5723,11 +5607,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -5737,11 +5619,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -5751,8 +5630,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -5761,11 +5642,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -5775,10 +5653,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -5788,11 +5664,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -5802,7 +5675,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_resx (P3)"
           ],
@@ -5831,7 +5703,9 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [],
       "top_risk": "",
@@ -5839,7 +5713,7 @@
     },
     {
       "id": "sourcecode",
-      "type": "harvest",
+      "type": "parity",
       "level": "L0",
       "next_level": "L1",
       "levels": {
@@ -5867,8 +5741,8 @@
         "reader": "none",
         "writer": "none",
         "config": "complete",
-        "spec": "na",
-        "parity": "na",
+        "spec": "none",
+        "parity": "none",
         "malformed": "none",
         "corpus": "none",
         "detection": "complete",
@@ -5908,8 +5782,7 @@
       "ceiling": "L0",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L0",
@@ -5918,10 +5791,9 @@
           "ceiling": "L0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add a corpus/upstream test"
+            "provide a reader",
+            "provide a writer"
           ]
         },
         "vocabulary": {
@@ -5931,11 +5803,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -5945,11 +5815,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -5959,11 +5826,9 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "wire the nativedocs sidecar",
-            "populate spec_refs/native_refs + divergence_kind"
+            "cite a registered specification and implementation in dossier.yaml",
+            "complete the format reference sidecar"
           ]
         },
         "corpus": {
@@ -5973,11 +5838,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -5987,11 +5850,8 @@
           "ceiling": "S0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "apply core/safeio budgets to the reader"
           ]
         },
         "structure": {
@@ -6001,11 +5861,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -6015,7 +5872,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "scored on the language rows: bash, c, cpp, csharp, css, java, javascript, python, ruby, rust, tsx, typescript"
           ],
@@ -6057,11 +5913,13 @@
         "declared": "available",
         "since": "2026-08-23",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/ci.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add a corpus/upstream test"
+        "provide a reader",
+        "provide a writer"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -6091,7 +5949,7 @@
         "structure": "G1",
         "prose": "P1"
       },
-      "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
+      "okapi_counterpart": "okf_subrip",
       "dimensions": {
         "reader": "complete",
         "writer": "complete",
@@ -6137,8 +5995,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -6147,10 +6004,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add cli/parity spec_test",
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -6160,11 +6016,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -6174,11 +6028,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -6188,9 +6039,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -6200,11 +6050,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -6214,11 +6061,8 @@
           "ceiling": "S0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "apply core/safeio budgets to the reader"
           ]
         },
         "structure": {
@@ -6228,11 +6072,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -6242,7 +6083,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_srt (P1)"
           ],
@@ -6271,11 +6111,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add cli/parity spec_test",
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -6311,7 +6153,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -6351,8 +6193,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -6361,9 +6202,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -6373,11 +6214,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -6387,11 +6226,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -6401,9 +6237,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -6413,11 +6248,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -6427,10 +6259,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -6440,11 +6270,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -6454,7 +6281,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_tmx (P3)"
           ],
@@ -6483,10 +6309,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -6522,7 +6351,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -6562,8 +6391,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -6572,9 +6400,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -6584,11 +6412,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -6598,11 +6424,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -6612,9 +6435,9 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references",
+            "provide schema.go"
           ]
         },
         "corpus": {
@@ -6624,11 +6447,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -6638,10 +6458,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -6651,10 +6469,8 @@
           "ceiling": "G2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)",
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test structural roles and relationships"
           ]
         },
         "prose": {
@@ -6664,7 +6480,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_ts (P1)"
           ],
@@ -6693,17 +6508,20 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
     },
     {
       "id": "video",
-      "type": "harvest",
+      "type": "parity",
       "level": "L0",
       "next_level": "L1",
       "levels": {
@@ -6731,8 +6549,8 @@
         "reader": "complete",
         "writer": "complete",
         "config": "none",
-        "spec": "na",
-        "parity": "na",
+        "spec": "none",
+        "parity": "none",
         "malformed": "none",
         "corpus": "none",
         "detection": "complete",
@@ -6772,8 +6590,7 @@
       "ceiling": "L0",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L0",
@@ -6782,10 +6599,8 @@
           "ceiling": "L0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add malformed_test.go",
-            "add a corpus/upstream test"
+            "declare the format configuration"
           ]
         },
         "vocabulary": {
@@ -6795,11 +6610,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -6809,11 +6622,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -6823,11 +6633,9 @@
           "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "wire the nativedocs sidecar",
-            "populate spec_refs/native_refs + divergence_kind"
+            "cite a registered specification and implementation in dossier.yaml",
+            "complete the format reference sidecar"
           ]
         },
         "corpus": {
@@ -6837,11 +6645,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -6851,11 +6657,8 @@
           "ceiling": "S0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "apply core/safeio budgets to the reader"
           ]
         },
         "structure": {
@@ -6865,11 +6668,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -6879,7 +6679,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_video (P1)"
           ],
@@ -6908,11 +6707,12 @@
         "declared": "available",
         "since": "2026-06-19",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [
-        "add malformed_test.go",
-        "add a corpus/upstream test"
+        "declare the format configuration"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -6942,13 +6742,13 @@
         "structure": "G1",
         "prose": "P1"
       },
-      "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
+      "okapi_counterpart": "okf_vtt",
       "dimensions": {
         "reader": "complete",
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -6988,8 +6788,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -6998,9 +6797,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -7010,11 +6809,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -7024,11 +6821,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -7038,9 +6832,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -7050,11 +6843,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -7064,10 +6854,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -7077,11 +6865,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -7091,7 +6876,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_vtt (P1)"
           ],
@@ -7120,10 +6904,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -7132,7 +6919,7 @@
       "id": "xcstrings",
       "type": "harvest",
       "level": "L3",
-      "next_level": "L4",
+      "next_level": "—",
       "levels": {
         "engine": "L3",
         "vocabulary": "V0",
@@ -7144,7 +6931,7 @@
         "prose": "P0"
       },
       "next": {
-        "engine": "L4",
+        "engine": "—",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
@@ -7199,17 +6986,15 @@
       "ceiling": "L3",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L3",
-          "next": "L4",
+          "next": "—",
           "floor": "L2",
           "ceiling": "L3",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": []
         },
         "vocabulary": {
@@ -7219,11 +7004,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -7233,11 +7016,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -7247,8 +7027,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -7257,11 +7039,8 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
+            "cover the test fixtures in corpus.yaml"
           ]
         },
         "security": {
@@ -7271,10 +7050,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -7284,11 +7061,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -7298,7 +7072,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_xcstrings (P1)"
           ],
@@ -7327,7 +7100,9 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          ".github/workflows/format-acceptance.yml"
+        ]
       },
       "blocking_gaps": [],
       "top_risk": "",
@@ -7364,7 +7139,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -7404,8 +7179,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -7414,9 +7188,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -7426,9 +7200,8 @@
           "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "evidence write cells (author-from-canonical)"
+            "verify writing from canonical content"
           ]
         },
         "editor": {
@@ -7438,11 +7211,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -7452,9 +7222,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -7464,11 +7233,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -7478,9 +7245,8 @@
           "ceiling": "S2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "record a clean corpus-sweep in the ledger (S3)"
+            "record a clean corpus sweep"
           ]
         },
         "structure": {
@@ -7490,10 +7256,8 @@
           "ceiling": "G2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)",
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test structural roles and relationships"
           ]
         },
         "prose": {
@@ -7503,7 +7267,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_xliff (P1)"
           ],
@@ -7532,10 +7295,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -7571,7 +7337,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "none",
         "detection": "complete",
@@ -7611,8 +7377,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -7621,9 +7386,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -7633,11 +7398,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -7647,11 +7410,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -7661,9 +7421,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -7673,11 +7432,9 @@
           "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
+            "cover the test fixtures in corpus.yaml",
+            "exercise the documented fixtures in a test"
           ]
         },
         "security": {
@@ -7687,10 +7444,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -7700,10 +7455,8 @@
           "ceiling": "G2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)",
-            "set SetGeometry + a geometry test (G4)"
+            "emit and test structural roles and relationships"
           ]
         },
         "prose": {
@@ -7713,7 +7466,6 @@
           "ceiling": "P0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP1_xliff2 (P1)"
           ],
@@ -7742,10 +7494,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -7775,7 +7530,7 @@
         "structure": "G1",
         "prose": "P3"
       },
-      "okapi_counterpart": "okf_xmlstream (via alias 'xmlstream')",
+      "okapi_counterpart": "okf_xmlstream",
       "dimensions": {
         "reader": "complete",
         "writer": "complete",
@@ -7821,8 +7576,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -7831,10 +7585,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add cli/parity spec_test",
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -7844,11 +7597,8 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "evidence write cells (author-from-canonical)",
-            "add the vocab equivalence case"
+            "document the read cells and resolve their evidence"
           ]
         },
         "editor": {
@@ -7858,11 +7608,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -7872,8 +7619,10 @@
           "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
+          "blocking_gaps": [
+            "record a passing citation check",
+            "record a passing context pack check"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -7882,11 +7631,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -7896,10 +7642,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -7909,11 +7653,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -7923,7 +7664,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_xml (P3)"
           ],
@@ -7952,11 +7692,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add cli/parity spec_test",
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -7992,7 +7734,7 @@
         "writer": "complete",
         "config": "complete",
         "spec": "complete",
-        "parity": "complete",
+        "parity": "none",
         "malformed": "complete",
         "corpus": "partial",
         "detection": "complete",
@@ -8032,8 +7774,7 @@
       "ceiling": "L2",
       "derived_from": "dimensions",
       "delta": null,
-      "agreement": 1,
-      "samples": 1,
+      "samples": 0,
       "axes": {
         "engine": {
           "level": "L2",
@@ -8042,9 +7783,9 @@
           "ceiling": "L2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "review the matching release evidence from okapi-bridge",
+            "exercise real files in a corpus test"
           ]
         },
         "vocabulary": {
@@ -8054,11 +7795,9 @@
           "ceiling": "V0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
+            "document the read cells and resolve their evidence",
+            "emit canonical run types in the reader"
           ]
         },
         "editor": {
@@ -8068,11 +7807,8 @@
           "ceiling": "E0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
+            "implement format.PreviewBuilder"
           ]
         },
         "knowledge": {
@@ -8082,9 +7818,8 @@
           "ceiling": "K1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
+            "resolve the specification and implementation references"
           ]
         },
         "corpus": {
@@ -8094,11 +7829,8 @@
           "ceiling": "C1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"
           ]
         },
         "security": {
@@ -8108,10 +7840,8 @@
           "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
+            "run a fuzz target with committed seeds"
           ]
         },
         "structure": {
@@ -8121,11 +7851,8 @@
           "ceiling": "G0",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "classify metadata and caption text"
           ]
         },
         "prose": {
@@ -8135,7 +7862,6 @@
           "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
-          "agreement": 1,
           "blocking_gaps": [
             "add TestProseP3_yaml (P3)"
           ],
@@ -8164,10 +7890,13 @@
         "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-09-15",
-        "gates": []
+        "gates": [
+          "make test"
+        ]
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "review the matching release evidence from okapi-bridge",
+        "exercise real files in a corpus test"
       ],
       "top_risk": "",
       "confidence": "floor"

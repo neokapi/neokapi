@@ -85,6 +85,7 @@ func TestNewSourceConnector_ClaimTokenFromCache(t *testing.T) {
 	assert.Equal(t, "bowrain-source", conn.ID())
 	assert.NotEmpty(t, conn.Name())
 	assert.Equal(t, "main", conn.stream)
+	t.Logf("KAPI_PROJECT_CONNECTOR %s %s", conn.ID(), conn.Category())
 }
 
 // TestSyncCache_Persistence covers the round-trip the connector relies on:

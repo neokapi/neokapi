@@ -1,47 +1,27 @@
 #!/usr/bin/env node
-// Deterministic, no-LLM publish of the format-maturity dashboard dataset.
-//
-// Contract: docs/internals/format-maturity.md §3 (the scorer dataset/history
-// contract; scorer_version 5) and docs/internals/format-ops.md (the triage-score ritual's Publish
-// step). This is the floor-only path: it computes every axis level from the
-// deterministic file floor with NO quality-dimension demotions and NO sticky
-// prior — exactly what the format-triage workflow publishes when its Score
-// agents return no cited demotions (the bootstrap / zero-prior state, and a
-// faithful refresh whenever a model run is not warranted or affordable).
-//
-// To stay byte-for-byte aligned with the scorer, it does not reimplement any
-// gate: it extracts the PURE prelude of .claude/workflows/format-triage.js
-// (everything before the first top-level `phase(` call — all the AXES/RANK
-// tables and the floorDimsAll / axisLevel / axisCeiling / axisGaps /
-// buildDataset functions) and evaluates it. A gate change in the workflow is
-// picked up automatically on the next run.
-//
-// Usage:
-//   node scripts/format-ops/bootstrap-publish.mjs            # publish (writes files)
-//   node scripts/format-ops/bootstrap-publish.mjs --dry-run  # print summary only
-//   node scripts/format-ops/bootstrap-publish.mjs --date 2026-06-13   # pin the date
-//
-// Inputs : audit-format.py --all --json, the Prose probe report (make
-//          prose-probe), core/formats/support.yaml, the current dashboard
-//          JSON (for the date-dedupe), the ledger.
-// Outputs: web/static/data/format-maturity.json (+ history), the generated
-//          block in docs/internals/format-maturity.md, support.yaml
-//          last_certified, a triage-score run record in the ledger, and the
-//          /evals index (web/src/pages/evals/_index.json), which copies the
-//          dataset's date.
+// Publish the format axes from the repository audit and the Prose probe.
+// The scorer retains cited quality judgments from the last review. A tier review
+// records passing certification gates. See docs/internals/format-maturity.md.
+// Use --dry-run to inspect grades, --date to pin the date and --check to verify
+// the published measurements without changing files.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync, mkdtempSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, renameSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { assertTierMinimum, formatTreeDigest, nextAxisGaps } from './lib.mjs'
 
 const ROOT = process.cwd()
 const argv = process.argv.slice(2)
 const DRY = argv.includes('--dry-run')
+const CHECK = argv.includes('--check')
+const temp = mkdtempSync(join(tmpdir(), 'format-publish-'))
+process.on('exit', () => rmSync(temp, { recursive: true, force: true }))
 const dateArg = (() => { const i = argv.indexOf('--date'); return i >= 0 ? argv[i + 1] : null })()
 const TODAY = dateArg || new Date().toISOString().slice(0, 10)
+if (!/^\d{4}-\d{2}-\d{2}$/.test(TODAY) || new Date(TODAY).toISOString().slice(0, 10) !== TODAY) throw new Error('invalid snapshot date')
 
 const P = {
   triage: '.claude/workflows/format-triage.js',
@@ -67,47 +47,36 @@ async function loadScorer() {
   prelude = prelude.replace(/^export\s+const\s+meta/m, 'const meta') // avoid duplicate export name
   prelude = 'const args = "";\n' + prelude // cfg defaults (target L4, samples 1, anchor on)
   prelude += '\nexport { AXIS_IDS, AXES, NEXT, RANK, ORDER, AXIS_LABELS, CANON, LABELS, DIM_AXES,' +
-    ' floorDimsAll, axisLevel, axisCeiling, axisGaps, buildDataset, attachProse, proseDetail, languageRows };\n'
-  const dir = mkdtempSync(join(tmpdir(), 'fmt-scorer-'))
-  const file = join(dir, 'prelude.mjs')
+    ' floorDimsAll, reconcileDims, applySticky, axisLevel, axisCeiling, axisGaps, buildDataset, attachProse, proseDetail, languageRows };\n'
+  const file = join(temp, 'prelude.mjs')
   writeFileSync(file, prelude)
   return import(pathToFileURL(file).href)
 }
 
-// ── tiny strict YAML reader for support.yaml (the committed shape only) ─────
-// support.yaml: top-level `formats:` map of id -> { tier, tier_since,
-// last_certified, grandfathered, gates: [...] }. We only need the tier block
-// per id, mirroring the reader in format-triage.js.
-function readSupport(text) {
-  const out = {}
-  let cur = null
-  for (const raw of text.split('\n')) {
-    if (/^\s*#/.test(raw) || !raw.trim()) continue
-    let m
-    if ((m = raw.match(/^  ([A-Za-z0-9_.-]+):\s*$/))) { cur = m[1]; out[cur] = { declared: null, since: null, last_certified: null, gates: [] }; continue }
-    if (!cur) continue
-    if ((m = raw.match(/^    tier:\s*(\S+)/))) out[cur].declared = m[1].replace(/['"]/g, '')
-    else if ((m = raw.match(/^    tier_since:\s*(\S+)/))) out[cur].since = m[1].replace(/['"]/g, '')
-    else if ((m = raw.match(/^    last_certified:\s*(\S+)/))) out[cur].last_certified = m[1].replace(/['"]/g, '') === 'null' ? null : m[1].replace(/['"]/g, '')
-    else if ((m = raw.match(/^    gates:\s*\[(.*)\]/))) out[cur].gates = m[1].split(',').map((s) => s.trim().replace(/['"]/g, '')).filter(Boolean)
-  }
-  return out
-}
-
 const S = await loadScorer()
 
-// ── floor → rows (zero prior, zero demotion: derived == floor-seed level) ───
-const auditJson = execFileSync('python3', [P.audit, '--all', '--json'], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 }).toString()
+// Score repository evidence against the same gates used for a reviewed publication.
+const auditJson = execFileSync('python3', [P.audit, '--all', '--json', '--repository-only', '--ledger', P.ledger], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 }).toString()
 const auditSha = createHash('sha256').update(auditJson).digest('hex')
 const floors = JSON.parse(auditJson)
-const tierByFmt = existsSync(P.support) ? readSupport(readFileSync(P.support, 'utf8')) : {}
+const readYaml = 'import json,sys,yaml; print(json.dumps(yaml.safe_load(sys.stdin), default=str))'
+const declarations = JSON.parse(execFileSync('python3', ['-c', readYaml], { input: readFileSync(P.support) })).formats
+const tierByFmt = Object.fromEntries(Object.entries(declarations).map(([id, t]) => [id, {
+  declared: t.tier, since: t.tier_since, last_certified: t.last_certified ?? null, gates: t.gates,
+}]))
+if (Object.keys(tierByFmt).sort().join() !== floors.map(f => f.format).sort().join()) {
+  throw new Error('The support declarations and the format inventory differ.')
+}
+const prior = JSON.parse(readFileSync(P.dataset, 'utf8'))
+const priorByID = new Map(prior.formats.map(row => [row.id, row]))
+if (TODAY < prior.generated_at) throw new Error('The snapshot predates the current publication.')
 
 // ── the Prose probe (rubric §2.8) ───────────────────────────────────────────
 // The Prose floor is the probe's report rather than an audit grep: a rung
 // counts only when its rung test passed. A run whose canary is not scored as
 // built exits non-zero and writes no report, and this publish stops here,
 // before any file is written.
-const proseOut = join(mkdtempSync(join(tmpdir(), 'prose-probe-')), 'report.json')
+const proseOut = join(temp, 'report.json')
 try {
   execFileSync('make', ['--no-print-directory', 'prose-probe', `PROSE_PROBE_OUT=${proseOut}`],
     { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] })
@@ -125,60 +94,46 @@ for (const a of S.AXIS_IDS) movesByAxis[a] = { published: 0, suppressed: 0 }
 const rows = []
 for (const floor of floors) {
   const type = floor.type || 'parity'
-  const dims = S.floorDimsAll(floor, type)
-  const levels = {}, next = {}, axes = {}
+  const previous = priorByID.get(floor.format)
+  const review = previous?.confidence && previous.confidence !== 'floor'
+    ? { date: prior.generated_at, levels: previous.levels, dims: previous.dimensions,
+        evidence: previous.evidence || {}, confidence: previous.confidence, risk: previous.top_risk }
+    : previous?.last_review
+  const floorDims = S.floorDimsAll(floor, type)
+  const dims = review ? S.reconcileDims(review, floorDims) : floorDims
+  const levels = {}, measured = {}, next = {}, axes = {}
   for (const axis of S.AXIS_IDS) {
-    const level = S.axisLevel(axis, dims, floor, type) // prior=null => derived stands
+    const derived = S.axisLevel(axis, dims, floor, type)
+    measured[axis] = derived
+    const { level, delta, derived_from } = S.applySticky(axis, review?.levels?.[axis], derived, '', S.axisCeiling(axis, floor))
+    if (delta) movesByAxis[axis][derived_from === 'sticky-prior' ? 'suppressed' : 'published']++
     levels[axis] = level
-    next[axis] = S.NEXT[axis][level] || '—'
+    next[axis] = axis === 'engine' && type === 'harvest' && level === 'L3' ? '—' : (S.NEXT[axis][level] || '—')
     const band = axis === 'engine'
       ? { floor: floor.base, ceiling: floor.ceiling }
       : { floor: (floor.axes && floor.axes[axis] && floor.axes[axis].base) || null, ceiling: S.axisCeiling(axis, floor) }
     axes[axis] = {
       level, next: next[axis], floor: band.floor, ceiling: band.ceiling,
-      derived_from: 'dimensions', delta: null, agreement: 1,
-      blocking_gaps: gapsFor(floor, axis, dims),
+      derived_from, delta,
+      blocking_gaps: axis === 'prose' ? proseGaps(floor) : nextAxisGaps(floor, axis, level, dims),
       ...(axis === 'prose' ? S.proseDetail(floor) : {}),
     }
   }
+  assertTierMinimum(floor.format, declarations[floor.format], measured)
   let cp = String(floor.okapi_counterpart || '')
-  if (cp.startsWith('none') || cp.includes('harvest') || cp.includes('internal') || cp.includes('verify')) cp = ''
+  if (cp.startsWith('none') || cp.includes('harvest') || cp.includes('internal') || cp.includes('verify') || cp.startsWith('unknown')) cp = ''
   const tier = tierByFmt[floor.format]
   rows.push({
     id: floor.format, type, level: levels.engine, next_level: next.engine,
-    levels, next, okapi_counterpart: cp, dimensions: dims, evidence: {},
+    levels, next, okapi_counterpart: cp, dimensions: dims, evidence: review?.evidence || {},
+    ...(review ? { last_review: review } : {}),
     floor: floor.base, ceiling: floor.ceiling,
-    derived_from: 'dimensions', delta: null, agreement: 1, samples: 1, axes,
+    derived_from: axes.engine.derived_from, delta: axes.engine.delta, samples: 0, axes,
     tier: tier ? { declared: tier.declared, since: tier.since, last_certified: tier.last_certified, gates: tier.gates } : null,
     blocking_gaps: axes.engine.blocking_gaps,
-    top_risk: '', confidence: 'floor',
+    top_risk: review?.risk || '', confidence: 'floor',
   })
 }
-
-// A compact, deterministic per-axis gap derived from the floor signals — the
-// first missing artifact toward the next level. The first real triage-score
-// run replaces these with the agents' richer, cited gaps.
-function gapsFor(floor, axis, dims) {
-  if (axis === 'prose') return proseGaps(floor)
-  const a = floor.axes && floor.axes[axis]
-  if (!a || a.base === a.ceiling && axisIsTop(axis, a.base)) {}
-  const want = {
-    engine: [['malformed', 'add malformed_test.go'], ['spec', 'add spec.yaml + spec_test.go'], ['parity', 'add a parity spec test in okapi-bridge/parity'], ['corpus', 'add a corpus/upstream test']],
-    vocabulary: [['vocabmap', 'add vocabulary.yaml with evidenced read cells'], ['vocabtypes', 'emit canonical run types in the reader'], ['writecells', 'evidence write cells (author-from-canonical)'], ['equivalence', 'add the vocab equivalence case']],
-    editor: [['preview', 'implement format.PreviewBuilder'], ['identity', 'add an identity-binding round-trip test'], ['embedded', 'ship a committed add-in/connector manifest']],
-    knowledge: [['dossier', 'add dossier.yaml with a catalog-registered spec source'], ['sidecar', 'wire the nativedocs sidecar'], ['refs', 'populate spec_refs/native_refs + divergence_kind']],
-    corpus: [['corpusmanifest', 'add corpus.yaml covering testdata'], ['fetchwiring', 'wire Tier B (corpus: scheme / make fetch-corpus)'], ['corpus', 'replace synthetic corpus with real files'], ['acceptance', 'wire an external acceptance validator']],
-    security: [['safeio', 'wire core/safeio budgets into the reader (S1)'], ['fuzz', 'add a Fuzz* target + testdata/fuzz seed (S2)'], ['sweepclean', 'record a clean corpus-sweep in the ledger (S3)']],
-    structure: [['metaplane', 'classify metadata-plane / caption text (G1)'], ['readingorder', 'emit grouped body text in reading order (G2)'], ['roles', 'set SetSemanticRole + tables/relations + a roles test (G3)'], ['geometry', 'set SetGeometry + a geometry test (G4)']],
-  }[axis] || []
-  const gaps = []
-  for (const [dim, msg] of want) {
-    const cell = dims[dim]
-    if (cell && cell !== 'complete' && cell !== 'na') gaps.push(msg)
-  }
-  return gaps.slice(0, 3)
-}
-function axisIsTop() { return false }
 
 // proseGaps names the first rung that is not met. A rung test that exists and
 // did not run is reported as that, with its reason, rather than as missing.
@@ -200,17 +155,17 @@ function proseGaps(floor) {
 }
 
 // ── assemble the dataset via the workflow's own buildDataset ────────────────
-const golden_passed = true // samples === 1 fleet-wide
 const runIntegrity = {
-  samples: 1, anchored: true,
-  moves: { published: 0, suppressed: 0, by_axis: movesByAxis },
-  low_agreement: [], golden_passed,
+  samples: 0, anchored: rows.some(r => r.last_review),
+  moves: { published: Object.values(movesByAxis).reduce((n, v) => n + v.published, 0),
+    suppressed: Object.values(movesByAxis).reduce((n, v) => n + v.suppressed, 0), by_axis: movesByAxis },
+  low_agreement: [],
   prose: { probe_version: proseReport.probe_version, tags: proseReport.tags,
     canaries: proseReport.canaries.map((c) => ({ id: c.id, presence: c.presence, level: c.level || null })) },
 }
 const dataset = S.buildDataset(rows, runIntegrity, tierByFmt, languages)
 dataset.generated_at = TODAY
-dataset.source = 'format-ops bootstrap-publish (deterministic per-axis floor; no quality demotions)'
+dataset.source = 'Repository audit and Prose probe with prior quality reviews retained'
 
 // ── distributions for the summary line + docs block ─────────────────────────
 const byAxisDist = {}
@@ -228,32 +183,31 @@ if (DRY) {
 }
 
 // ── write the dataset (2-space) ─────────────────────────────────────────────
-writeFileSync(P.dataset, JSON.stringify(dataset, null, 2) + '\n')
+const projections = new Map([[P.dataset, JSON.stringify(dataset, null, 2) + '\n']])
 
 // ── history: remove TODAY then append; never rewrite old entries ────────────
 const history = existsSync(P.history) ? JSON.parse(readFileSync(P.history, 'utf8')) : []
 const kept = history.filter((h) => h.date !== TODAY)
-kept.push({ date: TODAY, total: dataset.summary.total, by_level: dataset.summary.by_level, by_axis: dataset.summary.by_axis, languages: dataset.summary.languages, golden_passed, moves: runIntegrity.moves })
+kept.push({ date: TODAY, total: dataset.summary.total, by_level: dataset.summary.by_level, by_axis: dataset.summary.by_axis, languages: dataset.summary.languages, moves: runIntegrity.moves })
 kept.sort((a, b) => a.date.localeCompare(b.date))
-writeFileSync(P.history, JSON.stringify(kept, null, 2) + '\n')
+projections.set(P.history, JSON.stringify(kept, null, 2) + '\n')
 
 // ── docs snapshot block (between the generated markers) ─────────────────────
 const BEGIN = '<!-- BEGIN: gap-analysis report (generated) -->'
 const END = '<!-- END: gap-analysis report -->'
 const md = readFileSync(P.rubric, 'utf8')
 const b = md.indexOf(BEGIN), e = md.indexOf(END)
-if (b >= 0 && e > b) {
+if (b < 0 || e <= b) throw new Error('Missing format maturity report markers in ' + P.rubric)
+{
   const block = renderDocsBlock()
-  writeFileSync(P.rubric, md.slice(0, b) + BEGIN + '\n' + block + '\n' + md.slice(e))
+  projections.set(P.rubric, md.slice(0, b) + BEGIN + '\n' + block + '\n' + md.slice(e))
 }
 function renderDocsBlock() {
   const L = []
   L.push(`## Maturity report (snapshot: ${TODAY})`)
   L.push('')
-  L.push(`Generated by the \`bootstrap-publish\` (deterministic floor; no quality`)
-  L.push(`demotions) over ${rows.length} real formats. Regenerated by every ritual that`)
-  L.push(`republishes the dashboard: do not edit by hand. The dashboard`)
-  L.push(`(\`/format-maturity\`) carries the live, filterable view.`)
+  L.push('The repository audit measures the format axes. The Prose probe runs the rung tests.')
+  L.push('The [dashboard](/format-maturity) shows the measurements and support declarations.')
   L.push('')
   L.push('### Per-axis distribution')
   L.push('')
@@ -292,45 +246,6 @@ function renderDocsBlock() {
   return L.join('\n')
 }
 
-// ── support.yaml: refresh last_certified only (line-edit; preserve the rest) ─
-// Every id in the dataset was certified by this run, so every id gets the date —
-// including one whose entry carries no last_certified key yet (a format added to
-// support.yaml after the previous publish). Replacing only existing keys would
-// leave such a format permanently uncertified no matter how often the ritual
-// runs. Nothing else in the file is touched: tier / tier_since / gates / notes /
-// grandfathered belong to the tier-review ritual (format-maturity.md §1).
-if (existsSync(P.support)) {
-  const ids = new Set(rows.map((r) => r.id))
-  const lines = readFileSync(P.support, 'utf8').split('\n')
-  const CERT = (indent) => `${indent}last_certified: "${TODAY}"`
-  let cur = null
-  let anchor = -1 // line index of the current id's tier_since (insert point)
-  let seen = false
-  const inserts = [] // {at, text} — applied last-first so indices stay valid
-  const flush = () => {
-    if (cur && ids.has(cur) && !seen && anchor >= 0) {
-      inserts.push({ at: anchor + 1, text: CERT(lines[anchor].match(/^(\s*)/)[1]) })
-    }
-  }
-  for (let i = 0; i < lines.length; i++) {
-    let m
-    if ((m = lines[i].match(/^  ([A-Za-z0-9_.-]+):\s*$/))) {
-      flush()
-      cur = m[1]; anchor = -1; seen = false
-      continue
-    }
-    if (!cur) continue
-    if (/^    tier_since:/.test(lines[i])) anchor = i
-    if (ids.has(cur) && /^    last_certified:/.test(lines[i])) {
-      lines[i] = CERT(lines[i].match(/^(\s*)/)[1])
-      seen = true
-    }
-  }
-  flush()
-  for (const ins of inserts.sort((a, b) => b.at - a.at)) lines.splice(ins.at, 0, ins.text)
-  writeFileSync(P.support, lines.join('\n'))
-}
-
 // ── ledger: triage-score watermarks + run record ────────────────────────────
 if (existsSync(P.ledger)) {
   const ledger = JSON.parse(readFileSync(P.ledger, 'utf8'))
@@ -340,7 +255,8 @@ if (existsSync(P.ledger)) {
   if (ts) {
     ts.last_run = TODAY
     ts.watermarks = ts.watermarks || {}
-    ts.watermarks.core_formats_sha = coreSha
+    if (!CHECK || !ts.watermarks.core_formats_sha) ts.watermarks.core_formats_sha = coreSha
+    ts.watermarks.format_tree_sha256 = formatTreeDigest(ROOT)
     ts.watermarks.audit_sha = auditSha
     ts.watermarks.scorer_version = 5
     ts.watermarks.axes_published = S.AXIS_IDS.slice()
@@ -348,21 +264,32 @@ if (existsSync(P.ledger)) {
   ledger.runs = ledger.runs || []
   // idempotent: a re-publish on the same day replaces its own run record
   ledger.runs = ledger.runs.filter((r) => !(r.date === TODAY && r.ritual === 'triage-score' && r.model_id === 'deterministic'))
-  const dist = dataset.summary.by_level
   ledger.runs.push({
     date: TODAY, ritual: 'triage-score', commit: 'pending', model_id: 'deterministic',
     // No "first snapshot" claim: this path re-runs, so the outcome names the
     // scoring MODE (deterministic floor, no LLM scoring) rather than asserting
     // a novelty that is false on every run after the first.
-    outcome: `deterministic floor publish (no LLM scoring): engine ${S.AXES.engine.map((g) => `${g}:${dist[g]}`).join(' ')}; ${rows.length} formats`,
-    evidence: [{ check: 'audit-format.py --all --json', exit: 0, output_sha: auditSha }],
-    followups: ['vocabulary.yaml backfill (#859)', 'corpus C2 fetch wiring (#859 D)'],
+    outcome: 'Published the repository audit and Prose probe. The format dashboard records the measured grades.',
+    evidence: [{ check: 'audit-format.py --all --json --repository-only --ledger ' + P.ledger, exit: 0, output_sha: auditSha },
+      { check: 'make prose-probe', exit: 0, output_sha: createHash('sha256').update(JSON.stringify({ languages, rows: rows.map(r => r.axes.prose) })).digest('hex') }],
+    followups: [],
   })
-  writeFileSync(P.ledger, JSON.stringify(ledger, null, 2) + '\n')
+  projections.set(P.ledger, JSON.stringify(ledger, null, 2) + '\n')
 }
 
-// ── the /evals index copies the dataset's date, so it is rebuilt with it ────
-execFileSync('go', ['run', './scripts/evalindex'], { cwd: ROOT, stdio: 'inherit' })
-
-console.log(`bootstrap-publish: wrote ${P.dataset} (${rows.length} formats, ${TODAY})`)
-for (const axis of S.AXIS_IDS) console.log(`  ${axis.padEnd(11)} ${JSON.stringify(byAxisDist[axis])}`)
+const changed = [...projections].filter(([file, bytes]) => readFileSync(file, 'utf8') !== bytes)
+if (CHECK && changed.length) throw new Error('Stale maturity projections: ' + changed.map(([file]) => file).join(', '))
+for (const [file, bytes] of changed) {
+  const stage = file + '.tmp-' + process.pid
+  writeFileSync(stage, bytes)
+  renameSync(stage, file)
+}
+const indexPath = 'web/src/pages/evals/_index.json'
+const indexStage = join(temp, 'index.json')
+execFileSync('go', ['run', './scripts/evalindex', '-out', indexStage], { cwd: ROOT, stdio: 'inherit' })
+const index = readFileSync(indexStage, 'utf8')
+if (readFileSync(indexPath, 'utf8') !== index) {
+  if (CHECK) throw new Error('Stale evaluation index: ' + indexPath)
+  writeFileSync(indexPath, index)
+}
+console.log(`bootstrap-publish: ${CHECK ? 'checked' : 'published'} ${rows.length} formats on ${TODAY}`)

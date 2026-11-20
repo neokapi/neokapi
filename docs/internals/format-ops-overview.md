@@ -62,7 +62,10 @@ See the live [`/format-maturity` dashboard](https://neokapi.github.io/format-mat
 
 ## How it runs: the runbook
 
-Ask the assistant to run the format-ops skill at `.skills/format-ops/`.
+Run `make check-content-maturity` to reproduce the published measurements.
+The [content maturity job](./content-maturity.md) also tests output formats and
+connector operations. It generates a brief you can give to a coding agent.
+Use the format-ops skill at `.skills/format-ops/` for a calibrated review.
 To inspect pending work without executing it:
 
 ```bash
@@ -90,7 +93,7 @@ an approval queue for the maintainer; everything else is autonomous.
 
 | Doc | What |
 |---|---|
-| [format-maturity.md](./format-maturity.md) | the bar: tiers + all seven axes + the rubric |
+| [format-maturity.md](./format-maturity.md) | format tiers, axes and scoring rules |
 | [format-ops.md](./format-ops.md) | the process: rituals, cadences, ledger, runbook, self-improvement |
 | [format-spec-cases.md](./format-spec-cases.md) | executable spec cases + AI test generation |
 | [format-engineering.md](./format-engineering.md) | how the format engine itself works |

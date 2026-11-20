@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T09:59:05Z",
+  "generatedAt": "2026-11-20T22:15:41Z",
   "kind": "format-family",
   "formats": {
     "androidxml": "catalog-keyvalue",
@@ -12,6 +12,7 @@
     "designtokens": "catalog-keyvalue",
     "doclang": "rich-markup",
     "docling": "rich-markup",
+    "eml": "plain-text",
     "epub": "rich-markup",
     "exec": "plain-text",
     "html": "rich-markup",
@@ -57,6 +58,7 @@
     ".docx": "office-doc",
     ".dotm": "office-doc",
     ".dotx": "office-doc",
+    ".eml": "plain-text",
     ".epub": "rich-markup",
     ".flac": "binary-readonly",
     ".gif": "binary-readonly",

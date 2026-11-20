@@ -1,0 +1,824 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-20",
+  "outputs": [
+    {
+      "id": "androidxml",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "failed",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader did not recover \"Project update\" as a separate block from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "applestrings",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "failed",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader did not recover \"Project update\" as a separate block from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "arb",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "failed",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader did not recover \"Project update\" as a separate block from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "archive",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The registry provides no writer for this target."
+        }
+      ]
+    },
+    {
+      "id": "asciidoc",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "audio",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires a media part for output."
+        }
+      ]
+    },
+    {
+      "id": "csv",
+      "capabilities": [
+        {
+          "id": "project-cells",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from source.tsv."
+        }
+      ]
+    },
+    {
+      "id": "designtokens",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "failed",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader did not recover \"Project update\" as a separate block from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "doclang",
+      "capabilities": [
+        {
+          "id": "email",
+          "status": "verified",
+          "evidence": [
+            "cli/toolbox_conv_eml_test.go#TestEmailConversion"
+          ],
+          "detail": "kconv infers DocLang from the output path and projects the subject and body."
+        },
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        },
+        {
+          "id": "structure",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_test.go#TestConvMarkdownToDocLang"
+          ],
+          "detail": "A Markdown heading and bold text retain their roles in DocLang."
+        }
+      ]
+    },
+    {
+      "id": "docling",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The registry provides no writer for this target."
+        }
+      ]
+    },
+    {
+      "id": "eml",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires an original document of this format."
+        }
+      ]
+    },
+    {
+      "id": "epub",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires an original document of this format."
+        }
+      ]
+    },
+    {
+      "id": "exec",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The registry provides no writer for this target."
+        }
+      ]
+    },
+    {
+      "id": "html",
+      "capabilities": [
+        {
+          "id": "email",
+          "status": "verified",
+          "evidence": [
+            "cli/toolbox_conv_eml_test.go#TestEmailConversion"
+          ],
+          "detail": "kconv writes the message subject as an HTML heading and retains the body."
+        },
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        },
+        {
+          "id": "structure",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_test.go#TestConvDocLangToHTML"
+          ],
+          "detail": "A DocLang heading and table render as HTML elements."
+        }
+      ]
+    },
+    {
+      "id": "i18next",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "image",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires an original document of this format."
+        }
+      ]
+    },
+    {
+      "id": "json",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "json-catalog",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "kbf",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "kconv directs interchange output to kapi extract."
+        }
+      ]
+    },
+    {
+      "id": "markdown",
+      "capabilities": [
+        {
+          "id": "email",
+          "status": "verified",
+          "evidence": [
+            "cli/toolbox_conv_eml_test.go#TestEmailConversion"
+          ],
+          "detail": "kconv writes the message subject as a Markdown heading and retains the body."
+        },
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        },
+        {
+          "id": "structure",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_test.go#TestConvDocLangToMarkdown"
+          ],
+          "detail": "DocLang headings, bold text and list items retain their roles in Markdown."
+        }
+      ]
+    },
+    {
+      "id": "mdx",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires an original document of this format."
+        }
+      ]
+    },
+    {
+      "id": "messageformat",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "mo",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "kconv directs interchange output to kapi extract."
+        }
+      ]
+    },
+    {
+      "id": "odf",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires an original document of this format."
+        }
+      ]
+    },
+    {
+      "id": "openxml",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires an original document of this format."
+        }
+      ]
+    },
+    {
+      "id": "plaintext",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "po",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "kconv directs interchange output to kapi extract."
+        }
+      ]
+    },
+    {
+      "id": "properties",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.strings."
+        }
+      ]
+    },
+    {
+      "id": "resx",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "srt",
+      "capabilities": [
+        {
+          "id": "project-cues",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from source.vtt."
+        }
+      ]
+    },
+    {
+      "id": "tmx",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "kconv directs interchange output to kapi extract."
+        }
+      ]
+    },
+    {
+      "id": "ts",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "tsv",
+      "capabilities": [
+        {
+          "id": "project-cells",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from source.csv."
+        }
+      ]
+    },
+    {
+      "id": "video",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The writer requires a media part for output."
+        }
+      ]
+    },
+    {
+      "id": "vtt",
+      "capabilities": [
+        {
+          "id": "project-cues",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from source.srt."
+        }
+      ]
+    },
+    {
+      "id": "xcstrings",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "failed",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader did not recover \"Project update\" as a separate block from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "xliff",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "kconv directs interchange output to kapi extract."
+        }
+      ]
+    },
+    {
+      "id": "xliff2",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "unsupported",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "kconv directs interchange output to kapi extract."
+        }
+      ]
+    },
+    {
+      "id": "xml",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "failed",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader did not recover \"Project update\" as a separate block from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "yaml",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    },
+    {
+      "id": "yaml-catalog",
+      "capabilities": [
+        {
+          "id": "project-text",
+          "status": "verified",
+          "evidence": [
+            "host/toolbox_conv_maturity_test.go#TestOutputMaturity"
+          ],
+          "detail": "The target reader recovered both text values from strings.properties."
+        }
+      ]
+    }
+  ],
+  "connectors": [
+    {
+      "id": "bowrain-source",
+      "capabilities": [
+        {
+          "id": "pull",
+          "status": "verified",
+          "evidence": [
+            "host/venue/source/pull_test.go#TestPull_CrossFormatTargetWritesTheTargetFormat"
+          ],
+          "detail": "Write a translation from a fixture venue in the format of the target."
+        },
+        {
+          "id": "push",
+          "status": "verified",
+          "evidence": [
+            "host/venue/source/push_read_wiring_test.go#TestPushReadsTheBlocksACheckReads"
+          ],
+          "detail": "Compare the block identities sent to the venue with those read by the local checker."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "host/venue/source/source.go"
+          ],
+          "detail": "file source connector (project)."
+        }
+      ]
+    },
+    {
+      "id": "figma",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/figma_test.go#TestFigmaFetch"
+          ],
+          "detail": "Read design text through a fixture REST endpoint."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "unsupported",
+          "evidence": [
+            "bowrain/connector/figma_test.go#TestFigmaPublishIsReadOnly"
+          ],
+          "detail": "The connector reports that design nodes are read-only."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "design integration connector (local, server, remote)."
+        }
+      ]
+    },
+    {
+      "id": "file",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/file_test.go#TestFileConnectorFetch"
+          ],
+          "detail": "Extract blocks from a local HTML file."
+        },
+        {
+          "id": "list",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/file_test.go#TestFileConnectorList"
+          ],
+          "detail": "Discover a file and identify its format."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/eml_delivery_test.go#TestEmailDelivery"
+          ],
+          "detail": "Deliver an edited message using its source skeleton."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "file integration connector (local)."
+        }
+      ]
+    },
+    {
+      "id": "forge",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/forge_test.go#TestForgeConnectorPublish_BranchAndPR"
+          ],
+          "detail": "Publish a delivery branch and request a review through a fixture forge."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "code integration connector (local, server)."
+        }
+      ]
+    },
+    {
+      "id": "git",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "code integration connector (local)."
+        }
+      ]
+    },
+    {
+      "id": "hubspot",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/hubspot_test.go#TestHubSpotExchange"
+          ],
+          "detail": "Extract a page title and description from a fixture REST endpoint."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/hubspot_test.go#TestHubSpotExchange"
+          ],
+          "detail": "Update the title and preserve the description on the original page."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "marketing integration connector (local, server, remote)."
+        }
+      ]
+    },
+    {
+      "id": "wordpress",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/wordpress_test.go#TestWordPressFetch"
+          ],
+          "detail": "Read posts into blocks from a fixture REST endpoint."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/wordpress_test.go#TestWordPressPublish"
+          ],
+          "detail": "Send reviewed fields to the original post at a fixture REST endpoint."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "cms integration connector (local, server, remote)."
+        }
+      ]
+    }
+  ]
+}

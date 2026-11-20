@@ -1,0 +1,210 @@
+.panel {
+  margin: 1.5rem 0;
+}
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.heading h2 {
+  margin: 0;
+}
+.heading a {
+  font-size: 0.88rem;
+}
+.filters {
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.filters label {
+  display: grid;
+  gap: 0.32rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+.filters label:first-child {
+  flex: 1 1 14rem;
+  max-width: 28rem;
+}
+.filters input,
+.filters select {
+  font: inherit;
+  font-weight: 400;
+  color: var(--ifm-font-color-base);
+  background: var(--dash-surface, var(--ifm-background-color));
+  border: 1px solid var(--ifm-color-emphasis-400);
+  border-radius: var(--ifm-global-radius);
+  padding: 0.45rem 0.6rem;
+  min-height: 2.4rem;
+  min-width: 0;
+  width: 100%;
+}
+.count {
+  font-size: 0.83rem;
+  margin: 0.9rem 0 0.35rem;
+  color: var(--dash-muted, var(--ifm-color-emphasis-700));
+}
+.tableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  margin: 0;
+}
+.table th,
+.table td {
+  text-align: left;
+  vertical-align: middle;
+}
+.table thead th {
+  font-size: 0.8rem;
+  color: var(--dash-muted, var(--ifm-color-emphasis-700));
+  background: var(--dash-tint, var(--ifm-color-emphasis-100));
+}
+.table :is(th, td) {
+  border: 0;
+  padding: 0.57rem 0.8rem;
+}
+.table tr {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--dash-border, var(--ifm-color-emphasis-200));
+}
+.table tbody th {
+  width: 46%;
+}
+.table th button {
+  appearance: none;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: start;
+  padding: 0.15rem 0;
+  font: inherit;
+  font-weight: 600;
+}
+.table th button:hover {
+  color: var(--ifm-color-primary);
+}
+.table th svg {
+  flex-shrink: 0;
+}
+.table th button[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.panel :is(input, select, button, summary, a):focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+.table td.detailCell {
+  padding: 0;
+}
+.detail {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(0, 2fr);
+  gap: 1.6rem;
+  background: var(--dash-tint, var(--ifm-color-emphasis-100));
+  padding: 1.25rem;
+  overflow-wrap: anywhere;
+}
+.detail h3 {
+  font-size: 0.96rem;
+  margin: 0 0 0.6rem;
+}
+.detail h4 {
+  font-size: 0.87rem;
+  margin: 0.7rem 0 0.35rem;
+}
+.facts {
+  margin: 0 0 1rem;
+  font-size: 0.86rem;
+}
+.facts dt {
+  color: var(--dash-muted, var(--ifm-color-emphasis-700));
+}
+.facts dd {
+  margin: 0 0 0.5rem;
+}
+.gate {
+  display: block;
+  width: fit-content;
+}
+.axis {
+  border: 0;
+  border-top: 1px solid var(--dash-border, var(--ifm-color-emphasis-300));
+  border-radius: 0;
+  background: transparent;
+  margin: 0;
+  padding: 0.35rem 0;
+}
+.axis summary,
+.languages > summary {
+  cursor: pointer;
+}
+.axis summary {
+  padding: 0.18rem 0;
+  font-weight: 600;
+}
+.axis .grade {
+  font-weight: 400;
+  color: var(--dash-muted, var(--ifm-color-emphasis-700));
+  margin-inline-start: 0.65rem;
+}
+.axisBody {
+  padding: 0.55rem 0 0.25rem 1rem;
+  font-size: 0.86rem;
+}
+.axisBody ul {
+  margin: 0.3rem 0;
+}
+.axisBody p {
+  margin: 0 0 0.4rem;
+}
+.dimensions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.45rem 1rem;
+  margin: 0 0 0.6rem;
+}
+.dimensions dt {
+  font-weight: 600;
+}
+.dimensions dd {
+  margin: 0;
+}
+.dimensions small {
+  display: block;
+  color: var(--dash-muted, var(--ifm-color-emphasis-700));
+}
+.languages {
+  margin-top: 1.2rem;
+}
+.languages > summary {
+  font-weight: 600;
+}
+.languages[open] > summary {
+  margin-bottom: 0.5rem;
+}
+@media (max-width: 640px) {
+  .detail {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.8rem;
+  }
+  .table :is(th, td) {
+    padding: 0.45rem 0.35rem;
+  }
+}

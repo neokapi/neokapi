@@ -51,8 +51,8 @@ directory.
 Each block carries a normalized
 **role** (heading, list item, table cell, caption) and `kconv` renders that
 role in the target format: a heading becomes `#`/`##` in Markdown or
-`<h1>`/`<h2>` in HTML; a list becomes bullets or a `<ul>`; a table reconstructs
-as an HTML `<table>` (Markdown lists the cells). Inline formatting is rendered
+`<h1>`/`<h2>` in HTML; a list becomes bullets or a `<ul>`; a table becomes
+an HTML `<table>` or a Markdown table. Inline formatting is rendered
 from each run's type, so a bold span becomes `**…**` or `<strong>…</strong>`
 whatever spelling the source format used.
 
@@ -62,14 +62,18 @@ new format.
 
 ## Supported output formats
 
-You can read (convert **from**) any supported format. You can write (convert
-**to**) the document and data formats that are produced from content alone:
+You can convert from any format with an installed reader. The target writer
+must be able to generate a document from the blocks the source provides.
 
-- **Documents**: Markdown, HTML, DocLang, AsciiDoc, plain text
-- **Data and catalogs**: JSON, YAML, and the resource-string formats
+- Markdown, HTML and DocLang retain headings and body text. Their writers also
+  project structures such as tables and inline formatting.
+- JSON and YAML write structural block records. Use `--to json-catalog` or
+  `--to yaml-catalog` to write keyed strings from catalog input.
+- CSV and TSV require cell positions. WebVTT and SubRip use cue times.
 
-Run `kapi formats` for the full set, or try the
-[Conversion lab](/learn/conversion) to convert in your browser.
+The [output evidence dashboard](/format-maturity#outputs) lists the
+built-in targets, the fixtures the tests convert, and the values each target
+reader recovers. You can also try the [Conversion lab](/learn/conversion).
 
 **Not conversion targets:**
 
@@ -84,6 +88,9 @@ Run `kapi formats` for the full set, or try the
 ## Examples
 
 ```bash
+# Read the subject and plain-text body of an email as Markdown
+kconv message.eml --to md
+
 # A Word proposal as clean Markdown (to stdout)
 kconv proposal.docx --to md
 

@@ -4,6 +4,7 @@
 // (hoisted to <root>/node_modules via shamefully-hoist). No other
 // external dependencies are used — everything else is node: builtins.
 
+import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -61,20 +62,92 @@ export function sha256(data) {
   return crypto.createHash("sha256").update(data).digest("hex");
 }
 
+export function nextAxisGaps(floor, axis, level, dims) {
+  const signals = floor.axes[axis]?.signals || {};
+  const native = floor.type === "harvest";
+  const criteria = {
+    L0: [["reader", "provide a reader"], ["writer", "provide a writer"], ["config", "declare the format configuration"]],
+    L1: [["malformed", "test the reader with malformed input"], native
+      ? ["corpus", "exercise the native contract with corpus fixtures"]
+      : ["spec", "run the native examples in spec.yaml"]],
+    L2: native ? [["corpus", "verify the native corpus and invariants"]]
+      : [["parity", "review the matching release evidence from okapi-bridge"], ["corpus", "exercise real files in a corpus test"]],
+    L3: native ? [] : [["writer", "verify write-back fidelity"], ["config", "verify configuration against the schema"],
+      ["parity", "review divergences against the specification"], ["corpus", "verify the source of the corpus fixtures"]],
+    V0: [["vocabmap", "document the read cells and resolve their evidence"], ["vocabtypes", "emit canonical run types in the reader"]],
+    V1: [["writecells", "verify writing from canonical content"], ["equivalence", "add a vocabulary equivalence case"]],
+    V2: [["writecells", "resolve unknown write cells"], ["equivalence", "verify vocabulary equivalence in both directions"]],
+    E0: [["preview", "implement format.PreviewBuilder"]],
+    E1: [["identity", "declare and exercise the identity-binding round-trip test"]],
+    E2: [["embedded", "declare and verify the editor integration manifest"]],
+    E3: [["events", "declare and verify the editor event handler"]],
+    K0: [["dossier", "cite a registered specification and implementation in dossier.yaml"], ["sidecar", "complete the format reference sidecar"]],
+    K1: [["refs", "resolve the specification and implementation references"]],
+    K2: [["citations", "record a passing citation check"], ["contextpack", "record a passing context pack check"]],
+    C0: [["corpusmanifest", "cover the test fixtures in corpus.yaml"], ["corpus", "exercise the documented fixtures in a test"]],
+    C1: [["fetchwiring", "reference a fetched Tier B fixture in spec.yaml or record a reviewed exemption"]],
+    C2: [["corpus", "verify the corpus fixture origins"], ["acceptance", signals.acceptance === "partial"
+      ? "record a passing CI result for the existing acceptance test" : "exercise an independent consumer in an acceptance test"],
+      ["sweep", "record a passing corpus sweep"]],
+    S0: [["safeio", "apply core/safeio budgets to the reader"]],
+    S1: [["fuzz", "run a fuzz target with committed seeds"]],
+    S2: [["sweepclean", "record a clean corpus sweep"]],
+    S3: [["sustained", "record consecutive clean sweeps"]],
+    G0: [["metaplane", "classify metadata and caption text"]],
+    G1: [["readingorder", "emit grouped body text in reading order"]],
+    G2: [["roles", "emit and test structural roles and relationships"]],
+    G3: [["geometry", "emit and test geometry"]],
+  };
+  const gaps = (criteria[level] ?? []).filter(([key]) => !["complete", "na"].includes(dims[key])).map(([, detail]) => detail);
+  if (level === "C2" && signals.externally_verified_wild === 0) gaps.push("record external verification of a wild fixture");
+  if (level === "K1" && !floor.has.schema) gaps.push("provide schema.go");
+  if (level === "L0" && !gaps.length) gaps.push("exercise the reader and writer with a fidelity test");
+  if (axis === "engine" && level === "L1" && native) {
+    for (const kind of ["okapi_skip", "invariants", "corpus"]) {
+      if (!floor.test_kinds.includes(kind)) gaps.push("add the native " + kind + " test");
+    }
+  }
+  return gaps.slice(0, 3);
+}
+
+export function assertTierMinimum(id, declaration, levels) {
+  const minimum = {
+    available: { engine: "L0" },
+    maintained: { engine: "L2" },
+    supported: { engine: "L3", corpus: "C2", knowledge: "K2" },
+  }[declaration.tier];
+  if (!minimum) throw new Error(id + " has an unknown support tier: " + declaration.tier);
+  if (declaration.grandfathered === true) return;
+  for (const [axis, required] of Object.entries(minimum)) {
+    const grade = levels[axis];
+    if (typeof grade !== "string" || grade.length !== 2 || grade[0] !== required[0] ||
+        !/[0-4]/.test(grade[1]) || Number(grade[1]) < Number(required[1])) {
+      throw new Error(`${id} declares ${declaration.tier} and requires ${axis} ${required}. Measured ${grade ?? "no grade"}.`);
+    }
+  }
+}
+
+// Include new formats before their first commit. The same files after checkout have the same digest.
+export function formatTreeDigest(root) {
+  const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "core/formats"], {
+    cwd: root, encoding: "utf8",
+  }).split("\0").filter(Boolean).sort();
+  const digest = crypto.createHash("sha256");
+  for (const file of files) {
+    const fullPath = path.join(root, file);
+    if (fs.existsSync(fullPath)) digest.update(file).update("\0").update(sha256(fs.readFileSync(fullPath)));
+  }
+  return digest.digest("hex");
+}
+
 /** Non-format directories under core/formats/ excluded from the reporting universe. */
 export const EXCLUDED_FORMAT_DIRS = ["exec", "jsx", "memorytest"];
 
-/** Harvest formats (no Okapi counterpart): parity is `na`, ladder is okapi_skip+invariants+corpus. */
-export const HARVEST_FORMATS = [
-  "androidxml",
-  "applestrings",
-  "arb",
-  "designtokens",
-  "i18next",
-  "mdx",
-  "resx",
-  "xcstrings",
-];
+export function formatFamily(id, spec, directory) {
+  if (typeof spec?.format === "string" && spec.format.startsWith("okf_")) return "parity";
+  if (spec?.format === id || fs.existsSync(path.join(directory, "okapi_skip_test.go"))) return "native";
+  return "unknown";
+}
 
 /** The real format dirs under core/formats (sorted), excluding exec/jsx/memorytest. */
 // A format dir counts toward the reporting universe when it either ships a

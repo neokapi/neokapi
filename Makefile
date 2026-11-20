@@ -224,18 +224,8 @@ test-integration: ## Run the //go:build integration lane (Postgres-backed cross-
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
 
-format-acceptance: ## Run native-format consumer-toolchain acceptance tests (plutil/resgen/xmllint/node; each check auto-skips if its tool is absent)
-	# Scoped to the formats that ship a //go:build acceptance suite — running
-	# ./core/formats/... would also pull in unrelated packages' fixture-dependent
-	# tests (e.g. xliff2's okapi byte-equal corpus). Add new formats here as they
-	# gain acceptance coverage.
-	# Clear NODE_OPTIONS so node tooling spawned by the JSON-schema + MDX checks do
-	# not inherit a flag the runner's node rejects (e.g. CI sets
-	# --experimental-strip-types, which Node 20 refuses). These checks need none.
-	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 \
-		./core/formats/xcstrings/ ./core/formats/arb/ ./core/formats/resx/ \
-		./core/formats/androidxml/ ./core/formats/applestrings/ \
-		./core/formats/i18next/ ./core/formats/designtokens/ ./core/formats/mdx/
+format-acceptance: i18n-catalogs ## Run consumer checks for format packages with acceptance tests
+	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 $(if $(ACCEPTANCE_EVENTS),-json) $(sort $(dir $(wildcard ./core/formats/*/acceptance_test.go))) $(if $(ACCEPTANCE_EVENTS),> "$(ACCEPTANCE_EVENTS)")
 
 # NOTE: this is a FIXER, not a check — it rewrites files and exits 0. The
 # corresponding check is `make check-gofmt`, which is what CI gates on.
@@ -2849,6 +2839,23 @@ fetch-corpus: ## Download Tier B format corpora from the format-corpus release (
 
 publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (merges per-format, never drops)
 	@bash scripts/publish-corpus.sh
+
+.PHONY: test-content-maturity check-content-maturity refresh-content-maturity
+test-content-maturity: i18n-catalogs i18n-react-build ## Test the format contracts and maturity report tooling
+	$(GO) test $(GOTAGS) -short ./core/formats/...
+	$(GO) test -tags fts5,e2e -count=1 ./kapi/e2e -run '^TestKpzEmailDelivery$$'
+	python3 -B scripts/format-ops/test_audit_receipts.py
+	node --test scripts/format-ops/*.test.mjs
+	cd web && vp test run src/pages/format-maturity
+	node scripts/format-ops/check-support-gates.mjs
+	node scripts/format-ops/validate-ledger.mjs
+
+check-content-maturity: test-content-maturity ## Measure format, output and connector evidence and check the published reports
+	node scripts/format-ops/content-maturity.mjs --check $${MATURITY_HISTORY_BASE:+--history-base "$$MATURITY_HISTORY_BASE"}
+
+refresh-content-maturity: test-content-maturity ## Measure content support and update the dated reports
+	node scripts/format-ops/content-maturity.mjs --write
+	node scripts/format-ops/validate-ledger.mjs
 
 # prose-probe scores the Prose maturity axis (docs/internals/format-maturity.md
 # §2.8). It runs every TestProseP<n>_<subject> rung test in the workspace and

@@ -27,7 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   DEFAULT_ROOT,
-  HARVEST_FORMATS,
+  formatFamily,
   isPlainObject,
   loadYamlFile,
   parseArgs,
@@ -66,8 +66,9 @@ const vocabulary = loadArtifact("vocabulary.yaml");
 const corpus = loadArtifact("corpus.yaml");
 const spec = loadArtifact("spec.yaml");
 
+const family = formatFamily(id, spec.doc, fmtDir);
 const harvestLadderPresent =
-  HARVEST_FORMATS.includes(id) &&
+  family === "native" &&
   fs.existsSync(path.join(fmtDir, "okapi_skip_test.go")) &&
   fs.existsSync(path.join(fmtDir, "invariants_test.go"));
 
@@ -187,7 +188,7 @@ emit();
 emit(`- Format id: \`${id}\` (\`core/formats/${id}/\`)`);
 if (spec.doc?.format) emit(`- Spec format id: \`${spec.doc.format}\``);
 if (spec.doc?.mime_type) emit(`- MIME type: \`${spec.doc.mime_type}\``);
-emit(`- Family: ${HARVEST_FORMATS.includes(id) ? "harvest (no Okapi counterpart; parity is `na`)" : "parity (Okapi counterpart exists)"}`);
+emit(`- Family: ${family === "parity" ? "Okapi parity" : family === "native" ? "native contract" : "no declared counterpart"}`);
 const description = d.description ?? spec.doc?.description;
 if (description) {
   emit();
