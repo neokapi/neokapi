@@ -33,6 +33,8 @@ type planSummaryDTO struct {
 	// Held lists, per followed language, the translations the language deck
 	// holds back until the context is decided.
 	Held []planHeldDTO `json:"held"`
+	// AsOf is when the plan's counts were taken.
+	AsOf string `json:"as_of,omitempty"`
 }
 
 // planHeldDTO is the translations one language's deck holds back, and why.
@@ -94,6 +96,7 @@ func summarizePlan(p reviewPlanResponse) planSummaryDTO {
 		Next:        p.Next,
 		Steps:       p.Steps,
 		Held:        []planHeldDTO{},
+		AsOf:        p.AsOf,
 	}
 	if out.Steps == nil {
 		out.Steps = planSteps(p)

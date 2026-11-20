@@ -114,8 +114,7 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 	if s.AuthStore == nil || s.ContentStore == nil || s.Services == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
-	decks, ok := store.ReviewDeckStores(s.ContentStore)
-	if !ok {
+	if _, ok := store.ReviewDeckStores(s.ContentStore); !ok {
 		return apiErr(c, http.StatusServiceUnavailable, "the review inbox needs the PostgreSQL content store")
 	}
 	userID, _ := c.Get("user_id").(string)
@@ -133,7 +132,6 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	scopes, _ := c.Get("api_token_scopes").(string)
-	policy := deckPolicyKey(s.deckPolicy())
 
 	followed := map[string][]string{}
 	if fs, ok := store.FollowedLanguages(s.ContentStore); ok {
@@ -174,21 +172,28 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				proj.Saved = true
 			}
 			proj.Followed = append([]string{}, locales...)
-			counts, err := s.inboxDeckCounts(ctx, p, locales, policy, decks)
-			if err != nil {
-				return serverErr(c, err)
-			}
-			// The plan is computed for a project with anything waiting, and
-			// says whether it holds translations back.
+			// The deck counts come from the plan's snapshot. The plan is built
+			// for a project with anything waiting, and says whether it holds
+			// translations back.
 			var plan *reviewPlanResponse
-			if proj.Waiting > 0 || anyWaiting(counts) {
-				computed, err := s.computeReviewPlan(ctx, ws, p, reviewInboxStream, planCaller{
-					userID: userID, perms: perms, reach: reach, locales: locales,
-				})
+			counts := map[string]deckSplit{}
+			if len(locales) > 0 || proj.Waiting > 0 {
+				b, err := s.planBasisOf(ctx, ws, p, reviewInboxStream)
 				if err != nil {
 					return serverErr(c, err)
 				}
-				plan = &computed
+				for _, loc := range locales {
+					counts[loc] = b.snap.Languages[loc].split()
+				}
+				if proj.Waiting > 0 || anyWaiting(counts) {
+					computed, err := s.reviewPlanFrom(ctx, ws, p, reviewInboxStream, planCaller{
+						userID: userID, perms: perms, reach: reach, locales: locales,
+					}, b)
+					if err != nil {
+						return serverErr(c, err)
+					}
+					plan = &computed
+				}
 			}
 			held, heldAny := plan != nil && plan.Held != "", false
 			for _, loc := range locales {
@@ -232,22 +237,6 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 		)
 	})
 	return c.JSON(http.StatusOK, out)
-}
-
-// inboxDeckCounts counts the deck of each of a project's locales in the
-// inbox's stream: one query, or two when some of its collections are under
-// every and others are not.
-func (s *Server) inboxDeckCounts(ctx context.Context, p *store.Project, locales []string, policy string, decks store.ReviewDeckStore) (map[string]deckSplit, error) {
-	if len(locales) == 0 {
-		return nil, nil
-	}
-	scope, pi, err := s.involvementScopeOf(ctx, p, reviewInboxStream)
-	if err != nil {
-		return nil, err
-	}
-	q := store.ReviewDeckQuery{ProjectID: p.ID, Stream: reviewInboxStream, Policy: policy}
-	scope.apply(&q)
-	return countDeckSplitByLocale(ctx, decks, q, locales, pi)
 }
 
 // anyWaiting reports whether any language's deck holds a translation.

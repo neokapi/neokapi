@@ -323,6 +323,9 @@ func (s *Server) classifyDeck(ctx context.Context, wsID string, decks store.Revi
 		if err := decks.RecordReviewDeckFacts(ctx, proj.ID, q.Stream, facts); err != nil {
 			return done, err
 		}
+		// Classifying moves translations between the deck's groups, which
+		// the plan's snapshot counts.
+		s.touchPlanSnapshot(proj.ID)
 		done += len(entries)
 		if len(entries) < deckClassifyBatch {
 			return done, nil

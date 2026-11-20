@@ -25,14 +25,16 @@ import (
 )
 
 // The scale test seeds one project at the size of a large documentation
-// project and times the review plan and the review inbox against it. It runs
-// only when BOWRAIN_PLAN_SCALE is set, because seeding takes a while:
+// project and times the review plan and the review inbox against it, counted
+// on each read and read from the plan's snapshot. It runs only when
+// BOWRAIN_PLAN_SCALE is set, because seeding takes a while:
 //
 //	BOWRAIN_PLAN_SCALE=1 go test ./server/ -run TestReviewPlan_Scale -v
 //
-// BOWRAIN_PLAN_SCALE_BLOCKS overrides the block count (70000), and
-// BOWRAIN_PLAN_SCALE_PROFILE names a file for a CPU profile of the timed
-// calls.
+// BOWRAIN_PLAN_SCALE_BLOCKS overrides the block count (70000),
+// BOWRAIN_PLAN_SCALE_WAIT_EVERY the share of translations waiting (one in
+// 12; 1 has every translation waiting), and BOWRAIN_PLAN_SCALE_PROFILE names
+// a file for a CPU profile of the timed calls.
 
 const (
 	planScaleCollections = 10
@@ -56,13 +58,15 @@ func TestReviewPlan_ReadsNoBlocks(t *testing.T) {
 	plan := decodeJSON[reviewPlanResponse](t, rec)
 	require.Len(t, plan.Languages, 1)
 	require.Positive(t, plan.Languages[0].Waiting+plan.Languages[0].Held, "the project has translations to count")
+	require.NotEmpty(t, readInbox(t, s, owner).Projects)
 
-	inbox := httptest.NewRecorder()
-	c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/", nil), inbox)
-	c.Set("user_id", owner)
-	require.NoError(t, s.HandleReviewInbox(c))
-	require.Equal(t, http.StatusOK, inbox.Code, inbox.Body.String())
-	require.NotEmpty(t, decodeJSON[reviewInboxResponse](t, inbox).Projects)
+	// The snapshot's compute and the reads of it read no block either.
+	startTestPlanSnapshots(t, s)
+	for range 2 {
+		rec = deckCall(t, s, s.HandleGetReviewPlan, wsID, projID, "", owner, platauth.PermAll, nil, url.Values{})
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		require.NotEmpty(t, readInbox(t, s, owner).Projects)
+	}
 
 	assert.Zero(t, counter.getBlocks.Load(), "the plan and the inbox read no block")
 }
@@ -71,12 +75,15 @@ func TestReviewPlan_Scale(t *testing.T) {
 	if os.Getenv("BOWRAIN_PLAN_SCALE") == "" {
 		t.Skip("set BOWRAIN_PLAN_SCALE to seed a large project and time the plan")
 	}
-	blocks := 70000
+	blocks, waitEvery := 70000, 12
 	if n, err := strconv.Atoi(os.Getenv("BOWRAIN_PLAN_SCALE_BLOCKS")); err == nil && n > 0 {
 		blocks = n
 	}
+	if n, err := strconv.Atoi(os.Getenv("BOWRAIN_PLAN_SCALE_WAIT_EVERY")); err == nil && n > 0 {
+		waitEvery = n
+	}
 	s, wsID, owner, db := newPlanScaleHarness(t)
-	projID := seedPlanScaleProject(t, s, db, wsID, blocks)
+	projID := seedPlanScaleProject(t, s, db, wsID, blocks, waitEvery)
 
 	plan := func() time.Duration {
 		start := time.Now()
@@ -109,26 +116,54 @@ func TestReviewPlan_Scale(t *testing.T) {
 		}()
 	}
 	const runs = 5
-	measure := func(label string) {
+	// measure times runs of each read; before, when set, runs ahead of each.
+	measure := func(label string, before func()) {
 		var plans, inboxes []time.Duration
 		for range runs {
+			if before != nil {
+				before()
+			}
 			plans = append(plans, plan())
+			if before != nil {
+				before()
+			}
 			inboxes = append(inboxes, inbox())
 		}
 		slices.Sort(plans)
 		slices.Sort(inboxes)
-		t.Logf("%d blocks, %d languages, %s: plan median %v (min %v, max %v); inbox median %v (min %v, max %v)",
-			blocks, len(planScaleLocales), label,
+		t.Logf("%d blocks, one in %d waiting, %d languages, %s: plan median %v (min %v, max %v); inbox median %v (min %v, max %v)",
+			blocks, waitEvery, len(planScaleLocales), label,
 			plans[runs/2], plans[0], plans[runs-1], inboxes[runs/2], inboxes[0], inboxes[runs-1])
 	}
-	measure("no override")
+	measure("counted on each read", nil)
 	// Overrides put one product under every and another under interfaces,
 	// which splits each deck count in two.
 	require.NoError(t, s.updatePlanProperties(context.Background(), projID, map[string]string{
 		propInvolvementOverrides: `[{"coordinates":{"product":"p1"},"involvement":"every"},{"coordinates":{"product":"p2"},"involvement":"interfaces"}]`,
 	}))
 	plan()
-	measure("overrides")
+	measure("overrides, counted on each read", nil)
+
+	// The snapshot. The refresh never comes due during the measurements, so
+	// each read is the read of a stored row: as fresh, and with a change
+	// waiting, as right after a review decision.
+	r := s.startPlanSnapshots(planSnapshotConfig{
+		quiet: time.Hour, maxWait: time.Hour, poll: 50 * time.Millisecond,
+		lease: time.Minute, retry: time.Minute, maxAge: time.Hour,
+	})
+	require.NotNil(t, r)
+	t.Cleanup(func() { r.Close(context.Background()) })
+	t.Logf("snapshot missing: plan counted and stored in %v", plan())
+	start := time.Now()
+	_, err := r.computeClaimed(t.Context(), platstore.ReviewPlanSnapshotClaim{ProjectID: projID, Stream: reviewInboxStream})
+	require.NoError(t, err)
+	t.Logf("snapshot: one background compute takes %v", time.Since(start))
+	measure("overrides, from the snapshot", nil)
+	st, ok := platstore.ReviewPlanSnapshots(s.ContentStore)
+	require.True(t, ok)
+	measure("overrides, from the snapshot with a change waiting", func() {
+		require.NoError(t, st.MarkReviewPlanSnapshotsChanged(t.Context(), []string{projID}, nil))
+	})
 }
 
 // newPlanScaleHarness is the recheck harness with the workspace terms store on
@@ -144,10 +179,10 @@ func newPlanScaleHarness(t *testing.T) (*Server, string, string, *storage.PgDB) 
 
 // seedPlanScaleProject seeds a project with the given number of source blocks in
 // planScaleCollections collections, a translation of each in every scale
-// language (most established, a share waiting, most of those classified),
+// language (one in waitEvery waiting, the rest established; most waiting ones classified),
 // a check tally per item, a terms store of planScaleConcepts concepts, and a
 // bound context key.
-func seedPlanScaleProject(t *testing.T, s *Server, db *storage.PgDB, wsID string, blocks int) string {
+func seedPlanScaleProject(t *testing.T, s *Server, db *storage.PgDB, wsID string, blocks, waitEvery int) string {
 	t.Helper()
 	ctx := context.Background()
 	targets := make([]model.LocaleID, 0, len(planScaleLocales))
@@ -191,12 +226,12 @@ func seedPlanScaleProject(t *testing.T, s *Server, db *storage.PgDB, wsID string
 			true, 'paragraph', '{"component":"c' || (g % 3) || '"}'
 		FROM generate_series(0, $2 - 1) g`, proj.ID, blocks, planScaleItemBlocks)
 	for li, loc := range planScaleLocales {
-		// One translation in twelve waits for review, the rest are established.
+		// One translation in waitEvery waits for review, the rest are established.
 		exec(`INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, updated_at)
 			SELECT $1, 'main', 'b-' || g, $3, 'Target ' || $3 || ' ' || g,
-				CASE WHEN (g + $4) % 12 = 0 THEN '{"status":"draft"}'::jsonb ELSE '{"status":"established"}'::jsonb END,
+				CASE WHEN (g + $4) % $5 = 0 THEN '{"status":"draft"}'::jsonb ELSE '{"status":"established"}'::jsonb END,
 				TIMESTAMPTZ '2026-11-01 00:00:00+00'
-			FROM generate_series(0, $2 - 1) g`, proj.ID, blocks, loc, li)
+			FROM generate_series(0, $2 - 1) g`, proj.ID, blocks, loc, li, waitEvery)
 		// Four in five waiting translations are classified, one in ten of
 		// them failing a check.
 		exec(`INSERT INTO review_deck_facts (project_id, stream, block_id, locale, target_updated_at,
@@ -209,7 +244,7 @@ func seedPlanScaleProject(t *testing.T, s *Server, db *storage.PgDB, wsID string
 				CASE WHEN g % 10 = 0 THEN jsonb_build_array(jsonb_build_object(
 					'key', 'terms.vocabulary:t' || (g % 7), 'rule', 'terms.vocabulary', 'count', 1, 'fails', true))
 				ELSE '[]'::jsonb END, NOW()
-			FROM generate_series(0, $2 - 1) g WHERE (g + $4) % 12 = 0 AND g % 5 <> 0`, proj.ID, blocks, loc, li, policy)
+			FROM generate_series(0, $2 - 1) g WHERE (g + $4) % $6 = 0 AND g % 5 <> 0`, proj.ID, blocks, loc, li, policy, waitEvery)
 	}
 	exec(`INSERT INTO item_check_tallies (project_id, stream, item_id, findings, rules)
 		SELECT $1, 'main', 'it-' || g, g % 4, CASE WHEN g % 4 = 0 THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object(

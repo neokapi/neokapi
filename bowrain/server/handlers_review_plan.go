@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"golang.org/x/sync/errgroup"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -127,6 +126,9 @@ type reviewPlanResponse struct {
 	// Held is set while the language decks hold translations back until the
 	// context is decided; each language's Held counts them.
 	Held string `json:"held,omitempty"`
+	// AsOf is when the counts were taken. The server recomputes them a few
+	// seconds after a change, so they may trail the latest decisions.
+	AsOf string `json:"as_of,omitempty"`
 }
 
 // planPolicyDTO is what the involvement leaves to the checks, and whether a
@@ -347,44 +349,64 @@ type planCaller struct {
 	locales []string
 }
 
-// computeReviewPlan counts every level of a project's plan for one caller.
-// The review plan route and the review inbox both answer with it.
+// computeReviewPlan builds a project's plan for one caller. The review plan
+// route and the review inbox both answer with it.
 func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, stream string, caller planCaller) (reviewPlanResponse, error) {
-	scope, pi, err := s.involvementScopeOf(ctx, proj, stream)
+	b, err := s.planBasisOf(ctx, ws, proj, stream)
 	if err != nil {
 		return reviewPlanResponse{}, err
 	}
+	return s.reviewPlanFrom(ctx, ws, proj, stream, caller, b)
+}
+
+// reviewPlanFrom builds a plan from its counts and what depends on the
+// caller: the context they may keep and the languages they follow.
+func (s *Server) reviewPlanFrom(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, stream string, caller planCaller, b planBasis) (reviewPlanResponse, error) {
+	pi := b.pi
 	out := reviewPlanResponse{
 		Stream:      stream,
 		Involvement: pi.def,
 		Overrides:   pi.overridesDTO(),
 		Languages:   []planLanguageDTO{},
+		AsOf:        b.snap.asOf.UTC().Format(time.RFC3339),
 	}
-	if out.Coordinates, err = s.planCoordinates(ctx, proj, stream); err != nil {
+	var err error
+	if out.Coordinates, err = s.planCoordinatesOf(ctx, proj, stream, b.colls); err != nil {
 		return out, err
 	}
 	for i := range out.Coordinates.Points {
 		out.Coordinates.Points[i].Involvement = pi.of(out.Coordinates.Points[i].id)
 	}
-	if out.Context, err = s.planContextCounts(ctx, ws, proj, caller.userID, caller.perms, caller.reach); err != nil {
+	out.Context = planContextDTO{
+		ByKind:       map[string]int{},
+		Concepts:     b.snap.Concepts,
+		Untranslated: maps.Clone(b.snap.Untranslated),
+		Proposable:   b.snap.Proposable,
+	}
+	entry, ok, err := s.contextInbox(ctx, ws, proj, caller.userID, caller.perms, caller.reach)
+	if err != nil {
 		return out, err
 	}
-	if out.Exceptions, err = s.planExceptions(ctx, proj, stream); err != nil {
-		return out, err
+	if ok {
+		out.Context.Waiting, out.Context.ByKind = entry.Waiting, entry.ByKind
+	}
+	out.Exceptions = planExceptionsDTO{
+		SourceFindings: b.snap.Exceptions.SourceFindings,
+		CheckedAt:      b.snap.Exceptions.CheckedAt,
+		ByRule:         planRulesDTO{Source: b.snap.Exceptions.ByRule.Source, Targets: map[string][]planRuleDTO{}},
+	}
+	if out.Exceptions.ByRule.Source == nil {
+		out.Exceptions.ByRule.Source = []planRuleDTO{}
 	}
 	out.Context.Scan = s.planScan(ctx, proj, ws.ID)
 	s.planScanWaiting(ctx, ws.ID, ws.Slug, proj, &out.Context)
 	s.planProposals(ctx, ws.ID, ws.Slug, proj, &out.Context)
-	if out.Policy, err = s.planPolicy(ctx, ws, proj, pi, out.Context.Untranslated); err != nil {
-		return out, err
-	}
+	out.Policy = planPolicyFrom(proj, pi, b.snap.ContextOpen, out.Context.Untranslated)
 	held := translationsHeldBy(out.Policy)
 	if held {
 		out.Held = heldContext
 	}
-	if out.Languages, err = s.planLanguages(ctx, proj, stream, caller.locales, scope, pi, held, out.Exceptions.ByRule.Targets); err != nil {
-		return out, err
-	}
+	out.Languages = planLanguagesFrom(b.snap, caller.locales, held, out.Exceptions.ByRule.Targets)
 	out.Next = nextPlanLevel(out)
 	out.Steps = planSteps(out)
 	return out, nil
@@ -412,14 +434,21 @@ func (s *Server) planScan(ctx context.Context, proj *platstore.Project, wsID str
 // content, so it waits on every open decision, not only the caller's. A pass
 // has nothing to settle when every point of the project is under every.
 func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, pi projectInvolvement, untranslated map[string]int) (planPolicyDTO, error) {
+	cards, err := s.projectContextOpen(ctx, ws, proj)
+	if err != nil {
+		return planPolicyDTO{}, err
+	}
+	return planPolicyFrom(proj, pi, cards, untranslated), nil
+}
+
+// planPolicyFrom is planPolicy over counts already taken: the context cards
+// waiting for any reviewer, and the concepts each language lacks.
+func planPolicyFrom(proj *platstore.Project, pi projectInvolvement, cards int, untranslated map[string]int) planPolicyDTO {
 	out := planPolicyDTO{
 		FirstPassBy: proj.Properties[propFirstPassBy],
 		FirstPassAt: proj.Properties[propFirstPassAt],
 	}
-	open, err := s.projectContextOpen(ctx, ws, proj)
-	if err != nil {
-		return out, err
-	}
+	open := cards
 	for _, n := range untranslated {
 		open += n
 	}
@@ -435,7 +464,7 @@ func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *p
 	default:
 		out.Settle = settleHeld
 	}
-	return out, nil
+	return out
 }
 
 // projectContextOpen counts the project's context cards waiting for review,
@@ -501,6 +530,16 @@ func nextPlanLevel(p reviewPlanResponse) string {
 
 // planCoordinates reads the project's points from its collections.
 func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, stream string) (planCoordinatesDTO, error) {
+	colls, err := s.ContentStore.ListCollections(ctx, proj.ID, stream)
+	if err != nil {
+		return planCoordinatesDTO{}, err
+	}
+	return s.planCoordinatesOf(ctx, proj, stream, colls)
+}
+
+// planCoordinatesOf reads the project's points from the stream's
+// collections.
+func (s *Server) planCoordinatesOf(ctx context.Context, proj *platstore.Project, stream string, colls []*platstore.Collection) (planCoordinatesDTO, error) {
 	out := planCoordinatesDTO{
 		SourceLanguage:  string(proj.DefaultSourceLanguage),
 		TargetLanguages: []string{},
@@ -517,10 +556,6 @@ func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, s
 	}
 	for _, l := range proj.TargetLanguages {
 		out.TargetLanguages = append(out.TargetLanguages, string(l))
-	}
-	colls, err := s.ContentStore.ListCollections(ctx, proj.ID, stream)
-	if err != nil {
-		return out, err
 	}
 	voiceNames := map[string]string{}
 	for _, c := range colls {
@@ -563,14 +598,22 @@ func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, s
 // concepts that apply in the project, the ones that lack a term in a target
 // language.
 func (s *Server) planContextCounts(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, userID string, perms platauth.Permission, reach platauth.CoordinateReach) (planContextDTO, error) {
-	out := planContextDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}
 	entry, ok, err := s.contextInbox(ctx, ws, proj, userID, perms, reach)
 	if err != nil {
-		return out, err
+		return planContextDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}, err
 	}
+	out, err := s.planConceptCounts(ctx, ws, proj)
 	if ok {
 		out.Waiting, out.ByKind = entry.Waiting, entry.ByKind
 	}
+	return out, err
+}
+
+// planConceptCounts counts, of the concepts that apply in the project, the
+// ones with a source term, the ones each target language lacks, and the
+// pairs waiting for a proposal.
+func (s *Server) planConceptCounts(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project) (planContextDTO, error) {
+	out := planContextDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}
 	tb, err := s.projectTermsByID(ctx, ws.ID, proj.ID)
 	if err != nil || tb == nil {
 		return out, nil //nolint:nilerr // a workspace with no terms store has no concepts to count
@@ -648,71 +691,35 @@ func reviewLocalesOf(proj *platstore.Project, perms platauth.Permission, langs [
 	return out
 }
 
-// planLanguages counts, for each language, the deck's groups and pages, and
-// files the rules behind the deck's desk group in rules by language. Each
-// read is one query over every language; the deck's counts take a second
-// when some collections are under every and others are not.
+// planLanguagesFrom builds each language the caller follows from the
+// counts, and files the rules behind each deck's desk group in rules by
+// language.
 //
 // While held, the translations the deck holds back move out of Waiting into
 // Held; Settleable still counts the fast group, which a first pass settles.
 // Both leave out the collections under every, which hold nothing back and
 // leave nothing to the checks.
-func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, scope deckScope, pi projectInvolvement, held bool, rules map[string][]planRuleDTO) ([]planLanguageDTO, error) {
+func planLanguagesFrom(snap planSnapshot, locales []string, held bool, rules map[string][]planRuleDTO) []planLanguageDTO {
 	out := []planLanguageDTO{}
-	decks, ok := platstore.ReviewDeckStores(s.ContentStore)
-	if !ok || len(locales) == 0 {
-		return out, nil
-	}
-	q := platstore.ReviewDeckQuery{ProjectID: proj.ID, Stream: stream, Policy: deckPolicyKey(s.deckPolicy())}
-	scope.apply(&q)
 	desk := deckRank(reviewdeck.DeckDesk)
-	// The three reads are independent, so they run at once. A language with
-	// nothing in the desk group counts no rule.
-	var (
-		counts  map[string]deckSplit
-		top     map[string][]platstore.RuleTally
-		pagesOf map[string][]platstore.ReviewDeckPage
-	)
-	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() (err error) {
-		counts, err = countDeckSplitByLocale(gctx, decks, q, locales, pi)
-		return err
-	})
-	g.Go(func() (err error) {
-		top, err = decks.CountReviewDeckRulesByLocale(gctx, q, locales, desk, planRuleLimit)
-		return err
-	})
-	g.Go(func() (err error) {
-		pagesOf, err = decks.ListReviewDeckPagesByLocale(gctx, q, locales, reviewPagesCountLimit+1)
-		return err
-	})
-	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-	for loc, t := range top {
-		if len(t) > 0 {
-			rules[loc] = planRulesOf(t)
-		}
-	}
 	for _, loc := range locales {
-		n := counts[loc]
-		lang := planLanguageDTO{Locale: loc, deckWaiting: n.waiting(held)}
-		lang.Failing = n.rest.ByRank[desk] + n.open.ByRank[desk]
-		lang.Settleable = deckWaitingOf(n.rest).Fast
-		pages := pagesOf[loc]
-		if len(pages) > reviewPagesCountLimit {
-			pages, lang.PagesMore = pages[:reviewPagesCountLimit], true
+		l := snap.Languages[loc]
+		n := l.split()
+		if len(l.Rules) > 0 {
+			rules[loc] = planRulesOf(l.Rules)
 		}
-		lang.PagesTotal = len(pages)
-		for _, p := range pages {
-			if p.Findings > 0 {
-				lang.PagesWithFindings++
-			}
-		}
-		lang.Pages = len(interfacePages(pages, pi))
-		out = append(out, lang)
+		out = append(out, planLanguageDTO{
+			Locale:            loc,
+			deckWaiting:       n.waiting(held),
+			Failing:           n.rest.ByRank[desk] + n.open.ByRank[desk],
+			Settleable:        deckWaitingOf(n.rest).Fast,
+			Pages:             l.Pages,
+			PagesMore:         l.PagesMore,
+			PagesTotal:        l.PagesTotal,
+			PagesWithFindings: l.PagesWithFindings,
+		})
 	}
-	return out, nil
+	return out
 }
 
 // interfaceSample is the pages a reviewer reads under context: every page
@@ -936,5 +943,9 @@ func (s *Server) updatePlanProperties(ctx context.Context, projectID string, pro
 		proj.Properties = map[string]string{}
 	}
 	maps.Copy(proj.Properties, props)
-	return s.ContentStore.UpdateProject(ctx, proj)
+	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
+		return err
+	}
+	s.touchPlanSnapshot(projectID)
+	return nil
 }

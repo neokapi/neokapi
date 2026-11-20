@@ -280,6 +280,8 @@ export interface ReviewPlan {
   steps: PlanStep[];
   /** Set while the language decks hold translations back, with the reason. */
   held: PlanHeldReason | null;
+  /** When the server took the plan's counts; they trail a change by a few seconds. */
+  asOf?: string;
 }
 
 interface ServerPlanScan {
@@ -399,6 +401,7 @@ export interface ServerReviewPlan {
   } | null;
   steps?: ServerPlanStep[] | null;
   held?: string;
+  as_of?: string;
 }
 
 const SETTLE: readonly PlanSettle[] = ["first_pass", "policy", "held", "none"];
@@ -655,6 +658,7 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
     },
     steps: planStepsFromServer(p.steps),
     held: p.held === "context" ? "context" : null,
+    asOf: p.as_of || undefined,
   };
 }
 
