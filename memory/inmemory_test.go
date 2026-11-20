@@ -2,6 +2,7 @@ package memory_test
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -219,4 +220,84 @@ func TestInMemoryMemory_LookupSegment_OutOfRange(t *testing.T) {
 	matches, err = tm.LookupSegment(context.Background(), nil, 0, "en", "fr", memory.DefaultLookupOptions())
 	require.NoError(t, err)
 	assert.Empty(t, matches)
+}
+
+func TestInMemoryEntrySnapshots(t *testing.T) {
+	ctx := t.Context()
+	tm := memory.NewInMemoryStore()
+	entry := trilingual("e", "Save", "Enregistrer", "Speichern")
+	entry.Properties = map[string]string{"state": "approved"}
+	entry.Origins = []memory.Origin{{Key: "button"}}
+	entry.Entities = []memory.EntityMapping{{Values: map[model.LocaleID]memory.EntityValue{"en": {Text: "Save"}}}}
+	require.NoError(t, tm.Add(ctx, entry))
+
+	edit := func(e memory.Entry) {
+		e.Variants["en"][0].Text.Text = "Discard"
+		e.Properties["state"] = "draft"
+		e.Origins[0].Key = "changed"
+		delete(e.Entities[0].Values, "en")
+	}
+	edit(entry)
+	got, ok, err := tm.GetEntry(ctx, "e")
+	require.NoError(t, err)
+	require.True(t, ok)
+	edit(got)
+	page, _, err := tm.SearchEntries(ctx, memory.SearchParams{Limit: -1})
+	require.NoError(t, err)
+	require.Len(t, page, 1)
+	edit(page[0])
+	hits, err := tm.LookupText(ctx, "Save", "en", "fr", memory.LookupOptions{MinScore: 1})
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	edit(hits[0].Entry)
+
+	got, ok, err = tm.GetEntry(ctx, "e")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "Save", got.VariantText("en"))
+	assert.Equal(t, "approved", got.Properties["state"])
+	assert.Equal(t, "button", got.Origins[0].Key)
+	assert.Equal(t, "Save", got.Entities[0].Values["en"].Text)
+}
+
+func TestInMemoryImportSessionSnapshots(t *testing.T) {
+	ctx := t.Context()
+	tm := memory.NewInMemoryStore()
+	props := map[string]string{"encoding": "utf-8"}
+	require.NoError(t, tm.CreateImportSession(ctx, memory.ImportSession{ID: "s", FileKey: "key", FileHash: "hash", Properties: props}))
+	delete(props, "encoding")
+	session, ok := mustGetImportSession(t, tm, "s")
+	require.True(t, ok)
+	delete(session.Properties, "encoding")
+	session, ok = mustFindImportSessionByHash(t, tm, "hash")
+	require.True(t, ok)
+	delete(session.Properties, "encoding")
+	sessions, err := tm.ListImportSessions(ctx)
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	delete(sessions[0].Properties, "encoding")
+	session, ok = mustGetImportSession(t, tm, "s")
+	require.True(t, ok)
+	assert.Equal(t, "utf-8", session.Properties["encoding"])
+}
+
+func TestInMemoryEvictsOldestRemainingEntry(t *testing.T) {
+	ctx := t.Context()
+	tm := memory.NewInMemoryStore(memory.WithMaxEntries(3))
+	for _, id := range []string{"a", "b", "c"} {
+		require.NoError(t, tm.Add(ctx, trilingual(id, id, id, id)))
+	}
+	require.NoError(t, tm.Delete(ctx, "a"))
+	for _, id := range []string{"d", "e"} {
+		require.NoError(t, tm.Add(ctx, trilingual(id, id, id, id)))
+	}
+	for _, id := range []string{"c", "d", "e"} {
+		entry, ok := mustGetEntry(t, tm, id)
+		require.True(t, ok)
+		assert.Equal(t, id, entry.ID)
+	}
+	page, total, err := tm.SearchEntries(ctx, memory.SearchParams{Offset: 1, Limit: math.MaxInt})
+	require.NoError(t, err)
+	assert.Len(t, page, 2)
+	assert.Equal(t, 3, total)
 }
