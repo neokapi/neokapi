@@ -2,6 +2,26 @@
 
 Use this job to review a content source, add a conversion target or check how support has changed. The format dashboard shows the declared support tier and the measured axes. Its output and connector tables show the operations exercised by the job. Each operation carries its status, the scope of the fixture and a source or test reference.
 
+## Initial review, 20 November 2026
+
+The existing rubric distinguishes a format's implementation from the support
+promise a maintainer makes. The previous publisher could renew certification
+across the fleet after a repository audit. The job now preserves the date until
+a review has evidence for each gate named by the format.
+
+The writer registry also includes formats that require the original document.
+The output probe exercises conversion through the host and reads the result
+back. It found that converting WebVTT to SubRip lost cue timing on read-back.
+A regression test now checks both cue times. The first observation also records
+catalog writers whose readers could not recover both values from a foreign
+catalog.
+
+Connector registration establishes which hosts expose an integration. Fetch
+and publish need their own evidence. WordPress exercises both operations
+against a fixture REST endpoint. Figma has a verified fetch path and a test
+for its read-only delivery contract. The format and connector rows share a
+history, while each test measures the operation its caller relies on.
+
 ## Reproduce a publication
 
 Use the Go version in `go.work`, the repository's ICU build dependencies, Node with the workspace dependencies installed, and Python 3 with PyYAML. Run these commands from the repository root.
