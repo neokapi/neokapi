@@ -154,14 +154,14 @@
     "openMap": "Open the map",
     "steps": {
       "coordinates": "Coordinates",
-      "key_language": "Key language",
+      "context": "Context",
       "exceptions": "Exceptions",
       "interfaces": "Pages to read",
       "policy": "Settle the rest"
     },
     "titles": {
       "coordinates": "Confirm the coordinates",
-      "key_language": "Decide the key language",
+      "context": "Review context",
       "exceptions": "Review the exceptions",
       "interfaces": "Read the pages",
       "policy": "Settle the rest"
@@ -172,15 +172,15 @@
       "changed_other": "{{count, number}} changes since the last confirmation",
       "notStarted": "Not started",
       "coordinatesOpen": "Not confirmed yet",
-      "key_language_one": "{{count, number}} decision open",
-      "key_language_other": "{{count, number}} decisions open",
+      "context_one": "{{count, number}} context card",
+      "context_other": "{{count, number}} context cards",
       "exceptions_one": "{{count, number}} to review",
       "exceptions_other": "{{count, number}} to review",
       "interfaces_one": "{{count, number}} page to read",
       "interfaces_other": "{{count, number}} pages to read",
       "policy_one": "{{count, number}} translation clears every check",
       "policy_other": "{{count, number}} translations clear every check",
-      "policyWaits": "Waits for the key language"
+      "policyWaits": "Waits for the context"
     },
     "state": {
       "done": "Done",
@@ -192,8 +192,8 @@
     },
     "count": "{{count, number}}",
     "rowLabel": "{{step}}, {{value}}",
-    "held_one": "{{count, number}} {{language}} translation is held until the key language is decided.",
-    "held_other": "{{count, number}} {{language}} translations are held until the key language is decided."
+    "held_one": "{{count, number}} {{language}} translation is held until the context is decided.",
+    "held_other": "{{count, number}} {{language}} translations are held until the context is decided."
   },
   "context": {
     "title": "Context",
@@ -1041,11 +1041,11 @@
         "language_removed": "Removed: {{language}}"
       }
     },
-    "key": {
-      "title": "Key language",
+    "context": {
+      "title": "Context",
       "concepts_one": "{{count}} term in the source language",
       "concepts_other": "{{count}} terms in the source language",
-      "open": "Decide the key language",
+      "open": "Review context",
       "reading": "Reading your content",
       "readingProgress": "Reading your content, {{progress}}% done",
       "scanFailed": "Reading your content failed. The next push tries again.",
@@ -1055,8 +1055,8 @@
       "waitsForQuotaSoon": "Waits for the AI limit to reset",
       "waitsForCredits": "Waits for AI credits: this workspace has none left",
       "waitsForProvider": "Waits for an AI provider: this server has none set up",
-      "open_count_one": "{{count, number}} decision open",
-      "open_count_other": "{{count, number}} decisions open"
+      "open_count_one": "{{count, number}} context card",
+      "open_count_other": "{{count, number}} context cards"
     },
     "exceptions": {
       "title": "Exceptions",
@@ -1093,13 +1093,13 @@
       "doneTitle": "Established",
       "done_one": "{{count}} translation established.",
       "done_other": "{{count}} translations established.",
-      "firstPass": "First pass: this settles on the checks alone. Later passes wait until the key language is decided.",
-      "doneFirstPass_one": "{{count}} translation established. Later passes wait until the key language is decided.",
-      "doneFirstPass_other": "{{count}} translations established. Later passes wait until the key language is decided.",
-      "waits": "Waits for the key language",
+      "firstPass": "First pass: this settles on the checks alone. Later passes wait until the context is decided.",
+      "doneFirstPass_one": "{{count}} translation established. Later passes wait until the context is decided.",
+      "doneFirstPass_other": "{{count}} translations established. Later passes wait until the context is decided.",
+      "waits": "Waits for the context",
       "nothing": "Nothing left to settle"
     },
-    "held_one": "{{count, number}} {{language}} translation is held until the key language is decided.",
-    "held_other": "{{count, number}} {{language}} translations are held until the key language is decided."
+    "held_one": "{{count, number}} {{language}} translation is held until the context is decided.",
+    "held_other": "{{count, number}} {{language}} translations are held until the context is decided."
   }
 }

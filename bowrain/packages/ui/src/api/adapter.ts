@@ -827,7 +827,7 @@ export interface ApiAdapter {
 
   /**
    * The project's review plan for the caller (GET /:ws/:id/review/plan): the
-   * coordinates, the key language, the exceptions, the pages and what the
+   * coordinates, the context, the exceptions, the pages and what the
    * involvement leaves to the checks, in the order a reviewer works them.
    */
   getReviewPlan?(

@@ -208,10 +208,10 @@ not read is settled by the checks under a policy that person set:
 
 1. **Coordinates**: the products, channels, brand and languages, and the voice
    each point binds. Each decision governs every block at the point.
-2. **Key language**: terms and voice rules, the source term first and its
+2. **Context**: terms and voice rules, the source term first and its
    translation in each target language right after, dealt to the same
    reviewer and ranked by the blocks each one governs.
-3. **Exceptions**: what fails a check against the key language, grouped by
+3. **Exceptions**: what fails a check against the context, grouped by
    the rule it breaks, so one decision about the rule or the source clears
    the group.
 4. **Interfaces**: complete components, sections and pages read in context
@@ -221,11 +221,12 @@ not read is settled by the checks under a policy that person set:
    and reopened by any later rejection.
 
 How much a person reads at levels 4 and 5 is the project's involvement:
-`context` (the coordinates, the key language, the exceptions and a sample of
-interfaces), `interfaces` (and every interface page) or `every`. It can be
-narrowed per coordinate. Reviewing by kind of content ("the interface first",
-"the docs last") is the wrong axis: both share the key language, and deciding
-it once at the coordinates it spans is what makes both right.
+`context` (the coordinates, the context, the exceptions and a sample of
+interfaces), `interfaces` (and every interface page) or `every`. It is set
+per project. Reviewing by kind of content ("the interface first",
+"the docs last") is the wrong axis: both share the same terms and voice
+rules, and deciding them once at the coordinates they span is what makes
+both right.
 
 ### A block is reviewed inside its container
 

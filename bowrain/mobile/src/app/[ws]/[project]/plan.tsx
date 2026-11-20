@@ -2,7 +2,7 @@
 // each decision. Each row shows its state, its title and one fact; only the
 // next step carries an action. The server decides every state and count
 // (GET /:ws/:id/review/plan), including which translations the language decks
-// hold until the key language is decided. The involvement setting lives on
+// hold until the context is decided. The involvement setting lives on
 // the project's review languages screen.
 import {
   planRuleLabel,
@@ -18,7 +18,7 @@ import type { ReactNode } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { keyScanFact } from "../../../components/home/PlanCard";
+import { contextScanFact } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
 import { reviewPlanKey } from "../../../lib/plan";
@@ -26,7 +26,7 @@ import { languageLabel } from "../../../lib/feed";
 
 const LEVELS: readonly PlanLevel[] = [
   "coordinates",
-  "key_language",
+  "context",
   "exceptions",
   "interfaces",
   "policy",
@@ -248,15 +248,15 @@ export default function ReviewPlanScreen() {
         return p.coordinates.confirmedByName
           ? t("plan.coordinates.confirmedBy", { name: p.coordinates.confirmedByName })
           : t("plan.coordinates.confirmed");
-      case "key_language":
+      case "context":
         if (s.state === "not_started") {
-          return keyScanFact(s.scan, t, i18n.language, {
-            progress: p.keyLanguage.scan?.progress,
-            quotaResetsAt: s.quotaResetsAt ?? p.keyLanguage.quotaResetsAt,
+          return contextScanFact(s.scan, t, i18n.language, {
+            progress: p.context.scan?.progress,
+            quotaResetsAt: s.quotaResetsAt ?? p.context.quotaResetsAt,
           });
         }
-        if (s.state === "open") return t("plan.key.open_count", { count: s.count });
-        return t("plan.key.concepts", { count: p.keyLanguage.concepts });
+        if (s.state === "open") return t("plan.context.open_count", { count: s.count });
+        return t("plan.context.concepts", { count: p.context.concepts });
       case "exceptions":
         if (s.state === "not_started") return t("plan.exceptions.notStarted");
         if (failing > 0) return t("plan.exceptions.translations", { count: failing });
@@ -293,12 +293,12 @@ export default function ReviewPlanScreen() {
             }
           />
         );
-      case "key_language":
-        if (p.keyLanguage.waiting > 0) {
+      case "context":
+        if (p.context.waiting > 0) {
           return (
             <Action
-              testID="plan-key_language-action"
-              label={t("plan.key.open")}
+              testID="plan-context-action"
+              label={t("plan.context.open")}
               onPress={() =>
                 router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
               }

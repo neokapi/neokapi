@@ -26,7 +26,7 @@ import { reviewPlanKey } from "../../../../../lib/plan";
 /** The title key of each plan level, for the project's plan card. */
 const planStepTitle = {
   coordinates: "plan.coordinates.title",
-  key_language: "plan.key.title",
+  context: "plan.context.title",
   exceptions: "plan.exceptions.title",
   interfaces: "plan.interfaces.title",
   policy: "plan.policy.title",

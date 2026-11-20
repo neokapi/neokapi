@@ -81,9 +81,9 @@ func TestReviewPlan_CountsTheTermsEachLanguageLacks(t *testing.T) {
 		planWrite(t, s, s.HandleConfirmReviewCoordinates, wsID, projID, "", platauth.PermAll).Code)
 
 	plan := readPlan(t, s, wsID, projID)
-	assert.Equal(t, 3, plan.KeyLanguage.Concepts)
-	assert.Equal(t, map[string]int{"fr": 1}, plan.KeyLanguage.Untranslated, "workspace has no French term; Bowrain is kept as written")
-	assert.Equal(t, planKeyLanguage, plan.Next)
+	assert.Equal(t, 3, plan.Context.Concepts)
+	assert.Equal(t, map[string]int{"fr": 1}, plan.Context.Untranslated, "workspace has no French term; Bowrain is kept as written")
+	assert.Equal(t, planContext, plan.Next)
 }
 
 func TestReviewPlan_LanguagesCountTheDeck(t *testing.T) {
@@ -131,7 +131,7 @@ func TestInterfaceSample_TakesOneInTenPerCollectionAndEveryFinding(t *testing.T)
 		"the first of every ten pages of each collection, and every page with a finding")
 }
 
-func TestReviewPlan_SettleTakesOneFirstPassThenWaitsForTheKeyLanguage(t *testing.T) {
+func TestReviewPlan_SettleTakesOneFirstPassThenWaitsForTheContext(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	projID, _ := containerProject(t, s, wsID)
 	ctx := t.Context()
@@ -141,8 +141,8 @@ func TestReviewPlan_SettleTakesOneFirstPassThenWaitsForTheKeyLanguage(t *testing
 		Terms: []terms.Term{{Text: "workspace", Locale: "en", Status: model.TermPreferred}}}))
 
 	plan := readPlan(t, s, wsID, projID)
-	assert.Equal(t, settleFirstPass, plan.Policy.Settle, "the key language is open and no pass has run")
-	assert.Positive(t, plan.Policy.KeyLanguageOpen)
+	assert.Equal(t, settleFirstPass, plan.Policy.Settle, "the context is open and no pass has run")
+	assert.Positive(t, plan.Policy.ContextOpen)
 
 	rec := planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -152,14 +152,14 @@ func TestReviewPlan_SettleTakesOneFirstPassThenWaitsForTheKeyLanguage(t *testing
 	assert.Equal(t, settleHeld, plan.Policy.Settle)
 	assert.Equal(t, "u-owner", plan.Policy.FirstPassBy)
 	rec = planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
-	assert.Equal(t, http.StatusConflict, rec.Code, "a second pass waits for the key language")
+	assert.Equal(t, http.StatusConflict, rec.Code, "a second pass waits for the context")
 
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-workspace", Terms: []terms.Term{
 		{Text: "workspace", Locale: "en", Status: model.TermPreferred},
 		{Text: "espace de travail", Locale: "fr", Status: model.TermPreferred},
 	}}))
 	plan = readPlan(t, s, wsID, projID)
-	assert.Equal(t, settlePolicy, plan.Policy.Settle, "the key language is decided")
+	assert.Equal(t, settlePolicy, plan.Policy.Settle, "the context is decided")
 	rec = planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.False(t, decodeJSON[reviewPlanSettleResponse](t, rec).FirstPass)

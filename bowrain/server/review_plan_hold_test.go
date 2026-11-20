@@ -34,9 +34,9 @@ func heldDeckProject(t *testing.T, s *Server, wsID string) string {
 	return projID
 }
 
-// openKeyLanguage adds a concept with no French term, which leaves one
-// key-language decision open.
-func openKeyLanguage(t *testing.T, s *Server) {
+// openContext adds a concept with no French term, which leaves one
+// context decision open.
+func openContext(t *testing.T, s *Server) {
 	t.Helper()
 	tb, err := s.wsStores.getTerms(t.Context(), "rc")
 	require.NoError(t, err)
@@ -44,19 +44,19 @@ func openKeyLanguage(t *testing.T, s *Server) {
 		Terms: []terms.Term{{Text: "workspace", Locale: "en", Status: model.TermPreferred}}}))
 }
 
-func TestReviewDeck_HoldsTranslationsWhileTheKeyLanguageIsOpen(t *testing.T) {
+func TestReviewDeck_HoldsTranslationsWhileTheContextIsOpen(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	projID := heldDeckProject(t, s, wsID)
 	query := url.Values{"locale": {"fr"}}
 
 	open := readDeck(t, s, wsID, projID, query)
-	assert.Nil(t, open.Held, "nothing is held while the key language has no open decision")
+	assert.Nil(t, open.Held, "nothing is held while the context has no open decision")
 	assert.Equal(t, 5, open.Counts.Waiting)
 
-	openKeyLanguage(t, s)
+	openContext(t, s)
 	deck := readDeck(t, s, wsID, projID, query)
 	require.NotNil(t, deck.Held)
-	assert.Equal(t, deckHeld{Count: 4, Reason: heldKeyLanguage}, *deck.Held)
+	assert.Equal(t, deckHeld{Count: 4, Reason: heldContext}, *deck.Held)
 	assert.Equal(t, deckCounts{Waiting: 1, Desk: 1, Held: 4, Total: 1}, deck.Counts)
 	require.Len(t, deck.Cards, 1, "the exceptions stay reviewable")
 	assert.Equal(t, reviewdeck.DeckDesk, deck.Cards[0].Group)
@@ -72,7 +72,7 @@ func TestReviewDeck_HoldsTranslationsWhileTheKeyLanguageIsOpen(t *testing.T) {
 	assert.Zero(t, colls.All.Decided, "a held translation is not decided")
 
 	plan := readPlan(t, s, wsID, projID)
-	assert.Equal(t, heldKeyLanguage, plan.Held)
+	assert.Equal(t, heldContext, plan.Held)
 	require.Len(t, plan.Languages, 1)
 	assert.Equal(t, 4, plan.Languages[0].Held)
 	assert.Equal(t, 2, plan.Languages[0].Settleable, "a first pass still settles the fast group")
@@ -81,7 +81,7 @@ func TestReviewDeck_HoldsTranslationsWhileTheKeyLanguageIsOpen(t *testing.T) {
 func TestReviewDeck_HoldsNothingUnderEvery(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	projID := heldDeckProject(t, s, wsID)
-	openKeyLanguage(t, s)
+	openContext(t, s)
 	require.Equal(t, 204,
 		planWrite(t, s, s.HandlePutReviewInvolvement, wsID, projID, `{"involvement":"every"}`, platauth.PermAll).Code)
 
@@ -95,7 +95,7 @@ func TestReviewDeck_HoldsNothingUnderEvery(t *testing.T) {
 func TestReviewInbox_LeavesHeldTranslationsOutOfTheCounts(t *testing.T) {
 	s, wsID, owner := newRecheckHarness(t)
 	projID := heldDeckProject(t, s, wsID)
-	openKeyLanguage(t, s)
+	openContext(t, s)
 
 	// Before any deck request classifies the language, nothing is known to
 	// fail a check, so every translation is held and the language is not
@@ -104,7 +104,7 @@ func TestReviewInbox_LeavesHeldTranslationsOutOfTheCounts(t *testing.T) {
 	assert.Empty(t, inbox.Languages)
 	require.Len(t, inbox.Projects, 1)
 	require.NotNil(t, inbox.Projects[0].Plan)
-	assert.Equal(t, []planHeldDTO{{Locale: "fr", Count: 5, Reason: heldKeyLanguage}}, inbox.Projects[0].Plan.Held)
+	assert.Equal(t, []planHeldDTO{{Locale: "fr", Count: 5, Reason: heldContext}}, inbox.Projects[0].Plan.Held)
 
 	readDeck(t, s, wsID, projID, url.Values{"locale": {"fr"}})
 	inbox = readInbox(t, s, owner)
@@ -118,10 +118,10 @@ func TestReviewInbox_LeavesHeldTranslationsOutOfTheCounts(t *testing.T) {
 	p := inbox.Projects[0]
 	assert.Equal(t, projID, p.Project)
 	require.NotNil(t, p.Plan)
-	assert.Equal(t, []planHeldDTO{{Locale: "fr", Count: 4, Reason: heldKeyLanguage}}, p.Plan.Held)
+	assert.Equal(t, []planHeldDTO{{Locale: "fr", Count: 4, Reason: heldContext}}, p.Plan.Held)
 }
 
-func TestReviewPlan_KeyLanguageWithNoScanHasNotStarted(t *testing.T) {
+func TestReviewPlan_ContextWithNoScanHasNotStarted(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	projID, _ := containerProject(t, s, wsID)
 	require.Equal(t, http.StatusNoContent,
@@ -130,13 +130,13 @@ func TestReviewPlan_KeyLanguageWithNoScanHasNotStarted(t *testing.T) {
 	plan := readPlan(t, s, wsID, projID)
 	require.Len(t, plan.Steps, 5)
 	assert.Equal(t, stepDone, plan.Steps[0].State)
-	key := plan.Steps[1]
-	assert.Equal(t, planKeyLanguage, key.Level)
-	assert.Equal(t, stepNotStarted, key.State, "no scan and no concepts")
-	assert.False(t, key.Done)
-	assert.Equal(t, planKeyLanguage, plan.Next, "a key language that has not started comes after the coordinates")
+	step := plan.Steps[1]
+	assert.Equal(t, planContext, step.Level)
+	assert.Equal(t, stepNotStarted, step.State, "no scan and no concepts")
+	assert.False(t, step.Done)
+	assert.Equal(t, planContext, plan.Next, "a context level that has not started comes after the coordinates")
 
-	openKeyLanguage(t, s)
+	openContext(t, s)
 	plan = readPlan(t, s, wsID, projID)
 	assert.Equal(t, stepOpen, plan.Steps[1].State)
 }

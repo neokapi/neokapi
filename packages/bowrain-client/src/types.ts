@@ -74,7 +74,7 @@ export interface ReviewInboxLanguage {
   closer: number;
   desk: number;
   unclassified: number;
-  /** Translations held until the key language is decided; not part of `waiting`. */
+  /** Translations held until the context is decided; not part of `waiting`. */
   held?: number;
 }
 
@@ -558,7 +558,7 @@ export interface DeckCounts {
   unclassified: number;
   /** The classified part of `waiting`: the cards the deck can deal now. */
   total: number;
-  /** Translations held until the key language is decided; not part of `waiting`. */
+  /** Translations held until the context is decided; not part of `waiting`. */
   held?: number;
 }
 
@@ -576,7 +576,7 @@ export interface Deck {
    * Set while the review plan holds translations back until the key
    * language is decided. The deck then deals only the exceptions.
    */
-  held?: { count: number; reason: "key_language" };
+  held?: { count: number; reason: "context" };
 }
 
 /** Where a ready-made fix comes from. */

@@ -34,7 +34,7 @@ type Over = {
   next?: string;
   settle?: string;
   scan?: string;
-  /** The key-language step's scan state, the job's status or a waiting reason. */
+  /** The context step's scan state, the job's status or a waiting reason. */
   stepScan?: string;
   quotaResetsAt?: string;
   keyState?: string;
@@ -56,7 +56,7 @@ const plan = (over: Over = {}) =>
       ],
       confirmed: over.confirmed ?? false,
     },
-    key_language: {
+    context: {
       waiting: over.waiting ?? 9,
       concepts: over.concepts ?? 57,
       untranslated: { nb: 20 },
@@ -103,8 +103,8 @@ const plan = (over: Over = {}) =>
         held: 1160,
       },
     ],
-    policy: { settle: over.settle ?? "first_pass", key_language_open: 29 },
-    held: "key_language",
+    policy: { settle: over.settle ?? "first_pass", context_open: 29 },
+    held: "context",
     steps: [
       {
         level: "coordinates",
@@ -113,7 +113,7 @@ const plan = (over: Over = {}) =>
         done: over.confirmed ?? false,
       },
       {
-        level: "key_language",
+        level: "context",
         state: over.keyState ?? "open",
         count: 29,
         scan: over.stepScan ?? over.scan,
@@ -143,19 +143,19 @@ describe("review plan", () => {
     await render(wrap(<ReviewPlanScreen />));
     expect(await screen.findByTestId("plan-coordinates-next")).toBeTruthy();
     expect(screen.getByText("Not confirmed yet")).toBeTruthy();
-    expect(screen.getByText("29 decisions open")).toBeTruthy();
+    expect(screen.getByText("29 context cards")).toBeTruthy();
     expect(screen.getByText("40 translations fail a check")).toBeTruthy();
     expect(screen.getByText("Read 34 of 300 pages")).toBeTruthy();
     expect(screen.getByText("800 translations clear every check")).toBeTruthy();
     expect(
       screen.getByText(
-        "1,160 Norwegian Bokmål translations are held until the key language is decided.",
+        "1,160 Norwegian Bokmål translations are held until the context is decided.",
       ),
     ).toBeTruthy();
     expect(screen.queryByTestId("plan-involvement")).toBeNull();
     // Only the next step carries an action.
     expect(screen.getByTestId("plan-coordinates-action")).toBeTruthy();
-    expect(screen.queryByTestId("plan-key_language-action")).toBeNull();
+    expect(screen.queryByTestId("plan-context-action")).toBeNull();
     expect(screen.queryByTestId("plan-policy-action")).toBeNull();
   });
 
@@ -170,11 +170,11 @@ describe("review plan", () => {
     expect(mockConfirm).not.toHaveBeenCalled();
   });
 
-  it("opens the context deck for the key language", async () => {
-    mockPlan.mockResolvedValue(plan({ confirmed: true, next: "key_language" }));
+  it("opens the context deck for the context level", async () => {
+    mockPlan.mockResolvedValue(plan({ confirmed: true, next: "context" }));
     await render(wrap(<ReviewPlanScreen />));
-    expect(await screen.findByTestId("plan-key_language-next")).toBeTruthy();
-    await fireEvent.press(screen.getByTestId("plan-key_language-action"));
+    expect(await screen.findByTestId("plan-context-next")).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("plan-context-action"));
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/[ws]/[project]/context",
       params: { ws: "ws", project: "p" },
@@ -203,17 +203,17 @@ describe("review plan", () => {
     expect(mockSettle).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, ["nb"]);
   });
 
-  it("holds later passes until the key language is decided", async () => {
+  it("holds later passes until the context is decided", async () => {
     mockPlan.mockResolvedValue(plan({ confirmed: true, next: "policy", settle: "held" }));
     await render(wrap(<ReviewPlanScreen />));
-    expect(await screen.findByText("Waits for the key language")).toBeTruthy();
+    expect(await screen.findByText("Waits for the context")).toBeTruthy();
     expect(screen.queryByTestId("plan-policy-action")).toBeNull();
     expect(mockSettle).not.toHaveBeenCalled();
   });
 
   const notStarted = {
     confirmed: true,
-    next: "key_language",
+    next: "context",
     keyState: "not_started",
     waiting: 0,
     concepts: 0,
@@ -224,7 +224,7 @@ describe("review plan", () => {
     await render(wrap(<ReviewPlanScreen />));
     expect(await screen.findByText("Starts when content arrives")).toBeTruthy();
     expect(screen.queryByTestId("plan-scan")).toBeNull();
-    expect(screen.queryByTestId("plan-key_language-action")).toBeNull();
+    expect(screen.queryByTestId("plan-context-action")).toBeNull();
 
     mockPlan.mockResolvedValue(plan({ ...notStarted, scan: "processing" }));
     await render(wrap(<ReviewPlanScreen />));

@@ -24,9 +24,9 @@ import (
 //
 //  1. Coordinates: the products, channels and languages, and the voice each
 //     point binds. Each decision governs everything under it.
-//  2. Key language: the terms and voice rules, source first, then each
+//  2. Context: the terms and voice rules, source first, then each
 //     term's translation in every target language.
-//  3. Exceptions: what fails a check against the key language.
+//  3. Exceptions: what fails a check against the context.
 //  4. Interfaces: the pages a reviewer reads whole, in context.
 //  5. Policy: what the involvement in force leaves to the checks.
 //
@@ -48,7 +48,7 @@ const (
 	propCoordinatesSnapshot = "review_coordinates_snapshot"
 	// propFirstPassBy and propFirstPassAt record the person who settled the
 	// project's first pass on the checks alone, and when. Later passes wait
-	// for the key language.
+	// for the context.
 	propFirstPassBy = "review_first_pass_by"
 	propFirstPassAt = "review_first_pass_at"
 	// propTermScanJob is the last term scan started for the project, by a
@@ -67,12 +67,12 @@ const interfaceSampleEvery = 10
 
 // How a settle pass may run, as the plan reports it.
 const (
-	// settleFirstPass settles on the checks alone: the key language is still
+	// settleFirstPass settles on the checks alone: the context is still
 	// open and the project has had no first pass.
 	settleFirstPass = "first_pass"
-	// settlePolicy settles under the full policy: the key language is decided.
+	// settlePolicy settles under the full policy: the context is decided.
 	settlePolicy = "policy"
-	// settleHeld waits for the key language: the first pass is taken.
+	// settleHeld waits for the context: the first pass is taken.
 	settleHeld = "held"
 	// settleNone leaves nothing to the checks: involvement is every.
 	settleNone = "none"
@@ -88,7 +88,7 @@ const (
 // Plan levels, in the order a reviewer works them.
 const (
 	planCoordinates = "coordinates"
-	planKeyLanguage = "key_language"
+	planContext     = "context"
 	planExceptions  = "exceptions"
 	planInterfaces  = "interfaces"
 	planPolicy      = "policy"
@@ -110,14 +110,14 @@ type reviewPlanResponse struct {
 	// when nothing does.
 	Next        string             `json:"next"`
 	Coordinates planCoordinatesDTO `json:"coordinates"`
-	KeyLanguage planKeyLanguageDTO `json:"key_language"`
+	Context     planContextDTO     `json:"context"`
 	Exceptions  planExceptionsDTO  `json:"exceptions"`
 	Languages   []planLanguageDTO  `json:"languages"`
 	Policy      planPolicyDTO      `json:"policy"`
 	// Steps is each level in brief with its state, in order.
 	Steps []planStepDTO `json:"steps"`
 	// Held is set while the language decks hold translations back until the
-	// key language is decided; each language's Held counts them.
+	// context is decided; each language's Held counts them.
 	Held string `json:"held,omitempty"`
 }
 
@@ -126,11 +126,11 @@ type reviewPlanResponse struct {
 type planPolicyDTO struct {
 	// Settle is first_pass, policy, held or none.
 	Settle string `json:"settle"`
-	// KeyLanguageOpen counts the project's open key-language decisions:
+	// ContextOpen counts the project's open context decisions:
 	// context cards waiting for anyone, and target terms still missing.
-	KeyLanguageOpen int    `json:"key_language_open"`
-	FirstPassBy     string `json:"first_pass_by,omitempty"`
-	FirstPassAt     string `json:"first_pass_at,omitempty"`
+	ContextOpen int    `json:"context_open"`
+	FirstPassBy string `json:"first_pass_by,omitempty"`
+	FirstPassAt string `json:"first_pass_at,omitempty"`
 }
 
 // planPoint is one place in the project's context space: a collection's
@@ -166,7 +166,7 @@ type planCoordinatesDTO struct {
 	Changed int                    `json:"changed"`
 }
 
-type planKeyLanguageDTO struct {
+type planContextDTO struct {
 	// Waiting is the context cards the caller may keep that wait for
 	// review, by kind; zero when the caller keeps no context.
 	Waiting int            `json:"waiting"`
@@ -181,7 +181,7 @@ type planKeyLanguageDTO struct {
 	// Scan is the project's last scan for candidate terms, started by a push
 	// or from the plan, if any.
 	Scan *planScanDTO `json:"scan,omitempty"`
-	// ScanWaiting is why no scan runs while the key language has not
+	// ScanWaiting is why no scan runs while the context has not
 	// started: waiting_content, waiting_push, waiting_quota, waiting_credits
 	// or no_ai.
 	ScanWaiting string `json:"scan_waiting,omitempty"`
@@ -325,20 +325,20 @@ func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, 
 	if out.Coordinates, err = s.planCoordinates(ctx, proj, stream); err != nil {
 		return out, err
 	}
-	if out.KeyLanguage, err = s.planKeyLanguage(ctx, ws, proj, caller.userID, caller.perms, caller.reach); err != nil {
+	if out.Context, err = s.planContextCounts(ctx, ws, proj, caller.userID, caller.perms, caller.reach); err != nil {
 		return out, err
 	}
 	if out.Exceptions, err = s.planExceptions(ctx, proj, stream); err != nil {
 		return out, err
 	}
-	out.KeyLanguage.Scan = s.planScan(ctx, proj, ws.ID)
-	s.planScanWaiting(ctx, ws.ID, ws.Slug, proj, &out.KeyLanguage)
-	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.KeyLanguage.Untranslated); err != nil {
+	out.Context.Scan = s.planScan(ctx, proj, ws.ID)
+	s.planScanWaiting(ctx, ws.ID, ws.Slug, proj, &out.Context)
+	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.Context.Untranslated); err != nil {
 		return out, err
 	}
 	held := translationsHeldBy(out.Policy)
 	if held {
-		out.Held = heldKeyLanguage
+		out.Held = heldContext
 	}
 	if out.Languages, err = s.planLanguages(ctx, proj, stream, caller.locales, out.Involvement, held, out.Exceptions.ByRule.Targets); err != nil {
 		return out, err
@@ -365,7 +365,7 @@ func (s *Server) planScan(ctx context.Context, proj *platstore.Project, wsID str
 	}
 }
 
-// planPolicy answers whether a settle pass may run. The key language is
+// planPolicy answers whether a settle pass may run. The context is
 // counted for the whole project, whoever asks: a pass settles everyone's
 // content, so it waits on every open decision, not only the caller's.
 func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, involvement string, untranslated map[string]int) (planPolicyDTO, error) {
@@ -380,7 +380,7 @@ func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *p
 	for _, n := range untranslated {
 		open += n
 	}
-	out.KeyLanguageOpen = open
+	out.ContextOpen = open
 	switch {
 	case involvement == involvementEvery:
 		out.Settle = settleNone
@@ -417,19 +417,19 @@ func involvementOf(p *platstore.Project) string {
 	return involvementContext
 }
 
-// nextPlanLevel is the first level with something waiting. A key language
+// nextPlanLevel is the first level with something waiting. A context
 // that has not started (no scan and no concepts) is the next step once the
 // coordinates are confirmed.
 func nextPlanLevel(p reviewPlanResponse) string {
 	if !p.Coordinates.Confirmed || p.Coordinates.Changed > 0 {
 		return planCoordinates
 	}
-	if p.KeyLanguage.Waiting > 0 || keyLanguageNotStarted(p.KeyLanguage) {
-		return planKeyLanguage
+	if p.Context.Waiting > 0 || contextNotStarted(p.Context) {
+		return planContext
 	}
-	for _, n := range p.KeyLanguage.Untranslated {
+	for _, n := range p.Context.Untranslated {
 		if n > 0 {
-			return planKeyLanguage
+			return planContext
 		}
 	}
 	if p.Exceptions.SourceFindings != nil && *p.Exceptions.SourceFindings > 0 {
@@ -515,10 +515,10 @@ func (s *Server) planCoordinates(ctx context.Context, proj *platstore.Project, s
 	return out, nil
 }
 
-// planKeyLanguage counts the context waiting for the caller and the
+// planContextCounts counts the context waiting for the caller and the
 // concepts that lack a term in a target language.
-func (s *Server) planKeyLanguage(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, userID string, perms platauth.Permission, reach platauth.CoordinateReach) (planKeyLanguageDTO, error) {
-	out := planKeyLanguageDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}
+func (s *Server) planContextCounts(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, userID string, perms platauth.Permission, reach platauth.CoordinateReach) (planContextDTO, error) {
+	out := planContextDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}
 	entry, ok, err := s.contextInbox(ctx, ws, proj, userID, perms, reach)
 	if err != nil {
 		return out, err
@@ -701,7 +701,7 @@ type reviewPlanSettleResponse struct {
 // as the caller's with the reason "review policy".
 //
 // A project settles on the checks alone once, for its first pass; after
-// that a pass waits until the key language is decided (409). Under the
+// that a pass waits until the context is decided (409). Under the
 // involvement every nothing is left to the checks (409).
 func (s *Server) HandleSettleReviewPlan(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
@@ -728,11 +728,11 @@ func (s *Server) HandleSettleReviewPlan(c echo.Context) error {
 	if err != nil || ws == nil {
 		return apiErr(c, http.StatusNotFound, "workspace not found")
 	}
-	key, err := s.planKeyLanguage(ctx, ws, proj, "", 0, nil)
+	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
 	if err != nil {
 		return serverErr(c, err)
 	}
-	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), key.Untranslated)
+	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), counts.Untranslated)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -740,7 +740,7 @@ func (s *Server) HandleSettleReviewPlan(c echo.Context) error {
 	case settleNone:
 		return apiErr(c, http.StatusConflict, "under the involvement every, a person establishes every translation")
 	case settleHeld:
-		return apiErr(c, http.StatusConflict, "the first pass is taken; decide the key language before the next one")
+		return apiErr(c, http.StatusConflict, "the first pass is taken; decide the context before the next one")
 	}
 	resp, err := s.approvePassing(c, proj, stream, req.Locales, []string{reasonReviewPolicy})
 	if err != nil {

@@ -44,7 +44,7 @@ type deckWaiting struct {
 	// deck groups it when the language is opened.
 	Unclassified int `json:"unclassified"`
 	// Held is the translations the plan holds back from the deck until the
-	// key language is decided; they are not part of Waiting.
+	// context is decided; they are not part of Waiting.
 	Held int `json:"held,omitempty"`
 }
 

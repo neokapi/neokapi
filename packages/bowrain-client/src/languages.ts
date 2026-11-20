@@ -79,7 +79,7 @@ export interface PlanStep {
   /** The policy level's settle state. */
   settle?: PlanSettle;
   /**
-   * The key language's term scan: the last scan's state, or why the scan
+   * The context's term scan: the last scan's state, or why the scan
    * waits while the level has not started.
    */
   scan?: PlanScan["status"] | PlanScanWaiting;
@@ -87,8 +87,8 @@ export interface PlanStep {
   quotaResetsAt?: string;
 }
 
-/** Why a language deck holds translations back: the key language is open. */
-export type PlanHeldReason = "key_language";
+/** Why a language deck holds translations back: the context is open. */
+export type PlanHeldReason = "context";
 
 /** The translations one language's deck holds back, and why. */
 export interface PlanHeld {
@@ -103,7 +103,7 @@ export interface PlanSummary {
   /** The first level with something waiting, or null when nothing does. */
   next: PlanLevel | null;
   steps: PlanStep[];
-  /** Per followed language, the translations held until the key language is decided. */
+  /** Per followed language, the translations held until the context is decided. */
   held: PlanHeld[];
 }
 
@@ -162,7 +162,7 @@ export interface ServerReviewInboxProject {
 
 const LEVELS: readonly PlanLevel[] = [
   "coordinates",
-  "key_language",
+  "context",
   "exceptions",
   "interfaces",
   "policy",
@@ -213,8 +213,8 @@ export function planStepsFromServer(steps: ServerPlanStep[] | null | undefined):
 /** The held translations per language; a reason this client does not know is left out. */
 export function planHeldFromServer(held: ServerPlanHeld[] | null | undefined): PlanHeld[] {
   return (held ?? [])
-    .filter((h) => (h.reason ?? "key_language") === "key_language" && h.count > 0)
-    .map((h) => ({ locale: h.locale, count: h.count, reason: "key_language" }));
+    .filter((h) => (h.reason ?? "context") === "context" && h.count > 0)
+    .map((h) => ({ locale: h.locale, count: h.count, reason: "context" }));
 }
 
 /** The step the plan names next, or undefined when nothing waits. */

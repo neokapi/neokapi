@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  coordinateGrid,
   coordinatesFromServer,
   coordinatesOpen,
   planFromServer,
@@ -12,7 +11,7 @@ import {
 const server = {
   stream: "main",
   involvement: "context",
-  next: "key_language",
+  next: "context",
   coordinates: {
     source_language: "en",
     target_languages: ["nb"],
@@ -33,7 +32,7 @@ const server = {
     confirmed: true,
     confirmed_at: "2026-11-19T01:00:00Z",
   },
-  key_language: {
+  context: {
     waiting: 12,
     by_kind: { concept: 9, voice_rule: 3 },
     concepts: 57,
@@ -66,7 +65,7 @@ const server = {
 describe("planFromServer", () => {
   it("maps the plan and keeps unknown values safe", () => {
     const plan = planFromServer(server);
-    expect(plan.next).toBe("key_language");
+    expect(plan.next).toBe("context");
     expect(plan.involvement).toBe("context");
     expect(plan.coordinates.points[2]).toEqual({
       collection: "source-go-comments",
@@ -79,7 +78,7 @@ describe("planFromServer", () => {
     expect(plan.coordinates.changes).toEqual([]);
     expect(plan.coordinates.changed).toBe(0);
     expect(coordinatesOpen(plan.coordinates)).toBe(false);
-    expect(plan.keyLanguage.untranslated).toEqual({ nb: 20 });
+    expect(plan.context.untranslated).toEqual({ nb: 20 });
     expect(plan.exceptions.sourceFindings).toBe(593);
     expect(plan.exceptions.byRule.source[0]).toEqual({
       key: "terms.vocabulary:utilize",
@@ -121,17 +120,17 @@ describe("planFromServer", () => {
   it("maps the step states and the held translations", () => {
     const plan = planFromServer({
       ...server,
-      held: "key_language",
+      held: "context",
       languages: [{ ...server.languages[0]!, waiting: 40, held: 1160 }],
       steps: [
         { level: "coordinates", state: "attention", count: 2, progress: 100, changed: 2 },
-        { level: "key_language", state: "not_started", count: 0, progress: 0, scan: "failed" },
+        { level: "context", state: "not_started", count: 0, progress: 0, scan: "failed" },
         { level: "exceptions", state: "open", count: 3, progress: 50 },
         { level: "interfaces", state: "something_new", count: 34, progress: 0 },
         { level: "policy", count: 0, progress: 100, done: true },
       ],
     });
-    expect(plan.held).toBe("key_language");
+    expect(plan.held).toBe("context");
     expect(plan.languages[0]).toMatchObject({ waiting: 40, held: 1160 });
     expect(plan.steps.map((s) => s.state)).toEqual([
       "attention",
@@ -146,14 +145,14 @@ describe("planFromServer", () => {
   it("maps why the term scan waits", () => {
     const plan = planFromServer({
       ...server,
-      key_language: {
-        ...server.key_language,
+      context: {
+        ...server.context,
         scan_waiting: "waiting_quota",
         quota_resets_at: "2026-12-01T00:00:00Z",
       },
       steps: [
         {
-          level: "key_language",
+          level: "context",
           state: "not_started",
           count: 0,
           progress: 0,
@@ -162,8 +161,8 @@ describe("planFromServer", () => {
         },
       ],
     });
-    expect(plan.keyLanguage.scanWaiting).toBe("waiting_quota");
-    expect(plan.keyLanguage.quotaResetsAt).toBe("2026-12-01T00:00:00Z");
+    expect(plan.context.scanWaiting).toBe("waiting_quota");
+    expect(plan.context.quotaResetsAt).toBe("2026-12-01T00:00:00Z");
     expect(plan.steps[0]).toMatchObject({
       scan: "waiting_quota",
       quotaResetsAt: "2026-12-01T00:00:00Z",
@@ -171,10 +170,10 @@ describe("planFromServer", () => {
 
     const unknown = planFromServer({
       ...server,
-      key_language: { ...server.key_language, scan_waiting: "waiting_for_godot" },
-      steps: [{ level: "key_language", state: "not_started", scan: "waiting_for_godot" }],
+      context: { ...server.context, scan_waiting: "waiting_for_godot" },
+      steps: [{ level: "context", state: "not_started", scan: "waiting_for_godot" }],
     });
-    expect(unknown.keyLanguage.scanWaiting).toBeUndefined();
+    expect(unknown.context.scanWaiting).toBeUndefined();
     expect(unknown.steps[0]?.scan).toBeUndefined();
   });
 });
@@ -245,13 +244,5 @@ describe("coordinatesFromServer", () => {
     });
     expect(map.cells[0]!.collections[0]).toMatchObject({ name: "neokapi-mobile", blocks: 412 });
     expect(map.cells[1]).toMatchObject({ collections: [], voices: [], coverage: {}, changes: [] });
-  });
-
-  it("lays the cells out as products by channels", () => {
-    const grid = coordinateGrid(map.cells);
-    expect(grid.products).toEqual(["bowrain", "neokapi"]);
-    expect(grid.channels).toEqual(["app", "cli", "mobile"]);
-    expect(grid.at("neokapi", "cli")?.blocks).toBe(2140);
-    expect(grid.at("bowrain", "cli")).toBeUndefined();
   });
 });

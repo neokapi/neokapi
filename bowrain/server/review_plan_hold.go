@@ -9,7 +9,7 @@ import (
 
 // The plan decides what a language's review deck holds. A translation
 // reviewed before its terms are decided is reviewed twice. So under
-// involvement context or interfaces, while the key language has open
+// involvement context or interfaces, while the context has open
 // decisions, the deck deals only the exceptions (its desk group) and the page
 // sample. The other translations are held, and the deck, its collections, the
 // plan and the inbox count them with a reason instead of dealing them. Under
@@ -18,9 +18,9 @@ import (
 // Exceptions stay reviewable: each names a rule a reviewer can decide
 // whatever terms are still open.
 
-// heldKeyLanguage is the reason translations are held while the project's
-// key language has open decisions.
-const heldKeyLanguage = "key_language"
+// heldContext is the reason translations are held while the project's
+// context has open decisions.
+const heldContext = "context"
 
 // deckHeld is the translations a deck holds back, and why.
 type deckHeld struct {
@@ -29,18 +29,18 @@ type deckHeld struct {
 }
 
 // translationsHeld reports whether the project's language decks hold their
-// translations back: the involvement is not every and the key language has
+// translations back: the involvement is not every and the context has
 // open decisions, counted for the whole project as a settle pass counts them.
 // It reads the project's context deck and the workspace's concepts once.
 func (s *Server) translationsHeld(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project) (bool, error) {
 	if ws == nil || involvementOf(proj) == involvementEvery {
 		return false, nil
 	}
-	key, err := s.planKeyLanguage(ctx, ws, proj, "", 0, nil)
+	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
 	if err != nil {
 		return false, err
 	}
-	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), key.Untranslated)
+	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), counts.Untranslated)
 	if err != nil {
 		return false, err
 	}
@@ -48,7 +48,7 @@ func (s *Server) translationsHeld(ctx context.Context, ws *platauth.Workspace, p
 }
 
 // translationsHeldBy reports whether a plan's policy holds translations
-// back: the key language has open decisions and the involvement leaves part
+// back: the context has open decisions and the involvement leaves part
 // of the work to the checks.
 func translationsHeldBy(p planPolicyDTO) bool {
 	return p.Settle == settleFirstPass || p.Settle == settleHeld

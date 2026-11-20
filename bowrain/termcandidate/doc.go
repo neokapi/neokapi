@@ -1,4 +1,4 @@
-// Package termcandidate finds a project's key language and files it for
+// Package termcandidate finds a project's key terms and files them for
 // review: candidate terms drawn from a sample of every collection, counted
 // over the whole project, and stored as proposed concepts in the workspace
 // terms store.
