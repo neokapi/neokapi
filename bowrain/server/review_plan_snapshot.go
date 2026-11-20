@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
@@ -116,26 +117,16 @@ func (l planSnapshotLanguage) split() deckSplit {
 	return deckSplit{rest: l.Rest, open: l.Open}
 }
 
-// planFingerprint names the inputs a snapshot's counts depend on besides the
-// content: the deck policy, the languages, the deck scope and the
-// collections under every.
+// planFingerprint covers the deck policy, languages, collection scope and
+// the involvement used to count each collection's held work and page sample.
 func planFingerprint(policy string, proj *platstore.Project, scope deckScope, pi projectInvolvement) string {
-	targets := make([]string, 0, len(proj.TargetLanguages))
-	for _, l := range proj.TargetLanguages {
-		targets = append(targets, string(l))
+	h := sha256.New()
+	fmt.Fprintf(h, "%q\n%q\n%q\n%q\n", planSnapshotVersion, policy, proj.DefaultSourceLanguage, slices.Sorted(slices.Values(proj.TargetLanguages)))
+	for _, ids := range [][]string{scope.Exclude, scope.High, scope.Low} {
+		fmt.Fprintf(h, "%q\n", slices.Sorted(slices.Values(ids)))
 	}
-	slices.Sort(targets)
-	sorted := func(ids []string) string {
-		c := slices.Clone(ids)
-		slices.Sort(c)
-		return strings.Join(c, ",")
-	}
-	parts := []string{
-		planSnapshotVersion, policy, string(proj.DefaultSourceLanguage), strings.Join(targets, ","),
-		sorted(scope.Exclude), sorted(scope.High), sorted(scope.Low), pi.def, sorted(pi.every()),
-	}
-	h := sha256.Sum256([]byte(strings.Join(parts, "\n")))
-	return hex.EncodeToString(h[:12])
+	fmt.Fprintf(h, "%q\n%q\n", pi.def, pi.byColl)
+	return hex.EncodeToString(h.Sum(nil)[:12])
 }
 
 // computePlanSnapshot counts a project's plan over every target language.
