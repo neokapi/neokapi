@@ -703,6 +703,9 @@ streamed one are read by the same fold. The shared engine discovers plugins
 once. A run resolves its venue through the same plugin host as the tab.
 The host resolves target languages from the recipe defaults, collections, and
 content items. A project with no target languages reconciles its source.
+The desktop and CLI use the same host check to decide whether a flow needs
+a provider choice. It applies each locale’s tool presets and inspects the
+requirements of the configured steps.
 
 <SwimlaneDiagram
   actors={[

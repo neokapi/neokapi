@@ -3,13 +3,10 @@ package backend
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
@@ -199,31 +196,6 @@ func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
 	if op == nil {
 		return false
 	}
-	// An empty flow name is the convergence launch (Bring up to date): it runs
-	// defaults.flow, or — when the recipe configures none — the built-in
-	// default flow (#1078 G6), whose translate step is provider-backed.
-	if flowName == "" {
-		flowName = op.Project.Defaults.Flow
-	}
-	var spec *flow.StepsSpec
-	if flowName == "" {
-		spec = host.DefaultConvergeFlowSpec()
-	} else if resolved, err := projectFlow(op, flowName); err == nil {
-		spec = resolved
-	} else {
-		return false
-	}
-	info := flow.BuildToolInfoMap(a.toolReg)
-	usesAI := false
-	for _, step := range spec.Steps {
-		if slices.Contains(info[registry.ToolID(step.Tool)].Requires, "credentials") {
-			usesAI = true
-			break
-		}
-	}
-	if !usesAI {
-		return false
-	}
 	// A configured default resolves everything.
 	if a.aiConfig != nil && a.aiConfig.GetString(appconfig.KeyAIProvider) != "" {
 		return false
@@ -233,5 +205,6 @@ func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
 	if a.credentials != nil && len(a.credentials.List()) == 1 {
 		return false
 	}
-	return true
+	needsSetup, err := a.newProjectEngine(op).ProjectFlowNeedsAISetup(op.Project, op.Path, flowName)
+	return err == nil && needsSetup
 }

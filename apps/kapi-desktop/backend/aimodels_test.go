@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
@@ -73,4 +74,23 @@ func TestListAIModels_IncludesRecommendedAndMarksDefault(t *testing.T) {
 	}
 	assert.True(t, foundDefault, "the configured default must be flagged")
 	assert.True(t, foundCloudNeedsKey, "cloud models with no saved key must be flagged needs_key")
+}
+
+func TestConvergenceModelChoiceUsesResolvedRecipe(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app := NewApp()
+	tab, _ := newConvergenceProject(t, app)
+	proj := app.getOpenProject(tab.ID).Project
+	assert.False(t, app.AINeedsModelChoice(tab.ID, ""))
+	proj.Defaults.Flow = ""
+	assert.True(t, app.AINeedsModelChoice(tab.ID, ""))
+	proj.Defaults.Locales = map[string]project.LocaleDefaults{
+		"de-DE": {Tools: map[string]map[string]any{"translate": {"provider": "demo"}}},
+	}
+	assert.True(t, app.AINeedsModelChoice(tab.ID, ""))
+	proj.Defaults.Locales["fr-FR"] = proj.Defaults.Locales["de-DE"]
+	assert.False(t, app.AINeedsModelChoice(tab.ID, ""))
+	proj.Defaults.Locales = nil
+	proj.Defaults.TargetLanguages = nil
+	assert.False(t, app.AINeedsModelChoice(tab.ID, ""))
 }
