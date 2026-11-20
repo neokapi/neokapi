@@ -12,11 +12,14 @@ import {
   coordinatesFromServer,
   planFromServer,
   planScanFromServer,
+  reviewInvolvementFromServer,
   type PlanScan,
   type ReviewCoordinates,
   type ReviewInvolvement,
+  type ReviewInvolvementSettings,
   type ReviewPlan,
   type ServerReviewCoordinates,
+  type ServerReviewInvolvement,
   type ServerReviewPlan,
 } from "./plan.ts";
 import {
@@ -250,6 +253,16 @@ export interface BowrainClient {
   confirmCoordinates(scope: ProjectScope): Promise<void>;
   /** Sets how much the project's reviewers can be involved. */
   setInvolvement(scope: ProjectScope, involvement: ReviewInvolvement): Promise<void>;
+  /** The project's involvement, its overrides at points, and the axes they may name. */
+  reviewInvolvement(scope: ProjectScope): Promise<ReviewInvolvementSettings>;
+  /**
+   * Replaces the project's involvement overrides. The server checks each
+   * point against the project's collections and answers the saved settings.
+   */
+  setInvolvementOverrides(
+    scope: ProjectScope,
+    overrides: { coordinates: Record<string, string>; involvement: ReviewInvolvement }[],
+  ): Promise<ReviewInvolvementSettings>;
   /**
    * The plan's last step: establishes every waiting translation that clears
    * every bar, recorded with the reason "review policy". The server refuses
@@ -656,6 +669,22 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
         method: "PUT",
         body: JSON.stringify({ involvement }),
       });
+    },
+
+    async reviewInvolvement(scope) {
+      return reviewInvolvementFromServer(
+        await get<ServerReviewInvolvement>(
+          `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan/involvement`,
+        ),
+      );
+    },
+
+    async setInvolvementOverrides(scope, overrides) {
+      const { body } = await send(
+        `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan/involvement/overrides`,
+        { method: "PUT", body: JSON.stringify({ overrides }) },
+      );
+      return reviewInvolvementFromServer(body as ServerReviewInvolvement);
     },
 
     async settlePlan(scope, locales) {

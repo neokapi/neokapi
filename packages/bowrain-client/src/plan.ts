@@ -26,6 +26,29 @@ export interface PlanPoint {
   voiceId?: string;
   sourceOnly: boolean;
   priority?: string;
+  /** The involvement at the point: the project's, or the override that applies there. */
+  involvement?: ReviewInvolvement;
+}
+
+/**
+ * The involvement a manager set at a point of the project's context space,
+ * in place of the project's own. Of the overrides that apply to a
+ * collection, the one naming the most axes wins; between two naming as many,
+ * the deeper involvement wins.
+ */
+export interface InvolvementOverride {
+  coordinates: Record<string, string>;
+  involvement: ReviewInvolvement;
+  /** The collections the override decides. */
+  collections: number;
+}
+
+/** The project's involvement, its overrides, and the axes an override may name. */
+export interface ReviewInvolvementSettings {
+  involvement: ReviewInvolvement;
+  overrides: InvolvementOverride[];
+  /** Each axis the project's collections declare, with the values they hold. */
+  axes: Record<string, string[]>;
 }
 
 /** A kind of change against the project's last confirmed coordinates. */
@@ -155,11 +178,13 @@ export interface PlanScan {
 /**
  * Why the term scan waits instead of running, while the context has not
  * started. A push starts the scan on its own once nothing holds it back.
- * waiting_content: the project holds no source text yet. waiting_push: it
- * holds text and has had no scan; the next push starts one. waiting_quota:
- * the workspace used its monthly AI limit, which resets at `quotaResetsAt`.
- * waiting_credits: the workspace has no AI credits left. no_ai: the platform
- * has no AI provider configured.
+ *
+ * - waiting_content: the project holds no source text yet.
+ * - waiting_push: it holds text and has had no scan; the next push starts one.
+ * - waiting_quota: the workspace used its monthly AI limit, which resets at
+ *   `quotaResetsAt`.
+ * - waiting_credits: the workspace has no AI credits left.
+ * - no_ai: the platform has no AI provider configured.
  */
 export type PlanScanWaiting =
   | "waiting_content"
@@ -207,6 +232,8 @@ export function planProposalsOf(v: string | undefined): PlanProposals | undefine
 export interface ReviewPlan {
   stream: string;
   involvement: ReviewInvolvement;
+  /** The involvement at points of the project's context space. */
+  overrides: InvolvementOverride[];
   /** The first level with something waiting, or null when nothing does. */
   next: PlanLevel | null;
   coordinates: PlanCoordinates;
@@ -295,6 +322,7 @@ export interface ServerPlanCoordinates {
         voice_id?: string;
         source_only?: boolean;
         priority?: string;
+        involvement?: string;
       }[]
     | null;
   confirmed: boolean;
@@ -305,9 +333,22 @@ export interface ServerPlanCoordinates {
   changed?: number;
 }
 
+export interface ServerInvolvementOverride {
+  coordinates?: Record<string, string> | null;
+  involvement: string;
+  collections?: number;
+}
+
+export interface ServerReviewInvolvement {
+  involvement: string;
+  overrides?: ServerInvolvementOverride[] | null;
+  axes?: Record<string, string[] | null> | null;
+}
+
 export interface ServerReviewPlan {
   stream: string;
   involvement: string;
+  overrides?: ServerInvolvementOverride[] | null;
   next: string;
   coordinates: ServerPlanCoordinates;
   context: {
@@ -387,6 +428,75 @@ function involvementOf(v: string): ReviewInvolvement {
   return v === "interfaces" || v === "every" ? v : "context";
 }
 
+function overrideFromServer(o: ServerInvolvementOverride): InvolvementOverride {
+  return {
+    coordinates: o.coordinates ?? {},
+    involvement: involvementOf(o.involvement),
+    collections: o.collections ?? 0,
+  };
+}
+
+export function reviewInvolvementFromServer(r: ServerReviewInvolvement): ReviewInvolvementSettings {
+  return {
+    involvement: involvementOf(r.involvement),
+    overrides: (r.overrides ?? []).map(overrideFromServer),
+    axes: Object.fromEntries(Object.entries(r.axes ?? {}).map(([axis, vs]) => [axis, vs ?? []])),
+  };
+}
+
+/** The axes a point is read by, in order; the rest follow by name. */
+const POINT_AXES = ["product", "channel", "brand"];
+
+/** A point's axes in reading order: product, channel, brand, then the rest by name. */
+function pointAxes(coords: Record<string, string>): string[] {
+  const rank = (a: string) => {
+    const i = POINT_AXES.indexOf(a);
+    return i < 0 ? POINT_AXES.length : i;
+  };
+  return Object.keys(coords).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+/** A point as a person reads it: its values in reading order, "app · ui". */
+export function pointLabel(coords: Record<string, string>): string {
+  return pointAxes(coords)
+    .map((a) => coords[a])
+    .join(" · ");
+}
+
+/** A key naming a point, the same for the same axes and values in any order. */
+export function pointKey(coords: Record<string, string>): string {
+  return Object.keys(coords)
+    .sort()
+    .map((a) => `${a}=${coords[a]}`)
+    .join(",");
+}
+
+/**
+ * The points an override may be set at, from the plan's points: each
+ * product, and each product with a channel, leaving out the ones that hold
+ * an override and the source-only points.
+ */
+export function overridePoints(
+  points: PlanPoint[],
+  overrides: Pick<InvolvementOverride, "coordinates">[],
+): Record<string, string>[] {
+  const taken = new Set(overrides.map((o) => pointKey(o.coordinates)));
+  const out: Record<string, string>[] = [];
+  const add = (c: Record<string, string>) => {
+    const key = pointKey(c);
+    if (taken.has(key)) return;
+    taken.add(key);
+    out.push(c);
+  };
+  for (const pt of points) {
+    if (pt.sourceOnly) continue;
+    const { product, channel } = pt.coordinates;
+    if (product) add({ product });
+    if (product && channel) add({ product, channel });
+  }
+  return out.sort((a, b) => pointLabel(a).localeCompare(pointLabel(b)));
+}
+
 function ruleFromServer(r: ServerPlanRule): PlanRule {
   return {
     key: r.key,
@@ -447,6 +557,7 @@ export function planCoordinatesFromServer(c: ServerPlanCoordinates): PlanCoordin
       voiceId: pt.voice_id || undefined,
       sourceOnly: pt.source_only ?? false,
       priority: pt.priority || undefined,
+      involvement: pt.involvement ? involvementOf(pt.involvement) : undefined,
     })),
     confirmed: c.confirmed,
     confirmedBy: c.confirmed_by || undefined,
@@ -484,6 +595,7 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
   return {
     stream: p.stream,
     involvement: involvementOf(p.involvement),
+    overrides: (p.overrides ?? []).map(overrideFromServer),
     next: (LEVELS as readonly string[]).includes(p.next) ? (p.next as PlanLevel) : null,
     coordinates: planCoordinatesFromServer(p.coordinates),
     context: {

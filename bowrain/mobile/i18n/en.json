@@ -134,7 +134,15 @@
       "off": "Turn off"
     },
     "involvement": {
-      "header": "Involvement"
+      "header": "Involvement",
+      "overrides": {
+        "header": "Involvement by product or channel",
+        "footer": "A setting here replaces the project's involvement for that content. Where two settings apply, the one that names more coordinates wins.",
+        "row": "{{point}}: {{level}}",
+        "add": "Set involvement for a product or channel",
+        "choose": "Choose the involvement",
+        "remove": "Remove this setting"
+      }
     },
     "mine": {
       "header": "Languages you review",

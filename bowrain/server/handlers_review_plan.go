@@ -110,8 +110,10 @@ const planRuleLimit = 5
 type reviewPlanResponse struct {
 	Stream string `json:"stream"`
 	// Involvement is the project's: context (the default), interfaces or
-	// every.
-	Involvement string `json:"involvement"`
+	// every. Overrides set another at a point of the project's context
+	// space, and each point's Involvement is the one that applies there.
+	Involvement string                   `json:"involvement"`
+	Overrides   []involvementOverrideDTO `json:"overrides"`
 	// Next is the first level with something waiting for the caller, or ""
 	// when nothing does.
 	Next        string             `json:"next"`
@@ -155,6 +157,9 @@ type planPoint struct {
 	VoiceID    string `json:"voice_id,omitempty"`
 	SourceOnly bool   `json:"source_only,omitempty"`
 	Priority   string `json:"priority,omitempty"`
+	// Involvement is the involvement at the point: the project's, or the
+	// override that applies there.
+	Involvement string `json:"involvement,omitempty"`
 	// id is the collection's id, which the coverage counts are keyed by.
 	id string
 }
@@ -271,7 +276,8 @@ type planLanguageDTO struct {
 	// approval: the deck's desk group.
 	Failing int `json:"failing"`
 	// Pages is the pages the involvement asks a person to read: the sample
-	// under context, every page with a translation waiting otherwise.
+	// in a collection under context, every page with a translation waiting
+	// elsewhere.
 	Pages     int  `json:"pages"`
 	PagesMore bool `json:"pages_more,omitempty"`
 	// PagesTotal is every page with a translation waiting, and
@@ -279,8 +285,8 @@ type planLanguageDTO struct {
 	PagesTotal        int `json:"pages_total"`
 	PagesWithFindings int `json:"pages_with_findings"`
 	// Settleable is the translations the involvement in force leaves to the
-	// checks: the ones that clear every bar (the deck's fast group). Zero
-	// under every.
+	// checks: the ones that clear every bar (the deck's fast group),
+	// outside the collections under every.
 	Settleable int `json:"settleable"`
 }
 
@@ -344,14 +350,21 @@ type planCaller struct {
 // computeReviewPlan counts every level of a project's plan for one caller.
 // The review plan route and the review inbox both answer with it.
 func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, stream string, caller planCaller) (reviewPlanResponse, error) {
+	scope, pi, err := s.involvementScopeOf(ctx, proj, stream)
+	if err != nil {
+		return reviewPlanResponse{}, err
+	}
 	out := reviewPlanResponse{
 		Stream:      stream,
-		Involvement: involvementOf(proj),
+		Involvement: pi.def,
+		Overrides:   pi.overridesDTO(),
 		Languages:   []planLanguageDTO{},
 	}
-	var err error
 	if out.Coordinates, err = s.planCoordinates(ctx, proj, stream); err != nil {
 		return out, err
+	}
+	for i := range out.Coordinates.Points {
+		out.Coordinates.Points[i].Involvement = pi.of(out.Coordinates.Points[i].id)
 	}
 	if out.Context, err = s.planContextCounts(ctx, ws, proj, caller.userID, caller.perms, caller.reach); err != nil {
 		return out, err
@@ -362,14 +375,14 @@ func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, 
 	out.Context.Scan = s.planScan(ctx, proj, ws.ID)
 	s.planScanWaiting(ctx, ws.ID, ws.Slug, proj, &out.Context)
 	s.planProposals(ctx, ws.ID, ws.Slug, proj, &out.Context)
-	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.Context.Untranslated); err != nil {
+	if out.Policy, err = s.planPolicy(ctx, ws, proj, pi, out.Context.Untranslated); err != nil {
 		return out, err
 	}
 	held := translationsHeldBy(out.Policy)
 	if held {
 		out.Held = heldContext
 	}
-	if out.Languages, err = s.planLanguages(ctx, proj, stream, caller.locales, out.Involvement, held, out.Exceptions.ByRule.Targets); err != nil {
+	if out.Languages, err = s.planLanguages(ctx, proj, stream, caller.locales, scope, pi, held, out.Exceptions.ByRule.Targets); err != nil {
 		return out, err
 	}
 	out.Next = nextPlanLevel(out)
@@ -396,8 +409,9 @@ func (s *Server) planScan(ctx context.Context, proj *platstore.Project, wsID str
 
 // planPolicy answers whether a settle pass may run. The context is
 // counted for the whole project, whoever asks: a pass settles everyone's
-// content, so it waits on every open decision, not only the caller's.
-func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, involvement string, untranslated map[string]int) (planPolicyDTO, error) {
+// content, so it waits on every open decision, not only the caller's. A pass
+// has nothing to settle when every point of the project is under every.
+func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, pi projectInvolvement, untranslated map[string]int) (planPolicyDTO, error) {
 	out := planPolicyDTO{
 		FirstPassBy: proj.Properties[propFirstPassBy],
 		FirstPassAt: proj.Properties[propFirstPassAt],
@@ -412,7 +426,7 @@ func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *p
 	out.ContextOpen = open
 	out.Last = lastSettleOf(proj)
 	switch {
-	case involvement == involvementEvery:
+	case pi.allEvery():
 		out.Settle = settleNone
 	case open == 0:
 		out.Settle = settlePolicy
@@ -635,19 +649,18 @@ func reviewLocalesOf(proj *platstore.Project, perms platauth.Permission, langs [
 
 // planLanguages counts, for each language, the deck's groups and pages, and
 // files the rules behind the deck's desk group in rules by language. Each
-// read is one query over every language.
+// read is one query over every language; the deck's counts take a second
+// when some collections are under every and others are not.
 //
 // While held, the translations the deck holds back move out of Waiting into
 // Held; Settleable still counts the fast group, which a first pass settles.
-func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, involvement string, held bool, rules map[string][]planRuleDTO) ([]planLanguageDTO, error) {
+// Both leave out the collections under every, which hold nothing back and
+// leave nothing to the checks.
+func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, stream string, locales []string, scope deckScope, pi projectInvolvement, held bool, rules map[string][]planRuleDTO) ([]planLanguageDTO, error) {
 	out := []planLanguageDTO{}
 	decks, ok := platstore.ReviewDeckStores(s.ContentStore)
 	if !ok || len(locales) == 0 {
 		return out, nil
-	}
-	scope, err := deckScopeOf(ctx, s.ContentStore, proj.ID, stream)
-	if err != nil {
-		return nil, err
 	}
 	q := platstore.ReviewDeckQuery{ProjectID: proj.ID, Stream: stream, Policy: deckPolicyKey(s.deckPolicy())}
 	scope.apply(&q)
@@ -655,13 +668,13 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 	// The three reads are independent, so they run at once. A language with
 	// nothing in the desk group counts no rule.
 	var (
-		counts  map[string]platstore.ReviewDeckCounts
+		counts  map[string]deckSplit
 		top     map[string][]platstore.RuleTally
 		pagesOf map[string][]platstore.ReviewDeckPage
 	)
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (err error) {
-		counts, err = decks.CountReviewDeckByLocale(gctx, q, locales)
+		counts, err = countDeckSplitByLocale(gctx, decks, q, locales, pi)
 		return err
 	})
 	g.Go(func() (err error) {
@@ -681,14 +694,10 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 		}
 	}
 	for _, loc := range locales {
-		lang := planLanguageDTO{Locale: loc, deckWaiting: deckWaitingOf(counts[loc])}
-		lang.Failing = counts[loc].ByRank[desk]
-		if involvement != involvementEvery {
-			lang.Settleable = lang.Fast
-		}
-		if held {
-			lang.deckWaiting = lang.held()
-		}
+		n := counts[loc]
+		lang := planLanguageDTO{Locale: loc, deckWaiting: n.waiting(held)}
+		lang.Failing = n.rest.ByRank[desk] + n.open.ByRank[desk]
+		lang.Settleable = deckWaitingOf(n.rest).Fast
 		pages := pagesOf[loc]
 		if len(pages) > reviewPagesCountLimit {
 			pages, lang.PagesMore = pages[:reviewPagesCountLimit], true
@@ -699,10 +708,7 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 				lang.PagesWithFindings++
 			}
 		}
-		lang.Pages = lang.PagesTotal
-		if involvement == involvementContext {
-			lang.Pages = len(interfaceSample(pages))
-		}
+		lang.Pages = len(interfacePages(pages, pi))
 		out = append(out, lang)
 	}
 	return out, nil
@@ -713,9 +719,19 @@ func (s *Server) planLanguages(ctx context.Context, proj *platstore.Project, str
 // each collection, in deck order. Each collection with a page waiting gives at
 // least one.
 func interfaceSample(pages []platstore.ReviewDeckPage) []platstore.ReviewDeckPage {
+	return interfaceSampleWhere(pages, func(string) bool { return true })
+}
+
+// interfaceSampleWhere samples the pages of the collections sampled names as
+// interfaceSample does, and keeps every page of the others, in deck order.
+func interfaceSampleWhere(pages []platstore.ReviewDeckPage, sampled func(collectionID string) bool) []platstore.ReviewDeckPage {
 	seen := map[string]int{}
 	var out []platstore.ReviewDeckPage
 	for _, p := range pages {
+		if !sampled(p.CollectionID) {
+			out = append(out, p)
+			continue
+		}
 		n := seen[p.CollectionID]
 		seen[p.CollectionID] = n + 1
 		if p.Findings > 0 || n%interfaceSampleEvery == 0 {

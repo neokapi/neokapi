@@ -3,8 +3,14 @@
 // visit it is the review setup; afterwards it is the same screen as a setting.
 // The server says what the person may follow (GET /:ws/:id/review/languages)
 // and files a project-language change as a recipe change for the next sync.
+// A manager may also set the involvement for a product or channel in place of
+// the project's; the server decides which setting applies where.
 import {
+  overridePoints,
+  pointKey,
+  pointLabel,
   projectLanguagesAfterSync,
+  type InvolvementOverride,
   type PlanLevel,
   type ReviewInvolvement,
   type ReviewPlan,
@@ -123,6 +129,33 @@ export default function ReviewLanguagesScreen() {
     },
     onSettled: () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) }),
   });
+  // The point being edited: an override's key, "new" while a point is
+  // chosen for a new one, or null.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [newPoint, setNewPoint] = useState<Record<string, string> | null>(null);
+  // Overrides save as a whole list. The rows change on the tap, as the
+  // involvement does, and come back as they were only when the save fails.
+  const override = useMutation({
+    mutationFn: (next: InvolvementOverride[]) =>
+      client.setInvolvementOverrides(
+        { workspace: ws, project },
+        next.map((o) => ({ coordinates: o.coordinates, involvement: o.involvement })),
+      ),
+    onMutate: async (next) => {
+      const key = reviewPlanKey(ws, project);
+      await qc.cancelQueries({ queryKey: key });
+      const before = qc.getQueryData<ReviewPlan>(key);
+      if (before) qc.setQueryData<ReviewPlan>(key, { ...before, overrides: next });
+      setEditing(null);
+      setNewPoint(null);
+      return { before };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.before) qc.setQueryData(reviewPlanKey(ws, project), ctx.before);
+      failed(e);
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) }),
+  });
 
   const title = setup ? t("follow.setupTitle") : t("follow.title");
   const l = languages.data;
@@ -154,6 +187,24 @@ export default function ReviewLanguagesScreen() {
       followed.includes(locale) ? followed.filter((x) => x !== locale) : [...followed, locale],
     );
   const confirmed = plan.data?.coordinates.confirmed;
+  const overrides = plan.data?.overrides ?? [];
+  const setOverride = (coordinates: Record<string, string>, involvement: ReviewInvolvement) => {
+    const key = pointKey(coordinates);
+    const rest = overrides.filter((o) => pointKey(o.coordinates) !== key);
+    override.mutate([...rest, { coordinates, involvement, collections: 0 }]);
+  };
+  const removeOverride = (key: string) =>
+    override.mutate(overrides.filter((o) => pointKey(o.coordinates) !== key));
+  const levels = (point: Record<string, string>, current?: ReviewInvolvement) =>
+    INVOLVEMENTS.map((v) => (
+      <Cell
+        key={v}
+        testID={`follow-override-level-${v}`}
+        title={t(`plan.involvement.${v}`)}
+        selected={current === v}
+        onPress={() => setOverride(point, v)}
+      />
+    ));
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -240,6 +291,75 @@ export default function ReviewLanguagesScreen() {
                 onPress={() => involve.mutate(v)}
               />
             ))}
+          </Section>
+        ) : null}
+
+        {canManage && plan.data ? (
+          <Section
+            header={t("follow.involvement.overrides.header")}
+            footer={t("follow.involvement.overrides.footer")}
+          >
+            {overrides.map((o) => {
+              const key = pointKey(o.coordinates);
+              const point = pointLabel(o.coordinates);
+              const level = t(`plan.involvement.${o.involvement}`);
+              return (
+                <View key={key}>
+                  <Cell
+                    testID={`follow-override-${key}`}
+                    title={point}
+                    value={level}
+                    accessibilityLabel={t("follow.involvement.overrides.row", { point, level })}
+                    chevron
+                    onPress={() => setEditing(editing === key ? null : key)}
+                  />
+                  {editing === key ? (
+                    <>
+                      {levels(o.coordinates, o.involvement)}
+                      <Cell
+                        testID="follow-override-remove"
+                        title={t("follow.involvement.overrides.remove")}
+                        destructive
+                        onPress={() => removeOverride(key)}
+                      />
+                    </>
+                  ) : null}
+                </View>
+              );
+            })}
+            {editing === "new" ? (
+              newPoint ? (
+                <>
+                  <Cell
+                    testID="follow-override-new-point"
+                    title={pointLabel(newPoint)}
+                    value={t("follow.involvement.overrides.choose")}
+                  />
+                  {levels(newPoint)}
+                </>
+              ) : (
+                overridePoints(plan.data.coordinates.points, overrides).map((c) => (
+                  <Cell
+                    key={pointKey(c)}
+                    testID={`follow-override-point-${pointKey(c)}`}
+                    title={pointLabel(c)}
+                    chevron
+                    onPress={() => setNewPoint(c)}
+                  />
+                ))
+              )
+            ) : (
+              <Cell
+                testID="follow-override-add"
+                icon="add"
+                tile="green"
+                title={t("follow.involvement.overrides.add")}
+                onPress={() => {
+                  setNewPoint(null);
+                  setEditing("new");
+                }}
+              />
+            )}
           </Section>
         ) : null}
 

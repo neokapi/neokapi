@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 )
@@ -46,6 +47,11 @@ func deckScopeOf(ctx context.Context, cs platstore.ContentStore, projectID, stre
 	if err != nil {
 		return deckScope{}, fmt.Errorf("list collections: %w", err)
 	}
+	return deckScopeFrom(colls), nil
+}
+
+// deckScopeFrom reads a deck scope from a project's collections.
+func deckScopeFrom(colls []*platstore.Collection) deckScope {
 	var d deckScope
 	for _, c := range colls {
 		switch {
@@ -57,7 +63,7 @@ func deckScopeOf(ctx context.Context, cs platstore.ContentStore, projectID, stre
 			d.Low = append(d.Low, c.ID)
 		}
 	}
-	return d, nil
+	return d
 }
 
 // sourceOnlyItems returns the names of the items in a project's source-only
@@ -78,6 +84,26 @@ func sourceOnlyItems(ctx context.Context, cs platstore.ContentStore, projectID, 
 	out := map[string]bool{}
 	for _, it := range items {
 		if only[it.CollectionID] {
+			out[it.Name] = true
+		}
+	}
+	return out, nil
+}
+
+// itemsInCollections returns the names of the items in the named collections
+// ("" for the items in none). Nil when no collection is named, without
+// listing the items.
+func itemsInCollections(ctx context.Context, cs platstore.ContentStore, projectID, stream string, collectionIDs []string) (map[string]bool, error) {
+	if len(collectionIDs) == 0 {
+		return nil, nil
+	}
+	items, err := cs.ListItems(ctx, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list items: %w", err)
+	}
+	out := map[string]bool{}
+	for _, it := range items {
+		if slices.Contains(collectionIDs, it.CollectionID) {
 			out[it.Name] = true
 		}
 	}

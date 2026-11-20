@@ -211,7 +211,7 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	policy := s.deckPolicy()
-	scope, err := deckScopeOf(ctx, s.ContentStore, pid, stream)
+	scope, pi, err := s.involvementScopeOf(ctx, proj, stream)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -230,30 +230,29 @@ func (s *Server) HandleGetReviewDeck(c echo.Context) error {
 	// one rule (the review plan's exceptions by rule), after classifying the
 	// whole deck.
 	q.Rule = strings.TrimSpace(c.QueryParam("rule"))
-	counts, err := decks.CountReviewDeck(ctx, q)
+	counts, err := countDeckSplit(ctx, decks, q, pi)
 	if err != nil {
 		return serverErr(c, err)
 	}
 	// While the plan holds translations back, the deck deals the desk group
-	// alone: a request for another group gets no cards.
-	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj)
+	// alone, outside the collections under every: a request for another
+	// group gets their cards only.
+	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj, pi)
 	if err != nil {
 		return serverErr(c, err)
 	}
-	var rows []store.ReviewDeckRow
-	if desk := deckRank(reviewdeck.DeckDesk); !held || rank < 0 || rank == desk {
-		if held {
-			rank = desk
-		}
-		if rows, err = decks.ListReviewDeck(ctx, q, rank, after, limit+1); err != nil {
-			return serverErr(c, err)
-		}
+	if held {
+		q.Hold = pi.storeHold()
 	}
+	rows, err := decks.ListReviewDeck(ctx, q, rank, after, limit+1)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	q.Hold = nil
 
 	out := reviewDeckResponse{Locale: loc, Cards: []deckCard{}, Policy: policy}
-	out.Counts.deckWaiting = deckWaitingOf(counts)
-	if held {
-		out.Counts.deckWaiting = out.Counts.held()
+	out.Counts.deckWaiting = counts.waiting(held)
+	if held && (q.CollectionID == nil || pi.heldIn(*q.CollectionID)) {
 		out.Held = &deckHeld{Count: out.Counts.Held, Reason: heldContext}
 	}
 	out.Counts.Total = out.Counts.Waiting - out.Counts.Unclassified

@@ -110,6 +110,10 @@ func reviewDeckLocalesArgs(q platstore.ReviewDeckQuery, locales []string) (scope
 		args = append(args, q.ExcludeCollections)
 		scope += fmt.Sprintf(` AND COALESCE(i.collection_id, '') <> ALL($%d)`, len(args))
 	}
+	if len(q.OnlyCollections) > 0 {
+		args = append(args, q.OnlyCollections)
+		scope += fmt.Sprintf(` AND COALESCE(i.collection_id, '') = ANY($%d)`, len(args))
+	}
 	if q.Rule != "" {
 		args = append(args, q.Rule)
 		scope += fmt.Sprintf(` AND f.rules @> jsonb_build_array(jsonb_build_object('key', $%d::text))`, len(args))
@@ -198,6 +202,15 @@ func (s *PostgresStore) RecordReviewDeckFacts(ctx context.Context, projectID, st
 // platstore.ReviewDeckStore.
 func (s *PostgresStore) ListReviewDeck(ctx context.Context, q platstore.ReviewDeckQuery, groupRank int, after *platstore.ReviewDeckKey, limit int) ([]platstore.ReviewDeckRow, error) {
 	scope, args := reviewDeckArgs(q)
+	if h := q.Hold; h != nil {
+		args = append(args, h.Rank)
+		hold := fmt.Sprintf(`f.group_rank = $%d`, len(args))
+		if len(h.Open) > 0 {
+			args = append(args, h.Open)
+			hold += fmt.Sprintf(` OR COALESCE(i.collection_id, '') = ANY($%d)`, len(args))
+		}
+		scope += ` AND (` + hold + `)`
+	}
 	prio, args := reviewDeckPriority(q, args)
 	// The inner query ranks each set of copies over the whole deck, so a set
 	// is dealt once, at its first card; the outer one pages that.

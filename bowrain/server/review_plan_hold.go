@@ -12,9 +12,10 @@ import (
 // involvement context or interfaces, while the context has open
 // decisions, the deck deals only the exceptions (its desk group) and the page
 // sample. The other translations are held, and the deck, its collections, the
-// plan and the inbox count them with a reason instead of dealing them. Under
-// involvement every nothing is held.
-//
+// plan and the inbox count them with a reason instead of dealing them. In a
+// collection under involvement every, by the project's setting or an
+// override at its point, nothing is held.
+
 // Exceptions stay reviewable: each names a rule a reviewer can decide
 // whatever terms are still open.
 
@@ -29,18 +30,20 @@ type deckHeld struct {
 }
 
 // translationsHeld reports whether the project's language decks hold their
-// translations back: the involvement is not every and the context has
-// open decisions, counted for the whole project as a settle pass counts them.
-// It reads the project's context deck and the workspace's concepts once.
-func (s *Server) translationsHeld(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project) (bool, error) {
-	if ws == nil || involvementOf(proj) == involvementEvery {
+// translations back: some point of the project is not under every and the
+// context has open decisions, counted for the whole project as a settle pass
+// counts them. It reads the project's context deck and the workspace's
+// concepts once. A hold reaches only the collections not under every
+// (projectInvolvement.heldIn).
+func (s *Server) translationsHeld(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, pi projectInvolvement) (bool, error) {
+	if ws == nil || pi.allEvery() {
 		return false, nil
 	}
 	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
 	if err != nil {
 		return false, err
 	}
-	policy, err := s.planPolicy(ctx, ws, proj, involvementOf(proj), counts.Untranslated)
+	policy, err := s.planPolicy(ctx, ws, proj, pi, counts.Untranslated)
 	if err != nil {
 		return false, err
 	}
