@@ -2,6 +2,7 @@ package termscope
 
 import (
 	"context"
+	"maps"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/graph"
@@ -18,8 +19,8 @@ const searchPage = 500
 // else. Writes go to the store unchanged, so a concept written through a view
 // keeps the limit it carries. An empty project id returns tb itself.
 //
-// A view reads which concepts it hides once, on its first lookup, and keeps
-// the answer. It is meant for one request or one job, not to be held.
+// A view records the eligible concept IDs on its first lookup or relation read.
+// Create a view for each request or job.
 func View(tb terms.Terminology, projectID string) terms.Terminology {
 	if tb == nil || projectID == "" {
 		return tb
@@ -43,28 +44,26 @@ type view struct {
 	terms.Terminology
 	project string
 
-	once   sync.Once
-	hidden map[string]bool
-	err    error
+	once    sync.Once
+	visible map[string]bool
+	err     error
 }
 
-// hiddenIDs are the ids of the store's concepts that do not apply in the
-// project.
-func (v *view) hiddenIDs(ctx context.Context) (map[string]bool, error) {
+func (v *view) visibleIDs(ctx context.Context) (map[string]bool, error) {
 	v.once.Do(func() {
 		concepts, err := v.Terminology.Concepts(ctx)
 		if err != nil {
 			v.err = err
 			return
 		}
-		v.hidden = map[string]bool{}
+		v.visible = map[string]bool{}
 		for _, cp := range concepts {
-			if !AppliesIn(cp, v.project) {
-				v.hidden[cp.ID] = true
+			if AppliesIn(cp, v.project) {
+				v.visible[cp.ID] = true
 			}
 		}
 	})
-	return v.hidden, v.err
+	return v.visible, v.err
 }
 
 func (v *view) GetConcept(ctx context.Context, id string) (terms.Concept, bool, error) {
@@ -96,20 +95,31 @@ func (v *view) LookupAll(ctx context.Context, sourceText string, opts terms.Look
 	return v.matches(ctx, v.Terminology.LookupAll, sourceText, opts)
 }
 
-// matches runs a lookup and drops the matches of hidden concepts. A match
-// carries its concept without properties, so the hidden ids decide.
 func (v *view) matches(ctx context.Context, lookup func(context.Context, string, terms.LookupOptions) ([]terms.TermMatch, error), sourceText string, opts terms.LookupOptions) ([]terms.TermMatch, error) {
-	found, err := lookup(ctx, sourceText, opts)
-	if err != nil || len(found) == 0 {
-		return found, err
+	if sourceText == "" {
+		return nil, nil
 	}
-	hidden, err := v.hiddenIDs(ctx)
+	visible, err := v.visibleIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if opts.ConceptIDs == nil {
+		opts.ConceptIDs = visible
+	} else {
+		ids := maps.Clone(opts.ConceptIDs)
+		maps.DeleteFunc(ids, func(id string, allowed bool) bool { return !allowed || !visible[id] })
+		opts.ConceptIDs = ids
+	}
+	if len(opts.ConceptIDs) == 0 {
+		return nil, nil
+	}
+	found, err := lookup(ctx, sourceText, opts)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]terms.TermMatch, 0, len(found))
 	for _, m := range found {
-		if !hidden[m.Concept.ID] {
+		if opts.ConceptIDs[m.Concept.ID] {
 			out = append(out, m)
 		}
 	}
@@ -146,7 +156,7 @@ func (v *view) search(page func(offset, limit int) ([]terms.Concept, int, error)
 		return []terms.Concept{}, total, nil
 	}
 	end := total
-	if limit > 0 && offset+limit < end {
+	if limit > 0 && limit < total-offset {
 		end = offset + limit
 	}
 	return kept[offset:end], total, nil
@@ -173,13 +183,13 @@ func (v *view) relations(ctx context.Context, rels []terms.ConceptRelation) ([]t
 	if len(rels) == 0 {
 		return rels, nil
 	}
-	hidden, err := v.hiddenIDs(ctx)
+	visible, err := v.visibleIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]terms.ConceptRelation, 0, len(rels))
 	for _, r := range rels {
-		if !hidden[r.SourceID] && !hidden[r.TargetID] {
+		if visible[r.SourceID] && visible[r.TargetID] {
 			out = append(out, r)
 		}
 	}

@@ -1,6 +1,7 @@
 package termscope_test
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -132,6 +133,68 @@ func TestStoreView(t *testing.T) {
 			n, err = same.Count(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, 4, n, "no project reads the whole store")
+		})
+	}
+}
+
+func TestProjectEligibilityPrecedesTermRanking(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			for _, c := range []struct{ id, term, project string }{
+				{"visible", "dashboard", "a"},
+				{"plural", "dashboards", "b"},
+				{"phrase", "dashboard settings", "b"},
+			} {
+				cp := terms.Concept{ID: c.id, Terms: []terms.Term{{Text: c.term, Locale: "en", Status: model.TermPreferred}}}
+				termscope.Limit(&cp, c.project)
+				require.NoError(t, tb.AddConcept(ctx, cp))
+			}
+			v := termscope.StoreView(tb, "a")
+			opts := terms.LookupOptions{SourceLocale: "en", MinScore: .8}
+			hits, err := v.Lookup(ctx, "dashboards", opts)
+			require.NoError(t, err)
+			require.Len(t, hits, 1)
+			assert.Equal(t, "visible", hits[0].Concept.ID)
+			assert.Equal(t, model.MatchStrategyFuzzy, hits[0].MatchType)
+			hits, err = v.LookupAll(ctx, "dashboard settings", opts)
+			require.NoError(t, err)
+			require.Len(t, hits, 1)
+			assert.Equal(t, "visible", hits[0].Concept.ID)
+			opts.ConceptIDs = map[string]bool{"phrase": true}
+			hits, err = v.LookupAll(ctx, "dashboard settings", opts)
+			require.NoError(t, err)
+			assert.Empty(t, hits)
+			assert.True(t, opts.ConceptIDs["phrase"])
+		})
+	}
+}
+
+func TestProjectLookupPreservesTermGovernance(t *testing.T) {
+	for _, backend := range backends {
+		t.Run(backend.name, func(t *testing.T) {
+			ctx := t.Context()
+			tb := backend.open(t)
+			for _, c := range []terms.Concept{
+				{ID: "eligible", Domain: "Santé", Source: terms.TermSourceBrandVocabulary, Terms: []terms.Term{{Text: "Acme", Locale: "en", Status: model.TermForbidden, CompetitorTerm: true}}},
+				{ID: "ordinary", Domain: "Santé", Terms: []terms.Term{{Text: "Acme", Locale: "en", Status: model.TermAdmitted}}},
+				{ID: "other-domain", Domain: "Other", Source: terms.TermSourceBrandVocabulary, Terms: []terms.Term{{Text: "Acme", Locale: "en", Status: model.TermPreferred}}},
+			} {
+				require.NoError(t, tb.AddConcept(ctx, c))
+			}
+			project := termscope.StoreView(tb, "a")
+			opts := terms.LookupOptions{
+				SourceLocale: "en", Domains: []string{"SANTÉ"},
+				SourceFilter: []terms.TermSource{terms.TermSourceBrandVocabulary},
+			}
+			for _, lookup := range []func(context.Context, string, terms.LookupOptions) ([]terms.TermMatch, error){project.Lookup, project.LookupAll} {
+				hits, err := lookup(ctx, "Acme", opts)
+				require.NoError(t, err)
+				require.Len(t, hits, 1)
+				assert.Equal(t, "eligible", hits[0].Concept.ID)
+				assert.True(t, hits[0].Term.CompetitorTerm)
+			}
 		})
 	}
 }
