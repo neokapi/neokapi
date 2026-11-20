@@ -62,6 +62,9 @@ type ContextScanRequest struct {
 	// TermProposals, set, makes the job propose target-language terms for
 	// the concepts of Project instead of scanning it (executeTermProposals).
 	TermProposals *TermProposalRequest `json:"term_proposals,omitempty"`
+	// TermForms, set, makes the job propose the surface forms of kept
+	// target terms of Project instead of scanning it (executeTermForms).
+	TermForms *TermFormsRequest `json:"term_forms,omitempty"`
 }
 
 // HasSource reports whether the request names at least one scan source.
@@ -130,6 +133,8 @@ type ContextScanResult struct {
 	Truncated bool                 `json:"truncated"`
 	// TermProposals is what a term-proposal job did, for a job that was one.
 	TermProposals *TermProposalSummary `json:"term_proposals,omitempty"`
+	// TermForms is what a term-forms job did, for a job that was one.
+	TermForms *TermFormsSummary `json:"term_forms,omitempty"`
 }
 
 // Voice returns the first proposed voice profile and its evidence — what a

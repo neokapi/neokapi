@@ -158,6 +158,9 @@ type TermsExpandOptions struct {
 	// Overwrite asks again about terms that already declare forms, and replaces
 	// what they declare.
 	Overwrite bool
+	// Concepts restricts expansion to the concepts with these ids. Empty
+	// selects every concept.
+	Concepts []string
 }
 
 // FormsProposal is what expansion proposes for one term.
@@ -200,7 +203,7 @@ func expansionAsks(concepts []terms.Concept, opts TermsExpandOptions) ([]model.L
 	var order []model.LocaleID
 	byLocale := map[model.LocaleID][]expansionAsk{}
 	for _, c := range concepts {
-		if c.DoNotTranslate {
+		if c.DoNotTranslate || (len(opts.Concepts) > 0 && !slices.Contains(opts.Concepts, c.ID)) {
 			continue
 		}
 		for _, t := range c.Terms {

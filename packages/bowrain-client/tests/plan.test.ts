@@ -177,6 +177,64 @@ describe("planFromServer", () => {
     expect(unknown.steps[0]?.scan).toBeUndefined();
   });
 
+  it("maps the target-term proposals and why they wait", () => {
+    const running = planFromServer({
+      ...server,
+      context: {
+        ...server.context,
+        proposable: 20,
+        proposals: {
+          id: "job-1",
+          status: "processing",
+          progress: 70,
+          created_at: "2026-11-20T00:00:00Z",
+          updated_at: "2026-11-20T00:01:00Z",
+        },
+      },
+      steps: [
+        { level: "context", state: "open", count: 32, progress: 40, proposals: "processing" },
+      ],
+    });
+    expect(running.context.proposable).toBe(20);
+    expect(running.context.proposals).toMatchObject({ id: "job-1", status: "processing" });
+    expect(running.context.proposalsWaiting).toBeUndefined();
+    expect(running.steps[0]?.proposals).toBe("processing");
+
+    const waiting = planFromServer({
+      ...server,
+      context: {
+        ...server.context,
+        proposable: 20,
+        proposals_waiting: "waiting_quota",
+        quota_resets_at: "2026-12-01T00:00:00Z",
+      },
+      steps: [
+        {
+          level: "context",
+          state: "open",
+          count: 32,
+          progress: 40,
+          proposals: "waiting_quota",
+          quota_resets_at: "2026-12-01T00:00:00Z",
+        },
+      ],
+    });
+    expect(waiting.context.proposalsWaiting).toBe("waiting_quota");
+    expect(waiting.steps[0]).toMatchObject({
+      proposals: "waiting_quota",
+      quotaResetsAt: "2026-12-01T00:00:00Z",
+    });
+
+    const bare = planFromServer({
+      ...server,
+      context: { ...server.context, proposals_waiting: "completed" },
+      steps: [{ level: "context", state: "open", proposals: "completed" }],
+    });
+    expect(bare.context.proposable).toBe(0);
+    expect(bare.context.proposalsWaiting).toBeUndefined();
+    expect(bare.steps[0]?.proposals).toBeUndefined();
+  });
+
   it("maps who the settle pass after a run is credited to and the last pass", () => {
     const plan = planFromServer({
       ...server,

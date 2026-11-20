@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { contextScanFact } from "../../../components/home/PlanCard";
+import { contextProposalsFact, contextScanFact } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
 import { reviewPlanKey } from "../../../lib/plan";
@@ -270,6 +270,22 @@ export default function ReviewPlanScreen() {
     }
   };
 
+  // The job proposing target terms: running, or what it waits for.
+  const proposalsNote = (s: PlanStep): ReactNode => {
+    const line = contextProposalsFact(
+      s.proposals,
+      t,
+      i18n.language,
+      s.quotaResetsAt ?? p.context.quotaResetsAt,
+    );
+    if (!line) return null;
+    return (
+      <View testID="plan-context-proposals" className="pl-10">
+        <Text className="text-muted-foreground text-sm">{line}</Text>
+      </View>
+    );
+  };
+
   // How the server settles after each run, and the last pass. Under every
   // nothing settles, so the step says nothing more.
   const policyNote = (): ReactNode => {
@@ -399,7 +415,13 @@ export default function ReviewPlanScreen() {
               next={p.next === level}
               title={t(`planCard.steps.${level}`)}
               fact={fact(s)}
-              note={level === "policy" ? policyNote() : undefined}
+              note={
+                level === "policy"
+                  ? policyNote()
+                  : level === "context"
+                    ? proposalsNote(s)
+                    : undefined
+              }
             >
               {action(level)}
             </Row>

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
@@ -73,11 +74,18 @@ func TestContextScanWorker_ProjectCandidates(t *testing.T) {
 		}
 	}
 
+	bus := &recordingBus{}
+	f.deps.EventBus = bus
 	job := f.seedJob(t, wsID, ContextScanRequest{Project: projectID, ProfileName: "Scan Voice"})
 	require.NoError(t, processContextScanJob(ctx, f.deps, job.ID))
 	got, err := f.deps.Store.GetContextScanJob(ctx, job.ID)
 	require.NoError(t, err)
 	require.Equal(t, ContextScanStatusCompleted, got.Status, "error: %s", got.Error)
+	events := bus.published()
+	require.Len(t, events, 1, "the completed project scan is announced")
+	assert.Equal(t, platev.EventContextScanCompleted, events[0].Type)
+	assert.Equal(t, projectID, events[0].ProjectID)
+	assert.Equal(t, job.ID, events[0].Data["job_id"])
 
 	var result ContextScanResult
 	require.NoError(t, json.Unmarshal(got.Result, &result))

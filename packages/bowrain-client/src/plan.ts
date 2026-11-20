@@ -183,6 +183,27 @@ export function planScanWaitingOf(v: string | undefined): PlanScanWaiting | unde
     : undefined;
 }
 
+/**
+ * The state of the job proposing target terms, as the context step shows it:
+ * queued or processing while it runs, or, while concepts wait for a proposed
+ * term and no job runs, why none starts: waiting_quota (the monthly AI limit,
+ * which resets at `quotaResetsAt`), waiting_credits or no_ai.
+ */
+export type PlanProposals = "queued" | "processing" | "waiting_quota" | "waiting_credits" | "no_ai";
+
+const PLAN_PROPOSALS: readonly PlanProposals[] = [
+  "queued",
+  "processing",
+  "waiting_quota",
+  "waiting_credits",
+  "no_ai",
+];
+
+/** A proposals state the server sent, or undefined for one this client does not know. */
+export function planProposalsOf(v: string | undefined): PlanProposals | undefined {
+  return (PLAN_PROPOSALS as readonly string[]).includes(v ?? "") ? (v as PlanProposals) : undefined;
+}
+
 export interface ReviewPlan {
   stream: string;
   involvement: ReviewInvolvement;
@@ -203,6 +224,12 @@ export interface ReviewPlan {
     scanWaiting?: PlanScanWaiting;
     /** When the workspace's monthly AI limit resets, set with waiting_quota. */
     quotaResetsAt?: string;
+    /** Concept and language pairs waiting for a proposed target term. */
+    proposable: number;
+    /** The last job the server started to propose target terms, if any. */
+    proposals?: PlanScan;
+    /** Why no proposal job runs while pairs wait. */
+    proposalsWaiting?: Extract<PlanProposals, "waiting_quota" | "waiting_credits" | "no_ai">;
   };
   exceptions: {
     /** Findings in the source at the last project-wide check; null before one. */
@@ -291,6 +318,9 @@ export interface ServerReviewPlan {
     scan?: ServerPlanScan | null;
     scan_waiting?: string;
     quota_resets_at?: string;
+    proposable?: number;
+    proposals?: ServerPlanScan | null;
+    proposals_waiting?: string;
   };
   exceptions: {
     source_findings?: number | null;
@@ -446,6 +476,10 @@ function autoSettleFromServer(a: {
   };
 }
 
+function proposalsWaitingOf(v: string | undefined): ReviewPlan["context"]["proposalsWaiting"] {
+  return v === "waiting_quota" || v === "waiting_credits" || v === "no_ai" ? v : undefined;
+}
+
 export function planFromServer(p: ServerReviewPlan): ReviewPlan {
   return {
     stream: p.stream,
@@ -460,6 +494,9 @@ export function planFromServer(p: ServerReviewPlan): ReviewPlan {
       scan: p.context.scan ? planScanFromServer(p.context.scan) : undefined,
       scanWaiting: planScanWaitingOf(p.context.scan_waiting),
       quotaResetsAt: p.context.quota_resets_at || undefined,
+      proposable: p.context.proposable ?? 0,
+      proposals: p.context.proposals ? planScanFromServer(p.context.proposals) : undefined,
+      proposalsWaiting: proposalsWaitingOf(p.context.proposals_waiting),
     },
     exceptions: {
       sourceFindings: p.exceptions.source_findings ?? null,

@@ -637,6 +637,9 @@ func runWorker(dbURL string) error {
 		// candidate terms in the workspace terms store the server reads.
 		ContentStore:  cs,
 		TermsResolver: translationDeps.TermsResolver,
+		// A completed project scan is announced, so the server proposes
+		// target terms for it. Nil without Redis, as it is for translation.
+		EventBus: translationDeps.EventBus,
 		LogFunc: func(stepID, level, message string, data map[string]string) {
 			slog.Info("brand-scan: "+message, "job_id", stepID, "level", level)
 		},

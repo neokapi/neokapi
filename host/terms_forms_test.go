@@ -132,6 +132,21 @@ func TestProposeTermForms_LocaleSelectionAndOverwrite(t *testing.T) {
 	assert.Equal(t, 4, ExpandableTerms(expansionConcepts(), TermsExpandOptions{SourceLocale: "en"}))
 }
 
+// TestProposeTermForms_NarrowsToConcepts: naming concepts asks about their
+// terms alone, while the other concepts' spellings still filter the forms.
+func TestProposeTermForms_NarrowsToConcepts(t *testing.T) {
+	mock, asked := formsModel(t, map[string]map[string][]string{
+		"nb": {"varsel": {"varsler", "varsling"}},
+	})
+	opts := TermsExpandOptions{SourceLocale: "en", Concepts: []string{"alert"}}
+	assert.Equal(t, 1, ExpandableTerms(expansionConcepts(), opts))
+	proposals, err := ProposeTermForms(context.Background(), mock, expansionConcepts(), opts)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"nb:varsel"}, *asked)
+	require.Len(t, proposals, 1)
+	assert.Equal(t, []string{"varsler"}, proposals[0].Forms, "the spelling of another concept's term is still dropped")
+}
+
 func TestProposeTermForms_BatchesALargeLanguage(t *testing.T) {
 	var concepts []terms.Concept
 	answers := map[string][]string{}

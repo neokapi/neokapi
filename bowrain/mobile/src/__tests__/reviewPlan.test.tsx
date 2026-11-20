@@ -33,6 +33,8 @@ type Over = {
   scan?: string;
   /** The context step's scan state, the job's status or a waiting reason. */
   stepScan?: string;
+  /** The context step's proposals state: running, or why the job waits. */
+  proposals?: string;
   quotaResetsAt?: string;
   keyState?: string;
   waiting?: number;
@@ -121,6 +123,7 @@ const plan = (over: Over = {}) =>
         state: over.keyState ?? "open",
         count: 29,
         scan: over.stepScan ?? over.scan,
+        proposals: over.proposals,
         quota_resets_at: over.quotaResetsAt,
       },
       { level: "exceptions", state: "open", count: 2 },
@@ -288,6 +291,31 @@ describe("review plan", () => {
     expect(
       await screen.findByText("Waits for the AI limit to reset on December 1, 2026"),
     ).toBeTruthy();
+  });
+
+  it("says the server proposes target terms, or why the proposals wait", async () => {
+    mockPlan.mockResolvedValue(plan({ proposals: "processing" }));
+    await render(wrap(<ReviewPlanScreen />));
+    expect(await screen.findByText("Proposing terms in your target languages")).toBeTruthy();
+
+    mockPlan.mockResolvedValue(
+      plan({ proposals: "waiting_quota", quotaResetsAt: "2026-12-01T00:00:00Z" }),
+    );
+    await render(wrap(<ReviewPlanScreen />));
+    expect(
+      await screen.findByText("Term proposals wait for the AI limit to reset on December 1, 2026"),
+    ).toBeTruthy();
+
+    mockPlan.mockResolvedValue(plan({ proposals: "waiting_credits" }));
+    await render(wrap(<ReviewPlanScreen />));
+    expect(
+      await screen.findByText("Term proposals wait for AI credits: this workspace has none left"),
+    ).toBeTruthy();
+
+    mockPlan.mockResolvedValue(plan());
+    await render(wrap(<ReviewPlanScreen />));
+    await screen.findByTestId("plan-list");
+    expect(screen.queryByTestId("plan-context-proposals")).toBeNull();
   });
 
   it("lists the exceptions by rule and opens the deck narrowed to one", async () => {

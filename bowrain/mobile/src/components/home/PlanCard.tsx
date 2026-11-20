@@ -53,6 +53,34 @@ export function contextScanFact(
   }
 }
 
+/**
+ * What the job proposing target terms is doing, or what it waits for, or
+ * null when no job runs and nothing holds one back. The server starts the job
+ * when a term scan completes, a target language is added or a push lands.
+ */
+export function contextProposalsFact(
+  proposals: PlanStep["proposals"],
+  t: TFunction,
+  language: string,
+  quotaResetsAt?: string,
+): string | null {
+  switch (proposals) {
+    case "queued":
+    case "processing":
+      return t("plan.context.proposing");
+    case "waiting_quota":
+      return quotaResetsAt
+        ? t("plan.context.proposalsWaitForQuota", { date: resetDate(quotaResetsAt, language) })
+        : t("plan.context.proposalsWaitForQuotaSoon");
+    case "waiting_credits":
+      return t("plan.context.proposalsWaitForCredits");
+    case "no_ai":
+      return t("plan.context.proposalsWaitForProvider");
+    default:
+      return null;
+  }
+}
+
 /** The AI limit's reset day in the reader's language. The limit resets at midnight UTC. */
 function resetDate(iso: string, language: string): string {
   const when = new Date(iso);

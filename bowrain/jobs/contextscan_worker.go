@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	"github.com/neokapi/neokapi/bowrain/contextscan"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/observe"
@@ -69,6 +70,10 @@ type ContextScanWorkerDeps struct {
 	// MaxJobAttempts bounds transient-failure retries before a job is failed.
 	// Zero uses defaultMaxJobAttempts.
 	MaxJobAttempts int
+	// EventBus announces a completed term scan of a project
+	// (EventContextScanCompleted), so the server can propose target terms for
+	// what the scan left. Optional; nil announces nothing.
+	EventBus platev.EventBus
 
 	// formatRegistry backs the git connector's file parsing; built lazily.
 	formatRegistryOnce sync.Once
@@ -267,6 +272,9 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	}
 	if req.TermProposals != nil {
 		return executeTermProposals(ctx, deps, job, epoch, &req)
+	}
+	if req.TermForms != nil {
+		return executeTermForms(ctx, deps, job, epoch, &req)
 	}
 
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressReading, "reading-sources")
@@ -502,6 +510,14 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	}
 
 	setContextScanLogDone(deps, job.ID, len(terms), totalTokens)
+	if proj != nil && deps.EventBus != nil {
+		deps.EventBus.Publish(platev.Event{
+			Type:      platev.EventContextScanCompleted,
+			Source:    "context-scan-worker",
+			ProjectID: proj.project.ID,
+			Data:      map[string]string{"job_id": job.ID, "workspace_slug": job.WorkspaceSlug},
+		})
+	}
 	return nil
 }
 
