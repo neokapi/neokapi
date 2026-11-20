@@ -166,6 +166,11 @@ const (
 	// Extraction events
 	EventExtractionCompleted EventType = "extraction.completed"
 
+	// EventContextScanCompleted fires when a term scan of a project
+	// completes. ProjectID is the scanned project; Data carries job_id and
+	// workspace_slug.
+	EventContextScanCompleted EventType = "context.scan.completed"
+
 	// Quality events
 	EventQualityGatePass EventType = "quality.gate.pass"
 	EventQualityGateFail EventType = "quality.gate.fail"

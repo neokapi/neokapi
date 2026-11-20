@@ -138,8 +138,9 @@ var errProposalGone = errors.New("the proposed term changed or is gone")
 // is the review: it writes the terms store directly, with no change set. When
 // the concept was reviewed before the keep, the keep attests the concept as
 // it then reads, in the reviewer's name, so it does not come back for review
-// as changed. Reject clears the proposal and records its text as turned
-// down, so it is not proposed again.
+// as changed. The keep also starts a job that writes the kept term's forms
+// (expandFormsAfterKeep). Reject clears the proposal and records its text as
+// turned down, so it is not proposed again.
 func (s *Server) decideTermTranslation(c echo.Context, src deckSource, rv deckReviewer, pending []contextDeckCard, card contextDeckCard, req contextDeckDecideRequest) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
@@ -187,6 +188,7 @@ func (s *Server) decideTermTranslation(c echo.Context, src deckSource, rv deckRe
 			return serverErr(c, err)
 		}
 	}
+	s.expandFormsAfterKeep(c, src, concept, loc)
 	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckOutcomeKept})
 }
 

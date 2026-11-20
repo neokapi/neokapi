@@ -138,6 +138,7 @@ func pinnedEventTypes() []struct {
 		{event.EventFlowCompleted, "flow.completed"},
 		{event.EventFlowFailed, "flow.failed"},
 		{event.EventExtractionCompleted, "extraction.completed"},
+		{event.EventContextScanCompleted, "context.scan.completed"},
 		{event.EventQualityGatePass, "quality.gate.pass"},
 		{event.EventQualityGateFail, "quality.gate.fail"},
 		{event.EventStreamCreated, "stream.created"},

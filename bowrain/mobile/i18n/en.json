@@ -1055,6 +1055,11 @@
       "waitsForQuotaSoon": "Waits for the AI limit to reset",
       "waitsForCredits": "Waits for AI credits: this workspace has none left",
       "waitsForProvider": "Waits for an AI provider: this server has none set up",
+      "proposing": "Proposing terms in your target languages",
+      "proposalsWaitForQuota": "Term proposals wait for the AI limit to reset on {{date}}",
+      "proposalsWaitForQuotaSoon": "Term proposals wait for the AI limit to reset",
+      "proposalsWaitForCredits": "Term proposals wait for AI credits: this workspace has none left",
+      "proposalsWaitForProvider": "Term proposals wait for an AI provider: this server has none set up",
       "open_count_one": "{{count, number}} context card",
       "open_count_other": "{{count, number}} context cards"
     },

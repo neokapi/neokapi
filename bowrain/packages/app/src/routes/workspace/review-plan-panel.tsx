@@ -54,6 +54,39 @@ function ScanWaiting({
   }
 }
 
+/**
+ * What the job proposing target terms is doing, or why it waits, in a
+ * sentence, or nothing while no job runs and nothing holds one back. The
+ * server starts the job when a term scan completes, a target language is
+ * added or a push lands.
+ */
+function ProposalsState({
+  context,
+}: {
+  context: Pick<ReviewPlan["context"], "proposals" | "proposalsWaiting" | "quotaResetsAt">;
+}) {
+  const status = context.proposals?.status;
+  if (status === "queued" || status === "processing") {
+    return <p>Proposing terms in your target languages.</p>;
+  }
+  switch (context.proposalsWaiting) {
+    case "waiting_quota": {
+      if (!context.quotaResetsAt) return <p>Term proposals wait for the AI limit to reset.</p>;
+      const date = new Date(context.quotaResetsAt).toLocaleDateString(undefined, {
+        dateStyle: "long",
+        timeZone: "UTC",
+      });
+      return <p>Term proposals wait for the AI limit to reset on {date}.</p>;
+    }
+    case "waiting_credits":
+      return <p>Term proposals wait for AI credits: this workspace has none left.</p>;
+    case "no_ai":
+      return <p>Term proposals wait for an AI provider: this server has none set up.</p>;
+    default:
+      return null;
+  }
+}
+
 export interface ReviewPlanPanelProps {
   ws: string;
   projectId: string;
@@ -346,6 +379,7 @@ export function ReviewPlanSteps({
             waiting={plan.context.scanWaiting}
             quotaResetsAt={plan.context.quotaResetsAt}
           />
+          <ProposalsState context={plan.context} />
           <div className="flex flex-wrap items-center gap-3">
             <Link
               to="/$workspace/p/$projectId/s/$stream/rules"

@@ -336,6 +336,40 @@ next month in UTC, `waiting_credits` or `no_ai`. `POST
 /:ws/:id/review/plan/scan` scans again on request and records the same
 coverage; the web Overview offers it as **Scan again**.
 
+### Target terms are proposed on their own
+
+The server subscribes to `context.scan.completed` (published by the worker
+when a term scan of a project completes), `recipe.changed` with a target
+language added by a member, and `connector.push.completed` on the default
+stream (consumer group `term-proposals-auto`,
+`bowrain/server/review_plan_autopropose.go`). The triggers for one project
+are coalesced: the job starts once they have been quiet for 30 seconds. It
+starts the whole-project proposal job when a concept of the project with a
+source term has no proposal and no usable term in a target language
+(`termcandidate.NeedsTranslation`).
+
+- The job is the platform's, on behalf of the project. It records no person;
+  its proposals carry the identity `tool/term-proposal`, and the reviewer who
+  keeps one is the person the keep is credited to.
+- It is recorded in the project property `review_term_proposal_job`. A job
+  never starts while the last one is queued or processing.
+- It never starts with no platform AI provider, with the workspace over its
+  monthly AI limit, or with no AI credits left. The plan counts the waiting
+  pairs in `context.proposable`, carries the job in `context.proposals`, and
+  says why none starts in `context.proposals_waiting` (`waiting_quota` with
+  `quota_resets_at`, `waiting_credits`, `no_ai`). The context step carries the
+  same as `steps[].proposals`: `queued` or `processing` while the job runs,
+  or the reason it waits.
+
+Keeping a proposed target term starts a term-forms job
+(`jobs.TermFormsRequest`) for that concept and language, under the same
+guard. The worker asks the platform AI for the forms through
+`terms/expand`, the code behind `kapi terms expand`, bills the
+tokens like a scan phase, and writes the forms onto the term as read when
+the answer arrives. A term that declares forms already is not asked about.
+The concept's revision time stays as the keep left it, so the context deck
+does not deal the concept again.
+
 ### The settle pass runs after a run
 
 The server subscribes to `convergence.run.completed` (consumer group
@@ -431,8 +465,10 @@ The founder accepted each recommendation on 2026-11-19:
    (`term_proposal_rejected.<locale>`), and the deck deals it right after
    the source-term card, in the reviewer's languages.
    `POST /:ws/:id/context/term-proposals` runs the same job for the whole
-   project. Still to build: the plan's context step calling it, and
-   term forms through `kapi terms expand` for a kept translation.
+   project, and the server runs it on its own (see "Target terms are
+   proposed on their own"). Keeping a proposal, as filed or in the
+   reviewer's wording, starts a job that writes the kept term's forms through
+   the code behind `kapi terms expand` (`terms/expand`).
 4. Context deck ordered by reach. Built for candidate terms; the rest of the
    deck keeps its order by kind. Sessions over the deck: built (see
    [Context sessions](#context-sessions)).

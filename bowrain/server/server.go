@@ -341,6 +341,10 @@ type Server struct {
 	// settling holds the projects a settle pass runs for on this instance.
 	settling sync.Map // map[string]struct{}
 
+	// proposeLater coalesces the triggers that start a project's term
+	// proposals into one job per quiet period.
+	proposeLater projectDebouncer
+
 	// pulseCache caches Pulse public dashboard responses with TTL-based expiry.
 	pulseCache *pulseCache
 
@@ -912,6 +916,9 @@ func NewServer(cfg Config) *Server {
 	// A run that drafted translations is followed by the review plan's
 	// settle pass, when the policy in force leaves them to the checks.
 	s.subscribeSettleAfterRun()
+	// A completed term scan or a new target language can leave concepts with
+	// no term in a target language, so the server proposes them.
+	s.subscribeTermProposals()
 
 	// Initialize MCP server for voice + agent tools when stores are available.
 	if s.VoiceStore != nil {

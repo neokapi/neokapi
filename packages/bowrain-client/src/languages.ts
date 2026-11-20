@@ -5,8 +5,10 @@
 // and counts every step; this file maps its answers.
 
 import {
+  planProposalsOf,
   planScanWaitingOf,
   type PlanLevel,
+  type PlanProposals,
   type PlanScan,
   type PlanScanWaiting,
   type PlanSettle,
@@ -83,6 +85,11 @@ export interface PlanStep {
    * waits while the level has not started.
    */
   scan?: PlanScan["status"] | PlanScanWaiting;
+  /**
+   * The context's job proposing target terms: queued or processing while it
+   * runs, or why it waits while concepts wait for a proposed term.
+   */
+  proposals?: PlanProposals;
   /** When the workspace's monthly AI limit resets, set with waiting_quota. */
   quotaResetsAt?: string;
 }
@@ -134,6 +141,7 @@ export interface ServerPlanStep {
   changed?: number;
   settle?: string;
   scan?: string;
+  proposals?: string;
   quota_resets_at?: string;
 }
 
@@ -204,6 +212,7 @@ export function planStepsFromServer(steps: ServerPlanStep[] | null | undefined):
       scan: (SCAN_STATUS as readonly string[]).includes(s.scan ?? "")
         ? (s.scan as PlanScan["status"])
         : planScanWaitingOf(s.scan),
+      proposals: planProposalsOf(s.proposals),
       quotaResetsAt: s.quota_resets_at || undefined,
     });
   }

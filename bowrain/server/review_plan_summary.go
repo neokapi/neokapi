@@ -67,8 +67,13 @@ type planStepDTO struct {
 	// started and no scan runs, why the scan waits: waiting_content,
 	// waiting_push, waiting_quota, waiting_credits or no_ai.
 	Scan string `json:"scan,omitempty"`
+	// Proposals is the context level's job proposing target terms: queued
+	// or processing while it runs, or, while concepts wait for a proposed
+	// term and no job runs, why none starts: waiting_quota, waiting_credits
+	// or no_ai.
+	Proposals string `json:"proposals,omitempty"`
 	// QuotaResetsAt is when the workspace's monthly AI limit resets, set
-	// with the scan state waiting_quota.
+	// with the scan or proposals state waiting_quota.
 	QuotaResetsAt string `json:"quota_resets_at,omitempty"`
 }
 
@@ -144,6 +149,12 @@ func planSteps(p reviewPlanResponse) []planStepDTO {
 	}
 	if p.Context.ScanWaiting != "" {
 		contextStep.Scan, contextStep.QuotaResetsAt = p.Context.ScanWaiting, p.Context.QuotaResetsAt
+	}
+	switch {
+	case p.Context.Proposals != nil && scanRunning(p.Context.Proposals.Status):
+		contextStep.Proposals = p.Context.Proposals.Status
+	case p.Context.ProposalsWaiting != "":
+		contextStep.Proposals, contextStep.QuotaResetsAt = p.Context.ProposalsWaiting, p.Context.QuotaResetsAt
 	}
 	switch {
 	case contextNotStarted(p.Context):

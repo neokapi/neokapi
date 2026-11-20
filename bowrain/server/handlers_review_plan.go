@@ -199,6 +199,16 @@ type planContextDTO struct {
 	// QuotaResetsAt is when the workspace's monthly AI limit resets, set
 	// with waiting_quota.
 	QuotaResetsAt string `json:"quota_resets_at,omitempty"`
+	// Proposable counts the concept and language pairs waiting for a
+	// proposed term: a concept of the project with a source term, and no
+	// proposal or usable term in a target language.
+	Proposable int `json:"proposable"`
+	// Proposals is the last job the server started to propose the project's
+	// target terms, if any.
+	Proposals *planScanDTO `json:"proposals,omitempty"`
+	// ProposalsWaiting is why no proposal job runs while pairs wait:
+	// waiting_quota, waiting_credits or no_ai.
+	ProposalsWaiting string `json:"proposals_waiting,omitempty"`
 }
 
 // planScanDTO is a project scan's state.
@@ -351,6 +361,7 @@ func (s *Server) computeReviewPlan(ctx context.Context, ws *platauth.Workspace, 
 	}
 	out.Context.Scan = s.planScan(ctx, proj, ws.ID)
 	s.planScanWaiting(ctx, ws.ID, ws.Slug, proj, &out.Context)
+	s.planProposals(ctx, ws.ID, ws.Slug, proj, &out.Context)
 	if out.Policy, err = s.planPolicy(ctx, ws, proj, out.Involvement, out.Context.Untranslated); err != nil {
 		return out, err
 	}
@@ -572,6 +583,7 @@ func (s *Server) planContextCounts(ctx context.Context, ws *platauth.Workspace, 
 			}
 		}
 	}
+	out.Proposable = termProposalsWaiting(concepts, proj)
 	return out, nil
 }
 
