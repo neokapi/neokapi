@@ -5,7 +5,7 @@
       "cadence_days": 14,
       "last_run": "2026-11-20",
       "watermarks": {
-        "core_formats_sha": "95c3401b40938282053ec285dd2fd0691e9ea440",
+        "core_formats_sha": "76b3d288070a120602a73c639431bdf9b8e98290",
         "scorer_version": 5,
         "audit_sha": "ae90d09ec8d8ff5624539b4dd37cd100abe677edfaf8c625470d3d27f5be7be8",
         "model_id": "",
@@ -20,7 +20,7 @@
           "structure",
           "prose"
         ],
-        "format_tree_sha256": "852431b9feafe28b7038c48855165ca9bbca0823c47b082918eb6d03e5e8db69"
+        "format_tree_sha256": "3e32181a2de9d96fbb5bad86c81c05b993058363e73ac1d400eb203c83d99f39"
       }
     },
     "remediate": {
