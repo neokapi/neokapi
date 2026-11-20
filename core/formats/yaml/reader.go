@@ -732,12 +732,12 @@ func scanBlockScalarEnd(content []byte, start int, value string) int {
 			i++
 		}
 		if content[i] == '\n' {
-			// Empty line (or line with only spaces) — part of block scalar
+			// Blank lines belong to the block scalar.
 			i++
 			continue
 		}
 		if spaces < contentIndent {
-			// This line is less indented — not part of the block scalar.
+			// A less-indented line closes the block scalar.
 			return lineStart
 		}
 		// Skip to end of line
