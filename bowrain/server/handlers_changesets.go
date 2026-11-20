@@ -680,20 +680,16 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 	if cs == nil {
 		return resp
 	}
-	if cs.Status == knowledge.ChangeSetMerged || cs.Status == knowledge.ChangeSetAbandoned {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: fmt.Sprintf("change-set is already %s", cs.Status)})
-	}
-
 	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	_, pilotEvents, err := engine.StopAllPilots(ctx, wsID, s.KnowledgeStore, *cs)
+	pilotEvents, err := engine.AbandonChangeSet(ctx, wsID, s.KnowledgeStore, *cs)
+	if errors.Is(err, knowledge.ErrPilotChangeSetClosed) {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	}
 	if err != nil {
 		return serverErr(c, err)
-	}
-	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetAbandoned); err != nil {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 
 	pilotEvents = append(pilotEvents, changesetEvent(knowledge.EventChangeSetAbandoned, wsID, cs.ID, actor))
@@ -838,6 +834,9 @@ func (s *Server) HandleStartPilot(c echo.Context) error {
 	pilot, err := engine.StartPilot(ctx, wsID, s.KnowledgeStore, *cs, req.ProjectID, req.Stream)
 	if errors.Is(err, knowledge.ErrInvalidPilotProject) {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project_id must identify one project without surrounding whitespace or commas"})
+	}
+	if errors.Is(err, knowledge.ErrPilotChangeSetClosed) {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 	if err != nil {
 		return serverErr(c, err)
