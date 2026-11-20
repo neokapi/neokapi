@@ -8,7 +8,7 @@ import neokapiI18nConfig from "../../packages/app/neokapi-i18n.config.json" with
 
 export default defineConfig({
   // neokapi() is bounded to vite's own PluginOption to stop a type-instantiation
-  // overflow against vite-plus's UserConfig — see apps/kapi-desktop/frontend/
+  // overflow against vite-plus's UserConfig; see apps/kapi-desktop/frontend/
   // vite.config.ts for the full rationale. The componentMap is the SAME file the
   // extract CLI reads (bowrain/packages/app/neokapi-i18n.config.json) so the
   // build-time transform and the extracted catalogs hash identically.

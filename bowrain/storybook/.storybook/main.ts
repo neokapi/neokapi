@@ -4,7 +4,7 @@ import { generateQpsCatalog } from "../../../scripts/vite-qps-catalog.mjs";
 const config = createMainConfig(
   {
     stories: [
-      // Kapi foundations — exclude stories that bowrain/packages/ui also
+      // Kapi foundations, excluding stories that bowrain/packages/ui also
       // provides, to avoid duplicate story IDs: the editor/ group (TagPalette,
       // InlineCodeLegend, InlinePreview, TagValidationBar) and ui/ErrorNotice
       // (bowrain has its own under packages/ui/src/errors).

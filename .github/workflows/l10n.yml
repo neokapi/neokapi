@@ -1,18 +1,15 @@
 name: l10n
 
-# The one place CI regenerates the build-derived multilingual artifacts, with
-# `make l10n-build`. It asserts that every committed BUILD-DERIVED artifact is
-# what the current source produces: the two generated inventories, the English
-# email renders and the committed qps probe tier. The app surfaces' qps
-# dictionaries are build output (`make app-qps`) and are outside it. It never
-# touches the target-language tier, which `kapi up` writes from the project
-# store; that tier's standing is reported below and gates nothing.
+# The one place CI regenerates the build-derived multilingual artifacts
+# (`make l10n-build`). It asserts that every committed BUILD-DERIVED artifact
+# matches the current source. The app qps dictionaries are build output
+# (`make app-qps`). The target-language tier, written by `kapi up`, is reported
+# below and gates nothing.
 #
-# On a same-repo pull request, drift is committed back as a bot commit. GitHub
-# runs no checks on that commit, so the pull request needs a close and reopen,
-# or another push, before it can merge. `make pre-push` runs `make l10n-verify`
-# to catch the drift first. Fork PRs and pushes to main fail on drift. See
-# scripts/l10n-autofix.sh and docs/internals/l10n-ci.md.
+# On a same-repo pull request, drift is committed back as a bot commit, which
+# GitHub runs no checks on: the pull request then needs a close and reopen, or
+# another push. `make pre-push` runs `make l10n-verify` to catch drift first.
+# See scripts/l10n-autofix.sh and docs/internals/l10n-ci.md.
 
 on:
   push:

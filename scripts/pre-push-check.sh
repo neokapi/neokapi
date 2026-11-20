@@ -1,5 +1,5 @@
 #!/bin/bash
-# pre-push-check.sh — Run only the checks relevant to your changes.
+# pre-push-check.sh: run only the checks relevant to your changes.
 #
 # Mirrors the CI change-detection logic from .github/workflows/ci.yml
 # so you catch issues before pushing.
@@ -76,7 +76,7 @@ if matches '^bowrain/e2e/' '^bowrain/apps/web/e2e/'; then
 fi
 
 # Ungated too: retired framing lands wherever prose is edited, and it degrades
-# quietly — a stale phrase reads as intentional to the next reader.
+# quietly: a stale phrase reads as intentional to the next reader.
 run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh
 
 # Ungated: the interchange chrome came back once as one adapter method and one
@@ -146,7 +146,7 @@ run_check "Extractor warning ratchet" node scripts/check-extract-warnings.mjs --
 
 # Ungated for the same reason, plus one specific to this repo: the bowrain
 # checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
-# main bowrain module has no local format gate at all — which is how nine files
+# main bowrain module has no local format gate at all, which is how nine files
 # there drifted. ~1s for the whole tree.
 run_check "Go formatting (gofmt -l -s)" ./scripts/check-gofmt.sh
 
@@ -184,7 +184,7 @@ if matches '^apps/kapi-desktop/'; then
 fi
 
 # The docs playground compiles the CLI to js/wasm. CI builds it, but only in the
-# docs workflows — so a dependency that cannot target js/wasm (a TTY, signals,
+# docs workflows, so a dependency that cannot target js/wasm (a TTY, signals,
 # cgo, the clipboard) passed every local check and failed CI minutes later.
 # Compile only, ~1s warm.
 if matches '^core/' '^host/' '^cli/' '^kapi/' '^go\.work' '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then
@@ -230,13 +230,11 @@ fi
 
 # ── Build-derived multilingual artifacts ──────────────────────────────────
 
-# On a same-repo pull request the l10n workflow commits drift in this tier back
-# as a bot commit. GitHub runs no checks on that commit, so branch protection
-# holds the pull request until someone closes and reopens it. Regenerating here
-# finds the drift before the push. The patterns are the sources the committed
-# tier derives from: the Go registries and command tree, the Go catalogs, the
-# reference dossiers, the emails, the landing page and the extractor itself.
-# The app surfaces are not among them, because their qps dictionaries are build
+# On a same-repo pull request the l10n workflow commits drift in this tier
+# back as a bot commit, which GitHub runs no checks on, so the pull request
+# stalls until someone closes and reopens it. Regenerating here finds the drift
+# before the push. The patterns are the sources the committed tier derives
+# from. App sources are not among them: their qps dictionaries are build
 # output. About a minute and a half warm; it rebuilds bin/kapi.
 if matches '^(core|providers|memory|terms|cli|host)/.*\.go$' '^host/i18n/' '^core/i18n/catalogs/' \
     '^scripts/gen-refs/' '^packages/reference-data/data/' '^bowrain/emails/src/' \

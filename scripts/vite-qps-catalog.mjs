@@ -1,18 +1,12 @@
 // @ts-check
 // Regenerates an app's qps (pseudo-locale) dictionary,
-// public/translations/qps.json, when the app is built or its dev server starts.
+// public/translations/qps.json, when the app builds or its dev server starts,
+// by running the surface's `make <surface>-qps` target from the repository
+// root. See "App pseudo-locale dictionaries" in docs/internals/l10n-ci.md.
 //
-// The dictionary is build output and git carries none of it. This runs the
-// surface's `make <surface>-qps` target from the repository root, which
-// extracts the app's source catalogs, pseudo-translates them with kapi and
-// compiles the result. See "App pseudo-locale dictionaries" in
-// docs/internals/l10n-ci.md.
-//
-// It runs once per process and never fails the build. It reports and skips
-// when no `make` or kapi can be found, and when the run fails. The app then
-// loads no qps dictionary, and its qps locale renders the English source.
-// It is skipped outright under Vitest, under CI (every workflow that ships an
-// app runs the make target itself, so a failure there fails the job), and when
+// It runs once per process and never fails the build: with no `make`, no kapi
+// or a failed run it warns, and the qps locale renders English. It is skipped
+// under Vitest, under CI (workflows run the target themselves) and when
 // NEOKAPI_SKIP_QPS is set.
 
 import { execFileSync } from "node:child_process";

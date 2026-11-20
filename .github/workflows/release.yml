@@ -65,24 +65,16 @@ jobs:
             echo "prerelease=$pre"
           } >> "$GITHUB_OUTPUT"
 
-  # Build the kapi CLI binary natively per OS/arch with cgo + statically-linked
-  # ICU + the fts5 tag, so it matches the framework the desktop apps use (native
-  # mattn SQLite + ICU FTS5 tokenizer + UAX-29). cgo rules out single-runner
-  # cross-compilation, so each target builds on its own native runner and
-  # uploads the binary as an artifact; the package-cli job below
-  # archives/checksums/signs it and publishes the brew formula.
+  # Build the kapi CLI natively per OS/arch with cgo, statically linked ICU
+  # and the fts5 tag, matching the framework the desktop apps use. cgo rules
+  # out cross-compiling, so each target builds on its own runner and uploads
+  # an artifact; package-cli archives, signs and publishes it. The kapi-bowrain
+  # plugin is released by release-bowrain.yml (tag bowrain-v*).
   #
-  # The kapi-bowrain plugin is built and released separately by
-  # release-bowrain.yml (tag bowrain-v*).
-  #
-  # ICU provisioning (see the per-OS steps): built from source with the
-  # trimmed data set (scripts/icu-data-filter.json) on macOS + Linux; MSYS2
-  # mingw (full ICU data, no filtered-source path there yet) on Windows. All
-  # feed scripts/gen-icu-static-pc.sh, which forces static linking.
-  #
-  # NOTE: this matrix is new and only macOS has been validated locally; the
-  # Linux (source ICU + PIE/PIC) and Windows (MSYS2 mingw, -static C++ runtime,
-  # ICU archive names) legs are expected to need CI iteration.
+  # ICU: built from source with the trimmed data (scripts/icu-data-filter.json)
+  # on macOS and Linux, MSYS2 mingw with full data on Windows, all fed through
+  # scripts/gen-icu-static-pc.sh. Only macOS was validated locally; the Linux
+  # and Windows legs may need CI iteration.
   build-cli:
     name: Build CLI (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
     needs: [setup]
@@ -282,16 +274,12 @@ jobs:
           path: out/kapi-cli_*_windows_${{ matrix.target.goarch }}.zip
           retention-days: 90
 
-  # Package + publish the kapi CLI binary built by build-cli. This replaces the
-  # former GoReleaser job: GoReleaser OSS can't consume externally-built (cgo +
-  # static-ICU) binaries (`builder: prebuilt` is Pro only), so we reproduce its
-  # CLI outputs directly: archives, checksums, cosign signatures for the kapi
-  # CLI archives, the kapi-cli brew formula, the cli.json self-update index, and
-  # the GitHub release upload, using the same artifact names downstream
-  # consumers (formula, docs, self-update) already expect.
-  #
-  # The kapi-bowrain plugin archive, the bowrain-cli formula, and the
-  # manifest-plugins.json registration are produced by release-bowrain.yml.
+  # Package and publish the CLI binaries build-cli produced. GoReleaser OSS
+  # cannot consume prebuilt cgo binaries, so this reproduces its outputs with
+  # the artifact names downstream consumers expect: archives, checksums,
+  # cosign signatures, the kapi-cli brew formula, the cli.json self-update
+  # index and the GitHub release upload. The kapi-bowrain plugin archive, its
+  # formula and the manifest-plugins.json entry come from release-bowrain.yml.
   package-cli:
     name: Package + publish CLI
     needs: [setup, build-cli]
@@ -581,17 +569,14 @@ jobs:
           source "${GITHUB_WORKSPACE}/scripts/lib/registry-push.sh"
           registry_commit_and_push /tmp/registry "Register kapi ${VERSION} (${CHANNEL})" register cli.json
 
-  # Publish the kapi CLI container image, the supported path for
-  # container-first CI (GitLab CI, Bitbucket, Jenkins, Dagger). Assembled from
-  # the same prebuilt cgo + static-ICU linux binaries the archives ship
-  # (GoReleaser can't consume externally-built binaries; see package-cli), so
-  # the image is bit-identical to the tarball install. One image from
-  # docker/kapi/Dockerfile, with the kapi-bowrain plugin baked into the system
-  # plugin root (no separate -bowrain variant) so both standalone and
-  # server-connected projects work out of the box:
+  # Publish the kapi CLI container image for container-first CI (GitLab CI,
+  # Bitbucket, Jenkins, Dagger). It is built from docker/kapi/Dockerfile with
+  # the same prebuilt linux binaries the archives ship, so it matches the
+  # tarball install. The kapi-bowrain plugin is baked into the system plugin
+  # root, so standalone and server-connected projects both work:
   #   ghcr.io/neokapi/kapi:<v>   (+ :<major>, :<major.minor>, :latest on stable)
-  # Bundling the plugin means the image REQUIRES the same-version plugin
-  # archives; a CLI-only RC without them skips the image (see the stage step).
+  # The image needs the same-version plugin archives; a CLI-only RC without
+  # them skips the image (see the stage step).
   publish-cli-image:
     name: Publish CLI container image
     needs: [setup, package-cli]

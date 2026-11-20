@@ -1,15 +1,10 @@
-// Runtime smoke for the compiled neokapi-i18n catalogs: the dictionaries under
-// public/translations/ must parse, load into the neokapi-i18n runtime, and
-// resolve hash lookups. A stale or malformed catalog would otherwise only
-// surface as untranslated (or garbled) text at runtime.
-//
-// Shape, never coverage. The pseudo locale is build output derived from the
-// source extraction (`make bowrain-app-qps`, which the vite build runs), so a
-// collapse in its entry count means extract/compile drifted and is a real
-// failure. A checkout that has not built the app has no qps dictionary, and
-// those cases skip. A target locale is the dogfood loop's output and is
-// routinely empty or partial while translation catches up with a source
-// change. That is normal drift the loop absorbs, never a build failure.
+// Runtime smoke for the compiled catalogs under public/translations/: each
+// must parse, load into the neokapi-i18n runtime and resolve hash lookups.
+// Shape, never coverage. The qps dictionary is build output from the source
+// extraction (`make bowrain-app-qps`), so a collapse in its entry count means
+// extract or compile drifted; with no build it is absent and those cases skip.
+// A target locale is the dogfood loop's output and is often partial, which is
+// normal drift and never a failure.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
