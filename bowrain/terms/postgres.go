@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -71,11 +72,10 @@ func NewPostgresStoreFromDBContext(ctx context.Context, db *storage.PgDB, worksp
 	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
 }
 
-// Migrations defines the PostgreSQL terms schema. Version 5 is the replayable
-// baseline for versions 1 through 4. It includes stream membership, search
-// indexes, concept sources, term validity and relations. Later versions add
-// term forms, concept governance flags, workspace revisions and the normalized
-// lookup key. Migrations run on first access to a workspace.
+//go:embed pilot_upgrade.sql
+var migratePilotProjects string
+
+// Migrations defines the PostgreSQL terms schema and upgrades its stored data.
 var Migrations = []storage.Migration{
 	{
 		Version:     5,
@@ -118,6 +118,11 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 		Version:     10,
 		Description: "indexed normalized term text",
 		SQL:         termsschema.RenderTermsPostgresV10(),
+	},
+	{
+		Version:     11,
+		Description: "scope stored pilot concepts and relations to their projects",
+		SQL:         migratePilotProjects,
 	},
 }
 
