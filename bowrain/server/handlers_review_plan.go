@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"maps"
@@ -436,12 +437,16 @@ func (s *Server) planScan(ctx context.Context, proj *platstore.Project, wsID str
 // counted for the whole project, whoever asks: a pass settles everyone's
 // content, so it waits on every open decision, not only the caller's. A pass
 // has nothing to settle when every point of the project is under every.
-func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, pi projectInvolvement, untranslated map[string]int) (planPolicyDTO, error) {
+func (s *Server) planPolicy(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, pi projectInvolvement) (planPolicyDTO, error) {
+	counts, err := s.planConceptCounts(ctx, ws, proj)
+	if err != nil {
+		return planPolicyDTO{}, err
+	}
 	cards, err := s.projectContextOpen(ctx, ws, proj)
 	if err != nil {
 		return planPolicyDTO{}, err
 	}
-	return planPolicyFrom(proj, pi, cards, untranslated), nil
+	return planPolicyFrom(proj, pi, cards, counts.Untranslated), nil
 }
 
 // planPolicyFrom is planPolicy over counts already taken: the context cards
@@ -627,29 +632,20 @@ func (s *Server) planCoordinatesOf(ctx context.Context, proj *platstore.Project,
 	return out, nil
 }
 
-// planContextCounts counts the context waiting for the caller and, of the
-// concepts that apply in the project, the ones that lack a term in a target
-// language.
-func (s *Server) planContextCounts(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, userID string, perms platauth.Permission, reach platauth.CoordinateReach) (planContextDTO, error) {
-	entry, ok, err := s.contextInbox(ctx, ws, proj, userID, perms, reach)
-	if err != nil {
-		return planContextDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}, err
-	}
-	out, err := s.planConceptCounts(ctx, ws, proj)
-	if ok {
-		out.Waiting, out.ByKind = entry.Waiting, entry.ByKind
-	}
-	return out, err
-}
-
 // planConceptCounts counts, of the concepts that apply in the project, the
 // ones with a source term, the ones each target language lacks, and the
 // pairs waiting for a proposal.
 func (s *Server) planConceptCounts(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project) (planContextDTO, error) {
 	out := planContextDTO{ByKind: map[string]int{}, Untranslated: map[string]int{}}
-	tb, err := s.projectTermsByID(ctx, ws.ID, proj.ID)
+	if s.wsStores == nil {
+		return out, nil
+	}
+	tb, err := s.wsStores.getProjectTerms(ctx, cmp.Or(ws.Slug, ws.ID), proj.ID)
+	if errors.Is(err, errNoPgDB) {
+		return out, nil
+	}
 	if err != nil || tb == nil {
-		return out, nil //nolint:nilerr // a workspace with no terms store has no concepts to count
+		return out, err
 	}
 	concepts, err := tb.Concepts(ctx)
 	if err != nil {

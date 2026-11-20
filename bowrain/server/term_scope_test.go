@@ -165,7 +165,7 @@ func (f scopeFixture) counted(t *testing.T, pid string) (plan, scan int) {
 	proj, err := f.srv.ContentStore.GetProject(ctx, pid)
 	require.NoError(t, err)
 	f.byWorkspaceID(func() {
-		counts, err := f.srv.planContextCounts(ctx, &platauth.Workspace{ID: "ws", Slug: "ws"}, proj, "", 0, nil)
+		counts, err := f.srv.planConceptCounts(ctx, &platauth.Workspace{ID: "ws", Slug: "ws"}, proj)
 		require.NoError(t, err)
 		plan = counts.Concepts
 		scan, err = f.srv.sourceConcepts(ctx, "ws", pid, "en")

@@ -131,11 +131,7 @@ func (s *Server) settleReviewPlan(c echo.Context, ws *platauth.Workspace, projec
 	if err != nil {
 		return reviewPlanSettleResponse{}, err
 	}
-	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
-	if err != nil {
-		return reviewPlanSettleResponse{}, err
-	}
-	policy, err := s.planPolicy(ctx, ws, proj, pi, counts.Untranslated)
+	policy, err := s.planPolicy(ctx, ws, proj, pi)
 	if err != nil {
 		return reviewPlanSettleResponse{}, err
 	}
@@ -299,24 +295,6 @@ func (s *Server) settleAfterRun(ctx context.Context, projectID, stream string) *
 	ws, err := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID)
 	if err != nil || ws == nil {
 		slog.WarnContext(ctx, "review settle: could not load the workspace", "project", projectID, "error", err)
-		return nil
-	}
-	_, pi, err := s.involvementScopeOf(ctx, proj, reviewInboxStream)
-	if err != nil {
-		slog.WarnContext(ctx, "review settle: could not read the involvement", "project", projectID, "error", err)
-		return nil
-	}
-	counts, err := s.planContextCounts(ctx, ws, proj, "", 0, nil)
-	if err != nil {
-		slog.WarnContext(ctx, "review settle: could not count the context", "project", projectID, "error", err)
-		return nil
-	}
-	policy, err := s.planPolicy(ctx, ws, proj, pi, counts.Untranslated)
-	if err != nil {
-		slog.WarnContext(ctx, "review settle: could not read the policy", "project", projectID, "error", err)
-		return nil
-	}
-	if policy.Settle != settleFirstPass && policy.Settle != settlePolicy {
 		return nil
 	}
 	actor := s.autoSettleActorOf(ctx, ws, proj)
