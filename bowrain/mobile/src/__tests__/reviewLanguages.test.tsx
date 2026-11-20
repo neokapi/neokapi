@@ -180,10 +180,19 @@ describe("the languages screen", () => {
         exceptions: {},
       }),
     );
-    mockInvolve.mockResolvedValue(undefined);
+    // The save answers only after the checks: the tick must move on the tap.
+    let answer: () => void = () => {};
+    mockInvolve.mockReturnValue(new Promise<void>((resolve) => (answer = resolve)));
     await render(wrap(<ReviewLanguagesScreen />));
     await fireEvent.press(await screen.findByTestId("follow-involvement-every"));
     expect(mockInvolve).toHaveBeenCalledWith({ workspace: "ws", project: "p" }, "every");
+    expect(screen.getByTestId("follow-involvement-every").props.accessibilityState).toEqual({
+      selected: true,
+    });
+    expect(screen.getByTestId("follow-involvement-context").props.accessibilityState).toEqual({
+      selected: false,
+    });
+    answer();
   });
 
   it("shows a reviewer only their languages and saves the choice", async () => {
