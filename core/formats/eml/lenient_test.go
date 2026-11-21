@@ -91,7 +91,8 @@ func TestUndecodableSubjectStaysInTheSkeleton(t *testing.T) {
 			require.Equal(t, []string{category}, categories(t, raw, format.ValidationReport))
 			out, err := roundTrip(t, raw, func(b *model.Block) { b.SetTargetText("fr", "Bonjour") }, "fr")
 			require.NoError(t, err)
-			subject := raw[:bytes.Index(raw, []byte("Hello"))]
+			subject, _, found := bytes.Cut(raw, []byte("Hello"))
+			require.True(t, found)
 			require.True(t, bytes.HasPrefix(out, subject), "the subject header changed")
 			require.Equal(t, map[string]string{"body": "Bonjour"}, blockTexts(t, out))
 		})

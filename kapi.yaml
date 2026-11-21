@@ -553,7 +553,7 @@ collections:
       - path: "web/{plugins,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{bowrain/e2e,harness,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
+      - path: "{bowrain/e2e,bowrain/scripts,harness,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
       - path: "{.skills,bench,bowrain/docker,bowrain/e2e,bowrain/scripts,core,examples,harness,kapi,plugins,scripts}/**/*.{sh,py,rs,c,h,cs,java,rb}"
