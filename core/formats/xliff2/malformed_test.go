@@ -143,8 +143,8 @@ func TestReadMalformedSurfacesError(t *testing.T) {
 }
 
 // TestReadRobustInputsDoNotPanic feeds inputs that the parser may either reject
-// or tolerate; the single contract here is robustness — no panic, no hang, no
-// race — regardless of whether an error surfaces. Whether a given degenerate
+// or tolerate. The contract is robustness: no panic, no hang and no race,
+// whether or not an error surfaces. Whether a given degenerate
 // input parses to zero blocks or errors is an implementation detail of the
 // underlying XML parser that we deliberately do not over-assert.
 //
@@ -209,7 +209,31 @@ func TestReadRobustInputsDoNotPanic(t *testing.T) {
 // Run with -race to surface any data race in the reader goroutine.
 func TestReadDeeplyNestedDoesNotPanic(t *testing.T) {
 	t.Parallel()
-	const depth = 2000
+	// 1000 groups plus the enclosing xliff, file, unit, segment and source
+	// elements stay inside etree's default depth limit of 1024.
+	foundError, blocks := readAll(t, nestedGroups(1000))
+	// The input is well-formed XLIFF, so it parses without error and yields
+	// the single innermost translatable unit.
+	assert.False(t, foundError, "well-formed deeply nested XLIFF should not error")
+	assert.Equal(t, 1, blocks, "expected the innermost unit as the sole block")
+}
+
+// TestReadBeyondDepthLimitReportsError checks that a document nested deeper
+// than etree's depth limit fails its read with an error and no panic.
+func TestReadBeyondDepthLimitReportsError(t *testing.T) {
+	t.Parallel()
+	var foundError bool
+	var blocks int
+	require.NotPanics(t, func() {
+		foundError, blocks = readAll(t, nestedGroups(2000))
+	})
+	assert.True(t, foundError, "a tree deeper than the parser's limit is reported as an error")
+	assert.Zero(t, blocks)
+}
+
+// nestedGroups returns an XLIFF 2 document with one unit inside depth nested
+// groups.
+func nestedGroups(depth int) string {
 	var b strings.Builder
 	b.WriteString(`<xliff version="2.0" xmlns="urn:oasis:names:tc:xliff:document:2.0" srcLang="en"><file id="f1">`)
 	for range depth {
@@ -220,16 +244,7 @@ func TestReadDeeplyNestedDoesNotPanic(t *testing.T) {
 		b.WriteString(`</group>`)
 	}
 	b.WriteString(`</file></xliff>`)
-
-	var foundError bool
-	var blocks int
-	require.NotPanics(t, func() {
-		foundError, blocks = readAll(t, b.String())
-	})
-	// The input is well-formed XLIFF, so it parses without error and yields
-	// the single innermost translatable unit.
-	assert.False(t, foundError, "well-formed deeply nested XLIFF should not error")
-	assert.Equal(t, 1, blocks, "expected the innermost unit as the sole block")
+	return b.String()
 }
 
 // TestReadNilReader verifies Open rejects a document whose Reader is nil

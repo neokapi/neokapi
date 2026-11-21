@@ -7,5 +7,5 @@ go 1.27.1
 // like the other scripts/* tools. Local modules resolve via go.work.
 require (
 	github.com/neokapi/neokapi v0.0.0-00010101000000-000000000000
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 )
