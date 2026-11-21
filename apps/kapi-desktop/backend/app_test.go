@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -297,5 +298,12 @@ func TestSaveProjectSnapshotAcknowledgesOnlyTheWrittenRecipe(t *testing.T) {
 	_, err = app.persistProject(tab.ID, &edited, other.Path, true)
 	require.Error(t, err)
 	require.Equal(t, copied.Name, app.GetProject(tab.ID).Name)
+	require.Equal(t, copied.Tab.Path, app.GetProjectPath(tab.ID))
+
+	// The open project reached through a symlinked folder is the same project.
+	link := filepath.Join(t.TempDir(), "linked")
+	require.NoError(t, os.Symlink(filepath.Dir(other.Path), link))
+	_, err = app.persistProject(tab.ID, &edited, filepath.Join(link, filepath.Base(other.Path)), true)
+	require.ErrorContains(t, err, "already open")
 	require.Equal(t, copied.Tab.Path, app.GetProjectPath(tab.ID))
 }

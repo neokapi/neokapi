@@ -916,7 +916,7 @@ func (a *App) persistProject(tabID string, snapshot *project.KapiProject, path s
 		}
 	} else {
 		for _, tab := range a.projects {
-			if tab != op && tab.Path == path {
+			if tab != op && sameRecipePath(tab.Path, path) {
 				return nil, errors.New("the destination project is already open")
 			}
 		}
