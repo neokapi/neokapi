@@ -184,3 +184,40 @@ func TestUpgradePilotBindingsWithoutTerms(t *testing.T) {
 	assert.Equal(t, "project", forDraft[0].ProjectID)
 	assert.Equal(t, "main", forDraft[0].Stream)
 }
+
+// A legacy pilot copy, or its original, whose properties are empty, blank,
+// not an object or malformed reads as having no properties: the upgrade
+// completes and the copy is scoped to its project.
+func TestUpgradePilotTermsWithUnreadableProperties(t *testing.T) {
+	db := databaseBeforePilotUpgrade(t)
+	ctx := t.Context()
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO workspaces (id, slug, name) VALUES ('ws', 'oak', 'Oak');
+		INSERT INTO kg_changesets (workspace_id, id) VALUES ('ws', 'draft');
+		INSERT INTO kg_pilots (workspace_id, changeset_id, project_id, stream) VALUES ('ws', 'draft', 'p:1', 'main');
+		INSERT INTO tb_concepts (workspace_id, id, stream, domain, properties)
+		VALUES ('oak', 'empty', '', 'live', ''),
+		       ('oak', '__pilot__:c:draft:main:empty', 'main', 'empty', ''),
+		       ('oak', 'blank', '', 'live', '   '),
+		       ('oak', '__pilot__:c:draft:main:blank', 'main', 'blank', ' '),
+		       ('oak', 'malformed', '', 'live', '{"project_id":'),
+		       ('oak', '__pilot__:c:draft:main:malformed', 'main', 'malformed', '{oops'),
+		       ('oak', 'list', '', 'live', '["p:2"]'),
+		       ('oak', '__pilot__:c:draft:main:list', 'main', 'list', 'null');`)
+	require.NoError(t, err)
+
+	require.NoError(t, migrations.Apply(db, nil))
+	store, err := pgterms.NewPostgresStoreFromDB(db, "oak")
+	require.NoError(t, err)
+	rows, _, err := termscope.StoreView(store, "p:1").SearchForStream(ctx, "", "", "", "main", nil, 0, 20)
+	require.NoError(t, err)
+	var domains []string
+	for _, c := range rows {
+		if c.Domain == "live" {
+			continue
+		}
+		domains = append(domains, c.Domain)
+		assert.Equal(t, map[string]string{"project_id": "p:1"}, c.Properties, c.Domain)
+	}
+	assert.ElementsMatch(t, []string{"empty", "blank", "malformed", "list"}, domains)
+}

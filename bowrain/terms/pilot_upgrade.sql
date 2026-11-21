@@ -43,10 +43,17 @@ BEGIN
     LEFT JOIN tb_concepts original ON (original.workspace_id, original.id) = (c.workspace_id, ids.original_id)
     WHERE NOT EXISTS (
         SELECT FROM (VALUES (original.properties), (c.properties)) AS version(properties)
+        -- A value that is not a JSON object (NULL, empty, blank, malformed)
+        -- reads as no properties. The nested CASE casts only a valid value.
+        CROSS JOIN LATERAL (
+            SELECT CASE WHEN pg_input_is_valid(version.properties, 'jsonb') THEN
+                CASE WHEN jsonb_typeof(version.properties::jsonb) = 'object' THEN version.properties::jsonb END
+            END AS props
+        ) parsed
         CROSS JOIN LATERAL (
             SELECT array_remove(ARRAY(
                 SELECT btrim(id, whitespace)
-                FROM unnest(string_to_array(version.properties::jsonb ->> 'project_id', ',')) AS ids(id)
+                FROM unnest(string_to_array(parsed.props ->> 'project_id', ',')) AS ids(id)
             ), '') AS project_ids
         ) scope
         WHERE cardinality(project_ids) > 0 AND NOT b.project_id = ANY(project_ids)
@@ -58,9 +65,15 @@ BEGIN
             do_not_translate, advisory, created_at, updated_at
         )
         SELECT c.workspace_id, m.new_id, c.stream, c.domain, c.definition,
-               coalesce(nullif(c.properties::jsonb, 'null'), '{}') || jsonb_build_object('project_id', m.project_id),
+               coalesce(parsed.props, '{}') || jsonb_build_object('project_id', m.project_id),
                c.source, c.do_not_translate, c.advisory, c.created_at, c.updated_at
         FROM pilot_v11_concepts m JOIN tb_concepts c ON (c.workspace_id, c.id) = (m.workspace_id, m.old_id)
+        -- Read as in the scope check above.
+        CROSS JOIN LATERAL (
+            SELECT CASE WHEN pg_input_is_valid(c.properties, 'jsonb') THEN
+                CASE WHEN jsonb_typeof(c.properties::jsonb) = 'object' THEN c.properties::jsonb END
+            END AS props
+        ) parsed
         ON CONFLICT (workspace_id, id) DO NOTHING
         RETURNING workspace_id, id
     )
