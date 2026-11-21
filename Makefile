@@ -1278,11 +1278,10 @@ endif
 # Unlike the release steps this deliberately does NOT run `go mod tidy`, which
 # would mutate go.mod/go.sum and collide with the `tidy-check` gate.
 #
-# NOTE: the release workflows still carry their own copy of this invocation and
-# install the wails3 CLI with `@latest`. Folding them onto these targets (and a
-# pinned CLI) is the obvious next step, but their desktop matrix includes Windows
-# runners where `make` is not reliably on PATH, and the release path only runs on
-# tags — so it is not verifiable from a PR and is deliberately left alone here.
+# The release workflows carry their own copy of this invocation, because their
+# desktop matrix includes Windows runners where `make` is not reliably on PATH.
+# They install the CLI through the same script as `make wails3-cli`.
+#
 # With cgo off the generator cannot see the symbols Wails defines in its own
 # cgo files and warns about each one. scripts/wails-generate.sh counts those
 # and fails on a warning about any other package, which would mean a bound type
@@ -1291,27 +1290,14 @@ WAILS_BINDINGS_ENV   := CGO_ENABLED=0
 WAILS_BINDINGS_FLAGS := -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"\"" -clean=true
 BOWRAIN_DESKTOP_DIR  := bowrain/apps/bowrain
 
-# Install the wails3 CLI at the exact wails version the apps build against, so
-# the generator can never disagree with the library. `go install …@latest` would
-# make the byte gate drift repo-wide the day upstream tags a release; deriving
-# the pin from go.mod keeps one source of truth. (Verified byte-identical output
-# across two CLI versions, so the pin is future-proofing, not a current fix.)
-#
-# One CLI on PATH serves both desktop apps, so their pins must agree — assert it
-# rather than silently generating one app's bindings with the other's generator.
-# The queries run with GOWORK=off deliberately: inside the workspace `go list -m`
-# reports the MVS-unified version, so both modules would always look identical
-# and the assertion would never fire.
+# Install the wails3 CLI at the exact Wails version the apps build against, so
+# the generator can never disagree with the library. scripts/install-wails3.sh
+# reads the version from the two go.mod files that require Wails and refuses to
+# go on when they disagree: one CLI on PATH serves both desktop apps. It reads
+# the files and does not ask `go list -m`, which inside the workspace reports
+# the version go.work unified, so the two would always look identical.
 wails3-cli: ## Install the wails3 CLI pinned to the wails version both desktop apps require
-	@kv="$$(cd $(KAPI_DESKTOP_DIR) && GOWORK=off $(GO) list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"; \
-	bv="$$(cd $(BOWRAIN_DESKTOP_DIR)/../.. && GOWORK=off $(GO) list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"; \
-	if [ "$$kv" != "$$bv" ]; then \
-		echo "wails3-cli: the desktop apps pin different wails versions (kapi-desktop=$$kv, bowrain=$$bv);"; \
-		echo "  one wails3 CLI cannot generate both apps' bindings faithfully — align the two go.mod files."; \
-		exit 1; \
-	fi; \
-	echo "wails3-cli: installing wails3 $$kv"; \
-	$(GO) install github.com/wailsapp/wails/v3/cmd/wails3@$$kv
+	@GO="$(GO)" ./scripts/install-wails3.sh
 
 kapi-desktop-bindings: i18n-catalogs ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
 	cd $(KAPI_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) $(CURDIR)/scripts/wails-generate.sh wails3 generate bindings $(WAILS_BINDINGS_FLAGS)

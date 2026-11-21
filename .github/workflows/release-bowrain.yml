@@ -90,7 +90,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - name: Compute build metadata
         id: meta
@@ -227,7 +227,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       # Release gate: shared UI must type-check + pass unit tests.
       - uses: ./.github/actions/setup-node-ui
@@ -596,7 +596,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - uses: ./.github/actions/setup-node-ui
 
@@ -673,8 +673,10 @@ jobs:
             mingw-w64-${{ matrix.build.mtriple }}-icu
             mingw-w64-${{ matrix.build.mtriple }}-pkg-config
 
+      # The version the apps build against, never @latest: see the script.
       - name: Install wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+        shell: bash
+        run: scripts/install-wails3.sh
 
       - name: Type-check shared UI package
         working-directory: bowrain/packages/ui
