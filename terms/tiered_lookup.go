@@ -120,6 +120,33 @@ func FuzzyLengthWindow(queryLen int, minScore float64) (minLen, maxLen int) {
 		int(min(math.MaxInt32, math.Ceil(float64(queryLen)/minScore)))
 }
 
+// FuzzyCandidateLimit is the most term rows the fuzzy tier scores for one
+// lookup. Every store keeps the same rows when more than this many fall in
+// the length window: those nearest the query's length first, then by concept
+// id and term text in byte order. SQL stores apply the order and the limit in
+// their candidate query, so a lookup never reads a whole locale.
+const FuzzyCandidateLimit = 500
+
+// boundFuzzyCandidates orders rows as FuzzyCandidateLimit describes and keeps
+// the first FuzzyCandidateLimit of them.
+func boundFuzzyCandidates(key string, rows []TermCandidate) []TermCandidate {
+	queryLen := len([]rune(key))
+	distance := func(c TermCandidate) int {
+		d := len([]rune(NormalizeTerm(c.Term.Text))) - queryLen
+		if d < 0 {
+			return -d
+		}
+		return d
+	}
+	slices.SortStableFunc(rows, func(a, b TermCandidate) int {
+		return cmp.Or(cmp.Compare(distance(a), distance(b)), cmp.Compare(a.ConceptID, b.ConceptID), cmp.Compare(a.Term.Text, b.Term.Text))
+	})
+	if len(rows) > FuzzyCandidateLimit {
+		rows = rows[:FuzzyCandidateLimit]
+	}
+	return rows
+}
+
 // TermCandidate is one scanned term row from a backend candidate query, before
 // the shared lookup applies validity/status/score filtering and hydrates the
 // owning concept. Term carries the matched term's own fields, including its
@@ -140,10 +167,11 @@ type TermCandidateSource struct {
 	// the option's project/source scope. The exact tier keeps those with a
 	// declared form that is the whole query.
 	Forms func(ctx context.Context, opts LookupOptions) ([]TermCandidate, error)
-	// Normalized returns terms indexed under normalizedSource and rows that predate the index.
+	// Normalized returns terms indexed under normalizedSource.
 	Normalized func(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error)
 	// FuzzyCandidates returns a candidate pool for Levenshtein scoring against
-	// normalizedSource.
+	// normalizedSource: at most FuzzyCandidateLimit rows, chosen as it
+	// describes.
 	FuzzyCandidates func(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error)
 	// Concept hydrates the full owning concept (with all its terms).
 	Concept func(ctx context.Context, conceptID string) (Concept, error)
@@ -209,6 +237,9 @@ func lookupTiers(ctx context.Context, text string, opts LookupOptions,
 		rows, err := candidates(mode, key, opts)
 		if err != nil {
 			return nil, err
+		}
+		if mode == model.MatchStrategyFuzzy {
+			rows = boundFuzzyCandidates(key, rows)
 		}
 		var matches []TermMatch
 		for _, row := range rows {

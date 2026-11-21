@@ -1,6 +1,7 @@
 package terms_test
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -124,4 +125,39 @@ func TestLookupPropagatesUnreadableCandidateConcept(t *testing.T) {
 			assert.Empty(t, matches)
 		})
 	}
+}
+
+// When more terms fall in the fuzzy length window than the tier scores, both
+// stores keep the same candidates, nearest the query's length first, and so
+// return the same matches.
+func TestFuzzyCandidateLimitAgreesAcrossStores(t *testing.T) {
+	ctx := t.Context()
+	sqlite, err := terms.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = sqlite.Close() })
+	inmem := terms.NewInMemoryStore()
+
+	var concepts []terms.Concept
+	// More rows than the limit, one character longer than the query, and too
+	// far from it to score.
+	for i := range terms.FuzzyCandidateLimit + 50 {
+		concepts = append(concepts, terms.Concept{ID: fmt.Sprintf("n-%04d", i), Terms: []terms.Term{{Text: fmt.Sprintf("zz%04dqqq", i), Locale: "en"}}})
+	}
+	// A match of the query's length, which the order keeps.
+	concepts = append(concepts, terms.Concept{ID: "z-same", Terms: []terms.Term{{Text: "notifyer", Locale: "en"}}})
+	// A match one character longer, ordered after the rows above and so past
+	// the limit.
+	concepts = append(concepts, terms.Concept{ID: "z-longer", Terms: []terms.Term{{Text: "notifiers", Locale: "en"}}})
+	for _, c := range concepts {
+		require.NoError(t, sqlite.AddConcept(ctx, c))
+		require.NoError(t, inmem.AddConcept(ctx, c))
+	}
+
+	opts := terms.LookupOptions{SourceLocale: "en", MinScore: 0.7, MatchModes: []model.MatchStrategy{model.MatchStrategyFuzzy}}
+	want, err := inmem.Lookup(ctx, "notifier", opts)
+	require.NoError(t, err)
+	got, err := sqlite.Lookup(ctx, "notifier", opts)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"z-same"}, terms.MatchedConceptIDs(want))
+	assert.Equal(t, terms.MatchedConceptIDs(want), terms.MatchedConceptIDs(got))
 }

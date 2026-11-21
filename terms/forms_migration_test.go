@@ -2,6 +2,7 @@ package terms
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -71,4 +72,55 @@ func TestSQLiteStore_NormalizedLookupAcrossMigration(t *testing.T) {
 	matches, err := tb.Lookup(ctx, "CAFÉ AU LAIT", opts)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"new", "old"}, MatchedConceptIDs(matches))
+}
+
+// A database whose terms were written before the normalized key existed holds
+// an empty key on every row. Opening it fills the key in, across more than
+// one backfill batch, and the normalized and fuzzy tiers find the rows by it.
+func TestSQLiteStore_BackfillsNormalizedText(t *testing.T) {
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name    string
+		applied int
+	}{
+		{"before the column", 6},
+		{"column left empty", 7},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "terms.db")
+			db, err := storage.Open(path)
+			require.NoError(t, err)
+			require.NoError(t, storage.Migrate(db, migrationsTable, tbMigrations[:tc.applied]))
+			rows := map[string]string{"latte": "  Café\t\tAu  Lait ", "blank": "   "}
+			for i := range 2*normalizedBackfillBatch + 3 {
+				rows[fmt.Sprintf("filler-%04d", i)] = fmt.Sprintf("Filler Term %04d", i)
+			}
+			for id, text := range rows {
+				_, err = db.ExecContext(ctx, `INSERT INTO tb_concepts (id, created_at, updated_at) VALUES (?, '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z')`, id)
+				require.NoError(t, err)
+				_, err = db.ExecContext(ctx, `INSERT INTO tb_terms (concept_id, text, text_lower, locale) VALUES (?, ?, ?, 'en')`, id, text, strings.ToLower(text))
+				require.NoError(t, err)
+			}
+			require.NoError(t, db.Close())
+
+			for range 2 {
+				tb, err := NewSQLiteStore(path)
+				require.NoError(t, err)
+				var empty int
+				require.NoError(t, tb.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM tb_terms WHERE text_normalized = ''`).Scan(&empty))
+				assert.Equal(t, 1, empty, "only the whitespace term normalizes to the empty string")
+				var key string
+				require.NoError(t, tb.DB().QueryRowContext(ctx, `SELECT text_normalized FROM tb_terms WHERE concept_id = 'filler-1002'`).Scan(&key))
+				assert.Equal(t, "filler term 1002", key)
+
+				matches, err := tb.Lookup(ctx, "CAFÉ AU LAIT", LookupOptions{SourceLocale: "en", MatchModes: []model.MatchStrategy{model.MatchStrategyNormalized}})
+				require.NoError(t, err)
+				assert.Equal(t, []string{"latte"}, MatchedConceptIDs(matches))
+				matches, err = tb.Lookup(ctx, "cafe au lai", LookupOptions{SourceLocale: "en", MatchModes: []model.MatchStrategy{model.MatchStrategyFuzzy}})
+				require.NoError(t, err)
+				assert.Equal(t, []string{"latte"}, MatchedConceptIDs(matches))
+				require.NoError(t, tb.Close())
+			}
+		})
+	}
 }

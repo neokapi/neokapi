@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -123,6 +125,13 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 		Version:     11,
 		Description: "scope stored pilot concepts and relations to their projects",
 		SQL:         migratePilotProjects,
+	},
+	{
+		Version:     12,
+		Description: "normalized text for terms written before the column",
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return fw.BackfillNormalizedText(ctx, tx, true)
+		},
 	},
 }
 
@@ -1056,7 +1065,7 @@ func (tb *PostgresStore) queryNormalizedTerms(ctx context.Context, normalizedSou
 	rows, err := tb.run().QueryContext(ctx, `
 		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
-		WHERE t.workspace_id = $1 AND t.text_normalized IN ($2, '') AND t.locale = $3
+		WHERE t.workspace_id = $1 AND t.text_normalized = $2 AND t.locale = $3
 	`, tb.workspaceID, normalizedSource, string(opts.SourceLocale))
 	if err != nil {
 		return nil, fmt.Errorf("query normalized terms: %w", err)
@@ -1083,12 +1092,37 @@ func (tb *PostgresStore) queryFormTerms(ctx context.Context, opts fw.LookupOptio
 }
 
 func (tb *PostgresStore) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
-	minLen, maxLen := fw.FuzzyLengthWindow(len([]rune(normalizedSource)), opts.MinScore)
-	rows, err := tb.run().QueryContext(ctx, `
-		SELECT `+pgTermSelectCols+`
+	queryLen := len([]rune(normalizedSource))
+	minLen, maxLen := fw.FuzzyLengthWindow(queryLen, opts.MinScore)
+	notShadow, shadowArg := fw.NotShadowSQL("t.concept_id", "$5")
+	where := "t.workspace_id = $1 AND t.locale = $2 AND LENGTH(t.text_normalized) BETWEEN $3 AND $4 AND " + notShadow
+	args := []any{tb.workspaceID, string(opts.SourceLocale), minLen, maxLen, shadowArg}
+	ph := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	if len(opts.StatusFilter) > 0 {
+		marks := make([]string, len(opts.StatusFilter))
+		for i, st := range opts.StatusFilter {
+			marks[i] = ph(string(st))
+		}
+		where += " AND t.status IN (" + strings.Join(marks, ", ") + ")"
+	}
+	if opts.ConceptIDs != nil {
+		ids, err := json.Marshal(slices.Collect(maps.Keys(opts.ConceptIDs)))
+		if err != nil {
+			return nil, fmt.Errorf("query fuzzy terms: %w", err)
+		}
+		where += " AND t.concept_id IN (SELECT jsonb_array_elements_text(" + ph(string(ids)) + "::jsonb))"
+	}
+	// The order and limit fw.FuzzyCandidateLimit describes. The "C" collation
+	// is byte order, as the shared lookup compares.
+	q := `SELECT ` + pgTermSelectCols + `
 		FROM tb_terms t
-		WHERE t.workspace_id = $1 AND t.locale = $2 AND (t.text_normalized = '' OR LENGTH(t.text_normalized) BETWEEN $3 AND $4)
-	`, tb.workspaceID, string(opts.SourceLocale), minLen, maxLen)
+		WHERE ` + where + `
+		ORDER BY ABS(LENGTH(t.text_normalized) - ` + ph(queryLen) + `), t.concept_id COLLATE "C", t.text COLLATE "C"
+		LIMIT ` + ph(fw.FuzzyCandidateLimit)
+	rows, err := tb.run().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query fuzzy terms: %w", err)
 	}

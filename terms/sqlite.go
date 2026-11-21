@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -115,6 +117,13 @@ var tbMigrations = []storage.Migration{
 		Version:     7,
 		Description: "indexed normalized term text",
 		SQL:         termsschema.RenderTermsSQLiteV7(),
+	},
+	{
+		Version:     8,
+		Description: "normalized text for terms written before the column",
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return BackfillNormalizedText(ctx, tx, false)
+		},
 	},
 }
 
@@ -979,7 +988,7 @@ func (tb *SQLiteStore) queryExactTerms(ctx context.Context, sourceText string, o
 }
 
 func (tb *SQLiteStore) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	return tb.queryScopedTerms(ctx, "normalized terms", "t.text_normalized IN (?, '') AND t.locale = ?",
+	return tb.queryScopedTerms(ctx, "normalized terms", "t.text_normalized = ? AND t.locale = ?",
 		[]any{normalizedSource, string(opts.SourceLocale)}, opts)
 }
 
@@ -994,6 +1003,12 @@ func (tb *SQLiteStore) queryFormTerms(ctx context.Context, opts LookupOptions) (
 // option's project scope and source filter, and joins the concepts table only
 // when one of those reads it. what names the query in an error.
 func (tb *SQLiteStore) queryScopedTerms(ctx context.Context, what, where string, args []any, opts LookupOptions) ([]TermCandidate, error) {
+	return tb.queryScopedTermsOrdered(ctx, what, where, args, "", nil, opts)
+}
+
+// queryScopedTermsOrdered is queryScopedTerms with tail (an ORDER BY and
+// LIMIT clause) appended to the query and tailArgs bound after the filter's.
+func (tb *SQLiteStore) queryScopedTermsOrdered(ctx context.Context, what, where string, args []any, tail string, tailArgs []any, opts LookupOptions) ([]TermCandidate, error) {
 	needsJoin := false
 	switch opts.ProjectScope {
 	case ProjectScopeOnly:
@@ -1014,7 +1029,8 @@ func (tb *SQLiteStore) queryScopedTerms(ctx context.Context, what, where string,
 	if needsJoin {
 		from += " JOIN tb_concepts c ON t.concept_id = c.id"
 	}
-	q := "SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms FROM " + from + " WHERE " + where
+	q := "SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms FROM " + from + " WHERE " + where + tail
+	args = append(args, tailArgs...)
 
 	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -1026,10 +1042,30 @@ func (tb *SQLiteStore) queryScopedTerms(ctx context.Context, what, where string,
 }
 
 func (tb *SQLiteStore) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	minLen, maxLen := FuzzyLengthWindow(len([]rune(normalizedSource)), opts.MinScore)
-	return tb.queryScopedTerms(ctx, "fuzzy terms",
-		"t.locale = ? AND (t.text_normalized = '' OR LENGTH(t.text_normalized) BETWEEN ? AND ?)",
-		[]any{string(opts.SourceLocale), minLen, maxLen}, opts)
+	queryLen := len([]rune(normalizedSource))
+	minLen, maxLen := FuzzyLengthWindow(queryLen, opts.MinScore)
+	notShadow, shadowArg := NotShadowSQL("t.concept_id", "?")
+	where := "t.locale = ? AND LENGTH(t.text_normalized) BETWEEN ? AND ? AND " + notShadow
+	args := []any{string(opts.SourceLocale), minLen, maxLen, shadowArg}
+	if len(opts.StatusFilter) > 0 {
+		where += " AND t.status IN (" + strings.TrimSuffix(strings.Repeat("?,", len(opts.StatusFilter)), ",") + ")"
+		for _, st := range opts.StatusFilter {
+			args = append(args, string(st))
+		}
+	}
+	if opts.ConceptIDs != nil {
+		ids, err := json.Marshal(slices.Collect(maps.Keys(opts.ConceptIDs)))
+		if err != nil {
+			return nil, fmt.Errorf("query fuzzy terms: %w", err)
+		}
+		where += " AND t.concept_id IN (SELECT value FROM json_each(?))"
+		args = append(args, string(ids))
+	}
+	// The order and limit FuzzyCandidateLimit describes. BINARY collation is
+	// byte order, as the shared lookup compares.
+	return tb.queryScopedTermsOrdered(ctx, "fuzzy terms", where, args,
+		" ORDER BY ABS(LENGTH(t.text_normalized) - ?), t.concept_id, t.text LIMIT ?",
+		[]any{queryLen, FuzzyCandidateLimit}, opts)
 }
 
 func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, statusFilter []model.TermStatus, opts LookupOptions) ([]LocaleTerm, error) {

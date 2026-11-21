@@ -19,12 +19,19 @@ import (
 
 func databaseBeforePilotUpgrade(t *testing.T) *storage.PgDB {
 	t.Helper()
+	return databaseBeforeTermsVersion(t, 11)
+}
+
+// databaseBeforeTermsVersion is a fresh database with every system migrated,
+// except terms, which stops before version.
+func databaseBeforeTermsVersion(t *testing.T, version int) *storage.PgDB {
+	t.Helper()
 	db := freshDatabase(t)
 	for _, system := range migrations.All() {
 		versions := system.Migrations
 		if system.Name == "terms" {
 			for i, m := range versions {
-				if m.Version >= 11 {
+				if m.Version >= version {
 					versions = versions[:i]
 					break
 				}
