@@ -142,11 +142,13 @@ func (w *Writer) writeData(part *model.Part) error {
 	return nil
 }
 
+// blockText renders the block's runs. Plain text has no inline-code syntax, so
+// each code's original data is written back as text.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
 	}
-	return block.SourceText()
+	return model.RenderRunsWithData(block.SourceRuns())
 }
 
 // renderText returns the bytes a block contributes to the output. For
