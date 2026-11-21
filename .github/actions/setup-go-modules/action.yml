@@ -7,7 +7,7 @@ inputs:
   go-version:
     description: Go version to install
     required: false
-    default: "1.27.1"
+    default: "1.27.4"
   cache-flavor:
     description: >
       Build-cache flavor. The Go build cache (GOCACHE) is keyed per flavor
@@ -29,7 +29,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-go@v6
+    - uses: actions/setup-go@v7
       with:
         go-version: ${{ inputs.go-version }}
         # Caching is handled explicitly below so the build cache can be keyed
@@ -64,7 +64,7 @@ runs:
         fi
 
     - name: Restore module download cache (flavor-independent)
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.mod }}
         key: go-mod-${{ runner.os }}-${{ hashFiles('go.sum', 'host/go.sum', 'cli/go.sum', 'kapi/go.sum', 'apps/kapi-desktop/go.sum', 'bowrain/go.sum', 'bowrain/core/go.sum', 'bowrain/plugin/go.sum') }}
@@ -72,7 +72,7 @@ runs:
           go-mod-${{ runner.os }}-
 
     - name: Restore build cache (flavor-scoped)
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
         # SHA-suffixed key always saves a fresh post-build cache; restore-keys

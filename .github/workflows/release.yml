@@ -100,7 +100,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - name: Compute build metadata
         id: meta
@@ -300,7 +300,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       # Release gate: shared UI must type-check + pass unit tests (previously
       # run inside the GoReleaser job).
@@ -340,7 +340,7 @@ jobs:
           set -euo pipefail
           VERSION="${REF_NAME#v}"
           export VERSION   # nfpm reads ${VERSION} from the environment
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.49.0
           gopath_bin="$(go env GOPATH)/bin"
           export PATH="$PATH:$gopath_bin"
           mkdir -p packaging/.stage
@@ -735,7 +735,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - uses: ./.github/actions/setup-node-ui
 
@@ -811,8 +811,10 @@ jobs:
             mingw-w64-${{ matrix.build.mtriple }}-icu
             mingw-w64-${{ matrix.build.mtriple }}-pkg-config
 
+      # The version the apps build against, never @latest: see the script.
       - name: Install wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+        shell: bash
+        run: scripts/install-wails3.sh
 
       - name: Generate Wails bindings
         working-directory: apps/kapi-desktop
