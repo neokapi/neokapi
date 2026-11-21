@@ -5,7 +5,7 @@
 #
 # Build: docker build -t ghcr.io/neokapi/bravo-sandbox-python:latest -f bowrain/docker/bravo-sandbox-python/Dockerfile .
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 # Install localization-relevant libraries.
 RUN pip install --no-cache-dir \
