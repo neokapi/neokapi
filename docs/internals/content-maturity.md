@@ -1,26 +1,23 @@
 # Content maturity job
 
-Use this job to review a content source, add a conversion target or check how support has changed. The format dashboard shows the declared support tier and the measured axes. Its output and connector tables show the operations exercised by the job. Each operation carries its status, the scope of the fixture and a source or test reference.
+Use this job to review a content source, add a conversion target or check how support has changed. The format dashboard shows the declared support tier and the measured axes. Its output table shows the conversions exercised by the job. The connector maturity page on the Bowrain docs site shows the connector operations. Each operation carries its status, the scope of the fixture and a source or test reference.
 
-## Initial review, 20 November 2026
+## What the job measures
 
-The existing rubric distinguishes a format's implementation from the support
-promise a maintainer makes. The previous publisher could renew certification
-across the fleet after a repository audit. The job now preserves the date until
-a review has evidence for each gate named by the format.
+The rubric distinguishes a format's implementation from the support promise a
+maintainer makes. A format keeps its certification date until a review records
+passing evidence for each gate the format names.
 
-The writer registry also includes formats that require the original document.
-The output probe exercises conversion through the host and reads the result
-back. It found that converting WebVTT to SubRip lost cue timing on read-back.
-A regression test now checks both cue times. The first observation also records
-catalog writers whose readers could not recover both values from a foreign
-catalog.
+The output probe converts a fixture through the host for each registered
+writer and reads the result back. A writer that requires the original document
+is recorded as such. A target whose reader cannot recover the fixture's values
+is recorded as failed, with the fixture that failed.
 
 Connector registration establishes which hosts expose an integration. Fetch
-and publish need their own evidence. WordPress exercises both operations
-against a fixture REST endpoint. Figma has a verified fetch path and a test
-for its read-only delivery contract. The format and connector rows share a
-history, while each test measures the operation its caller relies on.
+and publish each need their own test against a fixture endpoint. A read-only
+connector records publish as unsupported. Every connector is a platform
+integration, so `bowrain/scripts/connector-maturity/` measures them and the
+Bowrain docs site publishes the result.
 
 ## Reproduce a publication
 
@@ -29,21 +26,48 @@ Use the Go version in `go.work`, the repository's ICU build dependencies, Node w
 ```sh
 vp install --frozen-lockfile
 make check-content-maturity
+make -C bowrain check-connector-maturity
 ```
 
-The check uses the date of the committed observation. It runs format tests, the Prose probe, output conversions and connector fixtures. A missing required test or a stale projection fails the check. A recorded conversion failure describes the fixture that failed. A skipped connector check carries an unverified result.
+The first check covers formats and outputs, and the second covers connectors.
+Each uses the date of the committed observation and replays the committed
+evidence. It runs the format tests, the Prose probe, the output conversions or
+the connector fixtures, and fails when:
+
+- a committed dataset disagrees with its history, docs block, evaluation index
+  or support declarations, or cites a test file or test name that does not exist
+- a pull request changes an observation dated before its own
+- a fresh probe weakens a committed result, such as a verified conversion that
+  now fails or a lower format grade
+
+A stronger result, a new format and a changed gap pass the check, which prints
+them for the next refresh. Repository watermarks in the
+[operations ledger](./format-ops-ledger.json), its run records and the
+freshness of hosted acceptance receipts belong to the refresh, so the check
+leaves them alone. A pull request that changes code without changing a result
+needs no refresh. A recorded conversion failure describes the fixture that
+failed. A skipped connector check carries an unverified result.
 
 To view the dashboard from this checkout, build and serve the documentation.
 Open `/format-maturity` for the support counts and the latest changes.
 Select a check to see its evidence. Use History to compare observations or
-download the published data.
+download the published data. The Bowrain docs site serves the connector
+evidence at `/connector-maturity`.
 
 ```sh
 pnpm --dir web exec docusaurus build --locale en
 pnpm --dir web exec docusaurus serve --host 127.0.0.1 --port 4178 --no-open
 ```
 
-`make refresh-content-maturity` records observations for the current UTC date. The weekly GitHub Actions job uses that target. A manual dispatch on a branch produces a downloadable patch and agent brief. On the default branch the job also proposes the patch through the repository’s rolling pull request. A maintainer reviews changes to the published data. The job uses local fixtures and requires no model or CMS credentials.
+`make refresh-content-maturity` and `make -C bowrain refresh-connector-maturity`
+record observations for the current UTC date, or for `MATURITY_DATE`. The weekly
+GitHub Actions job runs both, then runs both checks on the refreshed tree. A
+manual dispatch on a branch produces a downloadable patch and agent brief. On
+the default branch the job also proposes the patch through the repository's
+rolling pull request. GitHub starts no checks on that pull request, because a
+workflow token opens it, so the producing run's checks are its evidence. A
+maintainer reviews changes to the published data. The job uses local fixtures
+and requires no model or CMS credentials.
 
 ## Hosted consumer checks
 
@@ -51,7 +75,8 @@ On weekly and manual runs, the content maturity job calls the format acceptance
 workflow at the same Git revision. The macOS job uploads `acceptance-receipts`.
 The measurement job checks the revision and run ID before importing the artifact
 into the operations ledger. A retry retains the attempt that produced the
-receipt. Pull requests replay the committed evidence.
+receipt. Pull requests replay the committed receipts, and the weekly refresh
+expires a receipt whose tested inputs have changed since its run.
 
 Each receipt names the format, workflow, GitHub Actions run and attempt, tested
 commit, and external consumer tests. The receipt includes the result for each
@@ -66,7 +91,7 @@ for every other gate in the format's declaration.
 
 ## Give an agent a task
 
-Generate a brief for the fleet, one subject or a candidate. The brief is plain text. Pass it to the coding agent that has access to the checkout. The following commands print the briefs without starting an agent.
+Generate a brief for the fleet, one subject or a candidate. The brief is plain text. A connector brief reads the dataset on the Bowrain docs site. Pass it to the coding agent that has access to the checkout. The following commands print the briefs without starting an agent.
 
 ```sh
 node scripts/format-ops/agent-brief.mjs
@@ -115,14 +140,20 @@ bin/kapi kconv "$sample" -o /tmp/neokapi-message.dclg.xml
 
 The package tests compare unchanged messages byte for byte and read back edited messages. The acceptance test uses Python's email library as an independent consumer. The binary handoff test extracts a multipart message into a project archive, removes the source, applies an edit and merges from the archive. The file connector test delivers an edited subject while preserving unrelated headers and body bytes.
 
-EML enters the registry at Available. The [operations ledger](./format-ops-ledger.json)
+EML is registered at Available. The [operations ledger](./format-ops-ledger.json)
 records the proposal to promote it to Maintained. The initial corpus contains
 project fixtures and a message generated by Python. Supported requires additional
 corpus evidence at C2. The format row records its current axes. The dossier and corpus identify the covered MIME cases and fixture origins. The output row records the requirement for the original message. The host and CLI conversion evidence records what reaches each tested target. Outlook MSG uses a different storage format and has its own inception brief.
 
 ## Read the history
 
-The current datasets are `web/static/data/format-maturity.json` and `web/static/data/content-capabilities.json`. Their adjacent history files preserve dated observations. The capability history starts with format Engine levels recovered from published Git revisions. Output and connector measurements begin on the date their probes first ran. A missing historical observation carries no grade. Pull request checks compare prior
+The current datasets are `web/static/data/format-maturity.json`,
+`web/static/data/content-capabilities.json` and
+`bowrain/web/docs/static/data/connector-capabilities.json`. Their adjacent
+history files preserve dated observations. The capability history starts with
+format Engine levels recovered from published Git revisions. Output and
+connector measurements begin on the date their probes first ran. A missing
+historical observation carries no grade. Pull request checks compare prior
 observations with the base revision. External Okapi parity is measured in the
 okapi-bridge repository. Use the [parity publication runbook](../../.skills/format-ops/references/parity-publish.md)
 to trace that result to its workflow run and artifact.

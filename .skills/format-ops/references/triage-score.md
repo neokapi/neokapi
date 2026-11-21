@@ -3,7 +3,8 @@
 ## Purpose
 
 Run `make refresh-content-maturity` to publish the repository measurements.
-The runtime probes cover output targets and connectors. The format rubric and
+The runtime probes cover output targets. Connector probes run on the platform
+side with `make -C bowrain refresh-connector-maturity`. The format rubric and
 its evidence rules are in `docs/internals/format-maturity.md`. Follow the steps
 below when the run also includes a calibrated review of quality judgments.
 

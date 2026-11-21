@@ -63,8 +63,9 @@ See the live [`/format-maturity` dashboard](https://neokapi.github.io/format-mat
 ## How it runs: the runbook
 
 Run `make check-content-maturity` to reproduce the published measurements.
-The [content maturity job](./content-maturity.md) also tests output formats and
-connector operations. It generates a brief you can give to a coding agent.
+The [content maturity job](./content-maturity.md) also tests output formats, and
+`make -C bowrain check-connector-maturity` tests connector operations. The job
+generates a brief you can give to a coding agent.
 Use the format-ops skill at `.skills/format-ops/` for a calibrated review.
 To inspect pending work without executing it:
 

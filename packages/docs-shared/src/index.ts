@@ -69,7 +69,7 @@ export type {
   LoopRole,
 } from "./diagram";
 
-// Capability evidence — the operation inventory and observation history shared
+// Capability evidence: the operation inventory and observation history shared
 // by the format maturity dashboard and the connector maturity page.
 export {
   CapabilityCoverage,
