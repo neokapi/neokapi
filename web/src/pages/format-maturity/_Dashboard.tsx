@@ -8,7 +8,6 @@ import {
   FileOutput,
   Files,
   ListChecks,
-  Plug,
 } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import formats from "../../../static/data/format-maturity.json";
@@ -24,17 +23,14 @@ const views = [
   { id: "overview", label: t("Overview", "dashboard view") },
   { id: "format-evidence", label: t("Formats", "dashboard view") },
   { id: "outputs", label: t("Outputs", "dashboard view") },
-  { id: "connectors", label: t("Connectors", "dashboard view") },
   { id: "observation-history", label: t("History", "dashboard view") },
 ] as const;
 
 type View = (typeof views)[number]["id"];
-const focusViews: Record<string, { view: "outputs" | "connectors"; status?: string }> = {
+const focusViews: Record<string, { view: "outputs"; status?: string }> = {
   "capability-evidence": { view: "outputs" },
   "failed-outputs": { view: "outputs", status: "failed" },
   "unverified-outputs": { view: "outputs", status: "unverified" },
-  "failed-connectors": { view: "connectors", status: "failed" },
-  "unverified-connectors": { view: "connectors", status: "unverified" },
 };
 
 export const dashboardAnchors = [
@@ -63,12 +59,6 @@ const inventory = [
     count: capabilities.outputs.length,
     icon: FileOutput,
   },
-  {
-    id: "connectors",
-    label: t("Connectors", "inventory count"),
-    count: capabilities.connectors.length,
-    icon: Plug,
-  },
 ];
 
 const tiers = [
@@ -82,28 +72,20 @@ const tiers = [
   .filter((tier) => tier.id !== "unlisted" || tier.count > 0);
 
 const issueLabels = {
-  outputs: {
-    failed: t("Failed output checks", "dashboard review filter"),
-    unverified: t("Unverified output operations", "dashboard review filter"),
-  },
-  connectors: {
-    failed: t("Failed connector checks", "dashboard review filter"),
-    unverified: t("Unverified connector operations", "dashboard review filter"),
-  },
+  failed: t("Failed output checks", "dashboard review filter"),
+  unverified: t("Unverified output operations", "dashboard review filter"),
 };
-const issues = (["failed", "unverified"] as const).flatMap((status) =>
-  (["outputs", "connectors"] as const)
-    .map((kind) => ({
-      id: status + "-" + kind,
-      label: issueLabels[kind][status],
-      count: capabilities[kind]
-        .flatMap((row) => row.capabilities)
-        .filter((check) => check.status === status).length,
-      icon: status === "failed" ? CircleAlert : ListChecks,
-      color: status === "failed" ? styles.failed : styles.unverified,
-    }))
-    .filter((issue) => issue.count > 0),
-);
+const issues = (["failed", "unverified"] as const)
+  .map((status) => ({
+    id: status + "-outputs",
+    label: issueLabels[status],
+    count: capabilities.outputs
+      .flatMap((row) => row.capabilities)
+      .filter((check) => check.status === status).length,
+    icon: status === "failed" ? CircleAlert : ListChecks,
+    color: status === "failed" ? styles.failed : styles.unverified,
+  }))
+  .filter((issue) => issue.count > 0);
 
 function RecentChanges() {
   const history: History[] = observations;
@@ -117,7 +99,6 @@ function RecentChanges() {
   const moved = ids.filter((id) => before[id] && before[id] !== now[id]);
   const removed = Object.keys(before).filter((id) => !now[id]);
   const outputs = operationChanges(latest.outputs, previous.outputs).length;
-  const connectors = operationChanges(latest.connectors, previous.connectors).length;
   return (
     <section className={styles.recent}>
       <div className={styles.sectionHeading}>
@@ -170,16 +151,7 @@ function RecentChanges() {
             )}
           </span>
         )}
-        {connectors > 0 && (
-          <span>
-            {t(
-              "{count, plural, one {# connector check changed} other {# connector checks changed}}",
-              "operation changes",
-              { count: connectors },
-            )}
-          </span>
-        )}
-        {added.length + moved.length + removed.length + outputs + connectors === 0 && (
+        {added.length + moved.length + removed.length + outputs === 0 && (
           <span>{t("No changes in comparable results.", "latest audit")}</span>
         )}
       </div>
@@ -307,10 +279,9 @@ export default function Dashboard({
         {view === "format-evidence" && (
           <Formats key={hash} initialSearch={format?.id} initialTier={tier} />
         )}
-        {(view === "outputs" || view === "connectors") && (
+        {view === "outputs" && (
           <CapabilityEvidence
             key={hash}
-            group={view}
             initialStatus={focus?.status}
             evidenceBaseUrl={evidenceBaseUrl}
           />

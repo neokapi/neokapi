@@ -36,25 +36,6 @@ vi.mock("../../../static/data/content-capabilities.json", () => ({
         ],
       },
     ],
-    connectors: [
-      {
-        id: "wordpress",
-        capabilities: [
-          {
-            id: "list",
-            status: "unverified",
-            detail: "The audit has no listing fixture.",
-            evidence: [],
-          },
-          {
-            id: "fetch",
-            status: "verified",
-            detail: "Read a post from the fixture.",
-            evidence: ["connect/post.go"],
-          },
-        ],
-      },
-    ],
   },
 }));
 
@@ -66,13 +47,11 @@ vi.mock("../../../static/data/content-capabilities-history.json", () => ({
       revision: "b".repeat(40),
       formats: { markdown: "L2" },
       outputs: { markdown: { email: "failed", structure: "verified" } },
-      connectors: { wordpress: { fetch: "verified" } },
     },
     {
       date: "2026-11-20",
       formats: { markdown: "L2" },
       outputs: { markdown: { email: "verified" }, doclang: { structure: "verified" } },
-      connectors: { wordpress: { fetch: "verified" } },
     },
   ],
 }));
@@ -81,10 +60,7 @@ afterEach(cleanup);
 
 it("collapses evidence by subject and leads with the failed operation", () => {
   render(
-    <CapabilityEvidence
-      group="outputs"
-      evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
-    />,
+    <CapabilityEvidence evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/" />,
   );
   const subjects = within(screen.getByRole("list")).getAllByRole("button");
   expect(subjects).toHaveLength(2);
@@ -106,9 +82,8 @@ it("collapses evidence by subject and leads with the failed operation", () => {
 });
 
 it("filters subjects and disclosed operations by status and text, including raw operation IDs", () => {
-  const view = render(
+  render(
     <CapabilityEvidence
-      group="outputs"
       initialStatus="failed"
       evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
     />,
@@ -127,31 +102,6 @@ it("filters subjects and disclosed operations by status and text, including raw 
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: " PROJECT-TEXT " } });
   expect(screen.getByRole("button", { name: /DocLang.*Convert text/ })).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Markdown/ })).toBeNull();
-
-  view.rerender(
-    <CapabilityEvidence
-      group="connectors"
-      initialStatus="unverified"
-      evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
-    />,
-  );
-  expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
-  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "WordPreSS" } });
-  fireEvent.click(screen.getByRole("button", { name: /WordPress.*List content.*Unverified/ }));
-  expect(screen.getByText("The audit has no listing fixture.")).toBeTruthy();
-  expect(screen.queryByText("Read a post from the fixture.")).toBeNull();
-
-  fireEvent.change(screen.getByLabelText("Evidence status"), { target: { value: "verified" } });
-  expect(screen.getByText("Read a post from the fixture.")).toBeTruthy();
-  expect(screen.queryByText("The audit has no listing fixture.")).toBeNull();
-  view.rerender(
-    <CapabilityEvidence
-      group="connectors"
-      initialStatus="failed"
-      evidenceBaseUrl="https://github.com/neokapi/neokapi/blob/review-commit/"
-    />,
-  );
-  expect(screen.getByRole("status").textContent).toBe("0 of 1 connectors");
 });
 
 it("shows published observations newest first, preserving missing coverage, deltas and source links", () => {
@@ -161,7 +111,7 @@ it("shows published observations newest first, preserving missing coverage, delt
   expect(dates.map((date) => date.textContent)).toEqual(["2026-11-20", "2026-06-01", "2026-05-01"]);
   const earliest = within(dates[2].closest("li")!);
   expect(earliest.getByText("First observation")).toBeTruthy();
-  expect(earliest.getAllByText("No observation")).toHaveLength(2);
+  expect(earliest.getAllByText("No observation")).toHaveLength(1);
   expect(earliest.getByRole("link").getAttribute("href")).toBe(
     "https://github.com/neokapi/neokapi/blob/" +
       "a".repeat(40) +

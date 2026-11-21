@@ -16,10 +16,7 @@ export default function FormatMaturity() {
   return (
     <Layout
       title={t("Format maturity", "dashboard title")}
-      description={t(
-        "Support tiers, conversion results and connector checks.",
-        "maturity dashboard description",
-      )}
+      description={t("Support tiers and conversion results.", "maturity dashboard description")}
     >
       <Dashboard evidenceBaseUrl={evidenceBaseUrl} dataBaseUrl={dataBaseUrl} guideUrl={guideUrl} />
     </Layout>

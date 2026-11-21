@@ -8,6 +8,7 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./capability": "./src/capability/index.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -22,8 +23,11 @@
     "posthog-js": "^1.438.9"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
+    "jsdom": "^30.1.3",
     "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {

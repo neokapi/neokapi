@@ -1,23 +1,25 @@
-.section {
+/* Capability evidence: the inventory and observation history shared by the
+   kapi and Bowrain docs sites. Infima variables give both sites their theme. */
+.nk-cap-section {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.controls {
+.nk-cap-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 0.75rem 1rem;
 }
-.controls label {
+.nk-cap-controls label {
   display: grid;
   gap: 0.3rem;
   min-width: 0;
   font-size: 0.85rem;
   font-weight: 600;
 }
-.controls input,
-.controls select,
-.empty button {
+.nk-cap-controls input,
+.nk-cap-controls select,
+.nk-cap-empty button {
   box-sizing: border-box;
   max-width: 100%;
   border: 1px solid var(--ifm-color-emphasis-400);
@@ -29,36 +31,36 @@
   font-weight: 400;
   min-height: 2.25rem;
 }
-.controls input {
+.nk-cap-controls input {
   width: 20rem;
 }
-.empty button,
-.disclosure,
-.history summary {
+.nk-cap-empty button,
+.nk-cap-disclosure,
+.nk-cap-history summary {
   cursor: pointer;
 }
-.meta {
+.nk-cap-meta {
   margin: 0.9rem 0 0.4rem;
   font-size: 0.85rem;
   color: var(--ifm-color-emphasis-700);
   font-variant-numeric: tabular-nums;
 }
-.subjects,
-.history,
-.operations {
+.nk-cap-subjects,
+.nk-cap-history,
+.nk-cap-operations {
   padding: 0;
   margin: 0;
   list-style: none;
 }
-.row,
-.history > li {
+.nk-cap-row,
+.nk-cap-history > li {
   border-top: 1px solid var(--ifm-color-emphasis-300);
 }
-.row:last-child,
-.history > li:last-child {
+.nk-cap-row:last-child,
+.nk-cap-history > li:last-child {
   border-bottom: 1px solid var(--ifm-color-emphasis-300);
 }
-.disclosure {
+.nk-cap-disclosure {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 7rem auto;
   align-items: center;
@@ -72,29 +74,29 @@
   color: inherit;
   font: inherit;
 }
-.disclosure:hover,
-.disclosure[aria-expanded="true"] {
+.nk-cap-disclosure:hover,
+.nk-cap-disclosure[aria-expanded="true"] {
   background: var(--ifm-color-emphasis-100);
 }
-.disclosure:focus-visible {
+.nk-cap-disclosure:focus-visible {
   outline: 2px solid var(--ifm-color-primary);
   outline-offset: -2px;
 }
-.disclosure[aria-expanded="true"] .chevron {
+.nk-cap-disclosure[aria-expanded="true"] .nk-cap-chevron {
   transform: rotate(180deg);
 }
-.operation {
+.nk-cap-operation {
   font-size: 0.875rem;
   color: var(--ifm-color-emphasis-700);
 }
-.state {
+.nk-cap-state {
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
   font-size: 0.8rem;
   font-weight: 600;
 }
-.state::before {
+.nk-cap-state::before {
   content: "";
   flex: none;
   width: 0.5rem;
@@ -102,96 +104,96 @@
   border-radius: 50%;
   background: var(--ifm-color-emphasis-500);
 }
-.state[data-state="failed"]::before {
+.nk-cap-state[data-state="failed"]::before {
   background: var(--ifm-color-danger);
 }
-.state[data-state="unverified"]::before {
+.nk-cap-state[data-state="unverified"]::before {
   background: var(--ifm-color-warning-dark);
 }
-.state[data-state="verified"]::before {
+.nk-cap-state[data-state="verified"]::before {
   background: var(--ifm-color-success-dark);
 }
-.operations {
+.nk-cap-operations {
   margin: 0 0.65rem 0.75rem 1.1rem;
   border-left: 2px solid var(--ifm-color-emphasis-200);
   font-size: 0.9rem;
 }
-.operations > li {
+.nk-cap-operations > li {
   padding: 0.55rem 0.8rem;
 }
-.operationHeading {
+.nk-cap-operation-heading {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem 0.75rem;
 }
-.operations p,
-.empty p {
+.nk-cap-operations p,
+.nk-cap-empty p {
   margin: 0.25rem 0;
 }
-.files,
-.datasets {
+.nk-cap-files,
+.nk-cap-datasets {
   margin: 0;
   padding-inline-start: 1.25rem;
 }
-.history {
+.nk-cap-history {
   margin-bottom: 1.5rem;
 }
-.history > li {
+.nk-cap-history > li {
   display: grid;
   grid-template-columns: minmax(6rem, 0.55fr) minmax(0, 3fr);
   gap: 0.5rem 1rem;
   padding: 0.8rem 0;
 }
-.history h3 {
+.nk-cap-history h3 {
   margin: 0;
   font-size: 1rem;
   font-variant-numeric: tabular-nums;
 }
-.history dl {
+.nk-cap-history dl {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.4rem 1rem;
   margin: 0;
   font-size: 0.88rem;
 }
-.history dt {
+.nk-cap-history dt {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--ifm-color-emphasis-700);
 }
-.history dd {
+.nk-cap-history dd {
   margin: 0;
 }
-.history ul {
+.nk-cap-history ul {
   padding-inline-start: 1.2rem;
 }
 @media (max-width: 700px) {
-  .history > li,
-  .history dl {
+  .nk-cap-history > li,
+  .nk-cap-history dl {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 580px) {
-  .controls label,
-  .controls input {
+  .nk-cap-controls label,
+  .nk-cap-controls input {
     width: 100%;
   }
-  .disclosure {
+  .nk-cap-disclosure {
     grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-areas: "name state chevron" "operation operation chevron";
     gap: 0.2rem 0.5rem;
   }
-  .disclosure strong {
+  .nk-cap-disclosure strong {
     grid-area: name;
   }
-  .disclosure .state {
+  .nk-cap-disclosure .nk-cap-state {
     grid-area: state;
   }
-  .operation {
+  .nk-cap-operation {
     grid-area: operation;
   }
-  .chevron {
+  .nk-cap-chevron {
     grid-area: chevron;
   }
 }

@@ -9,11 +9,7 @@ vi.mock("./_Formats", () => ({
   ),
 }));
 vi.mock("./_CapabilityEvidence", () => ({
-  default: ({ group, initialStatus }: { group: string; initialStatus?: string }) => (
-    <h2>
-      {group} {initialStatus}
-    </h2>
-  ),
+  default: ({ initialStatus }: { initialStatus?: string }) => <h2>outputs {initialStatus}</h2>,
   ObservationHistory: () => <h2>Observations</h2>,
 }));
 vi.mock("../../../static/data/format-maturity.json", () => ({
@@ -30,9 +26,6 @@ vi.mock("../../../static/data/content-capabilities.json", () => ({
     outputs: [
       { id: "sample-output", capabilities: [{ status: "failed" }, { status: "verified" }] },
     ],
-    connectors: [
-      { id: "sample-source", capabilities: [{ status: "unverified" }, { status: "declared" }] },
-    ],
   },
 }));
 vi.mock("../../../static/data/content-capabilities-history.json", () => ({
@@ -41,13 +34,11 @@ vi.mock("../../../static/data/content-capabilities-history.json", () => ({
       date: "2026-09-15",
       formats: { csv: "L1" },
       outputs: { html: { text: "failed" } },
-      connectors: { file: { fetch: "unverified", list: "unverified" } },
     },
     {
       date: "2026-11-20",
       formats: { csv: "L2", eml: "L3" },
       outputs: { html: { text: "verified" } },
-      connectors: { file: { fetch: "verified", list: "verified" } },
     },
   ],
 }));
@@ -68,7 +59,8 @@ it("starts with counts and changes and opens the selected evidence filter", asyn
   expect(screen.getByRole("link", { name: "Input formats 2" })).toBeTruthy();
   expect(screen.getByText("1 implementation grade changed")).toBeTruthy();
   expect(screen.getByText("1 output check changed")).toBeTruthy();
-  expect(screen.getByText("2 connector checks changed")).toBeTruthy();
+  expect(screen.queryByText(/connector/i)).toBeNull();
+  expect(screen.queryByRole("link", { name: "Connectors" })).toBeNull();
   expect(screen.queryByRole("table")).toBeNull();
   fireEvent.click(screen.getByRole("link", { name: "Failed output checks 1" }));
   await waitFor(() => expect(screen.getByRole("heading", { name: "outputs failed" })).toBeTruthy());
@@ -82,7 +74,7 @@ it("starts with counts and changes and opens the selected evidence filter", asyn
 it.each([
   ["capability-evidence", "outputs"],
   ["observation-history", "Observations"],
-  ["unverified-connectors", "connectors unverified"],
+  ["unverified-outputs", "outputs unverified"],
   ["format/eml", "Formats eml"],
   ["tier/maintained", "Formats maintained"],
 ])("opens the requested view from #%s", (hash, heading) => {
