@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { contextProposalsFact, contextScanFact } from "../../../components/home/PlanCard";
+import { contextProposalsFact, contextScanFact, waitFact } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
 import { reviewPlanKey } from "../../../lib/plan";
@@ -247,7 +247,13 @@ export default function ReviewPlanScreen() {
             quotaResetsAt: s.quotaResetsAt ?? p.context.quotaResetsAt,
           });
         }
-        if (s.state === "open") return t("plan.context.open_count", { count: s.count });
+        if (s.state === "open") {
+          // Open for the team with nothing for this person: the terms are
+          // missing in languages other reviewers decide.
+          const others = (p.waiting ?? []).find((w) => w.reason === "other_languages");
+          if (others && s.mine === 0) return waitFact(others, t, i18n.language);
+          return t("plan.context.open_count", { count: s.count });
+        }
         return t("plan.context.concepts", { count: p.context.concepts });
       case "exceptions":
         if (s.state === "not_started") return t("plan.exceptions.notStarted");

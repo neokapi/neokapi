@@ -17,7 +17,7 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
-import { languageLabel } from "../../lib/feed";
+import { languageLabel, listOf } from "../../lib/feed";
 import { Monogram } from "./Monogram";
 
 /**
@@ -109,9 +109,24 @@ export function stepFact(step: PlanStep, t: TFunction, language = "en"): string 
       return step.settle === "held"
         ? t("planCard.fact.policyWaits")
         : t("planCard.fact.policy", { count: step.count });
+    case "context":
+      // The Next card is the person's step: their own count, which an
+      // older cached step does not carry.
+      return t("planCard.fact.context", { count: step.mine ?? step.count });
     default:
       return t(`planCard.fact.${step.level}`, { count: step.count });
   }
+}
+
+/** What one step that only waits is waiting for. */
+export function waitFact(w: PlanWait, t: TFunction, language: string): string {
+  if (w.reason === "other_languages") {
+    const names = (w.locales ?? []).map((l) => languageLabel(l, language));
+    return names.length > 0
+      ? t("plan.context.otherLanguages", { languages: listOf(names, t, language) })
+      : t("plan.context.otherLanguagesUnnamed");
+  }
+  return contextScanFact(w.reason, t, language, { quotaResetsAt: w.quotaResetsAt });
 }
 
 /** The step's one count or state word for the list of later steps. */
@@ -150,7 +165,7 @@ export function PlanWaitingNote({ waiting, testID }: { waiting: PlanWait[]; test
             {t(`planCard.steps.${w.level}`)}
           </Text>
           <Text className="text-muted-foreground flex-1 text-sm">
-            {contextScanFact(w.reason, t, i18n.language, { quotaResetsAt: w.quotaResetsAt })}
+            {waitFact(w, t, i18n.language)}
           </Text>
         </View>
       ))}

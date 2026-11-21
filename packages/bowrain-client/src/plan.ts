@@ -232,7 +232,9 @@ export function planProposalsOf(v: string | undefined): PlanProposals | undefine
 /**
  * Why a level the plan skips for `next` only waits: the context's term scan
  * runs (queued, processing), or it cannot start (waiting_content,
- * waiting_quota, waiting_credits, no_ai).
+ * waiting_quota, waiting_credits, no_ai). other_languages: the context's
+ * open decisions are target terms missing only in languages the person does
+ * not follow, which other reviewers decide; `locales` names them.
  */
 export type PlanWaitReason =
   | "queued"
@@ -240,7 +242,8 @@ export type PlanWaitReason =
   | "waiting_content"
   | "waiting_quota"
   | "waiting_credits"
-  | "no_ai";
+  | "no_ai"
+  | "other_languages";
 
 const PLAN_WAIT_REASONS: readonly PlanWaitReason[] = [
   "queued",
@@ -249,6 +252,7 @@ const PLAN_WAIT_REASONS: readonly PlanWaitReason[] = [
   "waiting_quota",
   "waiting_credits",
   "no_ai",
+  "other_languages",
 ];
 
 /** A level with work ahead and nothing to decide yet, which `next` skips. */
@@ -257,12 +261,15 @@ export interface PlanWait {
   reason: PlanWaitReason;
   /** When the workspace's monthly AI limit resets, set with waiting_quota. */
   quotaResetsAt?: string;
+  /** The languages with missing terms, set with other_languages. */
+  locales?: string[];
 }
 
 export interface ServerPlanWait {
   level: string;
   reason: string;
   quota_resets_at?: string;
+  locales?: string[] | null;
 }
 
 /** The levels the plan skips for `next`, leaving out a level or reason this client does not know. */
@@ -275,6 +282,7 @@ export function planWaitingFromServer(waiting: ServerPlanWait[] | null | undefin
       level: w.level as PlanLevel,
       reason: w.reason as PlanWaitReason,
       quotaResetsAt: w.quota_resets_at || undefined,
+      locales: w.locales?.length ? w.locales : undefined,
     });
   }
   return out;

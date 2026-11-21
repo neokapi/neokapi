@@ -171,6 +171,18 @@ describe("homeStep", () => {
     expect(() => homeStep(withProjects(old))).not.toThrow();
   });
 
+  it("shows the wait of a saved project with nothing waiting in its languages", () => {
+    const idle = proj("acme", "p1", { waiting: 0 });
+    const others = {
+      level: "context" as const,
+      reason: "other_languages" as const,
+      locales: ["de"],
+    };
+    idle.plan!.waiting = [others];
+    const n = homeStep({ context: [], languages: [], projects: [idle] });
+    expect(n).toMatchObject({ kind: "waiting", waiting: [others], more: 0 });
+  });
+
   it("offers nothing when nothing waits", () => {
     expect(homeStep(withProjects(proj("acme", "p1")))).toBeNull();
     expect(homeStep({ context: [], languages: [], projects: [] })).toBeNull();

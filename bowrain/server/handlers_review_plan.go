@@ -350,6 +350,16 @@ type planCaller struct {
 	perms   platauth.Permission
 	reach   platauth.CoordinateReach
 	locales []string
+	// context is the caller's context cards when already counted, as the
+	// review inbox counts them before it builds a plan; nil counts them.
+	context *callerContext
+}
+
+// callerContext is the context cards waiting for one caller, as
+// contextInbox counts them.
+type callerContext struct {
+	entry contextInboxEntry
+	ok    bool
 }
 
 // computeReviewPlan builds a project's plan for one caller. The review plan
@@ -386,11 +396,15 @@ func (s *Server) reviewPlanFrom(ctx context.Context, ws *platauth.Workspace, pro
 		Untranslated: maps.Clone(b.snap.Untranslated),
 		Proposable:   b.snap.Proposable,
 	}
-	entry, ok, err := s.contextInbox(ctx, ws, proj, caller.userID, caller.perms, caller.reach)
-	if err != nil {
-		return out, err
+	known := caller.context
+	if known == nil {
+		entry, ok, err := s.contextInbox(ctx, ws, proj, caller.userID, caller.perms, caller.reach)
+		if err != nil {
+			return out, err
+		}
+		known = &callerContext{entry: entry, ok: ok}
 	}
-	if ok {
+	if entry, ok := known.entry, known.ok; ok {
 		out.Context.Waiting, out.Context.ByKind = entry.Waiting, entry.ByKind
 	}
 	out.Exceptions = planExceptionsDTO{
@@ -497,7 +511,9 @@ func involvementOf(p *platstore.Project) string {
 // before it that only wait. A context that has not started is the next
 // step once the coordinates are confirmed, unless its term scan runs or
 // cannot start: then nothing waits for a decision there, and the level is
-// listed with the reason instead.
+// listed with the reason instead. A context whose only open decisions are
+// target terms in languages the caller does not follow is listed with
+// other_languages and those languages: other reviewers decide them.
 func nextPlanLevel(p reviewPlanResponse) (string, []planWaitDTO) {
 	waiting := []planWaitDTO{}
 	if !p.Coordinates.Confirmed || p.Coordinates.Changed > 0 {
@@ -508,13 +524,23 @@ func nextPlanLevel(p reviewPlanResponse) (string, []planWaitDTO) {
 		locales = append(locales, l.Locale)
 	}
 	untranslated := false
+	var others []string
 	for loc, n := range p.Context.Untranslated {
-		untranslated = untranslated || (n > 0 && slices.Contains(locales, loc))
+		switch {
+		case n <= 0:
+		case slices.Contains(locales, loc):
+			untranslated = true
+		default:
+			others = append(others, loc)
+		}
 	}
+	slices.Sort(others)
 	if reason, resets := contextWaitReason(p.Context); reason != "" {
 		waiting = append(waiting, planWaitDTO{Level: planContext, Reason: reason, QuotaResetsAt: resets})
 	} else if p.Context.Waiting > 0 || untranslated || contextNotStarted(p.Context) {
 		return planContext, waiting
+	} else if len(others) > 0 {
+		waiting = append(waiting, planWaitDTO{Level: planContext, Reason: planWaitOtherLanguages, Locales: others})
 	}
 	if p.Exceptions.SourceFindings != nil && *p.Exceptions.SourceFindings > 0 {
 		return planExceptions, waiting

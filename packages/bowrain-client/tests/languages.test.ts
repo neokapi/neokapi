@@ -144,6 +144,29 @@ describe("inbox projects", () => {
     ]);
   });
 
+  it("maps terms missing in languages the person does not follow, and the person's count", () => {
+    const p = inboxProjectFromServer({
+      workspace: "ws",
+      workspace_name: "WS",
+      project: "p",
+      project_name: "Site",
+      saved: true,
+      plan: {
+        next: "",
+        waiting: [{ level: "context", reason: "other_languages", locales: ["de", "fr"] }],
+        steps: [
+          { level: "context", state: "open", count: 3, mine: 0 },
+          { level: "interfaces", state: "open", count: 4 },
+        ],
+      },
+    });
+    expect(p.plan?.waiting).toEqual([
+      { level: "context", reason: "other_languages", locales: ["de", "fr"] },
+    ]);
+    expect(p.plan?.steps[0]).toMatchObject({ state: "open", count: 3, mine: 0 });
+    expect(p.plan?.steps[1]?.mine).toBe(4);
+  });
+
   it("reads a plan from a server that sends no waiting list", () => {
     const p = inboxProjectFromServer({
       workspace: "ws",
