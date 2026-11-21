@@ -174,7 +174,10 @@ func (a *App) finishRun(ctx context.Context, op *openProject, event RunEvent, er
 	r := a.runState
 	r.mu.Lock()
 	state := RunStateComplete
-	if ctx.Err() != nil {
+	// A run that failed after a cancel is reported as canceled. A run that
+	// returned no error finished its work, so a cancel landing after it
+	// changes nothing.
+	if err != nil && ctx.Err() != nil {
 		err = ctx.Err()
 	}
 	if err != nil {
@@ -255,7 +258,7 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 
 	capp := a.newProjectEngine(op)
 	completion := RunEvent{Type: "complete", FlowID: flowName}
-	_, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
+	res, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
 		FlowName:      flowName,
 		Spec:          spec,
 		Project:       op.Project,
@@ -293,6 +296,11 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 			completion.Message = ev.Message
 		}
 	})
+	// The orchestrator ends a canceled run early without an error; the
+	// result says whether it stopped before its last file.
+	if err == nil && res != nil && res.Canceled {
+		err = ctx.Err()
+	}
 	if a.finishRun(ctx, op, completion, err) != RunStateComplete {
 		a.emitEvent("outputs-changed", map[string]any{})
 	}

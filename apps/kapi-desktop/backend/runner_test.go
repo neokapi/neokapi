@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -391,6 +392,37 @@ func TestCancelRunReturnsWhenTheRunIgnoresIt(t *testing.T) {
 	require.Len(t, terminal, 1)
 	assert.Equal(t, "error", terminal[0].Type)
 	assert.Equal(t, string(RunStateCanceled), app.GetRunState())
+}
+
+// A cancel that lands after the run succeeded leaves it complete; one that
+// lands before a failure reports the run as canceled.
+func TestFinishRunKeepsASuccessfulRunComplete(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		err   error
+		state RunState
+	}{
+		{"succeeded", nil, RunStateComplete},
+		{"failed", errors.New("tool stopped"), RunStateCanceled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := NewApp()
+			tab, _ := newConvergenceProject(t, app)
+			op := app.getOpenProject(tab.ID)
+			require.NotNil(t, op)
+			ctx, err := app.runState.start(tab.ID, "flow", nil)
+			require.NoError(t, err)
+			app.runState.mu.Lock()
+			app.runState.cancel()
+			app.runState.mu.Unlock()
+			require.Error(t, ctx.Err())
+			assert.Equal(t, tc.state, app.finishRun(ctx, op, RunEvent{Type: "complete", FlowID: "flow"}, tc.err))
+			app.runState.release()
+			if tc.state == RunStateComplete {
+				assert.Nil(t, app.GetProjectLastRunError(tab.ID))
+			}
+		})
+	}
 }
 
 func TestRunnerState(t *testing.T) {
