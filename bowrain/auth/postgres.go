@@ -517,9 +517,9 @@ func (s *PostgresAuthStore) StoreRefreshToken(ctx context.Context, userID, token
 const RefreshReuseGrace = 30 * time.Second
 
 // RefreshReuseSiblingCap bounds the successors a consumed token can have within
-// RefreshReuseGrace. RotateRefreshToken counts the family's tokens created at
-// or after the consumed token's consumed_at; when that count has reached the
-// cap, a further presentation is reuse and revokes the family.
+// RefreshReuseGrace. RotateRefreshToken counts the family's other tokens
+// created at or after the consumed token's consumed_at; when that count has
+// reached the cap, a further presentation is reuse and revokes the family.
 const RefreshReuseSiblingCap = 3
 
 // RotateRefreshToken atomically consumes the presented refresh token and mints
@@ -566,6 +566,7 @@ func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHas
 
 	if consumedAt.Valid {
 		return rotateConsumedRefreshToken(ctx, tx, consumedRefreshToken{
+			id:         rowID,
 			userID:     userID,
 			familyID:   familyID,
 			expiresAt:  expiresAt,
@@ -601,6 +602,7 @@ func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHas
 // consumedRefreshToken is the locked row of a refresh token that was already
 // rotated, as RotateRefreshToken read it.
 type consumedRefreshToken struct {
+	id         string
 	userID     string
 	familyID   string
 	expiresAt  time.Time
@@ -620,10 +622,14 @@ func rotateConsumedRefreshToken(ctx context.Context, tx *sql.Tx, tok consumedRef
 	}
 
 	if withinGrace {
+		// The consumed token is left out by id. StoreRefreshToken stamps its
+		// created_at with the server's clock and consumed_at comes from the
+		// database's, so with the server ahead the token would otherwise count
+		// as created after its own consumption.
 		var successors int
 		if err := tx.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM refresh_tokens WHERE family_id = $1 AND created_at >= $2`,
-			tok.familyID, tok.consumedAt).Scan(&successors); err != nil {
+			`SELECT COUNT(*) FROM refresh_tokens WHERE family_id = $1 AND created_at >= $2 AND id <> $3`,
+			tok.familyID, tok.consumedAt, tok.id).Scan(&successors); err != nil {
 			return "", fmt.Errorf("count refresh token successors: %w", err)
 		}
 		if successors < RefreshReuseSiblingCap {
