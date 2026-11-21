@@ -425,6 +425,33 @@ func TestPublicShipFeedRequiresTeamWorkspace(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+// The public ship feed answers 404 for a project whose workspace has no
+// record, as for any project that does not publish, and 503 when the
+// workspace store cannot answer.
+func TestPublicShipFeedWorkspaceLookup(t *testing.T) {
+	srv, _ := newTestServer(t)
+	real := srv.AuthStore
+	for _, tc := range []struct {
+		name      string
+		workspace string
+		auth      bauth.AuthStore
+		want      int
+	}{
+		{"missing workspace", "no-such-ws", real, http.StatusNotFound},
+		{"unreadable workspace", "test-ws", unreadableWorkspace{AuthStore: real}, http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &store.Project{Name: tc.name, WorkspaceID: tc.workspace, Properties: map[string]string{ShipFeedProperty: "true"}}
+			require.NoError(t, srv.ContentStore.CreateProject(t.Context(), p))
+			srv.AuthStore = tc.auth
+			t.Cleanup(func() { srv.AuthStore = real })
+			rec := httptest.NewRecorder()
+			srv.GetEcho().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+p.ID+"/ship.json", nil))
+			assert.Equal(t, tc.want, rec.Code)
+		})
+	}
+}
+
 func TestProjectPublicationRequiresReadableWorkspace(t *testing.T) {
 	s := &Server{AuthStore: unreadableWorkspace{}}
 	allowed, err := s.workspaceMayPublishProjects(t.Context(), "ws")

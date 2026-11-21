@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -44,11 +45,17 @@ type shipManifestEntry struct {
 	NotGoverned []string `json:"not_governed,omitempty"`
 }
 
+// workspaceMayPublishProjects reports whether the workspace may expose its
+// projects publicly. A workspace with no record may not; an error is a store
+// that could not answer.
 func (s *Server) workspaceMayPublishProjects(ctx context.Context, workspaceID string) (bool, error) {
 	if s.AuthStore == nil {
 		return false, errors.New("workspace store unavailable")
 	}
 	ws, err := s.AuthStore.GetWorkspace(ctx, workspaceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
