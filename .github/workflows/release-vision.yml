@@ -60,41 +60,15 @@ jobs:
           fi
 
       # ── onnxruntime shared library (runtime dep; bundled into the tarball) ────
-      - name: Download onnxruntime (Unix)
-        if: runner.os != 'Windows'
+      - name: Download onnxruntime
         shell: bash
         env:
           GOOS: ${{ matrix.build.goos }}
           GOARCH: ${{ matrix.build.goarch }}
         run: |
           set -euo pipefail
-          case "${GOOS}/${GOARCH}" in
-            darwin/arm64) asset="onnxruntime-osx-arm64-${ONNXRUNTIME_VERSION}.tgz" ;;
-            linux/amd64)  asset="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz" ;;
-            linux/arm64)  asset="onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}.tgz" ;;
-            *) echo "::error::no onnxruntime asset mapping for ${GOOS}/${GOARCH}"; exit 1 ;;
-          esac
-          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
-          echo "Downloading $url"
-          mkdir -p "$RUNNER_TEMP/ort"
-          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
-          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/ort"
-          ort_root="$(find "$RUNNER_TEMP/ort" -maxdepth 1 -mindepth 1 -type d | head -n1)"
-          echo "ORT_DIR=${ort_root}" >> "$GITHUB_ENV"
-
-      - name: Download onnxruntime (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $asset = "onnxruntime-win-x64-$env:ONNXRUNTIME_VERSION.zip"
-          $url = "https://github.com/microsoft/onnxruntime/releases/download/v$env:ONNXRUNTIME_VERSION/$asset"
-          Write-Host "Downloading $url"
-          $dest = "$env:RUNNER_TEMP\$asset"
-          Invoke-WebRequest -Uri $url -OutFile $dest
-          $ortRoot = "$env:RUNNER_TEMP\ort"
-          Expand-Archive -Path $dest -DestinationPath $ortRoot -Force
-          $inner = (Get-ChildItem -Path $ortRoot -Directory | Select-Object -First 1).FullName
-          "ORT_DIR=$inner" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          scripts/fetch-onnxruntime.sh "$GOOS" "$GOARCH" "$RUNNER_TEMP/ort"
+          echo "ORT_DIR=$RUNNER_TEMP/ort" >> "$GITHUB_ENV"
 
       # ── PP-OCRv5 model assets (bundled into the tarball) ──────────────────────
       - name: Download model assets

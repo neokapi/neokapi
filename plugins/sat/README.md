@@ -92,10 +92,12 @@ In this build, `segment` requests return an error advising a rebuild with
 
 Requires two native libraries:
 
-1. **ONNX Runtime shared library** — download the prebuilt archive for your
-   platform from the [microsoft/onnxruntime releases](https://github.com/microsoft/onnxruntime/releases)
-   (e.g. `onnxruntime-osx-arm64-<ver>.tgz`) and extract it. The binary is
-   pointed at the `.dylib`/`.so` **at runtime** via `KAPI_SAT_ORT_LIB`.
+1. **ONNX Runtime shared library**. Run
+   `scripts/fetch-onnxruntime.sh <goos> <goarch> <dir>` from the repository
+   root (for example `scripts/fetch-onnxruntime.sh darwin arm64 /tmp/ort`). It
+   fetches the pinned build and checks it against a recorded SHA-256. The
+   binary is pointed at `<dir>/lib/libonnxruntime.dylib` (or `.so`) **at
+   runtime** via `KAPI_SAT_ORT_LIB`.
 
 2. **Tokenizer static library `libtokenizers.a`** — download from the
    [daulet/tokenizers releases](https://github.com/daulet/tokenizers/releases)
