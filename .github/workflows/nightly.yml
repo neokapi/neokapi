@@ -44,8 +44,8 @@ jobs:
       # the first module cannot hide one in the next. An advisory a person has
       # reviewed and found not to apply is recorded, with its review date, in
       # scripts/govulncheck-accepted.txt.
-      - name: Scan the framework, bowrain, cli and kapi modules
-        run: python3 scripts/govulncheck.py . bowrain cli kapi
+      - name: Scan every application module
+        run: python3 scripts/govulncheck.py . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain
 
   full-suite:
     name: Full suite (Go stable, race)

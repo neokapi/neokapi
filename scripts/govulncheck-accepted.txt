@@ -3,13 +3,14 @@
 #
 # One entry per line:
 #
-#   ID  review-by (YYYY-MM-DD)  why the advisory does not apply
+#   module  ID  review-by (YYYY-MM-DD)  why the advisory does not apply there
 #
-# An entry is for an advisory with no fixed release. The scan fails when a fix
-# ships, when the review date passes, and when the entry no longer matches a
-# finding, so the list cannot outlive its reasons. Adding or extending an entry
+# An entry covers one module: the same advisory reached from another module is
+# unreviewed. It is for an advisory with no fixed release. The scan fails when a
+# fix ships, on the review date, and when the entry no longer matches a finding,
+# so the list cannot outlive its reasons. Adding or extending an entry
 # is a security decision: a person approves it.
 
 # Both advisories cover every Echo v4 release and are fixed only in Echo v5.
-GO-2026-6872  2027-02-01  The server sets its own IPExtractor (configureIPExtractor in bowrain/server/server.go), which trusts X-Forwarded-For only from loopback, link-local, private and configured proxy ranges, and uses its own rate limiter keyed on that address. TestPerIPControlsResistXFFSpoofing covers it.
-GO-2026-6875  2027-02-01  The server does not use Echo's Proxy middleware, the only code that forwards X-Real-IP upstream.
+bowrain  GO-2026-6872  2027-02-01  The server sets its own IPExtractor (configureIPExtractor in bowrain/server/server.go), which trusts X-Forwarded-For only from loopback, link-local, private and configured proxy ranges, and uses its own rate limiter keyed on that address. TestPerIPControlsResistXFFSpoofing covers it.
+bowrain  GO-2026-6875  2027-02-01  The server does not use Echo's Proxy middleware, the only code that forwards X-Real-IP upstream.
