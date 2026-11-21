@@ -1,13 +1,22 @@
 # Native reference doc for the built-in `span-classify` tool.
 # Schema source: core/tools/span_classify.go (SpanClassifyConfig, no parameters).
-description: Omklassifiser generiske markup-inline-koder til semantiske vokabulartyper.
+description: Klassifiser generiske markup-inlinekoder på nytt til semantiske vokabulartyper.
 overview: |
-  **Span Classify**-verktøyet omklassifiserer generiske `code:markup` inline-koder (plassholderere og parvise åpne/lukke-koder) til riktige semantiske vokabulartyper som fet, kursiv, hyperkobling eller bilde. Det er ment å kjøres etter lesere som sender ut generiske markup-koder (for eksempel bridge-XLIFF- eller Okapi-lesere), slik at senere verktøy og redigerere ser meningsfulle inline-kodetyper i stedet for ugjennomsiktig markup.
+  **Span Classify**-verktøyet klassifiserer generiske `code:markup`-inlinekoder
+  (plassholdere og parvise åpne/lukke-koder) på nytt til riktige semantiske vokabulartyper
+  som fet, kursiv, hyperkoblet eller bilde. Det er laget for å kjøre etter
+  lesere som sender ut generiske markup-koder (for eksempel bro-XLIFF- eller Okapi-
+  lesere), slik at senere verktøy og editorer ser meningsfulle inlinekodetyper
+  framfor ugjennomsiktig markup.
 
-  Klassifiseringen bruker to strategier: et kart over kjente Okapi-kode-undertyper, og, hvis det ikke gir resultat, HTML-elementnavnet som parses fra kodens rådata. Når en semantisk type er bestemt, bruker verktøyet også vokabularets visningsform, ekvivalenstekst og redigeringsbegrensninger. Koder det ikke kan klassifisere, forblir uendret. Verktøyet har ingen konfigurerbare parametere.
+  Klassifisering bruker to strategier: et kart over kjente Okapi-kodeundertyper, og,
+  dersom det ikke gir resultat, HTML-elementnavnet som er tolket fra kodens rådata. Når en
+  semantisk type er løst, bruker verktøyet også vokabularets visningsform,
+  ekvivalenstekst og redigeringsbegrensninger. Koder det ikke kan klassifisere,
+  forblir uendret. Verktøyet har ingen konfigurerbare parametere.
 limitations:
   - Klassifisering dekker kjente Okapi-undertyper og vanlige HTML-elementer; ukjente koder forblir uendret.
   - Har ingen konfigurerbare parametere.
 processingNotes:
-  - Opererer på inline-kode-kjøringer i både kilde- og målsegmenter.
-  - Rekurserer inn i flertalls- og select-konstruksjoner slik at koder inni dem også klassifiseres.
+  - Opererer på inlinekodesekvenser i både kilde- og målsegmenter.
+  - Går rekursivt inn i flertalls- og valgkonstruksjoner slik at koder inni dem også klassifiseres.

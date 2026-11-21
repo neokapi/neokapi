@@ -1,6 +1,6 @@
 id: 11-cli-terms-and-queue
 title: "Én kø, alle språk"
-subtitle: "De samme term­reglene når både modellen og kontrollen, og én liste holder arbeidet."
+subtitle: "De samme termreglene når modellen og porten, og én liste holder arbeidet."
 kind: use-case
 publishAs: cli-terms-and-queue
 # A scripted plain-shell demo: every command is deterministic and offline. The
@@ -15,10 +15,10 @@ needsAi: false
 # sandbox IS the project (a recipe at its root) and lives in os.tmpdir().
 fixturesFrom: harness/demos/10-cli-points-and-voice/fixtures
 project: true
-# The fixture's voice profile is a file until somebody reads it into this
+# The fixture's context is a set of files until somebody reads them into this
 # machine's store, and the sandbox is a fresh one every take.
 setup:
-  - kapi context import
+  - kapi store import ./context
 captureTimeoutSec: 180
 aspects:
   - one list of term rules
@@ -32,25 +32,25 @@ script:
   - comment: Terminology is a list under term_rules, on the step that uses it. Two lines in the recipe name what the French must say.
   - comment: The step that drafts is handed exactly that list, so the model and the check are told the same thing.
   - command: kapi run converge -i app/strings.en.json --target-lang fr --explain-prompts 2>&1 | grep -A2 "Terminology (use these renderings)" | head -3
-  - comment: Where the project stands. French is drafted; nothing in either language has been read by a person.
+  - comment: Where the project stands. French is translated; nothing in either language has been approved by a person.
   - command: kapi status
   - comment: One queue holds every language, the source among them, and every source row carries its marker.
   - command: kapi status --review --lang en | head -8
   - comment: Ask for the language you are reviewing, and you get those rows alone.
   - command: kapi status --review --lang fr
-  - comment: The queue is already the shape of a change-set, so approving is one pass over it.
+  - comment: The queue names what each decision addresses, so approving is one pass over it.
   - command: >-
-      kapi status --review --lang fr --json --jq '.pending[]|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > reviewed.json
-  # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
+      kapi status --review --lang fr --json --jq '.pending[]|{op:"decide",at:{doc:.relative,block:.key,edition:.locale},if_match:"*",outcome:"establish"}' > reviewed.json
+  # The report goes to stderr, so the tail has to see stderr to trim it.
   - command: kapi apply reviewed.json 2>&1 | tail -3
   - comment: Each approval is in the record as it is made, attributable, and the queue says so.
   - command: kapi status --review --lang fr
-  - comment: French is reviewed. The source rows stay open, because Voltway signs off its own wording before a translation ships from it.
+  - comment: French is approved. The source rows stay open, because Voltway approves its own wording before a translation ships from it.
   - command: kapi status
 
 artifacts:
   - id: queue
-    caption: "kapi status --review --json: what is still open, after French was signed off"
+    caption: "kapi status --review --json: what is still open, after French was approved"
     source: command
     command: kapi status --review -p . --json
     report: json
@@ -63,33 +63,33 @@ narration:
   - id: title
     kind: title
     text: >-
-      Terminologi er én liste, og trinnet som lager utkast og kontrollen som porter, får den samme listen. Det som gjenstår er en kø med alle språk i seg.
+      Terminologi er én liste, og steget som lager utkast og sjekken som fungerer som port får den samme. Det som gjenstår etter det er en kø med alle språk i seg.
   - id: terms
     kind: terminal
     through: 3
     highlight: { text: [Terminology, facturation] }
-    caption: "Oppskriftens to regler, inne i prompten som lager utkast."
+    caption: "Oppskriftens to regler, inne i ledeteksten som lager utkast."
     text: >-
-      Hver regel navngir en term, hva franskversjonen må si for den, og hvor strengt den gjelder. Be utkasts­trinnet vise prompten sin, og de samme to reglene er i den, ord for ord – slik at en modell får vite hva kontrollen vil holde den til.
+      Hver regel navngir et term, hva det franske må si for det, og om en miss feiler. Be utkaststeget om å vise ledeteksten sin, og de samme to reglene er i den, ord for ord, slik at en modell får beskjed om hva porten vil holde den til.
   - id: standing
     kind: terminal
     through: 9
     caption: "Én liste, begge språk, deretter avgrenset til fransk."
     text: >-
-      Fransk er kladdet og ingen har lest det ennå. Én kø holder alle språk, inkludert kilden, og en kilderad har sin egen markør.
+      Fransk er oversatt og ingenting er godkjent av en person ennå. Én kø holder alle språk, inkludert kilden, og en kilderad bærer sin egen markør.
   - id: approve
     kind: terminal
     through: 14
-    caption: "Tjue rader, én gjennomgang, og køen er fri for fransk."
+    caption: "Fire rader, ett pass, og ingen fransk igjen i køen."
     text: >-
-      Køen kommer tilbake som et endrings­sett, så godkjenning er én gjennomgang i stedet for tjue besøk. Hver godkjenning lagres i loggen i det øyeblikket den gis, med et navn knyttet til den.
+      Køen navngir hva hver beslutning gjelder, slik at godkjenning av de fire franske radene er ett pass over den heller enn ett besøk til hver. Hvert godkjenning lander i loggen idet det gjøres, med et navn mot det.
   - id: queue
     kind: artifact
     artifact: queue
-    caption: Fransk er borte. Kilderad­ene er fortsatt åpne.
+    caption: Fransk er borte. Kilderad er fortsatt åpne.
     text: >-
-      Etterpå er de franske radene borte og kilde­radene er fortsatt her, fordi Voltway godkjenner sin egen ordlyd før en oversettelse sendes fra det.
+      Etterpå er de franske radene borte, og kilderad er fortsatt her, fordi Voltway fastsetter sin egen ordlyd før en oversettelse sendes fra det.
   - id: outro
     kind: outro
     text: >-
-      Spør ditt eget prosjekt om ett språk om gangen, og det som kommer tilbake er arbeidet, i den formen skrivekommandoen tar.
+      Be ditt eget prosjekt om ett språk om gangen, og det som kommer tilbake er arbeidet, i formen write-kommandoen tar.

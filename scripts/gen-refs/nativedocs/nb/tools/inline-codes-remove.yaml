@@ -1,58 +1,67 @@
 # Native reference doc for the built-in `inline-codes-remove` tool.
 # Schema source: core/tools/inlinecodesremove.go (InlineCodesRemoveConfig).
-description: "Fjern inline-kode-sekvenser (plassholdere og parvise koder) fra segmenter, og etterlat ren tekst."
+description: "Fjern sekvenser av innebygde koder (plassholdere og sammenhørende koder) fra segmenter, slik at bare ren tekst blir igjen."
 overview: |
-  **Verktøyet Inline Codes Remove** fjerner inline-kode-sekvenser (plassholdere og parvise åpne/lukke-koder) fra segmentinnhold og lar den omgivende ren teksten stå igjen. Det er nyttig når en nedstrøms konsument trenger tekstinnholdet uten markup – for eksempel for å bygge en ren-tekst-referanse eller sende data til et verktøy som ikke håndterer kodet tekst.
+  Verktøyet **Inline Codes Remove** fjerner sekvenser av innebygde koder
+  (plassholdere og sammenhørende åpnings- og lukkekoder) fra segmentinnholdet.
+  Den omkringliggende rene teksten beholdes. Dette er nyttig når en mottaker
+  trenger tekstinnholdet uten oppmerking, for eksempel for å bygge en referanse
+  i ren tekst eller sende innholdet til et verktøy som ikke håndterer tekst
+  med koder.
 
-  Fjerningen går rekursivt inn i strukturerte plural- og select-konstruksjoner, slik at inline-koder inne i dem også strippes. Som standard gjelder det målteksten (en målspråkkode er påkrevd) og inkluderer ikke-oversettbare blokker. Linjeskift-koder kan eventuelt erstattes med et mellomrom slik at tilstøtende ord ikke flyter sammen.
+  Fjerningen går rekursivt inn i strukturerte plural- og select-konstruksjoner,
+  slik at innebygde koder i dem også fjernes. Som standard behandles målteksten
+  (en målspråkvariant er påkrevd), og blokker som ikke skal oversettes,
+  inkluderes. Linjeskiftkoder kan erstattes med et mellomrom, slik at ord på
+  hver side ikke settes sammen.
 parameters:
-  applySource:
-    description: Fjern inline-koder fra kildesegmenter.
-    help: "Når dette er aktivert, fjernes inline-kode-sekvenser fra kildesegmentene."
-    values: "`true` / `false` (standard `false`)"
-  applyTarget:
-    description: Fjern inline-kode fra målsegmenter.
+  apply_source:
+    description: Fjern innebygde koder fra kildesegmenter.
+    help: "Når dette er aktivert, fjernes sekvenser av innebygde koder fra kildesegmentene."
+    values: "`true` / `false` (standard: `false`)"
+  apply_target:
+    description: Fjern innebygde koder fra målsegmenter.
     help: |
-      Når dette er aktivert, fjernes inline-kode-sekvenser fra målsegmentene til den
-      konfigurerte språkkoden.
-    values: "`true` / `false` (standard `true`)"
+      Når dette er aktivert, fjernes sekvenser av innebygde koder fra målsegmentene for
+      den konfigurerte språkvarianten.
+    values: "`true` / `false` (standard: `true`)"
     dependsOn:
-      - property: targetLocale
-        condition: påkrevd når applyTarget er aktivert
-  targetLocale:
-    description: Målspråkkode for behandling.
-    help: Språkkoden hvis målsegmenter behandles. Påkrevd når `applyTarget` er aktivert.
-    values: "BCP-47 språkkode"
+      - property: target_locale
+        condition: påkrevd når apply_target er aktivert
+  target_locale:
+    description: Målspråkvariant for behandling.
+    help: Språkvarianten som målsegmentene skal behandles for. Påkrevd når `apply_target` er aktivert.
+    values: "BCP-47-språkvariant"
     dependsOn:
-      - property: applyTarget
+      - property: apply_target
         condition: må være aktivert for at dette skal ha effekt
-  includeNonTranslatable:
-    description: Fjern også koder fra ikke-oversettbare blokker.
+  include_non_translatable:
+    description: Fjern også koder fra blokker som ikke skal oversettes.
     help: |
-      Når dette er aktivert, gjelder fjerningen også for blokker merket som ikke-oversettbare.
-      Deaktiver det for å la ikke-oversettbare blokker være urørte.
-    values: "`true` / `false` (standard `true`)"
-  replaceWithSpace:
-    description: Erstatt linjeskift-koder med et mellomrom i stedet for å fjerne dem.
+      Når dette er aktivert, fjernes koder også fra blokker som er merket som
+      ikke oversettbare. Deaktiver det for å la disse blokkene være uendret.
+    values: "`true` / `false` (standard: `true`)"
+  replace_with_space:
+    description: Erstatt linjeskiftkoder med et mellomrom i stedet for å fjerne dem.
     help: |
-      Når dette er aktivert, erstattes plassholderkoder av linjeskift-type med et
-      enkeltstående mellomrom, slik at for eksempel `foo<br/>bar` blir `foo bar` i stedet
-      for `foobar`. Andre inline-koder fjernes fortsatt helt.
-    values: "`true` / `false` (standard `false`)"
+      Når dette er aktivert, erstattes plassholderkoder for linjeskift med ett
+      mellomrom. For eksempel blir `foo<br/>bar` til `foo bar` i stedet for
+      `foobar`. Andre innebygde koder fjernes fortsatt helt.
+    values: "`true` / `false` (standard: `false`)"
 limitations:
-  - Minst én av applySource eller applyTarget må være aktivert.
+  - Minst én av apply_source og apply_target må være aktivert.
 processingNotes:
-  - "Fjerning går rekursivt inn i flertalls- og valgkonstruksjoner, slik at inline-kode inne i dem også fjernes."
-  - Parvise åpne/lukke-koder slettes mens det indre tekstinnholdet beholdes.
+  - "Fjerningen går rekursivt inn i plural- og select-konstruksjoner, slik at kodene i dem også fjernes."
+  - "Sammenhørende åpnings- og lukkekoder fjernes, mens teksten mellom dem beholdes."
 examples:
-  - title: Fjern koder fra målet
-    description: Produser ren måltekst for en språkkode.
+  - title: Fjern koder fra målteksten
+    description: Generer ren måltekst for en språkvariant.
     config: |
-      applyTarget: true
-      targetLocale: fr
+      apply_target: true
+      target_locale: fr
   - title: Behold ordgrenser ved linjeskift
-    description: Erstatt linjeskift-koder med et mellomrom ved fjerning.
+    description: Erstatt linjeskiftkoder med et mellomrom når kodene fjernes.
     config: |
-      applyTarget: true
-      targetLocale: fr
-      replaceWithSpace: true
+      apply_target: true
+      target_locale: fr
+      replace_with_space: true

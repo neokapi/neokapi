@@ -2,82 +2,83 @@
 # Schema source: core/ai/tools/unified.go (TranslateSchema, over AITranslateConfig).
 description: Oversett blokkinnhold med en LLM-leverandør.
 overview: |
-  **Oversett**-verktøyet oversetter uoversatt blokkinnhold. En enkelt
-  `--provider` velger backend: en stor-språkmodell-leverandør (Anthropic,
-  OpenAI, Gemini, Azure OpenAI, Ollama) eller den nøkkelfrie offline demo-leverandøren.
-  Klassiske maskinoversettelses-motorer er ikke innebygd; et tillegg kan registrere
-  en, og den velges deretter på samme måte. Resultatet skrives som målteksten,
-  med en alternativ-oversettelses-annotering som registrerer den opprinnelige
-  leverandøren. Et målspråk er påkrevd, og legitimasjon er påkrevd for
-  vertsbaserte leverandører (lokal Ollama og offline-demo trenger ingen).
+  Verktøyet **Translate** oversetter blokkinnhold som ikke er oversatt. Med
+  `--provider` velger du én backend: en leverandør av store språkmodeller (Anthropic,
+  OpenAI, Gemini, Azure OpenAI, Ollama) eller demo-leverandøren, som kjører uten nett og API-nøkkel.
+  Klassiske maskinoversettelsesmotorer er ikke innebygd. Et programtillegg kan registrere
+  en slik motor, som deretter velges på samme måte. Resultatet skrives som måltekst,
+  med en merknad om alternativ oversettelse som angir leverandøren.
+  Et målspråk er påkrevd. Driftede leverandører krever også påloggingsinformasjon,
+  men lokal Ollama og demo-leverandøren krever ingen.
 
-  Blokker som inneholder inline-koder sendes gjennom en plassholder-bevarende
-  prompt slik at tagger overlever oversettelsen, og rekonstrueres deretter fra svaret.
-  Blokker kan oversettes én om gangen eller grupperes i batch-er som sendes i ett
-  enkelt strukturert kall; batch-er kan kjøres samtidig. Når det kjøres med en økt-
-  cache, gjenbrukes allerede-oversatte mål og ferske oversettelser skrives tilbake,
-  slik at gjentatte kjøringer hopper over arbeid som allerede er gjort.
+  Blokker som inneholder innebygde koder, sendes gjennom en prompt som bevarer
+  plassholdere, slik at tagger overlever oversettelsen. Deretter rekonstrueres blokkene fra svaret.
+  Blokker kan oversettes én om gangen eller grupperes i batcher som sendes i
+  ett strukturert kall. Batcher kan kjøres samtidig. Når du bruker en sesjonsbuffer,
+  gjenbrukes måltekster som allerede er oversatt, og nye oversettelser
+  skrives tilbake. Dermed hopper gjentatte kjøringer over arbeid som allerede er gjort.
 parameters:
   provider:
     description: Oversettelsesleverandøren som skal brukes.
     help: |
-      Velger bakenden. LLM-leverandører (`anthropic`, `openai`, `gemini`,
-      `azureopenai`, `ollama`, `demo`) velges her, det samme gjelder enhver
-      tillegg-registrert MT-motor. Administrerte leverandører krever en API-nøkkel; Ollama
-      og demoleverandøren kjører lokalt. De tilgjengelige alternativene hentes
+      Velger backend. Her velger du LLM-leverandør (`anthropic`, `openai`, `gemini`,
+      `azureopenai`, `ollama`, `demo`) eller en maskinoversettelsesmotor
+      registrert via en programtillegg. Driftede leverandører krever en API-nøkkel. Ollama
+      og demoleverandøren kjøres lokalt. De tilgjengelige alternativene hentes
       fra leverandørregisteret.
-    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `demo` (standard `anthropic`)"
-  apiKey:
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `demo` (standard: `anthropic`)"
+  api_key:
     description: API-nøkkel for leverandøren.
     help: |
-      Legitimasjon for den valgte vertsbaserte leverandøren. Påkrevd for vertsbaserte leverandører;
-      ikke nødvendig for en lokal Ollama- eller demo-backend.
-    values: "streng"
+      Påloggingsinformasjon for den valgte driftede leverandøren. Kreves for driftede leverandører;
+      ikke nødvendig for en lokal Ollama-backend eller demo-backend.
+    values: "tekststreng"
   model:
-    description: Modellnavnet som skal forespørres (LLM-leverandører).
+    description: Modellnavnet som skal brukes i forespørselen (LLM-leverandører).
     help: |
-      Den leverandørspesifikke modellidentifikatoren for en LLM-leverandør. Når den utelates,
+      Den leverandørspesifikke modellidentifikatoren for en LLM-leverandør. Hvis den utelates,
       brukes leverandørens standardmodell.
-    values: "streng"
-  skipMatched:
-    description: Hopp over blokker som allerede har en måloversettelse.
+    values: "tekststreng"
+  skip_matched:
+    description: Hopp over blokker som allerede har en oversettelse.
     help: |
-      Når dette er aktivert, blir en blokk som allerede har en målspråktekst for språkkoden stående
-      uberørt, slik at bare uoversatt innhold sendes til leverandøren.
+      Når dette er aktivert, forblir blokker som allerede har en måltekst for språk- og områdeinnstillingen,
+      uendret. Bare innhold som ikke er oversatt, sendes til leverandøren.
     values: "`true` / `false` (standard `false`)"
-  batchSize:
-    description: Antall blokker per LLM-kall.
+  batching:
+    description: Hvor mange blokker som deler ett LLM-kall.
     help: |
-      Blokker grupperes i satser av denne størrelsen og oversettes i ett enkelt
-      strukturert kall per sats (LLM-leverandører). En verdi på 1 oversetter blokk for
-      blokk.
-    values: "heltall ≥ 1 (standard `100`)"
-  batchConcurrency:
-    description: Antall batch-kall som kjøres parallelt.
+      `auto` tilpasser størrelsen på hver batch etter hva modellen kan returnere i ett svar, og
+      oversetter batchen i ett strukturert kall. `single` oversetter én
+      blokk per kall. Lokale leverandører oversetter én blokk per kall med begge
+      innstillingene. Det samme gjelder kjøringer med termer som ikke skal oversettes.
+    values: "`auto` / `single` (standard `auto`)"
+  batch_concurrency:
+    description: Antall batchkall som skal kjøres parallelt.
     help: |
-      Hvor mange batch-er som oversettes samtidig. En verdi på 0 eller 1 kjører
-      batch-er sekvensielt.
+      Hvor mange batcher som oversettes samtidig. Verdien 0 eller 1 kjører
+      batchene sekvensielt.
     values: "heltall ≥ 1 (standard `1`)"
 limitations:
-  - "Krever et målspråk og, for administrerte leverandører, gyldig legitimasjon."
-  - Administrerte leverandører foretar nettverks-API-kall; kostnad og ventetid skalerer med innholdsvolum.
-  - "Gjenbruk av økt-cache gjelder på blokk-for-blokk-banen; batch-banen skriver overlegg på utdata, men forhåndshoppes ikke via per-blokk-cachen."
+  - Krever et målspråk og gyldig autentisering for driftede leverandører.
+  - Driftede leverandører foretar API-kall over nettverket. Kostnad og ventetid øker med innholdsmengden.
+  - "Behandling blokk for blokk bruker øktens hurtigbuffer på nytt. Ved satsvis behandling skrives overlegg til utdataene, men blokker hoppes ikke over på forhånd basert på hurtigbufferen for enkeltblokker."
 processingNotes:
-  - Opererer på oversettbare blokker med ikke-tom kildetekst; andre deler sendes uendret gjennom.
-  - Blokker med inline-koder oversettes gjennom en plassholder-bevarende prompt og rekonstrueres fra svaret.
-  - Hver oversettelse registreres som en alternativ-oversettelses-annotering merket med leverandøren.
+  - Behandler oversettbare blokker som har kildetekst. Andre deler sendes videre uendret.
+  - "Blokker med innebygde koder oversettes med en prompt som bevarer plassholdere, og rekonstrueres fra svaret."
+  - "Hver oversettelse registreres som en merknad for alternativ oversettelse, merket med leverandøren."
 examples:
   - title: Oversett med Anthropic
-    description: Oversett uoversatte blokker ved hjelp av en Anthropic-modell.
+    description: "Oversett blokker som ikke er oversatt, med en Anthropic-modell."
     config: |
       provider: anthropic
       model: claude-sonnet-4-5
-  - title: Oversett offline med demo-leverandøren
-    description: "Produser nøkkelfri, tydelig merket illustrativ utdata for røyktester."
+  - title: Oversett uten nett med demoleverandøren
+    description: Generer tydelig merket eksempelutdata uten API-nøkkel for røyktester.
     config: |
       provider: demo
   - title: Oversett bare nytt innhold
     description: Hopp over blokker som allerede har en oversettelse.
     config: |
       provider: openai
-      skipMatched: true
+      skip_matched: true

@@ -2,81 +2,81 @@
 # Schema source: core/formats/tmx/config.go (Config).
 # Behaviour grounded in core/formats/tmx/reader.go, writer.go and spec.yaml,
 # mirroring Okapi's TMX filter (okf_tmx) and the LISA TMX 1.4 standard.
-description: "Les og skriv TMX-tospråklige utvekslingsfiler, én blokk per oversettelsesenhet."
+description: "Les og skriv tospråklige TMX-utvekslingsfiler, med én blokk per oversettelsesenhet."
 overview: |
-  TMX er XML-utvekslingsformatet for content memory – den bærbare formen
-  som tosprolige segmentpar flyttes mellom verktøy i. Et TMX-dokument
-  inneholder en header som deklarerer kildespråket (`srclang`) og en
-  kropp med `<tu>`-oversettelsesenheter. Hver enhet har én
-  `<tuv>`-oversettelsesenhetsvariant per språk, med valgfri `<note>`-
-  og `<prop>`-metadata på enhets- og headernivå.
+  TMX er XML-utvekslingsformatet for innholdsminner. Det er et portabelt
+  format for utveksling av tospråklige segmentpar mellom verktøy. Et TMX-dokument
+  har et hode som angir kildespråket (`srclang`), og en hoveddel med
+  oversettelsesenheter av typen `<tu>`. Hver enhet inneholder én
+  oversettelsesenhetsvariant av typen `<tuv>` per språk, med valgfrie
+  metadata av typen `<note>` og `<prop>` på enhets- og hodenivå.
 
-  Leseren produserer én blokk per `<tu>`: kildesegmentet
-  samsvarer med header-`srclang`, og ett målsegment produseres for hver
-  `<tuv>` på et annet språk. Header-attributtene og eventuelle notater
-  eller egenskaper på headernivå eksponeres som én ikke-oversettbar
-  datadel foran blokkene, mens notater og egenskaper på enhetsnivå
-  knyttes til blokken. Dette gjør TMX brukbart både som inndata for
-  gjennomgang eller justering og som utdata for eksport av et memory.
-  Det speiler Okapis TMX-filter.
+  Leseren genererer én oversettbar blokk per `<tu>`. Kildesegmentet
+  samsvarer med `srclang` i hodet, og det opprettes et målsegment for hver
+  `<tuv>` på et annet språk. Attributtene og eventuelle merknader og
+  egenskaper på hodenivå presenteres som én ikke-oversettbar datadel foran
+  blokkene. Merknader og egenskaper på enhetsnivå knyttes til blokken.
+  TMX kan dermed brukes både som inndata for gjennomgang eller justering
+  og som utdata ved eksport av et minne. Dette tilsvarer Okapis TMX-filter.
 parameters:
-  processAllTargets:
-    description: Les alle målspråkvarianter i hver oversettelsesenhet.
+  process_all_targets:
+    description: Les alle målspråkvariantene i hver oversettelsesenhet.
     help: |
-      Når aktivert (standard), leses alle ikke-kilde-`<tuv>`-varianter av en
-      `<tu>`, og det produseres ett målsegment per språk. Når
-      deaktivert, leses bare den første ikke-kilde-varianten, og resten
-      hopper over. Dette egner seg for et flerspråklig memory som skal
-      reduseres til ett enkelt målspråk.
-    values: "`true` / `false` (standard `true`)"
-  exitOnInvalid:
+      Når innstillingen er aktivert (standard), leses alle `<tuv>`-varianter
+      i en `<tu>` som ikke er på kildespråket. Det opprettes et målsegment for
+      hvert språk. Når innstillingen er deaktivert, leses bare den første
+      varianten som ikke er på kildespråket. Resten hoppes over. Dette er nyttig
+      når et flerspråklig minne skal reduseres til ett målspråk.
+    values: "`true` / `false` (standard: `true`)"
+  exit_on_invalid:
     description: Stopp behandlingen når en ugyldig oversettelsesenhet oppdages.
     help: |
-      Styrer feilhåndtering for feilformede `<tu>`-elementer. Når deaktivert
-      (standard), hoppes ugyldige enheter over uten varsel og
-      parsing fortsetter. Når aktivert, avbrytes behandlingen ved første
-      ugyldig enhet.
-      Bruk dette for å feile raskt ved korrupt eller ikke-konform inndata.
-    values: "`true` / `false` (standard `false`)"
-  escapeGT:
-    description: Escape større-enn-tegnet som `&gt;` i XML-utdata.
+      Styrer feilhåndtering for feilformaterte `<tu>`-elementer. Når innstillingen
+      er deaktivert (standard), hoppes ugyldige enheter over uten varsel,
+      og parsingen fortsetter. Når innstillingen er aktivert, avbrytes behandlingen
+      ved den første ugyldige enheten. Bruk innstillingen til å avbryte umiddelbart
+      ved korrupte inndata eller inndata som ikke er i samsvar med formatet.
+    values: "`true` / `false` (standard: `false`)"
+  escape_gt:
+    description: Escape større enn-tegnet som `&gt;` i XML-utdata.
     help: |
-      Et skrivesidealternativ. Når aktivert, skrives tegnet `>` som
-      entiteten `&gt;`. Når deaktivert (standard), skrives `>` bokstavelig,
-      noe som er gyldig XML utenfor en CDATA-avslutningssekvens.
-      Aktiver det for strengere nedstrømsverktøy som forventer at `>` er escaped.
+      Et alternativ for skriving. Når det er aktivert, skrives tegnet `>` som
+      entiteten `&gt;`. Når det er deaktivert (standard), skrives `>`
+      bokstavelig. Det er gyldig XML utenfor avslutningssekvensen for CDATA.
+      Aktiver alternativet for strengere nedstrømsverktøy som forventer at `>` er
+      kodet som en entitet.
     values: "`true` / `false` (standard `false`)"
-  useCodeFinder:
-    description: Oppdag inline-kode i segmenttekst ved hjelp av regulære uttrykk.
+  use_code_finder:
+    description: Finn innebygde koder i segmenttekst ved hjelp av regulære uttrykk.
     help: |
-      Aktiverer regex-basert deteksjon av inline-koder (plassholdere,
-      variabler, tagger) i trukket ut tekst, ved hjelp av mønstrene i
-      `codeFinderRules`. Når deaktivert (standard), trekkes ingen mønsterbaserte
-      inline-koder ut.
+      Aktiverer søk etter innebygde koder (plassholdere, variabler og tagger)
+      i uttrukket tekst ved hjelp av regulære uttrykk i
+      `code_finder_rules`. Når alternativet er deaktivert (standard), trekkes
+      ingen innebygde koder ut basert på mønstre.
     values: "`true` / `false` (standard `false`)"
-  codeFinderRules:
-    description: Regulære uttrykk som samsvarer med inline-koder i segmenttekst.
+  code_finder_rules:
+    description: Mønstre for regulære uttrykk som finner innebygde koder i segmenttekst.
     help: |
-      En liste over regulære uttrykk; hvert treff i en oversettbar
-      blokk beskyttes som en inline-kode i stedet for å bli oversatt. Brukes til å
-      skjerme plassholdere eller markup i memory-segmenter. Har kun
-      effekt når `useCodeFinder` er aktivert; ugyldige mønstre hoppes over.
-    values: "Array av regulære uttrykk-strenger"
+      En liste over regulære uttrykk. Hvert treff i en oversettbar blokk
+      beskyttes som en innebygd kode i stedet for å bli oversatt. Brukes til å
+      beskytte plassholdere eller oppmerking i minnesegmenter. Trer bare i kraft
+      når `use_code_finder` er aktivert. Ugyldige mønstre hoppes over.
+    values: "Array med strenger for regulære uttrykk"
     examples:
-      - "`\\{[0-9]+\\}` beskytter nummererte plassholderere som `{0}`"
+      - "`\\{[0-9]+\\}` beskytter nummererte plassholdere som `{0}`"
     dependsOn:
-      - property: useCodeFinder
-        condition: må være aktivert for at reglene skal ha effekt
+      - property: use_code_finder
+        condition: må være aktivert for at reglene skal tre i kraft
 processingNotes:
-  - Kildesegmentet samsvarer med topptekstens `srclang`; ett målsegment produseres per annenspråklig `<tuv>`.
-  - Topptekstattributter samt notater og egenskaper på topptekstnivå sendes ut som én ikke-oversettbar datadel foran blokkene; notater og egenskaper på enhetsnivå knyttes til blokken.
+  - Kildesegmentet samsvarer med `srclang` i hodet. Det opprettes ett målsegment for hver `<tuv>` på et annet språk.
+  - "Attributter, merknader og egenskaper på hodenivå presenteres som én ikke-oversettbar datadel foran blokkene. Merknader og egenskaper på enhetsnivå knyttes til blokken."
 examples:
-  - title: Les bare det første målet
-    description: Reduser et flerspråklig memory til ett enkelt målspråk.
+  - title: Les bare det første målsegmentet
+    description: Begrens et flerspråklig innholdsminne til ett målspråk.
     config: |
-      processAllTargets: false
-  - title: Feil raskt ved ugyldige enheter
-    description: Avbryt behandlingen når en ugyldig oversettelsesenhet oppdages.
+      process_all_targets: false
+  - title: Avbryt umiddelbart ved ugyldige enheter
+    description: Avbryt behandlingen når en feilformatert oversettelsesenhet oppdages.
     config: |
-      exitOnInvalid: true
+      exit_on_invalid: true
 wikiUrl: https://www.gala-global.org/tmx-14b

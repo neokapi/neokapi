@@ -6,8 +6,8 @@
       "id": "content-lint",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Content Lint",
-      "description": "Rapporter teksthygienefeil i en enkelt kildetekst, inkludert tomhet, løse blanktegn, avstand og repetisjon.",
+      "displayName": "Innholdskontroll",
+      "description": "Rapporter teksthygienefeil i én enkelt kildetekst, inkludert tomt innhold, utilsiktede blanktegn, mellomrom og gjentakelser.",
       "ruleFamily": "hygiene",
       "rules": [
         {
@@ -48,18 +48,18 @@
         }
       ],
       "doc": {
-        "overview": "**Content Lint**-kontrollen er den alltid-på halvparten av `kapi check`. Den leser kildeteksten i hver\nblokk alene, uten måltekst og uten sammenligning mot en språkkode,\nog rapporterer hva som er galt med innholdets form:\n\n- `hygiene.empty`: blokken inneholder ingenting annet enn blanktegn. Alvorlig, og det eneste\n  funnet som rapporteres for den blokken, fordi de øvrige ikke har noe å bedømme.\n- `hygiene.leading-whitespace` og `hygiene.trailing-whitespace`: blanktegn på\n  en kant som en forfatter har lagt igjen der.\n- `hygiene.double-spaces`: to eller flere mellomrom mellom to innholdsdeler på\n  én linje.\n- `hygiene.doubled-word`: et ord som gjentas umiddelbart, sammenlignet uten hensyn\n  til store og små bokstaver.\n- `hygiene.control-char`: et løst kontrolltegn. Tab, vognretur og\n  linjeskift er ordinære blanktegn og rapporteres ikke.\n\nAlt unntatt tomhetsfunnet er mindre alvorlig, så et dokument med småfeil\nbestår likevel en vanlig kontroll og vises i poengsummen. Unntaket er et dobbelt\nmellomrom i en kommentar, som er alvorlig.\n\nHvert enkelt av disse er en vurdering av *form*, og form bedømmes over\nblokken snarere enn over ren tekst. En plassholder er innhold: den holder en\nposisjon, så mellomrommet ved siden av den skiller den fra et ord i stedet for å henge\netter kanten av innholdet. Et inline-kode-spenn står som én enhet, så det en\nforfatter har skrevet inne i backticks er sitert, ikke bedømt – to mellomrom i et\nkode-spenn er eksempelet, ikke en feil. Og ett enkelt avsluttende linjeskift er\ninnholdets linjeavslutning, som formater som et YAML-blokkskalar krever, så\ndet er ikke blanktegn noen har lagt igjen.\n",
+        "overview": "**Innholdskontrollen** er delen av `kapi check` som alltid er aktiv. Den leser\nkildeteksten i hver oversettbar blokk for seg, uten måltekst eller sammenligning\nmellom språkvarianter, og rapporterer feil i innholdets form:\n\n- `hygiene.empty`: Blokken inneholder bare blanktegn. Dette er et alvorlig funn\n  og det eneste som rapporteres for blokken, siden de andre reglene ikke har noe\n  å vurdere.\n- `hygiene.leading-whitespace` og `hygiene.trailing-whitespace`: Blanktegn\n  i starten eller slutten som forfatteren har etterlatt.\n- `hygiene.double-spaces`: To eller flere mellomrom mellom to deler av innholdet\n  på én linje.\n- `hygiene.doubled-word`: Et ord som gjentas umiddelbart, uten hensyn til\n  store og små bokstaver.\n- `hygiene.control-char`: Et utilsiktet kontrolltegn. Tabulator, vognretur og\n  linjeskift er vanlige blanktegn og rapporteres ikke.\n\nAlle funn unntatt tomme blokker er mindre alvorlige. Et dokument med bare slike\nmindre feil passerer derfor en vanlig kvalitetskontroll, og feilene vises i\nresultatet. Unntaket er doble mellomrom i en kommentar, som er alvorlige.\n\nAlle disse reglene vurderer *form*. Formen vurderes ut fra blokkens tekstløp,\nikke ren tekst. En plassholder er innhold: Den har en plass i teksten, så\nmellomrommet ved siden av skiller den fra et ord og er ikke et etterfølgende\nmellomrom. Et innebygd kodeutsnitt behandles som en helhet. Det en forfatter\nhar skrevet mellom gravistegn, er sitert innhold og vurderes ikke. To mellomrom\ni et kodeutsnitt er dermed et eksempel, ikke en feil. Ett avsluttende linjeskift\ner innholdets linjeavslutning. Formater som YAML-blokkskalarer krever dette,\nså det regnes ikke som et etterlatt blanktegn.\n",
         "limitations": [
-          "Leser bare kildetekst; et misforhold mellom en kilde og dens oversettelse er spørsmålet for den tospråklige `qa`-kontrollen.",
-          "Bedømmer form fremfor språk, og utfører ingen stave-, grammatikk- eller stilanalyse.",
-          "Kjører over oversettbare blokker; innhold en leser presenterer som struktur eller kode blir aldri vurdert."
+          "Leser bare kildetekst. Den tospråklige `qa`-kontrollen vurderer avvik mellom en kildetekst og oversettelsen.",
+          "Vurderer form fremfor språk og analyserer ikke rettskriving, grammatikk eller stil.",
+          "Kjøres på oversettbare blokker. Innhold som en leser viser som struktur eller kode, vurderes ikke."
         ],
         "processingNotes": [
-          "Alltid på. Den trenger ingen konfigurasjon og har ingen bryter for å aktivere eller deaktivere den.",
-          "Funn bærer den stabile regel-id-en `hygiene.\u003ccategory\u003e` og blokkens plassering, slik at en fikssløyfe kan adressere den eksakte blokken og spore en regel på tvers av iterasjoner.",
-          "Regelen om dobbelt mellomrom ser bort fra en rekke mellomrom som rykker inn en fortsettelseslinje, fordi det er kildens linjestruktur snarere enn mellomrom inne i en setning.",
-          "I en kommentar rapporterer regelen for dobbelt mellomrom bare en sekvens på nøyaktig to mellomrom mellom to tegn – ikke én som slutter der et ord begynner på linjen over eller under, og ikke én inne i backticks eller doble anførselstegn, fordi en kommentar legger ut tekst i kolonner og siterer bokstavelig tekst. Et dobbelt mellomrom som rapporteres, er alvorlig.",
-          "Regelen for dobbelt ord rapporterer et gjentatt *ord*, så et gjentatt tegn eller symbol, notasjonen en forfatter mente å vise, er ikke et slikt."
+          "Alltid aktiv. Kontrollen krever ingen konfigurasjon og har ikke noe flagg for å slå den på eller av.",
+          "Funnene har den stabile regel-ID-en `hygiene.\u003ccategory\u003e` og blokkens plassering. Dermed kan en rettingsprosess rette den aktuelle blokken og følge en regel gjennom flere iterasjoner.",
+          "Regelen for doble mellomrom ser bort fra mellomrom som rykker inn en fortsettelseslinje. De er del av kildens linjestruktur, ikke mellomrom inne i en setning.",
+          "I en kommentar rapporterer regelen for doble mellomrom bare nøyaktig to mellomrom mellom to tegn. Den rapporterer ikke mellomrom som slutter der et ord begynner på linjen over eller under, eller mellomrom mellom gravistegn eller doble anførselstegn. En kommentar kan nemlig ordne tekst i kolonner og sitere bokstavelig tekst. Et dobbelt mellomrom som rapporteres, er et alvorlig funn.",
+          "Regelen for gjentatte ord rapporterer gjentatte *ord*. Et gjentatt tegn eller punktmerke som forfatteren bevisst har brukt som notasjon, rapporteres ikke."
         ]
       }
     },
@@ -67,7 +67,7 @@
       "id": "length-check",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Length Check",
+      "displayName": "Lengdesjekk",
       "description": "Hold hver kildeblokk til en absolutt tegn- eller ordgrense.",
       "ruleFamily": "length",
       "rules": [
@@ -85,28 +85,28 @@
         }
       ],
       "doc": {
-        "overview": "**Lengdekontrollen** holder kildeteksten til hver oversettbare blokk til et\nabsolutt tak: `--max-chars` for tegn og `--max-words` for ord,\nhver rapportert som `length.max-chars-exceeded` eller `length.max-words-exceeded` med\nalvorlig alvorlighetsgrad.\n\nBegge er av med mindre de etterspørres, og en grense på `0` er måten å la én være av.\nEn negativ grense avvises snarere enn ignoreres, slik at en skrivefeil i en oppskrift eller et\nskript er en feil der den er skrevet.\n\nTegn telles som runer, slik at en grense betyr det samme uavhengig av\nhvilket skrift innholdet er på, og et ord telles slik resten av motoren\nteller ord.\n\nMålestokken er *kilde*teksten, noe som gjør dette til en kildeside-kontroll: den\nsvarer på «er det vi skrev kort nok», spørsmålet en UI-streng eller et push-\nvarsel har før noen oversettelse eksisterer. Om en oversettelse passer\nder kilden gjorde er et annet spørsmål, stilt av den tospråklige `qa`-\nkontrollen, som sammenligner de to.\n",
+        "overview": "**Lengdesjekken** holder kildeteksten i hver oversettbar blokk til en\nabsolutt grense: `--max-chars` for tegn og `--max-words` for ord,\nhver rapportert som `length.max-chars-exceeded` eller `length.max-words-exceeded` med\nalvorlighetsgrad major.\n\nBegge er av med mindre de blir bedt om, og en grense på `0` er måten å la en av dem være av.\nEn negativ grense avvises i stedet for å ignoreres, så en skrivefeil i en oppskrift eller et\nskript er en feil der den skrives.\n\nTegn telles som runer, så en grense betyr det samme uansett hvilken\nskrift innholdet er på, og et ord telles på samme måte som resten av motoren\nteller ord.\n\nGrenseverdien gjelder *kilde*teksten, og det er det som gjør dette til en kildesidesjekk: den\nsvarer på «er det vi skrev kort nok» – spørsmålet et UI-streng eller et push-\nvarsel har før noen oversettelse finnes. Hvorvidt en oversettelse passer\nder kilden passet, er et annet spørsmål som stilles av den tospråklige `qa`-\nsjekken, som sammenligner de to.\n",
         "parameters": {
           "--max-chars": {
             "description": "Maksimalt antall tegn en kildeblokk kan inneholde.",
-            "help": "Rapporterer en blokk hvis kilde er lengre enn dette mange tegn. Telt\ni runer. Slås av med `0`, som er standarden.\n",
+            "help": "Rapporterer en blokk der kilden er lengre enn dette antallet tegn. Telles\nsom runer. Slås av med `0`, som er standard.\n",
             "values": "heltall ≥ 0 (standard `0`, av)"
           },
           "--max-words": {
             "description": "Maksimalt antall ord en kildeblokk kan inneholde.",
-            "help": "Rapporterer en blokk hvis kilde inneholder flere ord enn dette. Slås av med\n`0`, som er standarden.\n",
+            "help": "Rapporterer en blokk der kilden inneholder flere ord enn dette. Slås av med\n`0`, som er standard.\n",
             "values": "heltall ≥ 0 (standard `0`, av)"
           }
         },
         "limitations": [
-          "Måler kun kilden; den sammenligner ikke en oversettelse med kilden.",
-          "Et absolutt tak, ikke et forholdstall; det finnes ingen prosent-av-kilde-modell her.",
-          "Grensen er ett tall for hele kjøringen; et tak per samling eller per nøkkel er et oppskriftsnivå-anliggende."
+          "Måler bare kilden; den sammenligner ikke en oversettelse med kilden.",
+          "En absolutt grense, ikke et forholdstall – det finnes ingen prosentmodell basert på kilden her.",
+          "Grensen er ett tall for hele kjøringen; en grense per samling eller per nøkkel er et oppskriftsnivå-anliggende."
         ],
         "processingNotes": [
-          "Av med mindre en grense er gitt, slik at en vanlig kontrollkjøring rapporterer ingenting fra den.",
+          "Av med mindre en grense er angitt, så et vanlig sjekk-kjør rapporterer ingenting fra den.",
           "Kjører over oversettbare blokker; innhold en leser ser som struktur eller kode måles aldri.",
-          "En negativ grense er en feil snarere enn en stille deaktivert kontroll."
+          "En negativ grense er en feil, ikke en lydløst deaktivert sjekk."
         ]
       }
     },
@@ -114,8 +114,8 @@
       "id": "pattern-check",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Pattern Check",
-      "description": "Krev at et mønster vises i hver kildeblokk, eller forby ett fra å vises i det hele tatt.",
+      "displayName": "Mønstersjekk",
+      "description": "Krev at et mønster finnes i hver kildeblokk, eller forby ett fra å finnes i det hele tatt.",
       "ruleFamily": "pattern",
       "rules": [
         {
@@ -132,28 +132,28 @@
         }
       ],
       "doc": {
-        "overview": "**Mønsterkontrollen** holder kildeteksten i hver blokk opp mot regulære uttrykk som kalleren navngir. `--forbid` angir et uttrykk som ikke må forekomme, og `--require` ett som må forekomme – begge kan gjentas, og begge rapporteres med alvorlighetsgrad major: `pattern.forbidden-pattern` når et forbudt uttrykk finnes, og `pattern.pattern-missing` når et påkrevd uttrykk mangler. Et forbidden-pattern-funn bærer med seg teksten det matchet, slik at både blokken og de problematiske ordene er navngitt.\n\nUttrykkene er Go-regulære uttrykk, matchet slik de er skrevet: ingen implisitt folding av store/små bokstaver og ingen implisitte ordgrenser, så `(?i)todo` er måten du ignorerer store/små bokstaver på, og `\\bdraft\\b` er måten du krever et helt ord på. Et tomt uttrykk, ett som ikke kompilerer, eller en regel som både krever og forbyr, avvises når kontrollen bygges – i stedet for å la alt passere stille.\n\nDette er rømningsveien ved siden av kontrollene som vet hva de leter etter. En stempelprofil bærer vokabularet et prosjekt har bestemt seg for, og termer bærer ordene det har avtalt; et uttrykk er for listen som ikke har noe vokabular bak seg – for eksempel en plassholdersyntaks som må overleve, eller en markør som aldri må sendes ut.\n",
+        "overview": "**Mønstersjekken** holder kildeteksten til hver oversettbare blokk opp mot\nregulære uttrykk som kalleren angir. `--forbid` gir et mønster som ikke må finnes,\nog `--require` ett som må finnes – begge kan gjentas, og begge rapporteres med\nalvorlighetsgrad major: `pattern.forbidden-pattern` når et forbudt mønster finnes, og\n`pattern.pattern-missing` når et påkrevd mønster mangler. Et forbidden-pattern-funn\nbærer med seg teksten det matchet, slik at både blokken og det støtende ordet navngis.\n\nMønstrene er Go-regulære uttrykk, matchet som skrevet: ingen implisitt case-folding\nog ingen implisitte ordgrenser, så `(?i)todo` er måten å ignorere store/små bokstaver\npå, og `\\bdraft\\b` er måten å be om et helt ord på. Et tomt mønster, ett som\nikke kompilerer, eller en regel som både krever og forbyr, avvises når\nsjekken bygges – i stedet for å la alt passere stille.\n\nDet er rømningsveien ved siden av sjekkene som vet hva de leter etter.\nEn stemprofil bærer vokabularet et prosjekt bestemte seg for, og termer bærer\nordene det ble enige om; et mønster er for regelen som ikke har noe vokabular bak seg,\nsom en plassholdersyntaks som må overleve, eller en markør som aldri må sendes ut.\n",
         "parameters": {
           "--forbid": {
-            "description": "Et regulært uttrykk som ikke må vises i kilden.",
-            "help": "Rapporterer alle blokker hvis kilde samsvarer. Kan gjentas, slik at flere\nforbud kan angis i én kjøring.\n",
-            "values": "Go regulært uttrykk, kan gjentas"
+            "description": "Et regulært uttrykk som ikke må finnes i kilden.",
+            "help": "Rapporterer hver blokk der kilden matcher. Kan gjentas, slik at flere\nforbud kan angis i én kjøring.\n",
+            "values": "Go-regulært uttrykk, kan gjentas"
           },
           "--require": {
-            "description": "Et regulært uttrykk som må vises i kilden.",
-            "help": "Rapporterer alle blokker hvis kilde ikke samsvarer. Kan gjentas. Brukes per\nblokk, så et mønster som bare én del av et dokument har, rapporteres\noveralt ellers.\n",
-            "values": "Go regulært uttrykk, kan gjentas"
+            "description": "Et regulært uttrykk som må finnes i kilden.",
+            "help": "Rapporterer hver blokk der kilden ikke matcher. Kan gjentas. Brukes per\nblokk, så et mønster som bare én del av et dokument har, rapporteres\noveralt ellers.\n",
+            "values": "Go-regulært uttrykk, kan gjentas"
           }
         },
         "limitations": [
-          "Leser kun kildetekst; om en oversettelse bevarte et mønster er spørsmålet for den tospråklige `qa`-kontrollen.",
-          "Et obligatorisk mønster kreves av alle blokker, så det passer en regel som gjelder for hver blokk snarere enn for et dokument som helhet.",
-          "Matching skjer over blokkens ren tekst, så et mønster kan ikke adressere kjøringene en plassholder eller en inline-kode representerer."
+          "Leser bare kildetekst; om en oversettelse bevarte et mønster er et spørsmål for den tospråklige `qa`-sjekken.",
+          "Et påkrevd mønster sjekkes mot hver blokk, så det passer for en regel som gjelder per blokk og ikke for dokumentet som helhet.",
+          "Matching skjer mot blokkens rene tekst, så et mønster kan ikke adressere kjøringene en plassholder eller en innebygd kode representerer."
         ],
         "processingNotes": [
-          "Av med mindre et mønster er oppgitt, så en vanlig kontrollkjøring rapporterer ingenting fra den.",
-          "Kjører over oversettbare blokker; innhold som en leser presenterer som struktur eller kode matches aldri.",
-          "Et tomt eller ikke-kompilerbart mønster, og en regel som både krever og forbyr, er feil når kontrollen bygges."
+          "Av med mindre et mønster er angitt, så en vanlig sjekkkjøring rapporterer ingenting fra den.",
+          "Kjører over oversettbare blokker; innhold en leser ser som struktur eller kode matches aldri.",
+          "Et tomt eller ikke-kompilerbart mønster, og en regel som både krever og forbyr, er feil når sjekken bygges."
         ]
       }
     },
@@ -161,8 +161,8 @@
       "id": "comment-style",
       "source": "built-in",
       "kind": "check",
-      "displayName": "Comment Style",
-      "description": "Hold kommentarene i kildefiler til setnings- og kommentarordgrensene en voice-profil setter for dem.",
+      "displayName": "Kommentarstil",
+      "description": "Kontroller kommentarene i kildefiler mot grensene for antall ord i setninger og kommentarer som stemmeprofilen angir.",
       "ruleFamily": "comment",
       "rules": [
         {
@@ -185,17 +185,17 @@
         }
       ],
       "doc": {
-        "overview": "**Comment Style**-kontrollen leser kommentarene et kommentarlag finner og\nholder dem til grensene under `style.comments` i voice-profilen på det\npunktet kommentarene befinner seg. En profil uten den seksjonen krever ingenting,\nog kontrollen rapporterer analysatorene sine som ikke forespurt.\n\n- `comment.sentence-length`: en setning over den mindre ordgrensen er et mindre\n  funn, og én over den større grensen er et større funn. Funnet peker på\n  setningen inne i kommentaren og siterer den.\n- `comment.length`: en kommentar over ordgrensen for det den dokumenterer er et\n  større funn. Doc-kommentaren til en pakke eller modul, doc-kommentaren til en deklarasjon og alle andre kommentarer har hver sin grense.\n- `comment.density`: i en kontroll avgrenset til en diff er en endring som legger til minst\n  minimumsantallet kommentarlinjer i en fil, og flere kommentarlinjer for\n  hver kodelinje enn forholdet tillater, et større funn. En linje som bare inneholder en\n  kommentar er en kommentarlinje, en linje som inneholder noe utenfor\n  en kommentar er en kodelinje, og pakke-doc-kommentaren, et direktiv og en\n  blank linje teller som ingen av delene.\n\nEn setning finnes med UAX #29 sentence break over kommentarens prosa.\nLinjene en kommentar bretter en setning over, slås først sammen, fordi\nsentence break avslutter en setning ved hvert linjeskift. En blank linje, en linje med\nkode og en skillerlinje som `── Section ──` avslutter en setning, og\nen skillers tittel er en setning for seg. En overskrift, et listeelement og en\ndokumentasjonstagg som `@param` starter hver sin. Et ord inneholder en bokstav eller et\nsifter, så et kodeinnslag, en referanse, en lenke eller en bindestrek som står alene telles aldri.\n",
+        "overview": "Kontrollen **Kommentarstil** leser kommentarene som et kommentarlag finner, og\nkontrollerer dem mot grensene under `style.comments` i stemmeprofilen som\ngjelder der kommentarene står. En profil uten denne delen ber ikke om noen\nkontroller, og kontrollen rapporterer at analysatorene ikke er forespurt.\n\n- `comment.sentence-length`: En setning som overskrider ordgrensen for mindre\n  alvorlige funn, gir et mindre alvorlig funn. En setning som overskrider\n  grensen for alvorlige funn, gir et alvorlig funn. Funnet viser til setningen\n  i kommentaren og siterer den.\n- `comment.length`: En kommentar som overskrider ordgrensen for det den\n  dokumenterer, gir et alvorlig funn. Dokumentasjonskommentarer for pakker\n  og moduler, dokumentasjonskommentarer for deklarasjoner og alle andre\n  kommentarer har hver sin grense.\n- `comment.density`: Når kontrollen er avgrenset til en diff, gir en endring\n  et alvorlig funn hvis den legger til minst det angitte minsteantallet\n  kommentarlinjer i en fil og flere kommentarlinjer per kodelinje enn\n  forholdstallet tillater. En linje som bare inneholder en kommentar, er en\n  kommentarlinje. En linje som inneholder noe utenfor en kommentar, er en\n  kodelinje. Pakkens dokumentasjonskommentar, et direktiv og en tom linje\n  regnes ikke som noen av delene.\n\nSetninger identifiseres med UAX #29-reglene for setningsgrenser i kommentarens\nprosatekst. Linjene en setning i en kommentar er fordelt over, settes først\nsammen, fordi reglene ellers avslutter en setning ved hvert linjeskift. En tom\nlinje, en kodelinje og en skillelinje som `── Section ──` avslutter en setning.\nTittelen på en skillelinje er en egen setning. En overskrift, et listepunkt og\nen dokumentasjonstagg som `@param` starter hver sin setning. Et ord inneholder\nen bokstav eller et siffer. Derfor telles aldri et frittstående kodestykke, en\nreferanse, en lenke eller en tankestrek som et ord.\n",
         "limitations": [
-          "Leser kun kommentarer; blokkene et formatleser trekker ut holdes aldri til kommentargrenser.",
-          "Krever UAX 29 sentence break, som en bygg uten ICU mangler. Setningskontrollen kjørte da ikke, og kjøringen er ikke en godkjenning.",
-          "Teller ord etter blanktegn, så et språk skrevet uten mellomrom mellom ord holdes til grensene som ett langt ord per strekk."
+          "Leser bare kommentarer. Blokkene en formatleser trekker ut, kontrolleres aldri mot kommentargrensene.",
+          "Krever UAX 29-reglene for setningsgrenser, som mangler i et bygg uten ICU. Setningskontrollen kjøres da ikke, og kjøringen regnes ikke som bestått.",
+          "Teller ord etter blanktegn. For språk som skrives uten mellomrom mellom ordene, behandles derfor hver sammenhengende tekstsekvens som ett langt ord mot grensene."
         ],
         "processingNotes": [
-          "Hver analysator fanger kanariefugler bygget fra grensene som gjelder ved siden av hver fil. Kanariefuglen for wrapped sentence er én setning over tre linjer, så en kontroll som avslutter en setning ved et linjeskift, oppdager den ikke.",
-          "I en kontroll avgrenset til en diff gjelder grensene for kommentarene endringen berørte.",
-          "Density teller linjer fra der kommentarleseren plasserer hver kommentar, aldri fra kommentarmarkører, og dens kanariefugl er en blokkkommentar ingen markør åpner. En kontroll over hele filer rapporterer density som ikke støttet.",
-          "Funn teller mot samme alvorlighetsgrense som alle andre funn. `kapi check` feiler på et kritisk funn som standard, og `kapi check --ship` feiler checks-grensen på et større funn."
+          "Hver analysator fanger opp kanaritester som er laget ut fra grensene som gjelder for hver fil. Kanaritesten for linjebrudte setninger består av én setning over tre linjer. En kontroll som avslutter setningen ved et linjeskift, overser derfor testen.",
+          "Når kontrollen er avgrenset til en diff, gjelder grensene for kommentarene som endringen berørte.",
+          "Tetthetsanalysen teller linjer ut fra hvor kommentarleseren plasserer hver kommentar, aldri ut fra kommentarmarkører. Kanaritesten er en blokkommentar som ikke åpnes med en markør. Ved kontroll av hele filer rapporteres tetthetsanalysen som ikke støttet.",
+          "Funnene teller mot samme alvorlighetsgrense som alle andre funn. `kapi check` feiler som standard ved et kritisk funn, og `kapi check --ship` feiler i kontrollporten ved et alvorlig funn."
         ]
       }
     }

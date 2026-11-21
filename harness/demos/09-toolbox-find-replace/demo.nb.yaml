@@ -1,6 +1,6 @@
 id: 09-toolbox-find-replace
 title: grep stopper ved bytene
-subtitle: "kcat, kgrep og ksed leser ordene inne i en Word-fil eller et regneark."
+subtitle: "kcat, kgrep og ksed leser ordene inni en Word-fil eller et regneark."
 kind: use-case
 publishAs: toolbox-explainer
 # A scripted plain-shell demo (no Claude): the toolbox is deterministic, so the
@@ -16,7 +16,7 @@ aspects:
   - docx + xlsx + markdown
   - one pass, in place
 outro:
-  line: Legg alle tre til PATH.
+  line: Legg alle tre på PATH.
   pointer: brew install neokapi/tap/kapi-cli-beta
 
 # The search opens the demo, because one pattern crossing three formats is the
@@ -50,35 +50,35 @@ narration:
   - id: title
     kind: title
     text: >-
-      grep, sed og cat stopper ved bytene i en Word-fil. kcat, kgrep og ksed leser ordene inne i den.
+      grep, sed og cat stopper ved bytene i en Word-fil. kcat, kgrep og ksed leser ordene inni den.
   - id: grep
     kind: terminal
     through: 4
     highlight: { text: [SalesPilot] }
     caption: "Ett mønster, tre formater, linjenummer på alle."
     text: >-
-      Et Markdown-pitch, et Word-forslag og en Excel-prisliste – og ett søk på tvers av alle tre. Hvert treff på produktnavnet kommer tilbake med linjenummer, inkludert de inne i de to binærfilene.
+      En Markdown-pitch, et Word-forslag og en Excel-prisliste – ett søk på tvers av alle tre. Hvert forekomst av produktnavnet returneres med linjenummer, inkludert de inne i de to binærfilene.
   - id: cat
     kind: terminal
     through: 8
     highlight: { text: [SalesPilot] }
     caption: "Dokumentet lest som prosa, regnearket som celler."
     text: >-
-      Det fungerer fordi kcat leser hver fil som det den er. Word-dokumentet kommer ut som avsnittene en leser ser, og regnearket som én celle per linje – slik har et vanlig tekstverktøy noe å matche mot.
+      Det fungerer fordi kcat leser hver fil som det den er. Word-dokumentet leveres som avsnittene en leser ser, og regnearket som én celle per linje – slik har et vanlig tekstverktøy noe å matche mot.
   - id: sed
     kind: terminal
     through: 12
     highlight: { text: [Northstar] }
-    caption: "Omdøpt på stedet, og antallet er det samme."
+    caption: "Omdøpt på plass, og antallet er det samme."
     text: >-
-      Én erstatning omdøper produktet overalt, på stedet, og hver fil skrives tilbake i sitt eget format. Et bekreftende søk finner de samme treffene under det nye navnet.
+      Én substitusjon omdøper produktet overalt, på plass, og hver fil skrives tilbake i sitt eget format. Et bekreftende søk finner de samme treffene under det nye navnet.
   - id: after
     kind: artifact
     artifact: after
-    caption: Fortsatt et Word-dokument. Bare ordene ble flyttet.
+    caption: Fortsatt et Word-dokument. Bare ordene ble endret.
     text: >-
-      Forslaget er fortsatt et gyldig Word-dokument. Overskriften er en overskrift, fet skrift er fet skrift, og det som endret seg er produktnavnet.
+      Forslaget er fortsatt et gyldig Word-dokument. Overskriften er en overskrift, fet tekst er fet, og det som endret seg er produktnavnet.
   - id: outro
     kind: outro
     text: >-
-      Installer kommandolinjen, så ligger alle tre i PATH og er klare til å kjøre mot det teamet ditt oppbevarer teksten sin i.
+      Installer kommandolinjeverktøyene, så ligger alle tre på PATH og er klare til å kjøre mot det teksten din teamet bruker befinner seg.

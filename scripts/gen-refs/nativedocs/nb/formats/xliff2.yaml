@@ -3,78 +3,106 @@
 # Behaviour grounded in core/formats/xliff2/reader.go, writer.go and spec.yaml,
 # mirroring Okapi's XLIFF 2 filter (okf_xliff2) and the OASIS XLIFF 2.x standard.
 displayName: XLIFF 2.x
-description: "Les og skriv OASIS XLIFF 2.0-, 2.1- og 2.2-tospråklige utvekslingsdokumenter."
+description: "Les og skriv tospråklige utvekslingsdokumenter i OASIS XLIFF 2.0, 2.1 og 2.2."
 overview: |
-  XLIFF 2.x er den moderne OASIS XML-utvekslingsstandarden for tospråklig
-  innhold. Den erstatter 1.2-elementsuppen med en eksplisitt
-  `<unit>`/`<segment>`-struktur, filomfattende notater, et lite sett med inline-tag-
-  elementer (`ph`, `pc`, `sc`/`ec`, `mrk`), og per-segment-oversettelsestilstander.
-  Leseren godtar navnerommene 2.0, 2.1 og 2.2 som én kompatibel familie.
+  XLIFF 2.x er OASIS-standarden for utveksling av tospråklig innhold i XML.
+  Den erstatter samlingen av elementer i 1.2 med en eksplisitt
+  `<unit>`/`<segment>`-struktur, merknader på filnivå, et lite sett med
+  innfelte taggelementer (`ph`, `pc`, `sc`/`ec`, `mrk`) og oversettelsestilstander
+  per segment. Leseren godtar navnerommene 2.0, 2.1 og 2.2 som én kompatibel familie.
 
-  Leseren sender ut én blokk per oversettbar enhet og bevarer inline-
-  markering som rå indre XML slik at umodifisert innhold har byte-for-byte rundtur.
-  Forfatteren kan sende ut en hvilken som helst 2.x-versjon: som standard bevarer den inndatadokumentets versjon ved rundtur og faller tilbake til 2.2 for innhold
-  som er trukket ut fra en ikke-XLIFF-kilde. Dette speiler Okapis XLIFF 2-filter.
+  Leseren oppretter én blokk per oversettbar enhet og leser de innfelte
+  elementene som innfelte koder. Et segment som ikke er redigert, skrives med
+  sine egne byte, slik at uendret innhold bevares byte for byte ved innlesing
+  og utskriving. I et redigert segment beholder hver kode attributtene den
+  hadde i dokumentet. Annoteringsmarkørene (`<mrk>`, `<sm>`/`<em>`) som fantes
+  i det redigerte segmentet, utelates. En enhet med flere segmenter skrives
+  segment for segment. Innhold som ikke lenger kan deles inn i segmentene det
+  ble lest med, avvises, og dokumentet skrives ikke. Det gjelder for eksempel
+  når en redigering slår sammen to segmenter, eller når én oversettelse skrives
+  for en enhet som ble oversatt segment for segment. Dermed flyttes ingen ord
+  fra ett segment til et annet. Når én samlet oversettelse skrives for en enhet
+  som ble lest uten oversettelse, legges den i enhetens første segment.
+  Skriveren kan skrive ut alle 2.x-versjoner. Som standard bevares versjonen
+  fra inndokumentet ved innlesing og utskriving. For innhold som er hentet ut
+  fra en kilde som ikke er XLIFF, brukes 2.2. Dette tilsvarer Okapis XLIFF 2-filter.
 parameters:
   version:
-    description: XLIFF 2.x-versjonen som skal sendes ut.
+    description: XLIFF 2.x-versjonen som skal skrives ut.
     help: |
       Velger XLIFF-versjonen for utdata. La feltet stå tomt (standard) for å
-      bevare inndatadokumentets versjon ved rundtur og falle tilbake til 2.2 for innhold uten kildeversjon. Angi `2.0`, `2.1` eller `2.2` for å tvinge en bestemt versjon; 2.0 og 2.1 deler navnerommet
-      `urn:oasis:names:tc:xliff:document:2.0`, mens 2.2
-      introduserer `urn:oasis:names:tc:xliff:document:2.2`.
-    values: "`\"\"` (auto) / `2.0` / `2.1` / `2.2` (standard `\"\"`)"
+      bevare inndatadokumentets versjon ved innlesing og utskriving. For innhold
+      uten kildeversjon brukes da 2.2. Angi `2.0`, `2.1` eller `2.2`
+      for å tvinge frem en bestemt versjon. Versjon 2.0 og 2.1 deler
+      navnerommet `urn:oasis:names:tc:xliff:document:2.0`, mens 2.2
+      innfører `urn:oasis:names:tc:xliff:document:2.2`.
+    values: "`\"\"` (automatisk) / `2.0` / `2.1` / `2.2` (standard `\"\"`)"
     examples:
-      - "`` auto, bevarer inndataversjonen, standard 2.2"
-      - "`2.0` tvinger XLIFF 2.0-utdata"
-  writeOriginalData:
-    description: Inkluder originale data i utdataene når tilgjengelig.
+      - "`` automatisk, bevarer inndataversjonen, standardverdi 2.2"
+      - "`2.0` tvinger utdata til XLIFF 2.0"
+  write_original_data:
+    description: Ta med opprinnelige data i utdataene når de er tilgjengelige.
     help: |
-      Når aktivert (standard), skrives `<originalData>` som inline-tagger bærer til utdata, og bevarer den opprinnelige markeringen som plassholdere representerer. Når deaktivert, utelates originale data fra utdata.
+      Når dette er aktivert (standard), skrives `<originalData>` som følger
+      med innfelte tagger, til utdataene. Dermed bevares den opprinnelige
+      merkingen som plassholderne står for. Når det er deaktivert, utelates
+      originaldataene fra utdataene.
     values: "`true` / `false` (standard `true`)"
-  forceUniqueIds:
-    description: Sørg for at inline-tagg-IDer er unike innenfor hver enhet.
+  force_unique_ids:
+    description: Sørg for at ID-ene til innebygde tagger er unike innenfor hver enhet.
     help: |
-      Når aktivert, skrives `id`-verdier for inline-tagger om slik at hver er unik
-      innenfor sin `<unit>`. Når deaktivert (standard), beholdes id-ene som de er.
-      Aktiver det for inndata der inline-id-er kan kollidere og der strenge
-      validatorer krever per-enhet-unikhet.
+      Når dette er aktivert, skrives `id`-verdiene for innfelte tagger om
+      slik at hver verdi er unik innenfor sin `<unit>`. Når det er deaktivert
+      (standard), beholdes ID-ene uendret. Aktiver dette for inndata der ID-er
+      for innfelte tagger kan kollidere, og der strenge validatorer krever
+      unike ID-er innenfor hver enhet.
+    values: "`true` / `false` (standardverdi `false`)"
+  ignore_tag_type_match:
+    description: Ignorer avvik i taggtyper mellom kildesegmenter og målsegmenter.
+    help: |
+      Når dette er aktivert, godtas avvik mellom de innfelte taggtypene i
+      kilde- og målsegmentet i stedet for å bli behandlet som feil. Når det
+      er deaktivert (standard), forventes det at taggtypene samsvarer.
+    values: "`true` / `false` (standardverdi `false`)"
+  discard_invalid_targets:
+    description: "Forkast måltekster som ikke består valideringen, i stedet for å avvise filen."
+    help: |
+      Når dette er aktivert, forkastes et `<target>` som ikke består
+      valideringen, mens resten av filen behandles. Når det er deaktivert
+      (standard), fører et ugyldig målsegment til at filen avvises. Aktiver
+      dette for å hente ut brukbart innhold fra delvis ugyldige inndata.
+    values: "`true` / `false` (standardverdi `false`)"
+  use_code_finder:
+    description: Finn innebygde koder i innholdet ved hjelp av regulære uttrykk.
+    help: |
+      Aktiverer regulære uttrykk for å finne innfelte koder i uttrekt tekst,
+      med mønstrene i `code_finder_rules`. Dette supplerer de innebygde
+      elementene for innfelte tagger i XLIFF 2. Når funksjonen er deaktivert
+      (standard), gjenkjennes bare de innebygde innfelte elementene.
     values: "`true` / `false` (standard `false`)"
-  ignoreTagTypeMatch:
-    description: Ignorer avvik i taggtype mellom kilde- og målsegmenter.
+  code_finder_rules:
+    description: Regulære uttrykk som samsvarer med innebygde koder i innholdet.
     help: |
-      Når aktivert, tolereres et avvik mellom inline-taggtypene i kilde- og målsegmentet i stedet for å behandles som en feil. Når deaktivert (standard), forventes det at taggtypene samsvarer.
-    values: "`true` / `false` (standard `false`)"
-  discardInvalidTargets:
-    description: Forkast mål som ikke består validering i stedet for å avvise filen.
-    help: |
-      Når aktivert, forkastes et `<target>` som ikke består validering, mens resten av filen fortsatt behandles. Når deaktivert (standard), avvises filen ved et ugyldig mål. Aktiver det for å berge brukbart innhold fra delvis ugyldig inndata.
-    values: "`true` / `false` (standard `false`)"
-  useCodeFinder:
-    description: Oppdag inline-koder i innhold ved hjelp av regulære uttrykk.
-    help: |
-      Aktiverer regex-basert oppdagelse av inline-koder i trukket ut tekst ved hjelp av mønstrene i `codeFinderRules`. Dette supplerer de native XLIFF 2-inline-taggelementene. Når deaktivert (standard), gjenkjennes bare de native inline-elementene.
-    values: "`true` / `false` (standard `false`)"
-  codeFinderRules:
-    description: Mønstre for regulære uttrykk som samsvarer med inline-koder i innhold.
-    help: |
-      En liste over regulære uttrykk; hvert treff i trukket ut tekst beskyttes som en inline-kode i stedet for å bli oversatt. Trer bare i kraft når `useCodeFinder` er aktivert; ugyldige mønstre hoppes over.
-    values: "Matrise av strenger for regulære uttrykk"
+      En liste med regulære uttrykk. Hvert treff i uttrekt tekst beskyttes
+      som en innfelt kode i stedet for å bli oversatt. Har bare effekt når
+      `use_code_finder` er aktivert. Ugyldige mønstre hoppes over.
+    values: "En liste med regulære uttrykk som strenger"
     examples:
-      - "`%[0-9]*[sd]` beskytter `printf`-stilte formatspesifikatorer"
+      - "`%[0-9]*[sd]` beskytter formatspesifikatorer av typen `printf`"
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: må være aktivert for at reglene skal tre i kraft
 processingNotes:
-  - Én blokk sendes ut per oversettbar enhet; innebygd markup bevares som rå intern XML for byte-trofast rundtur.
-  - "Navnerommene 2.0, 2.1 og 2.2 aksepteres som en kompatibel familie ved lesing."
+  - "Det opprettes én blokk per oversettbar enhet. Innfelte elementer blir innfelte koder, og et uredigert segment skrives med sine egne byte."
+  - "Innhold som ikke lenger kan deles inn i segmentene enheten ble lest inn med, eller innebygde koder som ikke kan uttrykkes med XLIFF 2-oppmerking, avvises. Dokumentet skrives ikke."
+  - "Navnerommene 2.0, 2.1 og 2.2 godtas som en kompatibel familie ved lesing."
 examples:
-  - title: Tving XLIFF 2.0-utdata
-    description: Emit 2.0 uavhengig av inndatadokumentets versjon.
+  - title: Tving utdata til XLIFF 2.0
+    description: Skriv ut 2.0 uavhengig av inndokumentets versjon.
     config: |
       version: "2.0"
-  - title: Tolerer ugyldige mål
-    description: Forkast mål som ikke består validering i stedet for å avvise filen.
+  - title: Tillat ugyldige målsegmenter
+    description: "Forkast målsegmenter som ikke består valideringen, i stedet for å avvise filen."
     config: |
-      discardInvalidTargets: true
+      discard_invalid_targets: true
 wikiUrl: https://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html
