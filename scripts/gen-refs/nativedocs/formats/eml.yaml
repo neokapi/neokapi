@@ -9,5 +9,9 @@ processingNotes:
   - The writer uses the source skeleton to preserve headers, MIME boundaries and attachment bytes around edits.
 limitations:
   - The reader leaves HTML, attachments, flowed text and signed or encrypted MIME bodies in the source skeleton.
-  - The reader supports plain-text bodies in UTF-8, US-ASCII and ISO-8859-1.
+  - When a message offers plain text and HTML as alternatives, kapi edits the plain-text part only. A mail client that prefers HTML shows the original body.
+  - An edited subject or body no longer matches the message's DKIM signature.
+  - The reader supports plain-text bodies in UTF-8, US-ASCII and ISO-8859-1. It leaves a body in another charset, or 8-bit text with no declared charset, in the source skeleton.
+  - The reader leaves a subject in the source skeleton when it is 8-bit text with no declared charset or uses a charset that kapi cannot decode.
   - Writing an EML file requires its source message.
+  - With `kapi check --validate report`, the reader reports each part it leaves unchanged, an HTML alternative beside an extracted plain-text part and a DKIM signature.
