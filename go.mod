@@ -9,7 +9,7 @@ require (
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/google/jsonschema-go v0.4.3
-	github.com/klauspost/compress v1.20.1
+	github.com/klauspost/compress v1.20.2
 	github.com/leonelquinteros/gotext v1.8.0
 	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2

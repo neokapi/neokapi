@@ -24,7 +24,6 @@ on:
       - Nightly
       - E2E
       - Dogfood Sync
-      - Security
       - Container Scan
       - Contract Audit
       - Evals Refresh

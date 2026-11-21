@@ -40,14 +40,12 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
-      - name: Scan framework module
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...
-      - name: Scan bowrain module
-        run: cd bowrain && go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...
-      - name: Scan cli + kapi modules
-        run: |
-          (cd cli && go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...)
-          (cd kapi && go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...)
+      # One step scans every module and reports them together, so a finding in
+      # the first module cannot hide one in the next. An advisory a person has
+      # reviewed and found not to apply is recorded, with its review date, in
+      # scripts/govulncheck-accepted.txt.
+      - name: Scan every application module
+        run: python3 scripts/govulncheck.py . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain
 
   full-suite:
     name: Full suite (Go stable, race)
@@ -139,15 +137,10 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/ort
-          key: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-nuget-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
       - name: Download onnxruntime
         if: steps.cache-ort.outputs.cache-hit != 'true'
-        run: |
-          asset="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
-          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
-          mkdir -p "$RUNNER_TEMP/ort"
-          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
-          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/ort" --strip-components=1
+        run: scripts/fetch-onnxruntime.sh linux amd64 "$RUNNER_TEMP/ort"
 
       - name: Cache vision models
         id: cache-models
@@ -208,15 +201,10 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/ort
-          key: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-nuget-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
       - name: Download onnxruntime
         if: steps.cache-ort.outputs.cache-hit != 'true'
-        run: |
-          asset="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
-          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
-          mkdir -p "$RUNNER_TEMP/ort"
-          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
-          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/ort" --strip-components=1
+        run: scripts/fetch-onnxruntime.sh linux amd64 "$RUNNER_TEMP/ort"
 
       - name: Cache vision models
         id: cache-models

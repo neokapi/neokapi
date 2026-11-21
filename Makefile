@@ -1188,8 +1188,8 @@ build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless
 #
 # `build-sat-plugin-onnx` builds the real in-process segmenter and requires the
 # native deps (CGO):
-#   - onnxruntime shared library (download from microsoft/onnxruntime releases;
-#     point the binary at it at RUNTIME via KAPI_SAT_ORT_LIB)
+#   - onnxruntime shared library (scripts/fetch-onnxruntime.sh fetches the
+#     pinned build; point the binary at it at RUNTIME via KAPI_SAT_ORT_LIB)
 #   - the daulet/tokenizers static library (libtokenizers.a) on the linker path
 #     (download from the daulet/tokenizers GitHub releases or `make build` it)
 # Set SAT_TOKENIZERS_LIB to the directory containing libtokenizers.a.
@@ -1247,7 +1247,7 @@ build-vision-plugin-onnx: ## Build kapi-vision WITH the ONNX backend (CGO; loads
 
 # Package a self-contained distribution tarball for the HOST platform: builds
 # kapi-vision -tags onnx, bundles the onnxruntime shared lib + PP-OCRv5 models.
-#   VISION_ORT_DIR     extracted onnxruntime release dir (microsoft/onnxruntime)
+#   VISION_ORT_DIR     onnxruntime dir written by scripts/fetch-onnxruntime.sh
 #   VISION_MODELS_DIR  dir with ppocrv5_det.onnx / ppocrv5_rec.onnx / ppocrv5_dict.txt
 package-vision-plugin: ## Package a kapi-vision tarball for the host platform (CGO; needs VISION_ORT_DIR + VISION_MODELS_DIR)
 	@test -n "$(VISION_ORT_DIR)" || { echo "set VISION_ORT_DIR to the extracted onnxruntime release dir"; exit 1; }
@@ -1317,9 +1317,8 @@ sourcecode-comment-goldens: ## Regenerate the goldens the kapi-sourcecode commen
 #
 # Requires the same two native deps as build-sat-plugin-onnx:
 #   SAT_TOKENIZERS_LIB  dir containing libtokenizers.a (linked at build time)
-#   SAT_ORT_DIR         extracted onnxruntime release dir (its shared lib is
-#                       copied into the tarball; downloaded from
-#                       microsoft/onnxruntime releases)
+#   SAT_ORT_DIR         onnxruntime dir written by scripts/fetch-onnxruntime.sh
+#                       (its shared lib is copied into the tarball)
 # The release matrix (.github/workflows/release.yml: build-sat-plugin) runs the
 # underlying script per platform; this target is the local equivalent.
 package-sat-plugin: ## Package a kapi-sat distribution tarball for the host platform (CGO; needs SAT_TOKENIZERS_LIB + SAT_ORT_DIR)
@@ -1359,8 +1358,8 @@ test-check-plugin: ## Run kapi-check pure-Go tests (protocol + vec + model cache
 # emits kapi-check_<version>_<os>_<arch>.tar.gz under $(BIN_DIR)/check-dist.
 # Needs the same two native deps as build-check-plugin-onnx:
 #   CHECK_TOKENIZERS_LIB  dir containing libtokenizers.a (linked at build time)
-#   CHECK_ORT_DIR         extracted onnxruntime release dir (its shared lib is
-#                         bundled into the tarball; from microsoft/onnxruntime)
+#   CHECK_ORT_DIR         onnxruntime dir written by scripts/fetch-onnxruntime.sh
+#                         (its shared lib is bundled into the tarball)
 # The release matrix (.github/workflows/release-check.yml) runs the underlying
 # script per platform; this target is the local equivalent.
 package-check-plugin: ## Package a kapi-check distribution tarball for the host platform (CGO; needs CHECK_TOKENIZERS_LIB + CHECK_ORT_DIR)

@@ -27,6 +27,10 @@ if [ ! -d node_modules ]; then
   vp install
 fi
 
+# The specs read the shared API client's types; a field one of them reads and
+# the client does not declare fails here, before a browser starts.
+vp run typecheck
+
 # Ensure Playwright browsers are installed.
 vpx playwright install --with-deps chromium 2>/dev/null || vpx playwright install chromium
 

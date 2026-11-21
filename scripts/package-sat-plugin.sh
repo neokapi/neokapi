@@ -134,7 +134,9 @@ else
   # ws2_32/userenv but not ntdll, so mingw's single-pass linker reports
   # "undefined reference to Nt*/Rtl*". Append -lntdll via the env CGO_LDFLAGS,
   # which Go places AFTER the package's -ltokenizers in the link line — the
-  # order the single-pass GNU linker requires.
+  # order the single-pass GNU linker requires. Rust's std also parks threads
+  # with WaitOnAddress and WakeByAddress*, which the synchronization import
+  # library provides, so -lsynchronization follows for the same reason.
   CGO_LDFLAGS_VAL="-L${TOKENIZERS_LIB}"
   if [ "$GOOS" = "windows" ]; then
     # Statically link the C/C++/unwind runtimes so kapi-sat.exe is self-contained.
@@ -144,7 +146,7 @@ else
     # OS loader fails the process before main() runs (no stdout/stderr, exit
     # 0xC0000135). -static works for both the gcc and clang mingw toolchains and
     # matches what the kapi CLI/desktop windows builds do.
-    CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -static -lntdll"
+    CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -static -lntdll -lsynchronization"
   fi
   echo "package-sat-plugin: building ${BIN_NAME} ${VERSION} for ${GOOS}/${GOARCH} (-tags onnx)"
   (
