@@ -311,7 +311,8 @@ export function CancelProjectRun(tabID) {
 }
 
 /**
- * CancelRun waits for the active run to stop and publish its final events.
+ * CancelRun cancels the active run and waits, up to cancelWait, for it to stop
+ * and publish its final events.
  * @returns {$CancellablePromise<void>}
  */
 export function CancelRun() {
