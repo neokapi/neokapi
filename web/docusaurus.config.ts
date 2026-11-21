@@ -172,6 +172,21 @@ const brand = JSON.parse(fs.readFileSync(path.join(__dirname, "brand.json"), "ut
   tagline: string;
 };
 
+// The locales one build covers. Docusaurus builds them one after another, and
+// each costs as much as the first, so a pull request that changes no
+// translation input builds the source locale alone (DOCS_LOCALES=en, set by
+// docs-kapi.yml). Unset, every locale builds, as on main and locally.
+const allLocales = ["en", "nb", "qps"];
+const docsLocales = (process.env.DOCS_LOCALES ?? allLocales.join(","))
+  .split(",")
+  .map((locale) => locale.trim())
+  .filter(Boolean);
+if (!docsLocales.includes("en") || docsLocales.some((locale) => !allLocales.includes(locale))) {
+  throw new Error(
+    `DOCS_LOCALES must list "en" and only ${allLocales.join(", ")}; got "${process.env.DOCS_LOCALES}"`,
+  );
+}
+
 const config: Config = {
   title: "neokapi",
   tagline: brand.tagline,
@@ -211,7 +226,7 @@ const config: Config = {
 
   i18n: {
     defaultLocale: "en",
-    locales: ["en", "nb", "qps"],
+    locales: docsLocales,
     localeConfigs: {
       en: { label: "English" },
       nb: { label: "Norsk (bokmål)", htmlLang: "nb" },
