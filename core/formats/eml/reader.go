@@ -50,9 +50,16 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		if err != nil {
 			return err
 		}
-		fields, err := parseMessage(ctx, raw)
+		fields, notes, err := parseMessage(ctx, raw)
 		if err != nil {
 			return err
+		}
+		if r.ValidationMode() != format.ValidationOff {
+			for _, d := range notes {
+				d.Line, d.Column = format.LineColumn(raw, d.ByteOffset)
+				d.Snippet = format.SnippetAround(raw, d.ByteOffset, 0)
+				r.AddDiagnostic(d)
+			}
 		}
 		emit := func(part *model.Part) error {
 			select {

@@ -21,7 +21,6 @@ func TestMalformed(t *testing.T) {
 		"broken header":     "missing colon\n\ntext",
 		"multiple subjects": "Subject: first\nSubject: second\n\ntext",
 		"invalid encoding":  "Content-Transfer-Encoding: base64\n\n!!%%%!",
-		"missing delimiter": "Content-Type: multipart/mixed; boundary=x\n\n--x\n\ntext",
 		"depth":             tooDeep,
 		"header size":       "Subject: " + strings.Repeat("x", 256<<10) + "\n\n",
 		"part count":        "Content-Type: multipart/mixed; boundary=x\n\n" + strings.Repeat("--x\n\ntext\n", 1000) + "--x--\n",

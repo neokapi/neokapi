@@ -102,7 +102,7 @@ func (w *Writer) render(ctx context.Context, blocks map[string]*model.Block) err
 	if err != nil {
 		return err
 	}
-	fields, err := parseMessage(ctx, raw)
+	fields, _, err := parseMessage(ctx, raw)
 	if err != nil {
 		return err
 	}
@@ -112,9 +112,11 @@ func (w *Writer) render(ctx context.Context, blocks map[string]*model.Block) err
 		if b == nil {
 			continue
 		}
-		text := b.SourceText()
+		// An email body has no inline-code syntax, so each code's original
+		// data is written back as text.
+		text := model.RenderRunsWithData(b.SourceRuns())
 		if !w.Locale.IsEmpty() && b.HasTarget(w.Locale) {
-			text = b.TargetText(w.Locale)
+			text = model.RenderRunsWithData(b.TargetRuns(w.Locale))
 		} else if b.Name == "" && text == "" {
 			// A skeleton-only merge supplies a block ID and its available target.
 			continue
@@ -213,7 +215,7 @@ func (f field) bodyEdits(text string) ([]replacement, error) {
 		} else {
 			charset = "utf-8"
 		}
-	} else if !isASCII(text) {
+	} else if !isASCII(text) && charset != "utf-8" && charset != "utf8" {
 		charset = "utf-8"
 	}
 	if charset != f.charset {
@@ -240,7 +242,7 @@ func (f field) bodyEdits(text string) ([]replacement, error) {
 			wire = bytes.ReplaceAll(encoded, []byte("\r\n"), []byte(newline))
 		}
 	default:
-		if (!isASCII(string(wire)) && (transfer == "" || transfer == "7bit")) || strings.HasSuffix(text, "\n") || !safeBodyLines(wire) || collides(wire, f.boundaries) {
+		if (!isASCII(string(wire)) && (transfer == "" || transfer == "7bit")) || (strings.HasSuffix(text, "\n") && !f.lineEnd) || !safeBodyLines(wire) || collides(wire, f.boundaries) {
 			transfer = "base64"
 		}
 	}

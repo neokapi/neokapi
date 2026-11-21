@@ -8,7 +8,11 @@ const (
 	mediaType   = "message/rfc822"
 )
 
-type Config struct{}
+// Config carries no extraction options. The validation mode reports the
+// content the reader leaves unchanged and edits a mail client may not show.
+type Config struct {
+	format.ValidationConfigField
+}
 
 func (*Config) FormatName() string { return name }
 func (*Config) Reset()             {}
