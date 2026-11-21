@@ -15,7 +15,9 @@ A run fails when:
   - an accepted advisory has a fixed release (upgrade, then drop the entry);
   - an accepted advisory has reached its review date;
   - an accepted advisory matches nothing any more (drop the entry);
-  - the scanner's output is not the JSON this script was written against.
+  - the scanner's output is not the JSON this script was written against;
+  - a module could not be scanned. The other modules are still scanned and
+    judged, so one module that fails to load hides nothing in the rest.
 
 The scanner version is pinned, and its output is checked against the protocol
 it declares, so a change of format fails the run. An unrecognised stream never
@@ -123,8 +125,6 @@ def judge(reached_by_module, accepted, today):
     for module, key in sorted(set(accepted) - seen):
         if module in reached_by_module:
             failures.append(f"{module}: {key} accepted, but the module does not reach it now: drop the entry")
-        else:
-            failures.append(f"{module}: {key} accepted, but the module was not scanned")
     return failures
 
 
@@ -170,7 +170,7 @@ def self_test():
         ({("app", "GO-2"): (datetime.date(2026, 1, 1), "why")}, 2, "a past review date fails"),
         ({("app", "GO-2"): (today, "why")}, 2, "the review date itself fails"),
         ({("app", "GO-2"): (later, "why"), ("app", "GO-9"): (later, "why")}, 2, "an entry that matches nothing fails"),
-        ({("other", "GO-2"): (later, "why")}, 3, "an entry for another module accepts nothing here"),
+        ({("other", "GO-2"): (later, "why")}, 2, "an entry for another module accepts nothing here"),
     ]
     for accepted, count, name in cases:
         failures = judge({"app": reached}, accepted, today)
@@ -210,10 +210,14 @@ def main():
         parser.error("name at least one module directory")
     accepted = read_accepted(ACCEPTED.read_text(encoding="utf-8"))
     reached = {}
+    unscanned = []
     for module in args.modules:
         print(f"govulncheck: scanning {module}", flush=True)
-        reached[module] = scan(module, args.tags)
-    failures = judge(reached, accepted, datetime.date.today())
+        try:
+            reached[module] = scan(module, args.tags)
+        except (RuntimeError, ValueError) as error:
+            unscanned.append(f"{module}: not scanned: {error}")
+    failures = unscanned + judge(reached, accepted, datetime.date.today())
     for module, key in sorted(set(accepted)):
         if key in reached.get(module, {}):
             review_by, reason = accepted[(module, key)]
