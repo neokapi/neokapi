@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T09:59:05Z",
+  "generatedAt": "2026-11-21T21:58:38Z",
   "kind": "format",
   "entries": [
     {
@@ -879,6 +879,55 @@
         ],
         "processingNotes": [
           "Co-claims the `.json` extension with the generic JSON reader and disambiguates by a precise content sniff (`schema_name` + `DoclingDocument`) at a below-default priority, so a plain `.json` never resolves to DoclingDocument when the sniff misses."
+        ]
+      }
+    },
+    {
+      "id": "eml",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Email message (EML)",
+      "description": "Read the subject and plain-text bodies of an email message and write edits into the original message.",
+      "extensions": [
+        ".eml"
+      ],
+      "mimeTypes": [
+        "message/rfc822"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "family": "plain-text",
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "Email message (EML)",
+        "description": "Extract the subject and plain-text MIME bodies from an email message.",
+        "type": "object",
+        "formatMeta": {
+          "id": "eml",
+          "extensions": [
+            ".eml"
+          ],
+          "mimeTypes": [
+            "message/rfc822"
+          ]
+        },
+        "properties": null
+      },
+      "doc": {
+        "overview": "An EML file contains one Internet message. The reader extracts the subject\nand eligible inline plain-text MIME parts. The subject has a heading role.\nEach extracted body has a paragraph role. You can convert these blocks to\nMarkdown or DocLang with kconv.\n",
+        "limitations": [
+          "The reader leaves HTML, attachments, flowed text and signed or encrypted MIME bodies in the source skeleton.",
+          "When a message offers plain text and HTML as alternatives, kapi edits the plain-text part only. A mail client that prefers HTML shows the original body.",
+          "An edited subject or body no longer matches the message's DKIM signature.",
+          "The reader supports plain-text bodies in UTF-8, US-ASCII and ISO-8859-1. It leaves a body in another charset, or 8-bit text with no declared charset, in the source skeleton.",
+          "The reader leaves a subject in the source skeleton when it is 8-bit text with no declared charset or uses a charset that kapi cannot decode.",
+          "Writing an EML file requires its source message.",
+          "With `kapi check --validate report`, the reader reports each part it leaves unchanged, an HTML alternative beside an extracted plain-text part and a DKIM signature."
+        ],
+        "processingNotes": [
+          "The reader decodes MIME encoded words in the subject and transfer encodings in plain-text bodies.",
+          "The writer uses the source skeleton to preserve headers, MIME boundaries and attachment bytes around edits."
         ]
       }
     },

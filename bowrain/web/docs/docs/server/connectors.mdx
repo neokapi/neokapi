@@ -31,6 +31,10 @@ checks anything out, and the workspace reaches the source system over its API.
 The last row is the developer path: a person or a CI job moves content in and
 out from a repository checkout.
 
+[Connector maturity](/connector-maturity) lists each connector's operations and
+the test that runs each one against a fixture endpoint. Check it before you
+rely on an operation the page marks as failed or unverified.
+
 <LanesDiagram
   lanes={[
     {
@@ -140,3 +144,4 @@ also runs kapi locally against the same project.
 - [Publish on brand](/server/publish-on-brand): the content-platform route, end to end
 - [Automation](/server/automation): rules that run when content arrives
 - [Connector system](/developer/connectors): the Go interfaces behind a connector
+- [Connector maturity](/connector-maturity): which operations each connector has passed

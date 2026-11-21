@@ -38,14 +38,14 @@ var evals = []Eval{
 	},
 	{
 		ID:     "format-maturity",
-		Title:  "Format maturity, L0 to L4",
+		Title:  "Format and output maturity",
 		Method: MethodDeterministic,
 		Status: StatusMeasured,
-		Corpus: "Every registered format, scored against a fixed rubric.",
-		Covers: "How far each format has been taken: read, write, round-trip, inline codes, faithful write-back.",
+		Corpus: "Format packages and registered conversion targets.",
+		Covers: "Format evidence and support tiers, and conversions exercised through kconv.",
 		Misses: "Rubric levels summarize tested capabilities. Results on your documents require separate " +
 			"verification.",
-		Reproduce: "/format-ops triage-score",
+		Reproduce: "make check-content-maturity",
 		Data:      "web/static/data/format-maturity.json",
 		Page:      "/format-maturity",
 	},

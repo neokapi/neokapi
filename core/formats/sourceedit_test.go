@@ -77,6 +77,7 @@ const (
 // row here or an explicit exemption.
 func sourceEditMatrix() []sourceEditCase {
 	return []sourceEditCase{
+		{format: "eml", input: "Subject: Report\n\nWe utilize the finest ingredients.\n", literal: true},
 		{format: "plaintext", input: "We utilize the finest ingredients.\n", literal: true},
 		{format: "markdown", input: "Heading\n=======\n\nWe utilize the finest ingredients.\n", literal: true},
 		{format: "mdx", input: "# Heading\n\nWe utilize the finest ingredients.\n", literal: true},

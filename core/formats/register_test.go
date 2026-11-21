@@ -27,7 +27,7 @@ func TestRegisterAllReaders(t *testing.T) {
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "kbf", "po", "properties",
-		"markdown", "csv", "tsv", "srt", "vtt", "tmx", "openxml",
+		"eml", "markdown", "csv", "tsv", "srt", "vtt", "tmx", "openxml",
 		"ts",
 		"messageformat",
 		"odf", "epub", "doclang", "docling", "xcstrings", "arb", "resx",
@@ -64,7 +64,7 @@ func TestRegisterAllWriters(t *testing.T) {
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "kbf", "po", "mo", "properties",
-		"markdown", "csv", "tsv", "srt", "vtt", "tmx", "openxml",
+		"eml", "markdown", "csv", "tsv", "srt", "vtt", "tmx", "openxml",
 		"ts",
 		"messageformat",
 		"odf", "epub", "doclang", "xcstrings", "arb", "resx",
@@ -211,7 +211,7 @@ func TestCollectNativeDecoders(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "tsv", "srt", "vtt", "tmx",
+		"eml", "markdown", "csv", "tsv", "srt", "vtt", "tmx",
 		"ts", "asciidoc",
 	}
 	for _, name := range expectedFormats {

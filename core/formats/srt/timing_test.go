@@ -1,6 +1,7 @@
 package srt_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/srt"
@@ -10,10 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestReadSRTSetsTiming verifies the SRT reader populates the canonical
-// model.TimingAnnotation (start/end in ms) from the cue timecode — not just the
-// raw Properties["timecode"] string — so subtitle cues carry the format-agnostic
-// temporal anchor the content model and frontends consume.
+// The timing annotation records both endpoints of an SRT cue in milliseconds.
 func TestReadSRTSetsTiming(t *testing.T) {
 	ctx := t.Context()
 	reader := srt.NewReader()
@@ -33,4 +31,18 @@ func TestReadSRTSetsTiming(t *testing.T) {
 	require.True(t, ok, "second cue should carry a TimingAnnotation")
 	assert.Equal(t, int64(65250), tm1.StartMS) // 1m05.250s
 	assert.Equal(t, int64(68000), tm1.EndMS)
+}
+
+func TestWriteSRTWithForeignTiming(t *testing.T) {
+	block := model.NewBlock("cue", "The draft is ready.")
+	block.Properties["timecode"] = "00:00:05.250 --> 00:00:08.000"
+	block.SetTiming(&model.TimingAnnotation{StartMS: 5250, EndMS: 8000})
+	var out bytes.Buffer
+	writer := srt.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&out))
+	require.NoError(t, writer.Write(t.Context(), testutil.PartsToChannel([]*model.Part{
+		{Type: model.PartBlock, Resource: block},
+	})))
+	require.NoError(t, writer.Close())
+	assert.Equal(t, "1\n00:00:05,250 --> 00:00:08,000\nThe draft is ready.\n", out.String())
 }

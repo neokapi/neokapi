@@ -82,7 +82,8 @@ import { fileURLToPath } from "node:url";
 import {
   DEFAULT_ROOT,
   EXCLUDED_FORMAT_DIRS,
-  HARVEST_FORMATS,
+  formatFamily,
+  loadYamlFile,
   Problems,
   isISODate,
   isPlainObject,
@@ -259,16 +260,20 @@ function runDefault({ file, root }) {
 
     // Supported tier: enforcement artifacts must exist on HEAD.
     if (tier === "supported") {
-      if (HARVEST_FORMATS.includes(id)) {
-        const dir = path.join(root, "core", "formats", id);
-        if (!hasFileMatching(dir, /acceptance.*_test\.go$/)) {
-          p.error(`${at}: Supported harvest format has no acceptance test (core/formats/${id}/*acceptance*_test.go)`);
+      const dir = path.join(root, "core", "formats", id);
+      const specPath = path.join(dir, "spec.yaml");
+      const spec = fs.existsSync(specPath) ? loadYamlFile(specPath) : null;
+      const named = Array.isArray(e.gates) ? e.gates.map(g => path.basename(String(g))) : [];
+      if (formatFamily(id, spec, dir) === "native") {
+        if (!named.includes("format-acceptance.yml")) p.error(`${at}: name format-acceptance.yml to run the consumer tests`);
+        if (!fs.existsSync(path.join(dir, "acceptance_test.go"))) {
+          p.error(`${at}: Supported native format has no acceptance_test.go`);
         }
         if (!hasFileMatching(dir, /^invariants_test\.go$/)) {
           p.error(`${at}: Supported harvest format has no invariants test (core/formats/${id}/invariants_test.go)`);
         }
       } else {
-        const dir = path.join(root, "core", "formats", id);
+        if (!named.includes("make test") && !named.includes("ci.yml")) p.error(`${at}: name the CI gate that runs the format package tests`);
         if (!hasFileMatching(dir, /^spec_test\.go$/)) {
           p.error(`${at}: Supported format has no spec test (core/formats/${id}/spec_test.go)`);
         }

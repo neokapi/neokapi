@@ -129,6 +129,7 @@ func escapeSweepFormats() []escapeSweepEntry {
 		{id: "csv", source: "id,text\n1,Hello\n"},
 		{id: "tsv", source: "id\ttext\n1\tHello\n"},
 		{id: "markdown", source: "Hello\n", textOf: commonMarkText},
+		{id: "eml", source: "From: writer@example.org\n\nHello"},
 		{id: "plaintext", source: "Hello\n", skip: lineOriented},
 		{id: "po", source: "msgid \"Hello\"\nmsgstr \"\"\n"},
 		{id: "androidxml", source: "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <string name=\"greeting\">Hello</string>\n</resources>\n"},

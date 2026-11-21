@@ -2,12 +2,11 @@
 
 ## Purpose
 
-Recompute the five-axis maturity vector (Engine/Vocabulary/Editor/Knowledge/
-Corpus) for all 49 real formats, publish the dashboard + history snapshot,
-regenerate the docs snapshot block **in the same run**, and refresh
-`support.yaml` `last_certified` (that field only). Contract:
-`docs/internals/format-maturity.md` §3 (scorer v3) and its dataset/history
-rules — read §3 before publishing.
+Run `make refresh-content-maturity` to publish the repository measurements.
+The runtime probes cover output targets. Connector probes run on the platform
+side with `make -C bowrain refresh-connector-maturity`. The format rubric and
+its evidence rules are in `docs/internals/format-maturity.md`. Follow the steps
+below when the run also includes a calibrated review of quality judgments.
 
 ## Due when
 
@@ -50,8 +49,7 @@ rules — read §3 before publishing.
 3. Score per format (the workflow's Score phase): evidence-cited dimension
    cells only — the model never free-picks a level. Levels are computed from
    floor base..ceiling bands + demote-only quality dimensions, each demotion
-   citing `file:line`/`TestName` or it is dropped. Denominator: 49 real
-   formats (`exec`/`jsx`/`memorytest` excluded everywhere).
+   citing `file:line`/`TestName` or it is dropped. Use the discovered format packages (`exec`/`jsx`/`memorytest` excluded everywhere).
 4. Apply sticky anchors per axis (maturity §3): a move publishes only with a
    cited `delta_justification`; a prior **above the floor ceiling publishes
    the derived level regardless** (`delta.why: "FLOOR-FORCED demotion"`,
@@ -66,8 +64,9 @@ rules — read §3 before publishing.
 6. Regenerate the maturity-report snapshot block in
    `docs/internals/format-maturity.md` (between the `BEGIN/END:
    gap-analysis report` markers) — same run, never hand-edited.
-7. On a passing run, refresh `last_certified` in `core/formats/support.yaml`
-   — **that field only**; every other field belongs to `tier-review`.
+7. Preserve the certification dates. Renew a format's certification only when you
+   have passing results for every gate it names. Record the run and revision
+   in the ledger and copy the date into the published row.
 8. Regenerate the `/evals` index with `make eval-index`. It copies the
    dataset's `generated_at`, so the committed
    `web/src/pages/evals/_index.json` goes stale with every publish and
@@ -86,16 +85,16 @@ rules — read §3 before publishing.
 - `last_run` = today.
 - `watermarks.core_formats_sha` = `git log -1 --format=%H -- core/formats`.
 - `watermarks.audit_sha` = `python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256`.
-- `watermarks.scorer_version` = the published `scorer_version` (3).
+- `watermarks.scorer_version` = the published `scorer_version`.
 - `watermarks.model_id` = session model; `watermarks.prompt_sha` = sha256 of
   this reference file; `watermarks.axes_published` = the axes in the dataset.
 - Append the `runs[]` entry; commit dashboard + history + docs block +
-  support.yaml `last_certified` + ledger + `/evals` index **together**.
+  ledger + `/evals` index **together**.
 
 ## Outputs
 
 Refreshed `web/static/data/format-maturity{,-history}.json`, regenerated docs
-snapshot block, refreshed `last_certified`, ledger entry, regenerated
+snapshot block, ledger entry, regenerated
 `web/src/pages/evals/_index.json`. Tier-change
 *suggestions* the vector surfaces go to `tier-review` (note them in
 `followups[]`) — this ritual never edits tier fields.

@@ -170,6 +170,8 @@ const config: Config = {
 
   customFields: {
     docsChannel,
+    // The commit the evidence links on the connector maturity page point at.
+    sourceRevision: git(["rev-parse", "HEAD"]) || process.env.GITHUB_SHA || "main",
     kapiWebSite: KAPI_WEB_SITE,
     // Offload walkthrough videos to the shared CDN (Cloudflare R2) when
     // configured — empty DOCS_CDN_URL keeps them same-origin (the default). This
@@ -433,6 +435,7 @@ const config: Config = {
             { label: "Getting Started", to: "/" },
             { label: "Using Bowrain", to: "/server/web-overview" },
             { label: "Connectors", to: "/server/connectors" },
+            { label: "Connector maturity", to: "/connector-maturity" },
             { label: "Connect (CLI)", to: "/cli/overview" },
           ],
         },

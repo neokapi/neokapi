@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-20",
+  "connectors": [
+    {
+      "id": "bowrain-source",
+      "capabilities": [
+        {
+          "id": "pull",
+          "status": "verified",
+          "evidence": [
+            "host/venue/source/pull_test.go#TestPull_CrossFormatTargetWritesTheTargetFormat"
+          ],
+          "detail": "Write a translation from a fixture venue in the format of the target."
+        },
+        {
+          "id": "push",
+          "status": "verified",
+          "evidence": [
+            "host/venue/source/push_read_wiring_test.go#TestPushReadsTheBlocksACheckReads"
+          ],
+          "detail": "Compare the block identities sent to the venue with those read by the local checker."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "host/venue/source/source.go"
+          ],
+          "detail": "file source connector (project)."
+        }
+      ]
+    },
+    {
+      "id": "figma",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/figma_test.go#TestFigmaFetch"
+          ],
+          "detail": "Read design text through a fixture REST endpoint."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "unsupported",
+          "evidence": [
+            "bowrain/connector/figma_test.go#TestFigmaPublishIsReadOnly"
+          ],
+          "detail": "The connector reports that design nodes are read-only."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "design integration connector (local, server, remote)."
+        }
+      ]
+    },
+    {
+      "id": "file",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/file_test.go#TestFileConnectorFetch"
+          ],
+          "detail": "Extract blocks from a local HTML file."
+        },
+        {
+          "id": "list",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/file_test.go#TestFileConnectorList"
+          ],
+          "detail": "Discover a file and identify its format."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/eml_delivery_test.go#TestEmailDelivery"
+          ],
+          "detail": "Deliver an edited message using its source skeleton."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "file integration connector (local)."
+        }
+      ]
+    },
+    {
+      "id": "forge",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/forge_test.go#TestForgeConnectorPublish_BranchAndPR"
+          ],
+          "detail": "Publish a delivery branch and request a review through a fixture forge."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "code integration connector (local, server)."
+        }
+      ]
+    },
+    {
+      "id": "git",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "code integration connector (local)."
+        }
+      ]
+    },
+    {
+      "id": "hubspot",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/hubspot_test.go#TestHubSpotExchange"
+          ],
+          "detail": "Extract a page title and description from a fixture REST endpoint."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/hubspot_test.go#TestHubSpotExchange"
+          ],
+          "detail": "Update the title and preserve the description on the original page."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "marketing integration connector (local, server, remote)."
+        }
+      ]
+    },
+    {
+      "id": "wordpress",
+      "capabilities": [
+        {
+          "id": "fetch",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/wordpress_test.go#TestWordPressFetch"
+          ],
+          "detail": "Read posts into blocks from a fixture REST endpoint."
+        },
+        {
+          "id": "list",
+          "status": "unverified",
+          "evidence": [],
+          "detail": "No operation test is selected for this audit."
+        },
+        {
+          "id": "publish",
+          "status": "verified",
+          "evidence": [
+            "bowrain/connector/wordpress_test.go#TestWordPressPublish"
+          ],
+          "detail": "Send reviewed fields to the original post at a fixture REST endpoint."
+        },
+        {
+          "id": "registration",
+          "status": "declared",
+          "evidence": [
+            "bowrain/connector/register.go"
+          ],
+          "detail": "cms integration connector (local, server, remote)."
+        }
+      ]
+    }
+  ]
+}

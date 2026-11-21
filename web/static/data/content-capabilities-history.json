@@ -1,0 +1,518 @@
+[
+  {
+    "date": "2026-05-31",
+    "revision": "8afd880bdcd2f0c092f50d81a14d1186b7777564",
+    "formats": {
+      "androidxml": "L3",
+      "applestrings": "L3",
+      "arb": "L3",
+      "csv": "L2",
+      "designtokens": "L3",
+      "doxygen": "L1",
+      "dtd": "L1",
+      "epub": "L1",
+      "fixedwidth": "L1",
+      "html": "L1",
+      "i18next": "L3",
+      "icml": "L1",
+      "idml": "L1",
+      "json": "L1",
+      "markdown": "L1",
+      "mdx": "L3",
+      "messageformat": "L1",
+      "mif": "L1",
+      "mo": "L1",
+      "mosestext": "L1",
+      "odf": "L1",
+      "openxml": "L3",
+      "paraplaintext": "L1",
+      "pdf": "L1",
+      "phpcontent": "L1",
+      "plaintext": "L1",
+      "po": "L1",
+      "properties": "L1",
+      "regex": "L1",
+      "resx": "L3",
+      "rtf": "L1",
+      "splicedlines": "L1",
+      "srt": "L1",
+      "tex": "L1",
+      "tmx": "L2",
+      "transtable": "L1",
+      "ts": "L1",
+      "ttml": "L1",
+      "ttx": "L1",
+      "txml": "L1",
+      "versifiedtext": "L1",
+      "vignette": "L1",
+      "vtt": "L1",
+      "wiki": "L1",
+      "xcstrings": "L3",
+      "xliff": "L3",
+      "xliff2": "L1",
+      "xml": "L2",
+      "yaml": "L1"
+    }
+  },
+  {
+    "date": "2026-06-13",
+    "revision": "2eed7f59f8685eb157bfe68c001889027a31cc80",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "csv": "L3",
+      "designtokens": "L1",
+      "doxygen": "L2",
+      "dtd": "L2",
+      "epub": "L0",
+      "fixedwidth": "L2",
+      "html": "L1",
+      "i18next": "L1",
+      "icml": "L3",
+      "idml": "L3",
+      "json": "L2",
+      "markdown": "L2",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mif": "L3",
+      "mo": "L0",
+      "mosestext": "L2",
+      "odf": "L1",
+      "openxml": "L2",
+      "paraplaintext": "L2",
+      "pdf": "L2",
+      "phpcontent": "L2",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "regex": "L2",
+      "resx": "L3",
+      "rtf": "L2",
+      "splicedlines": "L1",
+      "srt": "L2",
+      "tex": "L2",
+      "tmx": "L2",
+      "transtable": "L2",
+      "ts": "L2",
+      "ttml": "L2",
+      "ttx": "L2",
+      "txml": "L2",
+      "versifiedtext": "L1",
+      "vignette": "L2",
+      "vtt": "L2",
+      "wiki": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    }
+  },
+  {
+    "date": "2026-06-19",
+    "revision": "785387f25a7eec43af0fdb25d37383dabc944e9b",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "asciidoc": "L3",
+      "audio": "L0",
+      "csv": "L3",
+      "designtokens": "L1",
+      "doclang": "L1",
+      "docling": "L1",
+      "doxygen": "L2",
+      "dtd": "L2",
+      "epub": "L0",
+      "fixedwidth": "L2",
+      "html": "L1",
+      "i18next": "L1",
+      "icml": "L3",
+      "idml": "L3",
+      "image": "L1",
+      "json": "L2",
+      "markdown": "L2",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mif": "L3",
+      "mo": "L0",
+      "mosestext": "L2",
+      "odf": "L1",
+      "openxml": "L2",
+      "paraplaintext": "L2",
+      "pdf": "L0",
+      "phpcontent": "L2",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "regex": "L2",
+      "resx": "L3",
+      "rtf": "L2",
+      "splicedlines": "L1",
+      "srt": "L2",
+      "tex": "L2",
+      "tmx": "L2",
+      "transtable": "L2",
+      "ts": "L2",
+      "ttml": "L2",
+      "ttx": "L2",
+      "txml": "L2",
+      "versifiedtext": "L1",
+      "video": "L0",
+      "vignette": "L2",
+      "vtt": "L2",
+      "wiki": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    }
+  },
+  {
+    "date": "2026-07-25",
+    "revision": "4c13e26aff10ccd6518df74e582d1679315ed7d0",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "archive": "L0",
+      "asciidoc": "L3",
+      "audio": "L0",
+      "csv": "L3",
+      "designtokens": "L1",
+      "doclang": "L1",
+      "docling": "L1",
+      "epub": "L0",
+      "html": "L1",
+      "i18next": "L1",
+      "image": "L1",
+      "json": "L2",
+      "markdown": "L2",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mo": "L0",
+      "odf": "L1",
+      "openxml": "L2",
+      "pdf": "L0",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "resx": "L3",
+      "srt": "L2",
+      "tmx": "L2",
+      "ts": "L2",
+      "video": "L0",
+      "vtt": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    }
+  },
+  {
+    "date": "2026-09-12",
+    "revision": "a3daf336ac55fcd10578758f7fc241c641996ab1",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "archive": "L0",
+      "asciidoc": "L3",
+      "audio": "L0",
+      "csv": "L3",
+      "designtokens": "L1",
+      "doclang": "L1",
+      "docling": "L1",
+      "epub": "L0",
+      "html": "L1",
+      "i18next": "L1",
+      "image": "L1",
+      "json": "L2",
+      "markdown": "L3",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mo": "L0",
+      "odf": "L1",
+      "openxml": "L3",
+      "pdf": "L0",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "resx": "L3",
+      "sourcecode": "L0",
+      "srt": "L2",
+      "tmx": "L2",
+      "ts": "L2",
+      "video": "L0",
+      "vtt": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    }
+  },
+  {
+    "date": "2026-09-14",
+    "revision": "95e6f7a06d6675ed946a79125c070ec11663dcac",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "archive": "L0",
+      "asciidoc": "L3",
+      "audio": "L0",
+      "csv": "L3",
+      "designtokens": "L1",
+      "doclang": "L1",
+      "docling": "L1",
+      "epub": "L0",
+      "html": "L1",
+      "i18next": "L1",
+      "image": "L1",
+      "json": "L2",
+      "markdown": "L3",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mo": "L0",
+      "odf": "L1",
+      "openxml": "L3",
+      "pdf": "L0",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "resx": "L3",
+      "sourcecode": "L0",
+      "srt": "L2",
+      "tmx": "L2",
+      "ts": "L2",
+      "video": "L0",
+      "vtt": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    }
+  },
+  {
+    "date": "2026-09-15",
+    "revision": "dc9abd667a2cc06d53be972e51a7e3bfc1ec81a8",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "archive": "L0",
+      "asciidoc": "L3",
+      "audio": "L0",
+      "csv": "L3",
+      "designtokens": "L1",
+      "doclang": "L1",
+      "docling": "L1",
+      "epub": "L0",
+      "html": "L1",
+      "i18next": "L1",
+      "image": "L1",
+      "json": "L2",
+      "markdown": "L3",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mo": "L0",
+      "odf": "L1",
+      "openxml": "L3",
+      "pdf": "L0",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "resx": "L3",
+      "sourcecode": "L0",
+      "srt": "L2",
+      "tmx": "L2",
+      "ts": "L2",
+      "video": "L0",
+      "vtt": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    }
+  },
+  {
+    "date": "2026-11-20",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "archive": "L0",
+      "asciidoc": "L3",
+      "audio": "L0",
+      "csv": "L2",
+      "designtokens": "L1",
+      "doclang": "L1",
+      "docling": "L1",
+      "eml": "L3",
+      "epub": "L2",
+      "html": "L1",
+      "i18next": "L1",
+      "image": "L1",
+      "json": "L2",
+      "markdown": "L2",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mo": "L0",
+      "odf": "L2",
+      "openxml": "L2",
+      "pdf": "L0",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "resx": "L3",
+      "sourcecode": "L0",
+      "srt": "L2",
+      "tmx": "L2",
+      "ts": "L2",
+      "video": "L0",
+      "vtt": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    },
+    "outputs": {
+      "androidxml": {
+        "project-text": "failed"
+      },
+      "applestrings": {
+        "project-text": "failed"
+      },
+      "arb": {
+        "project-text": "failed"
+      },
+      "archive": {
+        "project-text": "unsupported"
+      },
+      "asciidoc": {
+        "project-text": "verified"
+      },
+      "audio": {
+        "project-text": "unsupported"
+      },
+      "csv": {
+        "project-cells": "verified"
+      },
+      "designtokens": {
+        "project-text": "failed"
+      },
+      "doclang": {
+        "email": "verified",
+        "project-text": "verified",
+        "structure": "verified"
+      },
+      "docling": {
+        "project-text": "unsupported"
+      },
+      "eml": {
+        "project-text": "unsupported"
+      },
+      "epub": {
+        "project-text": "unsupported"
+      },
+      "exec": {
+        "project-text": "unsupported"
+      },
+      "html": {
+        "email": "verified",
+        "project-text": "verified",
+        "structure": "verified"
+      },
+      "i18next": {
+        "project-text": "verified"
+      },
+      "image": {
+        "project-text": "unsupported"
+      },
+      "json": {
+        "project-text": "verified"
+      },
+      "json-catalog": {
+        "project-text": "verified"
+      },
+      "kbf": {
+        "project-text": "unsupported"
+      },
+      "markdown": {
+        "email": "verified",
+        "project-text": "verified",
+        "structure": "verified"
+      },
+      "mdx": {
+        "project-text": "unsupported"
+      },
+      "messageformat": {
+        "project-text": "verified"
+      },
+      "mo": {
+        "project-text": "unsupported"
+      },
+      "odf": {
+        "project-text": "unsupported"
+      },
+      "openxml": {
+        "project-text": "unsupported"
+      },
+      "plaintext": {
+        "project-text": "verified"
+      },
+      "po": {
+        "project-text": "unsupported"
+      },
+      "properties": {
+        "project-text": "verified"
+      },
+      "resx": {
+        "project-text": "verified"
+      },
+      "srt": {
+        "project-cues": "verified"
+      },
+      "tmx": {
+        "project-text": "unsupported"
+      },
+      "ts": {
+        "project-text": "verified"
+      },
+      "tsv": {
+        "project-cells": "verified"
+      },
+      "video": {
+        "project-text": "unsupported"
+      },
+      "vtt": {
+        "project-cues": "verified"
+      },
+      "xcstrings": {
+        "project-text": "failed"
+      },
+      "xliff": {
+        "project-text": "unsupported"
+      },
+      "xliff2": {
+        "project-text": "unsupported"
+      },
+      "xml": {
+        "project-text": "failed"
+      },
+      "yaml": {
+        "project-text": "verified"
+      },
+      "yaml-catalog": {
+        "project-text": "verified"
+      }
+    }
+  }
+]

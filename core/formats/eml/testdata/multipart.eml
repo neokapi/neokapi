@@ -1,0 +1,37 @@
+From: author@example.org
+To: reader@example.org
+Date: Mon, 16 Nov 2026 10:00:00 +0000
+sUbJeCt: =?iso-8859-1?Q?R=E9sum=E9?=
+ =?UTF-8?B?IG5vdGVz?=
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="outer"
+
+A MIME reader skips this preamble.
+--outer
+Content-Type: multipart/alternative; boundary=inner
+
+--inner
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+caf=E9 and=
+ tea
+--inner
+Content-Type: text/html; charset=UTF-8
+
+<p>HTML alternative</p>
+--inner--
+--outer
+Content-Type: text/plain; name="draft.txt"
+Content-Disposition: attachment; filename="draft.txt"
+
+Attached text
+--outer
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="notes.bin"
+Content-Transfer-Encoding: base64
+
+AP8KAA==
+--outer--
+Epilogue.

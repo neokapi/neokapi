@@ -640,5 +640,124 @@
         }
       }
     }
+  },
+  {
+    "date": "2026-11-20",
+    "total": 38,
+    "by_level": {
+      "L0": 6,
+      "L1": 9,
+      "L2": 18,
+      "L3": 5,
+      "L4": 0
+    },
+    "by_axis": {
+      "engine": {
+        "L0": 6,
+        "L1": 9,
+        "L2": 18,
+        "L3": 5,
+        "L4": 0
+      },
+      "vocabulary": {
+        "V0": 33,
+        "V1": 5,
+        "V2": 0,
+        "V3": 0
+      },
+      "editor": {
+        "E0": 35,
+        "E1": 3,
+        "E2": 0,
+        "E3": 0,
+        "E4": 0
+      },
+      "knowledge": {
+        "K0": 8,
+        "K1": 16,
+        "K2": 14,
+        "K3": 0
+      },
+      "corpus": {
+        "C0": 24,
+        "C1": 14,
+        "C2": 0,
+        "C3": 0
+      },
+      "security": {
+        "S0": 7,
+        "S1": 26,
+        "S2": 5,
+        "S3": 0,
+        "S4": 0
+      },
+      "structure": {
+        "G0": 24,
+        "G1": 1,
+        "G2": 6,
+        "G3": 4,
+        "G4": 3
+      },
+      "prose": {
+        "P0": 27,
+        "P1": 0,
+        "P2": 11,
+        "P3": 0,
+        "P4": 0
+      }
+    },
+    "languages": {
+      "total": 13,
+      "by_presence": {
+        "present": 13,
+        "absent": 0,
+        "did-not-run": 0
+      },
+      "by_prose": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 9,
+        "P3": 0,
+        "P4": 4
+      }
+    },
+    "moves": {
+      "published": 0,
+      "suppressed": 0,
+      "by_axis": {
+        "engine": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "vocabulary": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "editor": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "knowledge": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "corpus": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "security": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "structure": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "prose": {
+          "published": 0,
+          "suppressed": 0
+        }
+      }
+    }
   }
 ]
