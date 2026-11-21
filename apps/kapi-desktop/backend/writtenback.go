@@ -38,7 +38,7 @@ func (a *App) WrittenBackFile(tabID, filePath, locale string) (string, error) {
 	defer cancel()
 
 	var buf bytes.Buffer
-	engine := a.borrowEngine(&host.App{FormatReg: a.formatReg, ToolReg: a.toolReg})
+	engine := a.newProjectEngine(op)
 	err := engine.WriteBack(ctx, host.WriteBackOptions{
 		Project:     op.Project,
 		ProjectPath: op.Path,

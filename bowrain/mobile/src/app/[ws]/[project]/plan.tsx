@@ -7,6 +7,7 @@
 // server settles after each run and its last pass; the phone has no settle
 // button.
 import {
+  PLAN_LEVELS,
   planRuleLabel,
   type PlanLevel,
   type PlanRule,
@@ -16,8 +17,8 @@ import {
 } from "@neokapi/bowrain-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import type { ReactNode } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { useRef, type ComponentRef, type ReactNode } from "react";
+import { Pressable, RefreshControl, ScrollView, Text, View, type ViewProps } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { contextProposalsFact, contextScanFact, waitFact } from "../../../components/home/PlanCard";
@@ -25,14 +26,6 @@ import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
 import { reviewPlanKey } from "../../../lib/plan";
 import { ageLabel, languageLabel } from "../../../lib/feed";
-
-const LEVELS: readonly PlanLevel[] = [
-  "coordinates",
-  "context",
-  "exceptions",
-  "interfaces",
-  "policy",
-];
 
 /**
  * The plan's step for a level. A server that sends no steps reads as the plan
@@ -81,6 +74,7 @@ function Row({
   title,
   fact,
   note,
+  onLayout,
   children,
 }: {
   n: number;
@@ -91,11 +85,13 @@ function Row({
   fact: string;
   /** Shown on the step whether or not it is next. */
   note?: ReactNode;
+  onLayout?: ViewProps["onLayout"];
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
   return (
     <View
+      onLayout={onLayout}
       testID={`plan-${level}`}
       className={`mx-4 mb-2 gap-2 rounded-2xl border px-4 py-3 ${
         next ? "border-primary bg-primary/10" : "border-border bg-card"
@@ -192,7 +188,13 @@ function RuleList({
 
 export default function ReviewPlanScreen() {
   const { t, i18n } = useTranslation();
-  const { ws, project } = useLocalSearchParams<{ ws: string; project: string; step?: string }>();
+  const { ws, project, step } = useLocalSearchParams<{
+    ws: string;
+    project: string;
+    step?: string;
+  }>();
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const placed = useRef<string | undefined>(undefined);
   const { client } = useAuth();
   const qc = useQueryClient();
   const scope = { workspace: ws, project };
@@ -405,16 +407,26 @@ export default function ReviewPlanScreen() {
     <View collapsable={false} className="bg-background flex-1">
       <Stack.Screen options={{ title: t("plan.title") }} />
       <ScrollView
+        ref={scroll}
         testID="plan-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pt-3 pb-10"
         refreshControl={<RefreshControl refreshing={plan.isRefetching} onRefresh={refresh} />}
       >
-        {LEVELS.map((level, i) => {
+        {PLAN_LEVELS.map((level, i) => {
           const s = stepOf(p, level);
           return (
             <Row
-              key={level}
+              key={level === step ? `selected-${level}` : level}
+              onLayout={
+                level === step
+                  ? (event) => {
+                      if (placed.current === step) return;
+                      scroll.current?.scrollTo({ y: event.nativeEvent.layout.y, animated: false });
+                      placed.current = step;
+                    }
+                  : undefined
+              }
               n={i + 1}
               level={level}
               state={s.state}

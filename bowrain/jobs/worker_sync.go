@@ -491,13 +491,15 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// context-only push counts — it landed this project's collections on this
 	// stream, which is exactly what the field names.
 	if totalStored > 0 || contextResult.total() > 0 {
-		proj, projErr := deps.ContentStore.GetProject(ctx, projectID)
-		if projErr == nil && proj.DefaultStream == "" {
-			proj.DefaultStream = stream
-			if err := deps.ContentStore.UpdateProject(ctx, proj); err != nil {
-				slog.Warn("could not set project default stream",
-					"project_id", projectID, "stream", stream, "error", err)
+		_, _, err := deps.ContentStore.EditProject(ctx, projectID, func(proj *store.Project) (bool, error) {
+			if proj.DefaultStream != "" {
+				return false, nil
 			}
+			proj.DefaultStream = stream
+			return true, nil
+		})
+		if err != nil {
+			slog.WarnContext(ctx, "could not set project default stream", "project_id", projectID, "stream", stream, "error", err)
 		}
 	}
 

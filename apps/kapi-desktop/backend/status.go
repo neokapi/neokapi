@@ -163,7 +163,7 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 // does, from the files in the tree rather than from the block store.
 func (a *App) workingTreeCoverage(ctx context.Context, op *openProject) (*convergence.CoverageTally, error) {
 	root := filepath.Dir(op.Path)
-	engine := a.hostEngine()
+	engine := a.newProjectEngine(op)
 	units, err := engine.UnitsFromProject(op.Project, root, "")
 	if err != nil {
 		return nil, fmt.Errorf("resolve verify blocks: %w", err)
@@ -243,20 +243,30 @@ func buildCollections(order []string, targets map[string][]string, totals map[st
 // preview that created one would leave the next real command a store it did not
 // write.
 func (a *App) existingProjectStore(op *openProject) (*projectdb.DB, bool) {
+	db, err := a.projectStoreIfPresent(op)
+	if err != nil {
+		a.logger.Printf("open project store: %v", err)
+	}
+	return db, db != nil
+}
+
+func (a *App) projectStoreIfPresent(op *openProject) (*projectdb.DB, error) {
 	root, ok := projectRoot(op)
 	if !ok {
-		return nil, false
+		return nil, nil
 	}
-	info, err := os.Stat(a.hostEngine().ProjectStorePath(root))
-	if err != nil || info.IsDir() {
-		return nil, false
+	storePath := a.hostEngine().ProjectStorePath(root)
+	info, err := os.Stat(storePath)
+	if os.IsNotExist(err) {
+		return nil, nil
 	}
-	db, err := a.projectStore(op)
 	if err != nil {
-		a.logger.Printf("open project store for %s: %v", root, err)
-		return nil, false
+		return nil, err
 	}
-	return db, true
+	if info.IsDir() {
+		return nil, fmt.Errorf("project store %q is a directory", storePath)
+	}
+	return a.projectStore(op)
 }
 
 // ExtractResult summarises one extraction request from the UI.

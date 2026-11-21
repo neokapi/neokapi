@@ -393,34 +393,11 @@ type MemoryUpdateRequest struct {
 
 // --- Terminology types ---
 
-// TermInfoResponse is a term in a concept.
-type TermInfoResponse struct {
-	Text         string   `json:"text"`
-	Locale       string   `json:"locale"`
-	Status       string   `json:"status"`
-	PartOfSpeech string   `json:"part_of_speech,omitempty"`
-	Gender       string   `json:"gender,omitempty"`
-	Note         string   `json:"note,omitempty"`
-	Forms        []string `json:"forms,omitempty"`
-}
+// TermInfoResponse holds the editable fields of a term in a concept request.
+type TermInfoResponse = venue.TermEdit
 
-// ConceptInfoResponse is the API response for a concept.
-type ConceptInfoResponse struct {
-	ID string `json:"id"`
-	// ProjectID is the project the concept is limited to when it is limited
-	// to one.
-	ProjectID string `json:"project_id,omitempty"`
-	// Projects are the projects the concept applies in, empty for a concept
-	// of the whole workspace (termscope.Projects).
-	Projects       []string           `json:"projects,omitempty"`
-	Domain         string             `json:"domain"`
-	Definition     string             `json:"definition"`
-	DoNotTranslate bool               `json:"do_not_translate,omitempty"`
-	Terms          []TermInfoResponse `json:"terms"`
-	Properties     map[string]string  `json:"properties,omitempty"`
-	CreatedAt      string             `json:"created_at"`
-	UpdatedAt      string             `json:"updated_at"`
-}
+// ConceptInfoResponse carries a concept and its project scope.
+type ConceptInfoResponse = venue.ConceptInfo
 
 // TermSearchResponse holds a page of term search results.
 type TermSearchResponse struct {
@@ -1752,18 +1729,6 @@ func editorEntryToInfo(e memory.Entry, sourceLocale, targetLocale string) Memory
 }
 
 func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
-	terms := make([]TermInfoResponse, len(c.Terms))
-	for i, t := range c.Terms {
-		terms[i] = TermInfoResponse{
-			Text:         t.Text,
-			Locale:       string(t.Locale),
-			Status:       string(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		}
-	}
 	projects := termscope.Projects(c)
 	projectID := c.ProjectID
 	if len(projects) == 1 {
@@ -1776,30 +1741,13 @@ func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
 		Domain:         c.Domain,
 		Definition:     c.Definition,
 		DoNotTranslate: c.DoNotTranslate,
-		Terms:          terms,
+		Advisory:       c.Advisory,
+		Source:         c.Source,
+		Terms:          venue.TermInfos(c.Terms),
 		Properties:     c.Properties,
 		CreatedAt:      c.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      c.UpdatedAt.Format(time.RFC3339),
 	}
-}
-
-func editorTermsFromInfo(infos []TermInfoResponse) []terms.Term {
-	result := make([]terms.Term, len(infos))
-	for i, t := range infos {
-		result[i] = terms.Term{
-			Text:         t.Text,
-			Locale:       model.LocaleID(t.Locale),
-			Status:       model.TermStatus(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		}
-		if result[i].Status == "" {
-			result[i].Status = model.TermApproved
-		}
-	}
-	return result
 }
 
 // ---------------------------------------------------------------------------

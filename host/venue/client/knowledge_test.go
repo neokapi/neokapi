@@ -400,3 +400,27 @@ func TestKnowledgePropagatesServerError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "403")
 }
+
+func TestConceptTermsUseStringFieldsAndRestrictOrdinaryWrites(t *testing.T) {
+	locale, status := "en", "approved"
+	concept := ConceptInfo{Terms: []TermInfo{{
+		Text: "Sample", Locale: locale, Status: status, CompetitorTerm: true,
+		Validity: &graph.Validity{Tags: map[string]string{"market": "UK"}},
+	}}}
+	assert.Equal(t, locale, concept.Terms[0].Locale)
+	assert.Equal(t, status, concept.Terms[0].Status)
+	read, err := json.Marshal(concept)
+	require.NoError(t, err)
+	assert.Contains(t, string(read), `"competitor_term":true`)
+	assert.Contains(t, string(read), `"validity":`)
+
+	expected := `{"domain":"ui","definition":"A term","terms":[{"text":"Sample","locale":"en","status":"approved"}]}`
+	for _, params := range []any{
+		CreateConceptParams{Domain: "ui", Definition: "A term", Terms: concept.Terms},
+		UpdateConceptParams{Domain: "ui", Definition: "A term", Terms: concept.Terms},
+	} {
+		body, err := json.Marshal(params)
+		require.NoError(t, err)
+		assert.JSONEq(t, expected, string(body))
+	}
+}

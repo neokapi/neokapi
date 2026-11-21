@@ -26,22 +26,21 @@ export function openSetup(p: ReviewInboxProject, next?: PlanLevel) {
  * coordinates open their map, narrowed to the languages the person follows.
  */
 export function openStep(p: ReviewInboxProject, level: PlanLevel) {
-  remember(p);
   if (!p.saved) {
     openSetup(p, level);
     return;
   }
-  if (level === "coordinates") {
-    router.push({
-      pathname: "/[ws]/[project]/coordinates",
-      params: { ws: p.workspace, project: p.project, languages: p.followed.join(",") },
-    });
-    return;
-  }
-  router.push({
-    pathname: "/[ws]/[project]/plan",
-    params: { ws: p.workspace, project: p.project, step: level },
-  });
+  remember(p);
+  router.push(planStepRoute(p.workspace, p.project, level, p.followed));
+}
+
+export function planStepRoute(ws: string, project: string, step: PlanLevel, followed: string[]) {
+  return step === "coordinates"
+    ? {
+        pathname: "/[ws]/[project]/coordinates" as const,
+        params: { ws, project, languages: followed.join(",") },
+      }
+    : { pathname: "/[ws]/[project]/plan" as const, params: { ws, project, step } };
 }
 
 /** Opens a project's context cards. */

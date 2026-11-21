@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -71,37 +74,10 @@ func NewPostgresStoreFromDBContext(ctx context.Context, db *storage.PgDB, worksp
 	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
 }
 
-// Migrations is the bowrain Postgres terms schema as a single consolidated
-// baseline. It renders from the shared descriptors in terms/schema, the same
-// source the framework SQLite backend renders from, so the two backends cannot
-// drift (semantic equivalence is statement-set tested in terms/schema). The
-// fuzzy infrastructure (pg_trgm GIN + a tsvector column/trigger) is the Postgres
-// analogue of the SQLite FTS5 trigram virtual table.
-//
-// LEDGER — every version this subsystem has ever issued, now folded in:
-//
-//	1  terms schema
-//	2  add stream column to concepts
-//	3  pg_trgm trigram index for fuzzy term matching + tsvector for UI search
-//	4  brand knowledge graph: concept source, term competitor/validity, persisted relations
-//
-// Baseline is version 5, above every number issued, so a database that already
-// recorded 4 applies it once more. This subsystem is why that matters: terms
-// migrates lazily on first workspace access, not at boot, so when its
-// bookkeeping was emptied on 2026-08-01 the replay of version 2 failed with
-// `column "stream" of relation "tb_concepts" already exists` — inside a
-// translation job, which reported only "terms resolution failed" and carried
-// on without enforcement. The baseline is idempotent, so the same replay now
-// repairs the ledger instead of taking enforcement offline.
-//
-// Versions issued after the baseline:
-//
-//	6  declared surface forms on terms
-//	7  do-not-translate flag on concepts
-//	8  advisory flag on concepts
-//	9  the revision of each workspace's terms
-//
-// Retired numbers are never reused. The next migration is version 10.
+//go:embed pilot_upgrade.sql
+var migratePilotProjects string
+
+// Migrations defines the PostgreSQL terms schema and upgrades its stored data.
 var Migrations = []storage.Migration{
 	{
 		Version:     5,
@@ -139,6 +115,23 @@ INSERT INTO tb_revision (workspace_id, revision)
 SELECT w.workspace_id, replace(gen_random_uuid()::text, '-', '')
   FROM (SELECT DISTINCT workspace_id FROM tb_concepts) w
 ON CONFLICT (workspace_id) DO NOTHING;`,
+	},
+	{
+		Version:     10,
+		Description: "indexed normalized term text",
+		SQL:         termsschema.RenderTermsPostgresV10(),
+	},
+	{
+		Version:     11,
+		Description: "scope stored pilot concepts and relations to their projects",
+		SQL:         migratePilotProjects,
+	},
+	{
+		Version:     12,
+		Description: "normalized text for terms written before the column",
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return fw.BackfillNormalizedText(ctx, tx, true)
+		},
 	},
 }
 
@@ -309,9 +302,9 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 	for _, term := range concept.Terms {
 		validFrom, validTo, tags := pgValidityColumns(term.Validity)
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		`, tb.workspaceID, concept.ID, term.Text, strings.ToLower(term.Text),
+			INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, text_normalized, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		`, tb.workspaceID, concept.ID, term.Text, strings.ToLower(term.Text), fw.NormalizeTerm(term.Text),
 			string(term.Locale), string(term.Status),
 			term.PartOfSpeech, term.Gender, term.Note, term.CompetitorTerm,
 			validFrom, validTo, tags, fw.FormsColumn(term.Forms))
@@ -435,10 +428,11 @@ func (tb *PostgresStore) DeleteRelation(ctx context.Context, id string) error {
 // RelationsOf returns all relations touching the concept, in either direction,
 // filtered by the validity scope when one is given.
 func (tb *PostgresStore) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]fw.ConceptRelation, error) {
+	notShadow, arg := fw.NotShadowSQL("id", "$3")
 	rows, err := tb.run().QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
-		FROM tb_relations WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) ORDER BY id
-	`, tb.workspaceID, conceptID)
+		FROM tb_relations WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) AND `+notShadow+` ORDER BY id
+	`, tb.workspaceID, conceptID, arg)
 	if err != nil {
 		return nil, fmt.Errorf("query relations: %w", err)
 	}
@@ -545,7 +539,7 @@ func (tb *PostgresStore) LookupAll(ctx context.Context, sourceText string, opts 
 		return nil, nil
 	}
 	opts = fw.ApplyLookupDefaults(opts)
-	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter)
+	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.StatusFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -579,9 +573,10 @@ func (tb *PostgresStore) Search(ctx context.Context, query string, sourceLocale,
 }
 
 func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
-	where := "t.workspace_id = $1 AND t.text_lower % $2"
-	args := []any{tb.workspaceID, strings.ToLower(query)}
-	argN := 3
+	notShadow, arg := fw.NotShadowSQL("t.concept_id", "$3")
+	where := "t.workspace_id = $1 AND t.text_lower % $2 AND " + notShadow
+	args := []any{tb.workspaceID, strings.ToLower(query), arg}
+	argN := 4
 
 	if sourceLocale != "" {
 		where += fmt.Sprintf(" AND t.locale = $%d", argN)
@@ -622,15 +617,8 @@ func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceL
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, 0, fmt.Errorf("scan concept id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, 0, err
 	}
 	concepts, err := tb.scanConcepts(ctx, ids)
@@ -641,9 +629,10 @@ func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceL
 }
 
 func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
-	where := "workspace_id = $1"
-	args := []any{tb.workspaceID}
-	argN := 2
+	notShadow, arg := fw.NotShadowSQL("c.id", "$2")
+	where := "workspace_id = $1 AND " + notShadow
+	args := []any{tb.workspaceID, arg}
+	argN := 3
 
 	if query != "" {
 		where += fmt.Sprintf(` AND (LOWER(c.definition) LIKE $%d OR LOWER(c.domain) LIKE $%d
@@ -667,7 +656,9 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count concepts: %w", err)
+	}
 
 	// No DISTINCT: c.id is the table PK (single-table query), so rows are already
 	// unique — and DISTINCT would make ORDER BY c.updated_at illegal in Postgres.
@@ -679,15 +670,8 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
@@ -773,15 +757,8 @@ func (tb *PostgresStore) pgSearchTrgmForStream(ctx context.Context, query string
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -831,7 +808,9 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count concepts: %w", err)
+	}
 
 	// Build CASE expression for stream priority ordering.
 	var caseExpr strings.Builder
@@ -853,15 +832,8 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
@@ -874,14 +846,14 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 
 // Count returns the total number of concepts for this workspace.
 func (tb *PostgresStore) Count(ctx context.Context) (int, error) {
+	notShadow, arg := fw.NotShadowSQL("id", "$2")
 	var count int
-	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
+	if err := tb.run().QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1 AND "+notShadow, tb.workspaceID, arg).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count concepts: %w", err)
 	}
 	return count, nil
 }
 
-// Concepts returns all concepts for this workspace.
 // Concepts returns the workspace's concepts. The shadow namespace is not among
 // them: a stream-scoped shadow belongs to the branch it was written for, and
 // this list is what the sync carries into a project's own terms.
@@ -895,15 +867,8 @@ func (tb *PostgresStore) Concepts(ctx context.Context) ([]fw.Concept, error) {
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := fw.ScanConceptIDs(rows)
+	if err != nil {
 		return nil, fmt.Errorf("iterate concepts: %w", err)
 	}
 
@@ -1050,7 +1015,7 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 		var locale, status, tags, forms string
 		var validFrom, validTo sql.NullTime
 		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags, &forms); err != nil {
-			continue
+			return c, fmt.Errorf("concept %s: scan term: %w", id, err)
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
@@ -1069,9 +1034,9 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 	return c, nil
 }
 
-// pgTermSelectCols is the shared 11-column term projection every candidate
+// pgTermSelectCols is the term projection every candidate
 // query selects, including the validity columns the shared lookup filters on.
-const pgTermSelectCols = "t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms"
+const pgTermSelectCols = "t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms"
 
 func (tb *PostgresStore) queryExactTerms(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	searchText := sourceText
@@ -1100,7 +1065,7 @@ func (tb *PostgresStore) queryNormalizedTerms(ctx context.Context, normalizedSou
 	rows, err := tb.run().QueryContext(ctx, `
 		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
-		WHERE t.workspace_id = $1 AND t.text_lower = $2 AND t.locale = $3
+		WHERE t.workspace_id = $1 AND t.text_normalized = $2 AND t.locale = $3
 	`, tb.workspaceID, normalizedSource, string(opts.SourceLocale))
 	if err != nil {
 		return nil, fmt.Errorf("query normalized terms: %w", err)
@@ -1126,56 +1091,46 @@ func (tb *PostgresStore) queryFormTerms(ctx context.Context, opts fw.LookupOptio
 	return pgScanTermCandidates(rows)
 }
 
-// queryFuzzyTerms returns the raw fuzzy candidate pool: the pg_trgm pre-filter,
-// falling back to a length-bounded full scan when the trigram path yields no
-// candidate rows (or pg_trgm is unavailable). Levenshtein scoring and the
-// MinScore gate live in the shared fw.LookupTiered.
 func (tb *PostgresStore) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
-	cands, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
-	if err != nil {
-		return nil, err
+	queryLen := len([]rune(normalizedSource))
+	minLen, maxLen := fw.FuzzyLengthWindow(queryLen, opts.MinScore)
+	notShadow, shadowArg := fw.NotShadowSQL("t.concept_id", "$5")
+	where := "t.workspace_id = $1 AND t.locale = $2 AND LENGTH(t.text_normalized) BETWEEN $3 AND $4 AND " + notShadow
+	args := []any{tb.workspaceID, string(opts.SourceLocale), minLen, maxLen, shadowArg}
+	ph := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
 	}
-	if len(cands) > 0 {
-		return cands, nil
+	if len(opts.StatusFilter) > 0 {
+		marks := make([]string, len(opts.StatusFilter))
+		for i, st := range opts.StatusFilter {
+			marks[i] = ph(string(st))
+		}
+		where += " AND t.status IN (" + strings.Join(marks, ", ") + ")"
 	}
-	return tb.queryFuzzyFullScan(ctx, normalizedSource, opts)
-}
-
-func (tb *PostgresStore) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
-	// Use pg_trgm similarity operator (%) with GIN index.
-	rows, err := tb.run().QueryContext(ctx, `
-		SELECT `+pgTermSelectCols+`
+	if opts.ConceptIDs != nil {
+		ids, err := json.Marshal(slices.Collect(maps.Keys(opts.ConceptIDs)))
+		if err != nil {
+			return nil, fmt.Errorf("query fuzzy terms: %w", err)
+		}
+		where += " AND t.concept_id IN (SELECT jsonb_array_elements_text(" + ph(string(ids)) + "::jsonb))"
+	}
+	// The order and limit fw.FuzzyCandidateLimit describes. The "C" collation
+	// is byte order, as the shared lookup compares.
+	q := `SELECT ` + pgTermSelectCols + `
 		FROM tb_terms t
-		WHERE t.workspace_id = $1 AND t.locale = $2 AND t.text_lower % $3
-		LIMIT 200
-	`, tb.workspaceID, string(opts.SourceLocale), normalizedSource)
+		WHERE ` + where + `
+		ORDER BY ABS(LENGTH(t.text_normalized) - ` + ph(queryLen) + `), t.concept_id COLLATE "C", t.text COLLATE "C"
+		LIMIT ` + ph(fw.FuzzyCandidateLimit)
+	rows, err := tb.run().QueryContext(ctx, q, args...)
 	if err != nil {
-		// pg_trgm unavailable; signal fallback to the full scan (not an error).
-		return nil, nil
+		return nil, fmt.Errorf("query fuzzy terms: %w", err)
 	}
 	defer rows.Close()
-
 	return pgScanTermCandidates(rows)
 }
 
-func (tb *PostgresStore) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
-	minLen, maxLen := fw.FuzzyLengthWindow(len([]rune(normalizedSource)), opts.MinScore)
-
-	rows, err := tb.run().QueryContext(ctx, `
-		SELECT `+pgTermSelectCols+`
-		FROM tb_terms t
-		WHERE t.workspace_id = $1 AND t.locale = $2 AND LENGTH(t.text_lower) BETWEEN $3 AND $4
-		LIMIT 500
-	`, tb.workspaceID, string(opts.SourceLocale), minLen, maxLen)
-	if err != nil {
-		return nil, fmt.Errorf("fuzzy full scan: %w", err)
-	}
-	defer rows.Close()
-
-	return pgScanTermCandidates(rows)
-}
-
-func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]fw.LocaleTerm, error) {
+func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, statusFilter []model.TermStatus) ([]fw.LocaleTerm, error) {
 	// This query is the terms half of every check. It names no stream, so it
 	// must exclude the shadow namespace: a shadow written for one branch would
 	// otherwise decide what the checks flag everywhere.
@@ -1183,16 +1138,6 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	where := "t.workspace_id = $1 AND t.locale = $2 AND " + notShadow
 	args := []any{tb.workspaceID, string(locale), shadowArg}
 	argN := 4
-
-	if len(domains) > 0 {
-		placeholders := make([]string, len(domains))
-		for i, d := range domains {
-			placeholders[i] = fmt.Sprintf("$%d", argN)
-			args = append(args, d)
-			argN++
-		}
-		where += " AND c.domain IN (" + strings.Join(placeholders, ",") + ")"
-	}
 
 	if len(statusFilter) > 0 {
 		placeholders := make([]string, len(statusFilter))
@@ -1205,7 +1150,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	}
 
 	rows, err := tb.run().QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.domain, c.definition, c.do_not_translate, c.advisory, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms
+		SELECT c.id, c.domain, c.definition, c.source, c.do_not_translate, c.advisory, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms
 		FROM tb_terms t JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s
 		ORDER BY c.id, t.text
@@ -1217,17 +1162,17 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 
 	var results []fw.LocaleTerm
 	for rows.Next() {
-		var cID, domain, definition, text, loc, status, pos, gender, note, tags, forms string
+		var cID, domain, definition, source, text, loc, status, pos, gender, note, tags, forms string
 		var doNotTranslate, advisory, competitor bool
 		var validFrom, validTo sql.NullTime
-		if err := rows.Scan(&cID, &domain, &definition, &doNotTranslate, &advisory, &text, &loc, &status, &pos, &gender, &note, &competitor, &validFrom, &validTo, &tags, &forms); err != nil {
-			continue
+		if err := rows.Scan(&cID, &domain, &definition, &source, &doNotTranslate, &advisory, &text, &loc, &status, &pos, &gender, &note, &competitor, &validFrom, &validTo, &tags, &forms); err != nil {
+			return nil, fmt.Errorf("scan locale term: %w", err)
 		}
 		// A malformed forms column keeps the term, unexpanded: dropping the row
 		// would hide a forbidden term from every check that reads it.
 		formList, _ := fw.FormsFromColumn(forms)
 		results = append(results, fw.LocaleTerm{
-			Concept: fw.Concept{ID: cID, Domain: domain, Definition: definition, DoNotTranslate: doNotTranslate, Advisory: advisory},
+			Concept: fw.Concept{ID: cID, Domain: domain, Definition: definition, Source: fw.TermSource(source), DoNotTranslate: doNotTranslate, Advisory: advisory},
 			Term: fw.Term{
 				Text:           text,
 				Locale:         model.LocaleID(loc),
@@ -1248,6 +1193,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 }
 
 type pgScanTermRow struct {
+	competitor                                         bool
 	conceptID, text, locale, status, pos, gender, note string
 	validFrom, validTo                                 sql.NullTime
 	tags, forms                                        string
@@ -1266,7 +1212,7 @@ func (r pgScanTermRow) formList() []string {
 	return forms
 }
 
-// pgScanTermCandidates scans the shared 11-column term projection into raw
+// pgScanTermCandidates scans the term projection into raw
 // candidates. Validity is reconstructed here; the shared fw.LookupTiered
 // applies the scope/status/score filters and hydrates the owning concept.
 //
@@ -1281,20 +1227,21 @@ func pgScanTermCandidates(rows interface {
 	var out []fw.TermCandidate
 	for rows.Next() {
 		var r pgScanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags, &r.forms); err != nil {
+		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.competitor, &r.validFrom, &r.validTo, &r.tags, &r.forms); err != nil {
 			return nil, fmt.Errorf("scan term candidate: %w", err)
 		}
 		out = append(out, fw.TermCandidate{
 			ConceptID: r.conceptID,
 			Term: fw.Term{
-				Text:         r.text,
-				Locale:       model.LocaleID(r.locale),
-				Status:       model.TermStatus(r.status),
-				PartOfSpeech: r.pos,
-				Gender:       r.gender,
-				Note:         r.note,
-				Validity:     r.validity(),
-				Forms:        r.formList(),
+				Text:           r.text,
+				Locale:         model.LocaleID(r.locale),
+				Status:         model.TermStatus(r.status),
+				PartOfSpeech:   r.pos,
+				Gender:         r.gender,
+				Note:           r.note,
+				CompetitorTerm: r.competitor,
+				Validity:       r.validity(),
+				Forms:          r.formList(),
 			},
 		})
 	}

@@ -144,7 +144,7 @@ export class MemoryChanges implements ChangeClient {
       editions[key] = {
         rev: this.rev(e),
         text: e.text,
-        status: e.status,
+        status: e.status ?? "",
         stale: false,
         ...(e.codes ? { codes: e.codes } : {}),
         ...(e.structures ? { structures: e.structures } : {}),

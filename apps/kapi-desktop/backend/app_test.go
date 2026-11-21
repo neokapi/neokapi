@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -269,4 +270,40 @@ func TestGetStepDocNil(t *testing.T) {
 func TestGetVersion(t *testing.T) {
 	app := NewApp()
 	assert.NotEmpty(t, app.GetVersion())
+}
+
+func TestSaveProjectSnapshotAcknowledgesOnlyTheWrittenRecipe(t *testing.T) {
+	app := NewApp()
+	tab := newTestProject(t, app, "Original")
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	edited := *app.GetProject(tab.ID)
+	edited.Name = "Edited"
+	saved, err := app.SaveProjectSnapshot(tab.ID, &edited, false)
+	require.NoError(t, err)
+	require.Equal(t, edited.Name, saved.Name)
+	require.Equal(t, tab.Path, saved.Tab.Path)
+	onDisk, err := project.Load(tab.Path)
+	require.NoError(t, err)
+	require.Equal(t, edited.Name, onDisk.Name)
+
+	destination := t.TempDir()
+	copied, err := app.persistProject(tab.ID, &edited, filepath.Join(destination, project.RecipeFileName), true)
+	require.NoError(t, err)
+	require.Equal(t, filepath.Base(destination), copied.Name)
+	require.Equal(t, destination, app.projects[tab.ID].watcher.dir)
+	require.Equal(t, "Edited", edited.Name)
+
+	other := newTestProject(t, app, "Other")
+	t.Cleanup(func() { app.CloseProject(other.ID) })
+	_, err = app.persistProject(tab.ID, &edited, other.Path, true)
+	require.Error(t, err)
+	require.Equal(t, copied.Name, app.GetProject(tab.ID).Name)
+	require.Equal(t, copied.Tab.Path, app.GetProjectPath(tab.ID))
+
+	// The open project reached through a symlinked folder is the same project.
+	link := filepath.Join(t.TempDir(), "linked")
+	require.NoError(t, os.Symlink(filepath.Dir(other.Path), link))
+	_, err = app.persistProject(tab.ID, &edited, filepath.Join(link, filepath.Base(other.Path)), true)
+	require.ErrorContains(t, err, "already open")
+	require.Equal(t, copied.Tab.Path, app.GetProjectPath(tab.ID))
 }

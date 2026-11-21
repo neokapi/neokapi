@@ -7,7 +7,8 @@
 
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, useApi } from "@neokapi/ui";
+import { Button, ErrorNotice, useApi, useCallerPermissions } from "@neokapi/ui";
+import { invalidateProjectQueries } from "../../queries";
 import {
   coordinatesOpen,
   planFromServer,
@@ -117,10 +118,6 @@ function InvolvementDetail({ involvement }: { involvement: ReviewInvolvement }) 
         </>
       );
   }
-}
-
-function reviewPlanQueryKey(ws: string, projectId: string, stream: string) {
-  return ["review-plan", ws, projectId, stream] as const;
 }
 
 function Step({
@@ -549,41 +546,62 @@ export function ReviewPlanSteps({
 export function ReviewPlanPanel({ ws, projectId, stream }: ReviewPlanPanelProps) {
   const api = useApi();
   const qc = useQueryClient();
-  const key = reviewPlanQueryKey(ws, projectId, stream);
+  const { can, data: permissions } = useCallerPermissions(projectId);
   const plan = useQuery({
-    queryKey: key,
+    queryKey: ["project", ws, projectId, stream, "review-plan"],
     queryFn: async () => planFromServer(await api.getReviewPlan!(ws, projectId, stream)),
     enabled: !!api.getReviewPlan,
   });
-  const refresh = () => void qc.invalidateQueries({ queryKey: key });
-  const confirm = useMutation({
-    mutationFn: () => api.confirmReviewCoordinates!(ws, projectId),
-    onSuccess: refresh,
+  const update = useMutation({
+    mutationKey: ["review-plan", ws, projectId, stream],
+    mutationFn: (apply: () => Promise<unknown>) => apply(),
+    onSuccess: () => invalidateProjectQueries(qc, ws, projectId),
   });
-  const involve = useMutation({
-    mutationFn: (v: ReviewInvolvement) => api.setReviewInvolvement!(ws, projectId, v),
-    onSuccess: refresh,
-  });
-  const settle = useMutation({
-    mutationFn: () => api.settleReviewPlan!(ws, projectId, stream),
-    onSuccess: refresh,
-  });
-  const scan = useMutation({
-    mutationFn: () => api.startReviewPlanScan!(ws, projectId),
-    onSuccess: refresh,
-  });
-  if (!plan.data) return null;
+  function action<Args extends unknown[]>(
+    allowed: boolean,
+    apply: ((...args: Args) => Promise<unknown>) | undefined,
+  ) {
+    if (permissions && allowed && apply) {
+      return (...args: Args) => update.mutate(() => apply(...args));
+    }
+  }
+
+  if (!api.getReviewPlan) return null;
   return (
-    <ReviewPlanSteps
-      plan={plan.data}
-      ws={ws}
-      projectId={projectId}
-      stream={stream}
-      busy={confirm.isPending || involve.isPending || settle.isPending || scan.isPending}
-      onConfirmCoordinates={api.confirmReviewCoordinates ? () => confirm.mutate() : undefined}
-      onInvolvement={api.setReviewInvolvement ? (v) => involve.mutate(v) : undefined}
-      onSettle={api.settleReviewPlan ? () => settle.mutate() : undefined}
-      onScan={api.startReviewPlanScan ? () => scan.mutate() : undefined}
-    />
+    <>
+      {plan.error && (
+        <ErrorNotice
+          error={plan.error}
+          title="Couldn't load the review plan"
+          onRetry={() => void plan.refetch()}
+        />
+      )}
+      {update.error && (
+        <ErrorNotice
+          error={update.error}
+          title="Couldn't update the review plan"
+          variant="inline"
+        />
+      )}
+      {plan.data && (
+        <ReviewPlanSteps
+          plan={plan.data}
+          ws={ws}
+          projectId={projectId}
+          stream={stream}
+          busy={update.isPending}
+          onConfirmCoordinates={action(
+            stream === "main" && can("manage_project"),
+            api.confirmReviewCoordinates?.bind(api, ws, projectId),
+          )}
+          onInvolvement={action(
+            can("manage_project"),
+            api.setReviewInvolvement?.bind(api, ws, projectId),
+          )}
+          onSettle={action(can("review"), api.settleReviewPlan?.bind(api, ws, projectId, stream))}
+          onScan={action(can("manage_voice"), api.startReviewPlanScan?.bind(api, ws, projectId))}
+        />
+      )}
+    </>
   );
 }

@@ -8,10 +8,8 @@ package reviewdeck
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
-	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -21,23 +19,10 @@ import (
 // copy leaves the original as it was: every edition's runs, the properties
 // and the annotation map are the copy's own.
 func snapshotBlock(b *model.Block) *model.Block {
-	c := b.CopyEditions(copyRuns)
+	c := b.CopyEditions(model.CloneRuns)
 	c.Properties = maps.Clone(b.Properties)
 	c.Annotations = maps.Clone(b.Annotations)
 	return c
-}
-
-// copyRuns copies a run sequence through its canonical JSON, so no run of the
-// copy shares a pointer with the original.
-func copyRuns(runs []model.Run) []model.Run {
-	if runs == nil {
-		return nil
-	}
-	var out []model.Run
-	if err := json.Unmarshal(model.CanonicalRunsJSON(runs), &out); err != nil {
-		return slices.Clone(runs)
-	}
-	return out
 }
 
 // runTools runs each tool of a chain in turn over one block.

@@ -1,12 +1,17 @@
 import { render, screen, waitFor } from "./testUtils";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vite-plus/test";
 
 // The runner reads the tool registry to decide whether the flow it is about to
 // run produces a target variant. Mock the bridge so that answer is deterministic.
 const listProjectTools = vi.fn();
+const runFlow = vi.fn().mockResolvedValue(null);
 vi.mock("../hooks/useApi", () => ({
   api: {
     listProjectTools: (...args: unknown[]) => listProjectTools(...args),
+    matchContent: async () => [{ path: "/a.md" }, { path: "/b.md" }],
+    aiNeedsModelChoice: async () => false,
+    runFlow: (...args: unknown[]) => runFlow(...args),
     getRunState: () => Promise.resolve("idle"),
   },
 }));
@@ -39,6 +44,45 @@ describe("RunnerPage target language", () => {
     await waitFor(() => expect(listProjectTools).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText("Target Language")).not.toBeInTheDocument());
     expect(screen.queryByPlaceholderText("e.g. fr")).not.toBeInTheDocument();
+  });
+
+  it("runs a source-only project automatically when every step is monolingual", async () => {
+    listProjectTools.mockResolvedValue(MONOLINGUAL);
+    render(
+      <JobFeedProvider>
+        <RunnerPage
+          tabID="auto"
+          flowName="count"
+          project={{ name: "Source", version: "v1" }}
+          flow={{ steps: [{ tool: "word-count" }] }}
+          autoRun
+          onClose={vi.fn()}
+        />
+      </JobFeedProvider>,
+    );
+    await waitFor(() =>
+      expect(runFlow).toHaveBeenCalledWith("auto", "count", ["/a.md", "/b.md"], []),
+    );
+  });
+
+  it("runs the project files chosen in the manual input control", async () => {
+    listProjectTools.mockResolvedValue(MONOLINGUAL);
+    render(
+      <JobFeedProvider>
+        <RunnerPage
+          tabID="manual"
+          flowName="count"
+          project={{ name: "Source", version: "v1" }}
+          flow={{ steps: [{ tool: "word-count" }] }}
+          onClose={vi.fn()}
+        />
+      </JobFeedProvider>,
+    );
+    await userEvent.click(await screen.findByText("2 files selected"));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "/a.md" }));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Run flow" }));
+    await waitFor(() => expect(runFlow).toHaveBeenCalledWith("manual", "count", ["/b.md"], []));
   });
 
   it("asks when a step produces a target variant", async () => {

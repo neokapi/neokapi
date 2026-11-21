@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -396,7 +397,7 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	termList := editorTermsFromInfo(req.Terms)
+	termList := venue.EditedTerms(nil, req.Terms)
 	if terms.GovernedCreate(termList) {
 		return conceptGovernedConflict(c, "a concept whose term is created as forbidden or preferred")
 	}
@@ -492,7 +493,7 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", cid)})
 	}
 
-	newTerms := editorTermsFromInfo(req.Terms)
+	newTerms := venue.EditedTerms(existing.Terms, req.Terms)
 	if terms.GovernedUpdate(existing.Terms, newTerms) {
 		return conceptGovernedConflict(c, "a term status transition to/from forbidden or preferred")
 	}

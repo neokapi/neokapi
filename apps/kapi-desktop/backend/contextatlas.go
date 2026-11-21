@@ -28,7 +28,7 @@ func (a *App) ProjectContextAtlas(tabID string) (*host.ContextAtlas, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
-	atlas, err := a.hostEngine().ContextAtlas(ctx, req)
+	atlas, err := a.newProjectEngine(op).ContextAtlas(ctx, req)
 	if err != nil {
 		return nil, err
 	}

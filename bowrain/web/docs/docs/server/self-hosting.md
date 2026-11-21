@@ -239,6 +239,15 @@ docker pull ghcr.io/neokapi/bowrain-worker:0.5.0
 docker pull ghcr.io/neokapi/bowrain-web:0.5.0
 ```
 
+## Upgrading project pilots
+
+PostgreSQL terms migration 11 gives each active pilot its own project-scoped
+copies of terms and relations. Before upgrading from an earlier terms schema,
+let in-flight pilot writes finish and stop the old server instances. Run
+`bowrain-server --migrate-only` from the new version against the same database.
+Start the new instances after the command succeeds. An older server can still
+write pilot copies in the previous format after the migration completes.
+
 ## Backup & Restore
 
 All authoritative data lives in PostgreSQL; back it up with `pg_dump`. (The blob

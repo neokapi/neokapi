@@ -68,7 +68,7 @@ describe("VirtualList", () => {
     // jsdom has no layout engine, so the virtualizer measures every row as
     // zero-height and getVirtualItems() stays empty regardless of initialRect.
     // The fallback must then render the complete list rather than silently
-    // dropping rows — true windowing is exercised in a real browser (Storybook).
+    // dropping rows. Storybook exercises windowing in a browser.
     renderList({
       items: rows(500),
       virtualizeThreshold: 80,
@@ -82,6 +82,31 @@ describe("VirtualList", () => {
     // rows, so the fallback renders all of them rather than dropping any.
     renderList({ items: rows(120), virtualizeThreshold: 80 });
     expect(document.querySelectorAll("[data-testid^='row-']").length).toBe(120);
+  });
+
+  it("follows selection and imperative navigation in a plain list", () => {
+    const scroll = vi.fn();
+    const ref = createRef<VirtualListHandle>();
+    const list = (index: number) => (
+      <VirtualList
+        ref={ref}
+        items={rows(12)}
+        estimateSize={40}
+        scrollToIndex={index}
+        renderRow={(row, { rowProps }) => (
+          <div key={row.id} {...rowProps}>
+            {row.label}
+          </div>
+        )}
+      />
+    );
+    const { rerender } = render(list(0));
+    const selected = screen.getByText("Row 8");
+    selected.scrollIntoView = scroll;
+    rerender(list(8));
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+    ref.current?.scrollToIndex(8, { align: "center" });
+    expect(scroll).toHaveBeenCalledWith({ block: "center", inline: "nearest" });
   });
 
   it("exposes an imperative scrollToIndex handle", () => {

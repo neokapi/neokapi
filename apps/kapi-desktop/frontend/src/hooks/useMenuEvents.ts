@@ -1,15 +1,13 @@
-import { useRef } from "react";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "./useApi";
 import { useWailsEvent } from "./useWailsEvent";
-import { useError } from "../components/ErrorBanner";
 
 interface MenuEventsOptions {
   activeTabID: string | null;
   openProject: () => void;
   openRecent: (path: string) => void;
   addTab: (tab: TabInfo, project: KapiProject) => Promise<void>;
-  updateTabInfo: (tab: TabInfo) => void;
+  saveTab: (tabID: string, saveAs?: boolean) => Promise<boolean>;
   setShowNewProjectForm: (v: boolean) => void;
 }
 
@@ -18,15 +16,9 @@ export function useMenuEvents({
   openProject,
   openRecent,
   addTab,
-  updateTabInfo,
+  saveTab,
   setShowNewProjectForm,
 }: MenuEventsOptions) {
-  const { showError } = useError();
-
-  // Use ref so event callbacks always see the latest activeTabID.
-  const activeTabIDRef = useRef(activeTabID);
-  activeTabIDRef.current = activeTabID;
-
   useWailsEvent("menu:new-project", () => setShowNewProjectForm(true));
 
   useWailsEvent("menu:open-project", () => openProject());
@@ -36,30 +28,11 @@ export function useMenuEvents({
     if (p) openRecent(p);
   });
 
-  useWailsEvent("menu:save-project", async () => {
-    const tabID = activeTabIDRef.current;
-    if (!tabID) return;
-    try {
-      const path = await api.getProjectPath(tabID);
-      if (path) await api.saveProject(tabID);
-      else {
-        const u = await api.saveProjectDialog(tabID);
-        if (u) updateTabInfo(u);
-      }
-    } catch (err) {
-      showError("Failed to save project", err);
-    }
+  useWailsEvent("menu:save-project", () => {
+    if (activeTabID) void saveTab(activeTabID);
   });
-
-  useWailsEvent("menu:save-project-as", async () => {
-    const tabID = activeTabIDRef.current;
-    if (!tabID) return;
-    try {
-      const u = await api.saveProjectDialog(tabID);
-      if (u) updateTabInfo(u);
-    } catch (err) {
-      showError("Failed to save project", err);
-    }
+  useWailsEvent("menu:save-project-as", () => {
+    if (activeTabID) void saveTab(activeTabID, true);
   });
 
   useWailsEvent("open-project-tab", async (data) => {

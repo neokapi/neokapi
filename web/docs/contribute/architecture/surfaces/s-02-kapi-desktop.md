@@ -35,7 +35,7 @@ project up to date through the same venue the CLI uses, a tool reference, and
 an OS-keychain credential vault. It depends on the framework and `host` only. It
 links neither Cobra nor the `cli` module, and no package from the platform
 layer, which `make audit-modules` asserts by inspecting the transitive package
-list of `./backend/...`.
+list of the entire desktop module.
 
 ## Context
 
@@ -79,12 +79,11 @@ apps/kapi-desktop/
 └── build/                   # per-platform build configuration
 ```
 
-Four assertions run in `make audit-modules`: an isolated `GOWORK=off` build of
-`./backend/...` (so the module resolves against its own `go.mod`, not the
-workspace overlay), a tidiness check that fails on any stale or
-boundary-crossing requirement, an import-level check that the transitive
-package list contains no Cobra and no `cli` package, and the same check for any
-platform package.
+`make audit-modules` builds the desktop with `GOWORK=off` and checks its
+manifest and checksums. It inspects the dependencies of every package,
+including the Wails entry point. The desktop uses the host runtime and the
+framework. A dependency on Cobra, the CLI module or a platform module fails
+the import check.
 
 ### One bound service, many open projects
 
@@ -103,6 +102,12 @@ open set is real state in the backend. Each tab carries its own loaded recipe,
 project context, and resolved stores, and closing one releases them. A file
 watcher refreshes the tab when the recipe changes, including edits made through
 the CLI or git.
+
+The desktop host owns the project database handles and closes them at service
+shutdown. Each convergence run, plan, and review queue request borrows those
+handles and the desktop registries. Each operation has its own source locale,
+encoding, and parse cache. Two open tabs can therefore derive reports at the
+same time using different recipe settings.
 
 ### Every edit is a change set
 
@@ -695,8 +700,12 @@ Live progress survives the dispatch. The venue route reads the plumbing's
 NDJSON line by line as it arrives, folding framing records into the result and
 handing the run's own events to the run view; a buffered document and a
 streamed one are read by the same fold. The shared engine discovers plugins
-once, and a run borrows that engine, so the venue a run resolves is the one the
-tab's other surfaces see.
+once. A run resolves its venue through the same plugin host as the tab.
+The host resolves target languages from the recipe defaults, collections, and
+content items. A project with no target languages reconciles its source.
+The desktop and CLI use the same host check to decide whether a flow needs
+a provider choice. It applies each locale’s tool presets and inspects the
+requirements of the configured steps.
 
 <SwimlaneDiagram
   actors={[
@@ -709,16 +718,21 @@ tab's other surfaces see.
     { from: 1, to: 2, label: "execute", detail: "flow spec + project context" },
     { from: 2, to: 1, label: "trace records", detail: "step, block, log, error" },
     { from: 1, to: 0, label: "flow:event", detail: "emitted + buffered for reconnect" },
-    { from: 0, to: 1, label: "CancelRun()" },
+    { from: 0, to: 1, label: "CancelProjectRun(tabID)" },
     { from: 1, to: 2, label: "context cancel" },
   ]}
   caption="A run is one call in and a stream of events out. The backend buffers the stream so a reloaded window replays the run rather than losing it."
 />
 
-A desktop window can reload mid-run, and a run that only existed as a live
-event stream would vanish. The backend keeps the events, collapsing consecutive
-metric snapshots so a long run does not grow the buffer at the sampling rate.
-The runner asks for a target language only when the flow produces one.
+The runner admits one active run across the open tabs. Each event and retained
+trace list carries the owning tab ID. A reloaded window can replay the buffered
+events. Consecutive metric snapshots share one buffer entry. Each tab retains
+its own last run error until a run in that tab succeeds.
+
+Cancellation checks the tab ID and signals the active run. The call returns
+after the worker publishes its terminal event and releases the runner. A
+replacement run can then start. The runner asks for a target language only
+when the flow produces one.
 
 ### Tools are described in the flow editor; flows run through the runner
 

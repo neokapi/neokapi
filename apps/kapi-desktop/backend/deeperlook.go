@@ -46,15 +46,6 @@ type DeeperLookDTO struct {
 	Tokens int `json:"tokens"`
 }
 
-// deeperLookApp is a run-scoped host.App for the deeper look, with the
-// desktop's AI defaulting and credential resolution, as a convergence run has.
-func (a *App) deeperLookApp() *host.App {
-	run := a.borrowEngine(&host.App{Credentials: a.credentials, Config: a.aiConfig, Quiet: true})
-	run.InitRegistries()
-	run.ToolReg.SetConfigPreprocessor(a.aiConfigPreprocessor())
-	return run
-}
-
 // DeeperLookModel names the model a deeper look of the tab would ask, and
 // whether there is one. It asks no model.
 func (a *App) DeeperLookModel(tabID string) (*DeeperLookModelDTO, error) {
@@ -81,7 +72,7 @@ func (a *App) DeeperLook(tabID string) (*DeeperLookDTO, error) {
 	}
 	// The refusal comes before anything is written: a folder without a
 	// recipe gets one only for a run that will ask a model.
-	run := a.deeperLookApp()
+	run := a.newProjectEngine(op)
 	if _, _, err := run.ResolveDeeperLookModel(op.Project); err != nil {
 		// The Overview asks again when this refusal reaches it, and the answer
 		// it then gets is read from the keychain.

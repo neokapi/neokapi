@@ -109,7 +109,8 @@ export function FlowPage({
   // Any run event that can change the set invalidates the family, and the
   // trace query below sits under the same key prefix.
   const runQuery = useQuery({
-    queryKey: qk.runTraces(),
+    queryKey: [...qk.runTraces(), tabID ?? ""],
+    enabled: !!tabID || !!preloadedRun,
     queryFn: () => (preloadedRun ? preloadedRun.run : api.listRunTraces()),
   });
   useWailsEvent("flow:event", (data) => {
@@ -120,8 +121,14 @@ export function FlowPage({
   });
   const run = runQuery.data ?? null;
   const runFiles = useMemo(
-    () => (run && run.flow_name === flowName && sameSteps(run.steps, flow.steps) ? run.files : []),
-    [run, flowName, flow.steps],
+    () =>
+      run &&
+      (preloadedRun || run.tab_id === tabID) &&
+      run.flow_name === flowName &&
+      sameSteps(run.steps, flow.steps)
+        ? run.files
+        : [],
+    [run, tabID, preloadedRun, flowName, flow.steps],
   );
 
   // The file replaying: the reader's pick while it is still retained, else
@@ -135,11 +142,13 @@ export function FlowPage({
   const dismissed = runKey !== null && dismissedKey === runKey;
 
   const traceQuery = useQuery({
-    queryKey: qk.runTrace(selected?.file_path ?? "", selected?.locale ?? ""),
+    queryKey: qk.runTrace(tabID ?? "", selected?.file_path ?? "", selected?.locale ?? ""),
     queryFn: () => {
       if (!selected) return null;
       if (preloadedRun) return preloadedRun.traces[selected.file_path] ?? null;
-      return api.getLastTrace(selected.file_path, selected.locale ?? "");
+      return tabID
+        ? api.getProjectLastTrace(tabID, selected.file_path, selected.locale ?? "")
+        : null;
     },
     enabled: selected !== null && !dismissed,
   });

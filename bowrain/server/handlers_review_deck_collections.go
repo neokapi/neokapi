@@ -97,7 +97,7 @@ func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
 
 	// The language counts a set of copies once, as the deck and the inbox
 	// do, though each collection holding a copy counts it.
-	held, err := s.translationsHeld(ctx, s.requestWorkspace(ctx, wsID), proj, pi)
+	held, err := s.translationsHeld(ctx, wsID, proj, pi)
 	if err != nil {
 		return serverErr(c, err)
 	}

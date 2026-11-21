@@ -521,7 +521,9 @@ pull-test-images: ## Fetch those images so no test pulls one mid-run
 test-bowrain: i18n-catalogs ## Run bowrain module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain.out) $(_SHORT) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
+	packages="$$($(GO) list ./...)" && \
+		packages="$$(printf '%s\n' "$$packages" | grep -v '/apps/bowrain')" && \
+		$(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain.out) $(_SHORT) -json $$packages > ../test-results-bowrain.json
 else
 	$(GOTEST_BASE) ./... -count=1
 endif

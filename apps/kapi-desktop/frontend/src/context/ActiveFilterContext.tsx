@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useContext, useCallback } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
-import type { ProjectFilter } from "../types/api";
+import type { ProjectFilter, ProjectFilters } from "../types/api";
 
 interface ActiveFilterValue {
   /** All saved filters for the active project (shared + personal). */
@@ -48,8 +48,6 @@ export function ActiveFilterProvider({
 }) {
   const qc = useQueryClient();
 
-  // Saved filters are read-only server state keyed by the active tab; switching
-  // tabs re-keys the query and loads that project's filters.
   const filtersQuery = useQuery({
     queryKey: qk.projectFilters(tabID ?? ""),
     queryFn: () => api.getProjectFilters(tabID!),
@@ -58,29 +56,33 @@ export function ActiveFilterProvider({
   const filters: ProjectFilter[] = tabID && enabled ? (filtersQuery.data?.filters ?? []) : [];
   const serverActiveId = tabID && enabled ? (filtersQuery.data?.active ?? "") : "";
 
-  // Optimistic active selection: flips immediately, then clears once the server
-  // confirms (fresh query data arrives).
-  const [activeOverride, setActiveOverride] = useState<string | null>(null);
-  const activeId = activeOverride ?? serverActiveId;
-  useEffect(() => {
-    setActiveOverride(null);
-  }, [filtersQuery.data]);
+  const selection = useMutation({
+    scope: { id: `active-filter:${tabID}` },
+    mutationFn: ({ tab, id }: { tab: string; id: string }) => api.setActiveFilter(tab, id),
+    onSuccess: async (_, { tab, id }) => {
+      const queryKey = qk.projectFilters(tab);
+      await qc.cancelQueries({ queryKey });
+      qc.setQueryData<ProjectFilters>(queryKey, (previous) =>
+        previous ? { ...previous, active: id } : previous,
+      );
+      await qc.invalidateQueries({ queryKey });
+    },
+  });
+  const activeId =
+    enabled && selection.isPending && selection.variables.tab === tabID
+      ? selection.variables.id
+      : serverActiveId;
 
   const reload = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: qk.projectFilters(tabID ?? "") });
   }, [qc, tabID]);
 
+  const { mutateAsync: select } = selection;
   const setActive = useCallback(
     async (id: string) => {
-      setActiveOverride(id); // optimistic
-      if (!tabID) return;
-      try {
-        await api.setActiveFilter(tabID, id);
-      } catch {
-        void reload();
-      }
+      if (tabID && enabled) await select({ tab: tabID, id });
     },
-    [tabID, reload],
+    [tabID, enabled, select],
   );
 
   const saveFilter = useCallback(

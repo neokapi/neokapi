@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -534,7 +533,7 @@ func (doc *flowDoc) Leave(b *model.Block) {
 			continue
 		}
 		ed, _ := b.Edition(k)
-		lb.editions[text] = leftEdition{key: k, runs: slices.Clone(ed.Runs), rev: rev, status: ed.Status, origin: ed.Origin}
+		lb.editions[text] = leftEdition{key: k, runs: model.CloneRuns(ed.Runs), rev: rev, status: ed.Status, origin: ed.Origin}
 	}
 	if len(lb.editions) == 0 && doc.entered == nil {
 		return
@@ -881,22 +880,9 @@ func (a *App) draftDestination(locale model.LocaleID, path string) (string, bool
 // to the block afterwards leaves the copy as it was: the source runs and each
 // target, runs included, are copies.
 func snapshotBlock(b *model.Block) *model.Block {
-	c := b.CopyEditions(copyRuns)
+	c := b.CopyEditions(model.CloneRuns)
 	c.Properties = maps.Clone(b.Properties)
 	return c
-}
-
-// copyRuns copies a run sequence through its canonical JSON, so no run of the
-// copy shares a pointer with the original.
-func copyRuns(runs []model.Run) []model.Run {
-	if runs == nil {
-		return nil
-	}
-	var out []model.Run
-	if err := json.Unmarshal(model.CanonicalRunsJSON(runs), &out); err != nil {
-		return slices.Clone(runs)
-	}
-	return out
 }
 
 // FlowHome is the file home a flow, or any surface that writes a whole

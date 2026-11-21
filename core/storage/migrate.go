@@ -3,6 +3,7 @@ package storage
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"regexp"
@@ -12,10 +13,15 @@ import (
 )
 
 // Migration represents a single schema migration step.
+//
+// Apply, when set, runs inside the migration's transaction after SQL. It
+// carries the steps a statement cannot say, such as rewriting stored rows
+// with a value computed in Go.
 type Migration struct {
 	Version     int
 	Description string
 	SQL         string
+	Apply       func(ctx context.Context, tx *sql.Tx) error
 }
 
 // validTableName ensures the namespace only contains safe characters for a table name.
@@ -138,12 +144,23 @@ func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
 		return false, nil
 	}
 
-	if _, err := tx.ExecContext(context.Background(), m.SQL); err != nil {
-		_ = tx.Rollback()
-		if isBusyErr(err) {
-			return false, err // retryable
+	if m.SQL != "" {
+		if _, err := tx.ExecContext(context.Background(), m.SQL); err != nil {
+			_ = tx.Rollback()
+			if isBusyErr(err) {
+				return false, err // retryable
+			}
+			return false, fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
 		}
-		return false, fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
+	}
+	if m.Apply != nil {
+		if err := m.Apply(context.Background(), tx.Tx); err != nil {
+			_ = tx.Rollback()
+			if isBusyErr(err) {
+				return false, err // retryable
+			}
+			return false, fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
+		}
 	}
 
 	if _, err := tx.ExecContext(context.Background(),

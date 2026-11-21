@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"maps"
@@ -75,11 +76,6 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	pid := projectParam(c)
 	ctx := c.Request().Context()
 
-	proj, err := s.ContentStore.GetProject(ctx, pid)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	}
-
 	var req struct {
 		Name                string            `json:"name"`
 		TargetLanguages     []string          `json:"target_languages"`
@@ -91,50 +87,56 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	if req.Name != "" {
-		proj.Name = req.Name
+	visibility := platauth.DashboardVisibility(req.DashboardVisibility)
+	if visibility != "" && !platauth.ValidDashboardVisibility[visibility] {
+		return apiErr(c, http.StatusBadRequest, "invalid dashboard visibility")
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	if visibility == platauth.DashboardPublic || visibility == platauth.DashboardUnlisted || req.Properties[ShipFeedProperty] == "true" {
+		allowed, err := s.workspaceMayPublishProjects(ctx, wsID)
+		if err != nil {
+			return serverErrStatus(c, http.StatusServiceUnavailable, err)
+		}
+		if !allowed {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
+		}
 	}
 	var targets *platev.TargetsChange
-	if req.TargetLanguages != nil {
-		before := make([]string, len(proj.TargetLanguages))
-		for i, l := range proj.TargetLanguages {
-			before[i] = string(l)
+	proj, _, err := s.ContentStore.EditProject(ctx, pid, func(proj *store.Project) (bool, error) {
+		if wsID != "" && proj.WorkspaceID != wsID {
+			return false, errNoProject
 		}
-		locales := make([]model.LocaleID, len(req.TargetLanguages))
-		for i, l := range req.TargetLanguages {
-			locales[i] = model.LocaleID(l)
-		}
-		proj.TargetLanguages = locales
-		targets = &platev.TargetsChange{Before: before, After: slices.Clone(req.TargetLanguages)}
-	}
-	if req.DefaultStream != nil {
-		proj.DefaultStream = *req.DefaultStream
-	}
-	if req.DashboardVisibility != "" {
-		if req.DashboardVisibility != string(platauth.DashboardPrivate) && s.AuthStore != nil {
-			if ws, wsErr := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); wsErr == nil && ws.Type == platauth.WorkspaceTypePersonal {
-				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
+		for key, value := range req.Properties {
+			if isReviewPlanProperty(key) && value != proj.Properties[key] {
+				return false, errReviewPlanProperty
 			}
 		}
-		proj.DashboardVisibility = req.DashboardVisibility
-	}
-	if req.Properties != nil {
-		// Turning on the public ship feed is the same disclosure decision as a
-		// public dashboard, and properties are written raw, so the personal-
-		// workspace refusal has to be made here rather than only on the field
-		// that reads more like a setting.
-		if req.Properties[ShipFeedProperty] == "true" && s.AuthStore != nil {
-			if ws, wsErr := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); wsErr == nil && ws.Type == platauth.WorkspaceTypePersonal {
-				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
-			}
+		if req.Name != "" {
+			proj.Name = req.Name
 		}
-		if proj.Properties == nil {
-			proj.Properties = make(map[string]string)
+		if req.TargetLanguages != nil {
+			before := make([]string, len(proj.TargetLanguages))
+			for i, l := range proj.TargetLanguages {
+				before[i] = string(l)
+			}
+			proj.TargetLanguages = localeIDs(req.TargetLanguages)
+			targets = &platev.TargetsChange{Before: before, After: slices.Clone(req.TargetLanguages)}
+		}
+		if req.DefaultStream != nil {
+			proj.DefaultStream = *req.DefaultStream
+		}
+		if visibility != "" {
+			proj.DashboardVisibility = string(visibility)
 		}
 		maps.Copy(proj.Properties, req.Properties)
-	}
-
-	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
+		return true, nil
+	})
+	switch {
+	case errors.Is(err, errNoProject), errors.Is(err, sql.ErrNoRows):
+		return apiErr(c, http.StatusNotFound, errNoProject.Error())
+	case errors.Is(err, errReviewPlanProperty):
+		return apiErr(c, http.StatusBadRequest, errReviewPlanProperty.Error())
+	case err != nil:
 		return serverErr(c, err)
 	}
 	if recipe := (platev.RecipeChange{Source: "project", Targets: targets}); !recipe.Empty() {
@@ -153,7 +155,6 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	wsID, _ := c.Get("workspace_id").(string)
 	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }

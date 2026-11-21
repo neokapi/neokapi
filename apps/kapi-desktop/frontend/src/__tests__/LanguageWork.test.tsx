@@ -27,7 +27,7 @@ vi.mock("../hooks/useApi", async () => {
         },
       }),
       getProjectServer: vi.fn().mockResolvedValue(null),
-      getLastRunError: vi.fn().mockResolvedValue(null),
+      getProjectLastRunError: vi.fn().mockResolvedValue(null),
       listFormats: vi.fn().mockResolvedValue([]),
       getBasePath: vi.fn().mockResolvedValue("/p"),
       getHomeDir: vi.fn().mockResolvedValue("/home/dev"),

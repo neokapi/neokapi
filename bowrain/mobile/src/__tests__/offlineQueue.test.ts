@@ -25,11 +25,11 @@ import {
   type LoggedDecision,
   type WithdrawVars,
 } from "../lib/decisions";
-import { createQueryClient as create } from "../lib/queryClient";
+import { createDecisionTestClient } from "./testProviders";
 
 const clients: QueryClient[] = [];
 function createQueryClient(): QueryClient {
-  const qc = create();
+  const qc = createDecisionTestClient();
   clients.push(qc);
   return qc;
 }
@@ -96,7 +96,6 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 describe("the offline decision queue", () => {
   afterEach(() => {
     for (const qc of clients.splice(0)) {
-      qc.getMutationCache().clear();
       qc.clear();
     }
     onlineManager.setOnline(true);

@@ -351,8 +351,7 @@ func buildBaseline(concepts []terms.Concept, relations []terms.ConceptRelation) 
 }
 
 // conceptInfoToConcept maps a server concept DTO into the framework terms
-// concept type, casting the term status/locale strings and parsing the RFC3339
-// timestamps.
+// concept type, parsing the RFC3339 timestamps.
 func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 	concept := terms.Concept{
 		ID:             ci.ID,
@@ -361,17 +360,12 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 		Definition:     ci.Definition,
 		Properties:     ci.Properties,
 		DoNotTranslate: ci.DoNotTranslate,
+		Advisory:       ci.Advisory,
+		Source:         ci.Source,
+		Terms:          make([]terms.Term, len(ci.Terms)),
 	}
-	for _, t := range ci.Terms {
-		concept.Terms = append(concept.Terms, terms.Term{
-			Text:         t.Text,
-			Locale:       model.LocaleID(t.Locale),
-			Status:       model.TermStatus(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		})
+	for i, t := range ci.Terms {
+		concept.Terms[i] = t.Term()
 	}
 	if ts, err := time.Parse(time.RFC3339, ci.CreatedAt); err == nil {
 		concept.CreatedAt = ts
@@ -516,7 +510,7 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 					ProjectID:  c.ProjectID,
 					Domain:     c.Domain,
 					Definition: c.Definition,
-					Terms:      termsToInfo(c.Terms),
+					Terms:      venue.TermInfos(c.Terms),
 				})
 			}
 			continue
@@ -536,7 +530,7 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 				params: apiclient.UpdateConceptParams{
 					Domain:     c.Domain,
 					Definition: c.Definition,
-					Terms:      termsToInfo(ordinaryTerms),
+					Terms:      venue.TermInfos(ordinaryTerms),
 				},
 			})
 		}
@@ -721,7 +715,7 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 	if dryRun {
 		return res, nil, nil
 	}
-	if err := dropWithdrawnConcepts(ctx, tb, before, baseline); err != nil {
+	if err := dropWithdrawnTerms(ctx, tb, before, baseline); err != nil {
 		return nil, nil, err
 	}
 	if err := recordConceptArrival(ctx, proj, res, before, baseline); err != nil {
@@ -730,12 +724,8 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 	return res, baseline, nil
 }
 
-// dropWithdrawnConcepts deletes from the project's terms store the concepts
-// the last pull brought and this one did not: concepts the workspace deleted,
-// and terms that now apply only in other projects of the workspace. Left in
-// place, the local checks would keep enforcing them, and the next push would
-// propose each one again as a new concept.
-func dropWithdrawnConcepts(ctx context.Context, tb terms.Store, before, after *bproject.ConceptBaseline) error {
+// dropWithdrawnTerms removes concepts and relations withdrawn since the last pull.
+func dropWithdrawnTerms(ctx context.Context, tb terms.Store, before, after *bproject.ConceptBaseline) error {
 	if tb == nil || before == nil || after == nil {
 		return nil
 	}
@@ -753,6 +743,28 @@ func dropWithdrawnConcepts(ctx context.Context, tb terms.Store, before, after *b
 			return fmt.Errorf("drop withdrawn concept %s: %w", id, err)
 		}
 	}
+	for id := range before.Relations {
+		if _, kept := after.Relations[id]; !kept {
+			return dropWithdrawnRelations(ctx, tb, before, after)
+		}
+	}
+	return nil
+}
+
+func dropWithdrawnRelations(ctx context.Context, tb terms.Store, before, after *bproject.ConceptBaseline) error {
+	relations, err := tb.ListRelations(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("list local relations: %w", err)
+	}
+	for _, relation := range relations {
+		_, pulled := before.Relations[relation.ID]
+		_, kept := after.Relations[relation.ID]
+		if pulled && !kept {
+			if err := tb.DeleteRelation(ctx, relation.ID); err != nil {
+				return fmt.Errorf("drop withdrawn relation %s: %w", relation.ID, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -768,10 +780,10 @@ func dropWithdrawnConcepts(ctx context.Context, tb terms.Store, before, after *b
 // nightly runs this every night, and a log growing a line a night for a
 // workspace nobody edited would bury the entries a person wants to read.
 func recordConceptArrival(ctx context.Context, proj *bproject.Project, res *PullConceptsResult, before, after *bproject.ConceptBaseline) error {
-	if app == nil || res == nil || res.Concepts == 0 || proj.Layout.RecipePath == "" {
+	if app == nil || res == nil || proj.Layout.RecipePath == "" {
 		return nil
 	}
-	if sameBaseline(before, after) {
+	if (before == nil && res.Concepts == 0) || sameBaseline(before, after) {
 		return nil
 	}
 	origin := proj.Recipe.Server.Workspace()
@@ -1074,23 +1086,6 @@ func baselineTermsSignature(terms []bproject.BaselineTerm) string {
 	}
 	sort.Strings(parts)
 	return strings.Join(parts, "\x1e")
-}
-
-// termsToInfo maps framework terms to the client's term DTO.
-func termsToInfo(terms []terms.Term) []apiclient.TermInfo {
-	out := make([]apiclient.TermInfo, 0, len(terms))
-	for _, t := range terms {
-		out = append(out, apiclient.TermInfo{
-			Text:         t.Text,
-			Locale:       string(t.Locale),
-			Status:       string(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		})
-	}
-	return out
 }
 
 // baselineTermToTerm reconstructs a framework term from its baseline snapshot.

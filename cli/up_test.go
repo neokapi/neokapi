@@ -10,10 +10,12 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/host/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -329,27 +331,24 @@ func TestRun_BareRunErrors(t *testing.T) {
 // compact provider wizard inline, persists the choice, and then continues the
 // original command to convergence.
 func TestUp_FirstRunInlineWizard(t *testing.T) {
-	a := processOnlyApp(t)
-	saved := map[string]string{}
-	wiz := AISetupIO{
-		In:        strings.NewReader("\nn\n"), // accept default (Claude Code), skip live check
-		Out:       io.Discard,
-		IsTTY:     func() bool { return true },
-		Detect:    func(context.Context) AIDetection { return AIDetection{ClaudeCode: true} },
-		LiveCheck: func(context.Context, string, string, string) error { return nil },
-		SetDefault: func(provider, model string) error {
-			saved["ai.provider"], saved["ai.model"] = provider, model
-			return nil
-		},
-	}
+	a := demoProviderApp(t)
+	a.Config.Set(config.KeyAIProvider, "")
+	det := AIDetection{}
+	wiz, _, saved, _ := fakeSetupIO("", det)
+	wiz.Prompter = &scriptedPrompter{pick: indexOfProvider(t, BuildAISetupChoices(det), "demo")}
 	a.AISetupIOOverride = &wiz
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	require.NoError(t, project.Save(recipe, proj))
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 
 	// The wizard persisted the pick…
-	assert.Equal(t, "claude-code", saved["ai.provider"])
+	assert.Equal(t, "demo", saved[config.KeyAIProvider])
 	// …and the original command continued to run the loop.
 	_, rerr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 	require.NoError(t, rerr, "up must continue after the inline wizard")
@@ -359,15 +358,59 @@ func TestUp_FirstRunInlineWizard(t *testing.T) {
 // TestUp_ConfiguredSkipsWizard: with a provider already configured the wizard
 // never engages (no prompts in output).
 func TestUp_ConfiguredSkipsWizard(t *testing.T) {
-	a := processOnlyApp(t)
+	a := demoProviderApp(t)
 	wiz := AISetupIO{
 		IsTTY:  func() bool { return true },
-		Detect: func(context.Context) AIDetection { return AIDetection{DefaultProvider: "ollama"} },
+		Detect: func(context.Context) AIDetection { return AIDetection{DefaultProvider: "demo"} },
 	}
 	a.AISetupIOOverride = &wiz
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	require.NoError(t, project.Save(recipe, proj))
+
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 	assert.NotContains(t, out, "No AI provider is configured")
+}
+
+func TestUp_ProviderIndependentRunsSkipSetup(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*project.KapiProject)
+		flags  []string
+	}{
+		{name: "local flow"},
+		{name: "no target paths", change: func(p *project.KapiProject) {
+			p.Defaults.Flow = ""
+			p.Collections[0].Target = ""
+		}},
+		{name: "recycle only", flags: []string{"--recycle-only"}, change: func(p *project.KapiProject) { p.Defaults.Flow = "" }},
+		{name: "rules mode", change: func(p *project.KapiProject) {
+			p.Flows[p.Defaults.Flow].Steps = append(p.Flows[p.Defaults.Flow].Steps, flow.FlowStep{Tool: "qa", Config: map[string]any{"mode": "rules"}})
+		}},
+		{name: "recipe provider", change: func(p *project.KapiProject) {
+			p.Defaults.Flow = ""
+			p.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "demo"}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := processOnlyApp(t)
+			a.AISetupIOOverride = &AISetupIO{IsTTY: func() bool { return true }, Detect: func(context.Context) AIDetection {
+				t.Fatal("run requested model setup")
+				return AIDetection{}
+			}}
+			recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			if tc.change != nil {
+				proj, err := project.Load(recipe)
+				require.NoError(t, err)
+				tc.change(proj)
+				require.NoError(t, project.Save(recipe, proj))
+			}
+			out, err := runUp(t, a, recipe, tc.flags...)
+			require.NoError(t, err, out)
+		})
+	}
 }

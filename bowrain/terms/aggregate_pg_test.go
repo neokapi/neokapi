@@ -32,6 +32,13 @@ func aggregateFixture(t *testing.T, tb *pgterms.PostgresStore) {
 	add("b", "en-US")
 	add("c", "en-US", "fr-FR")
 	add("d")
+	require.NoError(t, tb.AddConceptWithStream(t.Context(), terms.Concept{
+		ID: terms.ShadowIDPrefix + "a",
+		Terms: []terms.Term{
+			{Text: "pilot", Locale: "en-US", Status: model.TermPreferred},
+			{Text: "förslag", Locale: "sv-SE", Status: model.TermProposed},
+		},
+	}, "proposal"))
 }
 
 // TestPgConceptLocaleCoverageMatchesGoAggregate is the guard that keeps the SQL

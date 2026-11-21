@@ -127,8 +127,8 @@ both versions. It runs at the end of `make audit-modules` and of
 
 A **direct** dependency that differs fails the check: the module's own
 `go.mod` is wrong about what its code imports. Raise the require to the
-workspace version in that module (`cd <module> && GOWORK=off go get
-<path>@<version>`), then `make ci-tidy`, and commit what it produces. An
+workspace version with `GOWORK=off go get <path>@<version>` in that module.
+Run `GOWORK=off go mod tidy` there and verify the change with `make ci-tidy`. An
 **indirect** dependency that differs is only reported: the module does not
 import it, and the isolated tidy run in `audit-modules` keeps its `go.sum`
 honest for it.

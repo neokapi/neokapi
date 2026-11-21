@@ -53,12 +53,10 @@ describe("project undo history", () => {
   });
 
   it("clears the dirty flag on save", () => {
-    const { result, rerender } = renderHistory();
+    const { result } = renderHistory();
     act(() => result.current.set({ ...base, name: "Saved" }));
     expect(result.current.isDirty).toBe(true);
     act(() => result.current.markSaved());
-    // markSaved records the snapshot in a ref; the flag reads it on the next render.
-    rerender({ tab: "tab-1" });
     expect(result.current.isDirty).toBe(false);
   });
 
@@ -73,12 +71,27 @@ describe("project undo history", () => {
     expect(result.current.canUndo).toBe(false);
   });
 
+  it("replaces a reloaded tab's draft and undo history while another tab is visible", () => {
+    const { result, rerender } = renderHistory("a");
+    act(() => result.current.set({ ...base, name: "Old draft" }));
+    rerender({ tab: "b" });
+    act(() => result.current.replace({ ...base, name: "Bundled sample" }, "a"));
+    expect(result.current.project).toEqual(base);
+    rerender({ tab: "a" });
+    expect(result.current.project.name).toBe("Bundled sample");
+    expect(result.current.isDirty).toBe(false);
+    expect(result.current.canUndo).toBe(false);
+  });
+
   it("keeps each tab's history when switching tabs", () => {
     const { result, rerender } = renderHistory("tab-1");
     act(() => result.current.set({ ...base, name: "One" }));
-    act(() => vi.advanceTimersByTime(500));
 
     rerender({ tab: "tab-2" });
+    act(() => vi.advanceTimersByTime(500));
+    expect(result.current.hasChanges()).toBe(true);
+    expect(result.current.hasChanges("tab-1")).toBe(true);
+    expect(result.current.hasChanges("tab-2")).toBe(false);
     expect(result.current.project.name).toBe("KapiMart");
     expect(result.current.canUndo).toBe(false);
 

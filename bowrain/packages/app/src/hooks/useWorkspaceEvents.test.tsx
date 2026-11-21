@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vite-plus/test"
 import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { createElement } from "react";
 import { ApiProvider, type ApiAdapter } from "@neokapi/ui";
 import {
   planInvalidations,
@@ -227,12 +226,11 @@ describe("useWorkspaceEvents (fake EventSource)", () => {
   // The hook reads the api adapter (for the pre-reconnect session refresh)
   // from ApiContext; tests supply only the members they exercise.
   function wrapper(qc: QueryClient, api: Partial<ApiAdapter> = {}) {
-    return ({ children }: { children: ReactNode }) =>
-      createElement(
-        QueryClientProvider,
-        { client: qc },
-        createElement(ApiProvider, { adapter: api as ApiAdapter }, children),
-      );
+    return ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <ApiProvider adapter={api as ApiAdapter}>{children}</ApiProvider>
+      </QueryClientProvider>
+    );
   }
 
   /** Simulate the browser hard-closing the stream (server 401/restart). */
@@ -376,7 +374,7 @@ describe("SSE reconnect policy (pure)", () => {
     expect(delays[0]).toBe(SSE_INITIAL_BACKOFF_MS);
     expect(delays[1]).toBe(SSE_INITIAL_BACKOFF_MS * 2);
     expect(Math.max(...delays)).toBe(SSE_MAX_BACKOFF_MS);
-    expect(delays.at(-1)).toBe(SSE_MAX_BACKOFF_MS);
+    expect(delays[delays.length - 1]).toBe(SSE_MAX_BACKOFF_MS);
   });
 
   it("stops once the refresh budget is exhausted", () => {

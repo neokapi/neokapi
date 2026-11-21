@@ -263,7 +263,7 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 	defer stmts.Close()
 
 	for i := range entries {
-		if err := stmts.addEntry(ctx, &entries[i], stream); err != nil {
+		if err := stmts.addEntry(ctx, entries[i], stream); err != nil {
 			_ = tx.Rollback()
 			return storage.CancelledBy(ctx, fmt.Errorf("bulk add entry %s: %w", entries[i].ID, err))
 		}
@@ -460,14 +460,14 @@ func (s *bulkStmts) Close() {
 // addEntry is the prepared-statement counterpart of addInTx used by the
 // bulk-import hot path. It mirrors the same upsert semantics — variants
 // replaced per locale, entities and origins wholesale.
-func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) error {
+func (s *bulkStmts) addEntry(ctx context.Context, entry Entry, stream string) error {
 	if entry.ID == "" {
 		return ErrEntryIDRequired
 	}
 	if len(entry.Variants) == 0 {
 		return ErrEntryNoVariants
 	}
-	NormalizeEntryLocales(entry)
+	NormalizeEntryLocales(&entry)
 
 	now := time.Now()
 	if entry.CreatedAt.IsZero() {

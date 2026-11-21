@@ -403,21 +403,20 @@ func (s *MCPServer) handleUpdateProject(ctx context.Context, req *mcp.CallToolRe
 	if err != nil {
 		return nil, projectSummaryContent{}, err
 	}
-	p, err := s.contentStore.GetProject(ctx, projectID)
-	if err != nil {
-		return nil, projectSummaryContent{}, fmt.Errorf("get project: %w", err)
-	}
-	if input.Name != "" {
-		p.Name = input.Name
-	}
-	if len(input.TargetLanguages) > 0 {
-		targets := make([]model.LocaleID, len(input.TargetLanguages))
-		for i, l := range input.TargetLanguages {
-			targets[i] = model.LocaleID(l)
+	p, _, err := s.contentStore.EditProject(ctx, projectID, func(p *store.Project) (bool, error) {
+		if input.Name != "" {
+			p.Name = input.Name
 		}
-		p.TargetLanguages = targets
-	}
-	if err := s.contentStore.UpdateProject(ctx, p); err != nil {
+		if len(input.TargetLanguages) > 0 {
+			targets := make([]model.LocaleID, len(input.TargetLanguages))
+			for i, l := range input.TargetLanguages {
+				targets[i] = model.LocaleID(l)
+			}
+			p.TargetLanguages = targets
+		}
+		return true, nil
+	})
+	if err != nil {
 		return nil, projectSummaryContent{}, fmt.Errorf("update project: %w", err)
 	}
 	langs := make([]string, len(p.TargetLanguages))

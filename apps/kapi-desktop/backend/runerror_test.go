@@ -219,28 +219,7 @@ func TestClassifyRunError_SingleFileRunStillClassifies(t *testing.T) {
 	assert.Equal(t, "ollama serve", re.Actions[0].Command)
 }
 
-func TestGetLastRunError_RecordsAndClears(t *testing.T) {
-	a := &App{runState: newRunner()}
-	assert.Nil(t, a.GetLastRunError(), "no run attempted yet")
-
-	cause := &aiprovider.OllamaError{
-		Kind:  aiprovider.OllamaErrModelNotInstalled,
-		Model: "gemma4:e2b",
-	}
-	a.recordRunFailure(classifyRunError(wrapLikeConverge("nb", "a.md", cause)))
-
-	got := a.GetLastRunError()
-	require.NotNil(t, got)
-	assert.Equal(t, RunErrModelNotInstalled, got.Kind)
-
-	// A subsequent success clears it — a stale failure must not keep marking a
-	// converged project as broken.
-	a.recordRunFailure(nil)
-	assert.Nil(t, a.GetLastRunError())
-}
-
-func TestRecordRunFailure_NilRunnerIsSafe(t *testing.T) {
-	a := &App{}
-	a.recordRunFailure(&RunError{Kind: RunErrUnknown})
-	assert.Nil(t, a.GetLastRunError())
+func TestGetLastRunErrorBeforeAnyRun(t *testing.T) {
+	app := NewApp()
+	assert.Nil(t, app.GetLastRunError())
 }

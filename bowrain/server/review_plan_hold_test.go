@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/host/reviewdeck"
 	"github.com/neokapi/neokapi/terms"
@@ -141,4 +144,19 @@ func TestReviewPlan_ContextWithNoScanHasNotStarted(t *testing.T) {
 	openContext(t, s)
 	plan = readPlan(t, s, wsID, projID)
 	assert.Equal(t, stepOpen, plan.Steps[1].State)
+}
+
+func TestReviewDeck_HoldRequiresWorkspace(t *testing.T) {
+	s := &Server{AuthStore: unreadableWorkspace{}}
+	_, err := s.translationsHeld(t.Context(), "ws", &platstore.Project{}, projectInvolvement{})
+	require.ErrorIs(t, err, errWorkspaceUnreadable)
+}
+
+func TestPlanConceptCounts_PropagatesTermsOpenError(t *testing.T) {
+	s := &Server{wsStores: newWorkspaceStores()}
+	s.wsStores.pgDB = pgtest.NewTestDB(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := s.planConceptCounts(ctx, &platauth.Workspace{ID: "ws"}, &platstore.Project{ID: "pr"})
+	require.ErrorIs(t, err, context.Canceled)
 }

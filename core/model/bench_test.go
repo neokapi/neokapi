@@ -44,8 +44,7 @@ func BenchmarkRuns_FlattenText(b *testing.B) {
 	}
 }
 
-// BenchmarkRuns_Clone measures deep cloning of a Run sequence with
-// inline codes via a manual element-wise copy.
+// BenchmarkRuns_Clone measures copying text and paired inline codes.
 func BenchmarkRuns_Clone(b *testing.B) {
 	runs := make([]model.Run, 0, 80)
 	for i := range 20 {
@@ -63,9 +62,7 @@ func BenchmarkRuns_Clone(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		clone := make([]model.Run, len(runs))
-		copy(clone, runs)
-		_ = clone
+		_ = model.CloneRuns(runs)
 	}
 }
 

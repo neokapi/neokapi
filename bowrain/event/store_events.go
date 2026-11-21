@@ -81,13 +81,25 @@ func (s *EventEmittingStore) UpdateProject(ctx context.Context, p *store.Project
 	if err := s.inner.UpdateProject(ctx, p); err != nil {
 		return err
 	}
+	s.publishProjectUpdated(ctx, p)
+	return nil
+}
+
+func (s *EventEmittingStore) EditProject(ctx context.Context, id string, edit store.ProjectEdit) (*store.Project, bool, error) {
+	p, changed, err := s.inner.EditProject(ctx, id, edit)
+	if err == nil && changed {
+		s.publishProjectUpdated(ctx, p)
+	}
+	return p, changed, err
+}
+
+func (s *EventEmittingStore) publishProjectUpdated(ctx context.Context, p *store.Project) {
 	s.publish(ctx, platev.Event{
 		Type:      platev.EventProjectUpdated,
 		Source:    "store",
 		ProjectID: p.ID,
 		Data:      map[string]string{"name": p.Name},
 	})
-	return nil
 }
 
 func (s *EventEmittingStore) DeleteProject(ctx context.Context, id string) error {

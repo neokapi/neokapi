@@ -620,8 +620,11 @@ ci-test-kapi: ## Run kapi tests with full CI flags locally
 ci-test-platform: ## Run platform tests with full CI flags locally
 	$(MAKE) -C bowrain CI=true test-platform
 
-ci-test-bowrain: ## Run bowrain tests with full CI flags locally
-	$(MAKE) -C bowrain CI=true test-bowrain
+ci-test-bowrain: go-embed-placeholders ## Run Bowrain tests with the CI profile for the current event
+	@: > test-results-bowrain.json
+	$(MAKE) -C bowrain CI=true test-bowrain || { \
+		status=$$?; ./scripts/print-go-test-failures.sh test-results-bowrain.json; exit $$status; \
+	}
 
 ci-test-kapi-desktop: ## Run Kapi Desktop tests with full CI flags locally
 	$(MAKE) CI=true kapi-desktop-test
@@ -714,7 +717,7 @@ ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (G
 	cd packages/i18n-react && vp run build
 	cd packages/ui && vp check
 	cd packages/flow-editor && vp check
-	cd apps/kapi-desktop/frontend && vp check
+	cd apps/kapi-desktop/frontend && vp run check
 	cd packages/flow-editor && vp test
 	cd apps/kapi-desktop/frontend && vp test
 	# The production bundle, which nothing above evaluates.
@@ -749,9 +752,7 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 	cd packages/i18n-react-lint && vp run test
 	cd packages/i18n-react-lint && vp run build
 
-ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
-	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-	@mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
+ci-build: i18n-catalogs go-embed-placeholders check-go-module-boundaries ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
 	@# Deliberately no fts5 — this target proves the packages compile and the
 	@# module boundaries hold, and nothing here is ever executed. The binaries
 	@# go to a scratch directory rather than $(BIN_DIR) precisely because they
@@ -767,188 +768,31 @@ ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (
 	GOWORK=off bash -c "cd bowrain/core && go build ./..."
 	GOWORK=off bash -c "cd kapi && go build ./..."
 	GOWORK=off bash -c "cd bowrain/plugin && go build ./..."
-	@# kapi must not depend on platform / bowrain / heavy deps
-	@if cd kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then echo "kapi should not depend on platform"; exit 1; fi
-	@if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then echo "bowrain should not depend on cli"; exit 1; fi
-	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
 
-# Plugins outside go.work also need dependency checks. Tidy each module to
-# detect incomplete or stale go.mod and go.sum files, including modules not
-# built by other CI jobs.
-ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
-	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain \
-	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium \
-	            plugins/sourcecode; do \
-	  echo "Checking $$dir..."; \
-	  (cd "$$dir" && go mod tidy); \
-	done
-	@if ! git diff --exit-code -- '**go.mod' '**go.sum'; then \
-	  echo "::error::go.mod/go.sum files are not tidy. Run 'make deps' locally."; \
-	  exit 1; \
-	fi
-
-# ── Module Isolation ──────────────────────────────────────────────────────────
-
-# Module isolation boundaries are asserted by `audit-modules` below (folded in
-# from the retired `verify-isolation`, which matched on `go list -m all` and
-# false-flagged kapi's legitimate go-keyring/go-oidc, erroring on a green tree).
-
-# audit-modules asserts the module isolation contract and fails on drift. For
-# each isolated module it runs a GOWORK=off build (so the module resolves
-# against its own go.mod, not the workspace — a boundary violation that the
-# go.work overlay would otherwise hide), then a GOWORK=off `go mod tidy` and
-# fails if tidy was not a no-op (stale or missing requires, or a require that
-# pulls in a forbidden boundary-crossing module, all leave a diff). The
-# pre-tidy go.mod/go.sum are snapshotted and restored, so the check is robust
-# whether the changes are committed (CI) or still in the working tree (local
-# pre-push). Mirrors the per-module isolation commands in CLAUDE.md "Build
-# Conventions".
-#
-# bowrain/core additionally gets an import-level assertion: its transitive
-# package imports (GOWORK=off go list -deps ./...) must contain NO package from
-# the main bowrain module — only bowrain/core/* is allowed under the bowrain/
-# tree. This fails fast on a re-introduced bowrain/sync or bowrain/proto/v1
-# import (which would otherwise re-add the require + replace on the main bowrain
-# module and re-couple the framework-only core to redis/echo/the gRPC service
-# surface).
-#
-# Four more import-level (go list -deps) assertions, matched on PACKAGES so a
-# transitive dep cannot dodge them: every Apache-licensed module (., host, cli,
-# kapi, apps/kapi-desktop) must import NO AGPL bowrain package — the license
-# boundary, with no exception, which also enforces kapi↛bowrain; kapi must not
-# link wails/echo; and the main bowrain module must
-# not depend on cli. These replace the old `verify-isolation` target, which
-# matched on `go list -m all` and so false-flagged kapi's legitimately linked
-# go-keyring and (transitive) go-oidc — it errored on a green tree and ran in no
-# workflow. oidc/keyring reach kapi legitimately (sigstore cosign, keychain),
-# so they are deliberately not asserted against.
-#
-# Modules audited (path → expected boundary):
-#   .                  framework — no host/cli/bowrain deps
-#   host               framework only — the cobra-free app runtime (NO cobra)
-#   cli                framework + host — the thin cobra shell; no bowrain dep
-#   bowrain/core       framework only — no cli AND no main bowrain dep
-#   kapi               framework + host + cli only — no bowrain dep
-#   apps/kapi-desktop  framework + host only — NO cli, NO cobra
-#   bowrain/plugin     framework + host + cli + bowrain/core (bowrain behavior + the kapi-bowrain plugin binary)
-#   bowrain            framework + host + bowrain/core (the platform; host for the host/flowdef flow catalog)
-#
-# Last, scripts/check-workspace-versions.sh diffs each module's GOWORK=off
-# version selection against the workspace's. go.work unifies versions, so a
-# bump in one go.mod raises the dependency for every module while the others'
-# go.mod files still name the old version; the isolated build then compiles
-# against a different library than the workspace build. A direct dependency
-# that differs fails the audit (raise the require and tidy); an indirect one
-# is only reported.
-#
-# bowrain and bowrain/plugin are not isolation boundaries (they legitimately depend
-# on several modules), but they are audited for the same go.mod/go.sum tidiness —
-# e.g. a require that should be indirect after a package moves. CI's Tidy Check
-# covers all modules, so they belong here too.
-#
-# Build pattern per module: most build ./..., but apps/kapi-desktop's main
-# package embeds frontend/dist (//go:embed all:frontend/dist) which only exists
-# after a frontend build, so — like `make kapi-desktop-test` — we build only
-# ./backend/... for it. `go mod tidy` still resolves the whole module graph
-# (embeds don't affect dependency resolution), so the boundary contract holds.
 AUDIT_MODULES := . host cli bowrain/core kapi apps/kapi-desktop bowrain/plugin bowrain
+TIDY_MODULES := $(AUDIT_MODULES) $(patsubst %/go.mod,%,$(wildcard plugins/*/go.mod))
+GO_EMBED_PAGES := apps/kapi-desktop/frontend/dist/index.html bowrain/apps/bowrain/frontend/dist/index.html bowrain/apps/web/dist/index.html
 
-audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness + go.mod/go.work version agreement (fails on drift)
-	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
-	  echo ">> audit $$dir"; \
-	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
-	  ( cd "$$dir" && GOWORK=off $(GO) build $$pkgs ) || { echo "ERROR: $$dir failed isolated (GOWORK=off) build"; exit 1; }; \
-	  if [ "$$dir" = "bowrain/core" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	              | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	              | grep -vE '^github\.com/neokapi/neokapi/bowrain/core(/|$$)' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      echo "  (move the shared code down to where both sides may reach it — the framework, e.g. core/venue or core/proto/sync/v1)"; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  if [ "$$dir" = "apps/kapi-desktop" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
-	              | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: kapi-desktop must stay cobra-free — it links the cli module or cobra:"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      echo "  (the desktop depends on the host module only; move the needed symbol into host/)"; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  case "$$dir" in \
-	    .|host|cli|kapi|apps/kapi-desktop) \
-	      bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps $$pkgs 2>/dev/null \
-	                | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' || true ); \
-	      if [ -n "$$bad" ]; then \
-	        echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (there is no exception):"; \
-	        echo "$$bad" | sed 's/^/    /'; \
-	        rc=1; \
-	      fi; \
-	      ;; \
-	  esac; \
-	  if [ "$$dir" = "kapi" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	              | grep -iE 'wailsapp/wails|labstack/echo' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: kapi links a heavy bowrain-side dependency (wails/echo):"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  if [ "$$dir" = "bowrain" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	              | grep -E '^github\.com/neokapi/neokapi/cli(/|$$)' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: bowrain depends on the cli module (it composes over host, not cli):"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  cp "$$dir/go.mod" "$$dir/go.mod.audit.bak"; \
-	  [ -f "$$dir/go.sum" ] && cp "$$dir/go.sum" "$$dir/go.sum.audit.bak" || true; \
-	  ( cd "$$dir" && GOWORK=off $(GO) mod tidy ) || { echo "ERROR: $$dir failed go mod tidy"; exit 1; }; \
-	  if ! diff -q "$$dir/go.mod.audit.bak" "$$dir/go.mod" >/dev/null 2>&1 || \
-	     { [ -f "$$dir/go.sum.audit.bak" ] && ! diff -q "$$dir/go.sum.audit.bak" "$$dir/go.sum" >/dev/null 2>&1; }; then \
-	    echo "ERROR: $$dir go.mod/go.sum not tidy — run 'cd $$dir && GOWORK=off go mod tidy' and commit"; rc=1; \
-	  fi; \
-	  mv "$$dir/go.mod.audit.bak" "$$dir/go.mod"; \
-	  [ -f "$$dir/go.sum.audit.bak" ] && mv "$$dir/go.sum.audit.bak" "$$dir/go.sum" || true; \
-	done; \
-	[ $$rc -eq 0 ] || exit 1
-	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
-	@$(ROOT_DIR)/scripts/check-workspace-versions.sh $(AUDIT_MODULES)
-	@echo "audit-modules: all module boundaries clean, go.mod/go.sum tidy, go.mod and go.work versions agree"
+.PHONY: go-embed-placeholders check-go-module-boundaries
 
-# check-module-boundaries asserts the package-level license/architecture
-# boundaries the tree relies on but no CI job enforced (audit-modules, which also
-# runs them, is a pre-push-only target): kapi-desktop must link neither cobra nor
-# the cli module — the Apache desktop stays cli-free — bowrain/core must import
-# no package from the AGPL main bowrain module, and no Apache-licensed module
-# may reach a package under the AGPL tree at all.
-#
-# That last assertion carries no exception list, and it must never grow one. The
-# separately-licensed recipe vocabulary that used to be the single allowed
-# import is a package under host now, so nothing Apache reaches into bowrain/ —
-# and an exception is how a boundary stops being one. If a package genuinely
-# needs to be read from both sides, it belongs below the line rather than on an
-# allowlist above it.
-#
-# The same line is asserted on the TypeScript side by
-# scripts/check-ts-license-boundary.sh, which this target runs last. Go import
-# closures say nothing about a React component under packages/ importing
-# @neokapi/ui (the AGPL bowrain/packages/ui), and the pnpm workspace resolves
-# every internal dependency from source, so that import compiles and bundles
-# into the Apache desktop app with nothing to notice it.
-#
-# Wired into CI as the `module-boundaries` job, gated on any_go OR kapi_desktop OR
-# ts_boundary so a desktop-only PR that reaches for cobra is still caught (any_go
-# has no apps/kapi-desktop filter) and a TypeScript-only PR still gets the
-# licence check.
-APACHE_MODULES := . host cli kapi apps/kapi-desktop
+go-embed-placeholders: $(GO_EMBED_PAGES)
+
+$(GO_EMBED_PAGES):
+	@mkdir -p $(@D)
+	@touch $@
+
+ci-tidy: ## Check isolated module manifests and sums for drift
+	@set -e; for dir in $(TIDY_MODULES); do \
+	  echo "Checking $$dir..."; \
+	  (cd "$$dir" && GOWORK=off $(GO) mod tidy -diff); \
+	done
+
+audit-modules: check-module-boundaries ## Build each application module in isolation and check its dependencies
+	@set -e; for dir in $(AUDIT_MODULES); do \
+	  echo "Checking $$dir..."; \
+	  GOWORK=off $(GO) -C "$$dir" build -mod=readonly ./...; \
+	  GOWORK=off $(GO) -C "$$dir" mod tidy -diff; \
+	done
 
 # The terms, content memory, voice profiles and widened rules are projections
 # of the workspace's operation log, written only by core/projector. A write that
@@ -962,7 +806,7 @@ check-projection-writes: i18n-catalogs ## Guard: only the projector writes a pro
 # type-checks every module that writes documents and reports each such call
 # outside the format packages and the places scripts/editguard lists with what
 # each writes, and proves itself on fixtures first.
-check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where scripts/editguard lists it
+check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reaches a file only where scripts/editguard lists it
 	@$(GO) run ./scripts/editguard -self-test
 	@$(GO) run ./scripts/editguard
 
@@ -978,36 +822,11 @@ fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its t
 	@$(GO) run ./scripts/fieldguard -self-test
 	@$(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
-check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
-	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
-	          | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true); \
-	  if [ -n "$$bad" ]; then echo "ERROR: kapi-desktop must stay cobra-free and cli-free — it links:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
-	@bad=$$(cd bowrain/core && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	          | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/core(/|$$)' || true); \
-	  if [ -n "$$bad" ]; then echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
-	@set -e; for dir in $(APACHE_MODULES); do \
-	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
-	  bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps $$pkgs 2>/dev/null \
-	            | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' || true ); \
-	  if [ -n "$$bad" ]; then \
-	    echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (there is no exception):"; \
-	    echo "$$bad" | sed 's/^/    /'; exit 1; \
-	  fi; \
-	done
-	@bad=$$(cd bowrain/plugin && GOWORK=off $(GO) list -deps ./cmd/kapi-bowrain 2>/dev/null \
-	          | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/plugin(/|$$)' || true); \
-	  if [ -n "$$bad" ]; then \
-	    echo "ERROR: the kapi-bowrain binary is declared Apache-2.0 (bowrain/plugin/LICENSE) but links AGPL:"; \
-	    echo "$$bad" | sed 's/^/    /'; \
-	    echo "  Its manifest, the plugin registry and the Homebrew formula all declare Apache-2.0."; \
-	    echo "  Either move what it needs below the line, or the declaration is false on three public surfaces."; \
-	    exit 1; \
-	  fi
-	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
-	@$(ROOT_DIR)/scripts/check-workspace-versions.sh $(AUDIT_MODULES)
-	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free, kapi-bowrain Apache-clean, no Apache TypeScript reaching AGPL, go.mod and go.work versions agree"
+check-go-module-boundaries: i18n-catalogs go-embed-placeholders
+	@GO="$(GO)" ./scripts/check-go-module-boundaries.sh $(AUDIT_MODULES)
+
+check-module-boundaries: check-go-module-boundaries check-ts-license-boundary ## Check import boundaries and isolated dependency versions
+	@GO="$(GO)" ./scripts/check-workspace-versions.sh $(AUDIT_MODULES)
 
 # ── SRX parity golden (Okapi tikal, no bridge involved) ─────────────────────
 regen-srx-parity-golden: ## Regenerate SRX parity golden from the real Okapi (okapi-apps tikal jars)
@@ -1419,10 +1238,7 @@ kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
 # which is what the i18n-catalogs prerequisite covers. Both are prerequisites
 # rather than a note in a runbook, so `make kapi-desktop-lint` works from a
 # clean checkout and the CI job below reuses the same definition.
-kapi-desktop-lint-deps: i18n-catalogs ## Materialize what the Kapi Desktop module embeds, so it typechecks
-	@mkdir -p $(KAPI_DESKTOP_DIR)/frontend/dist
-	@test -e $(KAPI_DESKTOP_DIR)/frontend/dist/index.html \
-		|| echo placeholder > $(KAPI_DESKTOP_DIR)/frontend/dist/index.html
+kapi-desktop-lint-deps: i18n-catalogs $(KAPI_DESKTOP_DIR)/frontend/dist/index.html ## Materialize the desktop backend's embedded files
 
 kapi-desktop-lint: kapi-desktop-lint-deps ## Run golangci-lint over the Kapi Desktop Go backend
 ifdef GOLANGCI_LINT
@@ -1554,7 +1370,7 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp test
 
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp run check
 
 # Invoke the neokapi-i18n CLI by its built entrypoint rather than `vpx neokapi-i18n`,
 # which resolves the bin via the workspace and falls back to an npm fetch (404)

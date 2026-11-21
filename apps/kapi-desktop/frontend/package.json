@@ -8,7 +8,7 @@
     "build": "vp build",
     "build:dev": "vp build",
     "preview": "vp preview",
-    "check": "vp check",
+    "check": "vp check && tsc --noEmit",
     "lint": "vp lint",
     "fmt": "vp fmt",
     "test": "vp test",

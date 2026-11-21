@@ -32,23 +32,18 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
-	"go/importer"
-	"go/parser"
 	"go/token"
 	"go/types"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/neokapi/neokapi/scripts/internal/guardpackages"
 )
 
 // targets are the packages checked: every Apache module that reaches a
@@ -70,7 +65,7 @@ var exempt = map[string]bool{
 var writes = map[string]map[string]bool{
 	"github.com/neokapi/neokapi/memory.SQLiteStore": set("Add", "AddWithStream", "BulkAddWithStream", "ReplayWithStream", "Delete",
 		"CreateImportSession", "UpdateImportSessionCount", "DeleteImportSession"),
-	"github.com/neokapi/neokapi/terms.SQLiteStore": set("AddConcept", "AddConceptWithStream", "DeleteConcept",
+	"github.com/neokapi/neokapi/terms.SQLiteStore": set("AddConcept", "AddConceptWithStream", "DeleteConcept", "DeleteShadowConcepts",
 		"AddRelation", "AddRelationWithStream", "DeleteRelation"),
 	"github.com/neokapi/neokapi/voice.SQLiteStore": set("CreateProfile", "UpdateProfile", "UpdateProfileAt", "DeleteProfile",
 		"CreateProfileTag", "DeleteProfileTag", "StoreScore", "StoreCorrection", "RecordRuleDecision"),
@@ -145,54 +140,11 @@ func main() {
 	}
 }
 
-// listed is what `go list -json` reports about one package.
-type listed struct {
-	ImportPath      string
-	Dir             string
-	Export          string
-	CompiledGoFiles []string
-	DepOnly         bool
-	Standard        bool
-	Error           *struct{ Err string }
-}
-
-// list runs go list over the patterns and returns every package, with the
-// export data of each dependency compiled.
-func list(patterns []string) ([]listed, error) {
-	args := append([]string{"list", "-e", "-compiled", "-tags", "fts5", "-export", "-deps",
-		"-json=ImportPath,Dir,Export,CompiledGoFiles,DepOnly,Standard,Error"}, patterns...)
-	cmd := exec.CommandContext(context.Background(), "go", args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("go list: %w\n%s", err, stderr.String())
-	}
-	dec := json.NewDecoder(bytes.NewReader(out))
-	var pkgs []listed
-	for {
-		var p listed
-		if err := dec.Decode(&p); errors.Is(err, io.EOF) {
-			break
-		} else if err != nil {
-			return nil, fmt.Errorf("go list: %w", err)
-		}
-		pkgs = append(pkgs, p)
-	}
-	return pkgs, nil
-}
-
 // check type-checks every target package and reports each write found.
 func check(patterns []string) ([]string, error) {
-	pkgs, err := list(patterns)
+	pkgs, err := guardpackages.List(patterns...)
 	if err != nil {
 		return nil, err
-	}
-	exports := map[string]string{}
-	for _, p := range pkgs {
-		if p.Export != "" {
-			exports[p.ImportPath] = p.Export
-		}
 	}
 	if err := coverage(pkgs); err != nil {
 		return nil, err
@@ -202,36 +154,19 @@ func check(patterns []string) ([]string, error) {
 		return nil, err
 	}
 	fset := token.NewFileSet()
-	imp := importer.ForCompiler(fset, "gc", func(path string) (io.ReadCloser, error) {
-		file, ok := exports[path]
-		if !ok {
-			return nil, fmt.Errorf("no export data for %s", path)
-		}
-		return os.Open(file)
-	})
+	imp := pkgs.Importer(fset)
 	var found []string
 	checked := 0
 	for _, p := range pkgs {
 		if p.DepOnly || p.Standard || exempt[p.ImportPath] || !strings.HasPrefix(p.ImportPath, "github.com/neokapi/neokapi/") {
 			continue
 		}
-		if p.Error != nil {
-			return nil, fmt.Errorf("%s: %s", p.ImportPath, p.Error.Err)
-		}
 		if len(p.CompiledGoFiles) == 0 {
 			continue // a directory of tests alone
 		}
-		var files []*ast.File
-		for _, name := range p.CompiledGoFiles {
-			path := name
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(p.Dir, name)
-			}
-			f, perr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
-			if perr != nil {
-				return nil, perr
-			}
-			files = append(files, f)
+		files, err := p.ParseFiles(fset)
+		if err != nil {
+			return nil, err
 		}
 		hits, cerr := checkPackage(fset, imp, p.ImportPath, files, func(pos token.Pos) string {
 			rel, rerr := filepath.Rel(root, fset.Position(pos).Filename)
@@ -473,8 +408,8 @@ func short(store string) string {
 // exported method of a store type that reaches a statement writing the
 // database, directly or through the type's other methods, must be named in
 // one of them.
-func coverage(pkgs []listed) error {
-	byPath := map[string]listed{}
+func coverage(pkgs guardpackages.Packages) error {
+	byPath := map[string]guardpackages.Package{}
 	for _, p := range pkgs {
 		byPath[p.ImportPath] = p
 	}
@@ -487,17 +422,9 @@ func coverage(pkgs []listed) error {
 			return fmt.Errorf("store package %s is not among the checked packages' dependencies", pkgPath)
 		}
 		fset := token.NewFileSet()
-		var files []*ast.File
-		for _, name := range p.CompiledGoFiles {
-			path := name
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(p.Dir, name)
-			}
-			f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
-			if err != nil {
-				return err
-			}
-			files = append(files, f)
+		files, err := p.ParseFiles(fset)
+		if err != nil {
+			return err
 		}
 		for _, m := range writingMethods(files, typeName) {
 			if _, ok := unprojected[store][m]; !ok && !writes[store][m] {

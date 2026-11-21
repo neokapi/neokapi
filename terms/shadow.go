@@ -1,21 +1,24 @@
 package terms
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 )
 
-// ShadowIDPrefix reserves IDs for stream-scoped copies of live concepts and
-// relations used to evaluate proposals.
-//
-// The tables key on ID alone; stream is an ordinary column. Each combination of
-// proposal, stream and original ID therefore needs a distinct shadow ID.
-// Reusing a live ID would move the live row onto the proposal's branch.
-//
-// Reads without a stream filter must exclude shadow IDs. Otherwise unapproved
-// terms could affect checks on other streams or be synchronized into a
-// project's terms store.
+// ShadowIDPrefix reserves IDs for proposal copies of concepts and relations.
+// The terms tables key on ID within a workspace. Each project's proposal on a
+// stream therefore needs its own namespace. Reads without a stream filter
+// exclude these IDs so checks and synchronization see the live terms.
 const ShadowIDPrefix = "__pilot__"
+
+// ShadowNamespacePrefix limits a bulk operation to one namespace within the reserved shadow IDs.
+func ShadowNamespacePrefix(namespace string) (string, error) {
+	if strings.TrimSpace(namespace) == "" {
+		return "", errors.New("a shadow namespace is required")
+	}
+	return ShadowIDPrefix + namespace, nil
+}
 
 // IsShadowID reports whether id sits in the shadow namespace.
 func IsShadowID(id string) bool { return strings.HasPrefix(id, ShadowIDPrefix) }

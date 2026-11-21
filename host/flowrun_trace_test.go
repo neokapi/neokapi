@@ -189,3 +189,24 @@ func TestFilePreview(t *testing.T) {
 	assert.Equal(t, strings.Repeat("a", tracePreviewBytes-1), head)
 	assert.True(t, strings.HasSuffix(got, "... (truncated)"))
 }
+
+// TestRunFlowAllLocales_ReportsCancellation: a run canceled before its last
+// file returns no error and says it was canceled; a run that finished says it
+// was not.
+func TestRunFlowAllLocales_ReportsCancellation(t *testing.T) {
+	a, _, recipe, dir := newLoopProject(t, map[string]string{"en.json": `{"greeting":"Hello world"}`})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	opts := FlowRunOptions{FlowName: "translate", Project: proj, ProjectPath: recipe, InputPaths: []string{filepath.Join(dir, "src", "en.json")}}
+
+	res, err := a.RunFlowAllLocales(context.Background(), opts, nil)
+	require.NoError(t, err)
+	assert.False(t, res.Canceled)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res, err = a.RunFlowAllLocales(ctx, opts, nil)
+	require.NoError(t, err)
+	assert.True(t, res.Canceled)
+	assert.Zero(t, res.FilesProcessed)
+}

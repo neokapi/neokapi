@@ -201,6 +201,7 @@ func NewApp() *App {
 	formatReg.SetDefaultEngine(aiCfg.FormatEngine())
 
 	app := &App{
+		runState:      newRunner(),
 		formatReg:     formatReg,
 		toolReg:       toolReg,
 		schemaReg:     schemaReg,
@@ -276,6 +277,8 @@ type openProject struct {
 	// polling surface (the home hero) doesn't spam ERR lines while the tab's
 	// directory is moved (e.g. mid sample reset). Reset when the file is back.
 	missingWarned atomic.Bool
+	lastRunError  atomic.Pointer[RunError]
+	filtersMu     sync.RWMutex
 
 	// What the Overview shows from this session's own reads (mapsummary.go): when
 	// the store sync last found the block cache current, and the counts of
@@ -857,50 +860,89 @@ func (a *App) ListTabs() []TabInfo {
 	return tabs
 }
 
+// SavedProjectSnapshot identifies the written recipe and the name stored in it.
+type SavedProjectSnapshot struct {
+	Tab  TabInfo `json:"tab"`
+	Name string  `json:"name"`
+}
+
 // SaveProject writes a project to its file path.
 func (a *App) SaveProject(tabID string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	op := a.projects[tabID]
-
-	if op == nil {
-		return fmt.Errorf("tab %q not found", tabID)
-	}
-	if op.Path == "" {
-		return errors.New("project has no file path (use SaveProjectAs)")
-	}
-	return a.saveRecipe(op)
+	_, err := a.persistProject(tabID, nil, "", false)
+	return err
 }
 
 // SaveProjectAs writes a project to a new file path.
 func (a *App) SaveProjectAs(tabID, path string) error {
+	if path == "" {
+		return errors.New("project destination is empty")
+	}
+	_, err := a.persistProject(tabID, nil, path, false)
+	return err
+}
+
+func (a *App) persistProject(tabID string, snapshot *project.KapiProject, path string, nameFromFolder bool) (*SavedProjectSnapshot, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	op := a.projects[tabID]
 	if op == nil {
-		return fmt.Errorf("tab %q not found", tabID)
+		return nil, fmt.Errorf("tab %q not found", tabID)
 	}
-	draftRoot := ""
-	if op.unsaved.Load() && op.Path != "" {
-		draftRoot = filepath.Dir(op.Path)
+	if op.contextOnly {
+		return nil, errors.New("open a project folder to save its recipe")
 	}
-	if err := project.Save(path, op.Project); err != nil {
-		return err
+	if path == "" {
+		path = op.Path
 	}
-	op.Path = path
-	if draftRoot == "" {
-		return nil
+	if path == "" {
+		return nil, errors.New("project has no file path (use SaveProjectAs)")
 	}
-	// A folder opened without a recipe, saved into another folder: that
-	// folder is the project now, set up as ensureRecipe sets one up.
-	if err := project.EnsureLayout(project.LayoutAt(filepath.Dir(path))); err != nil {
-		a.logger.Printf("create %s for %s: %v", project.StateDirName, path, err)
+	if snapshot == nil {
+		snapshot = op.Project
 	}
-	op.unsaved.Store(false)
-	op.draft = nil
-	a.adoptRecipe(op, draftRoot)
-	return nil
+	recipe := *snapshot
+	root := filepath.Dir(path)
+	if nameFromFolder {
+		if name := filepath.Base(root); name != "" && name != "." && name != string(filepath.Separator) {
+			recipe.Name = name
+		}
+	}
+	previous := op.Project
+	if path == op.Path {
+		op.Project = &recipe
+		if err := a.saveRecipe(op); err != nil {
+			op.Project = previous
+			return nil, err
+		}
+	} else {
+		for _, tab := range a.projects {
+			if tab != op && sameRecipePath(tab.Path, path) {
+				return nil, errors.New("the destination project is already open")
+			}
+		}
+		if broadFolder(root) {
+			return nil, errBroadFolder(root)
+		}
+		if err := project.Save(path, &recipe); err != nil {
+			return nil, err
+		}
+		a.releaseProjectResources(op)
+		op.Path, op.Project = path, &recipe
+		op.unsaved.Store(false)
+		op.draft = nil
+		op.workspaceKey = workspaceKeyFor(&recipe, root)
+		if err := project.EnsureLayout(project.LayoutAt(root)); err != nil {
+			a.logger.Printf("create %s for %s: %v", project.StateDirName, path, err)
+		}
+		a.autoOpenProjectResources(op)
+		a.registerInWorkspace(op)
+		a.startWatcher(op)
+		a.emitEvent("project:recipe-written", map[string]any{"tabID": tabID, "path": path})
+	}
+	if !sameRecipe(previous, &recipe) {
+		a.emitEvent("project-recipe-changed", tabID)
+	}
+	return &SavedProjectSnapshot{Tab: tabInfoOf(op), Name: recipe.Name}, nil
 }
 
 // GetProject returns the project for a tab.

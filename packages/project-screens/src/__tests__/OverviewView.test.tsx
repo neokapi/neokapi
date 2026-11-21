@@ -252,7 +252,7 @@ describe("the first steps", () => {
     await userEvent.click(act("decide"));
     await userEvent.click(act("fix"));
     await userEvent.click(act("share"));
-    expect(props.navigate.mock.calls.map((c) => c[0])).toEqual([
+    expect(vi.mocked(props.navigate).mock.calls.map(([target]) => target)).toEqual([
       { kind: "rules" },
       { kind: "checks" },
       { kind: "share" },

@@ -121,6 +121,10 @@ type FlowRunResult struct {
 	OutputPaths []string
 	// Duration is the wall-clock run time.
 	Duration time.Duration
+	// Canceled reports that the context was canceled before every input×pass
+	// execution ran. RunFlowAllLocales returns no error for a canceled run,
+	// so this is how a caller tells it from a finished one.
+	Canceled bool
 }
 
 // FlowToolBuildError reports a tool that could not be assembled for a locale
@@ -288,6 +292,8 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	totalFiles := len(opts.InputPaths) * len(passes)
 	var filesDone atomic.Int64
 	var outputs []string
+	// canceled records that cancellation stopped the run before its last file.
+	var canceled bool
 
 	// Pipeline metrics from the spec's step names (the labels a UI renders),
 	// snapshotted on a ticker while the run is live.
@@ -398,6 +404,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 
 		for _, inputPath := range group.Inputs {
 			if ctx.Err() != nil {
+				canceled = true
 				return nil
 			}
 			metrics.Reset()
@@ -477,6 +484,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 passLoop:
 	for _, pass := range passes {
 		if ctx.Err() != nil {
+			canceled = true
 			break
 		}
 		for _, group := range groups {
@@ -485,6 +493,7 @@ passLoop:
 				// the runner; per the documented contract it is not a run error —
 				// stop the loop so the complete event and totals still emit.
 				if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
+					canceled = true
 					break passLoop
 				}
 				return nil, err
@@ -508,6 +517,7 @@ passLoop:
 		FilesProcessed: done,
 		OutputPaths:    outputs,
 		Duration:       duration,
+		Canceled:       canceled,
 	}, nil
 }
 

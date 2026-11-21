@@ -40,3 +40,11 @@ export function renderHook<Result, Props>(
 ) {
   return rtlRenderHook(render, { wrapper: makeWrapper(), ...options });
 }
+
+export function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((accept) => {
+    resolve = accept;
+  });
+  return { promise, resolve };
+}

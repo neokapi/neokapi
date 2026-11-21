@@ -183,28 +183,26 @@ request, never a push to the default branch.
 
 ### Tiered lookup
 
-Lookup is a cascading pipeline (`terms.LookupTiered`, with `LookupAllTiered` for
-occurrence scanning):
+Single-term lookup returns matches from the first enabled tier with an eligible
+result. The in-memory, SQLite and PostgreSQL stores share the same ranking rules.
 
-1. **Exact**: the term's text, case folded unless the call asks for case
-   sensitivity, or a form the term declares that is the whole query. A query
-   is read against a term's forms by the matcher described below, so a lookup
-   for `alerts` finds `alert` when the term lists `alerts`, and names `alert`.
-2. **Normalized**: Unicode NFC, case folding, whitespace collapse.
-3. **Fuzzy**: trigram candidate retrieval plus Levenshtein scoring over the
-   closest candidates, inside a length window.
-4. **Model-assisted** (opt-in): a provider proposes candidate mappings that
-   produce term-candidate annotations for human review.
+1. **Exact.** The query matches the term or one of its declared forms. The
+   caller can request a case-sensitive comparison.
+2. **Normalized.** The store compares Unicode NFC text after case folding and
+   whitespace normalization.
+3. **Fuzzy.** The store scores normalized text by Levenshtein distance over
+   Unicode code points. The SQL stores use the minimum score to bound candidate
+   lengths. Rows written before normalized keys were stored are normalized
+   during lookup.
 
-Each tier stops early once it has an answer. The fuzzy tier uses the same FTS5
-trigram tokenizer as the content memory ([C-09](c-09-content-memory.md)), keeping
-lookup cost sub-linear in the size of the store. Text is normalized with Unicode
-NFC before comparison, and Levenshtein runs over runes rather than bytes, which
-is correct for every script including CJK.
+The lookup applies the caller's concept, domain, source, status and validity
+filters before selecting a tier. A project view supplies the eligible
+concept IDs. The same IDs govern occurrence scans before duplicate and covered
+matches are removed. A longer term owned by another project therefore leaves
+the shorter term in the active project visible.
 
-Which tiers run is selected per call through the lookup options, alongside case
-sensitivity, a minimum score, and the status and validity filters, so a caller
-can request exact-only, or exact-plus-fuzzy, without changing the pipeline.
+A provider can also propose term candidates for human review. Those proposals
+enter the pipeline as annotations.
 
 ### Scanning a text: one matcher, one rule
 
@@ -408,6 +406,11 @@ edges whose validity matches. Relations give UIs a graph substrate for browsing
 terminology without a separate graph database, and drive deprecation workflows:
 the `term-enforce` tool resolves *use-instead* and *replaced-by* to name the
 replacement.
+
+The SQLite store reserves `terms.ShadowIDPrefix` for stream-specific copies of
+concepts and relations. Ordinary searches, counts and relation lists exclude
+these copies. `SearchForStream` and `RelationsForStream` include copies on the
+requested stream and the ancestors the caller supplies.
 
 ### Validity
 

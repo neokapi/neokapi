@@ -1,7 +1,6 @@
 import { coordinatesFromServer, type ReviewCoordinates } from "@neokapi/bowrain-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
 import { Alert } from "react-native";
 
 import "../lib/i18n";
@@ -88,11 +87,6 @@ const map = (changed: boolean) =>
     ],
   });
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
-
 describe("coordinates map", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -101,7 +95,7 @@ describe("coordinates map", () => {
 
   it("lists what changed as chips and draws the cells as tiles", async () => {
     mockMap.mockResolvedValue(map(true));
-    await render(wrap(<CoordinatesScreen />));
+    await render(withTestProviders(<CoordinatesScreen />));
     expect(await screen.findByText("Since Ada confirmed")).toBeTruthy();
     expect(screen.getByText("New: neokapi / mobile")).toBeTruthy();
     expect(screen.getByText("Removed: neokapi / demos")).toBeTruthy();
@@ -115,7 +109,7 @@ describe("coordinates map", () => {
 
   it("zooms into a product, opens a tile's collections, and zooms out", async () => {
     mockMap.mockResolvedValue(map(false));
-    await render(wrap(<CoordinatesScreen />));
+    await render(withTestProviders(<CoordinatesScreen />));
     // Zoomed out, a tile zooms into its product rather than opening.
     await fireEvent.press(await screen.findByTestId("coordinates-tile-neokapi-docs"));
     expect(screen.queryByTestId("coordinates-cell-detail")).toBeNull();
@@ -142,13 +136,13 @@ describe("coordinates map", () => {
     const alert = jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
       buttons?.find((b) => b.style !== "cancel")?.onPress?.();
     });
-    await render(wrap(<CoordinatesScreen />));
+    await render(withTestProviders(<CoordinatesScreen />));
     await fireEvent.press(await screen.findByTestId("coordinates-confirm"));
     expect(alert).toHaveBeenCalled();
     expect(mockConfirm).toHaveBeenCalledWith({ workspace: "ws", project: "p" });
 
     mockMap.mockResolvedValue(map(false));
-    await render(wrap(<CoordinatesScreen />));
+    await render(withTestProviders(<CoordinatesScreen />));
     expect(await screen.findByText("Nothing changed since the last confirmation.")).toBeTruthy();
     expect(screen.queryByTestId("coordinates-confirm")).toBeNull();
   });

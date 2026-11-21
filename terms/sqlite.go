@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -110,6 +112,18 @@ var tbMigrations = []storage.Migration{
 		Version:     6,
 		Description: "advisory flag on concepts",
 		SQL:         termsschema.RenderTermsSQLiteV6(),
+	},
+	{
+		Version:     7,
+		Description: "indexed normalized term text",
+		SQL:         termsschema.RenderTermsSQLiteV7(),
+	},
+	{
+		Version:     8,
+		Description: "normalized text for terms written before the column",
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return BackfillNormalizedText(ctx, tx, false)
+		},
 	},
 }
 
@@ -257,9 +271,9 @@ func (tb *SQLiteStore) AddConceptWithStream(ctx context.Context, concept Concept
 		}
 		validFrom, validTo, tags := validityToColumns(term.Validity)
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, concept.ID, term.Text, strings.ToLower(term.Text),
+			INSERT INTO tb_terms (concept_id, text, text_lower, text_normalized, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, concept.ID, term.Text, strings.ToLower(term.Text), NormalizeTerm(term.Text),
 			string(term.Locale), string(term.Status),
 			term.PartOfSpeech, term.Gender, term.Note, competitorInt,
 			validFrom, validTo, tags, FormsColumn(term.Forms))
@@ -297,6 +311,17 @@ func (tb *SQLiteStore) DeleteConcept(ctx context.Context, id string) error {
 		return fmt.Errorf("concept not found: %s", id)
 	}
 	return nil
+}
+
+// DeleteShadowConcepts clears a namespace within the reserved shadow IDs.
+// Foreign keys remove the copies' terms and relations.
+func (tb *SQLiteStore) DeleteShadowConcepts(ctx context.Context, namespace string) error {
+	prefix, err := ShadowNamespacePrefix(namespace)
+	if err != nil {
+		return err
+	}
+	_, err = tb.db.ExecContext(ctx, "DELETE FROM tb_concepts WHERE substr(id, 1, length(?1)) = ?1", prefix)
+	return err
 }
 
 // AddRelation inserts or updates (by ID) a relation between two concepts
@@ -375,10 +400,11 @@ func (tb *SQLiteStore) DeleteRelation(ctx context.Context, id string) error {
 // RelationsOf returns all relations touching the concept, in either direction,
 // filtered by the validity scope when one is given.
 func (tb *SQLiteStore) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]ConceptRelation, error) {
+	notShadow, arg := NotShadowSQL("id", "?")
 	rows, err := tb.db.QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
-		FROM tb_relations WHERE source_id = ? OR target_id = ? ORDER BY id
-	`, conceptID, conceptID)
+		FROM tb_relations WHERE (source_id = ? OR target_id = ?) AND `+notShadow+` ORDER BY id
+	`, conceptID, conceptID, arg)
 	if err != nil {
 		return nil, fmt.Errorf("query relations: %w", err)
 	}
@@ -483,7 +509,7 @@ func (tb *SQLiteStore) LookupAll(ctx context.Context, sourceText string, opts Lo
 		return nil, nil
 	}
 	opts = ApplyLookupDefaults(opts)
-	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, opts)
+	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.StatusFilter, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -521,8 +547,9 @@ func (tb *SQLiteStore) Search(ctx context.Context, query string, sourceLocale, t
 func (tb *SQLiteStore) searchFTS5(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
 	trigramQuery := `"` + strings.ReplaceAll(query, `"`, `""`) + `"`
 
-	localeWhere := ""
-	var localeArgs []any
+	notShadow, arg := NotShadowSQL("c.id", "?")
+	localeWhere := " AND " + notShadow
+	localeArgs := []any{arg}
 	if sourceLocale != "" {
 		localeWhere += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
 		localeArgs = append(localeArgs, string(sourceLocale))
@@ -556,7 +583,7 @@ func (tb *SQLiteStore) searchFTS5(ctx context.Context, query string, sourceLocal
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -569,8 +596,8 @@ func (tb *SQLiteStore) searchFTS5(ctx context.Context, query string, sourceLocal
 }
 
 func (tb *SQLiteStore) searchLike(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
-	where := "1=1"
-	var args []any
+	where, arg := NotShadowSQL("c.id", "?")
+	args := []any{arg}
 
 	if query != "" {
 		where += ` AND (LOWER(c.definition) LIKE ? OR LOWER(c.domain) LIKE ?
@@ -603,7 +630,7 @@ func (tb *SQLiteStore) searchLike(ctx context.Context, query string, sourceLocal
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, total, err
 	}
@@ -676,7 +703,7 @@ func (tb *SQLiteStore) searchFTS5ForStream(ctx context.Context, query string, so
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -740,7 +767,7 @@ func (tb *SQLiteStore) searchLikeForStream(ctx context.Context, query string, so
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, total, err
 	}
@@ -763,8 +790,9 @@ func (tb *SQLiteStore) Count(ctx context.Context) (int, error) {
 // not create, counts here instead. Ask IsStore first when db may not carry
 // the schema.
 func CountConcepts(ctx context.Context, db *storage.DB) (int, error) {
+	notShadow, arg := NotShadowSQL("id", "?")
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE "+notShadow, arg).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count concepts: %w", err)
 	}
 	return count, nil
@@ -786,7 +814,7 @@ func (tb *SQLiteStore) Concepts(ctx context.Context) ([]Concept, error) {
 	}
 	defer rows.Close()
 
-	ids, err := scanConceptIDs(rows)
+	ids, err := ScanConceptIDs(rows)
 	if err != nil {
 		return nil, err
 	}
@@ -856,7 +884,8 @@ func (tb *SQLiteStore) Close() error {
 // --- internal helpers ---
 
 // scanConceptIDs collects a single-column result set of concept IDs.
-func scanConceptIDs(rows *sql.Rows) ([]string, error) {
+// ScanConceptIDs reads an ordered ID column from a terms store query.
+func ScanConceptIDs(rows *sql.Rows) ([]string, error) {
 	var ids []string
 	for rows.Next() {
 		var id string
@@ -959,7 +988,7 @@ func (tb *SQLiteStore) queryExactTerms(ctx context.Context, sourceText string, o
 }
 
 func (tb *SQLiteStore) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	return tb.queryScopedTerms(ctx, "normalized terms", "t.text_lower = ? AND t.locale = ?",
+	return tb.queryScopedTerms(ctx, "normalized terms", "t.text_normalized = ? AND t.locale = ?",
 		[]any{normalizedSource, string(opts.SourceLocale)}, opts)
 }
 
@@ -974,6 +1003,12 @@ func (tb *SQLiteStore) queryFormTerms(ctx context.Context, opts LookupOptions) (
 // option's project scope and source filter, and joins the concepts table only
 // when one of those reads it. what names the query in an error.
 func (tb *SQLiteStore) queryScopedTerms(ctx context.Context, what, where string, args []any, opts LookupOptions) ([]TermCandidate, error) {
+	return tb.queryScopedTermsOrdered(ctx, what, where, args, "", nil, opts)
+}
+
+// queryScopedTermsOrdered is queryScopedTerms with tail (an ORDER BY and
+// LIMIT clause) appended to the query and tailArgs bound after the filter's.
+func (tb *SQLiteStore) queryScopedTermsOrdered(ctx context.Context, what, where string, args []any, tail string, tailArgs []any, opts LookupOptions) ([]TermCandidate, error) {
 	needsJoin := false
 	switch opts.ProjectScope {
 	case ProjectScopeOnly:
@@ -990,20 +1025,12 @@ func (tb *SQLiteStore) queryScopedTerms(ctx context.Context, what, where string,
 	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
 	needsJoin = needsJoin || sourceNeedsJoin
 
-	var q string
+	from := "tb_terms t"
 	if needsJoin {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
-			WHERE %s
-		`, where)
-	} else {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t
-			WHERE %s
-		`, where)
+		from += " JOIN tb_concepts c ON t.concept_id = c.id"
 	}
+	q := "SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms FROM " + from + " WHERE " + where + tail
+	args = append(args, tailArgs...)
 
 	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -1014,134 +1041,40 @@ func (tb *SQLiteStore) queryScopedTerms(ctx context.Context, what, where string,
 	return scanTermCandidates(rows)
 }
 
-// queryFuzzyTerms returns the raw fuzzy candidate pool: the trigram pre-filter,
-// falling back to a length-bounded full scan only when the trigram index yields
-// no candidate rows. Levenshtein scoring and the MinScore gate live in the
-// shared LookupTiered, so both backends score identically.
 func (tb *SQLiteStore) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	cands, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
-	if err != nil {
-		return nil, err
+	queryLen := len([]rune(normalizedSource))
+	minLen, maxLen := FuzzyLengthWindow(queryLen, opts.MinScore)
+	notShadow, shadowArg := NotShadowSQL("t.concept_id", "?")
+	where := "t.locale = ? AND LENGTH(t.text_normalized) BETWEEN ? AND ? AND " + notShadow
+	args := []any{string(opts.SourceLocale), minLen, maxLen, shadowArg}
+	if len(opts.StatusFilter) > 0 {
+		where += " AND t.status IN (" + strings.TrimSuffix(strings.Repeat("?,", len(opts.StatusFilter)), ",") + ")"
+		for _, st := range opts.StatusFilter {
+			args = append(args, string(st))
+		}
 	}
-	if len(cands) > 0 {
-		return cands, nil
+	if opts.ConceptIDs != nil {
+		ids, err := json.Marshal(slices.Collect(maps.Keys(opts.ConceptIDs)))
+		if err != nil {
+			return nil, fmt.Errorf("query fuzzy terms: %w", err)
+		}
+		where += " AND t.concept_id IN (SELECT value FROM json_each(?))"
+		args = append(args, string(ids))
 	}
-	return tb.queryFuzzyFullScan(ctx, normalizedSource, opts)
+	// The order and limit FuzzyCandidateLimit describes. BINARY collation is
+	// byte order, as the shared lookup compares.
+	return tb.queryScopedTermsOrdered(ctx, "fuzzy terms", where, args,
+		" ORDER BY ABS(LENGTH(t.text_normalized) - ?), t.concept_id, t.text LIMIT ?",
+		[]any{queryLen, FuzzyCandidateLimit}, opts)
 }
 
-func (tb *SQLiteStore) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	trigramQuery := `"` + strings.ReplaceAll(normalizedSource, `"`, `""`) + `"`
-
-	where := `t.id IN (SELECT rowid FROM tb_terms_trigram WHERE tb_terms_trigram MATCH ?)
-		AND t.locale = ?`
-	args := []any{trigramQuery, string(opts.SourceLocale)}
-
-	needsJoin := false
-	switch opts.ProjectScope {
-	case ProjectScopeOnly:
-		where += " AND c.project_id = ?"
-		args = append(args, opts.ProjectID)
-		needsJoin = true
-	case ProjectScopeExclude:
-		where += " AND c.project_id != ?"
-		args = append(args, opts.ProjectID)
-		needsJoin = true
-	}
-
-	var sourceNeedsJoin bool
-	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
-	needsJoin = needsJoin || sourceNeedsJoin
-
-	var q string
-	if needsJoin {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
-			WHERE %s LIMIT 200
-		`, where)
-	} else {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t
-			WHERE %s LIMIT 200
-		`, where)
-	}
-
-	rows, err := tb.db.QueryContext(ctx, q, args...)
-	if err != nil {
-		// A query error is not the same as "no candidates"; surface it
-		// instead of silently returning an empty match set.
-		return nil, fmt.Errorf("query fuzzy trigram candidates: %w", err)
-	}
-	defer rows.Close()
-
-	return scanTermCandidates(rows)
-}
-
-func (tb *SQLiteStore) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	minLen, maxLen := FuzzyLengthWindow(len([]rune(normalizedSource)), opts.MinScore)
-
-	where := "t.locale = ? AND LENGTH(t.text_lower) BETWEEN ? AND ?"
-	args := []any{string(opts.SourceLocale), minLen, maxLen}
-
-	needsJoin := false
-	switch opts.ProjectScope {
-	case ProjectScopeOnly:
-		where += " AND c.project_id = ?"
-		args = append(args, opts.ProjectID)
-		needsJoin = true
-	case ProjectScopeExclude:
-		where += " AND c.project_id != ?"
-		args = append(args, opts.ProjectID)
-		needsJoin = true
-	}
-
-	var sourceNeedsJoin bool
-	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
-	needsJoin = needsJoin || sourceNeedsJoin
-
-	var q string
-	if needsJoin {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
-			WHERE %s LIMIT 500
-		`, where)
-	} else {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t
-			WHERE %s LIMIT 500
-		`, where)
-	}
-
-	rows, err := tb.db.QueryContext(ctx, q, args...)
-	if err != nil {
-		// A query error is not the same as "no candidates"; surface it
-		// instead of silently returning an empty match set.
-		return nil, fmt.Errorf("query fuzzy full scan: %w", err)
-	}
-	defer rows.Close()
-
-	return scanTermCandidates(rows)
-}
-
-func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]LocaleTerm, error) {
+func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, statusFilter []model.TermStatus, opts LookupOptions) ([]LocaleTerm, error) {
 	// This query is the terms half of every check. It names no stream, so it
 	// must exclude the shadow namespace: a shadow written for one branch would
 	// otherwise decide what the checks flag everywhere.
 	notShadow, shadowArg := NotShadowSQL("c.id", "?")
 	where := "t.locale = ? AND " + notShadow
 	args := []any{string(locale), shadowArg}
-
-	if len(domains) > 0 {
-		placeholders := make([]string, len(domains))
-		for i, d := range domains {
-			placeholders[i] = "?"
-			args = append(args, d)
-		}
-		where += " AND c.domain IN (" + strings.Join(placeholders, ",") + ")"
-	}
 
 	if len(statusFilter) > 0 {
 		placeholders := make([]string, len(statusFilter))
@@ -1181,7 +1114,7 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 		var competitorInt int
 		var validFrom, validTo sql.NullString
 		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &doNotTranslate, &advisory, &text, &loc, &status, &pos, &gender, &note, &competitorInt, &validFrom, &validTo, &tags, &forms); err != nil {
-			continue
+			return nil, fmt.Errorf("scan locale term: %w", err)
 		}
 		validity := validityFromColumns(validFrom, validTo, tags)
 		// A malformed forms column keeps the term, unexpanded: dropping the row
@@ -1212,6 +1145,7 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 }
 
 type scanTermRow struct {
+	competitor                                         bool
 	conceptID, text, locale, status, pos, gender, note string
 	validFrom, validTo                                 sql.NullString
 	tags, forms                                        string
@@ -1229,35 +1163,33 @@ func (r scanTermRow) formList() []string {
 	return forms
 }
 
-// scanTermCandidates scans the shared 11-column term projection into raw
+// scanTermCandidates reads the term columns into raw
 // candidates. Validity is reconstructed here (SQLite's TEXT RFC3339 codec); the
 // shared LookupTiered applies the scope/status/score filters and hydrates the
 // owning concept.
-func scanTermCandidates(rows interface {
-	Next() bool
-	Scan(...any) error
-}) ([]TermCandidate, error) {
+func scanTermCandidates(rows *sql.Rows) ([]TermCandidate, error) {
 	var out []TermCandidate
 	for rows.Next() {
 		var r scanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags, &r.forms); err != nil {
-			continue
+		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.competitor, &r.validFrom, &r.validTo, &r.tags, &r.forms); err != nil {
+			return nil, fmt.Errorf("scan term candidate: %w", err)
 		}
 		out = append(out, TermCandidate{
 			ConceptID: r.conceptID,
 			Term: Term{
-				Text:         r.text,
-				Locale:       model.LocaleID(r.locale),
-				Status:       model.TermStatus(r.status),
-				PartOfSpeech: r.pos,
-				Gender:       r.gender,
-				Note:         r.note,
-				Validity:     r.validity(),
-				Forms:        r.formList(),
+				Text:           r.text,
+				Locale:         model.LocaleID(r.locale),
+				Status:         model.TermStatus(r.status),
+				PartOfSpeech:   r.pos,
+				Gender:         r.gender,
+				Note:           r.note,
+				CompetitorTerm: r.competitor,
+				Validity:       r.validity(),
+				Forms:          r.formList(),
 			},
 		})
 	}
-	return out, nil
+	return out, rows.Err()
 }
 
 // sourceFilterSQL appends a WHERE clause for SourceFilter and returns updated args.

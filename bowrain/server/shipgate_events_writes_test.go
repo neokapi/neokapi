@@ -52,7 +52,7 @@ func awaitGateLines(t *testing.T, srv *Server, c *gateCapture, want ...string) [
 }
 
 func TestShipGateEvents_ReadsAnnounceNothingAndRecordNothing(t *testing.T) {
-	srv, token := newTestServer(t)
+	srv, token := newTestServerWithWorkspace(t, platauth.WorkspaceTypeTeam)
 	events := captureGateEvents(t, srv)
 	pid := seedGateProject(t, srv, "nb", "Setning 1", "")
 	proj, err := srv.ContentStore.GetProject(t.Context(), pid)

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { Filter, ChevronDown, Check, Plus, Pencil, Users, Trash2 } from "lucide-react";
 import {
   Button,
@@ -34,6 +36,9 @@ export function FilterMenu({ project }: { project: KapiProject }) {
   const [editing, setEditing] = useState<ProjectFilter | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const run = useAsyncAction();
+  const choose = (id: string) => run(t("Active filter"), () => setActive(id));
+
   const edit = (f: ProjectFilter) => {
     setMenuOpen(false);
     setEditing(f);
@@ -64,12 +69,12 @@ export function FilterMenu({ project }: { project: KapiProject }) {
         </SimpleTooltip>
         <DropdownMenuContent align="end" className="w-60">
           <DropdownMenuLabel>{t("Active filter")}</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => void setActive("")}>
+          <DropdownMenuItem onClick={() => void choose("")}>
             <Check size={14} className={activeId === "" ? "opacity-100" : "opacity-0"} />
             {t("All files")}
           </DropdownMenuItem>
           {filters.map((f) => (
-            <DropdownMenuItem key={f.id} onClick={() => void setActive(f.id)}>
+            <DropdownMenuItem key={f.id} onClick={() => void choose(f.id)}>
               <Check size={14} className={activeId === f.id ? "opacity-100" : "opacity-0"} />
               <span className="flex-1 truncate">{f.name}</span>
               {f.shared && (
@@ -118,21 +123,16 @@ export function FilterMenu({ project }: { project: KapiProject }) {
           filter={editing}
           onClose={() => setEditing(null)}
           onSave={async (f) => {
-            const wasNew = !editing.id;
-            const wasActive = activeId === editing.id;
             const saved = await saveFilter(f);
-            // Activate a freshly created filter (or re-activate the one you were
-            // already using); don't hijack the active selection when editing a
-            // different saved filter.
-            if (saved && (wasNew || wasActive)) await setActive(saved.id);
-            setEditing(null);
+            if (saved) {
+              setEditing(null);
+              if (!f.id) await choose(saved.id);
+            }
           }}
           onDelete={
             editing.id
               ? async () => {
-                  const id = editing.id;
-                  await deleteFilter(id);
-                  if (activeId === id) await setActive("");
+                  await deleteFilter(editing.id);
                   setEditing(null);
                 }
               : undefined
@@ -153,9 +153,13 @@ function FilterEditorDialog({
   project: KapiProject;
   filter: ProjectFilter;
   onClose: () => void;
-  onSave: (f: ProjectFilter) => void;
-  onDelete?: () => void;
+  onSave: (f: ProjectFilter) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }) {
+  const run = useAsyncAction();
+  const operation = useMutation({
+    mutationFn: (task: () => Promise<void>) => run(t("Active filter"), task),
+  });
   const [name, setName] = useState(filter.name);
   const [collections, setCollections] = useState<string[]>(filter.collections ?? []);
   const [glob, setGlob] = useState(filter.glob ?? "");
@@ -181,7 +185,7 @@ function FilterEditorDialog({
   const narrowsNothing = isEmptyFilter(draft);
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog open onOpenChange={(o) => !o && !operation.isPending && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{filter.id ? t("Edit filter") : t("New filter")}</DialogTitle>
@@ -276,17 +280,21 @@ function FilterEditorDialog({
           {onDelete && (
             <Button
               variant="outline"
-              onClick={onDelete}
+              onClick={() => operation.mutate(onDelete)}
+              disabled={operation.isPending}
               className="mr-auto text-destructive hover:bg-destructive/10"
             >
               <Trash2 size={13} />
               {t("Delete")}
             </Button>
           )}
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={operation.isPending}>
             {t("Cancel")}
           </Button>
-          <Button onClick={() => onSave(draft)} disabled={!name.trim()}>
+          <Button
+            onClick={() => operation.mutate(() => onSave(draft))}
+            disabled={!name.trim() || operation.isPending}
+          >
             {t("Save")}
           </Button>
         </DialogFooter>

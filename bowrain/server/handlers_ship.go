@@ -3,13 +3,16 @@ package server
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/convergence"
 )
@@ -42,6 +45,23 @@ type shipManifestEntry struct {
 	NotGoverned []string `json:"not_governed,omitempty"`
 }
 
+// workspaceMayPublishProjects reports whether the workspace may expose its
+// projects publicly. A workspace with no record may not; an error is a store
+// that could not answer.
+func (s *Server) workspaceMayPublishProjects(ctx context.Context, workspaceID string) (bool, error) {
+	if s.AuthStore == nil {
+		return false, errors.New("workspace store unavailable")
+	}
+	ws, err := s.AuthStore.GetWorkspace(ctx, workspaceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return ws != nil && ws.Type == platauth.WorkspaceTypeTeam, nil
+}
+
 // HandlePublicShipManifest serves a project's per-locale ship manifest over a
 // public, cacheable URL — the hosted twin of `kapi status --ship --emit
 // ship.json`. The body is byte-shape-identical to that file (locale →
@@ -61,6 +81,13 @@ func (s *Server) HandlePublicShipManifest(c echo.Context) error {
 	// exist — 404, never 403 — so the feed reveals nothing about projects that
 	// did not choose to publish it.
 	if err != nil || proj == nil || proj.Properties[ShipFeedProperty] != "true" {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
+	}
+	allowed, err := s.workspaceMayPublishProjects(ctx, proj.WorkspaceID)
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	if !allowed {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
 	}
 	stream := streamParamWithProject(c, proj)

@@ -149,9 +149,11 @@ func TestTermSnapshotCache_TermsWrittenBeforeTheRevisionAreKept(t *testing.T) {
 	require.NoError(t, pg.AddConcept(ctx, termConcept("c-kapi", "kapi")))
 	require.NoError(t, pg.AddConcept(ctx, termConcept("c-shop", "shop")))
 	// The database as it stood before the revision table: terms, no revisions.
+	// The runner applies only the versions above the highest one recorded, so
+	// the ledger goes back to the version before the table's.
 	_, err = db.ExecContext(ctx, `DROP TABLE tb_revision`)
 	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `DELETE FROM tb_schema_migrations WHERE version = 9`)
+	_, err = db.ExecContext(ctx, `DELETE FROM tb_schema_migrations WHERE version >= 9`)
 	require.NoError(t, err)
 
 	pg, err = sqlterms.NewPostgresStoreFromDB(db, "ws-before")

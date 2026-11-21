@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host/venue/client"
 )
 
@@ -184,16 +185,8 @@ type EditorMemorySearchResult struct {
 	TotalCount int                 `json:"total_count"`
 }
 
-// EditorTerm mirrors TermInfoResponse.
-type EditorTerm struct {
-	Text         string   `json:"text"`
-	Locale       string   `json:"locale"`
-	Status       string   `json:"status"`
-	PartOfSpeech string   `json:"part_of_speech,omitempty"`
-	Gender       string   `json:"gender,omitempty"`
-	Note         string   `json:"note,omitempty"`
-	Forms        []string `json:"forms,omitempty"`
-}
+// EditorTerm holds the ordinary term fields used by the editor.
+type EditorTerm = venue.TermEdit
 
 // EditorConcept mirrors ConceptInfoResponse.
 type EditorConcept struct {

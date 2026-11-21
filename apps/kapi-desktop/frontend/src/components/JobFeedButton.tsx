@@ -17,8 +17,14 @@ import { useJobFeed, type Job } from "../context/JobFeedContext";
  * has a job, running or finished, shows a badge while jobs run, and opens a
  * dropdown panel on click.
  */
-export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void }) {
-  const { jobs, hasActive, selectJob, clearJob, clearAll } = useJobFeed();
+export function JobFeedButton({
+  onViewJob,
+  canViewJob,
+}: {
+  onViewJob?: (job: Job) => void;
+  canViewJob?: (job: Job) => boolean;
+}) {
+  const { jobs, hasActive, clearJob, clearAll } = useJobFeed();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -77,10 +83,8 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
   };
 
   const handleView = (job: Job) => {
-    selectJob(job.id);
     setOpen(false);
-    // Defer navigation to avoid updating AppInner while ViewSwitch is rendering.
-    queueMicrotask(() => onViewJob?.(job));
+    onViewJob?.(job);
   };
 
   return (
@@ -227,13 +231,15 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
 
                     {/* Actions row */}
                     <div className="flex items-center gap-1 mt-1.5 ml-5">
-                      <button
-                        onClick={() => handleView(job)}
-                        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
-                      >
-                        <ExternalLink size={10} />
-                        View
-                      </button>
+                      {onViewJob && (canViewJob?.(job) ?? true) && (
+                        <button
+                          onClick={() => handleView(job)}
+                          className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
+                        >
+                          <ExternalLink size={10} />
+                          View
+                        </button>
+                      )}
                       {job.status !== "running" && (
                         <button
                           onClick={() => clearJob(job.id)}

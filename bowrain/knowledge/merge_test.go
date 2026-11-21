@@ -245,13 +245,13 @@ func TestMergeChangeSet_RemovesPilots(t *testing.T) {
 	e := NewEngine(nil, tb, store)
 
 	// Pilot the change-set on a stream.
-	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", "pilot/widgets")
+	pilot, err := e.StartPilot(ctx, ws, store, *loaded, "proj1", "pilot/widgets")
 	require.NoError(t, err)
 	pilots, err := store.ListPilots(ctx, ws, cs.ID)
 	require.NoError(t, err)
 	require.Len(t, pilots, 1)
 	// The shadow concept exists on the pilot stream.
-	_, ok, err := tb.GetConcept(ctx, pilotConceptID(cs.ID, "pilot/widgets", "c1"))
+	_, ok, err := tb.GetConcept(ctx, pilot.shadowID("c", "c1"))
 	require.NoError(t, err)
 	require.True(t, ok)
 
@@ -263,7 +263,7 @@ func TestMergeChangeSet_RemovesPilots(t *testing.T) {
 	pilots, err = store.ListPilots(ctx, ws, cs.ID)
 	require.NoError(t, err)
 	assert.Empty(t, pilots)
-	_, ok, err = tb.GetConcept(ctx, pilotConceptID(cs.ID, "pilot/widgets", "c1"))
+	_, ok, err = tb.GetConcept(ctx, pilot.shadowID("c", "c1"))
 	require.NoError(t, err)
 	assert.False(t, ok)
 

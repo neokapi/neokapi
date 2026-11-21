@@ -177,13 +177,16 @@ type ActivityQuery struct {
 	WorkspaceID   string
 	WorkspaceKeys []string
 	ProjectID     string
-	Stream        string
-	ActorID       string
-	Type          string   // prefix match (e.g., "block" matches "block.*")
-	Types         []string // if set, matches any of these prefixes (overrides Type)
-	Since         time.Time
-	Limit         int
-	Cursor        string // opaque; a previous page's NextCursor
+	// ProjectIDs, when non-nil, lists only rows of these projects. An empty,
+	// non-nil set lists nothing, and a row filed under no project is left out.
+	ProjectIDs []string
+	Stream     string
+	ActorID    string
+	Type       string   // prefix match (e.g., "block" matches "block.*")
+	Types      []string // if set, matches any of these prefixes (overrides Type)
+	Since      time.Time
+	Limit      int
+	Cursor     string // opaque; a previous page's NextCursor
 
 	// The project feed's filters. FeedOnly lists only rows with a kind;
 	// Kinds narrows them to some kinds.
@@ -242,6 +245,16 @@ func inClause(column string, keys []string, ph func() string, args *[]any) strin
 		*args = append(*args, k)
 	}
 	return column + " IN (" + strings.Join(marks, ", ") + ")"
+}
+
+// projectSetClause renders the condition that a row belongs to one of ids.
+// An empty set matches no row.
+func projectSetClause(ids []string, ph func() string, args *[]any) string {
+	ids = distinctKeys(ids...)
+	if len(ids) == 0 {
+		return "FALSE"
+	}
+	return inClause("project_id", ids, ph, args)
 }
 
 // ActivityResult is a paginated result set.
@@ -394,6 +407,9 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 		where = append(where, "project_id = "+ph())
 		args = append(args, q.ProjectID)
 	}
+	if q.ProjectIDs != nil {
+		where = append(where, projectSetClause(q.ProjectIDs, ph, &args))
+	}
 	if q.Stream != "" {
 		where = append(where, "stream = "+ph())
 		args = append(args, q.Stream)
@@ -502,7 +518,9 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 
 // DailyCounts returns activity counts per day for a workspace since the given
 // time. keys are the workspace's slug and id, as for ActivityQuery.
-func (s *ActivityStore) DailyCounts(ctx context.Context, since time.Time, keys ...string) ([]DailyCount, error) {
+// projectIDs, when non-nil, counts only rows of these projects, with the
+// meaning ActivityQuery.ProjectIDs gives it.
+func (s *ActivityStore) DailyCounts(ctx context.Context, since time.Time, keys, projectIDs []string) ([]DailyCount, error) {
 	keys = distinctKeys(keys...)
 	if len(keys) == 0 {
 		return nil, nil
@@ -510,10 +528,13 @@ func (s *ActivityStore) DailyCounts(ctx context.Context, since time.Time, keys .
 	n := 0
 	ph := func() string { n++; return fmt.Sprintf("$%d", n) }
 	var args []any
-	keyClause := inClause("workspace_id", keys, ph, &args)
+	where := inClause("workspace_id", keys, ph, &args)
+	if projectIDs != nil {
+		where += " AND " + projectSetClause(projectIDs, ph, &args)
+	}
 	query := fmt.Sprintf(`SELECT DATE(created_at) AS day, COUNT(*) AS cnt FROM activities
 		 WHERE %s AND created_at > %s
-		 GROUP BY day ORDER BY day`, keyClause, ph())
+		 GROUP BY day ORDER BY day`, where, ph())
 	args = append(args, since.UTC())
 
 	rows, err := s.db.QueryContext(ctx, query, args...)

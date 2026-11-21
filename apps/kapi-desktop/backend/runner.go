@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
@@ -33,6 +34,7 @@ const (
 
 // RunEvent is emitted to the frontend during flow execution.
 type RunEvent struct {
+	TabID   string `json:"tab_id"`
 	Type    string `json:"type"` // "state", "progress", "trace", "pipeline_metrics", "error", "complete", "converge_event"
 	FlowID  string `json:"flow_id"`
 	Message string `json:"message,omitempty"`
@@ -75,6 +77,7 @@ type RunEvent struct {
 // it ran with (so a reader can tell a trace from an edited flow apart), and
 // the files whose traces the desktop kept, in completion order.
 type RunTraces struct {
+	TabID    string          `json:"tab_id"`
 	FlowName string          `json:"flow_name"`
 	Steps    []flow.FlowStep `json:"steps"`
 	Files    []RunTraceFile  `json:"files"`
@@ -118,9 +121,11 @@ var desktopTraceLimits = flow.TraceLimits{MaxParts: 500, MaxEvents: 20_000}
 // runner manages flow execution state with proper synchronization.
 // All fields are guarded by mu.
 type runner struct {
+	tabID   string
 	mu      sync.Mutex
 	state   RunState
 	cancel  context.CancelFunc
+	done    chan struct{}
 	running bool
 	events  []RunEvent // accumulated events for reconnection
 	// The last run's replayable record: the flow and steps it ran, and the
@@ -142,15 +147,56 @@ func newRunner() *runner {
 	return &runner{state: RunStateIdle}
 }
 
-// recordRunFailure stores (or, with nil, clears) the classified failure of the
-// most recent run. Safe on a nil runner so callers need no guard.
-func (a *App) recordRunFailure(re *RunError) {
-	if a.runState == nil {
-		return
+func (r *runner) start(tabID, traceFlow string, steps []flow.FlowStep) (context.Context, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.running {
+		return nil, errors.New("a flow is already running. Cancel it first")
 	}
-	a.runState.mu.Lock()
-	a.runState.lastFailure = re
-	a.runState.mu.Unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	r.state, r.cancel, r.running = RunStateRunning, cancel, true
+	r.done = make(chan struct{})
+	r.tabID = tabID
+	r.events = nil
+	r.resetTracesLocked(traceFlow, steps)
+	return ctx, nil
+}
+
+func (r *runner) release() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	close(r.done)
+	r.done = nil
+	r.running = false
+}
+
+func (a *App) finishRun(ctx context.Context, op *openProject, event RunEvent, err error) RunState {
+	r := a.runState
+	r.mu.Lock()
+	state := RunStateComplete
+	// A run that failed after a cancel is reported as canceled. A run that
+	// returned no error finished its work, so a cancel landing after it
+	// changes nothing.
+	if err != nil && ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	if err != nil {
+		state = RunStateError
+		event = RunEvent{Type: "error", FlowID: event.FlowID, Message: runErrorMessage(err), Error: classifyRunError(err)}
+		if errors.Is(err, context.Canceled) {
+			state = RunStateCanceled
+			event.Message = "run canceled (context canceled)"
+		}
+	}
+	r.cancel()
+	r.cancel = nil
+	op.lastRunError.Store(event.Error)
+	event.TabID = op.ID
+	r.state, r.lastFailure = state, event.Error
+	r.events = append(r.events, event)
+	r.mu.Unlock()
+	a.emitEvent("flow:event", event)
+	return state
 }
 
 // GetLastRunError returns the classified failure of the most recent run, or nil
@@ -165,12 +211,16 @@ func (a *App) GetLastRunError() *RunError {
 	return a.runState.lastFailure
 }
 
-// RunFlow executes a flow by name from the current project. Target locales
-// are inferred from the flow's tool chain metadata (Framework AD-006) — the
-// frontend passes project target languages as a fallback, and the shared
-// orchestrator (host.App.RunFlowAllLocales → flow.ResolveFlowLocales)
-// determines the actual locale passes based on tool cardinality, exactly as
-// the CLI's project flow-run does.
+func (a *App) GetProjectLastRunError(tabID string) *RunError {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil
+	}
+	return op.lastRunError.Load()
+}
+
+// RunFlow starts a named project flow. The host resolves its locale passes
+// from the tools and the supplied target languages.
 func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -191,57 +241,24 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 		return err
 	}
 
-	if a.runState == nil {
-		a.runState = newRunner()
+	ctx, err := a.runState.start(tabID, flowName, spec.Steps)
+	if err != nil {
+		return err
 	}
-
-	a.runState.mu.Lock()
-	if a.runState.running {
-		a.runState.mu.Unlock()
-		return errors.New("a flow is already running. Cancel it first")
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	a.runState.state = RunStateRunning
-	a.runState.cancel = cancel
-	a.runState.running = true
-	a.runState.events = nil // clear events from previous run
-	a.runState.resetTracesLocked(flowName, spec)
-	a.runState.mu.Unlock()
 
 	go a.executeFlowRun(ctx, op, flowName, spec, inputPaths, targetLangs)
 	return nil
 }
 
-// executeFlowRun drives the shared multi-locale flow orchestrator
-// (host.App.RunFlowAllLocales) and adapts its event stream to Wails run
-// events. Locale-pass selection, per-pass tool assembly (with the cleanup
-// contract the former hand-rolled loop leaked), per-file execution, and
-// event emission all live in the cli module now — shared with the CLI's
-// project flow-run, so the two surfaces agree about which locales a flow
-// runs for. The run uses a fresh host.App carrying the desktop's own
-// registries (plugin-provided formats and segmenters stay available) and its
-// AI-default + credential-resolving config preprocessor already wired on
-// toolReg.
 func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName string, spec *flow.StepsSpec, inputPaths, targetLangs []string) {
-	defer func() {
-		a.runState.mu.Lock()
-		a.runState.running = false
-		a.runState.mu.Unlock()
-	}()
+	defer a.runState.release()
 
 	// Attribute this flow's model calls to it in the session's AI activity log.
 	ctx = withAIScope(ctx, AIActivityScope{Surface: "flow", Action: flowName})
 
-	capp := a.borrowEngine(&host.App{
-		FormatReg:   a.formatReg,
-		ToolReg:     a.toolReg,
-		SchemaReg:   a.schemaReg,
-		Credentials: a.credentials,
-		Config:      a.aiConfig,
-		Quiet:       true,
-	})
-	_, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
+	capp := a.newProjectEngine(op)
+	completion := RunEvent{Type: "complete", FlowID: flowName}
+	res, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
 		FlowName:      flowName,
 		Spec:          spec,
 		Project:       op.Project,
@@ -274,38 +291,19 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 				})
 			}
 		case host.FlowEventComplete:
-			// State transition before the closing event, preserving the order
-			// the frontend has always observed.
-			a.runState.mu.Lock()
-			if a.runState.state == RunStateRunning {
-				a.runState.state = RunStateComplete
-			}
-			a.runState.mu.Unlock()
-			a.emitRunEvent(RunEvent{
-				Type: "complete", FlowID: flowName,
-				DurationMs: ev.DurationMs, FilesProcessed: ev.FilesProcessed,
-				Message: ev.Message,
-			})
+			completion.DurationMs = ev.DurationMs
+			completion.FilesProcessed = ev.FilesProcessed
+			completion.Message = ev.Message
 		}
 	})
-	if err != nil {
-		a.emitRunEvent(RunEvent{
-			Type:    "error",
-			FlowID:  flowName,
-			Message: runErrorMessage(err),
-			Error:   classifyRunError(err),
-		})
-		a.runState.mu.Lock()
-		a.runState.state = RunStateError
-		a.runState.lastFailure = classifyRunError(err)
-		a.runState.mu.Unlock()
-		// The failed run may still have written some outputs; re-derive so the
-		// home surfaces reflect the real on-disk state rather than the pre-run
-		// snapshot (which a partial failure would otherwise present as done).
-		a.emitEvent("outputs-changed", map[string]any{})
-		return
+	// The orchestrator ends a canceled run early without an error; the
+	// result says whether it stopped before its last file.
+	if err == nil && res != nil && res.Canceled {
+		err = ctx.Err()
 	}
-	a.recordRunFailure(nil)
+	if a.finishRun(ctx, op, completion, err) != RunStateComplete {
+		a.emitEvent("outputs-changed", map[string]any{})
+	}
 }
 
 // runErrorMessage renders an orchestrator failure for the run feed: tool
@@ -333,17 +331,46 @@ func toolBuildErrorMessage(toolName, lang string, err error) string {
 	return fmt.Sprintf("tool %q for %s: %v", toolName, lang, err)
 }
 
-// CancelRun cancels the currently running flow.
+// cancelWait bounds how long a cancel waits for the run to stop. A run whose
+// tool ignores cancellation is left to finish on its own, and its terminal
+// flow:event settles the UI when it does.
+var cancelWait = 5 * time.Second
+
+// CancelRun cancels the active run and waits, up to cancelWait, for it to stop
+// and publish its final events.
 func (a *App) CancelRun() {
+	a.cancelRun("")
+}
+
+func (a *App) CancelProjectRun(tabID string) {
+	if tabID != "" {
+		a.cancelRun(tabID)
+	}
+}
+
+func (a *App) cancelRun(tabID string) {
 	if a.runState == nil {
 		return
 	}
 	a.runState.mu.Lock()
+	if tabID != "" && tabID != a.runState.tabID {
+		a.runState.mu.Unlock()
+		return
+	}
+	done := a.runState.done
 	if a.runState.cancel != nil {
 		a.runState.cancel()
-		a.runState.state = RunStateCanceled
 	}
 	a.runState.mu.Unlock()
+	if done == nil {
+		return
+	}
+	timer := time.NewTimer(cancelWait)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
 }
 
 // GetRunState returns the current run state.
@@ -364,9 +391,7 @@ func (a *App) GetRunEvents() []RunEvent {
 	}
 	a.runState.mu.Lock()
 	defer a.runState.mu.Unlock()
-	out := make([]RunEvent, len(a.runState.events))
-	copy(out, a.runState.events)
-	return out
+	return slices.Clone(a.runState.events)
 }
 
 // emitRunEvent emits a flow event to the frontend and stores it for reconnection.
@@ -374,6 +399,7 @@ func (a *App) GetRunEvents() []RunEvent {
 // appending to prevent the reconnection buffer from growing at 5 events/second.
 func (a *App) emitRunEvent(event RunEvent) {
 	a.runState.mu.Lock()
+	event.TabID = a.runState.tabID
 	if event.Type == "pipeline_metrics" && len(a.runState.events) > 0 {
 		last := a.runState.events[len(a.runState.events)-1]
 		if last.Type == "pipeline_metrics" {
@@ -397,12 +423,10 @@ func traceRetainedMessage(ev host.FlowRunEvent) string {
 	return "Recorded a trace of " + name + " for " + ev.Locale
 }
 
-// resetTracesLocked starts the run record over for a run of flowName with
-// spec. The steps are copied so a later edit of the flow leaves the record
-// describing what actually ran. Caller holds mu.
-func (r *runner) resetTracesLocked(flowName string, spec *flow.StepsSpec) {
+// resetTracesLocked copies the steps for replay. The caller holds mu.
+func (r *runner) resetTracesLocked(flowName string, steps []flow.FlowStep) {
 	r.traceFlow = flowName
-	r.traceSteps = cloneSteps(spec.Steps)
+	r.traceSteps = cloneSteps(steps)
 	r.traces = nil
 	r.traceBytes = 0
 }
@@ -474,6 +498,7 @@ func (a *App) ListRunTraces() *RunTraces {
 		return nil
 	}
 	out := &RunTraces{
+		TabID:    a.runState.tabID,
 		FlowName: a.runState.traceFlow,
 		Steps:    a.runState.traceSteps,
 		Files:    make([]RunTraceFile, 0, len(a.runState.traces)),
@@ -491,11 +516,25 @@ func (a *App) ListRunTraces() *RunTraces {
 // pass for the locale (an empty locale picks the file's newest pass). Nil
 // when nothing retained matches; ListRunTraces names what would.
 func (a *App) GetLastTrace(filePath, locale string) *flow.FlowTrace {
+	return a.lastTrace("", filePath, locale)
+}
+
+func (a *App) GetProjectLastTrace(tabID, filePath, locale string) *flow.FlowTrace {
+	if tabID == "" {
+		return nil
+	}
+	return a.lastTrace(tabID, filePath, locale)
+}
+
+func (a *App) lastTrace(tabID, filePath, locale string) *flow.FlowTrace {
 	if a.runState == nil {
 		return nil
 	}
 	a.runState.mu.Lock()
 	defer a.runState.mu.Unlock()
+	if tabID != "" && a.runState.tabID != tabID {
+		return nil
+	}
 	for _, rt := range slices.Backward(a.runState.traces) {
 		if filePath != "" && rt.file.FilePath != filePath {
 			continue
@@ -553,14 +592,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	// placement gate, the trust decision an exec-class step needs, the project
 	// bindings, and the redaction policy that governs the sample, which sits in
 	// no collection and so reads under defaults.redaction.
-	capp := a.borrowEngine(&host.App{
-		FormatReg:   a.formatReg,
-		ToolReg:     a.toolReg,
-		SchemaReg:   a.schemaReg,
-		Credentials: a.credentials,
-		Config:      a.aiConfig,
-		Quiet:       true,
-	})
+	capp := a.newProjectEngine(op)
 	tools, cleanup, err := capp.BuildProjectFlowTools(ctx, flowName, spec, pctx, op.Path, tmpFile.Name(), sourceLang, targetLang)
 	if err != nil {
 		return nil, err

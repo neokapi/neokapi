@@ -1,9 +1,13 @@
 # Bowrain mobile, starting with review: design note
 
-Status: approved by the founder on 2026-11-12, including the decisions at the
-end. Nothing here is built yet. Versions and store rules were checked on
-2026-11-12; items marked *unverified* were not
-confirmed against a primary source.
+This design records the review decisions approved on 2026-11-12. The mobile
+app now implements sign-in, review decks and an offline decision queue.
+The server selects the cards and enforces review permissions. The shared
+TypeScript client maps its responses for the app. See the [mobile app](../../bowrain/mobile/)
+and the [review plan](review-by-leverage.md) for the current workflow.
+
+The versions and store rules below were checked on 2026-11-12. Items marked
+*unverified* lacked confirmation from a primary source at that date.
 
 A mock of four screens (language list, a fast-deck card, the reason sheet, a
 stale card routed to the desk) is a private canvas shared with the founder;

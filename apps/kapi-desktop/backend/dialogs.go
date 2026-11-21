@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -210,12 +211,30 @@ func (a *App) OpenProjectDialog() (*TabInfo, error) {
 // kapi.yaml into the chosen folder. The recipe filename is fixed, so "save as"
 // relocates the project to a new folder and derives the project name from it.
 func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
-	if a.app == nil {
-		return nil, nil
+	saved, err := a.saveProjectInFolder(tabID, nil)
+	if err != nil || saved == nil {
+		return nil, err
 	}
+	return &saved.Tab, nil
+}
 
-	op := a.getOpenProject(tabID)
-	if op == nil {
+// SaveProjectSnapshot writes the submitted recipe. A canceled folder selection leaves the tab unchanged.
+func (a *App) SaveProjectSnapshot(tabID string, snapshot *project.KapiProject, saveAs bool) (*SavedProjectSnapshot, error) {
+	if snapshot == nil {
+		return nil, errors.New("project snapshot is required")
+	}
+	a.mu.RLock()
+	op := a.projects[tabID]
+	needsPath := op != nil && !op.contextOnly && (saveAs || op.Path == "")
+	a.mu.RUnlock()
+	if needsPath {
+		return a.saveProjectInFolder(tabID, snapshot)
+	}
+	return a.persistProject(tabID, snapshot, "", false)
+}
+
+func (a *App) saveProjectInFolder(tabID string, snapshot *project.KapiProject) (*SavedProjectSnapshot, error) {
+	if a.app == nil {
 		return nil, nil
 	}
 
@@ -237,18 +256,7 @@ func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 		return nil, nil // user canceled
 	}
 
-	path := filepath.Join(dir, project.RecipeFileName)
-
-	// Derive the project name from the destination folder.
-	if name := filepath.Base(dir); name != "" && name != "." && name != string(filepath.Separator) {
-		op.Project.Name = name
-	}
-
-	if err := a.SaveProjectAs(tabID, path); err != nil {
-		return nil, err
-	}
-
-	return &TabInfo{ID: tabID, Name: projectDisplayName(op.Project, path), Path: path}, nil
+	return a.persistProject(tabID, snapshot, filepath.Join(dir, project.RecipeFileName), true)
 }
 
 // BrowseProjectLocation shows a native directory picker and returns the selected path.

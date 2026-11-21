@@ -7,14 +7,95 @@ import (
 	"slices"
 	"strings"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 )
 
+// ApplyLookupDefaults fills unset LookupOptions fields with their defaults: a
+// non-positive MinScore becomes 0.8. It also puts both locales in canonical
+// form, the form the term rows are keyed by, so every backend's lookup asks
+// the store the question it can answer.
+func ApplyLookupDefaults(opts LookupOptions) LookupOptions {
+	if opts.MinScore <= 0 {
+		opts.MinScore = 0.8
+	}
+	opts.SourceLocale = model.NormalizeLocale(opts.SourceLocale)
+	opts.TargetLocale = model.NormalizeLocale(opts.TargetLocale)
+	return opts
+}
+
+// MatchModesEnabled returns the set of enabled match strategies. An empty modes
+// slice enables all of exact, normalized, and fuzzy matching.
+func MatchModesEnabled(modes []model.MatchStrategy) map[model.MatchStrategy]bool {
+	if len(modes) == 0 {
+		return map[model.MatchStrategy]bool{
+			model.MatchStrategyExact:      true,
+			model.MatchStrategyNormalized: true,
+			model.MatchStrategyFuzzy:      true,
+		}
+	}
+	m := make(map[model.MatchStrategy]bool)
+	for _, mode := range modes {
+		m[mode] = true
+	}
+	return m
+}
+
+func matchesSource(c Concept, filter []TermSource) bool {
+	if len(filter) == 0 {
+		return true
+	}
+	source := c.Source
+	if source == "" {
+		source = TermSourceTerminology
+	}
+	return slices.Contains(filter, source)
+}
+
+func matchesDomain(c Concept, domains []string) bool {
+	if len(domains) == 0 {
+		return true
+	}
+	for _, d := range domains {
+		if strings.EqualFold(c.Domain, d) {
+			return true
+		}
+	}
+	return false
+}
+
+// MatchesStatus reports whether status is in the filter. An empty filter
+// matches any status.
+func MatchesStatus(status model.TermStatus, filter []model.TermStatus) bool {
+	if len(filter) == 0 {
+		return true
+	}
+	return slices.Contains(filter, status)
+}
+
+func matchesTerm(text, term string, caseSensitive bool) bool {
+	if caseSensitive {
+		return text == term
+	}
+	return strings.EqualFold(text, term)
+}
+
+// NormalizeTerm normalizes a term for comparison by applying Unicode NFC
+// normalization, lowercasing, trimming whitespace, and collapsing internal
+// whitespace to single spaces.
+func NormalizeTerm(s string) string {
+	s = norm.NFC.String(s)
+	s = strings.ToLower(s)
+	fields := strings.Fields(s)
+	return strings.Join(fields, " ")
+}
+
 // FuzzyLengthWindow returns the inclusive term-length bounds a fuzzy candidate
 // must fall within to be able to reach minScore, for a query of queryLen runes.
-// Both backends' full-scan fallbacks pre-filter on it.
+// SQL stores apply the window to stored normalized keys.
 //
 // The fuzzy score is memory.LevenshteinRatio, which is 1 - dist/max(m,n), and
 // the edit distance between two strings is at least their length difference.
@@ -23,11 +104,7 @@ import (
 //	1 - |m-n|/max(m,n) = min(m,n)/max(m,n)
 //
 // which reaches minScore only while minScore*m <= n <= m/minScore. Deriving the
-// window from minScore keeps the pre-filter consistent with the score gate that
-// follows it. The fixed ±30% window it replaces was not: any caller asking for
-// a minScore below 0.7 lost candidates that would have passed, silently and
-// only on the full-scan path, so the two backends disagreed exactly when their
-// trigram pre-filters happened to fall through differently.
+// window from minScore bounds the scan for the selected score threshold.
 func FuzzyLengthWindow(queryLen int, minScore float64) (minLen, maxLen int) {
 	if queryLen <= 0 {
 		return 0, 0
@@ -40,7 +117,34 @@ func FuzzyLengthWindow(queryLen int, minScore float64) (minLen, maxLen int) {
 	// Floor/ceil rather than truncate, so a boundary-length candidate is
 	// admitted to the pool and rejected (or kept) by the score gate itself.
 	return int(math.Floor(float64(queryLen) * minScore)),
-		int(math.Ceil(float64(queryLen) / minScore))
+		int(min(math.MaxInt32, math.Ceil(float64(queryLen)/minScore)))
+}
+
+// FuzzyCandidateLimit is the most term rows the fuzzy tier scores for one
+// lookup. Every store keeps the same rows when more than this many fall in
+// the length window: those nearest the query's length first, then by concept
+// id and term text in byte order. SQL stores apply the order and the limit in
+// their candidate query, so a lookup never reads a whole locale.
+const FuzzyCandidateLimit = 500
+
+// boundFuzzyCandidates orders rows as FuzzyCandidateLimit describes and keeps
+// the first FuzzyCandidateLimit of them.
+func boundFuzzyCandidates(key string, rows []TermCandidate) []TermCandidate {
+	queryLen := len([]rune(key))
+	distance := func(c TermCandidate) int {
+		d := len([]rune(NormalizeTerm(c.Term.Text))) - queryLen
+		if d < 0 {
+			return -d
+		}
+		return d
+	}
+	slices.SortStableFunc(rows, func(a, b TermCandidate) int {
+		return cmp.Or(cmp.Compare(distance(a), distance(b)), cmp.Compare(a.ConceptID, b.ConceptID), cmp.Compare(a.Term.Text, b.Term.Text))
+	})
+	if len(rows) > FuzzyCandidateLimit {
+		rows = rows[:FuzzyCandidateLimit]
+	}
+	return rows
 }
 
 // TermCandidate is one scanned term row from a backend candidate query, before
@@ -52,20 +156,9 @@ type TermCandidate struct {
 	Term      Term
 }
 
-// TermCandidateSource is the dialect seam for the shared single-term tiered
-// lookup: the exact / normalized / fuzzy candidate queries plus a concept
-// hydrator. The tier gating, validity-scope filter, status filter, Levenshtein
-// fuzzy scoring and score-descending sort all live once in LookupTiered, so the
-// framework SQLite and bowrain Postgres terms stores share one ranking policy.
-//
-// Because the validity-scope filter now lives in the shared path (fed by each
-// backend's per-dialect validity reconstruction), Postgres honors term validity
-// (valid_from/valid_to) by construction — fixing the drift where its fuzzy,
-// exact and normalized paths ignored validity entirely while SQLite honored it.
-//
-// The candidate callbacks return raw rows (no filtering, no concept hydration);
-// they must populate Term.Text, Term.Locale, Term.Status and Term.Validity, and
-// may leave the rest zero.
+// TermCandidateSource supplies term rows and their owning concepts to LookupTiered.
+// Candidate queries apply locale and source constraints. The shared lookup applies
+// scope, status, domain and score filters before selecting a tier.
 type TermCandidateSource struct {
 	// Exact returns terms whose (case-folded) text equals the query text in the
 	// source locale, honoring the option's project/source scope.
@@ -74,11 +167,11 @@ type TermCandidateSource struct {
 	// the option's project/source scope. The exact tier keeps those with a
 	// declared form that is the whole query.
 	Forms func(ctx context.Context, opts LookupOptions) ([]TermCandidate, error)
-	// Normalized returns terms whose normalized text equals normalizedSource.
+	// Normalized returns terms indexed under normalizedSource.
 	Normalized func(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error)
 	// FuzzyCandidates returns a candidate pool for Levenshtein scoring against
-	// normalizedSource (the backend picks its own retrieval, e.g. a trigram
-	// pre-filter with a length-bounded full-scan fallback).
+	// normalizedSource: at most FuzzyCandidateLimit rows, chosen as it
+	// describes.
 	FuzzyCandidates func(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error)
 	// Concept hydrates the full owning concept (with all its terms).
 	Concept func(ctx context.Context, conceptID string) (Concept, error)
@@ -93,92 +186,92 @@ type TermCandidateSource struct {
 // status filters; fuzzy candidates additionally must reach opts.MinScore by
 // Levenshtein ratio. Results sort by score descending.
 func LookupTiered(ctx context.Context, sourceText string, opts LookupOptions, src TermCandidateSource) ([]TermMatch, error) {
-	if sourceText == "" {
+	return lookupTiers(ctx, sourceText, opts, func(mode model.MatchStrategy, key string, opts LookupOptions) ([]TermCandidate, error) {
+		switch mode {
+		case model.MatchStrategyExact:
+			exact, err := src.Exact(ctx, key, opts)
+			if err != nil {
+				return nil, err
+			}
+			withForms, err := src.Forms(ctx, opts)
+			if err != nil {
+				return nil, err
+			}
+			return append(exact, formsNamingQuery(key, withForms, opts.CaseSensitive)...), nil
+		case model.MatchStrategyNormalized:
+			rows, err := src.Normalized(ctx, key, opts)
+			if err != nil {
+				return nil, err
+			}
+			var matched []TermCandidate
+			for _, row := range rows {
+				if NormalizeTerm(row.Term.Text) == key {
+					matched = append(matched, row)
+				}
+			}
+			return matched, nil
+		default:
+			return src.FuzzyCandidates(ctx, key, opts)
+		}
+	}, src.Concept)
+}
+
+func lookupTiers(ctx context.Context, text string, opts LookupOptions,
+	candidates func(model.MatchStrategy, string, LookupOptions) ([]TermCandidate, error),
+	hydrate func(context.Context, string) (Concept, error),
+) ([]TermMatch, error) {
+	if text == "" {
 		return nil, nil
 	}
 	opts = ApplyLookupDefaults(opts)
-	modeEnabled := MatchModesEnabled(opts.MatchModes)
-	normalizedSource := NormalizeTerm(sourceText)
-	var matches []TermMatch
-
-	if modeEnabled[model.MatchStrategyExact] {
-		cands, err := src.Exact(ctx, sourceText, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, buildTermMatches(ctx, cands, 1.0, model.MatchStrategyExact, "", opts, src.Concept)...)
-
-		withForms, err := src.Forms(ctx, opts)
-		if err != nil {
-			return nil, err
-		}
-		byForm := formsNamingQuery(sourceText, withForms, opts.CaseSensitive)
-		matches = append(matches, buildTermMatches(ctx, byForm, 1.0, model.MatchStrategyExact, "", opts, src.Concept)...)
-	}
-
-	if modeEnabled[model.MatchStrategyNormalized] && len(matches) == 0 {
-		cands, err := src.Normalized(ctx, normalizedSource, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, buildTermMatches(ctx, cands, 0.95, model.MatchStrategyNormalized, "", opts, src.Concept)...)
-	}
-
-	if modeEnabled[model.MatchStrategyFuzzy] && len(matches) == 0 {
-		cands, err := src.FuzzyCandidates(ctx, normalizedSource, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, buildTermMatches(ctx, cands, 0, model.MatchStrategyFuzzy, normalizedSource, opts, src.Concept)...)
-	}
-
-	// Score descending, with a deterministic tiebreak (concept ID, then term
-	// text) so equal-score matches order identically across backends.
-	slices.SortFunc(matches, func(a, b TermMatch) int {
-		if c := cmp.Compare(b.Score, a.Score); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.Concept.ID, b.Concept.ID); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Term.Text, b.Term.Text)
-	})
-	return matches, nil
-}
-
-// buildTermMatches applies the shared per-candidate filters and concept
-// hydration. For the fuzzy tier (fuzzyKey != "") the score is the Levenshtein
-// ratio against the candidate's normalized text, gated by opts.MinScore; the
-// exact and normalized tiers use fixedScore. A candidate whose concept fails to
-// hydrate is skipped (matching the historical per-backend behavior).
-func buildTermMatches(ctx context.Context, cands []TermCandidate, fixedScore float64, mt model.MatchStrategy, fuzzyKey string, opts LookupOptions, hydrate func(context.Context, string) (Concept, error)) []TermMatch {
-	var matches []TermMatch
-	for _, c := range cands {
-		if !MatchesScope(c.Term.Validity, opts.Scope) {
+	enabled := MatchModesEnabled(opts.MatchModes)
+	normalized := NormalizeTerm(text)
+	for _, mode := range []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized, model.MatchStrategyFuzzy} {
+		if !enabled[mode] {
 			continue
 		}
-		if !MatchesStatus(c.Term.Status, opts.StatusFilter) {
-			continue
+		key := normalized
+		if mode == model.MatchStrategyExact {
+			key = text
 		}
-		score := fixedScore
-		if fuzzyKey != "" {
-			score = memory.LevenshteinRatio(fuzzyKey, NormalizeTerm(c.Term.Text))
-			if score < opts.MinScore {
+		rows, err := candidates(mode, key, opts)
+		if err != nil {
+			return nil, err
+		}
+		if mode == model.MatchStrategyFuzzy {
+			rows = boundFuzzyCandidates(key, rows)
+		}
+		var matches []TermMatch
+		for _, row := range rows {
+			if !opts.includesConcept(row.ConceptID) || !MatchesScope(row.Term.Validity, opts.Scope) || !MatchesStatus(row.Term.Status, opts.StatusFilter) {
 				continue
 			}
+			score := 1.0
+			switch mode {
+			case model.MatchStrategyNormalized:
+				score = 0.95
+			case model.MatchStrategyFuzzy:
+				score = memory.LevenshteinRatio(key, NormalizeTerm(row.Term.Text))
+				if score < opts.MinScore {
+					continue
+				}
+			}
+			concept, err := hydrate(ctx, row.ConceptID)
+			if err != nil {
+				return nil, err
+			}
+			if matchesDomain(concept, opts.Domains) && matchesSource(concept, opts.SourceFilter) {
+				matches = append(matches, TermMatch{Concept: concept, Term: row.Term, Score: score, MatchType: mode})
+			}
 		}
-		concept, err := hydrate(ctx, c.ConceptID)
-		if err != nil {
-			continue
+		if len(matches) > 0 {
+			slices.SortFunc(matches, func(a, b TermMatch) int {
+				return cmp.Or(cmp.Compare(b.Score, a.Score), cmp.Compare(a.Concept.ID, b.Concept.ID), cmp.Compare(a.Term.Text, b.Term.Text))
+			})
+			return matches, nil
 		}
-		matches = append(matches, TermMatch{
-			Concept:   concept,
-			Term:      c.Term,
-			Score:     score,
-			MatchType: mt,
-		})
 	}
-	return matches
+	return nil, nil
 }
 
 // formsNamingQuery keeps the candidates with a declared form that is the whole
@@ -220,28 +313,11 @@ type LocaleTerm struct {
 	Term    Term
 }
 
-// LookupAllTiered finds every occurrence of the given terms in sourceText,
-// de-duplicating identical (text, position) hits and preferring a
-// project-scoped concept when the option names a project. Validity-scope
-// filtering lives here so both backends honor it identically. Results sort by
-// start position, then longest match first.
-//
-// Occurrences are found by the shared check.TermMatcher — the same rule the
-// voice-profile vocabulary, the do-not-translate check and the occurrence graph
-// use — so a word is a hit for the whole gate or for none of it. Where two
-// declared terms cover the same words, the longer one wins: a project that has
-// declared `mooring_id` a concept of its own has said that those characters are
-// not a use of the retired `mooring` inside them, and reporting both would be
-// the graph contradicting itself.
-//
-// A term is found under its text and under every form it declares, so "Two
-// alerts" is a use of a term "alert" that lists "alerts". The match reports the
-// term, and its position covers the form as the text spells it.
-//
-// Postgres inherits the (text, position) de-duplication by construction; its
-// terms is workspace-scoped and carries no project_id, so the
-// project-priority preference is inert there while the de-duplication and
-// validity filtering are shared.
+// LookupAllTiered locates eligible terms and their declared forms in sourceText.
+// Each match reports the term and the byte range of its spelling in the text.
+// Duplicate occurrences prefer the requested project's concept, then the lowest
+// concept ID. A longer declared match suppresses a term contained within it.
+// Results are ordered by position, then by decreasing length.
 func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) []TermMatch {
 	if sourceText == "" {
 		return nil
@@ -256,7 +332,7 @@ func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) 
 	seen := make(map[matchKey]int)
 
 	for _, entry := range terms {
-		if !MatchesScope(entry.Term.Validity, opts.Scope) {
+		if !opts.includesConcept(entry.Concept.ID) || !matchesDomain(entry.Concept, opts.Domains) || !matchesSource(entry.Concept, opts.SourceFilter) || !MatchesScope(entry.Term.Validity, opts.Scope) {
 			continue
 		}
 		surfaces := entry.Term.Surfaces()
@@ -277,8 +353,10 @@ func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) 
 			}
 
 			if existingIdx, exists := seen[k]; exists {
-				if opts.ProjectID != "" && entry.Concept.ProjectID == opts.ProjectID &&
-					matches[existingIdx].Concept.ProjectID != opts.ProjectID {
+				previous := matches[existingIdx].Concept
+				preferred := opts.ProjectID != "" && entry.Concept.ProjectID == opts.ProjectID
+				previousPreferred := opts.ProjectID != "" && previous.ProjectID == opts.ProjectID
+				if (preferred && !previousPreferred) || (preferred == previousPreferred && entry.Concept.ID < previous.ID) {
 					matches[existingIdx] = m
 				}
 				continue

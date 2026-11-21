@@ -438,21 +438,24 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 		}
 		return serverErr(c, err)
 	}
-	// An origin-carrying change-set is an automated proposal, and the origin
-	// admits one open proposal at a time (see knowledge.SubmitChangeSet).
-	res, err := knowledge.SubmitChangeSet(ctx, s.KnowledgeStore, cs, ops)
-	for _, prior := range res.Superseded {
-		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-			changesetEvent(knowledge.EventChangeSetSuperseded, wsID, prior, actor),
-		})
-		// The superseded review is over; nobody should keep a task for it.
-		s.closeChangeSetReviewTasks(ctx, wsID, prior, actor)
+	var tb knowledge.ConceptStore
+	if cs.Origin != "" && s.wsStores != nil {
+		tb, err = s.wsStores.getTerms(ctx, c.Param("ws"))
+		if err != nil {
+			return serverErrStatus(c, http.StatusServiceUnavailable, err)
+		}
 	}
+	engine := knowledge.NewEngine(nil, tb, s.KnowledgeStore)
+	res, err := engine.SubmitChangeSet(ctx, cs, ops)
 	if errors.Is(err, knowledge.ErrSubmitRefused) {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 	if err != nil {
 		return serverErr(c, err)
+	}
+	s.publishKnowledgeEvents(c, res.RetirementEvents(actor, ""))
+	for _, prior := range res.Superseded {
+		s.closeChangeSetReviewTasks(ctx, wsID, prior, actor)
 	}
 	if res.Unchanged {
 		return s.refreshedChangeSet(c, wsID, res.ID)
@@ -680,20 +683,16 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 	if cs == nil {
 		return resp
 	}
-	if cs.Status == knowledge.ChangeSetMerged || cs.Status == knowledge.ChangeSetAbandoned {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: fmt.Sprintf("change-set is already %s", cs.Status)})
-	}
-
 	engine, err := s.knowledgeEngineFor(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	_, pilotEvents, err := engine.StopAllPilots(ctx, wsID, s.KnowledgeStore, *cs)
+	pilotEvents, err := engine.AbandonChangeSet(ctx, wsID, s.KnowledgeStore, *cs)
+	if errors.Is(err, knowledge.ErrPilotChangeSetClosed) {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	}
 	if err != nil {
 		return serverErr(c, err)
-	}
-	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetAbandoned); err != nil {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 
 	pilotEvents = append(pilotEvents, changesetEvent(knowledge.EventChangeSetAbandoned, wsID, cs.ID, actor))
@@ -836,6 +835,12 @@ func (s *Server) HandleStartPilot(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "stream is required"})
 	}
 	pilot, err := engine.StartPilot(ctx, wsID, s.KnowledgeStore, *cs, req.ProjectID, req.Stream)
+	if errors.Is(err, knowledge.ErrInvalidPilotProject) {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project_id must identify one project without surrounding whitespace or commas"})
+	}
+	if errors.Is(err, knowledge.ErrPilotChangeSetClosed) {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	}
 	if err != nil {
 		return serverErr(c, err)
 	}

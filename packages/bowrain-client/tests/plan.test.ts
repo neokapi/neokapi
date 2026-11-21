@@ -404,6 +404,12 @@ describe("involvement overrides", () => {
     expect(pointKey(c)).toBe("brand=acme,channel=ui,product=app");
   });
 
+  it("distinguishes a coordinate value containing another axis from a separate axis", () => {
+    expect(pointKey({ channel: "ui,product=app" })).not.toBe(
+      pointKey({ channel: "ui", product: "app" }),
+    );
+  });
+
   it("offers each product and product with a channel not yet set", () => {
     const points = [
       { collection: "a", coordinates: { product: "app", channel: "ui" }, sourceOnly: false },

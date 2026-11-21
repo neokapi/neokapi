@@ -93,6 +93,17 @@ func TestLocateCommentsNeverReadsContentAsAComment(t *testing.T) {
 	assert.Empty(t, got.Excluded)
 }
 
+func TestLocateCommentsHandlesUnicodeKeysAndTaggedBodies(t *testing.T) {
+	src := []byte("日本語: !!str 'text # inside quotes' # beside value\n本文: &body # beside anchor\n  !!str |2\n    # inside body\n  # also inside body\n")
+	got, err := LocateComments(src)
+	require.NoError(t, err)
+	var located []string
+	for _, c := range got.Comments {
+		located = append(located, string(src[c.Start:c.End]))
+	}
+	assert.Equal(t, []string{"# beside value", "# beside anchor"}, located)
+}
+
 func TestLocateCommentsRefusesADisagreement(t *testing.T) {
 	w := &commentWalk{src: []byte("key: value # real\n"), parsed: []string{"# real", "# missing"}}
 	err := w.agree(w.scan())

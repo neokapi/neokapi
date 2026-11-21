@@ -14,6 +14,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // testPlanSnapshotConfig refreshes in tens of milliseconds, so a test waits
@@ -231,4 +232,29 @@ func TestPlanSnapshot_NoRefreshCountsEachRead(t *testing.T) {
 	plan := readPlan(t, s, wsID, projID)
 	assert.NotEmpty(t, plan.AsOf)
 	assert.Nil(t, planSnapshotRow(t, s, projID))
+}
+
+func TestPlanSnapshot_InterfaceOverrideRecountsPages(t *testing.T) {
+	s, wsID, owner := newRecheckHarness(t)
+	projID, _ := involvementProject(t, s, wsID)
+	ctx := t.Context()
+	const item = "app/settings.json"
+	require.NoError(t, s.ContentStore.StoreItem(ctx, projID, "main", &platstore.Item{
+		Name: item, Format: "txt", ItemType: "file", CollectionID: "col-app",
+	}))
+	require.NoError(t, s.ContentStore.StoreBlocksForItem(ctx, projID, "main", item, []*model.Block{
+		pendingFrBlock("settings", "Settings", "Paramètres"),
+	}))
+	cfg := testPlanSnapshotConfig
+	cfg.poll = time.Hour
+	r := startTestPlanSnapshotsWith(t, s, cfg)
+	before := readPlan(t, s, wsID, projID)
+	require.Len(t, before.Languages, 1)
+	require.Equal(t, 2, before.Languages[0].Pages)
+
+	putOverrides(t, s, wsID, projID, owner, `{"overrides":[{"coordinates":{"product":"app"},"involvement":"interfaces"}]}`)
+	after := readPlan(t, s, wsID, projID)
+	require.Len(t, after.Languages, 1)
+	assert.Equal(t, 3, after.Languages[0].Pages)
+	assert.EqualValues(t, 2, r.computes.Load())
 }

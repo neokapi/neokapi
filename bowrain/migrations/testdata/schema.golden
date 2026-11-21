@@ -1007,6 +1007,7 @@ tb_terms.status text NOT NULL DEFAULT 'approved'::text
 tb_terms.tags jsonb NOT NULL DEFAULT '{}'::jsonb
 tb_terms.text text NOT NULL
 tb_terms.text_lower text NOT NULL
+tb_terms.text_normalized text NOT NULL DEFAULT ''::text
 tb_terms.valid_from timestamp with time zone NULL
 tb_terms.valid_to timestamp with time zone NULL
 tb_terms.workspace_id text NOT NULL
@@ -1724,6 +1725,7 @@ CREATE INDEX idx_tb_terms_search_tsv ON public.tb_terms USING gin (search_tsv)
 CREATE INDEX idx_tb_terms_trgm ON public.tb_terms USING gin (text_lower gin_trgm_ops)
 CREATE INDEX idx_tb_terms_ws_concept ON public.tb_terms USING btree (workspace_id, concept_id)
 CREATE INDEX idx_tb_terms_ws_locale ON public.tb_terms USING btree (workspace_id, locale)
+CREATE INDEX idx_tb_terms_ws_normalized ON public.tb_terms USING btree (workspace_id, locale, text_normalized)
 CREATE INDEX idx_tb_terms_ws_text ON public.tb_terms USING btree (workspace_id, text_lower, locale)
 CREATE INDEX idx_tm_entities_concept ON public.tm_entry_entities USING btree (workspace_id, concept_id)
 CREATE INDEX idx_tm_entities_type ON public.tm_entry_entities USING btree (workspace_id, entity_type)

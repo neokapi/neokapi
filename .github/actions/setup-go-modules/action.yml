@@ -110,10 +110,7 @@ runs:
 
     - name: Create embed placeholders
       shell: bash
-      run: |
-        mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-        mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
-        mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
+      run: make go-embed-placeholders
 
     # The embedded gettext catalogs are build output — the repository carries
     # the translated JSON they are compiled from. core/i18n and host/i18n

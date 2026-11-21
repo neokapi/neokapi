@@ -278,23 +278,21 @@ export function useTabManager() {
     [addTab, showError],
   );
 
-  // Refresh an out-of-date sample to the version bundled with this kapi. The
-  // backend backs up the old copy, re-scaffolds, and returns a NEW tab (the
-  // project is reopened), so swap the old tab for the new one in local state.
   const resetSample = useCallback(
     async (tabID: string) => {
       try {
         const tab = await api.resetSampleProject(tabID);
-        setTabs((prev) => prev.filter((t) => t.info.id !== tabID));
-        if (tab) {
-          const proj = await api.getProject(tab.id);
-          if (proj) await addTab(tab, proj);
-        }
+        if (!tab) return;
+        const project = await api.getProject(tab.id);
+        if (!project) return;
+        updateTab(tab.id, { info: tab, project, view: landingView() });
+        await checkPluginStatus(tab.id);
+        return project;
       } catch (err) {
         showError("Failed to reset sample", err);
       }
     },
-    [addTab, showError],
+    [checkPluginStatus, updateTab, showError],
   );
 
   // --- Startup: read the persisted session, reopen projects ---
