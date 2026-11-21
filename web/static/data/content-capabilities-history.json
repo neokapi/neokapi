@@ -513,49 +513,6 @@
       "yaml-catalog": {
         "project-text": "verified"
       }
-    },
-    "connectors": {
-      "bowrain-source": {
-        "pull": "verified",
-        "push": "verified",
-        "registration": "declared"
-      },
-      "figma": {
-        "fetch": "verified",
-        "list": "unverified",
-        "publish": "unsupported",
-        "registration": "declared"
-      },
-      "file": {
-        "fetch": "verified",
-        "list": "verified",
-        "publish": "verified",
-        "registration": "declared"
-      },
-      "forge": {
-        "fetch": "unverified",
-        "list": "unverified",
-        "publish": "verified",
-        "registration": "declared"
-      },
-      "git": {
-        "fetch": "unverified",
-        "list": "unverified",
-        "publish": "unverified",
-        "registration": "declared"
-      },
-      "hubspot": {
-        "fetch": "verified",
-        "list": "unverified",
-        "publish": "verified",
-        "registration": "declared"
-      },
-      "wordpress": {
-        "fetch": "verified",
-        "list": "unverified",
-        "publish": "verified",
-        "registration": "declared"
-      }
     }
   }
 ]

@@ -4,6 +4,13 @@
 // records passing certification gates. See docs/internals/format-maturity.md.
 // Use --dry-run to inspect grades, --date to pin the date and --check to verify
 // the published measurements without changing files.
+//
+// --check verifies three things and nothing repository-wide: that the committed
+// dataset agrees with its own projections (history, docs block, evaluation
+// index) and the support declarations, and that a fresh measurement lowers no
+// committed grade. A higher grade or a new format is reported for the next
+// scheduled refresh. The ledger's watermarks and run records belong to that
+// refresh, so the check neither compares nor writes them.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, renameSync } from 'node:fs'
@@ -11,7 +18,7 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { assertTierMinimum, formatTreeDigest, nextAxisGaps } from './lib.mjs'
+import { assertTierMinimum, formatRegressions, formatTreeDigest, nextAxisGaps } from './lib.mjs'
 
 const ROOT = process.cwd()
 const argv = process.argv.slice(2)
@@ -56,7 +63,8 @@ async function loadScorer() {
 const S = await loadScorer()
 
 // Score repository evidence against the same gates used for a reviewed publication.
-const auditJson = execFileSync('python3', [P.audit, '--all', '--json', '--repository-only', '--ledger', P.ledger], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 }).toString()
+const auditArgs = [P.audit, '--all', '--json', '--repository-only', '--ledger', P.ledger, ...(CHECK ? ['--replay-receipts'] : [])]
+const auditJson = execFileSync('python3', auditArgs, { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 }).toString()
 const auditSha = createHash('sha256').update(auditJson).digest('hex')
 const floors = JSON.parse(auditJson)
 const readYaml = 'import json,sys,yaml; print(json.dumps(yaml.safe_load(sys.stdin), default=str))'
@@ -163,16 +171,37 @@ const runIntegrity = {
   prose: { probe_version: proseReport.probe_version, tags: proseReport.tags,
     canaries: proseReport.canaries.map((c) => ({ id: c.id, presence: c.presence, level: c.level || null })) },
 }
+const SOURCE = 'Repository audit and Prose probe with prior quality reviews retained'
 const dataset = S.buildDataset(rows, runIntegrity, tierByFmt, languages)
 dataset.generated_at = TODAY
-dataset.source = 'Repository audit and Prose probe with prior quality reviews retained'
+dataset.source = SOURCE
+
+// ── check mode: the committed dataset is the publication under test ─────────
+// Its projections are rendered from it, and the fresh measurement may only
+// confirm or raise its grades.
+let published = dataset
+if (CHECK) {
+  const consistent = S.buildDataset(prior.formats, prior.run_integrity, tierByFmt, prior.languages)
+  consistent.generated_at = prior.generated_at
+  consistent.source = prior.source
+  if (JSON.stringify(consistent) !== JSON.stringify(prior)) throw new Error('The summary in ' + P.dataset + ' disagrees with its rows.')
+  const declared = new Map(rows.map(r => [r.id, JSON.stringify(r.tier)]))
+  const tiers = prior.formats.filter(r => declared.has(r.id) && declared.get(r.id) !== JSON.stringify(r.tier)).map(r => r.id)
+  if (tiers.length) throw new Error('Support declarations in ' + P.support + ' differ from ' + P.dataset + ' for ' + tiers.join(', ') + '. Run make refresh-content-maturity.')
+  const { regressions, changes } = formatRegressions(prior.formats, rows, S.AXES)
+  if (regressions.length) throw new Error('A fresh measurement lowers committed grades:\n  ' + regressions.join('\n  '))
+  for (const change of changes) console.log('bootstrap-publish: the next refresh records ' + change)
+  published = prior
+}
+const shownRows = published.formats
+const shownLanguages = published.languages
 
 // ── distributions for the summary line + docs block ─────────────────────────
 const byAxisDist = {}
 for (const axis of S.AXIS_IDS) {
   byAxisDist[axis] = {}
   for (const g of S.AXES[axis]) byAxisDist[axis][g] = 0
-  for (const r of rows) byAxisDist[axis][r.levels[axis]]++
+  for (const r of shownRows) byAxisDist[axis][r.levels[axis]]++
 }
 
 if (DRY) {
@@ -183,12 +212,13 @@ if (DRY) {
 }
 
 // ── write the dataset (2-space) ─────────────────────────────────────────────
-const projections = new Map([[P.dataset, JSON.stringify(dataset, null, 2) + '\n']])
+const projections = new Map([[P.dataset, JSON.stringify(published, null, 2) + '\n']])
 
 // ── history: remove TODAY then append; never rewrite old entries ────────────
 const history = existsSync(P.history) ? JSON.parse(readFileSync(P.history, 'utf8')) : []
 const kept = history.filter((h) => h.date !== TODAY)
-kept.push({ date: TODAY, total: dataset.summary.total, by_level: dataset.summary.by_level, by_axis: dataset.summary.by_axis, languages: dataset.summary.languages, moves: runIntegrity.moves })
+const summary = published.summary
+kept.push({ date: TODAY, total: summary.total, by_level: summary.by_level, by_axis: summary.by_axis, languages: summary.languages, moves: published.run_integrity.moves })
 kept.sort((a, b) => a.date.localeCompare(b.date))
 projections.set(P.history, JSON.stringify(kept, null, 2) + '\n')
 
@@ -224,7 +254,7 @@ function renderDocsBlock() {
   const cols = ['Format', 'Tier', ...S.AXIS_IDS.map((a) => S.AXIS_LABELS[a]), 'Top engine gap']
   L.push(`| ${cols.join(' | ')} |`)
   L.push(`|${cols.map(() => '---').join('|')}|`)
-  for (const r of rows.slice().sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const r of shownRows.slice().sort((a, b) => a.id.localeCompare(b.id))) {
     const t = r.tier && r.tier.declared ? r.tier.declared : 'unlisted'
     const gap = (r.blocking_gaps[0] || 'none').slice(0, 60)
     const cells = [`\`${r.id}\``, t, ...S.AXIS_IDS.map((a) => r.levels[a]), gap]
@@ -238,7 +268,7 @@ function renderDocsBlock() {
   L.push('')
   L.push('| Language | Presence | Prose | P1 | P2 | P3 | P4 | Presence reason |')
   L.push('|---|---|---|---|---|---|---|---|')
-  for (const l of languages) {
+  for (const l of shownLanguages) {
     const rungs = ['P1', 'P2', 'P3', 'P4'].map((g) => l.rungs[g].outcome)
     const reason = (l.presence_reason || '').split('\n')[0].replace(/\|/g, '/')
     L.push(`| \`${l.id}\` | ${l.presence} | ${l.level || 'none'} | ${rungs.join(' | ')} | ${reason} |`)
@@ -247,7 +277,7 @@ function renderDocsBlock() {
 }
 
 // ── ledger: triage-score watermarks + run record ────────────────────────────
-if (existsSync(P.ledger)) {
+if (!CHECK && existsSync(P.ledger)) {
   const ledger = JSON.parse(readFileSync(P.ledger, 'utf8'))
   let coreSha = ''
   try { coreSha = execFileSync('git', ['log', '-1', '--format=%H', '--', 'core/formats'], { cwd: ROOT }).toString().trim() } catch {}
@@ -255,7 +285,7 @@ if (existsSync(P.ledger)) {
   if (ts) {
     ts.last_run = TODAY
     ts.watermarks = ts.watermarks || {}
-    if (!CHECK || !ts.watermarks.core_formats_sha) ts.watermarks.core_formats_sha = coreSha
+    ts.watermarks.core_formats_sha = coreSha
     ts.watermarks.format_tree_sha256 = formatTreeDigest(ROOT)
     ts.watermarks.audit_sha = auditSha
     ts.watermarks.scorer_version = 5
@@ -292,4 +322,4 @@ if (readFileSync(indexPath, 'utf8') !== index) {
   if (CHECK) throw new Error('Stale evaluation index: ' + indexPath)
   writeFileSync(indexPath, index)
 }
-console.log(`bootstrap-publish: ${CHECK ? 'checked' : 'published'} ${rows.length} formats on ${TODAY}`)
+console.log(`bootstrap-publish: ${CHECK ? 'checked' : 'published'} ${shownRows.length} formats on ${TODAY}`)

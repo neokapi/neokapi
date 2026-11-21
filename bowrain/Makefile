@@ -457,6 +457,23 @@ test-e2e-cloud: ## Run cloud e2e tests against a live server (set BOWRAIN_URL)
 test-e2e-dev: ## Run cloud e2e tests against the dev environment
 	bash e2e/cloud/run-dev.sh
 
+# ── Connector maturity ───────────────────────────────────────────────────────
+# The connector half of the content maturity report. The probes run the
+# connector operation tests, and the dataset is served by the Bowrain docs
+# site. See docs/internals/content-maturity.md.
+
+CONNECTOR_MATURITY := node bowrain/scripts/connector-maturity/connector-maturity.mjs
+
+.PHONY: test-connector-maturity check-connector-maturity refresh-connector-maturity
+test-connector-maturity: ## Test the connector maturity tooling
+	cd $(ROOT_DIR) && node --test bowrain/scripts/connector-maturity/*.test.mjs
+
+check-connector-maturity: i18n-catalogs test-connector-maturity ## Probe the connectors and check the published connector report
+	cd $(ROOT_DIR) && $(CONNECTOR_MATURITY) --check $${MATURITY_HISTORY_BASE:+--history-base "$$MATURITY_HISTORY_BASE"}
+
+refresh-connector-maturity: i18n-catalogs test-connector-maturity ## Probe the connectors and record a dated observation
+	cd $(ROOT_DIR) && $(CONNECTOR_MATURITY) --write $${MATURITY_DATE:+--date "$$MATURITY_DATE"}
+
 # ── Test ─────────────────────────────────────────────────────────────────────
 
 test: i18n-catalogs ## Run all platform tests

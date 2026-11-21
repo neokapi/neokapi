@@ -38,11 +38,11 @@ var evals = []Eval{
 	},
 	{
 		ID:     "format-maturity",
-		Title:  "Format and connector maturity",
+		Title:  "Format and output maturity",
 		Method: MethodDeterministic,
 		Status: StatusMeasured,
-		Corpus: "Format packages, registered conversion targets and built-in content connectors.",
-		Covers: "Format evidence and support tiers, conversions exercised through kconv, and connector operations exercised against fixtures.",
+		Corpus: "Format packages and registered conversion targets.",
+		Covers: "Format evidence and support tiers, and conversions exercised through kconv.",
 		Misses: "Rubric levels summarize tested capabilities. Results on your documents require separate " +
 			"verification.",
 		Reproduce: "make check-content-maturity",

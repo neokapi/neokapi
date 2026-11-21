@@ -2854,7 +2854,7 @@ check-content-maturity: test-content-maturity ## Measure format, output and conn
 	node scripts/format-ops/content-maturity.mjs --check $${MATURITY_HISTORY_BASE:+--history-base "$$MATURITY_HISTORY_BASE"}
 
 refresh-content-maturity: test-content-maturity ## Measure content support and update the dated reports
-	node scripts/format-ops/content-maturity.mjs --write
+	node scripts/format-ops/content-maturity.mjs --write $${MATURITY_DATE:+--date "$$MATURITY_DATE"}
 	node scripts/format-ops/validate-ledger.mjs
 
 # prose-probe scores the Prose maturity axis (docs/internals/format-maturity.md

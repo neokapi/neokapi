@@ -110,6 +110,14 @@ class ReceiptTests(unittest.TestCase):
                 else:
                     candidate.write_bytes(previous)
 
+    def test_a_replayed_receipt_ignores_later_changes_but_not_ancestry(self):
+        (self.root / "core/model/block.go").write_text("package changed\n")
+        self.git("commit", "-qam", "Change a tested input")
+        self.assertEqual("unknown", self.result(self.receipt))
+        with patch.object(audit.sys, "argv", ["audit-format.py", "--replay-receipts"]):
+            self.assertEqual("green", self.result(self.receipt))
+            self.assertEqual("unknown", self.result({**self.receipt, "head_sha": "f" * 40}))
+
 
 if __name__ == "__main__":
     unittest.main()

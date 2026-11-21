@@ -127,9 +127,10 @@ export function assertTierMinimum(id, declaration, levels) {
   }
 }
 
-// Include new formats before their first commit. The same files after checkout have the same digest.
+// Hash the tracked files under core/formats, so a clone and a checkout with
+// untracked scratch files produce the same digest.
 export function formatTreeDigest(root) {
-  const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "core/formats"], {
+  const files = execFileSync("git", ["ls-files", "--cached", "-z", "--", "core/formats"], {
     cwd: root, encoding: "utf8",
   }).split("\0").filter(Boolean).sort();
   const digest = crypto.createHash("sha256");
@@ -228,4 +229,30 @@ export function walkFiles(dir, rel = "") {
     else if (e.isFile()) out.push(r);
   }
   return out;
+}
+
+/**
+ * Compare a committed format dataset with a fresh measurement of the same
+ * checkout. A lower grade on any axis is a regression. A higher grade, a new
+ * or removed format and a changed gap are changes the scheduled refresh
+ * records. `axes` maps each axis to its grades in ascending order.
+ */
+export function formatRegressions(committed, fresh, axes) {
+  const now = new Map(fresh.map(row => [row.id, row]));
+  const before = new Map(committed.map(row => [row.id, row]));
+  const regressions = [], changes = [];
+  for (const [id, row] of before) {
+    const next = now.get(id);
+    if (!next) { changes.push(id + ' is no longer measured'); continue; }
+    for (const [axis, grades] of Object.entries(axes)) {
+      const was = row.levels?.[axis], is = next.levels?.[axis];
+      if (was === is) continue;
+      const line = id + ' ' + axis + ' ' + (was ?? 'absent') + ' -> ' + (is ?? 'absent');
+      if (grades.indexOf(is) < grades.indexOf(was)) regressions.push(line);
+      else changes.push(line);
+    }
+    if (JSON.stringify(row.blocking_gaps) !== JSON.stringify(next.blocking_gaps)) changes.push(id + ' blocking gaps changed');
+  }
+  for (const id of now.keys()) if (!before.has(id)) changes.push(id + ' is newly measured');
+  return { regressions, changes };
 }

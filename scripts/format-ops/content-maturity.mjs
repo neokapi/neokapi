@@ -41,7 +41,7 @@ export function capabilityRows(root, rows, kind) {
       for (const ref of cap.evidence) {
         const [file, anchor, extra] = ref.split('#');
         if (!file || isAbsolute(file) || file.includes('\\') || normalize(file) !== file || file.startsWith('../') ||
-            extra !== undefined || !statSync(resolve(root, file)).isFile()) throw new Error('Invalid evidence file: ' + ref);
+            extra !== undefined || !existsSync(resolve(root, file)) || !statSync(resolve(root, file)).isFile()) throw new Error('Invalid evidence file: ' + ref);
         if (anchor !== undefined && (!/^[A-Za-z_]\w*$/.test(anchor) ||
             !new RegExp('\\b' + anchor + '\\b').test(readFileSync(resolve(root, file), 'utf8')))) {
           throw new Error('Missing evidence anchor: ' + ref);
@@ -53,8 +53,56 @@ export function capabilityRows(root, rows, kind) {
 }
 
 const formatLevels = data => Object.fromEntries(data.formats.map(row => [row.id, row.level]).sort());
-const states = rows => Object.fromEntries(rows.map(row =>
+export const states = rows => Object.fromEntries(rows.map(row =>
   [row.id, Object.fromEntries(row.capabilities.map(cap => [cap.id, cap.status]))]));
+
+// Evidence states from weakest to strongest. A fresh probe that moves an
+// operation down this order is a regression.
+const strength = ['failed', 'unverified', 'unsupported', 'declared', 'verified'];
+
+/**
+ * Compare committed capability rows with a fresh probe of the same checkout.
+ * A weaker status, or an operation of a measured subject that the probe no
+ * longer reports, is a regression. A stronger status, a new subject or
+ * operation, a removed subject and changed details or evidence are changes the
+ * scheduled refresh records.
+ */
+export function capabilityRegressions(committed, fresh) {
+  const now = new Map(fresh.map(row => [row.id, new Map(row.capabilities.map(cap => [cap.id, cap]))]));
+  const regressions = [], changes = [];
+  for (const row of committed) {
+    const probed = now.get(row.id);
+    if (!probed) { changes.push(row.id + ' is no longer measured'); continue; }
+    for (const cap of row.capabilities) {
+      const next = probed.get(cap.id);
+      const name = row.id + '/' + cap.id;
+      if (!next) regressions.push(name + ' is no longer measured');
+      else if (strength.indexOf(next.status) < strength.indexOf(cap.status)) regressions.push(name + ' ' + cap.status + ' -> ' + next.status);
+      else if (next.status !== cap.status) changes.push(name + ' ' + cap.status + ' -> ' + next.status);
+      else if (next.detail !== cap.detail || next.evidence.join() !== cap.evidence.join()) changes.push(name + ' evidence changed');
+    }
+    for (const id of probed.keys()) if (!row.capabilities.some(cap => cap.id === id)) changes.push(row.id + '/' + id + ' is newly measured');
+  }
+  for (const id of now.keys()) if (!committed.some(row => row.id === id)) changes.push(id + ' is newly measured');
+  return { regressions, changes };
+}
+
+/**
+ * Settle one capability group. With check, the committed rows are the
+ * publication: their evidence must resolve, they must be in canonical order,
+ * and the fresh probe may not weaken them. Without check, the fresh probe is
+ * the new publication.
+ */
+export function settleCapabilities({ root, check, file, kind, group, committed, fresh }) {
+  const probed = capabilityRows(root, fresh, kind);
+  if (!check) return probed;
+  const rows = capabilityRows(root, committed?.[group] ?? [], kind);
+  if (JSON.stringify(rows) !== JSON.stringify(committed[group])) throw new Error('Rows in ' + file + ' are not in canonical form.');
+  const { regressions, changes } = capabilityRegressions(rows, probed);
+  if (regressions.length) throw new Error('A fresh probe weakens committed ' + kind + ' evidence:\n  ' + regressions.join('\n  '));
+  for (const change of changes) console.log('content-maturity: the next refresh records ' + kind + ' ' + change);
+  return rows;
+}
 
 export function recordHistory(history, current) {
   let previous = '';
@@ -79,16 +127,17 @@ export function importFormatHistory(root, revision = 'HEAD') {
   return [...records.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function checkPublishedHistory(root, reference, date) {
+/**
+ * Check that each history file only appends to its state at reference. A file
+ * absent at the base takes its baseline from absent(commit), which throws when
+ * the file is required.
+ */
+export function checkAppendOnly(root, reference, date, files) {
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   const commit = git(['rev-parse', '--verify', '--end-of-options', reference + '^{commit}']);
-  const formatHistory = 'web/static/data/format-maturity-history.json';
-  for (const file of [formatHistory, historyPath]) {
+  for (const [file, absent] of files) {
     const existsAtBase = git(['ls-tree', '--name-only', commit, '--', file]) === file;
-    let baseline;
-    if (existsAtBase) baseline = JSON.parse(git(['show', commit + ':' + file]));
-    else if (file === historyPath) baseline = importFormatHistory(root, commit);
-    else throw new Error('Missing format history at base ' + commit);
+    const baseline = existsAtBase ? JSON.parse(git(['show', commit + ':' + file])) : absent(commit);
     if (baseline.length && snapshotDate(baseline.at(-1).date) > date) {
       throw new Error('Snapshot predates the published history in ' + file);
     }
@@ -99,6 +148,13 @@ export function checkPublishedHistory(root, reference, date) {
       throw new Error('Previously published observations changed in ' + file);
     }
   }
+}
+
+export function checkPublishedHistory(root, reference, date) {
+  checkAppendOnly(root, reference, date, [
+    ['web/static/data/format-maturity-history.json', commit => { throw new Error('Missing format history at base ' + commit); }],
+    [historyPath, commit => importFormatHistory(root, commit)],
+  ]);
 }
 
 export async function run(root, args) {
@@ -115,16 +171,14 @@ export async function run(root, args) {
   if (values['history-base']) checkPublishedHistory(root, values['history-base'], date);
 
   const { outputRows } = await import('./outputs.mjs');
-  const { connectorRows } = await import('./connectors.mjs');
-  const current = { schema_version: 1, date,
-    outputs: capabilityRows(root, await outputRows(root), 'output'),
-    connectors: capabilityRows(root, await connectorRows(root), 'connector') };
-  if (values.check && json(current) !== readFileSync(currentFile, 'utf8')) throw new Error('Stale ' + currentPath);
+  const committed = values.check ? read(currentFile) : undefined;
+  const current = { schema_version: 1, date, outputs: settleCapabilities({ root, check: values.check, file: currentPath,
+    kind: 'output', group: 'outputs', committed, fresh: await outputRows(root) }) };
 
   execFileSync(process.execPath, ['scripts/format-ops/bootstrap-publish.mjs', '--date', date,
     ...(values.check ? ['--check'] : [])], { cwd: root, stdio: 'inherit' });
   const formats = formatLevels(read(resolve(root, formatPath)));
-  const history = recordHistory(previous, { date, formats, outputs: states(current.outputs), connectors: states(current.connectors) });
+  const history = recordHistory(previous, { date, formats, outputs: states(current.outputs) });
   const projections = [[historyFile, json(history)], [currentFile, json(current)]];
   for (const [file, data] of projections) {
     if (existsSync(file) && readFileSync(file, 'utf8') === data) continue;
@@ -133,7 +187,7 @@ export async function run(root, args) {
     writeFileSync(stage, data);
     renameSync(stage, file);
   }
-  console.log(`Content capabilities on ${date}: ${current.outputs.length} output formats, ${current.connectors.length} connectors.`);
+  console.log(`Content capabilities on ${date}: ${current.outputs.length} output formats.`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

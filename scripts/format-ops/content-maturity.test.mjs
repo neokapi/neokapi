@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { assertTierMinimum, formatTreeDigest, nextAxisGaps } from './lib.mjs';
-import { capabilityRows, checkPublishedHistory, importFormatHistory, recordHistory, snapshotDate } from './content-maturity.mjs';
+import { assertTierMinimum, formatRegressions, formatTreeDigest, nextAxisGaps } from './lib.mjs';
+import { capabilityRegressions, capabilityRows, checkPublishedHistory, importFormatHistory, recordHistory, settleCapabilities, snapshotDate } from './content-maturity.mjs';
 
 function directory(t) {
   const root = mkdtempSync(path.join(tmpdir(), 'maturity-test-'));
@@ -84,19 +84,58 @@ test('the tier minimum uses each required axis and honors explicit grandfatherin
   assert.doesNotThrow(() => assertTierMinimum('test', { tier: 'maintained', grandfathered: true }, { engine: 'L1' }));
 });
 
-test('a format watermark follows content across its first commit', t => {
+test('a format watermark hashes tracked files only', t => {
   const root = directory(t);
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
   git('init', '-q');
   const dir = path.join(root, 'core/formats');
   mkdirSync(dir, { recursive: true });
-  writeFileSync(path.join(dir, 'new.go'), 'package test');
-  const initial = formatTreeDigest(root);
+  writeFileSync(path.join(dir, 'reader.go'), 'package test');
   git('add', 'core');
   git('-c', 'user.name=Publisher', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Add format');
-  assert.equal(formatTreeDigest(root), initial);
-  writeFileSync(path.join(dir, 'new.go'), 'package changed');
-  assert.notEqual(formatTreeDigest(root), initial);
+  const committed = formatTreeDigest(root);
+  writeFileSync(path.join(dir, 'scratch.go'), 'package scratch');
+  assert.equal(formatTreeDigest(root), committed);
+  writeFileSync(path.join(dir, 'reader.go'), 'package changed');
+  assert.notEqual(formatTreeDigest(root), committed);
+});
+
+test('check mode fails a weaker capability and leaves a stronger one to the refresh', () => {
+  const row = (id, ...caps) => ({ id, capabilities: caps.map(([cap, status]) => ({ id: cap, status, evidence: ['a_test.go#TestA'], detail: 'Fixture.' })) });
+  const committed = [row('markdown', ['project-text', 'verified'], ['structure', 'unverified']), row('xml', ['project-text', 'failed'])];
+  assert.deepEqual(capabilityRegressions(committed, committed), { regressions: [], changes: [] });
+  assert.deepEqual(capabilityRegressions(committed, [row('markdown', ['project-text', 'failed'], ['structure', 'unverified']), committed[1]]).regressions,
+    ['markdown/project-text verified -> failed']);
+  assert.deepEqual(capabilityRegressions(committed, [row('markdown', ['project-text', 'verified']), committed[1]]).regressions,
+    ['markdown/structure is no longer measured']);
+  const better = capabilityRegressions(committed, [row('markdown', ['project-text', 'verified'], ['structure', 'verified']),
+    row('xml', ['project-text', 'verified']), row('eml', ['email', 'verified'])]);
+  assert.deepEqual(better.regressions, []);
+  assert.deepEqual(better.changes, ['markdown/structure unverified -> verified', 'xml/project-text failed -> verified', 'eml is newly measured']);
+});
+
+test('check mode settles on the committed rows, never on a fresh probe', t => {
+  const root = directory(t);
+  writeFileSync(path.join(root, 'a_test.go'), 'func TestA(t *testing.T) {}');
+  const cap = status => ({ id: 'project-text', status, evidence: ['a_test.go#TestA'], detail: 'Fixture.' });
+  const committed = { outputs: [{ id: 'markdown', capabilities: [cap('unverified')] }] };
+  const settle = (fresh, published = committed) => settleCapabilities({ root, check: true, file: 'data.json', kind: 'output',
+    group: 'outputs', committed: published, fresh: [{ id: 'markdown', capabilities: [cap(fresh)] }] });
+  assert.deepEqual(settle('verified'), committed.outputs);
+  assert.throws(() => settle('failed'), /weakens committed output evidence/);
+  assert.throws(() => settle('unverified', { outputs: [{ id: 'markdown', capabilities: [{ ...cap('verified'), evidence: ['gone_test.go'] }] }] }), /Invalid evidence file/);
+  assert.deepEqual(settleCapabilities({ root, check: false, kind: 'output', fresh: [{ id: 'markdown', capabilities: [cap('failed')] }] })[0].capabilities[0].status, 'failed');
+});
+
+test('check mode fails a lower format grade and reports a higher one', () => {
+  const axes = { engine: ['L0', 'L1', 'L2'], corpus: ['C0', 'C1'] };
+  const row = (id, engine, corpus, gaps = []) => ({ id, levels: { engine, corpus }, blocking_gaps: gaps });
+  const committed = [row('eml', 'L1', 'C1'), row('srt', 'L2', 'C0')];
+  assert.deepEqual(formatRegressions(committed, committed, axes), { regressions: [], changes: [] });
+  assert.deepEqual(formatRegressions(committed, [row('eml', 'L0', 'C1'), committed[1]], axes).regressions, ['eml engine L1 -> L0']);
+  const raised = formatRegressions(committed, [row('eml', 'L2', 'C1', ['add a test']), committed[1], row('msg', 'L0', 'C0')], axes);
+  assert.deepEqual(raised.regressions, []);
+  assert.deepEqual(raised.changes, ['eml engine L1 -> L2', 'eml blocking gaps changed', 'msg is newly measured']);
 });
 
 test('a review preserves prior observations across both histories and accepts a same-day refresh', t => {

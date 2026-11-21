@@ -2,23 +2,34 @@ name: Content maturity
 
 on:
   pull_request:
+    # The code a probe measures and the tooling and data that publish it. A
+    # probe imports more than this, so a change elsewhere that weakens a result
+    # is caught by the weekly run. The check passes on a change that leaves
+    # every result as committed, wherever it is.
     paths:
       - '.github/workflows/content-maturity.yml'
       - '.github/workflows/format-acceptance.yml'
       - '.claude/workflows/format-triage.js'
-      - '.skills/**'
+      - '.skills/refresh-format-maturity/**'
       - 'Makefile'
-      - 'core/**'
-      - 'host/**'
-      - 'cli/**'
-      - 'kapi/e2e/**'
-      - '.gitattributes'
+      - 'bowrain/Makefile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'go.work'
+      - 'core/formats/**'
+      - 'core/format/**'
+      - 'core/model/**'
+      - 'core/registry/**'
+      - 'host/toolbox_conv*'
+      - 'host/venue/source/**'
+      - 'cli/toolbox_conv*'
+      - 'kapi/e2e/workspace_test.go'
       - 'specs/**'
-      - 'go.*'
+      - 'plugins/sourcecode/**'
       - 'bowrain/connector/**'
       - 'bowrain/core/connector/**'
       - 'bowrain/scripts/connector-inventory/**'
-      - 'plugins/sourcecode/**'
+      - 'bowrain/scripts/connector-maturity/**'
       - 'scripts/format-ops/**'
       - 'scripts/proseprobe/**'
       - 'scripts/evalindex/**'
@@ -27,9 +38,12 @@ on:
       - 'docs/internals/format-*.json'
       - 'docs/internals/format-*.yaml'
       - 'docs/internals/content-maturity.md'
+      - 'packages/docs-shared/src/capability/**'
       - 'web/src/pages/format-maturity/**'
       - 'web/static/data/format-maturity*.json'
       - 'web/static/data/content-capabilities*.json'
+      - 'bowrain/web/docs/src/pages/connector-maturity*'
+      - 'bowrain/web/docs/static/data/connector-capabilities*.json'
   schedule:
     - cron: '43 4 * * 1'
   workflow_dispatch:
@@ -76,6 +90,11 @@ jobs:
         env:
           MATURITY_HISTORY_BASE: ${{ github.event.pull_request.base.sha }}
         run: make check-content-maturity
+      - name: Verify the committed connector measurements
+        if: github.event_name == 'pull_request'
+        env:
+          MATURITY_HISTORY_BASE: ${{ github.event.pull_request.base.sha }}
+        run: make -C bowrain check-connector-maturity
       - uses: actions/download-artifact@v8
         if: github.event_name != 'pull_request'
         with:
@@ -88,7 +107,16 @@ jobs:
         run: node scripts/format-ops/acceptance-receipts.mjs ingest "$RUNNER_TEMP/consumer-results/acceptance.json"
       - name: Record a new observation
         if: github.event_name != 'pull_request'
-        run: make refresh-content-maturity
+        run: |
+          make refresh-content-maturity
+          make -C bowrain refresh-connector-maturity
+      # The proposed pull request is opened with GITHUB_TOKEN, so GitHub starts
+      # no checks on it. The same checks run here, on the refreshed tree.
+      - name: Check the new observation
+        if: github.event_name != 'pull_request'
+        run: |
+          node scripts/format-ops/content-maturity.mjs --check
+          node bowrain/scripts/connector-maturity/connector-maturity.mjs --check
       - name: Prepare the agent brief
         run: node scripts/format-ops/agent-brief.mjs > "$RUNNER_TEMP/maturity-brief.md"
       - uses: actions/upload-artifact@v7
@@ -98,7 +126,9 @@ jobs:
       - name: Collect the reviewed paths
         if: github.event_name != 'pull_request'
         run: |
+          git add -N bowrain/web/docs/static/data
           git diff --binary -- web/static/data/format-maturity*.json web/static/data/content-capabilities*.json \
+            bowrain/web/docs/static/data/connector-capabilities*.json \
             web/src/pages/evals/_index.json docs/internals/format-maturity.md \
             docs/internals/format-ops-ledger.json > "$RUNNER_TEMP/maturity.patch"
       - uses: actions/upload-artifact@v7
@@ -123,10 +153,14 @@ jobs:
       - name: Propose the dashboard refresh
         env:
           GH_TOKEN: ${{ github.token }}
+          AUTO_PR_NOTE: >-
+            The producing run checked these measurements with content-maturity.mjs --check
+            and connector-maturity.mjs --check before proposing them.
         run: |
           if test -s "$RUNNER_TEMP/maturity.patch"; then
             git apply "$RUNNER_TEMP/maturity.patch"
             bash scripts/auto-pr.sh bot/content-maturity "Refresh content maturity measurements" -- \
               web/static/data/format-maturity*.json web/static/data/content-capabilities*.json \
+              bowrain/web/docs/static/data/connector-capabilities*.json \
               web/src/pages/evals/_index.json docs/internals/format-maturity.md docs/internals/format-ops-ledger.json
           fi

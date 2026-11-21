@@ -25,6 +25,10 @@ Flags:
     --json            machine output (2-space indented JSON)
     --all             every real format under core/formats/
     --repository-only use committed specs for counterpart discovery
+    --replay-receipts accept a committed acceptance receipt whose tested commit
+                      is an ancestor of HEAD, whatever changed since. The
+                      pull-request check replays the committed evidence; the
+                      scheduled refresh omits it and expires stale receipts.
     --ledger <path>   the format-ops ledger; unlocks the ledger-dependent
                       signals (mutation-check demotions, corpus external
                       verification, acceptance CI conclusions, citations /
@@ -394,6 +398,8 @@ def _tested_inputs_match(root, revision):
                               cwd=root, capture_output=True, timeout=30)
     if ancestor.returncode != 0:
         return False
+    if "--replay-receipts" in sys.argv:
+        return True
     paths = ["core", "memory", "providers", "terms", "voice", "go.mod", "go.sum", "go.work",
              "go.work.sum", "Makefile", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
              ".github/workflows/format-acceptance.yml", ".github/actions",
