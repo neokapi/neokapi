@@ -336,6 +336,63 @@ func TestRunFlowCancelWaitsForTermination(t *testing.T) {
 	require.Equal(t, string(RunStateComplete), app.GetRunState())
 }
 
+// ignoreCancelTool runs until release is closed, whatever its context says.
+type ignoreCancelTool struct {
+	tool.BaseTool
+	started, release chan struct{}
+}
+
+func (w *ignoreCancelTool) Process(context.Context, <-chan *model.Part, chan<- *model.Part) error {
+	close(w.started)
+	<-w.release
+	return nil
+}
+
+// A cancel returns after cancelWait when the run ignores it. The run then
+// stops on its own and settles as canceled, with one terminal event.
+func TestCancelRunReturnsWhenTheRunIgnoresIt(t *testing.T) {
+	defer func(d time.Duration) { cancelWait = d }(cancelWait)
+	cancelWait = 50 * time.Millisecond
+	app := NewApp()
+	tab, root := newConvergenceProject(t, app)
+	started, release := make(chan struct{}), make(chan struct{})
+	app.toolReg.RegisterWithSchema("ignore-cancel", func() tool.Tool {
+		return &ignoreCancelTool{ToolName: "ignore-cancel", started: started, release: release}
+	}, app.toolReg.Schema("pseudo-translate"))
+	require.NoError(t, app.SaveFlow(tab.ID, "stubborn", &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "ignore-cancel"}}}))
+	require.NoError(t, app.RunFlow(tab.ID, "stubborn", []string{filepath.Join(root, "locales", "en.json")}, nil))
+	select {
+	case <-started:
+	case <-time.After(10 * time.Second):
+		t.Fatal("flow did not start")
+	}
+
+	returned := make(chan struct{})
+	go func() {
+		app.CancelProjectRun(tab.ID)
+		close(returned)
+	}()
+	select {
+	case <-returned:
+	case <-time.After(5 * time.Second):
+		close(release)
+		t.Fatal("CancelProjectRun waited for a run that ignores cancellation")
+	}
+	assert.Equal(t, string(RunStateRunning), app.GetRunState())
+
+	close(release)
+	awaitTerminalRun(t, app)
+	var terminal []RunEvent
+	for _, event := range app.GetRunEvents() {
+		if event.Type == "complete" || event.Type == "error" {
+			terminal = append(terminal, event)
+		}
+	}
+	require.Len(t, terminal, 1)
+	assert.Equal(t, "error", terminal[0].Type)
+	assert.Equal(t, string(RunStateCanceled), app.GetRunState())
+}
+
 func TestRunnerState(t *testing.T) {
 	r := newRunner()
 	assert.Equal(t, RunStateIdle, r.state)

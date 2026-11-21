@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
@@ -322,7 +323,13 @@ func toolBuildErrorMessage(toolName, lang string, err error) string {
 	return fmt.Sprintf("tool %q for %s: %v", toolName, lang, err)
 }
 
-// CancelRun waits for the active run to stop and publish its final events.
+// cancelWait bounds how long a cancel waits for the run to stop. A run whose
+// tool ignores cancellation is left to finish on its own, and its terminal
+// flow:event settles the UI when it does.
+var cancelWait = 5 * time.Second
+
+// CancelRun cancels the active run and waits, up to cancelWait, for it to stop
+// and publish its final events.
 func (a *App) CancelRun() {
 	a.cancelRun("")
 }
@@ -347,8 +354,14 @@ func (a *App) cancelRun(tabID string) {
 		a.runState.cancel()
 	}
 	a.runState.mu.Unlock()
-	if done != nil {
-		<-done
+	if done == nil {
+		return
+	}
+	timer := time.NewTimer(cancelWait)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
 	}
 }
 
