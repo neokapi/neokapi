@@ -173,6 +173,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # The locale choice below lists the pull request's changed files.
+      pull-requests: read
     # CDN_URL is the CDN origin (cdn.<domain>, S3+CloudFront) to serve large
     # assets (wasm, vision models, videos, images) from — the DOCS_CDN_URL repo
     # variable. Empty → assets stay same-origin. It is ON for push AND same-repo
@@ -349,7 +351,35 @@ jobs:
       # The qps pseudo-locale is generated here, not committed — see
       # .github/actions/pseudo-locale for why. It must run BEFORE the build that
       # reads i18n/qps/.
+      # Docusaurus builds its locales one after another, about three and a half
+      # minutes each, which made this the slowest check on a pull request. A
+      # pull request builds the source locale alone unless it changes what a
+      # target locale is built from, or carries the docs-all-locales label.
+      # Main, a release channel and a manual run build every locale. A target
+      # locale never gates a source change, so nothing a pull request must pass
+      # is skipped.
+      - name: Choose the locales to build
+        id: locales
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ALL_LOCALES_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'docs-all-locales') }}
+        run: |
+          set -euo pipefail
+          list="en,nb,qps"
+          if [ "$EVENT" = "pull_request" ] && [ "$ALL_LOCALES_LABEL" != "true" ]; then
+            changed="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')"
+            if ! grep -qE '^(web/i18n/|web/docusaurus\.config\.ts$|kapi\.yaml$|scripts/pseudo-docs-i18n\.sh$|\.github/actions/pseudo-locale/|\.github/workflows/docs-kapi\.yml$)' <<< "$changed"; then
+              list="en"
+            fi
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Building locales: $list"
+
       - name: Generate the qps pseudo-locale
+        if: contains(steps.locales.outputs.list, 'qps')
         uses: ./.github/actions/pseudo-locale
         with:
           site: web
@@ -358,6 +388,7 @@ jobs:
         run: vp run build
         working-directory: web
         env:
+          DOCS_LOCALES: ${{ steps.locales.outputs.list }}
           DOCS_BASE_URL: ${{ needs.resolve.outputs.base }}
           # Production ("stable") carries no banner; every other build is the
           # next channel and says so on every page.

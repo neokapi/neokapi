@@ -54,6 +54,7 @@ jobs:
       harness: ${{ github.event_name == 'push' || steps.filter.outputs.harness }}
       eval_index: ${{ github.event_name == 'push' || steps.filter.outputs.eval_index }}
       wasm_stores: ${{ github.event_name == 'push' || steps.filter.outputs.wasm_stores }}
+      go_files: ${{ github.event_name == 'push' || steps.filter.outputs.go_files }}
       # Every operand is compared to 'true' on purpose. GitHub's `||` returns
       # the first TRUTHY operand rather than a boolean, and a non-empty string
       # is truthy, so a bare `steps.filter.outputs.cli` yields the *string*
@@ -183,6 +184,9 @@ jobs:
           # That compiles the whole host test package for js, so any change
           # under host/ runs it, as does one to the browser engine's own tests.
           check_paths wasm_stores '^(core|memory|terms|voice)/' '^host/' '^kapi/cmd/kapi-wasm-cli/' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^go\.(mod|sum)$' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
+          # Every Go source and module file, whatever module holds it: the
+          # edition storage guard type-checks all of them.
+          check_paths go_files '\.go$' '(^|/)go\.(mod|sum)$' '^go\.work' '^Makefile$' '^\.github/workflows/ci\.yml$'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -215,9 +219,11 @@ jobs:
       - name: Check + test + build the bowrain web frontends
         run: make ci-frontend
 
-  # ── Kapi Desktop frontend ───────────────────────────────────────────────
+  # ── Kapi Desktop ────────────────────────────────────────────────────────
+  # The frontend half and the Go half share nothing but the checkout, so they
+  # are two jobs: the pull request waits for the longer one, not their sum.
   kapi-desktop:
-    name: Kapi Desktop
+    name: Kapi Desktop (frontend)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.kapi_desktop == 'true'
@@ -230,10 +236,19 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       # Job body lives in `make ci-kapi-desktop-frontend` (single source of
-      # truth, runnable locally). The Go backend test stays a separate step
-      # below because it needs the Go + Wails toolchain set up in the workflow.
+      # truth, runnable locally).
       - name: Frontend checks, tests, and Storybook build
         run: make ci-kapi-desktop-frontend
+
+  kapi-desktop-backend:
+    name: Kapi Desktop (backend)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.kapi_desktop == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -314,9 +329,9 @@ jobs:
       - name: Bowrain Desktop Wails bindings are fresh
         run: make check-bowrain-desktop-bindings
 
-  # ── Bowrain Desktop (Wails app: frontend vitest + Go backend) ────────────
+  # ── Bowrain Desktop (Wails app: frontend vitest, and the Go backend beside it) ──
   bowrain-desktop:
-    name: Bowrain Desktop
+    name: Bowrain Desktop (frontend)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.bowrain_desktop == 'true'
@@ -324,10 +339,17 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
-      # Job body lives in `make ci-bowrain-desktop-frontend`. The Go backend
-      # test stays a separate step below (needs the Go + Wails toolchain).
+      # Job body lives in `make ci-bowrain-desktop-frontend`.
       - name: Frontend tests
         run: make ci-bowrain-desktop-frontend
+
+  bowrain-desktop-backend:
+    name: Bowrain Desktop (backend)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.bowrain_desktop == 'true'
+    steps:
+      - uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -534,11 +556,20 @@ jobs:
           path: coverage/platform.out
           retention-days: 1
 
+  # The host package holds most of this job's time, and Go runs one package's
+  # tests one after another. A pull request runs it as three shards beside a
+  # fourth job for every other package (see SHARD in the Makefile), so the wait
+  # is the longest shard. A push to main runs the lot in one job, with race and
+  # coverage, as before.
   test-cli:
-    name: Test (cli)
+    name: Test (cli${{ matrix.shard != 'all' && format(', {0}', matrix.shard) || '' }})
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(github.event_name == 'pull_request' && '["1/3","2/3","3/3","rest"]' || '["all"]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
@@ -556,7 +587,7 @@ jobs:
 
       - name: Run cli tests
         id: run-tests
-        run: make test-cli
+        run: make test-cli SHARD=${{ matrix.shard }}
         continue-on-error: true
 
       - name: Show cli test failures
@@ -575,7 +606,7 @@ jobs:
         if: always()
         continue-on-error: true
         with:
-          name: CLI Tests
+          name: CLI Tests${{ matrix.shard != 'all' && format(' ({0})', matrix.shard) || '' }}
           path: junit-cli.xml
           reporter: java-junit
 
@@ -726,7 +757,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain == 'true'
     services:
-      # A stable GitHub-managed Postgres for the full (push) bowrain suite.
+      # A stable GitHub-managed Postgres for the bowrain suite, on a pull request
+      # and on a push.
       # Previously the Postgres-backed server tests spun up a per-binary
       # testcontainer; Ryuk/Docker can reap it mid-run under -race, taking ~80
       # server tests down together with "connection refused" (the long-standing
@@ -746,9 +778,14 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
-      # Only push runs exercise the Postgres suites; PRs use -short, which
-      # skips them. Empty on PRs so they don't touch the service.
-      BOWRAIN_TEST_POSTGRES_URL: ${{ github.event_name == 'push' && 'postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable' || '' }}
+      # Set on a pull request as well as on a push. A pull request passes
+      # -short, and pgtest skips a short run unless it is handed a database:
+      # with the service above already running, handing it over is what makes
+      # the PostgreSQL-backed suites run before a merge. Without it a change to
+      # a store, a migration or a handler that reads one was first tested on
+      # main (#3607 broke a terms upgrade test that way with a green pull
+      # request). -short still skips the suites that start other containers.
+      BOWRAIN_TEST_POSTGRES_URL: postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable
       # A runner is thrown away after the job, so testcontainers' reaper has
       # nothing to reap here. Leaving it on costs a pull of testcontainers/ryuk
       # from Docker Hub before the first container starts, and a registry that
@@ -1162,6 +1199,36 @@ jobs:
         with:
           working-directory: bowrain
 
+  # ── Edition storage guard ────────────────────────────────────────────────
+  # Type-checks Go: every module on a push to main, and the directories a pull
+  # request changed on a pull request (every module again when core/model, the
+  # guard or a module file changed). That takes minutes, so it runs beside the
+  # other guards and not inside them. The two Wails desktop modules type-check
+  # with cgo on, and on Linux Wails reaches GTK 4 and WebKitGTK through
+  # pkg-config, so their headers come first; a package that does not type-check
+  # fails the guard.
+  fieldguard:
+    name: Edition storage guard
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.go_files == 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # fieldguard -changed-since needs the base branch to diff against.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: plain
+      - name: Install the GTK and WebKit headers the desktop modules type-check against
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+      - name: "Guard: only core/model reaches a block's edition storage"
+        run: make fieldguard
+        env:
+          FIELDGUARD_ARGS: ${{ github.event_name == 'pull_request' && format('-changed-since origin/{0}', github.base_ref) || '' }}
+
   # ── Docs stay bowrain-clean (always-on, cheap) ───────────────────────────
   docs-guard:
     name: Repo guards
@@ -1169,13 +1236,10 @@ jobs:
     # No path gate: these guards are cheap, so they run on every PR, and a
     # stray bowrain reference, absolute home path, gofmt drift or stale guard
     # cannot merge and surface only post-merge.
-    # Most take seconds. fieldguard type-checks every module on a push to main
-    # and only the directories a pull request changed on a PR.
+    # Each takes seconds. The one guard that type-checks Go, the edition
+    # storage guard, runs in a job of its own so these do not wait for it.
     steps:
       - uses: actions/checkout@v7
-        with:
-          # fieldguard -changed-since needs the base branch to diff against.
-          fetch-depth: 0
       - name: Guard — neokapi docs must stay bowrain-clean
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
@@ -1225,28 +1289,19 @@ jobs:
       - name: "Guard: the release casks carry no install hook or retired vocabulary"
         run: ./scripts/check-cask-heredocs.sh
 
-      # The one guard here that type-checks Go: every module, with its tests,
-      # under every build configuration that builds a file of it. The two Wails
-      # desktop modules type-check with cgo on, and on Linux Wails reaches GTK 4
-      # and WebKitGTK through pkg-config, so their headers come first; a package
-      # that does not type-check fails the guard.
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: plain
-      - name: Install the GTK and WebKit headers the desktop modules type-check against
-        uses: ./.github/actions/apt-install
-        with:
-          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
-      - name: "Guard: only core/model reaches a block's edition storage"
-        run: make fieldguard
-        env:
-          FIELDGUARD_ARGS: ${{ github.event_name == 'pull_request' && format('-changed-since origin/{0}', github.base_ref) || '' }}
 
       # The gate itself runs only in the nightly convergence, where nothing
       # exercises it on a pull request. Its self-test does: it drives the real
       # classification against real scratch repositories, so a change to the
       # derived set or to the classification cannot pass here and disarm the
       # nightly there.
+      - name: "Guard: the test shards of a package cover every test once"
+        run: ./scripts/go-test-shard.sh --self-test
+      - name: "Guard: a bindings generator warning about our own code fails"
+        run: ./scripts/wails-generate.sh --self-test
       - name: Guard — the sync commits only sound loop output
         run: ./scripts/check-loop-output.sh --self-test
 

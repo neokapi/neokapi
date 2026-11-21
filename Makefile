@@ -578,11 +578,30 @@ else
 	cd scripts/proseprobe && $(GOTEST_BASE) ./... -count=1
 endif
 
+# SHARD splits the CI run. The host package holds most of this target's time
+# and Go runs one package's tests one after another, so a pull request runs it
+# as shards side by side: SHARD=i/n runs one share of the host package's tests
+# (scripts/go-test-shard.sh), SHARD=rest runs every other host package and the
+# cli module, and the default runs everything in one go, with coverage, as a
+# push to main does.
+SHARD ?= all
+HOST_PACKAGE := github.com/neokapi/neokapi/host
+
 test-cli: i18n-catalogs ## Run host + cli module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
+ifeq ($(SHARD),all)
 	cd host && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/host.out) -json ./... > ../test-results-cli.json
 	cd cli && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/cli.out) -json ./... >> ../test-results-cli.json
+else ifeq ($(SHARD),rest)
+	cd host && packages="$$($(GO) list ./...)" && \
+		packages="$$(printf '%s\n' "$$packages" | grep -vx '$(HOST_PACKAGE)')" && \
+		$(GOTEST_BASE) -json $$packages > ../test-results-cli.json
+	cd cli && $(GOTEST_BASE) -json ./... >> ../test-results-cli.json
+else
+	cd host && flags="$$(../scripts/go-test-shard.sh . $(SHARD))" && \
+		$(GOTEST_BASE) -json $$flags . > ../test-results-cli.json
+endif
 else
 	cd host && $(GOTEST_BASE) ./... -count=1
 	cd cli && $(GOTEST_BASE) ./... -count=1
@@ -1274,6 +1293,10 @@ endif
 # pinned CLI) is the obvious next step, but their desktop matrix includes Windows
 # runners where `make` is not reliably on PATH, and the release path only runs on
 # tags — so it is not verifiable from a PR and is deliberately left alone here.
+# With cgo off the generator cannot see the symbols Wails defines in its own
+# cgo files and warns about each one. scripts/wails-generate.sh counts those
+# and fails on a warning about any other package, which would mean a bound type
+# of ours did not resolve.
 WAILS_BINDINGS_ENV   := CGO_ENABLED=0
 WAILS_BINDINGS_FLAGS := -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"\"" -clean=true
 BOWRAIN_DESKTOP_DIR  := bowrain/apps/bowrain
@@ -1301,11 +1324,11 @@ wails3-cli: ## Install the wails3 CLI pinned to the wails version both desktop a
 	$(GO) install github.com/wailsapp/wails/v3/cmd/wails3@$$kv
 
 kapi-desktop-bindings: i18n-catalogs ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
-	cd $(KAPI_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(KAPI_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) $(CURDIR)/scripts/wails-generate.sh wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(KAPI_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 
 bowrain-desktop-bindings: i18n-catalogs ## Regenerate the committed Bowrain Desktop Wails bindings + wbridge id map
-	cd $(BOWRAIN_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(BOWRAIN_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) $(CURDIR)/scripts/wails-generate.sh wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(BOWRAIN_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 
 wails-bindings: kapi-desktop-bindings bowrain-desktop-bindings ## Regenerate both desktop apps' committed Wails bindings
