@@ -17,7 +17,7 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
-import { languageLabel } from "../../lib/feed";
+import { languageLabel, listOf } from "../../lib/feed";
 import { Monogram } from "./Monogram";
 
 /**
@@ -109,9 +109,24 @@ export function stepFact(step: PlanStep, t: TFunction, language = "en"): string 
       return step.settle === "held"
         ? t("planCard.fact.policyWaits")
         : t("planCard.fact.policy", { count: step.count });
+    case "context":
+      // The Next card is the person's step: their own count, which an
+      // older cached step does not carry.
+      return t("planCard.fact.context", { count: step.mine ?? step.count });
     default:
       return t(`planCard.fact.${step.level}`, { count: step.count });
   }
+}
+
+/** What one step that only waits is waiting for. */
+export function waitFact(w: PlanWait, t: TFunction, language: string): string {
+  if (w.reason === "other_languages") {
+    const names = (w.locales ?? []).map((l) => languageLabel(l, language));
+    return names.length > 0
+      ? t("plan.context.otherLanguages", { languages: listOf(names, t, language) })
+      : t("plan.context.otherLanguagesUnnamed");
+  }
+  return contextScanFact(w.reason, t, language, { quotaResetsAt: w.quotaResetsAt });
 }
 
 /** The step's one count or state word for the list of later steps. */
@@ -136,7 +151,7 @@ export function stepValue(step: PlanStep, t: TFunction): string {
  */
 export function PlanWaitingNote({ waiting, testID }: { waiting: PlanWait[]; testID: string }) {
   const { t, i18n } = useTranslation();
-  if (waiting.length === 0) return null;
+  if (!waiting?.length) return null;
   return (
     <View testID={testID} className="gap-1">
       {waiting.map((w) => (
@@ -150,7 +165,7 @@ export function PlanWaitingNote({ waiting, testID }: { waiting: PlanWait[]; test
             {t(`planCard.steps.${w.level}`)}
           </Text>
           <Text className="text-muted-foreground flex-1 text-sm">
-            {contextScanFact(w.reason, t, i18n.language, { quotaResetsAt: w.quotaResetsAt })}
+            {waitFact(w, t, i18n.language)}
           </Text>
         </View>
       ))}
@@ -242,7 +257,7 @@ export const PlanCard = memo(function PlanCard({
           >
             {next
               ? t("planCard.stepOf", { n: index + 1, total: plan.steps.length })
-              : plan.waiting.length > 0
+              : (plan.waiting?.length ?? 0) > 0
                 ? t("planCard.state.waits")
                 : t("planCard.allDone")}
           </Text>
@@ -278,7 +293,10 @@ export const PlanCard = memo(function PlanCard({
       ) : null}
 
       {plan ? (
-        <PlanWaitingNote testID={`plan-card-${project.project}-waiting`} waiting={plan.waiting} />
+        <PlanWaitingNote
+          testID={`plan-card-${project.project}-waiting`}
+          waiting={plan.waiting ?? []}
+        />
       ) : null}
 
       {later.length > 0 ? (

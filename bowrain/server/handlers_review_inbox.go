@@ -13,12 +13,12 @@ import (
 	"github.com/neokapi/neokapi/host/reviewdeck"
 )
 
-// reviewInboxLanguage is one language of one project with translations
-// waiting for the caller's review.
 // reviewInboxStream is the stream the inbox counts: the one a review client
 // opens when it names none.
 const reviewInboxStream = "main"
 
+// reviewInboxLanguage is one language of one project with translations
+// waiting for the caller's review.
 type reviewInboxLanguage struct {
 	Workspace     string `json:"workspace"`
 	WorkspaceName string `json:"workspace_name"`
@@ -90,9 +90,10 @@ type reviewInboxProject struct {
 	// Waiting is the context cards and the translations in followed
 	// languages waiting for the caller.
 	Waiting int `json:"waiting"`
-	// Plan is the plan in brief. It is computed only for a project with
-	// work waiting for the caller or translations held back: a plan reads
-	// every level, so a project with neither is listed without one.
+	// Plan is the plan in brief. It is computed for a project with work
+	// waiting for the caller and for one with a saved list, from the plan's
+	// snapshot, and carried when work waits or is held, or when the plan
+	// names a next step or a step that only waits.
 	Plan *planSummaryDTO `json:"plan,omitempty"`
 }
 
@@ -106,8 +107,9 @@ type reviewInboxProject struct {
 // and classifies nothing: one count per project, over its reviewable languages.
 //
 // A project where the caller has saved followed languages lists only those.
-// Each project with work waiting or held carries its plan in brief, one plan
-// computation per such project, bounded as the plan route is.
+// Each project with work waiting or held, and each saved project with a next
+// step or a step that only waits, carries its plan in brief, read from the
+// plan's snapshot with the caller's context cards and languages added.
 //
 // GET /api/v1/auth/me/review
 func (s *Server) HandleReviewInbox(c echo.Context) error {
@@ -173,11 +175,11 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 			}
 			proj.Followed = append([]string{}, locales...)
 			// The deck counts come from the plan's snapshot. The plan is built
-			// for a project with anything waiting, and says whether it holds
-			// translations back.
+			// for a project with anything waiting and for a saved one, and
+			// says whether it holds translations back and which step waits.
 			var plan *reviewPlanResponse
 			counts := map[string]deckSplit{}
-			if len(locales) > 0 || proj.Waiting > 0 {
+			if len(locales) > 0 || proj.Waiting > 0 || proj.Saved {
 				b, err := s.planBasisOf(ctx, ws, p, reviewInboxStream)
 				if err != nil {
 					return serverErr(c, err)
@@ -185,9 +187,10 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				for _, loc := range locales {
 					counts[loc] = b.snap.Languages[loc].split()
 				}
-				if proj.Waiting > 0 || anyWaiting(counts) {
+				if proj.Waiting > 0 || proj.Saved || anyWaiting(counts) {
 					computed, err := s.reviewPlanFrom(ctx, ws, p, reviewInboxStream, planCaller{
 						userID: userID, perms: perms, reach: reach, locales: locales,
+						context: &callerContext{entry: entry, ok: ok},
 					}, b)
 					if err != nil {
 						return serverErr(c, err)
@@ -213,8 +216,9 @@ func (s *Server) HandleReviewInbox(c echo.Context) error {
 				}
 			}
 			// A project whose translations are all held still shows its plan,
-			// so the person sees the step that releases them.
-			if plan != nil && (proj.Waiting > 0 || heldAny) {
+			// so the person sees the step that releases them, and so does one
+			// with a next step or a step that only waits.
+			if plan != nil && (proj.Waiting > 0 || heldAny || plan.Next != "" || len(plan.Waiting) > 0) {
 				summary := summarizePlan(*plan)
 				proj.Plan = &summary
 			}

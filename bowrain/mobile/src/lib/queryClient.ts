@@ -2,8 +2,10 @@
 // when the phone is online and the app is in the foreground.
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { focusManager, onlineManager, QueryClient } from "@tanstack/react-query";
+import type { PersistedClient, Persister } from "@tanstack/react-query-persist-client";
 import * as Network from "expo-network";
 import Storage from "expo-sqlite/kv-store";
+import * as Updates from "expo-updates";
 import { AppState, Platform } from "react-native";
 
 import { isNetworkError } from "@neokapi/bowrain-client";
@@ -34,11 +36,57 @@ export function createQueryClient(): QueryClient {
 /** The persisted cache's version: a different value discards what a device holds. */
 export const CACHE_BUSTER = "1";
 
-export const persister = createAsyncStoragePersister({
+/** The JavaScript update running now, or "embedded" for the build's own bundle. */
+function runningUpdate(): string {
+  return Updates.updateId ?? "embedded";
+}
+
+/** A persisted client stamped with the update that wrote it. */
+type StampedClient = PersistedClient & { updateId?: string };
+
+/**
+ * Queries that hold the person's own state rather than a server response:
+ * the decision log (held and queued decisions) and the notices about them.
+ * They are kept across updates with the queued mutations.
+ */
+const KEPT_ACROSS_UPDATES = new Set(["decision-log", "decision-notices"]);
+
+/**
+ * Keeps the cached server responses only when the update that wrote them is
+ * the one running. A new update may read fields an older response lacks, so
+ * its first launch fetches them again. The person's own state, the decision
+ * log, its notices and the queued decisions, is kept so an offline review is
+ * never lost.
+ */
+export function forRunningUpdate(
+  client: StampedClient | undefined,
+  running: string,
+): PersistedClient | undefined {
+  if (!client) return client;
+  const { updateId, ...rest } = client;
+  if (updateId === running) return rest;
+  const queries = rest.clientState.queries.filter((q) =>
+    KEPT_ACROSS_UPDATES.has(String((q.queryKey as readonly unknown[])[0])),
+  );
+  return { ...rest, clientState: { ...rest.clientState, queries } };
+}
+
+const stored = createAsyncStoragePersister({
   storage: Storage,
   key: "bowrain.query-cache",
   throttleTime: 500,
+  // The update id is written inside the same record as the cache, when the
+  // record is written, so the two can never disagree.
+  serialize: (client) => JSON.stringify({ ...client, updateId: runningUpdate() }),
+  deserialize: (raw) => JSON.parse(raw) as StampedClient,
 });
+
+export const persister: Persister = {
+  persistClient: (client) => stored.persistClient(client),
+  restoreClient: async () =>
+    forRunningUpdate((await stored.restoreClient()) as StampedClient | undefined, runningUpdate()),
+  removeClient: () => stored.removeClient(),
+};
 
 let wired = false;
 

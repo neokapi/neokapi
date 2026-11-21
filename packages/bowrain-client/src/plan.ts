@@ -236,7 +236,9 @@ export function planProposalsOf(v: string | undefined): PlanProposals | undefine
 /**
  * Why a level the plan skips for `next` only waits: the context's term scan
  * runs (queued, processing), or it cannot start (waiting_content,
- * waiting_quota, waiting_credits, no_ai).
+ * waiting_quota, waiting_credits, no_ai). other_languages: the context's
+ * open decisions are target terms missing only in languages the person does
+ * not follow, which other reviewers decide; `locales` names them.
  */
 export type PlanWaitReason =
   | "queued"
@@ -244,7 +246,8 @@ export type PlanWaitReason =
   | "waiting_content"
   | "waiting_quota"
   | "waiting_credits"
-  | "no_ai";
+  | "no_ai"
+  | "other_languages";
 
 const PLAN_WAIT_REASONS: readonly PlanWaitReason[] = [
   "queued",
@@ -253,6 +256,7 @@ const PLAN_WAIT_REASONS: readonly PlanWaitReason[] = [
   "waiting_quota",
   "waiting_credits",
   "no_ai",
+  "other_languages",
 ];
 
 /** A level with work ahead and nothing to decide yet, which `next` skips. */
@@ -261,12 +265,15 @@ export interface PlanWait {
   reason: PlanWaitReason;
   /** When the workspace's monthly AI limit resets, set with waiting_quota. */
   quotaResetsAt?: string;
+  /** The languages with missing terms, set with other_languages. */
+  locales?: string[];
 }
 
 export interface ServerPlanWait {
   level: string;
   reason: string;
   quota_resets_at?: string;
+  locales?: string[] | null;
 }
 
 /** The levels the plan skips for `next`, leaving out a level or reason this client does not know. */
@@ -280,6 +287,7 @@ export function planWaitingFromServer(waiting: ServerPlanWait[] | null | undefin
       level,
       reason: w.reason as PlanWaitReason,
       quotaResetsAt: w.quota_resets_at || undefined,
+      locales: w.locales?.length ? w.locales : undefined,
     });
   }
   return out;
@@ -297,8 +305,18 @@ export type PlanStepState = "not_started" | "open" | "done" | "attention";
 export interface PlanStep {
   level: PlanLevel;
   state: PlanStepState;
-  /** What waits at the level. */
+  /**
+   * What waits at the level for the team. At the context level this counts
+   * the missing target terms in every target language.
+   */
   count: number;
+  /**
+   * The part of `count` the person can decide. It differs from `count` only
+   * at the context level, where a missing target term is the person's to
+   * decide only in a language they follow. A step cached from an older
+   * server has none.
+   */
+  mine?: number;
   /** The team's progress through the level, 0 to 100. */
   progress: number;
   done: boolean;
@@ -384,6 +402,7 @@ export interface ServerPlanStep {
   level: string;
   state?: string;
   count?: number;
+  mine?: number;
   progress?: number;
   done?: boolean;
   changed?: number;
@@ -549,6 +568,7 @@ export function planStepsFromServer(steps: ServerPlanStep[] | null | undefined):
       level,
       state: stateOf(s),
       count: s.count ?? 0,
+      mine: s.mine ?? s.count ?? 0,
       progress: Math.max(0, Math.min(100, s.progress ?? 0)),
       done: s.done ?? false,
       changed: s.changed ?? 0,

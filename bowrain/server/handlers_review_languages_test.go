@@ -172,7 +172,8 @@ func TestReviewInbox_HonoursFollowedLanguagesAndSummarizesThePlan(t *testing.T) 
 	require.Len(t, inbox.Projects, 1)
 	assert.True(t, inbox.Projects[0].Saved)
 	assert.Empty(t, inbox.Projects[0].Followed)
-	assert.Nil(t, inbox.Projects[0].Plan, "nothing waits, so no plan is computed")
+	require.NotNil(t, inbox.Projects[0].Plan, "a saved project carries a plan that names a next step")
+	assert.Equal(t, planCoordinates, inbox.Projects[0].Plan.Next)
 }
 
 func TestSummarizePlan_CountsWithinFollowedLanguages(t *testing.T) {
@@ -195,15 +196,16 @@ func TestSummarizePlan_CountsWithinFollowedLanguages(t *testing.T) {
 	}
 	assert.Equal(t, planStepDTO{Level: planCoordinates, State: stepDone, Progress: 100, Done: true}, byLevel[planCoordinates])
 	step := byLevel[planContext]
-	assert.Equal(t, 6, step.Count, "two cards and four concepts without a Norwegian term; German is not followed")
-	assert.Equal(t, 16*100/22, step.Progress)
+	assert.Equal(t, 15, step.Count, "two cards and the terms missing in every target language")
+	assert.Equal(t, 6, step.Mine, "two cards and four concepts without a Norwegian term; German is not followed")
+	assert.Equal(t, 17*100/32, step.Progress, "progress is the team's, over every target language")
 	assert.Equal(t, 2, byLevel[planExceptions].Count, "the rules in followed languages")
 	assert.Equal(t, 50, byLevel[planExceptions].Progress)
 	assert.Equal(t, 3, byLevel[planInterfaces].Count)
-	assert.Equal(t, planStepDTO{Level: planPolicy, State: stepOpen, Count: 4, Settle: settleHeld}, byLevel[planPolicy])
+	assert.Equal(t, planStepDTO{Level: planPolicy, State: stepOpen, Count: 4, Mine: 4, Settle: settleHeld}, byLevel[planPolicy])
 
 	p.Coordinates.Changed = 2
 	changed := summarizePlan(p).Steps[0]
-	assert.Equal(t, planStepDTO{Level: planCoordinates, State: stepAttention, Count: 2, Progress: 100, Changed: 2}, changed,
+	assert.Equal(t, planStepDTO{Level: planCoordinates, State: stepAttention, Count: 2, Mine: 2, Progress: 100, Changed: 2}, changed,
 		"a change after the confirmation reopens the step for the team")
 }
