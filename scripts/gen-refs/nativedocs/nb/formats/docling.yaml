@@ -1,27 +1,29 @@
 # Native reference doc for the built-in `docling` format.
 # Source: core/formats/docling/{reader.go,config.go,spec.yaml}. Read-only.
 # No Okapi equivalent: DoclingDocument JSON is Docling's native serialization.
-description: Les DoclingDocument JSON – Doclings native og tapsfrie serialisering – inn i innholdsmodellen med semantiske roller og sidegeometri.
+description: "Les DoclingDocument JSON, Doclings tapsfrie serialiseringsformat, inn i innholdsmodellen med semantiske roller og sidegeometri."
 overview: |
-  Formatet **DoclingDocument JSON** leser den native, tapsfrie JSON-serialiseringen som sendes ut av
-  [Docling](https://github.com/docling-project/docling). Det følger
-  dokumentets leseorden (`body.children`), løser opp `$ref`-pekerne i
-  `texts`/`tables`/`groups`/`pictures`-arrayene, og mapper til neokapi-innholdsmodellen
-  pluss strukturlaget (SemanticRole, GeometryAnnotation, LayoutLayer). Dette
-  er den filbaserte «konsum Docling»-grensen ved siden av DocLang XML-leseren:
-  et verktøy kjører Docling, lagrer JSON-en, og neokapi leser den.
+  Formatet **DoclingDocument JSON** leser den tapsfrie JSON-serialiseringen
+  som [Docling](https://github.com/docling-project/docling) produserer. Det følger
+  dokumentets leserekkefølge (`body.children`) og løser opp `$ref`-pekerne til
+  matrisene `texts`, `tables`, `groups` og `pictures`. Resultatet legges inn i
+  neokapis innholdsmodell og strukturlaget (SemanticRole, GeometryAnnotation,
+  LayoutLayer). Dette er det filbaserte grensesnittet for å lese Docling-data,
+  ved siden av DocLang XML-leseren: Et verktøy kjører Docling, lagrer JSON-filen,
+  og neokapi leser den.
 
   Dekning: tekstelementer (title, section_header med nivå, paragraph/text,
-  list_item, undertekst, footnote, page_header/page_footer → furniture, code,
-  formula); grupper (lister og inline-grupper); tabeller (det løste cellerutenettet,
-  med kolonne/rad-hodeceller → table-header-rolle) og deres undertekster; bilde-
-  undertekster; og per-element sidegeometri fra `prov[].bbox`. Inline-formatering er
-  ikke en del av den grunnleggende DoclingDocument-tekstmodellen, så hvert tekstelement er én kjøring.
+  list_item, caption, footnote, page_header/page_footer → sideelementer, code,
+  formula); grupper (lister og grupper inne i teksten); tabeller (det oppløste
+  cellerutenettet, med kolonne- og radoverskriftsceller → tabelloverskriftsrolle)
+  og tilhørende bildetekster; bildetekster for bilder; og sidegeometri per element
+  fra `prov[].bbox`. Formatering inne i teksten er ikke en del av den grunnleggende
+  tekstmodellen i DoclingDocument, så hvert tekstelement er én tekstsekvens.
 
-  Skrivebeskyttet: Docling eier JSON-en, og neokapi re-emitterer struktur via
-  DocLang-skriveren eller projiserer til Markdown/HTML.
+  Kun lesing: Docling eier JSON-formatet, og neokapi skriver ut strukturen på nytt
+  via DocLang-skriveren eller som en Markdown- eller HTML-representasjon.
 limitations:
-  - "Skrivebeskyttet, uten DoclingDocument-skriver; re-emit via DocLang-skriveren eller en Markdown/HTML-projeksjon."
-  - Innformatering er ikke modellert (hvert tekstelement er én enkelt kjøring).
+  - "Kun lesing, uten en DoclingDocument-skriver. Skriv ut på nytt via DocLang-skriveren eller som en Markdown- eller HTML-representasjon."
+  - Formatering inne i teksten modelleres ikke (hvert tekstelement består av én tekstsekvens).
 processingNotes:
-  - "Deler `.json`-utvidelsen med den generiske JSON-leseren og disambiguerer ved hjelp av en presis innholdssniff (`schema_name` + `DoclingDocument`) med lavere prioritet enn standard, slik at en vanlig `.json` aldri løses til DoclingDocument når sniffingen mislykkes."
+  - Deler filtypen `.json` med den generiske JSON-leseren. En presis innholdskontroll (`schema_name` + `DoclingDocument`) skiller formatene ved en prioritet under standardnivået. En vanlig `.json`-fil tolkes derfor aldri som DoclingDocument når innholdskontrollen ikke gir treff.

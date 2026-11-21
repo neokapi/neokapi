@@ -17,7 +17,7 @@ project: true
 # The sample ships its context as files, and a fresh sandbox has a store that
 # has never held them, so the take starts where a reader does.
 setup:
-  - kapi context import ./context
+  - kapi store import ./context
 captureTimeoutSec: 240
 aspects:
   - review moves the edge
@@ -30,23 +30,23 @@ outro:
 script:
   - comment: Compass ships three languages from one source. Bring them up to date first.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its units fails the project's bound checks.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: The review queue is already the shape of a change-set. This selects the Dutch a person wrote and leaves what the stub drafted.
+  - comment: The review queue names each unit's document, block and language, which a decision addresses. This selects the Dutch a person wrote and leaves what the stub drafted.
   - command: >-
-      kapi status --review --json --jq '.pending[]|select(.locale=="nl" and (.target|startswith("⟦")|not))|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > dutch.json
-  # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
+      kapi status --review --json --jq '.pending[]|select(.locale=="nl" and (.target|startswith("⟦")|not))|{op:"decide",at:{doc:.relative,block:.key,edition:.locale},if_match:"*",outcome:"establish"}' > dutch.json
+  # The report goes to stderr, so the tail has to see stderr to trim it.
   - command: kapi apply dutch.json 2>&1 | tail -3
   - comment: Each approval is in the record as it is made, attributable, and reviewable in the context log.
-  - comment: A decision unparks the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
+  - comment: A decision releases the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
   - command: kapi up
-  - comment: Dutch is offered now, carrying the marker, because it is not signed off end to end.
+  - comment: Dutch is offered now, in the translated state, because not every string in it is approved.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: Finish Norwegian, and the same file says so.
+  - comment: Establish the rest of Norwegian, and the same file says so.
   - command: >-
-      kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > norwegian.json
+      kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{op:"decide",at:{doc:.relative,block:.key,edition:.locale},if_match:"*",outcome:"establish"}' > norwegian.json
   - command: kapi apply norwegian.json 2>&1 | tail -2
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
@@ -72,30 +72,30 @@ narration:
   - id: parked
     kind: terminal
     through: 5
-    highlight: { text: [blocked, "false"] }
-    caption: "Nederlandsk er utkastet, lagret og ikke tilbudt."
+    highlight: { text: ["waiting for review", withheld] }
+    caption: "Nederlandsk er kladdet, bevart og ikke tilbudt."
     text: >-
-      Nederlandsk stanser på en mislykket kontroll. Utkastene er trygge i prosjektlageret og ingenting av dem går tapt; det porten holder tilbake er levering, inntil noen har sett på enheten som feilet.
+      Nederlandsk venter på gjennomgang på grunn av en mislykket sjekk. Kladder er trygge i prosjektlageret og ingenting av dem går tapt; det porten holder tilbake er levering, inntil noen har sett på enheten som feilet.
   - id: review
     kind: terminal
     through: 10
-    caption: "Tjue beslutninger, i posten, og løkken utarbeider ingenting."
+    caption: "Tjue beslutninger, på rekorden, og løkken kladder ingenting."
     text: >-
-      Køen kommer tilbake som et endrings­sett, og dette filteret tar den nederlandske teksten en person skrev og beholder det stubben utarbeidet. Tjue godkjenninger lagres i posten etter hvert som de gjøres. Å kjøre løkken på nytt ber ikke leverandøren om noe.
+      Køen navngir hva hver beslutning gjelder, og dette filteret beholder det en person skrev på nederlandsk og forkaster det stubben kladdet. Tjue godkjenninger havner i rekorden etter hvert som de gjøres. Å kjøre løkken igjen ber leverandøren om ingenting.
   - id: offered
     kind: terminal
     through: 19
     highlight: { text: [nl, nb] }
-    caption: Nederlandsk er tilbudt og merket. Norsk mister merket sitt.
+    caption: Nederlandsk tilbudt som oversatt. Norsk er godkjent.
     text: >-
-      Nederlandsk tilbys nå, med et merke fordi det ikke er signert av ende til ende. Fullfør norsk, og den samme filen mister merket sitt i stedet. Tre språk, tre statuser, ingen av dem konfigurert.
+      Nederlandsk tilbys nå, i oversatt tilstand, fordi ikke alle strenger i det er godkjent. Godkjenn resten av norsk, og den samme filen tilbyr det som godkjent. Tre språk, to tilstander, og ingen av dem konfigurert for hånd.
   - id: picker
     kind: artifact
     artifact: picker
     caption: Det porten godkjente er det en leser kan velge.
     text: >-
-      Og dette er dit det ender. Velgeren tilbyr det porten godkjente, merker det ingen har signert av på, og utelater det som ikke er klart. Én fil passerer mellom løkken og nettstedet.
+      Og her lander det. Velgeren tilbyr det porten godkjente, markerer det som er oversatt men ikke ennå etablert, og utelater det som ikke er klart. Én fil går mellom løkken og nettstedet.
   - id: outro
     kind: outro
     text: >-
-      La bygget ditt lese den samme filen, så dukker et språk opp i det øyeblikket noen bestemmer at det er klart.
+      La bygget ditt lese den samme filen, så dukker et språk opp i det øyeblikket noen beslutter at det er klart.

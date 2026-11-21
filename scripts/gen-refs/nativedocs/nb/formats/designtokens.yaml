@@ -1,24 +1,22 @@
 # Native reference doc for the built-in `designtokens` format.
 # Schema source: core/formats/designtokens/config.go (Config) + schema.go.
 # Built on the json format; extracts only $description documentation.
-description: Trekk ut og oppdater lesbar $description-dokumentasjon i W3C DTCG-designtokenfiler.
+description: Trekk ut og oppdater menneskelesbar $description-dokumentasjon i W3C DTCG-designtokenfiler.
 overview: |
-  Formatet **Design Tokens (DTCG)** leser W3C Design Tokens Community Group-tokenfiler (`.tokens` / `.tokens.json`), JSON-utvekslingsformatet som brukes av Style Dictionary, Tokens Studio og lignende verktøy.
+  Formatet **Design Tokens (DTCG)** leser tokenfiler fra W3C Design Tokens Community Group (`.tokens` / `.tokens.json`). Dette er JSON-utvekslingsformatet som brukes av Style Dictionary, Tokens Studio og lignende verktøy.
 
-  Tokenverdier er typede designdata (farger, dimensjoner, skriftfamilier, aliaser), ikke naturlig språk, så formatet trekker ut bare den lesbare `$description`-dokumentasjonen på tokens og grupper som tekstinnhold; alle token-`$value`-, `$type`- og `$extensions`-felt samt den omkringliggende strukturen passerer gjennom urørt. Deteksjon krever den unike `.tokens`-utvidelsen og sjekker DTCG-innhold (`$value` + `$type`); `.tokens.json`-filer løses til JSON-formatet basert på utvidelsen med mindre `-f designtokens` er angitt. Rundtur er byte-tro, arvet fra JSON-leseren/skriveren.
+  Tokenverdier er typede designdata, som farger, dimensjoner, skriftfamilier og aliaser, ikke naturlig språk. Formatet trekker derfor bare ut den menneskelesbare `$description`-dokumentasjonen på tokener og grupper som oversettbart innhold. Hver token sin `$value`, `$type` og `$extensions`, samt den omkringliggende strukturen, føres videre uendret. Formatgjenkjenningen bruker den entydige filendelsen `.tokens` og undersøker innholdet etter DTCG-data (`$value` + `$type`). Filer med `.tokens.json` tilordnes JSON-formatet ut fra filendelsen, med mindre `-f designtokens` er angitt. Innlesing og utskriving bevarer bytene, slik JSON-leseren og -skriveren gjør.
 parameters:
-  extractDescriptions:
+  extract_descriptions:
     description: Trekk ut $description-dokumentasjon som oversettbart innhold.
     help: |
-      Når aktivert (standard), trekkes `$description`-felter på tokens og grupper
-      ut som oversettbare blokker. Når deaktivert gir filen ingen
-      oversettbart innhold.
-    values: "`true` / `false` (standard `true`)"
+      Når innstillingen er aktivert (standard), trekkes `$description`-felt på tokener og grupper ut som oversettbare blokker. Når den er deaktivert, gir filen ikke noe oversettbart innhold.
+    values: "`true` / `false` (standard: `true`)"
 processingNotes:
-  - Kun `$description` trekkes ut; tokenverdier og struktur er ikke-oversettbar gjennomstrømning.
-  - "En tokenfil uten `$description` gir null blokker, noe som er forventet for maskinegenererte tokensett."
+  - Bare `$description` trekkes ut. Tokenverdier og struktur er ikke oversettbare og føres videre uendret.
+  - En tokenfil uten `$description` gir ingen oversettbare blokker. Dette er forventet for maskingenererte tokensett.
 examples:
   - title: Deaktiver uttrekk av beskrivelser
-    description: Behandle filen som fullstendig ikke-oversettbar.
+    description: Behandle hele filen som ikke-oversettbar.
     config: |
-      extractDescriptions: false
+      extract_descriptions: false

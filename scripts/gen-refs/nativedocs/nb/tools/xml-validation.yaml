@@ -1,63 +1,63 @@
 # Native reference doc for the built-in `xml-validation` tool.
 # Schema source: core/tools/xmlvalidation.go (XMLValidationConfig).
-description: Kontroller at kildeteksten og/eller målteksten i hver blokk er velformet XML.
+description: Kontroller at kilde- og/eller målteksten i hver blokk er velformet XML.
 overview: |
-  **XML-validering**-verktøyet kontrollerer kildeteksten og, valgfritt, målteksten i
-  hver oversettbar blokk for XML-velformethet, og registrerer resultatet på
-  blokkers egenskaper: et gyldighetsflagg og, når ugyldig, en feilmelding
-  som identifiserer om kilden eller målet feilet og hvorfor. Tom tekst behandles
-  som gyldig.
+  Verktøyet **XML-validering** kontrollerer at kildeteksten og, om ønskelig,
+  målteksten i hver oversettbare blokk er velformet XML. Resultatet lagres i
+  blokkens egenskaper som et gyldighetsflagg. Hvis teksten er ugyldig, lagres
+  også en feilmelding som angir om det er kilde- eller målteksten som feilet,
+  og hvorfor. Tom tekst regnes som gyldig.
 
-  Kildevalidering er aktivert som standard. For å validere målet i tillegg, aktiver
-  målkontrollen og oppgi en målspråkkode. Siden blokktekst ofte er et XML-
-  fragment heller enn et komplett dokument, kan verktøyet pakke teksten inn i et rotelement
-  før analysering, slik at et fragment med flere toppnivånoder fortsatt
-  validerer.
+  Validering av kildetekst er aktivert som standard. For å validere målteksten
+  også, aktiver målsjekk og angi en språkinnstilling for målteksten. Blokktekst
+  er ofte et XML-fragment snarere enn et fullstendig dokument. Verktøyet kan
+  derfor pakke inn teksten i et rotelement før parsing, slik at også et fragment
+  med flere noder på øverste nivå valideres.
 parameters:
-  checkSource:
-    description: Valider kildetekst for XML-velformethet.
+  check_source:
+    description: Valider at kildeteksten er velformet XML.
     help: |
-      Når aktivert, analyseres hver blokks kildetekst som XML, og eventuelle
-      feil mot velformethet rapporteres.
-    values: "`true` / `false` (standard `true`)"
-  checkTarget:
-    description: Valider måltekst for XML-velformethet.
+      Når dette er aktivert, parses kildeteksten i hver blokk som XML, og eventuelle
+      feil i XML-strukturen rapporteres.
+    values: "`true` / `false` (standard: `true`)"
+  check_target:
+    description: Valider at målteksten er velformet XML.
     help: |
-      Når aktivert, analyseres måloversettelesen som XML i tillegg til
-      kilden. En målspråkkode må oppgis når dette er aktivert.
-    values: "`true` / `false` (standard `false`)"
+      Når dette er aktivert, parses målteksten som XML i tillegg til kildeteksten.
+      Du må angi en språkinnstilling for målteksten når dette er aktivert.
+    values: "`true` / `false` (standard: `false`)"
     dependsOn:
       - property: locale
-        condition: en målspråkkode er påkrevd når målkontroll er aktivert
+        condition: en språkinnstilling for målteksten er påkrevd når målsjekk er aktivert
   locale:
-    description: Målspråkkode som skal valideres.
+    description: Språkinnstillingen for målteksten som skal valideres.
     help: |
-      Språkkoden hvis oversettelse valideres når målkontroll er aktivert.
-      Påkrevd når `checkTarget` er på; ignoreres ellers.
-    values: "BCP-47-språkkode (f.eks. `fr`)"
+      Språkinnstillingen for oversettelsen som valideres når målsjekk er aktivert.
+      Påkrevd når `check_target` er aktivert. Ignoreres ellers.
+    values: "Språkinnstilling i BCP 47-format (f.eks. `fr`)"
     dependsOn:
-      - property: checkTarget
-        condition: brukes kun når målkontroll er aktivert
-  wrapRoot:
-    description: Pakk tekst inn i et rotelement før validering.
+      - property: check_target
+        condition: brukes bare når kontroll av måltekst er aktivert
+  wrap_root:
+    description: Pakk inn teksten i et rotelement før validering.
     help: |
-      Når aktivert, pakkes teksten inn i et syntetisk rotelement før
-      parsing, slik at et fragment med flere toppnivånoder (som ikke er et gyldig
-      frittstående dokument) fortsatt validerer. Deaktiver for å kreve ett enkelt
-      veldefinert dokument.
-    values: "`true` / `false` (standard `true`)"
+      Når dette er aktivert, omsluttes teksten av et syntetisk rotelement før
+      parsing. Dermed valideres også et fragment med flere noder på toppnivå
+      (som ikke er et gyldig, selvstendig dokument). Deaktiver dette for å kreve
+      ett velformet dokument.
+    values: "`true` / `false` (standard: `true`)"
 limitations:
-  - Kontrollerer kun velformethet; det validerer ikke mot en DTD eller et skjema.
-  - Tom kilde- eller måltekst behandles som gyldig.
+  - Kontrollerer bare at dokumentet er velformet. Validerer ikke mot en DTD eller et skjema.
+  - Tom kilde- eller måltekst regnes som gyldig.
 processingNotes:
-  - Opererer på oversettbare blokker; ikke-oversettbar struktur passerer gjennom uendret.
+  - "Behandler oversettbare blokker. Struktur som ikke skal oversettes, forblir uendret."
 examples:
-  - title: Valider kun kilde
-    description: Bekreft at kildeteksten i hver blokk analyseres som XML.
+  - title: Valider bare kildeteksten
+    description: Kontroller at kildeteksten i hver blokk kan parses som XML.
     config: |
-      checkSource: true
-  - title: Valider målspråk også
+      check_source: true
+  - title: Valider også målteksten
     description: "Valider også den franske oversettelsen, og behandle hver blokk som et fragment."
     config: |
-      checkTarget: true
+      check_target: true
       locale: fr
