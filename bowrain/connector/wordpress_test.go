@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -74,24 +73,38 @@ func TestWordPressFetch(t *testing.T) {
 }
 
 func TestWordPressPublish(t *testing.T) {
-	var got map[string]string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/wp-json/wp/v2/posts/17", r.URL.Path)
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-			t.Error(err)
-			w.WriteHeader(http.StatusBadRequest)
-		}
-	}))
+	srv := setupWordPressServer(t)
 	defer srv.Close()
 	c, err := NewWordPressConnector(map[string]string{"url": withTestNetwork(t, srv)})
 	require.NoError(t, err)
-	item := &platconn.ContentItem{
-		Metadata: map[string]string{"wp_id": "17"},
-		Blocks:   []*model.Block{makeBlock("title", "Bonjour", "title")},
+	items, err := c.Fetch(t.Context(), platconn.FetchOptions{})
+	require.NoError(t, err)
+	require.NotEmpty(t, items)
+	item := items[0]
+	require.Equal(t, "1", item.Metadata["wp_id"])
+
+	var got map[string]string
+	publish := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/wp-json/wp/v2/posts/1", r.URL.Path)
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&got)) {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer publish.Close()
+	c, err = NewWordPressConnector(map[string]string{"url": withTestNetwork(t, publish)})
+	require.NoError(t, err)
+	for i, b := range item.Blocks {
+		if b.Type == "title" {
+			item.Blocks[i] = deliveryCopy(b, "Bonjour le monde")
+		}
 	}
 	require.NoError(t, c.Publish(t.Context(), []*platconn.ContentItem{item}, platconn.PublishOptions{}))
-	require.Equal(t, map[string]string{"title": "Bonjour"}, got)
+	require.Equal(t, map[string]string{
+		"title":   "Bonjour le monde",
+		"content": "<p>Welcome to WordPress.</p>",
+		"excerpt": "A welcome post",
+	}, got)
 }
 
 func TestWordPressStatus(t *testing.T) {
