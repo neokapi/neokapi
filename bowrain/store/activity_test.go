@@ -268,7 +268,7 @@ func TestActivityStore_MatchesEveryWorkspaceKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, res.Activities, 2)
 
-	counts, err := store.DailyCounts(ctx, time.Now().Add(-time.Hour), "acme", "ws-uuid-1")
+	counts, err := store.DailyCounts(ctx, time.Now().Add(-time.Hour), []string{"acme", "ws-uuid-1"}, nil)
 	require.NoError(t, err)
 	total := 0
 	for _, c := range counts {
@@ -280,4 +280,42 @@ func TestActivityStore_MatchesEveryWorkspaceKey(t *testing.T) {
 	n, err := store.CountNewActivities(ctx, "u", "ws-uuid-1", "acme")
 	require.NoError(t, err)
 	assert.Equal(t, 2, n)
+}
+
+// ProjectIDs keeps a listing and the daily counts to a set of projects. An
+// empty set matches no row, and a row filed under no project is outside
+// every set.
+func TestActivityStore_ProjectSet(t *testing.T) {
+	store := newTestActivityStore(t)
+	ctx := t.Context()
+	for _, pid := range []string{"a", "b", ""} {
+		require.NoError(t, store.Create(ctx, &Activity{
+			WorkspaceID: "acme", ProjectID: pid, ActorID: "u", Type: ActivityItemPushed, Summary: pid,
+		}))
+	}
+	since := time.Now().Add(-time.Hour)
+	for _, tc := range []struct {
+		name string
+		set  []string
+		want int
+	}{
+		{"unrestricted", nil, 3},
+		{"one project", []string{"a"}, 1},
+		{"two projects", []string{"a", "b"}, 2},
+		{"empty set", []string{}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := store.List(ctx, ActivityQuery{WorkspaceID: "acme", ProjectIDs: tc.set})
+			require.NoError(t, err)
+			assert.Len(t, res.Activities, tc.want)
+
+			counts, err := store.DailyCounts(ctx, since, []string{"acme"}, tc.set)
+			require.NoError(t, err)
+			total := 0
+			for _, c := range counts {
+				total += c.Count
+			}
+			assert.Equal(t, tc.want, total)
+		})
+	}
 }

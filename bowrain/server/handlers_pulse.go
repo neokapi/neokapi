@@ -278,6 +278,10 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 
 	if s.ActivityStore != nil {
 		ctx := c.Request().Context()
+		visible, err := s.pulseVisibleProjectIDs(ctx, ws.ID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to list projects"})
+		}
 		limit := 20
 		if l := c.QueryParam("limit"); l != "" {
 			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
@@ -286,11 +290,14 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 		}
 
 		// Rows are filed under the slug or the id, whichever the event
-		// carried, so the query names both.
+		// carried, so the query names both. ProjectIDs keeps the feed to the
+		// projects Pulse lists, so a hidden project's id in ?project= finds
+		// nothing, as an unknown id does.
 		q := bstore.ActivityQuery{
 			WorkspaceID:   ws.Slug,
 			WorkspaceKeys: []string{ws.ID},
 			ProjectID:     c.QueryParam("project"),
+			ProjectIDs:    visible,
 			ActorID:       c.QueryParam("contributor"),
 			Type:          c.QueryParam("type"),
 			Cursor:        c.QueryParam("cursor"),
@@ -341,8 +348,13 @@ func (s *Server) HandlePulseActivityHeatmap(c echo.Context) error {
 	days := make([]store.PulseHeatmapDay, 0)
 
 	if s.ActivityStore != nil {
+		ctx := c.Request().Context()
+		visible, err := s.pulseVisibleProjectIDs(ctx, ws.ID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to list projects"})
+		}
 		since := time.Now().UTC().AddDate(-1, 0, 0)
-		counts, err := s.ActivityStore.DailyCounts(c.Request().Context(), since, ws.Slug, ws.ID)
+		counts, err := s.ActivityStore.DailyCounts(ctx, since, []string{ws.Slug, ws.ID}, visible)
 		if err == nil {
 			for _, dc := range counts {
 				days = append(days, store.PulseHeatmapDay{Date: dc.Date, Count: dc.Count})
@@ -484,6 +496,21 @@ func (s *Server) pulseVisibleProjects(ctx context.Context, workspaceID string) (
 		}
 	}
 	return visible, nil
+}
+
+// pulseVisibleProjectIDs returns the ids of the projects pulseVisibleProjects
+// lists. The slice is non-nil, so an activity query given it lists nothing
+// when no project is visible.
+func (s *Server) pulseVisibleProjectIDs(ctx context.Context, workspaceID string) ([]string, error) {
+	projects, err := s.pulseVisibleProjects(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(projects))
+	for _, p := range projects {
+		ids = append(ids, p.ID)
+	}
+	return ids, nil
 }
 
 // buildPulseOverview constructs the full overview response.

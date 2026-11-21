@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -571,4 +572,115 @@ func (m *mockPulseAuth) GetMembership(_ context.Context, workspaceID, userID str
 		return m.membership, nil
 	}
 	return nil, assert.AnError
+}
+
+// TestPulseActivityVisibility checks that the activity feed and the heatmap
+// of a public workspace show only the projects Pulse lists, whoever asks. A
+// private or archived project's id in ?project= answers as an unknown id
+// does.
+func TestPulseActivityVisibility(t *testing.T) {
+	srv := newPulseTestServer(t)
+	ctx := t.Context()
+	srv.ActivityStore = bstore.NewActivityStore(srv.ContentStore.(*bstore.PostgresStore).SQLDB())
+	ws := &platauth.Workspace{ID: "ws-vis", Slug: "vis", Type: platauth.WorkspaceTypeTeam, DashboardVisibility: platauth.DashboardPublic}
+
+	for _, p := range []struct {
+		id, visibility string
+		archive        bool
+	}{
+		{"p-public", "public", false},
+		{"p-private", "private", false},
+		{"p-archived", "public", true},
+	} {
+		require.NoError(t, srv.ContentStore.CreateProject(ctx, &store.Project{
+			ID: p.id, Name: p.id, WorkspaceID: ws.ID, DashboardVisibility: p.visibility,
+		}))
+		if p.archive {
+			require.NoError(t, srv.ContentStore.ArchiveProject(ctx, p.id))
+		}
+		require.NoError(t, srv.ActivityStore.Create(ctx, &bstore.Activity{
+			WorkspaceID: ws.Slug, ProjectID: p.id, ActorID: "u", ActorName: "U",
+			Type: bstore.ActivityItemPushed, Summary: p.id,
+		}))
+	}
+
+	token, err := platauth.GenerateToken(&platauth.User{ID: "u-1", Email: "u@example.com"}, "secret", time.Hour)
+	require.NoError(t, err)
+	callers := []struct {
+		name   string
+		auth   *mockPulseAuth
+		bearer string
+	}{
+		{"anonymous", &mockPulseAuth{workspace: ws}, ""},
+		{"member", &mockPulseAuth{workspace: ws, membership: &platauth.Membership{WorkspaceID: ws.ID, UserID: "u-1"}}, token},
+		{"non-member", &mockPulseAuth{workspace: ws}, token},
+	}
+	requests := []struct {
+		name, query string
+		want        []string
+	}{
+		{"feed", "", []string{"p-public"}},
+		{"public project", "?project=p-public", []string{"p-public"}},
+		{"private project", "?project=p-private", nil},
+		{"archived project", "?project=p-archived", nil},
+		{"unknown project", "?project=p-none", nil},
+	}
+
+	for _, caller := range callers {
+		api := echo.New()
+		g := api.Group("/pulse/:workspace", PulseAccessMiddleware("secret", caller.auth))
+		g.GET("/activity", srv.HandlePulseActivity)
+		g.GET("/activity/heatmap", srv.HandlePulseActivityHeatmap)
+		get := func(path string) *httptest.ResponseRecorder {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			if caller.bearer != "" {
+				req.Header.Set("Authorization", "Bearer "+caller.bearer)
+			}
+			rec := httptest.NewRecorder()
+			api.ServeHTTP(rec, req)
+			return rec
+		}
+
+		var unknown *httptest.ResponseRecorder
+		for _, tc := range requests {
+			t.Run(caller.name+"/"+tc.name, func(t *testing.T) {
+				rec := get("/pulse/vis/activity" + tc.query)
+				require.Equal(t, http.StatusOK, rec.Code)
+				var resp struct {
+					Activities []store.PulseActivity `json:"activities"`
+				}
+				require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+				var got []string
+				for _, a := range resp.Activities {
+					got = append(got, a.Project)
+				}
+				assert.ElementsMatch(t, tc.want, got)
+				if tc.name == "unknown project" {
+					unknown = rec
+				}
+			})
+		}
+		t.Run(caller.name+"/hidden project answers as unknown", func(t *testing.T) {
+			require.NotNil(t, unknown)
+			for _, id := range []string{"p-private", "p-archived"} {
+				rec := get("/pulse/vis/activity?project=" + id)
+				assert.Equal(t, unknown.Code, rec.Code, id)
+				assert.Equal(t, unknown.Header().Get("Cache-Control"), rec.Header().Get("Cache-Control"), id)
+				assert.JSONEq(t, unknown.Body.String(), rec.Body.String(), id)
+			}
+		})
+		t.Run(caller.name+"/heatmap", func(t *testing.T) {
+			rec := get("/pulse/vis/activity/heatmap")
+			require.Equal(t, http.StatusOK, rec.Code)
+			var resp struct {
+				Days []store.PulseHeatmapDay `json:"days"`
+			}
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+			total := 0
+			for _, d := range resp.Days {
+				total += d.Count
+			}
+			assert.Equal(t, 1, total)
+		})
+	}
 }
