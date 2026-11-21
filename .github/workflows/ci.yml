@@ -751,11 +751,19 @@ jobs:
             coverage/bowrain-plugin.out
           retention-days: 1
 
+  # A pull request runs the server package, the largest in the module, as two
+  # shards beside a third job for every other package (see SHARD in
+  # bowrain/Makefile). A push to main runs the lot in one job, with race and
+  # coverage.
   test-bowrain:
-    name: Test (bowrain)
+    name: Test (bowrain${{ matrix.shard != 'all' && format(', {0}', matrix.shard == 'rest' && 'rest' || format('server {0}', matrix.shard)) || '' }})
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(github.event_name == 'pull_request' && '["1/2","2/2","rest"]' || '["all"]') }}
     services:
       # A stable GitHub-managed Postgres for the bowrain suite, on a pull request
       # and on a push.
@@ -803,7 +811,7 @@ jobs:
 
       - name: Run bowrain tests
         id: run-tests
-        run: make test-bowrain
+        run: make test-bowrain SHARD=${{ matrix.shard }}
         continue-on-error: true
 
       # The suite pipes `go test -json` to a file, so failing test names never
@@ -827,7 +835,7 @@ jobs:
         if: steps.run-tests.outcome == 'failure'
         uses: actions/upload-artifact@v7
         with:
-          name: test-results-bowrain
+          name: test-results-bowrain${{ matrix.shard != 'all' && format('-{0}', strategy.job-index) || '' }}
           path: test-results-bowrain.json
           retention-days: 3
 
@@ -843,7 +851,7 @@ jobs:
         if: always()
         continue-on-error: true
         with:
-          name: Bowrain Tests
+          name: Bowrain Tests${{ matrix.shard != 'all' && format(' ({0})', matrix.shard) || '' }}
           path: junit-bowrain.xml
           reporter: java-junit
 

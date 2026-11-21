@@ -518,12 +518,30 @@ pull-test-images: ## Fetch those images so no test pulls one mid-run
 		docker pull --quiet "$$img" >/dev/null || exit 1; \
 	done
 
+# SHARD splits the CI run. The server package holds the largest share of this
+# target's time and Go runs one package's tests one after another, so a pull
+# request runs it as shards side by side: SHARD=i/n runs one share of the
+# server package's tests (scripts/go-test-shard.sh), SHARD=rest runs every
+# other package, and the default runs everything in one go, with coverage, as a
+# push to main does.
+SHARD ?= all
+SERVER_PACKAGE := github.com/neokapi/neokapi/bowrain/server
+
 test-bowrain: i18n-catalogs ## Run bowrain module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
+ifeq ($(SHARD),all)
 	packages="$$($(GO) list ./...)" && \
 		packages="$$(printf '%s\n' "$$packages" | grep -v '/apps/bowrain')" && \
 		$(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain.out) $(_SHORT) -json $$packages > ../test-results-bowrain.json
+else ifeq ($(SHARD),rest)
+	packages="$$($(GO) list ./...)" && \
+		packages="$$(printf '%s\n' "$$packages" | grep -v '/apps/bowrain' | grep -vx '$(SERVER_PACKAGE)')" && \
+		$(GOTEST_BASE) $(_SHORT) -json $$packages > ../test-results-bowrain.json
+else
+	flags="$$(../scripts/go-test-shard.sh server $(SHARD))" && \
+		$(GOTEST_BASE) $(_SHORT) -json $$flags ./server > ../test-results-bowrain.json
+endif
 else
 	$(GOTEST_BASE) ./... -count=1
 endif
