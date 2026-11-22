@@ -241,7 +241,7 @@ func newTermsExportCmd(a *App) *cobra.Command {
 }
 
 // lookupSourceLocaleUsage describes --source-locale on the store lookups.
-const lookupSourceLocaleUsage = "source locale (default: the project's source_language, else en)"
+const lookupSourceLocaleUsage = "source locale (default: the project's source_language in the project's own store, else en)"
 
 func newTermsLookupCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -261,7 +261,11 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 			}
 			defer releaseTerms()
 
-			srcLoc, err := a.StoreSourceLocale(cmd, srcLocale)
+			sel, err := a.ResolveTermsCmdStore(cmd)
+			if err != nil {
+				return err
+			}
+			srcLoc, err := a.StoreSourceLocale(cmd, sel, srcLocale)
 			if err != nil {
 				return err
 			}

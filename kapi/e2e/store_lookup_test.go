@@ -79,3 +79,55 @@ func TestStoreLookupsUseTheProjectSourceLanguage(t *testing.T) {
 	assert.Contains(t, m.EntryIDs, m.EntryID)
 	assert.Equal(t, []string{"merge", "record"}, m.Origins)
 }
+
+// A standalone store holds content of no particular project, so a lookup in
+// one reads in the built-in default even inside a project whose source
+// language is en-GB. Each store selector of each lookup command is driven:
+// --file, --name and --local.
+func TestStoreLookupsInAStandaloneStoreKeepTheDefault(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	dataRoot, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	configDir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	copyFixture(t, filepath.Join(findRoot(), "samples", "compass"), dir)
+
+	run := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command(kapiBin, append(args, "-p", ".")...)
+		cmd.Dir = dir
+		cmd.Env = append(append(os.Environ(), isoEnv...),
+			"KAPI_DATA_DIR="+dataRoot, "KAPI_CONFIG_DIR="+configDir)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "kapi %v failed:\n%s", args, out)
+		return string(out)
+	}
+	total := func(out string) int {
+		t.Helper()
+		var res struct {
+			Total int `json:"total"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(out), &res), out)
+		return res.Total
+	}
+
+	for _, sel := range [][]string{
+		{"--file", filepath.Join(dir, "legacy.db")},
+		{"--name", "legacy"},
+		{"--local"},
+	} {
+		t.Run(sel[0], func(t *testing.T) {
+			memArgs := append([]string{"memory", "import", filepath.Join(testdata, "project.tmx"), "-s", "en", "-t", "fr"}, sel...)
+			run(memArgs...)
+			lookup := append([]string{"memory", "lookup", "Settings", "-t", "fr", "--json"}, sel...)
+			assert.Equal(t, 1, total(run(lookup...)), "memory lookup %s reads in en", sel[0])
+
+			termArgs := append([]string{"terms", "import", filepath.Join(testdata, "terms.csv"),
+				"--format", "csv", "-s", "en", "-t", "fr", "--header"}, sel...)
+			run(termArgs...)
+			lookup = append([]string{"terms", "lookup", "password", "-t", "fr", "--json"}, sel...)
+			assert.Equal(t, 1, total(run(lookup...)), "terms lookup %s reads in en", sel[0])
+		})
+	}
+}

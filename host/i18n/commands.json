@@ -3257,7 +3257,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale (default: the project's source_language, else en)"
+                "usage": "source locale (default: the project's source_language in the project's own store, else en)"
               },
               "target-locale": {
                 "usage": "target locale"
@@ -4231,7 +4231,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale (default: the project's source_language, else en)"
+                "usage": "source locale (default: the project's source_language in the project's own store, else en)"
               },
               "target-locale": {
                 "usage": "target locale to show translations"

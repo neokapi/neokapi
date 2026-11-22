@@ -170,9 +170,9 @@ func TestAddProcessingFlags_LeavesTheResolvableFieldsEmpty(t *testing.T) {
 	assert.Equal(t, DefaultEncoding, a.InputEncoding())
 }
 
-// A store lookup reads in the source language of the project in scope when
-// no --source-locale is given. An explicit one wins, and without a project
-// the built-in default holds.
+// A lookup in the project's own store reads in the project's source language
+// when no --source-locale is given. A standalone store reads in the built-in
+// default, project or not, and an explicit value wins everywhere.
 func TestStoreSourceLocale(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	root := t.TempDir()
@@ -182,21 +182,26 @@ func TestStoreSourceLocale(t *testing.T) {
 	inProject.Flags().String(projectFlagName, recipe, "")
 	outside := NewEnvCommand(context.Background(), "lookup")
 	app := &App{}
+	own := StoreSelection{Root: root}
+	standalone := StoreSelection{Path: filepath.Join(root, "legacy.db")}
 
 	cases := []struct {
 		name  string
 		cmd   Command
+		sel   StoreSelection
 		named string
 		want  model.LocaleID
 	}{
-		{"project source language", inProject, "", "en-GB"},
-		{"explicit wins", inProject, "fr", "fr"},
-		{"no project", outside, "", DefaultSourceLang},
-		{"no project, explicit", outside, " de ", "de"},
+		{"project store", inProject, own, "", "en-GB"},
+		{"project store, explicit wins", inProject, own, "fr", "fr"},
+		{"standalone store in a project", inProject, standalone, "", DefaultSourceLang},
+		{"standalone store in a project, explicit", inProject, standalone, "fr", "fr"},
+		{"no project", outside, standalone, "", DefaultSourceLang},
+		{"no project, explicit", outside, standalone, " de ", "de"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := app.StoreSourceLocale(tc.cmd, tc.named)
+			got, err := app.StoreSourceLocale(tc.cmd, tc.sel, tc.named)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})

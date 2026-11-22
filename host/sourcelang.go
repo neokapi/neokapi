@@ -65,15 +65,17 @@ func (a *App) SourceLocale() string {
 	return ResolveSourceLocale(a.SourceLang, "")
 }
 
-// StoreSourceLocale is the source language a store lookup reads in. named is
-// what the command's --source-locale flag holds. An explicit value wins, then
-// the `defaults.source_language` of the project in scope, then
-// DefaultSourceLang. The error is the project resolution's, for a -p that
-// names no project.
-func (a *App) StoreSourceLocale(cmd Command, named string) (model.LocaleID, error) {
+// StoreSourceLocale is the source language a lookup in the store sel reads
+// in. named is what the command's --source-locale flag holds. An explicit
+// value wins. Then, when sel is the project's own store, the project's
+// `defaults.source_language` applies. A standalone store (--file, --name,
+// --local, or one a recipe binds by path) holds content of no particular
+// project, so it reads in DefaultSourceLang. The error is the project
+// resolution's, for a -p that names no project.
+func (a *App) StoreSourceLocale(cmd Command, sel StoreSelection, named string) (model.LocaleID, error) {
 	named = strings.TrimSpace(named)
 	var recipe model.LocaleID
-	if named == "" {
+	if named == "" && sel.InProject() {
 		recipePath, err := ResolveProjectPath(cmd)
 		if err != nil {
 			return "", err

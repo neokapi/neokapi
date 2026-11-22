@@ -359,7 +359,11 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 				MaxResults: maxResults,
 			}
 
-			srcLoc, err := a.StoreSourceLocale(cmd, srcLocale)
+			sel, err := a.ResolveMemoryStore(cmd)
+			if err != nil {
+				return err
+			}
+			srcLoc, err := a.StoreSourceLocale(cmd, sel, srcLocale)
 			if err != nil {
 				return err
 			}

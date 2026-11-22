@@ -58,3 +58,21 @@ func TestMemoryLookupEntriesKeepsPairsWithANulApart(t *testing.T) {
 	assert.Equal(t, []string{"a"}, got[0].EntryIDs)
 	assert.Equal(t, []string{"b"}, got[1].EntryIDs)
 }
+
+// A merged result carries the strongest of its matches, wherever that match
+// sits.
+func TestMemoryLookupEntriesKeepsTheStrongestMatchType(t *testing.T) {
+	entry := func(id string) memory.Entry {
+		return memory.Entry{ID: id, Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Save"}}},
+			"nb": {{Text: &model.TextRun{Text: "Lagre"}}},
+		}}
+	}
+	got := MemoryLookupEntries([]memory.Match{
+		{Entry: entry("a"), Score: 1, MatchType: memory.MatchExact},
+		{Entry: entry("b"), Score: 1, MatchType: memory.MatchGeneralizedExact},
+	}, "en", "nb")
+	require.Len(t, got, 1)
+	assert.Equal(t, string(memory.MatchGeneralizedExact), got[0].MatchType)
+	assert.Equal(t, "a", got[0].EntryID)
+}
