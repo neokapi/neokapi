@@ -37,7 +37,7 @@ func TestExpandAdhocOutputTemplate(t *testing.T) {
 }
 
 // In project mode, a tool/flow run resolves the output via the matched content
-// item's target through the one core resolver — including the directory-mirror
+// item's target through the one core resolver, including the directory-mirror
 // form and the old double-extension-prone `*.ext` form (now correct).
 func TestProjectItemTargetPath(t *testing.T) {
 	root := t.TempDir()
@@ -59,7 +59,7 @@ func TestProjectItemTargetPath(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, filepath.Join(root, "output/fr/docs/api-reference.md"), got)
 
-	// The form that used to yield `.json.json` now resolves cleanly.
+	// A legacy `*.ext` target resolves to `checkout.json`, not `.json.json`.
 	got, ok, _ = a.projectItemTargetPath(filepath.Join(root, "input/store/checkout.json"), "fr")
 	require.True(t, ok)
 	assert.Equal(t, filepath.Join(root, "output/fr/store/checkout.json"), got)
@@ -93,7 +93,7 @@ func TestResolveOutputPath_RefusesADestinationTheCollectionTracks(t *testing.T) 
 	assert.Contains(t, err.Error(), "docs/**/*.md")
 	assert.Contains(t, err.Error(), "target:")
 
-	// A collection WITH a target resolves normally — the fallback is never reached.
+	// A collection WITH a target resolves normally, the fallback is never reached.
 	out, err := a.resolveOutputPath(filepath.Join(root, "site/index.md"), "")
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(root, "build/en/index.md"), out)
@@ -105,7 +105,7 @@ func TestResolveOutputPath_RefusesADestinationTheCollectionTracks(t *testing.T) 
 }
 
 // Outside a project there are no collections to feed, so the sibling default
-// stands — that is the ad-hoc `kapi run <flow> -i file` shape.
+// stands, that is the ad-hoc `kapi run <flow> -i file` shape.
 func TestResolveOutputPath_AdHocKeepsTheSibling(t *testing.T) {
 	a := &App{}
 	a.TargetLang = "fr"
@@ -115,7 +115,7 @@ func TestResolveOutputPath_AdHocKeepsTheSibling(t *testing.T) {
 	assert.Equal(t, filepath.Join("docs", "index_fr.md"), out)
 }
 
-// With no target language the sibling would be `index_.md` — a name for
+// With no target language the sibling would be `index_.md`, a name for
 // nothing. Refuse and say what is missing instead of writing it.
 func TestResolveOutputPath_RefusesWithNoTargetLanguage(t *testing.T) {
 	a := &App{}
@@ -126,9 +126,9 @@ func TestResolveOutputPath_RefusesWithNoTargetLanguage(t *testing.T) {
 }
 
 // A file is claimed by the first item that matches it, so the target it
-// resolves to is that item's: an explicit item listed before a glob supplies
-// its own target, and a source-only item listed before a targeted glob makes
-// the file source-only rather than borrowing the glob's target (#2288).
+// resolves to is that item's. An explicit item listed before a glob supplies
+// its own target. A source-only item listed before a targeted glob makes the
+// file source-only, so it does not borrow the glob's target (#2288).
 func TestProjectItemTargetPath_FirstMatchingItemClaims(t *testing.T) {
 	root := t.TempDir()
 	proj := &project.KapiProject{

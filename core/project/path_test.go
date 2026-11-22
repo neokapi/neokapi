@@ -49,7 +49,7 @@ func TestResolveTargetPath_NoDoubleExtension(t *testing.T) {
 
 // The same regression for a compound suffix, which is the harder case: the `*`
 // shorthand expands to the source stem, and path/filepath.Ext sees only ".json"
-// in "App.kbf.json" — so a stem taken with it leaves ".kbf" glued on and the
+// in "App.kbf.json", so a stem taken with it leaves ".kbf" glued on and the
 // target comes out "App.kbf.kbf.json".
 func TestResolveTargetPath_NoDoubleExtension_CompoundSuffix(t *testing.T) {
 	got := mustPath(ResolveTargetPath("i18n/src/*.kbf.json", "", "i18n/{lang}/*.kbf.json", "i18n/src/App.kbf.json", "fr"))
@@ -65,7 +65,7 @@ func TestResolveTargetPath_NoDoubleExtension_CompoundSuffix(t *testing.T) {
 // neokapi-i18n framework preset scaffolds (core/preset.neokapiI18nPreset): a
 // source glob confined to i18n/src/ resolving to per-locale targets under
 // i18n/{lang}/. The source subdir is what keeps the source glob from ever
-// re-ingesting a generated target — the collision that otherwise drives sibling
+// re-ingesting a generated target, the collision that otherwise drives sibling
 // i18n-<lang>/ sprawl. Kept in lockstep with the preset's mapping strings.
 func TestResolveTargetPath_NestedI18nLayout(t *testing.T) {
 	const (
@@ -88,7 +88,7 @@ func TestResolveTargetPath_NestedI18nLayout(t *testing.T) {
 	}
 }
 
-// Directory-mirror target: no token/wildcard needed — the source tree (relative
+// Directory-mirror target: no token/wildcard needed, the source tree (relative
 // to base) is reproduced under the per-language root.
 func TestResolveTargetPath_DirectoryMirror(t *testing.T) {
 	// Default base = glob fixed prefix (input/docs/) → mirrors just the filename.

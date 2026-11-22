@@ -231,7 +231,7 @@ func outcomeCell(s *output.Styles, fails bool) string {
 
 // gateSelection records which gates the user asked to run. With no --gate, every
 // gate runs (explicit is false). With at least one, only the named gates run and
-// explicit is true — which turns a gate whose project binding is missing from a
+// explicit is true, which turns a gate whose project binding is missing from a
 // silent skip into a reported failure, so a CI user who named a gate learns it is
 // misconfigured rather than seeing a false pass.
 type gateSelection struct {
@@ -242,11 +242,10 @@ type gateSelection struct {
 }
 
 // gateFlagName is the flag that names which project gates to run. One flag
-// naming gates by their own names, rather than a boolean per gate: the gates
-// share their names with other things a check command already flags (--voice is
-// the style-similarity opt-in, --terms is the do-not-translate boolean
-// elsewhere), and a selector that collides with them is a selector a user
-// cannot read off the help text.
+// takes gate names, in place of a boolean per gate, because the gate names
+// collide with existing check flags (--voice is the style-similarity opt-in,
+// --terms is the do-not-translate boolean elsewhere). A colliding selector
+// would be unreadable from the help text.
 const gateFlagName = "gate"
 
 // selectableGates are the gate names --gate accepts, in the order they run.
@@ -322,7 +321,7 @@ func (a *App) RunVerify(cmd Command, args []string) error {
 		return fmt.Errorf("%w: %s (%s): %s", ErrCheckNotRun, check.CauseSummary(out.DidNotRunCause), out.DidNotRunCause, strings.Join(out.DidNotRun, "; "))
 	case check.VerdictFailed:
 		// Report mode: an assistant looping on verify reads `pass`/findings from the
-		// output and fixes them — a not-yet-passing gate is expected feedback, not a
+		// output and fixes them, a not-yet-passing gate is expected feedback, not a
 		// failure, so don't exit non-zero (which a shell or `set -e` treats as error).
 		// CI gating omits --no-fail and gets the non-zero exit.
 		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
@@ -343,8 +342,8 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 
 	// The verify path threads cmd.Context() into ctx-aware content memory/terms lookups
 	// (e.g. ResolveTermRules). When computeVerify runs outside cobra's
-	// Execute — the Stop hook builds a fresh EnvCommand with the verify flags, and tests call
-	// RunVerify directly — that context is nil, which panics deep in
+	// Execute, the Stop hook builds a fresh EnvCommand with the verify flags, and tests call
+	// RunVerify directly, that context is nil, which panics deep in
 	// database/sql and then deadlocks on the deferred store Close. Seed a real
 	// context once here so every downstream cmd.Context() is non-nil.
 	if cmd != nil && cmd.Context() == nil {
@@ -368,7 +367,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	}
 	root := filepath.Dir(projectPath)
 	// A gate run is where a silently-inert recipe field (automations:
-	// without server:) is most misleading — surface it here and in status.
+	// without server:) is most misleading, surface it here and in status.
 	a.WarnInertRecipeFields(cmd, proj)
 
 	sel, err := resolveGateSelection(cmd)
@@ -456,7 +455,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 
 	// --- staleness gate --------------------------------------------------
 	// Part of the default gate set, and it carries no flag of its own: the
-	// other gates are bars you set, and this one is a fact about provenance —
+	// other gates are bars you set, and this one is a fact about provenance,
 	// a target's stamp either matches the context governing its file or it
 	// does not. A run that named specific gates gets only those.
 	if !sel.explicit {
@@ -474,7 +473,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	}
 
 	// --- ship gate (opt-in: the pre-release coverage bar) ----------------
-	// By default the ship gate is *not* evaluated here — coverage is the job of
+	// By default the ship gate is *not* evaluated here, coverage is the job of
 	// `kapi status`, and target drift is non-blocking. With --ship, a locale that
 	// doesn't clear its ship gate fails verify (exit 3), for a release/tag check.
 	if ship, _ := cmd.Flags().GetBool("ship"); ship && (proj.HasShipGates() || proj.HasSourceGate()) {
@@ -523,7 +522,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 // verifySourceGate evaluates the project's source-readiness gate over the
 // author's content. It is the source-side counterpart of verifyShip: it gates
 // the source (written→established), not the translations. Like the
-// ship gate it is opt-in (--ship) — source drift never blocks an ordinary build.
+// ship gate it is opt-in (--ship), source drift never blocks an ordinary build.
 func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
 	sc, err := a.computeSourceReadiness(ctx, proj, root, units)
 	if err != nil {
@@ -866,7 +865,7 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 
 // verifyVoice scores the source-language content against the project's bound
 // voice profile. Returns nil (no gate) when the project binds no voice
-// profile — the gate only runs when there is something to check. Reuses the
+// profile, the gate only runs when there is something to check. Reuses the
 // voice check path (NewVoiceVocabCheckTool + CalculateScore).
 func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string, warnings *voiceWarnings, unread *UnreadSet) (*verifyGateResult, error) {
 	// The voice is resolved per file, at the point that file sits at, so a gate
@@ -896,7 +895,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		return nil, err
 	}
 
-	// What each file IS to this project — the format it declares and the reader
+	// What each file IS to this project, the format it declares and the reader
 	// config it declares for it, resolved the way the file checkset resolves it.
 	// A gate that reads a document differently from the loop is not gating the
 	// loop: it scores blocks the convergence never extracts.
@@ -949,8 +948,8 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 				}
 			}
 		}
-		// Findings name the file the way `kapi check` does — relative to the
-		// project, with the block — so one location format reads the same in a
+		// Findings name the file the way `kapi check` does, relative to the
+		// project, with the block, so one location format reads the same in a
 		// terminal, a CI log and a recording, and none of them carries the
 		// machine's directory layout.
 		display := f
@@ -992,7 +991,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 				}
 				allFindings = append(allFindings, findings...)
 			}
-			// The profile's document-scope rules — its required patterns — are judged
+			// The profile's document-scope rules, its required patterns, are judged
 			// once over the file and reported against it with no block, the way the
 			// file checkset reports them. They score beside the per-block findings:
 			// a rule the profile counts is a rule the ship gate applies.
@@ -1024,7 +1023,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			unread.settle(&gate, skipped, true)
 			return &gate, nil
 		}
-		// Nothing bound a voice at any of these files — there is no gate to
+		// Nothing bound a voice at any of these files, there is no gate to
 		// report, which is what lets --voice say the binding is missing.
 		return nil, nil
 	}
@@ -1044,11 +1043,10 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 // returns the findings it recorded on the block's annotation/properties.
 //
 // Both failure modes are RETURNED rather than folded into "no findings". The
-// caller feeds these into coreprofile.CalculateScore, so a checker that errored on
-// every block used to produce an empty finding set, a perfect score, and
-// `voice: PASS` — the voice gate silently disabled while CI went green. It
-// shares RunCheckTool's driver rather than re-deriving it, so the two cannot
-// drift on error handling again.
+// caller feeds these into coreprofile.CalculateScore, where a checker that
+// errored on every block would otherwise yield an empty finding set, a
+// perfect score and `voice: PASS`. It shares RunCheckTool's driver, so the two
+// handle errors the same way.
 func runVoiceVocabOnBlock(ctx context.Context, vocab *coretools.VoiceVocabCheckTool, b *model.Block) ([]coreprofile.VoiceFinding, error) {
 	if err := RunCheckTool(ctx, vocab, b); err != nil {
 		return nil, err
@@ -1113,7 +1111,7 @@ func (a *App) voiceSourceFiles(proj *project.KapiProject, root string, args []st
 }
 
 // projectSourceFiles resolves every source file declared by the project's
-// content items (the source-side glob, with {lang} expansion not applied — the
+// content items (the source-side glob, with {lang} expansion not applied, the
 // content path is the source).
 func (a *App) projectSourceFiles(proj *project.KapiProject, root string) ([]string, error) {
 	ctx := project.NewProjectContext(proj, filepath.Join(root, "x.kapi"))
@@ -1159,16 +1157,15 @@ type VerifyUnit struct {
 
 	// SourceFormat/SourceConfig and TargetFormat/TargetConfig are the reader
 	// binding the recipe declares for this unit's two files: the format name
-	// (empty = detect by extension) and the merged reader config —
+	// (empty = detect by extension) and the merged reader config,
 	// `defaults.formats[<format>].config` overlaid by the content item's own
 	// `format.config`, item wins per key.
 	//
 	// Measurement must read a file the way the run that produced it read it.
-	// Reader config decides which text a reader even emits — a markdown reader
-	// with `translate_front_matter` emits the title and description as units,
-	// without it they are configuration — so a coverage path blind to the
-	// config counts a different set of units than the flow produced, and the
-	// percentage is a fraction over two denominators.
+	// Reader config decides which text a reader emits: a markdown reader with
+	// `translate_front_matter` emits the title and description as units, and
+	// without it they are configuration. A coverage path blind to the config
+	// would count a different set of units than the flow produced.
 	SourceFormat string
 	SourceConfig map[string]any
 	TargetFormat string
@@ -1205,7 +1202,7 @@ func (a *App) readTarget(ctx context.Context, u VerifyUnit) ([]*model.Block, err
 
 // unitFormat resolves the reader binding to read one of a unit's files under.
 // The app-wide --format override names one format for everything the caller
-// passed, so it displaces the recipe's binding entirely — config included,
+// passed, so it displaces the recipe's binding entirely, config included,
 // since a config belongs to the format it was declared for.
 func (a *App) unitFormat(name string, cfg map[string]any) (string, map[string]any) {
 	if a.FormatFlag != "" {
@@ -1220,13 +1217,13 @@ func (a *App) unitFormat(name string, cfg map[string]any) (string, map[string]an
 // The target carries the source's binding because the target is written by the
 // source's writer: `merge --materialize` resolves the output format from the
 // source item, so the file on disk is in that format whatever its path suggests.
-// A target whose extension differs is the one shape that contradicts it — a
-// source read from `.po` and delivered as a compiled `.mo`, which is write-only
-// through the pipeline — and there the target is detected instead, so
-// bilingualBlocks still reaches its file-presence fallback rather than handing
-// binary to a text reader. Two extensions the source's format both claims (a
-// PO template, messages.pot, translated into po/fr.po) name one format, which
-// reg says; a nil reg compares the extensions alone.
+// A target whose extension differs is the exception: a source read from `.po`
+// and delivered as a compiled `.mo`, which is write-only through the pipeline.
+// There the target is detected instead, so bilingualBlocks reaches its
+// file-presence fallback rather than handing binary to a text reader. Two
+// extensions the source's format both claims (a PO template, messages.pot,
+// translated into po/fr.po) name one format, which reg says; a nil reg
+// compares the extensions alone.
 func unitFormatBinding(reg *registry.FormatRegistry, proj *project.KapiProject, rf project.ResolvedFile, targetPath string) (srcFormat string, srcCfg map[string]any, tgtFormat string, tgtCfg map[string]any) {
 	srcFormat = rf.Format
 	srcCfg = mergedFormatConfig(proj, srcFormat, rf.Item)
@@ -1324,13 +1321,13 @@ func (a *App) unitsOfFile(proj *project.KapiProject, root string, rf project.Res
 }
 
 // SourceUnitsFromProject expands the project's content to one unit per declared
-// SOURCE file — no target, no locale. It is what the source-side derivations
+// SOURCE file, no target, no locale. It is what the source-side derivations
 // (source readiness, the source gate) measure, because the source exists whether
 // or not the project has a target language to carry it into.
 //
 // UnitsFromProject cannot serve them: it pairs each source with a target per
 // locale, so a monolingual project resolves zero units and every source-side
-// answer computed over them reported an empty corpus — a project with content
+// answer computed over them reported an empty corpus, a project with content
 // read as having none.
 func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]VerifyUnit, error) {
 	return a.sourceUnits(proj, root, false)
@@ -1452,8 +1449,8 @@ func matchTargetIn(proj *project.KapiProject, root, targetAbs string, resolved [
 
 // expandTargetTemplate resolves a content item's target template for one source
 // file (relative to the project root) and locale, returning an absolute path
-// rooted at the project directory. It delegates to project.ResolveTargetPath —
-// the SAME resolver the write path (kapi up / run) uses — so the check and
+// rooted at the project directory. It delegates to project.ResolveTargetPath,
+// the SAME resolver the write path (kapi up / run) uses, so the check and
 // coverage gates look for target files exactly where up writes them, honoring
 // the full token set ({lang}, {path}, {relpath}, {dir}, {name}, {ext}, "*", and
 // directory-mirror targets). Resolving only {lang} here (the old behavior) made
@@ -1542,7 +1539,7 @@ func (a *App) verifyTerminology(cmd Command, proj *project.KapiProject, units []
 			return gate, governed, err
 		}
 		if missing {
-			// Untranslated target — terminology can't be checked; the checks
+			// Untranslated target, terminology can't be checked; the checks
 			// gate reports the missing file, so skip here to avoid duplicate
 			// noise.
 			continue
@@ -1681,7 +1678,7 @@ func (r *unitTermRules) forUnit(u VerifyUnit) ([]coreprofile.TermRule, error) {
 	return rules, nil
 }
 
-// unitGovernancePoint is the point a verify unit's SOURCE file sits at — the
+// unitGovernancePoint is the point a verify unit's SOURCE file sits at, the
 // place its governance is bound, honouring a content item's own `channel:`. A
 // path outside the project root falls back to the unit's collection, and a unit
 // with neither to the project's default point.
@@ -1711,7 +1708,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 	execution := newCheckExecution()
 
 	// Whether a target identical to its source is a defect is settled by the
-	// project's terms and its committed decisions — the same rule the loop's
+	// project's terms and its committed decisions, the same rule the loop's
 	// check exclusions apply, so this gate and the convergence coverage cannot
 	// give one unit two answers.
 	identical, err := a.newIdenticalTargetRule(ctx, cmd, proj, root)
@@ -1733,7 +1730,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
 		if err != nil {
 			if errors.Is(err, errTargetUnreadable) {
-				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+				continue // an unmeasurable target (e.g. a compiled .mo) cannot be checked
 			}
 			if unread.skipUnit(&skipped, err, root, u) {
 				continue
@@ -1741,10 +1738,10 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 			return gate, err
 		}
 		if missing {
-			// Distinguish "not written yet" from "cannot be written": a blocked
-			// path (a directory occupying it, say) is not pending translation
-			// work — it is an obstruction the user must clear, and saying
-			// "translate the source content" would send them the wrong way.
+			// Distinguish "not written yet" from "cannot be written". A blocked
+			// path (a directory occupying it, say) is an obstruction the user
+			// must clear, and saying "translate the source content" would send
+			// them the wrong way.
 			message := "target file is missing, so the content is untranslated"
 			suggestion := "translate the source content for this locale"
 			if berr := blockedTargetPath(u.TargetPath); berr != nil {
@@ -1845,7 +1842,7 @@ var checkFailingCategories = map[string]bool{
 	"non-cloneable-span-duplicated": true,
 	// Both gate surfaces put a target-same-as-source finding to
 	// identicalTargetRule before they consult this map: a project that settles
-	// the identity — its terms keep the string, or its record approves the unit —
+	// the identity, its terms keep the string, or its record approves the unit,
 	// has answered the question the heuristic asks.
 	"target-same-as-source": true,
 }
@@ -1887,9 +1884,8 @@ func checkFindingSuggestion(f check.Finding) string {
 // source block as the unit's target locale. Blocks are paired by Name (the
 // format's stable key, e.g. the JSON key path), falling back to ID. Source
 // blocks with no matching target keep an empty target so the checks flag them
-// as untranslated. Returns missing=true when the target file does not exist —
-// or when the path is BLOCKED (see below), which is the same thing as far as
-// measurement is concerned.
+// as untranslated. Returns missing=true when the target file does not exist
+// or the path is BLOCKED (see below). Measurement treats the two alike.
 // errTargetUnreadable signals that a unit's target file exists but its format
 // cannot be read back to measure it (a write-only compiled catalog like .mo).
 // Coverage treats such a target as present (file-presence); quality and review
@@ -1903,9 +1899,9 @@ var errTargetUnreadable = errors.New("target format is not readable")
 func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block, bool, error) {
 	// A blocked path holds no translation, whatever it holds. Report it as
 	// missing so every measurement path (coverage, plan, checks, review) treats
-	// the locale as untranslated. The reason is not lost: it is reported where a
-	// person can act on it — the checks gate's finding (checksGate) and the run that
-	// refuses to write the path (core/flow.OutputPathError).
+	// the locale as untranslated. The reason is reported where a person can act
+	// on it: the checks gate's finding (checksGate) and the run that refuses to
+	// write the path (core/flow.OutputPathError).
 	if blockedTargetPath(u.TargetPath) != nil {
 		return nil, true, nil
 	}
@@ -1941,7 +1937,7 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 		targetBlocks, err = a.readTarget(ctx, u)
 		if err != nil {
 			// The target file exists (we stat'd it above) but its format cannot
-			// be read back — e.g. a compiled .mo catalog, which is write-only
+			// be read back, e.g. a compiled .mo catalog, which is write-only
 			// through the pipeline. Per-unit measurement is impossible, so signal
 			// the caller with a typed error: coverage falls back to file-presence
 			// and the quality/review paths skip the unit, rather than the whole
@@ -1958,10 +1954,11 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 // fileUnderSource files each block under the project's source language, as a
 // project read does whatever language the block's reader declared. A block
 // whose reader declared another language keeps it as the advisory property
-// model.PropReadSourceLocale: a read that kept the reader's language (the
-// change service's, which a flow's record and a decision made through it are
-// taken by) took a revision of the block's source under that key, and a
-// reader of this block matches it there (model.Block.SourceRevisions).
+// model.PropReadSourceLocale. A read that kept the reader's language took a
+// revision of the block's source under that key; the change service reads
+// this way, and a flow's record and decisions made through it use its
+// revisions. A reader of this block matches the revision there
+// (model.Block.SourceRevisions).
 func fileUnderSource(blocks []*model.Block, source model.LocaleID) {
 	for _, b := range blocks {
 		if b.SourceLocale != "" && model.NormalizeLocale(b.SourceLocale) != model.NormalizeLocale(source) {
@@ -1976,7 +1973,7 @@ func fileUnderSource(blocks []*model.Block, source model.LocaleID) {
 
 // readBlocks reads a file through its detected format reader and returns the
 // translatable blocks, with sourceLang as the source locale. It does not write
-// any output — verify only inspects content. The app-wide --format override
+// any output, verify only inspects content. The app-wide --format override
 // (a.FormatFlag) applies; ReadBlocksForCheck is the per-file-format variant.
 func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model.Block, error) {
 	return a.readBlocksAs(ctx, path, a.FormatFlag, nil, sourceLang)
@@ -2026,7 +2023,7 @@ func readBlocksConfigKey(formatFlag string, cfg map[string]any, sourceLang strin
 	return "rbw|" + formatFlag + "|" + formatConfigDigest(cfg) + "|" + sourceLang
 }
 
-// formatConfigDigest is a stable digest of a format config map — key order in a
+// formatConfigDigest is a stable digest of a format config map, key order in a
 // Go map is randomized, so the keys are sorted before hashing and the same
 // config always digests identically. An empty config digests to "".
 func formatConfigDigest(cfg map[string]any) string {
@@ -2046,7 +2043,7 @@ func formatConfigDigest(cfg map[string]any) string {
 }
 
 // streamTranslatableBlocks streams a cached document's parts one at a time and
-// collects the translatable blocks — never holding the whole document.
+// collects the translatable blocks, never holding the whole document.
 func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*model.Block, error) {
 	ch := make(chan *model.Part, 1)
 	errc := make(chan error, 1)
@@ -2153,7 +2150,7 @@ func streamIntoRecorder(ctx context.Context, reader format.DataFormatReader, rec
 
 // readBlocksValidated reads a file's translatable blocks and, when mode is not
 // ValidationOff, the Reader Validation-Mode diagnostics the format reader and
-// the encoding scan surfaced. The reader stays lenient — mode only adds
+// the encoding scan surfaced. The reader stays lenient, mode only adds
 // diagnostics. When mode is on and the reader hard-fails on a structure problem
 // it also recorded as a diagnostic, the structured diagnostic supersedes the
 // opaque error (the read is reported as the located finding, not as an
@@ -2227,7 +2224,7 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 	}
 
 	// Collect the reader's structure diagnostics (after the range loop, before
-	// Close — state lives on the reader). Discovery is by assertion.
+	// Close, state lives on the reader). Discovery is by assertion.
 	if dr, ok := reader.(format.DiagnosticReader); ok {
 		diags = append(diags, dr.Diagnostics()...)
 	}
@@ -2280,7 +2277,7 @@ func AddGateFlag(cmd Command) {
 		"with --ship: run only the named project gates ("+strings.Join(selectableGates, ", ")+"); repeatable")
 }
 
-// AddVerifyFlags registers the verify/check gate flags on cmd — shared by
+// AddVerifyFlags registers the verify/check gate flags on cmd, shared by
 // the cobra factory and embedded surfaces (the Stop hook) so flag defaults
 // stay identical everywhere.
 func AddVerifyFlags(cmd Command) {
