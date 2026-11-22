@@ -116,11 +116,16 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
   names compass, northsea saves, and no closer runs. Discard all runs the
   closer and leaves `kapi.yaml` as it was. With nothing unsaved the endpoint
   answers `allowed=true`. A confirmed close lets every later one through, so
-  restart the bridge between cases.
+  restart the bridge between cases. The page acknowledges each request; with
+  no acknowledgement within 4 s the native app opens a fallback dialog that
+  names the projects and offers Close Without Saving or Cancel. The bridge
+  sets no fallback, so a request the page never answers stays held there.
 
   The native routes need a person: in the native window, with one and then
   two unsaved tabs, click the close button, press Cmd+Q and choose Kapi, Quit.
-  Each opens the same dialog; with nothing unsaved each closes at once. A quit
+  Each opens the same dialog; with nothing unsaved each closes at once. A
+  logout or shutdown on macOS is a quit too: with unsaved tabs it opens the
+  dialog and the logout stops until the person answers, which is intended. A quit
   with nothing unsaved can be checked without clicking: run the binary inside
   a minimal `.app` bundle with a `CFBundleIdentifier` and send `osascript -e
   'tell application id "<id>" to quit'`.

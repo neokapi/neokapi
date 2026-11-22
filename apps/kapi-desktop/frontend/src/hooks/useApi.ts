@@ -147,6 +147,7 @@ export const api = {
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),
   listTabs: () => call<TabInfo[]>("ListTabs"),
   setUnsavedTabs: (tabIDs: string[]) => call<void>("SetUnsavedTabs", tabIDs),
+  acknowledgeClose: () => call<void>("AcknowledgeClose"),
   confirmClose: () => call<void>("ConfirmClose"),
   cancelClose: () => call<void>("CancelClose"),
   saveProjectSnapshot: (tabID: string, snapshot: KapiProject, saveAs: boolean) =>

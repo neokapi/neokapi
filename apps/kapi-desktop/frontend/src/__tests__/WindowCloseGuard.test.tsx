@@ -48,6 +48,7 @@ describe("closing the window with unsaved changes", () => {
   beforeEach(() => {
     vi.spyOn(api, "setUnsavedTabs").mockResolvedValue(undefined);
     vi.spyOn(api, "confirmClose").mockResolvedValue(undefined);
+    vi.spyOn(api, "acknowledgeClose").mockResolvedValue(undefined);
     vi.spyOn(api, "cancelClose").mockResolvedValue(undefined);
   });
 
@@ -59,6 +60,26 @@ describe("closing the window with unsaved changes", () => {
   it("reports an empty list when nothing is unsaved", async () => {
     setup([], vi.fn());
     await waitFor(() => expect(api.setUnsavedTabs).toHaveBeenCalledWith([]));
+  });
+
+  it("acknowledges each close request, so the native fallback stays closed", () => {
+    const { result } = setup(["a"], vi.fn());
+    act(() => result.current.onCloseRequested());
+    expect(api.acknowledgeClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops holding the window when it unmounts", async () => {
+    const { unmount } = setup(["a"], vi.fn());
+    await waitFor(() => expect(api.setUnsavedTabs).toHaveBeenCalledWith(["a"]));
+    unmount();
+    expect(api.setUnsavedTabs).toHaveBeenLastCalledWith([]);
+  });
+
+  it("stops holding the window when the page unloads", async () => {
+    setup(["a"], vi.fn());
+    await waitFor(() => expect(api.setUnsavedTabs).toHaveBeenCalledWith(["a"]));
+    window.dispatchEvent(new Event("pagehide"));
+    expect(api.setUnsavedTabs).toHaveBeenLastCalledWith([]);
   });
 
   it("lets a stale request close at once when no tab has changes", async () => {

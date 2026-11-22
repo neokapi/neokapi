@@ -86,6 +86,7 @@
   "1213519088": "History",
   "1216897681": "GetMemoryEntry",
   "1229098168": "GetStepDoc",
+  "1234251616": "AcknowledgeClose",
   "1279511733": "AgentContextAt",
   "1281331816": "GetFilterDoc",
   "1307641828": "GetProjectLastRunError",

@@ -134,6 +134,23 @@ func main() {
 		}
 	})
 	backend.SetClosers(appService, win.Close, app.Quit)
+	// When the page does not acknowledge a held close in time (a render error,
+	// a crashed web content process), a native dialog names the projects with
+	// unsaved changes and offers to close without saving or to cancel, so the
+	// app can always be closed and never drops work without asking.
+	backend.SetCloseFallback(appService, func(_ backend.CloseRoute, names []string) bool {
+		tr := appService.T()
+		answer := make(chan bool, 1)
+		dialog := app.Dialog.Question().
+			SetTitle(desktopmenu.T(tr, "unsavedTitle")).
+			SetMessage(desktopmenu.T(tr, "unsavedNoAnswer") + "\n\n" + strings.Join(names, "\n"))
+		dialog.AddButton(desktopmenu.T(tr, "closeWithoutSaving")).OnClick(func() { answer <- true })
+		cancel := dialog.AddButton(desktopmenu.T(tr, "cancel")).OnClick(func() { answer <- false })
+		dialog.SetDefaultButton(cancel)
+		dialog.SetCancelButton(cancel)
+		dialog.Show()
+		return <-answer
+	})
 
 	// Forward dropped files to the frontend.
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {

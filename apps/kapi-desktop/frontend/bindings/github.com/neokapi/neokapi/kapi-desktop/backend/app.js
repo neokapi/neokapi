@@ -67,6 +67,15 @@ export function AINeedsModelChoice(tabID, flowName) {
 }
 
 /**
+ * AcknowledgeClose tells the guard that the page received the close request
+ * and is showing its dialog, so the native fallback stays closed.
+ * @returns {$CancellablePromise<void>}
+ */
+export function AcknowledgeClose() {
+    return $Call.ByID(1234251616);
+}
+
+/**
  * AcknowledgeSampleRevision marks the on-disk sample as up to date with the
  * embedded revision without re-scaffolding ("keep current"), so the desktop
  * stops offering the upgrade for this copy.
@@ -3203,8 +3212,9 @@ export function SetUILanguage(lang) {
 
 /**
  * SetUnsavedTabs records which project tabs have unsaved changes. The frontend
- * calls it whenever that set changes. While it is not empty, a window close or
- * a quit is held and CloseRequestedEvent asks the frontend what to do.
+ * calls it whenever that set changes, and with an empty list when the page
+ * unloads. While it is not empty, a window close or a quit is held and
+ * CloseRequestedEvent asks the frontend what to do.
  * @param {string[]} tabIDs
  * @returns {$CancellablePromise<void>}
  */

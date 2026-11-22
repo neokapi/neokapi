@@ -5090,13 +5090,17 @@
   },
   "desktop": {
     "menu": {
+      "cancel": "Cancel",
       "checkForUpdates": "Check for Updates…",
+      "closeWithoutSaving": "Close Without Saving",
       "file": "File",
       "newProject": "New Project",
       "noWorkspaceProjects": "No Projects Yet",
       "open": "Open...",
       "save": "Save",
       "saveAs": "Save As...",
+      "unsavedNoAnswer": "These projects have unsaved changes, and the window did not answer:",
+      "unsavedTitle": "Unsaved Changes",
       "workspaceProjects": "Projects in Your Workspace"
     }
   }

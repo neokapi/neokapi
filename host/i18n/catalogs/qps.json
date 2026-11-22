@@ -5090,13 +5090,17 @@
   },
   "desktop": {
     "menu": {
+      "cancel": "▒ Çàñçéļ ▒",
       "checkForUpdates": "▒ Çĥéçķ ƒöŕ Üþđàţéš… ▒",
+      "closeWithoutSaving": "▒ Çļöšé Ŵîţĥöüţ Šàṽîñĝ ▒",
       "file": "▒ Ƒîļé ▒",
       "newProject": "▒ Ñéŵ Þŕöĵéçţ ▒",
       "noWorkspaceProjects": "▒ Ñö Þŕöĵéçţš Ýéţ ▒",
       "open": "▒ Öþéñ... ▒",
       "save": "▒ Šàṽé ▒",
       "saveAs": "▒ Šàṽé Àš... ▒",
+      "unsavedNoAnswer": "▒ Ţĥéšé þŕöĵéçţš ĥàṽé üñšàṽéđ çĥàñĝéš, àñđ ţĥé ŵîñđöŵ đîđ ñöţ àñšŵéŕ: ▒",
+      "unsavedTitle": "▒ Üñšàṽéđ Çĥàñĝéš ▒",
       "workspaceProjects": "▒ Þŕöĵéçţš îñ Ýöüŕ Ŵöŕķšþàçé ▒"
     }
   }

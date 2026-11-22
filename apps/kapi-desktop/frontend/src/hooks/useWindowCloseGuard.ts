@@ -42,7 +42,10 @@ interface WindowCloseGuardOptions {
  *
  * It reports the tabs with changes to the backend, which holds a window close
  * or a quit while that list is not empty and emits CLOSE_REQUESTED_EVENT. The
- * hook then exposes the request for one dialog: Save all saves every listed
+ * hook acknowledges each request at once, so the backend keeps its native
+ * fallback dialog closed, and clears the list when it unmounts or the page
+ * unloads, so a page that is gone never holds the window. It then exposes
+ * the request for one dialog: Save all saves every listed
  * tab and lets the close go ahead only when each save succeeded, Discard all
  * lets it go ahead, and Cancel drops it.
  */
@@ -57,11 +60,23 @@ export function useWindowCloseGuard({ tabs, hasChanges, saveTab }: WindowCloseGu
     void api.setUnsavedTabs(ids).catch(() => undefined);
   }, [unsavedKey]);
 
+  // A page that unmounts or unloads (a reload, a crash recovery) can no
+  // longer answer for its tabs, so it stops holding the window.
+  useEffect(() => {
+    const clear = () => void api.setUnsavedTabs([]).catch(() => undefined);
+    window.addEventListener("pagehide", clear);
+    return () => {
+      window.removeEventListener("pagehide", clear);
+      clear();
+    };
+  }, []);
+
   const [request, setRequest] = useState<UnsavedTab[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState<UnsavedTab[]>([]);
 
   const onCloseRequested = useCallback(() => {
+    void api.acknowledgeClose().catch(() => undefined);
     const pending = unsavedRef.current;
     if (pending.length === 0) {
       void api.confirmClose();
