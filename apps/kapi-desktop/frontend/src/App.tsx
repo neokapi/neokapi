@@ -207,9 +207,7 @@ function AppInner() {
     })),
     hasChanges: history.hasChanges,
     saveTab,
-    runningTabIDs: jobs.flatMap((job) =>
-      job.status === "running" && job.tabID ? [job.tabID] : [],
-    ),
+    finishedTabIDs: finishedTabs(jobs),
     cancelRun: api.cancelProjectRun,
   });
 
@@ -467,4 +465,14 @@ function AppInner() {
       </ActiveFilterProvider>
     </DesktopGuide>
   );
+}
+
+/** The tabs whose latest flow has finished: a job ended and none runs. */
+function finishedTabs(jobs: { tabID?: string; status: string }[]): string[] {
+  const running = new Set(jobs.filter((j) => j.status === "running").map((j) => j.tabID));
+  const out = new Set<string>();
+  for (const job of jobs) {
+    if (job.tabID && job.status !== "running" && !running.has(job.tabID)) out.add(job.tabID);
+  }
+  return [...out];
 }

@@ -9,6 +9,11 @@
 // held close therefore waits AckTimeout for the acknowledgement. Then it asks
 // through Fallback, a native dialog that names each blocker with its reasons.
 //
+// The guard is a state machine; see State. Only one question is ever on
+// screen: a page that acknowledges after the native dialog opened is told not
+// to show its own (Acknowledge returns false), and an answer from a page that
+// is not being asked is ignored.
+//
 // The package has no UI and no Wails dependency: Kapi Desktop and Bowrain
 // Desktop each supply the blockers, the event emitter, the closers and the
 // native dialog.
@@ -44,8 +49,27 @@ type Blocker struct {
 	Reasons []string `json:"reasons"`
 }
 
+// State is where a held close stands.
+//
+//	idle         nothing held
+//	asked        RequestedEvent sent; waiting for the page to acknowledge
+//	acknowledged the page shows its dialog; waiting for Confirm or Cancel
+//	fallback     the native dialog shows; waiting for its answer
+//	confirmed    the person agreed to close; every close goes ahead
+//
+// Cancel, and a native "cancel", return to idle.
+type State string
+
+const (
+	StateIdle         State = "idle"
+	StateAsked        State = "asked"
+	StateAcknowledged State = "acknowledged"
+	StateFallback     State = "fallback"
+	StateConfirmed    State = "confirmed"
+)
+
 // Guard holds a window close or an application quit while Blockers reports
-// anything. The zero value is not usable; set Blockers first.
+// anything. Set Blockers before the first Allow.
 type Guard struct {
 	// Blockers lists what holds the window now. It is called with the
 	// guard's lock held and must not call back into the guard.
@@ -63,13 +87,11 @@ type Guard struct {
 	// After starts the wait; time.AfterFunc when nil. Tests replace it.
 	After func(d time.Duration, f func()) (stop func() bool)
 
-	mu        sync.Mutex
-	confirmed bool
-	pending   Route
-	acked     bool
-	asking    bool
-	stopWait  func() bool
-	closers   map[Route]func()
+	mu       sync.Mutex
+	state    State
+	route    Route
+	stopWait func() bool
+	closers  map[Route]func()
 }
 
 // SetClosers sets how a confirmed close finishes: closeWindow closes the
@@ -88,28 +110,53 @@ func (g *Guard) Configure(f func(g *Guard)) {
 	f(g)
 }
 
-// Allow reports whether a close by route may go ahead now. With no blockers,
-// or once the person has confirmed, it may. Otherwise the close is held. The
-// first held request asks the page and starts the wait for its
-// acknowledgement; a request while one is pending only records the route (a
-// quit outranks a window close) and asks again once the page has answered
-// the first.
+// State reports where the guard stands.
+func (g *Guard) State() State {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.stateLocked()
+}
+
+func (g *Guard) stateLocked() State {
+	if g.state == "" {
+		return StateIdle
+	}
+	return g.state
+}
+
+// Allow reports whether a close by route may go ahead now. Once confirmed,
+// or with no blockers, it may. Otherwise the close is held:
+//
+//   - idle: the page is asked and the wait for its acknowledgement starts;
+//   - acknowledged: the page is asked again (it refreshes its dialog);
+//   - asked or fallback: the request only records its route, so a quit
+//     outranks a window close when the pending question is answered.
 func (g *Guard) Allow(route Route) bool {
 	g.mu.Lock()
-	blockers := g.blockersLocked()
-	if g.confirmed || len(blockers) == 0 {
+	state := g.stateLocked()
+	if state == StateConfirmed {
 		g.mu.Unlock()
 		return true
 	}
-	waiting := g.pending != "" && (!g.acked || g.asking)
-	if g.pending == "" || route == RouteQuit {
-		g.pending = route
+	blockers := g.blockersLocked()
+	if len(blockers) == 0 {
+		if state == StateAsked || state == StateAcknowledged {
+			// What held the window is gone (saved, or the flow finished).
+			g.resetLocked()
+		}
+		if state != StateFallback {
+			g.mu.Unlock()
+			return true
+		}
 	}
-	if waiting {
+	if g.route == "" || route == RouteQuit {
+		g.route = route
+	}
+	if state == StateAsked || state == StateFallback {
 		g.mu.Unlock()
 		return false
 	}
-	g.acked = false
+	g.state = StateAsked
 	emit := g.Emit
 	g.startWaitLocked()
 	g.mu.Unlock()
@@ -119,39 +166,69 @@ func (g *Guard) Allow(route Route) bool {
 	return false
 }
 
-// Acknowledge records that the page received the pending request and shows
-// its own dialog, so Fallback stays closed.
-func (g *Guard) Acknowledge() {
+// Acknowledge records that the page received the pending request. It returns
+// true when the page should show its dialog: only from asked or
+// acknowledged. When the native dialog already shows, or nothing is pending,
+// it returns false and the page shows nothing, so one question is on screen.
+func (g *Guard) Acknowledge() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.pending == "" {
-		return
+	switch g.stateLocked() {
+	case StateAsked, StateAcknowledged:
+		g.state = StateAcknowledged
+		g.stopWaitLocked()
+		return true
+	default:
+		return false
 	}
-	g.acked = true
-	g.stopWaitLocked()
 }
 
-// Confirm lets every later close go ahead and finishes the held one, if any,
-// by the route that asked. The closer runs without the lock held, because
-// the close it starts passes through Allow again.
-func (g *Guard) Confirm() {
+// Confirm finishes the pending close by the route that asked, and lets every
+// later close go ahead. It applies only while the page is the one being asked
+// (asked or acknowledged); otherwise it does nothing and returns false, so a
+// late answer can never mark the guard confirmed with no close behind it. The
+// closer runs without the lock held, because the close it starts passes
+// through Allow again.
+func (g *Guard) Confirm() bool {
 	g.mu.Lock()
-	g.confirmed = true
-	route := g.pending
-	g.resetLocked()
-	closer := g.closers[route]
+	switch g.stateLocked() {
+	case StateAsked, StateAcknowledged:
+	default:
+		g.mu.Unlock()
+		return false
+	}
+	closer := g.confirmLocked()
 	g.mu.Unlock()
 	if closer != nil {
 		closer()
 	}
+	return true
 }
 
-// Cancel drops the held close. The next request is held and asked about
-// again.
+// Cancel drops the pending close while the page is the one being asked. The
+// next request is held and asked about again. It does nothing while the
+// native dialog shows; that dialog's own answer decides.
 func (g *Guard) Cancel() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.resetLocked()
+	switch g.stateLocked() {
+	case StateAsked, StateAcknowledged:
+		g.resetLocked()
+	}
+}
+
+func (g *Guard) confirmLocked() func() {
+	route := g.route
+	g.stopWaitLocked()
+	g.state = StateConfirmed
+	g.route = ""
+	return g.closers[route]
+}
+
+func (g *Guard) resetLocked() {
+	g.stopWaitLocked()
+	g.state = StateIdle
+	g.route = ""
 }
 
 func (g *Guard) blockersLocked() []Blocker {
@@ -181,37 +258,40 @@ func (g *Guard) stopWaitLocked() {
 	}
 }
 
-func (g *Guard) resetLocked() {
-	g.pending = ""
-	g.acked = false
-	g.stopWaitLocked()
-}
-
-// unanswered runs when the page did not acknowledge in time. It opens
-// Fallback and applies the answer.
+// unanswered runs when the wait for the acknowledgement ends. Only from asked
+// does it open the native dialog; an acknowledgement or an answer that
+// arrived first wins.
 func (g *Guard) unanswered() {
 	g.mu.Lock()
-	if g.acked || g.asking || g.pending == "" || g.confirmed || g.Fallback == nil {
+	if g.stateLocked() != StateAsked || g.Fallback == nil {
 		g.mu.Unlock()
 		return
 	}
-	g.asking = true
-	route := g.pending
+	g.state = StateFallback
+	g.stopWait = nil
+	route := g.route
 	blockers := g.blockersLocked()
 	ask, anyway := g.Fallback, g.OnCloseAnyway
 	g.mu.Unlock()
 
 	closeAnyway := ask(route, blockers)
-
-	g.mu.Lock()
-	g.asking = false
-	g.mu.Unlock()
-	if !closeAnyway {
-		g.Cancel()
-		return
-	}
-	if anyway != nil {
+	if closeAnyway && anyway != nil {
 		anyway()
 	}
-	g.Confirm()
+
+	g.mu.Lock()
+	if g.stateLocked() != StateFallback {
+		g.mu.Unlock()
+		return
+	}
+	var closer func()
+	if closeAnyway {
+		closer = g.confirmLocked()
+	} else {
+		g.resetLocked()
+	}
+	g.mu.Unlock()
+	if closer != nil {
+		closer()
+	}
 }

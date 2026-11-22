@@ -223,6 +223,10 @@ func main() {
 		}
 	})
 
+	// The first SIGTERM or SIGINT asks like any quit; Wails v3.1.0 stops
+	// listening after it, so the second one ends the process here.
+	desktopclose.ExitOnSecondSignal(os.Exit)
+
 	if err := app.Run(); err != nil {
 		slog.Error("application failed", "error", err)
 		os.Exit(1)

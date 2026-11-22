@@ -35,7 +35,7 @@ describe("App: closing the window with one dirty and one clean tab", () => {
     vi.spyOn(api, "listTabs").mockResolvedValue(tabs);
     vi.spyOn(api, "getProject").mockImplementation(async (id: string) => projects[id]);
     vi.spyOn(api, "setUnsavedTabs").mockResolvedValue(undefined);
-    vi.spyOn(api, "acknowledgeClose").mockResolvedValue(undefined);
+    vi.spyOn(api, "acknowledgeClose").mockResolvedValue(true);
     vi.spyOn(api, "confirmClose").mockResolvedValue(undefined);
     vi.spyOn(api, "cancelClose").mockResolvedValue(undefined);
     vi.spyOn(api, "saveProjectSnapshot").mockImplementation(async (id, recipe) => ({
@@ -55,7 +55,12 @@ describe("App: closing the window with one dirty and one clean tab", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     await waitFor(() => expect(api.setUnsavedTabs).toHaveBeenLastCalledWith(["b"]));
 
-    act(() => emit(CLOSE_REQUESTED_EVENT, { route: "window", tabs: ["b"] }));
+    act(() =>
+      emit(CLOSE_REQUESTED_EVENT, {
+        route: "window",
+        blockers: [{ id: "b", name: "northsea", reasons: ["unsaved"] }],
+      }),
+    );
     expect(api.acknowledgeClose).toHaveBeenCalled();
     const list = await screen.findByRole("list", { name: "Projects that keep the window open" });
     expect(list).toHaveTextContent("northsea edited");
@@ -70,5 +75,32 @@ describe("App: closing the window with one dirty and one clean tab", () => {
       false,
     );
     await waitFor(() => expect(api.setUnsavedTabs).toHaveBeenLastCalledWith([]));
+  });
+
+  // The page loads while the backend runs a flow in compass (a reload): it
+  // picks the run up, and a quit asks about it instead of closing at once.
+  it("after a reload during a run, a quit asks about the run", async () => {
+    vi.spyOn(api, "getRunState").mockResolvedValue("running");
+    vi.spyOn(api, "getRunEvents").mockResolvedValue([
+      { tab_id: "a", type: "state", flow_id: "converge", message: "running" },
+    ] as never);
+    render(<App />);
+    await screen.findByRole("tablist", { name: "Open projects" });
+    await waitFor(() => expect(api.getRunEvents).toHaveBeenCalled());
+
+    act(() =>
+      emit(CLOSE_REQUESTED_EVENT, {
+        route: "quit",
+        blockers: [{ id: "a", name: "compass", reasons: ["running"] }],
+      }),
+    );
+    const list = await screen.findByRole("list", { name: "Projects that keep the window open" });
+    expect(list).toHaveTextContent("compass");
+    expect(list).toHaveTextContent("Flow running");
+    expect(api.confirmClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep running" }));
+    await waitFor(() => expect(api.cancelClose).toHaveBeenCalledTimes(1));
+    expect(api.confirmClose).not.toHaveBeenCalled();
   });
 });

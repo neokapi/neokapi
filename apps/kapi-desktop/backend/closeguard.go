@@ -35,10 +35,12 @@ func (a *App) SetUnsavedTabs(tabIDs []string) {
 	a.closing.unsaved = slices.Clone(tabIDs)
 }
 
-// AcknowledgeClose tells the guard that the page received the close request
-// and is showing its dialog, so the native fallback stays closed.
-func (a *App) AcknowledgeClose() {
-	a.closeGuard().Acknowledge()
+// AcknowledgeClose tells the guard that the page received the close request.
+// It returns true when the page should show its dialog, and false when the
+// native fallback already asks or nothing is pending, so only one question is
+// ever on screen.
+func (a *App) AcknowledgeClose() bool {
+	return a.closeGuard().Acknowledge()
 }
 
 // ConfirmClose lets the held close go ahead, after the person saved or

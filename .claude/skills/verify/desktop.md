@@ -122,7 +122,9 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
   each request; with no acknowledgement within 4 s the native app opens a
   fallback dialog that names each project with its reasons and offers Close
   Without Saving (or Cancel Flow & Close) or Cancel. The bridge sets no
-  fallback, so a request the page never answers stays held there.
+  fallback, so a request the page never answers stays held there. A first
+  SIGTERM or SIGINT asks like any quit; a second one ends the process
+  (`host/desktopclose` tests this against a real process).
 
   The native routes need a person: in the native window, with one and then
   two unsaved tabs, click the close button, press Cmd+Q and choose Kapi, Quit.
