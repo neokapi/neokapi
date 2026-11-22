@@ -5,8 +5,8 @@ name: Release ASR plugin
 # kapi-sat model. kapi-asr is PURE-Go (no cgo) but bundles a per-platform
 # whisper.cpp `whisper-cli` (MIT) + a default ggml model, so the heavy/risky part
 # is producing whisper-cli per target: linux/x64+arm64 and windows/x64 use
-# whisper.cpp's published prebuilts; macOS/arm64 and windows/arm64 have no upstream
-# CLI prebuilt and are built from source (cmake).
+# whisper.cpp's published prebuilts; macOS/arm64 and windows/arm64 are built
+# from source (cmake).
 #
 # workflow_dispatch is a BUILD-ONLY dry run (no publish / no registry write) for
 # iterating the platform matrix. The publish + register jobs are gated to
@@ -21,8 +21,18 @@ permissions:
   contents: write
   id-token: write # cosign keyless
 
+# whisper.cpp is pinned three ways that name one commit. The source legs clone
+# the version tag. The prebuilt legs download from the b<NNNN> build release,
+# because upstream publishes its binaries there and no longer under the version
+# tag; WHISPER_CPP_BUILD is the build tag cut from the same commit. The
+# "Check the whisper.cpp pins" step fails when either tag no longer resolves to
+# WHISPER_CPP_COMMIT, and each prebuilt archive is checked against the SHA-256
+# in its matrix row (GitHub's asset digest, confirmed against a download). A
+# new version changes all three, and every sha256 in the matrix.
 env:
-  WHISPER_CPP_VERSION: "v1.9.1"
+  WHISPER_CPP_VERSION: "v1.9.5"
+  WHISPER_CPP_BUILD: "b5454"
+  WHISPER_CPP_COMMIT: "d1be6fde11ac6e0407606b4e42fe72d34add8037"
   WHISPER_MODEL: "ggml-base.en.bin"
   WHISPER_MODEL_URL: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
 
@@ -34,9 +44,9 @@ jobs:
       matrix:
         build:
           - { platform: darwin/arm64, os: macos-latest, goos: darwin, goarch: arm64, whisper: source }
-          - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64, whisper: prebuilt, asset: "whisper-bin-ubuntu-x64.tar.gz" }
-          - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64, whisper: prebuilt, asset: "whisper-bin-ubuntu-arm64.tar.gz" }
-          - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64, whisper: prebuilt, asset: "whisper-bin-x64.zip" }
+          - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64, whisper: prebuilt, asset: "whisper-bin-ubuntu-x64.tar.gz", sha256: "a72becf15d7917f990f6313867a52638b82b7f9ef237fb0c980dac56a135781c" }
+          - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64, whisper: prebuilt, asset: "whisper-bin-ubuntu-arm64.tar.gz", sha256: "6b95ebfc60447df48e70ef00a73bdc3f41679ed2d01ef465827206a2ff325149" }
+          - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64, whisper: prebuilt, asset: "whisper-bin-x64.zip", sha256: "6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb" }
           - { platform: windows/arm64, os: windows-11-arm, goos: windows, goarch: arm64, whisper: source }
     runs-on: ${{ matrix.build.os }}
     steps:
@@ -55,18 +65,47 @@ jobs:
             echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
           fi
 
-      # ── obtain whisper-cli + its runtime libs into $WHISPER_DIR ────────────────
-      # Prebuilt legs: download whisper.cpp's release archive (contains whisper-cli
-      # + shared libs). Linux: patch rpath to $ORIGIN so libs load beside the
-      # binary. Windows: DLLs load from the same dir automatically.
-      - name: Fetch whisper.cpp prebuilt (Unix)
-        if: matrix.build.whisper == 'prebuilt' && runner.os != 'Windows'
+      # Both tags must still name the pinned commit: a moved tag, or a build tag
+      # cut from another commit, fails here before anything is downloaded.
+      - name: Check the whisper.cpp pins
         shell: bash
         run: |
           set -euo pipefail
-          url="https://github.com/ggml-org/whisper.cpp/releases/download/${WHISPER_CPP_VERSION}/${{ matrix.build.asset }}"
+          refs="$(git ls-remote --tags https://github.com/ggml-org/whisper.cpp \
+            "${WHISPER_CPP_VERSION}" "${WHISPER_CPP_VERSION}^{}" "${WHISPER_CPP_BUILD}" "${WHISPER_CPP_BUILD}^{}")"
+          for tag in "$WHISPER_CPP_VERSION" "$WHISPER_CPP_BUILD"; do
+            # An annotated tag lists the commit it names as <tag>^{}; a
+            # lightweight tag names the commit directly.
+            got="$(awk -v t="refs/tags/${tag}" '$2 == t "^{}" { peeled = $1 } $2 == t { plain = $1 }
+              END { print (peeled != "" ? peeled : plain) }' <<<"$refs")"
+            if [ "$got" != "$WHISPER_CPP_COMMIT" ]; then
+              echo "::error::whisper.cpp tag ${tag} resolves to '${got:-nothing}', expected ${WHISPER_CPP_COMMIT}"
+              exit 1
+            fi
+          done
+          echo "whisper.cpp ${WHISPER_CPP_VERSION} and ${WHISPER_CPP_BUILD} both name ${WHISPER_CPP_COMMIT}"
+
+      # ── obtain whisper-cli + its runtime libs into $WHISPER_DIR ────────────────
+      # Prebuilt legs: download the archive from whisper.cpp's build release
+      # (contains whisper-cli + shared libs) and check it against the matrix
+      # SHA-256 before unpacking. Linux: patch rpath to $ORIGIN so libs load
+      # beside the binary. Windows: DLLs load from the same dir automatically.
+      - name: Fetch whisper.cpp prebuilt (Unix)
+        if: matrix.build.whisper == 'prebuilt' && runner.os != 'Windows'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.build.asset }}
+          ASSET_SHA256: ${{ matrix.build.sha256 }}
+        run: |
+          set -euo pipefail
+          url="https://github.com/ggml-org/whisper.cpp/releases/download/${WHISPER_CPP_BUILD}/${ASSET}"
           mkdir -p "$RUNNER_TEMP/wsp"
-          curl -sSfL -o "$RUNNER_TEMP/w.tgz" "$url"
+          curl -sSfL --retry 3 --retry-delay 5 -o "$RUNNER_TEMP/w.tgz" "$url"
+          actual="$(sha256sum "$RUNNER_TEMP/w.tgz" | cut -d' ' -f1)"
+          if [ "$actual" != "$ASSET_SHA256" ]; then
+            echo "::error::checksum mismatch for ${ASSET} in whisper.cpp ${WHISPER_CPP_BUILD}: expected ${ASSET_SHA256}, actual ${actual}"
+            exit 1
+          fi
           tar -xzf "$RUNNER_TEMP/w.tgz" -C "$RUNNER_TEMP/wsp"
           dir="$(dirname "$(find "$RUNNER_TEMP/wsp" -name 'whisper-cli' -type f | head -n1)")"
           [ -n "$dir" ] || { echo "::error::whisper-cli not found in prebuilt"; find "$RUNNER_TEMP/wsp" | head; exit 1; }
@@ -80,10 +119,19 @@ jobs:
       - name: Fetch whisper.cpp prebuilt (Windows)
         if: matrix.build.whisper == 'prebuilt' && runner.os == 'Windows'
         shell: pwsh
+        env:
+          ASSET: ${{ matrix.build.asset }}
+          ASSET_SHA256: ${{ matrix.build.sha256 }}
         run: |
-          $url = "https://github.com/ggml-org/whisper.cpp/releases/download/$env:WHISPER_CPP_VERSION/${{ matrix.build.asset }}"
+          $ErrorActionPreference = "Stop"
+          $url = "https://github.com/ggml-org/whisper.cpp/releases/download/$env:WHISPER_CPP_BUILD/$env:ASSET"
           $dest = "$env:RUNNER_TEMP\w.zip"
-          Invoke-WebRequest -Uri $url -OutFile $dest
+          Invoke-WebRequest -Uri $url -OutFile $dest -MaximumRetryCount 3 -RetryIntervalSec 5
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $dest).Hash.ToLowerInvariant()
+          if ($actual -ne $env:ASSET_SHA256) {
+            Write-Error "checksum mismatch for $env:ASSET in whisper.cpp $($env:WHISPER_CPP_BUILD): expected $($env:ASSET_SHA256), actual $actual"
+            exit 1
+          }
           Expand-Archive -Path $dest -DestinationPath "$env:RUNNER_TEMP\wsp" -Force
           $cli = Get-ChildItem -Path "$env:RUNNER_TEMP\wsp" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
           if (-not $cli) { Write-Error "whisper-cli.exe not found"; exit 1 }
@@ -95,6 +143,8 @@ jobs:
         run: |
           set -euo pipefail
           git clone --branch "${WHISPER_CPP_VERSION}" --depth 1 https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/wsrc"
+          head="$(git -C "$RUNNER_TEMP/wsrc" rev-parse HEAD)"
+          [ "$head" = "$WHISPER_CPP_COMMIT" ] || { echo "::error::whisper.cpp ${WHISPER_CPP_VERSION} cloned at ${head}, expected ${WHISPER_CPP_COMMIT}"; exit 1; }
           cmake -S "$RUNNER_TEMP/wsrc" -B "$RUNNER_TEMP/wbuild" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
           cmake --build "$RUNNER_TEMP/wbuild" --config Release -j --target whisper-cli
           out="$RUNNER_TEMP/wdir"; mkdir -p "$out"
@@ -127,8 +177,15 @@ jobs:
           set -euo pipefail
           export CC=clang CXX=clang++
           git clone --branch "${WHISPER_CPP_VERSION}" --depth 1 https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/wsrc"
+          head="$(git -C "$RUNNER_TEMP/wsrc" rev-parse HEAD)"
+          [ "$head" = "$WHISPER_CPP_COMMIT" ] || { echo "::error::whisper.cpp ${WHISPER_CPP_VERSION} cloned at ${head}, expected ${WHISPER_CPP_COMMIT}"; exit 1; }
+          # whisper.cpp v1.9.5's examples/common.cpp calls std::partial_sort
+          # without including <algorithm>, and the CLANGARM64 libc++ does not
+          # pull it in through another header. Upstream added the include after
+          # v1.9.5 (it is in b5907); drop -include once the pin is past it.
           cmake -S "$RUNNER_TEMP/wsrc" -B "$RUNNER_TEMP/wbuild" -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DGGML_NATIVE=OFF
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DGGML_NATIVE=OFF \
+            -DCMAKE_CXX_FLAGS="-include algorithm"
           cmake --build "$RUNNER_TEMP/wbuild" --target whisper-cli
           out="$RUNNER_TEMP/wdir"; mkdir -p "$out"
           cp "$(find "$RUNNER_TEMP/wbuild" -name 'whisper-cli.exe' | head -n1)" "$out/"
