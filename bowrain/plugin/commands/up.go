@@ -100,7 +100,7 @@ func runUp(cmd *cobra.Command, _ []string) error {
 	// The server runs the loop with the provider and settings its workspace
 	// is configured with, so a flag outside ServerRunFlags has nothing to act
 	// on there.
-	if err := cli.ServerRunFlagError(cli.UndeclaredFlags(cmd, ServerRunFlags)); err != nil {
+	if err := cli.UndeclaredServerFlagError(cli.UndeclaredFlags(cmd, ServerRunFlags)); err != nil {
 		return err
 	}
 	return runServerUp(cmd, proj)

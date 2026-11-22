@@ -60,7 +60,7 @@ func venueStubPlugin(t *testing.T) string {
 		"plugin": "venue-stub",
 		"version": "0.0.1",
 		"binary": "kapi-venue-stub",
-		"capabilities": {"commands": [{"name": "server-up", "hidden": true}]}
+		"capabilities": {"commands": [{"name": "server-up", "hidden": true, "flags": [{"name": "project", "type": "string"}, {"name": "json", "type": "bool"}, {"name": "local", "type": "bool"}, {"name": "timeout", "type": "string"}, {"name": "fail-on-incomplete-watch", "type": "bool"}]}]}
 	}`
 	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "manifest.json"), []byte(manifestBody), 0o644))
 

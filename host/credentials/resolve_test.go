@@ -356,7 +356,8 @@ func TestResolveCredentials_NothingConfiguredNamesTheFallback(t *testing.T) {
 	missing, ok := errors.AsType[*MissingCredentialError](err)
 	require.True(t, ok, "%v", err)
 	assert.Equal(t, "anthropic", missing.Provider)
-	assert.Contains(t, err.Error(), `provider "anthropic"`)
-	assert.Contains(t, err.Error(), "ANTHROPIC_API_KEY")
+	assert.True(t, missing.Default)
+	assert.Equal(t, `no saved credentials found for provider "anthropic" (the default); save one with 'kapi credentials add' or set ANTHROPIC_API_KEY, or choose another with 'kapi models default'`, err.Error())
+	assert.Equal(t, `no saved credentials found for provider "anthropic" (the default); save one with 'kapi credentials add', set ANTHROPIC_API_KEY or pass --api-key, or choose another with 'kapi models default'`, WithAPIKeyFlag(err).Error())
 	assert.Equal(t, err.Error(), MissingCredential(store, "translate", []string{"credentials"}, map[string]any{}).Error())
 }

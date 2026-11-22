@@ -58,7 +58,7 @@ func newStreamingServerUpStub(t *testing.T) *serverUpStub {
 		Version:         "0.0.1",
 		Binary:          filepath.Base(binPath),
 		Capabilities: manifest.Capabilities{
-			Commands: []manifest.Command{{Name: serverUpCommand, Hidden: true}},
+			Commands: []manifest.Command{{Name: serverUpCommand, Hidden: true, Flags: serverUpStubFlags}},
 		},
 	}
 	require.NoError(t, m.Validate())

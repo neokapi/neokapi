@@ -64,6 +64,14 @@ bowrain:
 // to the file "args" beside it.
 func venuePluginHost(t *testing.T, declared ...string) *pluginhost.Host {
 	t.Helper()
+	return venuePluginHostWith(t, flagSpecs(declared))
+}
+
+// venuePluginHostWith is venuePluginHost with the manifest's flag
+// declaration as given: nil declares none, an empty list declares that the
+// plumbing reads no flag.
+func venuePluginHostWith(t *testing.T, flags []manifest.FlagSpec) *pluginhost.Host {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("shell-script plugin stub is not portable to Windows")
 	}
@@ -77,7 +85,7 @@ func venuePluginHost(t *testing.T, declared ...string) *pluginhost.Host {
 		Version:         "0.0.1",
 		Binary:          filepath.Base(binPath),
 		Capabilities: manifest.Capabilities{
-			Commands: []manifest.Command{{Name: "server-up", Hidden: true, Flags: flagSpecs(declared)}},
+			Commands: []manifest.Command{{Name: "server-up", Hidden: true, Flags: flags}},
 		},
 	}
 	require.NoError(t, m.Validate())
@@ -250,9 +258,45 @@ func TestUpVenue_ServerForwardsWhatTheManifestDeclares(t *testing.T) {
 		assert.Contains(t, stubArgs(t, ph), want, "a server run reads it, so it reaches the plumbing")
 	}
 
+	// A declaration that lists no flag forwards none: the run itself is
+	// dispatched, and every flag is refused.
 	a = &App{}
-	a.PluginHost = venuePluginHost(t)
+	ph = venuePluginHostWith(t, []manifest.FlagSpec{})
+	a.PluginHost = ph
 	cmd = NewUpCmd(a)
 	require.NoError(t, cmd.ParseFlags([]string{"--json"}))
-	assert.ErrorContains(t, runUpWithVenue(a, cmd, recipe), "--json applies to a run on this machine")
+	require.ErrorContains(t, runUpWithVenue(a, cmd, recipe), "--json applies to a run on this machine")
+	cmd = NewUpCmd(a)
+	require.NoError(t, runUpWithVenue(a, cmd, recipe))
+	assert.NotContains(t, stubArgs(t, ph), "--", "no flag is forwarded")
+}
+
+// A plugin whose manifest declares no flags predates this kapi. A server run
+// through it is refused before dispatch, naming the plugin and the command
+// that updates it, whatever flags were set; under --local it runs as before.
+func TestUpVenue_APluginWithNoDeclarationIsRefusedWithTheUpdate(t *testing.T) {
+	recipe := venueParityProject(t)
+	for _, args := range [][]string{nil, {"--project", recipe}, {"--json"}} {
+		a := &App{}
+		ph := venuePluginHost(t)
+		a.PluginHost = ph
+		cmd := NewUpCmd(a)
+		require.NoError(t, cmd.ParseFlags(args))
+		err := runUpWithVenue(a, cmd, recipe)
+		require.Error(t, err, "%v", args)
+		assert.Contains(t, err.Error(), "venue-stub plugin 0.0.1")
+		assert.Contains(t, err.Error(), "older than this kapi")
+		assert.Contains(t, err.Error(), "kapi plugin update venue-stub")
+		assert.NotContains(t, err.Error(), "applies to a run on this machine")
+		_, statErr := os.Stat(filepath.Join(ph.CommandRoute("server-up").Plugin.Dir, "args"))
+		assert.True(t, os.IsNotExist(statErr), "nothing was dispatched")
+	}
+
+	a := &App{}
+	ph := venuePluginHost(t)
+	a.PluginHost = ph
+	cmd := NewUpCmd(a)
+	require.NoError(t, cmd.ParseFlags([]string{"--local", "--jobs", "2"}))
+	require.NoError(t, runUpWithVenue(a, cmd, recipe))
+	assert.Contains(t, stubArgs(t, ph), "--jobs=2")
 }

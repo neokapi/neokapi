@@ -213,6 +213,9 @@ func findCredential(store *Store, toolName string, toolRequires []string, config
 	// A miss names the provider the run falls back to.
 	storeProvider, _ := config["provider"].(string)
 	cfg, err := autoDetect(store, storeProvider, providerType)
+	if missing, ok := errors.AsType[*MissingCredentialError](err); ok && storeProvider == "" {
+		missing.Default = true
+	}
 	if err != nil {
 		return credentialSource{}, err
 	}
@@ -257,23 +260,30 @@ type MissingCredentialError struct {
 	// Provider is the provider the key is for: the config's, else the tool
 	// default the run falls back to (inferProviderID).
 	Provider string
+	// Default is set when nothing named Provider: it is the tool default, and
+	// choosing another provider is a remedy too.
+	Default bool
 }
 
-func (e *MissingCredentialError) Error() string { return MissingKeyMessage(e.Provider, false) }
+func (e *MissingCredentialError) Error() string { return e.Message(false) }
 
-// MissingKeyMessage says that provider has no key and what gives it one: a
-// saved credential, the provider's environment variable, and, for a command
-// that reads it, --api-key. It is the one statement of that advice: the
-// runtime error, the pre-run refusal of `kapi up` and the desktop's
-// missing-key dialog all print it.
-func MissingKeyMessage(provider string, apiKeyFlag bool) string {
+// Message says that the provider has no key and what gives it one: a saved
+// credential, the provider's environment variable, for a command that reads
+// it --api-key, and, for the default provider, choosing another. It is the
+// one statement of that advice: the runtime error, the pre-run refusal of
+// `kapi up` and the up plan all print it.
+func (e *MissingCredentialError) Message(apiKeyFlag bool) string {
 	var b strings.Builder
-	if provider == "" {
+	if e.Provider == "" {
 		b.WriteString("no saved credentials found; save one with 'kapi credentials add'")
 	} else {
-		fmt.Fprintf(&b, "no saved credentials found for provider %q; save one with 'kapi credentials add'", provider)
+		fmt.Fprintf(&b, "no saved credentials found for provider %q", e.Provider)
+		if e.Default {
+			b.WriteString(" (the default)")
+		}
+		b.WriteString("; save one with 'kapi credentials add'")
 	}
-	if vars := providerEnvVars[strings.ToLower(provider)]; len(vars) > 0 {
+	if vars := providerEnvVars[strings.ToLower(e.Provider)]; len(vars) > 0 {
 		if apiKeyFlag {
 			b.WriteString(", set " + vars[0])
 		} else {
@@ -283,7 +293,16 @@ func MissingKeyMessage(provider string, apiKeyFlag bool) string {
 	if apiKeyFlag {
 		b.WriteString(" or pass --api-key")
 	}
+	if e.Default {
+		b.WriteString(", or choose another with 'kapi models default'")
+	}
 	return b.String()
+}
+
+// MissingKeyMessage is the advice for a provider that something named and
+// that has no key (MissingCredentialError.Message).
+func MissingKeyMessage(provider string, apiKeyFlag bool) string {
+	return (&MissingCredentialError{Provider: provider}).Message(apiKeyFlag)
 }
 
 // WithAPIKeyFlag returns err with a missing credential's advice naming
@@ -294,7 +313,7 @@ func WithAPIKeyFlag(err error) error {
 	if !ok {
 		return err
 	}
-	return &flagHintError{err: err, msg: MissingKeyMessage(missing.Provider, true)}
+	return &flagHintError{err: err, msg: missing.Message(true)}
 }
 
 // flagHintError keeps the wrapped chain (errors.As still finds the

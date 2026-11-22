@@ -5110,6 +5110,16 @@ export class UpPlanOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Providers is set when target languages differ in what they use (a
+             * per-language preset): one group per distinct answer. Provider and
+             * Credential then summarize the groups.
+             * @member
+             * @type {UpPlanProviderGroup[] | undefined}
+             */
+            this["providers"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Subscription is true when that provider bills a personal subscription
              * (claude-code): the token estimate is scale, not a metered API cost.
              * @member
@@ -5180,8 +5190,9 @@ export class UpPlanOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType114;
         const $$createField4_0 = $$createType113;
-        const $$createField10_0 = $$createType100;
-        const $$createField11_0 = $$createType115;
+        const $$createField7_0 = $$createType116;
+        const $$createField11_0 = $$createType100;
+        const $$createField12_0 = $$createType117;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5189,13 +5200,66 @@ export class UpPlanOutput {
         if ("totals" in $$parsedSource) {
             $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
         }
+        if ("providers" in $$parsedSource) {
+            $$parsedSource["providers"] = $$createField7_0($$parsedSource["providers"]);
+        }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField10_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField11_0($$parsedSource["warnings"]);
         }
         if ("drift" in $$parsedSource) {
-            $$parsedSource["drift"] = $$createField11_0($$parsedSource["drift"]);
+            $$parsedSource["drift"] = $$createField12_0($$parsedSource["drift"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
+    }
+}
+
+/**
+ * UpPlanProviderGroup is the target languages that use the same providers
+ * and get the same answer about their credential.
+ */
+export class UpPlanProviderGroup {
+    /**
+     * Creates a new UpPlanProviderGroup instance.
+     * @param {Partial<UpPlanProviderGroup>} [$$source = {}] - The source object to create the UpPlanProviderGroup.
+     */
+    constructor($$source = {}) {
+        if (!("locales" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["locales"] = [];
+        }
+        if (!("provider" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["provider"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpPlanProviderGroup instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UpPlanProviderGroup}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("locales" in $$parsedSource) {
+            $$parsedSource["locales"] = $$createField0_0($$parsedSource["locales"]);
+        }
+        return new UpPlanProviderGroup(/** @type {Partial<UpPlanProviderGroup>} */($$parsedSource));
     }
 }
 
@@ -5482,4 +5546,6 @@ const $$createType111 = RulesFile.createFrom;
 const $$createType112 = $Create.Array($$createType111);
 const $$createType113 = UpPlanScope.createFrom;
 const $$createType114 = $Create.Array($$createType113);
-const $$createType115 = project$0.StoreDrift.createFrom;
+const $$createType115 = UpPlanProviderGroup.createFrom;
+const $$createType116 = $Create.Array($$createType115);
+const $$createType117 = project$0.StoreDrift.createFrom;

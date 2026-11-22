@@ -134,6 +134,10 @@ type UpPlanOutput struct {
 	// provider's credential (none saved or set, or the named one missing),
 	// and "" when the credential is available.
 	Credential string `json:"credential,omitempty"`
+	// Providers is set when target languages differ in what they use (a
+	// per-language preset): one group per distinct answer. Provider and
+	// Credential then summarize the groups.
+	Providers []UpPlanProviderGroup `json:"providers,omitempty"`
 	// Subscription is true when that provider bills a personal subscription
 	// (claude-code): the token estimate is scale, not a metered API cost.
 	Subscription bool `json:"subscription,omitempty"`
@@ -267,6 +271,15 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	// it is also the fastest way to see that a configured default is being
 	// picked up, which is exactly what silently failed before.
 	switch {
+	case len(o.Providers) > 1:
+		fmt.Fprintf(w, "\n  AI provider by language:\n")
+		for _, g := range o.Providers {
+			line := g.Provider
+			if g.Credential != "" {
+				line += ". The run would stop before drafting: " + g.Credential
+			}
+			fmt.Fprintf(w, "    %s: %s\n", strings.Join(g.Locales, ", "), line)
+		}
 	case o.Credential != "":
 		fmt.Fprintf(w, "\n  AI provider: %s. The run would stop before drafting: %s\n", o.Provider, o.Credential)
 	case o.Subscription:
@@ -479,6 +492,14 @@ func (a *App) planPassingLocales(ctx context.Context, run planRun, proj *project
 	return passing, nil
 }
 
+// UpPlanProviderGroup is the target languages that use the same providers
+// and get the same answer about their credential.
+type UpPlanProviderGroup struct {
+	Locales    []string `json:"locales"`
+	Provider   string   `json:"provider"`
+	Credential string   `json:"credential,omitempty"`
+}
+
 // applyPlanProvider annotates a plan with the AI providers the converge run's
 // steps call, and with what the run would say when a step's credential is
 // missing. It asks the run's own decision (specAISetup, the check `kapi up`
@@ -503,11 +524,80 @@ func (a *App) applyPlanProvider(plan *UpPlanOutput, proj *project.KapiProject, p
 	if err != nil {
 		return err
 	}
+	locales, err := a.planTargetLocales(proj, projectPath)
+	if err != nil {
+		return err
+	}
 	bindings := recipePresets(proj)
+	// One group per distinct answer, in the order the languages come.
+	var groups []UpPlanProviderGroup
+	for _, locale := range locales {
+		g := a.localeProviders(cf, bindings, locale)
+		if k := slices.IndexFunc(groups, func(o UpPlanProviderGroup) bool {
+			return o.Provider == g.Provider && o.Credential == g.Credential
+		}); k >= 0 {
+			groups[k].Locales = append(groups[k].Locales, g.Locales...)
+			continue
+		}
+		groups = append(groups, g)
+	}
+	if len(groups) == 0 {
+		return nil
+	}
+	plan.Provider, plan.Credential = groups[0].Provider, groups[0].Credential
+	if len(groups) > 1 {
+		plan.Providers = groups
+		var all []string
+		for _, g := range groups {
+			for p := range strings.SplitSeq(g.Provider, ", ") {
+				if !slices.Contains(all, p) {
+					all = append(all, p)
+				}
+			}
+			if plan.Credential == "" {
+				plan.Credential = g.Credential
+			}
+		}
+		plan.Provider = strings.Join(all, ", ")
+		return nil
+	}
+	if info, ok := aiprovider.ProviderInfoFor(aiprovider.ProviderID(plan.Provider)); ok && info.Subscription {
+		plan.Subscription = true
+		plan.Note = upPlanSubscriptionNote
+	}
+	return nil
+}
+
+// planTargetLocales is the target languages a run resolves presets for, as
+// ProjectFlowAISetup resolves them; [""] for a project with no per-language
+// presets, where every language answers alike.
+func (a *App) planTargetLocales(proj *project.KapiProject, projectPath string) ([]model.LocaleID, error) {
+	if len(proj.Defaults.Locales) == 0 {
+		return []model.LocaleID{""}, nil
+	}
+	files, err := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
+	if err != nil {
+		return nil, err
+	}
+	if targets := contentTargetLocales(proj.Defaults, files); len(targets) > 0 {
+		return targets, nil
+	}
+	return []model.LocaleID{""}, nil
+}
+
+// localeProviders is what the converge run's AI steps use for one target
+// language: the providers they call, and what the run would say when a step's
+// credential is missing (with the --api-key advice kapi up prints).
+func (a *App) localeProviders(cf convergeFlow, bindings *ProjectBindings, locale model.LocaleID) UpPlanProviderGroup {
+	g := UpPlanProviderGroup{}
+	if locale != "" {
+		g.Locales = []string{string(locale)}
+	}
 	var providers []string
+	var missing error
 	for _, step := range cf.spec.Steps {
 		name := registry.ToolID(step.Tool)
-		cfg := a.applyBindingsFor(bindings, step.Tool, a.ToolReg.Schema(name), step.Config, "")
+		cfg := a.applyBindingsFor(bindings, step.Tool, a.ToolReg.Schema(name), step.Config, string(locale))
 		info := a.ToolReg.ResolveToolInfo(name, cfg)
 		if info == nil || !slices.Contains(info.Requires, schema.RequiresCredentials) {
 			continue
@@ -518,23 +608,20 @@ func (a *App) applyPlanProvider(plan *UpPlanOutput, proj *project.KapiProject, p
 		}
 		// A step that names no provider is not refused before the run; the
 		// run stops when the step is built, with the resolver's error.
-		if err := credentials.MissingCredential(a.Credentials, step.Tool, info.Requires, cfg); err != nil && plan.Credential == "" {
-			plan.Credential = err.Error()
+		if err := credentials.MissingCredential(a.Credentials, step.Tool, info.Requires, cfg); err != nil && missing == nil {
+			missing = err
 		}
 	}
 	// A provider the recipe or a flag names is refused before the first
 	// pass, in these words.
-	if need := a.specAISetup(cf.spec, cf.name, bindings, nil); need.Kind == AISetupMissingCredential {
-		plan.Credential = need.Err().Error()
+	if need := a.specAISetup(cf.spec, cf.name, bindings, []model.LocaleID{locale}); need.Kind == AISetupMissingCredential {
+		missing = need.Err()
 	}
-	plan.Provider = strings.Join(providers, ", ")
-	if len(providers) == 1 {
-		if info, ok := aiprovider.ProviderInfoFor(aiprovider.ProviderID(providers[0])); ok && info.Subscription {
-			plan.Subscription = true
-			plan.Note = upPlanSubscriptionNote
-		}
+	if missing != nil {
+		g.Credential = credentials.WithAPIKeyFlag(missing).Error()
 	}
-	return nil
+	g.Provider = strings.Join(providers, ", ")
+	return g
 }
 
 // UpPlan computes the dry-run convergence plan `kapi up --plan` reports, per

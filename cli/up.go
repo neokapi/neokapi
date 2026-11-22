@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/host"
@@ -161,13 +160,18 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 		if BoolFlag(cmd, "pre-review") {
 			return errors.New("--pre-review runs on this machine; add --local to run it in a server-connected project")
 		}
-		// A server run forwards only the flags the plumbing declares it reads
-		// (its manifest), and refuses the rest here, before dispatch: the
-		// plumbing parses kapi up's whole flag surface, so it would accept a
-		// flag it does nothing with. Under --local the plumbing runs this
-		// machine's loop, which reads them all.
+		// A server run forwards only the flags the plumbing's manifest declares
+		// it reads, and refuses the rest here, before dispatch: the plumbing
+		// parses kapi up's whole flag surface, so it would accept a flag it
+		// does nothing with. A plugin whose manifest declares none predates
+		// this kapi and is refused with the command that updates it. Under
+		// --local the plumbing runs this machine's loop, which reads them all.
 		if !local {
-			if err := ServerRunFlagError(UndeclaredFlags(cmd, routeFlags(dec.Route), "server")); err != nil {
+			declared, err := host.ServerRunFlags(dec.Route)
+			if err != nil {
+				return err
+			}
+			if err := host.UndeclaredServerFlagError(UndeclaredFlags(cmd, declared, "server")); err != nil {
 				return err
 			}
 		}
@@ -216,15 +220,6 @@ func printUpVenue(a *App, cmd *cobra.Command, local bool, serverURL string) {
 	fmt.Fprintf(cmd.ErrOrStderr(), "Venue: server, running the loop on %s (use --local to run it on this machine).\n", target)
 }
 
-// routeFlags names the flags a plugin route's manifest declares.
-func routeFlags(route *pluginhost.CommandRoute) []string {
-	var names []string
-	for _, f := range route.Command.Flags {
-		names = append(names, f.Name)
-	}
-	return names
-}
-
 // UndeclaredFlags names, as typed, each of cmd's own flags that is set and is
 // neither in declared nor in consumed. Flags cmd inherits from the root are
 // not its own and are left out.
@@ -238,16 +233,6 @@ func UndeclaredFlags(cmd *cobra.Command, declared []string, consumed ...string) 
 		}
 	})
 	return set
-}
-
-// ServerRunFlagError refuses the flags set, which a server run does not act
-// on, or is nil when there are none.
-func ServerRunFlagError(set []string) error {
-	if len(set) == 0 {
-		return nil
-	}
-	return fmt.Errorf("%s applies to a run on this machine; the server runs its own loop with its workspace's settings. Add --local to run here with %s",
-		strings.Join(set, ", "), strings.Join(set, ", "))
 }
 
 // forwardedFlagArgs re-renders the flags the user set as argv for the plugin

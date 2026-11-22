@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -172,17 +173,20 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 			if tc.stops {
 				require.Error(t, err, "the run stops for want of a credential:\n%s", out)
 				require.NotEmpty(t, plan.Credential, "the plan says the run would stop")
-				assert.Contains(t, err.Error(), plan.Credential, "the plan says what the run says")
+				// The person sees the error with the --api-key advice kapi up's
+				// exit adds (credentials.WithAPIKeyFlag); the plan prints that.
+				assert.Contains(t, credentials.WithAPIKeyFlag(err).Error(), plan.Credential, "the plan says what the run says")
 				if tc.advice != "" {
 					assert.Contains(t, plan.Credential, `provider "`+tc.want+`"`, "the advice names the provider the plan names")
 					assert.Contains(t, err.Error(), tc.advice)
 				}
 				assert.Contains(t, text, plan.Credential)
 
-				// kapi run and kapi translate refuse the same project, for the
-				// same provider, before they write anything. kapi translate runs
-				// its own flow, not the recipe's, so a provider the recipe's step
-				// names does not reach it.
+				// kapi run (on the fixture recipe's own converge flow) and kapi
+				// translate refuse the same project, for the same provider,
+				// before they write anything. kapi translate runs its own flow,
+				// not the recipe's, so a provider the recipe's step names does
+				// not reach it.
 				commands := map[string]func() (string, *recorder, error){
 					"run": func() (string, *recorder, error) {
 						return commandWith(t, NewRunCmd, recipe, tc.stored, append([]string{"converge"}, tc.args...)...)
@@ -227,4 +231,47 @@ func credentialCause(msg string) string {
 		return cause[i:]
 	}
 	return cause
+}
+
+// A per-language preset changes what a language uses, and the plan says so
+// per language: one line per group of languages that agree.
+func TestUpPlan_ProviderPerLanguage(t *testing.T) {
+	isolate(t)
+	t.Setenv("ANTHROPIC_API_KEY", "sk-test")
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = "converge"
+	proj.Flows["converge"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+		{Tool: "recycle"},
+		{Tool: "translate", Config: map[string]any{"skip_matched": true}},
+	}}
+	proj.Defaults.Locales = map[string]project.LocaleDefaults{"de-DE": {Tools: map[string]map[string]any{"translate": {"provider": "openai"}}}}
+	require.NoError(t, project.Save(recipe, proj))
+
+	out, _, err := upWith(t, recipe, "", "--plan", "--json")
+	require.NoError(t, err, out)
+	var plan UpPlanOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &plan), out)
+	require.Len(t, plan.Providers, 2, out)
+	byLocale := map[string]UpPlanProviderGroup{}
+	for _, g := range plan.Providers {
+		for _, l := range g.Locales {
+			byLocale[l] = g
+		}
+	}
+	assert.Equal(t, "anthropic", byLocale["nb-NO"].Provider)
+	assert.Empty(t, byLocale["nb-NO"].Credential)
+	assert.Equal(t, "openai", byLocale["de-DE"].Provider)
+	assert.Contains(t, byLocale["de-DE"].Credential, `provider "openai"`)
+
+	text, _, err := upWith(t, recipe, "", "--plan")
+	require.NoError(t, err, text)
+	assert.Contains(t, text, "AI provider by language:")
+	assert.Contains(t, text, "nb-NO: anthropic\n")
+	assert.Contains(t, text, "de-DE: openai. The run would stop before drafting:")
+
+	_, _, err = upWith(t, recipe, "")
+	require.Error(t, err, "German stops the run")
+	assert.Contains(t, credentials.WithAPIKeyFlag(err).Error(), byLocale["de-DE"].Credential)
 }

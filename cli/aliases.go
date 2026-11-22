@@ -81,6 +81,7 @@ type (
 	ToolRunConfig                 = host.ToolRunConfig
 	UpOptions                     = host.UpOptions
 	UpPlanOutput                  = host.UpPlanOutput
+	UpPlanProviderGroup           = host.UpPlanProviderGroup
 	RulesFilesResult              = host.RulesFilesResult
 )
 
@@ -126,6 +127,7 @@ var (
 	AddStatusFlags               = host.AddStatusFlags
 	AddUpFlags                   = host.AddUpFlags
 	ChangedRunConfigFlags        = host.ChangedRunConfigFlags
+	UndeclaredServerFlagError    = host.UndeclaredServerFlagError
 	UpFlagError                  = host.UpFlagError
 	AddVerifyFlags               = host.AddVerifyFlags
 	AgentHosts                   = host.AgentHosts
