@@ -1,20 +1,14 @@
-# bowrain/web/docs is a standalone Docusaurus app (not part of the main pnpm
-# workspace, by design — see PR #425). Its own workspace root so `pnpm` works
-# here independently of the repo workspace.
+# bowrain/web/docs is a standalone Docusaurus app outside the main pnpm
+# workspace (PR #425). This file makes it its own workspace root, so `pnpm`
+# works here independently of the repo workspace.
 packages: []
 
-# Where the package manager itself is downloaded from, so the
-# package.json#packageManager pin resolves the same way on every machine. pnpm
-# 11.13+ requires an integrity-only resolution for that bootstrap, which a
-# registry mirror cannot provide (it serves npm's packument verbatim, so the
-# advertised tarball URL is not canonical for the mirror) — every pnpm command
-# in this directory then fails with "must use a registry package path and an
-# integrity-only resolution". The repo-root pnpm-workspace.yaml carries the same
-# setting and the full explanation; this standalone workspace needs its own copy
-# because `--ignore-workspace` never reads the root file. A pnpm 11 that switches
-# to the pin reads it; pnpm 12 ignores it in a project file with a warning. Only
-# the package-manager bootstrap is governed; dependency resolution still follows
-# .npmrc.
+# Where pnpm downloads the package manager itself when it switches to the
+# package.json#packageManager pin. A pnpm 11 behind a registry mirror cannot
+# switch without it; pnpm 12 ignores it here with a warning. The repo-root
+# pnpm-workspace.yaml explains it in full. This copy exists because
+# `--ignore-workspace` never reads the root file. Dependency resolution still
+# follows .npmrc.
 packageManagerRegistries:
   default: https://registry.npmjs.org/
 

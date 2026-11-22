@@ -1,33 +1,19 @@
 name: Publish npm packages
 
-# Publishes the public @neokapi npm packages via npm Trusted Publishers (OIDC) —
-# no NPM_TOKEN. Each package's trusted-publisher config on npmjs.com must point
-# at THIS workflow file (publish-npm.yml) in neokapi/neokapi.
+# Publishes the public @neokapi npm packages through npm Trusted Publishers
+# (OIDC), with no NPM_TOKEN. Each package's trusted-publisher config on
+# npmjs.com must name this workflow file in neokapi/neokapi. A version already
+# on npm is skipped, so re-runs are safe.
 #
-# Versions come from each package.json; a guard skips any version already on npm,
-# so re-runs are safe. Bump the version in package.json to publish a new release.
+# Release by pushing a scoped tag (`i18n-react-vX.Y.Z`, `kapi-format-vX.Y.Z`,
+# `contract-types-vX.Y.Z` or `engine-vX.Y.Z`) that matches the package.json
+# version, or run the workflow manually.
 #
-# Two ways to release (both run the same idempotent publish):
-#   - Push a scoped tag, mirroring the binary releases (`v*`) and the sat plugin
-#     (`sat-v*`): `i18n-react-vX.Y.Z`, `kapi-format-vX.Y.Z`, `contract-types-vX.Y.Z`,
-#     or `engine-vX.Y.Z`. The tag version is verified against that package's
-#     package.json so a tag can't drift from what ships. Example:
-#     `git tag i18n-react-v1.0.1 && git push origin i18n-react-v1.0.1`.
-#   - Run the workflow manually (workflow_dispatch) as a fallback / re-run.
-#
-# First publish of a brand-new package must be bootstrapped once locally,
-# because a trusted publisher is configured on an existing package's settings
-# page. Bootstrap with the SAME pnpm-pack path this workflow uses — never a
-# bare `npm publish` in the package dir. The @neokapi packages split their
-# in-repo `src` exports from their built `dist` exports via `publishConfig`,
-# and only `pnpm pack` / `pnpm publish` apply that substitution; a bare
-# `npm publish` ships the `src`-based exports and consumers get raw TypeScript,
-# which fails to load on modern Node (this is exactly how kapi-format@1.0.0
-# shipped broken). Bootstrap a new package with:
+# A brand-new package is bootstrapped once locally through the same pnpm pack
+# path, never a bare `npm publish` (see the publish step):
 #   ( cd packages/<pkg> && corepack pnpm install && corepack pnpm run build \
 #       && corepack pnpm pack --pack-destination "$TMPDIR" )
 #   npm publish "$TMPDIR/<tarball>.tgz" --access public
-# Subsequent releases run here, tokenless.
 
 on:
   push:
@@ -65,12 +51,11 @@ jobs:
           node-version: "26"
           registry-url: "https://registry.npmjs.org"
 
-      # Trusted publishing (OIDC) needs npm >= 11.5.1. Node 24 already bundles
-      # a newer npm, so we use that and only ASSERT the floor — we deliberately
-      # do NOT `npm install -g npm@latest`: a global self-upgrade can leave
-      # npm's bundled `sigstore` module unresolvable, and `npm publish
-      # --provenance` then dies with "Cannot find module 'sigstore'". The
-      # node-bundled npm keeps sigstore intact.
+      # Trusted publishing (OIDC) needs npm >= 11.5.1. The npm bundled with
+      # Node is newer, so this step only asserts the floor. A global
+      # `npm install -g npm@latest` can leave npm's bundled `sigstore` module
+      # unresolvable, and `npm publish --provenance` then fails with "Cannot
+      # find module 'sigstore'".
       - name: Assert npm supports OIDC provenance (>= 11.5.1)
         run: |
           set -euo pipefail
@@ -84,10 +69,9 @@ jobs:
           echo "npm $ver OK for OIDC trusted publishing"
 
       # On a tag push, verify the tag's version matches the package's
-      # package.json so a release tag can never drift from what actually ships.
-      # GITHUB_REF_NAME is a built-in env var (the tag name) — safe to read in
-      # shell, not template-interpolated. The idempotent publish steps below
-      # still skip anything already on npm.
+      # package.json so a release tag cannot drift from what ships.
+      # GITHUB_REF_NAME is a built-in env var (the tag name), read in shell
+      # rather than template-interpolated.
       - name: Verify tag matches package.json version
         if: github.event_name == 'push'
         run: |
@@ -122,29 +106,18 @@ jobs:
           pnpm --filter @neokapi/contract-types run build
           pnpm --filter @neokapi/engine run build
 
-      # Publish in dependency order (kapi-format before neokapi-i18n; contract-types
-      # before engine). Skip a package whose current version is already on npm so
-      # re-running the workflow is idempotent.
+      # Publish in dependency order (kapi-format before neokapi-i18n,
+      # contract-types before engine), skipping a version already on npm.
       #
-      # Why pnpm pack → npm publish <tarball>, not `npm publish` in the dir:
-      #   * The @neokapi packages split `exports` (TS src, for in-repo consumers)
-      #     from `publishConfig.exports` (built dist, for npm consumers). pnpm's
-      #     publishConfig field substitution is only applied by `pnpm pack` /
-      #     `pnpm publish` — the npm CLI does NOT apply it. So `npm publish` in the
-      #     package dir ships the src-based exports and consumers get raw TS.
-      #   * `pnpm pack` builds a tarball whose package.json HAS the substitution
-      #     applied (dist exports). `npm publish <tarball>` then publishes that
-      #     tarball verbatim — so dist exports ship — while still generating OIDC
-      #     provenance (npm provenance works with a tarball arg in CI). We keep
-      #     npm for the publish because npm's OIDC trusted-publishing token
-      #     exchange is only implemented by the npm CLI (pnpm#9812).
+      # The packages split `exports` (TS src, for in-repo consumers) from
+      # `publishConfig.exports` (built dist). Only `pnpm pack` applies that
+      # substitution, so a tarball from it is published with
+      # `npm publish <tarball>`, which keeps OIDC provenance; only the npm CLI
+      # implements the trusted-publishing token exchange (pnpm#9812).
       #
-      # The existence check + publish stay on `npm` with a SCOPE-specific registry
-      # override (`--@neokapi:registry=...`). The repo root .npmrc maps the
-      # @neokapi scope to GitHub Packages for installs, and a scope registry takes
-      # precedence over a plain `--registry`, so the check must use the same
-      # `--@neokapi:registry` the publish uses or it queries the wrong registry
-      # and tries to republish an existing version.
+      # The root .npmrc maps @neokapi to GitHub Packages, and a scope registry
+      # wins over `--registry`, so the existence check and the publish both pass
+      # `--@neokapi:registry=...`.
       - name: Publish @neokapi packages
         run: |
           set -euo pipefail

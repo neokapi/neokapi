@@ -1,25 +1,14 @@
 name: Dependabot pnpm Relock
 
 # Dependabot resolves pnpm-lock.yaml with its own bundled pnpm, not the version
-# pinned in package.json#packageManager. The result is a lockfile this repository
-# did not author, which `scripts/check-lockfile-idempotent.sh` rejects in CI.
+# pinned in package.json#packageManager, and scripts/check-lockfile-idempotent.sh
+# rejects that lockfile in CI. This workflow re-resolves it with the pinned pnpm
+# on the PR branch and pushes the result, which is what that guard expects. It
+# is the npm counterpart of dependabot-go-tidy.yml.
 #
-# Re-resolving with the pinned pnpm on the PR branch produces, by definition,
-# exactly what that guard expects — so this workflow makes Dependabot npm PRs
-# mergeable instead of permanently red.
-#
-# This is the npm counterpart of dependabot-go-tidy.yml, and the same shape: run
-# the canonical tool, push if it changed anything.
-#
-# Historical note, because two earlier attempts at this file were wrong. The
-# first re-resolved the PR lockfile to restore a `tarball:` provenance field
-# Dependabot strips; that cannot work, because the pinned pnpm preserves whatever
-# form it is given and never re-adds the field, so the job reported success while
-# the provenance stayed gone. The second recovered the base branch's lockfile
-# first, which does preserve the field locally but not in a clean CI environment,
-# where the pinned pnpm emits the stripped form regardless. The invariant was
-# then changed from lockfile *content* to lockfile *stability*, which is
-# satisfiable by construction — and this workflow became simple again.
+# The invariant is lockfile stability, not content: the pinned pnpm keeps
+# whatever `tarball:` form it is given, so no workflow can restore a field
+# Dependabot strips.
 
 on: pull_request
 
@@ -36,8 +25,8 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Mirrors .github/actions/setup-node-ui, minus run-install and the
-      # i18n-react build — relocking needs the toolchain, not the workspace.
+      # Mirrors .github/actions/setup-node-ui without the install and the
+      # i18n-react build: relocking needs the toolchain, not the workspace.
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           version: "1.7.0"

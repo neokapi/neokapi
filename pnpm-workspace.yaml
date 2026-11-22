@@ -1,20 +1,12 @@
-# pnpm workspace + settings — migrated from the root package.json "workspaces"
-# field and npm "overrides"/.npmrc on the move to pnpm. pnpm reads overrides
-# and most settings from THIS file (the package.json "pnpm" field and several
-# .npmrc keys are no longer honored) — see https://pnpm.io/settings.
+# pnpm reads overrides and most settings from this file; the package.json
+# "pnpm" field and several .npmrc keys are not honored (https://pnpm.io/settings).
 #
-# Glob patterns (not explicit paths) on purpose: pnpm includes a globbed
-# directory only when it actually contains a package.json, so a *partial*
-# checkout still resolves. The bowrain-web / bowrain-ctrl Docker builds copy
-# only a subtree of the monorepo; with globs those builds see a valid (smaller)
-# workspace instead of erroring on missing member directories.
-#
-# These globs match exactly the frontend members and nothing else
-# (packages/kapi-claude-plugin, bowrain/apps/bowrain and the standalone
-# e2e/harness trees have no package.json under these globs; bowrain/web/landing
-# is listed explicitly so the non-member bowrain/web/docs is not pulled in, and
-# bowrain/mobile is listed explicitly because it is the one Apache-licensed
-# directory beside the AGPL apps).
+# The members are globs because pnpm includes a globbed directory only when it
+# holds a package.json, so the bowrain-web and bowrain-ctrl Docker builds, which
+# copy a subtree, still see a valid smaller workspace. The globs match the
+# frontend members and nothing else. bowrain/web/landing is listed so the
+# standalone bowrain/web/docs stays out. bowrain/mobile is listed because it is
+# the one Apache-licensed directory beside the AGPL apps.
 packages:
   - packages/*
   - storybook
@@ -29,73 +21,44 @@ packages:
   - bowrain/web/landing
 
 # Link a local workspace package in place of a registry version whenever the
-# local version satisfies the range — every internal @neokapi/* dependency is
-# declared "*", so this reproduces the implicit linking we relied on under npm
-# workspaces. (We dropped npm's install-strategy=hoisted: pnpm's isolated store
-# shares a single React/etc. across the workspace by content hash and makes each
-# git worktree's node_modules cheap hardlinks from the global store — the whole
-# reason for the switch.)
+# local version satisfies the range. Every internal @neokapi/* dependency is
+# declared "*", so each resolves to its workspace copy.
 linkWorkspacePackages: true
 
-# Hoist all dependencies into the root node_modules (npm-like flat layout) while
-# keeping pnpm's content-addressed store (so per-worktree installs stay cheap via
-# hardlinks). This matches the repo's prior npm `install-strategy=hoisted` intent
-# — a single shared React/etc. and resolvable transitive deps — so workspace
-# packages consumed *from source* (e.g. @neokapi/ui-primitives importing
-# @codemirror/* transitively) resolve without declaring every phantom dependency.
+# Hoist all dependencies into the root node_modules, an npm-like flat layout,
+# while pnpm's content-addressed store keeps per-worktree installs cheap
+# hardlinks. One React is shared, and workspace packages consumed from source
+# (@neokapi/ui-primitives importing @codemirror/*, for one) resolve without
+# declaring every transitive dependency.
 shamefullyHoist: true
 
 # npm always runs pre/post scripts; keep that under pnpm so hooks like
 # web' prebuild → gen-reference still fire automatically.
 enablePrePostScripts: true
 
-# Where the *package manager itself* is downloaded from, so the
-# package.json#packageManager pin resolves the same way on every machine.
+# Where pnpm downloads the package manager itself when it switches to the
+# package.json#packageManager pin. Dependency resolution still follows .npmrc.
 #
-# pnpm 11.13+ hardened its self-install: before switching to the pinned version
-# it resolves pnpm + @pnpm/exe and requires each resolution to be
-# integrity-only, i.e. the advertised tarball URL must be canonical for the
-# registry it resolved against. That holds on npmjs, but not through a mirror:
-# registry.yarnpkg.com (and Artifactory/Verdaccio proxies) serve npm's packument
-# verbatim, so `dist.tarball` still points at registry.npmjs.org, which is not
-# canonical for the mirror. The resolution then keeps its `tarball:` field, the
-# integrity-only assertion rejects it, and *every* pnpm invocation fails with
-# "The packageManager dependency ... must use a registry package path and an
-# integrity-only resolution" — a message that names pnpm-lock.yaml but has
-# nothing to do with it (it reproduces in an empty directory holding only a
-# package.json).
-#
-# pnpm deliberately ignores .npmrc and `registry=` for this decision (a
-# committed file must not be able to redirect where the package manager binary
-# comes from). A pnpm 11 that switches to the pinned version reads this setting
-# from here; pnpm 12 refuses it in a project file, prints a warning that it was
-# ignored, and takes the package-manager registry from outside the project
-# (PNPM_CONFIG_REGISTRY, for one). The setting stays for the first case: a
-# global pnpm 11 on a machine whose default registry is a mirror cannot switch
-# to the pin without it. It only governs the package-manager bootstrap; ordinary
-# dependency resolution still follows .npmrc, including the @neokapi scope. On a
-# machine whose default registry is already npmjs — every CI runner — this
-# changes nothing.
+# pnpm 11 requires an integrity-only resolution for the pin. A registry mirror
+# such as registry.yarnpkg.com serves npm's packument verbatim, so its tarball
+# URL is not canonical for the mirror, and every pnpm command fails with "must
+# use a registry package path and an integrity-only resolution". pnpm 12
+# ignores this key in a project file with a warning. It stays so a global
+# pnpm 11 on a mirror machine can switch to the pin. On npmjs it changes nothing.
 packageManagerRegistries:
   default: https://registry.npmjs.org/
 
-# vite-plus ships its own vendored vite/rolldown build as
-# @voidzero-dev/vite-plus-core. The canonical vite-plus monorepo setup aliases the
-# bare `vite` package to that build (via a catalog entry referenced from overrides)
-# so externally-installed plugins (@vitejs/plugin-react, @tailwindcss/vite) resolve
-# `vite` to the SAME build vite-plus's defineConfig expects. Otherwise the two
-# distinct deep Plugin/UserConfig type universes trip TypeScript into TS2321
-# "Excessive stack depth" / TS2769 in vite.config.ts. vitest is bundled into
-# vite-plus, and the repo has no direct vitest/browser-mode usage, so only `vite`
-# is aliased.
+# vite-plus ships its own vite build as @voidzero-dev/vite-plus-core. The
+# `vite` alias below, applied through overrides, makes plugins such as
+# @vitejs/plugin-react resolve that same build. Two builds would give
+# vite.config.ts two Plugin/UserConfig type universes and fail with TS2321 or
+# TS2769.
 #
-# The alias must name the exact core version the catalog's vite-plus release
-# depends on. From vite-plus 1.7.0 that version encodes the bundled Vite and is
-# not the vite-plus version: vite-plus 1.7.0 depends on core 8.3.8000 (Vite
-# 8.3.8). Read it with `npm view vite-plus@<version> dependencies.vite`, or let
-# `vp migrate` move both. Dependabot bumps vite-plus but cannot follow this
-# npm-alias indirection, so scripts/audit-vite-alias.sh compares the alias with
-# node_modules/vite-plus/package.json and fails the build when they differ.
+# The alias names the exact core version the catalog's vite-plus depends on
+# (`npm view vite-plus@<version> dependencies.vite`), which is not the
+# vite-plus version: vite-plus 1.7.0 depends on core 8.3.8000. `vp migrate`
+# moves both, and scripts/audit-vite-alias.sh compares the alias with
+# node_modules/vite-plus/package.json.
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
   # The official SQLite WebAssembly build the browser engine's database driver
