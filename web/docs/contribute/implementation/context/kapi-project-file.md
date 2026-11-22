@@ -135,6 +135,14 @@ An item that declares no `Base` of its own keeps none; the target tokens then
 relativize against the joined pattern's own fixed prefix. That is what makes
 `base:` a *location* rather than a second relativization root.
 
+A target, joined onto its base, lies inside the project. A recipe whose target
+is absolute or climbs out of the project with `..` is refused when it is
+loaded, so `kapi status` and every run report it before any work starts. The
+error names the key (`collections[0].target`) and the target. A target that a
+symbolic link inside the project leads outside is refused when the file home
+writes it. A destination a person names with `-o` is written where they name
+it.
+
 ### The context space
 
 Content is written for a point in the context space. Two axes are

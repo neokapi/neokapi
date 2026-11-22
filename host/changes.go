@@ -267,8 +267,7 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 // gets cmd. A service outside a project gets a command that resolves no
 // project. So discovery from the working directory never puts an edit made
 // outside a project under the governance of a project it happens to sit in.
-// That
-// command keeps the --source-lang cmd was given, the language the commit
+// That command keeps the --source-lang cmd was given, the language the commit
 // check reads a document outside a project in.
 func changeHookCommand(ctx context.Context, cmd Command, recipe string) Command {
 	switch {

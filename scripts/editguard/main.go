@@ -11,8 +11,9 @@
 //   - each call to a method SetOutput(path string) error, which points a writer
 //     at a file and writes a whole document there;
 //   - each call to the replacing functions of core/atomicfile (Replace,
-//     ReplaceBytes, Stage, StageWithParents) outside the file home, the one
-//     place that stages and renames a content file;
+//     ReplaceBytes, Stage, StageWithParents, StageWithin, StageWithinMode)
+//     outside the file home, the one place that stages and renames a content
+//     file;
 //   - each call to core/rootpath's CreateRegular, which opens a file for
 //     writing inside a root;
 //
@@ -67,7 +68,7 @@ var exemptPrefixes = []string{
 // replacing functions of core/atomicfile, which stage and rename a file, and
 // core/rootpath's CreateRegular, which opens a file for writing inside a root.
 var replacing = map[string]map[string]bool{
-	"github.com/neokapi/neokapi/core/atomicfile": {"Replace": true, "ReplaceBytes": true, "Stage": true, "StageWithParents": true},
+	"github.com/neokapi/neokapi/core/atomicfile": {"Replace": true, "ReplaceBytes": true, "Stage": true, "StageWithParents": true, "StageWithin": true, "StageWithinMode": true},
 	"github.com/neokapi/neokapi/core/rootpath":   {"CreateRegular": true},
 }
 

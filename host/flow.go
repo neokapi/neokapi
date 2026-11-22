@@ -542,6 +542,10 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		}
 		return err
 	}
+	if outputFlag != "" {
+		// A destination the person named with -o may lie outside the project.
+		home.PermitOutside(outputPath)
+	}
 
 	// Whole-image (target-asset) replacement: when the source is a binary asset
 	// and a localized variant already exists at the target, it is authoritative —
@@ -1114,6 +1118,10 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	if err != nil {
 		return traceNodes, err
 	}
+	if outputTemplate != "" {
+		// A destination the person named with -o may lie outside the project.
+		home.PermitOutside(outputPath)
+	}
 
 	// Writer format defaults to the reader's format but a different output
 	// extension selects a different writer — see registry.WriterFormatFor,
@@ -1207,8 +1215,9 @@ func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) (str
 			// A convergence pass under a gating policy drafts into the run's own
 			// tree; delivery to this destination happens once, at the end, for
 			// the locales that cleared their gate (host/convergedrafts.go).
+			// The file home creates its directory when the document commits,
+			// through the project root, so none is made here by path.
 			out, _ = a.draftPathFor(a.TargetLang, out)
-			ensureParentDir(out)
 			return out, nil
 		}
 		if a.TargetLang == "" {

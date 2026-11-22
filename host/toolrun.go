@@ -457,9 +457,8 @@ func (a *App) resolveRunOutputPath(cfg ToolRunConfig, filePath, commonDir string
 		} else {
 			outputPath = localeOutputPath(filePath, a.SourceLocale(), cfg.TargetLang)
 		}
-		if mkErr := os.MkdirAll(filepath.Dir(outputPath), 0o755); mkErr != nil {
-			return "", false, fmt.Errorf("create output dir: %w", mkErr)
-		}
+		// The file home creates the directory when the document commits,
+		// through the project root, so none is made here by path.
 	}
 	return outputPath, producesOutput, nil
 }

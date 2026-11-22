@@ -235,9 +235,9 @@ func TestSanitizeRecipeKeepsRequires(t *testing.T) {
 
 // TestSanitizeRecipeClearsNonLocalPaths: every path-valued recipe field names a
 // file kapi reads or writes once the recipe is adopted, and all of them travel
-// inside the package. A local recipe may legitimately point outside its own tree
-// — that is the owner's call — but a packaged one is answering for a machine it
-// has never seen, so a field that climbs out or starts at the root is cleared.
+// inside the package. A packaged recipe has a field that climbs out or starts
+// at the root cleared when it is adopted. A local recipe whose target does so
+// is refused when it loads (core/project, TestRecipeTargetOutsideTheProjectIsRefused).
 func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
 	// One hostile value, applied to one field at a time, so a field that is
 	// simply not swept fails on its own rather than hiding behind a sibling.

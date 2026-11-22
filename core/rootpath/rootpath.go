@@ -43,6 +43,10 @@ func (e *EscapeError) Error() string {
 // that is not a regular file: a directory, a device, a FIFO or a socket.
 var ErrNotRegular = errors.New("not a regular file")
 
+// ErrHardLinked is the error CreateRegular returns for a file that has more
+// than one name: it is never written in place.
+var ErrHardLinked = errors.New("the file has other names and is not written in place")
+
 // Contain returns the path p resolves to, and an *EscapeError when that path
 // lies outside root. p is absolute or relative to the working directory, and
 // must already lie under root as written. When p does not exist, the nearest
@@ -109,10 +113,11 @@ func CheckRegular(root, p string) (string, error) {
 // inside root, so a link swapped in after Contain is refused rather than read.
 // A FIFO is opened without blocking and refused.
 func OpenRegular(root, p string) (*os.File, error) {
-	if _, err := Contain(root, p); err != nil {
+	real, err := Contain(root, p)
+	if err != nil {
 		return nil, err
 	}
-	r, rel, err := openRoot(root, p)
+	r, rel, err := openRoot(root, real)
 	if err != nil {
 		return nil, err
 	}
@@ -137,10 +142,11 @@ func OpenRegular(root, p string) (*os.File, error) {
 // directory is created and no file is written through a link that leads out
 // of root, even one swapped in after Contain.
 func CreateRegular(root, p string) (*os.File, error) {
-	if _, err := Contain(root, p); err != nil {
+	real, err := Contain(root, p)
+	if err != nil {
 		return nil, err
 	}
-	r, rel, err := openRoot(root, p)
+	r, rel, err := openRoot(root, real)
 	if err != nil {
 		return nil, err
 	}
@@ -156,10 +162,16 @@ func CreateRegular(root, p string) (*os.File, error) {
 		return nil, explain(root, p, err)
 	}
 	info, err := f.Stat()
-	if err == nil && !info.Mode().IsRegular() {
+	switch {
+	case err != nil:
+	case !info.Mode().IsRegular():
 		err = fmt.Errorf("%s: %w", relativeTo(root, p), ErrNotRegular)
-	}
-	if err == nil {
+	case hasOtherNames(info):
+		// The file has another name, which may lie outside the root:
+		// cutting it in place would change that file too. A caller that
+		// replaces such a file stages it and renames (atomicfile.StageWithin).
+		err = fmt.Errorf("%s: %w", relativeTo(root, p), ErrHardLinked)
+	default:
 		err = f.Truncate(0)
 	}
 	if err != nil {
@@ -169,21 +181,20 @@ func CreateRegular(root, p string) (*os.File, error) {
 	return f, nil
 }
 
-// openRoot opens root and returns p relative to it.
-func openRoot(root, p string) (*os.Root, string, error) {
-	absRoot, err := filepath.Abs(root)
+// openRoot opens the directory root resolves to and returns real, the path
+// Contain resolved, relative to it. The name handed to the root holds no
+// link, so a link Contain followed (an absolute one inside the root
+// included) is not refused by the root, while one swapped in afterwards is.
+func openRoot(root, real string) (*os.Root, string, error) {
+	realRoot, err := realDir(root)
 	if err != nil {
 		return nil, "", err
 	}
-	abs, err := filepath.Abs(p)
-	if err != nil {
-		return nil, "", err
-	}
-	rel, err := filepath.Rel(absRoot, abs)
+	rel, err := filepath.Rel(realRoot, real)
 	if err != nil || !filepath.IsLocal(rel) {
-		return nil, "", &EscapeError{Path: filepath.Base(p)}
+		return nil, "", &EscapeError{Path: filepath.Base(real)}
 	}
-	r, err := os.OpenRoot(absRoot)
+	r, err := os.OpenRoot(realRoot)
 	if err != nil {
 		return nil, "", err
 	}

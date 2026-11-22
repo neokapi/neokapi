@@ -207,28 +207,6 @@ func (s *Staged) Commit() error {
 	return s.commit(s.root.Mkdir, s.root.Rename, s.root.Remove)
 }
 
-// relativeTo names p relative to root. p may be spelled under root as given
-// or under the path root resolves to, since a staged target is resolved only
-// when it exists.
-func relativeTo(root, p string) (string, error) {
-	if abs, err := filepath.Abs(p); err == nil {
-		p = abs
-	}
-	bases := []string{root}
-	if abs, err := filepath.Abs(root); err == nil {
-		bases = append(bases, abs)
-		if real, err := filepath.EvalSymlinks(abs); err == nil {
-			bases = append(bases, real)
-		}
-	}
-	for _, base := range bases {
-		if rel, err := filepath.Rel(base, p); err == nil && filepath.IsLocal(rel) {
-			return rel, nil
-		}
-	}
-	return "", fmt.Errorf("%s is not beneath %s", p, root)
-}
-
 // commit renames the staged file onto its target with the given operations.
 func (s *Staged) commit(mkdir func(string, fs.FileMode) error, rename func(string, string) error, remove func(string) error) error {
 	if s.done {

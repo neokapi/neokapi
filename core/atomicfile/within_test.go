@@ -79,7 +79,9 @@ func TestStageWithin(t *testing.T) {
 		target := filepath.Join(root, "site", "fr", "app.json")
 		s, err := atomicfile.StageWithin(root, target, write)
 		require.NoError(t, err)
-		assert.Equal(t, target, s.Target())
+		realRoot, err := filepath.EvalSymlinks(root)
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(realRoot, "site", "fr", "app.json"), s.Target(), "the target with every link resolved")
 		got, err := s.ReadAll()
 		require.NoError(t, err)
 		assert.Equal(t, "body", string(got))
@@ -163,4 +165,50 @@ func names(t *testing.T, dir string) []string {
 		out = append(out, e.Name())
 	}
 	return out
+}
+
+// A link is resolved against the directory that really holds it: with
+// l -> deep/dir and deep/dir/f.json -> ../g.json, a write to l/f.json lands
+// on deep/g.json, not on the root's own g.json.
+func TestStageWithinResolvesALinkAgainstItsRealDirectory(t *testing.T) {
+	root, _ := withinTree(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "deep", "dir"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "deep", "g.json"), []byte("deep"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "g.json"), []byte("top"), 0o644))
+	require.NoError(t, os.Symlink(filepath.Join("..", "g.json"), filepath.Join(root, "deep", "dir", "f.json")))
+	require.NoError(t, os.Symlink(filepath.Join("deep", "dir"), filepath.Join(root, "l")))
+
+	s, err := atomicfile.StageWithin(root, filepath.Join(root, "l", "f.json"), write)
+	require.NoError(t, err)
+	require.NoError(t, s.Commit())
+	deep, _ := os.ReadFile(filepath.Join(root, "deep", "g.json"))
+	top, _ := os.ReadFile(filepath.Join(root, "g.json"))
+	assert.Equal(t, "body", string(deep), "the file the links lead to is written")
+	assert.Equal(t, "top", string(top), "the root's own g.json is untouched")
+}
+
+// An absolute link that leads inside the root is followed, as a read follows
+// it; one that leads out is refused.
+func TestStageWithinFollowsAnAbsoluteLinkInsideTheRoot(t *testing.T) {
+	root, _ := withinTree(t)
+	real := filepath.Join(root, "site", "real.json")
+	require.NoError(t, os.WriteFile(real, []byte("old"), 0o644))
+	require.NoError(t, os.Symlink(real, filepath.Join(root, "site", "abs.json")))
+	s, err := atomicfile.StageWithin(root, filepath.Join(root, "site", "abs.json"), write)
+	require.NoError(t, err)
+	require.NoError(t, s.Commit())
+	body, _ := os.ReadFile(real)
+	assert.Equal(t, "body", string(body))
+}
+
+// An existing directory swapped for a link out of the root after staging is
+// refused by the rename, and nothing lands outside.
+func TestStageWithinRefusesAnExistingDirectorySwappedForALink(t *testing.T) {
+	root, outside := withinTree(t)
+	s, err := atomicfile.StageWithin(root, filepath.Join(root, "site", "app.json"), write)
+	require.NoError(t, err)
+	require.NoError(t, os.Rename(filepath.Join(root, "site"), filepath.Join(root, "site.moved")))
+	require.NoError(t, os.Symlink(outside, filepath.Join(root, "site")))
+	require.Error(t, s.Commit())
+	assertEmpty(t, outside)
 }
