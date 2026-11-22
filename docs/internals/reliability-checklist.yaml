@@ -31,7 +31,7 @@ items:
   # ── Stores and migrations ────────────────────────────────────────────────
 
   - id: pg-suites-skip-on-pull-requests
-    title: PostgreSQL suites do not run on pull requests
+    title: The integration lane and the race detector do not run on pull requests
     owner_surface: stores
     trigger:
       paths:
@@ -47,20 +47,22 @@ items:
       added_in:
         - 'bowrain/**/*_test.go'
     check: >-
-      Pull request CI runs the bowrain tests with -short, and pgtest.NewTestDB
-      skips under -short unless BOWRAIN_TEST_POSTGRES_URL is set; "Test
-      (integration)" runs only on push. A green pull request therefore says
-      nothing about these suites. With Docker running, run the packages the
-      change reaches without -short, for example `cd bowrain && go test -tags
-      fts5 -count=1 ./server/ ./terms/ ./store/`, plus `make test-integration`
-      when an integration-tagged file is near. Report which packages ran and
-      with which tags.
+      Pull request CI runs the PostgreSQL-backed suites on its database
+      service, but not everything a store change can break: -short still
+      skips a suite that starts a container of its own, "Test (integration)"
+      runs only on push, and the race detector runs only when the pull request
+      carries the `race` label. For a change to a store, a migration or SQL,
+      run `make test-integration` and `make test-race-changed
+      BASE_SHA=$(git merge-base origin/main HEAD)` with Docker running, or add
+      the `race` label. Report which ran and with which tags.
     incident: >-
       PR #3607 (2026-11-21) added terms migrations that broke
       TestTermSnapshotCache_TermsWrittenBeforeTheRevisionAreKept, and CI was
-      green because the suite skips under -short. PR #2689 (2026-09-13) changed
-      the terms baseline, merged green, and main then failed
-      TestBaselineSchemaMatchesGolden on four consecutive commits until #2699.
+      green because every PostgreSQL suite skipped under -short. PR #2689
+      (2026-09-13) changed the terms baseline, merged green, and main then
+      failed TestBaselineSchemaMatchesGolden on four consecutive commits until
+      #2699. Since #3615 (2026-11-22) the PostgreSQL suites run on pull
+      requests; the integration lane and the race detector still do not.
 
   - id: schema-change-reaches-existing-databases
     title: A schema change must reach databases that already exist
