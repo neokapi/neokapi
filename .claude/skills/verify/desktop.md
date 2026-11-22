@@ -102,8 +102,15 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
 - **Unsaved changes.** Adding the flow makes compass dirty. Closing its tab
   asks Don't Save, Cancel or Save. Save, and `diff samples/compass/kapi.yaml
   "$D/home/compass"/kapi.yaml` shows the flow.
-- **Translate and `converge`** ask for an AI model although compass names the
-  offline `demo` provider. Do not pick one: it bills a real model.
+- **The model prompt.** Compass names the offline `demo` provider on its
+  converge flow, so the overview's Translate button and Flows, converge, Run
+  both run with no prompt. Copy compass, change that step to `provider:
+  anthropic`, open it, and Translate opens Choose an AI model, because no
+  credential resolves. The built-in Translate flow names no provider, so
+  added to compass it asks for a model too. Cancel the dialog: picking a
+  model bills a real one.
+  `curl -s -XPOST -d '{"method":"AINeedsModelChoice","args":["<tab id>","converge"]}'
+  http://127.0.0.1:5175/wbridge` gives the same answer without the page.
 - **Cancel** cannot be exercised on the samples: their runs take milliseconds.
 - **Save As and Open** use native dialogs; check them in the native app.
 - **Closing the window** does not prompt about unsaved changes (#3614). Never
