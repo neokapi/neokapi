@@ -23,7 +23,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
 )
@@ -501,19 +500,13 @@ func outputInside(root, outputPath string) error {
 	if root == "" {
 		return nil
 	}
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return err
-	}
-	abs, err := filepath.Abs(outputPath)
-	if err != nil {
-		return err
-	}
-	if rel, rerr := filepath.Rel(absRoot, abs); rerr != nil || !filepath.IsLocal(rel) {
+	under, escape := underRoots([]string{root}, outputPath)
+	switch {
+	case under != "":
+		return nil
+	case escape != nil:
+		return fmt.Errorf("output_path: %w", escape)
+	default:
 		return fmt.Errorf("output_path: %q lies outside the project. Name an output_path inside the project", outputPath)
 	}
-	if _, err := rootpath.Contain(absRoot, abs); err != nil {
-		return fmt.Errorf("output_path: %w", err)
-	}
-	return nil
 }

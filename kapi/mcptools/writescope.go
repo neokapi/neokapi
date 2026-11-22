@@ -71,10 +71,15 @@ func sessionWriteRoots(ctx context.Context, req *mcp.CallToolRequest, startDir s
 	return roots
 }
 
-// fileRootPath is the directory a file:// root URI names.
+// fileRootPath is the local directory a file:// root URI names. Only an
+// empty host or localhost names this machine: file://host/etc is not the
+// local /etc, and is refused.
 func fileRootPath(uri string) (string, bool) {
 	u, err := url.Parse(uri)
 	if err != nil || u.Scheme != "file" || u.Path == "" {
+		return "", false
+	}
+	if u.Host != "" && !strings.EqualFold(u.Host, "localhost") {
 		return "", false
 	}
 	p := u.Path
@@ -95,20 +100,9 @@ func writeRootFor(roots []string, outputPath, inputPath string, named bool) (str
 	if err != nil {
 		return "", err
 	}
-	var escape error
-	for _, root := range roots {
-		absRoot, err := filepath.Abs(root)
-		if err != nil {
-			continue
-		}
-		if rel, rerr := filepath.Rel(absRoot, abs); rerr != nil || !filepath.IsLocal(rel) {
-			continue
-		}
-		if _, cerr := rootpath.Contain(absRoot, abs); cerr != nil {
-			escape = cerr
-			continue
-		}
-		return absRoot, nil
+	root, escape := underRoots(roots, abs)
+	if root != "" {
+		return root, nil
 	}
 	if escape != nil {
 		return "", fmt.Errorf("output_path: %w", escape)
@@ -118,4 +112,31 @@ func writeRootFor(roots []string, outputPath, inputPath string, named bool) (str
 		return "", fmt.Errorf("path: the output beside %q would lie outside the directories this server may write (%s). Pass an output_path under one of them", inputPath, where)
 	}
 	return "", fmt.Errorf("output_path: %q lies outside the directories this server may write (%s). Name an output_path under one of them", outputPath, where)
+}
+
+// underRoots returns the first of roots that p lies under once links are
+// resolved. A root reached through a link (/var and /tmp on macOS) is the
+// directory it resolves to, so p may be spelled either way. When p is beneath
+// a root as named but a link in it leads out, underRoots returns that error
+// instead. When p is under none, it returns "" and nil.
+func underRoots(roots []string, p string) (string, error) {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	var escape error
+	for _, root := range roots {
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			continue
+		}
+		_, cerr := rootpath.Contain(absRoot, abs)
+		if cerr == nil {
+			return absRoot, nil
+		}
+		if _, named := rootpath.Beneath(absRoot, abs); named && escape == nil {
+			escape = cerr
+		}
+	}
+	return "", escape
 }

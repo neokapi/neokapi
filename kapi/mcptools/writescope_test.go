@@ -138,6 +138,57 @@ func TestMCPWritesOnlyUnderTheServerDirectoryAndTheClientRoots(t *testing.T) {
 	})
 }
 
+// A root reached through a link is the directory it resolves to, so a path
+// spelled through either name is written: a server started in /var/... takes
+// an output_path spelled /private/var/....
+func TestMCPWriteRootReachedThroughALink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating a symbolic link needs a privilege on Windows")
+	}
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	require.NoError(t, os.MkdirAll(real, 0o755))
+	via := filepath.Join(base, "via")
+	require.NoError(t, os.Symlink(real, via))
+	input := writeInput(t, real)
+
+	for name, tc := range map[string]struct{ root, out string }{
+		"root named through the link, path spelled by its real name": {via, filepath.Join(real, "a.json")},
+		"root named by its real name, path spelled through the link": {real, filepath.Join(via, "b.json")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := withWriteRoots(t.Context(), []string{tc.root})
+			_, _, err := handlePseudoTranslate(ctx, testApp(), PseudoTranslateInput{Path: input, OutputPath: tc.out})
+			require.NoError(t, err)
+			assert.FileExists(t, tc.out)
+		})
+	}
+}
+
+// Only a file URI on this machine names a root: one on another host is not
+// the local directory of the same path.
+func TestFileRootPath(t *testing.T) {
+	for uri, want := range map[string]string{
+		"file:///srv/work":          "/srv/work",
+		"file://localhost/srv/work": "/srv/work",
+		"file://LOCALHOST/srv/work": "/srv/work",
+		"file://evil.example/etc":   "",
+		"https://example.com/etc":   "",
+		"/srv/work":                 "",
+		"file:":                     "",
+	} {
+		got, ok := fileRootPath(uri)
+		if want == "" {
+			assert.False(t, ok, uri)
+			continue
+		}
+		require.True(t, ok, uri)
+		if runtime.GOOS != "windows" {
+			assert.Equal(t, want, got, uri)
+		}
+	}
+}
+
 // With no directory to write under, nothing is written.
 func TestMCPWritesNothingWithoutADirectory(t *testing.T) {
 	dir := t.TempDir()
