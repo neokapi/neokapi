@@ -790,7 +790,10 @@ $(GO_EMBED_PAGES):
 	@mkdir -p $(@D)
 	@touch $@
 
+# The download comes first and retries, so a request the module proxy drops is
+# not reported as a manifest that is out of date.
 ci-tidy: ## Check isolated module manifests and sums for drift
+	@GO="$(GO)" ./scripts/go-mod-download.sh $(TIDY_MODULES)
 	@set -e; for dir in $(TIDY_MODULES); do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && GOWORK=off $(GO) mod tidy -diff); \
