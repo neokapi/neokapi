@@ -40,9 +40,11 @@ export function AbandonChangeset(workspaceSlug, changesetID) {
 }
 
 /**
- * AcknowledgeClose tells the guard that the page received the close request
- * and is flushing its saves, so the native fallback stays closed.
- * @returns {$CancellablePromise<void>}
+ * AcknowledgeClose tells the guard that the page received the close request.
+ * It returns true when the page should flush and answer, and false when the
+ * native fallback already asks or nothing is pending, so only one question is
+ * ever on screen.
+ * @returns {$CancellablePromise<boolean>}
  */
 export function AcknowledgeClose() {
     return $Call.ByID(4279527968);

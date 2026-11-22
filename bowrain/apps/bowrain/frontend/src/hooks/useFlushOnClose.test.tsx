@@ -84,6 +84,17 @@ describe("useFlushOnClose", () => {
     expect(screen.queryByTestId("save-failed-on-close")).toBeNull();
   });
 
+  it("does nothing when the backend's native dialog already asks", async () => {
+    backend.AcknowledgeClose.mockResolvedValueOnce(false);
+    saves.flush.mockResolvedValue({ ok: true });
+    render(<Shell />);
+    act(() => emit(CLOSE_REQUESTED_EVENT));
+    await waitFor(() => expect(backend.AcknowledgeClose).toHaveBeenCalled());
+    await act(async () => {});
+    expect(saves.flush).not.toHaveBeenCalled();
+    expect(backend.ConfirmClose).not.toHaveBeenCalled();
+  });
+
   it("a failed save keeps the window open and shows why", async () => {
     saves.flush.mockResolvedValue({
       ok: false,

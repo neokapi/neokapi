@@ -29,10 +29,12 @@ func (a *App) SetPendingSaves(pending bool) {
 	a.closing.pending = pending
 }
 
-// AcknowledgeClose tells the guard that the page received the close request
-// and is flushing its saves, so the native fallback stays closed.
-func (a *App) AcknowledgeClose() {
-	a.closeGuard().Acknowledge()
+// AcknowledgeClose tells the guard that the page received the close request.
+// It returns true when the page should flush and answer, and false when the
+// native fallback already asks or nothing is pending, so only one question is
+// ever on screen.
+func (a *App) AcknowledgeClose() bool {
+	return a.closeGuard().Acknowledge()
 }
 
 // ConfirmClose lets the held close go ahead, after the page flushed its saves

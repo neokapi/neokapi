@@ -46,7 +46,9 @@ export function useFlushOnClose() {
   }, []);
 
   const onCloseRequested = useCallback(async () => {
-    void Promise.resolve(Backend.AcknowledgeClose()).catch(() => undefined);
+    const answer = await Promise.resolve(Backend.AcknowledgeClose()).catch(() => true);
+    // The backend's native dialog already asks; one question on screen.
+    if (answer === false) return;
     setFlushing(true);
     try {
       const result = await flushPendingSaves(FLUSH_TIMEOUT_MS);
