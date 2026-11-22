@@ -12,62 +12,64 @@
  * quitting) flushes every recorded edit and learns which ones the server did
  * not take.
  *
- * Each edit belongs to the session that made it: the user, the workspace and
- * the server (its principal). An edit is sent only under a session with the
- * same principal, and only that session lists it. While no session is set
- * (the sign-in screen) an edit is neither sent nor listed; a host may show how
- * many wait. An edit whose session is gone is kept for its user to return to,
- * for at most HELD_EDIT_TTL_MS and HELD_EDIT_LIMIT edits. The record lives in
- * memory only and ends with the app.
+ * Each edit belongs to the person who made it on the server they made it on
+ * (its principal), captured when the edit is recorded. Where an edit goes (its
+ * workspace and project) is part of the edit, so it is sent there whichever
+ * workspace is on screen. An edit is sent, listed and counted only while the
+ * same user is signed in to the same server. While no one is signed in (the
+ * sign-in screen) nothing is sent and a host may show how many edits wait,
+ * never which. Another user signed in sees nothing of them.
+ *
+ * Nothing is dropped behind the person's back: an edit leaves the record when
+ * a save of it succeeds, when its user discards it, or when its user signs out
+ * after being asked. The record lives in memory only and ends with the app.
  */
 
-/** Who made an edit, and where. */
+/** Who made an edit, and on which server. */
 export interface PendingSavesPrincipal {
   userId: string;
-  workspace: string;
   server: string;
 }
 
-/** How long an edit whose session is gone is kept for its user. */
-export const HELD_EDIT_TTL_MS = 8 * 60 * 60 * 1000;
-/** How many edits are kept in all; the oldest of another session go first. */
-export const HELD_EDIT_LIMIT = 50;
-
 let principal: PendingSavesPrincipal | null = null;
-let session: { userId: string; workspace: string } | null = null;
+let userId: string | null = null;
 // The web app talks to its own origin; the desktop names its server.
-let server: string | null = typeof window === "undefined" ? null : window.location.origin;
+let server: string | null =
+  typeof window === "undefined" ? null : normalizeServer(window.location.origin);
+
+/**
+ * The server's address as edits compare it: scheme and host in lower case,
+ * no trailing slash. An address that does not parse is kept as given.
+ */
+export function normalizeServer(raw: string): string {
+  try {
+    const u = new URL(raw);
+    return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return raw.replace(/\/+$/, "");
+  }
+}
 
 function samePrincipal(a: PendingSavesPrincipal | null, b: PendingSavesPrincipal | null) {
-  return (
-    a != null &&
-    b != null &&
-    a.userId === b.userId &&
-    a.workspace === b.workspace &&
-    a.server === b.server
-  );
+  return a != null && b != null && a.userId === b.userId && a.server === b.server;
 }
 
 function updatePrincipal(): void {
-  const next = session && server ? { ...session, server } : null;
+  const next = userId && server ? { userId, server } : null;
   if (samePrincipal(principal, next) || (principal == null && next == null)) return;
   principal = next;
-  prune();
   changed();
 }
 
-/**
- * Sets the signed-in user and the workspace they are in; null when the
- * session ends. The shared app sets it from its workspace route.
- */
-export function setPendingSavesSession(next: { userId: string; workspace: string } | null): void {
-  session = next;
+/** Sets the signed-in user; null when the session ends. The shared app sets it. */
+export function setPendingSavesUser(next: string | null): void {
+  userId = next || null;
   updatePrincipal();
 }
 
-/** Sets the server the app is connected to (the desktop names it). */
+/** Sets the server the app is connected to (the desktop names it); null when none. */
 export function setPendingSavesServer(next: string | null): void {
-  server = next;
+  server = next ? normalizeServer(next) : null;
   updatePrincipal();
 }
 
@@ -125,9 +127,8 @@ export type FlushResult =
     };
 
 interface Entry extends PendingEditInput {
-  /** The session that made the edit; null when none was set. */
-  owner: PendingSavesPrincipal | null;
-  recordedAt: number;
+  /** The person and server the edit was made under. */
+  owner: PendingSavesPrincipal;
   /** Bumped on every edit, so a save knows whether a newer edit came after it. */
   gen: number;
   saving: boolean;
@@ -145,17 +146,6 @@ function owned(e: Entry): boolean {
   return samePrincipal(e.owner, principal);
 }
 
-/** Drops edits of another session past their time, and the oldest past the limit. */
-function prune(): void {
-  const now = Date.now();
-  for (const [key, e] of entries) {
-    if (!owned(e) && !e.saving && now - e.recordedAt > HELD_EDIT_TTL_MS) entries.delete(key);
-  }
-  const held = [...entries.values()].filter((e) => !owned(e) && !e.saving);
-  held.sort((x, y) => x.recordedAt - y.recordedAt);
-  while (entries.size > HELD_EDIT_LIMIT && held.length > 0) entries.delete(held.shift()!.key);
-}
-
 function changed(): void {
   snapshot = [...entries.values()].filter(owned).map((e) => ({
     key: e.key,
@@ -169,30 +159,40 @@ function changed(): void {
 }
 
 /**
- * Records an edit under the current session, replacing any earlier unsaved
- * edit to the same key. Without a session there is no one to save it for, so
- * nothing is recorded. An earlier edit to the key from another session is
- * replaced.
+ * Records an edit under the person signed in now, replacing any earlier
+ * unsaved edit of theirs to the same key. Without anyone signed in there is no
+ * one to save it for, so nothing is recorded. Another user's edit to the same
+ * key is kept under its own key and never replaced.
  */
 export function recordPendingEdit(edit: PendingEditInput): void {
   if (principal == null) return;
-  const prev = entries.get(edit.key);
-  if (prev && owned(prev)) {
+  const owner = principal;
+  const key = ownedKey(owner, edit.key);
+  const prev = entries.get(key);
+  if (prev) {
     // The entry object stays the same, so a save under way still finds it.
-    Object.assign(prev, edit, { gen: prev.gen + 1, recordedAt: Date.now() });
+    Object.assign(prev, edit, { key: edit.key, gen: prev.gen + 1 });
   } else {
-    entries.set(edit.key, {
+    entries.set(key, {
       ...edit,
-      owner: principal,
-      recordedAt: Date.now(),
+      owner,
       gen: 1,
       saving: false,
       error: null,
       chain: Promise.resolve(),
     });
   }
-  prune();
   changed();
+}
+
+/** The record's key for owner's edit to key, so two users never share one. */
+function ownedKey(owner: PendingSavesPrincipal, key: string): string {
+  return `${owner.server}\u0000${owner.userId}\u0000${key}`;
+}
+
+/** The current user's entry for key, if any. */
+function ownEntry(key: string): Entry | undefined {
+  return principal ? entries.get(ownedKey(principal, key)) : undefined;
 }
 
 /**
@@ -201,12 +201,13 @@ export function recordPendingEdit(edit: PendingEditInput): void {
  * the save's error, which stays on the record.
  */
 export function savePendingEdit(key: string): Promise<void> {
-  const entry = entries.get(key);
+  const entry = ownEntry(key);
   if (!entry) return Promise.resolve();
-  if (!owned(entry)) return Promise.reject(new HeldEditError());
+  const recordKey = ownedKey(entry.owner, key);
   const run = entry.chain.then(async () => {
-    if (entries.get(key) !== entry) return;
-    // The session may have changed while an earlier save of the key ran.
+    if (entries.get(recordKey) !== entry) return;
+    // A different user or server since the save was asked for: the edit is
+    // held for its own user and not sent under someone else.
     if (!owned(entry)) throw new HeldEditError();
     const gen = entry.gen;
     entry.saving = true;
@@ -214,7 +215,7 @@ export function savePendingEdit(key: string): Promise<void> {
     try {
       await entry.send();
       entry.error = null;
-      if (entries.get(key) === entry && entry.gen === gen) entries.delete(key);
+      if (entries.get(recordKey) === entry && entry.gen === gen) entries.delete(recordKey);
     } catch (e) {
       entry.error = e;
       throw e;
@@ -230,18 +231,35 @@ export function savePendingEdit(key: string): Promise<void> {
 
 /** Drops a recorded edit the person chose not to keep, if it is theirs. */
 export function discardPendingEdit(key: string): void {
-  const entry = entries.get(key);
-  if (entry && owned(entry) && entries.delete(key)) changed();
+  if (principal && entries.delete(ownedKey(principal, key))) changed();
 }
 
-/** Drops every recorded edit, every session's (an explicit sign-out). */
+/**
+ * Drops every edit of the person signed in now, in every workspace: an
+ * explicit sign-out, after they were asked. Other users' edits stay.
+ */
+export function discardOwnPendingSaves(): void {
+  let dropped = false;
+  for (const [key, e] of entries) {
+    if (owned(e)) {
+      entries.delete(key);
+      dropped = true;
+    }
+  }
+  if (dropped) changed();
+}
+
+/** Drops every recorded edit of every user. For tests. */
 export function discardAllPendingSaves(): void {
   if (entries.size === 0) return;
   entries.clear();
   changed();
 }
 
-/** The current session's recorded edits; the same array until one changes. */
+/**
+ * The signed-in user's recorded edits on this server, in every workspace; the
+ * same array until one changes.
+ */
 export function pendingEdits(): PendingEdit[] {
   return snapshot;
 }
@@ -268,11 +286,11 @@ export function subscribePendingSaves(listener: () => void): () => void {
 }
 
 /**
- * Saves the current session's recorded edits at once and waits for all of
- * them, at most timeoutMs. A save that fails, or a wait that runs out, is
- * reported, and the edit stays recorded. Another session's edits are never
- * sent. Without a session nothing is sent, and the result counts the edits
- * that wait (held) without naming them.
+ * Saves the signed-in user's recorded edits at once, each to the workspace it
+ * was made in, and waits for all of them, at most timeoutMs. A save that
+ * fails, or a wait that runs out, is reported, and the edit stays recorded.
+ * Another user's edits are never sent. Without anyone signed in nothing is
+ * sent, and the result counts the edits that wait (held) without naming them.
  */
 export async function flushPendingSaves(timeoutMs: number): Promise<FlushResult> {
   if (principal == null) {

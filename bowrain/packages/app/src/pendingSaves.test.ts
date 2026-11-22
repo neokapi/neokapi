@@ -1,30 +1,27 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vite-plus/test";
 import {
-  HELD_EDIT_LIMIT,
-  HELD_EDIT_TTL_MS,
   HeldEditError,
   discardAllPendingSaves,
+  discardOwnPendingSaves,
   discardPendingEdit,
   flushPendingSaves,
   hasPendingSaves,
   pendingEdits,
   recordPendingEdit,
   savePendingEdit,
+  normalizeServer,
   setPendingSavesServer,
-  setPendingSavesSession,
+  setPendingSavesUser,
   subscribePendingSaves,
   waitingEditCount,
 } from "./pendingSaves";
 
-const alex = { userId: "alex", workspace: "acme" };
-
 beforeEach(() => {
   setPendingSavesServer("https://bowrain.test");
-  setPendingSavesSession(alex);
+  setPendingSavesUser("alex");
 });
 afterEach(() => {
   discardAllPendingSaves();
-  vi.useRealTimers();
 });
 
 function record(key: string, send: () => Promise<void>) {
@@ -94,20 +91,34 @@ describe("pending saves", () => {
   });
 
   it("records nothing without a session", () => {
-    setPendingSavesSession(null);
+    setPendingSavesUser(null);
     record("a", async () => {});
     expect(hasPendingSaves()).toBe(false);
   });
 });
 
 describe("pending saves across sessions", () => {
-  it("the same user back in the same workspace sees the edit and saves it", async () => {
+  it("sends an edit to its workspace when the person has switched to another", async () => {
+    // The editor's unmount asks for the save and the layout switches
+    // workspace before the send runs, as switching workspace does.
+    const send = vi.fn().mockResolvedValue(undefined);
+    record("acme/flow-1", send);
+    const saved = savePendingEdit("acme/flow-1");
+    setPendingSavesUser(null);
+    setPendingSavesUser("alex");
+    await saved;
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(hasPendingSaves()).toBe(false);
+  });
+
+  it("the same user signing back in sees the edit and saves it", async () => {
     const send = vi.fn().mockResolvedValue(undefined);
     record("a", send);
-    setPendingSavesSession(null);
+    setPendingSavesUser(null);
     expect(pendingEdits()).toEqual([]);
     expect(waitingEditCount()).toBe(1);
-    setPendingSavesSession(alex);
+    expect(hasPendingSaves()).toBe(true);
+    setPendingSavesUser("alex");
     expect(pendingEdits().map((e) => e.key)).toEqual(["a"]);
     expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
     expect(send).toHaveBeenCalledTimes(1);
@@ -116,35 +127,50 @@ describe("pending saves across sessions", () => {
   it("a different user sees nothing of it and sends nothing", async () => {
     const send = vi.fn().mockResolvedValue(undefined);
     record("a", send);
-    setPendingSavesSession({ userId: "blake", workspace: "acme" });
+    setPendingSavesUser("blake");
     expect(pendingEdits()).toEqual([]);
     expect(hasPendingSaves()).toBe(false);
     expect(waitingEditCount()).toBe(0);
     expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
-    await expect(savePendingEdit("a")).rejects.toBeInstanceOf(HeldEditError);
+    await savePendingEdit("a");
     discardPendingEdit("a");
+    discardOwnPendingSaves();
     expect(send).not.toHaveBeenCalled();
     // Kept for its own user.
-    setPendingSavesSession(alex);
+    setPendingSavesUser("alex");
     expect(pendingEdits().map((e) => e.key)).toEqual(["a"]);
   });
 
-  it("the same user in another workspace, or on another server, sends nothing", async () => {
+  it("two users' edits to the same flow are kept apart", async () => {
+    const alexSend = vi.fn().mockResolvedValue(undefined);
+    record("a", alexSend);
+    setPendingSavesUser("blake");
+    const blakeSend = vi.fn().mockResolvedValue(undefined);
+    record("a", blakeSend);
+    await flushPendingSaves(1_000);
+    expect(blakeSend).toHaveBeenCalledTimes(1);
+    expect(alexSend).not.toHaveBeenCalled();
+    setPendingSavesUser("alex");
+    expect(pendingEdits().map((e) => e.key)).toEqual(["a"]);
+  });
+
+  it("another server sends nothing, and the address is compared normalized", async () => {
     const send = vi.fn().mockResolvedValue(undefined);
     record("a", send);
-    setPendingSavesSession({ userId: "alex", workspace: "other" });
-    expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
-    setPendingSavesSession(alex);
     setPendingSavesServer("https://elsewhere.test");
     expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
     expect(send).not.toHaveBeenCalled();
+    setPendingSavesServer("HTTPS://Bowrain.TEST/");
+    expect(pendingEdits().map((e) => e.key)).toEqual(["a"]);
+    expect(normalizeServer("HTTPS://Bowrain.TEST:8443/base/")).toBe(
+      "https://bowrain.test:8443/base",
+    );
   });
 
   it("without a session a flush sends nothing and counts what waits", async () => {
     const send = vi.fn().mockResolvedValue(undefined);
     record("a", send);
-    setPendingSavesSession(null);
-    expect(hasPendingSaves()).toBe(true);
+    setPendingSavesUser(null);
     expect(await flushPendingSaves(1_000)).toEqual({
       ok: false,
       timedOut: false,
@@ -154,23 +180,26 @@ describe("pending saves across sessions", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("keeps another session's edit for a bounded time", () => {
+  it("never drops an edit on its own, however long its user is away", () => {
     vi.useFakeTimers();
-    record("a", async () => {});
-    setPendingSavesSession({ userId: "blake", workspace: "acme" });
-    vi.advanceTimersByTime(HELD_EDIT_TTL_MS + 1);
-    record("b", async () => {});
-    setPendingSavesSession(alex);
-    expect(pendingEdits()).toEqual([]);
+    for (let i = 0; i < 80; i++) record(`a${i}`, async () => {});
+    setPendingSavesUser("blake");
+    vi.advanceTimersByTime(7 * 24 * 60 * 60 * 1000);
+    for (let i = 0; i < 80; i++) record(`b${i}`, async () => {});
+    setPendingSavesUser("alex");
+    expect(pendingEdits()).toHaveLength(80);
+    vi.useRealTimers();
   });
 
-  it("drops the oldest of another session's edits past the limit", () => {
-    for (let i = 0; i < HELD_EDIT_LIMIT; i++) record(`a${i}`, async () => {});
-    setPendingSavesSession({ userId: "blake", workspace: "acme" });
-    record("b", async () => {});
-    setPendingSavesSession(alex);
-    const keys = pendingEdits().map((e) => e.key);
-    expect(keys).toHaveLength(HELD_EDIT_LIMIT - 1);
-    expect(keys).not.toContain("a0");
+  it("signing out discards the user's own edits in every workspace, and no one else's", () => {
+    record("acme/a", async () => {});
+    record("other/b", async () => {});
+    setPendingSavesUser("blake");
+    record("acme/c", async () => {});
+    setPendingSavesUser("alex");
+    discardOwnPendingSaves();
+    expect(hasPendingSaves()).toBe(false);
+    setPendingSavesUser("blake");
+    expect(pendingEdits().map((e) => e.key)).toEqual(["acme/c"]);
   });
 });

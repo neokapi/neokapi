@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
 import { usePlatform } from "../platform";
-import { setPendingSavesSession } from "../pendingSaves";
+import { setPendingSavesUser } from "../pendingSaves";
 import { useSignOutGuard } from "../useSignOutGuard";
 import {
   Outlet,
@@ -652,13 +652,13 @@ export function WorkspaceLayout() {
   // Handlers
   // -----------------------------------------------------------------------
 
-  // Unsaved edits belong to this user in this workspace; they are sent and
-  // listed only while the same session is back.
+  // Unsaved edits belong to this user on this server; they are sent and
+  // listed only while the same user is signed in, whichever workspace is open.
   const userId = user?.id ?? "";
   useEffect(() => {
-    setPendingSavesSession(userId ? { userId, workspace: ws } : null);
-    return () => setPendingSavesSession(null);
-  }, [userId, ws]);
+    setPendingSavesUser(userId || null);
+    return () => setPendingSavesUser(null);
+  }, [userId]);
 
   const handleSignOut = useCallback(async () => {
     // Desktop signs out at the host: the OIDC cookie/redirect round-trip below

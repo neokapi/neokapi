@@ -13,6 +13,7 @@ export {
   flushPendingSaves,
   hasPendingSaves,
   pendingEdits,
+  normalizeServer,
   setPendingSavesServer,
   subscribePendingSaves,
   waitingEditCount,

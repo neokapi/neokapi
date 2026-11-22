@@ -9,7 +9,7 @@ import {
   discardAllPendingSaves,
   flushPendingSaves,
   hasPendingSaves,
-  setPendingSavesSession,
+  setPendingSavesUser,
 } from "../pendingSaves";
 
 // The desktop window closing while an edit rests before its delayed save.
@@ -17,7 +17,7 @@ import {
 // then is lost; the host flushes the waiting saves first (flushPendingSaves).
 
 // The record of unsaved edits outlives the editor, so each test starts clean.
-beforeEach(() => setPendingSavesSession({ userId: "u1", workspace: "acme" }));
+beforeEach(() => setPendingSavesUser("u1"));
 afterEach(() => discardAllPendingSaves());
 
 const projectGlossary = {

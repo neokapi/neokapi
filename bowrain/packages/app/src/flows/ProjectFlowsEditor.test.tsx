@@ -5,10 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider, TooltipProvider } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { createFlowsApi, type FlowsApiOptions } from "./fixtures";
-import { discardAllPendingSaves, setPendingSavesSession } from "../pendingSaves";
+import { discardAllPendingSaves, setPendingSavesUser } from "../pendingSaves";
 
 // Unsaved edits are recorded outside the editor and outlive it.
-beforeEach(() => setPendingSavesSession({ userId: "u1", workspace: "acme" }));
+beforeEach(() => setPendingSavesUser("u1"));
 afterEach(() => discardAllPendingSaves());
 
 function setup(options: FlowsApiOptions = {}, saveDelayMs = 10) {

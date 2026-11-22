@@ -6,10 +6,10 @@ import {
   discardAllPendingSaves,
   hasPendingSaves,
   recordPendingEdit,
-  setPendingSavesSession,
+  setPendingSavesUser,
 } from "./pendingSaves";
 
-beforeEach(() => setPendingSavesSession({ userId: "u1", workspace: "acme" }));
+beforeEach(() => setPendingSavesUser("u1"));
 afterEach(() => discardAllPendingSaves());
 
 function SignOut({ signOut }: { signOut: () => Promise<void> }) {
