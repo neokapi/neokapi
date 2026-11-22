@@ -2,6 +2,7 @@ package filehome
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Layout tells the file home where a document lives and how to read it. A
@@ -224,6 +226,14 @@ func ResolvePath(root, doc string) (ref, path, entry string, err error) {
 		return "", "", "", outside(doc)
 	}
 	path = filepath.Join(root, clean)
+	// The reference is judged by the file it resolves to as well: a symbolic
+	// link that leads out of root is refused, and the error names the link.
+	if _, cerr := rootpath.Contain(root, path); cerr != nil {
+		var esc *rootpath.EscapeError
+		if errors.As(cerr, &esc) {
+			return "", "", "", &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: cerr.Error()}
+		}
+	}
 	info, serr := os.Stat(path)
 	switch {
 	case serr != nil:

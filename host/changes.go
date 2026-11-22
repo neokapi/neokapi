@@ -215,7 +215,7 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	// The recorder opens before the home takes its first lock, after the
 	// lock directory is prepared.
 	recorder := a.changeRecorder(ctx, h.root)
-	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix,
+	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix, Root: h.root,
 		Materialize: opts.Materialize, BeforeSettle: opts.BeforeSettle})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),

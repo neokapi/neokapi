@@ -2260,7 +2260,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	if err != nil {
 		return fmt.Errorf("read %s: %w", outputPath, err)
 	}
-	home := filehome.New(nil, filehome.Options{})
+	home := filehome.New(nil, filehome.Options{Root: c.project.Root})
 	if c.app != nil {
 		home = c.app.FlowHome(c.project.Root)
 	}

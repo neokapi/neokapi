@@ -87,6 +87,9 @@ func (h *Home) Produce(ctx context.Context, path, before string, write func(io.W
 		p.after = digestOf(sum)
 		return p, nil
 	}
+	if err := h.contain(path); err != nil {
+		return nil, err
+	}
 	tmp, err := atomicfile.StageWithParents(path, func(w io.Writer) error {
 		return write(io.MultiWriter(w, sum))
 	})
@@ -157,6 +160,12 @@ func (p *Produced) Commit(ctx context.Context) error {
 	case now != p.before:
 		_ = tmp.Discard()
 		return &MovedError{Path: p.path, Before: p.before, Now: now}
+	}
+	// Checked again under the lock: a link put in place while the run
+	// worked is refused here.
+	if err := p.h.contain(p.path); err != nil {
+		_ = tmp.Discard()
+		return err
 	}
 	if err := tmp.Commit(); err != nil {
 		return err

@@ -792,6 +792,9 @@ func blockList(keys []string) string {
 // whose directory does not exist yet, such as a translation written for the
 // first time, has the directory created when it commits, never before.
 func (st *staged) write(ctx context.Context, path string, src source, produce func(io.Writer) error) (*atomicfile.Staged, string, func() string, error) {
+	if err := st.s.h.contain(path); err != nil {
+		return nil, "", nil, err
+	}
 	h := sha256.New()
 	if src.entry == "" {
 		tmp, err := atomicfile.StageWithParents(path, func(w io.Writer) error {
@@ -1015,6 +1018,16 @@ func (st *staged) Commit(ctx context.Context) error {
 		f.written = true
 		if st.recordID == "" {
 			st.recordID = id
+		}
+	}
+	// Every file is checked again under the commit locks, before any lands:
+	// a link put in place after the stage is refused here.
+	for _, f := range st.files {
+		if f.tmp == nil {
+			continue
+		}
+		if err := st.s.h.contain(f.path); err != nil {
+			return err
 		}
 	}
 	for _, f := range st.files {

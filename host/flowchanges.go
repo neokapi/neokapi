@@ -62,7 +62,7 @@ func flowOrigin(flowName string) string { return "flow:" + flowName }
 // --print-ops it writes nothing but a convergence pass's drafts, which stay
 // in the run's own tree.
 func (a *App) flowHome(root string) *filehome.Home {
-	opts := filehome.Options{LockDir: filepath.Join(DataDir(), "locks"), WriteNothing: a.printOps != nil, WriteUnder: a.convergeDraftDir}
+	opts := filehome.Options{LockDir: filepath.Join(DataDir(), "locks"), WriteNothing: a.printOps != nil, WriteUnder: a.convergeDraftDir, Root: root}
 	if root != "" {
 		l := project.LayoutAt(root)
 		opts.LockDir = filepath.Join(l.WorkDir(), "locks")

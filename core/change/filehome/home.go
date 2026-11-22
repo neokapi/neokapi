@@ -37,6 +37,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
@@ -52,6 +53,7 @@ type Home struct {
 	writeNothing bool
 	writeUnder   string
 	materialize  bool
+	root         string
 }
 
 // Options configures a Home.
@@ -92,6 +94,14 @@ type Options struct {
 	// through its own skeleton, and a change to a block it does not hold is
 	// refused.
 	Materialize bool
+	// Root is the directory the home's documents live under, a project's root
+	// or the directory a layout serves. A file the home writes beneath it
+	// must resolve beneath it too: a path that a symbolic link leads out of
+	// Root is refused before anything is staged, and again under the commit
+	// lock (rootpath.Contain). A path outside Root as written, one a person
+	// named, is written as named. Empty is the DirLayout's Root, if the
+	// layout is one, and otherwise no check.
+	Root string
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -110,8 +120,35 @@ func New(layout Layout, opts Options) *Home {
 	if dir == "" {
 		dir = DefaultLockDir()
 	}
+	root := opts.Root
+	if l, ok := layout.(DirLayout); ok && root == "" {
+		root = l.Root
+	}
 	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
-		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize}
+		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize, root: root}
+}
+
+// contain refuses a path beneath the home's root, as written, that resolves
+// outside it. A path outside the root as written passes: a person named it.
+func (h *Home) contain(path string) error {
+	if h.root == "" {
+		return nil
+	}
+	absRoot, err := filepath.Abs(h.root)
+	if err != nil {
+		return err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	if rel, rerr := filepath.Rel(absRoot, abs); rerr != nil || !filepath.IsLocal(rel) {
+		return nil
+	}
+	if _, err := rootpath.Contain(absRoot, abs); err != nil {
+		return &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: err.Error()}
+	}
+	return nil
 }
 
 // writes reports whether the home writes a document it produces at path.
