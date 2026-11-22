@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
-	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/structdoc"
 	"github.com/neokapi/neokapi/core/model"
@@ -117,7 +114,7 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 // translation. The skeleton store and source bytes are wired to the writer ONLY
 // for a same-format conversion; for a cross-format one they would be foreign to
 // the writer, so it reconstructs from the content model + structural layer.
-func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.FormatID, targetLoc model.LocaleID, outPath string) (retErr error) {
+func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.FormatID, targetLoc model.LocaleID, outPath string) error {
 	// `-o -` is standard output named explicitly, not a file called "-".
 	stdout := outPath == StdoutName
 	if stdout {
@@ -211,41 +208,8 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	// straight from the reader to the writer and the document is never held
 	// in a slice between them (#1710).
 	flushOut := func() error { return nil }
-	// finished is set once the writer has closed without an error. Until then
-	// a staged output is discarded, on an error and on a panic alike.
-	finished := false
 	if outPath != "" {
-		// Where it can, the writer writes beside the destination, and the
-		// result moves into place only when the conversion has finished. A
-		// failed conversion then leaves the destination as it was, whether a
-		// writer truncates its output at SetOutput or writes it at Close.
-		writeTo := outPath
-		if staged := stageOutput(outPath); staged != nil {
-			writeTo = staged.tmp
-			defer func() {
-				if !finished {
-					_ = writer.Close()
-					staged.discard()
-					return
-				}
-				if err := staged.commit(); err != nil && retErr == nil {
-					retErr = err
-				}
-			}()
-		}
-		if info, err := os.Stat(outPath); err == nil && !info.Mode().IsRegular() {
-			// A device, pipe or socket is opened for writing only: a shell
-			// hands a process substitution over as a write-only descriptor,
-			// and a writer's own SetOutput opens its path for reading too.
-			f, err := os.OpenFile(outPath, os.O_WRONLY, 0)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-			if err := writer.SetOutputWriter(f); err != nil {
-				return err
-			}
-		} else if err := writer.SetOutput(writeTo); err != nil {
+		if err := writer.SetOutput(outPath); err != nil {
 			return err
 		}
 	} else {
@@ -304,7 +268,6 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	if err := writer.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", DisplayName(path), err)
 	}
-	finished = true
 	// After Close, so a document shorter than the sniff length is judged on the
 	// whole of itself rather than on however much the writer had flushed.
 	return flushOut()
@@ -541,100 +504,4 @@ func (a *App) writerByExt(ext string) registry.FormatID {
 		return det
 	}
 	return ""
-}
-
-// stagedOutput is a conversion's output written to a temporary file beside
-// its destination.
-type stagedOutput struct {
-	tmp, dest string
-}
-
-// stageOutput creates the temporary file for a conversion written to dest,
-// or returns nil when the conversion writes to dest itself. It stages only a
-// regular file, or a path that does not exist yet, in a directory that takes
-// a new file. A device, a pipe or a socket (/dev/stdout, /dev/null, a process
-// substitution) is written directly, and so is a file in a directory where no
-// new file can be created.
-//
-// The destination resolves with atomicfile.Resolve, so a symbolic link is
-// written through and stays a link. An existing destination keeps its mode;
-// a new one is created under the umask. atomicfile.Stage is not used: its
-// temporary name ends in a suffix of its own, and a writer would see an
-// extension the destination does not have.
-func stageOutput(dest string) *stagedOutput {
-	target, mode, exists, err := atomicfile.Resolve(dest)
-	if err != nil {
-		return nil
-	}
-	if exists {
-		if info, err := os.Stat(target); err != nil || !info.Mode().IsRegular() {
-			return nil
-		}
-	}
-	var f *os.File
-	for range 100 {
-		name := filepath.Join(filepath.Dir(target), fmt.Sprintf(".kconv-%d-%s", rand.Uint64(), filepath.Base(target)))
-		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, mode)
-		if !errors.Is(err, fs.ErrExist) {
-			break
-		}
-	}
-	if err != nil {
-		return nil
-	}
-	// The umask applies at creation. That is right for a new file and wrong
-	// for one that existed, which keeps the mode it had.
-	var merr error
-	if exists {
-		merr = f.Chmod(mode)
-	}
-	if err := errors.Join(merr, f.Close()); err != nil {
-		_ = os.Remove(f.Name())
-		return nil
-	}
-	return &stagedOutput{tmp: f.Name(), dest: target}
-}
-
-// companions returns the files a writer created beside the temporary file
-// and named after it, such as the image writer's "<output>.alt.txt".
-func (s *stagedOutput) companions() []string {
-	entries, err := os.ReadDir(filepath.Dir(s.tmp))
-	if err != nil {
-		return nil
-	}
-	base := filepath.Base(s.tmp)
-	var out []string
-	for _, e := range entries {
-		if name := e.Name(); len(name) > len(base) && strings.HasPrefix(name, base) {
-			out = append(out, filepath.Join(filepath.Dir(s.tmp), name))
-		}
-	}
-	return out
-}
-
-// commit moves the finished output into place, and each companion file to
-// the destination's name with its own suffix.
-func (s *stagedOutput) commit() error {
-	companions := s.companions()
-	if err := os.Rename(s.tmp, s.dest); err != nil {
-		s.discard()
-		return fmt.Errorf("write %s: %w", s.dest, err)
-	}
-	for _, c := range companions {
-		dest := s.dest + strings.TrimPrefix(c, s.tmp)
-		if err := os.Rename(c, dest); err != nil {
-			_ = os.Remove(c)
-			return fmt.Errorf("write %s: %w", dest, err)
-		}
-	}
-	return nil
-}
-
-// discard removes the output of a conversion that did not finish, and its
-// companion files.
-func (s *stagedOutput) discard() {
-	for _, c := range s.companions() {
-		_ = os.Remove(c)
-	}
-	_ = os.Remove(s.tmp)
 }
