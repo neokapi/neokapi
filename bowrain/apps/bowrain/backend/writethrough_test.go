@@ -336,7 +336,10 @@ func TestTransportFailureStillGoesOffline(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &res))
 	assert.Equal(t, change.SetApplied, res.Status)
 
-	assert.Equal(t, StateOffline, app.GetConnectionState().State)
+	// The queued edit asks the reconnect loop to try at once, so the state the
+	// frontend is told may already be an attempt under way; the app itself is
+	// offline either way.
+	assert.True(t, app.isOffline())
 	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)

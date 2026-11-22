@@ -140,7 +140,7 @@ func (a *App) reconnectLoop(ctx context.Context, nudge <-chan struct{}) {
 		}
 
 		lastAttempt = time.Now()
-		err := a.tryReconnect(ctx)
+		err := a.attemptReconnect(ctx)
 		switch {
 		case err == nil:
 			slog.Info("bowrain: reconnected to server")
@@ -169,6 +169,30 @@ func (a *App) reconnectLoop(ctx context.Context, nudge <-chan struct{}) {
 			backoff = nextBackoff(backoff, reconnectMaxBackoff)
 			slog.Warn("bowrain: reconnect attempt failed", "error", err, "next_backoff", backoff)
 		}
+	}
+}
+
+// attemptReconnect is one reconnect attempt, reported to the frontend while it
+// runs so the person sees the app trying rather than a Retry that seems to do
+// nothing. A failed attempt reports the app offline again.
+func (a *App) attemptReconnect(ctx context.Context) error {
+	a.setReconnecting(true)
+	err := a.tryReconnect(ctx)
+	a.setReconnecting(false)
+	if err != nil && !errors.Is(err, errAuthRequired) {
+		a.emitConnectionState()
+	}
+	return err
+}
+
+// setReconnecting records whether an attempt is under way, and tells the
+// frontend when one starts.
+func (a *App) setReconnecting(on bool) {
+	a.mu.Lock()
+	a.reconnecting = on
+	a.mu.Unlock()
+	if on {
+		a.emitConnectionState()
 	}
 }
 

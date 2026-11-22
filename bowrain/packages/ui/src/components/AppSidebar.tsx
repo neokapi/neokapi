@@ -43,6 +43,7 @@ import {
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
+import type { ConnectionState } from "./ConnectionIndicator";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -87,8 +88,6 @@ export function NavCount({ count }: { count?: number }) {
     </span>
   );
 }
-
-type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
 export type ProjectView =
   | "overview"
