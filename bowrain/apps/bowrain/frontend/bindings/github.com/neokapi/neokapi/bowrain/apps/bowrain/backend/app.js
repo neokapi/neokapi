@@ -1125,7 +1125,7 @@ export function ListConnectorTypes() {
 }
 
 /**
- * ListConnectors returns all active connector instances.
+ * ListConnectors returns all active connector instances, sorted by ID.
  * @returns {$CancellablePromise<$models.ConnectorInfo[]>}
  */
 export function ListConnectors() {

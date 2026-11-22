@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T09:59:05Z",
+  "generatedAt": "2026-11-22T09:01:30Z",
   "commands": [
     {
       "id": "add",
@@ -6692,7 +6692,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode",
-          "default": "en",
           "type": "string"
         },
         {
@@ -8917,7 +8916,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode",
-          "default": "en",
           "type": "string"
         },
         {
