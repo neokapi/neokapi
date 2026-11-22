@@ -15,9 +15,11 @@ inputs:
       that differ from plain `go build` output. Sharing one key across both
       (as setup-go's built-in cache did) meant every job restored a blob that
       rarely matched, so the framework recompiled near-cold in 7+ jobs. Use
-      "race" for `make test-*` jobs and "plain" for build/tidy jobs. A "race"
-      job on a pull request reads the "pr" flavor, which the job `Warm the pull
-      request build cache` saves on main.
+      "race" for `make test-*` jobs: on a pull request, where they compile
+      without the race detector, they read "pr". Use "pr" with `save-cache:
+      "false"` for a job that never compiles with the race detector (build,
+      tidy, lint, the analyzers). The job `Warm the pull request build cache`
+      saves "pr" on main and is its only writer.
     required: false
     default: race
   save-cache:
@@ -62,8 +64,8 @@ runs:
     # -race (see the Makefile's event-aware profile), so their object files
     # differ from the race-instrumented push/nightly build. They read a separate
     # "pr" flavor, which the warm job in ci.yml saves on main: a cache one pull
-    # request saves is out of every other pull request's reach. Jobs that pass
-    # an explicit non-"race" flavor (e.g. "plain" for build/tidy) are untouched.
+    # request saves is out of every other pull request's reach. A job that
+    # passes another flavor gets that flavor on every event.
     - name: Resolve build-cache flavor
       id: flavor
       shell: bash
