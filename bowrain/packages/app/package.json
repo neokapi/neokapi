@@ -27,7 +27,7 @@
     "@neokapi/ui": "*",
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
-    "d3-geo": "3.1.1",
+    "d3-geo": "3.1.2",
     "lucide-react": "^1.70.0",
     "recharts": "^3.10.1",
     "topojson-client": "3.1.0",
