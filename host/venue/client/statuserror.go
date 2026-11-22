@@ -67,6 +67,39 @@ func (e *StatusError) Error() string {
 	return fmt.Sprintf("%s failed (HTTP %d): %s", e.Path, e.StatusCode, msg)
 }
 
+// MarshalJSON gives the refusal as RefusalJSON does, so a desktop frontend
+// that receives it as an error's cause renders it as the web does.
+func (e *StatusError) MarshalJSON() ([]byte, error) {
+	return RefusalJSON(e.StatusCode, []byte(e.Body)), nil
+}
+
+// RefusalJSON is the wire form of a request the server refused:
+// {"status": <HTTP status>, "body": <the server's response>}. A JSON body is
+// carried as JSON, any other as a string. A desktop app returns it as the
+// cause of a failed call, and its frontend reads it with the same function
+// that reads the web's refusals.
+func RefusalJSON(status int, body []byte) []byte {
+	var wire struct {
+		Status int `json:"status"`
+		Body   any `json:"body,omitempty"`
+	}
+	wire.Status = status
+	if json.Valid(body) {
+		wire.Body = json.RawMessage(body)
+	} else if len(body) > 0 {
+		wire.Body = string(body)
+	}
+	out, err := json.Marshal(wire)
+	if err != nil {
+		return []byte(fmt.Sprintf(`{"status":%d}`, status))
+	}
+	return out
+}
+
+// UnreachableJSON is the wire form of a request that never reached the
+// server, the counterpart of RefusalJSON for a network failure.
+func UnreachableJSON() []byte { return []byte(`{"network":true}`) }
+
 // Permanent reports whether retrying the identical request can never succeed:
 // any 4xx except 408 (request timeout) and 429 (rate limited), which are
 // transient by definition.
