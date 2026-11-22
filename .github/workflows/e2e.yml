@@ -122,7 +122,16 @@ jobs:
       # Bindings are committed and already patched (sed fix for $0. bug).
       # Do NOT regenerate with wails3 — it would overwrite the fixed files.
 
+      # The nightly run on main saves the browsers; a pull request restores.
+      - name: Restore Playwright browsers
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Cache Playwright browsers
+        if: github.event_name != 'pull_request'
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
