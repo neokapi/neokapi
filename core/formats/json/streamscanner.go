@@ -361,9 +361,13 @@ func (s *streamScanner) scanString(prefix string, quote byte) (token, error) {
 				}
 				decoded.WriteRune(r)
 			default:
-				s.take(&raw)
+				// Decoded as a rune, as scanner.scanString does.
+				r, size := utf8.DecodeRune(s.peekN(4))
+				for range size {
+					s.take(&raw)
+				}
 				decoded.WriteByte('\\')
-				decoded.WriteByte(esc)
+				decoded.WriteRune(r)
 			}
 			continue
 		}

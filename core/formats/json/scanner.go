@@ -349,9 +349,13 @@ func (s *scanner) scanString(prefix string, quote byte) (token, error) {
 				decoded.WriteRune(r)
 				s.pos += size - 1 // -1 because loop will increment
 			default:
-				// Unknown escape: preserve as-is
+				// Unknown escape: preserve as-is. The escaped character is
+				// decoded as a rune, as an unescaped one is, so a byte that
+				// is not UTF-8 reads as U+FFFD on both paths.
+				r, size := utf8.DecodeRune(s.input[s.pos:])
 				decoded.WriteByte('\\')
-				decoded.WriteByte(esc)
+				decoded.WriteRune(r)
+				s.pos += size - 1 // -1 because loop will increment
 			}
 			s.pos++
 			continue
