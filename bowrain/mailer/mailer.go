@@ -42,6 +42,8 @@ import (
 	"fmt"
 	"html"
 	"io/fs"
+	"maps"
+	"slices"
 	"strings"
 	"text/template"
 )
@@ -141,14 +143,10 @@ func loadSubjects(fsys fs.FS) (map[string]map[string]*template.Template, error) 
 	return out, nil
 }
 
-// Locales lists the locales with an embedded template set (always
+// Locales lists the locales with an embedded template set, sorted (always
 // includes "en").
 func (m *Mailer) Locales() []string {
-	out := make([]string, 0, len(m.templates))
-	for l := range m.templates {
-		out = append(out, l)
-	}
-	return out
+	return slices.Sorted(maps.Keys(m.templates))
 }
 
 // normalizeLocale lowercases a BCP-47 tag and reduces it to its primary

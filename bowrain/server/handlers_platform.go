@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/labstack/echo/v5"
 
@@ -306,10 +308,11 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c *echo.Context) error {
 	})
 }
 
+// joinKeys lists the keys of m, sorted and comma-separated.
 func joinKeys(m map[string]json.RawMessage) string {
 	first := true
 	var b []byte
-	for k := range m {
+	for _, k := range slices.Sorted(maps.Keys(m)) {
 		if !first {
 			b = append(b, ',')
 		}

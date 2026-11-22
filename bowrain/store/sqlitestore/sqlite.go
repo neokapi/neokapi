@@ -1,6 +1,7 @@
 package sqlitestore
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -1740,6 +1741,9 @@ func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID strin
 			})
 		}
 	}
+	// Changes are listed by block ID, so the same two versions always
+	// diff to the same list.
+	slices.SortFunc(diff.Changes, func(a, b platstore.BlockChange) int { return cmp.Compare(a.BlockID, b.BlockID) })
 
 	return diff, nil
 }

@@ -1,8 +1,10 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
@@ -104,7 +106,8 @@ func (s *ConnectorService) RemoveConnector(workspaceID, id string) error {
 	return c.Close()
 }
 
-// ListActive returns all active connector instances in a workspace.
+// ListActive returns all active connector instances in a workspace, sorted by
+// connector ID.
 func (s *ConnectorService) ListActive(workspaceID string) []connector.IntegrationConnector {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -113,6 +116,7 @@ func (s *ConnectorService) ListActive(workspaceID string) []connector.Integratio
 	for _, c := range ws {
 		result = append(result, c)
 	}
+	slices.SortFunc(result, func(a, b connector.IntegrationConnector) int { return cmp.Compare(a.ID(), b.ID()) })
 	return result
 }
 
