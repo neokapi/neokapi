@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -51,7 +51,7 @@ func voiceWriteHarness(t *testing.T) (s *Server, wsID, owner string, proj *plats
 
 // voiceRequest is an echo context for a voice route in wsID, signed in as
 // userID with every permission.
-func voiceRequest(s *Server, method, body, wsID, userID string, params ...string) (echo.Context, *httptest.ResponseRecorder) {
+func voiceRequest(s *Server, method, body, wsID, userID string, params ...string) (*echo.Context, *httptest.ResponseRecorder) {
 	req := httptest.NewRequest(method, "/", strings.NewReader(body))
 	req.Header.Set("Content-Type", echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
@@ -66,8 +66,7 @@ func voiceRequest(s *Server, method, body, wsID, userID string, params ...string
 			names = append(names, params[i])
 			values = append(values, params[i+1])
 		}
-		c.SetParamNames(names...)
-		c.SetParamValues(values...)
+		c.SetPathValues(pathValuesOf(names, values))
 	}
 	return c, rec
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -322,7 +322,7 @@ func TestHandleCheckFileUnavailableTermsReturnsServiceError(t *testing.T) {
 	c := originCtx(echo.New(), req, rec, proj.ID, [2]string{"ref", "main"})
 	err := srv.HandleCheckFile(c)
 	require.Error(t, err)
-	srv.httpErrorHandler(err, c)
+	srv.httpErrorHandler(c, err)
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code, rec.Body.String())
 	assert.NotContains(t, rec.Body.String(), "check terms")
 }

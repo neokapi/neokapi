@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
@@ -146,7 +146,7 @@ var changeSetStatusOrder = []knowledge.ChangeSetStatus{
 // filtered to a single status. Each carries ops_count — the number of edits it
 // holds — counted in the list query, so a caller never reads a change-set's
 // detail to say "N changes".
-func (s *Server) HandleListChangeSets(c echo.Context) error {
+func (s *Server) HandleListChangeSets(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (s *Server) HandleListChangeSets(c echo.Context) error {
 // HandleGetChangeSetCounts returns the workspace's change-sets bucketed by
 // status, from one grouped query — so a dashboard reads the buckets without
 // downloading the list to count it.
-func (s *Server) HandleGetChangeSetCounts(c echo.Context) error {
+func (s *Server) HandleGetChangeSetCounts(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (s *Server) HandleGetChangeSetCounts(c echo.Context) error {
 }
 
 // HandleCreateChangeSet opens a new draft change-set and announces it.
-func (s *Server) HandleCreateChangeSet(c echo.Context) error {
+func (s *Server) HandleCreateChangeSet(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func (s *Server) HandleCreateChangeSet(c echo.Context) error {
 }
 
 // HandleGetChangeSet returns a change-set with its ops, reviews, and pilots.
-func (s *Server) HandleGetChangeSet(c echo.Context) error {
+func (s *Server) HandleGetChangeSet(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func (s *Server) HandleGetChangeSet(c echo.Context) error {
 }
 
 // HandleUpdateChangeSet patches a draft change-set's name and description.
-func (s *Server) HandleUpdateChangeSet(c echo.Context) error {
+func (s *Server) HandleUpdateChangeSet(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (s *Server) HandleUpdateChangeSet(c echo.Context) error {
 // HandleAddChangeSetOp appends one validated op to a draft change-set. A
 // voice op (voice.rule.add/remove) is a governed brand edit and so
 // additionally requires manage_voice to author.
-func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
+func (s *Server) HandleAddChangeSetOp(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -371,7 +371,7 @@ func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 }
 
 // HandleRemoveChangeSetOp removes an op from a draft change-set by its sequence.
-func (s *Server) HandleRemoveChangeSetOp(c echo.Context) error {
+func (s *Server) HandleRemoveChangeSetOp(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -403,7 +403,7 @@ func (s *Server) HandleRemoveChangeSetOp(c echo.Context) error {
 
 // HandleSubmitChangeSet moves a draft change-set into review. An empty change-set
 // cannot be submitted.
-func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
+func (s *Server) HandleSubmitChangeSet(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -482,14 +482,14 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 // approved. Separation of duties: the approver must not be the change-set's
 // author, unless they are the workspace's sole eligible reviewer — see
 // recordChangeSetReview.
-func (s *Server) HandleApproveChangeSet(c echo.Context) error {
+func (s *Server) HandleApproveChangeSet(c *echo.Context) error {
 	return s.recordChangeSetReview(c, knowledge.VerdictApprove)
 }
 
 // HandleRejectChangeSet records a rejection and reopens an in-review change-set
 // as a draft. Separation of duties: the reviewer must not be the author, unless
 // they are the workspace's sole eligible reviewer — see recordChangeSetReview.
-func (s *Server) HandleRejectChangeSet(c echo.Context) error {
+func (s *Server) HandleRejectChangeSet(c *echo.Context) error {
 	return s.recordChangeSetReview(c, knowledge.VerdictReject)
 }
 
@@ -508,7 +508,7 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 // audit event, and in the merge gate that later reads it. The exception
 // evaporates the moment a second eligible reviewer exists; nothing is cached,
 // and the check runs on every attempt.
-func (s *Server) recordChangeSetReview(c echo.Context, verdict knowledge.ReviewVerdict) error {
+func (s *Server) recordChangeSetReview(c *echo.Context, verdict knowledge.ReviewVerdict) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -592,7 +592,7 @@ func reviewPastTense(v knowledge.ReviewVerdict) string {
 // approval from a reviewer other than its author (the engine's separation-of-duties
 // gate). A stale-draft conflict aborts the merge with the per-op conflict list and
 // 409; nothing is applied.
-func (s *Server) HandleMergeChangeSet(c echo.Context) error {
+func (s *Server) HandleMergeChangeSet(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -668,7 +668,7 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 // HandleAbandonChangeSet retires a change-set: it stops all of the change-set's
 // pilots and marks it abandoned. Already-terminal change-sets (merged or
 // abandoned) are refused.
-func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
+func (s *Server) HandleAbandonChangeSet(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -715,7 +715,7 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 // read. ?fresh=1 (and any change-set with no stored summary) runs the live
 // walk, which is the only path that carries the per-project breakdown and the
 // samples.
-func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
+func (s *Server) HandleChangeSetBlastRadius(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -808,7 +808,7 @@ const blastRadiusBudget = 20 * time.Second
 
 // HandleStartPilot binds a change-set to a project's content stream as a pilot,
 // so real content and real checks resolve through the draft before it merges.
-func (s *Server) HandleStartPilot(c echo.Context) error {
+func (s *Server) HandleStartPilot(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -853,7 +853,7 @@ func (s *Server) HandleStartPilot(c echo.Context) error {
 
 // HandleStopPilot retires a single pilot of a change-set, removing its
 // stream-scoped shadow and candidate voice binding.
-func (s *Server) HandleStopPilot(c echo.Context) error {
+func (s *Server) HandleStopPilot(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -890,7 +890,7 @@ func (s *Server) HandleStopPilot(c echo.Context) error {
 //
 // The walk is bounded like the blast radius, and for the same reason: an
 // unbounded scan leaves a reader on a loading state that never resolves.
-func (s *Server) HandleTrialFindings(c echo.Context) error {
+func (s *Server) HandleTrialFindings(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -933,7 +933,7 @@ func (s *Server) HandleTrialFindings(c echo.Context) error {
 // getChangeSetOr404 loads a change-set, or writes a 404 and returns a nil
 // change-set. The second return is the already-written response (nil on the
 // happy path, and nil-but-written on the 404 path) for the caller to return.
-func (s *Server) getChangeSetOr404(c echo.Context, wsID, id string) (*knowledge.ChangeSet, error) {
+func (s *Server) getChangeSetOr404(c *echo.Context, wsID, id string) (*knowledge.ChangeSet, error) {
 	cs, err := s.KnowledgeStore.GetChangeSet(c.Request().Context(), wsID, id)
 	if err != nil {
 		return nil, c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
@@ -943,7 +943,7 @@ func (s *Server) getChangeSetOr404(c echo.Context, wsID, id string) (*knowledge.
 
 // refreshedChangeSet re-reads a change-set after a lifecycle transition and
 // returns it as the response, so the caller sees the new state.
-func (s *Server) refreshedChangeSet(c echo.Context, wsID, id string) error {
+func (s *Server) refreshedChangeSet(c *echo.Context, wsID, id string) error {
 	cs, err := s.KnowledgeStore.GetChangeSet(c.Request().Context(), wsID, id)
 	if err != nil {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})

@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
@@ -17,14 +17,13 @@ import (
 
 // bulkDeleteCtx builds an echo context for a workspace owner posting a
 // bulk-delete body.
-func bulkDeleteCtx(t *testing.T, srv *Server, ws, body string) (echo.Context, *httptest.ResponseRecorder) {
+func bulkDeleteCtx(t *testing.T, srv *Server, ws, body string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	r := httptest.NewRequest(http.MethodPost, "/bulk-delete", bytes.NewReader([]byte(body)))
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(r, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues(ws)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: ws}})
 	c.Set("workspace_id", ws)
 	c.Set("workspace_role", platauth.RoleOwner)
 	c.Set("project_permissions", platauth.PermManageMemory|platauth.PermManageTerms)

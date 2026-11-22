@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
@@ -107,7 +107,7 @@ func encodeAutomationRunFrame(kind string, run *bstore.AutomationRun, steps []*b
 // pushed run.finished would be early, because the actions one event
 // triggers are grouped into one run and a run can gain a step for a few
 // seconds after it settles.
-func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
+func (s *Server) HandleAutomationRunSSE(c *echo.Context) error {
 	if s.AutomationRunStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "automation runs not configured"})
 	}
@@ -144,7 +144,7 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 				return nil
 			}
 			fmt.Fprintf(c.Response(), "data: %s\n\n", msg)
-			c.Response().Flush()
+			flushResponse(c)
 		case <-ticker.C:
 			// Send periodic snapshot for clients that missed events.
 			s.sendRunSnapshot(c, runID)
@@ -156,14 +156,14 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 			}
 			if bstore.RunIsTerminal(run.Status) {
 				fmt.Fprintf(c.Response(), "event: done\ndata: {}\n\n")
-				c.Response().Flush()
+				flushResponse(c)
 				return nil
 			}
 		}
 	}
 }
 
-func (s *Server) sendRunSnapshot(c echo.Context, runID string) {
+func (s *Server) sendRunSnapshot(c *echo.Context, runID string) {
 	ctx := c.Request().Context()
 	run, err := s.AutomationRunStore.GetRun(ctx, runID)
 	if err != nil {
@@ -176,5 +176,5 @@ func (s *Server) sendRunSnapshot(c echo.Context, runID string) {
 		return
 	}
 	fmt.Fprintf(c.Response(), "data: %s\n\n", payload)
-	c.Response().Flush()
+	flushResponse(c)
 }

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/mailer"
@@ -33,7 +33,7 @@ type onboardingResponse struct {
 
 // HandleGetOnboarding returns whether the user still needs onboarding plus
 // a suggested slug derived from their email.
-func (s *Server) HandleGetOnboarding(c echo.Context) error {
+func (s *Server) HandleGetOnboarding(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -77,7 +77,7 @@ type onboardingRequest struct {
 
 // HandleCompleteOnboarding finalizes onboarding: creates the personal
 // workspace with the chosen slug and marks the user onboarded.
-func (s *Server) HandleCompleteOnboarding(c echo.Context) error {
+func (s *Server) HandleCompleteOnboarding(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -126,7 +126,7 @@ type slugCheckResponse struct {
 // HandleCheckSlug reports whether a slug is available. Public — used by the
 // onboarding form for live validation. Slug rules and reservations are
 // enforced server-side; the client also runs format checks.
-func (s *Server) HandleCheckSlug(c echo.Context) error {
+func (s *Server) HandleCheckSlug(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -151,7 +151,7 @@ type emailChangeRequest struct {
 // A verification token is generated and persisted as a hash; the plaintext
 // token is mailed to the *new* address inside a confirmation link. Receiving
 // and clicking that link is what proves the user controls the new mailbox.
-func (s *Server) HandleRequestEmailChange(c echo.Context) error {
+func (s *Server) HandleRequestEmailChange(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -242,7 +242,7 @@ type emailConfirmRequest struct {
 // refresh tokens so the user must sign in again with their new email.
 //
 // This endpoint is unauthenticated: the token alone authorizes the change.
-func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
+func (s *Server) HandleConfirmEmailChange(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -321,7 +321,7 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 // confirmEmailURL builds the URL the user clicks in the verification mail.
 // Defaults to the request scheme+host; overridable via PUBLIC_BASE_URL when
 // the server lives behind a different ingress hostname.
-func (s *Server) confirmEmailURL(c echo.Context, token string) string {
+func (s *Server) confirmEmailURL(c *echo.Context, token string) string {
 	base := strings.TrimRight(s.Config.OIDCPublicURL, "/")
 	if base == "" {
 		req := c.Request()

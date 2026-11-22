@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -51,8 +52,7 @@ func listPendingReview(t *testing.T, s *Server, wsID, projID string) pendingRevi
 	r := httptest.NewRequest(http.MethodGet, "/?locales=fr", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("rc", projID, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}, {Name: "ref", Value: "main"}})
 	c.Set("workspace_id", wsID)
 	c.Set("project_permissions", platauth.PermAll)
 	require.NoError(t, s.HandleListPendingReview(c))
@@ -214,8 +214,7 @@ func TestApprovePassing_SkipsAreNamedByTheBarTheyMissed(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("rc", projID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}})
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", userID)
 	c.Set("project_permissions", platauth.PermAll)

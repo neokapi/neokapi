@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func newErrCtx(t *testing.T, method string) (echo.Context, *httptest.ResponseRecorder) {
+func newErrCtx(t *testing.T, method string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
 	req := httptest.NewRequest(method, "/api/v1/thing", nil)
@@ -25,7 +25,7 @@ func TestHTTPErrorHandler_ServerErrorIsRedacted(t *testing.T) {
 	s := &Server{}
 	c, rec := newErrCtx(t, http.MethodGet)
 
-	s.httpErrorHandler(errors.New("pq: password authentication failed for user \"bowrain\""), c)
+	s.httpErrorHandler(c, errors.New("pq: password authentication failed for user \"bowrain\""))
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
@@ -58,7 +58,7 @@ func TestHTTPErrorHandler_ClientErrorEchoesMessage(t *testing.T) {
 	s := &Server{}
 	c, rec := newErrCtx(t, http.MethodGet)
 
-	s.httpErrorHandler(echo.NewHTTPError(http.StatusNotFound, "project not found"), c)
+	s.httpErrorHandler(c, echo.NewHTTPError(http.StatusNotFound, "project not found"))
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rec.Code)
@@ -82,7 +82,7 @@ func TestHTTPErrorHandler_HeadRequestNoBody(t *testing.T) {
 	s := &Server{}
 	c, rec := newErrCtx(t, http.MethodHead)
 
-	s.httpErrorHandler(echo.NewHTTPError(http.StatusNotFound, "nope"), c)
+	s.httpErrorHandler(c, echo.NewHTTPError(http.StatusNotFound, "nope"))
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rec.Code)
@@ -99,7 +99,7 @@ func TestHTTPErrorHandler_MissingRequestID(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec) // no request_id set
 
-	s.httpErrorHandler(errors.New("boom"), c)
+	s.httpErrorHandler(c, errors.New("boom"))
 
 	var body ErrorResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {

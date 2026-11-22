@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -134,13 +134,13 @@ func (h *notificationHub) notifyUser(userID string, notification *bstore.Notific
 
 // HandleNotificationWebSocket handles WebSocket connections for real-time notifications.
 // Route: GET /api/v1/:ws/notifications/ws
-func (s *Server) HandleNotificationWebSocket(c echo.Context) error {
+func (s *Server) HandleNotificationWebSocket(c *echo.Context) error {
 	userID := getUserID(c)
 	if userID == "" {
 		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
 	}
 
-	conn, err := websocket.Accept(c.Response().Writer, c.Request(), &websocket.AcceptOptions{
+	conn, err := websocket.Accept(upgradeWriter(c), c.Request(), &websocket.AcceptOptions{
 		OriginPatterns: s.wsOriginPatterns(c),
 	})
 	if err != nil {

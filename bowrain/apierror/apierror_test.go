@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newCtx(t *testing.T, withRequestID bool) (echo.Context, *httptest.ResponseRecorder) {
+func newCtx(t *testing.T, withRequestID bool) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/thing", nil)

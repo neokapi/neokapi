@@ -11,7 +11,7 @@ import (
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -143,8 +143,7 @@ func callApprovePassing(t *testing.T, s *Server, wsID, projID, userID, body stri
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("rl", projID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rl"}, {Name: "id", Value: projID}})
 	c.Set("project_permissions", platauth.PermAll)
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", userID)

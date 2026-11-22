@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -47,13 +47,12 @@ func setModelSweepsFlag(t *testing.T, srv *Server, enabled bool) {
 		map[string]json.RawMessage{platformconfig.KeyModelSweeps: raw}, "test"))
 }
 
-func sweepCtx(t *testing.T, srv *Server, method, ws, projectID string) (echo.Context, *httptest.ResponseRecorder) {
+func sweepCtx(t *testing.T, srv *Server, method, ws, projectID string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	req := httptest.NewRequest(method, "/", nil)
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues(ws, projectID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: ws}, {Name: "id", Value: projectID}})
 	c.Set("project_permissions", platauth.PermAll)
 	c.Set("workspace_id", "ws-sweep-id")
 	return c, rec

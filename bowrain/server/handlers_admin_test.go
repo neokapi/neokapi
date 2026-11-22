@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -191,8 +191,7 @@ func TestHandleAdminGetWorkspace(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminGetWorkspace(c)
 	require.NoError(t, err)
@@ -239,8 +238,7 @@ func TestHandleAdminGetWorkspace_WithAuthStore(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminGetWorkspace(c)
 	require.NoError(t, err)
@@ -275,8 +273,7 @@ func TestHandleAdminGetLedger(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1/ledger", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminGetLedger(c)
 	require.NoError(t, err)
@@ -294,8 +291,7 @@ func TestHandleAdminGetLedger_NilStore(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1/ledger", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminGetLedger(c)
 	require.NoError(t, err)
@@ -312,8 +308,7 @@ func TestHandleAdminUpdatePlan_InvalidPlan(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 	c.Set("admin_email", "admin@bowrain.cloud")
 
 	err := s.HandleAdminUpdatePlan(c)
@@ -337,8 +332,7 @@ func TestHandleAdminUpdatePlan_ValidPlan(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 	c.Set("admin_email", "admin@bowrain.cloud")
 
 	err := s.HandleAdminUpdatePlan(c)
@@ -357,8 +351,7 @@ func TestHandleAdminUpdatePlan_NewSubscription(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-new")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-new"}})
 	c.Set("admin_email", "admin@bowrain.cloud")
 
 	err := s.HandleAdminUpdatePlan(c)
@@ -379,8 +372,7 @@ func TestHandleAdminGrantCredits_InvalidAmount(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminGrantCredits(c)
 	require.NoError(t, err)
@@ -397,8 +389,7 @@ func TestHandleAdminGrantCredits_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 	c.Set("admin_email", "admin@bowrain.cloud")
 
 	err := s.HandleAdminGrantCredits(c)
@@ -423,8 +414,7 @@ func TestHandleAdminGetFeatureOverrides(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1/feature-overrides", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminGetFeatureOverrides(c)
 	require.NoError(t, err)
@@ -441,8 +431,7 @@ func TestHandleAdminSetFeatureOverrides(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 	c.Set("admin_email", "admin@bowrain.cloud")
 
 	err := s.HandleAdminSetFeatureOverrides(c)
@@ -467,8 +456,7 @@ func TestHandleAdminGetNotes(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1/notes", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminGetNotes(c)
 	require.NoError(t, err)
@@ -485,8 +473,7 @@ func TestHandleAdminAddNote_EmptyContent(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 
 	err := s.HandleAdminAddNote(c)
 	require.NoError(t, err)
@@ -503,8 +490,7 @@ func TestHandleAdminAddNote_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "ws-1"}})
 	c.Set("admin_email", "admin@bowrain.cloud")
 
 	err := s.HandleAdminAddNote(c)
@@ -734,8 +720,7 @@ func TestHandleAdminGetUser_NilAuthStore(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("u-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "u-1"}})
 
 	err := s.HandleAdminGetUser(c)
 	require.NoError(t, err)
@@ -750,8 +735,7 @@ func TestHandleAdminGetUser_NotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-999", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("u-999")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "u-999"}})
 
 	err := s.HandleAdminGetUser(c)
 	require.NoError(t, err)
@@ -777,8 +761,7 @@ func TestHandleAdminGetUser_Found(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("u-1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "u-1"}})
 
 	err := s.HandleAdminGetUser(c)
 	require.NoError(t, err)
@@ -807,8 +790,7 @@ func TestHandleAdminGetUser_NoWorkspaces(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-2", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("u-2")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "u-2"}})
 
 	err := s.HandleAdminGetUser(c)
 	require.NoError(t, err)

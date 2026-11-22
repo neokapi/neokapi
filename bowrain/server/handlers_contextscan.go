@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/contextscan"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -58,7 +58,7 @@ type contextScanSkippedEntry struct {
 // Envelopes are not deleted here or by the scan itself (Regenerate reuses the
 // keys); the worker's ContextScanUploadSweeper removes them once their job has
 // been terminal for the retention window.
-func (s *Server) HandleContextScanUploads(c echo.Context) error {
+func (s *Server) HandleContextScanUploads(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (s *Server) HandleContextScanUploads(c echo.Context) error {
 // handler additionally requires PermManageVoice and refuses a scan up front
 // when the workspace has no spendable platform credits (402) — scans always
 // run on the platform key, and deduction is post-hoc.
-func (s *Server) HandleCreateContextScan(c echo.Context) error {
+func (s *Server) HandleCreateContextScan(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (s *Server) HandleCreateContextScan(c echo.Context) error {
 // id, so without this a caller could read another tenant's scan (sources,
 // draft profile, token spend) via /api/v1/<their-ws>/context-scans/<victim-id>.
 // 404 (anti-enumeration) on mismatch, mirroring jobInRequestWorkspace.
-func contextScanInRequestWorkspace(c echo.Context, job *jobs.ContextScanJob) bool {
+func contextScanInRequestWorkspace(c *echo.Context, job *jobs.ContextScanJob) bool {
 	ws := c.Param("ws")
 	return ws != "" && job != nil && job.WorkspaceSlug == ws
 }
@@ -231,7 +231,7 @@ func contextScanInRequestWorkspace(c echo.Context, job *jobs.ContextScanJob) boo
 // HandleGetContextScan returns the status, progress, and (when completed) the
 // draft result of a context scan.
 // GET /api/v1/:ws/context-scans/:id
-func (s *Server) HandleGetContextScan(c echo.Context) error {
+func (s *Server) HandleGetContextScan(c *echo.Context) error {
 	if s.ContextScanStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "context scan system not configured"})
 	}
@@ -316,7 +316,7 @@ type ContextScanApproveResponse struct {
 // Candidates enter curation as "proposed": creating a term already forbidden
 // or preferred is a governed transition that must travel through a change-set,
 // and a scan never bypasses that.
-func (s *Server) HandleApproveContextScan(c echo.Context) error {
+func (s *Server) HandleApproveContextScan(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -439,7 +439,7 @@ func (s *Server) HandleApproveContextScan(c echo.Context) error {
 // partialApproval reports an approval that stopped part-way, naming what did
 // land. The cause stays in the log against the request's reference; the body
 // carries the caller's own state, which is what makes the retry safe.
-func (s *Server) partialApproval(c echo.Context, resp ContextScanApproveResponse, cause error) error {
+func (s *Server) partialApproval(c *echo.Context, resp ContextScanApproveResponse, cause error) error {
 	slog.ErrorContext(c.Request().Context(), "brand-scan approval stopped part-way",
 		"scan_id", c.Param("id"), "concepts_created", resp.ConceptsCreated,
 		"reference", requestID(c), "error", cause)
@@ -490,7 +490,7 @@ type VoiceDraftCheckRequest struct {
 // instead of loading a stored one, so a draft can be tested (and refined)
 // before it is ever persisted. Deterministic matcher only — no provider
 // call, hence no QuotaGuard.
-func (s *Server) HandleCheckVoiceDraft(c echo.Context) error {
+func (s *Server) HandleCheckVoiceDraft(c *echo.Context) error {
 	var req VoiceDraftCheckRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -535,7 +535,7 @@ func (s *Server) HandleCheckVoiceDraft(c echo.Context) error {
 // An empty point is the project's default point and is always bindable: it is
 // where a scan that found no structure proposes, and requiring a declaration
 // for it would make onboarding depend on a push that has not happened yet.
-func (s *Server) undeclaredAxes(ctx context.Context, c echo.Context, at map[string]string) []string {
+func (s *Server) undeclaredAxes(ctx context.Context, c *echo.Context, at map[string]string) []string {
 	if len(at) == 0 {
 		return nil
 	}

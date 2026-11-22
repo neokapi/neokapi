@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
@@ -18,7 +18,7 @@ type RoleTemplateRequest struct {
 }
 
 // HandleListRoleTemplates returns all role templates for the workspace.
-func (s *Server) HandleListRoleTemplates(c echo.Context) error {
+func (s *Server) HandleListRoleTemplates(c *echo.Context) error {
 	workspaceID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
@@ -43,7 +43,7 @@ func (s *Server) HandleListRoleTemplates(c echo.Context) error {
 }
 
 // HandleCreateRoleTemplate creates a custom role template. Admin/owner only.
-func (s *Server) HandleCreateRoleTemplate(c echo.Context) error {
+func (s *Server) HandleCreateRoleTemplate(c *echo.Context) error {
 	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (s *Server) HandleCreateRoleTemplate(c echo.Context) error {
 }
 
 // HandleUpdateRoleTemplate updates a role template. Admin/owner only.
-func (s *Server) HandleUpdateRoleTemplate(c echo.Context) error {
+func (s *Server) HandleUpdateRoleTemplate(c *echo.Context) error {
 	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func (s *Server) HandleUpdateRoleTemplate(c echo.Context) error {
 }
 
 // HandleDeleteRoleTemplate deletes a custom (non-builtin) role template. Admin/owner only.
-func (s *Server) HandleDeleteRoleTemplate(c echo.Context) error {
+func (s *Server) HandleDeleteRoleTemplate(c *echo.Context) error {
 	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
 		return err
 	}

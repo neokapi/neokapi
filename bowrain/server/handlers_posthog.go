@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -166,7 +166,7 @@ func posthogConfigResponse(coll *store.Collection) PostHogConfigResponse {
 
 // getPostHogCollection loads the project's PostHog config collection, or nil
 // when the connector is not configured.
-func (s *Server) getPostHogCollection(c echo.Context, projectID string) *store.Collection {
+func (s *Server) getPostHogCollection(c *echo.Context, projectID string) *store.Collection {
 	coll, err := s.ContentStore.GetCollectionByName(c.Request().Context(), projectID, posthogCollectionName, "")
 	if err != nil || coll == nil || coll.ConnectorConfig[posthogCfgType] != "posthog" {
 		return nil
@@ -176,7 +176,7 @@ func (s *Server) getPostHogCollection(c echo.Context, projectID string) *store.C
 
 // HandleGetPostHogConfig returns the project's PostHog connector config with
 // the personal API key masked (•••• + last-4). The raw key is never returned.
-func (s *Server) HandleGetPostHogConfig(c echo.Context) error {
+func (s *Server) HandleGetPostHogConfig(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (s *Server) HandleGetPostHogConfig(c echo.Context) error {
 
 // HandleSavePostHogConfig validates the config with a live test connection
 // (a "SELECT 1" HogQL query) and persists it on success.
-func (s *Server) HandleSavePostHogConfig(c echo.Context) error {
+func (s *Server) HandleSavePostHogConfig(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (s *Server) HandleSavePostHogConfig(c echo.Context) error {
 }
 
 // HandleDeletePostHogConfig disconnects PostHog from the project.
-func (s *Server) HandleDeletePostHogConfig(c echo.Context) error {
+func (s *Server) HandleDeletePostHogConfig(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -296,7 +296,7 @@ func (s *Server) HandleDeletePostHogConfig(c echo.Context) error {
 // HandlePostHogDemand serves the locale-demand snapshot for a project.
 // Snapshots are cached in memory per (project, range) for an hour;
 // ?refresh=true bypasses the cache.
-func (s *Server) HandlePostHogDemand(c echo.Context) error {
+func (s *Server) HandlePostHogDemand(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -359,7 +359,7 @@ func (s *Server) HandlePostHogDemand(c echo.Context) error {
 // on the wire — while the full detail goes to the log. An unclassified failure
 // becomes a generic 502 via serverErrStatus, which logs the cause and strips it
 // from the body.
-func (s *Server) posthogUpstreamErr(c echo.Context, classifiedStatus int, err error) error {
+func (s *Server) posthogUpstreamErr(c *echo.Context, classifiedStatus int, err error) error {
 	if pe, ok := errors.AsType[*connector.PostHogError](err); ok {
 		slog.WarnContext(c.Request().Context(), "posthog upstream error",
 			"code", pe.Code, "status", pe.Status, "detail", pe.Message)

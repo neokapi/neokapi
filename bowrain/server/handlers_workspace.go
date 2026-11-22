@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -52,7 +52,7 @@ type RoleUpdateRequest struct {
 	Role string `json:"role"`
 }
 
-func (s *Server) HandleCreateWorkspace(c echo.Context) error {
+func (s *Server) HandleCreateWorkspace(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -132,7 +132,7 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	return c.JSON(http.StatusCreated, w)
 }
 
-func (s *Server) HandleListWorkspaces(c echo.Context) error {
+func (s *Server) HandleListWorkspaces(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -147,7 +147,7 @@ func (s *Server) HandleListWorkspaces(c echo.Context) error {
 	return c.JSON(http.StatusOK, workspaces)
 }
 
-func (s *Server) HandleGetWorkspace(c echo.Context) error {
+func (s *Server) HandleGetWorkspace(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -180,7 +180,7 @@ type workspaceWithFeatures struct {
 // resolveWorkspaceFeatures computes the caller's effective entitlements for the
 // workspace, honoring the per-workspace overrides loaded onto the context by
 // FeatureOverridesMiddleware. Only client-gated features are surfaced.
-func (s *Server) resolveWorkspaceFeatures(c echo.Context, plan string) map[string]bool {
+func (s *Server) resolveWorkspaceFeatures(c *echo.Context, plan string) map[string]bool {
 	overrides := billing.OverridesFromContext(c)
 	p := billing.Plan(plan)
 	surfaced := []billing.Feature{billing.FeatureBravo}
@@ -191,7 +191,7 @@ func (s *Server) resolveWorkspaceFeatures(c echo.Context, plan string) map[strin
 	return features
 }
 
-func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
+func (s *Server) HandleUpdateWorkspace(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -296,7 +296,7 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	return c.JSON(http.StatusOK, w)
 }
 
-func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
+func (s *Server) HandleDeleteWorkspace(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -319,7 +319,7 @@ func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (s *Server) HandleListMembers(c echo.Context) error {
+func (s *Server) HandleListMembers(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -334,7 +334,7 @@ func (s *Server) HandleListMembers(c echo.Context) error {
 	return c.JSON(http.StatusOK, members)
 }
 
-func (s *Server) HandleAddMember(c echo.Context) error {
+func (s *Server) HandleAddMember(c *echo.Context) error {
 	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
 		return err
 	}
@@ -373,7 +373,7 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{"status": "added"})
 }
 
-func (s *Server) HandleUpdateMemberRole(c echo.Context) error {
+func (s *Server) HandleUpdateMemberRole(c *echo.Context) error {
 	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (s *Server) HandleUpdateMemberRole(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
 }
 
-func (s *Server) HandleRemoveMember(c echo.Context) error {
+func (s *Server) HandleRemoveMember(c *echo.Context) error {
 	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
 		return err
 	}
@@ -436,7 +436,7 @@ func (s *Server) HandleRemoveMember(c echo.Context) error {
 // aggregates, so the list never ships every file row of every project.
 // `?view=full` restores the legacy shape with the embedded per-item array
 // (block/word counts per file) for callers that need it.
-func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
+func (s *Server) HandleListWorkspaceProjects(c *echo.Context) error {
 	if s.Services == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
@@ -512,7 +512,7 @@ type ProjectRequest struct {
 // on that owner's behalf. PermManageFiles is the bit that says "may put content
 // into this workspace" — every workspace role holds it, and no read, translate
 // or review scope does.
-func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
+func (s *Server) HandleCreateWorkspaceProject(c *echo.Context) error {
 	if s.Services == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}

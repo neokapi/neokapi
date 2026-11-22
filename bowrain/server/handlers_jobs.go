@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
 )
@@ -50,7 +50,7 @@ var errInsufficientCredits = ErrorResponse{
 
 // HandleCreateTranslationJob creates a new async translation job and enqueues it.
 // POST /api/v1/:ws/jobs/translate
-func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
+func (s *Server) HandleCreateTranslationJob(c *echo.Context) error {
 	if s.JobStore == nil || s.JobQueue == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
 	}
@@ -141,7 +141,7 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 // HandleCreateProjectTranslationJob creates a translation job scoped to a project.
 // POST /api/v1/projects/:id/sync/translate
 // Uses ClaimOrAuth middleware (no workspace required).
-func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
+func (s *Server) HandleCreateProjectTranslationJob(c *echo.Context) error {
 	if s.JobStore == nil || s.JobQueue == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
 	}
@@ -214,7 +214,7 @@ func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
 
 // HandleGetJob returns the current status and progress of a job.
 // GET /api/v1/:ws/jobs/:id
-func (s *Server) HandleGetJob(c echo.Context) error {
+func (s *Server) HandleGetJob(c *echo.Context) error {
 	if s.JobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
 	}
@@ -239,14 +239,14 @@ func (s *Server) HandleGetJob(c echo.Context) error {
 // request is scoped to. TranslationJob.WorkspaceSlug stores the workspace SLUG
 // (as :ws in the path), so the comparison is against c.Param("ws"). Fails closed
 // when the path carries no workspace slug.
-func jobInRequestWorkspace(c echo.Context, job *jobs.TranslationJob) bool {
+func jobInRequestWorkspace(c *echo.Context, job *jobs.TranslationJob) bool {
 	ws := c.Param("ws")
 	return ws != "" && job != nil && job.WorkspaceSlug == ws
 }
 
 // HandleListJobs lists recent jobs for a workspace.
 // GET /api/v1/:ws/jobs
-func (s *Server) HandleListJobs(c echo.Context) error {
+func (s *Server) HandleListJobs(c *echo.Context) error {
 	if s.JobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
 	}
@@ -262,7 +262,7 @@ func (s *Server) HandleListJobs(c echo.Context) error {
 
 // HandleGetAIUsage returns the AI usage summary for a workspace.
 // GET /api/v1/:ws/ai-usage
-func (s *Server) HandleGetAIUsage(c echo.Context) error {
+func (s *Server) HandleGetAIUsage(c *echo.Context) error {
 	if s.QuotaStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "quota tracking not configured"})
 	}
@@ -278,7 +278,7 @@ func (s *Server) HandleGetAIUsage(c echo.Context) error {
 
 // HandleDeleteJob cancels a job by setting its status to failed.
 // DELETE /api/v1/:ws/jobs/:id
-func (s *Server) HandleDeleteJob(c echo.Context) error {
+func (s *Server) HandleDeleteJob(c *echo.Context) error {
 	if s.JobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
 	}

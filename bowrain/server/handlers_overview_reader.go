@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -56,7 +56,7 @@ func (s *Server) registerOverviewReaderRoutes(g *echo.Group) {
 // the rules are those in force at the project's own point; the suggestions
 // are the ledger's, as Decide reads them. Findings is nil, and CheckedAt
 // empty, until a project-wide check has recorded a tally.
-func (s *Server) HandleOverviewSummary(c echo.Context) error {
+func (s *Server) HandleOverviewSummary(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (s *Server) HandleOverviewSummary(c echo.Context) error {
 // Each place is the project's own point or a collection's. It adds the word
 // rules of the terms, the voice's file and the ledger's established term
 // rules, the notes kept there and the patterns of the voice bound there.
-func (s *Server) mapRuleCount(ctx context.Context, c echo.Context, st *decideState) (int, error) {
+func (s *Server) mapRuleCount(ctx context.Context, c *echo.Context, st *decideState) (int, error) {
 	now := time.Now().UTC()
 	var tally rulesview.RuleTally
 	// The project's own point first, then one item from each collection.
@@ -261,7 +261,7 @@ type projectCheckStarted struct {
 // or running is answered with its own id, and no second job is enqueued. It
 // needs the permission reviewing needs, since the job writes the tallies
 // every member's Overview reads.
-func (s *Server) HandleCheckProject(c echo.Context) error {
+func (s *Server) HandleCheckProject(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
@@ -319,7 +319,7 @@ var errNoItem = errors.New("item not found")
 // readItem reads one item of the stream for the Reader: its translatable
 // blocks with the findings of the checks at the source language on each,
 // and the rules that hold at the item.
-func (s *Server) readItem(c echo.Context, st *decideState, name string) (*readerItem, error) {
+func (s *Server) readItem(c *echo.Context, st *decideState, name string) (*readerItem, error) {
 	ctx := c.Request().Context()
 	var item *platstore.Item
 	for _, it := range st.items {
@@ -461,7 +461,7 @@ func (s *Server) readerRules(ctx context.Context, st *decideState, checks jobs.P
 }
 
 // readerError answers an error reading an item for the Reader.
-func readerError(c echo.Context, err error) error {
+func readerError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, errNoProject), errors.Is(err, errNoItem):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
@@ -472,7 +472,7 @@ func readerError(c echo.Context, err error) error {
 // HandleReaderFile answers GET /:ws/:id/reader/:ref?item=<name> with one
 // item as the Reader draws it (screens.ReaderFileDTO). It writes nothing,
 // so Refused is always empty.
-func (s *Server) HandleReaderFile(c echo.Context) error {
+func (s *Server) HandleReaderFile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -509,14 +509,14 @@ type ReaderFixResult struct {
 // HandleReaderFix answers POST /:ws/:id/reader/:ref/fix {item, finding_id}:
 // it files the finding's fix as a source proposal for the block it is on,
 // and answers with the proposal's id.
-func (s *Server) HandleReaderFix(c echo.Context) error {
+func (s *Server) HandleReaderFix(c *echo.Context) error {
 	return s.readerFix(c, false)
 }
 
 // HandleReaderFixFile answers POST /:ws/:id/reader/:ref/fix-file {item}: it
 // files every fixable finding of the item as source proposals, one per
 // block.
-func (s *Server) HandleReaderFixFile(c echo.Context) error {
+func (s *Server) HandleReaderFixFile(c *echo.Context) error {
 	return s.readerFix(c, true)
 }
 
@@ -527,7 +527,7 @@ func (s *Server) HandleReaderFixFile(c echo.Context) error {
 // stands as a marker that approval maps back to the block's own code, so an
 // approved fix keeps every code. Filing needs the permission a source
 // proposal needs.
-func (s *Server) readerFix(c echo.Context, whole bool) error {
+func (s *Server) readerFix(c *echo.Context, whole bool) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}

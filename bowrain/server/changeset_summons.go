@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
@@ -95,7 +95,7 @@ func (s *Server) workspaceRolePermissions(ctx context.Context, wsID string, role
 // this runs; a task store that refuses the insert or a mailer that is not
 // configured must not turn a successful submit into a failed request. Every
 // failure is logged against the change-set so a missing summons is diagnosable.
-func (s *Server) summonChangeSetReviewers(c echo.Context, cs *knowledge.ChangeSet, opCount int, governed bool) {
+func (s *Server) summonChangeSetReviewers(c *echo.Context, cs *knowledge.ChangeSet, opCount int, governed bool) {
 	s.summonChangeSetReviewersIn(context.WithoutCancel(c.Request().Context()), c.Param("ws"), requestBaseURL(c), cs, opCount, governed)
 }
 

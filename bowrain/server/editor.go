@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -478,7 +478,7 @@ type SaveProviderConfigRequest struct {
 // in the URL. A ref with a slash — every `$auto` stream named after a
 // git branch like fix/thing — MUST arrive percent-encoded to route at all, and
 // taking it raw stored "fix%2Fthing" as a stream name.
-func refParam(c echo.Context) string {
+func refParam(c *echo.Context) string {
 	if s := unescapeParam(c.Param("ref")); s != "" {
 		return s
 	}
@@ -502,13 +502,13 @@ func unescapeParam(s string) string {
 }
 
 // streamParam is an alias for refParam (backward compatibility).
-func streamParam(c echo.Context) string {
+func streamParam(c *echo.Context) string {
 	return refParam(c)
 }
 
 // refParamWithProject extracts the ref from the request,
 // falling back to the project's configured default stream before "main".
-func refParamWithProject(c echo.Context, p *store.Project) string {
+func refParamWithProject(c *echo.Context, p *store.Project) string {
 	if s := unescapeParam(c.Param("ref")); s != "" {
 		return s
 	}
@@ -525,13 +525,13 @@ func refParamWithProject(c echo.Context, p *store.Project) string {
 }
 
 // streamParamWithProject is an alias for refParamWithProject (backward compatibility).
-func streamParamWithProject(c echo.Context, p *store.Project) string {
+func streamParamWithProject(c *echo.Context, p *store.Project) string {
 	return refParamWithProject(c, p)
 }
 
 // projectParam extracts the project ID from either :id or :pid path parameter.
 // Bowrain AD-011 uses :id consistently, but some handlers historically use :pid.
-func projectParam(c echo.Context) string {
+func projectParam(c *echo.Context) string {
 	if id := c.Param("id"); id != "" {
 		return id
 	}
@@ -1329,7 +1329,7 @@ func buildStreamChain(ctx context.Context, cs store.ContentStore, projectID, str
 
 // fileParam extracts the item/file path from the request.
 // Bowrain AD-011: uses ?item= query param. Falls back to wildcard (*) for legacy routes.
-func fileParam(c echo.Context) string {
+func fileParam(c *echo.Context) string {
 	if item := c.QueryParam("item"); item != "" {
 		return item
 	}

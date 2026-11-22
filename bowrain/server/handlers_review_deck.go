@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -172,7 +172,7 @@ func deckRank(g reviewdeck.DeckGroup) int { return slices.Index(reviewdeck.DeckG
 // HandleGetReviewDeck answers the review deck for one language.
 //
 // GET /:ws/:id/review-deck/:ref?locale=nb&limit=50&cursor=&group=&collection=&rule=
-func (s *Server) HandleGetReviewDeck(c echo.Context) error {
+func (s *Server) HandleGetReviewDeck(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -425,7 +425,7 @@ func deckFactsFor(
 
 // deckPage builds the cards of one page: the only blocks a deck request reads
 // whole besides the ones it classifies.
-func (s *Server) deckPage(ctx context.Context, c echo.Context, proj *store.Project, stream, loc string, rows []store.ReviewDeckRow) ([]deckCard, error) {
+func (s *Server) deckPage(ctx context.Context, c *echo.Context, proj *store.Project, stream, loc string, rows []store.ReviewDeckRow) ([]deckCard, error) {
 	if len(rows) == 0 {
 		return []deckCard{}, nil
 	}

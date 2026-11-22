@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // Response headers this server sets on everything it serves.
@@ -64,7 +64,7 @@ const sandboxCSP = "sandbox"
 // configuration, where the document is actually served.
 func securityHeaders() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			h := c.Response().Header()
 
 			// Never let a response be reinterpreted as a type it did not
@@ -110,11 +110,11 @@ func securityHeaders() echo.MiddlewareFunc {
 // E2E only — the one place the header applies — while protecting nothing where
 // the app actually runs. A policy authored where the app is served is worth
 // more than one enforced only where it can do damage.
-func clearCSPForSPA(c echo.Context) {
+func clearCSPForSPA(c *echo.Context) {
 	c.Response().Header().Del(headerCSP)
 }
 
 // applySandboxCSP marks a response as untrusted document-derived HTML.
-func applySandboxCSP(c echo.Context) {
+func applySandboxCSP(c *echo.Context) {
 	c.Response().Header().Set(headerCSP, sandboxCSP)
 }

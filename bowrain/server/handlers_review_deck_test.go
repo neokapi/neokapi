@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -38,8 +38,7 @@ func deckCall(t *testing.T, s *Server, h echo.HandlerFunc, wsID, projID, bid, us
 	if bid != "" {
 		names, values = append(names, "bid"), append(values, bid)
 	}
-	c.SetParamNames(names...)
-	c.SetParamValues(values...)
+	c.SetPathValues(pathValuesOf(names, values))
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", user)
 	c.Set("project_permissions", perms)

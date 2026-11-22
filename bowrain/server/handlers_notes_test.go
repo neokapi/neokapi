@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
@@ -31,8 +31,7 @@ func listNotes(t *testing.T, srv *Server, pid, bid string) []BlockNoteResponse {
 	e := echo.New()
 	rec := httptest.NewRecorder()
 	c := e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("acme", pid, "main", bid)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}, {Name: "bid", Value: bid}})
 	require.NoError(t, srv.HandleListBlockNotes(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	var notes []BlockNoteResponse

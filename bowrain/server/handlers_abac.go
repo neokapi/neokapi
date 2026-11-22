@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -26,7 +26,7 @@ import (
 //     the block (an owner may keep working their own held content)
 //   - published  → requires PermManageProject (re-opening published content is
 //     privileged)
-func (s *Server) blockEditAllowed(c echo.Context, projectID, blockID, locale string) bool {
+func (s *Server) blockEditAllowed(c *echo.Context, projectID, blockID, locale string) bool {
 	as, ok := s.ContentStore.(platstore.BlockAccessStore)
 	if !ok {
 		return true
@@ -70,7 +70,7 @@ type BlockAccessRequest struct {
 // move is recorded as a content.access_changed audit event.
 //
 // PUT /:ws/:id/blocks/:ref/:bid/access  { "access": "published", "locale": "de" }
-func (s *Server) HandleSetBlockAccess(c echo.Context) error {
+func (s *Server) HandleSetBlockAccess(c *echo.Context) error {
 	as, ok := s.ContentStore.(platstore.BlockAccessStore)
 	if !ok {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "the access ladder requires a store that keeps it"})
@@ -141,7 +141,7 @@ func (s *Server) HandleSetBlockAccess(c echo.Context) error {
 //
 // A read that fails refuses the request: the gate reads an unknown author as no
 // conflict, so a discarded error would disable the four-eyes check.
-func (s *Server) enforcePublishSoD(c echo.Context, projectID, stream, blockID, locale string) error {
+func (s *Server) enforcePublishSoD(c *echo.Context, projectID, stream, blockID, locale string) error {
 	actor, _ := c.Get("user_id").(string)
 	if actor == "" {
 		return nil

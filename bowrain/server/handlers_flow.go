@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -26,7 +26,7 @@ import (
 
 // HandleListFlowDefinitions returns built-in flows merged with the project's
 // stored flow definitions.
-func (s *Server) HandleListFlowDefinitions(c echo.Context) error {
+func (s *Server) HandleListFlowDefinitions(c *echo.Context) error {
 	projectID := c.Param("id")
 
 	defs, err := s.flowCatalog().List(c.Request().Context(), projectID)
@@ -38,7 +38,7 @@ func (s *Server) HandleListFlowDefinitions(c echo.Context) error {
 
 // HandleGetFlowDefinition returns a single flow definition (built-in or
 // project-stored) by id.
-func (s *Server) HandleGetFlowDefinition(c echo.Context) error {
+func (s *Server) HandleGetFlowDefinition(c *echo.Context) error {
 	projectID := c.Param("id")
 	flowID := c.Param("flowId")
 
@@ -53,7 +53,7 @@ func (s *Server) HandleGetFlowDefinition(c echo.Context) error {
 }
 
 // HandleCreateFlowDefinition creates a new project flow definition.
-func (s *Server) HandleCreateFlowDefinition(c echo.Context) error {
+func (s *Server) HandleCreateFlowDefinition(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (s *Server) HandleCreateFlowDefinition(c echo.Context) error {
 }
 
 // HandleUpdateFlowDefinition replaces an existing project flow definition.
-func (s *Server) HandleUpdateFlowDefinition(c echo.Context) error {
+func (s *Server) HandleUpdateFlowDefinition(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (s *Server) HandleUpdateFlowDefinition(c echo.Context) error {
 }
 
 // HandleDeleteFlowDefinition removes a project flow definition.
-func (s *Server) HandleDeleteFlowDefinition(c echo.Context) error {
+func (s *Server) HandleDeleteFlowDefinition(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
 		return err
 	}

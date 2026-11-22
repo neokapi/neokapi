@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -56,7 +56,7 @@ func (g *reviewSoD) violations() int {
 // It reports an error only when a store that keeps target authorship failed to
 // answer: a discarded error would disable the four-eyes check rather than
 // tighten it, so the caller refuses the request instead.
-func (s *Server) newReviewSoD(ctx context.Context, c echo.Context, projectID, stream string, blockIDs, locales []string) (*reviewSoD, error) {
+func (s *Server) newReviewSoD(ctx context.Context, c *echo.Context, projectID, stream string, blockIDs, locales []string) (*reviewSoD, error) {
 	actor, _ := c.Get("user_id").(string)
 	wsID, _ := c.Get("workspace_id").(string)
 
@@ -156,7 +156,7 @@ type reviewLedger struct {
 
 // newReviewLedger opens a ledger over the request's content store, or reports
 // nil when the store keeps no decision ledger.
-func (s *Server) newReviewLedger(ctx context.Context, c echo.Context, projectID, stream string) *reviewLedger {
+func (s *Server) newReviewLedger(ctx context.Context, c *echo.Context, projectID, stream string) *reviewLedger {
 	ds, ok := s.ContentStore.(platstore.DecisionStore)
 	if !ok {
 		return nil
@@ -379,7 +379,7 @@ func reviewGateFor(approving bool) platauth.Permission {
 // decided, on which block and locale, and the rungs the target moved between.
 // The decision ledger carries the same verdict for the content pipeline; this
 // is the security trail, and it is written for every rung change a person makes.
-func (s *Server) emitReviewDecisionAudit(c echo.Context, projectID, stream, blockID, locale string, from, to model.TargetStatus, approved bool, reason string) {
+func (s *Server) emitReviewDecisionAudit(c *echo.Context, projectID, stream, blockID, locale string, from, to model.TargetStatus, approved bool, reason string) {
 	data := map[string]string{
 		"locale":   locale,
 		"stream":   stream,

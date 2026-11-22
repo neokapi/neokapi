@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
@@ -35,7 +35,7 @@ import (
 // still reads user_id. A tool can do no more than its issuer can. The
 // only thing that moves is the name on the work, and the consequence that
 // matters is that the issuer is not the author, so the issuer can review it.
-func authorIdentity(c echo.Context) string {
+func authorIdentity(c *echo.Context) string {
 	if machine, _ := c.Get("author_identity").(string); machine != "" {
 		return machine
 	}
@@ -47,7 +47,7 @@ func authorIdentity(c echo.Context) string {
 // machine, and is empty otherwise. It is what keeps a machine identity from
 // being an anonymous one: every machine-authored record can be traced back to
 // the human who minted the token.
-func onBehalfOf(c echo.Context) string {
+func onBehalfOf(c *echo.Context) string {
 	if machine, _ := c.Get("author_identity").(string); machine == "" {
 		return ""
 	}

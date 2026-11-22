@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -36,7 +36,7 @@ import (
 // served, paged and sorted, by the dashboard endpoint. The default is the full
 // view because that is the shape existing clients (the Wails desktop, the Go
 // editor client) already read.
-func (s *Server) HandleGetEditorProject(c echo.Context) error {
+func (s *Server) HandleGetEditorProject(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -64,7 +64,7 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 }
 
 // HandleUpdateEditorProject updates a project's name and locales.
-func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
+func (s *Server) HandleUpdateEditorProject(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 }
 
 // HandleUpdateStreamName renames a stream's description.
-func (s *Server) HandleUpdateStreamName(c echo.Context) error {
+func (s *Server) HandleUpdateStreamName(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -197,7 +197,7 @@ func (s *Server) HandleUpdateStreamName(c echo.Context) error {
 }
 
 // HandleDeleteEditorProject archives a project (soft delete).
-func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
+func (s *Server) HandleDeleteEditorProject(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
 }
 
 // HandleRestoreProject restores an archived project.
-func (s *Server) HandleRestoreProject(c echo.Context) error {
+func (s *Server) HandleRestoreProject(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func (s *Server) HandleRestoreProject(c echo.Context) error {
 }
 
 // HandleRestoreStream restores an archived stream.
-func (s *Server) HandleRestoreStream(c echo.Context) error {
+func (s *Server) HandleRestoreStream(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (s *Server) HandleRestoreStream(c echo.Context) error {
 }
 
 // HandleListArchivedProjects lists archived projects in a workspace (the "recycle bin").
-func (s *Server) HandleListArchivedProjects(c echo.Context) error {
+func (s *Server) HandleListArchivedProjects(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -282,7 +282,7 @@ func (s *Server) HandleListArchivedProjects(c echo.Context) error {
 }
 
 // HandlePermanentlyDeleteProject permanently deletes an archived project.
-func (s *Server) HandlePermanentlyDeleteProject(c echo.Context) error {
+func (s *Server) HandlePermanentlyDeleteProject(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func (s *Server) HandlePermanentlyDeleteProject(c echo.Context) error {
 }
 
 // HandleUploadFiles uploads files to a project via multipart form.
-func (s *Server) HandleUploadFiles(c echo.Context) error {
+func (s *Server) HandleUploadFiles(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 }
 
 // HandleRemoveFile removes a file from a project.
-func (s *Server) HandleRemoveFile(c echo.Context) error {
+func (s *Server) HandleRemoveFile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 // item, locale, status (a per-locale bucket), q (case-insensitive substring
 // over source and the locale's target), translatable, limit and offset.
 // An unknown status is a 400 rather than a silently empty page.
-func blockQueryFromRequest(c echo.Context, pid string) (store.BlockQuery, error) {
+func blockQueryFromRequest(c *echo.Context, pid string) (store.BlockQuery, error) {
 	q := store.BlockQuery{
 		ProjectID:    pid,
 		Stream:       streamParam(c),
@@ -426,7 +426,7 @@ func blockQueryFromRequest(c echo.Context, pid string) (store.BlockQuery, error)
 
 // HandleGetFileBlocks returns a page of a project's blocks, narrowed by the
 // query string.
-func (s *Server) HandleGetFileBlocks(c echo.Context) error {
+func (s *Server) HandleGetFileBlocks(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -481,7 +481,7 @@ func (s *Server) projectTargetLocales(ctx context.Context, pid string) ([]string
 // whole item's blocks or rebuilt the block from its own request plus a local
 // copy of the server's demotion rule. The second is what `ReviewSession`
 // did — correct only for as long as the two copies of the rule agree.
-func (s *Server) HandleGetBlock(c echo.Context) error {
+func (s *Server) HandleGetBlock(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -524,7 +524,7 @@ type BlockCountsResponse struct {
 // minus status, which is the histogram it reports.
 //
 // GET /:ws/:id/blocks/:ref/counts?item=file.json&locale=fr
-func (s *Server) HandleGetBlockCounts(c echo.Context) error {
+func (s *Server) HandleGetBlockCounts(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -570,7 +570,7 @@ type ItemInfoResponse struct {
 // /items/:ref.
 //
 // GET /:ws/:id/items/:ref/one?item=path/to/file.json
-func (s *Server) HandleGetItem(c echo.Context) error {
+func (s *Server) HandleGetItem(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -606,7 +606,7 @@ func (s *Server) HandleGetItem(c echo.Context) error {
 }
 
 // HandlePseudoTranslate pseudo-translates all blocks in a file.
-func (s *Server) HandlePseudoTranslate(c echo.Context) error {
+func (s *Server) HandlePseudoTranslate(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
@@ -640,7 +640,7 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 }
 
 // HandleAITranslate translates all blocks using an AI provider.
-func (s *Server) HandleAITranslate(c echo.Context) error {
+func (s *Server) HandleAITranslate(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
@@ -706,7 +706,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 }
 
 // HandleMemoryTranslate leverages content memory to translate blocks.
-func (s *Server) HandleMemoryTranslate(c echo.Context) error {
+func (s *Server) HandleMemoryTranslate(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
@@ -743,7 +743,7 @@ func (s *Server) HandleMemoryTranslate(c echo.Context) error {
 // HandleTermEnforce runs terminology enforcement over an item's blocks and
 // returns the violations. It is a read-only check owned by the server via the
 // framework term-enforce tool.
-func (s *Server) HandleTermEnforce(c echo.Context) error {
+func (s *Server) HandleTermEnforce(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -777,7 +777,7 @@ func (s *Server) HandleTermEnforce(c echo.Context) error {
 }
 
 // HandleGetWordCount returns word and character counts for a file.
-func (s *Server) HandleGetWordCount(c echo.Context) error {
+func (s *Server) HandleGetWordCount(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -816,7 +816,7 @@ func (s *Server) HandleGetWordCount(c echo.Context) error {
 // server log, and paged the on-call for a working endpoint. 501 states the
 // condition plainly and puts the sentence in the body where the caller reads
 // it.
-func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
+func (s *Server) HandleExportTranslatedFile(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -826,7 +826,7 @@ func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
 }
 
 // HandleLookupMemoryForBlock looks up content-memory matches for a specific block.
-func (s *Server) HandleLookupMemoryForBlock(c echo.Context) error {
+func (s *Server) HandleLookupMemoryForBlock(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -848,7 +848,7 @@ func (s *Server) HandleLookupMemoryForBlock(c echo.Context) error {
 }
 
 // HandleLookupTermsForBlock looks up term matches for a specific block.
-func (s *Server) HandleLookupTermsForBlock(c echo.Context) error {
+func (s *Server) HandleLookupTermsForBlock(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -870,7 +870,7 @@ func (s *Server) HandleLookupTermsForBlock(c echo.Context) error {
 }
 
 // HandleGetMemoryEntries searches content-memory entries.
-func (s *Server) HandleGetMemoryEntries(c echo.Context) error {
+func (s *Server) HandleGetMemoryEntries(c *echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -937,7 +937,7 @@ func (s *Server) HandleGetMemoryEntries(c echo.Context) error {
 }
 
 // HandleGetMemoryCount returns the content-memory entry count.
-func (s *Server) HandleGetMemoryCount(c echo.Context) error {
+func (s *Server) HandleGetMemoryCount(c *echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -957,7 +957,7 @@ func (s *Server) HandleGetMemoryCount(c echo.Context) error {
 }
 
 // HandleAddMemoryEntry adds a new content-memory entry.
-func (s *Server) HandleAddMemoryEntry(c echo.Context) error {
+func (s *Server) HandleAddMemoryEntry(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMemory); err != nil {
 		return err
 	}
@@ -1004,7 +1004,7 @@ func (s *Server) HandleAddMemoryEntry(c echo.Context) error {
 }
 
 // HandleUpdateMemoryEntry updates an existing content-memory entry.
-func (s *Server) HandleUpdateMemoryEntry(c echo.Context) error {
+func (s *Server) HandleUpdateMemoryEntry(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMemory); err != nil {
 		return err
 	}
@@ -1058,7 +1058,7 @@ func (s *Server) HandleUpdateMemoryEntry(c echo.Context) error {
 }
 
 // HandleDeleteMemoryEntry deletes a content-memory entry.
-func (s *Server) HandleDeleteMemoryEntry(c echo.Context) error {
+func (s *Server) HandleDeleteMemoryEntry(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMemory); err != nil {
 		return err
 	}
@@ -1097,7 +1097,7 @@ func providerStoreToResponse(c bstore.ProviderConfig) ProviderConfigResponse {
 // configurations (Epic 004). Scoped to the :ws workspace; a read is gated by
 // PermManageConnectors (the same capability that governs writes) so provider
 // settings never leak across tenants. API keys are never returned.
-func (s *Server) HandleListProviderConfigs(c echo.Context) error {
+func (s *Server) HandleListProviderConfigs(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -1124,7 +1124,7 @@ func (s *Server) HandleListProviderConfigs(c echo.Context) error {
 // calling workspace (Epic 004). The API key is sealed at rest in Postgres; an
 // empty api_key on update leaves the stored key unchanged. This no longer writes
 // to the OS keychain, so it works in a headless production container.
-func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
+func (s *Server) HandleSaveProviderConfig(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -1163,7 +1163,7 @@ func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
 // HandleDeleteProviderConfig removes a provider configuration owned by the
 // calling workspace (Epic 004). A config that belongs to another workspace is
 // indistinguishable from a missing one (404).
-func (s *Server) HandleDeleteProviderConfig(c echo.Context) error {
+func (s *Server) HandleDeleteProviderConfig(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -1184,7 +1184,7 @@ func (s *Server) HandleDeleteProviderConfig(c echo.Context) error {
 // HandleTestProviderConfig tests a provider configuration by making a live
 // request. It uses the request-supplied raw API key directly (an unstored BYO
 // key) and never persists anything, so it needs no provider store.
-func (s *Server) HandleTestProviderConfig(c echo.Context) error {
+func (s *Server) HandleTestProviderConfig(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -1212,7 +1212,7 @@ func (s *Server) HandleTestProviderConfig(c echo.Context) error {
 }
 
 // HandleGetBlockHistory returns the history of changes for a block.
-func (s *Server) HandleGetBlockHistory(c echo.Context) error {
+func (s *Server) HandleGetBlockHistory(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -1259,7 +1259,7 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 // invented id would resolve to no collection anywhere else in the API. Naming
 // that bucket ("Ungrouped", "Default") is the consumer's call. Rollups arrive
 // ordered by collection name with the ungrouped bucket last.
-func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
+func (s *Server) HandleGetTranslationDashboard(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}

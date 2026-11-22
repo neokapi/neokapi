@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -29,10 +29,10 @@ func histogramFor(t *testing.T, method, route, status string) *dto.Histogram {
 func TestMetricsMiddlewareResponseSizeOptIn(t *testing.T) {
 	e := echo.New()
 	e.Use(MetricsMiddleware("/hot-metrics-test"))
-	e.GET("/hot-metrics-test", func(c echo.Context) error {
+	e.GET("/hot-metrics-test", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "0123456789") // 10 bytes
 	})
-	e.GET("/cold-metrics-test", func(c echo.Context) error {
+	e.GET("/cold-metrics-test", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "hi")
 	})
 
@@ -61,7 +61,7 @@ func TestMetricsMiddlewareResponseSizeOptIn(t *testing.T) {
 func TestMetricsMiddlewareDurationAlwaysRecorded(t *testing.T) {
 	e := echo.New()
 	e.Use(MetricsMiddleware())
-	e.GET("/any-metrics-test", func(c echo.Context) error {
+	e.GET("/any-metrics-test", func(c *echo.Context) error {
 		return c.NoContent(http.StatusNoContent)
 	})
 

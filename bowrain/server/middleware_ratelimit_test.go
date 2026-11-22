@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -100,7 +100,7 @@ func TestPerIPControlsResistXFFSpoofing(t *testing.T) {
 // that distinct IPs are independent.
 func TestRateLimitByIPSharedBucket(t *testing.T) {
 	mw := RateLimitByIP(1, 2) // 2 burst, 1/min sustained
-	ok := func(c echo.Context) error { return c.NoContent(http.StatusOK) }
+	ok := func(c *echo.Context) error { return c.NoContent(http.StatusOK) }
 	e := echo.New()
 	e.GET("/a", ok, mw)
 	e.GET("/b", ok, mw)

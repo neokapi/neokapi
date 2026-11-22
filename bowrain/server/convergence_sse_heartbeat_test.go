@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -51,8 +51,7 @@ func TestConvergenceRunSSE_HeartbeatsThroughAQuietStage(t *testing.T) {
 	req = req.WithContext(reqCtx)
 	rec := newSyncRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id", "runID")
-	c.SetParamValues(p.ID, run.ID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: p.ID}, {Name: "runID", Value: run.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	done := make(chan error, 1)

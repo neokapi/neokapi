@@ -652,16 +652,6 @@ FIXTURES = [
         "expect": ["new-route-applies-sibling-access-rules"],
     },
     {
-        "name": "Echo proxy middleware",
-        "files": {"bowrain/server/server.go": ["\te.Use(middleware.Proxy(balancer))"]},
-        "expect": ["echo-accepted-advisories"],
-    },
-    {
-        "name": "accepted advisory list edited",
-        "files": {"scripts/govulncheck-accepted.txt": ["GO-2026-0001  2027-01-01  reason"]},
-        "expect": ["echo-accepted-advisories"],
-    },
-    {
         "name": "sync wire field",
         "files": {"core/proto/sync/v1/sync.proto": ["  string stream_id = 9;"]},
         "expect": ["sync-field-travels-both-projections", "wire-and-persisted-identifiers"],

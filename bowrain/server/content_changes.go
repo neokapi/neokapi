@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/changes"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -42,7 +42,7 @@ const (
 // decisions and the recorder.
 type streamChange struct {
 	s      *Server
-	c      echo.Context
+	c      *echo.Context
 	proj   *store.Project
 	stream string
 	wsID   string
@@ -65,7 +65,7 @@ type streamChange struct {
 
 // newStreamChange builds the change for one stream. c is the request a person
 // sends the change set on, nil for an agent's or a job's.
-func (s *Server) newStreamChange(ctx context.Context, c echo.Context, proj *store.Project, stream, wsID, wsSlug string, sender changeSender) *streamChange {
+func (s *Server) newStreamChange(ctx context.Context, c *echo.Context, proj *store.Project, stream, wsID, wsSlug string, sender changeSender) *streamChange {
 	if wsID == "" {
 		wsID = proj.WorkspaceID
 	}
@@ -213,7 +213,7 @@ func stampNotes(sender changeSender, now func() time.Time) func(*model.Block) {
 
 // requestSender is the person a request is sent by, with the permissions the
 // project access middleware resolved for them.
-func requestSender(c echo.Context) changeSender {
+func requestSender(c *echo.Context) changeSender {
 	userID, _ := c.Get("user_id").(string)
 	name := extractAuthor(c)
 	if name == "" {
@@ -240,7 +240,7 @@ func requestSender(c echo.Context) changeSender {
 // applied, previewed or partly landed is answered 200 with its status.
 //
 // POST /:ws/projects/:id/streams/:stream/changes
-func (s *Server) HandleApplyChanges(c echo.Context) error {
+func (s *Server) HandleApplyChanges(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, change.ErrorResult(&change.Error{Code: change.CodeUnreachable, Message: "the content store is not configured"}))
 	}
@@ -312,7 +312,7 @@ func (s *Server) trackContentChange(userID, projectID string, set change.Set, re
 
 // notifyNoteMentions tells each person a note the change set added mentions
 // (@name) that they were mentioned.
-func (s *Server) notifyNoteMentions(c echo.Context, projectID string, set change.Set, res *change.Result) {
+func (s *Server) notifyNoteMentions(c *echo.Context, projectID string, set change.Set, res *change.Result) {
 	if s.NotificationDispatcher == nil || s.AuthStore == nil {
 		return
 	}

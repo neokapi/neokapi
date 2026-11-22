@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
@@ -65,7 +65,7 @@ type updateMeRequest struct {
 // HandleUpdateMe changes the signed-in user's own account. Name is the only
 // field: an empty name clears it, and the person then shows under their
 // handle.
-func (s *Server) HandleUpdateMe(c echo.Context) error {
+func (s *Server) HandleUpdateMe(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}

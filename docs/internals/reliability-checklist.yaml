@@ -322,34 +322,6 @@ items:
       queries behind those routes had last been reworked in #3487
       (2026-11-14).
 
-  - id: echo-accepted-advisories
-    title: Two Echo advisories are accepted on conditions in the server code
-    owner_surface: server
-    trigger:
-      paths:
-        - 'scripts/govulncheck-accepted.txt'
-      added:
-        - 'middleware\.(Proxy|ProxyWithConfig|RateLimiter|RateLimiterWithConfig)\b'
-        - '\bconfigureIPExtractor\b'
-        - '\bIPExtractor\b'
-        - '\becho\.ExtractIP'
-      added_in:
-        - 'bowrain/**/*.go'
-      note: >-
-        the line only names the extractor in a comment or a test.
-    check: >-
-      scripts/govulncheck-accepted.txt accepts two Echo v4 advisories that are
-      fixed only in Echo v5, on two grounds: the server sets its own IP
-      extractor (configureIPExtractor in bowrain/server/server.go) and keys its
-      own rate limiter on it, and it does not use Echo's Proxy middleware. If
-      the diff adds middleware.Proxy, uses Echo's RateLimiter, or changes
-      configureIPExtractor, re-read both advisories against the new code, run
-      `cd bowrain && go test ./server/ -run TestPerIPControlsResistXFFSpoofing`,
-      and update or remove the entries. A person approves the change.
-    incident: >-
-      PR #3612 (2026-11-21) recorded both entries once the vulnerability scan
-      covered every module.
-
   - id: sync-field-travels-both-projections
     title: A synchronised field travels both wire projections
     owner_surface: server

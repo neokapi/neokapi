@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -50,8 +50,7 @@ func TestHandleListAutomationHistory_Paging(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/automations/history"+query, nil)
 		rec := httptest.NewRecorder()
 		c := echo.New().NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("proj-1")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "proj-1"}})
 		require.NoError(t, s.HandleListAutomationHistory(c))
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		var page event.HistoryPage
@@ -83,8 +82,7 @@ func TestHandleListAutomationHistory_Paging(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/automations/history", nil)
 		rec := httptest.NewRecorder()
 		c := echo.New().NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("proj-none")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "proj-none"}})
 		require.NoError(t, s.HandleListAutomationHistory(c))
 
 		var raw map[string]any

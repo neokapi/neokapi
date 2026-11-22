@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // enforceCSRFForCookie requires the CSRF header on a state-changing request that
@@ -40,7 +40,7 @@ func csrfSafeMethod(method string) bool {
 	}
 }
 
-func enforceCSRFForCookie(c echo.Context) error {
+func enforceCSRFForCookie(c *echo.Context) error {
 	if csrfSafeMethod(c.Request().Method) {
 		return nil
 	}
