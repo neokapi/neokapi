@@ -162,7 +162,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          ( cd bowrain/plugin && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain ./cmd/kapi-bowrain )
+          ( cd bowrain/plugin && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain ./cmd/kapi-bowrain ) 2>&1 | tee build.log
+          if [ "$GOOS" = darwin ]; then
+            scripts/check-macho-minimum.sh --log build.log out/kapi-bowrain "$HOME"/icu-static/lib/libicu*.a
+          fi
 
       # Guard the trimmed ICU data against the exact static ICU just linked:
       # see the matching step in release.yml's build-cli job.
@@ -815,7 +818,10 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "13.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
+          set -o pipefail
+          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain 2>&1 | tee build.log
+          # Every object records the macOS minimum the app declares.
+          ../../../scripts/check-macho-minimum.sh --log build.log bin/Bowrain "$HOME"/icu-static/lib/libicu*.a
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'

@@ -95,7 +95,14 @@ jobs:
       - name: Build Bowrain
         if: runner.os != 'Windows'
         working-directory: bowrain/apps/bowrain
-        run: wails3 build
+        run: |
+          set -o pipefail
+          wails3 build 2>&1 | tee build.log
+
+      - name: Check the macOS minimum the binaries record
+        if: runner.os == 'macOS'
+        working-directory: bowrain/apps/bowrain
+        run: ../../../scripts/check-macho-minimum.sh --log build.log bin "$HOME"/icu-static/lib/libicu*.a
 
       - name: Compile the catalogs and build Bowrain (Windows)
         if: runner.os == 'Windows'

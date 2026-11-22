@@ -178,7 +178,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi ./cmd/kapi )
+          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi ./cmd/kapi ) 2>&1 | tee build.log
+          if [ "$GOOS" = darwin ]; then
+            scripts/check-macho-minimum.sh --log build.log out/kapi "$HOME"/icu-static/lib/libicu*.a
+          fi
 
       # Guard the trimmed ICU data: run the packages that exercise ICU at
       # runtime (UAX-29 segmentation incl. dictionary scripts, FTS5 ICU
@@ -940,7 +943,10 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "13.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
+          set -o pipefail
+          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi 2>&1 | tee build.log
+          # Every object records the macOS minimum the app declares.
+          ../../scripts/check-macho-minimum.sh --log build.log bin/Kapi "$HOME"/icu-static/lib/libicu*.a
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
