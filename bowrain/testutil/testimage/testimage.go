@@ -19,7 +19,7 @@ const (
 	// S3 serves the S3 API the blob store tests run against
 	// (bowrain/storage/s3blob): the Versity S3 gateway (Apache-2.0) over a
 	// plain directory, one process answering the S3 calls the store makes.
-	S3 = "versity/versitygw:v1.8.0"
+	S3 = "versity/versitygw:v1.11.0"
 	// ElasticMQ serves the SQS API the job queue tests run against
 	// (bowrain/jobs).
 	ElasticMQ = "softwaremill/elasticmq-native:1.7.1"

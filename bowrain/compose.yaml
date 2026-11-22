@@ -84,14 +84,14 @@ services:
   # Job queue (SQS-compatible; the same sqsqueue code path as Amazon SQS in
   # production). dev-server/dev-worker point at it via SQS_ENDPOINT.
   elasticmq:
-    image: softwaremill/elasticmq-native:latest
+    image: softwaremill/elasticmq-native:1.7.1
     ports:
       - "9324:9324"
       - "9325:9325"
 
   # One-shot: create the job queues (visibility timeout mirrors prod).
   sqs-init:
-    image: amazon/aws-cli:latest
+    image: amazon/aws-cli:2.42.1
     depends_on:
       elasticmq:
         condition: service_started
