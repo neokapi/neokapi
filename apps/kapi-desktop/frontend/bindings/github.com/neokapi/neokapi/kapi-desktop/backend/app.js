@@ -2666,7 +2666,7 @@ export function RestoreStartHere() {
  * 
  *   - fix-findings: a one-block translate invocation whose instruction carries
  *     the unit's current check findings (and any fresh AI-review findings) as
- *     constraints — the model produces a corrected translation.
+ *     constraints, and the model produces a corrected translation.
  *   - retranslate: a one-block translate invocation with the reviewer's
  *     instruction verbatim.
  *   - explain: a one-block run of the ai review tool; the structured result

@@ -9118,7 +9118,7 @@ export class ResourceInfo {
 
 /**
  * ReviewAIActionResult is the outcome of one per-unit AI action. Fix/retranslate
- * return a PROPOSED target only — nothing is written until the reviewer accepts
+ * return a PROPOSED target only. Nothing is written until the reviewer accepts
  * the proposal, which the Review page sends as a set_content through Apply;
  * explain returns text.
  */
