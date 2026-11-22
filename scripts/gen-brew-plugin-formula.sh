@@ -45,6 +45,8 @@
 # is how it caught the first draft.
 set -euo pipefail
 
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 usage() {
   sed -n '/^# Usage:/,/^#     .*--self-test/p' "$0" | sed 's/^# \{0,1\}//'
 }
@@ -134,14 +136,19 @@ sha_for() {
   esac
 }
 
-# Emit the on_macos/on_linux url+sha256 blocks, indented two spaces.
+# Emit the on_macos/on_linux url+sha256 blocks, indented two spaces. The
+# on_macos block opens with the oldest macOS the plugin runs on, read from
+# scripts/macos-minimum.sh, so Homebrew refuses an older system instead of
+# installing a plugin that cannot load.
 platform_block() {
-  local base_url="$1" da la li
+  local base_url="$1" da la li macos
   da=$(sha_for "kapi-${plugin}_${version}_darwin_arm64.tar.gz") || return 1
   la=$(sha_for "kapi-${plugin}_${version}_linux_arm64.tar.gz") || return 1
   li=$(sha_for "kapi-${plugin}_${version}_linux_amd64.tar.gz") || return 1
+  macos=$("${repo_root}/scripts/macos-minimum.sh" --codename "$("${repo_root}/scripts/macos-minimum.sh" "$plugin")") || return 1
   cat <<RUBY
   on_macos do
+    depends_on macos: :${macos}
     on_arm do
       url "${base_url}/kapi-${plugin}_${version}_darwin_arm64.tar.gz"
       sha256 "${da}"
@@ -290,6 +297,9 @@ self_test() {
     grep -q "^    run \"kapi/plugins/${p}/kapi-${p}\"" "$f" \
       || fail "${p}: the post-install self-check step is missing"
     [ "$(grep -c '      sha256 "' "$f")" = 3 ] || fail "${p}: expected three sha256 lines"
+    # The first line inside on_macos names the plugin's macOS minimum.
+    grep -A1 '^  on_macos do$' "$f" | grep -qx "    depends_on macos: :$("${repo_root}/scripts/macos-minimum.sh" --codename "$("${repo_root}/scripts/macos-minimum.sh" "$p")")" \
+      || fail "${p}: on_macos does not open with the plugin's macOS minimum"
     # Balanced Ruby: every do/def opens a block the file closes.
     [ "$(grep -cE '^\s*(class|def|do$|.* do$)' "$f")" = "$(grep -cE '^\s*end$' "$f")" ] \
       || fail "${p}: the formula's blocks do not balance"
