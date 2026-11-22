@@ -38,7 +38,7 @@ kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (
 kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatable); only a .kpz may be positional
 kapi check --ship --json                              # the gate: voice + terminology + rule-based checks in one shot (prefer this)
 kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr   # source POSITIONAL, its translation via --target; reports, exits 0
-kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
+kapi terms lookup "board" -t fr              # approved wording; -s/-t, not --*-lang; -s defaults to the project's source language
 kapi store locales/en.json                    # the voice and terms that apply to the file
 ```
 
@@ -164,6 +164,16 @@ kapi up --json               # NDJSON event stream (one event per line, final
 runs the built-in default flow (content memory recycle → AI translate) and materializes the
 translated files. Drift is never an error: a behind locale is *pending*, and work
 a machine can't finish *waits for review* (reported, exit 0), so neither blocks you.
+The summary's `produced` counts the translation units this run wrote, each
+counted once when it is written: a unit filled, and a unit redrafted after its
+source changed. `waiting for review` counts the drafts held back, apart from
+it. The result record carries both as `produced` and `waiting_for_review`. A run
+over a project with nothing new reports `produced 0`, whatever waits for
+review, and a run that fails part-way says on stderr how many units it wrote
+before it failed. A server run (kapi-bowrain)
+writes to the server, so its summary leaves both figures out. To try kapi with no
+credentials, `kapi translate --provider demo` (or `provider: demo` on a flow's
+translate step) drafts offline with illustrative output.
 
 Every flow run (`up`, `translate`, `pseudo-translate`, `run`, `exec`) writes a
 file only while it still holds what it held when the run began: a file someone

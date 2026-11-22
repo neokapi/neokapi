@@ -26,6 +26,10 @@ permissions:
   # Fulcio cert for signing the tarballs.
   id-token: write
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   build-sourcecode-plugin:
     name: Build kapi-sourcecode (${{ matrix.build.platform }})
@@ -47,6 +51,23 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # The darwin leg builds every Mach-O it ships for the plugin's macOS
+      # minimum (scripts/macos-minimum.sh): the Go link, the cgo objects and
+      # the third-party code built here. The check after packaging fails the
+      # release when a binary records a newer one.
+      - name: Set the macOS deployment target
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          min="$(scripts/macos-minimum.sh sourcecode)"
+          {
+            echo "MACOS_MINIMUM=$min"
+            echo "MACOSX_DEPLOYMENT_TARGET=$min"
+            echo "CGO_CFLAGS=-O2 -g -mmacosx-version-min=$min"
+            echo "CGO_CXXFLAGS=-O2 -g -mmacosx-version-min=$min"
+          } >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@v7
         with:
@@ -133,6 +154,18 @@ jobs:
           scripts/package-sourcecode-plugin.sh \
             --version "${VERSION}" \
             --out-dir "$RUNNER_TEMP/sourcecode-out"
+
+      - name: Check the macOS minimum the tarball's binaries record
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/macho-check"
+          mkdir -p "$dir"
+          tar -xzf "$TARBALL" -C "$dir"
+          scripts/check-macho-minimum.sh --minimum "$MACOS_MINIMUM" "$dir"
 
       - name: Cosign sign tarball (keyless)
         if: startsWith(github.ref, 'refs/tags/sourcecode-v')

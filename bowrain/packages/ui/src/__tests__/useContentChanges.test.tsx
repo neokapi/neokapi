@@ -62,7 +62,7 @@ function staleSave(
 }
 
 describe("useContentChanges", () => {
-  it("settles an open prompt as kept when another replaces it", async () => {
+  it("settles an open prompt as unsent when another replaces it", async () => {
     const { adapter, hook } = setup();
     let first!: Promise<CommitOutcome>;
     act(() => {
@@ -74,14 +74,26 @@ describe("useContentChanges", () => {
     act(() => {
       second = staleSave(adapter, hook.result.current.commit, "Coucou");
     });
-    await expect(first).resolves.toMatchObject({ status: "kept" });
+    // Nothing was chosen for the first: it is unsent, not kept.
+    await expect(first).resolves.toMatchObject({ status: "unsent" });
     await waitFor(() => expect(hook.result.current.staleDialog?.mine).toBe("Coucou"));
 
     act(() => hook.result.current.staleDialog?.onKeep());
     await expect(second).resolves.toMatchObject({ status: "kept" });
   });
 
-  it("settles an open prompt as kept when the surface unmounts", async () => {
+  it("a dismissed prompt leaves the change unsent", async () => {
+    const { adapter, hook } = setup();
+    let pending!: Promise<CommitOutcome>;
+    act(() => {
+      pending = staleSave(adapter, hook.result.current.commit, "Salut");
+    });
+    await waitFor(() => expect(hook.result.current.staleDialog).not.toBeNull());
+    act(() => hook.result.current.staleDialog?.onDismiss());
+    await expect(pending).resolves.toMatchObject({ status: "unsent" });
+  });
+
+  it("settles an open prompt as unsent when the surface unmounts", async () => {
     const { adapter, hook } = setup();
     let pending!: Promise<CommitOutcome>;
     act(() => {
@@ -90,7 +102,7 @@ describe("useContentChanges", () => {
     await waitFor(() => expect(hook.result.current.staleDialog).not.toBeNull());
 
     hook.unmount();
-    await expect(pending).resolves.toMatchObject({ status: "kept" });
+    await expect(pending).resolves.toMatchObject({ status: "unsent" });
   });
 
   it("answers a prompt once, however often it is clicked", async () => {

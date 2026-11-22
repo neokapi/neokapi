@@ -34,6 +34,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   format-acceptance:
     name: format-acceptance
@@ -46,9 +50,9 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: ./.github/actions/setup-go-cached
         with:
-          go-version-file: go.mod
+          family: go-format-acceptance
 
       - uses: actions/setup-python@v7
         with:

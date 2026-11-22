@@ -2,8 +2,8 @@
 #
 # gen-brew-formula.sh — emit the kapi-cli and/or bowrain-cli Homebrew formulae.
 #
-# Replaces GoReleaser's `brews:` block (we no longer run GoReleaser for the
-# CLI). Reads the per-archive sha256 from a checksums.txt and writes Ruby
+# The CLI release does not run GoReleaser, so this script writes the
+# formulae. Reads the per-archive sha256 from a checksums.txt and writes Ruby
 # formulae that download the matching release archive per OS/arch from the
 # public GitHub release (the repo is public).
 #
@@ -25,6 +25,8 @@
 # the stable formula (both install the same `kapi` binary), so a user is on one
 # channel at a time — switching channels, not installing side by side.
 set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 version="${1:?version required}"
 repo="${2:?repo (owner/name) required}"
@@ -80,26 +82,36 @@ sha_for() {
 # archive family $1 (e.g. "kapi" or "kapi-bowrain"), indented 2 spaces. macOS is
 # Apple-Silicon only (no on_intel); Linux covers both arches.
 platform_block() {
-  local fam="$1" ext_darwin="tar.gz" ext_linux="tar.gz"
+  local fam="$1" ext_darwin="tar.gz" ext_linux="tar.gz" macos
+  # The on_macos block opens with the oldest macOS the CLIs run on
+  # (scripts/lib/macos-minimum), so Homebrew refuses an older system.
+  macos=$("${repo_root}/scripts/macos-minimum.sh" --codename "$("${repo_root}/scripts/macos-minimum.sh")")
   local f_da="${fam}_${version}_darwin_arm64.${ext_darwin}"
   local f_la="${fam}_${version}_linux_arm64.${ext_linux}"
   local f_li="${fam}_${version}_linux_amd64.${ext_linux}"
+  # Each checksum is looked up before the heredoc: a failure inside the
+  # heredoc's command substitution would write an empty sha256 and carry on.
+  local s_da s_la s_li
+  s_da=$(sha_for "$f_da") || return 1
+  s_la=$(sha_for "$f_la") || return 1
+  s_li=$(sha_for "$f_li") || return 1
   cat <<RUBY
   on_macos do
+    depends_on macos: :${macos}
     on_arm do
       url "${base_url}/${f_da}"
-      sha256 "$(sha_for "$f_da")"
+      sha256 "${s_da}"
     end
   end
 
   on_linux do
     on_arm do
       url "${base_url}/${f_la}"
-      sha256 "$(sha_for "$f_la")"
+      sha256 "${s_la}"
     end
     on_intel do
       url "${base_url}/${f_li}"
-      sha256 "$(sha_for "$f_li")"
+      sha256 "${s_li}"
     end
   end
 RUBY

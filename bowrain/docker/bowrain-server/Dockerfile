@@ -30,32 +30,56 @@ RUN export GOWORK=off \
     && cd core && go mod download \
     && cd ../plugin && go mod download
 
-# Copy source.
+# Copy source. The Go build cache below is a cache mount, not a layer: a
+# context that differs from the last build (another worktree, one edited file)
+# recompiles only what changed, and no layer holds the cache. The modules stay
+# in the layer above, which the CI image builds restore from their layer cache.
 COPY . .
 
 # The gettext catalogs core/i18n and host/i18n embed are build output:
 # version control carries the translated JSON, and this compiles it into
 # the `catalogs/*.mo` the `//go:embed` pattern below resolves.
-RUN go run ./core/i18n/gen/catalogs
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    go run ./core/i18n/gen/catalogs
 
 # Build only the server binary (version injected via build args).
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_DATE=unknown
-RUN CGO_ENABLED=0 cd bowrain && go build \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    cd bowrain && CGO_ENABLED=0 go build -trimpath \
     -ldflags="-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${COMMIT} -X github.com/neokapi/neokapi/core/version.BuildDate=${BUILD_DATE}" \
     -o /out/bowrain-server ./cmd/bowrain-server
 
 # ── Stage 2: Minimal runtime ─────────────────────────────────────────────
 FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata git
+# The process runs as an unprivileged user with a fixed id, so a deployment
+# can name it (and own its volumes) without reading /etc/passwd. The passwd
+# entry exists for tools that look the user up, such as git.
+RUN addgroup -S -g 10001 bowrain \
+    && adduser -S -D -H -u 10001 -G bowrain -h /tmp -s /sbin/nologin bowrain
 
 COPY --from=builder /out/bowrain-server /usr/local/bin/bowrain-server
 
-# /data holds local blob storage (sync push payloads). The server requires a
-# PostgreSQL store via BOWRAIN_DATABASE_URL — there is no SQLite/file backend.
+# The server writes only these directories, and checks at start-up that each is
+# writable (bowrain/runtimedirs). Everything else can be a read-only root
+# filesystem.
+#   TMPDIR                  forge checkouts, git clones and per-request scratch
+#                           files. A tmpfs or a writable volume.
+#   BLOB_STORAGE_LOCAL_DIR  blob storage, only when BLOB_STORAGE_BACKEND is local.
+# The server requires a PostgreSQL store via BOWRAIN_DATABASE_URL; there is no
+# SQLite or file backend. /data is owned by the server's user, so a new volume
+# mounted there is too.
+RUN mkdir -p /data/blobs && chown -R 10001:10001 /data
 VOLUME /data
-ENV BLOB_STORAGE_LOCAL_DIR=/data/blobs
+# /tmp is a VOLUME so that a platform mounting a writable volume there, as
+# ECS does on Fargate for a read-only root filesystem, copies its mode (1777)
+# instead of creating a directory only root can write.
+RUN chmod 1777 /tmp
+VOLUME /tmp
+ENV TMPDIR=/tmp HOME=/tmp BLOB_STORAGE_LOCAL_DIR=/data/blobs
 
 EXPOSE 8080
+USER 10001:10001
 ENTRYPOINT ["bowrain-server"]

@@ -3,7 +3,7 @@
 // Package intljs provides a browser (GOOS=js) segmentation engine that bridges
 // to the platform's built-in Intl.Segmenter. It registers under the name "intl"
 // so the same `engine: intl` selection works in the WASM CLI, the flow editor,
-// and the segmentation lab — a zero-download Unicode sentence baseline that is
+// and the segmentation lab. It is a zero-download Unicode sentence baseline,
 // always available in a modern browser (no companion wasm, unlike uax29/ICU4X).
 //
 // Host contract: the page must define a global function
@@ -11,13 +11,13 @@
 //	globalThis.kapiIntlSentenceBreaks(text: string, locale: string) => number[]
 //
 // returning the INTERIOR sentence-break offsets as Unicode code-point (rune)
-// indices into text — excluding 0 and text length, ascending. The JS glue wraps
+// indices into text, excluding 0 and text length, ascending. The JS glue wraps
 // Intl.Segmenter({granularity:"sentence"}) and converts its UTF-16 indices to
 // code-point indices (Go spans are rune-indexed). When the function is absent the
 // engine returns a clear error rather than a wrong result.
 //
 // Intl.Segmenter is a browser/JS API with no native Go equivalent, so this engine
-// is WASM-only (//go:build js); on native targets the "intl" engine is simply not
+// is WASM-only (//go:build js); on native targets the "intl" engine is not
 // registered (segment.HasEngine("intl") is false), the same way the cgo uax29
 // engine is absent in the browser.
 //
@@ -57,8 +57,8 @@ type engine struct {
 func (e *engine) Layer() string { return segment.LayerSentence }
 
 // Segment flattens the runs, asks the host Intl.Segmenter bridge for the interior
-// sentence breaks over the masked text, and projects them to run-anchored spans —
-// mirroring the uax29/srx engines, which operate over the same flattened rune
+// sentence breaks over the masked text, and projects them to run-anchored spans.
+// This mirrors the uax29/srx engines, which operate over the same flattened rune
 // text and call [segment.Flattened.Spans].
 func (e *engine) Segment(ctx context.Context, runs []model.Run, loc model.LocaleID) ([]model.Span, error) {
 	if err := ctx.Err(); err != nil {
@@ -85,7 +85,7 @@ func (e *engine) Segment(ctx context.Context, runs []model.Run, loc model.Locale
 
 	n := res.Length()
 	breaks := make([]int, 0, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		off := res.Index(i).Int()
 		if off > 0 && off < len(text) {
 			breaks = append(breaks, off)

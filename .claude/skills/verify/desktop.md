@@ -102,12 +102,47 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
 - **Unsaved changes.** Adding the flow makes compass dirty. Closing its tab
   asks Don't Save, Cancel or Save. Save, and `diff samples/compass/kapi.yaml
   "$D/home/compass"/kapi.yaml` shows the flow.
-- **Translate and `converge`** ask for an AI model although compass names the
-  offline `demo` provider. Do not pick one: it bills a real model.
+- **The model prompt.** Compass names the offline `demo` provider on its
+  converge flow, so the overview's Translate button and Flows, converge, Run
+  both run with no prompt. Copy compass and change that step to `provider:
+  anthropic`: Translate opens No key for anthropic, with Add a key leading to
+  App Settings, Credentials, and never Choose an AI model, because a stored
+  default does not override a provider the recipe names. The built-in
+  Translate flow names no provider, so added to compass it opens Choose an AI
+  model while no usable default is stored. Cancel both dialogs: picking a model bills a real one, and the
+  stored default is the developer's.
+  `curl -s -XPOST -d '{"method":"CheckAISetup","args":["<tab id>","converge"]}'
+  http://127.0.0.1:5175/wbridge` gives the same answer without the page.
 - **Cancel** cannot be exercised on the samples: their runs take milliseconds.
 - **Save As and Open** use native dialogs; check them in the native app.
-- **Closing the window** does not prompt about unsaved changes (#3614). Never
-  record it as verified.
+- **Closing the window with unsaved changes or a running flow.** The bridge's `/close` endpoint
+  asks the same guard as the native close and quit hooks. Add a flow in
+  compass and in northsea, then `curl -s -XPOST
+  'http://127.0.0.1:5175/close?route=window'` (or `route=quit`). It answers
+  `allowed=false` and the page shows one dialog listing both. Cancel logs no
+  closer. Save all writes both recipes and `$D/wbridge.log` shows `closer ran:
+  window`. For a failed save, `chmod 555 "$D/home/compass"` first: the dialog
+  names compass, northsea saves, and no closer runs. Discard all runs the
+  closer and leaves `kapi.yaml` as it was. With nothing unsaved the endpoint
+  answers `allowed=true`. A confirmed close lets every later one through, so
+  restart the bridge between cases. A running flow holds the window too, in
+  the same dialog with its own row; the samples' runs take milliseconds, so
+  that row is checked by the frontend tests, not here. The page acknowledges
+  each request; with no acknowledgement within 4 s the native app opens a
+  fallback dialog that names each project with its reasons and offers Close
+  Without Saving (or Cancel Flow & Close) or Cancel. The bridge sets no
+  fallback, so a request the page never answers stays held there. A first
+  SIGTERM or SIGINT asks like any quit; a second one ends the process
+  (`host/desktopclose` tests this against a real process).
+
+  The native routes need a person: in the native window, with one and then
+  two unsaved tabs, click the close button, press Cmd+Q and choose Kapi, Quit.
+  Each opens the same dialog; with nothing unsaved each closes at once. A
+  logout or shutdown on macOS is a quit too: with unsaved tabs it opens the
+  dialog and the logout stops until the person answers, which is intended. A quit
+  with nothing unsaved can be checked without clicking: run the binary inside
+  a minimal `.app` bundle with a `CFBundleIdentifier` and send `osascript -e
+  'tell application id "<id>" to quit'`.
 
 ## The native window
 

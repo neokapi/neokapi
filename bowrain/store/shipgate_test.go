@@ -192,11 +192,12 @@ func TestShipGateRollup(t *testing.T) {
 
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 		require.NoError(t, err)
-		// Storing an item rewrites every target row it holds, so the whole
-		// item is judged again — which is the delta an ordinary push leaves:
-		// the files it wrote, not the project they sit in.
-		assert.Equal(t, []string{"b1", "b2"}, staleNames(names, got.Stale))
-		assert.Zero(t, got.CountsFor("col-a", fr).Clean, "a.json holds no verdict that still applies")
+		// Storing an item writes the target rows whose content changed, so
+		// b1 is judged again and b2, stored with the target it already held,
+		// keeps its verdict.
+		assert.Equal(t, []string{"b1"}, staleNames(names, got.Stale))
+		assert.Zero(t, got.CountsFor("col-a", fr).Clean, "b1's clean verdict no longer applies")
+		assert.Equal(t, 1, got.CountsFor("col-a", fr).Failing, "b2 keeps its failing verdict")
 		assert.Equal(t, 1, got.CountsFor("col-b", fr).Clean, "b.json was not written and keeps its own")
 	})
 }
@@ -223,8 +224,8 @@ func TestPutShipGateVerdictsRefusesAMovedBasis(t *testing.T) {
 
 	got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 	require.NoError(t, err)
-	assert.Equal(t, []string{"b1", "b2"}, staleNames(names, got.Stale),
-		"the pairs whose basis moved keep no verdict and are judged again")
+	assert.Equal(t, []string{"b1"}, staleNames(names, got.Stale),
+		"the pair whose basis moved keeps no verdict and is judged again; b2 was stored unchanged")
 	assert.Equal(t, 1, got.CountsFor("col-b", string(model.LocaleFrench)).Clean,
 		"the pair whose basis held is recorded as normal")
 }

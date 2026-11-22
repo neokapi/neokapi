@@ -97,3 +97,41 @@ gh pr view <n> --json state,mergeStateStatus,autoMergeRequest   # MERGED, or wha
   removed instead of added.
 - **Cost on every pull request.** Note the job's duration in the pull request.
   A job over three minutes on the pull request path needs a reason.
+
+## The Actions cache budget
+
+The repository may keep 10 GiB of Actions caches. `scripts/ci-cache-budget.py`
+deletes superseded copies after each main run and fails the daily Cache Budget
+run past 9 GiB; `scripts/check-ci-caches.py` fails a pull request step that can
+save a cache. Before adding a cache family, measure it and add it to this
+table. A main-only job that saves a large family saves it with
+`actions/cache/save` and prunes in the next step, so the old and new copies
+overlap for seconds.
+
+Measured 2026-11-22, after the first prune: 5.91 GiB in 91 caches. The pull
+request build cache (`go-build-…-pr-trimpath-<sha>`) is 2.09 GiB, vite-plus
+0.94 GiB, BuildKit blobs 0.93 GiB, go-mod 0.78 GiB, the race build cache
+0.56 GiB. The lint-leg flavors of #3729 add about 1.05 GiB.
+
+**Not built: one build cache per job group.** Every Go job restores the whole
+2.09 GiB pr cache. Separate caches per group would restore less, at 15 to 20
+seconds a job. Each group's cache, measured from an empty GOCACHE with
+`go test -tags fts5 -count=1 -run '^$' ./...` in its module (macOS, before
+compression): framework 873 MiB, cli 730 MiB, kapi 807 MiB, bowrain 1,536 MiB,
+bowrain/plugin 753 MiB. Each holds the framework again, so the split adds
+about 1.5 GiB compressed. With the lint flavors that leaves too little of the
+9 GiB budget, so the single pr cache stays.
+
+## Traps that pass on a rerun
+
+- **A test that moves `XDG_DATA_HOME` and runs a Node tool.** On CI, and on
+  any machine set up with setup-vp, `node` is the vite-plus shim, which keeps
+  its Node.js runtimes under `XDG_DATA_HOME`. Point that at a throwaway
+  directory and the shim downloads a whole Node.js release on every call,
+  which is how oxfmt ran into its one-minute limit. `host/main_test.go`
+  (`pinNode`) puts the real binary on PATH first.
+- **A plugin daemon that installs its signal handler after the handshake.**
+  A host may send SIGTERM as soon as it reads the handshake line, and a
+  signal that arrives before `signal.Notify` kills the daemon before it
+  removes its socket. Call `signal.Notify` first, as
+  `host/pluginhost/testdata/fakedaemon/main.go` does (#3713).

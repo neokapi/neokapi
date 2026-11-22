@@ -30,6 +30,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -206,7 +207,7 @@ func processContextScanJob(ctx context.Context, deps *ContextScanWorkerDeps, job
 	}
 
 	// Check the monthly token quota before starting. This is the internal abuse
-	// cap (see jobs.QuotaStore) — a hard ceiling to bound runaway usage — not
+	// cap (see jobs.QuotaStore), a hard ceiling to bound runaway usage, not
 	// the user-facing credit ledger; the route-level QuotaGuard checks only
 	// credits, so without this pre-check a scan would bypass the abuse cap
 	// entirely. Mirrors the translation worker's pre-check.
@@ -432,7 +433,7 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	}
 
 	// Phase: discover the axes the corpus varies along. A failure here costs
-	// the axes and nothing else — the voice and the vocabulary are already
+	// the axes and nothing else, the voice and the vocabulary are already
 	// drafted, and a scan that proposes them at the default point is exactly
 	// what a corpus with no internal variation should produce anyway.
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressAxes, "discovering-axes")
@@ -468,7 +469,7 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	// Persist the result. Skipped sources appear with zero runes so the review
 	// UI can attribute what was (and was not) read.
 	// One corpus, one point: this scan reads a project's own sources, so both
-	// artefacts are proposed at the default point — an empty At, which resolves
+	// artefacts are proposed at the default point, an empty At, which resolves
 	// to whatever defaults.coordinates says. A scan that can tell the corpus
 	// apart by axis will propose them at narrower points instead; nothing here
 	// assumes there is only ever one.
@@ -575,7 +576,7 @@ func gatherContextScanSources(ctx context.Context, deps *ContextScanWorkerDeps, 
 		if err != nil {
 			// The detailed error can carry resolver output (which IPs a host
 			// resolves to and why they were rejected); that stays in server
-			// logs only — the skip reason lands in job.Error and the step
+			// logs only, the skip reason lands in job.Error and the step
 			// logs, both user-visible.
 			slog.WarnContext(ctx, "brand-scan url source failed",
 				"job_id", jobID, "url", u, "error", err)
@@ -632,7 +633,7 @@ func gatherContextScanSources(ctx context.Context, deps *ContextScanWorkerDeps, 
 
 // readContextScanUpload downloads a brand-scan upload envelope and extracts its
 // text via the contextscan format readers. It returns the original filename as
-// the source label (best effort — falls back to the key on decode failure).
+// the source label (best effort, falls back to the key on decode failure).
 func readContextScanUpload(ctx context.Context, reg *registry.FormatRegistry, blobs corestorage.BlobStore, key string) (label, text string, err error) {
 	if blobs == nil {
 		return "", "", errors.New("blob storage not configured")
@@ -640,7 +641,7 @@ func readContextScanUpload(ctx context.Context, reg *registry.FormatRegistry, bl
 	// Blob-store errors can leak backend detail (endpoints, auth failures) and
 	// the key is caller-controlled, so failures surface as a generic reason;
 	// the detail goes to server logs only. Extraction errors below pass
-	// through — they are the extractor's own user-facing messages (e.g. an
+	// through, they are the extractor's own user-facing messages (e.g. an
 	// unsupported file type).
 	rc, err := blobs.Download(ctx, key)
 	if err != nil {
@@ -666,14 +667,44 @@ func readContextScanUpload(ctx context.Context, reg *registry.FormatRegistry, bl
 	return env.Filename, text, nil
 }
 
+// contextScanRepoPaths picks the listed files a scan reads from the checkout
+// at dir: at most contextScanRepoMaxFiles of them, each a regular file of at
+// most contextScanRepoMaxFileBytes. A path that passes through a symbolic link,
+// in its last name or in a directory above it, is skipped whatever the link
+// points at; the connector's fetch also refuses a path that resolves outside
+// the checkout.
+func contextScanRepoPaths(dir string, all []*platconn.ContentItem) []string {
+	realDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return nil
+	}
+	paths := make([]string, 0, min(len(all), contextScanRepoMaxFiles))
+	for _, item := range all {
+		if len(paths) >= contextScanRepoMaxFiles {
+			break
+		}
+		// A path that resolves to anything but itself under the checkout
+		// passes through a link, in its last name or in a directory above it.
+		real, err := rootpath.CheckRegular(dir, filepath.Join(dir, item.Path))
+		if err != nil || real != filepath.Join(realDir, item.Path) {
+			continue
+		}
+		if info, err := os.Lstat(real); err != nil || info.Size() > contextScanRepoMaxFileBytes {
+			continue
+		}
+		paths = append(paths, item.Path)
+	}
+	return paths
+}
+
 // fetchContextScanRepo clones the repository (into a scan-scoped temp dir,
 // removed afterwards) via the git connector and concatenates the source text
 // of its markdown documentation. The connector's default glob set excludes
 // markdown, so the patterns are set explicitly.
 //
 // The repo URL comes straight from an API request, so it gets the same
-// destination policy as the urls[] path (bowrain/safehttp): https only —
-// which also excludes the scp-like SSH form — and a host that resolves to no
+// destination policy as the urls[] path (bowrain/safehttp): https only,
+// which also excludes the scp-like SSH form, and a host that resolves to no
 // loopback/private/link-local/CGNAT address. The git subprocess re-resolves
 // DNS itself, so the vet is a pre-check rather than a rebinding-proof pin;
 // as compensating controls the clone is shallow and redirect following is
@@ -718,17 +749,7 @@ func fetchContextScanRepo(ctx context.Context, formatReg *registry.FormatRegistr
 	if err != nil {
 		return "", err
 	}
-	paths := make([]string, 0, min(len(all), contextScanRepoMaxFiles))
-	for _, item := range all {
-		if len(paths) >= contextScanRepoMaxFiles {
-			break
-		}
-		info, statErr := os.Stat(filepath.Join(dir, item.Path))
-		if statErr != nil || info.Size() > contextScanRepoMaxFileBytes {
-			continue
-		}
-		paths = append(paths, item.Path)
-	}
+	paths := contextScanRepoPaths(dir, all)
 	if len(paths) == 0 {
 		return "", nil
 	}
@@ -762,7 +783,7 @@ func fetchContextScanRepo(ctx context.Context, formatReg *registry.FormatRegistr
 	return sb.String(), nil
 }
 
-// recordContextScanUsage records one scan phase's token usage in ai_usage — the
+// recordContextScanUsage records one scan phase's token usage in ai_usage, the
 // internal abuse cap, which must see all AI traffic (platform and BYO alike;
 // brand scans are always platform).
 //
@@ -868,7 +889,7 @@ func dedupeContextScanTerms(terms []tools.TermEntry) []tools.TermEntry {
 }
 
 // chunkRunes splits s into rune-boundary chunks of at most size runes,
-// keeping at most maxChunks (the remainder is dropped — the leading corpus
+// keeping at most maxChunks (the remainder is dropped, the leading corpus
 // text carries the highest-precedence sources).
 func chunkRunes(s string, size, maxChunks int) []string {
 	if size <= 0 {
@@ -915,7 +936,7 @@ func emitContextScanLog(deps *ContextScanWorkerDeps, jobID, level, message strin
 }
 
 // usageRecordingProvider wraps an LLMProvider and accumulates the token usage
-// of every structured/plain chat call — the usage-capture mechanism for
+// of every structured/plain chat call, the usage-capture mechanism for
 // corpus-level calls (InferVoiceProfile) that do not return usage themselves.
 type usageRecordingProvider struct {
 	aiprovider.LLMProvider

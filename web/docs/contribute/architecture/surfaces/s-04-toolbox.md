@@ -134,7 +134,13 @@ writer **only when the reader and writer are the same format**: a same-format
 conversion round-trips faithfully through the skeleton, while a cross-format one
 reconstructs from the content model and the block roles, so the source's foreign
 byte skeleton is never emitted. This is the same format-match guard the file
-runner applies.
+runner applies. A same-format conversion always uses the format's registered
+writer. Only a cross-format conversion to JSON or YAML switches to the
+structural writers, which write the blocks as records, because a document has
+no catalog keys for the catalog writers to use. A reader that declares
+`format.WriteOnlyReader` (MO) makes the conversion fail with an error, and a
+`--to` naming a format with a reader and no writer is refused before any input
+is read.
 
 **Compare path** (`kdiff`). Two inputs are projected to block text and the
 **blocks are aligned**, not the lines, so structural noise (a re-zipped

@@ -53,6 +53,18 @@ runs:
         # shared by every job, which thrashes the build cache — see cache-flavor).
         cache: false
 
+    # The same Go flags as a make-driven local build (scripts/lib/goflags.mk),
+    # so CI compiles what a developer compiles and the build cache keys agree.
+    # scripts/check-go-trimpath.py checks that this step keeps -trimpath.
+    - name: Set GOFLAGS
+      shell: bash
+      run: |
+        case " ${GOFLAGS:-} " in
+          *" -trimpath "*) ;;
+          *) GOFLAGS="${GOFLAGS:+${GOFLAGS} }-trimpath" ;;
+        esac
+        echo "GOFLAGS=${GOFLAGS}" >> "$GITHUB_ENV"
+
     - name: Resolve Go cache paths
       id: gocache
       shell: bash
@@ -102,7 +114,7 @@ runs:
         esac
 
     - name: Restore and save module download cache (flavor-independent)
-      if: steps.save.outputs.value == 'true'
+      if: inputs.save-cache == 'true' || (inputs.save-cache == 'auto' && github.event_name != 'pull_request')
       uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.mod }}
@@ -111,7 +123,7 @@ runs:
           go-mod-${{ runner.os }}-
 
     - name: Restore module download cache
-      if: steps.save.outputs.value != 'true'
+      if: inputs.save-cache == 'false' || (inputs.save-cache == 'auto' && github.event_name == 'pull_request')
       uses: actions/cache/restore@v6
       with:
         path: ${{ steps.gocache.outputs.mod }}
@@ -120,24 +132,24 @@ runs:
           go-mod-${{ runner.os }}-
 
     - name: Restore and save build cache (flavor-scoped)
-      if: steps.save.outputs.value == 'true'
+      if: inputs.save-cache == 'true' || (inputs.save-cache == 'auto' && github.event_name != 'pull_request')
       uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
         # SHA-suffixed key always saves a fresh post-build cache; restore-keys
         # warms it from the most recent run of the same flavor + Go version.
-        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-${{ github.sha }}
+        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-trimpath-${{ github.sha }}
         restore-keys: |
-          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-
+          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-trimpath-
 
     - name: Restore build cache
-      if: steps.save.outputs.value != 'true'
+      if: inputs.save-cache == 'false' || (inputs.save-cache == 'auto' && github.event_name == 'pull_request')
       uses: actions/cache/restore@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
-        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-${{ github.sha }}
+        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-trimpath-${{ github.sha }}
         restore-keys: |
-          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-
+          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-trimpath-
 
     - name: Install ICU development libraries
       if: runner.os == 'Linux'

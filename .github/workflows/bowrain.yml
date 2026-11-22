@@ -9,6 +9,10 @@ on:
     - cron: "0 6 * * 1" # weekly, Mondays at 06:00 UTC
   workflow_dispatch:
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   build:
     name: Build Bowrain (${{ matrix.build.platform }})
@@ -46,12 +50,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/icu-static
-          key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         env:
-          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
         run: |
           brew install pkg-config
           [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
@@ -59,7 +63,7 @@ jobs:
           {
             echo "PKG_CONFIG_PATH=${PCDIR}"
             echo "CPPFLAGS=-I$HOME/icu-static/include"
-            echo "MACOSX_DEPLOYMENT_TARGET=11.0"
+            echo "MACOSX_DEPLOYMENT_TARGET=13.0"
           } >> "$GITHUB_ENV"
 
       - name: Set up MSYS2 (Windows)
@@ -91,7 +95,14 @@ jobs:
       - name: Build Bowrain
         if: runner.os != 'Windows'
         working-directory: bowrain/apps/bowrain
-        run: wails3 build
+        run: |
+          set -o pipefail
+          wails3 build 2>&1 | tee build.log
+
+      - name: Check the macOS minimum the binaries record
+        if: runner.os == 'macOS'
+        working-directory: bowrain/apps/bowrain
+        run: ../../../scripts/check-macho-minimum.sh --log build.log bin "$HOME"/icu-static/lib/libicu*.a
 
       - name: Compile the catalogs and build Bowrain (Windows)
         if: runner.os == 'Windows'

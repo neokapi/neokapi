@@ -5,8 +5,8 @@ package formats_test
 // a function of the widest row, not of how many rows there are.
 //
 // This is the conversion-path counterpart to openxml's
-// TestPackageReadBoundedMemory, and it guards the pair of buffers #1710 removed
-// — the runner's collect-then-replay slice and the writer's own event list.
+// TestPackageReadBoundedMemory. It guards against two buffers (#1710): the
+// runner's collect-then-replay slice and the writer's own event list.
 // Either one alone pins the whole block graph, so a regression in either brings
 // the scaling back.
 
@@ -17,7 +17,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -89,8 +88,9 @@ func writeGridXLSX(t *testing.T, dir string, rows, cellText int) (path string, s
 }
 
 // convertStreaming mirrors what host.convertDocument does: configure the writer,
-// then pipe the reader into it. Peak live heap is sampled as parts flow.
-func convertStreaming(t *testing.T, reg *registry.FormatRegistry, path string) (peak uint64) {
+// then pipe the reader into it. Peak live heap is sampled as parts flow, about
+// once per 512 cells of the sheet.
+func convertStreaming(t *testing.T, reg *registry.FormatRegistry, path string, cells int) (peak uint64) {
 	t.Helper()
 
 	r, err := reg.NewReader("openxml")
@@ -102,36 +102,39 @@ func convertStreaming(t *testing.T, reg *registry.FormatRegistry, path string) (
 	require.NoError(t, err)
 	require.NoError(t, w.SetOutputWriter(io.Discard))
 
+	f, err := os.Open(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = f.Close() })
+	info, err := f.Stat()
+	require.NoError(t, err)
+
+	// The reader reads the package through ReaderAt and streams the worksheet
+	// entry, so the gate serves both Reader and ReaderAt and its budget counts
+	// the bytes those reads ask for.
+	gate := testutil.NewGate(f)
 	ctx := context.Background()
-	doc := testutil.RawDocFromFile(t, path, model.LocaleEnglish)
-	require.NoError(t, r.Open(ctx, doc))
+	require.NoError(t, r.Open(ctx, &model.RawDocument{
+		URI:          path,
+		SourceLocale: model.LocaleEnglish,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(gate),
+		ReaderAt:     gate,
+		Size:         info.Size(),
+	}))
 	t.Cleanup(func() { _ = r.Close() })
 
-	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
-	}
-	base := liveHeap()
-
+	// The gate stops the reader at evenly spaced points through the package,
+	// and each sample is taken with the reader waiting at the gate. The
+	// markdown writer has no skeleton store to wait on, so it may still be
+	// rendering the last parts it received when a sample is taken.
 	ch := make(chan *model.Part, 64)
 	go func() {
 		defer close(ch)
-		n := 0
-		for res := range r.Read(ctx) {
-			if res.Error != nil || res.Part == nil {
-				continue
+		peak = testutil.SamplePeak(gate, info.Size(), max(cells/512, 1), r.Read(ctx), func(res model.PartResult) {
+			if res.Error == nil && res.Part != nil {
+				ch <- res.Part
 			}
-			ch <- res.Part
-			// Sample often enough to catch a buffer growing, rarely enough that
-			// the forced GC does not dominate the run.
-			if n++; n%512 == 0 {
-				if h := liveHeap(); h > base && h-base > peak {
-					peak = h - base
-				}
-			}
-		}
+		})
 	}()
 	require.NoError(t, w.Write(ctx, ch))
 	require.NoError(t, w.Close())
@@ -143,8 +146,8 @@ func convertStreaming(t *testing.T, reg *registry.FormatRegistry, path string) (
 //
 // Two sheets of the same size carry it differently: one as 160k small cells,
 // the other as 16k cells around ten times as long. Holding the byte size
-// constant takes the reader's per-part read buffer out of the comparison — that
-// buffer is still O(document) and is a separate problem — leaving the block
+// constant takes the reader's per-part read buffer out of the comparison. That
+// buffer is O(document) and is a separate problem. What remains is the block
 // graph as the only thing that differs between the runs. A writer or runner
 // that collects the Part stream retains ten times as much for the first sheet
 // as for the second; a streaming pair retains neither.
@@ -168,8 +171,8 @@ func TestSpreadsheetConversionDoesNotRetainBlocks(t *testing.T) {
 		"the two sheets must be comparable in size (%d vs %d bytes)", manyBytes, fewBytes)
 	t.Logf("sheet XML: 160k cells = %d KiB, 16k cells = %d KiB", manyBytes/1024, fewBytes/1024)
 
-	many := convertStreaming(t, reg, manyPath)
-	few := convertStreaming(t, reg, fewPath)
+	many := convertStreaming(t, reg, manyPath, 20_000*8)
+	few := convertStreaming(t, reg, fewPath, 2_000*8)
 	t.Logf("peak: 160k cells = %d KiB, 16k cells = %d KiB", many/1024, few/1024)
 
 	// A tenfold difference in block count must not be a tenfold difference in
@@ -182,7 +185,7 @@ func TestSpreadsheetConversionDoesNotRetainBlocks(t *testing.T) {
 		many/1024, few/1024)
 }
 
-// The streamed table must render the same bytes the buffered path did — the
+// The streamed table must render the same bytes as the buffered path. The
 // grid is the same grid however the writer got to it.
 func TestStreamedGridRendersEveryRow(t *testing.T) {
 	dir := t.TempDir()

@@ -43,6 +43,20 @@ neokapi-plugin-*
 test-results/
 playwright-report/
 
+# Per-checkout state and build output. Two worktrees at one commit differ only
+# here, and a file that differs between them changes the `COPY . .` layer, so
+# every later step of an image build would run again.
+.kapi/
+**/.kapi/
+.kapi-iso/
+.extract-warnings/
+test-results*.json
+junit-*.xml
+**/*.test
+# The images compile these from the committed translated JSON.
+core/i18n/catalogs/*.mo
+host/i18n/catalogs/*.mo
+
 # Serena / Claude
 .serena/
 .claude/

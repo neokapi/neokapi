@@ -15,8 +15,7 @@
  * other does not.
  */
 
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { parseSync } from "@swc/core";
@@ -29,6 +28,7 @@ import { extractDocument } from "../src/extract/index.ts";
 import { hashKey } from "../src/plugin/hash.ts";
 import { transform } from "../src/plugin/transform.ts";
 import { CONTEXT_SEPARATOR, type PluginOptions } from "../src/types.ts";
+import { tempDir } from "./temp-dir";
 
 function extract(code: string): Document | null {
   return extractDocument(code, { filename: "Test.tsx" });
@@ -56,7 +56,7 @@ function expectParses(code: string): void {
 }
 
 function dictDir(locale: string, entries: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), "kapi-branch-"));
+  const dir = tempDir("kapi-branch");
   writeFileSync(join(dir, `${locale}.json`), JSON.stringify(entries));
   return dir;
 }

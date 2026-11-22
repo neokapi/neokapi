@@ -774,6 +774,16 @@ FIXTURES = [
         "expect": ["mobile-maestro-flows"],
     },
     {
+        "name": "a test finds its source file through runtime.Caller",
+        "files": {"core/profile/repopacks_test.go": ["\t_, file, _, ok := runtime.Caller(0)"]},
+        "expect": ["source-path-under-trimpath"],
+    },
+    {
+        "name": "a test makes a temporary directory",
+        "files": {"core/formats/foo/foo_test.go": ['\tdir, err := os.MkdirTemp("", "foo-")']},
+        "expect": ["temporary-file-owner"],
+    },
+    {
         "name": "a test that can only skip",
         "files": {"scripts/authoringeval/fixtures_test.go": ['\t\tt.Skip("no kapi binary")']},
         "expect": ["test-that-only-skips"],
@@ -840,6 +850,16 @@ FIXTURES = [
         "name": "release workflow edited",
         "files": {".github/workflows/release-sat.yml": ["        uses: dtolnay/rust-toolchain@stable"]},
         "expect": ["release-path-dry-run", "toolchain-pinned"],
+    },
+    {
+        "name": "plugin manifest field the host requires",
+        "files": {"core/plugin/manifest/manifest.go": ['Flags []FlagSpec `json:"flags"`']},
+        "expect": ["plugin-contract-both-directions"],
+    },
+    {
+        "name": "a plugin's manifest file",
+        "files": {"bowrain/plugin/cmd/kapi-bowrain/manifest.json": ['"flags": []']},
+        "expect": ["plugin-contract-both-directions"],
     },
     {
         "name": "Go toolchain bump",

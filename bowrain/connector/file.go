@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -13,10 +14,12 @@ import (
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // FileConnector reads and writes localization content from the filesystem
@@ -65,7 +68,7 @@ func (c *FileConnector) Category() venueconn.Category { return venueconn.Categor
 // decide which file gets written. A name carrying ".." would otherwise resolve
 // to a real location outside the checkout the connector was pointed at, and
 // MkdirAll would create the directories to reach it. Containment is checked
-// after the join, so the answer accounts for what Join actually produced —
+// after the join, so the answer accounts for what Join actually produced,
 // the same idiom serveSPAFile uses.
 func (c *FileConnector) resolve(rel string) (string, error) {
 	if rel == "" {
@@ -133,6 +136,12 @@ func (c *FileConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) (
 }
 
 func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.ContentItem, error) {
+	// Only a regular file that resolves inside the root is read: a symbolic
+	// link that leads out of it, a device or a FIFO is refused before the
+	// format is detected from its content.
+	if _, err := rootpath.CheckRegular(c.basePath, path); err != nil {
+		return nil, err
+	}
 	formatID, err := c.formatRegistry.Detect(path, registry.DetectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("detect format for %s: %w", path, err)
@@ -149,9 +158,14 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 	// ids that read gives.
 	coreproj.WireReadSkeleton(c.formatRegistry, formatName, reader)
 
-	f, err := os.Open(path)
+	f, err := rootpath.OpenRegular(c.basePath, path)
 	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", path, err)
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, err
 	}
 
 	doc := &model.RawDocument{
@@ -177,11 +191,7 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 	}
 
 	relPath, _ := filepath.Rel(c.basePath, path)
-	info, _ := os.Stat(path)
-	var lastChanged time.Time
-	if info != nil {
-		lastChanged = info.ModTime()
-	}
+	lastChanged := info.ModTime()
 
 	// No absolute path in the metadata: a content item travels out through the
 	// connector-content API, which is gated by workspace membership alone, and
@@ -219,19 +229,34 @@ func (c *FileConnector) publishFile(ctx context.Context, item *platconn.ContentI
 	if err != nil {
 		return fmt.Errorf("create writer for %s: %w", item.Format, err)
 	}
-	defer writer.Close()
 
 	// Delivering to a new locale directory (values-fr/, locales/fr/, …) must not
-	// fail because the directory does not exist yet — the local merge path
-	// (host/merge.go) creates it too.
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create output dir for %s: %w", path, err)
+	// fail because the directory does not exist yet: the staging creates it
+	// on commit, as the local merge path (host/merge.go) does. Every operation
+	// goes through an os.Root opened on the connector root
+	// (atomicfile.StageWithin), so a target, or a directory on the way to it,
+	// that a symbolic link leads outside the root is refused. The file is
+	// replaced by a rename, never cut in place, so a target that is a hard
+	// link to a file elsewhere leaves that file alone.
+	staged, err := atomicfile.StageWithin(c.basePath, path, func(out io.Writer) error {
+		if err := writer.SetOutputWriter(out); err != nil {
+			return fmt.Errorf("set output %s: %w", item.Path, err)
+		}
+		werr := c.writeItem(ctx, writer, item)
+		return errors.Join(werr, writer.Close())
+	})
+	if err != nil {
+		return fmt.Errorf("write %s: %w", item.Path, err)
 	}
-
-	if err := writer.SetOutput(path); err != nil {
-		return fmt.Errorf("set output %s: %w", path, err)
+	if err := staged.Commit(); err != nil {
+		return fmt.Errorf("write %s: %w", item.Path, err)
 	}
+	return nil
+}
 
+// writeItem drives writer over the item's blocks, spliced onto the source's
+// skeleton when the format keeps one.
+func (c *FileConnector) writeItem(ctx context.Context, writer format.DataFormatWriter, item *platconn.ContentItem) error {
 	// Re-read the source document to capture the skeleton required by formats
 	// such as Android XML, HTML and XML. Stored blocks alone cannot preserve
 	// comments, attribute order or non-translatable structure. Reviewed targets
@@ -266,15 +291,15 @@ func writeBlockParts(ctx context.Context, writer format.DataFormatWriter, blocks
 }
 
 // reparseSourceSkeleton re-reads the delivery item's co-located source document
-// and returns the source blocks — with the item's reviewed targets spliced onto
-// them by block id — plus the source-captured skeleton store, ready to hand to a
+// and returns the source blocks, with the item's reviewed targets spliced onto
+// them by block id, plus the source-captured skeleton store, ready to hand to a
 // skeleton-consuming writer. Every source block is returned (not just the
 // reviewed subset), so an untranslated entry delivers its original source text
 // rather than an empty element, matching the local merge.
 //
 // It returns ok=false (caller falls back to the from-blocks path) when there is
 // no co-located source, the format's reader emits no skeleton, or the source
-// cannot be read — so a missing source never fails a delivery, it just degrades
+// cannot be read, so a missing source never fails a delivery, it just degrades
 // to the previous behaviour.
 func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platconn.ContentItem) ([]*model.Block, *format.SkeletonStore, bool) {
 	sourcePath := c.resolveSourcePath(item)
@@ -292,7 +317,7 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 		return nil, nil, false
 	}
 
-	f, err := os.Open(sourcePath)
+	f, err := rootpath.OpenRegular(c.basePath, sourcePath)
 	if err != nil {
 		return nil, nil, false
 	}
@@ -326,7 +351,7 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 	}
 	// A reader that registered as an emitter but wrote no skeleton (a stub, or a
 	// document with no reconstructable frame) offers nothing over the from-blocks
-	// path — fall back rather than emit an empty document.
+	// path, fall back rather than emit an empty document.
 	if store.EntriesWritten() == 0 {
 		return nil, nil, false
 	}
@@ -352,7 +377,7 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 	// source-reader ids are absent or have drifted), fall back to the from-blocks
 	// path: a faithful frame full of untranslated source text is a worse delivery
 	// than the translated-but-lossy output. A genuinely untranslated locale
-	// (reviewed empty) still delivers the faithful frame with source text — correct.
+	// (reviewed empty) still delivers the faithful frame with source text, correct.
 	if len(reviewed) > 0 && matched == 0 {
 		store.Close()
 		return nil, nil, false
@@ -375,15 +400,13 @@ func (c *FileConnector) resolveSourcePath(item *platconn.ContentItem) string {
 		return ""
 	}
 	abs, err := c.resolve(candidate)
-	if err != nil || !isRegularFile(abs) {
+	if err != nil {
+		return ""
+	}
+	if _, err := rootpath.CheckRegular(c.basePath, abs); err != nil {
 		return ""
 	}
 	return abs
-}
-
-func isRegularFile(path string) bool {
-	fi, err := os.Stat(path)
-	return err == nil && fi.Mode().IsRegular()
 }
 
 // deliveredRuns returns the reviewed target runs a delivery block carries for the
@@ -398,12 +421,17 @@ func deliveredRuns(b *model.Block, locale model.LocaleID) []model.Run {
 }
 
 // List scans the base directory for files whose extensions match known formats.
+// It lists regular files only: Walk reports a symbolic link as the link, not
+// as what it points at, and a link, a device or a FIFO is skipped.
 func (c *FileConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
 	var items []*platconn.ContentItem
 
 	err := filepath.Walk(c.basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
+		}
+		if !info.Mode().IsRegular() {
+			return nil
 		}
 		formatID, detectErr := c.formatRegistry.Detect(path, registry.DetectOptions{})
 		if detectErr != nil {

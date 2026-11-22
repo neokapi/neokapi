@@ -5,6 +5,8 @@
 export {
     AIModelOrigin,
     AIModelResolution,
+    AISetupKind,
+    AISetupNeed,
     AgentHost,
     AgentWiringAction,
     AgentWiringFile,
@@ -66,6 +68,7 @@ export {
     RulesFileAction,
     RulesFilesResult,
     UpPlanOutput,
+    UpPlanProviderGroup,
     UpPlanScope
 } from "./models.js";
 

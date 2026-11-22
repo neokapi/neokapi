@@ -29,6 +29,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   converge:
     # The single gate. No secret is referenced and no content moves unless the
@@ -43,10 +47,27 @@ jobs:
       contents: write
       pull-requests: write
     env:
+      HAS_BOT_APP: ${{ secrets.BOT_APP_PRIVATE_KEY != '' }}
       # The context remote reads the CI token only beside the server it names.
       BOWRAIN_SERVER_URL: https://app.bowrain.cloud
     steps:
+      # A push or pull request made with the bot App's token starts the
+      # pull request's workflows; one made with GITHUB_TOKEN starts none, or
+      # waits for a person to approve them. Without the App, GITHUB_TOKEN.
+      # See docs/internals/bot-pushes.md.
+      - name: Mint the bot App token
+        id: bot
+        if: env.HAS_BOT_APP == 'true'
+        uses: actions/create-github-app-token@v3.3.0
+        with:
+          client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       # This is the ONE in-repo kapi invocation that binds the root recipe (the
       # isolation contract in CLAUDE.md), so nothing here sets KAPI_NO_PROJECT.
@@ -200,7 +221,7 @@ jobs:
       - name: Open a pull request with what the loop brought home
         if: ${{ !inputs.plan }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
           RECORD_NOTE: ${{ steps.record.outputs.note }}
           DERIVED: ${{ steps.gate.outputs.derived }}
           WITHHELD: ${{ steps.gate.outputs.withheld }}

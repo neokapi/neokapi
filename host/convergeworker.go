@@ -18,18 +18,18 @@ import (
 const convergeJobsDefault = 4
 
 // convergeWorker builds the per-locale worker App a convergence pass fans out
-// on. Workers share everything immutable-during-a-run with the parent —
-// registries, config, credentials, the project context/bindings, the document
-// cache (SQLite, WAL), the plugin runtime — and own only the per-run mutable
-// state that made App single-locale: TargetLang, the projectFlowTools slot
-// (each worker builds its own tool instances, so no LLM provider or content-memory handle
-// is shared mid-flight), and the progress tap.
+// on. A worker shares with the parent what does not change during a run:
+// registries, config, credentials, the project context and bindings, the
+// document cache (SQLite, WAL) and the plugin runtime. It owns the per-run
+// state that is per locale: TargetLang, the projectFlowTools slot (each worker
+// builds its own tool instances, so no provider or content-memory handle is
+// shared mid-flight) and the progress tap.
 //
 // This is an explicit field-by-field copy, NOT a struct copy: App carries a
 // sync.Once (pluginRuntimeOnce), and the plugin runtime must be pre-seeded
 // from the parent so workers never race to build daemon pools of their own.
 // When App grows a new field, decide whether workers share or own it and say
-// so in convergeWorkerFields — TestConvergeWorker_CoversEveryAppField fails
+// so in convergeWorkerFields, TestConvergeWorker_CoversEveryAppField fails
 // until you do, so a new field can't silently go missing from every worker.
 func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 	return &App{
@@ -66,6 +66,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
 		convergeDraftDir:    a.convergeDraftDir,
+		writeTally:          a.writeTally,
 		convergeDraftRoot:   a.convergeDraftRoot,
 		convergeDeliveries:  a.convergeDeliveries,
 		printOps:            a.printOps,
@@ -77,7 +78,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		actingActor:         a.actingActor,
 		convergeProgressTap: tap,
 
-		// Pre-seed the parent's runtime (building it on the parent if needed —
+		// Pre-seed the parent's runtime (building it on the parent if needed,
 		// concurrent callers serialize on the parent's Once). The worker's own
 		// fresh Once sees the seed and never builds a second runtime.
 		pluginRuntime: a.ensurePluginRuntime(),
@@ -90,7 +91,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		governance: a.ensureGovernance(),
 		// The freshness watch is one process's reading history, and a fan-out
 		// is one reader. Sharing it means a convergence that spans a governance
-		// move reports it once, to whichever worker read across it — rather
+		// move reports it once, to whichever worker read across it, rather
 		// than once per locale, or not at all because each worker's first read
 		// established a baseline of its own.
 		freshness: a.freshnessWatch(),
@@ -103,18 +104,17 @@ type workerFieldPolicy int
 const (
 	// fieldShared: the worker reads the parent's value (immutable during a run).
 	fieldShared workerFieldPolicy = iota
-	// fieldOwned: the worker gets its own value — the per-run mutable state that
+	// fieldOwned: the worker gets its own value, the per-run mutable state that
 	// made App single-locale, plus the fresh sync.Once.
 	fieldOwned
 )
 
-// convergeWorkerFields classifies every App field for the worker clone. It
-// exists so the clone can be checked for completeness: App is copied
-// field-by-field (it holds a sync.Once, so a struct copy is out), and a field
-// added to App but forgotten here would silently read as its zero value inside
-// every converge worker — a project context or credential store that is simply
-// absent once a run fans out. TestConvergeWorker_CoversEveryAppField reconciles
-// this map against App's actual fields and against what the clone produces.
+// convergeWorkerFields classifies every App field for the worker clone, so the
+// clone can be checked for completeness. App is copied field by field (it
+// holds a sync.Once, so a struct copy is out). A field added to App and
+// missing here would read as its zero value in every converge worker.
+// TestConvergeWorker_CoversEveryAppField reconciles this map against App's
+// fields and against what the clone produces.
 var convergeWorkerFields = map[string]workerFieldPolicy{
 	"FormatReg":         fieldShared,
 	"ToolReg":           fieldShared,
@@ -138,7 +138,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"AISetupIOOverride": fieldShared,
 	"AISetupPrompter":   fieldShared, // presentation, and a worker never prompts
 	// Terminal detection for App's own prompts. A worker never prompts (the
-	// parent owns the terminal), so this is inert in a worker — carried rather
+	// parent owns the terminal), so this is inert in a worker, carried rather
 	// than reset so the clone stays a faithful copy, like MCPSurface below.
 	"isTTY":            fieldShared,
 	"actingActor":      fieldShared,
@@ -151,7 +151,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"execTrustGranted": fieldShared,
 	// The MCP tool surface is set from `kapi mcp` flags and read only while that
 	// server is running. A converge worker never serves MCP, so sharing the
-	// parent's value is correct and inert — it is carried rather than reset so
+	// parent's value is correct and inert, it is carried rather than reset so
 	// the clone stays a faithful copy.
 	"MCPSurface":         fieldShared,
 	"mcpRecipePath":      fieldShared, // immutable identity of the server's bound project
@@ -163,6 +163,8 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// would be a per-locale answer to a question the run asks once.
 	"convergeDraftDir":  fieldShared,
 	"convergeDraftRoot": fieldShared,
+	// One tally for the whole run: every locale's writes are the run's.
+	"writeTally": fieldShared,
 	// The drafts' deliveries, like the tree, are the run's: finishConverge
 	// delivers what every locale's worker drafted.
 	"convergeDeliveries": fieldShared,
@@ -202,8 +204,8 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 
 // convergeTap is the trailing read-only step a converge worker appends to its
 // flow (runProjectStepsOver): it observes every block leaving the pipeline and
-// counts the units that carry a committed target for the worker's locale —
-// split by Origin.Kind into content memory-recycled and AI/MT-produced — feeding the
+// counts the units that carry a committed target for the worker's locale,
+// split by Origin.Kind into content memory-recycled and AI/MT-produced, feeding the
 // unit_progress events of the convergence run. Counters are atomic because
 // ParallelBlockTool may drive Annotate from several goroutines.
 type convergeTap struct {

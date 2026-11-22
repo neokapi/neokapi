@@ -44,7 +44,7 @@ func TestResolveProjectPath_ExplicitFlagWins(t *testing.T) {
 	unsetEnv(t, projectEnvVar)
 	dir := t.TempDir()
 	recipe := writeProject(t, dir, "flag")
-	t.Chdir(t.TempDir()) // cwd has nothing — flag must be used
+	t.Chdir(t.TempDir()) // cwd has nothing, so the flag must be used
 
 	cmd := newTestCmd()
 	require.NoError(t, cmd.Flags().Set(projectFlagName, recipe))
@@ -58,7 +58,7 @@ func TestResolveProjectPath_ExplicitFlagWins(t *testing.T) {
 // to the absolute recipe path. Callers take filepath.Dir of this value as the
 // project root and relativize against it before writing the committed record;
 // a root of "." relativizes nothing, which put an absolute machine path into
-// `.kapi/state/` — a file that exists to travel in git.
+// `.kapi/state/`, a file that exists to travel in git.
 func TestResolveProjectPath_ExplicitPathIsAbsolute(t *testing.T) {
 	unsetEnv(t, projectEnvVar)
 	dir := t.TempDir()
@@ -90,10 +90,10 @@ func TestResolveProjectPath_ExplicitDirectoryResolvesRecipe(t *testing.T) {
 	assertSamePath(t, recipe, got)
 }
 
-// TestResolveProjectPath_MissingExplicitPathIsPassedThrough proves an
-// unresolvable -p is returned unchanged, so the load that follows reports the
-// missing recipe once rather than this resolution reporting it first.
-func TestResolveProjectPath_MissingExplicitPathIsPassedThrough(t *testing.T) {
+// TestResolveProjectPath_MissingExplicitPathIsNamed proves a -p that holds no
+// recipe fails the resolution with an error naming the path as given, before
+// any command acts on it.
+func TestResolveProjectPath_MissingExplicitPathIsNamed(t *testing.T) {
 	unsetEnv(t, projectEnvVar)
 	t.Chdir(t.TempDir())
 
@@ -101,6 +101,24 @@ func TestResolveProjectPath_MissingExplicitPathIsPassedThrough(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set(projectFlagName, "no/such/kapi.yaml"))
 
 	got, err := ResolveProjectPath(cmd)
+	assert.Empty(t, got)
+	var notProject *project.NotAProjectError
+	require.ErrorAs(t, err, &notProject)
+	assert.Equal(t, "no/such/kapi.yaml", notProject.Given)
+	assert.Contains(t, err.Error(), "-p no/such/kapi.yaml does not exist")
+}
+
+// TestResolveNewProjectPath_MissingExplicitPathIsPassedThrough proves the
+// resolution for a command that writes a new recipe returns a -p unchanged,
+// so the command can write the recipe there or say why it cannot.
+func TestResolveNewProjectPath_MissingExplicitPathIsPassedThrough(t *testing.T) {
+	unsetEnv(t, projectEnvVar)
+	t.Chdir(t.TempDir())
+
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set(projectFlagName, "no/such/kapi.yaml"))
+
+	got, err := ResolveNewProjectPath(cmd)
 	require.NoError(t, err)
 	assert.Equal(t, "no/such/kapi.yaml", got)
 }
@@ -194,7 +212,7 @@ func TestRequireProjectPath_ErrorWhenMissing(t *testing.T) {
 
 // TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery verifies that
 // KAPI_NO_PROJECT suppresses the git-style upward walk even when a recipe is
-// present in the cwd — the guard tests, scripts, and scene recorders rely on
+// present in the cwd, the guard tests, scripts, and scene recorders rely on
 // so an in-repo invocation never binds to a checked-in (e.g. dogfood) recipe.
 func TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery(t *testing.T) {
 	unsetEnv(t, projectEnvVar)
@@ -211,7 +229,7 @@ func TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery(t *testing.T) {
 }
 
 // TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback verifies KAPI_NO_PROJECT
-// also wins over the KAPI_PROJECT env fallback (an explicit -p flag still wins —
+// also wins over the KAPI_PROJECT env fallback (an explicit -p flag still wins,
 // see TestResolveProjectPath_ExplicitFlagBeatsNoProject).
 func TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback(t *testing.T) {
 	t.Setenv(projectEnvVar, "/some/where/kapi.yaml")
@@ -223,7 +241,7 @@ func TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback(t *testing.T) {
 }
 
 // TestResolveProjectPath_ExplicitFlagBeatsNoProject verifies an explicit -p
-// flag overrides KAPI_NO_PROJECT — opting out of discovery never blocks a
+// flag overrides KAPI_NO_PROJECT, opting out of discovery never blocks a
 // caller that names the recipe directly.
 func TestResolveProjectPath_ExplicitFlagBeatsNoProject(t *testing.T) {
 	t.Setenv(noProjectEnvVar, "1")

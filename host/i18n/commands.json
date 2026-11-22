@@ -3189,13 +3189,13 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale"
+                "usage": "source locale; without it each unit is read in the store's source language when it holds it, else in the language it declares, and skipped otherwise"
               },
               "target-locale": {
                 "usage": "target locale"
               }
             },
-            "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU. Multilingual TMX files need this (e.g. EUR-Lex Euramis exports, where\na single TU may carry every official EU language). Combine with --locales to\nrestrict the pair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+            "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nEach unit is imported as a source and a target. Its source language is\n--source-locale when given; otherwise the store's source language when the\nunit holds it, else the language the unit or the file declares (srclang) when\nthe unit holds that. A unit with none of these, with no translation, or whose\nsource would equal the target is skipped, and the summary counts each reason.\nAn import that keeps no unit fails. Region tags are never folded: an en-US\nunit is stored as en-US, and a lookup in en-GB does not match it.\n\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU. Multilingual TMX files need this (e.g. EUR-Lex Euramis exports, where\na single TU may carry every official EU language). Combine with --locales to\nrestrict the pair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
             "short": "Import a TMX file or a native .memory.json bundle into content memory"
           },
           "import-dir": {
@@ -3222,13 +3222,13 @@
                 "usage": "recurse into subdirectories"
               },
               "source-locale": {
-                "usage": "source locale"
+                "usage": "source locale; without it each unit is read in the store's source language when it holds it, else in the language it declares, and skipped otherwise"
               },
               "target-locale": {
                 "usage": "target locale"
               }
             },
-            "long": "Walk a directory and import every matching TMX file into the content memory.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi memory import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi memory import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr,de",
+            "long": "Walk a directory and import every matching TMX file into the content memory.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nEach unit is imported as a source and a target. Its source language is\n--source-locale when given; otherwise the store's source language when the\nunit holds it, else the language the unit or the file declares (srclang) when\nthe unit holds that. A unit with none of these, with no translation, or whose\nsource would equal the target is skipped, and the summary counts each reason.\nAn import that keeps no unit fails. Region tags are never folded: an en-US\nunit is stored as en-US, and a lookup in en-GB does not match it. A file\nthat imports nothing fails the command; the others are kept.\n\nUse --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi memory import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi memory import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr,de",
             "short": "Import all TMX files from a directory into content memory"
           },
           "list": {
@@ -3257,7 +3257,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale"
+                "usage": "source locale (default: the project's source_language in the project's own store, else en)"
               },
               "target-locale": {
                 "usage": "target locale"
@@ -3672,13 +3672,10 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
-            },
-            "stats": {
-              "usage": "include part/block counts in output"
             },
             "strict": {
               "usage": "alias for --fail-on-unknown"
@@ -3899,13 +3896,10 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
-            },
-            "stats": {
-              "usage": "include part/block counts in output"
             },
             "strict": {
               "usage": "alias for --fail-on-unknown"
@@ -4155,7 +4149,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale for CSV export"
+                "usage": "source locale for CSV and TBX export (default: the project's source_language in the project's own store, else en)"
               },
               "target-locale": {
                 "usage": "target locale for CSV export"
@@ -4197,7 +4191,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale for CSV import"
+                "usage": "source locale of a CSV import (default: the project's source_language in the project's own store, else en); a TBX import keeps every concept in every language"
               },
               "target-locale": {
                 "usage": "target locale for CSV import"
@@ -4231,7 +4225,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale"
+                "usage": "source locale (default: the project's source_language in the project's own store, else en)"
               },
               "target-locale": {
                 "usage": "target locale to show translations"
@@ -4364,7 +4358,7 @@
           "short": "List available processing tools"
         },
         "translate": {
-          "example": "  kapi translate messages.json --target-lang fr\n  kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}\n  kapi translate app.xliff --target-lang ja --provider ollama",
+          "example": "  kapi translate messages.json --target-lang fr\n  kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}\n  kapi translate app.xliff --target-lang ja --provider ollama\n  kapi translate messages.json --target-lang fr --provider demo",
           "flags": {
             "api-key": {
               "usage": "API key for the AI provider"
@@ -4427,13 +4421,10 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
-            },
-            "stats": {
-              "usage": "include part/block counts in output"
             },
             "strict": {
               "usage": "alias for --fail-on-unknown"
@@ -4534,23 +4525,11 @@
             "encoding": {
               "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
-            "engine": {
-              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
-            },
-            "explain": {
-              "usage": "print the resolved source → sink bindings and exit without running"
-            },
             "fail-on-incomplete-watch": {
               "usage": "server venue: fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed"
             },
             "fail-on-unknown": {
               "usage": "exit with error if any file cannot be processed (default: skip with a warning)"
-            },
-            "format": {
-              "usage": "override input format detection"
-            },
-            "input": {
-              "usage": "input file path(s); repeat for multiple files"
             },
             "instruction": {
               "usage": "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")"
@@ -4579,15 +4558,6 @@
             "no-extract": {
               "usage": "skip the pre-pass source-drift check and block-store re-extraction"
             },
-            "output": {
-              "usage": "output path or template (e.g. ./out/{name}_{lang}.{ext})"
-            },
-            "pack": {
-              "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
-            },
-            "parallel-blocks": {
-              "usage": "fan out block processing across N goroutines (0 = off)"
-            },
             "passes": {
               "usage": "maximum reconciliation passes (0 = loop until up to date or waiting for review, capped at 5; 1 = single pass)"
             },
@@ -4604,7 +4574,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "recycle-only": {
               "usage": "fill only the targets the content memory answers exactly, in one pass, with no provider calls"
@@ -4612,17 +4582,8 @@
             "server": {
               "usage": "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable"
             },
-            "source-lang": {
-              "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
-            },
-            "stats": {
-              "usage": "include part/block counts in output"
-            },
             "strict": {
               "usage": "alias for --fail-on-unknown"
-            },
-            "target-lang": {
-              "usage": "target language (e.g. fr, de-DE); one per run"
             },
             "termstore": {
               "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)"
@@ -5065,6 +5026,7 @@
           "localePair": "LOCALE PAIR",
           "locales": "LOCALES",
           "matchType": "MATCH TYPE",
+          "origin": "ORIGIN",
           "score": "SCORE",
           "source": "SOURCE",
           "target": "TARGET"
@@ -5090,11 +5052,18 @@
   },
   "desktop": {
     "menu": {
+      "cancel": "Cancel",
+      "cancelFlowAndClose": "Cancel Flow \u0026 Close",
       "checkForUpdates": "Check for Updates…",
+      "closeWithoutSaving": "Close Without Saving",
       "file": "File",
+      "holdNoAnswer": "These projects keep the window open, and the window did not answer:",
+      "holdTitle": "Projects Still Open",
       "newProject": "New Project",
       "noWorkspaceProjects": "No Projects Yet",
       "open": "Open...",
+      "reasonRunning": "flow running",
+      "reasonUnsaved": "unsaved changes",
       "save": "Save",
       "saveAs": "Save As...",
       "workspaceProjects": "Projects in Your Workspace"

@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -260,4 +261,18 @@ func TestBackoff_Increases(t *testing.T) {
 		assert.GreaterOrEqual(t, got, base)
 		assert.Less(t, got, base+base/2)
 	}
+}
+
+// The clients keep Go's default transport behaviour: the proxy variables, and
+// TLS 1.2 at least.
+func TestClientsUseTheProxyEnvironment(t *testing.T) {
+	base, ok := defaultTransport().(*http.Transport)
+	require.True(t, ok)
+	require.NotNil(t, base.Proxy, "the transport ignores HTTP_PROXY, HTTPS_PROXY and NO_PROXY")
+	assert.Equal(t, uint16(tls.VersionTLS12), base.TLSClientConfig.MinVersion)
+	assert.True(t, base.ForceAttemptHTTP2)
+
+	resilient, ok := NewResilientClient().Transport.(*retryTransport)
+	require.True(t, ok)
+	assert.NotNil(t, resilient.base.(*http.Transport).Proxy)
 }

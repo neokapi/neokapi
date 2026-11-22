@@ -9,7 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/convergence"
 )
 
-// convergeRenderer renders a convergence.Event stream for the terminal — the
+// convergeRenderer renders a convergence.Event stream for the terminal, the
 // live face of `kapi up`. On a TTY it maintains an in-place region: one line
 // per locale in the current pass (progress bar, unit counts, content memory/AI split)
 // under a pass header, repainted as events arrive. On a plain stream (CI logs,
@@ -46,7 +46,7 @@ func NewConvergeRenderer(w io.Writer, tty bool) *convergeRenderer {
 }
 
 // NewConvergeEventRenderer exposes the `kapi up` progress renderer as an event
-// sink for embedders whose events arrive from elsewhere — the kapi-bowrain
+// sink for embedders whose events arrive from elsewhere, the kapi-bowrain
 // plugin's remote venue feeds the server run's SSE stream through it, so a
 // remote run and a local run are indistinguishable in the terminal.
 func NewConvergeEventRenderer(w io.Writer, tty bool) func(convergence.Event) {
@@ -120,9 +120,17 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 		if len(ev.Pending) > 0 {
 			next = " · still pending: " + strings.Join(ev.Pending, ", ")
 		}
-		fmt.Fprintf(r.w, "pass %d done · produced %d (%+d)%s%s\n", ev.Pass, ev.Produced, ev.ProducedDelta, checks, next)
+		waiting := ""
+		if ev.WaitingForReview > 0 {
+			waiting = fmt.Sprintf(" · waiting for review %d", ev.WaitingForReview)
+		}
+		fmt.Fprintf(r.w, "pass %d done · %s%s%s%s\n", ev.Pass, passWork(ev), waiting, checks, next)
 	case convergence.EventMaterialized:
-		fmt.Fprintf(r.w, "materialized %d target file(s)\n", ev.Files)
+		produced := ""
+		if ev.ProducedDelta > 0 {
+			produced = fmt.Sprintf(" · produced %d", ev.ProducedDelta)
+		}
+		fmt.Fprintf(r.w, "materialized %d target file(s)%s\n", ev.Files, produced)
 	case convergence.EventDone:
 		// The structured summary that follows on stdout carries the outcome;
 		// the progress stream needs no separate closing line.
@@ -233,4 +241,26 @@ func bar(done, units int) string {
 		filled = min(done*width/units, width)
 	}
 	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+}
+
+// passWork is what a pass did, in the terms the run summary adds up. A pass
+// that wrote target files reports them as produced. A pass that wrote none
+// while its locales produced units (gated delivery keeps them in the run's
+// draft tree until the delivery writes them) reports where those units came
+// from instead, so it never reads as "produced 0" for work done.
+func passWork(ev convergence.Event) string {
+	if delta := max(ev.ProducedDelta, 0); delta > 0 || ev.ViaMemory+ev.ViaAI+ev.ViaDraft == 0 {
+		return fmt.Sprintf("produced %d", delta)
+	}
+	var parts []string
+	if ev.ViaAI > 0 {
+		parts = append(parts, fmt.Sprintf("drafted %d", ev.ViaAI))
+	}
+	if ev.ViaMemory > 0 {
+		parts = append(parts, fmt.Sprintf("recycled %d", ev.ViaMemory))
+	}
+	if ev.ViaDraft > 0 {
+		parts = append(parts, fmt.Sprintf("from stored drafts %d", ev.ViaDraft))
+	}
+	return strings.Join(parts, " · ")
 }

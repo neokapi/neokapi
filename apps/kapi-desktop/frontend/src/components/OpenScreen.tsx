@@ -167,7 +167,7 @@ export function firstScreen({
   restoring: boolean;
   view: string;
 }): FirstScreen {
-  if (tabCount > 0 || view === "app-settings") return "app";
+  if (tabCount > 0 || view.split(":")[0] === "app-settings") return "app";
   if (restoring || (!workspace && !workspaceError)) return "blank";
   if (workspace && workspace.projects.length >= 2) return "app";
   return "open";

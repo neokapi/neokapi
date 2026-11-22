@@ -13,7 +13,7 @@
 //	                        it to one contract row.
 //
 //	-native-gotest <path>   Output of `go test -json ./core/formats/<f>/...`
-//	                        (a JSONL stream). Optional — when omitted, the
+//	                        (a JSONL stream). Optional. When omitted, the
 //	                        native column is left empty (every Okapi method
 //	                        shows as `unmapped`).
 //
@@ -41,19 +41,19 @@
 //
 // or, for tests that are deliberately not applicable in neokapi:
 //
-//	// okapi-skip: HtmlSnippetsTest#testFoo — config subsystem differs
-//	// (free-text reason after an em-dash)
+//	// okapi-skip: HtmlSnippetsTest#testFoo (config subsystem differs)
+//	// (free-text reason after a dash, a U+2014 dash or a parenthesis)
 //
 // The generator joins these annotations with the per-test status from
 // `go test -json` and the per-method status from Surefire to produce a
 // 4-state model per Okapi method:
 //
-//   - implemented — annotation present, Go test passes.
-//   - pending     — annotation present, Go test is t.Skip()'d
+//   - implemented: annotation present, Go test passes.
+//   - pending:     annotation present, Go test is t.Skip()'d
 //     (or Java method is `@Ignore`d).
-//   - skipped     — `// okapi-skip:` declares the test not-applicable
+//   - skipped:     `// okapi-skip:` declares the test not-applicable
 //     to neokapi by design; reason carried verbatim.
-//   - unmapped    — Java method exists, no Go counterpart found.
+//   - unmapped:    Java method exists, no Go counterpart found.
 //
 // The dashboard renders this directly: every Okapi @Test method is one
 // row, the state drives the colour, and the skip reason surfaces as a
@@ -150,7 +150,7 @@ type filterComparison struct {
 	// classes route to this native format (e.g. csv ← ["table"]). Shown
 	// as a secondary label so a user can navigate the Okapi side. Empty
 	// for genuinely neokapi-only formats (jsx, mo, exec, formats,
-	// memorytest, versifiedtext — no Okapi equivalent).
+	// memorytest, versifiedtext; no Okapi equivalent).
 	OkapiFilterIDs []string `json:"okapiFilterIds,omitempty"`
 	// SpecKind mirrors spec.Spec.Kind. Empty for filters with no
 	// spec.yaml; "top_level" or "subfilter" for filters that have one.
@@ -317,7 +317,7 @@ func main() {
 
 	// Failsafe (*IT integration tests). Okapi's roundtrip and xliff-compare
 	// integration tests live in the integration-tests/okapi module and run
-	// under Maven Failsafe, not Surefire — so they're absent from the
+	// under Maven Failsafe, not Surefire, so they're absent from the
 	// per-filter surefire-reports. Scan them separately and merge each IT
 	// class into its filter's contract rows (keyed by class name, not
 	// package, since the IT package is roundtrip.integration /
@@ -342,7 +342,7 @@ func main() {
 	var nativeAnnotations []annotation
 	nativeFuncIndex := map[string]funcLoc{}
 	if *nativeSrc != "" {
-		for _, dir := range strings.Split(*nativeSrc, ",") {
+		for dir := range strings.SplitSeq(*nativeSrc, ",") {
 			dir = strings.TrimSpace(dir)
 			if dir == "" {
 				continue
@@ -404,8 +404,8 @@ func main() {
 	fmt.Fprintf(os.Stderr, "contract-audit: %d filters → %s\n", len(doc.Filters), *out)
 
 	// Drift report runs only when both annotations and surefire are
-	// present — otherwise the comparison is meaningless (no annotations
-	// → no drift; no surefire → everything looks like drift).
+	// present. Otherwise the comparison is meaningless (no annotations
+	// means no drift; no surefire means everything looks like drift).
 	driftFound := false
 	if len(nativeAnnotations) > 0 && len(okapiByFilter) > 0 {
 		drift := detectAnnotationDrift(nativeAnnotations, okapiByFilter)
@@ -489,11 +489,9 @@ var nativeFilterAliases = map[string]string{
 //     `plaintext` but splits the paragraph and spliced-line variants into
 //     their own `paraplaintext` and `splicedlines` readers.
 //
-// Without this map every class in such a package buckets into one row
-// (keyed by the package name), which left native `fixedwidth`,
-// `paraplaintext`, and `splicedlines` as 0-okapi phantom rows and folded
-// their Okapi contract tests into the wrong format's row (#616). Classes
-// not listed here fall through to package-level aliasing.
+// The map gives `fixedwidth`, `paraplaintext` and `splicedlines` their own
+// Okapi contract rows (#616). Classes not listed here fall through to
+// package-level aliasing.
 var classToNativeFormat = map[string]string{
 	// net.sf.okapi.filters.table
 	"CommaSeparatedValuesFilterTest": "csv",
@@ -546,7 +544,7 @@ func resolveNativeFormat(okapiPkg, shortClass string) string {
 }
 
 // noNativeFilters lists Okapi filters that neokapi deliberately does not
-// implement as a native Go reader — proprietary/vendor containers, Okapi
+// implement as a native Go reader: proprietary/vendor containers, Okapi
 // composite meta-filters, and abstract base classes. Their behaviour is
 // covered by the okapi-bridge (the Java filter runs in-process via gRPC),
 // so every bare-unmapped @Test for these filters is classified
@@ -563,14 +561,14 @@ var noNativeFilters = map[string]string{
 	"cascadingfilter": "no native reader: Okapi cascading composite filter is bridge-only",
 	"archive":         "no native reader: generic archive (zip) container is bridge-only",
 	// abstractmarkup's tests are SimplifierRulesTest, which exercises Okapi's
-	// CodeSimplifier (an inline-code merge/reduce utility) — NOT the markup
-	// readers. neokapi has no native code simplifier (it preserves inline
+	// CodeSimplifier (an inline-code merge/reduce utility). They do not
+	// exercise the markup readers. neokapi has no native code simplifier (it preserves inline
 	// codes verbatim), so this is a genuine not-implemented, not coverage
 	// "exercised via concrete readers" (that earlier claim was false, #611).
 	"abstractmarkup": "Okapi CodeSimplifier (inline-code merge/reduce): no native code simplifier; neokapi preserves inline codes verbatim",
 	"its":            "no standalone native ITS filter: inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
 	// NOTE: dita/docbook/resx are now NATIVE (config presets on the xml
-	// reader — see core/formats/xml/presets.go), so they are intentionally
+	// reader; see core/formats/xml/presets.go), so they are intentionally
 	// NOT listed here; their IT contracts map to the preset tests.
 }
 
@@ -593,12 +591,11 @@ func noNativeCategory(filter string) string {
 // "Okapi filter" sublabel).
 //
 // Each Surefire XML maps to one Okapi @Test class. The class is routed
-// to its canonical native format via resolveNativeFormat: most Okapi
-// packages map 1:1 to a native format (possibly under an alias), but the
-// multi-filter `table` and `plaintext` packages split per class so each
+// to its canonical native format via resolveNativeFormat. Most Okapi
+// packages map 1:1 to a native format (possibly under an alias). The
+// multi-filter `table` and `plaintext` packages split per class. Each
 // native format (csv, fixedwidth, plaintext, paraplaintext, splicedlines)
-// gets exactly one row instead of leaving phantom 0-okapi duplicates
-// (#616).
+// then gets exactly one row, with no phantom 0-okapi duplicates (#616).
 func parseSurefireDir(surefireDir string) (map[string]*filterResult, map[string]map[string]bool, error) {
 	pkgRE := regexp.MustCompile(`^net\.sf\.okapi\.filters\.([^.]+)`)
 	out := map[string]*filterResult{}
@@ -741,7 +738,7 @@ func addSuiteToResult(fr *filterResult, suite testSuite) {
 // filterResult per neokapi NATIVE format, plus a side map of the Okapi
 // filter id(s) each native format aggregates. The integration tests live
 // in net.sf.okapi.{roundtrip,xliffcompare}.integration, so the package
-// prefix can't be used — itClassToFilter derives the Okapi filter id from
+// prefix can't be used. itClassToFilter derives the Okapi filter id from
 // the IT class stem, then resolveNativeFormat routes it to the canonical
 // native format (so RoundTripTableIT joins the `csv` row, not a `table`
 // one). Unmappable IT suites (memory-leak, pipeline, conversion) are
@@ -796,7 +793,7 @@ func parseFailsafeDir(dir string) (map[string]*filterResult, map[string]map[stri
 }
 
 // dropDebugTests removes the "debug"/"debug2" helper @Test methods some
-// Okapi roundtrip IT classes carry — they aren't behavioural contracts.
+// Okapi roundtrip IT classes carry. They aren't behavioural contracts.
 func dropDebugTests(suite *testSuite) {
 	kept := suite.Tests[:0]
 	suite.Total, suite.Passed, suite.Failed, suite.Skipped, suite.Errors = 0, 0, 0, 0, 0
@@ -993,8 +990,8 @@ type parityRow struct {
 
 // bridgeRows holds the parity outcomes for one filter so the dashboard
 // can render them as distinct test cases inside the synthetic "bridge
-// parity" suite. Tikal isn't strictly the bridge — it's a third
-// reference corner — but rendering it in the same column keeps the
+// parity" suite. Tikal is a third reference corner beside the bridge.
+// Rendering it in the same column keeps the
 // per-filter parity story in one place.
 //
 // Fixtures keys per-Java-test fixture parity rows by their
@@ -1006,7 +1003,7 @@ type bridgeRows struct {
 	RoundTrip *parityRow            // Kind="format-roundtrip" (reader+writer byte parity, native vs bridge)
 	Tikal     *parityRow            // Kind="format-tikal" (native round-trip vs Okapi tikal CLI)
 	Fixtures  map[string]*parityRow // Kind="format-fixture" keyed by JavaClass#JavaMethod (short class form)
-	Spec      []*specRow            // Kind="format-spec-feature" — one row per feature × example
+	Spec      []*specRow            // Kind="format-spec-feature": one row per feature × example
 }
 
 // specRow carries one Feature × Example outcome from the spec runner,
@@ -1172,7 +1169,7 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		if ids := sortedKeys(okapiIDsByNative[name]); len(ids) > 0 {
 			fc.OkapiFilterIDs = ids
 		}
-		// Native lookup — the row is keyed by the canonical native format
+		// Native lookup. The row is keyed by the canonical native format
 		// id, so nativeByFilter joins directly on `name`. NativeFilterName
 		// is set to the same id for backward compat with older consumers.
 		if r := nativeByFilter[name]; r != nil {
@@ -1313,7 +1310,7 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 			switch {
 			case !ok:
 				// Dashboard convention: bare-unmapped rows (no annotation
-				// of any kind) leave testState empty — the only true gap.
+				// of any kind) leave testState empty. This is the only true gap.
 			case ann.Skip():
 				// okapi-skip / okapi-unmapped / okapi-deferred all resolve
 				// to a reviewed not-applicable state with a reason. The
@@ -1348,7 +1345,7 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 					row.TestState = "implemented" // implemented but failing
 				default:
 					// Annotation present but Go test wasn't found in the
-					// JSON — treat as pending (likely the test isn't in
+					// JSON. Treat as pending (likely the test isn't in
 					// scope of the gotest package set).
 					row.TestState = "pending"
 				}
@@ -1434,8 +1431,8 @@ func divergenceOverrides(s *spec.Spec) map[string]string {
 // parity_warn detail string using deterministic keyword rules. The
 // reasons authored across the spec corpus consistently open with a small
 // set of phrases; the ordering below matters (most specific first). When
-// nothing matches, the example is attributed "scope-diff" — a neutral,
-// native-is-correct default — rather than the alarming "native-bug".
+// nothing matches, the example is attributed "scope-diff", a neutral,
+// native-is-correct default, rather than the alarming "native-bug".
 func classifyDivergence(detail string) string {
 	d := strings.ToLower(detail)
 	switch {
@@ -1502,8 +1499,8 @@ func classifyDivergence(detail string) string {
 		strings.Contains(d, "trados"):
 		return "scope-diff"
 	default:
-		// Unmatched divergences are correct-by-design until proven a bug
-		// — default to the neutral scope-diff, never native-bug.
+		// Unmatched divergences are correct-by-design until proven a bug.
+		// Default to the neutral scope-diff, never native-bug.
 		return "scope-diff"
 	}
 }
@@ -1537,7 +1534,7 @@ func lookupParity(bridgeByFilter map[string]*bridgeRows, nativeToParityKey map[s
 	// A native format can be exercised under more than one parity key when
 	// neokapi unifies sibling Okapi filters: e.g. native `xml` covers both
 	// okf_xml (fixtures) and okf_xmlstream (the spec contract). Returning the
-	// first match alone would drop the others' rows — so collect every
+	// first match alone would drop the others' rows, so collect every
 	// candidate key and merge their parity rows into one view.
 	keys := []string{name}
 	// Native dir → parity key from the spec format id (csv →
@@ -1665,16 +1662,16 @@ func appendParityCase(suite *testSuite, fr *filterResult, r *parityRow, label st
 // and returns one Spec per filter, keyed by the NATIVE format directory
 // name (e.g. "csv", "fixedwidth") so it joins directly against the
 // canonical native-format row keys the rest of the generator uses.
-// (The spec's own `format:` id can diverge from the dir name —
-// core/formats/csv declares okf_commaseparatedvalues — so keying by the
+// (The spec's own `format:` id can diverge from the dir name.
+// core/formats/csv declares okf_commaseparatedvalues, so keying by the
 // format id would miss the row; the bridge-schema lookup still uses
 // s.Format internally.) Directories without a spec.yaml are skipped
-// silently — the spec model is opt-in per format.
+// silently, because the spec model is opt-in per format.
 func loadSpecsForFilters(formatsDir string) (map[string]*spec.Spec, error) {
 	out := map[string]*spec.Spec{}
 	entries, err := os.ReadDir(formatsDir)
 	if err != nil {
-		// Missing dir is not fatal — the spec model is optional.
+		// Missing dir is not fatal, because the spec model is optional.
 		if os.IsNotExist(err) {
 			return out, nil
 		}
@@ -1782,8 +1779,8 @@ type bridgeVersionsFile struct {
 // filter id (no okf_ prefix) so it joins against the rest of the
 // generator's filter-name space.
 //
-// Filters without a matching schema version are skipped silently —
-// the spec model is opt-in and a brand-new filter may not have a
+// Filters without a matching schema version are skipped silently.
+// The spec model is opt-in and a brand-new filter may not have a
 // bridge counterpart yet. The whole load is best-effort; partial
 // failure (one unreadable schema file) is logged but doesn't abort
 // the audit.
@@ -1799,7 +1796,7 @@ func loadBridgeSchemaProps(schemasDir, okapiVersion string, specByFilter map[str
 	}
 	out := map[string]map[string]bool{}
 	for filterKey, s := range specByFilter {
-		// Subfilters have no top-level bridge JSON Schema — they're
+		// Subfilters have no top-level bridge JSON Schema. They're
 		// invoked through their parent filter's content path.
 		if s.IsSubfilter() {
 			continue
@@ -1867,7 +1864,7 @@ func loadSchemaPropertyNames(path string) (map[string]bool, error) {
 // schema marks each leaf with the legacy Java parameter name the
 // filter's runtime ParameterApplier accepts (e.g. `extractAll` carries
 // `"x-flattenPath": "extractAllPairs"`). Spec authors may use either
-// form as the spec.config[].key — both are recognized as the same
+// form as the spec.config[].key. Both are recognized as the same
 // parameter, so both must satisfy the drift check (#518).
 func collectSchemaProperties(node any, out map[string]bool) {
 	m, ok := node.(map[string]any)
@@ -1902,7 +1899,7 @@ func collectSchemaProperties(node any, out map[string]bool) {
 
 // detectAnnotationDrift returns annotations whose JavaClass#JavaMethod
 // no longer matches any test case in the pinned Okapi Surefire output.
-// These are the annotations that quietly orphan — the dashboard would
+// These are the annotations that quietly orphan. The dashboard would
 // otherwise lose the row entirely without telling anyone, because the
 // surefire join produces no row for a method that doesn't exist.
 //
@@ -2008,10 +2005,10 @@ type annotation struct {
 	JavaClass  string // short class name (e.g. HtmlSnippetsTest) or FQN
 	JavaMethod string
 	// Kind classifies the annotation marker:
-	//   "map"      — // okapi:           (a native test verifies this contract)
-	//   "skip"     — // okapi-skip:      (not applicable to neokapi native by design)
-	//   "unmapped" — // okapi-unmapped:  (reviewed gap, not ported, reason given)
-	//   "deferred" — // okapi-deferred:  (behavior covered indirectly / corpus-gated)
+	//   "map":      // okapi:           (a native test verifies this contract)
+	//   "skip":     // okapi-skip:      (not applicable to neokapi native by design)
+	//   "unmapped": // okapi-unmapped:  (reviewed gap, not ported, reason given)
+	//   "deferred": // okapi-deferred:  (behavior covered indirectly / corpus-gated)
 	// Any kind other than "map" resolves to a reviewed not-applicable
 	// state: the test has been looked at and a reason recorded, so it is
 	// NOT a bare gap.
@@ -2027,14 +2024,13 @@ type annotation struct {
 func (a annotation) Skip() bool { return a.Kind != "map" }
 
 var (
-	// One regex matches every per-test okapi annotation marker; the
+	// One regex matches every per-test okapi annotation marker. The
 	// optional first group captures the marker suffix
 	// (-skip/-unmapped/-deferred), the second the "Class#method …"
-	// payload. splitOkapiPayload then parses the payload so trailing
-	// notes, em-dash reasons, and parentheticals after the method name
-	// no longer silently break the join (a recurring authoring footgun,
-	// #611). `okapi-filter:` file headers never match (the payload must
-	// contain a '#').
+	// payload. splitOkapiPayload then parses the payload. Trailing notes,
+	// dash reasons and parentheticals after the method name keep the join
+	// intact (#611). `okapi-filter:` file headers never match (the payload
+	// must contain a '#').
 	okapiAnyRE = regexp.MustCompile(`^\s*//\s*okapi(-skip|-unmapped|-deferred)?:\s*([^#\s]+#\S.*)$`)
 	funcDeclRE = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 )
@@ -2054,16 +2050,15 @@ func markerKind(suffix string) string {
 }
 
 // splitOkapiPayload parses "Class#method <optional note>" into its parts.
-// The method name ends at the first whitespace, em-dash, or '(' so a
-// trailing " — reason" or " (note)" is captured as the reason rather than
+// The method name ends at the first whitespace, U+2014 dash, '-' or '(' so a
+// trailing dash and reason or " (note)" is captured as the reason rather than
 // breaking the join. Returns ok=false when there is no '#'.
 func splitOkapiPayload(payload string) (class, method, reason string, ok bool) {
-	hash := strings.IndexByte(payload, '#')
-	if hash < 0 {
+	before, rest, found := strings.Cut(payload, "#")
+	if !found {
 		return "", "", "", false
 	}
-	class = strings.TrimSpace(payload[:hash])
-	rest := payload[hash+1:]
+	class = strings.TrimSpace(before)
 	end := len(rest)
 	for i, r := range rest {
 		if r == ' ' || r == '\t' || r == '(' || r == '—' || r == '-' {
@@ -2176,8 +2171,8 @@ func scanFile(path string) ([]annotation, error) {
 	// mapping must sit above a `func TestXxx` (it claims that test verifies
 	// the contract), so it is dropped if some other declaration interrupts
 	// it. The reviewed not-applicable markers (skip/unmapped/deferred) are
-	// standalone documentation — a whole block of them commonly sits at the
-	// top of a file or above a helper — so they are kept regardless of what
+	// standalone documentation. A whole block of them commonly sits at the
+	// top of a file or above a helper, so they are kept regardless of what
 	// follows. Each annotation records its own comment line for source links.
 	var pending []annotation
 	var out []annotation
@@ -2200,7 +2195,7 @@ func scanFile(path string) ([]annotation, error) {
 				out = append(out, a)
 				// a.Line already holds the comment line.
 			default:
-				// Orphaned `// okapi:` map not above a Test func — drop.
+				// Orphaned `// okapi:` map not above a Test func: drop.
 			}
 		}
 		pending = nil
@@ -2260,19 +2255,17 @@ func parseSecondsToMs(s string) int64 {
 }
 
 func lastPathSegment(p string) string {
-	idx := strings.LastIndex(p, "/")
-	if idx < 0 {
-		return p
+	if _, after, found := strings.CutLast(p, "/"); found {
+		return after
 	}
-	return p[idx+1:]
+	return p
 }
 
 func shortClass(fqn string) string {
-	idx := strings.LastIndex(fqn, ".")
-	if idx < 0 {
-		return fqn
+	if _, after, found := strings.CutLast(fqn, "."); found {
+		return after
 	}
-	return fqn[idx+1:]
+	return fqn
 }
 
 // stripParamSuffix removes the JUnit parameterized-invocation suffix

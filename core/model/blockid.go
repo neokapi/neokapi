@@ -8,32 +8,26 @@ import (
 
 // A block's ID is its IDENTITY within the document it was read from.
 //
-// Everything downstream treats (source document, block id) as the pair that
-// addresses a block: it is the block store's key (core/blockstore.StoreKey), it
-// is what the translate tools' overlay cache consults before running a
-// translator, and it is what a `.kpz` handed on without its raw source has left
-// to address an overlay with (core/flow.partsFromSkeleton rebuilds each block as
-// NewBlock(id, ""), because the source text lived in the dropped source). So the
-// id must be derivable from the id alone, and two blocks of one document that
-// share one are two blocks with one target: the first unit's translation is
-// served for the second, silently, and a persistent store writes it back as the
-// answer for next time.
-//
-// A counter satisfies that by construction. A reader that instead takes the id
-// the document supplies — an XLIFF `unit/@id`, a TMX `tuid`, a Qt `message/@id` —
-// is trusting a uniqueness constraint the format states and real documents
-// break, so it separates the repeats here, at the point the id is assigned.
-//
-// Separation is a store-side identity and never something the document is made
-// to carry: the block keeps the id its document spells under PropDocumentID, and
-// the writer emits that, so a document keeps the ids it arrived with.
-//
-// A counter also stops satisfying it the moment one document is read by more
-// than one reader. A container — an EPUB over its spine, a JSON value handed to
-// an HTML subfilter, ODF over content.xml and styles.xml — delegates each member
-// to a sub-reader that is a fresh instance counting from one, so every member's
-// first block is `tu1` and the container's members collide with one another.
-// QualifyMemberID is how a container keeps that from happening.
+// Everything downstream addresses a block by (source document, block id). The
+// pair is the block store's key (core/blockstore.StoreKey). The translate
+// tools' overlay cache consults it before running a translator. A `.kpz`
+// handed on without its raw source addresses overlays by it alone
+// (core/flow.partsFromSkeleton rebuilds each block as NewBlock(id, "")).
+// Two blocks of one document that share an id get one target: the first
+// unit's translation is served for the second, silently, and a persistent
+// store writes it back as the answer for next time.
+
+// A counter gives unique ids by construction. A reader that takes the id the
+// document supplies (an XLIFF `unit/@id`, a TMX `tuid`, a Qt `message/@id`)
+// trusts a uniqueness constraint real documents break, so it separates the
+// repeats here, where the id is assigned. The block keeps the document's id
+// under PropDocumentID and the writer emits that, so a document keeps its ids.
+
+// A counter fails once one document is read by several readers. A container
+// (EPUB over its spine, JSON handed to an HTML subfilter, ODF over content.xml
+// and styles.xml) delegates each member to a fresh sub-reader counting from
+// one, so every member's first block is `tu1`. QualifyMemberID prevents that
+// collision.
 
 // PropDocumentID names the property carrying the id a document spells for a
 // block. It is present only where a reader had to separate blocks the document
@@ -48,33 +42,23 @@ const IDOrdinalSeparator = NameOrdinalSeparator
 
 // IDBuilder hands out block IDs that are an identity within one document.
 //
-// The zero value is ready to use. One builder per document read: the ids it
-// separates are scoped to that document, and sharing one across files would make
-// a block's id depend on which files were read first.
+// The zero value is ready to use. Use one builder per document: sharing one
+// across files would make a block's id depend on which files were read first.
 //
-// Document-scoped rather than per-sub-document, even where a format's uniqueness
-// clause is narrower. XLIFF scopes `unit/@id` to the enclosing `<file>`, so a
-// conforming multi-file document repeats ids by construction — while the store
-// keys on the document, so it is the document that has to hold the id space.
+// The scope is the document even where a format's is narrower. XLIFF scopes
+// `unit/@id` to its `<file>`, so a multi-file document repeats ids, but the
+// store keys on the document.
 //
-// It remembers a 64-bit digest of each id in a flat open-addressed table, not
-// the id in a map, and both halves of that are load-bearing. The readers that
-// need it read the biggest documents — a .tmx memory holds tens of thousands of
-// units — and several declare themselves StreamingReaders, whose whole promise
-// is that peak memory does not grow with the document. Keying on the id itself
-// measurably broke that bound (tmx.TestStreamingReaderBoundedMemory, which is
-// why tmx.nameOrdinals is digest-keyed too), and a map of digests spent three
-// times the bytes the digests themselves occupy — enough, beside the name
-// builder already running on the same read, to leave the bound with no headroom.
+// It keeps a 64-bit digest of each id in a flat open-addressed table (a
+// DigestSet). Its readers include StreamingReaders over large documents, whose
+// peak memory must not grow with the document. Keying on the id breaks that
+// bound (tmx.TestStreamingReaderBoundedMemory), and a map of digests costs
+// three times the digests' bytes.
 //
-// The trade is a false separation on a digest collision: two unrelated ids
-// hashing alike make the second read as `id#2`, which is still an identity, and
-// the document's own spelling is what gets written back either way — so the file
-// is unaffected and only the store key differs from what it would otherwise have
-// been. At 64 bits and the tens of thousands of blocks a real document holds,
-// that is far below the rate at which the surrounding assumptions fail.
+// A digest collision makes an unrelated id read as `id#2`: still an identity,
+// and only the store key changes. At 64 bits the risk is negligible.
 type IDBuilder struct {
-	seen digestSet
+	seen DigestSet
 }
 
 // Assign gives block an ID no other block of this document holds, recording the
@@ -113,22 +97,22 @@ func (b *IDBuilder) Assign(block *Block) {
 func (b *IDBuilder) claim(id string) bool {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(id))
-	return b.seen.add(h.Sum64())
+	return b.seen.Add(h.Sum64())
 }
 
 // Reset clears the builder for a new document.
-func (b *IDBuilder) Reset() { b.seen = digestSet{} }
+func (b *IDBuilder) Reset() { b.seen = DigestSet{} }
 
-// digestSet is a set of 64-bit digests held in one flat power-of-two table with
+// DigestSet is a set of 64-bit digests held in one flat power-of-two table with
 // linear probing: eight bytes a slot and no per-entry header, against the three
 // words a runtime map spends to hold the same number. Nothing here needs a map's
-// generality — there are no values, the keys are already uniformly distributed,
-// and nothing is ever removed — and the difference is what keeps a streaming
-// reader's memory bound intact over a document with tens of thousands of blocks.
+// generality: there are no values, the keys are already uniformly distributed,
+// and nothing is ever removed. The saving keeps a streaming reader's memory
+// bound intact over a document with tens of thousands of blocks.
 //
 // Zero is a legal digest and cannot also mean "empty slot", so it is held beside
 // the table rather than in it.
-type digestSet struct {
+type DigestSet struct {
 	slots   []uint64
 	count   int
 	hasZero bool
@@ -143,8 +127,9 @@ const (
 	digestSetLoadDen      = 4
 )
 
-// add records a digest, reporting whether it was absent.
-func (s *digestSet) add(d uint64) bool {
+// Add records a digest, reporting whether it was absent. The zero value is
+// an empty set.
+func (s *DigestSet) Add(d uint64) bool {
 	if d == 0 {
 		if s.hasZero {
 			return false
@@ -165,10 +150,13 @@ func (s *digestSet) add(d uint64) bool {
 	return true
 }
 
+// Footprint returns the bytes the set's table holds.
+func (s *DigestSet) Footprint() int { return len(s.slots) * 8 }
+
 // grow doubles the table and re-seats every digest, which is where the old table
-// and the new are both alive — the transient that makes the load factor above a
+// and the new are both alive. That transient makes the load factor above a
 // memory decision as much as a probe-length one.
-func (s *digestSet) grow() {
+func (s *DigestSet) grow() {
 	bigger := make([]uint64, len(s.slots)*2)
 	for _, d := range s.slots {
 		if d != 0 {
@@ -198,7 +186,7 @@ func insertDigest(slots []uint64, d uint64) bool {
 // of the bang locator because a block id is written into documents that
 // constrain it: an XLIFF 2 `unit/@id` is an `xs:NMTOKEN`, whose character set
 // admits `_`, `-`, `.` and `:` and admits neither `/` nor `!`. Upstream Okapi
-// spells the same qualification the same way — `<parentId>_sf<n>_<subId>`, from
+// spells the same qualification the same way: `<parentId>_sf<n>_<subId>`, from
 // ISubFilter.buildResourceId.
 const MemberIDSeparator = "_"
 

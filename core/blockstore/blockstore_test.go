@@ -174,6 +174,38 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		assert.Equal(t, `"v2"`, string(got.Payload))
 	})
 
+	t.Run("Overlay put of the payload it holds changes nothing", func(t *testing.T) {
+		store := makeStore()
+		defer store.Close()
+		ctx := context.Background()
+
+		put := func(payload string, at int64) {
+			t.Helper()
+			sess, err := store.Begin(ctx)
+			require.NoError(t, err)
+			require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+				Kind: "targets/fr", BlockHash: "h1", Payload: []byte(payload), UpdatedAt: at,
+			}))
+			require.NoError(t, sess.Commit())
+		}
+		get := func() blockstore.Overlay {
+			t.Helper()
+			sess, err := store.Begin(ctx)
+			require.NoError(t, err)
+			defer sess.Close()
+			got, err := sess.GetOverlay("targets/fr", "h1")
+			require.NoError(t, err)
+			return got
+		}
+		put(`"v1"`, 100)
+		put(`"v1"`, 200)
+		assert.Equal(t, int64(100), get().UpdatedAt, "the same payload keeps its timestamp")
+		put(`"v2"`, 300)
+		got := get()
+		assert.Equal(t, `"v2"`, string(got.Payload))
+		assert.Equal(t, int64(300), got.UpdatedAt, "a new payload takes the new timestamp")
+	})
+
 	t.Run("operations on a closed session return ErrClosed", func(t *testing.T) {
 		store := makeStore()
 		defer store.Close()

@@ -126,12 +126,12 @@ func csharpDecl(n *ts.Node, _ string, src []byte) (string, bool) {
 	case "indexer_declaration":
 		return "this", true
 	case "field_declaration", "event_field_declaration":
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			v := n.NamedChild(i)
 			if v.Kind() != "variable_declaration" {
 				continue
 			}
-			for j := uint(0); j < v.NamedChildCount(); j++ {
+			for j := range v.NamedChildCount() {
 				if d := v.NamedChild(j); d.Kind() == "variable_declarator" {
 					if name := d.ChildByFieldName("name"); name != nil {
 						return named("", name)

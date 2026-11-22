@@ -4,13 +4,6 @@
 # Modules: neokapi/bowrain/core (interface), neokapi/bowrain/plugin (kapi-bowrain plugin), neokapi/bowrain (server+app).
 # Can be used standalone (cd bowrain && make test) or delegated from root.
 
-# Suppress macOS linker warnings for CGO (Wails WebView)
-ifeq ($(shell uname -s),Darwin)
-export MACOSX_DEPLOYMENT_TARGET := 10.15
-export CGO_CFLAGS := -mmacosx-version-min=10.15
-export CGO_LDFLAGS := -mmacosx-version-min=10.15
-endif
-
 # Node 22 requires --experimental-strip-types to load .ts config files
 # (vite.config.ts) via native ESM in tools like vite-plus (vp check/lint).
 export NODE_OPTIONS := --experimental-strip-types
@@ -25,6 +18,7 @@ VERSION_PKG ?= github.com/neokapi/neokapi/core/version
 LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
 GO          := go
+include $(ROOT_DIR)/scripts/lib/goflags.mk
 GOTAGS      := -tags fts5
 # macOS Homebrew ICU, resolved rather than pinned — see the root Makefile for
 # why a hardcoded icu4c@NN breaks silently on the next ICU major bump.
@@ -37,7 +31,14 @@ ifneq ($(ICU_PKGCONFIG),)
 export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
 endif
 endif
-GOTEST      := $(GO) test $(GOTAGS)
+# Test binaries are linked without DWARF (-ldflags=-w): stack traces, panics
+# and the race detector read the symbol table and pclntab, which stay, and a
+# debugger builds its own binary (dlv test). DWARF is about a quarter of each
+# test binary (bowrain/server: 143.6 MB with it, 108.5 MB without), and a
+# `go test ./...` links every package's binary in the build work directory at
+# once (1.34 GB at peak for the bowrain module). A target that passes its own
+# -ldflags replaces this one.
+GOTEST      := $(GO) test $(GOTAGS) -ldflags=-w
 GOBUILD     := $(GO) build $(GOTAGS)
 GOVET       := $(GO) vet $(GOTAGS)
 GOFMT       := gofmt
@@ -418,8 +419,10 @@ COMPOSE_E2E := docker compose -f compose.full.yaml -f compose.e2e.yaml
 E2E_USERNAME ?= e2e-reviewer@example.com
 E2E_PASSWORD ?= e2e-password
 
-stack-up-e2e: ## stack-up, then password sign-in and a test user on the bowrain realm (e2e runs only)
-	$(COMPOSE_E2E) up -d --build --wait
+# The e2e stack includes the web UI: the server suite reads the page at / and
+# follows the device sign-in to a page the web app serves, as CI's stack does.
+stack-up-e2e: ## stack-up-web, then password sign-in and a test user on the bowrain realm (e2e runs only)
+	$(COMPOSE_E2E) --profile web up -d --build --wait
 	E2E_USERNAME='$(E2E_USERNAME)' E2E_PASSWORD='$(E2E_PASSWORD)' $(COMPOSE_E2E) run --rm --build keycloak-e2e
 	@echo "Test user:       $(E2E_USERNAME) / $(E2E_PASSWORD)  (password sign-in on the bowrain realm)"
 	@echo "Restore passkey-only sign-in with: make -C bowrain stack-down stack-up"
@@ -580,16 +583,19 @@ cover: i18n-catalogs ## Run platform tests with coverage
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
 
+# scripts/tagmatrix runs the analyzer once per build configuration, so the
+# integration, e2e and other build-tagged files are analyzed too. It runs from
+# the repository root, where go.work is. TAGMATRIX_CONFIG narrows it to some
+# configurations; the lint-platform CI job runs the host one.
+GO_LINT_BOWRAIN := bowrain/core bowrain/plugin bowrain
+TAGMATRIX       := $(GO) run ./scripts/tagmatrix $(if $(TAGMATRIX_CONFIG),-config $(TAGMATRIX_CONFIG))
+
 vet: i18n-catalogs ## Run go vet
-	cd core && $(GOVET) ./...
-	cd plugin && $(GOVET) ./...
-	$(GOVET) ./...
+	cd $(ROOT_DIR) && $(TAGMATRIX) -tool vet $(GO_LINT_BOWRAIN)
 
 lint: i18n-catalogs ## Run golangci-lint
 ifdef GOLANGCI_LINT
-	cd core && $(GOLANGCI_LINT) run ./...
-	cd plugin && $(GOLANGCI_LINT) run ./...
-	$(GOLANGCI_LINT) run ./...
+	cd $(ROOT_DIR) && PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint $(GO_LINT_BOWRAIN)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif

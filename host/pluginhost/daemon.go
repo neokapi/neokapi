@@ -117,7 +117,7 @@ type DaemonClient struct {
 
 	// drainDone is closed by the stdout-drain goroutine when it stops
 	// reading (EOF or error). close() waits on it before cmd.Wait() so the
-	// drain never reads from the stdout pipe concurrently with Wait — a
+	// drain never reads from the stdout pipe concurrently with Wait, a
 	// pattern os/exec documents as unsafe (Wait may close the pipe out from
 	// under the reader). Nil when there is no drain goroutine (external
 	// attach mode, where cmd is nil).
@@ -203,11 +203,33 @@ func (c *DaemonClient) close(grace time.Duration) {
 			<-done
 		}
 	}
-	// Best-effort socket cleanup — only if we spawned the daemon
+	// Best-effort socket cleanup, only if we spawned the daemon
 	// ourselves. External attach mode (cmd == nil) leaves the socket
 	// alone; the harness that started the daemon owns it.
 	if c.Socket != "" && c.cmd != nil {
 		_ = os.Remove(c.Socket)
+	}
+}
+
+// stopStartingDaemon stops a daemon that failed to start: SIGTERM, then
+// SIGKILL once grace has passed. A daemon removes its socket and socket
+// directory when it handles SIGTERM, which a SIGKILL never lets it do, so
+// killing it outright left them in the temporary directory.
+func stopStartingDaemon(cmd *exec.Cmd, grace time.Duration) {
+	if cmd.Process == nil {
+		return
+	}
+	_ = cmd.Process.Signal(syscall.SIGTERM)
+	done := make(chan struct{})
+	go func() {
+		_ = cmd.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(grace):
+		_ = cmd.Process.Kill()
+		<-done
 	}
 }
 
@@ -230,7 +252,7 @@ type DaemonPoolOptions struct {
 	ShutdownGrace time.Duration
 
 	// SocketDir is the directory where daemon sockets live (informational
-	// only — the daemon picks the actual path). Empty uses os.TempDir().
+	// only: the daemon picks the actual path). Empty uses os.TempDir().
 	SocketDir string
 
 	// Logger receives one-line debug events ("spawning daemon", "evicting
@@ -248,7 +270,7 @@ type DaemonPool struct {
 
 	mu         sync.Mutex
 	clients    map[string]*DaemonClient // key: plugin name
-	spawnLocks map[string]*sync.Mutex   // per-plugin spawn coordination — prevents concurrent first-callers from each spawning a JVM only to kill all but one
+	spawnLocks map[string]*sync.Mutex   // per-plugin spawn coordination; prevents concurrent first-callers from each spawning a JVM only to kill all but one
 	closed     bool
 }
 
@@ -294,7 +316,7 @@ func resolveMaxDaemons() int {
 // owns the lifetime. Callers do NOT close the client themselves.
 //
 // Concurrent first-callers for the same plugin coordinate via a
-// per-plugin spawn lock so only one JVM is started — the rest wait
+// per-plugin spawn lock so only one JVM is started; the rest wait
 // and reuse it. Without this, N concurrent lanes would each spawn a
 // JVM, then kill N-1 of them right after handshake, wasting startup
 // time and flooding logs.
@@ -331,7 +353,7 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 		p.mu.Unlock()
 		return nil, errors.New("daemon pool: closed")
 	}
-	// Re-check cache after acquiring spawn lock — we may have been the
+	// Re-check cache after acquiring spawn lock: we may have been the
 	// loser in a race and the winner already populated p.clients.
 	if existing, ok := p.clients[plugin.Name()]; ok && !existing.IsClosed() && existing.Conn != nil {
 		existing.touch()
@@ -453,7 +475,7 @@ func (p *DaemonPool) watchIdle(client *DaemonClient, idle time.Duration) {
 			p.mu.Lock()
 			existing, ok := p.clients[client.Plugin.Name()]
 			if !ok || existing != client {
-				// Already evicted/replaced — nothing to do.
+				// Already evicted or replaced, so there is nothing to do.
 				p.mu.Unlock()
 				return
 			}
@@ -526,7 +548,7 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	// (and other harnesses) measure a long-lived daemon's per-call cost
 	// without paying JVM startup on every kapi invocation. The DaemonClient
 	// is built with cmd=nil; close() already no-ops the kill path when
-	// cmd is nil, and we leave the socket in place — caller owns its
+	// cmd is nil, and we leave the socket in place; the caller owns its
 	// lifecycle.
 	if attachSocket := externalDaemonSocket(plugin.Name()); attachSocket != "" {
 		dialCtx, dialCancel := context.WithTimeout(ctx, startupTimeout)
@@ -615,13 +637,11 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	var br *bufio.Reader
 	select {
 	case <-startCtx.Done():
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		stopStartingDaemon(cmd, p.opts.ShutdownGrace)
 		return nil, fmt.Errorf("daemon pool: handshake timeout after %s for %q", startupTimeout, plugin.Name())
 	case res := <-hsCh:
 		if res.err != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			stopStartingDaemon(cmd, p.opts.ShutdownGrace)
 			return nil, fmt.Errorf("daemon pool: %w (plugin %q)", res.err, plugin.Name())
 		}
 		hs = res.hs
@@ -629,8 +649,7 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	}
 
 	if hs.Socket == "" {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		stopStartingDaemon(cmd, p.opts.ShutdownGrace)
 		return nil, fmt.Errorf("daemon pool: handshake from %q missing socket", plugin.Name())
 	}
 
@@ -664,8 +683,7 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	defer dialCancel()
 	conn, err := dialUnixSocket(dialCtx, hs.Socket)
 	if err != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		stopStartingDaemon(cmd, p.opts.ShutdownGrace)
 		return nil, fmt.Errorf("daemon pool: dial %s: %w", hs.Socket, err)
 	}
 
@@ -693,7 +711,7 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 const maxGRPCMsgSize = 256 << 20 // 256 MB
 
 // dialUnixSocket opens a gRPC client connection over a Unix socket.
-// Insecure transport is fine here — the socket sits under $TMPDIR with
+// Insecure transport is fine here: the socket sits under $TMPDIR with
 // 0600 mode, owned by the same user.
 func dialUnixSocket(ctx context.Context, socket string) (*grpc.ClientConn, error) {
 	target := "unix://" + socket

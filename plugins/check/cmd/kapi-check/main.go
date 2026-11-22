@@ -3,7 +3,7 @@
 // line-delimited JSON checkproto on stdin/stdout (`kapi-check serve`) so the
 // host can score voice/style similarity without inheriting the native build.
 //
-// The model is acquired explicitly — `kapi-check pull` — not by a surprise
+// The model is acquired explicitly with `kapi-check pull`, never by a surprise
 // download mid-check; serve/embed/similarity fail with guidance when it is
 // absent. The default build links no native libraries (engine_stub.go) so the
 // binary and the pure-Go protocol/model/vec tests build everywhere; the real
@@ -11,6 +11,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -78,7 +79,7 @@ libtokenizers) for the real backend; the default build is a stub.
 // kapi (not the plugin) downloads, verifies against pinned digests, and caches
 // the model. See `kapi models pull check`.
 func cmdPull([]string) error {
-	return fmt.Errorf("`kapi-check pull` has moved. Run `kapi models pull check` " +
+	return errors.New("`kapi-check pull` has moved. Run `kapi models pull check` " +
 		"(the host downloads, verifies against the manifest's pinned digest, and caches the model)")
 }
 
@@ -98,7 +99,7 @@ func cmdInfo() {
 
 // runDoctor is the standard self-check: it confirms the embedding engine
 // constructs and lists the supported models with their installed state. It fails
-// only on a real defect (engine construction) — a model not yet pulled is a
+// only on a real defect (engine construction). A model not yet pulled is a
 // readiness note, not a broken install. `kapi plugins doctor` runs this.
 func runDoctor() int {
 	eng, err := newEngine()

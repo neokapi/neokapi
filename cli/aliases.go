@@ -81,6 +81,7 @@ type (
 	ToolRunConfig                 = host.ToolRunConfig
 	UpOptions                     = host.UpOptions
 	UpPlanOutput                  = host.UpPlanOutput
+	UpPlanProviderGroup           = host.UpPlanProviderGroup
 	RulesFilesResult              = host.RulesFilesResult
 )
 
@@ -125,6 +126,9 @@ var (
 	AddResourceFlags             = host.AddResourceFlags
 	AddStatusFlags               = host.AddStatusFlags
 	AddUpFlags                   = host.AddUpFlags
+	ChangedRunConfigFlags        = host.ChangedRunConfigFlags
+	UndeclaredServerFlagError    = host.UndeclaredServerFlagError
+	UpFlagError                  = host.UpFlagError
 	AddVerifyFlags               = host.AddVerifyFlags
 	AgentHosts                   = host.AgentHosts
 	DetectAgentHosts             = host.DetectAgentHosts
@@ -228,6 +232,7 @@ var (
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir
 	ResolveProjectPath           = host.ResolveProjectPath
+	ResolveNewProjectPath        = host.ResolveNewProjectPath
 	MemoryFileFormats            = host.MemoryFileFormats
 	ResolveMemoryExportFormat    = host.ResolveMemoryExportFormat
 	ResolveMemoryImportFormat    = host.ResolveMemoryImportFormat

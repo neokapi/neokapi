@@ -39,6 +39,7 @@ endif
 export LDFLAGS     := -ldflags "$(LDFLAGS_X)"
 
 GO := go
+include scripts/lib/goflags.mk
 # FTS5 build tag is required by mattn/go-sqlite3 to enable FTS5 full-text
 # search. Without it, content memory and terms migrations fail at runtime.
 #
@@ -66,7 +67,14 @@ ifneq ($(ICU_PKGCONFIG),)
 export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
 endif
 endif
-GOTEST  := $(GO) test $(GOTAGS)
+# Test binaries are linked without DWARF (-ldflags=-w): stack traces, panics
+# and the race detector read the symbol table and pclntab, which stay, and a
+# debugger builds its own binary (dlv test). DWARF is about a quarter of each
+# test binary (bowrain/server: 143.6 MB with it, 108.5 MB without), and a
+# `go test ./...` links every package's binary in the build work directory at
+# once (1.34 GB at peak for the bowrain module). A target that passes its own
+# -ldflags replaces this one.
+GOTEST  := $(GO) test $(GOTAGS) -ldflags=-w
 GOBUILD := $(GO) build $(GOTAGS)
 GOVET   := $(GO) vet $(GOTAGS)
 GOFMT   := gofmt
@@ -242,10 +250,12 @@ fmt: ## Format Go source files
 
 vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
+	@$(MAKE) --no-print-directory plugins-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks check-image-user ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
+	@$(MAKE) --no-print-directory plugins-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
 	@$(MAKE) -C bowrain lint
@@ -289,10 +299,33 @@ check-ci-passed: ## Guard: the CI passed job lists every job of the CI workflow
 	@python3 ./scripts/ci-passed.py needs
 
 # A package `test` script that no pull request job runs is a suite whose
-# failures merge. See the comment on ci-frontend-packages.
-check-test-scripts: ## Guard: every package `test` script is run by a pull request CI job
+# failures merge, and one that two jobs run costs a job and checks nothing
+# more. See the comment on ci-frontend-packages.
+check-test-scripts: ## Guard: every package `test` script is run by exactly one pull request CI job
 	@python3 ./scripts/check-test-scripts.py --self-test
 	@python3 ./scripts/check-test-scripts.py
+
+check-go-trimpath: ## Guard: every Go command in make, scripts and CI builds with -trimpath
+	@python3 ./scripts/check-go-trimpath.py --self-test
+	@python3 ./scripts/check-go-trimpath.py
+
+check-ci-caches: ## Guard: no step a pull request runs saves an Actions cache
+	@python3 ./scripts/check-ci-caches.py --self-test
+	@python3 ./scripts/check-ci-caches.py
+	@python3 ./scripts/ci-cache-budget.py --self-test
+
+check-macos-minimum: ## Guard: every declared macOS minimum is scripts/lib/macos-minimum, and Go builds for no newer
+	@./scripts/check-macos-minimum.sh --self-test
+	@./scripts/check-macos-minimum.sh
+
+# The CI test jobs run through scripts/check-temp-leaks.sh, which fails a run
+# that leaves files in its temporary directory. This target proves the script.
+check-temp-leaks: ## Guard: the temporary-file leak check passes its self-test
+	@./scripts/check-temp-leaks.sh --self-test
+
+check-image-user: ## Guard: the server and worker images run as an unprivileged numeric user
+	@./scripts/check-image-user.sh --self-test
+	@./scripts/check-image-user.sh
 
 check-code-display: ## Guard: no surface shows an inline code's native data or identifier
 	@./scripts/check-code-display.sh
@@ -522,32 +555,48 @@ _fw-test-verbose: i18n-catalogs
 _fw-test-integration: i18n-catalogs
 	@bash scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
-# host/ carries the runtime and every service the CLI dispatches to, so it is
-# vetted and linted alongside the modules that import it — not left to the
-# module that happens to build it.
-_fw-vet: i18n-catalogs
-	$(GOVET) ./...
-	cd host && $(GOVET) ./...
-	cd cli && $(GOVET) ./...
-	cd kapi && $(GOVET) ./...
-	cd scripts/batcheval && $(GOVET) ./...
-	cd scripts/contexteval && $(GOVET) ./...
-	cd scripts/gen-refs && $(GOVET) ./...
-	cd scripts/proseprobe && $(GOVET) ./...
+# The Go modules `make lint` and the CI lint jobs analyze, by the job that
+# lints them under the host configuration. host/ carries the runtime and every
+# service the CLI dispatches to, so it is linted beside the modules that import
+# it. Each scripts/ module is listed because `./...` at the root stops at a
+# nested go.mod. The plugin modules and bench/pseudobench sit outside go.work;
+# scripts/tagmatrix runs them with GOWORK=off.
+GO_LINT_FRAMEWORK := . host cli kapi
+GO_LINT_SCRIPTS   := scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/mkappcast scripts/projectionguard bench/pseudobench
+GO_LINT_PLATFORM  := bowrain/core bowrain/plugin bowrain
+GO_LINT_DESKTOP   := apps/kapi-desktop
+GO_LINT_PLUGINS   := plugins/asr plugins/av plugins/check plugins/pdfium plugins/sat plugins/sourcecode plugins/vision
+GO_LINT_ALL       := $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS) $(GO_LINT_PLATFORM) $(GO_LINT_DESKTOP) $(GO_LINT_PLUGINS)
 
-# scripts/gen-refs is a workspace module like the four above it, and it writes
-# the committed reference dataset the docs site and the drift gate read. It
-# needs its own module directory here because `./...` at the root stops at a
-# nested go.mod.
+# scripts/tagmatrix runs the analyzer once per build configuration in
+# scripts/internal/buildconfigs (host, model, js-wasm, windows, linux-nocgo,
+# darwin-nocgo), so every build-tagged file is analyzed, and it fails on a Go
+# file that no configuration compiles. TAGMATRIX_CONFIG narrows a run to some
+# configurations; CI runs one per job. Every plugins/pdfium package needs PDFium
+# on pkg-config, so the targets that reach it fetch it the way fieldguard does.
+TAGMATRIX        := $(GO) run ./scripts/tagmatrix $(if $(TAGMATRIX_CONFIG),-config $(TAGMATRIX_CONFIG))
+# tagmatrix runs the golangci-lint it finds on PATH.
+TAGMATRIX_LINT   := PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint
+WITH_PDFIUM       = pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}"
+# Only the model configuration compiles plugins/pdfium in a lint-tags leg.
+LINT_PDFIUM       = $(if $(filter model,$(LINT_CONFIG)),$(WITH_PDFIUM),true &&)
+
+_fw-vet: i18n-catalogs
+	$(TAGMATRIX) -tool vet $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS)
+
+plugins-vet: ## Run go vet over the plugin modules under every build configuration
+	@$(WITH_PDFIUM) $(TAGMATRIX) -tool vet $(GO_LINT_PLUGINS)
+
 _fw-lint: i18n-catalogs
 ifdef GOLANGCI_LINT
-	$(GOLANGCI_LINT) run ./...
-	cd host && $(GOLANGCI_LINT) run ./...
-	cd cli && $(GOLANGCI_LINT) run ./...
-	cd kapi && $(GOLANGCI_LINT) run ./...
-	cd scripts/gen-refs && $(GOLANGCI_LINT) run ./...
-	cd scripts/gen-contract-types && $(GOLANGCI_LINT) run ./...
-	cd scripts/proseprobe && $(GOLANGCI_LINT) run ./...
+	$(TAGMATRIX_LINT) $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS)
+else
+	@echo "golangci-lint not installed. Run 'make tools' to install."
+endif
+
+plugins-lint: ## Run golangci-lint over the plugin modules under every build configuration
+ifdef GOLANGCI_LINT
+	@$(WITH_PDFIUM) $(TAGMATRIX_LINT) $(GO_LINT_PLUGINS)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -696,11 +745,52 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # workflow; only the shell bodies live here. Commands mirror the YAML verbatim
 # (e.g. bare `go build`, no fts5 tag) so local == CI.
 #
-# The lint jobs are not mirrored here (they post PR annotations via the pinned
-# golangci-lint-action and gha-lint bootstraps actionlint), but `make lint` and
-# CI lint are otherwise equivalent: the fts5 build tag lives in
-# .golangci.yml (run.build-tags), so both analyze the same cgo/FTS5 code
-# — provided libicu-dev is on PKG_CONFIG_PATH, which the lint CI job installs.
+# The Go lint jobs install golangci-lint with .github/actions/golangci and run
+# the ci-lint-* targets below, which `make lint` runs too. The cgo files need
+# libicu-dev on PKG_CONFIG_PATH, which the lint CI jobs install. A ci-lint-*
+# target fails when golangci-lint is missing; `make lint` only says so.
+REQUIRE_GOLANGCI_LINT = $(if $(GOLANGCI_LINT),,$(error golangci-lint is not on PATH. Run 'make tools' to install it))
+
+ci-lint-framework: ## Mirror the CI `lint-framework` job: the host configuration of the framework modules
+	$(REQUIRE_GOLANGCI_LINT)
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_FRAMEWORK)
+
+ci-lint-scripts: i18n-catalogs ## Mirror the CI `lint-scripts` job: the host configuration of the scripts modules
+	$(REQUIRE_GOLANGCI_LINT)
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_SCRIPTS)
+
+ci-lint-platform: ## Mirror the CI `lint-platform` job: the host configuration of the bowrain modules
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(MAKE) -C bowrain lint TAGMATRIX_CONFIG=host
+
+ci-lint-plugins: ## Mirror the CI `lint-plugins` job: the host configuration of the plugin modules
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(WITH_PDFIUM) $(TAGMATRIX_LINT) -config host $(GO_LINT_PLUGINS)
+
+ci-lint-kapi-desktop: kapi-desktop-lint-deps ## Mirror the lint step of the CI `kapi-desktop-backend` job
+	$(REQUIRE_GOLANGCI_LINT)
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_DESKTOP)
+
+# One leg of the CI `lint-tags` matrix: the packages that hold a file the host
+# configuration leaves out, linted under configuration LINT_CONFIG, and the
+# edit and projection guards under the same configuration.
+ci-lint-tags: i18n-catalogs go-embed-placeholders ## Mirror one CI `lint-tags` leg (LINT_CONFIG=model|js-wasm|windows|linux-nocgo|darwin-nocgo)
+	$(REQUIRE_GOLANGCI_LINT)
+	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
+	@$(LINT_PDFIUM) $(TAGMATRIX_LINT) -config $(LINT_CONFIG) $(GO_LINT_ALL)
+	$(GO) run ./scripts/editguard -config $(LINT_CONFIG)
+	$(GO) run ./scripts/projectionguard -config $(LINT_CONFIG)
+
+# Prints true when a change since LINT_BASE reaches a package a `lint-tags` leg
+# compiles, and false otherwise. A leg that prints false skips its lint.
+ci-lint-affected: ## Print whether a change since LINT_BASE affects the LINT_CONFIG leg
+	@$(GO) run ./scripts/tagmatrix -config $(LINT_CONFIG) -affected-since $(LINT_BASE) $(GO_LINT_ALL)
+
+# Fills the Go build cache with the export data one `lint-tags` leg reads, for
+# the main-only job that saves that leg's cache flavor.
+warm-lint-cache: i18n-catalogs go-embed-placeholders ## Compile the export data the LINT_CONFIG leg reads (CI, on main)
+	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
+	@$(LINT_PDFIUM) $(GO) run ./scripts/tagmatrix -config $(LINT_CONFIG) -warm $(GO_LINT_ALL)
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
 	# The vocabulary packs are also gated in reference-data-drift.yml, but that
@@ -735,9 +825,9 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# tsc over the package tsconfig is what covers them.
 	cd bowrain/packages/ui && vp run typecheck:stories
 	cd bowrain/packages/ui && vp test
-	# packages/app was never covered here, so a broken viewFromPath sat on main
-	# from #1462 until #1533: the sidebar stopped highlighting on /terms and no
-	# job noticed. It holds the routing every surface depends on.
+	# packages/app holds the routing every surface depends on. Without its
+	# suite here, a broken viewFromPath stops the sidebar highlighting on
+	# /terms and no job notices.
 	cd bowrain/packages/app && vp check
 	cd bowrain/packages/app && vp test
 	cd bowrain/apps/web && vp check
@@ -804,15 +894,11 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 	cd packages/i18n-react-lint && vp run build
 
 # The unit suites of the shared workspace packages, the docs site, the
-# landing page and the mobile app. Each had a `test` script and no job ran it,
-# so two packages/ui tests failed on main from #3668 until this job existed.
-# scripts/check-test-scripts.py fails when a package with a `test` script is
-# run by no pull request job, and this target is where a new one belongs.
-#
-# web, kapi-lab, kapi-playground and engine also run in docs-kapi.yml, and the
-# landing page in web-landing.yml. Those path filters stop at the package's own
-# directory, so an edit to packages/ui that breaks one of them would skip it.
-# The ci.yml `frontend_packages` filter covers what these suites import.
+# landing page and the mobile app. This target is their one pull request
+# home: the ci.yml `frontend_packages` filter covers what they import, so an
+# edit to packages/ui that breaks the docs site runs the docs site's suite.
+# scripts/check-test-scripts.py fails when a package `test` script runs in no
+# pull request job or in more than one, and a new suite belongs here.
 ci-frontend-packages: ## Mirror the CI `frontend-packages` job: unit-test the shared packages, docs site, landing page and mobile app
 	# packages/ui imports `@neokapi/i18n-react/runtime`, a built ./dist subpath.
 	cd packages/i18n-react && vp run build
@@ -884,9 +970,14 @@ audit-modules: check-module-boundaries ## Build each application module in isola
 # of the workspace's operation log, written only by core/projector. A write that
 # reaches one another way leaves a row a rebuild drops. The guard type-checks the
 # Apache modules and proves itself on fixtures first.
+# The edit and projection guards run under every build configuration by
+# default. The module-boundaries CI job runs the host one; each lint-tags leg
+# runs its own.
+GUARD_CONFIGS ?= host model js-wasm windows linux-nocgo darwin-nocgo
+
 check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
 	@$(GO) run ./scripts/projectionguard -self-test
-	@$(GO) run ./scripts/projectionguard
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/projectionguard -config $$c || exit 1; done
 
 # A format writer pointed at a file writes a whole document to disk. The guard
 # type-checks every module that writes documents and reports each such call
@@ -894,7 +985,7 @@ check-projection-writes: i18n-catalogs ## Guard: only the projector writes a pro
 # each writes, and proves itself on fixtures first.
 check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reaches a file only where scripts/editguard lists it
 	@$(GO) run ./scripts/editguard -self-test
-	@$(GO) run ./scripts/editguard
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/editguard -config $$c || exit 1; done
 
 # A block stores its content as peer editions in Block.Editions and lists the
 # editions its document holds in Block.Native (docs/internals/edit-model.md,
@@ -903,10 +994,15 @@ check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reac
 # every other package reaches the editions through the accessors and the
 # storage can change inside core/model alone. A test may write the storage to
 # plant a state no accessor produces; those uses are counted. The desktop
-# placeholder bundle lets its main package type-check.
+# placeholder bundle lets its main package type-check. PDFium is fetched once,
+# pinned and checksummed, into PDFIUM_CACHE_DIR (shared by every worktree).
+PDFIUM_CACHE_DIR ?= $(or $(XDG_CACHE_HOME),$(HOME)/.cache)/neokapi/pdfium
 fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its tests reaches Block.Editions or Block.Native past the edition accessors
 	@$(GO) run ./scripts/fieldguard -self-test
-	@$(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
+	@# plugins/pdfium type-checks only with PDFium on pkg-config, and a package
+	@# that does not type-check fails the guard.
+	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
+		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
 check-go-module-boundaries: i18n-catalogs go-embed-placeholders
 	@GO="$(GO)" ./scripts/check-go-module-boundaries.sh $(AUDIT_MODULES)
@@ -1180,12 +1276,14 @@ test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbin
 # The -tags onnx suites for vision and sat need a real onnxruntime and stay in
 # the nightly vision-onnx job. Each module is its own go.mod outside go.work,
 # hence GOWORK=off in each recipe.
+PURE_GO_PLUGINS := sat check vision asr sourcecode
+
 test-plugins: ## Run the plugin modules whose tests need no system library (sat, check, vision, asr, sourcecode)
-	@$(MAKE) --no-print-directory test-sat-plugin
-	@$(MAKE) --no-print-directory test-check-plugin
-	@$(MAKE) --no-print-directory test-vision-plugin
-	@$(MAKE) --no-print-directory test-asr-plugin
-	@$(MAKE) --no-print-directory test-sourcecode-plugin
+	@# Every module runs, so one failing module does not hide the next.
+	@failed=""; for p in $(PURE_GO_PLUGINS); do \
+		$(MAKE) --no-print-directory test-$$p-plugin || failed="$$failed $$p"; \
+	done; \
+	if [ -n "$$failed" ]; then echo "test-plugins: failed:$$failed"; exit 1; fi
 
 # ── kapi-sourcecode reader plugin ────────────────────────────────────────────
 # Reads the prose out of source files with tree-sitter grammars, so a string
@@ -1328,7 +1426,7 @@ kapi-desktop-lint-deps: i18n-catalogs $(KAPI_DESKTOP_DIR)/frontend/dist/index.ht
 
 kapi-desktop-lint: kapi-desktop-lint-deps ## Run golangci-lint over the Kapi Desktop Go backend
 ifdef GOLANGCI_LINT
-	cd $(KAPI_DESKTOP_DIR) && $(GOLANGCI_LINT) run ./...
+	$(TAGMATRIX_LINT) $(GO_LINT_DESKTOP)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -3155,9 +3253,7 @@ docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
 # bowrain/web/docs carries its own pnpm-workspace.yaml (packages: []), so it is
 # already its own workspace root and needs no --ignore-workspace to stay out of
-# the repo workspace. The flag is actively harmful here: it makes pnpm skip that
-# file, including its packageManagerRegistries pin, and the package-manager
-# bootstrap then fails on any machine whose default registry is a mirror.
+# the repo workspace. The flag would make pnpm skip that file and its settings.
 	cd bowrain/web/docs && vp install
 	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
 
@@ -3169,10 +3265,14 @@ publish-website: docs-build-prod bowrain-docs-build-prod ## Build + deploy the k
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
+# The versions match what CI runs and what wrote the committed *.pb.go files;
+# scripts/check-tool-versions.py holds each copy to the others. golangci-lint
+# v2 lives under the /v2 module path: the v1 path installs a v1 binary, which
+# cannot read the version 2 .golangci.yml.
 tools: ## Install development tools
-	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 setup-remote: ## Install dependencies for cloud environments
 	CLAUDE_CODE_REMOTE=true bash scripts/setup-remote.sh
@@ -3313,7 +3413,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts warm-build-cache workspace-paths test-parallel \
+        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks check-image-user warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

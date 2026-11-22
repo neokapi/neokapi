@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-// algo.go holds the pure-Go OCR algorithms — CTC greedy decoding, the
+// algo.go holds the pure-Go OCR algorithms: CTC greedy decoding, the
 // recognition dictionary, and connected-component box extraction from a
 // detection probability map. They carry no native dependency and no build tag,
 // so they are unit-tested directly; the onnx-tagged engine (engine_onnx.go)
@@ -88,7 +88,7 @@ func connectedBoxes(mask []bool, w, h, minArea int) []box {
 	seen := make([]bool, w*h)
 	var boxes []box
 	stack := make([]int, 0, 64)
-	for start := 0; start < w*h; start++ {
+	for start := range w * h {
 		if !mask[start] || seen[start] {
 			continue
 		}
@@ -151,10 +151,7 @@ func sortReadingOrder(boxes []box) {
 	}
 	sort.Ints(heights)
 	med := heights[len(heights)/2]
-	tol := med / 2
-	if tol < 1 {
-		tol = 1
-	}
+	tol := max(med/2, 1)
 	sort.SliceStable(boxes, func(i, j int) bool {
 		ci := (boxes[i].Y0 + boxes[i].Y1) / 2
 		cj := (boxes[j].Y0 + boxes[j].Y1) / 2

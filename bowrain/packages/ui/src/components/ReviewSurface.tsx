@@ -344,7 +344,8 @@ export function ReviewSurface({
           renderedRevision(block, targetLocale),
           { action: outcome, locale: targetLocale },
         );
-        if (done.status === "kept") {
+        // Nothing was recorded: the block is read back as it stands.
+        if (done.status === "kept" || done.status === "unsent") {
           await refreshBlock(block.id);
           return;
         }
@@ -497,8 +498,9 @@ export function ReviewSurface({
           renderedRevision(block, targetLocale),
           { action: "save", locale: targetLocale, mine: saved.mine },
         );
-        // The reviewer went back to their wording: the editor stays open on it.
-        if (done.status === "revise") return;
+        // The reviewer went back to their wording, or closed the dialog
+        // without choosing: the editor stays open on it.
+        if (done.status === "revise" || done.status === "unsent") return;
         if (done.status === "kept") {
           setEditing(false);
           await refreshBlock(block.id);

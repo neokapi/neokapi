@@ -80,18 +80,18 @@ func readDoc(t *testing.T, client pb.BridgeServiceClient, path string, geometry 
 	return blocks
 }
 
-// End-to-end over real gRPC: the CID/Type0 Japanese PDF extracts correctly —
-// the win over the hand-rolled in-core reader, now isolated in the plugin.
+// End-to-end over real gRPC: the CID/Type0 Japanese PDF extracts correctly.
+// The hand-rolled in-core reader could not do this.
 func TestProcess_CIDFontCJK(t *testing.T) {
 	client := startServer(t)
 	blocks := readDoc(t, client, "testdata/cjk.pdf", false)
 	require.NotEmpty(t, blocks)
-	var joined string
+	var joined strings.Builder
 	for _, b := range blocks {
-		joined += b.SourceText()
+		joined.WriteString(b.SourceText())
 	}
 	for _, want := range []string{"こんにちは世界", "日本語", "Hello"} {
-		require.Contains(t, joined, want, "CID/CJK extraction over the plugin")
+		require.Contains(t, joined.String(), want, "CID/CJK extraction over the plugin")
 	}
 }
 

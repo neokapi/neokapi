@@ -50,15 +50,15 @@ type FormatInfo struct {
 	HasReader   bool   `json:"has_reader"`
 	HasWriter   bool   `json:"has_writer"`
 	// Generative reports the writer can produce a complete document from the
-	// content model alone — so this format is a valid cross-format conversion
+	// content model alone, so this format is a valid cross-format conversion
 	// target (`kconv --to`). False = skeleton-bound (writes back into its own
 	// original file only). Declarative; resolved without loading any plugin.
 	Generative bool `json:"generative,omitempty"`
 	// Interchange reports a bilingual translation-interchange format (XLIFF, PO,
-	// TMX, …) — the extract/merge loop, excluded as a `convert` target.
+	// TMX, …): the extract/merge loop, excluded as a `convert` target.
 	Interchange bool `json:"interchange,omitempty"`
 	// Editable reports kapi can faithfully write this format back after an edit
-	// (reader + writer, not interchange) — the set a caller-supplied content edit
+	// (reader + writer, not interchange): the set a caller-supplied content edit
 	// (`kapi apply` / `kapi rewrite --edits`) can target, including binary.
 	Editable bool `json:"editable"`
 	// RoundTrip reports the writer reconstructs from a skeleton, so an edit
@@ -239,7 +239,8 @@ type ToolsListOutput struct {
 	Total int        `json:"total"`
 }
 
-// categoryOrder defines the display order for tool categories.
+// categoryOrder defines the display order for tool categories. The text
+// listing shows these in this order, then one Other section for the rest.
 var categoryOrder = []string{"translation", "quality", "analysis", "text-processing"}
 
 // categoryTitles maps category IDs to display titles.
@@ -286,12 +287,22 @@ func (t ToolsListOutput) FormatText(w io.Writer) error {
 		}
 	}
 
-	// Print any tools in unknown categories.
-	for cat, tools := range grouped {
-		if categoryTitles[cat] != "" {
-			continue
+	// Every tool outside the known categories goes in one Other section,
+	// ordered by category name and, within a category, as the registry lists
+	// it, so the listing is the same on every run.
+	var unknown []string
+	for cat := range grouped {
+		if categoryTitles[cat] == "" {
+			unknown = append(unknown, cat)
 		}
-		section(T("tools.category.other"), tools)
+	}
+	slices.Sort(unknown)
+	var other []ToolInfo
+	for _, cat := range unknown {
+		other = append(other, grouped[cat]...)
+	}
+	if len(other) > 0 {
+		section(T("tools.category.other"), other)
 	}
 
 	Note(w, T("tools.total"), t.Total)
@@ -427,9 +438,8 @@ func (o ExtractOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Extracting batch %s (format=%s, targets=%s, sources=%d)\n\n",
 		s.Accent.Render(o.BatchID), o.Format, strings.Join(o.Targets, ", "), o.Sources)
 
-	// One row per target locale. These were "fr: 2 files, 10 blocks, content memory
-	// exact=4 fuzzy=1 new=5" lines — a record set spelled out as prose, which
-	// stops being readable the moment there is more than a handful of locales.
+	// One row per target locale, as a table, so the record set stays
+	// readable with more than a handful of locales.
 	t := NewTable(w).Accent(0).Headers("LOCALE", "FILES", "BLOCKS", "EXACT", "FUZZY", "NEW")
 	for _, p := range o.Pairs {
 		t.Rowf(p.TargetLocale, p.Files, p.Blocks,
@@ -1009,10 +1019,28 @@ type MemoryImportOutput struct {
 	Imported int    `json:"imported"`
 	DBPath   string `json:"db_path"`
 	Total    int    `json:"total"`
+	// The units skipped, by reason: no text in the source language the
+	// import chose, a source the same as the target, no translation.
+	SkippedNoSource           int `json:"skipped_no_source"`
+	SkippedSourceEqualsTarget int `json:"skipped_source_equals_target"`
+	SkippedNoTarget           int `json:"skipped_no_target"`
+	SkippedEmpty              int `json:"skipped_empty"`
 }
 
 func (o MemoryImportOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Imported %d entries into %s (total: %d)\n", o.Imported, o.DBPath, o.Total)
+	if o.SkippedNoSource > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) with no text in the source language\n", o.SkippedNoSource)
+	}
+	if o.SkippedSourceEqualsTarget > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) whose source would equal the target\n", o.SkippedSourceEqualsTarget)
+	}
+	if o.SkippedNoTarget > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) with no translation\n", o.SkippedNoTarget)
+	}
+	if o.SkippedEmpty > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) with no text\n", o.SkippedEmpty)
+	}
 	return nil
 }
 
@@ -1033,7 +1061,14 @@ type MemoryLookupEntry struct {
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
 	MatchType string  `json:"match_type"`
-	EntryID   string  `json:"entry_id"`
+	// EntryID is the first stored entry the result stands for.
+	EntryID string `json:"entry_id"`
+	// EntryIDs is every stored entry with this source and target. One
+	// translation recorded by two origins is one result naming both.
+	EntryIDs []string `json:"entry_ids,omitempty"`
+	// Origins names where the stored entries came from (merge, record,
+	// import), once each.
+	Origins []string `json:"origins,omitempty"`
 }
 
 // MemoryLookupOutput represents the result of a content-memory lookup.
@@ -1050,10 +1085,10 @@ func (o MemoryLookupOutput) FormatText(w io.Writer) error {
 
 	t := NewTable(w).Accent(0).Headers(
 		T("tm.header.source"), T("tm.header.target"),
-		T("tm.header.score"), T("tm.header.matchType"))
+		T("tm.header.score"), T("tm.header.matchType"), T("tm.header.origin"))
 	s := t.Styles()
 	for _, m := range o.Matches {
-		t.Row(m.Source, m.Target, fmt.Sprintf("%.0f%%", m.Score*100), s.Dim(m.MatchType))
+		t.Row(m.Source, m.Target, fmt.Sprintf("%.0f%%", m.Score*100), s.Dim(m.MatchType), s.Dim(strings.Join(m.Origins, ", ")))
 	}
 	t.Render()
 

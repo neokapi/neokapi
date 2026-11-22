@@ -16,12 +16,12 @@
  */
 
 import { describe, expect, it } from "vite-plus/test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { File } from "@neokapi/kapi-format";
 import { runExtract } from "../src/commands/extract.ts";
+import { tempDir } from "./temp-dir";
 
 /**
  * A workspace shaped like the real one: a package that is extracted from, and a
@@ -31,7 +31,7 @@ import { runExtract } from "../src/commands/extract.ts";
  *   <root>/packages/ui/src/Shared.tsx
  */
 function tempWorkspace() {
-  const root = mkdtempSync(join(tmpdir(), "i18n-react-source-root-"));
+  const root = tempDir("i18n-react-source-root");
   mkdirSync(join(root, "packages", "app", "src"), { recursive: true });
   mkdirSync(join(root, "packages", "ui", "src"), { recursive: true });
   writeFileSync(join(root, "packages", "app", "src", "Local.tsx"), "<h1>Local heading</h1>;");
