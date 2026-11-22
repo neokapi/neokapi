@@ -583,16 +583,18 @@ cover: i18n-catalogs ## Run platform tests with coverage
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
 
+# scripts/tagmatrix runs the analyzer once per build configuration, so the
+# integration, e2e and other build-tagged files are analyzed too. It runs from
+# the repository root, where go.work is.
+GO_LINT_BOWRAIN := bowrain/core bowrain/plugin bowrain
+TAGMATRIX       := $(GO) run ./scripts/tagmatrix
+
 vet: i18n-catalogs ## Run go vet
-	cd core && $(GOVET) ./...
-	cd plugin && $(GOVET) ./...
-	$(GOVET) ./...
+	cd $(ROOT_DIR) && $(TAGMATRIX) -tool vet $(GO_LINT_BOWRAIN)
 
 lint: i18n-catalogs ## Run golangci-lint
 ifdef GOLANGCI_LINT
-	cd core && $(GOLANGCI_LINT) run ./...
-	cd plugin && $(GOLANGCI_LINT) run ./...
-	$(GOLANGCI_LINT) run ./...
+	cd $(ROOT_DIR) && PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint $(GO_LINT_BOWRAIN)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif

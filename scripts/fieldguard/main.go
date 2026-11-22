@@ -86,6 +86,9 @@ var configs = []config{
 	{name: "js/wasm", env: []string{"GOOS=js", "GOARCH=wasm"}, tags: testTags},
 	{name: "windows", env: []string{"GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=0"}, tags: testTags},
 	{name: "linux without cgo", env: []string{"GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0"}, tags: testTags},
+	// The _darwin.go files on a Linux runner. scripts/tagmatrix, which runs
+	// the linters and go vet, holds the same list.
+	{name: "darwin without cgo", env: []string{"GOOS=darwin", "GOARCH=arm64", "CGO_ENABLED=0"}, tags: testTags},
 }
 
 func main() {

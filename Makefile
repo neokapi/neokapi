@@ -250,10 +250,12 @@ fmt: ## Format Go source files
 
 vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
+	@$(MAKE) --no-print-directory plugins-vet
 	@$(MAKE) -C bowrain vet
 
 lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
+	@$(MAKE) --no-print-directory plugins-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
 	@$(MAKE) -C bowrain lint
@@ -549,32 +551,45 @@ _fw-test-verbose: i18n-catalogs
 _fw-test-integration: i18n-catalogs
 	@bash scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
-# host/ carries the runtime and every service the CLI dispatches to, so it is
-# vetted and linted alongside the modules that import it — not left to the
-# module that happens to build it.
-_fw-vet: i18n-catalogs
-	$(GOVET) ./...
-	cd host && $(GOVET) ./...
-	cd cli && $(GOVET) ./...
-	cd kapi && $(GOVET) ./...
-	cd scripts/batcheval && $(GOVET) ./...
-	cd scripts/contexteval && $(GOVET) ./...
-	cd scripts/gen-refs && $(GOVET) ./...
-	cd scripts/proseprobe && $(GOVET) ./...
+# The Go modules the framework lint job and `make lint` analyze. host/ carries
+# the runtime and every service the CLI dispatches to, so it is vetted and
+# linted beside the modules that import it. The scripts/ modules are listed
+# one by one because `./...` at the root stops at a nested go.mod: gen-refs
+# writes the committed reference dataset, gen-contract-types renders the
+# committed TypeScript contract types, and proseprobe decides a maturity rung.
+GO_LINT_FRAMEWORK := . host cli kapi scripts/gen-refs scripts/gen-contract-types scripts/proseprobe
+GO_VET_FRAMEWORK  := $(GO_LINT_FRAMEWORK) scripts/batcheval scripts/contexteval
+# The plugin modules sit outside go.work; scripts/tagmatrix runs them with
+# GOWORK=off.
+GO_LINT_PLUGINS := plugins/asr plugins/av plugins/check plugins/pdfium plugins/sat plugins/sourcecode plugins/vision
 
-# scripts/gen-refs is a workspace module like the four above it, and it writes
-# the committed reference dataset the docs site and the drift gate read. It
-# needs its own module directory here because `./...` at the root stops at a
-# nested go.mod.
+# scripts/tagmatrix runs the analyzer once per build configuration (the test
+# tags, the model tags, js/wasm, windows, and linux and darwin without cgo), so
+# every build-tagged file is analyzed, and it fails on a Go file that no
+# configuration compiles. Every plugins/pdfium package needs PDFium on
+# pkg-config, so the plugin targets fetch it the way fieldguard does.
+TAGMATRIX := $(GO) run ./scripts/tagmatrix
+# tagmatrix runs the golangci-lint it finds on PATH.
+TAGMATRIX_LINT := PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint
+
+_fw-vet: i18n-catalogs
+	$(TAGMATRIX) -tool vet $(GO_VET_FRAMEWORK)
+
+plugins-vet: ## Run go vet over the plugin modules under every build configuration
+	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
+		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(TAGMATRIX) -tool vet $(GO_LINT_PLUGINS)
+
 _fw-lint: i18n-catalogs
 ifdef GOLANGCI_LINT
-	$(GOLANGCI_LINT) run ./...
-	cd host && $(GOLANGCI_LINT) run ./...
-	cd cli && $(GOLANGCI_LINT) run ./...
-	cd kapi && $(GOLANGCI_LINT) run ./...
-	cd scripts/gen-refs && $(GOLANGCI_LINT) run ./...
-	cd scripts/gen-contract-types && $(GOLANGCI_LINT) run ./...
-	cd scripts/proseprobe && $(GOLANGCI_LINT) run ./...
+	$(TAGMATRIX_LINT) $(GO_LINT_FRAMEWORK)
+else
+	@echo "golangci-lint not installed. Run 'make tools' to install."
+endif
+
+plugins-lint: ## Run golangci-lint over the plugin modules under every build configuration
+ifdef GOLANGCI_LINT
+	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
+		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(TAGMATRIX_LINT) $(GO_LINT_PLUGINS)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -723,11 +738,27 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # workflow; only the shell bodies live here. Commands mirror the YAML verbatim
 # (e.g. bare `go build`, no fts5 tag) so local == CI.
 #
-# The lint jobs are not mirrored here (they post PR annotations via the pinned
-# golangci-lint-action and gha-lint bootstraps actionlint), but `make lint` and
-# CI lint are otherwise equivalent: the fts5 build tag lives in
-# .golangci.yml (run.build-tags), so both analyze the same cgo/FTS5 code
-# — provided libicu-dev is on PKG_CONFIG_PATH, which the lint CI job installs.
+# The Go lint jobs install golangci-lint with .github/actions/golangci and run
+# the ci-lint-* targets below, which `make lint` runs too. The cgo files need
+# libicu-dev on PKG_CONFIG_PATH, which the lint CI jobs install. A ci-lint-*
+# target fails when golangci-lint is missing; `make lint` only says so.
+REQUIRE_GOLANGCI_LINT = $(if $(GOLANGCI_LINT),,$(error golangci-lint is not on PATH. Run 'make tools' to install it))
+
+ci-lint-framework: ## Mirror the CI `lint-framework` job
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(MAKE) --no-print-directory _fw-lint
+
+ci-lint-platform: ## Mirror the CI `lint-platform` job
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(MAKE) -C bowrain lint
+
+ci-lint-plugins: ## Mirror the CI `lint-plugins` job
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(MAKE) --no-print-directory plugins-lint
+
+ci-lint-kapi-desktop: ## Mirror the lint step of the CI `kapi-desktop-backend` job
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(MAKE) --no-print-directory kapi-desktop-lint
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
 	# The vocabulary packs are also gated in reference-data-drift.yml, but that
@@ -1358,7 +1389,7 @@ kapi-desktop-lint-deps: i18n-catalogs $(KAPI_DESKTOP_DIR)/frontend/dist/index.ht
 
 kapi-desktop-lint: kapi-desktop-lint-deps ## Run golangci-lint over the Kapi Desktop Go backend
 ifdef GOLANGCI_LINT
-	cd $(KAPI_DESKTOP_DIR) && $(GOLANGCI_LINT) run ./...
+	$(TAGMATRIX_LINT) $(KAPI_DESKTOP_DIR)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -3345,7 +3376,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks warm-build-cache workspace-paths test-parallel \
+        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

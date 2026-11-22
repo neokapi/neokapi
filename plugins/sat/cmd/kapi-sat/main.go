@@ -79,7 +79,8 @@ func runDaemon() int {
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-sat.sock")
-	lis, err := net.Listen("unix", sock)
+	var lc net.ListenConfig
+	lis, err := lc.Listen(context.Background(), "unix", sock)
 	if err != nil {
 		logf("listen %s: %v", sock, err)
 		return 1

@@ -10,6 +10,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -90,7 +91,8 @@ func serve() error {
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-pdfium.sock")
-	lis, err := net.Listen("unix", sock)
+	var lc net.ListenConfig
+	lis, err := lc.Listen(context.Background(), "unix", sock)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", sock, err)
 	}
@@ -176,7 +178,7 @@ func complete(stream pb.BridgeService_ProcessServer, errMsg string) error {
 // inline fallback) and returns a URI label for the layer name.
 func readInput(in *pb.ContentRef) ([]byte, string, error) {
 	if in == nil {
-		return nil, "", fmt.Errorf("no input in header")
+		return nil, "", errors.New("no input in header")
 	}
 	if path := in.GetPath(); path != "" {
 		data, err := os.ReadFile(path)
@@ -188,5 +190,5 @@ func readInput(in *pb.ContentRef) ([]byte, string, error) {
 	if inline := in.GetInline(); len(inline) > 0 {
 		return inline, "document.pdf", nil
 	}
-	return nil, "", fmt.Errorf("empty input")
+	return nil, "", errors.New("empty input")
 }

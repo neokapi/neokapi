@@ -13,11 +13,12 @@
 // kernels; recognition normalizes in BGR (PP-OCR's training order), runs the
 // CRNN, and CTC-decodes against the PP-OCR dictionary. Known limitations: the
 // detection uses axis-aligned boxes (not rotated polygons) and the mobile
-// recognizer occasionally drops inter-word spaces — both acceptable for v1 and
-// improvable later (rotated-box DB postproc, a larger recognizer).
+// recognizer occasionally drops inter-word spaces. Both are acceptable for v1;
+// a rotated-box DB postproc and a larger recognizer would improve them.
 package ocr
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -50,8 +51,8 @@ type onnxEngine struct {
 	dict   []string
 	loaded bool
 
-	// Layout is lazily loaded on first Layout() call (separate from OCR — its
-	// model is large and downloaded on demand). See layout_onnx.go.
+	// Layout is lazily loaded on first Layout() call, separately from OCR: its
+	// model is large and downloaded on demand. See layout_onnx.go.
 	layoutMu      sync.Mutex
 	layoutSess    *ort.DynamicAdvancedSession
 	layoutInputs  []string
@@ -122,16 +123,18 @@ func openSession(path string) (*ort.DynamicAdvancedSession, error) {
 	return ort.NewDynamicAdvancedSession(path, []string{ins[0].Name}, []string{outs[0].Name}, nil)
 }
 
-// Layout would run an ML document-layout model (regions + roles). The full
-// layout stack around it is implemented and tested — the visionproto `layout`
-// op, the host transport, the reading-order heuristic (core/vision.SortReadingOrder),
+// Layout would run an ML document-layout model (regions + roles). The layout
+// stack around it is implemented and tested: the visionproto `layout` op, the
+// host transport, the reading-order heuristic (core/vision.SortReadingOrder),
 // and the region→structure mapping that assigns OCR lines to regions
-// (core/vision.PartsFromLayout) — but the model-backed detection itself is NOT
-// yet wired: a validated PP-DocLayout / RT-DETR ONNX model and its detection
-// post-processing (box decode + NMS + label→role mapping) still need to be added
-// and validated against real output, exactly as the OCR det/rec pipeline was.
-// Until then this returns an error and the image reader falls back to geometric
-// (tier-2) structure — graceful degradation rather than unvalidated numerics.
+// (core/vision.PartsFromLayout).
+
+// The model-backed detection itself is NOT yet wired. It needs a validated
+// PP-DocLayout / RT-DETR ONNX model and its detection post-processing (box
+// decode + NMS + label→role mapping), validated against real output as the
+// OCR det/rec pipeline was. Until then this returns an error and the image
+// reader falls back to geometric (tier-2) structure. Degrading this way avoids
+// unvalidated numerics.
 
 func (e *onnxEngine) Loaded() bool {
 	e.mu.Lock()
@@ -142,17 +145,18 @@ func (e *onnxEngine) Loaded() bool {
 func (e *onnxEngine) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	var errs []error
 	if e.det != nil {
-		e.det.Destroy()
+		errs = append(errs, e.det.Destroy())
 		e.det = nil
 	}
 	if e.rec != nil {
-		e.rec.Destroy()
+		errs = append(errs, e.rec.Destroy())
 		e.rec = nil
 	}
 	e.layoutMu.Lock()
 	if e.layoutSess != nil {
-		e.layoutSess.Destroy()
+		errs = append(errs, e.layoutSess.Destroy())
 		e.layoutSess = nil
 	}
 	e.layoutMu.Unlock()
@@ -160,10 +164,10 @@ func (e *onnxEngine) Close() error {
 	// Do NOT DestroyEnvironment here: the onnxruntime environment is
 	// process-global, initialized exactly once via initORT's sync.Once. Tearing
 	// it down on a per-engine Close would make every subsequent engine fail
-	// ("InitializeRuntime not called") since the Once will not fire again — which
+	// ("InitializeRuntime not called") since the Once will not fire again. That
 	// breaks sequential use (e.g. a second image in a batch, or OCR followed by
 	// layout). The OS reclaims the environment at process exit.
-	return nil
+	return errors.Join(errs...)
 }
 
 // OCR runs detection then recognition over the image file and returns text lines
@@ -233,7 +237,7 @@ func (e *onnxEngine) detect(img *image.RGBA) ([]box, int, int, error) {
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	defer inT.Destroy()
+	defer func() { _ = inT.Destroy() }()
 
 	// Auto-allocated output (the binding fills outs[0] from the run).
 	outs := []ort.Value{nil}
@@ -245,11 +249,11 @@ func (e *onnxEngine) detect(img *image.RGBA) ([]box, int, int, error) {
 	}
 	outT, ok := outs[0].(*ort.Tensor[float32])
 	if !ok {
-		return nil, 0, 0, fmt.Errorf("vision: det output is not float32")
+		return nil, 0, 0, errors.New("vision: det output is not float32")
 	}
-	defer outT.Destroy()
+	defer func() { _ = outT.Destroy() }()
 
-	// Output shape [1,1,H,W] — use its own H,W for the mask.
+	// Output shape [1,1,H,W]; use its own H,W for the mask.
 	sh := outT.GetShape()
 	ph, pw := dh, dw
 	if len(sh) == 4 {
@@ -260,10 +264,7 @@ func (e *onnxEngine) detect(img *image.RGBA) ([]box, int, int, error) {
 	for i, p := range prob {
 		mask[i] = p >= detThreshold
 	}
-	minArea := (pw * ph) / 5000 // drop specks relative to the page
-	if minArea < 4 {
-		minArea = 4
-	}
+	minArea := max((pw*ph)/5000, 4) // drop specks relative to the page
 	return connectedBoxes(mask, pw, ph, minArea), pw, ph, nil
 }
 
@@ -274,10 +275,7 @@ func (e *onnxEngine) recognize(crop *image.RGBA) (string, float64, error) {
 	if cw == 0 || ch == 0 {
 		return "", 0, nil
 	}
-	rw := int(math.Round(float64(cw) * float64(recHeight) / float64(ch)))
-	if rw < recWidthDiv {
-		rw = recWidthDiv
-	}
+	rw := max(int(math.Round(float64(cw)*float64(recHeight)/float64(ch))), recWidthDiv)
 	resized := resizeRGBA(crop, rw, recHeight)
 	input := normalizeRec(resized)
 
@@ -285,7 +283,7 @@ func (e *onnxEngine) recognize(crop *image.RGBA) (string, float64, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	defer inT.Destroy()
+	defer func() { _ = inT.Destroy() }()
 
 	outs := []ort.Value{nil}
 	e.mu.Lock()
@@ -296,9 +294,9 @@ func (e *onnxEngine) recognize(crop *image.RGBA) (string, float64, error) {
 	}
 	outT, ok := outs[0].(*ort.Tensor[float32])
 	if !ok {
-		return "", 0, fmt.Errorf("vision: rec output is not float32")
+		return "", 0, errors.New("vision: rec output is not float32")
 	}
-	defer outT.Destroy()
+	defer func() { _ = outT.Destroy() }()
 
 	// Output shape [1, T, C]; reshape the flat data into T timesteps of C classes.
 	sh := outT.GetShape()
@@ -308,7 +306,7 @@ func (e *onnxEngine) recognize(crop *image.RGBA) (string, float64, error) {
 	steps, classes := int(sh[1]), int(sh[2])
 	flat := outT.GetData()
 	probs := make([][]float32, steps)
-	for t := 0; t < steps; t++ {
+	for t := range steps {
 		probs[t] = flat[t*classes : (t+1)*classes]
 	}
 	text, conf := ctcGreedyDecode(probs, e.dict)
@@ -323,8 +321,8 @@ func toRGBA(img image.Image) *image.RGBA {
 	}
 	b := img.Bounds()
 	out := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	for y := 0; y < b.Dy(); y++ {
-		for x := 0; x < b.Dx(); x++ {
+	for y := range b.Dy() {
+		for x := range b.Dx() {
 			out.Set(x, y, img.At(b.Min.X+x, b.Min.Y+y))
 		}
 	}
@@ -351,13 +349,13 @@ func resizeRGBA(src *image.RGBA, w, h int) *image.RGBA {
 		return out
 	}
 	minX, minY := src.Bounds().Min.X, src.Bounds().Min.Y
-	for y := 0; y < h; y++ {
+	for y := range h {
 		fy := (float64(y)+0.5)*float64(sh)/float64(h) - 0.5
 		y0 := int(math.Floor(fy))
 		wy := fy - float64(y0)
 		y1 := y0 + 1
 		y0, y1 = clamp(y0, 0, sh-1), clamp(y1, 0, sh-1)
-		for x := 0; x < w; x++ {
+		for x := range w {
 			fx := (float64(x)+0.5)*float64(sw)/float64(w) - 0.5
 			x0 := int(math.Floor(fx))
 			wx := fx - float64(x0)
@@ -402,11 +400,11 @@ func cropRGBA(src *image.RGBA, x0, y0, x1, y1 int) *image.RGBA {
 func normalizeCHW(img *image.RGBA, mean, std []float32) []float32 {
 	w, h := img.Bounds().Dx(), img.Bounds().Dy()
 	out := make([]float32, 3*h*w)
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			c := img.RGBAAt(img.Bounds().Min.X+x, img.Bounds().Min.Y+y)
 			rgb := [3]float32{float32(c.R), float32(c.G), float32(c.B)}
-			for ch := 0; ch < 3; ch++ {
+			for ch := range 3 {
 				out[ch*h*w+y*w+x] = (rgb[ch]/255 - mean[ch]) / std[ch]
 			}
 		}
@@ -420,11 +418,11 @@ func normalizeCHW(img *image.RGBA, mean, std []float32) []float32 {
 func normalizeRec(img *image.RGBA) []float32 {
 	w, h := img.Bounds().Dx(), img.Bounds().Dy()
 	out := make([]float32, 3*h*w)
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			c := img.RGBAAt(img.Bounds().Min.X+x, img.Bounds().Min.Y+y)
 			bgr := [3]float32{float32(c.B), float32(c.G), float32(c.R)}
-			for ch := 0; ch < 3; ch++ {
+			for ch := range 3 {
 				out[ch*h*w+y*w+x] = (bgr[ch]/255 - 0.5) / 0.5
 			}
 		}

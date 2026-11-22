@@ -4,7 +4,6 @@ package e2e
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -106,7 +105,7 @@ func TestDeviceAuthFlow(t *testing.T) {
 		"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		pollResp, err := http.PostForm(serverURL+"/api/v1/auth/device/poll", pollForm)
 		require.NoError(t, err)
 
@@ -171,7 +170,8 @@ func TestProjectInWorkspace(t *testing.T) {
 
 	// Ensure workspace exists.
 	body := `{"name":"Project Test WS","slug":"proj-ws"}`
-	apiRequest(t, http.MethodPost, "/api/v1/workspaces", token, body)
+	wsResp := apiRequest(t, http.MethodPost, "/api/v1/workspaces", token, body)
+	require.NoError(t, wsResp.Body.Close())
 
 	// Create project in workspace.
 	projBody := `{"name":"Test Project","default_source_language":"en","target_languages":["fr","de"]}`
@@ -223,7 +223,7 @@ func getTestToken(t *testing.T) string {
 		"device_code": {startResp.DeviceCode},
 		"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
 	}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		pollResp, err := http.PostForm(serverURL+"/api/v1/auth/device/poll", pollForm)
 		require.NoError(t, err)
 		body, _ := io.ReadAll(pollResp.Body)
@@ -253,5 +253,5 @@ func TestWebUI(t *testing.T) {
 	require.NoError(t, err)
 	// The web UI should serve an HTML page.
 	assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
-	assert.Contains(t, string(body), "<html", fmt.Sprintf("expected HTML response, got: %.100s", body))
+	assert.Contains(t, string(body), "<html", "expected HTML response, got: %.100s", body)
 }

@@ -102,7 +102,7 @@ func TestGovernedChangeSetLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	reviews, err := store.ListReviews(ctx, testWS, cs.ID)
 	require.NoError(t, err)
-	assert.Error(t, CanMerge(*got, true, derefReviews(reviews)), "self-approval must not satisfy SoD")
+	require.Error(t, CanMerge(*got, true, derefReviews(reviews)), "self-approval must not satisfy SoD")
 
 	// A second reviewer's approval clears the gate.
 	require.NoError(t, store.AddReview(ctx, &ChangeSetReview{
@@ -133,7 +133,7 @@ func TestReviewUpsertAndReopen(t *testing.T) {
 	require.NoError(t, store.CreateChangeSet(ctx, cs))
 	require.NoError(t, store.SetChangeSetStatus(ctx, testWS, cs.ID, ChangeSetInReview))
 
-	// A reviewer rejects, then changes their mind — AddReview upserts by reviewer.
+	// A reviewer rejects, then changes their mind. AddReview upserts by reviewer.
 	require.NoError(t, store.AddReview(ctx, &ChangeSetReview{
 		WorkspaceID: testWS, ChangesetID: cs.ID, Reviewer: "bob", Verdict: VerdictReject, Comment: "needs work",
 	}))
@@ -161,11 +161,11 @@ func TestStatusTransitionGuards(t *testing.T) {
 	cs := &ChangeSet{WorkspaceID: testWS, Name: "guards", CreatedBy: "alice"}
 	require.NoError(t, store.CreateChangeSet(ctx, cs))
 
-	// SetChangeSetStatus refuses to finalize a merge — merging flows through
+	// SetChangeSetStatus refuses to finalize a merge. Merging flows through
 	// SetMergeResult, which stamps merged_by/merged_at.
-	assert.Error(t, store.SetChangeSetStatus(ctx, testWS, cs.ID, ChangeSetMerged))
+	require.Error(t, store.SetChangeSetStatus(ctx, testWS, cs.ID, ChangeSetMerged))
 	// An illegal edge (draft → approved) is rejected.
-	assert.Error(t, store.SetChangeSetStatus(ctx, testWS, cs.ID, ChangeSetApproved))
+	require.Error(t, store.SetChangeSetStatus(ctx, testWS, cs.ID, ChangeSetApproved))
 
 	// From a terminal state, SetMergeResult refuses the exit (no merge-after-end).
 	require.NoError(t, store.SetChangeSetStatus(ctx, testWS, cs.ID, ChangeSetAbandoned))

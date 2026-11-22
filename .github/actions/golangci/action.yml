@@ -1,14 +1,10 @@
-name: golangci-lint (one module)
+name: golangci-lint (install)
 description: >
-  Run golangci-lint over a single Go module with the repository's standard
-  settings. Factored out so the lint jobs don't repeat the version pin and the
-  only-new-issues rationale six times. A job that uses it runs
+  Install the pinned golangci-lint on PATH. The lint jobs then run a make
+  target, which runs scripts/tagmatrix: golangci-lint once per build
+  configuration, so every build-tagged file is linted, and `make lint` runs
+  the same commands locally. A job that uses it runs
   .github/actions/golangci-cache once first.
-
-inputs:
-  working-directory:
-    description: Module directory to lint (passed to golangci-lint-action).
-    required: true
 
 runs:
   using: composite
@@ -16,16 +12,8 @@ runs:
     - uses: golangci/golangci-lint-action@v9
       with:
         install-mode: binary
-        verify: false
+        install-only: true
         version: v2.15.0
-        working-directory: ${{ inputs.working-directory }}
         # The job restores and saves golangci-lint's cache once, through
-        # .github/actions/golangci-cache. The action's own cache is per module
-        # and restored the same directory again in every lint step.
+        # .github/actions/golangci-cache.
         skip-cache: true
-        # Full lint on PRs too: the GitHub patch API the action uses for
-        # only-new-issues filtering 406s on diffs over 20000 lines (large
-        # generated artifacts / lockfile churn). Push to main already lints in
-        # full and is the clean gate, so PRs lint identically.
-        only-new-issues: false
-        args: --timeout=5m ./...
