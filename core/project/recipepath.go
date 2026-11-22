@@ -166,13 +166,19 @@ func followRecipeLink(path string) string {
 	return path
 }
 
-// isRecipe reports whether the file at path reads as a recipe: a YAML mapping.
-// A file that cannot be read is left for the command to report.
+// isRecipe reports whether the file at path can be a recipe: YAML whose
+// document is a mapping. It reports false only for YAML that parses to
+// something else (a list, a scalar). A file that cannot be read, or that
+// fails to parse, is left for the load to report with the parser's line and
+// column, since a recipe with a YAML error is still the recipe.
 func isRecipe(path string) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return true
 	}
-	var head map[string]any
-	return yaml.Unmarshal(data, &head) == nil
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil || len(doc.Content) == 0 {
+		return true
+	}
+	return doc.Content[0].Kind == yaml.MappingNode
 }
