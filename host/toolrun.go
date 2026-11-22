@@ -440,7 +440,9 @@ func (a *App) resolveRunOutputPath(cfg ToolRunConfig, filePath, commonDir string
 	case cfg.InPlace:
 		outputPath = filePath
 	case cfg.OutputTemplate != "":
-		outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+		if outputPath, err = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang); err != nil {
+			return "", false, err
+		}
 	case cfg.TargetLang == "":
 		// The default layout places a target-language file by swapping the
 		// source locale in the input path for the target's. A run that names
@@ -452,9 +454,13 @@ func (a *App) resolveRunOutputPath(cfg ToolRunConfig, filePath, commonDir string
 		// wins over the locale-swap heuristic, so tool runs honour the recipe's
 		// declared layout too. Outside a project this is a no-op and the ad-hoc
 		// locale-swap default applies.
-		if p, ok := a.projectItemTargetPath(filePath, cfg.TargetLang); ok {
+		p, ok, perr := a.projectItemTargetPath(filePath, cfg.TargetLang)
+		switch {
+		case perr != nil:
+			return "", false, perr
+		case ok:
 			outputPath = p
-		} else {
+		default:
 			outputPath = localeOutputPath(filePath, a.SourceLocale(), cfg.TargetLang)
 		}
 		// The file home creates the directory when the document commits,
@@ -984,15 +990,13 @@ func commonPath(a, b string) string {
 	return filepath.FromSlash(strings.Join(common, "/"))
 }
 
-// expandOutputPath expands an explicit -o template for one tool-run input file
-// and ensures the parent directory exists. Token expansion and directory-mirror
+// expandOutputPath expands an explicit -o template for one tool-run input
+// file. The file home creates the parent directory at commit. Token expansion and directory-mirror
 // handling are delegated to the shared ad-hoc resolver (expandAdhocOutputTemplate)
 // so the -o vocabulary matches flow runs and project content-item targets. A
 // directory target mirrors the file relative to commonDir.
-func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
-	result := expandAdhocOutputTemplate(tmpl, filePath, commonDir, lang)
-	ensureParentDir(result)
-	return result
+func expandOutputPath(tmpl, filePath, commonDir, lang string) (string, error) {
+	return expandAdhocOutputTemplate(tmpl, filePath, commonDir, lang)
 }
 
 // localeOutputPath computes the default output path for an input file when no

@@ -198,7 +198,11 @@ func targetFeedsItsOwnCollection(pattern, target, lang string, matches []string)
 		return "", false
 	}
 	for _, rel := range matches {
-		out := filepath.ToSlash(coreproj.ResolveTargetPath(pattern, "", target, rel, lang))
+		resolved, err := coreproj.ResolveTargetPath(pattern, "", target, rel, lang)
+		if err != nil {
+			continue // a name the template cannot hold safely has no target
+		}
+		out := filepath.ToSlash(resolved)
 		if coreproj.MatchGlob(pattern, out) {
 			return out, true
 		}

@@ -608,7 +608,11 @@ The `kapi.yaml` recipe references AI providers by type (e.g., `provider: anthrop
    resolved location. Keys live under the keychain service `"kapi"`)
 2. Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) or the
    `--api-key` flag
-3. The `--provider` and `--model` CLI flags override project defaults
+3. The `--provider` and `--model` CLI flags override the recipe's tool
+   presets and the configured default for every step that does not name its
+   own value; a step's own `config:` wins over a flag. See
+   [E-07](../../architecture/engine/e-07-model-providers.md#default-provider-resolution)
+   for the full order.
 
 ## CLI Integration
 

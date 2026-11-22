@@ -1099,7 +1099,7 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 
 	var proj KapiProject
 	if err := yaml.Unmarshal(data, &proj); err != nil {
-		return nil, fmt.Errorf("parse project file %s: it is not a kapi recipe: %w", path, err)
+		return nil, fmt.Errorf("parse project file %s: %w", path, err)
 	}
 
 	if err := proj.validate(opts); err != nil {

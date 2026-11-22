@@ -30,19 +30,24 @@ RUN export GOWORK=off \
     && cd core && go mod download \
     && cd ../plugin && go mod download
 
-# Copy source.
+# Copy source. The Go build cache below is a cache mount, not a layer: a
+# context that differs from the last build (another worktree, one edited file)
+# recompiles only what changed, and no layer holds the cache. The modules stay
+# in the layer above, which the CI image builds restore from their layer cache.
 COPY . .
 
 # The gettext catalogs core/i18n and host/i18n embed are build output:
 # version control carries the translated JSON, and this compiles it into
 # the `catalogs/*.mo` the `//go:embed` pattern below resolves.
-RUN go run ./core/i18n/gen/catalogs
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    go run ./core/i18n/gen/catalogs
 
 # Build only the worker binary (version injected via build args).
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_DATE=unknown
-RUN CGO_ENABLED=0 cd bowrain && go build \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    cd bowrain && CGO_ENABLED=0 go build -trimpath \
     -ldflags="-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${COMMIT} -X github.com/neokapi/neokapi/core/version.BuildDate=${BUILD_DATE}" \
     -o /out/bowrain-worker ./cmd/bowrain-worker
 

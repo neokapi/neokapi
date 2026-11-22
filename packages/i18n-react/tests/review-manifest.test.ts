@@ -1,5 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
@@ -8,10 +7,7 @@ import { newFile, marshalFile, sourceEditions } from "@neokapi/kapi-format";
 
 import { buildReviewManifest, type ReviewManifest } from "../src/review/manifest.ts";
 import { runCompile } from "../src/commands/compile.ts";
-
-function tempDir(prefix: string) {
-  return mkdtempSync(join(tmpdir(), `${prefix}-`));
-}
+import { tempDir } from "./temp-dir";
 
 // block builds a catalog block with translations by language, each filed as
 // an edition under its key.

@@ -405,7 +405,9 @@ func TestResolveTargetPathMatchesRunner(t *testing.T) {
 			// the shared cli orchestrator (cli.App.RunFlowAllLocales), so
 			// checks-side and runner-side resolution cannot diverge.
 			relSlash := filepath.ToSlash(tc.relative)
-			canonical := filepath.Join(root, project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang))
+			resolved, err := project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang)
+			require.NoError(t, err)
+			canonical := filepath.Join(root, resolved)
 			assert.Equal(t, canonical, got, "checks-side resolution must equal project.ResolveTargetPath")
 		})
 	}

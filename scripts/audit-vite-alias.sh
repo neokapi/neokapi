@@ -108,6 +108,18 @@ if [ "$self_test" -eq 1 ]; then
   trap 'rm -rf "$tmp"' EXIT
   failed=0
   n=0
+  # A Windows runner: every checked-out file has CRLF line endings, and a
+  # python3 that writes CRLF the way Python's text mode does on Windows.
+  mkdir -p "$tmp/crlf-bin"
+  real_python=$(command -v python3)
+  cat >"$tmp/crlf-bin/python3" <<EOF
+#!/usr/bin/env bash
+set -o pipefail
+"$real_python" "\$@" | sed 's/\$/\r/'
+EOF
+  chmod +x "$tmp/crlf-bin/python3"
+  crlf=0
+
   # case WANT_EXIT DESCRIPTION FLAGS -- fixture args
   check_case() {
     local want="$1" desc="$2" flags="$3"
@@ -115,9 +127,17 @@ if [ "$self_test" -eq 1 ]; then
     n=$((n + 1))
     local dir="$tmp/case$n"
     fixture "$dir" "$@"
+    local path="$PATH"
+    if [ "$crlf" -eq 1 ]; then
+      local f
+      while IFS= read -r f; do
+        sed -i.bak 's/$/\r/' "$f" && rm -f "$f.bak"
+      done < <(find "$dir" -type f)
+      path="$tmp/crlf-bin:$PATH"
+    fi
     local rc=0
     # shellcheck disable=SC2086 # FLAGS is a word list on purpose
-    bash "$script" --root "$dir" $flags >"$dir.out" 2>"$dir.err" || rc=$?
+    PATH="$path" bash "$script" --root "$dir" $flags >"$dir.out" 2>"$dir.err" || rc=$?
     local lines
     lines=$(wc -l <"$dir.err" | tr -d ' ')
     if [ "$want" -eq 0 ] && [ "$rc" -eq 0 ]; then
@@ -154,6 +174,16 @@ if [ "$self_test" -eq 1 ]; then
     1.7.0 8.3.8000 1.7.0 "" ""
   check_case 1 "--installed with node_modules from another release" "--installed" \
     1.7.0 8.3.8000 1.7.0 1.6.0 1.6.0
+
+  # The same checks on a Windows runner's CRLF files and CRLF python3 output.
+  crlf=1
+  check_case 0 "CRLF: 1.7.0: core carries its own version" "--installed" \
+    1.7.0 8.3.8000 1.7.0 1.7.0 8.3.8000
+  check_case 1 "CRLF: alias left on the previous release's core" "--installed" \
+    1.7.0 1.6.0 1.7.0 1.7.0 8.3.8000
+  check_case 1 "CRLF: a setup-vp version: that lags the catalog" "" \
+    1.7.0 8.3.8000 1.6.0 "" ""
+  crlf=0
 
   if [ "$failed" -ne 0 ]; then
     echo "audit-vite-alias: self-test failed" >&2
@@ -207,11 +237,14 @@ manifest=node_modules/vite-plus/package.json
 inst_version=""
 inst_vite=""
 if [ -f "$manifest" ]; then
+  # Python on Windows writes print()'s newline as CRLF, and `read` keeps the
+  # carriage return in the last field, so the versions compared below would
+  # differ by an invisible character. The carriage return is removed here.
   read -r inst_version inst_vite < <(python3 -c '
 import json, sys
 m = json.load(open(sys.argv[1]))
 print(m.get("version", "-"), (m.get("dependencies") or {}).get("vite", "-"))
-' "$manifest")
+' "$manifest" | tr -d '\r')
 fi
 
 if [ "$inst_version" != "$catalog" ]; then

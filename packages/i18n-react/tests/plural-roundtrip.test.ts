@@ -19,9 +19,9 @@ import { newFile, marshalFile, sourceRuns } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
 import { extractDocument } from "../src/extract/index.ts";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tempDir } from "./temp-dir";
 
 const SHOPPING_CART = `
 export default function ShoppingCart({ items }) {
@@ -38,10 +38,6 @@ export default function ShoppingCart({ items }) {
   );
 }
 `;
-
-function tempDir(prefix: string): string {
-  return mkdtempSync(join(tmpdir(), `${prefix}-`));
-}
 
 describe("plural round-trip", () => {
   it("extracts ShoppingCart into a .kbf.json with a PluralRun, compiles it to an ICU runtime dict", async () => {

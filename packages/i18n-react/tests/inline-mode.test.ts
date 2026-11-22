@@ -6,8 +6,7 @@
  * producing invalid JSX in inline builds.
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseSync } from "@swc/core";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -15,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { transform } from "../src/plugin/transform.ts";
 import { hashKey } from "../src/plugin/hash.ts";
 import type { PluginOptions } from "../src/types.ts";
+import { tempDir } from "./temp-dir";
 
 const tmpDirs: string[] = [];
 
@@ -25,7 +25,7 @@ afterEach(() => {
 
 /** Write a {hash: translation} dict for `locale` into a fresh tmp dir. */
 function dictDir(locale: string, entries: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), "kapi-inline-"));
+  const dir = tempDir("kapi-inline");
   tmpDirs.push(dir);
   writeFileSync(join(dir, `${locale}.json`), JSON.stringify(entries));
   return dir;

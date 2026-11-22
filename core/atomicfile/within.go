@@ -104,8 +104,8 @@ func resolveTarget(realRoot, path string) (string, error) {
 			return "", err
 		}
 	}
-	rel, err := filepath.Rel(realRoot, real)
-	if err != nil || !filepath.IsLocal(rel) {
+	rel, ok := rootpath.Beneath(realRoot, real)
+	if !ok || rel == "." {
 		return "", fmt.Errorf("%s: %w", path, errOutsideRoot)
 	}
 	return rel, nil

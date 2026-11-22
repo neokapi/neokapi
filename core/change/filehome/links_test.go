@@ -196,6 +196,18 @@ func TestChangeCommitRefusesALinkSwappedInAfterTheCheck(t *testing.T) {
 	assert.Empty(t, entries, "nothing is written outside the root")
 }
 
+// On a case-insensitive volume a path spelled in another case, with no link
+// anywhere, lies beneath the root and is written.
+func TestProduceWritesAPathSpelledInAnotherCase(t *testing.T) {
+	root, _, _ := linkProject(t)
+	upper := filepath.Join(filepath.Dir(root), "PROJECT")
+	if _, err := os.Stat(upper); err != nil {
+		t.Skip("the volume is case-sensitive")
+	}
+	require.NoError(t, produce(t, filehome.New(nil, filehome.Options{Root: root}), filepath.Join(upper, "LOCALES", "fr.json")))
+	assert.FileExists(t, filepath.Join(root, "locales", "fr.json"))
+}
+
 // On a case-insensitive volume a path spelled with another case is still
 // beneath the root, and a link out of the root under it is refused.
 func TestProduceRefusesALinkOutOfTheRootUnderAnotherCase(t *testing.T) {

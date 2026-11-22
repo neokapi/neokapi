@@ -158,3 +158,43 @@ defaults:
 		assert.Empty(t, entries, "kapi %v wrote to the data root", args)
 	}
 }
+
+// A recipe with a YAML error, named by -p or found by the upward walk, fails
+// with the parser's line and problem, not as "not a kapi recipe".
+func TestProjectWithAYAMLErrorReportsTheParseError(t *testing.T) {
+	for _, tc := range []struct{ name, body, says string }{
+		{"duplicate key", "version: v1\nname: dup\ndefaults:\n  target_languages: [fr]\n  target_languages: [de]\n", "line 5"},
+		{"tab indentation", "version: v1\nname: tab\ndefaults:\n\ttarget_languages: [fr]\n", "line 4"},
+		{"type error", "version: v1\nname: typed\ndefaults:\n  target_languages: fr\n", "line 4"},
+	} {
+		for _, discovered := range []bool{false, true} {
+			name := tc.name + "/-p"
+			if discovered {
+				name = tc.name + "/discovered"
+			}
+			t.Run(name, func(t *testing.T) {
+				dir, err := filepath.EvalSymlinks(t.TempDir())
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(tc.body), 0o644))
+				args := []string{"status"}
+				env := append(os.Environ(), isoEnv...)
+				if discovered {
+					require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
+					env = append(env, "KAPI_NO_PROJECT=")
+				} else {
+					args = append(args, "-p", "kapi.yaml")
+				}
+				cmd := exec.Command(kapiBin, args...)
+				cmd.Dir = dir
+				if discovered {
+					cmd.Dir = filepath.Join(dir, "sub")
+				}
+				cmd.Env = env
+				out, err := cmd.CombinedOutput()
+				require.Error(t, err, "%s", out)
+				assert.NotContains(t, string(out), "not a kapi recipe")
+				assert.Contains(t, string(out), tc.says, "%s", out)
+			})
+		}
+	}
+}

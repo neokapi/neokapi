@@ -2083,7 +2083,11 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 		if it.Item.Target == "" {
 			return ""
 		}
-		out = coreproj.ResolveTargetPath(pattern, it.Item.Base, it.Item.Target, itemName, locale)
+		resolved, err := coreproj.ResolveTargetPath(pattern, it.Item.Base, it.Item.Target, itemName, locale)
+		if err != nil {
+			return "" // a name the template cannot hold safely has no target
+		}
+		out = resolved
 		break
 	}
 

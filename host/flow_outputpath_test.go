@@ -29,7 +29,8 @@ func TestExpandAdhocOutputTemplate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := expandAdhocOutputTemplate(tt.tmpl, tt.input, tt.base, tt.lang)
+			got, err := expandAdhocOutputTemplate(tt.tmpl, tt.input, tt.base, tt.lang)
+			require.NoError(t, err)
 			assert.Equal(t, filepath.FromSlash(tt.want), got)
 		})
 	}
@@ -54,17 +55,17 @@ func TestProjectItemTargetPath(t *testing.T) {
 	}
 	a := &App{ProjectContext: project.NewProjectContext(proj, filepath.Join(root, "kapi.yaml"))}
 
-	got, ok := a.projectItemTargetPath(filepath.Join(root, "input/docs/api-reference.md"), "fr")
+	got, ok, _ := a.projectItemTargetPath(filepath.Join(root, "input/docs/api-reference.md"), "fr")
 	require.True(t, ok)
 	assert.Equal(t, filepath.Join(root, "output/fr/docs/api-reference.md"), got)
 
 	// The form that used to yield `.json.json` now resolves cleanly.
-	got, ok = a.projectItemTargetPath(filepath.Join(root, "input/store/checkout.json"), "fr")
+	got, ok, _ = a.projectItemTargetPath(filepath.Join(root, "input/store/checkout.json"), "fr")
 	require.True(t, ok)
 	assert.Equal(t, filepath.Join(root, "output/fr/store/checkout.json"), got)
 
 	// A file outside any content pattern: no project target → caller falls back.
-	_, ok = a.projectItemTargetPath(filepath.Join(root, "elsewhere/readme.md"), "fr")
+	_, ok, _ = a.projectItemTargetPath(filepath.Join(root, "elsewhere/readme.md"), "fr")
 	assert.False(t, ok)
 }
 
@@ -143,14 +144,14 @@ func TestProjectItemTargetPath_FirstMatchingItemClaims(t *testing.T) {
 	}
 	a := &App{ProjectContext: project.NewProjectContext(proj, filepath.Join(root, "kapi.yaml"))}
 
-	got, ok := a.projectItemTargetPath(filepath.Join(root, "docs/api.md"), "fr")
+	got, ok, _ := a.projectItemTargetPath(filepath.Join(root, "docs/api.md"), "fr")
 	require.True(t, ok)
 	assert.Equal(t, filepath.Join(root, "reference/fr/api.md"), got, "the explicit item's target, not the glob's")
 
-	got, ok = a.projectItemTargetPath(filepath.Join(root, "docs/guide.md"), "fr")
+	got, ok, _ = a.projectItemTargetPath(filepath.Join(root, "docs/guide.md"), "fr")
 	require.True(t, ok)
 	assert.Equal(t, filepath.Join(root, "output/fr/guide.md"), got)
 
-	_, ok = a.projectItemTargetPath(filepath.Join(root, "docs/README.md"), "fr")
+	_, ok, _ = a.projectItemTargetPath(filepath.Join(root, "docs/README.md"), "fr")
 	assert.False(t, ok, "a source-only item claims the file; the glob's target is not borrowed")
 }
