@@ -120,9 +120,9 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			var count int
 			switch inputFormat {
 			case "bundle":
-				count, err = ImportKMBFile(cmd.Context(), tm, args[0])
+				count, err = ImportKMBFile(host.CmdContext(cmd), tm, args[0])
 			case "tmx":
-				count, err = ImportTMXFile(cmd.Context(), tm, args[0], string(srcLoc), tgtLocale, allPairs, ParseLocaleList(localesRaw))
+				count, err = ImportTMXFile(host.CmdContext(cmd), tm, args[0], string(srcLoc), tgtLocale, allPairs, ParseLocaleList(localesRaw))
 			default:
 				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", inputFormat)
 			}
@@ -134,13 +134,13 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			// inserts. Rebuild the search/fuzzy side-tables so imported
 			// entries are visible to `kapi memory search` and fuzzy lookup,
 			// matching what import-dir does after its bulk load.
-			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
+			a.RebuildMemorySearchIndexes(host.CmdContext(cmd), tm)
 
 			if a.Quiet {
 				return nil
 			}
-			WarnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
-			memoryTotal, err := tm.Count(cmd.Context())
+			WarnSuspectTokenEntries(host.CmdContext(cmd), tm, cmd.ErrOrStderr())
+			memoryTotal, err := tm.Count(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
@@ -223,7 +223,7 @@ Examples:
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "[%d/%d] %s ", i+1, len(files), rel)
 				}
-				n, err := ImportTMXFile(cmd.Context(), tm, path, string(srcLoc), tgtLocale, allPairs, locales)
+				n, err := ImportTMXFile(host.CmdContext(cmd), tm, path, string(srcLoc), tgtLocale, allPairs, locales)
 				if err != nil {
 					failed++
 					if !a.Quiet {
@@ -241,13 +241,13 @@ Examples:
 			// The bulk path deliberately skips per-row FTS5 inserts, the
 			// dominant cost on large corpora, and this restores text search
 			// and fuzzy matching.
-			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
+			a.RebuildMemorySearchIndexes(host.CmdContext(cmd), tm)
 
 			if a.Quiet {
 				return nil
 			}
-			WarnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
-			memoryTotal, err := tm.Count(cmd.Context())
+			WarnSuspectTokenEntries(host.CmdContext(cmd), tm, cmd.ErrOrStderr())
+			memoryTotal, err := tm.Count(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
@@ -310,12 +310,12 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 
 			switch ResolveMemoryExportFormat(format, outputPath) {
 			case "bundle":
-				if err := ExportKMB(cmd.Context(), tm, w); err != nil {
+				if err := ExportKMB(host.CmdContext(cmd), tm, w); err != nil {
 					return err
 				}
 			case "tmx":
 				locales := ParseLocaleList(localesRaw)
-				if err := memory.ExportTMX(cmd.Context(), tm, w, locales); err != nil {
+				if err := memory.ExportTMX(host.CmdContext(cmd), tm, w, locales); err != nil {
 					return fmt.Errorf("export TMX: %w", err)
 				}
 			default:
@@ -323,7 +323,7 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 			}
 
 			if !a.Quiet && outputPath != "" {
-				total, err := tm.Count(cmd.Context())
+				total, err := tm.Count(host.CmdContext(cmd))
 				if err != nil {
 					return fmt.Errorf("count content-memory entries: %w", err)
 				}
@@ -415,7 +415,7 @@ func newMemorySearchCmd(a *App) *cobra.Command {
 			}
 			defer releaseMemory()
 
-			entries, total, err := tm.SearchEntries(cmd.Context(), memory.SearchParams{
+			entries, total, err := tm.SearchEntries(host.CmdContext(cmd), memory.SearchParams{
 				Query:         args[0],
 				AnyLocale:     srcLocale,
 				RequireLocale: tgtLocale,
@@ -482,7 +482,7 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 			// locale pairs. Keep the legacy LocalePairs map populated with
 			// a single-locale summary for backward compatibility.
 			localePairs := make(map[string]int)
-			localeStats, err := tm.LocaleStats(cmd.Context())
+			localeStats, err := tm.LocaleStats(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("locale stats: %w", err)
 			}
@@ -490,7 +490,7 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 				localePairs[lf.Locale] = lf.Count
 			}
 
-			total, err := tm.Count(cmd.Context())
+			total, err := tm.Count(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
@@ -552,7 +552,7 @@ that added them so you can filter the content memory by import source.`,
 				return err
 			}
 			defer releaseMemory()
-			sessions, err := tm.ListImportSessions(cmd.Context())
+			sessions, err := tm.ListImportSessions(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("list import sessions: %w", err)
 			}
@@ -570,7 +570,7 @@ that added them so you can filter the content memory by import source.`,
 				return err
 			}
 			defer releaseMemory()
-			s, ok, err := tm.GetImportSession(cmd.Context(), args[0])
+			s, ok, err := tm.GetImportSession(host.CmdContext(cmd), args[0])
 			if err != nil {
 				return fmt.Errorf("get import session: %w", err)
 			}
@@ -591,7 +591,7 @@ that added them so you can filter the content memory by import source.`,
 				return err
 			}
 			defer releaseMemory()
-			if err := tm.DeleteImportSession(cmd.Context(), args[0]); err != nil {
+			if err := tm.DeleteImportSession(host.CmdContext(cmd), args[0]); err != nil {
 				return fmt.Errorf("delete session: %w", err)
 			}
 			return output.Print(cmd, MemorySessionDeleteOutput{ID: args[0], Deleted: true})

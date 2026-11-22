@@ -124,15 +124,15 @@ func newTermsImportCmd(a *App) *cobra.Command {
 				} else if format == "tsv" {
 					opts.Delimiter = '\t'
 				}
-				count, err = terms.ImportCSV(cmd.Context(), into, f, opts)
+				count, err = terms.ImportCSV(host.CmdContext(cmd), into, f, opts)
 			case "json":
-				count, err = terms.ImportJSON(cmd.Context(), into, f)
+				count, err = terms.ImportJSON(host.CmdContext(cmd), into, f)
 			case "tbx":
-				count, err = terms.ImportTBX(cmd.Context(), into, f, terms.TBXImportOptions{
+				count, err = terms.ImportTBX(host.CmdContext(cmd), into, f, terms.TBXImportOptions{
 					Domain: domain,
 				})
 			case "bundle":
-				count, err = ImportKTBFile(cmd.Context(), into, f)
+				count, err = ImportKTBFile(host.CmdContext(cmd), into, f)
 			default:
 				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, or bundle)", format)
 			}
@@ -148,7 +148,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			if a.Quiet {
 				return nil
 			}
-			total, err := tb.Count(cmd.Context())
+			total, err := tb.Count(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("count terms: %w", err)
 			}
@@ -205,18 +205,18 @@ func newTermsExportCmd(a *App) *cobra.Command {
 			format = ResolveTermsExportFormat(format, outputPath, cmd.Flags().Changed("format"))
 			switch strings.ToLower(format) {
 			case "csv":
-				err = terms.ExportCSV(cmd.Context(), tb, w, srcLoc, model.LocaleID(tgtLocale), true)
+				err = terms.ExportCSV(host.CmdContext(cmd), tb, w, srcLoc, model.LocaleID(tgtLocale), true)
 			case "json":
 				if tbName == "" {
 					tbName = dbPath
 				}
-				err = terms.ExportJSON(cmd.Context(), tb, w, tbName)
+				err = terms.ExportJSON(host.CmdContext(cmd), tb, w, tbName)
 			case "tbx":
-				err = terms.ExportTBX(cmd.Context(), tb, w, terms.TBXExportOptions{
+				err = terms.ExportTBX(host.CmdContext(cmd), tb, w, terms.TBXExportOptions{
 					SourceLocale: srcLoc,
 				})
 			case "bundle":
-				err = ExportKTB(cmd.Context(), tb, w)
+				err = ExportKTB(host.CmdContext(cmd), tb, w)
 			default:
 				return fmt.Errorf("unsupported format: %s (use csv, json, tbx, or bundle)", format)
 			}
@@ -226,7 +226,7 @@ func newTermsExportCmd(a *App) *cobra.Command {
 			}
 
 			if !a.Quiet && outputPath != "" {
-				total, err := tb.Count(cmd.Context())
+				total, err := tb.Count(host.CmdContext(cmd))
 				if err != nil {
 					return fmt.Errorf("count terms: %w", err)
 				}
@@ -359,7 +359,7 @@ func newTermsSearchCmd(a *App) *cobra.Command {
 			}
 			defer releaseTerms()
 
-			results, total, err := tb.Search(cmd.Context(), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), 0, limit)
+			results, total, err := tb.Search(host.CmdContext(cmd), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), 0, limit)
 			if err != nil {
 				return fmt.Errorf("search: %w", err)
 			}
@@ -485,7 +485,7 @@ func newTermsStatsCmd(a *App) *cobra.Command {
 			}
 			defer releaseTerms()
 
-			concepts, err := tb.Concepts(cmd.Context())
+			concepts, err := tb.Concepts(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("list concepts: %w", err)
 			}
