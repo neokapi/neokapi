@@ -99,6 +99,11 @@ type Staged struct {
 	// outermost first. Commit creates them; until then the temporary file
 	// waits in the nearest directory that does exist.
 	mkdir []string
+	// root, for a file staged with StageWithin, is the handle every
+	// operation goes through; name, target and mkdir are then relative to
+	// it, and abs is the target as an absolute path.
+	root *os.Root
+	abs  string
 }
 
 // Stage writes what write produces to a temporary file beside the file a
@@ -177,7 +182,12 @@ func existingDir(dir string) (string, []string, error) {
 
 // Target is the file Commit replaces: the path the replacement was staged
 // for, with any symlink resolved.
-func (s *Staged) Target() string { return s.target }
+func (s *Staged) Target() string {
+	if s.root != nil {
+		return s.abs
+	}
+	return s.target
+}
 
 // Name is the temporary file that holds the staged bytes.
 func (s *Staged) Name() string { return s.name }
@@ -185,55 +195,16 @@ func (s *Staged) Name() string { return s.name }
 // Commit renames the staged file onto its target, creating the directories
 // the target needs first. A failed rename removes the staged file and the
 // directories Commit created, and leaves the target as it was.
+//
+// A file staged with StageWithin is committed through its root: the
+// directories and the rename resolve their names inside it, and a link that
+// leads out of it is refused at the moment of the operation.
 func (s *Staged) Commit() error {
-	return s.commit(os.Mkdir, os.Rename, os.Remove)
-}
-
-// CommitWithin is Commit for a target beneath root, done through an os.Root
-// opened on root: the directories, the rename and any cleanup all resolve
-// their names inside root, and a symbolic link that leads out of it is
-// refused at the moment of the operation. A check on the target's path that
-// runs before CommitWithin cannot be raced by a link swapped in after it.
-// The staged file and the target must both lie beneath root.
-func (s *Staged) CommitWithin(root string) error {
-	r, err := os.OpenRoot(root)
-	if err != nil {
-		_ = s.Discard()
-		return &Error{Op: "replace", Path: s.target, Err: err}
+	if s.root == nil {
+		return s.commit(os.Mkdir, os.Rename, os.Remove)
 	}
-	defer r.Close()
-	if _, err := relativeTo(root, s.target); err != nil {
-		_ = s.Discard()
-		return &Error{Op: "replace", Path: s.target, Err: err}
-	}
-	rel := func(p string) (string, error) { return relativeTo(root, p) }
-	return s.commit(
-		func(dir string, perm fs.FileMode) error {
-			name, err := rel(dir)
-			if err != nil {
-				return err
-			}
-			return r.Mkdir(name, perm)
-		},
-		func(oldpath, newpath string) error {
-			from, err := rel(oldpath)
-			if err != nil {
-				return err
-			}
-			to, err := rel(newpath)
-			if err != nil {
-				return err
-			}
-			return r.Rename(from, to)
-		},
-		func(p string) error {
-			name, err := rel(p)
-			if err != nil {
-				return err
-			}
-			return r.Remove(name)
-		},
-	)
+	defer s.root.Close()
+	return s.commit(s.root.Mkdir, s.root.Rename, s.root.Remove)
 }
 
 // relativeTo names p relative to root. p may be spelled under root as given
@@ -293,7 +264,12 @@ func (s *Staged) Discard() error {
 		return nil
 	}
 	s.done = true
-	if err := os.Remove(s.name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	remove := os.Remove
+	if s.root != nil {
+		defer s.root.Close()
+		remove = s.root.Remove
+	}
+	if err := remove(s.name); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
 	return nil

@@ -91,7 +91,7 @@ func (h *Home) Produce(ctx context.Context, path, before string, write func(io.W
 	if err := h.contain(path); err != nil {
 		return nil, err
 	}
-	tmp, err := atomicfile.StageWithParents(path, func(w io.Writer) error {
+	tmp, err := h.stage(path, func(w io.Writer) error {
 		return write(io.MultiWriter(w, sum))
 	})
 	if err != nil {
