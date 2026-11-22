@@ -1,5 +1,5 @@
 // Package designtokens implements a first-class neokapi format for the W3C
-// Design Tokens Community Group (DTCG) token format — the "Design Tokens"
+// Design Tokens Community Group (DTCG) token format. This is the "Design Tokens"
 // interchange format (first stable revision "2025.10",
 // https://www.designtokens.org/tr/drafts/format/) used by Style Dictionary,
 // Tokens Studio, and the broader design-tokens tooling ecosystem.
@@ -11,8 +11,8 @@
 // localization scoping that the generic reader cannot infer.
 //
 // Localization scoping is the whole point of the format. Design tokens are
-// overwhelmingly non-linguistic — a $value is a colour, dimension, font
-// family, duration, cubic-bézier, or an alias reference like {color.primary} —
+// overwhelmingly non-linguistic. A $value is a colour, dimension, font
+// family, duration, cubic-bézier, or an alias reference like {color.primary},
 // and must never be translated. The single field that carries human-readable,
 // translatable prose is $description (token and group documentation). The
 // reader configures the JSON reader to extract *only* $description values
@@ -64,11 +64,11 @@ type Reader struct {
 	// drops the string form: it is excluded by the extraction rules and, with
 	// non-translatable content surfacing disabled for token values, becomes an
 	// opaque Data part whose text is lost. These maps let Read re-surface that
-	// prose as semantic context — preferentially as a NoteAnnotation on the
+	// prose as semantic context: preferentially as a NoteAnnotation on the
 	// token/group's $description block, otherwise as text on the token's own
 	// (already-emitted) Data part. Both are parity-safe and need no flag.
 	deprecatedNoteByDesc map[string]string // dotted $description key path → deprecation prose
-	deprecatedDataText   map[string]string // dotted $deprecated key path  → deprecation prose
+	deprecatedDataText   map[string]string // dotted $deprecated key path → deprecation prose
 }
 
 // Ensure Reader emits a byte-exact skeleton by forwarding the store to the inner
@@ -76,7 +76,7 @@ type Reader struct {
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // Ensure Reader satisfies StreamingReader: the skeleton round-trip streams via
-// the inner JSON reader (a two-pass with a bounded $deprecated pre-scan) — see
+// the inner JSON reader (a two-pass with a bounded $deprecated pre-scan); see
 // Open. The file-runner uses this to concurrent-feed the reader.
 var _ format.StreamingReader = (*Reader)(nil)
 
@@ -119,7 +119,7 @@ func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 // outright; a Sniff recognises DTCG content (a token object carrying $value and
 // $type) so design-token documents opened without the .tokens extension are
 // still recognised. The generic .json extension and application/json MIME are
-// deliberately NOT advertised — they are owned by the json format and DTCG
+// deliberately NOT advertised. They are owned by the json format and DTCG
 // files commonly use the .tokens.json double extension that resolves to json.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
@@ -134,7 +134,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // the single most distinctive marker since $type may be inherited from a parent
 // group. Requiring both "$value" and "$type" keeps the sniff specific enough to
 // avoid claiming plain JSON, while still recognising real token files (every
-// conformant DTCG file declares at least one explicit $type — either on a token
+// conformant DTCG file declares at least one explicit $type, on a token
 // or, for cascade, on a group). Plain JSON, i18next bundles, and ARB files have
 // neither marker and are correctly rejected.
 func Sniff(data []byte) bool {
@@ -164,7 +164,7 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 
 	// Streaming path: a same-format skeleton round-trip with validation off over
 	// a re-openable file. Pass 1 scans a re-opened copy for $deprecated prose
-	// (bounded — only the prose is retained), leaving doc.Reader untouched for
+	// (bounded: only the prose is retained), leaving doc.Reader untouched for
 	// the inner JSON reader to stream in pass 2. Non-file inputs (and validation
 	// mode) fall back to the whole-document read below.
 	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
@@ -237,14 +237,14 @@ func (r *Reader) Close() error {
 
 // scanDeprecated pre-scans the raw DTCG document for string-valued $deprecated
 // fields and records where their prose should be surfaced (issue #928). A string
-// $deprecated on a token/group that also carries a (string) $description — and
-// only when descriptions are extracted — is attached to that $description block
+// $deprecated on a token/group that also carries a (string) $description is
+// attached, only when descriptions are extracted, to that $description block
 // as a NoteAnnotation, so the deprecation/migration guidance rides the
 // translatable block as context. Otherwise (no description, or descriptions
 // disabled) the prose is carried on the token's own opaque Data part. Boolean
 // $deprecated:true carries no prose and is left as opaque structure. Best-effort:
 // a parse failure (e.g. malformed input the inner reader will report, or a
-// JSON5-only document) simply yields no surfacing.
+// JSON5-only document) yields no surfacing.
 func (r *Reader) scanDeprecated(data []byte) {
 	var root any
 	if err := json.Unmarshal(data, &root); err != nil {
@@ -309,7 +309,7 @@ func (r *Reader) scanDeprecatedStream(rd io.Reader) {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			break // EOF or malformed — the inner JSON reader surfaces parse errors
+			break // EOF or malformed; the inner JSON reader surfaces parse errors
 		}
 		switch t := tok.(type) {
 		case json.Delim:
@@ -419,7 +419,7 @@ func (r *Reader) attachDeprecatedNote(part *model.Part) {
 // already-emitted (opaque) Data part as Properties["text"], for deprecated nodes
 // that have no $description block to annotate (issue #928). Parity compares only
 // Data.ID, so an added property is invisible to it and the part stream is
-// otherwise unchanged — parity-safe, no flag.
+// otherwise unchanged. It is parity-safe and needs no flag.
 func (r *Reader) carryDeprecatedText(part *model.Part) {
 	if len(r.deprecatedDataText) == 0 {
 		return

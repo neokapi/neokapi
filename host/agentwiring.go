@@ -29,19 +29,19 @@ import (
 // skill in the directory the host scans for skills. The skill names four
 // habits and leaves everything else to `kapi help <topic>`, which answers from
 // the binary the agent is actually running.
-//
+
 // Three rules hold for every file written here.
 //
 // PROJECT SCOPE ONLY. Every path is under the project root. Nothing under the
 // user's home directory and nothing machine-wide is read or written, because a
 // project is the thing being wired and a person's own configuration is theirs.
-//
+
 // A COMMAND, AND NOTHING ELSE. An MCP entry carries the kapi binary, the `mcp`
 // verb and the project it answers for. No shell, no environment, no
 // credentials: these files are loaded as configuration by a program that runs
 // what they say, and they are committed and shared with everyone on the
 // project.
-//
+
 // AN EXISTING ENTRY IS LEFT ALONE. A config file that already names a server
 // called kapi is read and not written, because someone chose what is in it.
 // The one exception is an entry exactly as kapi writes it, differing only in
@@ -340,26 +340,29 @@ func entryRecipe(entry mcpServerEntry) string {
 	return ""
 }
 
-// mcpConfigFile is one host's MCP configuration: where it lives under the
-// project root, and the key its servers sit under. Claude Code and Cursor read
-// `mcpServers`; VS Code reads `servers`.
-//
-// What each host hands a stdio server for an environment decides whether the
-// entry has to name kapi's root variables (RootEnvVars):
+// The environment each host hands a stdio server decides whether an MCP entry
+// must name kapi's root variables (RootEnvVars):
 //
 //   - Codex: a fixed set (see codexEnvVarsKey) plus the names under
 //     `env_vars`. Measured; the entry names the roots.
 //   - Claude Code: `.mcp.json` entries take an `env` map of values and expand
-//     `${VAR}` from the shell that started Claude Code. Whether the server
-//     inherits the rest of that environment is not verified against a
-//     release; nothing is written, since a value here would be one machine's
-//     path in a committed file.
+//     `${VAR}` from the shell that started Claude Code. Inheritance of the
+//     rest of that environment is unverified. Nothing is written, since a
+//     value here would be one machine's path in a committed file.
+
+// MCP entry environments, continued:
+//
 //   - Cursor: `.cursor/mcp.json` takes `env` (values, `${env:NAME}` expansion)
 //     and `envFile`. Third-party guides describe an isolated server
-//     environment; not verified. Nothing is written, for the same reason.
+//     environment, unverified. Nothing is written, for the same reason.
 //   - VS Code: `.vscode/mcp.json` takes `env` (values, `${input:…}` and
 //     `${workspaceFolder}` expansion). Inheritance not verified. Nothing is
 //     written.
+
+// mcpConfigFile is one host's MCP configuration: where it lives under the
+// project root, and the key its servers sit under. Claude Code and Cursor read
+// `mcpServers`; VS Code reads `servers`. The comment above records what each
+// host hands a stdio server for an environment.
 type mcpConfigFile struct {
 	path       string
 	serversKey string

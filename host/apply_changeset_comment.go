@@ -23,7 +23,9 @@ import (
 // rewrites it with set_content. Its revision is "r:" and the first sixteen hex
 // digits of the comment's fingerprint (the comment_sha256 kapi check
 // reports), so an edit to a comment whose bytes changed since it was read is
-// refused stale. The comment write path keeps its guarantees: the file is read
+// refused stale.
+
+// The comment write path keeps its guarantees: the file is read
 // again before it is written, every byte outside the comment stays, the result
 // must parse, the language's formatter must agree, and what was written is
 // checked again.

@@ -78,16 +78,11 @@ type commentFileResult struct {
 
 // applyComments applies a change-set's comment entries, one file at a time.
 //
-// A language's write canary runs before the first comment of that language is
-// written in the run, and when it fails no entry in the language runs. Entries
-// in a plugin language are held to the project's formatter, and run only when
-// it does, which it does only when execution trust allows it (formatterTrust).
-// A file's entries are applied from its last comment to its first, so
-// an edit never moves the lines of a comment still to come, and each rewrite is
-// held to comment.Contain. The file is read again before it is written, and a file
-// that changed meanwhile is left alone. After writing, the bytes on disk are
-// read back and compared with the rewrite, and a check scoped to the written
-// change runs over the file.
+// A file's entries are applied from its last comment to its first, so an edit
+// never moves the lines of a comment still to come. Each rewrite is held to
+// comment.Contain, and the file is read again before it is written; a file
+// that changed meanwhile is left alone. The bytes on disk are then read back
+// and compared with the rewrite, and a scoped check runs over the file.
 //
 // With preview set, nothing is written or checked, and each file's diff is
 // reported.
@@ -106,6 +101,11 @@ func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEn
 		byFile[e.File] = append(byFile[e.File], e)
 	}
 	formats, formatsErr := a.newCheckFormats(cmd)
+	// A language's write canary runs before the first comment of that language
+	// is written in the run, and when it fails no entry in the language runs.
+	// Entries in a plugin language are held to the project's formatter, and run
+	// only when it does, which it does only when execution trust allows it
+	// (formatterTrust).
 	canaries := map[string]error{}
 	results := make([]commentFileResult, 0, len(order))
 	for _, file := range order {

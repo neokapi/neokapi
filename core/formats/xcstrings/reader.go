@@ -35,9 +35,9 @@ var (
 func (r *Reader) StreamingReader() {}
 
 // scanHeader is the bounded pass-1 pre-scan: it reads only the top-level
-// sourceLanguage and version fields (needed for the layer, which is emitted
-// before the entries — and version can appear after "strings"), skipping the
-// "strings" body.
+// sourceLanguage and version fields and skips the "strings" body. The layer
+// needs both and is emitted before the entries, while version can appear
+// after "strings".
 func scanHeader(rd io.Reader) (sourceLanguage, version string, err error) {
 	dec := json.NewDecoder(rd)
 	tok, err := dec.Token()
@@ -243,11 +243,12 @@ func bufferValue(ss *jsonscan.StreamScanner) ([]jsonscan.Token, error) {
 	return toks, nil
 }
 
-// processEntry emits one entry: it emits the key + colon verbatim to the
-// skeleton, reconstructs a minimal single-entry catalog to parse the entry,
-// emits the entry's blocks (emitEntry / emitCommentFallback, in lockstep with
-// the block counter), and runs the slice-based skelWalker over the buffered
-// entry tokens to emit its byte-exact skeleton (with the same counter).
+// processEntry emits one entry. It emits the key + colon verbatim to the
+// skeleton and reconstructs a minimal single-entry catalog to parse the entry.
+// It then emits the entry's blocks (emitEntry / emitCommentFallback, in
+// lockstep with the block counter), and runs the slice-based skelWalker over
+// the buffered entry tokens to emit its byte-exact skeleton (with the same
+// counter).
 func (r *Reader) processEntry(ctx context.Context, ch chan<- model.PartResult, keyTok, colon jsonscan.Token, entryToks []jsonscan.Token, srcLang string, srcLocale model.LocaleID, counter, noteCounter *int) bool {
 	r.skelToken(keyTok)
 	r.skelToken(colon)
@@ -399,7 +400,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Streaming path: a same-format skeleton round-trip with validation off over
 	// a re-openable file. Entries are processed one at a time (buffered as a
 	// bounded token slice), so the reader never holds the whole document or the
-	// full parsed catalog — only the tiny header (sourceLanguage/version).
+	// full parsed catalog: only the tiny header (sourceLanguage/version).
 	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
 		if r.readStreaming(ctx, ch) {
 			return
@@ -408,7 +409,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio).
+	// across CLI/server/WASM; see core/safeio).
 	content, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xcstrings: reading: %w", err)}
@@ -451,7 +452,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	//
 	// When a skeleton store is wired the writer reconstructs from the skeleton
 	// stream instead, so the (potentially large) original-bytes property is
-	// redundant and intentionally omitted — mirroring the native JSON reader.
+	// redundant and intentionally omitted. This mirrors the native JSON reader.
 	if r.skeletonStore == nil {
 		layer.Properties["xcstrings.original"] = safeio.NoCopyString(content)
 	}
@@ -462,7 +463,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Emit the byte-exact skeleton via an independent token walk. It mirrors
 	// the rewriter's structure and assigns block IDs ("tu"+counter) in the
-	// same document order — and with the same stale-skip — as emitLeaf below,
+	// same document order and with the same stale-skip as emitLeaf below,
 	// so the Refs it writes line up with the blocks. Running it before block
 	// emission keeps the skeleton stream complete even if a downstream
 	// consumer cancels mid-stream.
@@ -492,7 +493,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // emitEntry emits one Block per translatable leaf value in the entry. When the
 // entry yields no leaf (no localizations, an empty localizations object, or
 // localizations with no stringUnit/variations), its developer comment would
-// otherwise be unreachable — so a non-translatable entry-level fallback block
+// otherwise be unreachable. A non-translatable entry-level fallback block
 // carrying the comment is emitted instead (gated behind the content-surfacing
 // opt-out).
 func (r *Reader) emitEntry(ctx context.Context, ch chan<- model.PartResult,
@@ -519,7 +520,7 @@ func (r *Reader) emitEntry(ctx context.Context, ch chan<- model.PartResult,
 //
 // It is gated behind ExtractNonTranslatableContent: when off (and always when
 // there is no comment to carry), it is a no-op so the emitted part stream is
-// byte-identical to the prior behavior — the contract parity depends on.
+// byte-identical to the prior behavior: the contract parity depends on.
 func (r *Reader) emitCommentFallback(ctx context.Context, ch chan<- model.PartResult,
 	key string, e *entry, srcLocale model.LocaleID, noteCounter *int) {
 
@@ -630,7 +631,7 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 
 	vr.applyToBlockProps(block)
 	// The leaf's value as read, kept so a leaf the writer has no translation for
-	// round-trips unchanged — together with the text it spells, which is what
+	// round-trips unchanged. It is kept together with the text it spells, which is what
 	// lets the writer tell "this leaf was not touched" from "this leaf's text
 	// equals its source". Without that witness a source edit on the
 	// source-language leaf was replaced by the pre-edit value whenever a target
@@ -654,10 +655,10 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 
 	lang := model.LocaleID(vr.Lang)
 	if lang == srcLocale && vr.Lang == srcLang {
-		// Source-language leaf — the value IS the source content.
+		// Source-language leaf: the value IS the source content.
 		block.SetSourceRuns(runsFromValue(su.Value))
 	} else {
-		// Target leaf — value lives under the target locale.
+		// Target leaf: the value lives under the target locale.
 		block.SetTargetRuns(lang, runsFromValue(su.Value))
 		block.MarkNative(model.Variant(lang))
 	}

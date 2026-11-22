@@ -274,10 +274,14 @@ func expandOne(arg string, opts InputOptions) ([]string, error) {
 // `kapi stats 'src/**'` mean "everything under src".
 func expandGlobArg(pattern string, opts InputOptions) ([]string, error) {
 	root, rel := splitGlobRoot(pattern)
-	rels, err := project.ExpandGlob(root, rel)
+	// The pattern is one a person typed, and its root is the pattern's own
+	// directory, not a project: a link it matches is listed wherever it leads,
+	// as the shell would list it.
+	expanded, err := project.ExpandGlobs(root, []string{rel}, project.GlobOptions{LinksAnywhere: true})
 	if err != nil {
 		return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
 	}
+	rels := expanded[0]
 	// A wildcard does not reach into dot-directories, matching both the shell
 	// and the directory walk: `kapi stats '**'` must not descend into .git.
 	// Naming one explicitly (`.github/**/*.yml`) opts back in, so the hidden

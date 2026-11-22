@@ -96,7 +96,7 @@ func WireReadSkeleton(reg *registry.FormatRegistry, formatName string, reader fo
 }
 
 // BlockStoreHash returns a stable, globally-unique key for a block in a
-// project-wide block store — the source file's block id namespaced by its
+// project-wide block store: the source file's block id namespaced by its
 // project-relative path so blocks (and their target overlays) from different
 // files can't collide. It delegates to blockstore.StoreKey, the single
 // definition shared by the extract, run, and merge paths.

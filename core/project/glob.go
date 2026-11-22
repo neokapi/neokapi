@@ -29,7 +29,9 @@ func MatchGlob(pattern, path string) bool {
 // does, so the linked packages a package manager keeps under node_modules stay
 // out of a match and a link loop is read once. A link that matches the pattern
 // itself is returned, and a linked directory the pattern names before its first
-// wildcard is read through.
+// wildcard is read through, while each stays inside root. A link that leads
+// out of root, or names a file that does not exist, is never returned
+// (GlobOptions.LinksAnywhere lifts that for a pattern a person typed).
 func ExpandGlob(root, pattern string, excludes ...string) ([]string, error) {
 	res, err := ExpandGlobs(root, []string{pattern}, GlobOptions{Excludes: excludes})
 	if err != nil {
@@ -57,6 +59,12 @@ type GlobOptions struct {
 	OnUnreadable func(rel string, err error)
 	// OnDir, when set, is called with the running count of directories read.
 	OnDir func(dirs int)
+	// LinksAnywhere lists a symbolic link wherever it leads. It is for a
+	// pattern a person typed on the command line, whose root is the pattern's
+	// own directory rather than a project. Without it, a link that leads out
+	// of root, or names a file that does not exist, is never listed and is
+	// handed to OnUnreadable.
+	LinksAnywhere bool
 }
 
 // ExpandGlobs resolves several patterns against one walk of root and returns
@@ -65,9 +73,9 @@ type GlobOptions struct {
 // with the same semantics as ExpandGlob, including the symbolic-link rules.
 //
 // The walk reads a directory only when some pattern can still match beneath
-// it, and never descends into an excluded or ignored directory, so a recipe
-// that names a few folders reads those folders rather than the whole tree, and
-// a large dependency directory under an exclude costs one directory entry.
+// it, and never descends into an excluded or ignored directory. A recipe that
+// names a few folders reads those folders rather than the whole tree, and a
+// large dependency directory under an exclude costs one directory entry.
 // A brace set is resolved in the same walk rather than once per alternative.
 //
 // A malformed pattern fails the whole call with doublestar.ErrBadPattern
@@ -250,7 +258,7 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		escaped := false
 		// Every link is decided by Contain alone: a link to a missing file is
 		// refused there too, and reported as unreadable.
-		if isLink {
+		if isLink && !w.opts.LinksAnywhere {
 			if _, cerr := rootpath.Contain(w.root, childAbs); cerr != nil {
 				escaped, linkErr = true, cerr
 			}

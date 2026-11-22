@@ -25,7 +25,7 @@ import (
 // The shell entry is the official bash image rather than alpine: alpine ships
 // busybox ash and no bash at all, so [languageCmd]'s "bash" could never have
 // executed there. Pointing it at a shell that is not bash would be worse than
-// the missing binary — a script using arrays or [[ ]] would misbehave quietly
+// the missing binary: a script using arrays or [[ ]] would misbehave quietly
 // instead of failing loudly.
 //
 // These tags are mutable. Pinning them to digests would make a sandbox run
@@ -203,7 +203,7 @@ func (d *DockerSandbox) createContainer(ctx context.Context, image string, cmd [
 		// Run as nobody. The neokapi sandbox images already declare a
 		// non-root USER, but stating it here means the isolation holds for
 		// whatever image is actually pulled rather than resting on the image
-		// having been built correctly — including the stock third-party shell
+		// having been built correctly. That includes the stock third-party shell
 		// image, which defaults to root.
 		User:       "65534:65534",
 		WorkingDir: "/workspace",
@@ -348,7 +348,8 @@ func (d *DockerSandbox) waitContainer(ctx context.Context, containerID string) (
 
 // getLogs retrieves stdout and stderr from the container.
 // Docker multiplexed stream format: each frame has an 8-byte header
-// [stream_type(1), 0, 0, 0, size(4 big-endian)] followed by the payload.
+// (one stream-type byte, three zero bytes, and a 4-byte big-endian size)
+// followed by the payload.
 func (d *DockerSandbox) getLogs(ctx context.Context, containerID string) (stdout, stderr string, err error) {
 	url := d.baseURL + "/v1.43/containers/" + containerID + "/logs?stdout=1&stderr=1"
 	resp, err := d.doRequest(ctx, http.MethodGet, url, nil)

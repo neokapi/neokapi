@@ -26,7 +26,7 @@ import (
 // One reader instance corresponds to one Open/Read/Close cycle. The
 // reader acquires a DaemonClient from the pool on Read and lets the
 // daemon stream parts back over the bidirectional Process stream. The
-// reader signals "no output" by omitting OutputRef in the header — the
+// reader signals "no output" by omitting OutputRef in the header. The
 // daemon then enters read-only mode.
 type daemonReader struct {
 	format.BaseFormatReader
@@ -61,7 +61,7 @@ func (c *mapConfig) ApplyMap(values map[string]any) error {
 	for k, v := range values {
 		// A LIST is marshalled as JSON; everything else keeps fmt.Sprint.
 		//
-		// fmt.Sprint on a slice yields Go's debug rendering — `[desc caveats]` —
+		// fmt.Sprint on a slice yields Go's debug rendering (`[desc caveats]`),
 		// which no plugin can parse back, and which silently produced an
 		// extraction that matched nothing when the sourcecode format's
 		// node_path_patterns first crossed this boundary. Scalars keep their
@@ -109,7 +109,7 @@ func (r *daemonReader) Signature() format.FormatSignature {
 func (r *daemonReader) DecodesInput() {}
 
 // Open captures the document for the upcoming Read call. It does not
-// open a daemon connection — that happens lazily in Read.
+// open a daemon connection. That happens lazily in Read.
 func (r *daemonReader) Open(_ context.Context, doc *model.RawDocument) error {
 	r.Doc = doc
 
@@ -229,7 +229,7 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// Close is a no-op — the daemon stays in the pool, and the Process
+// Close is a no-op. The daemon stays in the pool, and the Process
 // stream tears itself down after Read finishes.
 func (r *daemonReader) Close() error { return nil }
 
@@ -250,7 +250,7 @@ type daemonWriter struct {
 	outPath   string
 	outWriter io.Writer
 
-	// Original document content / path — set by SourcePathSetter or
+	// Original document content / path. Set by SourcePathSetter or
 	// OriginalContentSetter so the daemon can read the source while
 	// applying targets.
 	sourcePath  string
@@ -311,7 +311,7 @@ func (w *daemonWriter) SetOriginalContent(content []byte) {
 // Write drains parts and routes them to the daemon. A read-write
 // Process call needs the daemon to read the source first; we feed it
 // either the source path (preferred) or the inline source bytes captured
-// via SetOriginalContent. If neither is set, the daemon will fail —
+// via SetOriginalContent. If neither is set, the daemon will fail, so
 // callers should always wire one of them before calling Write.
 func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
 	client, err := w.pool.Acquire(ctx, w.plugin)
@@ -356,7 +356,7 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 	}
 
 	// Concurrent send/recv: the daemon may produce ReadDone after
-	// streaming the source's read-phase parts; we simply discard those
+	// streaming the source's read-phase parts; we discard those
 	// because the Write contract is "consume processed parts and emit
 	// the document". The processed parts we send are the targets.
 	sendErr := make(chan error, 1)
@@ -414,7 +414,7 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 			outputPath = c.Complete.OutputPath
 			break
 		}
-		// Read-phase parts and ReadDone are ignored — we only want the
+		// Read-phase parts and ReadDone are ignored. We only want the
 		// final ProcessComplete in writer mode.
 	}
 

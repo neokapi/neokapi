@@ -104,7 +104,7 @@ func TestExternalITSRulesLoadFromASubdirectory(t *testing.T) {
 
 // TestExternalITSRulesCannotClimbOutOfTheDocumentDirectory: the href is written
 // by whoever wrote the document, so it must not be able to reach a file the
-// project never offered — the same rule the absolute-path and URI cases already
+// project never offered. That is the same rule the absolute-path and URI cases already
 // followed. An unreadable reference degrades to "no external rules", which is
 // this reader's documented behaviour for one that does not resolve.
 func TestExternalITSRulesCannotClimbOutOfTheDocumentDirectory(t *testing.T) {

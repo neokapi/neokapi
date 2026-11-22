@@ -25,12 +25,15 @@ import (
 //
 // kapi writes the rules that hold in a folder into the AGENTS.md and CLAUDE.md
 // there: the project root for the rules that hold everywhere, and one folder
-// per collection whose rules differ from the root's. Each file states only what
+// per collection whose rules differ from the root's.
+
+// Each file states only what
 // holds in its folder: the voice in force, what to write and what not, the
 // wording a rule held elsewhere leaves as it is here, the notes a person kept
-// that hold there, and one line pointing to `kapi check`. The context stays the source; the files are a projection of
-// it, refreshed when it changes, and `kapi check` stays the gate.
-//
+// that hold there, and one line pointing to `kapi check`. The context stays
+// the source; the files are a projection of it, refreshed when it changes,
+// and `kapi check` stays the gate.
+
 // kapi owns one delimited section of each file (core/agentrules) and leaves
 // the rest to the person who wrote it. A file kapi created and no longer needs
 // is removed only when nothing but its section is in it. The output is

@@ -19,7 +19,7 @@ import (
 )
 
 // xmlStreamingRoundtrip writes input to a temp file and reads it with a skeleton
-// store and a URI that points at the file — so readContentStreaming's os.Open
+// store and a URI that points at the file. That way readContentStreaming's os.Open
 // succeeds and the bounded-memory two-pass path is exercised (not the buffered
 // fallback). Returns the writer's reconstruction.
 func xmlStreamingRoundtrip(t *testing.T, input string) string {
@@ -63,7 +63,7 @@ func xmlStreamingRoundtripCfg(t *testing.T, input string, cfg *xmlfmt.Config) st
 }
 
 // xmlBufferedRoundtrip reads the same input via an in-memory doc (URI is not a
-// file), so readContentStreaming declines and the buffered walk runs — the
+// file), so readContentStreaming declines and the buffered walk runs. That is the
 // established byte-exact behavior to compare the streaming path against.
 func xmlBufferedRoundtrip(t *testing.T, input string) string {
 	return xmlBufferedRoundtripCfg(t, input, nil)
@@ -94,9 +94,9 @@ func xmlBufferedRoundtripCfg(t *testing.T, input string, cfg *xmlfmt.Config) str
 
 // TestStreaming_ByteExactParity runs a corpus through the streaming two-pass and
 // asserts it (a) round-trips the input byte-exact and (b) matches the buffered
-// path exactly — across attributes, nesting, comments/PIs, namespaces, CDATA,
+// path exactly. The corpus covers attributes, nesting, comments/PIs, namespaces, CDATA,
 // multiple top-level children, a nested-translatable case (parent-removal), and
-// ITS (both global <its:rules> and local its:translate — the streamed resolver).
+// ITS (both global <its:rules> and local its:translate, which the streamed resolver handles).
 func TestStreaming_ByteExactParity(t *testing.T) {
 	cases := map[string]string{
 		"simple":     `<?xml version="1.0"?><root><message>Hello World</message></root>`,
@@ -116,7 +116,7 @@ func TestStreaming_ByteExactParity(t *testing.T) {
 			// The streaming path must match the buffered path exactly (the
 			// established behavior) in every case.
 			assert.Equal(t, xmlBufferedRoundtrip(t, in), streamed, "streaming must match buffered output")
-			// It must also round-trip the input byte-exact — except CDATA in
+			// It must also round-trip the input byte-exact. The exception is CDATA in
 			// translatable content, which both paths re-encode as escaped text
 			// (a documented, pre-existing limitation, not streaming-specific).
 			if name != "cdata" {
@@ -126,9 +126,9 @@ func TestStreaming_ByteExactParity(t *testing.T) {
 	}
 }
 
-// TestStreaming_ConfigDrivenParity covers the config-driven cases — inline
-// mixed content (an inline <b> folded into its parent block) and a translatable
-// attribute (@label) — through the streaming path, asserting byte-exact + parity.
+// TestStreaming_ConfigDrivenParity covers the config-driven cases (inline
+// mixed content, an inline <b> folded into its parent block, and a translatable
+// attribute @label) through the streaming path, asserting byte-exact + parity.
 func TestStreaming_ConfigDrivenParity(t *testing.T) {
 	inlineCfg := &xmlfmt.Config{}
 	inlineCfg.ElementRules = append(inlineCfg.ElementRules, &xmlfmt.ElementRule{
@@ -190,7 +190,7 @@ func TestStreaming_MalformedSurfacedByPass1(t *testing.T) {
 }
 
 // TestStreaming_NonFileFallback confirms an in-memory (non-file) input still
-// works — readContentStreaming declines and the buffered walk handles it.
+// works: readContentStreaming declines and the buffered walk handles it.
 func TestStreaming_NonFileFallback(t *testing.T) {
 	in := `<?xml version="1.0"?><root><message>Hello</message></root>`
 	assert.Equal(t, in, xmlBufferedRoundtrip(t, in))
@@ -222,8 +222,8 @@ func genXMLFile(t *testing.T, n int) (string, int) {
 func itoa(i int) string { return strconv.Itoa(i) }
 
 // TestStreaming_BoundedMemory asserts the xml reader's peak live heap stays
-// small and flat across a 20x document-size change on the streaming (file) path
-// — i.e. it never holds the whole document or token slice.
+// small and flat across a 20x document-size change on the streaming (file) path,
+// i.e. it never holds the whole document or token slice.
 func TestStreaming_BoundedMemory(t *testing.T) {
 	if testing.Short() {
 		t.Skip("memory test skipped in -short")
