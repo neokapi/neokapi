@@ -169,8 +169,8 @@ func (s *SQLiteStore) DeleteProject(ctx context.Context, id string) error {
 
 	// Most of the project's content goes with it on the projects foreign key.
 	// These tables carry a bare project_id, so no cascade reaches them and the
-	// verb clears them itself — otherwise a deleted project's history, notes,
-	// decisions and proposals outlive every block they describe.
+	// verb clears them itself. Otherwise a deleted project's history, notes,
+	// decisions and proposals would outlive every block they describe.
 	for _, table := range storeutil.ProjectScopedTablesWithoutCascade() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE project_id=?`, id); err != nil {
@@ -404,16 +404,13 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, i
 		item.ID = id.New()
 	}
 
-	// An empty incoming collection id means "unspecified", not "no collection",
-	// and what it resolves to depends on whether this item is already bound:
-	// an item with no binding yet falls to the project's default collection,
-	// while an item that is already filed under one keeps that binding. A
-	// caller that could not resolve a collection this time round — a transient
-	// lookup failure on a re-push — must not move content out of the collection
-	// it was filed under. Both halves are decided in the statement below, on the
-	// raw incoming id: resolving the default here instead would hand the upsert
-	// a non-empty id and clobber the existing binding (#1840). Mirrors
-	// PostgresStore.
+	// An empty incoming collection id means "unspecified", not "no collection".
+	// An item with no binding yet falls to the project's default collection; an
+	// item already filed under one keeps that binding, so a transient lookup
+	// failure on a re-push cannot move its content. Both cases are decided in
+	// the statement below, on the raw incoming id. Resolving the default here
+	// would hand the upsert a non-empty id and overwrite the binding (#1840).
+	// Mirrors PostgresStore.
 	fallbackCollectionID := ""
 	if item.CollectionID == "" {
 		defColl, defErr := s.GetDefaultCollection(ctx, projectID)
@@ -423,7 +420,7 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, i
 	}
 
 	// SQLite binds positionally, so the raw incoming collection id is passed
-	// twice — once for the insert's fallback, once for the conflict branch.
+	// twice: once for the insert's fallback, once for the conflict branch.
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(NULLIF(?, ''), ?), ?, ?)
@@ -471,7 +468,7 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// The id first — the rows describing an item are keyed on what it IS, and
+	// The id first: the rows describing an item are keyed on what it IS, and
 	// the name is only how this call addressed it. Its absence is the
 	// not-found signal.
 	var itemID string
@@ -762,18 +759,14 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 	source := model.LocaleID(sourceLanguage)
 
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
-	// to internal project-unique IDs. Blocks stored without an item keep their
-	// original ID (they already carry an internal ID from a prior store call).
+	// to internal project-unique IDs. Blocks stored without an item keep the
+	// internal ID a prior store call gave them.
 	//
 	// Both directions are loaded, because a block can arrive carrying either
-	// kind of ID. A push or a format read supplies the caller's own ID, which
-	// this item may already have minted an internal ID for. But a caller that
-	// read blocks *out* of this store — the extraction worker annotating an
-	// item, the editor writing a parsed item back — hands back rows whose ID is
-	// already the internal one. Treating that as an unseen caller ID minted a
-	// second row for content that was already stored, under source_id = the
-	// first row's ID: two rows, same content_hash, different ids, which is
-	// exactly the duplication in #1527.
+	// kind of ID. A push or a format read supplies the caller's own ID. A caller
+	// that read blocks out of this store hands back the internal ID. Treated as
+	// a new caller ID, it would mint a second row for stored content, with two
+	// rows sharing a content_hash (#1527).
 	existingSourceIDs := map[string]string{} // caller/source id → internal id
 	internalSourceIDs := map[string]string{} // internal id → its source id
 	// The item's durable identity, recorded on every block so a rename moves the
@@ -815,9 +808,9 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		// stored fetched blocks with item_name='' under their raw format-reader
 		// IDs. When this item stores a reader ID it does not already map, claim
 		// the orphaned row for the item (stamping item_name + source_id) instead
-		// of minting a duplicate internal ID — the row, its targets, and its
-		// history heal in place, and the adopted row is picked up by the hash
-		// query below like any other item-scoped block.
+		// of minting a duplicate internal ID. The row, its targets and its
+		// history heal in place, and the hash query below picks up the adopted
+		// row like any other item-scoped block.
 		adopt, err := tx.PrepareContext(ctx,
 			`UPDATE blocks SET item_name=?, source_id=? WHERE project_id=? AND stream=? AND id=? AND item_name=''`)
 		if err != nil {
@@ -888,9 +881,9 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		// Bounded to the rows this call touches, mirroring the Postgres store:
 		// everything below is read back through each incoming block's resolved
 		// row id, and the source-id mapping is final by this point. Loading the
-		// whole item — or, with no item scope, the whole project — fed every id
-		// into one IN(...), which SQLite's variable limit does not survive at
-		// corpus scale any better than Postgres's did.
+		// whole item, or the whole project with no item scope, would feed every
+		// id into one IN(...), which exceeds SQLite's variable limit at corpus
+		// scale as it does Postgres's.
 		var ids []string
 		seen := map[string]struct{}{}
 		for _, b := range blocks {
@@ -912,7 +905,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		for start := 0; start < len(ids); start += prefetchChunk {
 			chunk := ids[start:min(start+prefetchChunk, len(ids))]
 
-			// The concatenated fragment is ",?,?,…" from a count — never
+			// The concatenated fragment is ",?,?,…" from a count, never
 			// caller data; values travel as bind parameters below.
 			hashQuery := `SELECT id, source_revision FROM blocks WHERE project_id=? AND stream=? AND id IN (?` + //nolint:gosec // placeholder list, not data
 				strings.Repeat(",?", len(chunk)-1) + `)`
@@ -963,23 +956,22 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		internalID := b.ID
 
 		if itemName != "" {
-			// An ID this item's rows already carry is that row — the block was
-			// read out of this store and is being written back. Checked before
-			// the caller-ID map because naming a row directly is the stronger
-			// claim; the two only ever collide on rows this bug already
-			// created, where resolving to the original row is also the repair.
+			// An ID this item's rows already carry is that row: the block was
+			// read out of this store and is being written back. It is checked
+			// before the caller-ID map because naming a row directly is the
+			// stronger claim. The two collide only on duplicate rows from #1527,
+			// where resolving to the original row is also the repair.
 			if existingSource, isInternal := internalSourceIDs[b.ID]; isInternal {
 				internalID = b.ID
 				sourceID = existingSource
 			} else {
-				// The caller's DURABLE identity, not its reader id — the same
-				// keying the Postgres store moved to: a reader numbers blocks
-				// as it goes for formats with no natural key, so keying rows
-				// on that id meant deleting one paragraph renumbered every
-				// block below it and each stored row rebound to its
-				// neighbour's text. convergence.BlockKey resolves to the
-				// structural name a reader assigns; the block's own ID still
-				// rides the wire untouched.
+				// The caller's DURABLE identity, not its reader id, as in the
+				// Postgres store. A reader numbers blocks as it goes for formats
+				// with no natural key. Keyed on that id, deleting one paragraph
+				// would renumber every block below it, and each stored row would
+				// rebind to its neighbour's text. convergence.BlockKey resolves
+				// to the structural name a reader assigns; the block's own ID
+				// still rides the wire untouched.
 				sourceID = convergence.BlockKey(b)
 				if existingID, found := existingSourceIDs[sourceID]; found {
 					internalID = existingID
@@ -1027,8 +1019,8 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
 		}
 		// Stand-off overlays (segmentation, term, entity, term-candidate, qa,
-		// alignment) ride alongside source_json so they survive the round-trip —
-		// without this they would be dropped and the entity→concept promote path
+		// alignment) ride alongside source_json so they survive the round-trip.
+		// Without this they would be dropped, and the entity→concept promote path
 		// would break on the next GetBlocks. Nil/empty overlays encode to "[]".
 		overlaysJSON, err := bstore.MarshalOverlays(b.Overlays)
 		if err != nil {
@@ -1094,24 +1086,21 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 				}
 				// The source half of every pairing this unit's decisions blessed
 				// has moved, its wording or an inline code, so the projections
-				// are re-derived against the ledger — mirrors
-				// settleDecisionProjectionsPg exactly.
+				// are re-derived against the ledger, exactly as
+				// settleDecisionProjectionsPg does.
 				if err := settleDecisionProjections(ctx, tx, projectID, stream, internalID, sourceRevision); err != nil {
 					return err
 				}
 			}
-			// Log target changes — added vs modified based on whether the
-			// variant already had a row in the translations table. The
-			// payload diff (modified-but-same?) is a best-effort check:
-			// if the variant was already there and we're upserting, it's
-			// a modification worth logging.
+			// Log target changes as added or modified, by whether the variant
+			// already had a row in the translations table.
 			// A target is logged when its text moved, not merely because the
 			// caller carried it. Write-back callers hand over the whole block
-			// with every locale hydrated, so logging on presence alone stamped
+			// with every locale hydrated. Logging on presence alone would stamp
 			// one locale's draft as a change in every other locale, and a
-			// locale-scoped pull then re-serves blocks nobody touched.
-			// recordTargetHistory asked this question of the same snapshot
-			// above; this reuses it rather than loading it twice.
+			// locale-scoped pull would re-serve blocks nobody touched.
+			// recordTargetHistory asked this of the same snapshot above, and
+			// this reuses its answer.
 			prev := existingLocales[internalID]
 			srcKey := b.EditionKeyOf(model.EditionKey{})
 			for key, nt := range b.EachEdition {
@@ -1166,9 +1155,9 @@ type blockFilterSQLite struct {
 	args  []any
 }
 
-// sqliteStatusBucket is the SQLite twin of the Postgres bucket expression —
-// itself the SQL twin of the editor's getBlockStatus — with json_extract
-// standing in for the ->> operator.
+// sqliteStatusBucket is the SQLite twin of the Postgres bucket expression,
+// which is the SQL twin of the editor's getBlockStatus. json_extract stands
+// in for the ->> operator.
 const sqliteStatusBucket = `CASE
 	WHEN COALESCE(json_extract(t.target_json, '$.status'), '') = 'established' THEN 'established'
 	WHEN COALESCE(t.text, '') = '' THEN 'not-started'
@@ -1182,7 +1171,7 @@ END`
 
 // sqliteSourceTextMatch tests the substring against each source run's text
 // separately, so no JSON punctuation can satisfy a search. Text runs
-// serialize flat — {"text":"literal"} — so the run's text is at $.text; every
+// serialize flat ({"text":"literal"}), so the run's text is at $.text; every
 // other run kind nests under its own discriminator and yields NULL there.
 const sqliteSourceTextMatch = `EXISTS (
 	SELECT 1 FROM json_each(b.source_json) r
@@ -1206,8 +1195,8 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 	whereArgs := []any{query.ProjectID}
 
 	// A block belongs to one stream. Unfiltered, every query would read its
-	// branches' rows alongside its own — the same block id exists on each — so
-	// the scope is applied here rather than left to each caller to remember.
+	// branches' rows alongside its own, because the same block id exists on
+	// each. The scope is applied here rather than left to each caller.
 	where = append(where, "b.stream = ?")
 	whereArgs = append(whereArgs, storeutil.DefaultStream(query.Stream))
 
@@ -1233,12 +1222,12 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 		whereArgs = append(whereArgs, query.ContentHash)
 	}
 	// The keyset cursor. Rows come back in id order, so "after this id" is the
-	// next page — see BlockQuery.AfterID.
+	// next page. See BlockQuery.AfterID.
 	if query.AfterID != "" {
 		where = append(where, "b.id > ?")
 		whereArgs = append(whereArgs, query.AfterID)
 	}
-	// The cursor pointing the other way — see BlockQuery.BeforeID. The rows are
+	// The cursor pointing the other way; see BlockQuery.BeforeID. The rows are
 	// selected in descending id order so a Limit takes the NEAREST predecessors;
 	// GetBlocks puts them back in ascending order.
 	if query.BeforeID != "" {
@@ -1385,7 +1374,7 @@ func (s *SQLiteStore) CountBlocks(ctx context.Context, query platstore.BlockQuer
 }
 
 // ListPendingReview pages the (block, locale) pairs whose stored target still
-// needs a review decision — the SQLite twin of the Postgres query, with
+// needs a review decision. It is the SQLite twin of the Postgres query, with
 // json_extract standing in for the ->> operator.
 func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.PendingReviewQuery) ([]platstore.PendingReviewRef, int, error) {
 	stream := storeutil.DefaultStream(q.Stream)
@@ -1396,7 +1385,7 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.Pending
 	// The SQLite twin of the Postgres predicate: below-established status is
 	// pending, empty status included, and the LEFT JOIN on items carries each
 	// block's collection without dropping a block whose item has no row for the
-	// stream. Positional placeholders bind in string order — the two JOINs'
+	// stream. Positional placeholders bind in string order: the two JOINs'
 	// streams come before the WHERE's project.
 	const skeleton = `SELECT %s FROM blocks b JOIN translations t
 		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = ?
@@ -1468,8 +1457,8 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 	}
 
 	// word_count is written at store time; NULL marks a row that predates
-	// the column, and only those rows pay the source_json decode — the same
-	// contract as the Postgres store.
+	// the column, and only those rows pay the source_json decode, as in the
+	// Postgres store.
 	q := fmt.Sprintf(
 		`SELECT id, item_name, translatable,
 			CASE WHEN word_count IS NULL THEN source_json ELSE '' END,
@@ -2019,7 +2008,7 @@ func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, v
 		return fmt.Errorf("store asset variant: %w", err)
 	}
 
-	// Log change for incremental sync — look up the asset's project/stream.
+	// Log the change for incremental sync: look up the asset's project and stream.
 	var assetProjectID, assetStream string
 	err = tx.QueryRowContext(ctx,
 		`SELECT project_id, stream FROM assets WHERE id=?`, variant.AssetID).Scan(&assetProjectID, &assetStream)
