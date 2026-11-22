@@ -18,6 +18,8 @@ export const FLUSH_TIMEOUT_MS = 10_000;
 export interface FlushFailure {
   timedOut: boolean;
   errors: FlushError[];
+  /** Edits not sent because no one is signed in, counted and never named. */
+  held?: number;
 }
 
 /**
@@ -72,7 +74,7 @@ export function useFlushOnClose() {
           await Backend.ConfirmClose();
           return;
         }
-        setFailure({ timedOut: result.timedOut, errors: result.errors });
+        setFailure({ timedOut: result.timedOut, errors: result.errors, held: result.held });
       } finally {
         setFlushing(false);
       }

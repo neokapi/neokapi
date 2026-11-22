@@ -1,12 +1,12 @@
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@neokapi/ui";
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { FlushFailure } from "../hooks/useFlushOnClose";
 
@@ -32,9 +32,14 @@ export function SaveFailedOnClose({ failure, onCloseAnyway, onStay }: SaveFailed
         <DialogHeader>
           <DialogTitle>{t("Changes not saved")}</DialogTitle>
           <DialogDescription>
-            {failure.timedOut
-              ? t("The server did not answer in time.")
-              : t("The server did not accept every change.")}
+            {failure.held
+              ? t(
+                  "{count} changes are waiting for their account to sign in again. Closing the window discards them.",
+                  { count: failure.held },
+                )
+              : failure.timedOut
+                ? t("The server did not answer in time.")
+                : t("The server did not accept every change.")}
           </DialogDescription>
         </DialogHeader>
         {failure.errors.length > 0 && (

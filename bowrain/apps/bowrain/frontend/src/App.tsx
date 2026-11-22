@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { ThemeProvider } from "@neokapi/ui";
-import { BowrainApp } from "@neokapi/bowrain-app";
+import { BowrainApp, setPendingSavesServer } from "@neokapi/bowrain-app";
 import { createHashHistory } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -33,6 +33,9 @@ const desktopPlatform = createDesktopPlatform();
 // Opt-out desktop analytics (D1): keyless builds and DNT stay silent; the
 // persisted telemetry setting gates capture (first-run notice below).
 initAnalytics();
+// The webview's own origin is not a server: no edit is recorded or sent until
+// the app is in and names the server it is connected to.
+setPendingSavesServer(null);
 // Hash history: the Wails webview serves the frontend from a static asset root,
 // so browser history would 404 on refresh or deep navigation. Hash keeps every
 // route change client-side.
@@ -186,6 +189,13 @@ function AppInner() {
       setMode("connecting");
     }
   }, [connection.info.state, mode]);
+
+  // Unsaved edits belong to the server they were made on: they are sent
+  // only while the app is in, connected to that server.
+  const serverURL = connection.info.server_url || "";
+  useEffect(() => {
+    setPendingSavesServer(mode === "ready" && serverURL ? serverURL : null);
+  }, [mode, serverURL]);
 
   // Launch: reuse a stored/auto session if present. "connected" is optimistic, so
   // verify reachability — reachable enters the app, unreachable shows the

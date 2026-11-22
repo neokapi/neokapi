@@ -1,5 +1,8 @@
-import { afterEach, describe, it, expect, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vite-plus/test";
 import {
+  HELD_EDIT_LIMIT,
+  HELD_EDIT_TTL_MS,
+  HeldEditError,
   discardAllPendingSaves,
   discardPendingEdit,
   flushPendingSaves,
@@ -7,10 +10,22 @@ import {
   pendingEdits,
   recordPendingEdit,
   savePendingEdit,
+  setPendingSavesServer,
+  setPendingSavesSession,
   subscribePendingSaves,
+  waitingEditCount,
 } from "./pendingSaves";
 
-afterEach(() => discardAllPendingSaves());
+const alex = { userId: "alex", workspace: "acme" };
+
+beforeEach(() => {
+  setPendingSavesServer("https://bowrain.test");
+  setPendingSavesSession(alex);
+});
+afterEach(() => {
+  discardAllPendingSaves();
+  vi.useRealTimers();
+});
 
 function record(key: string, send: () => Promise<void>) {
   recordPendingEdit({ key, label: key, scope: "test", send });
@@ -76,5 +91,86 @@ describe("pending saves", () => {
     expect(listener).toHaveBeenCalledTimes(2);
     expect(hasPendingSaves()).toBe(false);
     unsubscribe();
+  });
+
+  it("records nothing without a session", () => {
+    setPendingSavesSession(null);
+    record("a", async () => {});
+    expect(hasPendingSaves()).toBe(false);
+  });
+});
+
+describe("pending saves across sessions", () => {
+  it("the same user back in the same workspace sees the edit and saves it", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    record("a", send);
+    setPendingSavesSession(null);
+    expect(pendingEdits()).toEqual([]);
+    expect(waitingEditCount()).toBe(1);
+    setPendingSavesSession(alex);
+    expect(pendingEdits().map((e) => e.key)).toEqual(["a"]);
+    expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("a different user sees nothing of it and sends nothing", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    record("a", send);
+    setPendingSavesSession({ userId: "blake", workspace: "acme" });
+    expect(pendingEdits()).toEqual([]);
+    expect(hasPendingSaves()).toBe(false);
+    expect(waitingEditCount()).toBe(0);
+    expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
+    await expect(savePendingEdit("a")).rejects.toBeInstanceOf(HeldEditError);
+    discardPendingEdit("a");
+    expect(send).not.toHaveBeenCalled();
+    // Kept for its own user.
+    setPendingSavesSession(alex);
+    expect(pendingEdits().map((e) => e.key)).toEqual(["a"]);
+  });
+
+  it("the same user in another workspace, or on another server, sends nothing", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    record("a", send);
+    setPendingSavesSession({ userId: "alex", workspace: "other" });
+    expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
+    setPendingSavesSession(alex);
+    setPendingSavesServer("https://elsewhere.test");
+    expect(await flushPendingSaves(1_000)).toEqual({ ok: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("without a session a flush sends nothing and counts what waits", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    record("a", send);
+    setPendingSavesSession(null);
+    expect(hasPendingSaves()).toBe(true);
+    expect(await flushPendingSaves(1_000)).toEqual({
+      ok: false,
+      timedOut: false,
+      errors: [],
+      held: 1,
+    });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("keeps another session's edit for a bounded time", () => {
+    vi.useFakeTimers();
+    record("a", async () => {});
+    setPendingSavesSession({ userId: "blake", workspace: "acme" });
+    vi.advanceTimersByTime(HELD_EDIT_TTL_MS + 1);
+    record("b", async () => {});
+    setPendingSavesSession(alex);
+    expect(pendingEdits()).toEqual([]);
+  });
+
+  it("drops the oldest of another session's edits past the limit", () => {
+    for (let i = 0; i < HELD_EDIT_LIMIT; i++) record(`a${i}`, async () => {});
+    setPendingSavesSession({ userId: "blake", workspace: "acme" });
+    record("b", async () => {});
+    setPendingSavesSession(alex);
+    const keys = pendingEdits().map((e) => e.key);
+    expect(keys).toHaveLength(HELD_EDIT_LIMIT - 1);
+    expect(keys).not.toContain("a0");
   });
 });

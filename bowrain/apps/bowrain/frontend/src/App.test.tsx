@@ -49,6 +49,8 @@ vi.mock("@neokapi/bowrain-app", () => ({
   flushPendingSaves: vi.fn().mockResolvedValue({ ok: true }),
   hasPendingSaves: () => saves.edits.length > 0,
   pendingEdits: () => saves.edits,
+  waitingEditCount: () => saves.edits.length,
+  setPendingSavesServer: vi.fn(),
   subscribePendingSaves: () => () => {},
 }));
 
@@ -237,6 +239,9 @@ describe("desktop launch gate (#1284)", () => {
     await flushUntil(() => screen.queryByText(/welcome to bowrain/i) !== null);
 
     expect(backend.SetPendingSaves).toHaveBeenLastCalledWith(true);
-    expect(screen.getByTestId("unsaved-edits-notice")).toHaveTextContent("Translate and review");
+    const notice = screen.getByTestId("unsaved-edits-notice");
+    // A count, never a name: whoever is at the machine may be someone else.
+    expect(notice).toHaveTextContent("1 change has not reached the server.");
+    expect(notice).not.toHaveTextContent("Translate and review");
   });
 });

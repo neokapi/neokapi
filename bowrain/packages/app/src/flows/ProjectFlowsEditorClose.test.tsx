@@ -1,17 +1,23 @@
-import { afterEach, describe, it, expect, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider, TooltipProvider } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { createFlowsApi, projectReview, sampleFlows } from "./fixtures";
-import { discardAllPendingSaves, flushPendingSaves, hasPendingSaves } from "../pendingSaves";
+import {
+  discardAllPendingSaves,
+  flushPendingSaves,
+  hasPendingSaves,
+  setPendingSavesSession,
+} from "../pendingSaves";
 
 // The desktop window closing while an edit rests before its delayed save.
 // The window goes with the process, so whatever has not reached the server by
 // then is lost; the host flushes the waiting saves first (flushPendingSaves).
 
 // The record of unsaved edits outlives the editor, so each test starts clean.
+beforeEach(() => setPendingSavesSession({ userId: "u1", workspace: "acme" }));
 afterEach(() => discardAllPendingSaves());
 
 const projectGlossary = {

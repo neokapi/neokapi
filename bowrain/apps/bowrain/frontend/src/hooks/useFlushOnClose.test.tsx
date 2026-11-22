@@ -138,4 +138,13 @@ describe("useFlushOnClose", () => {
     expect(saves.flush).toHaveBeenCalledTimes(1);
     expect(backend.ConfirmClose).toHaveBeenCalledTimes(1);
   });
+
+  it("edits waiting for their account are counted, never named", async () => {
+    saves.flush.mockResolvedValue({ ok: false, timedOut: false, errors: [], held: 2 });
+    render(<Shell />);
+    act(() => emit(CLOSE_REQUESTED_EVENT));
+    const dialog = await screen.findByTestId("save-failed-on-close");
+    expect(dialog).toHaveTextContent("2 changes are waiting for their account to sign in again.");
+    expect(backend.ConfirmClose).not.toHaveBeenCalled();
+  });
 });
