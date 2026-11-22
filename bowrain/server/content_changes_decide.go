@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
@@ -33,7 +33,7 @@ import (
 //     the revision judged (prereviews.go). It moves no status.
 type streamDecisions struct {
 	s      *Server
-	c      echo.Context
+	c      *echo.Context
 	proj   *store.Project
 	stream string
 	rows   *rowLookup

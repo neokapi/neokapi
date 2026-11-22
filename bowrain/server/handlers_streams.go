@@ -4,14 +4,14 @@ import (
 	"maps"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // HandleListStreams returns all streams for a project.
 // GET /api/v1/projects/:id/streams?include_archived=true
-func (s *Server) HandleListStreams(c echo.Context) error {
+func (s *Server) HandleListStreams(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -29,7 +29,7 @@ func (s *Server) HandleListStreams(c echo.Context) error {
 
 // HandleCreateStream creates a new stream in a project.
 // POST /api/v1/projects/:id/streams
-func (s *Server) HandleCreateStream(c echo.Context) error {
+func (s *Server) HandleCreateStream(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (s *Server) HandleCreateStream(c echo.Context) error {
 
 // HandleGetStream returns a single stream.
 // GET /api/v1/projects/:id/streams/:stream
-func (s *Server) HandleGetStream(c echo.Context) error {
+func (s *Server) HandleGetStream(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -116,7 +116,7 @@ func (s *Server) HandleGetStream(c echo.Context) error {
 
 // HandleUpdateStream updates a stream's metadata.
 // PATCH /api/v1/projects/:id/streams/:stream
-func (s *Server) HandleUpdateStream(c echo.Context) error {
+func (s *Server) HandleUpdateStream(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func (s *Server) HandleUpdateStream(c echo.Context) error {
 
 // HandleArchiveStream archives (soft-deletes) a stream.
 // DELETE /api/v1/projects/:id/streams/:stream
-func (s *Server) HandleArchiveStream(c echo.Context) error {
+func (s *Server) HandleArchiveStream(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (s *Server) HandleArchiveStream(c echo.Context) error {
 
 // HandleMergeStream merges a stream into its parent.
 // POST /api/v1/projects/:id/streams/:stream/merge
-func (s *Server) HandleMergeStream(c echo.Context) error {
+func (s *Server) HandleMergeStream(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (s *Server) HandleMergeStream(c echo.Context) error {
 
 // HandleDiffStream returns the diff between a stream and its parent.
 // GET /api/v1/projects/:id/streams/:stream/diff
-func (s *Server) HandleDiffStream(c echo.Context) error {
+func (s *Server) HandleDiffStream(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -261,7 +261,7 @@ func (s *Server) HandleDiffStream(c echo.Context) error {
 
 // HandleLockStream locks a stream to prevent further content changes.
 // POST /api/v1/projects/:id/streams/:stream/lock
-func (s *Server) HandleLockStream(c echo.Context) error {
+func (s *Server) HandleLockStream(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func (s *Server) HandleLockStream(c echo.Context) error {
 
 // HandleUnlockStream unlocks a previously locked stream.
 // POST /api/v1/projects/:id/streams/:stream/unlock
-func (s *Server) HandleUnlockStream(c echo.Context) error {
+func (s *Server) HandleUnlockStream(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func (s *Server) HandleUnlockStream(c echo.Context) error {
 
 // HandleListStreamTags returns all tags for a stream.
 // GET /api/v1/projects/:id/streams/:stream/tags
-func (s *Server) HandleListStreamTags(c echo.Context) error {
+func (s *Server) HandleListStreamTags(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -339,7 +339,7 @@ func (s *Server) HandleListStreamTags(c echo.Context) error {
 
 // HandleCreateStreamTag creates a new tag on a stream.
 // POST /api/v1/projects/:id/streams/:stream/tags
-func (s *Server) HandleCreateStreamTag(c echo.Context) error {
+func (s *Server) HandleCreateStreamTag(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 
 // HandleGetStreamTag returns a single tag.
 // Bowrain AD-011: GET /:ws/:id/tags/:tag (project-level, no stream in URL)
-func (s *Server) HandleGetStreamTag(c echo.Context) error {
+func (s *Server) HandleGetStreamTag(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -424,7 +424,7 @@ func (s *Server) HandleGetStreamTag(c echo.Context) error {
 
 // HandleDeleteStreamTag removes a tag.
 // Bowrain AD-011: DELETE /:ws/:id/tags/:tag (project-level, no stream in URL)
-func (s *Server) HandleDeleteStreamTag(c echo.Context) error {
+func (s *Server) HandleDeleteStreamTag(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
 	}
@@ -446,7 +446,7 @@ func (s *Server) HandleDeleteStreamTag(c echo.Context) error {
 
 // HandleListProjectTags returns all tags across all streams in a project.
 // GET /api/v1/projects/:id/tags
-func (s *Server) HandleListProjectTags(c echo.Context) error {
+func (s *Server) HandleListProjectTags(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

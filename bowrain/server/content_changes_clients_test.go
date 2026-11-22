@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,8 +24,7 @@ func servedEntities(t *testing.T, srv *Server, pid, bid string) []EntityInfoResp
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/acme/"+pid+"/blocks/main?item=greetings.txt", nil)
 	w := httptest.NewRecorder()
 	c := e.NewContext(r, w)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("acme", pid, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}})
 	require.NoError(t, srv.HandleGetFileBlocks(c))
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	var payload []BlockInfoResponse
@@ -82,8 +81,7 @@ func servedBlock(t *testing.T, srv *Server, pid, bid string) BlockInfoResponse {
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/acme/"+pid+"/blocks/main?item=greetings.txt", nil)
 	w := httptest.NewRecorder()
 	c := e.NewContext(r, w)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("acme", pid, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}})
 	require.NoError(t, srv.HandleGetFileBlocks(c))
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	var payload []BlockInfoResponse
@@ -197,8 +195,7 @@ func TestLookupMemoryForBlock_ServesTheRunsAMatchSaves(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/acme/"+pid+"/blocks/main/"+bid+"/tm-matches?target_locale=fr", nil)
 	w := httptest.NewRecorder()
 	c := e.NewContext(r, w)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("acme", pid, "main", bid)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}, {Name: "bid", Value: bid}})
 	require.NoError(t, srv.HandleLookupMemoryForBlock(c))
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	var matches []MemoryMatchInfoResponse

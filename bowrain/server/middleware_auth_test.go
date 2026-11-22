@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -33,7 +33,7 @@ func TestAuthMiddleware(t *testing.T) {
 		c := e.NewContext(req, rec)
 
 		var userID string
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			userID = c.Get("user_id").(string)
 			return c.NoContent(http.StatusOK)
 		})
@@ -48,7 +48,7 @@ func TestAuthMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			return c.NoContent(http.StatusOK)
 		})
 		_ = handler(c)
@@ -62,7 +62,7 @@ func TestAuthMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			return c.NoContent(http.StatusOK)
 		})
 		_ = handler(c)
@@ -76,7 +76,7 @@ func TestAuthMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			return c.NoContent(http.StatusOK)
 		})
 		_ = handler(c)
@@ -112,7 +112,7 @@ func TestAuthMiddleware_CSRF(t *testing.T) {
 		c := e.NewContext(req, rec)
 
 		called := false
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			called = true
 			return c.NoContent(http.StatusOK)
 		})
@@ -181,7 +181,7 @@ func TestAuthMiddleware_APIToken(t *testing.T) {
 		c := e.NewContext(req, rec)
 
 		var userID, tokenID string
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			userID = c.Get("user_id").(string)
 			tokenID = c.Get("api_token_id").(string)
 			return c.NoContent(http.StatusOK)
@@ -199,7 +199,7 @@ func TestAuthMiddleware_APIToken(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			return c.NoContent(http.StatusOK)
 		})
 		_ = handler(c)
@@ -229,7 +229,7 @@ func TestAuthMiddleware_APIToken(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			return c.NoContent(http.StatusOK)
 		})
 		_ = handler(c)
@@ -284,14 +284,13 @@ func TestProjectAccessMiddleware(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/projects/"+projectID, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues(projectID)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}})
 		c.Set("user_id", user.ID)
 		c.Set("workspace_role", platauth.RoleMember)
 
 		var perms platauth.Permission
 		var langs []string
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			perms = c.Get("project_permissions").(platauth.Permission)
 			langs = c.Get("project_languages").([]string)
 			return c.NoContent(http.StatusOK)
@@ -312,13 +311,12 @@ func TestProjectAccessMiddleware(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/projects/"+otherProjectID, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues(otherProjectID)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: otherProjectID}})
 		c.Set("user_id", user.ID)
 		c.Set("workspace_role", platauth.RoleOwner)
 
 		var perms platauth.Permission
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			perms = c.Get("project_permissions").(platauth.Permission)
 			return c.NoContent(http.StatusOK)
 		})
@@ -333,13 +331,12 @@ func TestProjectAccessMiddleware(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/projects/"+otherProjectID, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues(otherProjectID)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: otherProjectID}})
 		c.Set("user_id", user.ID)
 		c.Set("workspace_role", platauth.RoleMember)
 
 		var perms platauth.Permission
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			perms = c.Get("project_permissions").(platauth.Permission)
 			return c.NoContent(http.StatusOK)
 		})
@@ -361,7 +358,7 @@ func TestProjectAccessMiddleware(t *testing.T) {
 		c.Set("workspace_role", platauth.RoleMember)
 
 		var perms platauth.Permission
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			perms = c.Get("project_permissions").(platauth.Permission)
 			return c.NoContent(http.StatusOK)
 		})
@@ -464,7 +461,7 @@ func TestScopeRestrictionMiddleware(t *testing.T) {
 		c.Set("project_permissions", platauth.PermAll)
 
 		called := false
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			called = true
 			return nil
 		})
@@ -482,7 +479,7 @@ func TestScopeRestrictionMiddleware(t *testing.T) {
 		c.Set("api_token_scopes", `["*"]`)
 
 		called := false
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			called = true
 			return nil
 		})
@@ -499,7 +496,7 @@ func TestScopeRestrictionMiddleware(t *testing.T) {
 		c.Set("project_permissions", platauth.PermAll)
 		c.Set("api_token_scopes", `["read"]`)
 
-		handler := mw(func(c echo.Context) error { return nil })
+		handler := mw(func(c *echo.Context) error { return nil })
 		_ = handler(c)
 		assert.Equal(t, platauth.PermViewContent, c.Get("project_permissions"))
 	})
@@ -512,7 +509,7 @@ func TestScopeRestrictionMiddleware(t *testing.T) {
 		c.Set("project_permissions", platauth.PermAll)
 		c.Set("api_token_scopes", `["translate:fr,de"]`)
 
-		handler := mw(func(c echo.Context) error { return nil })
+		handler := mw(func(c *echo.Context) error { return nil })
 		_ = handler(c)
 
 		perms := c.Get("project_permissions").(platauth.Permission)
@@ -538,7 +535,7 @@ func TestSessionGrantMiddleware(t *testing.T) {
 		c.Set("project_permissions", platauth.PermAll)
 
 		called := false
-		handler := mw(func(c echo.Context) error {
+		handler := mw(func(c *echo.Context) error {
 			called = true
 			return nil
 		})
@@ -559,7 +556,7 @@ func TestSessionGrantMiddleware(t *testing.T) {
 		c.Set("project_permissions", platauth.PermAll)
 		c.Set("bravo_session_id", "conv-1")
 
-		handler := mw(func(c echo.Context) error { return nil })
+		handler := mw(func(c *echo.Context) error { return nil })
 		_ = handler(c)
 
 		perms := c.Get("project_permissions").(platauth.Permission)
@@ -579,7 +576,7 @@ func TestSessionGrantMiddleware(t *testing.T) {
 		c.Set("project_permissions", platauth.PermAll)
 		c.Set("bravo_session_id", "conv-2")
 
-		handler := mw(func(c echo.Context) error { return nil })
+		handler := mw(func(c *echo.Context) error { return nil })
 		_ = handler(c)
 
 		perms := c.Get("project_permissions").(platauth.Permission)
@@ -598,7 +595,7 @@ func TestSessionGrantMiddleware(t *testing.T) {
 		c.Set("project_permissions", platauth.PermAll)
 		c.Set("bravo_session_id", "conv-3")
 
-		handler := mw(func(c echo.Context) error { return nil })
+		handler := mw(func(c *echo.Context) error { return nil })
 		_ = handler(c)
 
 		perms := c.Get("project_permissions").(platauth.Permission)

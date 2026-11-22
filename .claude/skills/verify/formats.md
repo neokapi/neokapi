@@ -35,8 +35,8 @@ $S run kconv "$M" --to md -o "$SB/rt/out.md"
 cmp "$M" "$SB/rt/out.md" && echo identical
 ```
 
-`kconv --to json` and `--to yaml` write a block listing instead of the catalog.
-For those, and for any format, edit one value and edit it back. The second file
+The same holds for `--to json`, `--to yaml` and every other format kapi
+writes. To check an edit as well, change one value and change it back. The second file
 must match the fixture byte for byte, and the first must differ in one place:
 
 ```bash

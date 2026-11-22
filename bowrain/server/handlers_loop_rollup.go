@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
@@ -138,7 +138,7 @@ func toLoopRollupRunView(run *bstore.ConvergenceRun, proj *store.Project) *loopR
 // comment above for the shape and the cost model. Auth + membership are
 // enforced by the workspace route-group middleware, same as the projects list
 // this rollup complements.
-func (s *Server) HandleWorkspaceLoopRollup(c echo.Context) error {
+func (s *Server) HandleWorkspaceLoopRollup(c *echo.Context) error {
 	if s.Services == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}

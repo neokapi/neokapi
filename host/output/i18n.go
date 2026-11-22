@@ -103,6 +103,7 @@ var sources = map[string]string{
 	"tm.header.target":     "TARGET",
 	"tm.header.score":      "SCORE",
 	"tm.header.matchType":  "MATCH TYPE",
+	"tm.header.origin":     "ORIGIN",
 	"tm.header.locales":    "LOCALES",
 	"tm.header.localePair": "LOCALE PAIR",
 	"tm.header.entries":    "ENTRIES",

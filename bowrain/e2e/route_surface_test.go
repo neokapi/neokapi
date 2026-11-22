@@ -94,7 +94,7 @@ func registeredRoutes(t *testing.T) map[string][][]string {
 	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
 
 	byMethod := map[string][][]string{}
-	for _, r := range srv.GetEcho().Routes() {
+	for _, r := range srv.GetEcho().Router().Routes() {
 		path, ok := strings.CutPrefix(r.Path, "/api/v1")
 		if !ok {
 			continue

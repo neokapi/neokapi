@@ -4,21 +4,21 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
 // All governance endpoints are workspace-scoped and restricted to admin/owner.
 
-func (s *Server) govRequireAdmin(c echo.Context) error {
+func (s *Server) govRequireAdmin(c *echo.Context) error {
 	return s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner)
 }
 
 // groupInWorkspace verifies the :gid group belongs to the request's workspace,
 // preventing cross-workspace access via a known group ID (IDOR). It writes a
 // 404 and returns a non-nil error on mismatch so the caller aborts.
-func (s *Server) groupInWorkspace(c echo.Context) error {
+func (s *Server) groupInWorkspace(c *echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	if _, err := s.AuthStore.GetGroup(c.Request().Context(), wsID, c.Param("gid")); err != nil {
 		_ = c.JSON(http.StatusNotFound, ErrorResponse{Error: "group not found"})
@@ -38,7 +38,7 @@ const sodRefusal = "separation of duties: you cannot review or approve your own 
 // targets is how many the record covers. A bulk pass over a corpus the caller
 // wrote reports one record with the count rather than one per block, so the
 // audit trail carries the fact rather than a flood of it.
-func (s *Server) recordSoDViolation(c echo.Context, actorID, resource string, mode platauth.SoDMode, targets int) {
+func (s *Server) recordSoDViolation(c *echo.Context, actorID, resource string, mode platauth.SoDMode, targets int) {
 	data := map[string]string{"actor": actorID, "resource": resource, "mode": string(mode)}
 	if targets > 1 {
 		data["targets"] = strconv.Itoa(targets)
@@ -57,7 +57,7 @@ type groupRequest struct {
 	Description string `json:"description"`
 }
 
-func (s *Server) HandleListGroups(c echo.Context) error {
+func (s *Server) HandleListGroups(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -72,7 +72,7 @@ func (s *Server) HandleListGroups(c echo.Context) error {
 	return c.JSON(http.StatusOK, groups)
 }
 
-func (s *Server) HandleCreateGroup(c echo.Context) error {
+func (s *Server) HandleCreateGroup(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (s *Server) HandleCreateGroup(c echo.Context) error {
 	return c.JSON(http.StatusCreated, g)
 }
 
-func (s *Server) HandleDeleteGroup(c echo.Context) error {
+func (s *Server) HandleDeleteGroup(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (s *Server) HandleDeleteGroup(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (s *Server) HandleListGroupMembers(c echo.Context) error {
+func (s *Server) HandleListGroupMembers(c *echo.Context) error {
 	if err := s.groupInWorkspace(c); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (s *Server) HandleListGroupMembers(c echo.Context) error {
 	return c.JSON(http.StatusOK, members)
 }
 
-func (s *Server) HandleAddGroupMember(c echo.Context) error {
+func (s *Server) HandleAddGroupMember(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func (s *Server) HandleAddGroupMember(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (s *Server) HandleRemoveGroupMember(c echo.Context) error {
+func (s *Server) HandleRemoveGroupMember(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ type groupBindingRequest struct {
 	Languages []string `json:"languages,omitempty"`
 }
 
-func (s *Server) HandleListGroupBindings(c echo.Context) error {
+func (s *Server) HandleListGroupBindings(c *echo.Context) error {
 	if err := s.groupInWorkspace(c); err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (s *Server) HandleListGroupBindings(c echo.Context) error {
 	return c.JSON(http.StatusOK, bindings)
 }
 
-func (s *Server) HandleAddGroupBinding(c echo.Context) error {
+func (s *Server) HandleAddGroupBinding(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (s *Server) HandleAddGroupBinding(c echo.Context) error {
 	return c.JSON(http.StatusCreated, b)
 }
 
-func (s *Server) HandleRemoveGroupBinding(c echo.Context) error {
+func (s *Server) HandleRemoveGroupBinding(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -242,7 +242,7 @@ type denyRuleRequest struct {
 	Reason      string   `json:"reason,omitempty"`
 }
 
-func (s *Server) HandleListDenyRules(c echo.Context) error {
+func (s *Server) HandleListDenyRules(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (s *Server) HandleListDenyRules(c echo.Context) error {
 	return c.JSON(http.StatusOK, rules)
 }
 
-func (s *Server) HandleCreateDenyRule(c echo.Context) error {
+func (s *Server) HandleCreateDenyRule(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -292,7 +292,7 @@ func (s *Server) HandleCreateDenyRule(c echo.Context) error {
 	return c.JSON(http.StatusCreated, r)
 }
 
-func (s *Server) HandleDeleteDenyRule(c echo.Context) error {
+func (s *Server) HandleDeleteDenyRule(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (s *Server) HandleDeleteDenyRule(c echo.Context) error {
 
 // ── Workspace role overrides ────────────────────────────────────────────────
 
-func (s *Server) HandleListRoleOverrides(c echo.Context) error {
+func (s *Server) HandleListRoleOverrides(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -327,7 +327,7 @@ type roleOverrideRequest struct {
 	Permissions []string `json:"permissions"`
 }
 
-func (s *Server) HandleSetRoleOverride(c echo.Context) error {
+func (s *Server) HandleSetRoleOverride(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func (s *Server) HandleSetRoleOverride(c echo.Context) error {
 
 // ── Separation of duties ────────────────────────────────────────────────────
 
-func (s *Server) HandleGetSoD(c echo.Context) error {
+func (s *Server) HandleGetSoD(c *echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	mode, err := s.AuthStore.GetSoDMode(c.Request().Context(), wsID)
 	if err != nil {
@@ -362,7 +362,7 @@ func (s *Server) HandleGetSoD(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"mode": string(mode)})
 }
 
-func (s *Server) HandleSetSoD(c echo.Context) error {
+func (s *Server) HandleSetSoD(c *echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}

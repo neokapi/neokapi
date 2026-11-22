@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"golang.org/x/sync/errgroup"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -359,7 +359,7 @@ type reviewInvolvementOverridesRequest struct {
 // HandleGetReviewInvolvement answers GET
 // /:ws/:id/review/plan/involvement with the project's involvement, its
 // overrides and the axes an override may name.
-func (s *Server) HandleGetReviewInvolvement(c echo.Context) error {
+func (s *Server) HandleGetReviewInvolvement(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -421,7 +421,7 @@ func coordinateAxesOf(colls []*platstore.Collection) map[string][]string {
 // holds there, and no two name the same point. It needs the permission to
 // edit the project's settings, and records the caller as the person who set
 // the involvement.
-func (s *Server) HandlePutReviewInvolvementOverrides(c echo.Context) error {
+func (s *Server) HandlePutReviewInvolvementOverrides(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}

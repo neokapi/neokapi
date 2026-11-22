@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
@@ -19,7 +19,7 @@ type ExtractionSettings struct {
 }
 
 // HandleGetExtractionSettings returns the extraction configuration for a project.
-func (s *Server) HandleGetExtractionSettings(c echo.Context) error {
+func (s *Server) HandleGetExtractionSettings(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -46,7 +46,7 @@ func (s *Server) HandleGetExtractionSettings(c echo.Context) error {
 }
 
 // HandleUpdateExtractionSettings updates the extraction configuration for a project.
-func (s *Server) HandleUpdateExtractionSettings(c echo.Context) error {
+func (s *Server) HandleUpdateExtractionSettings(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}

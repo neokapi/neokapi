@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
@@ -157,7 +157,7 @@ type ContextProfilesResponse struct {
 // store that is unavailable leaves its part of the answer empty rather than
 // failing the page. Gated by workspace membership and the content-read
 // permission, matching the concept and collection reads it aggregates.
-func (s *Server) HandleListContextProfiles(c echo.Context) error {
+func (s *Server) HandleListContextProfiles(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

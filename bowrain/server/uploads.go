@@ -6,7 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // Upload caps for the editor/collection multipart handlers. Without them a
@@ -24,7 +24,7 @@ const (
 // count, per-file and total-size caps above. It returns (files, true, err) when
 // it has already answered the request (empty, too many, or too large), matching
 // the (refused, err) shape the other request guards use.
-func readMultipartUploads(c echo.Context, form *multipart.Form) (files map[string][]byte, answered bool, err error) {
+func readMultipartUploads(c *echo.Context, form *multipart.Form) (files map[string][]byte, answered bool, err error) {
 	fhs := form.File["files"]
 	if len(fhs) == 0 {
 		return nil, true, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no files uploaded"})

@@ -12,7 +12,9 @@
 # path could otherwise expose arbitrary readable files. Lead with the current
 # invariant and retain the failure condition it prevents.
 #
-# Scope: tracked Go and TypeScript comment lines, excluding generated code.
+# Scope: tracked comment lines in Go, TypeScript, Makefiles, shell, Python and
+# the workflow and action YAML, excluding generated code and this file, whose
+# own documentation quotes the markers.
 # Usage:
 #     ./scripts/check-comment-history.sh
 #     ./scripts/check-comment-history.sh --self-test
@@ -30,24 +32,29 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 #                     A first-person report that the code changed. The
 #                     present-tense fact ("nothing is buffered") says the same
 #                     thing and stays true.
-#   as of #123 / as of PR 123
+#   as of #123 / since #123 / until #123 / from #123 until / as of PR 123
 #                     A PR number used as a timestamp. Name the behaviour; git
-#                     blame holds the PR.
+#                     blame holds the PR. A bare reference ("see #123", "the
+#                     #804 link") names a record and passes.
 #   renamed from      The old name is not a property of the current code.
 #   used to be called Same.
 #   formerly          Always introduces a superseded name or state.
-readonly NARRATION_RE='\bwe (now|used to|previously|no longer)\b|\bas of (pr[[:space:]#]*[0-9]+|#[0-9]+)|\brenamed from\b|\bused to be called\b|\bformerly\b'
+readonly NARRATION_RE='\bwe (now|used to|previously|no longer)\b|\b(as of|since|until) (pr[[:space:]#]*[0-9]+|#[0-9]+)|\bfrom (pr[[:space:]#]*[0-9]+|#[0-9]+) until\b|\brenamed from\b|\bused to be called\b|\bformerly\b'
 
 # Only comment lines. A string literal that happens to contain one of these
 # phrases is content — test fixtures quote user-facing prose, and a seeded
 # definition reading "A word we no longer write." is data, not a comment.
+# Go and TypeScript comment with // and /* */; the rest of the scope with #.
 readonly COMMENT_PREFIX_RE='^[[:space:]]*(//|\*|/\*)'
+readonly HASH_COMMENT_PREFIX_RE='^[[:space:]]*#'
 
 readonly SCAN_SURFACES=(
   core host cli kapi memory terms providers packages apps plugins bowrain
+  scripts .github Makefile
 )
 
-# list_files prints NUL-separated candidate paths.
+# list_files prints NUL-separated candidate paths. A surface is a directory or
+# a single file.
 #
 # git ls-files so the scan sees exactly what the repo owns: node_modules, build
 # output and vendored trees are ignored and therefore skipped. An absolute path
@@ -57,9 +64,21 @@ list_files() {
   for p in "$@"; do
     [ -e "$p" ] || continue
     case "$p" in
-      /*) find "$p" -type f \( -name '*.go' -o -name '*.ts' -o -name '*.tsx' \) -print0 ;;
-      *) git ls-files -z --cached --others --exclude-standard \
-           -- "$p/**/*.go" "$p/**/*.ts" "$p/**/*.tsx" ;;
+      /*) find "$p" -type f \( -name '*.go' -o -name '*.ts' -o -name '*.tsx' \
+            -o -name Makefile -o -name '*.mk' -o -name '*.sh' -o -name '*.py' \
+            -o -name '*.yml' -o -name '*.yaml' \) -print0 ;;
+      *)
+        if [ -f "$p" ]; then
+          git ls-files -z --cached --others --exclude-standard -- "$p"
+          continue
+        fi
+        # A pathspec `*` matches across `/`, so "$p/*.go" reaches every depth.
+        # "$p/**/*.go" would need a directory between, and skip the files at
+        # the top of the surface.
+        git ls-files -z --cached --others --exclude-standard \
+          -- "$p/*.go" "$p/*.ts" "$p/*.tsx" \
+          "$p/*Makefile" "$p/*.mk" "$p/*.sh" "$p/*.py" \
+          "$p/*.yml" "$p/*.yaml" ;;
     esac
   done
 }
@@ -68,14 +87,17 @@ list_files() {
 # carries a narration marker. Returns 1 if it printed anything.
 scan_paths() {
   local hits
-  hits="$(list_files "$@" | RE="$NARRATION_RE" PREFIX="$COMMENT_PREFIX_RE" perl -0 -ne '
+  hits="$(list_files "$@" | RE="$NARRATION_RE" PREFIX="$COMMENT_PREFIX_RE" HASH="$HASH_COMMENT_PREFIX_RE" perl -0 -ne '
     BEGIN {
       $re     = qr/$ENV{RE}/i;
-      $prefix = qr/$ENV{PREFIX}/;
+      $cstyle = qr/$ENV{PREFIX}/;
+      $hash   = qr/$ENV{HASH}/;
     }
     chomp;
     my $f = $_;
     next unless -f $f;
+    next if $f =~ m{(^|/)scripts/check-comment-history\.sh$};
+    my $prefix = $f =~ /\.(go|ts|tsx)$/ ? $cstyle : $hash;
     # Generated sources: the comments come from a generator, not from an
     # author, and rewriting them would be undone on the next regeneration.
     next if $f =~ /\.pb\.go$|\/bindings\/|_templ\.go$|\.gen\.go$/;
@@ -169,6 +191,29 @@ EOF
     status=1
   fi
 
+  # A tracked surface, read through git as the real run reads it: a file at
+  # the top of the surface, a file a level down, and the #-comment files.
+  mkdir -p "$tmp/repo/surface/sub"
+  printf '// The reader has accepted it since #1599.\npackage x\n' >"$tmp/repo/surface/top.go"
+  printf '// The writer rejects it until #12 lands.\npackage x\n' >"$tmp/repo/surface/sub/deep.go"
+  printf 'all:\n\t# Two tests failed on main from #3668 until this job existed.\n\ttrue\n' >"$tmp/repo/surface/Makefile"
+  printf '#!/bin/sh\n# we no longer run it here\nurl="since #1"\n' >"$tmp/repo/surface/run.sh"
+  printf 'on: push\n# as of #77 this step is gone\njobs: {}\n' >"$tmp/repo/surface/ci.yml"
+  printf '# See #804 for the link.\nx = "we no longer"\n' >"$tmp/repo/surface/ref.py"
+  out="$(cd "$tmp/repo" && git init -q . && git add -A && scan_paths surface || true)"
+  local want got
+  want="$(printf '%s\n' surface/Makefile surface/ci.yml surface/run.sh surface/sub/deep.go surface/top.go)"
+  got="$(printf '%s\n' "$out" | cut -d: -f1 | LC_ALL=C sort -u)"
+  if [ "$got" = "$want" ]; then
+    echo "✓ self-test: a git surface is read at every depth and in #-comment files"
+  else
+    echo "✖ self-test: expected hits in exactly these files:"
+    printf '%s\n' "$want"
+    echo "  got:"
+    printf '%s\n' "$out"
+    status=1
+  fi
+
   return "$status"
 }
 
@@ -201,7 +246,7 @@ changed from, which git already records — and which stops being true the next
 time the code moves:
 
   we now / we used to    → state the behaviour in the present tense.
-  as of #123             → name the behaviour; git blame holds the PR.
+  as of / since #123     → name the behaviour; git blame holds the PR.
   renamed from           → the old name is not a property of the current code.
   formerly               → likewise for a superseded name or state.
 

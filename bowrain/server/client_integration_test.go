@@ -90,7 +90,7 @@ func TestClientServerRouteSurface(t *testing.T) {
 	e := srv.GetEcho()
 
 	registered := map[string]bool{}
-	for _, r := range e.Routes() {
+	for _, r := range e.Router().Routes() {
 		registered[r.Method+" "+r.Path] = true
 	}
 

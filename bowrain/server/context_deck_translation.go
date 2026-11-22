@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -142,7 +142,7 @@ var errProposalGone = errors.New("the proposed term changed or is gone")
 // as changed. The keep also starts a job that writes the kept term's forms
 // (expandFormsAfterKeep). Reject clears the proposal and records its text as
 // turned down, so it is not proposed again.
-func (s *Server) decideTermTranslation(c echo.Context, src deckSource, rv deckReviewer, pending []contextDeckCard, card contextDeckCard, req contextDeckDecideRequest) error {
+func (s *Server) decideTermTranslation(c *echo.Context, src deckSource, rv deckReviewer, pending []contextDeckCard, card contextDeckCard, req contextDeckDecideRequest) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}
@@ -196,7 +196,7 @@ func (s *Server) decideTermTranslation(c echo.Context, src deckSource, rv deckRe
 // attestConceptAfterWrite records the reviewer's attestation of a concept
 // at the revision it reads at now, when the deck would otherwise deal it
 // again and the reviewer may keep it.
-func (s *Server) attestConceptAfterWrite(c echo.Context, src deckSource, rv deckReviewer, conceptID, note string) error {
+func (s *Server) attestConceptAfterWrite(c *echo.Context, src deckSource, rv deckReviewer, conceptID, note string) error {
 	ctx := c.Request().Context()
 	cards, err := s.contextItems(ctx, src, rv)
 	if err != nil {
@@ -264,7 +264,7 @@ func (s *Server) enqueueTermProposals(ctx context.Context, wsID, wsSlug string, 
 // proposeAfterKeep starts proposing target terms for a concept a reviewer
 // just kept. A failure is logged and costs only the proposal: the keep
 // stands, and the project-wide run picks the concept up later.
-func (s *Server) proposeAfterKeep(c echo.Context, src deckSource, conceptID string) {
+func (s *Server) proposeAfterKeep(c *echo.Context, src deckSource, conceptID string) {
 	ctx := c.Request().Context()
 	if _, _, err := s.enqueueTermProposals(ctx, src.wsID, src.wsSlug, src.project, []string{conceptID}); err != nil {
 		slog.WarnContext(ctx, "term proposal after keep was not started", "project", src.project.ID, "concept", conceptID, "error", err)
@@ -286,7 +286,7 @@ type termProposalsResponse struct {
 // proposal on its concept for the context deck to deal. It answers 202 with
 // the job, or 200 with no job when nothing waits. The job's progress reads
 // at GET /:ws/context-scans/:job_id.
-func (s *Server) HandleProposeTermTranslations(c echo.Context) error {
+func (s *Server) HandleProposeTermTranslations(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,8 +31,7 @@ func planWrite(t *testing.T, s *Server, h echo.HandlerFunc, wsID, projID, body s
 	r.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := echo.New().NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("rc", projID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}})
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", "u-owner")
 	c.Set("project_permissions", perms)

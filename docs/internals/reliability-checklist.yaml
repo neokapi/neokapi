@@ -322,33 +322,40 @@ items:
       queries behind those routes had last been reworked in #3487
       (2026-11-14).
 
-  - id: echo-accepted-advisories
-    title: Two Echo advisories are accepted on conditions in the server code
+  - id: proxy-trust
+    title: The server believes forwarded headers only from trusted proxies
     owner_surface: server
     trigger:
-      paths:
-        - 'scripts/govulncheck-accepted.txt'
       added:
-        - 'middleware\.(Proxy|ProxyWithConfig|RateLimiter|RateLimiterWithConfig)\b'
         - '\bconfigureIPExtractor\b'
-        - '\bIPExtractor\b'
-        - '\becho\.ExtractIP'
+        - '\b(IPExtractor|SchemeExtractor)\b'
+        - '\becho\.(ExtractIP|ExtractScheme|LegacyIPExtractor|LegacySchemeExtractor)'
+        - '\becho\.Trust(Loopback|LinkLocal|PrivateNet|IPRange)\b'
+        - '\bBOWRAIN_TRUSTED_PROXIES\b'
+        - 'middleware\.(Proxy|ProxyWithConfig|RateLimiter|RateLimiterWithConfig)\b'
       added_in:
         - 'bowrain/**/*.go'
+        - 'bowrain/**/*.yaml'
       note: >-
         the line only names the extractor in a comment or a test.
     check: >-
-      scripts/govulncheck-accepted.txt accepts two Echo v4 advisories that are
-      fixed only in Echo v5, on two grounds: the server sets its own IP
-      extractor (configureIPExtractor in bowrain/server/server.go) and keys its
-      own rate limiter on it, and it does not use Echo's Proxy middleware. If
-      the diff adds middleware.Proxy, uses Echo's RateLimiter, or changes
-      configureIPExtractor, re-read both advisories against the new code, run
-      `cd bowrain && go test ./server/ -run TestPerIPControlsResistXFFSpoofing`,
-      and update or remove the entries. A person approves the change.
+      c.RealIP() keys every per-IP limit and the /metrics gate, and c.Scheme()
+      builds sign-in redirect URLs, email links and HSTS. configureIPExtractor
+      in bowrain/server/server.go trusts X-Forwarded-For and X-Forwarded-Proto
+      only from loopback, link-local and private peers and
+      BOWRAIN_TRUSTED_PROXIES. Run `cd bowrain && go test ./server/ -run
+      'TestPerIPControlsResistXFFSpoofing|TestSchemeFollowsTrustedProxies'`,
+      and confirm in bowrain-infra that the production peer is still inside
+      that set: the ALB in the VPC range of
+      live/prod/eu-north-1/10-network (10.40.0.0/16 today), which overwrites
+      X-Forwarded-Proto. A peer outside it needs a BOWRAIN_TRUSTED_PROXIES
+      entry, or sign-in redirects fall back to http.
     incident: >-
-      PR #3612 (2026-11-21) recorded both entries once the vulnerability scan
-      covered every module.
+      PR #3692 (2026-11-22): Echo v5 made c.Scheme() believe X-Forwarded-Proto
+      only from private peers, where v4 believed any peer; review confirmed the
+      production peer (CloudFront to the ALB in 10.40.0.0/16). PR #3612
+      (2026-11-21) had accepted two Echo v4 advisories on the strength of this
+      extractor.
 
   - id: sync-field-travels-both-projections
     title: A synchronised field travels both wire projections
@@ -755,6 +762,27 @@ items:
       PR #3609 (2026-11-21): after an update Home read plan.waiting.length on a
       plan cached without waiting, and the app crashed on start.
 
+  - id: mobile-maestro-flows
+    title: The mobile app's Maestro flows run only from the verify recipe
+    owner_surface: mobile
+    trigger:
+      paths:
+        - 'bowrain/mobile/**'
+      exclude:
+        - 'bowrain/mobile/**/*.md'
+    check: >-
+      No CI job runs bowrain/mobile/e2e/. With the stack, Metro and a
+      development build on the iOS simulator (.claude/skills/verify/mobile.md),
+      run every flow from bowrain/mobile with `maestro test $(node
+      e2e/seed.mjs) e2e/`, and record each flow's result. A changed screen,
+      test id, sign-in step or development-client setting can break a flow
+      without failing anything else.
+    incident: >-
+      Issue #3653 (2026-11-22): every committed flow failed against a
+      development build, and nobody noticed because nothing ran them. Right
+      after sign-in the app also asked for /api/v1/(tabs)/projects (#3652),
+      which a flow run would have shown.
+
   # ── CI ───────────────────────────────────────────────────────────────────
 
   - id: test-that-only-skips
@@ -1106,3 +1134,27 @@ items:
       Committed nb docs made source edits fail the nb Docusaurus build with
       onBrokenLinks: throw, until the target tier became a build artefact
       (2026-06; recorded in CLAUDE.md).
+
+  - id: source-path-under-trimpath
+    title: Code that finds a file through its own source path
+    owner_surface: framework
+    trigger:
+      added:
+        - 'runtime\.Caller\('
+        - 'runtime\.FuncForPC\('
+      added_in:
+        - '**/*.go'
+    check: >-
+      Every make target, CI job and agent session builds with -trimpath, so
+      runtime.Caller and runtime.FuncForPC return a module path such as
+      github.com/neokapi/neokapi/core/x/file.go, which is not a file on disk.
+      A test reads files relative to its working directory: go test runs each
+      package's tests in the package directory. A program finds the
+      repository from its working directory (the nearest go.work above it).
+      A lookup that fails must report the failure, never skip the check it
+      feeds. Run the change with GOFLAGS=-trimpath.
+    incident: >-
+      2026-11-22: five worktrees filled the shared Go build cache with 54 GB in
+      two hours because builds lacked -trimpath. Turning the flag on broke six
+      runtime.Caller lookups, and scripts/modelcheck silently dropped its price
+      check instead of failing.

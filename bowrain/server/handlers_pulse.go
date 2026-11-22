@@ -1,14 +1,16 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -48,7 +50,7 @@ func (s *Server) registerPulseRoutes(v1 *echo.Group) {
 // HandlePulseFrontPage returns public workspaces with summary stats for the
 // Pulse landing page.
 // GET /api/v1/pulse
-func (s *Server) HandlePulseFrontPage(c echo.Context) error {
+func (s *Server) HandlePulseFrontPage(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusOK, map[string]any{
 			"workspaces": []any{},
@@ -137,7 +139,7 @@ func (s *Server) HandlePulseFrontPage(c echo.Context) error {
 
 // HandlePulseOverview returns the workspace overview for the Pulse dashboard.
 // GET /api/v1/pulse/:workspace
-func (s *Server) HandlePulseOverview(c echo.Context) error {
+func (s *Server) HandlePulseOverview(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -167,7 +169,7 @@ func (s *Server) HandlePulseOverview(c echo.Context) error {
 
 // HandlePulseProjects returns the project list for the workspace.
 // GET /api/v1/pulse/:workspace/projects
-func (s *Server) HandlePulseProjects(c echo.Context) error {
+func (s *Server) HandlePulseProjects(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -193,7 +195,7 @@ func (s *Server) HandlePulseProjects(c echo.Context) error {
 
 // HandlePulseProjectDetail returns detailed stats for a single project.
 // GET /api/v1/pulse/:workspace/projects/:pid
-func (s *Server) HandlePulseProjectDetail(c echo.Context) error {
+func (s *Server) HandlePulseProjectDetail(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -221,7 +223,7 @@ func (s *Server) HandlePulseProjectDetail(c echo.Context) error {
 
 // HandlePulseLocaleDetail returns detailed stats for a locale within a project.
 // GET /api/v1/pulse/:workspace/projects/:pid/lang/:locale
-func (s *Server) HandlePulseLocaleDetail(c echo.Context) error {
+func (s *Server) HandlePulseLocaleDetail(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -267,7 +269,7 @@ func (s *Server) HandlePulseLocaleDetail(c echo.Context) error {
 
 // HandlePulseActivity returns recent activity for the workspace.
 // GET /api/v1/pulse/:workspace/activity
-func (s *Server) HandlePulseActivity(c echo.Context) error {
+func (s *Server) HandlePulseActivity(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -339,7 +341,7 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 
 // HandlePulseActivityHeatmap returns daily activity counts for the contribution heatmap.
 // GET /api/v1/pulse/:workspace/activity/heatmap
-func (s *Server) HandlePulseActivityHeatmap(c echo.Context) error {
+func (s *Server) HandlePulseActivityHeatmap(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -373,7 +375,7 @@ func (s *Server) HandlePulseActivityHeatmap(c echo.Context) error {
 
 // HandlePulseLeaderboard returns the contributor and language leaderboard.
 // GET /api/v1/pulse/:workspace/leaderboard
-func (s *Server) HandlePulseLeaderboard(c echo.Context) error {
+func (s *Server) HandlePulseLeaderboard(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -419,6 +421,7 @@ func (s *Server) HandlePulseLeaderboard(c echo.Context) error {
 		}
 		languages = append(languages, *rank)
 	}
+	rankPulseLanguages(languages)
 
 	leaderboard := store.PulseLeaderboard{
 		Contributors: []store.PulseContributor{},
@@ -435,7 +438,7 @@ func (s *Server) HandlePulseLeaderboard(c echo.Context) error {
 
 // HandlePulseTerms returns terminology for the workspace.
 // GET /api/v1/pulse/:workspace/terms
-func (s *Server) HandlePulseTerms(c echo.Context) error {
+func (s *Server) HandlePulseTerms(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -451,7 +454,7 @@ func (s *Server) HandlePulseTerms(c echo.Context) error {
 
 // HandlePulseTermDetail returns a single terminology concept.
 // GET /api/v1/pulse/:workspace/terms/:cid
-func (s *Server) HandlePulseTermDetail(c echo.Context) error {
+func (s *Server) HandlePulseTermDetail(c *echo.Context) error {
 	ws := pulseWorkspace(c)
 	if ws == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -467,13 +470,13 @@ func (s *Server) HandlePulseTermDetail(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // pulseWorkspace extracts the workspace from the echo context (set by PulseAccessMiddleware).
-func pulseWorkspace(c echo.Context) *platauth.Workspace {
+func pulseWorkspace(c *echo.Context) *platauth.Workspace {
 	ws, _ := c.Get("pulse_workspace").(*platauth.Workspace)
 	return ws
 }
 
 // pulseProject extracts the project from the echo context (set by PulseProjectAccessMiddleware).
-func pulseProject(c echo.Context) *store.Project {
+func pulseProject(c *echo.Context) *store.Project {
 	p, _ := c.Get("pulse_project").(*store.Project)
 	return p
 }
@@ -513,6 +516,17 @@ func (s *Server) pulseVisibleProjectIDs(ctx context.Context, workspaceID string)
 	return ids, nil
 }
 
+// rankPulseLanguages orders languages as the Pulse pages show them: the
+// highest translated percentage first, then by locale.
+func rankPulseLanguages(languages []store.PulseLanguageRank) {
+	slices.SortFunc(languages, func(a, b store.PulseLanguageRank) int {
+		if c := cmp.Compare(b.Percentage, a.Percentage); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Locale, b.Locale)
+	})
+}
+
 // buildPulseOverview constructs the full overview response.
 func (s *Server) buildPulseOverview(ctx context.Context, ws *platauth.Workspace, projects []*store.Project) store.PulseOverview {
 	projectSummaries := make([]store.PulseProjectSummary, 0, len(projects))
@@ -550,6 +564,7 @@ func (s *Server) buildPulseOverview(ctx context.Context, ws *platauth.Workspace,
 		}
 		topLanguages = append(topLanguages, *rank)
 	}
+	rankPulseLanguages(topLanguages)
 
 	overallPct := 0.0
 	if totalWords > 0 {
@@ -624,7 +639,7 @@ func (s *Server) buildItemStats(ctx context.Context, p *store.Project) []store.I
 	return stats.ItemStats
 }
 
-func pulseJSON(c echo.Context, maxAge int, body any) error {
+func pulseJSON(c *echo.Context, maxAge int, body any) error {
 	cacheControl := fmt.Sprintf("public, max-age=%d", maxAge)
 	if ws := pulseWorkspace(c); ws != nil && pulseWorkspaceVisibility(ws) == platauth.DashboardPrivate {
 		cacheControl = "private, no-store"

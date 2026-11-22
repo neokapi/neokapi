@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -56,7 +56,7 @@ type BlockChangedResponse struct {
 
 // answerBlockChanged writes the 409 for a refused write, carrying the block as
 // the editor's blocks route reads it.
-func (s *Server) answerBlockChanged(c echo.Context, projectID string, changed *blockChangedError, locale string) error {
+func (s *Server) answerBlockChanged(c *echo.Context, projectID string, changed *blockChangedError, locale string) error {
 	locales, _ := s.projectTargetLocales(c.Request().Context(), projectID)
 	if locale != "" && !slices.Contains(locales, locale) {
 		locales = append(locales, locale)

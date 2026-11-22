@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
@@ -33,8 +33,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 
@@ -54,8 +53,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 
@@ -74,8 +72,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 
 	require.NoError(t, srv.HandleListBravoMessages(c))
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -92,8 +89,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req.Header.Set("Accept", "text/event-stream")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 	c.Set("workspace_role", platauth.RoleMember)
@@ -110,8 +106,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 
@@ -127,8 +122,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 
 	require.NoError(t, srv.HandleCancelBravoConversation(c))
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -137,8 +131,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 
@@ -151,8 +144,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req = httptest.NewRequest(http.MethodDelete, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 
 	require.NoError(t, srv.HandleDeleteBravoConversation(c))
 	require.Equal(t, http.StatusNoContent, rec.Code)
@@ -161,8 +153,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 
@@ -182,8 +173,7 @@ func TestBravoEndToEnd_ConfigAndToolPolicy(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", wsID)
 
 	require.NoError(t, srv.HandleGetBravoConfig(c))
@@ -200,8 +190,7 @@ func TestBravoEndToEnd_ConfigAndToolPolicy(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", wsID)
 	c.Set("workspace_role", platauth.RoleAdmin)
 
@@ -219,8 +208,7 @@ func TestBravoEndToEnd_ConfigAndToolPolicy(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", wsID)
 
 	require.NoError(t, srv.HandleListBravoTools(c))
@@ -247,8 +235,7 @@ func TestBravoEndToEnd_ConfigAndToolPolicy(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", wsID)
 	c.Set("workspace_role", platauth.RoleMember)
 
@@ -290,8 +277,7 @@ func TestBravoEndToEnd_ToolCallApproval(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id", "tcid")
-	c.SetParamValues("demo", conv.ID, tc.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}, {Name: "tcid", Value: tc.ID}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 
@@ -311,8 +297,7 @@ func TestBravoEndToEnd_ToolCallApproval(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws", "id", "tcid")
-	c.SetParamValues("demo", conv.ID, tc2.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}, {Name: "tcid", Value: tc2.ID}})
 	c.Set("user_id", userID)
 	c.Set("workspace_id", wsID)
 
@@ -343,8 +328,7 @@ func TestBravoEndToEnd_MultipleConversations(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/?limit=10&offset=0", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", "alice")
 	c.Set("workspace_id", wsID)
 
@@ -360,8 +344,7 @@ func TestBravoEndToEnd_MultipleConversations(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/?limit=10&offset=0", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", "bob")
 	c.Set("workspace_id", wsID)
 
@@ -373,8 +356,7 @@ func TestBravoEndToEnd_MultipleConversations(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/?limit=2&offset=0", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", "alice")
 	c.Set("workspace_id", wsID)
 
@@ -396,8 +378,7 @@ func TestBravoEndToEnd_UsageTracking(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", wsID)
 
 	require.NoError(t, srv.HandleGetBravoUsage(c))
@@ -418,7 +399,7 @@ func TestBravoEndToEnd_AgentNotConfigured(t *testing.T) {
 	tests := []struct {
 		name    string
 		method  string
-		handler func(c echo.Context) error
+		handler func(c *echo.Context) error
 		expect  int
 	}{
 		{"create conversation", http.MethodPost, srv.HandleCreateBravoConversation, http.StatusServiceUnavailable},
@@ -441,8 +422,7 @@ func TestBravoEndToEnd_AgentNotConfigured(t *testing.T) {
 			}
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetParamNames("ws")
-			c.SetParamValues("demo")
+			c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 			c.Set("user_id", "user-1")
 			c.Set("workspace_id", "ws-1")
 

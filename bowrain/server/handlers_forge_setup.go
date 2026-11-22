@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -26,7 +26,7 @@ import (
 // wizard, and neither is something they can do anything about. What they can
 // act on is that the App cannot read that repository, which is what this says.
 // The cause stays in the log, against the request's reference.
-func (s *Server) forgeUnreachable(c echo.Context, op string, err error) error {
+func (s *Server) forgeUnreachable(c *echo.Context, op string, err error) error {
 	slog.ErrorContext(c.Request().Context(), "forge call failed",
 		"op", op, "reference", requestID(c), "error", err)
 	return apiErr(c, http.StatusBadGateway,
@@ -84,7 +84,7 @@ const setupStateTTL = 30 * time.Minute
 // Like the permission gates, this WRITES the response and returns
 // errAccessDenied: apiErr returns nil on success, so a caller checking
 // `if err != nil` on the written response alone would fall through and proceed.
-func (s *Server) requireInstallationOwner(c echo.Context) (int64, error) {
+func (s *Server) requireInstallationOwner(c *echo.Context) (int64, error) {
 	instID, err := strconv.ParseInt(c.Param("installationID"), 10, 64)
 	if err != nil {
 		_ = apiErr(c, http.StatusBadRequest, "installation id must be numeric")
@@ -127,7 +127,7 @@ func (s *Server) requireInstallationOwner(c echo.Context) (int64, error) {
 // on the post-install redirect, and HandleClaimInstallation redeems it. Without
 // it the returning request carries only an installation id GitHub chose, which
 // is not evidence of anything.
-func (s *Server) HandleGitHubSetupState(c echo.Context) error {
+func (s *Server) HandleGitHubSetupState(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ type ClaimInstallationRequest struct {
 // installation another workspace already holds answers 404, exactly as an
 // unknown one does, and re-claiming the workspace's own is idempotent so a
 // re-run of the install flow simply lands where it did before.
-func (s *Server) HandleClaimInstallation(c echo.Context) error {
+func (s *Server) HandleClaimInstallation(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (s *Server) HandleClaimInstallation(c echo.Context) error {
 
 // HandleListInstallationRepos returns the repositories a GitHub App
 // installation covers: GET /:ws/github/installations/:installationID/repositories.
-func (s *Server) HandleListInstallationRepos(c echo.Context) error {
+func (s *Server) HandleListInstallationRepos(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -269,7 +269,7 @@ func (s *Server) HandleListInstallationRepos(c echo.Context) error {
 // workspace), `patterns` (comma-separated) overrides the proposal for match
 // counting — live feedback while the user edits the patterns input — and
 // `branch` picks the ref (default: the repository's HEAD).
-func (s *Server) HandleDetectInstallationRepo(c echo.Context) error {
+func (s *Server) HandleDetectInstallationRepo(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func (s *Server) HandleDetectInstallationRepo(c echo.Context) error {
 // persisted `auth: app` forge connector and kicks off the initial ingest in
 // the background, so the project fills immediately — the delivery loop takes
 // over from the next push.
-func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
+func (s *Server) HandleBindInstallationRepo(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}

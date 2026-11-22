@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 )
@@ -50,7 +50,7 @@ func (s *Server) knowledgeEngineFor(ctx context.Context, wsSlug string) (*knowle
 // minted, timestamped platform event here. The ordinary-edit handlers in
 // handlers_concepts.go and the change-set handlers in handlers_changesets.go
 // build the same descriptors for the events they fire directly.
-func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.MergeEvent) {
+func (s *Server) publishKnowledgeEvents(c *echo.Context, events []knowledge.MergeEvent) {
 	fallbackActor, _ := c.Get("user_id").(string)
 	s.publishKnowledgeEventsIn(c.Request().Context(), c.Param("ws"), fallbackActor, events)
 }

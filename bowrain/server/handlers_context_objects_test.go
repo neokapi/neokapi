@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -64,7 +64,7 @@ func contextObjectSQLiteServer(t *testing.T, cs *sqlitestore.SQLiteStore, member
 	e := echo.New()
 	e.Use(middleware.BodyLimit(requestBodyLimit))
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", member)
 			c.Set("project_permissions", perms)
 			return next(c)

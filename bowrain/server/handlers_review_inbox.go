@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -112,7 +112,7 @@ type reviewInboxProject struct {
 // plan's snapshot with the caller's context cards and languages added.
 //
 // GET /api/v1/auth/me/review
-func (s *Server) HandleReviewInbox(c echo.Context) error {
+func (s *Server) HandleReviewInbox(c *echo.Context) error {
 	if s.AuthStore == nil || s.ContentStore == nil || s.Services == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}

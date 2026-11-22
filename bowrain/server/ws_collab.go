@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // collabRoom represents a single collaborative editing room.
@@ -102,7 +102,7 @@ func (room *collabRoom) broadcast(sender *collabClient, msg []byte) {
 // HandleCollabWebSocket handles WebSocket connections for collaborative editing.
 // Route: GET /api/v1/:ws/:id/collab/:ref
 // Query params: locale (required)
-func (s *Server) HandleCollabWebSocket(c echo.Context) error {
+func (s *Server) HandleCollabWebSocket(c *echo.Context) error {
 	ws := c.Param("ws")
 	pid := projectParam(c)
 	fname := fileParam(c)
@@ -122,7 +122,7 @@ func (s *Server) HandleCollabWebSocket(c echo.Context) error {
 	roomKey := fmt.Sprintf("%s:%s:%s:%s", ws, pid, fname, locale)
 
 	// Upgrade to WebSocket.
-	conn, err := websocket.Accept(c.Response().Writer, c.Request(), &websocket.AcceptOptions{
+	conn, err := websocket.Accept(upgradeWriter(c), c.Request(), &websocket.AcceptOptions{
 		Subprotocols:   []string{"yjs"},
 		OriginPatterns: s.wsOriginPatterns(c),
 	})
@@ -170,7 +170,7 @@ func (s *Server) HandleCollabWebSocket(c echo.Context) error {
 }
 
 // getUserID extracts the user ID from the Echo context (set by AuthMiddleware).
-func getUserID(c echo.Context) string {
+func getUserID(c *echo.Context) string {
 	if v := c.Get("user_id"); v != nil {
 		if id, ok := v.(string); ok {
 			return id
@@ -180,7 +180,7 @@ func getUserID(c echo.Context) string {
 }
 
 // getUserName extracts the user name from the Echo context (set by AuthMiddleware).
-func getUserName(c echo.Context) string {
+func getUserName(c *echo.Context) string {
 	if v := c.Get("user_name"); v != nil {
 		if name, ok := v.(string); ok {
 			return name

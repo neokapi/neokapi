@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,8 +20,7 @@ func confirmAs(t *testing.T, s *Server, wsID, projID, user string) {
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 	rec := httptest.NewRecorder()
 	c := echo.New().NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("rc", projID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}})
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", user)
 	c.Set("project_permissions", platauth.PermAll)

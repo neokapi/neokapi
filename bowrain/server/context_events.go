@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/core/contextop"
@@ -196,7 +196,7 @@ func pushedActor(actors []contextop.Actor) (platev.ContextActorKind, string) {
 
 // requestSession is the agent session a request carries, when it carries
 // one, and the actor kind the request acts as.
-func requestSession(c echo.Context) (platev.ContextActorKind, string) {
+func requestSession(c *echo.Context) (platev.ContextActorKind, string) {
 	if session, _ := c.Get("bravo_session_id").(string); session != "" {
 		return platev.ContextActorAgent, session
 	}
@@ -206,7 +206,7 @@ func requestSession(c echo.Context) (platev.ContextActorKind, string) {
 // emitContextChange publishes a context change made through the request,
 // attributed to the signed-in member and recorded by the audit logger and the
 // activity recorder. A change that counts no item is not published.
-func (s *Server) emitContextChange(c echo.Context, evType platev.EventType, projectID, resourceID string, change platev.ContextChange) {
+func (s *Server) emitContextChange(c *echo.Context, evType platev.EventType, projectID, resourceID string, change platev.ContextChange) {
 	if change.Counts.Total() == 0 {
 		return
 	}
@@ -231,7 +231,7 @@ func (s *Server) emitContextChange(c echo.Context, evType platev.EventType, proj
 // emitPushedContext publishes the context change a push of context objects
 // made: the operations the project did not hold, and the binding when the
 // push bound the project's context to its key.
-func (s *Server) emitPushedContext(c echo.Context, projectID string, accepted acceptedContext) {
+func (s *Server) emitPushedContext(c *echo.Context, projectID string, accepted acceptedContext) {
 	if s.EventBus == nil {
 		return
 	}
@@ -242,7 +242,7 @@ func (s *Server) emitPushedContext(c echo.Context, projectID string, accepted ac
 // context objects makes, for a caller that publishes it later: the push
 // worker, once the transaction storing the objects commits. Nil when the
 // change counts no item.
-func pushedContextData(c echo.Context, accepted acceptedContext) map[string]string {
+func pushedContextData(c *echo.Context, accepted acceptedContext) map[string]string {
 	change := pushedContextChange(accepted)
 	if change.Counts.Total() == 0 {
 		return nil
@@ -285,7 +285,7 @@ func pushedContextChange(accepted acceptedContext) platev.ContextChange {
 
 // emitDecidedContext publishes the context change one Decide answer made.
 // The item is the suggestion the answer was given to.
-func (s *Server) emitDecidedContext(c echo.Context, st *decideState, answered string, recorded []workspace.Op) {
+func (s *Server) emitDecidedContext(c *echo.Context, st *decideState, answered string, recorded []workspace.Op) {
 	if s.EventBus == nil {
 		return
 	}
@@ -316,7 +316,7 @@ func (s *Server) emitDecidedContext(c echo.Context, st *decideState, answered st
 // voiceRuleChange is the context change a decision about one voice rule
 // makes: the rule's term is its id, and the profile it was decided for rides
 // in the event's detail.
-func voiceRuleChange(c echo.Context, actor platev.ContextActorKind, op platev.ContextOperation, term string) platev.ContextChange {
+func voiceRuleChange(c *echo.Context, actor platev.ContextActorKind, op platev.ContextOperation, term string) platev.ContextChange {
 	_, session := requestSession(c)
 	name, _ := c.Get("name").(string)
 	counts := platev.ContextCounts{}
@@ -335,7 +335,7 @@ func voiceRuleChange(c echo.Context, actor platev.ContextActorKind, op platev.Co
 
 // voiceProfileChange is the context change an edit of a whole voice profile
 // makes.
-func voiceProfileChange(c echo.Context, profileID string) platev.ContextChange {
+func voiceProfileChange(c *echo.Context, profileID string) platev.ContextChange {
 	actor, session := requestSession(c)
 	counts := platev.ContextCounts{}
 	counts.Add(platev.ContextItemVoiceProfile, platev.ContextOpEdit, 1)
@@ -351,7 +351,7 @@ func voiceProfileChange(c echo.Context, profileID string) platev.ContextChange {
 
 // voiceProfileData is the event detail of an edit of a whole voice profile:
 // detail with the context change the edit makes written beside it.
-func voiceProfileData(c echo.Context, profileID string, detail map[string]string) map[string]string {
+func voiceProfileData(c *echo.Context, profileID string, detail map[string]string) map[string]string {
 	change := voiceProfileChange(c, profileID)
 	change.Extra = detail
 	return platev.StampTool(c.Request().Context(), change.Data())

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -67,7 +67,7 @@ func TestFeatureOverridesMiddleware(t *testing.T) {
 			}
 
 			var got map[billing.Feature]bool
-			h := FeatureOverridesMiddleware(tt.store, nil)(func(c echo.Context) error {
+			h := FeatureOverridesMiddleware(tt.store, nil)(func(c *echo.Context) error {
 				got = billing.OverridesFromContext(c)
 				return c.String(http.StatusOK, "ok")
 			})
@@ -93,7 +93,7 @@ func TestFeatureOverridesMiddleware_EnablesPlanGuard(t *testing.T) {
 	store := &mockBillingStore{overrides: []billing.FeatureOverride{{Feature: billing.FeatureBravo, Enabled: true}}}
 
 	final := FeatureOverridesMiddleware(store, nil)(
-		billing.PlanGuard(billing.FeatureBravo)(func(c echo.Context) error {
+		billing.PlanGuard(billing.FeatureBravo)(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "reached")
 		}),
 	)
@@ -106,7 +106,7 @@ func TestFeatureOverridesMiddleware_EnablesPlanGuard(t *testing.T) {
 	c2.Set("workspace_id", "ws1")
 	c2.Set("workspace_plan", "team")
 	blocked := FeatureOverridesMiddleware(&mockBillingStore{}, nil)(
-		billing.PlanGuard(billing.FeatureBravo)(func(c echo.Context) error {
+		billing.PlanGuard(billing.FeatureBravo)(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "reached")
 		}),
 	)
@@ -129,7 +129,7 @@ func TestFeatureOverridesMiddleware_GlobalFlagsLayer(t *testing.T) {
 	c := e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), rec)
 	c.Set("workspace_id", "ws1")
 	var got map[billing.Feature]bool
-	h := FeatureOverridesMiddleware(nil, globals)(func(c echo.Context) error {
+	h := FeatureOverridesMiddleware(nil, globals)(func(c *echo.Context) error {
 		got = billing.OverridesFromContext(c)
 		return c.String(http.StatusOK, "ok")
 	})
@@ -142,7 +142,7 @@ func TestFeatureOverridesMiddleware_GlobalFlagsLayer(t *testing.T) {
 	c2.Set("workspace_id", "ws1")
 	store := &mockBillingStore{overrides: []billing.FeatureOverride{{Feature: billing.FeatureBravo, Enabled: false}}}
 	var got2 map[billing.Feature]bool
-	h2 := FeatureOverridesMiddleware(store, globals)(func(c echo.Context) error {
+	h2 := FeatureOverridesMiddleware(store, globals)(func(c *echo.Context) error {
 		got2 = billing.OverridesFromContext(c)
 		return c.String(http.StatusOK, "ok")
 	})

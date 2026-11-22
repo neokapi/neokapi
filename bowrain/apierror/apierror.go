@@ -9,11 +9,11 @@
 //	  ...structured detail fields (e.g. "current", "limit")   // unchanged wire contract
 //	}
 //
-// The "error" field keeps its exact historical value for every existing error —
-// clients and tests parse it — while "message" and "reference" are additive.
+// The "error" field keeps its exact historical value for every existing error,
+// because clients and tests parse it. "message" and "reference" are additive.
 // "reference" reuses the per-request correlation ID minted by
-// observe.RequestIDMiddleware (the X-Request-ID header value that is stamped on
-// every log line and Sentry event for the request), so one quoted ID drills
+// observe.RequestIDMiddleware. It is the X-Request-ID header value stamped on
+// every log line and Sentry event for the request, so one quoted ID drills
 // from a user report down to logs.
 //
 // Handlers in bowrain/server write the envelope through the package-level
@@ -23,16 +23,53 @@
 package apierror
 
 import (
+	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
+
+// echoSentinels are the predefined errors Echo returns itself: the router's
+// 404 and 405, the body limit's 413, and the rest of the set. They carry a
+// status but are not *echo.HTTPError values.
+var echoSentinels = []error{
+	echo.ErrBadRequest,
+	echo.ErrUnauthorized,
+	echo.ErrForbidden,
+	echo.ErrNotFound,
+	echo.ErrMethodNotAllowed,
+	echo.ErrRequestTimeout,
+	echo.ErrStatusRequestEntityTooLarge,
+	echo.ErrUnsupportedMediaType,
+	echo.ErrTooManyRequests,
+	echo.ErrInternalServerError,
+	echo.ErrBadGateway,
+	echo.ErrServiceUnavailable,
+}
+
+// AsHTTPError returns the HTTP error err carries: the first *echo.HTTPError in
+// its chain, or, for one of Echo's predefined errors such as echo.ErrNotFound,
+// an *echo.HTTPError with that status and its standard status text as the
+// message. It reports false for an error that carries no HTTP status.
+func AsHTTPError(err error) (*echo.HTTPError, bool) {
+	if he, ok := errors.AsType[*echo.HTTPError](err); ok {
+		return he, true
+	}
+	for _, s := range echoSentinels {
+		if errors.Is(err, s) {
+			code := echo.StatusCode(s)
+			return echo.NewHTTPError(code, http.StatusText(code)), true
+		}
+	}
+	return nil, false
+}
 
 // Stable codes for a dependency the platform declined to call because its
 // circuit breaker is open. They are distinct from a generic 5xx on purpose: the
 // request did not fail, it was not attempted, and the work will succeed once
-// the upstream returns — so the UI shows a wait, not a failure.
+// the upstream returns, so the UI shows a wait, not a failure.
 const (
 	// CodeAIUnavailable is the AI/LLM provider being circuit-broken. Detail
 	// fields: "dependency", "retry_after_seconds".
@@ -44,8 +81,8 @@ const (
 	// CodeGovernanceMoved is a compare-and-swap failure on a stream's freshness
 	// ref: the write asserted the governance component it last observed, and
 	// that component had moved. Detail fields: "component", "expected",
-	// "actual". Retrying the identical request cannot succeed — the caller has
-	// to fetch what moved and decide what to do about it — which is why it is a
+	// "actual". Retrying the identical request cannot succeed. The caller has
+	// to fetch what moved and decide what to do about it, which is why it is a
 	// 409 with its own code rather than a generic rejection.
 	CodeGovernanceMoved = "governance_moved"
 
@@ -62,7 +99,7 @@ const (
 // RequestID returns the per-request correlation ID set by
 // observe.RequestIDMiddleware, or "" when the middleware did not run (tests,
 // non-HTTP contexts).
-func RequestID(c echo.Context) string {
+func RequestID(c *echo.Context) string {
 	if v, ok := c.Get("request_id").(string); ok {
 		return v
 	}
@@ -75,7 +112,7 @@ func RequestID(c echo.Context) string {
 // maps are merged in at the top level, so historical payloads such as
 // {"error":"project_limit_reached","current":2,"limit":1} keep their fields
 // byte-for-byte while gaining "message" and "reference".
-func Write(c echo.Context, status int, code string, details ...map[string]any) error {
+func Write(c *echo.Context, status int, code string, details ...map[string]any) error {
 	var detail map[string]any
 	if len(details) > 0 {
 		detail = details[0]
@@ -90,8 +127,8 @@ func Write(c echo.Context, status int, code string, details ...map[string]any) e
 	return c.JSON(status, body)
 }
 
-// messages maps a stable error code — or, for handlers whose historical
-// "error" value is itself a sentence, that exact string — to the human
+// messages maps a stable error code (or, for handlers whose historical
+// "error" value is itself a sentence, that exact string) to the human
 // sentence served in "message". Each code's message is defined once, here.
 var messages = map[string]string{
 	// Auth and onboarding.
@@ -143,8 +180,8 @@ var messages = map[string]string{
 func MessageFor(code string, details map[string]any) string {
 	switch code {
 	case "project_limit_reached":
-		// Free's project ceiling is an abuse guard rather than a plan feature —
-		// see billing.ProjectAbuseCap — so the sentence does not offer an
+		// Free's project ceiling is an abuse guard rather than a plan feature
+		// (see billing.ProjectAbuseCap), so the sentence does not offer an
 		// upgrade the way a metered limit's would.
 		if limit, ok := details["limit"]; ok {
 			return fmt.Sprintf("A free workspace can hold %v projects and this one already has %v. Get in touch if you need more.",

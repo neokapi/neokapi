@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -113,7 +113,7 @@ func (s *Server) contextDeckSource(ctx context.Context, wsID, wsSlug string, pro
 
 // requestReviewer is the signed-in member of a request as the deck judges
 // them.
-func (s *Server) requestReviewer(c echo.Context, wsID string) deckReviewer {
+func (s *Server) requestReviewer(c *echo.Context, wsID string) deckReviewer {
 	member := ledgerMemberOf(c)
 	ctx := c.Request().Context()
 	languages, _ := c.Get("project_languages").([]string)
@@ -129,7 +129,7 @@ func (s *Server) requestReviewer(c echo.Context, wsID string) deckReviewer {
 
 // deckRequest reads the project, the reviewer and the deck source of a deck
 // request.
-func (s *Server) deckRequest(c echo.Context) (deckSource, deckReviewer, error) {
+func (s *Server) deckRequest(c *echo.Context) (deckSource, deckReviewer, error) {
 	if s.ContentStore == nil {
 		return deckSource{}, deckReviewer{}, errors.New("content store not configured")
 	}
@@ -148,7 +148,7 @@ func (s *Server) deckRequest(c echo.Context) (deckSource, deckReviewer, error) {
 // items no attestation covers at their current revision, as cards in deck
 // order, with their counts by kind. ?mode=pending is the one mode; ?kind=
 // narrows to one card kind; ?cursor= and ?limit= page it.
-func (s *Server) HandleContextDeck(c echo.Context) error {
+func (s *Server) HandleContextDeck(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ type contextDeckOriginResponse struct {
 // HandleContextDeckOrigin answers GET /:ws/:id/context/deck/origins/:op: the
 // bulk operation op and the items of the project it brought in, reviewed or
 // not, in deck order. ?cursor= and ?limit= page it.
-func (s *Server) HandleContextDeckOrigin(c echo.Context) error {
+func (s *Server) HandleContextDeckOrigin(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (s *Server) HandleContextDeckOrigin(c echo.Context) error {
 // card another person's live session holds answers 409 held. A decision
 // about a card the caller's own session holds is recorded in that session
 // and releases the card.
-func (s *Server) HandleContextDeckDecide(c echo.Context) error {
+func (s *Server) HandleContextDeckDecide(c *echo.Context) error {
 	var req contextDeckDecideRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
@@ -289,13 +289,13 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 	if held {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: "another person's session holds this card", Code: deckCodeHeld})
 	}
-	if err := s.decideContextCard(c, req); err != nil || own == "" || c.Response().Status != http.StatusOK {
+	if err := s.decideContextCard(c, req); err != nil || own == "" || responseStatusOf(c) != http.StatusOK {
 		return err
 	}
 	now := sessionNow().UTC()
 	d := platstore.ContextSessionDecision{Item: req.Item.Key(), Outcome: sessionOutcome(req), At: now}
 	if err := css.RecordContextSessionDecision(ctx, own, d, now.Add(contextSessionIdle)); err != nil {
-		c.Logger().Errorf("record a decision in context session %s: %v", own, err)
+		c.Logger().Error("record a decision in context session", "session", own, "error", err)
 	}
 	return nil
 }
@@ -310,7 +310,7 @@ func (s *Server) HandleContextDeckDecide(c echo.Context) error {
 // not one, and proposes a change set that deprecates the terms of any other
 // concept. Later records nothing. A revision that has moved since the card
 // was dealt answers 409 stale with the card as it reads now.
-func (s *Server) decideContextCard(c echo.Context, req contextDeckDecideRequest) error {
+func (s *Server) decideContextCard(c *echo.Context, req contextDeckDecideRequest) error {
 	if req.Action == deckActionLater {
 		return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckActionLater})
 	}
@@ -413,7 +413,7 @@ var errCandidateGone = errors.New("the candidate term is gone")
 // review: the scan proposed the term, and a person who may manage terms,
 // judged against the scan as the author (contextDeckCard.judge), decides it.
 // The attestation the keep records names the person and the basis.
-func (s *Server) keepCandidate(c echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) (contextDeckCard, error) {
+func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) (contextDeckCard, error) {
 	if s.wsStores == nil {
 		return card, errKnowledgeUnavailable
 	}
@@ -462,7 +462,7 @@ func (s *Server) keepCandidate(c echo.Context, src deckSource, rv deckReviewer, 
 // it again. The rejection is recorded first: a deletion that fails after it
 // leaves a candidate the next decision deletes, never one the next scan
 // brings back.
-func (s *Server) forgetCandidate(c echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
+func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}
@@ -501,7 +501,7 @@ func (s *Server) forgetCandidate(c echo.Context, src deckSource, rv deckReviewer
 
 // deckPlan is the ledger records a keep or a reject of card writes, or the
 // response that refuses it.
-func (s *Server) deckPlan(c echo.Context, src deckSource, rv deckReviewer, st *decideState, card contextDeckCard, req contextDeckDecideRequest) ([]contextop.Record, string, error) {
+func (s *Server) deckPlan(c *echo.Context, src deckSource, rv deckReviewer, st *decideState, card contextDeckCard, req contextDeckDecideRequest) ([]contextop.Record, string, error) {
 	if req.Action == deckActionKeep {
 		attest := contextop.Record{
 			Project: src.key,
@@ -554,7 +554,7 @@ func (s *Server) deckPlan(c echo.Context, src deckSource, rv deckReviewer, st *d
 // the card's concept still in use, or deletes a concept whose terms are all
 // deprecated or forbidden already, and submits it for review. One open
 // proposal is kept per concept, so rejecting the card twice proposes once.
-func (s *Server) proposeConceptRetire(c echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
+func (s *Server) proposeConceptRetire(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
 	if s.KnowledgeStore == nil || s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}

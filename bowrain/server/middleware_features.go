@@ -3,7 +3,7 @@ package server
 import (
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
 )
@@ -37,7 +37,7 @@ import (
 // service cache.
 func FeatureOverridesMiddleware(store billing.BillingStore, globalFeatures func() map[string]bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			m := map[billing.Feature]bool{}
 
 			// Layer 1: instance-wide global flags (under per-workspace overrides).

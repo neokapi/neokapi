@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/labstack/echo/v5"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 )
@@ -44,8 +45,7 @@ func TestListTasksIsKeyedByWorkspaceID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/tasks", nil)
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues(wsSlug)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: wsSlug}})
 	c.Set("workspace_id", wsID)
 
 	require.NoError(t, srv.HandleListTasks(c))
@@ -76,8 +76,7 @@ func TestCreateTaskWritesWorkspaceID(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues(wsSlug)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: wsSlug}})
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", "user-1")
 

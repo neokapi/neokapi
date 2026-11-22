@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -49,7 +49,7 @@ type ruleExamplesResponse struct {
 // ?profile=&id=: up to three places the voice rule id of the bound profile
 // matches the project's source text, so a reviewer sees what the rule
 // catches. The walk is bounded in blocks and time.
-func (s *Server) HandleContextRuleExamples(c echo.Context) error {
+func (s *Server) HandleContextRuleExamples(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

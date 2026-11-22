@@ -9,7 +9,7 @@ import (
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
@@ -94,7 +94,7 @@ type MCPServer struct {
 
 // Config holds configuration for the MCP server.
 type Config struct {
-	// JWTSecret is the secret used to validate Bowrain JWT tokens.
+	// JWTSecret is the secret that validates Bowrain JWT tokens.
 	// When empty, the MCP server runs without authentication.
 	JWTSecret string
 
@@ -238,7 +238,7 @@ func NewMCPServerWithStore(voiceStore coreprofile.Store, contentStore store.Cont
 
 	// Every MCP method gets a span inside the HTTP request's transaction, so a
 	// slow agent call is attributable to the method rather than to "the MCP
-	// endpoint". Installed unconditionally — it is a no-op without Sentry.
+	// endpoint". Installed unconditionally; it is a no-op without Sentry.
 	s.AddReceivingMiddleware(ms.tracingMiddleware())
 
 	// Install analytics middleware when a tracker is configured.
@@ -305,10 +305,26 @@ func (s *MCPServer) Handler() http.Handler {
 	return s.handler
 }
 
+// mcpMethods are the methods the MCP endpoint is routed for. Any other method
+// is answered 405 Method Not Allowed by the router.
+var mcpMethods = []string{
+	http.MethodConnect,
+	http.MethodDelete,
+	http.MethodGet,
+	http.MethodHead,
+	http.MethodOptions,
+	http.MethodPatch,
+	http.MethodPost,
+	echo.PROPFIND,
+	http.MethodPut,
+	http.MethodTrace,
+	echo.REPORT,
+}
+
 // RegisterRoutes mounts the MCP handler and OAuth metadata on the Echo server.
 func (s *MCPServer) RegisterRoutes(e *echo.Echo) {
 	// MCP Streamable HTTP endpoint (with optional auth).
-	e.Any("/mcp/*", echo.WrapHandler(http.StripPrefix("/mcp", s.handler)))
+	e.Match(mcpMethods, "/mcp/*", echo.WrapHandler(http.StripPrefix("/mcp", s.handler)))
 
 	// OAuth 2.0 protected resource metadata (RFC 9728).
 	e.GET("/.well-known/oauth-protected-resource",

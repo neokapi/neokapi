@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -60,8 +60,7 @@ func TestPhase4_RevertBatch(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id")
-	c.SetParamValues("p-rev")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "p-rev"}})
 	require.NoError(t, s.HandleRevertBatch(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
@@ -93,8 +92,7 @@ func TestPhase4_RevertBatchClearsAdded(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id")
-	c.SetParamValues("p-rev2")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "p-rev2"}})
 	require.NoError(t, s.HandleRevertBatch(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
@@ -141,8 +139,7 @@ func TestPhase4_RestoreToVersion(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id")
-	c.SetParamValues("p-pit")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "p-pit"}})
 	require.NoError(t, s.HandleRestoreToPoint(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
@@ -165,15 +162,14 @@ func removeTranslation(t *testing.T, s *Server, pid, item, bid, locale string) {
 
 // sendRestore calls a restore route (revert or rollback) with body as a
 // project manager and returns the response.
-func sendRestore(t *testing.T, s *Server, handler func(echo.Context) error, pid, bid, body string) *httptest.ResponseRecorder {
+func sendRestore(t *testing.T, s *Server, handler func(*echo.Context) error, pid, bid, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := s.GetEcho().NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id", "ref", "bid")
-	c.SetParamValues(pid, "main", bid)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: pid}, {Name: "ref", Value: "main"}, {Name: "bid", Value: bid}})
 	require.NoError(t, handler(c))
 	return rec
 }

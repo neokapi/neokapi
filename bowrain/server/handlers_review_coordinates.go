@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -207,7 +207,7 @@ type reviewCoordinatesResponse struct {
 // HandleGetReviewCoordinates answers GET /:ws/:id/review/coordinates
 // [?stream=] with the project's coordinates map: the plan's coordinates and
 // their changes, and the cells with blocks, voices and coverage.
-func (s *Server) HandleGetReviewCoordinates(c echo.Context) error {
+func (s *Server) HandleGetReviewCoordinates(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

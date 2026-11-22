@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
@@ -146,7 +146,7 @@ func (s *Server) annotateProjectOrigin(ctx context.Context, workspaceID string, 
 // the response is what c.JSON reports on, and it returns nil when the write
 // succeeds — a caller keyed on err would refuse in the response and mutate
 // anyway.
-func (s *Server) guardSourceMutation(c echo.Context, projectID string, coll *store.Collection) (refused bool, err error) {
+func (s *Server) guardSourceMutation(c *echo.Context, projectID string, coll *store.Collection) (refused bool, err error) {
 	ctx := c.Request().Context()
 	workspaceID, _ := c.Get("workspace_id").(string)
 

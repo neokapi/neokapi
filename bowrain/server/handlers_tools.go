@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -16,7 +16,7 @@ import (
 // A tool the registry does not know, or one registered without a schema, is
 // a 404. The route is public, like /info, whose tool list marks the tools
 // that carry a schema (hasSchema).
-func (s *Server) HandleGetToolSchema(c echo.Context) error {
+func (s *Server) HandleGetToolSchema(c *echo.Context) error {
 	sch := s.ToolRegistry.Schema(registry.ToolID(c.Param("name")))
 	if sch == nil {
 		return apiErr(c, http.StatusNotFound, "tool schema not found")

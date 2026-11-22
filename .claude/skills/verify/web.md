@@ -27,6 +27,25 @@ make ci-frontend                                       # the CI frontend job: ab
 Run the narrow pair for each package you changed while you work, and
 `make ci-frontend` once before you commit.
 
+Pull request CI runs the unit suites in three places:
+
+- The `frontend` job (`make ci-frontend`) runs on every pull request. It
+  type-checks the whole workspace and tests `bowrain/packages/{ui,app}` and
+  the bowrain apps.
+- The `frontend-packages` job (`make ci-frontend-packages`) tests every
+  package under `packages/` that the other jobs do not, plus `web/`,
+  `bowrain/web/landing` and the mobile app's jest suite. It runs when a pull
+  request touches `packages/`, `web/`, the landing page, the mobile app, the
+  lockfile or the Makefile. About a minute locally.
+- The `kapi-desktop` and `neokapi-i18n` jobs test `packages/flow-editor`,
+  `packages/kapi-format` and the two `i18n-react` packages.
+
+`make check-test-scripts` fails when a package has a `test` script that no
+pull request job runs. A new package with tests goes in
+`ci-frontend-packages`, and when its tests read a file outside `packages/`,
+that path goes in the job's `frontend_packages` filter in `ci.yml` and in
+`scripts/pre-push-check.sh`.
+
 ## 3. Run the app against the stack
 
 Start the stack as [server.md](server.md) says, with

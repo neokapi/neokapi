@@ -28,6 +28,10 @@ permissions:
   # short-lived Fulcio cert for signing the kapi-bowrain plugin tarballs.
   id-token: write
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   # Resolve version/tag once for both trigger modes (tag push vs coordinated
   # workflow_call). Mirrors release.yml's setup job; the only difference is the

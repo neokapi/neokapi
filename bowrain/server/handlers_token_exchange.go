@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
@@ -21,7 +21,7 @@ type TokenExchangeResponse struct {
 // HandleTokenExchange exchanges a validated API token (bwt_*) for a short-lived JWT.
 // The caller must already be authenticated via AuthMiddleware (which validates the
 // API token and sets user_id, email, name on the context).
-func (s *Server) HandleTokenExchange(c echo.Context) error {
+func (s *Server) HandleTokenExchange(c *echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}

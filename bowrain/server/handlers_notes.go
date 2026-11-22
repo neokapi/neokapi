@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -28,7 +28,7 @@ type BlockNoteResponse struct {
 // HandleListBlockNotes returns a block's notes, oldest first.
 //
 // GET /:ws/:id/blocks/:ref/:bid/notes
-func (s *Server) HandleListBlockNotes(c echo.Context) error {
+func (s *Server) HandleListBlockNotes(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -112,7 +112,7 @@ func parseMentions(text string) []string {
 }
 
 // extractAuthor pulls the user name from the auth context if available.
-func extractAuthor(c echo.Context) string {
+func extractAuthor(c *echo.Context) string {
 	if claims, ok := c.Get("user_claims").(map[string]any); ok {
 		if name, ok := claims["name"].(string); ok {
 			return name

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -25,7 +25,7 @@ type ActivityListResponse struct {
 }
 
 // HandleListActivities returns activities for a workspace, optionally filtered.
-func (s *Server) HandleListActivities(c echo.Context) error {
+func (s *Server) HandleListActivities(c *echo.Context) error {
 	if s.ActivityStore == nil {
 		return c.JSON(http.StatusOK, ActivityListResponse{Activities: []bstore.Activity{}})
 	}
@@ -79,7 +79,7 @@ func (s *Server) HandleListActivities(c echo.Context) error {
 // "" when it cannot be found. The recorder files an activity under the slug
 // when the event carries one and under the workspace id otherwise, so every
 // activity read matches both keys.
-func (s *Server) activityWorkspaceID(ctx context.Context, c echo.Context, slug string) string {
+func (s *Server) activityWorkspaceID(ctx context.Context, c *echo.Context, slug string) string {
 	if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
 		return wsID
 	}
@@ -95,7 +95,7 @@ func (s *Server) activityWorkspaceID(ctx context.Context, c echo.Context, slug s
 
 // HandleMarkActivitiesSeen records that the user has viewed the activity feed.
 // POST /api/v1/:ws/activities/seen
-func (s *Server) HandleMarkActivitiesSeen(c echo.Context) error {
+func (s *Server) HandleMarkActivitiesSeen(c *echo.Context) error {
 	if s.ActivityStore == nil {
 		return c.NoContent(http.StatusNoContent)
 	}

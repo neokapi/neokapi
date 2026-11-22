@@ -6,11 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
-func pageCtx(query string) echo.Context {
+func pageCtx(query string) *echo.Context {
 	e := echo.New()
 	r := httptest.NewRequest(http.MethodGet, "/?"+query, nil)
 	return e.NewContext(r, httptest.NewRecorder())
@@ -74,7 +74,7 @@ func TestBoolParam(t *testing.T) {
 // upload reader refuses too many files, an over-large total, and an over-large
 // single file before buffering unbounded content.
 func TestReadMultipartUploadsCaps(t *testing.T) {
-	newCtx := func() (echo.Context, *httptest.ResponseRecorder) {
+	newCtx := func() (*echo.Context, *httptest.ResponseRecorder) {
 		e := echo.New()
 		r := httptest.NewRequest(http.MethodPost, "/", nil)
 		rec := httptest.NewRecorder()

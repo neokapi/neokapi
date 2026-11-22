@@ -19,11 +19,10 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	slogecho "github.com/samber/slog-echo"
 	"google.golang.org/grpc"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -1118,6 +1117,9 @@ func NewServer(cfg Config) *Server {
 // same-box Caddy or an ALB on a private subnet) plus any extra CIDRs from
 // BOWRAIN_TRUSTED_PROXIES (comma/space-separated), for a proxy that presents a
 // non-private source address. Invalid CIDRs are logged and skipped.
+//
+// c.Scheme() believes X-Forwarded-Proto from the same trust set, for the URLs
+// requestBaseURL builds.
 func configureIPExtractor(e *echo.Echo) {
 	opts := []echo.TrustOption{
 		echo.TrustLoopback(true),
@@ -1144,6 +1146,7 @@ func configureIPExtractor(e *echo.Echo) {
 		opts = append(opts, echo.TrustIPRange(ipNet))
 	}
 	e.IPExtractor = echo.ExtractIPFromXFFHeader(opts...)
+	e.SchemeExtractor = echo.ExtractSchemeFromHeaders(opts...)
 }
 
 // parseTrustedProxyCIDRs splits a comma/whitespace-separated list of CIDR
@@ -1178,23 +1181,25 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// 5xx, and the Sentry capture seam. Replaces Echo's default handler.
 	e.HTTPErrorHandler = s.httpErrorHandler
 
+	// Echo's own messages (a write to a committed response) go through the
+	// server's logger. Request bodies decode as requestJSONSerializer says.
+	e.Logger = slog.Default()
+	e.JSONSerializer = requestJSONSerializer{}
+
 	// Middleware, order matters:
 	// 1. Request ID (propagate/generate correlation ID)
-	// 2. Structured request logging (slog-echo, includes request_id)
+	// 2. Structured request logging (includes request_id)
 	// 3. Prometheus metrics
 	// 4. Sentry transaction, after the request id it tags itself with, and
 	//    before Recover so a recovered panic is still recorded on it
 	// 5. Recovery, body limit, CORS
 	// 6. Security response headers
 	e.Use(observe.RequestIDMiddleware())
-	e.Use(slogecho.NewWithConfig(slog.Default(), slogecho.Config{
+	e.Use(observe.RequestLogMiddleware(slog.Default(), observe.RequestLogConfig{
 		DefaultLevel:     slog.LevelInfo,
 		ClientErrorLevel: slog.LevelWarn,
 		ServerErrorLevel: slog.LevelError,
-		WithRequestID:    true,
-		Filters: []slogecho.Filter{
-			slogecho.IgnorePath("/api/v1/health", "/metrics"),
-		},
+		SkipPaths:        []string{"/api/v1/health", "/metrics"},
 	}))
 	// Response-size histograms are opted in for the two payload-hot endpoints
 	// (workspace project list, translation dashboard) so payload-shape
@@ -1207,9 +1212,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// without this the traces sample rate the deployment sets samples nothing,
 	// see observe/tracing.go. No-op when Sentry is unconfigured.
 	e.Use(observe.TracingMiddleware())
-	e.Use(middleware.Recover())
+	e.Use(recoverPanics())
 	e.Use(middleware.BodyLimit(requestBodyLimit))
-	e.Use(middleware.CORSWithConfig(s.corsConfig()))
+	e.Use(corsMiddleware(s.corsConfig()))
 	// Baseline response headers (nosniff, frame policy, referrer policy, HSTS
 	// over TLS, and a content policy for this server's own responses). Runs
 	// after CORS so a preflight carries them too, and before every handler, so a
@@ -1280,7 +1285,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// slow_down); the generic throttle error reads as fatal to the client,
 		// which would abandon a sign-in that was going fine. Same bucket, so the
 		// throttle still holds, only the way it answers changes.
-		pollLimit := authThrottle.middleware(func(c echo.Context) error {
+		pollLimit := authThrottle.middleware(func(c *echo.Context) error {
 			c.Response().Header().Set("Retry-After", "5")
 			return apiErr(c, http.StatusTooManyRequests, "slow_down")
 		})
@@ -1301,7 +1306,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 		// Device verification page (user opens in browser)
 		authGroup.GET("/device/verify", s.HandleAuthCallback, authLimit)
-		authGroup.POST("/device/verify", func(c echo.Context) error {
+		authGroup.POST("/device/verify", func(c *echo.Context) error {
 			return s.handleDeviceVerification(c, c.FormValue("user_code"))
 		}, authLimit)
 		authGroup.GET("/device/callback", s.HandleDeviceAuthCallback)
@@ -1615,7 +1620,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		pulseUIDir = s.Config.PulseUIDir
 	}
 	if s.Config.WebUIDir != "" || pulseUIDir != "" {
-		e.GET("/*", func(c echo.Context) error {
+		e.GET("/*", func(c *echo.Context) error {
 			// Host-based routing: serve Pulse SPA for pulse.* subdomain
 			// (only when the Pulse surface is enabled).
 			host := c.Request().Host
@@ -1638,7 +1643,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 // CI and serves them from the CDN, which owns their content policy. The
 // server's own policy is cleared here so the document behaves the same in both
 // places, see clearCSPForSPA.
-func serveSPAFile(c echo.Context, dir string) error {
+func serveSPAFile(c *echo.Context, dir string) error {
 	clearCSPForSPA(c)
 
 	reqPath := c.Param("*")
@@ -1654,10 +1659,17 @@ func serveSPAFile(c echo.Context, dir string) error {
 	if !strings.HasPrefix(filePath, baseDir+string(filepath.Separator)) && filePath != baseDir {
 		return c.String(http.StatusNotFound, "not found")
 	}
+	// Served from the directory itself: Echo's default file system resolves
+	// paths against the working directory, which need not contain dir.
+	root := os.DirFS(baseDir)
 	if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
-		return c.File(filePath)
+		rel, err := filepath.Rel(baseDir, filePath)
+		if err != nil {
+			return c.String(http.StatusNotFound, "not found")
+		}
+		return c.FileFS(filepath.ToSlash(rel), root)
 	}
-	return c.File(filepath.Join(baseDir, "index.html"))
+	return c.FileFS("index.html", root)
 }
 
 // registerWorkspaceContentRoutes registers all workspace-scoped content routes
@@ -2144,7 +2156,6 @@ const readHeaderTimeout = 30 * time.Second
 // are routed to the gRPC server; all others go to Echo.
 func (s *Server) Start(addr string) error {
 	e := echo.New()
-	e.HideBanner = true
 	s.Echo = e
 
 	s.SetupRoutes(e)
@@ -2158,13 +2169,13 @@ func (s *Server) Start(addr string) error {
 	if s.GRPCServer == nil {
 		srv := &http.Server{
 			Addr:              addr,
+			Handler:           e,
 			ReadHeaderTimeout: readHeaderTimeout,
 		}
-		// Recorded for Shutdown, which prefers httpServer over Echo's own,
-		// e.Shutdown would stop the server Echo built, not this one.
+		// Recorded for Shutdown.
 		s.httpServer = srv
 		slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP")
-		return e.StartServer(srv)
+		return srv.ListenAndServe()
 	}
 
 	// Multiplex gRPC and HTTP on the same port via h2c.
@@ -2221,8 +2232,6 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.httpServer != nil {
 		collectErr("http-server", s.httpServer.Shutdown(ctx))
-	} else if s.Echo != nil {
-		collectErr("echo", s.Echo.Shutdown(ctx))
 	}
 
 	// Phase 2: stop background workers. These are safe to call on nil receivers
@@ -2339,7 +2348,6 @@ func (s *Server) OpenBlockstore(projectID, stream string) (coreblockstore.Store,
 func (s *Server) GetEcho() *echo.Echo {
 	if s.Echo == nil {
 		s.Echo = echo.New()
-		s.Echo.HideBanner = true
 		s.SetupRoutes(s.Echo)
 	}
 	return s.Echo
@@ -2365,7 +2373,7 @@ func (s *Server) resolveNotificationTargets(ctx context.Context, projectID strin
 // requestBaseURL returns the base URL (scheme + host) for the current request,
 // respecting X-Forwarded-Host and X-Forwarded-Proto headers set by reverse
 // proxies. Falls back to the direct request host and scheme.
-func requestBaseURL(c echo.Context) string {
+func requestBaseURL(c *echo.Context) string {
 	host := c.Request().Header.Get("X-Forwarded-Host")
 	if host == "" {
 		host = c.Request().Host
@@ -2418,18 +2426,18 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 	// Development: allow localhost origins and the configured landing origin.
 	// Echo reflects only the matching origin, never "*", so this stays
 	// credential-safe. Reached only when DevMode was set deliberately.
-	cfg.AllowOriginFunc = func(origin string) (bool, error) {
+	cfg.UnsafeAllowOriginFunc = func(_ *echo.Context, origin string) (string, bool, error) {
 		u, err := url.Parse(origin)
 		if err != nil {
-			return false, nil
+			return "", false, nil
 		}
 		if u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" {
-			return true, nil
+			return origin, true, nil
 		}
 		if landingOrigin != "" && origin == landingOrigin {
-			return true, nil
+			return origin, true, nil
 		}
-		return false, nil
+		return "", false, nil
 	}
 	return cfg
 }
@@ -2461,7 +2469,7 @@ func originOf(rawURL string) string {
 // handshake), the app's own public host (AppPublicURL), and any localhost
 // origin when Config.DevMode is set. The library itself accepts an Origin
 // matching r.Host, and a request with no Origin (the CLI, the Go SDK).
-func (s *Server) wsOriginPatterns(c echo.Context) []string {
+func (s *Server) wsOriginPatterns(c *echo.Context) []string {
 	var patterns []string
 
 	// Host patterns rather than scheme://host: a proxy that terminates TLS may

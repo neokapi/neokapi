@@ -4,13 +4,13 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // HandleListAutomationRuns returns automation runs for a project.
-func (s *Server) HandleListAutomationRuns(c echo.Context) error {
+func (s *Server) HandleListAutomationRuns(c *echo.Context) error {
 	if s.AutomationRunStore == nil {
 		return c.JSON(http.StatusOK, map[string]any{"runs": []any{}})
 	}
@@ -30,7 +30,7 @@ func (s *Server) HandleListAutomationRuns(c echo.Context) error {
 }
 
 // HandleGetAutomationRun returns a single automation run with its steps.
-func (s *Server) HandleGetAutomationRun(c echo.Context) error {
+func (s *Server) HandleGetAutomationRun(c *echo.Context) error {
 	if s.AutomationRunStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "automation runs not configured"})
 	}
@@ -57,7 +57,7 @@ func (s *Server) HandleGetAutomationRun(c echo.Context) error {
 }
 
 // HandleListAutomationRunSteps returns steps for a run.
-func (s *Server) HandleListAutomationRunSteps(c echo.Context) error {
+func (s *Server) HandleListAutomationRunSteps(c *echo.Context) error {
 	if s.AutomationRunStore == nil {
 		return c.JSON(http.StatusOK, map[string]any{"steps": []any{}})
 	}
@@ -74,7 +74,7 @@ func (s *Server) HandleListAutomationRunSteps(c echo.Context) error {
 }
 
 // HandleListStepLogs returns logs for a step.
-func (s *Server) HandleListStepLogs(c echo.Context) error {
+func (s *Server) HandleListStepLogs(c *echo.Context) error {
 	if s.AutomationRunStore == nil {
 		return c.JSON(http.StatusOK, map[string]any{"logs": []any{}})
 	}
@@ -98,7 +98,7 @@ func (s *Server) HandleListStepLogs(c echo.Context) error {
 //
 // A run that has already finished answers 409: there is nothing left to stop,
 // and its recorded outcome stands.
-func (s *Server) HandleCancelAutomationRun(c echo.Context) error {
+func (s *Server) HandleCancelAutomationRun(c *echo.Context) error {
 	if s.AutomationRunStore == nil || s.runManager == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "automation runs not configured"})
 	}

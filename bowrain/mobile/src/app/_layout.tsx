@@ -140,8 +140,11 @@ function Screens() {
   // The transparent iOS header keeps a dark title in dark mode unless it is
   // given the foreground colour.
   const foreground = useCSSVariable("--color-foreground");
-  // The tabs and the deck exist only while signed in, and the sign-in screen
-  // only while signed out, so neither mounts beneath the other.
+  // The tabs and the deck exist only while signed in. The sign-in screen stays
+  // registered and leads to the workspaces itself once a session exists
+  // (sign-in.tsx). Removed while it is the focused screen, the stack falls back
+  // to its anchor, (tabs), and the projects screen opens with "(tabs)" as its
+  // workspace (#3652).
   const signedIn = !!useAuth().session;
   return (
     <Stack
@@ -177,9 +180,7 @@ function Screens() {
           options={{ title: t("context.title"), headerTransparent: false }}
         />
       </Stack.Protected>
-      <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      </Stack.Protected>
+      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       <Stack.Screen
         name="server"
         options={{

@@ -535,7 +535,7 @@ collections:
       - path: "{bowrain/packages,packages}/*/{examples,tests}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{bowrain/apps/*,bowrain/apps/bowrain/frontend}/e2e/**/*.{ts,tsx,js,mjs}"
+      - path: "{bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/mobile}/e2e/**/*.{ts,tsx,js,mjs}"
         comments:
           only: true
       - path: "{bowrain/storybook,storybook}/.storybook/*.{ts,tsx,js,css}"

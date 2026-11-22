@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
@@ -48,7 +48,7 @@ type conceptScopeResponse struct {
 // applies in that project only; widening it is how a person who may manage
 // terms makes it govern the others too. A concept of the whole workspace
 // already is answered as it stands.
-func (s *Server) HandleWidenConcept(c echo.Context) error {
+func (s *Server) HandleWidenConcept(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
