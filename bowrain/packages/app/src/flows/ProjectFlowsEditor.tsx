@@ -16,6 +16,7 @@ import { definitionToSpec, specToDefinition, toEditorDefinition, toEditorTools }
 import { ProjectFlowList } from "./ProjectFlowList";
 import { ProjectFlowPane, type FlowSaveState } from "./ProjectFlowPane";
 import { useSchemaFormHost } from "./useSchemaFormHost";
+import { notifyPendingSaves, registerPendingSave } from "../pendingSaves";
 
 interface OpenFlow {
   flow: FlowDefinitionInfo;
@@ -82,9 +83,15 @@ export function ProjectFlowsEditor({
   const dirtyRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const chainRef = useRef<Promise<void>>(Promise.resolve());
+  // Saves queued or in flight, and the last save's failure, so a host that is
+  // about to close can wait for them and learn whether they reached the server.
+  const inFlightRef = useRef(0);
+  const lastErrorRef = useRef<unknown>(null);
 
   const enqueueSave = useCallback(
     (snapshot: OpenFlow) => {
+      inFlightRef.current += 1;
+      notifyPendingSaves();
       chainRef.current = chainRef.current.then(async () => {
         // The latest state of the same flow, or the snapshot if another flow
         // has been opened since.
@@ -99,6 +106,7 @@ export function ProjectFlowsEditor({
             edit.flow.id,
             specToDefinition(edit.spec, edit.flow),
           );
+          lastErrorRef.current = null;
           void invalidate();
           if (!current()) return;
           const now = openRef.current!;
@@ -109,10 +117,19 @@ export function ProjectFlowsEditor({
           setSaveError(null);
           setSaveState(dirtyRef.current ? "unsaved" : "saved");
         } catch (e) {
-          if (!current()) return;
+          lastErrorRef.current = e;
+          if (!current()) {
+            // The person has moved on to another flow or the list; the failure
+            // of the one they left is still theirs to see.
+            setActionError(e);
+            return;
+          }
           dirtyRef.current = true;
           setSaveError(e);
           setSaveState("error");
+        } finally {
+          inFlightRef.current -= 1;
+          notifyPendingSaves();
         }
       });
     },
@@ -132,12 +149,28 @@ export function ProjectFlowsEditor({
   // drop the last edit.
   useEffect(() => flush, [flush]);
 
+  // A resting edit or a save in flight is waiting work: a desktop window that
+  // closes flushes it first and waits for the server's answer.
+  useEffect(
+    () =>
+      registerPendingSave({
+        pending: () => dirtyRef.current || inFlightRef.current > 0,
+        flush: async () => {
+          flush();
+          await chainRef.current;
+          if (lastErrorRef.current) throw lastErrorRef.current;
+        },
+      }),
+    [flush],
+  );
+
   const handleChange = useCallback(
     (spec: LinearFlowSpec) => {
       const cur = openRef.current;
       if (!cur || cur.flow.source === "built-in") return;
       setOpen({ flow: cur.flow, spec });
       dirtyRef.current = true;
+      notifyPendingSaves();
       setSaveState("unsaved");
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(flush, saveDelayMs);
@@ -252,15 +285,20 @@ export function ProjectFlowsEditor({
   }
 
   return (
-    <ProjectFlowList
-      flows={flows}
-      tools={tools}
-      loading={flowsQuery.isLoading}
-      error={flowsQuery.error ?? actionError}
-      onOpen={openFlow}
-      onCreate={handleCreate}
-      onCopy={(flow) => void handleCopy(flow)}
-      onDelete={(flow) => void handleDelete(flow)}
-    />
+    <>
+      {actionError != null && (
+        <ErrorNotice error={actionError} title="Could not update the flows" className="mb-3" />
+      )}
+      <ProjectFlowList
+        flows={flows}
+        tools={tools}
+        loading={flowsQuery.isLoading}
+        error={flowsQuery.error}
+        onOpen={openFlow}
+        onCreate={handleCreate}
+        onCopy={(flow) => void handleCopy(flow)}
+        onDelete={(flow) => void handleDelete(flow)}
+      />
+    </>
   );
 }

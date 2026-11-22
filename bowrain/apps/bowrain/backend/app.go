@@ -45,7 +45,7 @@ type App struct {
 
 	// Server connection (online mode).
 	mu              sync.RWMutex
-	remoteHTTP      *editorclient.EditorClient // REST/SSE editor client — the single server client; nil when disconnected
+	remoteHTTP      *editorclient.EditorClient // REST/SSE editor client: the single server client; nil when disconnected
 	connState       ConnectionState            // current connection state
 	serverURL       string                     // e.g. "http://localhost:8080"
 	activeWS        string                     // selected workspace slug
@@ -68,6 +68,10 @@ type App struct {
 	// Wails runtime. The recording wbridge (cmd/wbridge) uses it to stream
 	// events to a browser over SSE, since there is no Wails runtime there.
 	eventSink func(name string, data any)
+
+	// closing holds a window close or a quit while the page has saves waiting
+	// (closeguard.go).
+	closing closeState
 }
 
 // NewApp creates a new Bowrain backend with all formats and plugins registered.
@@ -145,7 +149,7 @@ type manifestedPlugin struct {
 
 // LoadPlugins discovers manifest-driven plugins from the configured
 // plugin directory and caches the result. Safe to call from a goroutine.
-// Errors are logged and otherwise ignored — a missing or empty plugin
+// Errors are logged and otherwise ignored: a missing or empty plugin
 // dir is a normal state for a fresh install.
 func (a *App) LoadPlugins() {
 	dir := os.Getenv("KAPI_PLUGIN_DIR")
@@ -163,7 +167,7 @@ func (a *App) LoadPlugins() {
 
 // discoverManifestPlugins walks dir/<plugin>/<version>/manifest.json
 // entries (the layout `kapi plugin install` writes) and returns a flat
-// list of valid manifests. Invalid manifests are skipped silently —
+// list of valid manifests. Invalid manifests are skipped silently;
 // other tooling surfaces those errors.
 func discoverManifestPlugins(dir string) []manifestedPlugin {
 	if dir == "" {
@@ -291,7 +295,7 @@ type ToolInfo struct {
 	// to the flow editor so it can type ports and validate connections.
 	Consumes []IOPort `json:"consumes,omitempty"`
 	Produces []IOPort `json:"produces,omitempty"`
-	// IsSourceTransform reports whether this tool is a transformer — it may
+	// IsSourceTransform reports whether this tool is a transformer: it may
 	// rewrite source (AD-006); the placement pass validates its position.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
 	// Recoverable marks a transformer that vaults originals for later restore
@@ -363,9 +367,9 @@ func sideEffectStrings(fs []schema.SideEffect) []string {
 func (a *App) ListTools() []ToolInfo {
 	var result []ToolInfo
 
-	// Add tools from the registry. All metadata — canonical category, IO
+	// Add tools from the registry. All metadata (canonical category, IO
 	// contract, cardinality, requirements, side-effects, source-transform
-	// capability — comes from the framework registry (AD-006), so the desktop
+	// capability) comes from the framework registry (AD-006), so the desktop
 	// flow editor renders the same badges as kapi-desktop and the web app.
 	if a.toolReg != nil {
 		for _, name := range a.toolReg.Names() {

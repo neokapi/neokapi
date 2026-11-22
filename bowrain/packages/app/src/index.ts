@@ -9,6 +9,12 @@ export { createBowrainRouter } from "./routes";
 export type { RouterContext, WorkspaceRouteContext } from "./routes";
 export { PlatformProvider, usePlatform, webPlatform, type PlatformAdapter } from "./platform";
 export {
+  flushPendingSaves,
+  hasPendingSaves,
+  subscribePendingSaves,
+  type FlushResult,
+} from "./pendingSaves";
+export {
   AnalyticsEvents,
   PAGEVIEW_EVENT,
   featureFromRoutePattern,

@@ -13,6 +13,8 @@ import { createDesktopPlatform } from "./api/desktopPlatform";
 import { queryClient } from "./lib/queryClient";
 import { initAnalytics } from "./analytics";
 import { TelemetryNotice } from "./components/TelemetryNotice";
+import { SaveFailedOnClose } from "./components/SaveFailedOnClose";
+import { useFlushOnClose } from "./hooks/useFlushOnClose";
 
 // "offline" is the designed launch state (#1284): the server is configured but
 // unreachable, distinct from "connecting" (no/expired session → sign in).
@@ -296,7 +298,24 @@ function AppInner() {
         history={desktopHistory}
       />
       <TelemetryNotice />
+      <FlushOnClose />
     </>
+  );
+}
+
+/**
+ * Saves every waiting edit before the window closes, and keeps the window
+ * open with the reason when one does not reach the server.
+ */
+function FlushOnClose() {
+  const { failure, closeAnyway, stay } = useFlushOnClose();
+  if (!failure) return null;
+  return (
+    <SaveFailedOnClose
+      failure={failure}
+      onCloseAnyway={() => void closeAnyway()}
+      onStay={() => void stay()}
+    />
   );
 }
 

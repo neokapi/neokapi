@@ -20,6 +20,10 @@ const backend = vi.hoisted(() => ({
   CancelLogin: vi.fn().mockResolvedValue(undefined),
   SelectWorkspace: vi.fn().mockResolvedValue(undefined),
   GetServerWorkspaces: vi.fn().mockResolvedValue([]),
+  SetPendingSaves: vi.fn().mockResolvedValue(undefined),
+  AcknowledgeClose: vi.fn().mockResolvedValue(undefined),
+  ConfirmClose: vi.fn().mockResolvedValue(undefined),
+  CancelClose: vi.fn().mockResolvedValue(undefined),
 }));
 
 // A stand-in for the composite adapter's typed connectivity error — App checks
@@ -39,6 +43,9 @@ vi.mock("./api/desktopAdapter", () => ({
 vi.mock("./api/desktopPlatform", () => ({ createDesktopPlatform: () => ({ kind: "desktop" }) }));
 vi.mock("@neokapi/bowrain-app", () => ({
   BowrainApp: () => <div data-testid="bowrain-app">app</div>,
+  flushPendingSaves: vi.fn().mockResolvedValue({ ok: true }),
+  hasPendingSaves: () => false,
+  subscribePendingSaves: () => () => {},
 }));
 
 // Import the module (and its heavy transitive graph: the shared app, react-query,
