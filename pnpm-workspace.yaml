@@ -36,18 +36,6 @@ shamefullyHoist: true
 # web' prebuild → gen-reference still fire automatically.
 enablePrePostScripts: true
 
-# Where pnpm downloads the package manager itself when it switches to the
-# package.json#packageManager pin. Dependency resolution still follows .npmrc.
-#
-# pnpm 11 requires an integrity-only resolution for the pin. A registry mirror
-# such as registry.yarnpkg.com serves npm's packument verbatim, so its tarball
-# URL is not canonical for the mirror, and every pnpm command fails with "must
-# use a registry package path and an integrity-only resolution". pnpm 12
-# ignores this key in a project file with a warning. It stays so a global
-# pnpm 11 on a mirror machine can switch to the pin. On npmjs it changes nothing.
-packageManagerRegistries:
-  default: https://registry.npmjs.org/
-
 # vite-plus ships its own vite build as @voidzero-dev/vite-plus-core. The
 # `vite` alias below, applied through overrides, makes plugins such as
 # @vitejs/plugin-react resolve that same build. Two builds would give
@@ -99,3 +87,13 @@ allowBuilds:
 patchedDependencies:
   icu@2.2.1: patches/icu@2.2.1.patch
 
+# Agent skills a dependency ships: pnpm 12 asks whether each such package may
+# provide them (`pnpm permissions`). They are denied: the agent guidance in this repository is
+# curated in .claude/ and host/skills, and a dependency's skill would add
+# instructions to every agent session that nobody here reviewed. Leaving them
+# undecided prints "Agent skills awaiting approval" on every install.
+permissions:
+  '@tanstack/react-router':
+    skills: false
+  expo-sqlite:
+    skills: false

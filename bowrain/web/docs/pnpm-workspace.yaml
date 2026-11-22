@@ -3,15 +3,6 @@
 # works here independently of the repo workspace.
 packages: []
 
-# Where pnpm downloads the package manager itself when it switches to the
-# package.json#packageManager pin. A pnpm 11 behind a registry mirror cannot
-# switch without it; pnpm 12 ignores it here with a warning. The repo-root
-# pnpm-workspace.yaml explains it in full. This copy exists because
-# `--ignore-workspace` never reads the root file. Dependency resolution still
-# follows .npmrc.
-packageManagerRegistries:
-  default: https://registry.npmjs.org/
-
 # core-js' install script only prints a funding banner, so it is skipped. The
 # value has to be a boolean: pnpm reads anything else as no answer, refuses the
 # install with ERR_PNPM_IGNORED_BUILDS, and the site never builds.
