@@ -278,9 +278,13 @@ func main() {
 ### TMX import / export
 
 ```go
-// Importing keeps only the named bilingual pair; ImportTMXLocalePairs keeps an
-// arbitrary set of locales, and an empty set keeps every <tuv> present.
-count, err := memory.ImportTMXWithOptions(tm, reader, "en", "fr",
+// A bilingual import chooses each unit's source language: the explicit one
+// when given, else the store's when the unit holds it, else the language the
+// unit or the file declares. Units it cannot use are counted by reason.
+// ImportTMXLocalePairs keeps an arbitrary set of locales, and an empty set
+// keeps every <tuv> present.
+counts, err := memory.ImportTMXWithRule(ctx, tm, reader,
+    memory.SourceRule{Store: "en", Target: "fr"},
     memory.ImportTMXOptions{OriginKey: "corpus.tmx"})
 
 // ExportTMX emits one <tu> per entry with a <tuv> per selected locale; an
@@ -289,7 +293,9 @@ err = memory.ExportTMX(tm, writer, []model.LocaleID{"en", "fr"})
 ```
 
 Import requires a backend that supports import sessions, that is, one
-implementing the persistent `Store` interface.
+implementing the persistent `Store` interface. Region tags are never folded: a
+unit read in `en-US` is stored as `en-US`, and a lookup in `en-GB` does not
+match it.
 
 ## Content memory and terminology
 
