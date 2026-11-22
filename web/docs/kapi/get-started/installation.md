@@ -47,6 +47,11 @@ Homebrew tracks the current build on macOS and Linux.
 
 :::
 
+Plugins install on Windows with `kapi plugin install`, like on the other
+platforms. The pdfium, vision, check and sourcecode plugins have Windows x64
+builds and no Windows arm64 build. On Windows arm64, `kapi plugin search` marks
+them `(no build for windows/arm64)`.
+
 ### Binary Downloads
 
 Pre-built binaries for all platforms are available on the

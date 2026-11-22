@@ -43,8 +43,16 @@ gh run watch <run-id> --exit-status
 ```
 
 The release workflows publish only on a tag, so a manual run is a build-only
-dry run. `release-check.yml` has no manual trigger; its steps mirror
-`release-sat.yml`, so change both and dry-run the sat workflow.
+dry run. Each one ends its build in a `verify-<plugin>-platforms` job that
+fails when a platform `scripts/lib/release-assets.json` registers was not
+built. Read that job: it is the dry run's answer to "would this release
+register every platform".
+
+`release.yml` and `release-bowrain.yml` have no build-only trigger. Their
+`verify-release-assets` job compares the release with the same file, and only
+a tag runs it. `python3 scripts/release-assets.py check-release <track> <tag>`
+runs the same comparison locally against any published release; add
+`--complete` once the signed Windows assets are uploaded.
 
 Read the job you changed, not the run's overall colour. A run can be green
 because your job was skipped by a path filter or an `if:`.

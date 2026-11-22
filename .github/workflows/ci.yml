@@ -1475,6 +1475,8 @@ jobs:
         run: scripts/check-temp-leaks.sh --self-test
       - name: "Guard: the server and worker images run as an unprivileged numeric user"
         run: scripts/check-image-user.sh --self-test && scripts/check-image-user.sh
+      - name: "Guard: every release registers the platforms its workflow builds"
+        run: python3 scripts/release-assets.py --self-test && python3 scripts/release-assets.py check-workflows
       - name: "Guard: every package test script runs in a pull request job"
         run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
       - name: "Guard: every Go command in make, scripts and CI builds with -trimpath"
