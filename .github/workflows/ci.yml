@@ -1344,7 +1344,9 @@ jobs:
       - if: steps.gate.outputs.run == 'true'
         uses: ./.github/actions/setup-go-modules
         with:
-          cache-flavor: lint-${{ matrix.config }}
+          # On a Linux runner linux-nocgo lints nothing, so it reads the pr flavor
+          # for the tools its setup builds, and has no flavor of its own.
+          cache-flavor: ${{ matrix.config == 'linux-nocgo' && 'pr' || format('lint-{0}', matrix.config) }}
           save-cache: "false"
       - if: steps.gate.outputs.run == 'true'
         uses: ./.github/actions/golangci-cache
@@ -1651,20 +1653,40 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     timeout-minutes: 30
+    # The prune step deletes the superseded copy of each cache family.
+    permissions:
+      contents: read
+      actions: write
     strategy:
       fail-fast: false
       matrix:
-        config: [model, js-wasm, windows, linux-nocgo, darwin-nocgo]
+        config: [model, js-wasm, windows, darwin-nocgo]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: lint-${{ matrix.config }}
-          save-cache: "true"
+          save-cache: "false"
       - name: Compile the export data the leg reads
         env:
           LINT_CONFIG: ${{ matrix.config }}
         run: make warm-lint-cache LINT_CONFIG="$LINT_CONFIG"
+      - name: Resolve the Go build cache path
+        id: gocache
+        run: echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      # Saved here, then the older copy deleted at once, so the flavor counts
+      # twice against the cache budget for seconds rather than until the
+      # scheduled prune.
+      - name: Save the lint-${{ matrix.config }} build cache
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.gocache.outputs.build }}
+          key: go-build-${{ runner.os }}-go1.27.4-lint-${{ matrix.config }}-trimpath-${{ github.sha }}
+      - name: Delete the superseded copies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/ci-cache-budget.py prune
 
   # ── go mod tidy drift check ──────────────────────────────────────────────
   tidy-check:
