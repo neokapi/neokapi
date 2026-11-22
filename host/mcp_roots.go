@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -24,6 +25,10 @@ import (
 // start stays the default for a call that names none.
 
 type mcpRootsKey struct{}
+
+// mcpListRootsTimeout bounds how long a call waits for a client to list its
+// roots.
+const mcpListRootsTimeout = 5 * time.Second
 
 // WithMCPRoots returns ctx carrying the directories an MCP call may reach.
 // An empty list means there are none.
@@ -81,9 +86,18 @@ func MCPSessionRoots(ctx context.Context, ss *mcp.ServerSession, startDir string
 	if startDir != "" {
 		roots = append(roots, startDir)
 	}
-	if ss == nil || ss.InitializeParams() == nil {
+	// Only a client that declared the roots capability is asked: one that did
+	// not may never answer, and every call would wait on it.
+	if ss == nil {
 		return roots
 	}
+	if ip := ss.InitializeParams(); ip == nil || ip.Capabilities == nil || ip.Capabilities.RootsV2 == nil { //nolint:staticcheck // see below
+		return roots
+	}
+	// A client that declared roots and does not answer delays the call by
+	// this much, and the call reaches startDir alone.
+	ctx, cancel := context.WithTimeout(ctx, mcpListRootsTimeout)
+	defer cancel()
 	// The roots feature is deprecated (SEP-2577) and remains in the protocol
 	// for its window. A client that does not support it, or a session on a
 	// protocol version that forbids the request while a call is served
