@@ -13,21 +13,22 @@ import (
 // A flow writes a document whole. Its writer renders every block the run
 // passed through into the file the run names: the input itself for a run that
 // edits its own content, or a target-language file the writer builds from the
-// input's skeleton. Produce stages those bytes beside the file they replace,
-// and Commit puts them in place under the lock a change set's commit takes
-// for the same file, with the same check: the rename happens only while the
-// file still holds what it held when the run read it. A flow and a change set
-// writing one file therefore take turns, and a file a person saved while the
-// run worked is never overwritten.
-//
-// A moved file is not re-applied here: the home holds the flow's bytes, not
-// its operations. Commit reports it with ErrMoved, and a caller that recorded
-// the run's operations applies them through the change service, which reads
-// the file again under the lock and refuses the operations whose if_match no
-// longer holds.
+// input's skeleton.
+
+// Produce stages a flow's bytes beside the file they replace, and Commit puts
+// them in place under the lock a change set's commit takes for the same file,
+// with the same check: the rename happens only while the file still holds what
+// it held when the run read it. A flow and a change set writing one file
+// therefore take turns, and a file a person saved while the run worked is
+// never overwritten.
 
 // ErrMoved is what Commit returns, wrapped in a *MovedError, when the file
 // changed after the producer read it.
+//
+// A moved file is not re-applied here: the home holds the flow's bytes, not
+// its operations. A caller that recorded the run's operations applies them
+// through the change service, which reads the file again under the lock and
+// refuses the operations whose if_match no longer holds.
 var ErrMoved = errors.New("the file changed after the run read it")
 
 // MovedError says which file moved and from what.
@@ -167,7 +168,7 @@ func (p *Produced) Commit(ctx context.Context) error {
 		_ = tmp.Discard()
 		return err
 	}
-	if err := tmp.Commit(); err != nil {
+	if err := p.h.commit(p.path, tmp); err != nil {
 		return err
 	}
 	p.written = true

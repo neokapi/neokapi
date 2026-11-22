@@ -131,24 +131,59 @@ func New(layout Layout, opts Options) *Home {
 // contain refuses a path beneath the home's root, as written, that resolves
 // outside it. A path outside the root as written passes: a person named it.
 func (h *Home) contain(path string) error {
-	if h.root == "" {
+	absRoot, ok := h.under(path)
+	if !ok {
 		return nil
 	}
-	absRoot, err := filepath.Abs(h.root)
-	if err != nil {
-		return err
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-	if rel, rerr := filepath.Rel(absRoot, abs); rerr != nil || !filepath.IsLocal(rel) {
-		return nil
-	}
-	if _, err := rootpath.Contain(absRoot, abs); err != nil {
+	if _, err := rootpath.Contain(absRoot, path); err != nil {
 		return &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: err.Error()}
 	}
 	return nil
+}
+
+// beforeCommit runs between the last containment check and the rename. A test
+// sets it to put a link in place there.
+var beforeCommit func(path string)
+
+// commit puts a staged file at path in place. A path beneath the home's root
+// is renamed through an os.Root opened on the root, so a link that leads out
+// of it, even one put in place after contain, is refused by the rename
+// itself. A path outside the root, one a person named, is renamed as named.
+func (h *Home) commit(path string, tmp *atomicfile.Staged) error {
+	if beforeCommit != nil {
+		beforeCommit(path)
+	}
+	root, ok := h.under(path)
+	if !ok {
+		return tmp.Commit()
+	}
+	if err := tmp.CommitWithin(root); err != nil {
+		// The rename refused the path; say which link, if a link leads out
+		// of the root now.
+		if cerr := h.contain(path); cerr != nil {
+			return cerr
+		}
+		return err
+	}
+	return nil
+}
+
+// under reports whether path lies beneath the home's root as written, and
+// returns the root as an absolute path.
+func (h *Home) under(path string) (string, bool) {
+	if h.root == "" {
+		return "", false
+	}
+	absRoot, err := filepath.Abs(h.root)
+	if err != nil {
+		return "", false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(absRoot, abs)
+	return absRoot, err == nil && filepath.IsLocal(rel)
 }
 
 // writes reports whether the home writes a document it produces at path.

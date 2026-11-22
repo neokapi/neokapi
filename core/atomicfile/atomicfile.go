@@ -186,26 +186,100 @@ func (s *Staged) Name() string { return s.name }
 // the target needs first. A failed rename removes the staged file and the
 // directories Commit created, and leaves the target as it was.
 func (s *Staged) Commit() error {
+	return s.commit(os.Mkdir, os.Rename, os.Remove)
+}
+
+// CommitWithin is Commit for a target beneath root, done through an os.Root
+// opened on root: the directories, the rename and any cleanup all resolve
+// their names inside root, and a symbolic link that leads out of it is
+// refused at the moment of the operation. A check on the target's path that
+// runs before CommitWithin cannot be raced by a link swapped in after it.
+// The staged file and the target must both lie beneath root.
+func (s *Staged) CommitWithin(root string) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		_ = s.Discard()
+		return &Error{Op: "replace", Path: s.target, Err: err}
+	}
+	defer r.Close()
+	if _, err := relativeTo(root, s.target); err != nil {
+		_ = s.Discard()
+		return &Error{Op: "replace", Path: s.target, Err: err}
+	}
+	rel := func(p string) (string, error) { return relativeTo(root, p) }
+	return s.commit(
+		func(dir string, perm fs.FileMode) error {
+			name, err := rel(dir)
+			if err != nil {
+				return err
+			}
+			return r.Mkdir(name, perm)
+		},
+		func(oldpath, newpath string) error {
+			from, err := rel(oldpath)
+			if err != nil {
+				return err
+			}
+			to, err := rel(newpath)
+			if err != nil {
+				return err
+			}
+			return r.Rename(from, to)
+		},
+		func(p string) error {
+			name, err := rel(p)
+			if err != nil {
+				return err
+			}
+			return r.Remove(name)
+		},
+	)
+}
+
+// relativeTo names p relative to root. p may be spelled under root as given
+// or under the path root resolves to, since a staged target is resolved only
+// when it exists.
+func relativeTo(root, p string) (string, error) {
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	bases := []string{root}
+	if abs, err := filepath.Abs(root); err == nil {
+		bases = append(bases, abs)
+		if real, err := filepath.EvalSymlinks(abs); err == nil {
+			bases = append(bases, real)
+		}
+	}
+	for _, base := range bases {
+		if rel, err := filepath.Rel(base, p); err == nil && filepath.IsLocal(rel) {
+			return rel, nil
+		}
+	}
+	return "", fmt.Errorf("%s is not beneath %s", p, root)
+}
+
+// commit renames the staged file onto its target with the given operations.
+func (s *Staged) commit(mkdir func(string, fs.FileMode) error, rename func(string, string) error, remove func(string) error) error {
 	if s.done {
 		return &Error{Op: "replace", Path: s.target, Err: errors.New("the staged file was already committed or discarded")}
 	}
 	s.done = true
 	var made []string
 	undo := func() {
-		_ = os.Remove(s.name)
+		_ = remove(s.name)
 		for _, dir := range slices.Backward(made) {
-			_ = os.Remove(dir)
+			_ = remove(dir)
 		}
 	}
 	for _, dir := range s.mkdir {
-		if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+		if err := mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
 			undo()
 			return &Error{Op: "create the directory of", Path: s.target, Err: err}
 		} else if err == nil {
 			made = append(made, dir)
 		}
 	}
-	if err := os.Rename(s.name, s.target); err != nil {
+	if err := rename(s.name, s.target); err != nil {
 		undo()
 		return &Error{Op: "replace", Path: s.target, Err: err}
 	}

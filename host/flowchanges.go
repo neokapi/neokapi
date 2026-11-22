@@ -17,7 +17,7 @@ import (
 )
 
 // What a flow writes, as the kapi host commits and records it.
-//
+
 // Every flow run the host starts (kapi translate, pseudo-translate, run, exec,
 // up, and the same runs in Kapi Desktop and over MCP) writes its documents
 // through the file home its change service commits through (flowHome): the
@@ -26,22 +26,24 @@ import (
 // it wrote, with the actor tool:<flow> and the origin flow:<flow>, through the
 // recorder a change set's commit records through (App.EditRecorder). A flow's
 // record keeps revisions and hashes and no text: the file holds the text.
-//
+
 // The transitions are the run's effect on the file as the change service reads
-// it. The document is read through the service before the run (the revision
-// of each edition it holds, or, for a run that writes a target-language file,
-// of that edition joined in from its file) and again after the commit, and a
-// transition is recorded for each edition whose revision moved. Reading the
-// file rather than the blocks the run held is what makes a recorded revision
-// the one a later read finds, which is how a read, kapi status and the next
-// pass know the translation on disk is the one the run made and which source
-// revision it was made from (its basis).
-//
+// it. The document is read through the service before the run and again after
+// the commit. Before the run it reads the revision of each edition it holds,
+// or, for a run that writes a target-language file, of that edition joined in
+// from its file. A transition is recorded for each edition whose revision
+// moved.
+
+// Reading the file rather than the blocks the run held makes a recorded
+// revision the one a later read finds. That is how a read, kapi status and
+// the next pass know the translation on disk is the one the run made. They
+// also learn which source revision it was made from (its basis).
+
 // Under --print-ops the run writes nothing: its home stages no file
 // (filehome.Options.WriteNothing), nothing is recorded, and the operations the
 // run would apply are collected into one change set (printedOps), which
 // kapi apply applies to the same bytes.
-//
+
 // A document that moved while the run worked (a person saved it, a change set
 // committed first) is applied again through the change service, from the
 // operations the run's blocks describe, each guarded by the revision read
@@ -315,10 +317,10 @@ func producerKey(block, edition string) string { return block + "\x00" + edition
 type revisions map[string]blockRevs
 
 // blockRevs is one block's editions as the change service read them: each
-// tracked edition's revision by edition text ("" is the document's own), and
-// the authoritative edition, by the key the service names it with, its
-// revision, which is the basis of a derived edition made from it, and the
-// content hash of its text.
+// tracked edition's revision by edition text ("" is the document's own). It
+// also holds the authoritative edition, by the key the service names it with.
+// For that edition it keeps its revision, which is the basis of a derived
+// edition made from it, and the content hash of its text.
 type blockRevs struct {
 	editions    map[string]string
 	auth        model.EditionKey

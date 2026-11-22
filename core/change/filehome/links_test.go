@@ -102,6 +102,26 @@ func TestProduceRefusesALinkOutOfTheRoot(t *testing.T) {
 	})
 }
 
+// A link put in place after the last containment check, between the check and
+// the rename, is refused by the rename: it resolves its names inside the root.
+func TestCommitRefusesALinkSwappedInAfterTheCheck(t *testing.T) {
+	root, outside, _ := linkProject(t)
+	home := filehome.New(nil, filehome.Options{Root: root})
+	target := filepath.Join(root, "locales", "fr", "app.json")
+	p, err := home.Produce(context.Background(), target, "", produceBytes(`{"fr":true}`))
+	require.NoError(t, err)
+	defer func() { _ = p.Release() }()
+
+	filehome.SetBeforeCommit(func(string) {
+		require.NoError(t, os.Symlink(outside, filepath.Join(root, "locales", "fr")))
+	})
+	t.Cleanup(func() { filehome.SetBeforeCommit(nil) })
+
+	err = p.Commit(context.Background())
+	require.ErrorContains(t, err, "leads outside the root")
+	assert.NoFileExists(t, filepath.Join(outside, "app.json"), "nothing is written through the link")
+}
+
 // A change set reads and writes its documents through the layout, which
 // refuses a document that a link leads out of the root.
 func TestChangeRefusesALinkOutOfTheRoot(t *testing.T) {

@@ -229,8 +229,7 @@ func ResolvePath(root, doc string) (ref, path, entry string, err error) {
 	// The reference is judged by the file it resolves to as well: a symbolic
 	// link that leads out of root is refused, and the error names the link.
 	if _, cerr := rootpath.Contain(root, path); cerr != nil {
-		var esc *rootpath.EscapeError
-		if errors.As(cerr, &esc) {
+		if _, ok := errors.AsType[*rootpath.EscapeError](cerr); ok {
 			return "", "", "", &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: cerr.Error()}
 		}
 	}

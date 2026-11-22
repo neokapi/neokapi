@@ -87,7 +87,7 @@ func streamFor(recipe *Recipe) string {
 type BowrainSourceConnector struct {
 	// app is the host whose project stores this connector reads and writes
 	// through. Decisions live in the working-set schema of the project's one
-	// store, and the App is what memoizes a single handle for it — so a
+	// store, and the App memoizes a single handle for it. So a
 	// connector must be handed the App the surrounding process already uses,
 	// never open a store of its own. Two pools on one file cannot serialize
 	// their writers in process.
@@ -104,8 +104,7 @@ type BowrainSourceConnector struct {
 	// project has consumed and the governance identities its last contact with
 	// the server established. Every "is this worth sending?" and every
 	// compare-and-swap assertion reads it, and nothing else records those
-	// facts — the sync cache holds block hashes and claim tokens, and it used
-	// to hold three uncoordinated fragments of this one.
+	// facts. The sync cache holds block hashes and claim tokens only.
 	refs *refcache.Cache
 
 	// pushContext is the context content type this push carries: the
@@ -128,8 +127,8 @@ type itemBlock struct {
 
 // NewSourceConnector creates a SourceConnector for the given project.
 //
-// app is the host the caller already runs under — a command's App, the daemon's
-// one App per process. It is how the connector reaches the project's store for
+// app is the host the caller already runs under: a command's App, or the
+// daemon's one App per process. It is how the connector reaches the project's store for
 // decision staging, and taking it as a parameter rather than opening one is the
 // whole point: the App memoizes one handle per project root, and a connector
 // that opened its own would be a second connection pool on `.kapi/work/store.db`.
@@ -153,10 +152,10 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 	cache := LoadSyncCache(project.Layout)
 
 	// The cache describes ONE server's view of this project: the block hashes
-	// the server confirmed. Pointed at a different server or project —
-	// switching between production and a local stack, or redirecting with
-	// BOWRAIN_PROJECT_URL — none of that describes the new destination, and
-	// reusing it makes the first push conclude nothing has changed and send
+	// the server confirmed. A user may point the project at a different server
+	// or project, by switching between production and a local stack or by
+	// redirecting with BOWRAIN_PROJECT_URL. The cache then describes none of
+	// the new destination, and reusing it makes the first push conclude nothing has changed and send
 	// nothing at all.
 	//
 	// The cache already recorded which server it belonged to; nothing ever
@@ -193,7 +192,7 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 			})
 		}
 	default:
-		// No workspace or claim token in config — try env-based auth (BOWRAIN_AUTH_TOKEN).
+		// No workspace or claim token in config, so try env-based auth (BOWRAIN_AUTH_TOKEN).
 		// This supports CI scenarios where auth is provided via environment variable.
 		authInfo, err := config.LoadAuth()
 		if err != nil {
@@ -405,9 +404,9 @@ func (d *Diff) HasChanges() bool {
 // changed and how) rather than just counts.
 //
 // Local-vs-remote semantics, anchored on the sync cache:
-//   - "added"   — block present locally, absent from the cache.
-//   - "changed" — block present in both, record hash differs (venue.RecordHash).
-//   - "removed" — block present in the cache, absent locally.
+//   - "added": block present locally, absent from the cache.
+//   - "changed": block present in both, record hash differs (venue.RecordHash).
+//   - "removed": block present in the cache, absent locally.
 //
 // It also queries the server for the count of pending remote changes, mirroring
 // Status, so the caller can surface "remote changes available to pull".
@@ -555,7 +554,7 @@ func (c *BowrainSourceConnector) Close() error {
 // just wrote into the project's bound terms onto the connector's in-memory
 // sync cache. The baseline is persisted by the single final Close() alongside
 // the block-sync state (stream cursors, file hashes) the connector accumulated
-// during the same pull — so a concept pull folded into a block pull cannot be
+// during the same pull. So a concept pull folded into a block pull cannot be
 // silently overwritten by the connector's own deferred Close(). A later concept
 // push reloads this baseline to diff local terms edits against it.
 func (c *BowrainSourceConnector) SetConceptBaseline(b *bproject.ConceptBaseline) {
@@ -563,8 +562,8 @@ func (c *BowrainSourceConnector) SetConceptBaseline(b *bproject.ConceptBaseline)
 }
 
 // ObserveTermsRef records the terms component a terminology pull observed on the
-// server, on the connector's in-memory refs — persisted by the same single
-// Close() as the baseline it belongs with, for the same reason: two writers to
+// server, on the connector's in-memory refs. The same single Close() persists
+// it alongside the baseline it belongs with, for the same reason: two writers to
 // one file mean the last one wins and the other's work is gone.
 //
 // An empty component is not recorded. A server too old to publish a ref says
@@ -581,10 +580,10 @@ func (c *BowrainSourceConnector) ObserveTermsRef(component string) {
 // identities this project last observed, and the ones the venue publishes now.
 //
 // The venue's half is best-effort and returned as a pointer for that reason. An
-// unreachable server, an unclaimed project, a server too old for the endpoint —
-// each leaves it nil, which is a report ("not checked") and not a comparison
-// against nothing. Reading a missing answer as an empty ref would say every
-// component had moved, on a laptop that simply has no network.
+// unreachable server, an unclaimed project, or a server too old for the
+// endpoint each leaves it nil. Nil is a report ("not checked") and never a
+// comparison against nothing. Reading a missing answer as an empty ref would say
+// every component had moved, on a laptop that has no network.
 func (c *BowrainSourceConnector) Governance(ctx context.Context) (observed ref.Ref, venue *ref.Ref, observedAt time.Time) {
 	observed = c.refs.Ref(c.stream)
 	observedAt = c.refs.ObservedAt
@@ -664,18 +663,18 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// file the scan matched and no format reads.
 	scope := excludePaths(c.pushScope(opts.Paths), scan.formatless)
 
-	// Fetch the venue's tree, once. It answers two different questions, and
-	// both used to be answered from local state instead.
-	//
+	// Fetch the venue's tree, once. It answers two different questions that
+	// local state cannot answer.
+
 	// The cache is this producer's record of what it last sent, and it is not
 	// committed: a fresh clone has none, and another machine may have pushed
-	// since. Trusting it made a reset venue and a cold CI runner two different
-	// kinds of wrong — one pushed nothing and reported success, the other
-	// pushed everything. One fetch answers for both, and the ref it comes with
+	// since. Trusting it makes a reset venue and a cold CI runner two different
+	// kinds of wrong. One pushes nothing and reports success, and the other
+	// pushes everything. One fetch answers for both, and the ref it comes with
 	// is what the commit asserts, so a tree that went stale between fetch and
 	// push is refused rather than acted on.
-	//
-	// It is fetched even under --force. Force means "send everything regardless
+
+	// The tree is fetched even under --force. Force means "send everything regardless
 	// of the diff", never "re-key everything": without priors, resolution below
 	// would mint a fresh unit for every block and the declared tree would ask
 	// the venue to drop every translation it holds.
@@ -693,17 +692,17 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	//
 	// A reader names blocks by structure, and structure shifts: delete the
 	// first paragraph of a section and every name below it is re-addressed, so
-	// the venue would prune the last one's row — with its translation and its
-	// approval — and land its text on its neighbour's. Resolution files content
+	// the venue would prune the last one's row, with its translation and its
+	// approval, and land its text on its neighbour's. Resolution files content
 	// under a key that is matched rather than named, so that stops happening.
-	//
-	// It runs BEFORE the declared tree is built, because the tree's keys are
-	// what the venue prunes against, and after the fetch, because the priors
-	// are the venue's. A venue that holds nothing offers no priors, and every
-	// block is then minted a key of its own, as on any venue for content it
-	// has never seen. Only a push whose tree fetch failed leaves its blocks
+
+	// Resolution runs BEFORE the declared tree is built, because the tree's
+	// keys are what the venue prunes against, and after the fetch, because the
+	// priors are the venue's. A venue that holds nothing offers no priors, and
+	// every block is then minted a key of its own, as on any venue for content
+	// it has never seen. Only a push whose tree fetch failed leaves its blocks
 	// unresolved, keyed on their names.
-	//
+
 	// The checkout's records (the decision ledger and the block history) name
 	// each block by the key it had before the resolution below, so everything
 	// the push says about a block is sent under the key resolved here
@@ -721,7 +720,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	}
 
 	// What this scan read, keyed by the identity just resolved. Together with
-	// the scope this is how a push says a string, or a whole file, is GONE — a
+	// the scope this is how a push says a string, or a whole file, is GONE. A
 	// deletion sends no block, so a payload of changes cannot express one.
 	localTree := venue.TreeFromBlocks(blockMap)
 
@@ -759,19 +758,18 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 
 	// The committed decision record travels with the content it judges. A
 	// malformed record fails the push rather than being skipped: state is
-	// authoritative, and a push that silently dropped it would be the exact
-	// failure shape this protocol keeps re-learning to confess.
-	//
+	// authoritative, and a push that silently dropped it would lose decisions
+	// with nothing to report it.
+
 	// Two questions decide whether it travels, and both are asked. The sync
-	// cache says whether this record changed since this client last sent it,
-	// which is what carries a decision committed since, and the records of what
-	// was produced, past every "nothing changed" fast path. The tree's ref says
-	// what the venue holds on the stream being pushed, so a stream this client
+	// cache says whether this record changed since this client last sent it.
+	// That carries a decision committed since, and the records of what was
+	// produced, past every "nothing changed" fast path. The tree's ref says
+	// what the venue holds on the stream being pushed. So a stream this client
 	// has not pushed to, and a venue whose ledger was reset, are told rather
-	// than assumed to know it already. Remembering only that it was sent once
-	// is what left both of those holding less than this project's record, with
-	// no later push to correct it.
-	//
+	// than assumed to know it already. Without that check, both would hold less
+	// than this project's record, with no later push to correct it.
+
 	// A server run drafting translations moves the record's fold but not its
 	// decisions component, so what a venue produces never makes this resend.
 	decisions, derr := c.projectDecisions(ctx)
@@ -823,16 +821,15 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 
 	// A recipe change moves no content and still has to reach the venue: a
 	// collection added, a coordinate moved, a voice rebound, a decision
-	// committed. Falling out on "no blocks changed" is what used to leave the
+	// committed. Returning early on "no blocks changed" would leave the
 	// declared structure stranded on the developer's machine.
-	//
-	// A deletion is the one source change that sends nothing at all — the
-	// string is simply absent from the scan — so the tree, not the payload, is
+
+	// A deletion is the one source change that sends nothing at all, because
+	// the string is absent from the scan. So the tree, not the payload, is
 	// what carries it. A venue holding an item or a block this scan did not
 	// produce, inside the scope this push declares, is exactly that case, and
 	// comparing the two trees is how it is seen. A push whose tree fetch failed
-	// cannot make that comparison and does not pretend to: it stays additive,
-	// as it was before there were trees.
+	// cannot make that comparison and does not pretend to: it stays additive.
 	if len(changed) == 0 && !venueHoldsMoreThan(serverTree, localTree, scope) &&
 		!c.PushContextChanged() && !sendRecord && !sendWrites && !c.pushSettingsPending() && !c.pushPartsPending() {
 		return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
@@ -852,7 +849,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// The compare-and-swap asserts the ref this project last observed, not one
 	// fetched now: the payload was built by diffing against the observed ref,
 	// so that is the state it is correct against.
-	// Declared over EVERY block this scan read, not the changed ones: the
+
+	// Block properties are declared over EVERY block this scan read, not the changed ones: the
 	// declaration says what this producer's readers record, and a push carrying
 	// one edited string still knows what a note is. Scoping it to the payload
 	// would make a one-block push claim ignorance of the rest of the file, and
@@ -951,7 +949,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 		maps.Copy(fc.Blocks, fileHashes)
 	}
-	// Update cache with per-file asset hashes — except for the assets that
+	// Update cache with per-file asset hashes, except for the assets that
 	// failed to upload. Recording those would tell the next push they are
 	// already on the server, and the retry it would otherwise perform is the
 	// only thing standing between a transient blob-store error and an image
@@ -1051,7 +1049,7 @@ func (c *BowrainSourceConnector) recordGovernanceAfterPush(ctx context.Context, 
 
 // ingestConfirmWindow bounds how long a push waits for the server to say what
 // it did with the upload. Kept short: the wait is a confirmation, not a
-// dependency — an ingest still queued when it elapses is reported as queued,
+// dependency. An ingest still queued when it elapses is reported as queued,
 // not treated as a failure.
 const ingestConfirmWindow = 6 * time.Second
 
@@ -1060,23 +1058,12 @@ const ingestConfirmWindow = 6 * time.Second
 // The commit endpoint returns 202 Accepted with a push id and enqueues a worker
 // job; every other content type in this push (blocks, context, decisions) is
 // applied there, not in the request. So the 202 says "received", and only the
-// job says "stored". A client that reported the 202 as success — as this one
-// did — told the user their content had landed at the exact moment it might
-// still be rejected for a bad chunk hash, an unsupported content type, or a
-// conflicting block, and then wrote the sync cache saying the server holds it.
-// The next push diffs against that cache, finds nothing to send, and the
-// content is stranded until someone runs --force.
-//
-// The aggregate status is safe to read this way because the ingest job is the
-// FIRST job created for a push id: convergence fans out translation jobs under
-// the same id only after the push-completed event, which the ingest job emits
-// on success. So `failed > 0 && completed == 0` is the ingest itself failing,
-// and any completed job means the ingest landed.
-//
-// Being unable to ask is not a failure. A server with no job system, one too
-// old for the endpoint, or a status call that errors leaves the push reported
-// as unknown rather than refused — the alternative is refusing pushes that
-// worked.
+// job says "stored". A client that reported the 202 as success would tell the
+// user their content had landed at the exact moment it might still be rejected.
+// The job can reject it for a bad chunk hash, an unsupported content type, or a
+// conflicting block. That client would then write the sync cache saying the
+// server holds it. The next push diffs against that cache, finds nothing to
+// send, and the content is stranded until someone runs --force.
 func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID string) (string, *venue.PushGovernance, venue.PushParts, error) {
 	var none venue.PushParts
 	// The unchanged sentinel is the init fast path's: nothing was committed, so
@@ -1089,9 +1076,19 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 	interval := 150 * time.Millisecond
 	for {
 		st, err := c.client.PushStatus(ctx, pushID)
+		// Being unable to ask is not a failure. A server with no job system, one
+		// too old for the endpoint, or a status call that errors leaves the push
+		// reported as unknown rather than refused. The alternative is refusing
+		// pushes that worked.
 		if err != nil {
 			return bowrainconn.IngestUnknown, nil, none, nil //nolint:nilerr // an unaskable server is unknown, not failed
 		}
+		// The aggregate status is safe to read this way because the ingest job
+		// is the FIRST job created for a push id. Convergence fans out
+		// translation jobs under the same id only after the push-completed
+		// event, which the ingest job emits on success. So `failed > 0 &&
+		// completed == 0` is the ingest itself failing, and any completed job
+		// means the ingest landed.
 		switch {
 		case st.Failed > 0 && st.Completed == 0:
 			return "", nil, none, fmt.Errorf(
@@ -1125,8 +1122,8 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 // pushAssets uploads changed media assets to the server.
 // For each asset: checks cache → requests upload URL → uploads blob → registers metadata.
 //
-// It returns what landed, what did not, and why. Each asset is best-effort —
-// one refused blob must not abandon the blocks already stored — but a refusal
+// It returns what landed, what did not, and why. Each asset is best-effort, so
+// one refused blob must not abandon the blocks already stored. But a refusal
 // must leave a trace. Counting successes only makes a push whose every image
 // failed report the same "assets: 0" as a push with no images, and the reader
 // of the translated page finds the pictures missing with nothing in the
@@ -1140,7 +1137,7 @@ func (c *BowrainSourceConnector) pushAssets(
 	res := &assetPushResult{FailedIDs: map[string]map[string]bool{}}
 	// note records one asset failure, keeping a bounded sample of the reasons
 	// and remembering which asset it was so the cache does not record it as
-	// synced — a hash written for a blob that never arrived is the same silent
+	// synced. A hash written for a blob that never arrived is the same silent
 	// loss one level down: the next push finds it unchanged and never retries.
 	note := func(itemName, assetID string, err error) {
 		res.Failed++
@@ -1175,7 +1172,7 @@ func (c *BowrainSourceConnector) pushAssets(
 
 			// If blob doesn't exist yet and we have a SAS URL, upload directly.
 			// For local backend (no SAS URL), the server proxies the upload
-			// via the PushAsset metadata call — the blob was already uploaded
+			// via the PushAsset metadata call. The blob was already uploaded
 			// inline if the server supports it, or the upload-url response
 			// indicates the blob exists (dedup).
 			if !urlResp.Exists && urlResp.UploadURL != "" {
@@ -1303,11 +1300,10 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 	// The assets each item holds, as the venue already listed them.
 	//
-	// A pull response has always carried these — the server lists them per
-	// affected item while assembling the page — and the loop below used to drop
-	// them on the floor. The write-out then asked for the same list again, once
-	// per item and once per locale, over the network. Keeping what was already
-	// sent is the whole of the saving: no wire shape changes, and nothing new is
+	// A pull response carries these, because the server lists them per affected
+	// item while assembling the page. The loop below keeps them, so the
+	// write-out does not ask for the same list again over the network, once per
+	// item and once per locale. No wire shape changes, and nothing new is
 	// computed on either side.
 	mediaByItem := map[string][]apiclient.SyncMedia{}
 
@@ -1319,8 +1315,8 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 		totalPulled += len(resp.Blocks)
 		allBlocks = append(allBlocks, resp.Blocks...)
-		// The declared context is not cursor-driven — every page carries the
-		// current one — so the last page's is the one to keep. The decision
+		// The declared context is not cursor-driven. Every page carries the
+		// current one, so the last page's is the one to keep. The decision
 		// ledger and the freshness ref travel the same way.
 		if len(resp.Contexts) > 0 {
 			contexts = resp.Contexts
@@ -1358,7 +1354,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	}
 
 	// Record what the server holds and report what diverges. Nothing here
-	// changes the governance a local run resolves — see connector/context.go.
+	// changes the governance a local run resolves. See connector/context.go.
 	contextResult := c.applyPulledContext(ctx, contexts)
 
 	// Group pulled blocks by item name.
@@ -1371,7 +1367,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// re-delivered and would be permanently lost locally. We therefore collect
 	// write errors and, if any occurred, abort without advancing/saving the
 	// cursor so the next pull re-delivers everything (the partial successes
-	// already written stay on disk and are simply overwritten next time).
+	// already written stay on disk and are overwritten next time).
 	var writeErrs []error
 
 	services := pullServices{}
@@ -1410,8 +1406,8 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			}
 
 			// An item's assets and their variants do not vary by target
-			// language — the variant list carries every locale and the filter
-			// below picks one — so both are read once, here, rather than once
+			// language. The variant list carries every locale and the filter
+			// below picks one, so both are read once, here, rather than once
 			// per locale inside the loop.
 			var itemAssets []apiclient.SyncMedia
 			var itemVariants map[string][]apiclient.AssetVariantResponse
@@ -1447,8 +1443,8 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				if _, statErr := os.Stat(absSource); errors.Is(statErr, fs.ErrNotExist) {
 					// The source was deleted or renamed after it was pushed;
 					// additive-only push means the server never forgets it.
-					// There is nothing to reconstruct a target from — on this
-					// pull or any retry — so holding the cursor would wedge
+					// There is nothing to reconstruct a target from, on this
+					// pull or any retry, so holding the cursor would wedge
 					// every later translation behind a file that is never
 					// coming back. Skip it loudly and move on.
 					itemsRetired++
@@ -1458,17 +1454,17 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				formatName := c.detectFormat(absSource)
 				if formatName == "" {
 					// The server has translations for an item this checkout
-					// cannot read. Skipping was silent, and the cursor advanced
-					// past them anyway — the server's stream is forward-only, so
-					// those translations were never offered again and were gone.
-					//
+					// cannot read. A silent skip would let the cursor advance
+					// past them. The server's stream is forward-only, so those
+					// translations would never be offered again.
+
 					// It is not a rare shape: a machine without the plugin that
 					// provides the format (a colleague without okapi-bridge, a CI
 					// image that ships fewer plugins) reads every Office or IDML
 					// item as format-less and pulls "500 blocks, wrote 0 files"
-					// with a clean exit. Joining the write failures makes it what
-					// it is — a failure that holds the cursor, so the pull retries
-					// once the format can be read.
+					// with a clean exit. Joining the write failures reports it as
+					// a failure that holds the cursor, so the pull retries once
+					// the format can be read.
 					writeErrs = append(writeErrs, fmt.Errorf(
 						"%s (%s): no format is registered for this file. The recipe names none and no plugin claims its extension, so its translations cannot be written",
 						itemName, loc))
@@ -1518,19 +1514,19 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// Everything the pull brought down is on disk and in the store, so the
 	// project's ref may move: the position to what it consumed, and the
 	// governance identities to what the server published on the way. Recorded
-	// together and only here, after the writes above succeeded — the server's
+	// together and only here, after the writes above succeeded. The server's
 	// change feed is forward-only, so a ref advanced past an unwritten change
 	// is a change nobody ever sees again.
 	c.refs.Consume(c.stream, cursor)
 	if served != nil {
 		// The venue answered about this project's own rows, so an empty context
 		// or decisions component in that answer is the venue holding nothing,
-		// and it is recorded as such. Merging the answer kept a value this
-		// project observed while the venue still held something: the next push
-		// asserted it, the venue refused with "decisions moved", and the pull
-		// that refusal asks for could never clear it, so every later push
-		// failed until someone deleted the ref cache by hand.
-		//
+		// and it is recorded as such. Merging the answer would keep a value this
+		// project observed while the venue still held something. The next push
+		// would assert it, the venue would refuse with "decisions moved", and
+		// the pull that refusal asks for could never clear it. Every later push
+		// would fail until someone deleted the ref cache by hand.
+
 		// Terminology is the exception, and the pull route makes it one: it
 		// computes no terminology, so the empty terms component it carries says
 		// nothing, and the value a terminology pull observed stands.
@@ -1771,7 +1767,7 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 		}
 	}
 
-	// Fall back to the project's content-aware detector — the same
+	// Fall back to the project's content-aware detector, the same
 	// ProjectContext.DetectFormat the framework hosts use. A shared extension
 	// is disambiguated by file content and per-format priority, and a compound
 	// suffix like .kbf.json resolves to the KBF reader rather than the generic
@@ -1788,9 +1784,9 @@ func (c *BowrainSourceConnector) projectContext() *coreproj.ProjectContext {
 }
 
 // itemFor returns the recipe content item that claims absPath, by the rule
-// core/project.ItemForPath applies: the first item in recipe order whose glob
-// matches it and that is not declared for comments alone, or the first
-// comments-only item when no other matches. detectFormat and the reader and
+// core/project.ItemForPath applies. That is the first item in recipe order
+// whose glob matches it and that is not declared for comments alone. When no
+// other matches, it is the first comments-only item. detectFormat and the reader and
 // writer configuration ask here. nil when nothing claims it.
 func (c *BowrainSourceConnector) itemFor(absPath string) *coreproj.ContentItem {
 	relPath, err := c.project.RelativePath(absPath)
@@ -1818,7 +1814,7 @@ func (c *BowrainSourceConnector) itemFor(absPath string) *coreproj.ContentItem {
 }
 
 // configureReaderFor applies the recipe's format configuration for the item that
-// claims absPath — the project's format defaults overlaid by the item's own
+// claims absPath: the project's format defaults overlaid by the item's own
 // format.config.
 //
 // A push that skipped this extracts every leaf of a document the recipe
@@ -1954,8 +1950,8 @@ func (c *BowrainSourceConnector) readBlocks(ctx context.Context, filePath, forma
 
 // readBlocksAndMedia reads a file and extracts both blocks and media using the format reader.
 //
-// The media it returns outlive this call — a push scans every changed file
-// before uploading any asset — so a deferred slice is materialized here rather
+// The media it returns outlive this call, because a push scans every changed
+// file before uploading any asset. So a deferred slice is materialized here rather
 // than left pointing into a document that is about to close. That is the one
 // consumer that needs the bytes; everything else on the read path
 // keeps them in the container.
@@ -2062,11 +2058,10 @@ func reportUnaddressedBlocks(ids []string) {
 
 // resolveTargetPath maps a pulled item to the output path its translation is
 // written to, using the same matcher and target expansion the local engine
-// uses (project.MatchGlob + project.ResolveTargetPath) — one template
-// vocabulary, one behavior. A hand-rolled copy here once dropped the {dir}
-// token and reconstructed the SOURCE path, so a pull overwrote four English
-// masters with Norwegian; the in-place guard at the bottom makes that class
-// impossible regardless of template.
+// uses (project.MatchGlob + project.ResolveTargetPath): one template
+// vocabulary, one behavior. A template that resolves back to the SOURCE path
+// would make a pull overwrite the source with a translation. The in-place
+// guard at the bottom makes that impossible regardless of template.
 //
 // An item the recipe claims without a target template resolves to "", and the
 // pull writes nothing for it. Naming no target makes content source-only: a run
@@ -2164,10 +2159,10 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		return fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
 
-	// The writer is chosen from the OUTPUT path, not the source format: a
+	// The writer is chosen from the OUTPUT path, not the source format. A
 	// recipe target whose extension differs from its source is a cross-format
-	// projection, and writing source-format bytes to that path would corrupt
-	// the target (a JSON document under a .mo name, say).
+	// projection. Writing source-format bytes to that path would corrupt the
+	// target (a JSON document under a .mo name, say).
 	// registry.WriterFormatFor is the same rule the host flow runner applies.
 	writerFormat := c.formatReg.WriterFormatFor(registry.FormatID(formatName), outputPath)
 	writer, err := c.formatReg.NewWriter(writerFormat)
@@ -2188,8 +2183,8 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 
 	// A skeleton store lets a SAME-format writer reconstruct non-translatable
 	// content (frontmatter, structural markup, etc.) byte-exactly from the
-	// source. NewWiredSkeleton wires it only for an eligible same-format pair —
-	// a cross-format writer reconstructs from the content model instead, and
+	// source. NewWiredSkeleton wires it only for an eligible same-format pair.
+	// A cross-format writer reconstructs from the content model instead, and
 	// must never be fed a foreign skeleton.
 	skelStore, err := format.NewWiredSkeleton(reader, writer)
 	if err != nil {
@@ -2233,7 +2228,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	}
 
 	// For formats that need the original file content for reconstruction
-	// (openxml, idml, odf, epub — ZIP-based formats that rebuild from original).
+	// (openxml, idml, odf, epub: ZIP-based formats that rebuild from original).
 	if sps, ok := writer.(format.SourcePathSetter); ok {
 		sps.SetSourcePath(sourcePath)
 	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
@@ -2288,10 +2283,10 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 // listMediaVariants reads the variants of an item's assets, once.
 //
 // A variant list is locale-INDEPENDENT: the endpoint answers with every variant
-// an asset has and the caller filters. Asking inside the per-locale loop
-// therefore fetched the same list once per target language and threw all but
-// one row away each time — three locales, three identical round trips per
-// asset. Hoisting it here is the whole saving, and it needs no new endpoint.
+// an asset has and the caller filters. Asking inside the per-locale loop would
+// fetch the same list once per target language and throw all but one row away
+// each time: three locales, three identical round trips per asset. Listing it
+// once here avoids that, and it needs no new endpoint.
 //
 // A download URL is minted by this call, and expires. Listing here rather than
 // with the pull keeps it close to its use: an expired URL is a variant silently
@@ -2320,11 +2315,11 @@ func (c *BowrainSourceConnector) listMediaVariants(ctx context.Context, assets [
 // cleanup removes the temp files and must be called once the writer is done
 // with them.
 //
-// A variant that cannot be fetched is REPORTED, not skipped. Every one of these
-// used to be a bare `continue`: the file was written without its media and the
-// pull exited zero, which is the failure shape a written file cannot show you.
-// The errors join the write failures, so the cursor is held and the next pull
-// tries again — the same contract an unreadable format already has.
+// A variant that cannot be fetched is REPORTED, not skipped. A silent skip
+// would write the file without its media and let the pull exit zero, a failure
+// a written file cannot show you. The errors join the write failures, so the
+// cursor is held and the next pull tries again. An unreadable format has the
+// same contract.
 func (c *BowrainSourceConnector) fetchMediaReplacements(
 	ctx context.Context,
 	assets []apiclient.SyncMedia,
@@ -2401,7 +2396,7 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 }
 
 // fetchAndCacheMetadata fetches project metadata from the server and caches it.
-// Errors are non-fatal — metadata is best-effort.
+// Errors are non-fatal, because metadata is best-effort.
 func (c *BowrainSourceConnector) fetchAndCacheMetadata(ctx context.Context) {
 	if c.client == nil {
 		return
@@ -2433,18 +2428,17 @@ func (c *BowrainSourceConnector) ServerTargetLocales() []model.LocaleID {
 
 // pushScope is what this push is authoritative over.
 //
-// It is stated as PATTERNS, never as the paths the scan resolved, and the
-// difference is the whole point: a deleted file matches no glob, so a scope
-// built from what the scan found could never contain the file whose absence it
-// is supposed to explain. The recipe's globs say "I speak for everything that
-// looks like this", which covers the file that used to.
+// It is stated as PATTERNS, never as the paths the scan resolved. A scope
+// built from what the scan found could never contain a deleted file, the one
+// whose absence it is supposed to explain. The recipe's globs say "I speak for everything that
+// looks like this", which covers a file that matched once and is now gone.
 //
 // The recipe's exclusions ride along negated, because a directory swept into a
 // glob and then excluded is not content the source deleted.
 //
 // A scoped `kapi push <path>` narrows it to those paths: a directory names
 // everything beneath it, a file names itself. That is what makes the scoped
-// push safe by construction rather than by nobody looking — the files outside
+// push safe by construction rather than by nobody looking. The files outside
 // it are out of scope by the same rule that governs the rest, and the venue
 // enforces it.
 func (c *BowrainSourceConnector) pushScope(paths []string) venue.Scope {
@@ -2533,7 +2527,7 @@ func (c *BowrainSourceConnector) commentsOnly() commentsOnlyClaims {
 
 // lookupCachedHashForItem finds a block's cached hash for a specific item.
 // venueHoldsMoreThan reports whether the venue holds an item, or a block within
-// one, that this scan did not produce — inside the scope this push declares.
+// one, that this scan did not produce, inside the scope this push declares.
 //
 // It answers whether to push at all, never what to delete. The deletion itself
 // is decided at the far side, from the declared tree and scope, which is why a
@@ -2542,8 +2536,8 @@ func (c *BowrainSourceConnector) commentsOnly() commentsOnlyClaims {
 //
 // It reads the venue's tree rather than the local cache for the same reason the
 // diff does. The cache is what THIS machine last sent; the tree is what the
-// venue actually holds, and a deletion made on another machine — or a push that
-// half-landed — is only visible in the second.
+// venue actually holds. A deletion made on another machine, or a push that
+// half-landed, is only visible in the second.
 func venueHoldsMoreThan(serverTree *apiclient.TreeResponse, localTree venue.Tree, scope venue.Scope) bool {
 	if serverTree == nil {
 		return false
