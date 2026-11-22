@@ -3,7 +3,7 @@ module github.com/neokapi/neokapi/plugins/pdfium
 go 1.27.1
 
 require (
-	github.com/klippa-app/go-pdfium v1.19.4
+	github.com/klippa-app/go-pdfium v1.21.5
 	github.com/neokapi/neokapi v0.0.0
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.85.0
