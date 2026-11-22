@@ -1,11 +1,9 @@
 package host
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -37,16 +35,21 @@ func (e *NoStoreError) Error() string {
 // store yet: nothing has opened its work directory. Opening it to read would
 // create the store and register the project in the workspace.
 func (a *App) missingProjectStore(root, kind, importCmd string) error {
-	if _, err := os.Stat(a.ProjectStorePath(root)); errors.Is(err, fs.ErrNotExist) {
-		return &NoStoreError{Kind: kind, Project: root, Import: importCmd}
-	}
-	return nil
+	return storeMissing(a.ProjectStorePath(root), &NoStoreError{Kind: kind, Project: root, Import: importCmd})
 }
 
-// missingStore returns a NoStoreError when path names no file.
+// missingStore returns a NoStoreError when no database is held at path.
 func missingStore(path, kind, importCmd string) error {
-	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
-		return &NoStoreError{Kind: kind, Path: path, Import: importCmd}
+	return storeMissing(path, &NoStoreError{Kind: kind, Path: path, Import: importCmd})
+}
+
+// storeMissing returns missing when no database is held at path. It asks the
+// storage driver, which in the browser holds a database outside the file
+// system the program sees. A path the driver cannot judge is left for the
+// open to report.
+func storeMissing(path string, missing *NoStoreError) error {
+	if ok, err := storage.Exists(path); err == nil && !ok {
+		return missing
 	}
 	return nil
 }
