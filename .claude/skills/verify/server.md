@@ -68,7 +68,14 @@ because no AI provider is set; read its `components.database.status`, which
 must be `"up"`. `stack-up-e2e` gives the `bowrain` realm password sign-in and
 seeds a test user; it prints the user and password (the `E2E_USERNAME` and
 `E2E_PASSWORD` defaults in `bowrain/Makefile`). Put them in `E2E_USER` and
-`E2E_PASS`. Leave the stack up between verifications.
+`E2E_PASS`. Leave the stack up between verifications. It also runs the server
+with the rate limits of CI's e2e stack (`bowrain/e2e/rate-limits.env`), so the
+E2E suites run against it with no override file:
+
+```bash
+go test -tags "fts5,e2e" -count=1 ./bowrain/e2e/server/
+(cd host && go test -tags "fts5,e2e" -count=1 -run 'TestRevisionE2E' ./venue/source/)
+```
 
 **A token through the real Keycloak.** This runs the browser sign-in with curl
 and prints the `bowrain_session` cookie, which also works as a bearer token for
