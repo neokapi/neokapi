@@ -393,7 +393,7 @@ func TestPlanReuse_BuildsEachUnitsChainUnderItsFilesPolicy(t *testing.T) {
 		projectDir: root,
 		fl:         upPlanFlow{Name: "secure", Spec: spec, Drafts: true},
 		bindings:   a.newLocaleBindings(cmd, proj, recipe),
-		producers:  map[string][]tool.StoredTargetReuser{},
+		producers:  map[[5]string][]tool.StoredTargetReuser{},
 	}
 	defer p.close()
 

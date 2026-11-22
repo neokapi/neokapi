@@ -2,11 +2,13 @@ package blockstore
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"iter"
 	"maps"
-	"sort"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -24,7 +26,7 @@ import (
 func NewMemoryStore() Store {
 	return &memoryStore{
 		blocks:   make(map[string]memBlock),
-		overlays: make(map[string]Overlay),
+		overlays: make(map[overlayKey]Overlay),
 	}
 }
 
@@ -36,7 +38,7 @@ type memBlock struct {
 type memoryStore struct {
 	mu       sync.Mutex
 	blocks   map[string]memBlock // key: block hash
-	overlays map[string]Overlay  // key: kind+"\x00"+blockHash
+	overlays map[overlayKey]Overlay
 	closed   bool
 }
 
@@ -72,7 +74,7 @@ func (m *memoryStore) Close() error {
 type memorySession struct {
 	store    *memoryStore
 	blocks   map[string]memBlock
-	overlays map[string]Overlay
+	overlays map[overlayKey]Overlay
 	done     bool // committed, rolled back, or closed
 }
 
@@ -132,7 +134,7 @@ func (s *memorySession) GetOverlay(kind, blockHash string) (Overlay, error) {
 	if s.done {
 		return Overlay{}, ErrClosed
 	}
-	sc, ok := s.overlays[overlayKey(CanonicalOverlayKind(kind), blockHash)]
+	sc, ok := s.overlays[overlayKey{CanonicalOverlayKind(kind), blockHash}]
 	if !ok {
 		return Overlay{}, ErrNotFound
 	}
@@ -147,7 +149,7 @@ func (s *memorySession) PutOverlay(sc Overlay) error {
 		return errors.New("blockstore: overlay needs both Kind and BlockHash")
 	}
 	sc.Kind = CanonicalOverlayKind(sc.Kind)
-	key := overlayKey(sc.Kind, sc.BlockHash)
+	key := overlayKey{sc.Kind, sc.BlockHash}
 	if held, ok := s.overlays[key]; ok && bytes.Equal(held.Payload, sc.Payload) {
 		return nil
 	}
@@ -165,9 +167,8 @@ func (s *memorySession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
 			yield(Overlay{}, ErrClosed)
 			return
 		}
-		prefix := kind + "\x00"
 		for k, v := range s.overlays {
-			if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
+			if k.kind == kind {
 				if !yield(v, nil) {
 					return
 				}
@@ -182,11 +183,13 @@ func (s *memorySession) AllOverlays() iter.Seq2[Overlay, error] {
 			yield(Overlay{}, ErrClosed)
 			return
 		}
-		keys := make([]string, 0, len(s.overlays))
+		keys := make([]overlayKey, 0, len(s.overlays))
 		for k := range s.overlays {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.SortFunc(keys, func(a, b overlayKey) int {
+			return cmp.Or(strings.Compare(a.kind, b.kind), strings.Compare(a.blockHash, b.blockHash))
+		})
 		for _, k := range keys {
 			if !yield(s.overlays[k], nil) {
 				return
@@ -221,9 +224,9 @@ func (s *memorySession) Close() error {
 
 // ─── helpers ────────────────────────────────────────────────────
 
-func overlayKey(kind, blockHash string) string {
-	return kind + "\x00" + blockHash
-}
+// overlayKey is what the memory store files an overlay under: its kind and
+// the hash of the block it overlays.
+type overlayKey struct{ kind, blockHash string }
 
 func copyBlocks(in map[string]memBlock) map[string]memBlock {
 	out := make(map[string]memBlock, len(in))
@@ -231,8 +234,8 @@ func copyBlocks(in map[string]memBlock) map[string]memBlock {
 	return out
 }
 
-func copyOverlays(in map[string]Overlay) map[string]Overlay {
-	out := make(map[string]Overlay, len(in))
+func copyOverlays(in map[overlayKey]Overlay) map[overlayKey]Overlay {
+	out := make(map[overlayKey]Overlay, len(in))
 	maps.Copy(out, in)
 	return out
 }

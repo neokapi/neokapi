@@ -1,6 +1,7 @@
 package host
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -8,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -24,23 +26,21 @@ import (
 // each kind of content it can read there, so a new project works before anyone
 // edits YAML. The proposal is deterministic and asks nothing: the same tree
 // gives the same collections, from a terminal, from CI or from an agent.
-//
+
 // Two sources decide what counts as content:
 //
 //   - The format registry. A file whose built-in format carries documents
 //     (marked-up text, office documents, timed text) is content wherever it
 //     sits. Documents are grouped by top-level directory and extension, so a
-//     docs tree becomes `docs/**/*.md` rather than one entry per page, and a
-//     file at the root keeps an entry of its own.
+//     docs tree becomes `docs/**/*.md`.
 //   - The framework presets, for i18n catalogs. A catalog is a key/value file
-//     in a format also used for configuration, so a catalog is proposed only
-//     where a preset's layout matches it, or where its path names the source
-//     language (`locales/en/*.json`, `messages/en.json`, `app_en.arb`). A file
-//     named for any other language is a translation and is left out.
-//
+//     in a format also used for configuration, so it is proposed only where
+//     a preset's layout matches it or its path names the source language
+//     (`locales/en/*.json`, `messages/en.json`, `app_en.arb`). A file named
+//     for any other language is a translation and is left out.
+
 // Nothing else is proposed. Interchange files (XLIFF, PO exchanges), data
-// files and plain text are read by kapi but are rarely a project's source
-// content, and a recipe that names them is one edit away.
+// files and plain text are rarely a project's source content.
 
 // ProposedCollection is one collection kapi init proposes.
 type ProposedCollection struct {
@@ -164,7 +164,7 @@ func ProposeCollections(root string, opts ProposeOptions) ([]ProposedCollection,
 		files            []string
 		nested           bool
 	}
-	groups := map[string]*docGroup{}
+	groups := map[[3]string]*docGroup{}
 	var rootDocs []ProposedCollection
 	var catalogs []ProposedCollection
 	catalogIndex := map[string]int{}
@@ -190,7 +190,7 @@ func ProposeCollections(root string, opts ProposeOptions) ([]ProposedCollection,
 				})
 				continue
 			}
-			key := top + "\x00" + ext + "\x00" + id
+			key := [3]string{top, ext, id}
 			g := groups[key]
 			if g == nil {
 				g = &docGroup{dir: top, ext: ext, format: id}
@@ -215,11 +215,13 @@ func ProposeCollections(root string, opts ProposeOptions) ([]ProposedCollection,
 	}
 
 	out = append(out, rootDocs...)
-	keys := make([]string, 0, len(groups))
+	keys := make([][3]string, 0, len(groups))
 	for k := range groups {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.SortFunc(keys, func(a, b [3]string) int {
+		return cmp.Or(strings.Compare(a[0], b[0]), strings.Compare(a[1], b[1]), strings.Compare(a[2], b[2]))
+	})
 	for _, k := range keys {
 		g := groups[k]
 		glob := g.dir + "/*" + g.ext

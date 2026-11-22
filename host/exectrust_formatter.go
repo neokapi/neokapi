@@ -37,12 +37,12 @@ type formatterTrust struct {
 	warn io.Writer
 	// decided holds this run's outcomes by record key and digest, and hashed
 	// the SHA-256 of each file read for a digest, by path.
-	decided map[string]error
+	decided map[[2]string]error
 	hashed  map[string]string
 }
 
 func newFormatterTrust(env bool) *formatterTrust {
-	return &formatterTrust{env: env, decided: map[string]error{}, hashed: map[string]string{}}
+	return &formatterTrust{env: env, decided: map[[2]string]error{}, hashed: map[string]string{}}
 }
 
 // applyFormatterTrust is the trust kapi apply holds formatters to: the
@@ -88,7 +88,7 @@ func (t *formatterTrust) allow(configFile, name string, command, configs []strin
 		return err
 	}
 	key, digest := execTrustKey(configFile), project.ExecSurfaceDigest([]project.ExecSite{site})
-	memo := key + "\x00" + digest
+	memo := [2]string{key, digest}
 	if outcome, done := t.decided[memo]; done {
 		return outcome
 	}

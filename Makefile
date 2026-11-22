@@ -253,7 +253,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory plugins-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks check-image-user check-release-assets ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes check-delimiter-keys fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks check-image-user check-release-assets ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory plugins-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
@@ -566,7 +566,7 @@ _fw-test-integration: i18n-catalogs
 # nested go.mod. The plugin modules and bench/pseudobench sit outside go.work;
 # scripts/tagmatrix runs them with GOWORK=off.
 GO_LINT_FRAMEWORK := . host cli kapi
-GO_LINT_SCRIPTS   := scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/mkappcast scripts/projectionguard bench/pseudobench
+GO_LINT_SCRIPTS   := scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/keyguard scripts/mkappcast scripts/projectionguard bench/pseudobench
 GO_LINT_PLATFORM  := bowrain/core bowrain/plugin bowrain
 GO_LINT_DESKTOP   := apps/kapi-desktop
 GO_LINT_PLUGINS   := plugins/asr plugins/av plugins/check plugins/pdfium plugins/sat plugins/sourcecode plugins/vision
@@ -777,13 +777,14 @@ ci-lint-kapi-desktop: kapi-desktop-lint-deps ## Mirror the lint step of the CI `
 
 # One leg of the CI `lint-tags` matrix: the packages that hold a file the host
 # configuration leaves out, linted under configuration LINT_CONFIG, and the
-# edit and projection guards under the same configuration.
+# edit, projection and delimiter-key guards under the same configuration.
 ci-lint-tags: i18n-catalogs go-embed-placeholders ## Mirror one CI `lint-tags` leg (LINT_CONFIG=model|js-wasm|windows|linux-nocgo|darwin-nocgo)
 	$(REQUIRE_GOLANGCI_LINT)
 	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
 	@$(LINT_PDFIUM) $(TAGMATRIX_LINT) -config $(LINT_CONFIG) $(GO_LINT_ALL)
 	$(GO) run ./scripts/editguard -config $(LINT_CONFIG)
 	$(GO) run ./scripts/projectionguard -config $(LINT_CONFIG)
+	$(GO) run ./scripts/keyguard -config $(LINT_CONFIG)
 
 # Prints true when a change since LINT_BASE reaches a package a `lint-tags` leg
 # compiles, and false otherwise. A leg that prints false skips its lint.
@@ -974,9 +975,9 @@ audit-modules: check-module-boundaries ## Build each application module in isola
 # of the workspace's operation log, written only by core/projector. A write that
 # reaches one another way leaves a row a rebuild drops. The guard type-checks the
 # Apache modules and proves itself on fixtures first.
-# The edit and projection guards run under every build configuration by
-# default. The module-boundaries CI job runs the host one; each lint-tags leg
-# runs its own.
+# The edit, projection and delimiter-key guards run under every build
+# configuration by default. The module-boundaries CI job runs the host one;
+# each lint-tags leg runs its own.
 GUARD_CONFIGS ?= host model js-wasm windows linux-nocgo darwin-nocgo
 
 check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
@@ -990,6 +991,16 @@ check-projection-writes: i18n-catalogs ## Guard: only the projector writes a pro
 check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reaches a file only where scripts/editguard lists it
 	@$(GO) run ./scripts/editguard -self-test
 	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/editguard -config $$c || exit 1; done
+
+# A map key joined from parts with a delimiter (a + "\x00" + b) gives two
+# different tuples one key when a part holds the delimiter. The guard
+# type-checks the Apache modules, reports each such key, and points at a
+# struct or array key instead; a persisted identity is exempt where it is
+# built, with //keyguard:persisted and where it is stored. It proves itself
+# on fixtures first.
+check-delimiter-keys: i18n-catalogs go-embed-placeholders ## Guard: no map key is joined from parts with a delimiter
+	@$(GO) run ./scripts/keyguard -self-test
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/keyguard -config $$c || exit 1; done
 
 # A block stores its content as peer editions in Block.Editions and lists the
 # editions its document holds in Block.Native (docs/internals/edit-model.md,
@@ -3417,7 +3428,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks check-image-user check-release-assets warm-build-cache workspace-paths test-parallel \
+        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes check-delimiter-keys fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks check-image-user check-release-assets warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

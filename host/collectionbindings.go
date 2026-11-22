@@ -22,8 +22,8 @@ type bindingGroup struct {
 	// Point is the place in the context space this group's files sit at, as one
 	// representative of them: every file in the group resolves to the same
 	// governance, so re-resolving through any of them yields the group's voice
-	// and terms. The zero point is the project's default one — either because
-	// nothing claimed these files, or because what did resolves to exactly the
+	// and terms. The zero point is the project's default one, either because
+	// nothing claimed these files or because what did resolves to exactly the
 	// defaults.
 	Point project.GovernancePoint
 	// Inputs are the group's source files, in the order they were given.
@@ -139,9 +139,9 @@ func (a *App) groupInputsByGovernance(cmd Command, proj *project.KapiProject, pr
 }
 
 // hasCollectionContext reports whether anything in the recipe places content
-// somewhere in the context space — a collection's channel, or a content item's
-// own. Nothing to split on when nothing does, which is the answer that keeps an
-// ordinary recipe on its single, ungrouped run.
+// somewhere in the context space: a collection's channel, or a content item's
+// own. When nothing does, there is nothing to split on, and an ordinary recipe
+// keeps its single, ungrouped run.
 func hasCollectionContext(proj *project.KapiProject) bool {
 	for i := range proj.Collections {
 		if proj.Collections[i].Channel != "" {
@@ -159,8 +159,8 @@ func hasCollectionContext(proj *project.KapiProject) bool {
 // bindingKey is the identity of resolved governance: two files with equal keys
 // are governed identically and belong in one group.
 //
-// The key is what the point resolves to — the profile, the voice, the terms and
-// the channel — not the reference that selected them. Channel counts because it
+// The key is what the point resolves to (the profile, the voice, the terms and
+// the channel), not the reference that selected them. Channel counts because it
 // selects an override inside the profile, so one voice on two channels is two
 // voices in practice. The profile counts because the store answers a profile by
 // its name: two profiles binding nothing in the recipe still resolve different
@@ -188,16 +188,14 @@ func bindingKey(rc *project.ResolvedGovernance) string {
 // A run that fans out over locales resolves at (point, locale) rather than once
 // for the whole run, because a term rule pairs a source term with the wording
 // approved for THIS target (terms.Concept.PreferredTerm). Resolved before the
-// fan-out, with no locale to ask about, a set holds the do-not-translate
-// concepts alone, and every producer in the run is handed that. The staleness
-// gate resolves per locale (host/verify_staleness.go), so resolving the same
-// way here is also what lets the gate recompute a context fingerprint over the
-// rules the producer had.
+// fan-out, with no locale to ask about, a set would hold only the
+// do-not-translate concepts. The staleness gate resolves per locale
+// (host/verify_staleness.go), so resolving the same way here lets the gate
+// recompute a context fingerprint over the rules the producer had.
 //
 // The cache is keyed on the point and the locale, so a run with many groups and
 // many locales pays one resolution per distinct pair. at is safe for concurrent
-// use: a convergence pass fans its locales out over workers, and each worker
-// asks for its own.
+// use, since a convergence pass fans its locales out over workers.
 type localeBindings struct {
 	app         *App
 	cmd         Command
@@ -205,7 +203,7 @@ type localeBindings struct {
 	projectPath string
 
 	mu    sync.Mutex
-	cache map[string]*ProjectBindings
+	cache map[[4]string]*ProjectBindings
 }
 
 // newLocaleBindings builds the resolver a run keeps for its whole fan-out.
@@ -215,7 +213,7 @@ func (a *App) newLocaleBindings(cmd Command, proj *project.KapiProject, projectP
 		cmd:         cmd,
 		proj:        proj,
 		projectPath: projectPath,
-		cache:       map[string]*ProjectBindings{},
+		cache:       map[[4]string]*ProjectBindings{},
 	}
 }
 
@@ -223,7 +221,7 @@ func (a *App) newLocaleBindings(cmd Command, proj *project.KapiProject, projectP
 // first ask. A nil result is an answer and is cached with the rest: the project
 // carries no bindings at all.
 func (l *localeBindings) at(point project.GovernancePoint, targetLang string) (*ProjectBindings, error) {
-	key := strings.Join([]string{point.Profile, point.Collection, point.Path, targetLang}, "\x00")
+	key := [4]string{point.Profile, point.Collection, point.Path, targetLang}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if b, ok := l.cache[key]; ok {

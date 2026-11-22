@@ -1214,7 +1214,7 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "false"
-          modules: ". host cli scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/mkappcast scripts/projectionguard"
+          modules: ". host cli scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/keyguard scripts/mkappcast scripts/projectionguard"
       - uses: ./.github/actions/golangci-cache
       - uses: ./.github/actions/golangci
       - name: Lint the scripts modules
@@ -1781,6 +1781,8 @@ jobs:
         run: make check-projection-writes GUARD_CONFIGS=host
       - name: Assert a document reaches a file only where the edit guard lists it
         run: make check-edit-writes GUARD_CONFIGS=host
+      - name: Assert no map key is joined from parts with a delimiter
+        run: make check-delimiter-keys GUARD_CONFIGS=host
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:

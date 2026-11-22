@@ -11,18 +11,16 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// EdgeReader and NodeFinder are the read surface these queries traverse — narrow
-// slices of graph.GraphStore that the local SQLite store and the server's
-// Postgres store both satisfy. The queries below are written once against them,
-// which is what "the same query shapes answer locally and on the server" means
-// concretely: not two implementations agreeing by convention, but one
-// implementation.
+// EdgeReader and NodeFinder are the read surface these queries traverse. They
+// are narrow slices of graph.GraphStore that the local SQLite store and the
+// server's Postgres store both satisfy. The queries below are written once
+// against them, so one implementation answers locally and on the server.
 type EdgeReader interface {
 	EdgesOf(ctx context.Context, nodeID string, direction graph.Direction, labels ...string) ([]*graph.Edge, error)
 }
 
-// NodeFinder finds nodes by label and property equality — the shape a dimension
-// filter takes, since dimensions are fields.
+// NodeFinder finds nodes by label and property equality. A dimension filter
+// takes that shape, since dimensions are fields.
 type NodeFinder interface {
 	FindNodes(ctx context.Context, label string, properties map[string]string) ([]*graph.Node, error)
 }
@@ -49,14 +47,14 @@ type Use struct {
 // filter pins the dimensions the caller cares about; an empty dimension is
 // "any". Its workspace also selects the concept node, so a local project
 // (workspace empty) reaches its own vocabulary and a connected one reaches the
-// workspace's. Pinning the project is how the same call serves a project-scoped
-// surface, and leaving it free is how it serves a workspace rollup.
+// workspace's. A pinned project serves a project-scoped surface, and a free one
+// serves a workspace rollup.
 //
-// This is the query the blocks×terms join cannot express on its own: the join
-// reads a block's collection as a column, while here a collection is a node the
-// traversal reaches, so the same walk extends to relationships a two-table join
-// has no shape for. For one concept in one project it returns the same set as
-// the join, which is what makes the two answers checkable against each other.
+// The blocks×terms join reads a block's collection as a column. Here a
+// collection is a node the traversal reaches, so the walk extends to
+// relationships a two-table join cannot express. For one concept in one
+// project it returns the same set as the join, so the two answers can be
+// checked against each other.
 func Uses(ctx context.Context, r EdgeReader, filter Scope, conceptID string) ([]Use, error) {
 	if r == nil {
 		return nil, errors.New("contextgraph: no graph store")
@@ -67,10 +65,11 @@ func Uses(ctx context.Context, r EdgeReader, filter Scope, conceptID string) ([]
 		return nil, fmt.Errorf("contextgraph: uses_term edges of %q: %w", conceptID, err)
 	}
 
-	seen := map[string]bool{}
+	type useKey struct{ scope, contentKey, collection string }
+	seen := map[useKey]bool{}
 	var out []Use
 	add := func(s Scope, contentKey, collection string) {
-		key := s.Key() + "\x00" + contentKey + "\x00" + collection
+		key := useKey{s.Key(), contentKey, collection}
 		if seen[key] {
 			return
 		}
@@ -124,8 +123,8 @@ func Uses(ctx context.Context, r EdgeReader, filter Scope, conceptID string) ([]
 //
 // It is two hops through one workspace-scoped concept node, which is exactly
 // why the concept is not per-project. There is no project→project edge to
-// follow and there never will be — projects relate by co-occurrence through the
-// vocabulary they share, so the answer is the distinct scopes on the far side
+// follow. Projects relate by co-occurrence through the vocabulary they
+// share, so the answer is the distinct scopes on the far side
 // of the concept's uses_term edges. The stream dimension is dropped: a project
 // that uses a concept on one stream uses it.
 func ProjectsUsingConcept(ctx context.Context, r EdgeReader, filter Scope, conceptID string) ([]Scope, error) {
@@ -159,7 +158,7 @@ func ProjectsUsingConcept(ctx context.Context, r EdgeReader, filter Scope, conce
 // language, naming the term that was used and how often.
 //
 // It is what the uses_term edge holds, read back. The graph records the
-// relationship, not the passage — a reader who wants the words asks the content
+// relationship, not the passage. A reader who wants the words asks the content
 // store for the block this names.
 type ConceptUse struct {
 	Scope       Scope  `json:"scope"`
@@ -174,6 +173,9 @@ type ConceptUse struct {
 	Discouraged bool   `json:"discouraged,omitempty"`
 	Occurrences int    `json:"occurrences"`
 }
+
+// termLocale is a term and the locale it is written in.
+type termLocale struct{ term, locale string }
 
 // TermUse is one of a concept's terms as one project actually uses it.
 //
@@ -195,8 +197,8 @@ type TermUse struct {
 // there, in which collections, and which of the concept's terms were used.
 //
 // ProjectsUsingConcept answers WHICH projects; this answers how much and which
-// words, off the same two hops — the counts a reader wants are already on the
-// edges that walk crosses, so asking for them costs nothing extra.
+// words, off the same two hops. The counts are already on the edges that walk
+// crosses, so asking for them costs nothing extra.
 type ProjectUse struct {
 	Scope       Scope    `json:"scope"`
 	Blocks      int      `json:"blocks"`
@@ -205,7 +207,7 @@ type ProjectUse struct {
 	// Status and Discouraged are how the concept stands HERE: a project that
 	// reached for a discouraged spelling is discouraged in this project, whatever
 	// the workspace list says about the concept in general. Where the project
-	// used several spellings, the discouraged one decides — a rule a writer is
+	// used several spellings, the discouraged one decides: a rule a writer is
 	// breaking outranks a word they may keep using.
 	Status      string       `json:"status,omitempty"`
 	Discouraged bool         `json:"discouraged,omitempty"`
@@ -216,18 +218,16 @@ type ProjectUse struct {
 // UsesByProject answers the workspace question with its numbers attached: which
 // projects use this concept, how much, where, and in which words.
 //
-// It is ProjectsUsingConcept's traversal — in over the workspace-scoped concept
-// node's uses_term edges — reading each edge rather than only the project it
-// arrived from. The stream is dropped from the rollup for the same reason it is
-// dropped there (a project that uses a concept on one stream uses it) and kept
-// on each use, which names a place.
+// It walks as ProjectsUsingConcept does, in over the workspace-scoped concept
+// node's uses_term edges, and reads each edge rather than only the project it
+// came from. The rollup drops the stream, as ProjectsUsingConcept does, and
+// each use keeps it.
 //
-// at is the point the answer is resolved at — an instant, and the validity tags
-// that go with it — so a term whose window has not opened, or whose market this
-// is not, drops out of the project's answer. That is what makes "is it
-// discouraged" answerable as "is it discouraged HERE": the standing is a
-// property of the concept at a coordinate, never of the word. The zero instant
-// is the as-declared view: every use, window unapplied.
+// at is the point the answer is resolved at: an instant and its validity tags.
+// A term whose window has not opened, or whose market this is not, drops out
+// of the project's answer. So the standing is a property of the concept at a
+// coordinate, never of the word. The zero instant is the as-declared view:
+// every use, window unapplied.
 func UsesByProject(ctx context.Context, r EdgeReader, filter Scope, conceptID string, at graph.Scope) ([]ProjectUse, error) {
 	if r == nil {
 		return nil, errors.New("contextgraph: no graph store")
@@ -258,10 +258,10 @@ type projectUseAggregator struct {
 	byScope map[Scope]*ProjectUse
 	blocks  map[Scope]map[string]bool
 	colls   map[Scope]map[string]bool
-	terms   map[Scope]map[string]*TermUse
+	terms   map[Scope]map[termLocale]*TermUse
 	// termBlocks counts distinct blocks per term, which is not the number of
 	// uses: one block using a term four times is one block.
-	termBlocks map[Scope]map[string]map[string]bool
+	termBlocks map[Scope]map[termLocale]map[string]bool
 }
 
 func newProjectUseAggregator() *projectUseAggregator {
@@ -269,8 +269,8 @@ func newProjectUseAggregator() *projectUseAggregator {
 		byScope:    map[Scope]*ProjectUse{},
 		blocks:     map[Scope]map[string]bool{},
 		colls:      map[Scope]map[string]bool{},
-		terms:      map[Scope]map[string]*TermUse{},
-		termBlocks: map[Scope]map[string]map[string]bool{},
+		terms:      map[Scope]map[termLocale]*TermUse{},
+		termBlocks: map[Scope]map[termLocale]map[string]bool{},
 	}
 }
 
@@ -283,8 +283,8 @@ func (a *projectUseAggregator) add(block NodeID, e *graph.Edge) {
 		a.order = append(a.order, project)
 		a.blocks[project] = map[string]bool{}
 		a.colls[project] = map[string]bool{}
-		a.terms[project] = map[string]*TermUse{}
-		a.termBlocks[project] = map[string]map[string]bool{}
+		a.terms[project] = map[termLocale]*TermUse{}
+		a.termBlocks[project] = map[termLocale]map[string]bool{}
 	}
 
 	count := edgeCount(e)
@@ -304,7 +304,7 @@ func (a *projectUseAggregator) add(block NodeID, e *graph.Edge) {
 	status := e.Properties[PropTermStatus]
 	discouraged := model.TermStatus(status).Discouraged()
 	if term != "" {
-		key := term + "\x00" + e.Properties[PropTermLocale]
+		key := termLocale{term, e.Properties[PropTermLocale]}
 		tu, seen := a.terms[project][key]
 		if !seen {
 			tu = &TermUse{
@@ -363,7 +363,8 @@ func (a *projectUseAggregator) rollup() []ProjectUse {
 	return out
 }
 
-// standing reduces the terms one project used to how the concept stands there.
+// standing reduces the terms one project used into how the concept stands
+// there.
 //
 // A discouraged spelling decides, because that is the finding a writer has to
 // act on: a project using both "sign in" and "log in" is a project still saying
@@ -430,8 +431,8 @@ type Placement struct {
 // leaves free.
 //
 // at.At selects the instant governance is resolved at, so a binding whose
-// profile window has closed drops out — the same half-open window the recipe
-// declares. The zero instant is the as-declared view: every binding, window
+// profile window has closed drops out. The window is the half-open one the
+// recipe declares. The zero instant is the as-declared view: every binding, window
 // unapplied.
 func CollectionsAtCoordinate(ctx context.Context, r EdgeReader, filter Scope, profile, channel string, at graph.Scope) ([]Placement, error) {
 	if r == nil {

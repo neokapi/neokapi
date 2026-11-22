@@ -225,16 +225,16 @@ type commitPass struct {
 // appear.
 func (c *commitCheck) plan(in commitProject, changes []change.EditionChange) ([]*commitPass, error) {
 	var passes []*commitPass
-	byKey := map[string]*commitPass{}
+	byKey := map[[2]string]*commitPass{}
 	for i, ch := range changes {
 		file, err := commitDocFile(in.root, ch.Ref.Doc)
 		if err != nil {
 			return nil, err
 		}
 		target, locale := editionLanguage(ch, in.source)
-		key := file + "\x00" + string(locale)
+		key := [2]string{file, string(locale)}
 		if !target {
-			key = file + "\x00"
+			key = [2]string{file, ""}
 		}
 		p := byKey[key]
 		if p == nil {
@@ -450,7 +450,7 @@ func (c *commitCheck) fingerprint(in commitProject, res *checkResolution, passes
 	}
 	current := &contextFingerprints{
 		app: c.app, cmd: c.cmd, proj: in.proj, root: in.root, store: res.voice.store,
-		cache: map[string]governingContext{}, source: in.source,
+		cache: map[[3]string]governingContext{}, source: in.source,
 	}
 	// The voice and the terms at a point follow from the profile and the
 	// channel governing it, as the check's own resolvers assume, so documents

@@ -227,13 +227,13 @@ type recordPair struct {
 	// answers is keyed by (point, target text): one point can answer a source
 	// twice, two keys of one catalog holding the same English and different
 	// Norwegian, and two points can give the same answer.
-	answers map[string]*recordAnswer
+	answers map[[2]string]*recordAnswer
 	origin  memory.Origin
 }
 
 // answerKey is the identity of one answer: the point that approved it and the
 // wording it approved.
-func answerKey(point, text string) string { return point + "\x00" + text }
+func answerKey(point, text string) [2]string { return [2]string{point, text} }
 
 // contested reports whether the record gives this source more than one answer.
 // Two points giving the SAME wording are not a disagreement, the pick does not
@@ -410,7 +410,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 
 	stamps := loadRecordDigests(ctx, db)
 	next := make(map[string]string, len(units))
-	pairs := map[string]*recordPair{}
+	pairs := map[[2]string]*recordPair{}
 	order := 0
 
 	for _, u := range units {
@@ -496,7 +496,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 					locale:     u.locale,
 					sourceRuns: srcRuns,
 					unit:       recordChainKey(b),
-					answers:    map[string]*recordAnswer{},
+					answers:    map[[2]string]*recordAnswer{},
 					origin: memory.Origin{
 						Source:    recordOriginSource,
 						Key:       u.targetRel,
@@ -621,11 +621,11 @@ func (a *App) recordSettlement(ctx context.Context, db *projectdb.DB, proj *proj
 // already holds with the same identity and the same wording is asserted and
 // left alone: writing it again would move only the instants it records about
 // its own history, and those may have arrived with an import.
-func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs map[string]*recordPair, sourceLocale model.LocaleID, asserted map[string]bool, res *RecordAbsorbResult) error {
+func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs map[[2]string]*recordPair, sourceLocale model.LocaleID, asserted map[string]bool, res *RecordAbsorbResult) error {
 	if len(pairs) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(pairs))
+	keys := make([][2]string, 0, len(pairs))
 	for k := range pairs {
 		keys = append(keys, k)
 	}
@@ -894,7 +894,7 @@ type priorSourceIndex struct {
 	indexed map[model.EditionKey]bool
 	byRev   map[string][]model.Run
 	byHash  map[string][]model.Run
-	byUnit  map[string][]model.Run
+	byUnit  map[[2]string][]model.Run
 }
 
 // newPriorSourceIndex indexes the sources the store holds. source is the
@@ -966,7 +966,7 @@ func (p *priorSourceIndex) runsForUnit(sourceRel, id string) ([]model.Run, bool)
 // document it was extracted from and its in-file id. It is what
 // project.BlockStoreHash keys a stored block on, minus the source text, which
 // is exactly the part a rewrite moves.
-func priorUnitKey(sourceRel, id string) string { return sourceRel + "\x00" + id }
+func priorUnitKey(sourceRel, id string) [2]string { return [2]string{sourceRel, id} }
 
 func (p *priorSourceIndex) load() {
 	if p.loaded {
@@ -984,8 +984,8 @@ func (p *priorSourceIndex) load() {
 // stall them. Any failure yields empty indexes, the caller then absorbs no
 // differently than it did before the store existed, rather than acting on half
 // a scan.
-func (p *priorSourceIndex) scan() (sources [][]model.Run, byHash, byUnit map[string][]model.Run) {
-	byHash, byUnit = map[string][]model.Run{}, map[string][]model.Run{}
+func (p *priorSourceIndex) scan() (sources [][]model.Run, byHash map[string][]model.Run, byUnit map[[2]string][]model.Run) {
+	byHash, byUnit = map[string][]model.Run{}, map[[2]string][]model.Run{}
 	store := p.store
 	if store == nil {
 		return nil, byHash, byUnit
@@ -998,7 +998,7 @@ func (p *priorSourceIndex) scan() (sources [][]model.Run, byHash, byUnit map[str
 	translatable := true
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &translatable}) {
 		if berr != nil {
-			return nil, map[string][]model.Run{}, map[string][]model.Run{}
+			return nil, map[string][]model.Run{}, map[[2]string][]model.Run{}
 		}
 		// model.RunsText, the same projection model.Block.SourceText makes, so a
 		// stored block hashes to the number a decision recorded for it.
@@ -1130,7 +1130,7 @@ func recordUnits(ctx context.Context, a *App, proj *project.KapiProject, pctx *p
 		return nil, fmt.Errorf("resolve content: %w", err)
 	}
 	var units []recordUnit
-	points := map[string]string{}
+	points := map[[2]string]string{}
 	docs := a.documentIndexOrEmpty(ctx, root)
 	for _, rf := range resolved {
 		if rf.Item == nil || rf.Item.Target == "" {
@@ -1180,10 +1180,10 @@ func recordUnits(ctx context.Context, a *App, proj *project.KapiProject, pctx *p
 // the point a fill asks from are one resolution rather than two that have to
 // agree. Cached per collection+item channel, because a collection of a thousand
 // files resolves to one point.
-func (a *App) approvalPoint(proj *project.KapiProject, cache map[string]string, rf project.ResolvedFile) (string, error) {
-	channel := rf.Collection
+func (a *App) approvalPoint(proj *project.KapiProject, cache map[[2]string]string, rf project.ResolvedFile) (string, error) {
+	channel := [2]string{rf.Collection}
 	if rf.Item != nil && rf.Item.Channel != "" {
-		channel += "\x00" + rf.Item.Channel
+		channel[1] = rf.Item.Channel
 	}
 	if p, ok := cache[channel]; ok {
 		return p, nil
@@ -1224,14 +1224,15 @@ func recordDigest(u recordUnit) (string, bool, error) {
 // occurrences of the same string in the same shape are one pair with two votes
 // rather than two competing entries.
 func recordSourceKey(runs []model.Run) string {
+	//keyguard:persisted hashed into the id of the content memory entry an absorbed record writes (recordEntryID)
 	return memory.NormalizeText(model.RunsStructuralText(runs)) + "\x00" +
 		memory.NormalizeText(model.FlattenRuns(runs))
 }
 
 // recordKey scopes a source to one locale: the votes are per locale, because the
 // answers are.
-func recordKey(locale model.LocaleID, runs []model.Run) string {
-	return string(locale) + "\x00" + recordSourceKey(runs)
+func recordKey(locale model.LocaleID, runs []model.Run) [2]string {
+	return [2]string{string(locale), recordSourceKey(runs)}
 }
 
 // recordEntryPrefix marks an id the record absorber minted, and nothing else

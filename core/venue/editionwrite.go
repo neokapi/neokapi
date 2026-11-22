@@ -5,10 +5,10 @@ import "github.com/neokapi/neokapi/core/ref"
 // EditionWrite is what a push says about how a translation came to be: the
 // last write of the edition the project's block history records. It rides
 // beside the decisions and decides nothing. It carries the two facts a venue
-// grades a translation by and the checkout alone holds once a run on it has
-// written one: the source the translation was made from, which grades it
-// stale when that source moves, and who wrote it, which separation of duties
-// asks of a verdict on it.
+// grades a translation by, which only the checkout holds once a run has
+// written one. The first is the source the translation was made from, which
+// grades it stale when that source moves. The second is who wrote it, which
+// separation of duties asks of a verdict on it.
 type EditionWrite struct {
 	// ItemName is the item whose durable identity namespace Unit lives in.
 	ItemName string `json:"item"`
@@ -100,6 +100,7 @@ func (w EditionWrite) KnowsNoBasis() bool {
 // Edition names the translation the write is about within its item: the unit
 // and the variant.
 func (w EditionWrite) Edition() string {
+	//keyguard:persisted the key of the sync cache's writes_sent map (host/venue/project/synccache.go), written to disk
 	return w.Unit + "\x00" + w.Variant
 }
 

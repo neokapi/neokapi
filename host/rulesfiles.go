@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,12 +26,14 @@ import (
 //
 // kapi writes the rules that hold in a folder into the AGENTS.md and CLAUDE.md
 // there: the project root for the rules that hold everywhere, and one folder
-// per collection whose rules differ from the root's. Each file states only what
+// per collection whose rules differ from the root's. Each file states what
 // holds in its folder: the voice in force, what to write and what not, the
-// wording a rule held elsewhere leaves as it is here, the notes a person kept
-// that hold there, and one line pointing to `kapi check`. The context stays the source; the files are a projection of
-// it, refreshed when it changes, and `kapi check` stays the gate.
-//
+// wording a rule held elsewhere leaves as it is here, the notes a person kept,
+// and a line pointing to `kapi check`.
+
+// The files are a projection of the context, refreshed when it changes, and
+// `kapi check` stays the gate.
+
 // kapi owns one delimited section of each file (core/agentrules) and leaves
 // the rest to the person who wrote it. A file kapi created and no longer needs
 // is removed only when nothing but its section is in it. The output is
@@ -755,9 +758,14 @@ func deltaSection(base, here rulesPointAnswer, folder map[string]bool) rulesSect
 // naming every place.
 func mergeKeep(in []ContextElsewhere) []ContextElsewhere {
 	var out []ContextElsewhere
-	index := map[string]int{}
+	type keepLine struct{ keep, instead, locale string }
+	index := map[keepLine]int{}
 	for _, e := range in {
-		key := strings.ToLower(strings.Join(e.Keep, "\x00")) + "|" + fold(e.Instead) + "|" + e.Locale
+		keep := make([]string, len(e.Keep))
+		for i, k := range e.Keep {
+			keep[i] = strconv.Quote(strings.ToLower(k))
+		}
+		key := keepLine{strings.Join(keep, ","), fold(e.Instead), e.Locale}
 		if i, ok := index[key]; ok {
 			out[i].HeldIn = dedupeStrings(append(out[i].HeldIn, e.HeldIn...))
 			continue

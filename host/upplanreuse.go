@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
@@ -40,7 +39,7 @@ type planReuse struct {
 	bindings   *localeBindings
 	// producers caches each (locale, point)'s reusers. A nil entry is a chain
 	// that could not be built, whose units stay priced as provider work.
-	producers map[string][]tool.StoredTargetReuser
+	producers map[[5]string][]tool.StoredTargetReuser
 	cleanups  []func()
 }
 
@@ -67,7 +66,7 @@ func (a *App) newPlanReuse(ctx context.Context, basis upPlanBasis, proj *project
 		fl:         fl,
 		store:      basis.store,
 		bindings:   a.newLocaleBindings(cmd, proj, basis.projectPath),
-		producers:  map[string][]tool.StoredTargetReuser{},
+		producers:  map[[5]string][]tool.StoredTargetReuser{},
 	}
 }
 
@@ -128,7 +127,7 @@ func (p *planReuse) storedTarget(ctx context.Context, u VerifyUnit, b *model.Blo
 func (p *planReuse) producersFor(u VerifyUnit) []tool.StoredTargetReuser {
 	point := p.app.unitGovernancePoint(p.projectDir, u)
 	redaction := p.pctx.Project.RedactionForPath(redactionPath(p.projectDir, u.SourcePath))
-	key := strings.Join([]string{u.Locale, point.Profile, point.Collection, point.Path, redaction.At}, "\x00")
+	key := [5]string{u.Locale, point.Profile, point.Collection, point.Path, redaction.At}
 	if r, ok := p.producers[key]; ok {
 		return r
 	}

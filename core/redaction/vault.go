@@ -47,9 +47,9 @@ type Vault interface {
 	All() []RedactedValue
 }
 
-func vaultKey(doc, blockID, token string) string {
-	return doc + "\x00" + blockID + "\x00" + token
-}
+// vaultKey is what a vault files a value under: its document, block and
+// token.
+type vaultKey struct{ doc, blockID, token string }
 
 // ValuesForBlock returns every stored value belonging to one block of one
 // document. Used for text-based restore, which matches by visible
@@ -69,19 +69,19 @@ func ValuesForBlock(v Vault, doc, blockID string) []RedactedValue {
 // secure-translate flow.
 type MemoryVault struct {
 	mu sync.RWMutex
-	m  map[string]RedactedValue
+	m  map[vaultKey]RedactedValue
 }
 
 // NewMemoryVault returns an empty in-process vault.
 func NewMemoryVault() *MemoryVault {
-	return &MemoryVault{m: make(map[string]RedactedValue)}
+	return &MemoryVault{m: make(map[vaultKey]RedactedValue)}
 }
 
 // Put stores a value.
 func (v *MemoryVault) Put(rv RedactedValue) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	v.m[vaultKey(rv.Doc, rv.BlockID, rv.Token)] = rv
+	v.m[vaultKey{rv.Doc, rv.BlockID, rv.Token}] = rv
 	return nil
 }
 
@@ -89,7 +89,7 @@ func (v *MemoryVault) Put(rv RedactedValue) error {
 func (v *MemoryVault) Get(doc, blockID, token string) (RedactedValue, bool) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
-	rv, ok := v.m[vaultKey(doc, blockID, token)]
+	rv, ok := v.m[vaultKey{doc, blockID, token}]
 	return rv, ok
 }
 
@@ -279,7 +279,7 @@ func (f *FileVault) Flush() error {
 // Close flushes and is provided for callers that prefer defer Close().
 func (f *FileVault) Close() error { return f.Flush() }
 
-func sortedValues(m map[string]RedactedValue) []RedactedValue {
+func sortedValues(m map[vaultKey]RedactedValue) []RedactedValue {
 	out := make([]RedactedValue, 0, len(m))
 	for _, rv := range m {
 		out = append(out, rv)
