@@ -13,16 +13,15 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// An MDX block's name is its structural address, exactly as in markdown — the
+// An MDX block's name is its structural address, exactly as in markdown: the
 // heading trail it sits under plus the structures it sits inside. See
-// core/model/structural.go for why a positional counter is worthless as an
-// identity signal, and core/formats/markdown/naming.go for the scheme.
+// core/model/structural.go and core/formats/markdown/naming.go for the scheme.
 //
-// MDX has one hazard markdown does not: it reads a document as several spans,
-// delegating each prose span to its own markdown.Reader and handling the JSX and
-// ESM regions between them itself. All of them share one markdown.NamingState,
-// and these tests are what proves it — without sharing, every span would restart
-// the heading trail and two paragraphs of one document would both be named "p".
+// MDX reads a document as several spans. Each prose span goes to its own
+// markdown.Reader, and MDX handles the JSX and ESM regions between them. All of
+// them share one markdown.NamingState, and these tests prove it. Without the
+// shared state, every span would restart the heading trail and two paragraphs
+// of one document would both be named "p".
 
 // mdxNames reads src with content surfacing on and maps each block's source text
 // to its name.
@@ -33,6 +32,7 @@ func mdxNames(t *testing.T, src string) map[string]string {
 	r.cfg.SetExtractNonTranslatableContent(true)
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 	r.SetSkeletonStore(store)
 	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
 		Reader:       io.NopCloser(bytes.NewReader([]byte(src))),
@@ -62,6 +62,7 @@ func mdxNamesInOrder(t *testing.T, src string) []string {
 	r.cfg.SetExtractNonTranslatableContent(true)
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 	r.SetSkeletonStore(store)
 	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
 		Reader:       io.NopCloser(bytes.NewReader([]byte(src))),
@@ -121,7 +122,7 @@ Then restart.
 	assert.Equal(t, "getting-started/install/p#2", got["Then restart."])
 }
 
-// Property 1 — a deletion in one section does not touch names in another, across
+// Property 1: a deletion in one section does not touch names in another, across
 // the span boundaries MDX introduces.
 func TestMDXNames_SurviveADeletionInAnotherSection(t *testing.T) {
 	const v1 = `## Install
@@ -163,7 +164,7 @@ Delta
 	assert.Equal(t, before["Delta"], after["Delta"])
 }
 
-// Property 2 — the same honest gap as markdown: two paragraphs in one section
+// Property 2: the same honest gap as markdown: two paragraphs in one section
 // are separated only by an ordinal, so deleting the first re-addresses the
 // second. Pinned so the boundary is a known one. See
 // markdown.TestMarkdownNames_ShiftWithinTheSameSection for why content is not an
@@ -177,7 +178,7 @@ func TestMDXNames_ShiftWithinTheSameSection(t *testing.T) {
 		"a later sibling in the same section still shifts")
 }
 
-// Property 3 — editing a heading re-addresses what is beneath it, including the
+// Property 3: editing a heading re-addresses what is beneath it, including the
 // MDX regions in that section. That is what a structural edit means.
 func TestMDXNames_ChangeWhenTheHeadingChanges(t *testing.T) {
 	before := mdxNames(t, "## Install\n\n<Note>Aside.</Note>\n")
@@ -192,7 +193,7 @@ func TestMDXNames_ChangeWhenTheHeadingChanges(t *testing.T) {
 	assert.Equal(t, "h", after["Installation"])
 }
 
-// Property 4 — identical text in one section gets distinct names, and it must
+// Property 4: identical text in one section gets distinct names, and it must
 // stay distinct across the span boundary between them. This is the one that
 // fails outright if the spans do not share a naming state: both would be "p".
 func TestMDXNames_AreUniqueAcrossSpans(t *testing.T) {
@@ -212,7 +213,7 @@ See below.
 
 	seen := map[string]bool{}
 	for _, n := range names {
-		assert.False(t, seen[n], "duplicate block name %q — spans are not sharing a naming state", n)
+		assert.False(t, seen[n], "duplicate block name %q: spans are not sharing a naming state", n)
 		assert.NotEmpty(t, n)
 		seen[n] = true
 	}
@@ -225,7 +226,7 @@ See below.
 	}, names)
 }
 
-// Property 5 — reading the same bytes twice gives the same names.
+// Property 5: reading the same bytes twice gives the same names.
 func TestMDXNames_AreStableAcrossReads(t *testing.T) {
 	const doc = `import {Note} from './note'
 

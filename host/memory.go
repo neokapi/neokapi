@@ -1,10 +1,13 @@
 package host
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -56,9 +59,8 @@ func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, func(), error
 // operates on. An explicit --name/--file/--local flag always wins and selects a
 // standalone store. Otherwise, inside a project, the project's own store is
 // selected, so `kapi memory lookup`/`import`/`stats` see the same content memory
-// `kapi extract` pre-fills from and `kapi merge` writes back to — without it,
-// those commands silently hit an empty ./memory.db. Outside a project it falls
-// back to ./memory.db. This mirrors ResolveTermsStore.
+// `kapi extract` pre-fills from and `kapi merge` writes back to. Outside a
+// project it falls back to ./memory.db. This mirrors ResolveTermsStore.
 func (a *App) ResolveMemoryStore(cmd Command) (StoreSelection, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
@@ -97,9 +99,9 @@ var MemoryFileFormats = []string{"bundle", "tmx"}
 // extension) to the format `kapi memory import` should read path as.
 //
 // "auto" identifies the file; it never guesses. An extension it does not
-// recognise is an error, because reading an unidentified file as TMX yields
-// "Imported 0 entries" — success-shaped output for a file the importer could
-// not read at all.
+// recognise is an error, because reading an unidentified file as TMX would
+// report "Imported 0 entries" and exit 0 for a file the importer could not
+// read at all.
 func ResolveMemoryImportFormat(flag, path string) (string, error) {
 	if name := strings.ToLower(flag); name != "" && name != "auto" {
 		return name, nil
@@ -181,7 +183,7 @@ func importKMB(ctx context.Context, tm memory.Store, path string, file *kmb.File
 }
 
 // ExportKMB writes the whole content memory as a deterministic, lossless
-// .memory.json bundle — the native form for committing a content memory to git
+// .memory.json bundle: the native form for committing a content memory to git
 // and for re-seeding one exactly.
 func ExportKMB(ctx context.Context, tm memory.Store, w io.Writer) error {
 	return exportMemory(ctx, tm, w, kmb.Marshal)
@@ -224,47 +226,152 @@ func ParseLocaleList(raw string) []model.LocaleID {
 	return out
 }
 
-// ImportTMXFile imports a single TMX file (plain or .gz) into the content memory.
-// Uses ImportTMXLocalePairs when allPairs is true, otherwise single-pair import.
-func ImportTMXFile(ctx context.Context, tm memory.Store, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
-	f, err := os.Open(path)
+// TMXImport is one TMX file imported into a content memory.
+type TMXImport struct {
+	// Path is the TMX file, plain or .gz.
+	Path string
+	// Named is --source-locale as given, empty when it was not.
+	Named string
+	// StoreSource is the source language of the store the import writes to:
+	// App.StoreSourceLocale with nothing named.
+	StoreSource model.LocaleID
+	// Target is --target-locale, empty for every TUV.
+	Target string
+	// AllPairs imports every TUV, or those in Locales, as one multilingual
+	// entry per TU; Named, StoreSource and Target do not apply.
+	AllPairs bool
+	Locales  []model.LocaleID
+	// Note receives one line when the import reads its source in a language
+	// that differs from the store's in region only. Nil discards it.
+	Note io.Writer
+}
+
+// ImportTMXFile imports one TMX file into the content memory. With AllPairs
+// it keeps every TUV (ImportTMXLocalePairs). Otherwise each unit is imported
+// as a bilingual entry whose source language memory.ChooseSource picks:
+// --source-locale when given; else the store's source language when the unit
+// holds it; else the language the unit or the file declares when the unit
+// holds that. A unit the rule cannot use is skipped and counted by reason, a
+// file of which no unit is kept imports nothing and fails with the counts,
+// and region tags are never folded: an en-US unit is stored as en-US, and the
+// note says so.
+func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (memory.ImportCounts, error) {
+	f, err := os.Open(imp.Path)
 	if err != nil {
-		return 0, fmt.Errorf("open %s: %w", path, err)
+		return memory.ImportCounts{}, fmt.Errorf("open %s: %w", imp.Path, err)
 	}
 	defer f.Close()
 
 	var reader io.Reader = f
-	if strings.HasSuffix(strings.ToLower(path), ".gz") {
+	if strings.HasSuffix(strings.ToLower(imp.Path), ".gz") {
 		gz, err := gzip.NewReader(f)
 		if err != nil {
-			return 0, fmt.Errorf("gunzip %s: %w", path, err)
+			return memory.ImportCounts{}, fmt.Errorf("gunzip %s: %w", imp.Path, err)
 		}
 		defer gz.Close()
 		reader = gz
 	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return memory.ImportCounts{}, fmt.Errorf("read %s: %w", imp.Path, err)
+	}
 
 	opts := memory.ImportTMXOptions{
-		OriginKey:     filepath.Base(path),
+		OriginKey:     filepath.Base(imp.Path),
 		OriginAddedBy: "kapi memory import",
 		WarnFunc: func(msg string) {
 			fmt.Fprintf(os.Stderr, "warning: %s\n", msg)
 		},
-		// The CLI rebuilds the search/fuzzy side-tables itself — once, after the
-		// whole batch (import-dir) or the single file — via
-		// RebuildMemorySearchIndexes. Defer the per-session rebuild so a
-		// directory import of thousands of files does not rebuild N times.
+		// The CLI rebuilds the search and fuzzy side-tables itself, once,
+		// after the whole batch (import-dir) or the single file, with
+		// RebuildMemorySearchIndexes, so a directory of many files does not
+		// rebuild once per file.
 		SkipIndexRebuild: true,
 	}
-
-	if allPairs {
-		return memory.ImportTMXLocalePairs(ctx, tm, reader, locales, opts)
+	if imp.AllPairs {
+		n, err := memory.ImportTMXLocalePairs(ctx, tm, bytes.NewReader(data), imp.Locales, opts)
+		return memory.ImportCounts{Imported: n}, err
 	}
-	return memory.ImportTMXWithOptions(ctx, tm, reader,
-		model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
+
+	rule := memory.SourceRule{Store: imp.StoreSource}
+	if named := strings.TrimSpace(imp.Named); named != "" {
+		rule.Explicit = model.NormalizeLocale(model.LocaleID(named))
+	}
+	if imp.Target != "" {
+		rule.Target = model.NormalizeLocale(model.LocaleID(imp.Target))
+	}
+	file := filepath.Base(imp.Path)
+	counts, err := memory.ImportTMXWithRule(ctx, tm, bytes.NewReader(data), rule, opts)
+	if errors.Is(err, memory.ErrNoUsablePair) {
+		return counts, &ImportCountsError{Err: fmt.Errorf("%s: nothing was imported: %s", file, SkipSummary(counts, rule)), Counts: counts}
+	}
+	if err != nil {
+		return counts, err
+	}
+	if imp.Note != nil && rule.Explicit == "" {
+		for _, src := range slices.Sorted(maps.Keys(counts.Sources)) {
+			if src != rule.Store && rule.Store != "" && sameLanguage(src, rule.Store) {
+				fmt.Fprintf(imp.Note, "note: %d unit(s) of %s hold %s text and no %s text; they were imported as %s, which a lookup in %s does not match.\n",
+					counts.Sources[src], file, src, rule.Store, src, rule.Store)
+			}
+		}
+	}
+	return counts, nil
+}
+
+// ImportCountsError is an import that failed, carrying what it counted, so a
+// --json caller reads the counts beside the error.
+type ImportCountsError struct {
+	Err    error
+	Counts memory.ImportCounts
+}
+
+func (e *ImportCountsError) Error() string    { return e.Err.Error() }
+func (e *ImportCountsError) Unwrap() error    { return e.Err }
+func (e *ImportCountsError) ErrorFields() any { return e.Counts }
+
+// SkipSummary says how many units an import skipped, by reason, naming the
+// languages the rule looked for.
+func SkipSummary(c memory.ImportCounts, rule memory.SourceRule) string {
+	src := "the store's " + string(rule.Store) + " or the language the unit declares"
+	if rule.Explicit != "" {
+		src = string(rule.Explicit)
+	}
+	var parts []string
+	if c.NoSource > 0 {
+		parts = append(parts, fmt.Sprintf("%d unit(s) hold no %s text", c.NoSource, src))
+	}
+	if c.SameLanguage > 0 {
+		parts = append(parts, fmt.Sprintf("%d unit(s) would pair %s with itself", c.SameLanguage, rule.Target))
+	}
+	if c.Empty > 0 {
+		parts = append(parts, fmt.Sprintf("%d unit(s) hold no text", c.Empty))
+	}
+	if c.NoTarget > 0 {
+		if rule.Target != "" {
+			parts = append(parts, fmt.Sprintf("%d unit(s) hold no %s translation", c.NoTarget, rule.Target))
+		} else {
+			parts = append(parts, fmt.Sprintf("%d unit(s) hold no translation", c.NoTarget))
+		}
+	}
+	if len(parts) == 0 {
+		return "the file holds no translation units"
+	}
+	return strings.Join(parts, "; ") + ". Pass --source-locale with the language the units hold"
+}
+
+// sameLanguage reports whether a and b name one language, whatever their
+// regions or scripts.
+func sameLanguage(a, b model.LocaleID) bool {
+	base := func(l model.LocaleID) string {
+		s, _, _ := strings.Cut(string(model.NormalizeLocale(l)), "-")
+		return strings.ToLower(s)
+	}
+	return base(a) == base(b)
 }
 
 // RebuildMemorySearchIndexes restores the FTS5 search + fuzzy side-tables after a
-// bulk TMX import. ImportTMXWithOptions / ImportTMXLocalePairs use the bulk
+// bulk TMX import. ImportTMXWithRule / ImportTMXLocalePairs use the bulk
 // add path, which deliberately skips per-row FTS5 inserts (the dominant cost on
 // large corpora), leaving tm_variant_search / tm_variant_trigram empty until
 // they are rebuilt set-wise here. Without this, imported entries are invisible
@@ -345,18 +452,17 @@ var markupTokenRe = regexp.MustCompile(`\{/?=m\d+\}`)
 // WarnSuspectTokenEntries scans the TM for entries whose variants disagree on
 // their placeholder sets, in either representation:
 //
-//   - literal markup tokens in the text — e.g. a plain-text source paired with
-//     a target carrying {=m0} tokens. Such entries bake one format's runtime
+//   - literal markup tokens in the text, such as a plain-text source paired
+//     with a target carrying {=m0} tokens. Such entries bake one format's runtime
 //     projection into format-neutral text: matched from another surface, the
 //     tokens leak verbatim into the output (the class behind the docs
 //     "{=m0} Installer" leak).
-//   - inline-code *runs* — a variant that carries a Ph / PcOpen / PcClose / Sub
-//     its peers do not. That is a pair one side of which has already lost a
-//     placeholder, so leveraging it can only produce a translation with a hole
-//     in it. `recycle` refuses to fill from such an entry (see
-//     model.DiffRunCodes), which is a silent coverage loss unless the entry
-//     itself is repaired — hence the warning at ingest, where the seed author
-//     can still act on it.
+//   - inline-code *runs*: a variant that carries a Ph / PcOpen / PcClose / Sub
+//     its peers do not. One side of the pair has lost a placeholder, so
+//     leveraging it can only produce a translation with a hole in it.
+//     `recycle` refuses to fill from such an entry (see model.DiffRunCodes),
+//     so the warning comes at ingest, where the seed author can still repair
+//     the entry.
 //
 // The durable fix in both cases is a symmetric, run-structured entry.
 func WarnSuspectTokenEntries(ctx context.Context, tm memory.Store, out io.Writer) {

@@ -27,7 +27,7 @@ import (
 )
 
 // selfcheckPDF is a tiny one-page PDF embedded so `doctor` can confirm the
-// PDFium cgo backend actually loads and extracts text — a real failure mode
+// PDFium cgo backend actually loads and extracts text, a real failure mode
 // (missing/mismatched native lib) that a bare version print cannot catch.
 //
 //go:embed selfcheck.pdf
@@ -88,6 +88,7 @@ func serve() error {
 	if err != nil {
 		return fmt.Errorf("temp dir: %w", err)
 	}
+	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-pdfium.sock")
 	lis, err := net.Listen("unix", sock)
 	if err != nil {
@@ -97,11 +98,9 @@ func serve() error {
 	srv := grpc.NewServer()
 	pb.RegisterBridgeServiceServer(srv, &server{stop: srv.GracefulStop})
 
-	// Handshake: one JSON line on stdout, then keep stdout open for logs.
-	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
-	fmt.Println(string(hs))
-	_ = os.Stdout.Sync()
-
+	// Settle the signal disposition before the handshake: a host may send
+	// SIGTERM as soon as it reads the line, and a signal that arrives before
+	// Notify kills the process before it can remove its socket.
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
@@ -109,10 +108,12 @@ func serve() error {
 		srv.GracefulStop()
 	}()
 
-	err = srv.Serve(lis)
-	_ = os.Remove(sock)
-	_ = os.Remove(dir)
-	return err
+	// Handshake: one JSON line on stdout, then keep stdout open for logs.
+	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
+	fmt.Println(string(hs))
+	_ = os.Stdout.Sync()
+
+	return srv.Serve(lis)
 }
 
 // server implements BridgeService. Only read-mode Process is supported; tools

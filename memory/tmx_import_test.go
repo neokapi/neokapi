@@ -47,7 +47,7 @@ func TestImportTMX_PlainBilingual(t *testing.T) {
 
 func TestImportTMX_BOMlessUTF8(t *testing.T) {
 	// A plain UTF-8 file without a BOM must not be sniffed as
-	// windows-1252 — non-ASCII segments would be mangled (#mojibake).
+	// windows-1252, and non-ASCII segments would be mangled (#mojibake).
 	tm := memory.NewInMemoryStore()
 	body := `<?xml version="1.0" encoding="UTF-8"?>
 <tmx version="1.4">
@@ -312,7 +312,7 @@ func TestImportTMX_LocaleFilter(t *testing.T) {
 }
 
 func TestImportTMX_CustomMappingFile(t *testing.T) {
-	// Uses default mapping only — custom file loading exercised by mapping test.
+	// Uses default mapping only; the mapping test exercises custom file loading.
 	m, err := memory.DefaultTMXMapping()
 	require.NoError(t, err)
 	assert.Equal(t, "code:placeholder", m.Resolve("ph", ""))
@@ -321,15 +321,15 @@ func TestImportTMX_CustomMappingFile(t *testing.T) {
 	assert.Equal(t, "code:markup", m.Resolve("unknown", ""))
 }
 
-// Verify that the legacy bilingual import helper still produces variant-based entries.
-func TestImportTMXWithOptions_LegacyBilingual(t *testing.T) {
+// A bilingual import produces variant-based entries.
+func TestImportTMXWithRule_Bilingual(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 	body := bytes.NewBufferString(`<?xml version="1.0"?>
 <tmx version="1.4"><header creationtool="t" creationtoolversion="1" segtype="sentence" adminlang="en" srclang="en" datatype="plaintext"/>
 <body><tu><tuv xml:lang="en"><seg>hello</seg></tuv><tuv xml:lang="fr"><seg>bonjour</seg></tuv></tu></body></tmx>`)
-	n, err := memory.ImportTMXWithOptions(context.Background(), tm, body, "en", "fr", memory.ImportTMXOptions{OriginKey: "legacy.tmx"})
+	counts, err := memory.ImportTMXWithRule(context.Background(), tm, body, memory.SourceRule{Explicit: "en", Target: "fr"}, memory.ImportTMXOptions{OriginKey: "legacy.tmx"})
 	require.NoError(t, err)
-	assert.Equal(t, 1, n)
+	assert.Equal(t, 1, counts.Imported)
 	e := mustEntries(t, tm)[0]
 	assert.Equal(t, "hello", e.VariantText("en"))
 	assert.Equal(t, "bonjour", e.VariantText("fr"))

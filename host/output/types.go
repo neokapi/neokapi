@@ -1008,10 +1008,28 @@ type MemoryImportOutput struct {
 	Imported int    `json:"imported"`
 	DBPath   string `json:"db_path"`
 	Total    int    `json:"total"`
+	// The units skipped, by reason: no text in the source language the
+	// import chose, a source the same as the target, no translation.
+	SkippedNoSource           int `json:"skipped_no_source"`
+	SkippedSourceEqualsTarget int `json:"skipped_source_equals_target"`
+	SkippedNoTarget           int `json:"skipped_no_target"`
+	SkippedEmpty              int `json:"skipped_empty"`
 }
 
 func (o MemoryImportOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Imported %d entries into %s (total: %d)\n", o.Imported, o.DBPath, o.Total)
+	if o.SkippedNoSource > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) with no text in the source language\n", o.SkippedNoSource)
+	}
+	if o.SkippedSourceEqualsTarget > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) whose source would equal the target\n", o.SkippedSourceEqualsTarget)
+	}
+	if o.SkippedNoTarget > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) with no translation\n", o.SkippedNoTarget)
+	}
+	if o.SkippedEmpty > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) with no text\n", o.SkippedEmpty)
+	}
 	return nil
 }
 

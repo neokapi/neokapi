@@ -85,3 +85,39 @@ func TestResolveRecipePathFollowsALinkAndRefusesANonRecipe(t *testing.T) {
 	_, err = ResolveRecipePath(notes)
 	require.ErrorContains(t, err, notes+" is not a kapi recipe")
 }
+
+// brokenRecipes are recipes with a YAML error, each with what its parse error
+// names: the line, and the problem.
+var brokenRecipes = []struct {
+	name, body string
+	says       []string
+}{
+	{"duplicate key", "version: v1\nname: dup\ndefaults:\n  target_languages: [fr]\n  target_languages: [de]\n",
+		[]string{"line 5", "already defined"}},
+	{"tab indentation", "version: v1\nname: tab\ndefaults:\n\ttarget_languages: [fr]\n",
+		[]string{"line 4", "tab"}},
+	{"type error", "version: v1\nname: typed\ndefaults:\n  target_languages: fr\n",
+		[]string{"line 4", "cannot unmarshal"}},
+}
+
+// A recipe with a YAML error is still the recipe: the resolution returns it,
+// and the load reports the parser's error with its line, naming the file.
+func TestResolveRecipePathKeepsARecipeWithAYAMLError(t *testing.T) {
+	for _, tc := range brokenRecipes {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			recipe := filepath.Join(dir, RecipeFileName)
+			require.NoError(t, os.WriteFile(recipe, []byte(tc.body), 0o644))
+
+			got, err := ResolveRecipePath(recipe)
+			require.NoError(t, err, "a recipe with a YAML error is not refused as not a recipe")
+			_, err = Load(got)
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), "not a kapi recipe")
+			assert.Contains(t, err.Error(), recipe)
+			for _, want := range tc.says {
+				assert.Contains(t, err.Error(), want)
+			}
+		})
+	}
+}
