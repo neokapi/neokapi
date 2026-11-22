@@ -40,4 +40,14 @@ if [ "${1:-}" = "--version" ]; then
   exit 0
 fi
 echo "install-wails3: installing wails3 $kapi"
-"${GO:-go}" install "$MODULE/cmd/wails3@$kapi"
+# The module proxy drops a download now and then. Three tries, so one dropped
+# stream does not fail a desktop job.
+for attempt in 1 2 3; do
+  if "${GO:-go}" install "$MODULE/cmd/wails3@$kapi"; then
+    exit 0
+  fi
+  echo "install-wails3: attempt $attempt failed" >&2
+  sleep $((attempt * 5))
+done
+echo "install-wails3: could not install wails3 $kapi after 3 attempts" >&2
+exit 1

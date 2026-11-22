@@ -55,14 +55,14 @@ jobs:
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           version: "1.6.0"
-          node-version: "24"
+          node-version: "26"
           cache: true
 
       # setup-node with registry-url is applied last so npm's registry/OIDC
       # config is the final node setup in effect for the publish step.
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           registry-url: "https://registry.npmjs.org"
 
       # Trusted publishing (OIDC) needs npm >= 11.5.1. Node 24 already bundles
