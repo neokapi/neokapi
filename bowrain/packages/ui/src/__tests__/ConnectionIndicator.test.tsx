@@ -68,10 +68,22 @@ describe("ConnectionIndicator", () => {
     expect(screen.queryByTestId("connection-offline")).not.toBeInTheDocument();
   });
 
-  it("reports an attempt in flight", () => {
-    render(<ConnectionIndicator connectionState="connecting" />);
+  it("reports an attempt in flight in place of Retry, keeping what is pending", () => {
+    render(
+      <ConnectionIndicator
+        connectionState="reconnecting"
+        pendingChanges={2}
+        onRetryConnection={vi.fn()}
+      />,
+    );
     expect(screen.getByTestId("connection-reconnecting")).toHaveTextContent("Reconnecting");
-    expect(screen.queryByTestId("connection-offline")).not.toBeInTheDocument();
+    expect(screen.getByTestId("offline-pending")).toHaveTextContent("2 pending");
+    expect(screen.queryByTestId("connection-retry")).not.toBeInTheDocument();
+  });
+
+  it("shows nothing for the first connection, which the sign-in screen reports", () => {
+    const { container } = render(<ConnectionIndicator connectionState="connecting" />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("shows the disconnected state as neither offline nor reconnecting", () => {

@@ -1341,6 +1341,14 @@ export const ConnectionState = {
     StateConnecting: "connecting",
     StateConnected: "connected",
     StateOffline: "offline",
+
+    /**
+     * StateReconnecting is what the frontend is told while the app is offline
+     * and an attempt to reach the server is under way. It is never held as
+     * the connection state: the app stays offline during the attempt, so an
+     * edit made meanwhile still goes to the offline queue.
+     */
+    StateReconnecting: "reconnecting",
 };
 
 /**
