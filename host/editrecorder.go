@@ -129,7 +129,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	}
 
 	var edits []projector.Edit
-	written := 0
+	var written []string
 	for _, doc := range order {
 		transitions := byDoc[doc]
 		if len(transitions) == 0 {
@@ -160,7 +160,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 			}
 			e.Transitions = append(e.Transitions, editTransition(t, keep))
 			if writesTranslation(t) {
-				written++
+				written = append(written, writtenUnit(t.Ref))
 			}
 		}
 		edits = append(edits, e)
@@ -169,7 +169,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	// run's tally counts them whether or not the record below succeeds. An
 	// observed record describes a change made outside kapi.
 	if rec.Origin != history.OriginObserved {
-		r.app.writeTally.add(written)
+		r.app.writeTally.add(written...)
 	}
 	if len(edits) == 0 {
 		return "", nil
@@ -192,21 +192,33 @@ func writesTranslation(t change.Transition) bool {
 	return t.Role == change.RoleDerived && t.AfterRev != model.AbsentRevision && t.AfterRev != t.BeforeRev
 }
 
-// unitWriteTally counts, for one run, the translations it wrote to a home
-// other than the workspace home: a file. A nil tally counts nothing, so a run
-// that does not ask for the count pays nothing for it.
-type unitWriteTally struct {
-	mu sync.Mutex
-	n  int
+// writtenUnit is the identity a write tally counts a translation by: the
+// document, the block and the edition (its target language and variant).
+func writtenUnit(ref change.Ref) string {
+	return ref.Doc + "\x00" + ref.Block + "\x00" + ref.EditionText()
 }
 
-func (t *unitWriteTally) add(n int) {
-	if t == nil || n == 0 {
+// unitWriteTally counts, for one run, the translation units it wrote to a
+// home other than the workspace home: a file. A unit written twice in a run
+// (two passes rewriting it) counts once. A nil tally counts nothing, so a run
+// that does not ask for the count pays nothing for it.
+type unitWriteTally struct {
+	mu    sync.Mutex
+	units map[string]struct{}
+}
+
+func (t *unitWriteTally) add(units ...string) {
+	if t == nil || len(units) == 0 {
 		return
 	}
 	t.mu.Lock()
-	t.n += n
-	t.mu.Unlock()
+	defer t.mu.Unlock()
+	if t.units == nil {
+		t.units = map[string]struct{}{}
+	}
+	for _, u := range units {
+		t.units[u] = struct{}{}
+	}
 }
 
 func (t *unitWriteTally) total() int {
@@ -215,7 +227,7 @@ func (t *unitWriteTally) total() int {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return t.n
+	return len(t.units)
 }
 
 // basisAt names an edition of a block a change set's operation addresses.

@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,6 +117,37 @@ func TestUpProducedCountsAnAdditionBesideARemoval(t *testing.T) {
 // A run that fails after it wrote a file exits non-zero and says how many
 // translations it wrote before the failure.
 func TestUpReportsWhatItWroteBeforeAFailure(t *testing.T) {
+	out, err := failingUp(t)
+	require.Error(t, err, "the run fails:\n%s", out)
+	assert.Contains(t, string(out), "wrote 1 translation(s) to target files before it failed", "%s", out)
+}
+
+// Under --json the count rides in the error document, beside error and code.
+func TestUpReportsWhatItWroteBeforeAFailureInJSON(t *testing.T) {
+	out, err := failingUp(t, "--json")
+	require.Error(t, err, "the run fails:\n%s", out)
+	var doc map[string]any
+	for line := range strings.Lines(string(out)) {
+		var e map[string]any
+		if json.Unmarshal([]byte(line), &e) == nil && e["error"] != nil {
+			doc = e
+		}
+	}
+	if doc == nil {
+		start := strings.LastIndex(string(out), "{\n")
+		require.GreaterOrEqual(t, start, 0, "an error document:\n%s", out)
+		require.NoError(t, json.Unmarshal(out[start:], &doc), "%s", out)
+	}
+	assert.Contains(t, doc, "error")
+	assert.EqualValues(t, 1, doc["produced"], "%s", out)
+	assert.NotContains(t, string(out), "before it failed", "the count is in the document, not a log line")
+}
+
+// failingUp converges a project once, edits two sources, makes one target
+// unwritable, and runs kapi up with args: the run writes one translation and
+// fails at the other.
+func failingUp(t *testing.T, args ...string) ([]byte, error) {
+	t.Helper()
 	dir, dataRoot, up := newUpProject(t, upFrRecipe)
 	require.Positive(t, produced(t, up()))
 
@@ -132,13 +164,11 @@ func TestUpReportsWhatItWroteBeforeAFailure(t *testing.T) {
 		_ = os.Chmod(guide, 0o644)
 	})
 
-	cmd := exec.Command(kapiBin, "up", "-p", "kapi.yaml")
+	cmd := exec.Command(kapiBin, append([]string{"up", "-p", "kapi.yaml"}, args...)...)
 	cmd.Dir = dir
 	cmd.Env = append(append(os.Environ(), isoEnv...),
 		"KAPI_DATA_DIR="+dataRoot, "KAPI_AI_PROVIDER=demo", "ANTHROPIC_API_KEY=", "OPENAI_API_KEY=")
-	out, err := cmd.CombinedOutput()
-	require.Error(t, err, "the run fails:\n%s", out)
-	assert.Contains(t, string(out), "wrote 1 translation(s) to target files before it failed", "%s", out)
+	return cmd.CombinedOutput()
 }
 
 // A recipe under another name than kapi.yaml is the project's too: the run

@@ -389,3 +389,29 @@ func TestRecorderUnderEntityDetectionKeepsNoRuns(t *testing.T) {
 	require.Len(t, e.Transitions, 1)
 	assert.Empty(t, e.Transitions[0].RunsBefore+e.Transitions[0].RunsAfter)
 }
+
+// A run that writes one translation unit twice (a second pass rewriting it)
+// counts the unit once; another document's unit counts on its own.
+func TestRecorderCountsAUnitWrittenTwiceOnce(t *testing.T) {
+	a, _, rec := recorderProject(t)
+	ctx := t.Context()
+	a.writeTally = &unitWriteTally{}
+	t.Cleanup(func() { a.writeTally = nil })
+
+	flow := change.Actor{Kind: change.ActorTool, Name: "translate"}
+	first := greetingEdit("src/intro.en.json")
+	second := greetingEdit("src/intro.en.json")
+	nb, _ := model.ParseEditionKey("nb")
+	second[1].BeforeRev = first[1].AfterRev
+	second[1].After = textRuns("Hei igjen")
+	second[1].AfterRev = model.RunsRevision(nb, textRuns("Hei igjen"))
+	for _, transitions := range [][]change.Transition{first, second} {
+		_, err := rec.Record(ctx, change.Record{Actor: flow, Origin: "flow:up", Transitions: transitions})
+		require.NoError(t, err)
+	}
+	assert.Equal(t, 1, a.writeTally.total(), "one unit, written twice")
+
+	_, err := rec.Record(ctx, change.Record{Actor: flow, Origin: "flow:up", Transitions: greetingEdit("src/outro.en.json")})
+	require.NoError(t, err)
+	assert.Equal(t, 2, a.writeTally.total())
+}
