@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { contextProposalsFact, contextScanFact, waitFact } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
+import { usePullRefresh } from "../../../lib/pullRefresh";
 import { reviewPlanKey } from "../../../lib/plan";
 import { ageLabel, languageLabel } from "../../../lib/feed";
 
@@ -202,7 +203,7 @@ export default function ReviewPlanScreen() {
     queryKey: reviewPlanKey(ws, project),
     queryFn: () => client.reviewPlan(scope),
   });
-  const refresh = () => void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
+  const pull = usePullRefresh(() => qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) }));
 
   if (!plan.data) {
     return (
@@ -411,7 +412,7 @@ export default function ReviewPlanScreen() {
         testID="plan-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pt-3 pb-10"
-        refreshControl={<RefreshControl refreshing={plan.isRefetching} onRefresh={refresh} />}
+        refreshControl={<RefreshControl {...pull} />}
       >
         {PLAN_LEVELS.map((level, i) => {
           const s = stepOf(p, level);
