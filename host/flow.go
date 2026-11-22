@@ -2683,7 +2683,7 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 	termRules, err := a.ResolveTermRules(c, a.TargetLang)
 	if err != nil {
 		if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: --termstore: %v\n", err)
+			fmt.Fprintf(c.ErrOrStderr(), "Warning: --termstore: %v\n", err)
 		}
 		return nil
 	}

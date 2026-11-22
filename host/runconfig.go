@@ -46,6 +46,10 @@ func addTraceFlag(cmd Command) {
 
 func addStoreFlags(cmd Command) {
 	cmd.Flags().String("memory", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
+	addTermstoreFlag(cmd)
+}
+
+func addTermstoreFlag(cmd Command) {
 	cmd.Flags().String("termstore", "", "named terms store for term-lookup/enforce (resolves from KAPI_HOME)")
 }
 
@@ -65,8 +69,9 @@ func refusePackWithoutKpz(cmd Command, inputPaths []string) error {
 }
 
 // AddUpRunFlags registers the run flags `kapi up` honours: the AI run flags,
-// the input encoding, the named stores, --trace, --fail-on-unknown and
-// --print-ops. The flags that pick files, formats, languages and outputs for
+// the input encoding, --termstore, --trace, --fail-on-unknown and
+// --print-ops. A convergence run recycles from the project's own content
+// memory, so --memory is not among them. The flags that pick files, formats, languages and outputs for
 // one run (-i, -o, --target-lang, --source-lang, --format with its --engine,
 // -j, --parallel-blocks, --explain, --pack) belong to `kapi run`; the recipe
 // and the config decide them for `kapi up`, which refuses them as unknown
@@ -74,7 +79,7 @@ func refusePackWithoutKpz(cmd Command, inputPaths []string) error {
 func (a *App) AddUpRunFlags(cmd Command) {
 	AddRunConfigFlags(cmd)
 	a.AddEncodingFlag(cmd.Flags(), "e", "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
-	addStoreFlags(cmd)
+	addTermstoreFlag(cmd)
 	addTraceFlag(cmd)
 	addStrictFlags(cmd)
 	cmd.Flags().Bool(printOpsFlag, false, printOpsUsage)

@@ -16,10 +16,9 @@ import (
 )
 
 // `kapi up` is offered by two surfaces: this cobra command and the MCP `up`
-// tool an agent calls. Each used to answer "where does this run" for itself,
-// and only one of them knew about the venue — so the same recipe converged on
-// the server for a human and on the laptop for an agent. The decision belongs
-// to host.ResolveUpVenue; this test holds the two surfaces to it.
+// tool an agent calls. Both take the decision "where does this run" from
+// host.ResolveUpVenue, so one recipe converges in one place for a human and an
+// agent; this test holds the two surfaces to it.
 
 // venueParityProject writes a server-connected recipe and returns its path.
 func venueParityProject(t *testing.T) string {
@@ -97,14 +96,14 @@ func TestUpVenue_CLIAndMCPAgree(t *testing.T) {
 	a := &App{}
 	a.PluginHost = venuePluginHost(t)
 
-	// The CLI's own reading of its flags, on a command with none set — a plain
+	// The CLI's own reading of its flags, on a command with none set: a plain
 	// `kapi up` in a connected project.
 	cmd := NewUpCmd(a)
 	require.NoError(t, cmd.ParseFlags(nil))
 	cliDecision, err := a.ResolveUpVenue(recipe, upVenueOptions(cmd))
 	require.NoError(t, err)
 
-	// What RunUpDispatch — the MCP tool's entry point — resolves for a default
+	// What RunUpDispatch, the MCP tool's entry point, resolves for a default
 	// agent call.
 	mcpDecision, err := a.ResolveUpVenue(recipe, host.UpOptions{}.VenueOptions())
 	require.NoError(t, err)
@@ -140,8 +139,8 @@ func TestUpVenue_CLIAndMCPAgreeWithoutAServer(t *testing.T) {
 }
 
 // TestUpVenue_LocalFlagStillDispatches pins the one that reads backwards:
-// --local is not "skip the venue", it is "converge here, then push" — so it
-// still dispatches to the plumbing, on both surfaces.
+// --local means "converge here, then push", so it still dispatches to the
+// plumbing, on both surfaces.
 func TestUpVenue_LocalFlagStillDispatches(t *testing.T) {
 	recipe := venueParityProject(t)
 	a := &App{}
@@ -179,4 +178,19 @@ func TestUpVenue_TheServerFlagIsNotForwarded(t *testing.T) {
 	require.NoError(t, cmd.ParseFlags([]string{"--server"}))
 
 	assert.NotContains(t, forwardedFlagArgs(cmd.Flags(), "server"), "--server=true")
+}
+
+// At the server venue the host refuses a run flag before it dispatches, so a
+// plugin that would accept the flag (the stub exits 0 on anything) never runs.
+func TestUpVenue_ServerRefusesRunFlagsBeforeDispatch(t *testing.T) {
+	recipe := venueParityProject(t)
+	a := &App{}
+	a.PluginHost = venuePluginHost(t)
+	cmd := NewUpCmd(a)
+	require.NoError(t, cmd.ParseFlags([]string{"--provider", "demo"}))
+
+	err := runUpWithVenue(a, cmd, recipe)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--provider applies to a run on this machine")
+	assert.Contains(t, err.Error(), "--local")
 }

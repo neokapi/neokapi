@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -412,7 +413,9 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	_, plan.readNothing = basis.unread.unitsSkipped(root, units)
 	plan.Monolingual = !proj.DeclaresTargetLanguages()
 	plan.NoTargets = !plan.Monolingual && !proj.WritesTargets()
-	a.applyPlanProvider(&plan)
+	if err := a.applyPlanProvider(&plan, proj, projectPath, run.runConfig()); err != nil {
+		return plan, err
+	}
 	return plan, nil
 }
 
@@ -460,27 +463,48 @@ func (a *App) planPassingLocales(ctx context.Context, run planRun, proj *project
 	return passing, nil
 }
 
-// applyPlanProvider annotates a plan with the AI provider a converge run would
-// resolve (the shared ai.provider app default). When that provider bills a
-// personal subscription (claude-code), the plan swaps the metered-cost framing
-// for "runs on your Claude subscription" in both text and JSON.
+// applyPlanProvider annotates a plan with the AI providers the converge run's
+// steps call, resolved per step as the run resolves them (aiStepConfigs,
+// stepProvider): a step's own config, the run flags, the recipe's presets,
+// then the stored default. When the one provider bills a personal subscription
+// (claude-code), the plan swaps the metered-cost framing for "runs on your
+// Claude subscription" in both text and JSON.
 //
 // A flow that reaches no provider is left unannotated: which provider the app
 // would resolve is not a fact about a run that will never call one.
-func (a *App) applyPlanProvider(plan *UpPlanOutput) {
+func (a *App) applyPlanProvider(plan *UpPlanOutput, proj *project.KapiProject, projectPath string, runConfig map[string]any) error {
 	if !plan.FlowCallsProvider {
-		return
+		return nil
+	}
+	cf, err := convergeFlowSpec(proj, filepath.Dir(projectPath), runConfig)
+	if err != nil {
+		return err
+	}
+	steps, err := a.aiStepConfigs(proj, projectPath, cf.spec)
+	if err != nil {
+		return err
 	}
 	def := config.ResolveAIDefault(a.Config)
-	if !def.Configured() {
-		return
+	var providers []string
+	for _, cfg := range steps {
+		p := stepProvider(cfg, def)
+		if p == "" {
+			// A step that names no provider leaves the run asking for one.
+			plan.Provider = ""
+			return nil
+		}
+		if !slices.Contains(providers, p) {
+			providers = append(providers, p)
+		}
 	}
-	prov := def.Provider
-	plan.Provider = prov
-	if info, ok := aiprovider.ProviderInfoFor(aiprovider.ProviderID(prov)); ok && info.Subscription {
-		plan.Subscription = true
-		plan.Note = upPlanSubscriptionNote
+	plan.Provider = strings.Join(providers, ", ")
+	if len(providers) == 1 {
+		if info, ok := aiprovider.ProviderInfoFor(aiprovider.ProviderID(providers[0])); ok && info.Subscription {
+			plan.Subscription = true
+			plan.Note = upPlanSubscriptionNote
+		}
 	}
+	return nil
 }
 
 // UpPlan computes the dry-run convergence plan `kapi up --plan` reports, per

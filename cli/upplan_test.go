@@ -399,7 +399,8 @@ func TestUpPlan_SubscriptionProviderNote(t *testing.T) {
 	a := processOnlyApp(t)
 	a.Config = config.NewAppConfig()
 	a.Config.Set(config.KeyAIProvider, "claude-code")
-	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	// The step names no provider, so the stored default is what the run calls.
+	recipe := bareTranslateFixture(t, "")
 
 	out, err := runUp(t, a, recipe, "--plan")
 	require.NoError(t, err, out)
@@ -424,7 +425,8 @@ func TestUpPlan_MeteredProviderKeepsNote(t *testing.T) {
 	a := processOnlyApp(t)
 	a.Config = config.NewAppConfig()
 	a.Config.Set(config.KeyAIProvider, "anthropic")
-	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	// The step names no provider, so the stored default is what the run calls.
+	recipe := bareTranslateFixture(t, "")
 
 	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
 	require.NoError(t, err, outJSON)

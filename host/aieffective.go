@@ -166,28 +166,66 @@ func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, fl
 		}
 		spec = resolved.Spec
 	}
+	steps, err := a.aiStepConfigs(proj, projectPath, spec)
+	if err != nil {
+		return false, err
+	}
+	for _, cfg := range steps {
+		if presetString(cfg, "provider") == "" && presetString(cfg, "credential") == "" && presetString(cfg, "api_key") == "" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// aiStepConfigs returns the config each step of spec that calls a provider
+// runs with, for every target locale whose presets differ: the step's config
+// (run flags already seeded by seedRunConfig) with the recipe's presets
+// applied under it, as the run applies them. ProjectFlowNeedsAISetup and the
+// plan both read it, so neither can disagree with the run.
+func (a *App) aiStepConfigs(proj *project.KapiProject, projectPath string, spec *flow.StepsSpec) ([]map[string]any, error) {
 	a.InitRegistries()
 	locales := []model.LocaleID{""}
 	if len(proj.Defaults.Locales) > 0 {
 		files, err := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 		if targets := contentTargetLocales(proj.Defaults, files); len(targets) > 0 {
 			locales = targets
 		}
 	}
 	bindings := recipePresets(proj)
+	var out []map[string]any
 	for _, step := range spec.Steps {
 		name := registry.ToolID(step.Tool)
 		for _, locale := range locales {
 			cfg := a.applyBindingsFor(bindings, step.Tool, a.ToolReg.Schema(name), step.Config, string(locale))
 			info := a.ToolReg.ResolveToolInfo(name, cfg)
-			if info != nil && slices.Contains(info.Requires, schema.RequiresCredentials) &&
-				presetString(cfg, "provider") == "" && presetString(cfg, "credential") == "" && presetString(cfg, "api_key") == "" {
-				return true, nil
+			if info != nil && slices.Contains(info.Requires, schema.RequiresCredentials) {
+				out = append(out, cfg)
 			}
 		}
 	}
-	return false, nil
+	return out, nil
+}
+
+// stepProvider names the provider a step with config cfg calls: the config's
+// provider, a saved credential, the stored default (ResolveAIDefault), and
+// for a bare API key the tool's built-in default. Empty when nothing names
+// one.
+func stepProvider(cfg map[string]any, def appconfig.AIDefault) string {
+	if v := presetString(cfg, "provider"); v != "" {
+		return v
+	}
+	if v := presetString(cfg, "credential"); v != "" {
+		return "saved credential " + v
+	}
+	if def.Provider != "" {
+		return def.Provider
+	}
+	if presetString(cfg, "api_key") != "" {
+		return string(aiprovider.Anthropic)
+	}
+	return ""
 }

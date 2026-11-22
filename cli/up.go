@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/host"
@@ -157,6 +158,12 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 		}
 		if BoolFlag(cmd, "pre-review") {
 			return errors.New("--pre-review runs on this machine; add --local to run it in a server-connected project")
+		}
+		// Refused here, before dispatch, so an installed plugin of any
+		// version cannot accept a run flag it has nothing to act on.
+		if set := host.ChangedRunConfigFlags(cmd); len(set) > 0 {
+			return fmt.Errorf("%s applies to a run on this machine; the server runs with the provider its workspace is configured with. Add --local to run here with %s",
+				strings.Join(set, ", "), strings.Join(set, ", "))
 		}
 		printUpVenue(a, cmd, local, dec.ServerURL)
 		return pluginhost.ExecPluginCommand(cmd.Context(), dec.Route, forwardedFlagArgs(cmd.Flags(), "server"))
