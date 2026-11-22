@@ -209,21 +209,25 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	// in a slice between them (#1710).
 	flushOut := func() error { return nil }
 	if outPath != "" {
-		if err := writer.SetOutput(outPath); err != nil {
+		// The writer writes beside the destination, and the result moves into
+		// place only when the conversion succeeds. A failed conversion leaves
+		// the destination as it was, whether a writer truncates its output at
+		// SetOutput or writes it at Close.
+		staged, err := stageOutput(outPath)
+		if err != nil {
 			return err
 		}
-		// SetOutput has created or truncated the file. A conversion that
-		// fails after it removes the file, so no empty or partial document
-		// is left where the output was asked for. An output that names the
-		// input is never removed.
-		abs, absErr := filepath.Abs(path)
-		ownsOutput := absErr == nil && !sameFile(abs, outPath)
 		defer func() {
-			if retErr != nil && ownsOutput {
+			if retErr != nil {
 				_ = writer.Close()
-				_ = os.Remove(outPath)
+				staged.discard()
+				return
 			}
+			retErr = staged.commit()
 		}()
+		if err := writer.SetOutput(staged.tmp); err != nil {
+			return err
+		}
 	} else {
 		// Binary output at a terminal is refused here (see binaryout.go); `-o -`
 		// is the explicit "yes, stdout anyway", as it is for curl.
@@ -517,3 +521,45 @@ func (a *App) writerByExt(ext string) registry.FormatID {
 	}
 	return ""
 }
+
+// stagedOutput is a conversion's output written to a temporary file beside
+// its destination.
+type stagedOutput struct {
+	tmp, dest string
+}
+
+// stageOutput creates the temporary file for a conversion written to dest. A
+// dest that is a symbolic link is written through: the result replaces the
+// file the link names. The temporary name ends in dest's own name, so a
+// writer that reads its output's extension sees the same one.
+func stageOutput(dest string) (*stagedOutput, error) {
+	target := dest
+	if resolved, err := filepath.EvalSymlinks(dest); err == nil {
+		target = resolved
+	}
+	f, err := os.CreateTemp(filepath.Dir(target), ".kconv-*-"+filepath.Base(target))
+	if err != nil {
+		return nil, fmt.Errorf("create the output beside %s: %w", dest, err)
+	}
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(target); err == nil {
+		mode = info.Mode().Perm()
+	}
+	if err := errors.Join(f.Chmod(mode), f.Close()); err != nil {
+		_ = os.Remove(f.Name())
+		return nil, fmt.Errorf("create the output beside %s: %w", dest, err)
+	}
+	return &stagedOutput{tmp: f.Name(), dest: target}, nil
+}
+
+// commit moves the finished output into place.
+func (s *stagedOutput) commit() error {
+	if err := os.Rename(s.tmp, s.dest); err != nil {
+		_ = os.Remove(s.tmp)
+		return fmt.Errorf("write %s: %w", s.dest, err)
+	}
+	return nil
+}
+
+// discard removes the output of a conversion that failed.
+func (s *stagedOutput) discard() { _ = os.Remove(s.tmp) }
