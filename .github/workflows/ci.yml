@@ -1394,7 +1394,9 @@ jobs:
         env:
           FIELDGUARD_ARGS: ${{ github.event_name == 'pull_request' && format('-changed-since origin/{0}', github.base_ref) || '' }}
 
-  # ── Docs stay bowrain-clean (always-on, cheap) ───────────────────────────
+  # ── Repo guards (always-on, cheap) ───────────────────────────────────────
+  # The guards of the ci lane in the registry under scripts/guards/. A guard
+  # joins this job by naming `ci` in its GUARD_LANES, with no edit here.
   docs-guard:
     name: Repo guards
     runs-on: ubuntu-latest
@@ -1405,206 +1407,27 @@ jobs:
     # storage guard, runs in a job of its own so these do not wait for it.
     steps:
       - uses: actions/checkout@v7
-      - name: Guard — neokapi docs must stay bowrain-clean
-        run: ./scripts/check-docs-bowrain-clean.sh
-      - name: Guard — no absolute home paths in tracked files
-        run: ./scripts/check-abs-paths.sh
-      - name: "Guard: the e2e seed documents live once in bowrain/e2e/shared"
-        run: ./scripts/check-e2e-seed-dupes.sh
-      - name: Guard — no retired framing in user-facing prose
-        run: ./scripts/check-vocabulary.sh
-      - name: Guard — the Kapi Desktop surface names no interchange format
-        run: ./scripts/check-desktop-interchange.sh
-      - name: Guard — every local action reference resolves where its job checks out
-        run: ./scripts/check-local-actions.sh
 
-      - name: Guard — every run projection is declared, never hand-rolled
-        run: ./scripts/check-run-projection.sh
-      - name: Guard — no surface shows an inline code's native data or identifier
-        run: ./scripts/check-code-display.sh
-      - name: Guard — machine-readable output uses snake_case field names
-        run: ./scripts/check-json-tags.sh
-      # The recorded walkthroughs are the only reader of the apps' testids and
-      # rail labels from outside the apps, and nothing compiles them together.
-      - name: Guard — every walk selector is still rendered by an app
-        run: ./scripts/check-walk-selectors.sh
-      - name: Guard — every language is shown by name, not by its code alone
-        run: ./scripts/check-locale-display.sh
-      # The docs jobs build two sites in two locales and sit late in CI, so an
-      # unresolvable doc id costs a full round trip to learn. This says it in a
-      # second, on every PR, for both sidebars at once.
-      - name: Guard — every sidebar doc id resolves to a page
-        run: ./scripts/check-sidebar-ids.sh
-      - name: Guard — reference dataset is reproducible from this repo
-        run: ./scripts/check-reference-provenance.sh
-      - name: Guard — publishable packages declare a license and ship its text
-        run: ./scripts/check-package-licenses.sh
-      - name: Guard — release archives ship the license text of the work inside
-        run: ./scripts/check-archive-licenses.sh
-      - name: Guard — plugin tarballs ship the license text of the work inside
-        run: ./scripts/check-plugin-licenses.sh
-      - name: Guard — no compiled executable is tracked in git
-        run: ./scripts/check-tracked-binaries.sh
-      - name: Guard — no plugin release claims the repo's "latest"
-        run: ./scripts/check-plugin-release-latest.sh
-      - name: "Guard: the apt/yum repository publishes only when it is turned on"
-        run: ./scripts/check-packages-publish-gate.sh
-      - name: "Guard: the release casks carry no install hook or retired vocabulary"
-        run: ./scripts/check-cask-heredocs.sh
-
-      # Every step that runs `go` comes after this one. A module a `go`
-      # command downloads first is a read-only file the cache restore cannot
-      # overwrite, and tar then abandons the whole module cache.
+      # Before any `go` command. A module a `go` command downloads first is a
+      # read-only file the cache restore cannot overwrite, and tar then
+      # abandons the whole module cache.
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: pr
           save-cache: "false"
 
-      - name: Deploy workflow covers the framework
-        run: ./scripts/check-deploy-paths.sh
-
-      # The gate itself runs only in the nightly convergence, where nothing
-      # exercises it on a pull request. Its self-test does: it drives the real
-      # classification against real scratch repositories, so a change to the
-      # derived set or to the classification cannot pass here and disarm the
-      # nightly there.
-      - name: "Guard: the test shards of a package cover every test once"
-        run: ./scripts/go-test-shard.sh --self-test
-      - name: "Guard: the reliability checklist validates and each trigger selects its fixture"
-        run: python3 scripts/reliability-checklist.py --self-test
-      - name: "Guard: the CI passed job answers for every job"
-        run: python3 scripts/ci-passed.py --self-test && python3 scripts/ci-passed.py needs
-      - name: "Guard: a test run that leaves files in the temporary directory fails"
-        run: scripts/check-temp-leaks.sh --self-test
-      - name: "Guard: the server and worker images run as an unprivileged numeric user"
-        run: scripts/check-image-user.sh --self-test && scripts/check-image-user.sh
-      - name: "Guard: every release registers the platforms its workflow builds"
-        run: python3 scripts/release-assets.py --self-test && python3 scripts/release-assets.py check-workflows
-      - name: "Guard: every package test script runs in a pull request job"
-        run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
-      - name: "Guard: every Go command in make, scripts and CI builds with -trimpath"
-        run: python3 scripts/check-go-trimpath.py --self-test && python3 scripts/check-go-trimpath.py
-      - name: "Guard: no step a pull request runs saves an Actions cache"
-        run: python3 scripts/check-ci-caches.py --self-test && python3 scripts/check-ci-caches.py
-      - name: "Guard: the cache budget script passes its self-test"
-        run: python3 scripts/ci-cache-budget.py --self-test
-      - name: "Guard: every declared macOS minimum agrees with what Go builds for"
-        run: ./scripts/check-macos-minimum.sh --self-test && ./scripts/check-macos-minimum.sh
-      - name: "Guard: the commit gate hook passes its self-test"
-        run: ./.claude/hooks/commit-gate.sh --self-test
-      - name: "Guard: the build cache warmer passes its self-test"
-        run: ./scripts/ci-warm-build-cache.sh --self-test
-      # The fuzz runner runs only in the nightly fuzz.yml. Its self-test fuzzes
-      # a scratch module holding a target that fails, and checks that the run
-      # goes on to the other targets, names the saved input and exits 1.
-      - name: "Guard: the nightly fuzz runner reports a failing target"
-        run: ./scripts/go-fuzz.sh --self-test
-      - name: "Guard: every copy of a tool pin names the same version"
-        run: |
-          python3 scripts/check-tool-versions.py --self-test
-          python3 scripts/check-tool-versions.py --offline
-      - name: "Guard: the vite alias audit fails on drift and passes on both core layouts"
-        run: bash scripts/audit-vite-alias.sh --self-test
-      - name: "Guard: a bindings generator warning about our own code fails"
-        run: ./scripts/wails-generate.sh --self-test
-      - name: Guard — the sync commits only sound loop output
-        run: ./scripts/check-loop-output.sh --self-test
-
-      # Same reason, one step further along: the delivery that carries a
-      # scheduled job's output to a reviewable pull request also runs nowhere a
-      # pull request would notice. Its self-test drives the real staging, push
-      # and refresh against scratch repositories with a real remote.
-      - name: Guard — scheduled output is delivered as a reviewable pull request
-        run: ./scripts/auto-pr.sh --self-test
-
-      # The ratchet itself runs on extraction in l10n.yml. This proves its
-      # comparison on planted warnings, on every pull request.
-      - name: "Guard: the extractor warning ratchet refuses a new warning"
-        run: node scripts/check-extract-warnings.mjs --self-test
-
-      # Same reason again: the plugin formula generator runs only on a
-      # `<plugin>-v*` tag, so nothing before a release exercises it. Its
-      # self-test renders every plugin from a synthetic checksum set and checks
-      # that an incomplete one is refused, since a formula with an empty
-      # platform block installs nothing and reports success.
-      - name: Guard — a plugin's Homebrew formula renders from its release
-        run: ./scripts/gen-brew-plugin-formula.sh --self-test
-
-      # The packager runs only on a release tag too. Its self-test packages a
-      # dummy tree and reads the archives back, because an archive that
-      # misdeclares itself looks green everywhere else: the release publishes,
-      # the formulae install, and only `kapi plugins list` on a user's machine
-      # reports the version.
-      - name: Guard — a released archive declares the version it was cut at
-        run: ./scripts/package-cli.sh --self-test
-
-      # Both release tracks resolve their channel through one script, over tag
-      # shapes that differ between them. Its self-test runs every shape and
-      # checks that the workflows still call it: an inline copy of the test is
-      # how the bowrain track came to read a prefix hyphen as a prerelease.
-      - name: Guard — a final tag publishes stable on both release tracks
-        run: ./scripts/release-channel.sh --self-test
-
-      # The sourcecode release takes its version from the tag and copies the
-      # manifest from the tagged commit, and only the tag push compares them.
-      # The self-test runs that comparison on matching and mismatched pairs, and
-      # checks that the release workflow still calls it.
-      - name: "Guard: a plugin release tag matches its manifest version"
-        run: ./scripts/check-release-manifest-version.sh --self-test
-
-      # The desktop update feeds are published by a script that runs only on a
-      # release tag, and a release candidate exercises only its beta half. Its
-      # self-test runs it for a final and a candidate on both tracks and checks
-      # which feeds reach the registry.
-      - name: "Guard: a final tag publishes the stable update feed on both tracks"
-        run: ./scripts/publish-appcast.sh --self-test
-
-      # The fixture guard expands the extract globs the way the extractor does,
-      # so it needs `fs/promises.glob` from Node 22. No dependencies: it reads the
-      # flag sets from `make l10n-extract-globs` and globs the working tree.
+      # The extract fixture guard expands the extract globs the way the
+      # extractor does, so it needs `fs/promises.glob` from Node 22.
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
           node-version: "26"
-      - name: Guard — no test or story file is extracted into a shipped catalog
-        run: node scripts/check-extract-fixtures.mjs
 
-      # gofmt needs a toolchain but no modules, since it is purely syntactic,
-      # so this is a bare setup-go with the cache off and adds ~10s.
-      #
-      # This guard lives here, ungated, rather than in the Go-gated `tidy-check`
-      # job on purpose. `any_go` is the OR of the six module filters in the
-      # `changes` job (core/, cli|host/, bowrain/core|plugin/, kapi/, bowrain/),
-      # none of which match apps/kapi-desktop/, plugins/sat/, harness/ or
-      # scripts/*eval/. A PR touching only those would report any_go == false
-      # and skip the check on a Go-only change. Format drift can come from any
-      # Go file, so the check must not inherit that hole.
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.27.4"
-          cache: false
-      - name: Guard — every tracked .go file is gofmt-clean
-        run: make check-gofmt
-      - name: "Guard: every tracked Go, code, YAML and markup file is claimed or excluded by kapi.yaml"
-        run: make check-comment-coverage
-
-      # Every em-dash part but one runs here, behind the same toolchain: the
-      # matcher builds from its own module with GOWORK=off and imports only the
-      # standard library, so it needs Go and no module download. The catalogs
-      # part reads the extracted source catalogs, which are build artefacts
-      # `make l10n-extract` produces from JSX, so it runs in the l10n workflow
-      # instead, where that extract has just happened.
-      #
-      # Last in the job, because a step that fails hides every step after it,
-      # and the docs allowance is the one here most likely to fail.
-      - name: Guard — no em dash in any Go string literal
-        run: ./scripts/check-em-dashes.sh --part go
-      - name: Guard — no em dash in the UI source no catalog covers
-        run: ./scripts/check-em-dashes.sh --part ui
-      - name: Guard, no em dash in the reference prose or its dataset
-        run: ./scripts/check-em-dashes.sh --part dossier
-      - name: Guard — docs prose stays within its em-dash allowance
-        run: ./scripts/check-em-dashes.sh --part docs
+      # One step for every guard. A failing guard does not stop the others:
+      # the script runs them all, annotates each failure and lists the
+      # failures at the end. `make <target>` reruns one.
+      - name: Run the repo guards (scripts/guards/, ci lane)
+        run: ./scripts/run-guards.sh ci
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:
