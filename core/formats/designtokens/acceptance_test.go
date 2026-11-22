@@ -15,7 +15,7 @@
 // but, like any JSON Schema, it cannot model the DTCG $type cascade (a group's
 // $type inherited by leaf tokens). Tokens that omit an explicit $type and carry
 // a bare ambiguous string value (e.g. a fontWeight keyword such as "thin") fall
-// into the schema's catch-all branch and are rejected — even though the file is
+// into the schema's catch-all branch and are rejected, even though the file is
 // valid DTCG once cascade is resolved. This is a documented schema limitation,
 // not a kapi defect. The acceptance contract is therefore EQUIVALENCE: kapi's
 // output must validate against the official schema if and only if the SOURCE
@@ -28,7 +28,7 @@
 // globally), else `corepack pnpm dlx ajv-cli@5`. Every external call is gated on
 // exec.LookPath; the test t.Skips (not fails) when the tool is missing,
 // offline, or otherwise unable to execute (e.g. a non-executable npx-cached
-// bin) — a tooling failure, not a kapi failure. ajv exiting 1 on invalid data
+// bin). Those are tooling failures, not kapi failures. ajv exiting 1 on invalid data
 // is the genuine validation signal and is preserved.
 //
 // Run with: go test -tags acceptance ./core/formats/designtokens/
@@ -97,18 +97,17 @@ func isLikelyOffline(output []byte) bool {
 }
 
 // toolCouldNotRun reports whether an external tool FAILED TO EXECUTE rather than
-// ran and rejected kapi's output. The acceptance contract is to SKIP (not FAIL)
-// when the validator itself is broken/unavailable: a non-executable npx-cached
-// bin (exit 126 "Permission denied"), a missing binary (exit 127 "command not
-// found"/ENOENT), or a pnpm provisioning/network failure. ajv exiting 1 on
-// invalid data is NOT covered here — that is the genuine validation signal the
-// equivalence/positive checks rely on.
+// ran and rejected kapi's output. The acceptance contract is to SKIP when the
+// validator itself is broken or unavailable. That covers a non-executable
+// npx-cached bin (exit 126 "Permission denied"), a missing binary (exit 127
+// "command not found"/ENOENT), and a pnpm provisioning/network failure. It
+// reports false for ajv exiting 1 on invalid data, the genuine validation
+// signal the equivalence/positive checks rely on.
 func toolCouldNotRun(err error, combinedOutput string) bool {
 	if err == nil {
 		return false
 	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
+	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 		switch ee.ExitCode() {
 		case 126, 127:
 			return true
@@ -157,7 +156,7 @@ func dtcgSchemaArgs(t *testing.T) []string {
 
 // ajvValidates runs ajv against data using the official DTCG schema. `ran` is
 // false when the tool itself could not execute (missing/non-executable/
-// provisioning failure) — callers SKIP in that case. When `ran` is true,
+// provisioning failure); callers SKIP in that case. When `ran` is true,
 // `valid` is the genuine validation result (ajv exits non-zero on invalid data,
 // a normal outcome here). Combined output is returned for diagnostics.
 func ajvValidates(t *testing.T, dataPath string) (ran, valid bool, output []byte) {
@@ -256,8 +255,8 @@ func TestAcceptanceSchemaEquivalence(t *testing.T) {
 
 	// Positive path: the in-package tokens.tokens.json validates against the
 	// official schema at the source (its cascade tokens use unambiguous values),
-	// so its translated output MUST validate too — proving kapi's writer does not
-	// break schema-validity while translating $description.
+	// so its translated output MUST validate too. This proves kapi's writer does
+	// not break schema-validity while translating $description.
 	t.Run("translated_fixture_validates", func(t *testing.T) {
 		srcRan, srcOK, srcOut := ajvValidates(t, filepath.Join("testdata", "tokens.tokens.json"))
 		if !srcRan {
@@ -281,7 +280,7 @@ func TestAcceptanceSchemaEquivalence(t *testing.T) {
 	// Equivalence path: across the real corpus, kapi's untranslated output must
 	// validate against the official schema IFF the source did. (The
 	// style-dictionary demo file uses $type cascade with bare fontWeight
-	// keywords, which the official schema cannot resolve — so source and output
+	// keywords, which the official schema cannot resolve, so source and output
 	// both fail, equivalently; this documents the schema limitation, not a bug.)
 	for _, path := range corpusFiles(t) {
 		t.Run("corpus_equivalence/"+filepath.Base(path), func(t *testing.T) {

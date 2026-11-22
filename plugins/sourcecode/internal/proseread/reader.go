@@ -1,9 +1,9 @@
 // Package proseread turns a source file into the prose it contains.
 //
 // It is READ-ONLY by construction, and that is a decision rather than an
-// omission. A round-trip error in a document produces a mangled paragraph; a
-// round-trip error in a program produces one that does not compile, or — worse
-// — one that does, with a changed string escape. kapi's write-back promise is
+// omission. A round-trip error in a document produces a mangled paragraph. A
+// round-trip error in a program produces one that does not compile, or worse,
+// one that does, with a changed string escape. kapi's write-back promise is
 // built on byte-faithful round-trips proven over corpora, and source files
 // would enter it at its weakest point. The plugin manifest declares
 // `capabilities: ["read"]` and there is no writer to declare.
@@ -23,6 +23,7 @@ package proseread
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/formats/sourcecode"
@@ -33,7 +34,7 @@ import (
 )
 
 // Options is the format's config, defined in core so a recipe naming
-// `sourcecode` validates the same way whether or not this plugin is installed —
+// `sourcecode` validates the same way whether or not this plugin is installed,
 // and so the config has one definition rather than one on each side of the
 // plugin boundary. See core/formats/sourcecode.
 type Options = sourcecode.Config
@@ -170,9 +171,9 @@ func ReadParts(src []byte, locale model.LocaleID, uri string, opts Options) ([]*
 // call, such as `desc` for `cask/desc`.
 func commentPath(subject string) string {
 	segments := strings.Split(subject, "/")
-	for i := len(segments) - 1; i >= 0; i-- {
-		if segments[i] != "comment" {
-			return segments[i]
+	for _, seg := range slices.Backward(segments) {
+		if seg != "comment" {
+			return seg
 		}
 	}
 	return ""
@@ -204,8 +205,8 @@ func callName(n *ts.Node, src []byte) string {
 //
 // A heredoc body is NOT a child of the call that opens it. `caveats <<~EOS`
 // puts a heredoc_beginning under the call and parks the body at the top level,
-// so walking parents alone attributes the text to whatever block encloses it —
-// `cask`, here, rather than the field a recipe would name. Bodies appear in the
+// so walking parents alone attributes the text to whatever block encloses it.
+// Here that is `cask`, rather than the field a recipe would name. Bodies appear in the
 // same order as their openers, which is what makes the pairing safe.
 func heredocOwners(root *ts.Node, src []byte) []string {
 	var owners []string
@@ -217,7 +218,7 @@ func heredocOwners(root *ts.Node, src []byte) []string {
 		if n.Kind() == "heredoc_beginning" {
 			owners = append(owners, enclosing)
 		}
-		for i := uint(0); i < n.ChildCount(); i++ {
+		for i := range n.ChildCount() {
 			scan(n.Child(i), enclosing)
 		}
 	}
@@ -242,7 +243,7 @@ func (e *extractor) walk(n *ts.Node, enclosing string) {
 		e.emit(path, n.Utf8Text(e.src))
 	}
 
-	for i := uint(0); i < n.ChildCount(); i++ {
+	for i := range n.ChildCount() {
 		e.walk(n.Child(i), enclosing)
 	}
 }

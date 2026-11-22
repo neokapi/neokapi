@@ -9,7 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/convergence"
 )
 
-// convergeRenderer renders a convergence.Event stream for the terminal — the
+// convergeRenderer renders a convergence.Event stream for the terminal, the
 // live face of `kapi up`. On a TTY it maintains an in-place region: one line
 // per locale in the current pass (progress bar, unit counts, content memory/AI split)
 // under a pass header, repainted as events arrive. On a plain stream (CI logs,
@@ -46,7 +46,7 @@ func NewConvergeRenderer(w io.Writer, tty bool) *convergeRenderer {
 }
 
 // NewConvergeEventRenderer exposes the `kapi up` progress renderer as an event
-// sink for embedders whose events arrive from elsewhere — the kapi-bowrain
+// sink for embedders whose events arrive from elsewhere, the kapi-bowrain
 // plugin's remote venue feeds the server run's SSE stream through it, so a
 // remote run and a local run are indistinguishable in the terminal.
 func NewConvergeEventRenderer(w io.Writer, tty bool) func(convergence.Event) {
@@ -120,7 +120,13 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 		if len(ev.Pending) > 0 {
 			next = " · still pending: " + strings.Join(ev.Pending, ", ")
 		}
-		fmt.Fprintf(r.w, "pass %d done · produced %d (%+d)%s%s\n", ev.Pass, ev.Produced, ev.ProducedDelta, checks, next)
+		waiting := ""
+		if ev.WaitingForReview > 0 {
+			waiting = fmt.Sprintf(" · waiting for review %d", ev.WaitingForReview)
+		}
+		// The pass line reports what the pass wrote. Drafts held for review
+		// are written nowhere, so they get a count of their own.
+		fmt.Fprintf(r.w, "pass %d done · produced %d%s%s%s\n", ev.Pass, max(ev.ProducedDelta, 0), waiting, checks, next)
 	case convergence.EventMaterialized:
 		fmt.Fprintf(r.w, "materialized %d target file(s)\n", ev.Files)
 	case convergence.EventDone:

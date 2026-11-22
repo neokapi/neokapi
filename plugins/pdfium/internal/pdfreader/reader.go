@@ -41,7 +41,7 @@ type Options struct {
 	// Geometry, when true, emits one Block per positioned text rect with a
 	// GeometryAnnotation (for the visual editor). When false (the default,
 	// fast path for kgrep/kcat/kconv) it emits one Block per page of plain
-	// text — fewer allocations, no per-rect position work.
+	// text, with fewer allocations and no per-rect position work.
 	Geometry bool
 	// Glyphs, when true, additionally attaches per-character boxes
 	// (GeometryAnnotation.Glyphs) to each text-rect block, for character-precise
@@ -50,14 +50,14 @@ type Options struct {
 	Glyphs bool
 	// Tier3, when true, renders each page to a PNG raster (72 DPI, so PDF points
 	// map 1:1 to pixels) and emits it as a Media part alongside the page's raw
-	// positioned blocks — NOT the plugin's own tier-1/tier-2 structure. The host
+	// positioned blocks, NOT the plugin's own tier-1/tier-2 structure. The host
 	// runs the vision layout model over the raster to produce authoritative tier-3
 	// structure (falling back to tier-2 when vision is unavailable). Implies
 	// Geometry. The host owns the rendered file and deletes it after use.
 	Tier3 bool
 }
 
-// renderInstance is the subset of the PDFium instance used to rasterize a page.
+// renderInstance is the subset of the PDFium instance that rasterizes a page.
 type renderInstance interface {
 	RenderToFile(*requests.RenderToFile) (*responses.RenderToFile, error)
 }
@@ -67,8 +67,8 @@ type renderInstance interface {
 // core/vision constant so the plugin producer and the host consumer never drift.
 const VisionRasterProperty = vision.PageRasterProperty
 
-// renderPageRaster renders page i to a temp PNG at 72 DPI — at which 1 PDF point
-// equals 1 pixel, so the page's text geometry (top-left points) aligns with the
+// renderPageRaster renders page i to a temp PNG at 72 DPI. At that resolution 1
+// PDF point equals 1 pixel, so the page's text geometry (top-left points) aligns with the
 // raster pixels the layout model sees. Returns the file path and pixel size; the
 // host reads and removes the file.
 func renderPageRaster(inst renderInstance, doc *responses.OpenDocument, i int) (string, int, int, error) {
@@ -108,7 +108,7 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 	if err != nil {
 		return nil, fmt.Errorf("pdfium open: %w", err)
 	}
-	defer inst.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document})
+	defer func() { _, _ = inst.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document}) }()
 
 	pc, err := inst.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
 	if err != nil {
@@ -131,7 +131,7 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 
 	blockCounter := 0
 	groupCounter := 0
-	for i := 0; i < pc.PageCount; i++ {
+	for i := range pc.PageCount {
 		pageNum := i + 1
 		pg := requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}}
 
@@ -205,7 +205,7 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 	return parts, nil
 }
 
-// metaInstance is the subset of the PDFium instance used to read the Info dict.
+// metaInstance is the subset of the PDFium instance that reads the Info dict.
 type metaInstance interface {
 	FPDF_GetMetaText(*requests.FPDF_GetMetaText) (*responses.FPDF_GetMetaText, error)
 }

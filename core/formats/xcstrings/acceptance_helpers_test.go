@@ -75,8 +75,7 @@ func toolCouldNotRun(err error, combinedOutput string) bool {
 	}
 	// Exit 126 (not executable) / 127 (command not found) indicate the tool
 	// could not be launched, not that it judged the input.
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
+	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 		switch ee.ExitCode() {
 		case 126, 127:
 			return true

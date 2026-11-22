@@ -22,7 +22,8 @@ func processAlive(pid int) bool {
 	if err != nil {
 		return errors.Is(err, windows.ERROR_ACCESS_DENIED)
 	}
-	defer windows.CloseHandle(h)
+	// The handle only answered a query, so a failed close changes no answer.
+	defer func() { _ = windows.CloseHandle(h) }()
 	var code uint32
 	if err := windows.GetExitCodeProcess(h, &code); err != nil {
 		return true

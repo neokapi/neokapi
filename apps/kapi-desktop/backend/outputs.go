@@ -115,9 +115,9 @@ const langPlaceholder = "\x00LANG\x00"
 
 // discoverOutputLangs finds the languages for which an output file already
 // exists on disk for sourceRel under item's target, for any language (declared
-// or not). It resolves the target with the language set to a sentinel — so the
+// or not). It resolves the target with the language set to a sentinel, so the
 // sentinel is the only variable in an otherwise-concrete path regardless of the
-// target form (directory-mirror, tokens, or `*`) — then globs and captures the
+// target form (directory-mirror, tokens, or `*`), then globs and captures the
 // matched segment. Targets without {lang} yield nothing.
 func discoverOutputLangs(basePath string, item project.ContentItem, sourceRel string) []string {
 	if !strings.Contains(item.Target, "{lang}") {

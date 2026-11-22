@@ -37,6 +37,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 	sqlmemory "github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	sqlterms "github.com/neokapi/neokapi/terms"
 	"golang.org/x/sync/errgroup"
 )
@@ -120,6 +121,13 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 // owns the `up` verb when installed, calls this so its up presents the exact
 // same flag surface and ExecuteUp stays byte-identical.
 func (a *App) AddFlowRunFlags(cmd Command) { a.addFlowRunFlags(cmd) }
+
+// providerFlagUsage describes --provider from the AI provider registry, and
+// names the offline demo provider for a first run with no credentials.
+func providerFlagUsage() string {
+	return fmt.Sprintf("AI provider: %s. %s works offline with no credentials and writes illustrative output, for trying kapi",
+		strings.Join(aiprovider.ProviderNames(), ", "), aiprovider.Demo)
+}
 
 // addFlowRunFlags registers the common flags for flow execution commands.
 func (a *App) addFlowRunFlags(cmd Command) {

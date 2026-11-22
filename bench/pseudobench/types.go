@@ -59,7 +59,7 @@ type ExperimentResult struct {
 	// Verification aggregates (populated from the last iteration's
 	// FileResults at report-write time). Lets readers see at a glance
 	// whether the engine's outputs actually contain pseudo-translated
-	// content — a no-op engine that exits 0 quickly would look great
+	// content. A no-op engine that exits 0 quickly would look great
 	// in WallTimeMs but show 0 verified files here.
 	FilesAttempted   int `json:"filesAttempted,omitempty"`
 	FilesSucceeded   int `json:"filesSucceeded,omitempty"`
@@ -108,8 +108,8 @@ type FileTiming struct {
 	EndMs      float64 `json:"endMs"`
 	WallMs     float64 `json:"wallMs"`
 	PeakRssKB  int64   `json:"peakRssKB"`
-	UserCpuMs  float64 `json:"userCpuMs"`
-	SysCpuMs   float64 `json:"sysCpuMs"`
+	UserCPUMs  float64 `json:"userCpuMs"`
+	SysCPUMs   float64 `json:"sysCpuMs"`
 	BlockCount int64   `json:"blockCount,omitempty"`
 	Success    bool    `json:"success"`
 	Error      string  `json:"error,omitempty"`

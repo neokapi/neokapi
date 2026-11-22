@@ -7,12 +7,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -35,13 +37,7 @@ var families = []family{
 }
 
 func (f family) has(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	for _, e := range f.exts {
-		if ext == e {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(f.exts, strings.ToLower(filepath.Ext(path)))
 }
 
 // report is what one check found: the tracked files checked in each family,
@@ -135,12 +131,12 @@ func (r report) write(w io.Writer) int {
 // trackedFiles lists the files git tracks under root that exist in the working
 // tree.
 func trackedFiles(root string) ([]string, error) {
-	out, err := exec.Command("git", "-C", root, "ls-files", "-z").Output()
+	out, err := exec.CommandContext(context.Background(), "git", "-C", root, "ls-files", "-z").Output()
 	if err != nil {
 		return nil, fmt.Errorf("git ls-files: %w", err)
 	}
 	var files []string
-	for _, rel := range bytes.Split(out, []byte{0}) {
+	for rel := range bytes.SplitSeq(out, []byte{0}) {
 		if len(rel) == 0 {
 			continue
 		}

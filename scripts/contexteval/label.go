@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,31 +14,14 @@ import (
 	"strings"
 )
 
-// Labelling: turning saved outputs into the human verdicts the judge is
-// measured against.
+// Labelling turns saved outputs into the human verdicts the judge is measured
+// against. The kappa it feeds is only meaningful because the loop is:
 //
-// The plumbing to USE labels has been here since the judge was written
-// (-judge-validate, per-criterion kappa, a bar the dashboard enforces). What
-// was missing is the part a person can actually do: nobody hand-writes 150
-// items of JSON, so the labels file stayed empty and both judged evals stayed
-// unvalidated, publishing scores nobody had checked.
-//
-// Four things decide whether the resulting kappa means anything, and all four
-// are properties of this loop rather than of the arithmetic afterwards:
-//
-//   - BLIND. The judge's verdict is never shown. A labeller who sees it agrees
-//     with it, and the measurement becomes a measurement of suggestibility.
-//   - BLIND TO CONDITION. The variant (bare or steered) is hidden too, or the
-//     labeller scores the condition rather than the text.
-//   - SHUFFLED, deterministically. Fatigue is real and rises through a
-//     session; if the order correlates with model or variant, so does the
-//     tiredness. Seeded from the corpus so a re-run presents the same order.
-//   - SKIPPABLE. "I am not sure" is an answer. A forced guess is noise that
-//     kappa cannot tell from disagreement, and it drags the estimate toward
-//     chance in a way that looks like a bad judge.
-//
-// Resumable after every single answer, because the realistic session is twenty
-// minutes on a train, not two hours at a desk.
+//   - Blind. The judge's verdict is never shown.
+//   - Blind to condition. The variant (bare or steered) is hidden too.
+//   - Shuffled by a corpus seed, so fatigue does not track model or variant.
+//   - Skippable. A forced guess is noise that kappa reads as disagreement.
+//   - Resumable after every answer, for short sessions.
 
 // labelSession is the on-disk state of a labelling run: the same shape the
 // validator reads, plus enough to resume.
@@ -118,7 +102,7 @@ func loadCandidates(path string) ([]candidate, error) {
 
 func itemID(target, source, translation string) string {
 	sum := sha256.Sum256([]byte(target + "\x00" + source + "\x00" + translation))
-	return fmt.Sprintf("%x", sum[:6])
+	return hex.EncodeToString(sum[:6])
 }
 
 // shuffleDeterministic orders candidates by a hash of their id, so the sequence

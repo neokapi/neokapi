@@ -90,9 +90,10 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 		return peak, sz
 	}
 
-	ps, smallSize := peakReading(2_000)
-	pl, largeSize := peakReading(40_000) // 20x
-	testutil.AssertBoundedMemory(t, "tmx streaming reader", ps, uint64(smallSize), pl, uint64(largeSize))
+	const smallN, largeN = 2_000, 40_000
+	ps, smallSize := peakReading(smallN)
+	pl, largeSize := peakReading(largeN) // 20x
+	testutil.AssertBoundedMemoryPerBlock(t, "tmx streaming reader", ps, uint64(smallSize), smallN, pl, uint64(largeSize), largeN)
 }
 
 // TestStreamingByteExact_Large round-trips a large generated TMX byte-for-byte

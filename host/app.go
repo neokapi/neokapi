@@ -71,7 +71,7 @@ type App struct {
 	// ranks above a recipe's defaults.engine and the config's formats.engine.
 	EngineFlag string
 
-	// ConvTiming makes kconv report each file's conversion time on stderr:
+	// ConvTiming makes kconv report each file's conversion time on stderr,
 	// the in-process cost, so the figure is comparable with what conversion
 	// libraries publish, unlike wall-clocking the process from outside, which
 	// mostly measures binary start-up.
@@ -81,7 +81,7 @@ type App struct {
 	Credentials *credentials.Store
 
 	// AISetupIOOverride, when non-nil, replaces the default wizard IO used by
-	// EnsureAIProviderInteractive and `kapi models setup`: tests inject
+	// EnsureAIProviderInteractive and `kapi models setup`, tests inject
 	// scripted stdin, fake detection, and stub live checks through it.
 	AISetupIOOverride *AISetupIO
 
@@ -121,7 +121,7 @@ type App struct {
 	freshnessOnce sync.Once
 
 	// execTrustGranted records that this process has established the right to
-	// run the active project's exec-class steps: the user answered the
+	// run the active project's exec-class steps, the user answered the
 	// prompt, a stored decision matched, or the environment granted it. Set by
 	// ensureExecTrust and read by checkExecToolAllowed; see host/exectrust.go.
 	execTrustGranted bool
@@ -129,7 +129,7 @@ type App struct {
 	// convergeWriteFiles forces the file-writing path even for a single input in
 	// a project, overriding the process-only default (AD-026). Convergence
 	// (`kapi run` with no flow) sets it so it materializes the localized target
-	// files its file-derived coverage then reads: uniformly, whether the project
+	// files its file-derived coverage then reads, uniformly, whether the project
 	// has one content file or many.
 	convergeWriteFiles bool
 
@@ -149,8 +149,12 @@ type App struct {
 	// where the recipe says.
 	convergeDraftDir string
 
+	// writeTally counts the translations a convergence run writes to target
+	// files, as the edit recorder records them. Nil outside a run.
+	writeTally *unitWriteTally
+
 	// convergeDraftRoot is the project root the draft tree mirrors paths
-	// against, so a target outside the project (which no recipe gate reaches)
+	// against, so a target outside the project, which no recipe gate reaches,
 	// is written where it was resolved rather than folded into the tree.
 	convergeDraftRoot string
 
@@ -165,9 +169,9 @@ type App struct {
 	printOps *printedOps
 
 	// docCache is the project's streaming document cache, opened by a project-level
-	// command (withParseCache) so repeated reads of unchanged files (across
+	// command (withParseCache) so repeated reads of unchanged files, across
 	// `status` re-runs, `verify`, every `run --until-gate` pass, and the flow
-	// runner) replay a prior parse one part at a time instead of re-parsing. It is
+	// runner, replay a prior parse one part at a time instead of re-parsing. It is
 	// a rebuildable optimization over the files (the source of truth): blow it away
 	// and a re-read reconstructs identical results. nil for ad-hoc reads (no
 	// project), which parse directly.
@@ -208,7 +212,7 @@ type App struct {
 
 	// translator localizes tool/format/plugin metadata at API egress.
 	// Built during Init from --lang / KAPI_LANG / config / POSIX env.
-	// Never nil after Init: unresolved locales get a NoopTranslator
+	// Never nil after Init, unresolved locales get a NoopTranslator
 	// so T() calls are always safe.
 	translator i18n.Translator
 
@@ -221,7 +225,7 @@ type App struct {
 	// projectStores holds the open project stores (ProjectDB): one per project
 	// root, shared by every command and every converge worker under this App,
 	// closed by Shutdown. Built lazily and pre-seeded into worker clones, the
-	// same arrangement pluginRuntime uses and for the same reason: a second
+	// same arrangement pluginRuntime uses and for the same reason, a second
 	// holder means a second connection pool on one SQLite file.
 	projectStoresOnce sync.Once
 	projectStores     *projectStores
@@ -266,7 +270,7 @@ func (a *App) PluginInstallTarget() (string, error) {
 }
 
 // ensurePluginRuntime lazily builds the shared plugin Runtime from the current
-// flags/env. It performs no discovery itself: callers Rescan when they need
+// flags/env. It performs no discovery itself, callers Rescan when they need
 // the host. Safe to call from InitPluginHost or DaemonPool.
 func (a *App) ensurePluginRuntime() *pluginhost.Runtime {
 	a.pluginRuntimeOnce.Do(func() {
@@ -304,7 +308,7 @@ func (a *App) ensurePluginRuntime() *pluginhost.Runtime {
 	return a.pluginRuntime
 }
 
-// T returns the active metadata Translator. Safe to call before Init:
+// T returns the active metadata Translator. Safe to call before Init,
 // returns a NoopTranslator that passes source text through unchanged.
 func (a *App) T() i18n.Translator {
 	if a.translator == nil {
@@ -347,7 +351,7 @@ func (a *App) addInputFlags(cmd Command, withEngine bool) {
 
 // InitRegistries populates FormatReg, SchemaReg, and ToolReg with every
 // built-in format, schema, and tool. It has no flag or config dependency
-// and is safe to call at cobra `init()` time: specifically, before
+// and is safe to call at cobra `init()` time, specifically, before
 // NewToolCommands() walks the tool registry to build subcommand trees.
 // Idempotent: repeat calls are a no-op once the registries exist.
 func (a *App) InitRegistries() {
@@ -377,7 +381,7 @@ func (a *App) InitRegistries() {
 // validation sees them.
 //
 // Idempotent: repeat calls are a no-op once the host exists. Safe to
-// call from cobra init(): the host attaches its commands before
+// call from cobra init(), the host attaches its commands before
 // rootCmd.Execute() runs.
 //
 // Cache: when a startup-time cache exists at $XDG_CACHE_HOME/kapi/plugins-cache.json
@@ -389,7 +393,7 @@ func (a *App) InitPluginHost() {
 	}
 	// The Runtime owns the discover→build→wire sequence (schema extensions,
 	// source-connector dispatchers, and daemon-backed Mode-C formats) plus the
-	// lazy daemon pool: the same path the desktop app uses, so the logic lives
+	// lazy daemon pool, the same path the desktop app uses, so the logic lives
 	// in one place (pluginhost.Runtime).
 	a.PluginHost = a.ensurePluginRuntime().Rescan()
 }
@@ -406,14 +410,13 @@ func (a *App) InitPluginHost() {
 func (a *App) Init() error {
 	a.InitRegistries()
 
-	// A recipe key that is nearly a field is preserved like any other unknown
-	// one, so nothing in the loader catches `source:` where the field is
-	// `source_language:` and the project loads as a valid monolingual one.
-	// The near misses are reported by core/project through this hook rather
-	// than printed there; the CLI is where they become stderr. See #2223.
-	// Each is printed once: a single command loads the recipe several times
-	// (`kapi check` reads it twice before it reads a file), and a repeated
-	// warning reads as a fault in the warning.
+	// The loader keeps a recipe key that is nearly a field like any other
+	// unknown key, so `source:` for `source_language:` loads as a valid
+	// monolingual project. core/project reports such near misses through this
+	// hook, and the CLI prints them on stderr (#2223).
+	// Each warning prints once. A single command loads the recipe several
+	// times (`kapi check` reads it twice before it reads a file), and a
+	// warning repeated three times reads as a fault in the warning.
 	var warned sync.Map
 	project.OnKeyWarnings = func(recipePath string, warnings []string) {
 		for _, w := range warnings {
@@ -518,7 +521,7 @@ func (a *App) InstalledPluginList() []project.InstalledPlugin {
 func (a *App) applyFormatPriorities(priorities map[string]int) {
 	for pattern, priority := range priorities {
 		if isGlobPattern(pattern) {
-			// Glob pattern: match against all registered format infos.
+			// Glob pattern, match against all registered format infos.
 			for _, info := range a.FormatReg.FormatInfos() {
 				if matched, _ := filepath.Match(pattern, string(info.Name)); matched {
 					a.FormatReg.SetFormatPriority(info.Name, priority)
@@ -542,7 +545,7 @@ func isGlobPattern(s string) bool {
 //
 
 // Shutdown cleans up plugin resources (stops Mode-C daemons, etc.). Must
-// be called before the process exits: typically from main() after
+// be called before the process exits, typically from main() after
 // Execute() returns, to ensure cleanup runs even when RunE returns an
 // error.
 func (a *App) Shutdown() {
