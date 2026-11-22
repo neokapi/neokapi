@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
@@ -45,13 +46,13 @@ func Run(cmd *cobra.Command, cleanup ...func()) {
 	ctx, stop := SignalContext(context.Background())
 
 	cmd.SetContext(ctx)
-	// ExecuteContextC returns the command that actually ran — its flag set
+	// ExecuteContextC returns the command that actually ran. Its flag set
 	// carries the parsed persistent output flags (--json/--jq), which the
 	// error envelope below needs. The root's own flag set would not.
 	start := time.Now()
 	executed, err := cmd.ExecuteContextC(ctx)
 
-	// An unknown verb may not be a mistake — it may be a verb whose plugin is
+	// An unknown verb may not be a mistake: it may be a verb whose plugin is
 	// not installed. Give the handler a chance to say so, or to install the
 	// plugin and run the command, before this becomes a bare error. This runs
 	// before stop(), which cancels the signal context: the handler may install
@@ -65,6 +66,7 @@ func Run(cmd *cobra.Command, cleanup ...func()) {
 		}
 	}
 	duration := time.Since(start)
+	err = AdviseAPIKey(executed, err)
 
 	stop()
 
@@ -106,7 +108,7 @@ func Run(cmd *cobra.Command, cleanup ...func()) {
 // the historical plain line ("Error: <message>"); under --json (or --jq /
 // --output-format=json) it is the structured envelope
 // {"error": "<message>", "code": "<symbol>"} so scripted callers never have
-// to parse prose. Exit codes are unchanged either way — the code symbol
+// to parse prose. Exit codes are unchanged either way, the code symbol
 // mirrors them (see ErrorCodeString).
 func PrintCommandError(cmd *cobra.Command, err error, code int) {
 	if output.ResolveFormat(cmd) == output.FormatJSON {
@@ -137,4 +139,17 @@ func ErrorCodeString(code int) string {
 	default:
 		return strconv.Itoa(code)
 	}
+}
+
+// AdviseAPIKey names --api-key in a missing key's advice when the command
+// that ran honours the flag. The commands that do are the ones that register
+// it with the run flags (host runConfigFlags, through AddRunConfigFlags) or
+// as a tool option; the flag-read walk test fails for a command that
+// registers a flag it never reads, so the registration is the table. Every
+// other error passes through unchanged.
+func AdviseAPIKey(executed *cobra.Command, err error) error {
+	if err == nil || executed == nil || executed.Flags().Lookup("api-key") == nil {
+		return err
+	}
+	return credentials.WithAPIKeyFlag(err)
 }

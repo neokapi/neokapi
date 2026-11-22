@@ -92,6 +92,19 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 		if IsKpzPath(outputFlag) {
 			return errKpzCreateWithExtract
 		}
+		// A missing key refuses before any file is written, as `kapi up`
+		// refuses before its first pass. These files are named on the command
+		// line, so no plan can show the provider goes uncalled.
+		if spec := builtInFlowSteps(flowName, runFlagToolConfig(cmd)); spec != nil {
+			var proj *project.KapiProject
+			if a.ProjectContext != nil {
+				proj = a.ProjectContext.Project
+			}
+			if err := a.RunAISetupRefusal(ctx, cmd, proj, "", flowName, spec,
+				[]model.LocaleID{model.LocaleID(a.TargetLang)}, true); err != nil {
+				return err
+			}
+		}
 		if len(inputPaths) == 1 {
 			return a.RunSingleFile(ctx, cmd, flowName, inputPaths[0])
 		}

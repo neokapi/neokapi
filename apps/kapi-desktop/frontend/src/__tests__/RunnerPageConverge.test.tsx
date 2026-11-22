@@ -12,7 +12,7 @@ vi.mock("../hooks/useApi", () => ({
     getRunState: (...args: unknown[]) => getRunStateMock(...args),
     getRunEvents: (...args: unknown[]) => getRunEventsMock(...args),
     cancelProjectRun: (...args: unknown[]) => cancelRunMock(...args),
-    aiNeedsModelChoice: vi.fn().mockResolvedValue(false),
+    checkAISetup: vi.fn().mockResolvedValue({ kind: "" }),
     matchContent: vi.fn().mockResolvedValue([]),
     bringUpToDate: (...args: unknown[]) => bringUpToDateMock(...args),
     runFlow: (...args: unknown[]) => runFlowMock(...args),

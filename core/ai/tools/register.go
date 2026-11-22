@@ -12,46 +12,49 @@ import (
 // The registry receives metadata and config factories; actual provider
 // injection happens at tool creation time via NewToolFromConfig.
 func RegisterAll(reg *registry.ToolRegistry) {
-	// Translate — a tool group whose members are the LLM and MT providers;
+	// Translate: a tool group whose members are the LLM and MT providers;
 	// `--provider` selects the backend (see unified.go). Replaces the former
 	// ai-translate command and the per-engine <provider>-translate commands.
 	reg.RegisterGroup(translateGroup())
+	// A translate step after recycle may have no unit left for the model; it
+	// is built without its key and asks for it only on a call.
+	reg.SetDefersCredentials("translate")
 
-	// Quality check — a tool group with two members: deterministic rule checks (default,
+	// Quality check: a tool group with two members: deterministic rule checks (default,
 	// no credentials) and LLM-judged review; `--mode` selects (see unified.go).
 	reg.RegisterGroup(checkGroup())
 
-	// Review — review translations with scoring using an LLM.
+	// Review: review translations with scoring using an LLM.
 	reg.RegisterWithSchema("review", func() tool.Tool {
 		return NewAIReviewTool(aiprovider.NewMockProvider(), AIReviewConfig{})
 	}, AIReviewSchema())
 	reg.SetConfigFactory("review", NewAIReviewFromConfig)
 
-	// AI Voice Check — score/flag text against a voice profile.
+	// AI Voice Check: score/flag text against a voice profile.
 	reg.RegisterWithSchema("voice-check", func() tool.Tool {
 		return NewVoiceCheckTool(aiprovider.NewMockProvider(), nil)
 	}, VoiceCheckSchema())
 	reg.SetConfigFactory("voice-check", NewVoiceCheckFromConfig)
 
-	// AI Voice Infer — draft a voice profile FROM a content corpus (the
+	// AI Voice Infer: draft a voice profile FROM a content corpus (the
 	// inverse of voice-check: onboarding, not compliance).
 	reg.RegisterWithSchema("voice-infer", func() tool.Tool {
 		return NewVoiceInferTool(aiprovider.NewMockProvider(), VoiceInferConfig{})
 	}, VoiceInferSchema())
 	reg.SetConfigFactory("voice-infer", NewVoiceInferFromConfig)
 
-	// Term Extract — extract candidate terminology from content (the LLM
+	// Term Extract: extract candidate terminology from content (the LLM
 	// counterpart to the deterministic term-check).
 	reg.RegisterWithSchema("term-extract", func() tool.Tool {
 		return NewAITerminologyTool(aiprovider.NewMockProvider(), AITerminologyConfig{})
 	}, AITerminologySchema())
 	reg.SetConfigFactory("term-extract", NewAITerminologyFromConfig)
 
-	// Entity Extract — a tool group whose engine members are llm / local NER /
+	// Entity Extract: a tool group whose engine members are llm / local NER /
 	// hybrid (feeds redaction's "entities" detector and terminology workflows).
 	reg.RegisterGroup(entityExtractGroup())
 
-	// Media Refine — re-read low-confidence OCR/ASR lines with a multimodal LLM.
+	// Media Refine: re-read low-confidence OCR/ASR lines with a multimodal LLM.
 	reg.RegisterWithSchema("media-refine", func() tool.Tool {
 		return NewMediaRefineTool(aiprovider.NewMockProvider(), MediaRefineConfig{})
 	}, MediaRefineSchema())
@@ -71,8 +74,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 }
 
 // ResolveEntityExtractContract refines entity-extract's contract from its
-// config: with `engine: ner` the tool calls no provider at all — extraction
-// runs on the local on-device NER model — so it carries no API call, no
+// config: with `engine: ner` the tool calls no provider at all (extraction
+// runs on the local on-device NER model), so it carries no API call, no
 // remote source egress, and needs no credentials. Any other engine resolves
 // like the rest of the AI tools (local providers drop the egress effect).
 func ResolveEntityExtractContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {
@@ -102,8 +105,8 @@ func ResolveEntityExtractContract(config map[string]any, base registry.ToolInfo)
 // ResolveAIEgressContract refines an AI tool's side effects from its node
 // config (AD-006 placement pass): configured with a local provider (Ollama,
 // the offline demo) the tool sends nothing to a remote sink, so the
-// remote-source-egress effect is dropped. With no provider key — or any cloud
-// provider — the static contract stands, fail-closed: the registered default
+// remote-source-egress effect is dropped. With no provider key (or any cloud
+// provider) the static contract stands, fail-closed: the registered default
 // for AI tools is a cloud provider, so an unconfigured node counts as remote.
 // Registered via ToolRegistry.SetContractResolver for every AI tool.
 func ResolveAIEgressContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {

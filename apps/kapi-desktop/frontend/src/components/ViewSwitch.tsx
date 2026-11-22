@@ -20,7 +20,7 @@ import {
 } from "./ContextHub";
 import { HistoryView } from "./HistoryView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsPage, type SettingsTab } from "./SettingsPage";
 import { OverviewStanding } from "./OverviewStanding";
 import { ProjectContentPage } from "./ProjectContentPage";
 import { ProjectSetupPage } from "./ProjectSetupPage";
@@ -290,9 +290,21 @@ export function ViewSwitch({
     <SettingsPage startHereDismissed={startHereDismissed} onRestoreStartHere={onRestoreStartHere} />
   );
 
-  // Global app settings, from the gear at the bottom of the sidebar
+  // Global app settings, from the gear at the bottom of the sidebar.
+  // "app-settings:<section>" opens one section, such as credentials.
   if (effectiveView === "app-settings") {
     return settings;
+  }
+  if (effectiveView.startsWith("app-settings:")) {
+    const section = effectiveView.slice("app-settings:".length);
+    return (
+      <SettingsPage
+        key={section}
+        initialTab={section as SettingsTab}
+        startHereDismissed={startHereDismissed}
+        onRestoreStartHere={onRestoreStartHere}
+      />
+    );
   }
 
   // Project views — require an active tab
@@ -506,6 +518,7 @@ export function ViewSwitch({
               scopeLabel={runnerState.scopeLabel}
               converge={runnerState.converge}
               onOpenReview={handleOpenReview}
+              onNavigate={navigate}
               onLaunched={() => {
                 launchedRunIdRef.current = runnerState.runId;
               }}

@@ -143,6 +143,13 @@ func seedRunConfig(steps []flow.FlowStep, runConfig map[string]any) ([]flow.Flow
 	return out, notes
 }
 
+// SeedRunConfigSpec applies run configuration to a flow a surface resolved
+// itself, by the rule seedRunConfig states, and returns the notes naming each
+// step that kept its own value.
+func SeedRunConfigSpec(spec *flow.StepsSpec, runConfig map[string]any) (*flow.StepsSpec, []string) {
+	return seedRunConfigSpec(spec, runConfig)
+}
+
 // seedRunConfigSpec is seedRunConfig over a whole spec, copied.
 func seedRunConfigSpec(spec *flow.StepsSpec, runConfig map[string]any) (*flow.StepsSpec, []string) {
 	if spec == nil || len(runConfig) == 0 {
@@ -156,5 +163,6 @@ func seedRunConfigSpec(spec *flow.StepsSpec, runConfig map[string]any) (*flow.St
 
 // RunFlagToolConfig is the run flags' tool config on cmd: the input every
 // surface that runs or plans a flow hands to ResolveProjectFlow and
-// ProjectFlowNeedsAISetup. A surface with no flags (the desktop) passes nil.
+// ProjectFlowAISetup. A surface with no flags passes the settings its run
+// was started with in the same shape, or nil.
 func RunFlagToolConfig(cmd Command) map[string]any { return runFlagToolConfig(cmd) }

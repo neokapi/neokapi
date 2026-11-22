@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 
 	"github.com/neokapi/neokapi/host/flowdef"
@@ -102,6 +103,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	}
 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	namedFiles := len(inputPaths) > 0
 	explain, _ := cmd.Flags().GetBool("explain")
 	if err := refusePackWithoutKpz(cmd, inputPaths); err != nil {
 		return err
@@ -183,6 +185,16 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 			}
 		}
 		return explainProjectFlowRun(cmd.OutOrStdout(), flowName, inputPaths, outputFlag, locales)
+	}
+
+	// A missing key refuses before any file is written, as `kapi up` refuses
+	// before its first pass, so the run never stops with some files done.
+	setupLocales := ctx.TargetLocales
+	if cmd.Flags().Changed("target-lang") {
+		setupLocales = []model.LocaleID{model.LocaleID(a.TargetLang)}
+	}
+	if err := a.RunAISetupRefusal(cmd.Context(), cmd, proj, projectPath, flowName, spec, setupLocales, namedFiles); err != nil {
+		return err
 	}
 
 	// This run resolves the recipe's coordinates; a run at the server venue

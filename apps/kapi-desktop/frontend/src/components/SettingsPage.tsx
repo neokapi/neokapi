@@ -12,7 +12,7 @@ import { LocaleSettings } from "./LocaleSettings";
 import { FormatsPage } from "./FormatsPage";
 import { SubNavTabs } from "./SubNavTabs";
 
-type SettingsTab = "general" | "credentials" | "plugins" | "formats" | "locales";
+export type SettingsTab = "general" | "credentials" | "plugins" | "formats" | "locales";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type UILanguage = "en" | "nb" | "qps";
@@ -42,6 +42,8 @@ export interface SettingsPageProps {
   startHereDismissed?: boolean;
   /** Bring Get started back. Absent writes the setting directly. */
   onRestoreStartHere?: () => void;
+  /** The section shown first; General when absent. */
+  initialTab?: SettingsTab;
 }
 
 export function SettingsPage({
@@ -49,8 +51,9 @@ export function SettingsPage({
   uiLanguage: propLang,
   startHereDismissed: propStartHere,
   onRestoreStartHere,
+  initialTab = "general",
 }: SettingsPageProps = {}) {
-  const [tab, setTab] = useState<SettingsTab>("general");
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [theme, setTheme] = useState<ThemeMode>(propTheme ?? "system");
   const [uiLanguage, setUILanguage] = useState<UILanguage>(propLang ?? "en");
   const [loading, setLoading] = useState(!propTheme);
