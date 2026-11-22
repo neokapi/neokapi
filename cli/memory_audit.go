@@ -40,7 +40,7 @@ merge do?".
 			}
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, dbPath, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}

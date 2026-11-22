@@ -229,6 +229,7 @@ var (
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir
 	ResolveProjectPath           = host.ResolveProjectPath
+	ResolveNewProjectPath        = host.ResolveNewProjectPath
 	MemoryFileFormats            = host.MemoryFileFormats
 	ResolveMemoryExportFormat    = host.ResolveMemoryExportFormat
 	ResolveMemoryImportFormat    = host.ResolveMemoryImportFormat

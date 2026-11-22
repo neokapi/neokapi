@@ -5049,11 +5049,18 @@
   },
   "desktop": {
     "menu": {
+      "cancel": "Cancel",
+      "cancelFlowAndClose": "Cancel Flow \u0026 Close",
       "checkForUpdates": "Check for Updates…",
+      "closeWithoutSaving": "Close Without Saving",
       "file": "File",
+      "holdNoAnswer": "These projects keep the window open, and the window did not answer:",
+      "holdTitle": "Projects Still Open",
       "newProject": "New Project",
       "noWorkspaceProjects": "No Projects Yet",
       "open": "Open...",
+      "reasonRunning": "flow running",
+      "reasonUnsaved": "unsaved changes",
       "save": "Save",
       "saveAs": "Save As...",
       "workspaceProjects": "Projects in Your Workspace"

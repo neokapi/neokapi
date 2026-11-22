@@ -12,10 +12,10 @@
 //
 // The frontend installs a custom Wails transport (see src/demo/real-main.tsx)
 // that forwards binding calls to /wbridge. Nothing here is mocked: same backend
-// code, same packages, same on-disk databases — only the transport differs (as
+// code, same packages, same on-disk databases; only the transport differs (as
 // it already does between Wails' macOS and Windows/Linux runtimes).
 //
-// SECURITY — this is a RECORDING/DEV-ONLY tool, never part of a shipped build
+// SECURITY: this is a RECORDING/DEV-ONLY tool, never part of a shipped build
 // (it is not imported by the app's main.go). It exposes the whole backend over
 // HTTP, so it deliberately refuses to run unless:
 //   - KAPI_CONFIG_DIR is set to an ISOLATED dir (never the user's real config),
@@ -37,6 +37,7 @@ import (
 	"time"
 
 	// Parity with the desktop app: register bowrain recipe schema extensions.
+	"github.com/neokapi/neokapi/host/desktopclose"
 	_ "github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 )
@@ -97,7 +98,7 @@ type callRequest struct {
 }
 
 // requireIsolatedConfig refuses to run unless KAPI_CONFIG_DIR is set to a dir
-// that is NOT the user's default config — so wbridge can never expose the real
+// that is NOT the user's default config, so wbridge can never expose the real
 // backend/credentials, even if launched by mistake.
 func requireIsolatedConfig() {
 	dir := os.Getenv("KAPI_CONFIG_DIR")
@@ -147,6 +148,35 @@ func main() {
 	backend.InjectEventSink(app, hub.publish)
 
 	mux := http.NewServeMux()
+
+	// /close stands in for the native window-close and quit hooks, which a
+	// browser cannot fire. POST /close?route=window or ?route=quit asks
+	// backend.GuardClose exactly as main.go's hooks do and answers
+	// "allowed=true" or "allowed=false"; a held close shows the page's
+	// unsaved-changes dialog. A confirmed close logs "closer ran: <route>"
+	// where the app would close the window or quit.
+	backend.SetClosers(app,
+		func() { log.Printf("wbridge: closer ran: %s", desktopclose.RouteWindow) },
+		func() { log.Printf("wbridge: closer ran: %s", desktopclose.RouteQuit) })
+	mux.HandleFunc("/close", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", http.StatusMethodNotAllowed)
+			return
+		}
+		route := desktopclose.Route(r.URL.Query().Get("route"))
+		if route != desktopclose.RouteWindow && route != desktopclose.RouteQuit {
+			http.Error(w, "route must be window or quit", http.StatusBadRequest)
+			return
+		}
+		allowed := backend.GuardClose(app, route)
+		log.Printf("wbridge: close route=%s allowed=%v", route, allowed)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		answer := "allowed=false\n"
+		if allowed {
+			answer = "allowed=true\n"
+		}
+		_, _ = w.Write([]byte(answer))
+	})
 	mux.HandleFunc("/wbridge", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")

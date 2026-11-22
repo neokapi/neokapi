@@ -116,20 +116,50 @@ func TestPlanSnapshot_DecisionIsCountedAfterTheQuietPeriod(t *testing.T) {
 }
 
 // A burst of changes costs one compute.
+//
+// The test drives each pass of the refresh itself (poll is zero), so the
+// burst and the quiet period are steps in order rather than sleeps raced
+// against the runner. Every change is heard before the first pass writes
+// them, so they become one mark. The quiet period is then only a lower bound:
+// passes repeat until the mark is due, and a slower machine waits longer for
+// the same single compute.
 func TestPlanSnapshot_BurstComputesOnce(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	projID, _ := containerProject(t, s, wsID)
-	r := startTestPlanSnapshots(t, s)
+	cfg := testPlanSnapshotConfig
+	cfg.poll = 0
+	r := startTestPlanSnapshotsWith(t, s, cfg)
+	heard := make(chan struct{}, 64)
+	hook := func(ev platev.Event) {
+		if ev.Type == platev.EventReviewDecided && ev.ProjectID == projID {
+			heard <- struct{}{}
+		}
+	}
+	r.onHear.Store(&hook)
 	readPlan(t, s, wsID, projID)
 	require.EqualValues(t, 1, r.computes.Load())
 
-	for range 20 {
+	const burst = 20
+	for range burst {
 		s.EventBus.Publish(platev.Event{Type: platev.EventReviewDecided, ProjectID: projID})
-		time.Sleep(15 * time.Millisecond)
 	}
-	settled(t, s, projID)
-	time.Sleep(2 * testPlanSnapshotConfig.quiet)
+	for i := range burst {
+		select {
+		case <-heard:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("heard %d of %d changes", i, burst)
+		}
+	}
+
+	require.Eventually(t, func() bool {
+		r.poll(t.Context())
+		return r.computes.Load() > 1
+	}, 10*time.Second, testPlanSnapshotConfig.quiet/4, "the burst is counted once it is quiet")
+	for range 3 {
+		r.poll(t.Context())
+	}
 	assert.EqualValues(t, 2, r.computes.Load(), "the burst is counted once")
+	settled(t, s, projID)
 }
 
 // Under continuous change the snapshot is still counted at least once per

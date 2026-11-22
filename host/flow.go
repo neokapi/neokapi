@@ -2633,9 +2633,9 @@ func stepNamesRedactRules(config map[string]any) bool {
 //
 // Nothing here is fatal. A voice or terms binding that cannot be resolved
 // leaves the run without it, and the recipe's tool settings (defaults.tools,
-// defaults.locales) still apply. The first step
-// whose tool would have taken a missing binding says so on stderr
-// (applyBindingsFor), quiet or not.
+// defaults.locales) still apply. The first step whose tool would have taken a
+// missing binding says so on stderr (applyBindingsFor). A -p that names no
+// project is warned of here.
 func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindings {
 	if a.ProjectBindings != nil {
 		return a.ProjectBindings
@@ -2645,7 +2645,11 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 	}
 	c := cmd[0]
 
-	if projectPath, err := ResolveProjectPath(c); err == nil && projectPath != "" {
+	projectPath, rerr := ResolveProjectPath(c)
+	if rerr != nil {
+		fmt.Fprintf(c.ErrOrStderr(), "Warning: this run applies no recipe: %v\n", rerr)
+	}
+	if rerr == nil && projectPath != "" {
 		proj, err := project.Load(projectPath)
 		if err != nil {
 			fmt.Fprintf(c.ErrOrStderr(), "Warning: the recipe %s does not load, so this run applies none of it: %v\n", projectPath, err)
