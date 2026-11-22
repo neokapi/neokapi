@@ -12,6 +12,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -255,14 +257,24 @@ func (d *DockerSandbox) createContainer(ctx context.Context, image string, cmd [
 }
 
 // copyFiles uploads files to the container's /workspace via a tar archive.
+// Every name must be a relative, slash-separated path that stays inside the
+// workspace: an absolute name, a ".." segment, or a name Docker would read as
+// a path outside /workspace is refused before anything is sent. Each entry is
+// a regular file.
 func (d *DockerSandbox) copyFiles(ctx context.Context, containerID string, files map[string][]byte) error {
+	for name := range files {
+		if err := validateWorkspaceName(name); err != nil {
+			return err
+		}
+	}
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	for name, data := range files {
 		hdr := &tar.Header{
-			Name: name,
-			Mode: 0644,
-			Size: int64(len(data)),
+			Typeflag: tar.TypeReg,
+			Name:     name,
+			Mode:     0644,
+			Size:     int64(len(data)),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
@@ -425,4 +437,15 @@ type hostConfig struct {
 	CapDrop        []string          `json:"CapDrop,omitempty"`
 	SecurityOpt    []string          `json:"SecurityOpt,omitempty"`
 	PidsLimit      int64             `json:"PidsLimit,omitempty"`
+}
+
+// validateWorkspaceName refuses a file name that would land outside the
+// sandbox workspace: empty, absolute, holding a backslash, a NUL or a ".."
+// segment, or naming the workspace itself.
+func validateWorkspaceName(name string) error {
+	switch {
+	case name == "", strings.ContainsAny(name, "\\\x00"), !filepath.IsLocal(filepath.FromSlash(name)), path.Clean(name) == ".":
+		return fmt.Errorf("sandbox file %q: the name must be a relative path inside the workspace", name)
+	}
+	return nil
 }

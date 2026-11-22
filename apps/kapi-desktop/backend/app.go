@@ -1850,6 +1850,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 		URI:      filePath,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

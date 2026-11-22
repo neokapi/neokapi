@@ -50,6 +50,7 @@ func ReadSourceBlocks(
 		TargetLocale: tgt,
 		FormatID:     formatName,
 		Reader:       f,
+		ReaderAt:     f,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, nil, err

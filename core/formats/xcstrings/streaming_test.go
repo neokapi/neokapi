@@ -35,7 +35,7 @@ func xcStreamingRoundtrip(t *testing.T, input string) string {
 	defer store.Close()
 	reader.SetSkeletonStore(store)
 	writer.SetSkeletonStore(store)
-	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f}))
+	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 	var buf bytes.Buffer
@@ -105,7 +105,7 @@ func TestStreaming_BoundedMemoryXCStrings(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f}))
+		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}))
 		stride := max(n/256, 1)
 		base := liveHeap()
 		count := 0

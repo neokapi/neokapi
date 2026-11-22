@@ -36,7 +36,7 @@ func readXMLFileBlocks(t *testing.T, path string) []string {
 
 	ctx := context.Background()
 	require.NoError(t, reader.Open(ctx, &model.RawDocument{
-		URI: path, SourceLocale: "en", FormatID: "xml", Reader: f,
+		URI: path, SourceLocale: "en", FormatID: "xml", Reader: f, ReaderAt: f,
 	}))
 	defer reader.Close()
 

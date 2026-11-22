@@ -480,6 +480,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		TargetLocale: task.targetLocale,
 		FormatID:     task.source.Format,
 		Reader:       sourceFile,
+		ReaderAt:     sourceFile,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		if skelStore != nil {

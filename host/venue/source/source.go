@@ -1890,6 +1890,7 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 			URI:      absPath,
 			FormatID: formatName,
 			Reader:   f,
+			ReaderAt: f,
 		}
 
 		result, err := editor.ParseItem(ctx, reader, doc, sourceLocale, formatName, itemName)
@@ -1988,6 +1989,7 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 		URI:      filePath,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 	// A package format reads its entries straight out of the file handle
 	// instead of buffering the container.
@@ -2204,6 +2206,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		URI:      sourcePath,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		f.Close()

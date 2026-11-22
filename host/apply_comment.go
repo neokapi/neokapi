@@ -307,19 +307,14 @@ type writeError struct{ reason, detail string }
 // write leaves it as it was and a path that is a symlink stays one. The bytes
 // are read back from the file they landed on.
 func (w *commentFileWrite) write(src, out []byte) *writeError {
-	now, err := os.ReadFile(w.file)
+	inRoot := w.root != "" && under(w.root, w.file)
+	now, mode, err := w.read(w.file, inRoot)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
 	if !bytes.Equal(now, src) {
 		return &writeError{string(comment.RefusedStale), "the file changed while its comment edits were applied; read it again and send the edits again"}
 	}
-	info, err := os.Stat(w.file)
-	if err != nil {
-		return &writeError{reasonIO, err.Error()}
-	}
-	mode := info.Mode().Perm()
-	inRoot := w.root != "" && under(w.root, w.file)
 	if w.backupSuffix != "" {
 		if err := w.writeBackup(src, mode, inRoot); err != nil {
 			return &writeError{reasonIO, "write backup: " + err.Error()}
@@ -329,7 +324,7 @@ func (w *commentFileWrite) write(src, out []byte) *writeError {
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
-	written, err := os.ReadFile(file)
+	written, _, err := w.read(file, inRoot)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
@@ -445,24 +440,44 @@ func (w *commentFileWrite) writeBackup(src []byte, mode os.FileMode, inRoot bool
 	return f.Close()
 }
 
+// read returns the bytes and the mode of the file at path, through rootpath
+// when the file lies in the project.
+func (w *commentFileWrite) read(path string, inRoot bool) ([]byte, os.FileMode, error) {
+	var f *os.File
+	var err error
+	if inRoot {
+		f, err = rootpath.OpenRegular(w.root, path)
+	} else {
+		f, err = os.Open(path)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	data, err := io.ReadAll(f)
+	return data, info.Mode().Perm(), err
+}
+
 // replace puts out in place of the file atomically and returns the file the
-// bytes landed on. A file in the project is renamed through an os.Root opened
-// on the project root (atomicfile.Staged.CommitWithin).
+// bytes landed on. A file in the project is staged, written and renamed
+// through an os.Root opened on the project root (atomicfile.StageWithin), so
+// no byte is written outside it.
 func (w *commentFileWrite) replace(out []byte, inRoot bool) (string, error) {
 	if !inRoot {
 		return atomicfile.ReplaceBytes(w.file, out)
 	}
-	if _, err := rootpath.Contain(w.root, w.file); err != nil {
-		return "", err
-	}
-	s, err := atomicfile.Stage(w.file, func(dst io.Writer) error {
+	s, err := atomicfile.StageWithin(w.root, w.file, func(dst io.Writer) error {
 		_, err := dst.Write(out)
 		return err
 	})
 	if err != nil {
 		return "", err
 	}
-	if err := s.CommitWithin(w.root); err != nil {
+	if err := s.Commit(); err != nil {
 		return "", err
 	}
 	return s.Target(), nil
