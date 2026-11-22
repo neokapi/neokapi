@@ -1088,28 +1088,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
+      # golangci-lint compiles what it lints: the .golangci.yml build tags
+      # include fts5, so it needs the ICU headers this action installs (without
+      # them those files are silently skipped), and core/i18n and host/i18n
+      # embed the catalogs it compiles. The linter reads the export data of
+      # every dependency from the Go build cache, compiled without the race
+      # detector, which is what the "pr" flavor holds. The warm job owns that
+      # flavor, so this job never saves it.
+      - uses: ./.github/actions/setup-go-modules
         with:
-          go-version: "1.27.4"
-
-      # The .golangci.yml build-tags include fts5, so golangci-lint must compile
-      # the cgo ICU tokenizer / FTS5 path; that needs libicu-dev + pkg-config
-      # (mirroring the test jobs). Without it those files are silently skipped.
-      - name: Install cgo deps (ICU)
-        uses: ./.github/actions/apt-install
-        with:
-          packages: libicu-dev pkg-config
-
-      - name: Download modules
-        uses: ./.github/actions/go-mod-download
-        with:
+          cache-flavor: pr
+          save-cache: "false"
           modules: ". host cli kapi scripts/gen-refs scripts/gen-contract-types scripts/proseprobe"
-
-      # golangci-lint compiles the module, and core/i18n / host/i18n resolve
-      # `//go:embed catalogs/*.mo` against build output. The repository carries
-      # the translated JSON the MO is compiled from.
-      - name: Compile the embedded i18n catalogs
-        run: go run ./core/i18n/gen/catalogs
 
       - name: Lint framework
         uses: ./.github/actions/golangci
@@ -1164,28 +1154,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.27.4"
-
-      - name: Create embed placeholders
-        run: make go-embed-placeholders
-
-      - name: Download modules
-        uses: ./.github/actions/go-mod-download
-        with:
-          modules: "bowrain/core bowrain"
-
       # Every module linted below links core/i18n or host/i18n, whose embedded
-      # gettext catalogs are build output. The compiler is a cgo build, hence
-      # the ICU headers here rather than only before the Wails lint below.
-      - name: Install ICU for the catalog compiler
-        uses: ./.github/actions/apt-install
+      # gettext catalogs are build output; the action compiles them, with the
+      # ICU headers that cgo build needs, and creates the embed placeholders.
+      # The linter reads its dependencies' export data from the "pr" build
+      # cache, which the warm job owns, so this job never saves it.
+      - uses: ./.github/actions/setup-go-modules
         with:
-          packages: libicu-dev pkg-config
-
-      - name: Compile the embedded i18n catalogs
-        run: go run ./core/i18n/gen/catalogs
+          cache-flavor: pr
+          save-cache: "false"
+          modules: "bowrain/core bowrain"
 
       - name: Lint platform
         uses: ./.github/actions/golangci
@@ -1312,6 +1290,8 @@ jobs:
         run: python3 scripts/reliability-checklist.py --self-test
       - name: "Guard: the commit gate hook passes its self-test"
         run: ./.claude/hooks/commit-gate.sh --self-test
+      - name: "Guard: the build cache warmer passes its self-test"
+        run: ./scripts/ci-warm-build-cache.sh --self-test
       - name: "Guard: every copy of a tool pin names the same version"
         run: |
           python3 scripts/check-tool-versions.py --self-test
@@ -1434,6 +1414,29 @@ jobs:
       - name: Lint workflow files
         run: |
           "$(go env GOPATH)/bin/actionlint"
+
+  # ── The build cache pull requests read ────────────────────────────────────
+  # A pull request's Go jobs compile without the race detector and restore the
+  # "pr" build-cache flavor. Nothing else on main compiles that way, and a pull
+  # request cannot read a cache another pull request saved, so this job is the
+  # one writer of that flavor: it compiles every workspace module's packages
+  # and test binaries the way those jobs do, and setup-go-modules saves the
+  # result when the job ends. No other job waits for it.
+  warm-pr-cache:
+    name: Warm the pull request build cache
+    runs-on: ubuntu-latest
+    # TEMPORARY, removed before merge: also run on this branch, to measure the
+    # second run of this pull request against a cache the first one saved.
+    if: github.event_name == 'push' || github.head_ref == 'ci-warm-pr-cache'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: pr
+          save-cache: "true"
+      - name: Compile what pull request jobs compile
+        run: make warm-build-cache
 
   # ── go mod tidy drift check ──────────────────────────────────────────────
   tidy-check:

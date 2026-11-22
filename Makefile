@@ -400,6 +400,17 @@ check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the d
 STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/projectdb/ \
 	./core/state/ ./core/history/ ./core/workhome/ ./core/blockstore/... ./memory/... ./terms/... ./voice/... ./host/storage/...
 
+# What the `Warm the pull request build cache` job on main runs. It compiles
+# and runs no test: the native test binaries of every workspace module, then
+# the two other builds the store suites job makes, under js/wasm and with one
+# connection per pool. See scripts/ci-warm-build-cache.sh for why main has to
+# do this for pull requests.
+warm-build-cache: i18n-catalogs ## Compile what pull request test jobs compile, to fill the Go build cache (CI, on main)
+	@./scripts/ci-warm-build-cache.sh
+	@out="$$(mktemp -d)" && trap 'rm -rf "$$out"' EXIT && \
+		GOOS=js GOARCH=wasm $(GO) test -c -o "$$out/" $(STORE_PKGS) $(CHANGE_WASM_PKGS) ./host/ ./kapi/cmd/kapi-wasm-cli/ && \
+		$(GO) test -tags "fts5,storage_oneconn" -c -o "$$out/" $(STORE_PKGS)
+
 test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every pool held to one connection and WAL off
 	$(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 15m $(STORE_PKGS)
 
@@ -3248,7 +3259,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

@@ -137,6 +137,7 @@ run_check "Test shards cover every test once" ./scripts/go-test-shard.sh --self-
 run_check "Copies of each tool pin agree" python3 scripts/check-tool-versions.py --offline
 run_check "Reliability checklist validates" python3 scripts/reliability-checklist.py --self-test
 run_check "Commit gate hook" ./.claude/hooks/commit-gate.sh --self-test
+run_check "Build cache warmer" ./scripts/ci-warm-build-cache.sh --self-test
 run_check "Bindings generator warnings about our code fail" ./scripts/wails-generate.sh --self-test
 run_check "Loop output gate" ./scripts/check-loop-output.sh --self-test
 

@@ -18,6 +18,10 @@ runs:
         verify: false
         version: v2.15.0
         working-directory: ${{ inputs.working-directory }}
+        # A pull request reads the lint cache saved on main. One it saved
+        # itself would serve only its own later pushes and count against
+        # the repository's cache quota.
+        skip-save-cache: ${{ github.event_name == 'pull_request' }}
         # Full lint on PRs too: the GitHub patch API the action uses for
         # only-new-issues filtering 406s on diffs over 20000 lines (large
         # generated artifacts / lockfile churn). Push to main already lints in
