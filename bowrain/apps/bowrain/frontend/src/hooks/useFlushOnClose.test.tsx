@@ -99,12 +99,13 @@ describe("useFlushOnClose", () => {
     saves.flush.mockResolvedValue({
       ok: false,
       timedOut: false,
-      errors: [new Error("409 conflict")],
+      errors: [{ key: "k", label: "Translate and review", error: new Error("409 conflict") }],
     });
     render(<Shell />);
     act(() => emit(CLOSE_REQUESTED_EVENT));
     const dialog = await screen.findByTestId("save-failed-on-close");
     expect(dialog).toHaveTextContent("Changes not saved");
+    expect(dialog).toHaveTextContent("Translate and review");
     expect(dialog).toHaveTextContent("409 conflict");
     expect(backend.ConfirmClose).not.toHaveBeenCalled();
 
@@ -121,5 +122,20 @@ describe("useFlushOnClose", () => {
     expect(dialog).toHaveTextContent("The server did not answer in time.");
     fireEvent.click(screen.getByRole("button", { name: "Close anyway" }));
     await waitFor(() => expect(backend.ConfirmClose).toHaveBeenCalledTimes(1));
+  });
+
+  it("a close that arrives while a flush runs joins it", async () => {
+    let finish!: (r: { ok: true }) => void;
+    saves.flush.mockReturnValue(new Promise((r) => (finish = r)));
+    render(<Shell />);
+    act(() => emit(CLOSE_REQUESTED_EVENT));
+    await waitFor(() => expect(saves.flush).toHaveBeenCalledTimes(1));
+    act(() => emit(CLOSE_REQUESTED_EVENT));
+    await act(async () => {});
+    finish({ ok: true });
+    await waitFor(() => expect(backend.ConfirmClose).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(saves.flush).toHaveBeenCalledTimes(1);
+    expect(backend.ConfirmClose).toHaveBeenCalledTimes(1);
   });
 });

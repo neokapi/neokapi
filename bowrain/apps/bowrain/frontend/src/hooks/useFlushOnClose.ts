@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Events } from "@wailsio/runtime";
-import { flushPendingSaves, hasPendingSaves, subscribePendingSaves } from "@neokapi/bowrain-app";
+import {
+  flushPendingSaves,
+  hasPendingSaves,
+  subscribePendingSaves,
+  type FlushError,
+} from "@neokapi/bowrain-app";
 import { Backend } from "../api/backend";
 
 /** The event the backend emits when it holds a window close or a quit. */
@@ -12,7 +17,7 @@ export const FLUSH_TIMEOUT_MS = 10_000;
 /** Why the waiting saves did not all reach the server. */
 export interface FlushFailure {
   timedOut: boolean;
-  errors: unknown[];
+  errors: FlushError[];
 }
 
 /**
@@ -24,6 +29,12 @@ export interface FlushFailure {
  * the close finish when they all reached the server. When a save fails or the
  * wait runs out it keeps the window open and returns the failure, so the
  * shell can show it and offer Close anyway or Stay.
+ *
+ * One flush runs at a time: a close request that arrives while one runs joins
+ * it rather than starting a second flush and a second ConfirmClose.
+ *
+ * Mount it above anything that unmounts with the session (the sign-in gate),
+ * so the window stays held while an edit has not reached the server.
  */
 export function useFlushOnClose() {
   const [failure, setFailure] = useState<FlushFailure | null>(null);
@@ -45,22 +56,33 @@ export function useFlushOnClose() {
     };
   }, []);
 
-  const onCloseRequested = useCallback(async () => {
-    const answer = await Promise.resolve(Backend.AcknowledgeClose()).catch(() => true);
-    // The backend's native dialog already asks; one question on screen.
-    if (answer === false) return;
-    setFlushing(true);
-    try {
-      const result = await flushPendingSaves(FLUSH_TIMEOUT_MS);
-      if (result.ok) {
-        setFailure(null);
-        await Backend.ConfirmClose();
-        return;
+  const runningRef = useRef<Promise<void> | null>(null);
+
+  const onCloseRequested = useCallback((): Promise<void> => {
+    if (runningRef.current) return runningRef.current;
+    const run = (async () => {
+      const answer = await Promise.resolve(Backend.AcknowledgeClose()).catch(() => true);
+      // The backend's native dialog already asks; one question on screen.
+      if (answer === false) return;
+      setFlushing(true);
+      try {
+        const result = await flushPendingSaves(FLUSH_TIMEOUT_MS);
+        if (result.ok) {
+          setFailure(null);
+          await Backend.ConfirmClose();
+          return;
+        }
+        setFailure({ timedOut: result.timedOut, errors: result.errors });
+      } finally {
+        setFlushing(false);
       }
-      setFailure({ timedOut: result.timedOut, errors: result.errors });
-    } finally {
-      setFlushing(false);
-    }
+    })();
+    runningRef.current = run;
+    const done = () => {
+      if (runningRef.current === run) runningRef.current = null;
+    };
+    run.then(done, done);
+    return run;
   }, []);
 
   useEffect(() => {

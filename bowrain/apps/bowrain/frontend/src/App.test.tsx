@@ -41,10 +41,14 @@ vi.mock("./api/desktopAdapter", () => ({
   ProxyConnectivityError: FakeProxyConnectivityError,
 }));
 vi.mock("./api/desktopPlatform", () => ({ createDesktopPlatform: () => ({ kind: "desktop" }) }));
+const saves = vi.hoisted(() => ({
+  edits: [] as { key: string; label: string; scope: string; state: string; error: unknown }[],
+}));
 vi.mock("@neokapi/bowrain-app", () => ({
   BowrainApp: () => <div data-testid="bowrain-app">app</div>,
   flushPendingSaves: vi.fn().mockResolvedValue({ ok: true }),
-  hasPendingSaves: () => false,
+  hasPendingSaves: () => saves.edits.length > 0,
+  pendingEdits: () => saves.edits,
   subscribePendingSaves: () => () => {},
 }));
 
@@ -68,6 +72,7 @@ beforeEach(() => {
   // microtask and timer explicitly, so the observed outcome no longer depends on
   // how fast the machine is.
   vi.useFakeTimers();
+  saves.edits = [];
   // Default: a valid session. Individual tests override (null = signed out).
   getCurrentUser.mockResolvedValue({ id: "u1", name: "Alex", email: "a@x.io" });
 });
@@ -220,5 +225,18 @@ describe("desktop launch gate (#1284)", () => {
 
     expect(backend.Disconnect).toHaveBeenCalled();
     expect(screen.getByText(/welcome to bowrain/i)).toBeInTheDocument();
+  });
+
+  it("keeps holding the window, and says so, when the session ends with an edit unsaved", async () => {
+    saves.edits = [
+      { key: "k", label: "Translate and review", scope: "s", state: "failed", error: null },
+    ];
+    backend.GetConnectionState.mockResolvedValue({ state: "disconnected" });
+
+    await renderApp();
+    await flushUntil(() => screen.queryByText(/welcome to bowrain/i) !== null);
+
+    expect(backend.SetPendingSaves).toHaveBeenLastCalledWith(true);
+    expect(screen.getByTestId("unsaved-edits-notice")).toHaveTextContent("Translate and review");
   });
 });

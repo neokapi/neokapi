@@ -1,10 +1,14 @@
-import { describe, it, expect, vi } from "vite-plus/test";
+import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider, TooltipProvider } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { createFlowsApi, type FlowsApiOptions } from "./fixtures";
+import { discardAllPendingSaves } from "../pendingSaves";
+
+// Unsaved edits are recorded outside the editor and outlive it.
+afterEach(() => discardAllPendingSaves());
 
 function setup(options: FlowsApiOptions = {}, saveDelayMs = 10) {
   const { api, flows } = createFlowsApi(options);

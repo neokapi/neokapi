@@ -9,10 +9,14 @@ export { createBowrainRouter } from "./routes";
 export type { RouterContext, WorkspaceRouteContext } from "./routes";
 export { PlatformProvider, usePlatform, webPlatform, type PlatformAdapter } from "./platform";
 export {
+  discardAllPendingSaves,
   flushPendingSaves,
   hasPendingSaves,
+  pendingEdits,
   subscribePendingSaves,
+  type FlushError,
   type FlushResult,
+  type PendingEdit,
 } from "./pendingSaves";
 export {
   AnalyticsEvents,

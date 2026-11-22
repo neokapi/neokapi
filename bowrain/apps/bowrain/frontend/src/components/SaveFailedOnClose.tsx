@@ -39,9 +39,9 @@ export function SaveFailedOnClose({ failure, onCloseAnyway, onStay }: SaveFailed
         </DialogHeader>
         {failure.errors.length > 0 && (
           <ul className="flex flex-col gap-1 text-sm text-destructive" role="alert">
-            {failure.errors.map((error, i) => (
-              <li key={i} className="break-words">
-                {error instanceof Error ? error.message : String(error)}
+            {failure.errors.map(({ key, label, error }) => (
+              <li key={key} className="break-words">
+                {label}: {error instanceof Error ? error.message : String(error)}
               </li>
             ))}
           </ul>

@@ -15,6 +15,7 @@ import { initAnalytics } from "./analytics";
 import { TelemetryNotice } from "./components/TelemetryNotice";
 import { SaveFailedOnClose } from "./components/SaveFailedOnClose";
 import { useFlushOnClose } from "./hooks/useFlushOnClose";
+import { UnsavedEditsNotice } from "./components/UnsavedEditsNotice";
 
 // "offline" is the designed launch state (#1284): the server is configured but
 // unreachable, distinct from "connecting" (no/expired session → sign in).
@@ -250,6 +251,7 @@ function AppInner() {
             when it fits and scrolls when it does not.
           */}
           <div className="flex-1 min-h-0 overflow-y-auto">
+            <UnsavedEditsNotice />
             <ServerConnect
               info={connection.info}
               onConnect={handleServerConnect}
@@ -275,6 +277,7 @@ function AppInner() {
             }}
           />
           <div className="flex-1 min-h-0 overflow-y-auto">
+            <UnsavedEditsNotice />
             <OfflineLaunch
               serverURL={connection.info.server_url || ""}
               onRetry={handleOfflineRetry}
@@ -298,7 +301,6 @@ function AppInner() {
         history={desktopHistory}
       />
       <TelemetryNotice />
-      <FlushOnClose />
     </>
   );
 }
@@ -328,6 +330,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppInner />
+      {/* Above the sign-in gate: losing the session must not release the
+          window while an edit has not reached the server. */}
+      <FlushOnClose />
     </QueryClientProvider>
   );
 }
