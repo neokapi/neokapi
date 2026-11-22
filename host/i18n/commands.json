@@ -3677,9 +3677,6 @@
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
             },
-            "stats": {
-              "usage": "include part/block counts in output"
-            },
             "strict": {
               "usage": "alias for --fail-on-unknown"
             },
@@ -3903,9 +3900,6 @@
             },
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
-            },
-            "stats": {
-              "usage": "include part/block counts in output"
             },
             "strict": {
               "usage": "alias for --fail-on-unknown"
@@ -4432,9 +4426,6 @@
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
             },
-            "stats": {
-              "usage": "include part/block counts in output"
-            },
             "strict": {
               "usage": "alias for --fail-on-unknown"
             },
@@ -4522,9 +4513,6 @@
             "batching": {
               "usage": "how many blocks share one LLM call: auto (default), single"
             },
-            "concurrency": {
-              "usage": "number of files to process at once (0 = auto)"
-            },
             "context": {
               "usage": "what the model is told about a block besides the block: none, key (default), neighbours"
             },
@@ -4534,23 +4522,11 @@
             "encoding": {
               "usage": "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)"
             },
-            "engine": {
-              "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)"
-            },
-            "explain": {
-              "usage": "print the resolved source → sink bindings and exit without running"
-            },
             "fail-on-incomplete-watch": {
               "usage": "server venue: fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed"
             },
             "fail-on-unknown": {
               "usage": "exit with error if any file cannot be processed (default: skip with a warning)"
-            },
-            "format": {
-              "usage": "override input format detection"
-            },
-            "input": {
-              "usage": "input file path(s); repeat for multiple files"
             },
             "instruction": {
               "usage": "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")"
@@ -4579,15 +4555,6 @@
             "no-extract": {
               "usage": "skip the pre-pass source-drift check and block-store re-extraction"
             },
-            "output": {
-              "usage": "output path or template (e.g. ./out/{name}_{lang}.{ext})"
-            },
-            "pack": {
-              "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
-            },
-            "parallel-blocks": {
-              "usage": "fan out block processing across N goroutines (0 = off)"
-            },
             "passes": {
               "usage": "maximum reconciliation passes (0 = loop until up to date or waiting for review, capped at 5; 1 = single pass)"
             },
@@ -4612,17 +4579,8 @@
             "server": {
               "usage": "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable"
             },
-            "source-lang": {
-              "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
-            },
-            "stats": {
-              "usage": "include part/block counts in output"
-            },
             "strict": {
               "usage": "alias for --fail-on-unknown"
-            },
-            "target-lang": {
-              "usage": "target language (e.g. fr, de-DE); one per run"
             },
             "termstore": {
               "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)"

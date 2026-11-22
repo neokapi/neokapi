@@ -4016,10 +4016,9 @@ export class ConvergeLocaleResult {
         if (/** @type {any} */(false)) {
             /**
              * FailingChecks counts units that are produced but fail the project's bound
-             * checks (#1078 G4). They count at their true rung in Pct — the unit is
-             * translated — and hold the locale out of Shippable until fixed. It counts
-             * UNITS, which is not what `kapi check` counts: one unit can carry several
-             * findings, and `kapi check` lists findings.
+             * checks (#1078 G4). They count at their true rung in Pct (the unit is
+             * translated) and hold the locale out of Shippable until fixed. It counts
+             * UNITS, where `kapi check` lists findings, and one unit can carry several.
              * @member
              * @type {number | undefined}
              */
@@ -4049,11 +4048,11 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Redrafted counts the stale units this run produced over — recycled against
-             * the rewritten source, or drafted for the remainder. It is what the loop
-             * owes them: a translation of the source the project has now. The decision
-             * they carried is NOT restored, so they stay in Stale until someone reviews
-             * the new draft, which is why the two are reported side by side.
+             * Redrafted counts the stale units this run produced over: recycled against
+             * the rewritten source, or drafted for the remainder. Each now holds a
+             * translation of the current source. The decision they carried is NOT
+             * restored, so they stay in Stale until someone reviews the new draft, and
+             * the two are reported side by side.
              * @member
              * @type {number | undefined}
              */
@@ -4159,7 +4158,7 @@ export class ConvergeOutput {
         if (/** @type {any} */(false)) {
             /**
              * ParkedScopes lists the gated (collection, locale) scopes that remain
-             * short of their gate — per-scope detail under the per-locale rollup, so
+             * short of their gate: per-scope detail under the per-locale rollup, so
              * a UI can link each parked scope to its review queue.
              * @member
              * @type {ParkedScope[] | undefined}
@@ -4200,7 +4199,7 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * StallReason is the machine-readable cause a run did not converge — set to
+             * StallReason is the machine-readable cause a run did not converge. It is
              * source_not_ready when every pending locale had nothing producible because
              * its source is held below the translate_after level. Empty on a
              * clean/parked-on-target run.
@@ -4252,14 +4251,13 @@ export class ConvergeOutput {
             /**
              * ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
              * the run proposed rather than applied: edits that take effect only once a
-             * reviewer accepts them. They are venue-supplied — a run at a venue that
-             * governs terminology fills them in — and all three are zero for a run that
-             * proposed nothing.
+             * reviewer accepts them. A venue that governs terminology fills them in,
+             * and all three are zero for a run that proposed nothing.
              * 
              * ChangesetURL is a deep link to the review surface, and is empty whenever
-             * the venue could not name one. An id with no link is still worth reporting:
-             * it is the handle every other surface takes, so a reader who cannot click
-             * through can still ask for the change-set by name.
+             * the venue could not name one. The id is reported either way: it is the
+             * handle every other surface takes, so a reader who cannot click through
+             * can still ask for the change-set by name.
              * @member
              * @type {number | undefined}
              */
@@ -4686,7 +4684,7 @@ export class FindingsReport {
 
 /**
  * ParkedScope identifies one gated (collection, locale) scope still short of
- * its gate after the run — the address a review surface can deep-link to.
+ * its gate after the run: the address a review surface can deep-link to.
  */
 export class ParkedScope {
     /**

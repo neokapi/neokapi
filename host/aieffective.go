@@ -139,9 +139,11 @@ func presetString(preset map[string]any, key string) string {
 }
 
 // ProjectFlowNeedsAISetup reports whether a step needs a provider choice after
-// applying the recipe and locale presets. An empty flow name selects
-// convergence, resolved with runConfig, the run flags' tool config (nil for
-// none), so a run given --provider or --credential needs no setup.
+// applying the run configuration and the recipe and locale presets. An empty
+// flow name selects convergence. runConfig is the run flags' tool config
+// (RunFlagToolConfig, nil for none). It applies to the flow by the rule every
+// run applies (seedRunConfig): a run given --provider or --credential needs no
+// setup, and a step that names its own provider is judged by its own.
 func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, flowName string, runConfig map[string]any) (bool, error) {
 	if proj == nil {
 		return false, nil
@@ -158,7 +160,7 @@ func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, fl
 		}
 		spec = resolved.spec
 	} else {
-		resolved, err := ResolveProjectFlow(proj, root, flowName, nil)
+		resolved, err := ResolveProjectFlow(proj, root, flowName, runConfig)
 		if err != nil || resolved == nil {
 			return false, err
 		}

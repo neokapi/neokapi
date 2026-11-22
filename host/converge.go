@@ -37,7 +37,7 @@ type ConvergeOptions struct {
 	// jobs is how many locales one pass runs concurrently (`up --jobs`);
 	// <= 0 uses convergeJobsDefault. Locales are independent within a pass.
 	jobs int
-	// onEvent, when set, receives the run's convergence.Event stream — the
+	// onEvent, when set, receives the run's convergence.Event stream: the
 	// one protocol every surface renders a run from (CLI live view, NDJSON,
 	// desktop run view, server SSE). Called from one goroutine at a time.
 	onEvent func(convergence.Event)
@@ -64,10 +64,9 @@ type ConvergeLocaleResult struct {
 	// Gated reports whether a ship gate matches any of the locale's scopes.
 	Gated bool `json:"gated"`
 	// FailingChecks counts units that are produced but fail the project's bound
-	// checks (#1078 G4). They count at their true rung in Pct — the unit is
-	// translated — and hold the locale out of Shippable until fixed. It counts
-	// UNITS, which is not what `kapi check` counts: one unit can carry several
-	// findings, and `kapi check` lists findings.
+	// checks (#1078 G4). They count at their true rung in Pct (the unit is
+	// translated) and hold the locale out of Shippable until fixed. It counts
+	// UNITS, where `kapi check` lists findings, and one unit can carry several.
 	FailingChecks int `json:"failing_checks,omitempty"`
 	// Stale counts units whose translation was decided against source wording
 	// that has since changed. They hold the locale out of Shippable whether or
@@ -79,11 +78,11 @@ type ConvergeLocaleResult struct {
 	// so Stale does not count them, and they hold the locale out of Shippable
 	// for the same reason: a person has said the wording will not do.
 	Rejected int `json:"rejected,omitempty"`
-	// Redrafted counts the stale units this run produced over — recycled against
-	// the rewritten source, or drafted for the remainder. It is what the loop
-	// owes them: a translation of the source the project has now. The decision
-	// they carried is NOT restored, so they stay in Stale until someone reviews
-	// the new draft, which is why the two are reported side by side.
+	// Redrafted counts the stale units this run produced over: recycled against
+	// the rewritten source, or drafted for the remainder. Each now holds a
+	// translation of the current source. The decision they carried is NOT
+	// restored, so they stay in Stale until someone reviews the new draft, and
+	// the two are reported side by side.
 	Redrafted int `json:"redrafted,omitempty"`
 	// Materialized counts the target files written for this locale by the
 	// post-loop materialize step (defaults.materialize: on-converge, or
@@ -104,7 +103,7 @@ type ConvergeLocaleResult struct {
 }
 
 // ParkedScope identifies one gated (collection, locale) scope still short of
-// its gate after the run — the address a review surface can deep-link to.
+// its gate after the run: the address a review surface can deep-link to.
 type ParkedScope struct {
 	Locale     string `json:"locale"`
 	Collection string `json:"collection,omitempty"`
@@ -119,7 +118,7 @@ type ConvergeOutput struct {
 	Converged bool                   `json:"converged"` // no scope is withheld: every gated scope clears its gate
 	Locales   []ConvergeLocaleResult `json:"locales"`
 	// ParkedScopes lists the gated (collection, locale) scopes that remain
-	// short of their gate — per-scope detail under the per-locale rollup, so
+	// short of their gate: per-scope detail under the per-locale rollup, so
 	// a UI can link each parked scope to its review queue.
 	ParkedScopes []ParkedScope `json:"parked_scopes,omitempty"`
 	// MaterializedFiles is the total count of target files written by the
@@ -136,7 +135,7 @@ type ConvergeOutput struct {
 	// (none|written|established), for observability. Empty when no level
 	// was evaluated (no content).
 	TranslateAfter string `json:"translate_after,omitempty"`
-	// StallReason is the machine-readable cause a run did not converge — set to
+	// StallReason is the machine-readable cause a run did not converge. It is
 	// source_not_ready when every pending locale had nothing producible because
 	// its source is held below the translate_after level. Empty on a
 	// clean/parked-on-target run.
@@ -158,14 +157,13 @@ type ConvergeOutput struct {
 	ExtractedBlocks int `json:"extracted_blocks,omitempty"`
 	// ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
 	// the run proposed rather than applied: edits that take effect only once a
-	// reviewer accepts them. They are venue-supplied — a run at a venue that
-	// governs terminology fills them in — and all three are zero for a run that
-	// proposed nothing.
+	// reviewer accepts them. A venue that governs terminology fills them in,
+	// and all three are zero for a run that proposed nothing.
 	//
 	// ChangesetURL is a deep link to the review surface, and is empty whenever
-	// the venue could not name one. An id with no link is still worth reporting:
-	// it is the handle every other surface takes, so a reader who cannot click
-	// through can still ask for the change-set by name.
+	// the venue could not name one. The id is reported either way: it is the
+	// handle every other surface takes, so a reader who cannot click through
+	// can still ask for the change-set by name.
 	ConceptsProposed int    `json:"concepts_proposed,omitempty"`
 	ChangesetID      string `json:"changeset_id,omitempty"`
 	ChangesetURL     string `json:"changeset_url,omitempty"`
@@ -266,20 +264,18 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	}
 	t.Render()
 	fmt.Fprintln(w)
-	// Source hold: when translate_after held blocks below its level, say so
-	// plainly — those blocks were NOT translated, and the fix is to
-	// settle the source, not to wait for review. Never a silent skip.
+	// Source hold: when translate_after held blocks below its level, say so.
+	// Those blocks were NOT translated, and the fix is to settle the source
+	// rather than to wait for review.
 	if o.BlockedOnSource > 0 {
 		fmt.Fprintf(w, "%d block(s) held on source. Settle your source first "+
 			"(kapi check --ship, or fix terms/brand/source and kapi apply), then re-run.\n", o.BlockedOnSource)
 	}
 	// Source drift under a decided translation, and the two halves of settling
 	// it. The loop owns the first: a translation of the source the project has
-	// now. It cannot own the second — the decision that was withdrawn was a
-	// person's — so the two are reported together rather than either standing
-	// for the whole. Drift that reports itself as converged is what these lines
-	// exist to make impossible; drift the loop declines to work on is what the
-	// re-draft line exists to make impossible.
+	// now. The second belongs to a person, whose decision was withdrawn, so the
+	// two are reported together. These lines keep drift from reading as
+	// converged, and the re-draft line shows the loop worked on it.
 	if redrafted := o.RedraftedUnits(); redrafted > 0 {
 		fmt.Fprintf(w, "Re-drafted %d stale block(s) against the current source. "+
 			"They return to review un-approved (the earlier approval is not restored).\n", redrafted)
@@ -374,11 +370,10 @@ func (o ConvergeOutput) formatProposedChangeset(w io.Writer) {
 	}
 }
 
-// formatMonolingual renders a run over a project with no target locale. The
-// locale grid is not printed empty: a table with no rows reads as "nothing was
-// reconciled", when in fact the whole source half of the run — seed, extract,
-// occurrence graph — completed. What moved is the store, so that is what the
-// summary reports.
+// formatMonolingual renders a run over a project with no target locale. It
+// reports the store, because the whole source half of the run (seed, extract,
+// occurrence graph) completed, and an empty locale grid would read as
+// "nothing was reconciled".
 func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
 	if o.NoTargets {
 		fmt.Fprintf(w, "Reconciled the source. No collection has a target path, so the per-language flow %q wrote no translations. Add `target:` to a collection in kapi.yaml to say where its translations go.\n\n", o.Flow)
@@ -396,18 +391,19 @@ func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
 }
 
 // RunDefaultFlowConverge executes the project's default flow (defaults.flow)
-// over its content across every target language — the no-argument `kapi run`.
-// Without untilGate it runs a single pass; with untilGate it loops the pass,
-// re-deriving coverage each time, until every gated locale is shippable, a pass
-// makes no progress, or maxPasses is reached — parking the locales that remain
-// short of their gate. It never fails the build: parked work is reported, not an
-// error (target drift is normal toil, not a break).
+// over its content across every target language. Without untilGate it runs a
+// single pass; with untilGate it loops the pass, re-deriving coverage each
+// time, until every gated locale is shippable, a pass makes no progress, or
+// maxPasses is reached, and parks the locales that remain short of their
+// gate. It never fails the build: parked work is reported as such, because
+// target drift is normal toil.
 func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, projectPath string, opts ConvergeOptions) error {
 	untilGate, maxPasses := opts.UntilGate, opts.MaxPasses
 	cf, err := convergeFlowSpec(proj, filepath.Dir(projectPath), runFlagToolConfig(cmd))
 	if err != nil {
 		return err
 	}
+	PrintRunConfigNotes(cmd, cf.notes)
 	if opts.recycleOnly {
 		cf.name, cf.label = recycleOnlyFlowName, recycleOnlyFlowName
 		cf.spec = RecycleOnlyFlowSpec()
@@ -473,13 +469,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	}
 
 	// The locales this run fans out over, and the verdict that decides whether it
-	// fans out at all. A project that resolves none is MONOLINGUAL — the front
-	// door, not a misconfiguration: the source half of convergence still runs
-	// (the committed context seeds, the working tree re-extracts into the store,
-	// the occurrence graph refreshes) and only recycle/translate/materialize are
-	// not applicable. Not-applicable is not an error, and refusing to start left
-	// a one-language project with no way to compile its own sources into the
-	// store at all.
+	// fans out at all. A project that resolves none is MONOLINGUAL, a supported
+	// shape: the source half of convergence still runs (the committed context
+	// seeds, the working tree re-extracts into the store, the occurrence graph
+	// refreshes) and only recycle/translate/materialize do not apply. A
+	// one-language project compiles its own sources into the store this way.
 	locales := contentTargetLocales(proj.Defaults, resolved)
 	monolingual := len(locales) == 0
 
@@ -530,9 +524,8 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		return err
 	}
 	// Bindings are resolved at (group point, locale) inside the fan-out below,
-	// because the term rules in them are per target locale: the wording a
-	// concept is approved for in nb is not the one it is approved for in fr, and
-	// a set resolved here, before any locale is known, would carry neither.
+	// because the term rules in them are per target locale. A concept's approved
+	// wording differs between nb and fr, and no locale is known here yet.
 	groupBindings := a.newLocaleBindings(cmd, proj, projectPath)
 
 	root := filepath.Dir(projectPath)
@@ -543,7 +536,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	defer func() { a.TargetLang = savedTarget }()
 
 	// Convergence writes real localized files (not just block-store overlays) so
-	// its file-derived coverage sees each pass's output — uniformly across
+	// its file-derived coverage sees each pass's output, uniformly across
 	// single- and multi-file projects.
 	a.convergeWriteFiles = true
 	defer func() { a.convergeWriteFiles = false }()
@@ -551,10 +544,9 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// Under a policy that gates delivery, those files are DRAFTS: the pass
 	// writes them into the run's own tree and the policy-gated materialize in
 	// finishConverge is the only write that reaches a collection's `target:`
-	// path. Otherwise the promise `on-converge` makes — a locale short of its
-	// ship gate does not get its files — holds for a second, redundant write
-	// while the unreviewed draft is already sitting where a site build globs
-	// (#1936). See host/convergedrafts.go.
+	// path. That keeps the promise `on-converge` makes: a locale short of its
+	// ship gate gets no files, and no unreviewed draft sits where a site build
+	// globs (#1936). See host/convergedrafts.go.
 	//
 	// A run that prints its change set drafts the same way, into the same
 	// private tree, so its gate evaluates the same output; delivery then
@@ -591,7 +583,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		unread.warn(a, cmd)
 	}
 
-	// The venue-neutral loop (core/convergence.Loop) owns the semantics —
+	// The venue-neutral loop (core/convergence.Loop) owns the semantics:
 	// pass barrier, per-locale fan-out, stall-parks-the-rest; these closures
 	// are the CLI venue's IO: working-tree drift re-extract, file-derived
 	// coverage with bound checks, and the default flow on per-locale worker
@@ -655,7 +647,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	}
 	if !opts.noExtract {
 		// Auto-extract on drift (#1078 C2): before each pass, bring the
-		// project block store back in sync with the working tree — a missing
+		// project block store back in sync with the working tree. A missing
 		// store, a version-stamp mismatch, or edited source files all trigger
 		// a re-extract through the same shared path the desktop's Re-extract
 		// uses. `up --no-extract` opts out.
@@ -670,12 +662,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			facts.extractedFiles += stats.Files
 			facts.extractedBlocks += stats.Blocks
 			// Stamp-write failures do not endanger the extracted content, so
-			// they never fail the pass — but left unsaid they make kapi
+			// they never fail the pass. Unreported, they would make kapi
 			// re-extract and re-translate everything on every run with no
-			// visible cause. Independent of the event consumer (this is an
-			// operator fault, not run progress) but respecting --quiet, as
-			// every other warning here does; a caller reading ExtractStats
-			// still gets them in Warnings either way.
+			// visible cause. The warning is independent of the event consumer
+			// (an operator fault, not run progress) and respects --quiet; a
+			// caller reading ExtractStats gets them in Warnings either way.
 			if !a.Quiet {
 				for _, w := range stats.Warnings {
 					fmt.Fprintln(cmd.ErrOrStderr(), "Warning: "+w)
@@ -692,18 +683,15 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	}
 
 	// Admission: every destination this run would write must be writable
-	// (#1449). A blocked path — most often a directory standing where the writer
-	// needs a file — is an operational fault, not target-language drift, and a
-	// run that cannot write its outputs must not start: the locale would either
-	// fail mid-pass (throwing away the other locales' in-flight work and the AI
-	// spend behind it) or, before the measurement fix, be counted as fully
-	// translated by file-presence and reported "up to date".
+	// (#1449). A blocked path (most often a directory standing where the writer
+	// needs a file) is an operational fault, and a run that cannot write its
+	// outputs does not start. Starting would fail the locale mid-pass and throw
+	// away the other locales' in-flight work and the AI spend behind it.
 	//
-	// The resolve error is PROPAGATED, not skipped: swallowing it is the very
-	// shape of defect this change closes, and it costs nothing to be strict —
-	// UnitsFromProject is a pure re-resolution of the recipe's content patterns,
-	// and the loop's own Derive (deriveCoverage) calls it identically and hard-
-	// fails a moment later. Failing here just names it sooner.
+	// The resolve error is PROPAGATED. UnitsFromProject is a pure re-resolution
+	// of the recipe's content patterns, and the loop's own Derive
+	// (deriveCoverage) calls it identically and fails a moment later, so
+	// failing here names the fault sooner.
 	admissionUnits, err := a.UnitsFromProject(proj, root, "")
 	if err != nil {
 		return fmt.Errorf("resolve project content: %w", err)
@@ -727,30 +715,17 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// not once per pass; only the targets a pass rewrites re-parse.
 	return a.withParseCache(root, func() error {
 		// Source-first settle phase (epic 019): settle the source ONCE before the
-		// loop (as the server's runSettleSource does), stamp SourceStatus over the
-		// distinct source files, and count how many blocks are held below the
-		// translate_after level, the number surfaced as "N blocks held on source".
-		// A no-op when the level is `none`.
+		// loop, stamp SourceStatus over the source files, and count the blocks
+		// held below the translate_after level ("N blocks held on source"). A
+		// no-op when the level is `none`.
 		//
-		// The settle error is PROPAGATED. It used to be swallowed (`herr == nil`)
-		// on the stated grounds that the run "degrades to the gate-off behavior",
-		// but it does not degrade — it MISREPORTS: with the error dropped,
-		// blockedOnSource and totalSource both stay 0, so finishConverge's
-		// `blockedOnSource >= totalSource` test is false, the run is labelled
-		// converged rather than source_not_ready, and the materialize guard that
-		// exists to stop source-fallback output being written "as if caught up" is
-		// disarmed. Nor was it ever a survivable degradation: settleAndCountHeldSource
-		// fails only on a source-file read, and ComputeShipCoverage reads the same
-		// source files through the same readBlocks and hard-fails on them a moment
-		// later inside the loop. Strictness costs nothing and names the fault sooner.
+		// The settle error is PROPAGATED. Dropped, it would leave blockedOnSource
+		// and totalSource at 0, and the run would read as converged with its
+		// materialize guard disarmed.
 		//
-		// admissionUnits is reused rather than re-resolved: it is the identical
-		// pure re-resolution of the recipe's content patterns, already resolved
-		// (and hard-failed on) above. It lists the files that feed a target
+		// admissionUnits, resolved above, lists the files that feed a target
 		// language, which is what the hold is measured over. The settle itself
-		// covers the whole source, so a project with no target language, or a
-		// source-only collection beside a translated one, reports the source
-		// the extraction below reads.
+		// covers the whole source, including a source-only collection.
 		var blockedOnSource, totalSource int
 		if translateAfter != model.TranslateAfterNone {
 			srcUnits, serr := a.SourceUnitsFromProject(proj, root)
@@ -891,11 +866,10 @@ func (f *convergeFacts) noteRedraftable(cov []LocaleCoverage, pending []model.Lo
 // expands to: the recipe's `defaults.target_languages`, plus any a content item
 // declares for itself. Empty means monolingual.
 //
-// It resolves exactly as UnitsFromProject does — same per-item fallback, same
-// skip of an item with no target template — so the locales a run fans out over
-// and the units its coverage is derived from can never disagree. Deriving the
-// fan-out from the defaults alone left a recipe that names its languages per
-// item converging nothing while its coverage counted them.
+// It resolves exactly as UnitsFromProject does (same per-item fallback, same
+// skip of an item with no target template), so the locales a run fans out over
+// and the units its coverage is derived from agree, including for a recipe
+// that names its languages per item.
 func contentTargetLocales(defaults project.Defaults, resolved []project.ResolvedFile) []model.LocaleID {
 	seen := make(map[model.LocaleID]bool, len(defaults.TargetLanguages))
 	out := make([]model.LocaleID, 0, len(defaults.TargetLanguages))
@@ -939,7 +913,7 @@ func localeStrings(locales []model.LocaleID) []string {
 	return out
 }
 
-// localeUnitTotals sums each locale's unit count across its coverage scopes —
+// localeUnitTotals sums each locale's unit count across its coverage scopes:
 // the denominator its live progress renders against.
 func localeUnitTotals(cov []LocaleCoverage) map[string]int {
 	totals := make(map[string]int)
@@ -1017,7 +991,7 @@ func describeDrift(d project.StoreDrift) string {
 	}
 }
 
-// deriveCoverage recomputes per-scope ship coverage from the working tree —
+// deriveCoverage recomputes per-scope ship coverage from the working tree with
 // the same derivation `kapi status` uses, re-read each pass (state is derived,
 // never tracked). With withChecks it first runs the project's bound checks over
 // the produced units and feeds the failing set into the coverage rollup as an
@@ -1063,15 +1037,14 @@ func localesNeedingWork(cov []LocaleCoverage, locales []model.LocaleID, unstampe
 
 // localesNeedingPass returns the locales (in target order) that still have work:
 // a scope holding units whose source moved since their translation was decided,
-// a gated scope that is not shippable, or — when ungated — content with no
+// a gated scope that is not shippable, or (when ungated) content with no
 // committed target yet (below the lowest rung).
 //
-// This is convergence's NEED-based selection, deliberately distinct from the
-// applicability-based flow.ResolveFlowLocales that plain flow runs (the
-// desktop runner, RunFromProject, RunFlowAllLocales) share: a flow run asks
-// "which locales does this flow apply to"; a convergence pass asks "which
-// locales are still short of their gate" so converged locales drop out of
-// later passes.
+// This is convergence's NEED-based selection. Plain flow runs (the desktop
+// runner, RunFromProject, RunFlowAllLocales) share the applicability-based
+// flow.ResolveFlowLocales, which asks "which locales does this flow apply to".
+// A convergence pass asks "which locales are still short of their gate", so
+// converged locales drop out of later passes.
 func localesNeedingPass(cov []LocaleCoverage, locales []model.LocaleID) []model.LocaleID {
 	var out []model.LocaleID
 	for _, loc := range locales {
@@ -1082,12 +1055,10 @@ func localesNeedingPass(cov []LocaleCoverage, locales []model.LocaleID) []model.
 				continue
 			}
 			// A stale unit is WORK, on any scope, gated or not. It tallies at
-			// `draft` because it holds a target — so the ungated rung test below
-			// reads the scope as complete, and the loop that reported the drift
-			// was the same loop that declined to do anything about it. What the
-			// unit needs is a translation of the source the project has NOW, which
-			// is production: recycle against the new wording, AI for the
-			// remainder, exactly as an untranslated unit flows.
+			// `draft` because it holds a target, so the ungated rung test below
+			// would read the scope as complete. The unit needs a translation of
+			// the source the project has NOW: recycle against the new wording,
+			// AI for the remainder, exactly as an untranslated unit flows.
 			if c.Stale > 0 {
 				needs = true
 				break
@@ -1146,7 +1117,7 @@ func producedUnits(cov []LocaleCoverage) int {
 // (or the run forces it with --materialize), every locale whose gated scopes
 // are ALL shippable has its target files written via the shared
 // merge/materialize path, from what the workspace home keeps of it and the
-// run's drafts; a parked locale is not delivered, and its drafts are kept in
+// run's drafts. A parked locale is not delivered, and its drafts are kept in
 // the workspace home (host/workhome.go) until it is.
 func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, translateAfter model.TranslateAfterLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
@@ -1160,16 +1131,15 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	if translateAfter != "" {
 		out.TranslateAfter = string(translateAfter)
 	}
-	// Hold-on-source is a first-class outcome (epic 019): when EVERY translatable
-	// source block is held (nothing is producible), the run held on SOURCE, not on
-	// target review — label it source_not_ready so the summary points at settling
-	// the source rather than a review queue, and mark the run un-converged even
-	// when no ship gate applies (an all-held ungated run is not "up to date").
-	// This mirrors the server's gateItemsBySource: producible==0 && held>0 →
-	// source_not_ready. A PARTIAL run (some source ready, some held) translates
-	// the ready blocks and reports the held count, but is NOT source_not_ready —
-	// the ready work advanced, exactly as the server distinguishes a full hold
-	// from a partial one.
+	// Hold-on-source is a first-class outcome (epic 019). When EVERY translatable
+	// source block is held (nothing is producible), the run held on SOURCE. It
+	// is labelled source_not_ready so the summary points at settling the source
+	// rather than a review queue, and marked un-converged even when no ship gate
+	// applies. This mirrors the server's gateItemsBySource: producible==0 &&
+	// held>0 → source_not_ready. A PARTIAL run (some source ready, some held)
+	// translates the ready blocks and reports the held count, and is not
+	// source_not_ready, as the server distinguishes a full hold from a partial
+	// one.
 	if blockedOnSource > 0 && blockedOnSource >= totalSource {
 		out.StallReason = convergence.StallSourceNotReady
 		out.Converged = false
@@ -1183,10 +1153,8 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 
 	// A source-held run produced no translations (epic 019): do NOT materialize.
 	// Every locale's source-fallback output would otherwise be written as if it
-	// were caught up — the "silent skip → junk output" translate_after exists to
-	// prevent. This mirrors the server, which skips its post-run work when the run
-	// stalled on source_not_ready (convergence_orchestrator.go). Materialize only
-	// once the source is settled and real targets exist.
+	// were caught up, which translate_after exists to prevent. The server skips
+	// its post-run work the same way when a run stalls on source_not_ready.
 	//
 	// Delivery commits each draft through the file home and records what it
 	// changed, with the basis of each translation it wrote (host/flowdrafts.go).
@@ -1202,9 +1170,8 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			lc := &out.Locales[i]
 			if !lc.Shippable {
 				// Parked and pending locales are not delivered. Under this
-				// policy that is the whole of delivery — the pass wrote into the
-				// run's draft tree — so the locale's files are genuinely absent
-				// rather than present and unblessed. The drafts are kept in the
+				// policy that is the whole of delivery (the pass wrote into the
+				// run's draft tree), so the locale has no files at all. The drafts are kept in the
 				// workspace home, where a reviewer reads and edits them and the
 				// next delivery finds them.
 				a.printOps.note(lc.Locale + ": short of its ship gate, so kapi up delivers none of its files and none is printed")
@@ -1260,21 +1227,13 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 		// Delivery is done, so the drafts stop being anybody's subject and the
 		// standing is re-read off the tree the run leaves behind.
 		//
-		// Everything above is graded against the drafts, correctly: whether a
-		// pass moved a locale, and so whether it is delivered, is a question
-		// about what the pass produced. What the run REPORTS is a different
-		// question — it is what a reader will find, and for a parked locale that
-		// is the file already on disk, because its draft was discarded. Reporting
-		// the draft's figures put `kapi up` and `kapi status` at odds over one
-		// locale with no command between them, which is the whole defect (#2024):
-		// a locale whose committed catalog is 97% reviewed and carries a failing
-		// check was reported at 3% reviewed and clean, off a tree nobody could
-		// open.
+		// Delivery is graded against the drafts. What the run REPORTS is what a
+		// reader will find: for a parked locale, the file already on disk. So
+		// `kapi up` and `kapi status` agree over one locale (#2024).
 		//
-		// The verdict does not move by re-reading: a locale is pending — and so
-		// parked — because of staleness, a failing check, or a gate it has not
-		// cleared, and each of those holds on the delivered file too. What moves
-		// is that the numbers become true.
+		// The verdict does not move by re-reading. A locale is pending, and so
+		// parked, because of staleness, a failing check, or a gate it has not
+		// cleared, and each of those holds on the delivered file too.
 		a.endConvergeDrafts()
 		cov, _, rerr := a.deriveCoverage(ctx, cmd, proj, filepath.Dir(projectPath), !opts.noChecks, facts.unread)
 		if rerr != nil {
@@ -1330,7 +1289,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 
 // buildConvergeOutput rolls the per-scope coverage up into the per-locale
 // convergence result.
-// The per-locale figures are read out of the coverage rows and nowhere else —
+// The per-locale figures are read out of the coverage rows and nowhere else:
 // the percentages, the failing-check counts and the verdict all come from the
 // same rollup `kapi status` and `kapi status --ship` read, so the three surfaces
 // cannot disagree about one locale (#2024).
@@ -1379,14 +1338,14 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 		if !res.Shippable {
 			out.Converged = false
 			// Parked is "the loop left work here": short of a gate, or held by a
-			// fact — stale wording, a failing guardrail — the loop cannot settle
-			// on its own. An ungated locale with neither is simply not gated.
+			// fact (stale wording, a failing guardrail) the loop cannot settle on
+			// its own. An ungated locale with neither is not gated.
 			res.Parked = pendingSet[l] && (gatedSomewhere || res.Stale > 0 || res.FailingChecks > 0)
 		}
 		out.Locales = append(out.Locales, res)
 	}
 	// Per-scope parked detail: every (collection, locale) scope that does not
-	// ship, in the coverage's stable order — short of its gate, or holding stale
+	// ship, in the coverage's stable order: short of its gate, or holding stale
 	// pairings or failing checks a review surface should be pointed at.
 	for _, c := range cov {
 		if !c.Shippable && (c.Gated || c.Stale > 0 || c.FailingChecks > 0) {
@@ -1421,19 +1380,19 @@ type convergeFlow struct {
 	// blocks below, or TranslateAfterNone when the recipe opts out and no stage
 	// is prepended.
 	translateAfter model.TranslateAfterLevel
+	// notes names each run flag a step keeps its own value over.
+	notes []string
 }
 
 // convergeFlowSpec resolves the flow a convergence pass executes: the recipe's
 // defaults.flow, or the built-in default when the recipe names none, with the
 // translate-after leading stage prepended unless the level is `none`. The run and
-// `kapi up --plan` both resolve through it, so a plan never prices a flow the
-// run would not execute, and a flow the run cannot start fails the plan the same
-// way. projectDir is the recipe's directory, which a `flows_dir:` is relative
-// to. runConfig is the run flags' tool config (runFlagToolConfig): it seeds
-// each step of the built-in default under the step's own config, as `kapi run`
-// seeds a built-in flow, so `kapi up --provider demo` drafts with demo. A
-// recipe flow names its own configuration and takes none of it, as under
-// `kapi run`. Nil when no command is in play.
+// `kapi up --plan` both resolve through it. A plan prices only a flow the run
+// would execute, and a flow the run cannot start fails the plan the same way. projectDir is the recipe's directory, which a `flows_dir:` is relative
+// to. runConfig is the run flags' tool config (runFlagToolConfig), nil when no
+// command is in play. It seeds every step of the flow, the built-in default
+// and a recipe flow alike, by the rule seedRunConfig states, as `kapi run`
+// seeds the flow it runs.
 func convergeFlowSpec(proj *project.KapiProject, projectDir string, runConfig map[string]any) (convergeFlow, error) {
 	cf := convergeFlow{name: proj.Defaults.Flow, label: proj.Defaults.Flow}
 	if cf.name == "" {
@@ -1442,20 +1401,17 @@ func convergeFlowSpec(proj *project.KapiProject, projectDir string, runConfig ma
 		// explicitly configured defaults.flow always wins over this synthesis.
 		cf.name = builtinDefaultFlowName
 		cf.label = BuiltinDefaultFlowLabel
-		cf.spec = DefaultConvergeFlowSpec()
-		for i := range cf.spec.Steps {
-			cf.spec.Steps[i].Config = mergeFlowNodeConfig(runConfig, cf.spec.Steps[i].Config)
-		}
+		cf.spec, cf.notes = seedRunConfigSpec(DefaultConvergeFlowSpec(), runConfig)
 	} else {
 		// The name resolves as `kapi run` resolves it (ResolveProjectFlow).
-		pf, err := ResolveProjectFlow(proj, projectDir, cf.name, nil)
+		pf, err := ResolveProjectFlow(proj, projectDir, cf.name, runConfig)
 		if err != nil {
 			return cf, err
 		}
 		if pf == nil {
 			return cf, fmt.Errorf("defaults.flow %q names no flow under the recipe's `flows:`, no file in its `flows_dir:` and no built-in flow", cf.name)
 		}
-		cf.spec = pf.Spec
+		cf.spec, cf.notes = pf.Spec, pf.Notes
 	}
 
 	// Source-first convergence: resolve defaults.translate_after. When it is
@@ -1475,21 +1431,16 @@ func convergeFlowSpec(proj *project.KapiProject, projectDir string, runConfig ma
 
 // DefaultConvergeFlowSpec returns the built-in default convergence flow used
 // when a recipe configures no defaults.flow: content memory reuse (recycle) then
-// AI translate over the REMAINDER. It needs no qa step — the convergence loop
+// AI translate over the REMAINDER. It needs no qa step: the convergence loop
 // already runs the project's bound checks after each pass (#1078 G4). A fresh
 // spec is returned per call so callers can never mutate a shared instance.
 //
-// skip_matched is what makes the second step mean "the remainder", and it is not
-// optional here. The translate tool's own default is to translate every
-// translatable block it is handed, which is right for `kapi exec translate` —
-// you pointed it at the content — and wrong for a convergence pass, where the
-// blocks arrive from the source file with no targets and recycle's fills are the
-// only thing standing between a project's own reviewed wording and the model's
-// answer. Without it a pass run for ONE pending unit re-translated the whole
-// locale, overwriting every recycled target and dropping the approval bound to
-// each, and billed a model call per unit for the privilege. The built-in
-// `translate` flow (host/flowdef) has always spelled it; this one is the same
-// chain and had to say so too.
+// skip_matched makes the second step mean "the remainder", and the pass needs
+// it. The translate tool's own default is to translate every block it is
+// handed, which suits `kapi exec translate`. In a convergence pass the
+// recycled targets hold the project's own reviewed wording, and skip_matched
+// keeps the model from overwriting them and the approval bound to each. The
+// built-in `translate` flow (host/flowdef) sets it for the same reason.
 func DefaultConvergeFlowSpec() *flow.StepsSpec {
 	return &flow.StepsSpec{Steps: []flow.FlowStep{
 		{Tool: "recycle"},

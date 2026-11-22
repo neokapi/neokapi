@@ -125,6 +125,7 @@ var (
 	AddResourceFlags             = host.AddResourceFlags
 	AddStatusFlags               = host.AddStatusFlags
 	AddUpFlags                   = host.AddUpFlags
+	ChangedRunConfigFlags        = host.ChangedRunConfigFlags
 	AddVerifyFlags               = host.AddVerifyFlags
 	AgentHosts                   = host.AgentHosts
 	DetectAgentHosts             = host.DetectAgentHosts

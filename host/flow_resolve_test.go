@@ -122,11 +122,11 @@ func TestConvergeFlowSpec_ResolvesDefaultsFlowLikeKapiRun(t *testing.T) {
 	})
 }
 
-// The run flags seed every step of the built-in default under the step's own
-// config, so `kapi up --provider demo` drafts with demo and the translate
-// step keeps skip_matched. A recipe flow takes none of them, as under
-// `kapi run`.
-func TestConvergeFlowSpec_RunFlagsSeedTheBuiltInDefault(t *testing.T) {
+// The run flags seed every step of the flow a convergence pass runs, the
+// built-in default and a recipe flow alike, under the step's own config: `kapi
+// up --provider demo` drafts with demo, and the translate step keeps
+// skip_matched.
+func TestConvergeFlowSpec_RunFlagsSeedEveryFlow(t *testing.T) {
 	proj, dir := resolveFixture(t)
 	proj.Defaults.TranslateAfter = "none"
 	run := map[string]any{"provider": "demo", "skip_matched": false}
@@ -140,10 +140,42 @@ func TestConvergeFlowSpec_RunFlagsSeedTheBuiltInDefault(t *testing.T) {
 	assert.Equal(t, true, cf.spec.Steps[1].Config["skip_matched"], "the step's own config wins")
 	assert.NotContains(t, DefaultConvergeFlowSpec().Steps[0].Config, "provider", "the shared default is not changed")
 
-	proj.Defaults.Flow = "inline"
-	cf, err = convergeFlowSpec(proj, dir, run)
-	require.NoError(t, err)
-	for _, s := range cf.spec.Steps {
-		assert.NotContains(t, s.Config, "provider", "a recipe flow takes no run flag")
+	for _, name := range []string{"inline", "from-file"} {
+		proj.Defaults.Flow = name
+		cf, err = convergeFlowSpec(proj, dir, run)
+		require.NoError(t, err)
+		for _, s := range cf.spec.Steps {
+			assert.Equal(t, "demo", s.Config["provider"], "%s: %s carries the run's provider", name, s.Tool)
+		}
 	}
+	assert.Empty(t, proj.Flows["inline"].Steps[0].Config, "the recipe's own flow is not changed")
+}
+
+// A step that names its own value keeps it over a run flag, and the run says
+// so; a step that names nothing takes the flag, in a parallel branch too. The
+// steps are copied.
+func TestSeedRunConfig(t *testing.T) {
+	steps := []flow.FlowStep{
+		{Tool: "translate", Label: "pinned", Config: map[string]any{"provider": "openai", "api_key": "sk-own"}},
+		{Tool: "translate"},
+		{Parallel: []flow.FlowStep{{Tool: "qa", Config: map[string]any{"model": "m1"}}}},
+	}
+	run := map[string]any{"provider": "demo", "api_key": "sk-flag", "model": "m2"}
+
+	got, notes := seedRunConfig(steps, run)
+	assert.Equal(t, "openai", got[0].Config["provider"], "the step's own provider wins")
+	assert.Equal(t, "m2", got[0].Config["model"], "a key the step leaves unset takes the flag")
+	assert.Equal(t, "demo", got[1].Config["provider"])
+	assert.Equal(t, "m1", got[2].Parallel[0].Config["model"])
+	assert.Equal(t, "demo", got[2].Parallel[0].Config["provider"])
+	assert.Equal(t, []string{
+		`step "pinned" sets provider "openai", so --provider "demo" does not apply to it`,
+		`step "pinned" sets its own api_key, so --api-key does not apply to it`,
+		`step "qa" sets model "m1", so --model "m2" does not apply to it`,
+	}, notes)
+	for _, n := range notes {
+		assert.NotContains(t, n, "sk-", "a key never reaches a message")
+	}
+	assert.Nil(t, steps[1].Config, "the caller's steps are not changed")
+	assert.Equal(t, "m1", steps[2].Parallel[0].Config["model"])
 }

@@ -114,7 +114,7 @@ advisory: it never approves a block, and 'kapi status --review' lists it.`,
 	}
 
 	AddProjectFlag(cmd)
-	a.AddFlowRunFlags(cmd)
+	a.AddUpRunFlags(cmd)
 	AddUpFlags(cmd)
 	cmd.Flags().Bool("local", false, "run the loop on this machine even when the recipe declares a server (the results are then pushed so the server stays current)")
 	cmd.Flags().Bool("server", false, "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable")
@@ -164,6 +164,13 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 
 	if dec.HasServer && dec.Route == nil && !BoolFlag(cmd, "plan") {
 		a.WarnIfServerRecipeConvergingLocally(cmd, projectPath)
+	}
+	// The server venue's own flags wait on a server run, so a run on this
+	// machine refuses them rather than accepting a flag it cannot honour.
+	for _, name := range []string{"timeout", "fail-on-incomplete-watch"} {
+		if cmd.Flags().Changed(name) {
+			return fmt.Errorf("--%s applies to a server run; this run is on this machine", name)
+		}
 	}
 	return a.ExecuteUp(cmd, projectPath)
 }
