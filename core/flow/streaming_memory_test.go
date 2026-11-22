@@ -72,7 +72,7 @@ func (w storeSRTWriter) SetSkeletonStore(s *format.SkeletonStore) {
 
 // runPlainRoundTripPeak runs an SRT → SRT round-trip through the streaming
 // FileRunner path and returns the peak live heap above the pipeline's heap
-// before any input. The reader's input is fed through a gate in 256 steps. At
+// before any input. The reader's input is fed through a gate in 64 steps. At
 // each stop the reader waits for input and the writer has caught up and waits
 // on the skeleton store, so the heap is measured with no stage working.
 func runPlainRoundTripPeak(t *testing.T, inPath, outPath string, size int) uint64 {
