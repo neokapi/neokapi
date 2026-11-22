@@ -525,7 +525,7 @@ func TestUpFlagsEachHaveAnEffect(t *testing.T) {
 	// A recipe declaring a server venue, dispatched to a stub plugin.
 	venue := func(t *testing.T) fixture {
 		recipe := venueParityProject(t)
-		plugins := venuePluginHost(t)
+		plugins := venuePluginHost(t, serverRunFlags...)
 		return fixture{dir: filepath.Dir(recipe), setup: func(_ *testing.T, a *App) { a.PluginHost = plugins }}
 	}
 	probe := func(t *testing.T, flag, low, high string, edit func(*project.KapiProject)) {

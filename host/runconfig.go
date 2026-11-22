@@ -117,26 +117,6 @@ func UpFlagError(err error) error {
 	return err
 }
 
-// localRunFlags are the `kapi up` flags only a run on this machine acts on:
-// the AI run flags and the flags that shape the local pass. The server runs
-// its own loop with its workspace's settings.
-var localRunFlags = []string{
-	"encoding", "memory", "termstore", "concurrency",
-	"trace", "fail-on-unknown", "strict",
-}
-
-// ChangedLocalRunFlags names every flag set on cmd that only a run on this
-// machine acts on (ChangedRunConfigFlags and localRunFlags), as typed.
-func ChangedLocalRunFlags(cmd Command) []string {
-	set := ChangedRunConfigFlags(cmd)
-	for _, name := range localRunFlags {
-		if cmd.Flags().Lookup(name) != nil && cmd.Flags().Changed(name) {
-			set = append(set, "--"+name)
-		}
-	}
-	return set
-}
-
 // ChangedRunConfigFlags names the AI run flags the person set on cmd, as
 // they would type them (`--provider`).
 func ChangedRunConfigFlags(cmd Command) []string {

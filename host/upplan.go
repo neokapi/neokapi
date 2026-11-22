@@ -21,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -124,9 +125,13 @@ type UpPlanOutput struct {
 	FlowCallsProvider bool          `json:"flow_calls_provider"`
 	Scopes            []UpPlanScope `json:"scopes"`
 	Totals            UpPlanScope   `json:"totals"`
-	// Provider is the AI provider a converge run would use (the shared
-	// ai.provider default), when one is configured.
+	// Provider is the AI provider a converge run would use, as the run
+	// resolves it.
 	Provider string `json:"provider,omitempty"`
+	// Credential is what the run would say when it stops for want of that
+	// provider's credential (none saved or set, or the named one missing),
+	// and "" when the credential is available.
+	Credential string `json:"credential,omitempty"`
 	// Subscription is true when that provider bills a personal subscription
 	// (claude-code): the token estimate is scale, not a metered API cost.
 	Subscription bool `json:"subscription,omitempty"`
@@ -260,6 +265,8 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	// it is also the fastest way to see that a configured default is being
 	// picked up, which is exactly what silently failed before.
 	switch {
+	case o.Credential != "":
+		fmt.Fprintf(w, "\n  AI provider: %s. The run would stop before drafting: %s\n", o.Provider, o.Credential)
 	case o.Subscription:
 		fmt.Fprintf(w, "\n  AI provider: %s, running on your Claude subscription (no per-token API cost).\n", o.Provider)
 	case o.Provider != "":
@@ -463,10 +470,12 @@ func (a *App) planPassingLocales(ctx context.Context, run planRun, proj *project
 }
 
 // applyPlanProvider annotates a plan with the AI providers the converge run's
-// steps call. Each is resolved by the run's own functions (aiStepConfigs, then
-// ToolRegistry.PreprocessConfig): a step's own config, the run flags, the
-// recipe's presets, the stored default, a saved credential or a provider key
-// in the environment, then the tool's default.
+// steps call, and whether each one's credential is available. Each is
+// resolved by the run's own functions (aiStepConfigs, stepDefaults, then
+// credentials.Available): a step's own config, the run flags, the recipe's
+// presets, the stored default, a saved credential or a provider key in the
+// environment, then the tool's default. Nothing reads a saved key: the plan
+// checks the credential store's metadata only.
 //
 // When the one provider bills a personal subscription (claude-code), the
 // plan swaps the metered-cost framing for "runs on your
@@ -488,21 +497,24 @@ func (a *App) applyPlanProvider(plan *UpPlanOutput, proj *project.KapiProject, p
 	}
 	var providers []string
 	for _, s := range steps {
-		// The step's config as the tool will be constructed with it: the
-		// run's own preprocessor applies the stored default and resolves
-		// credentials, a saved one or a provider key in the environment.
-		resolved, err := a.ToolReg.PreprocessConfig(registry.ToolID(s.Tool), s.Config)
+		requires, err := a.ToolReg.Requires(registry.ToolID(s.Tool), s.Config)
 		if err != nil {
-			// The run would stop here asking for a provider.
-			plan.Provider = ""
-			return nil
+			return err
 		}
-		p := presetString(resolved, "provider")
+		config := a.stepDefaults(s.Tool, requires, s.Config)
+		p, cerr := credentials.Available(a.Credentials, s.Tool, requires, config)
+		if p == "" {
+			// A step that needs no credential calls the provider it names.
+			p = presetString(config, "provider")
+		}
 		if p == "" {
 			p = string(aiprovider.Anthropic) // the tool's own default
 		}
 		if !slices.Contains(providers, p) {
 			providers = append(providers, p)
+		}
+		if cerr != nil && plan.Credential == "" {
+			plan.Credential = cerr.Error()
 		}
 	}
 	plan.Provider = strings.Join(providers, ", ")

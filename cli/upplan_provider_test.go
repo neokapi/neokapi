@@ -65,7 +65,8 @@ func TestUpPlan_ProviderFollowsThePrecedenceRule(t *testing.T) {
 		"the stored default applies when nothing else names a provider")
 
 	t.Setenv("ANTHROPIC_API_KEY", "")
-	assert.Empty(t, planProvider(t, "", bareTranslateFixture(t, "")), "nothing names a provider")
+	assert.Equal(t, "anthropic", planProvider(t, "", bareTranslateFixture(t, "")),
+		"nothing names a provider: the tool's default")
 	out, _, err := upWith(t, bareTranslateFixture(t, ""), "", "--plan", "--provider", "demo")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "AI provider: demo")
@@ -99,21 +100,42 @@ func upWith(t *testing.T, recipe, stored string, args ...string) (string, *recor
 	return out.String(), rec, err
 }
 
+// withStepProvider names provider in the translate step's own config.
+func withStepProvider(t *testing.T, recipe, provider string) string {
+	t.Helper()
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	steps := proj.Flows["converge"].Steps
+	for i := range steps {
+		if steps[i].Tool == "translate" {
+			steps[i].Config["provider"] = provider
+		}
+	}
+	require.NoError(t, project.Save(recipe, proj))
+	return recipe
+}
+
 // The plan and the run agree for the same arguments, on every rung: the
-// plan names the provider the run's translate step is constructed with, and
-// says none is configured exactly when the run stops for want of one.
+// plan names the provider the run's translate step is constructed with. When
+// the run stops for want of that provider's credential, the plan names the
+// provider and says what the run says.
 func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 	for _, tc := range []struct {
-		name, preset, stored string
-		env                  map[string]string
-		args                 []string
-		want                 string
+		name, preset, stored, step string
+		env                        map[string]string
+		args                       []string
+		want                       string
+		stops                      bool
 	}{
 		{name: "a provider key in the environment", env: map[string]string{"ANTHROPIC_API_KEY": "sk-test"}, want: "anthropic"},
 		{name: "the run flag", args: []string{"--provider", "demo"}, want: "demo"},
 		{name: "the recipe preset", preset: "openai", env: map[string]string{"OPENAI_API_KEY": "sk-test"}, want: "openai"},
 		{name: "the stored default", stored: "ollama", want: "ollama"},
-		{name: "nothing configured"},
+		{name: "nothing configured", want: "anthropic", stops: true},
+		{name: "a step naming a provider with no key", step: "anthropic", want: "anthropic", stops: true},
+		{name: "a preset with no key over a stored default", preset: "openai", stored: "ollama", want: "openai", stops: true},
+		{name: "a credential that is not saved", env: map[string]string{"ANTHROPIC_API_KEY": "sk-test"},
+			args: []string{"--credential", "nosuch"}, want: "anthropic", stops: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			isolate(t)
@@ -121,6 +143,9 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 				t.Setenv(k, v)
 			}
 			recipe := bareTranslateFixture(t, tc.preset)
+			if tc.step != "" {
+				withStepProvider(t, recipe, tc.step)
+			}
 
 			out, _, err := upWith(t, recipe, tc.stored, append([]string{"--plan", "--json"}, tc.args...)...)
 			require.NoError(t, err, out)
@@ -128,11 +153,20 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 			require.NoError(t, json.Unmarshal([]byte(out), &plan), out)
 			assert.Equal(t, tc.want, plan.Provider, "the plan names the run's provider")
 
+			text, _, err := upWith(t, recipe, tc.stored, append([]string{"--plan"}, tc.args...)...)
+			require.NoError(t, err, text)
+			assert.Contains(t, text, "AI provider: "+tc.want)
+			assert.NotContains(t, text, "none configured", "no advice that fixes nothing")
+
 			out, rec, err := upWith(t, recipe, tc.stored, tc.args...)
-			if tc.want == "" {
-				require.Error(t, err, "the run stops asking for a provider:\n%s", out)
+			if tc.stops {
+				require.Error(t, err, "the run stops for want of a credential:\n%s", out)
+				require.NotEmpty(t, plan.Credential, "the plan says the run would stop")
+				assert.Contains(t, err.Error(), plan.Credential, "the plan says what the run says")
+				assert.Contains(t, text, plan.Credential)
 				return
 			}
+			assert.Empty(t, plan.Credential, "the credential is available")
 			require.NoError(t, err, out)
 			built := rec.constructed()
 			require.NotEmpty(t, built, out)

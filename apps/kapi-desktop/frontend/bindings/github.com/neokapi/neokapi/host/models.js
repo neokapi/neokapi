@@ -4996,12 +4996,22 @@ export class UpPlanOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Provider is the AI provider a converge run would use (the shared
-             * ai.provider default), when one is configured.
+             * Provider is the AI provider a converge run would use, as the run
+             * resolves it.
              * @member
              * @type {string | undefined}
              */
             this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Credential is what the run would say when it stops for want of that
+             * provider's credential (none saved or set, or the named one missing),
+             * and "" when the credential is available.
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5075,8 +5085,8 @@ export class UpPlanOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType114;
         const $$createField4_0 = $$createType113;
-        const $$createField9_0 = $$createType100;
-        const $$createField10_0 = $$createType115;
+        const $$createField10_0 = $$createType100;
+        const $$createField11_0 = $$createType115;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5085,10 +5095,10 @@ export class UpPlanOutput {
             $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField9_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField10_0($$parsedSource["warnings"]);
         }
         if ("drift" in $$parsedSource) {
-            $$parsedSource["drift"] = $$createField10_0($$parsedSource["drift"]);
+            $$parsedSource["drift"] = $$createField11_0($$parsedSource["drift"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
     }

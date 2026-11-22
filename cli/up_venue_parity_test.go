@@ -59,15 +59,17 @@ bowrain:
 }
 
 // venuePluginHost returns a plugin host owning the `server-up` plumbing, so the
-// server venue is reachable in this process.
-func venuePluginHost(t *testing.T) *pluginhost.Host {
+// server venue is reachable in this process. The plumbing's manifest declares
+// the flags named by declared, and the stub writes the arguments it is given
+// to the file "args" beside it.
+func venuePluginHost(t *testing.T, declared ...string) *pluginhost.Host {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("shell-script plugin stub is not portable to Windows")
 	}
 	dir := t.TempDir()
 	binPath := filepath.Join(dir, "kapi-venue-stub")
-	require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+	require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\necho \"$@\" > \"$(dirname \"$0\")/args\"\n"), 0o755))
 
 	m := &manifest.Manifest{
 		ManifestVersion: manifest.CurrentVersion,
@@ -75,7 +77,7 @@ func venuePluginHost(t *testing.T) *pluginhost.Host {
 		Version:         "0.0.1",
 		Binary:          filepath.Base(binPath),
 		Capabilities: manifest.Capabilities{
-			Commands: []manifest.Command{{Name: "server-up", Hidden: true}},
+			Commands: []manifest.Command{{Name: "server-up", Hidden: true, Flags: flagSpecs(declared)}},
 		},
 	}
 	require.NoError(t, m.Validate())
@@ -180,18 +182,42 @@ func TestUpVenue_TheServerFlagIsNotForwarded(t *testing.T) {
 	assert.NotContains(t, forwardedFlagArgs(cmd.Flags(), "server"), "--server=true")
 }
 
-// At the server venue the host refuses a run flag before it dispatches, so a
-// plugin that would accept the flag (the stub exits 0 on anything) never runs.
-func TestUpVenue_ServerRefusesRunFlagsBeforeDispatch(t *testing.T) {
+// flagSpecs declares names as bool flags.
+func flagSpecs(names []string) []manifest.FlagSpec {
+	var specs []manifest.FlagSpec
+	for _, n := range names {
+		specs = append(specs, manifest.FlagSpec{Name: n, Type: "bool"})
+	}
+	return specs
+}
+
+// serverRunFlags stands in for the flags the bowrain plumbing declares.
+var serverRunFlags = []string{"project", "json", "local", "timeout", "fail-on-incomplete-watch"}
+
+// stubArgs is what the stub plumbing of ph was last run with.
+func stubArgs(t *testing.T, ph *pluginhost.Host) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(ph.CommandRoute("server-up").Plugin.Dir, "args"))
+	require.NoError(t, err)
+	return string(b)
+}
+
+// At the server venue the host refuses, before it dispatches, every flag the
+// plumbing does not declare, so a plugin that would accept the flag (the stub
+// exits 0 on anything) never runs. Under --local the plumbing runs this
+// machine's loop, and the same flag is forwarded.
+func TestUpVenue_ServerRefusesUndeclaredFlagsBeforeDispatch(t *testing.T) {
 	recipe := venueParityProject(t)
 	for _, args := range [][]string{
 		{"--provider", "demo"}, {"--model", "m"}, {"--memory", "m.db"}, {"--termstore", "t"},
 		{"--trace", "t.json"}, {"--encoding", "utf-8"}, {"--concurrency", "2"},
 		{"--fail-on-unknown"}, {"--strict"},
+		{"--jobs", "2"}, {"--no-extract"}, {"--no-checks"}, {"--materialize"}, {"--passes", "1"},
 	} {
 		t.Run(args[0], func(t *testing.T) {
 			a := &App{}
-			a.PluginHost = venuePluginHost(t)
+			ph := venuePluginHost(t, serverRunFlags...)
+			a.PluginHost = ph
 			cmd := NewUpCmd(a)
 			require.NoError(t, cmd.ParseFlags(args))
 
@@ -199,6 +225,33 @@ func TestUpVenue_ServerRefusesRunFlagsBeforeDispatch(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), args[0]+" applies to a run on this machine")
 			assert.Contains(t, err.Error(), "--local")
+
+			cmd = NewUpCmd(a)
+			require.NoError(t, cmd.ParseFlags(append([]string{"--local"}, args...)))
+			require.NoError(t, runUpWithVenue(a, cmd, recipe), "--local runs the loop here, which reads %s", args[0])
+			assert.Contains(t, stubArgs(t, ph), args[0])
 		})
 	}
+}
+
+// The flags forwarded to a server run are the ones the plumbing's manifest
+// declares: a declared flag reaches it, and plumbing that declares none is
+// forwarded none.
+func TestUpVenue_ServerForwardsWhatTheManifestDeclares(t *testing.T) {
+	recipe := venueParityProject(t)
+
+	a := &App{}
+	ph := venuePluginHost(t, serverRunFlags...)
+	a.PluginHost = ph
+	cmd := NewUpCmd(a)
+	require.NoError(t, cmd.ParseFlags([]string{"--json", "--timeout", "1m"}))
+	require.NoError(t, runUpWithVenue(a, cmd, recipe))
+	assert.Contains(t, stubArgs(t, ph), "--json=true")
+	assert.Contains(t, stubArgs(t, ph), "--timeout=1m0s")
+
+	a = &App{}
+	a.PluginHost = venuePluginHost(t)
+	cmd = NewUpCmd(a)
+	require.NoError(t, cmd.ParseFlags([]string{"--json"}))
+	assert.ErrorContains(t, runUpWithVenue(a, cmd, recipe), "--json applies to a run on this machine")
 }

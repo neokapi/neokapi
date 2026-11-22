@@ -126,7 +126,6 @@ var (
 	AddStatusFlags               = host.AddStatusFlags
 	AddUpFlags                   = host.AddUpFlags
 	ChangedRunConfigFlags        = host.ChangedRunConfigFlags
-	ChangedLocalRunFlags         = host.ChangedLocalRunFlags
 	UpFlagError                  = host.UpFlagError
 	AddVerifyFlags               = host.AddVerifyFlags
 	AgentHosts                   = host.AgentHosts

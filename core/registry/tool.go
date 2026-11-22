@@ -335,34 +335,37 @@ func (r *ToolRegistry) ToolInfo(name ToolID) *ToolInfo {
 	return &info
 }
 
-// PreprocessConfig returns config as the tool named name would be constructed
-// with: the registered preprocessor (default provider, credential
-// resolution) applied, or config unchanged when none is set. A surface that
-// reports what a step will use (the up plan) asks this, so its answer is the
-// run's.
-func (r *ToolRegistry) PreprocessConfig(name ToolID, config map[string]any) (map[string]any, error) {
+// Requires returns what the tool named name requires when configured with
+// config: its contract resolved against config, the requirements the run's
+// preprocessor is handed. A surface that reports a run in advance (the up
+// plan) asks this, so it checks what the run will check.
+func (r *ToolRegistry) Requires(name ToolID, config map[string]any) ([]string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
 	if !ok {
 		return nil, UnknownToolError(name)
 	}
-	return r.preprocessLocked(name, reg, config)
+	return requiresFor(reg, config), nil
 }
 
-// preprocessLocked runs the preprocessor, if set, on config. The requirements
-// are config-resolved: a tool whose contract drops a requirement under a
-// given config (entity-extract with engine "ner" needs no credentials) must
-// not have the preprocessor demand it anyway. r.mu is held.
+// requiresFor is reg's requirements under config. A tool whose contract drops
+// a requirement under a given config (entity-extract with engine "ner" needs
+// no credentials) must not have the preprocessor demand it anyway.
+func requiresFor(reg *ToolRegistration, config map[string]any) []string {
+	if reg.ContractResolver != nil {
+		return reg.ContractResolver(config, reg.Info).Requires
+	}
+	return reg.Info.Requires
+}
+
+// preprocessLocked runs the preprocessor, if set, on config, with the
+// config-resolved requirements. r.mu is held.
 func (r *ToolRegistry) preprocessLocked(name ToolID, reg *ToolRegistration, config map[string]any) (map[string]any, error) {
 	if r.preprocessor == nil {
 		return config, nil
 	}
-	requires := reg.Info.Requires
-	if reg.ContractResolver != nil {
-		requires = reg.ContractResolver(config, reg.Info).Requires
-	}
-	out, err := r.preprocessor(string(name), requires, config)
+	out, err := r.preprocessor(string(name), requiresFor(reg, config), config)
 	if err != nil {
 		return nil, fmt.Errorf("tool %s config: %w", name, err)
 	}

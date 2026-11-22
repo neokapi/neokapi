@@ -98,13 +98,19 @@ func runUp(cmd *cobra.Command, _ []string) error {
 	}
 
 	// The server runs the loop with the provider and settings its workspace
-	// is configured with, so a run flag has nothing to act on there.
-	if set := cli.ChangedLocalRunFlags(cmd); len(set) > 0 {
-		return fmt.Errorf("%s applies to a run on this machine; the server runs its own loop with its workspace's settings. Add --local to run here with %s",
-			strings.Join(set, ", "), strings.Join(set, ", "))
+	// is configured with, so a flag outside ServerRunFlags has nothing to act
+	// on there.
+	if err := cli.ServerRunFlagError(cli.UndeclaredFlags(cmd, ServerRunFlags)); err != nil {
+		return err
 	}
 	return runServerUp(cmd, proj)
 }
+
+// ServerRunFlags are the flags a server run of server-up reads. The manifest
+// declares the same list for server-up (a test holds the two equal), and
+// kapi up forwards a server run only the flags the manifest declares,
+// refusing the rest before it dispatches.
+var ServerRunFlags = []string{"project", "json", "local", "timeout", "fail-on-incomplete-watch"}
 
 // pushAfterLocalConverge uploads the results of a local converge to the server
 // so the remote copy never lags behind a `kapi up --local`.
