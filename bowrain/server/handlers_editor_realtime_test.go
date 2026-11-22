@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/stretchr/testify/assert"
@@ -39,8 +39,7 @@ func TestHandleUpdatePresencePublishesEvent(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("acme", "p1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: "p1"}})
 	c.Set("user_id", "u1")
 	c.Set("name", "Alice")
 
@@ -67,8 +66,7 @@ func TestHandleUpdatePresenceNoBus(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/p1/presence", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("acme", "p1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: "p1"}})
 
 	require.NoError(t, srv.HandleUpdatePresence(c))
 	assert.Equal(t, http.StatusNoContent, rec.Code)

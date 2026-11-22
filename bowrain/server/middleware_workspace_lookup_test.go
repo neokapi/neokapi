@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
@@ -95,11 +95,10 @@ func TestWorkspaceAccessDistinguishesAbsentFromUnreachable(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/acme/things", nil)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetParamNames("ws")
-			c.SetParamValues("acme")
+			c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}})
 			c.Set("user_id", "u-1")
 
-			h := WorkspaceAccessMiddleware(tt.store)(func(echo.Context) error {
+			h := WorkspaceAccessMiddleware(tt.store)(func(*echo.Context) error {
 				return c.NoContent(http.StatusOK)
 			})
 			require.NoError(t, h(c))

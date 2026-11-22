@@ -7,9 +7,9 @@ import { RestApiAdapter } from "../api/rest-adapter";
  * In cookie (BFF) mode the web app holds no refresh token in memory, so the
  * refresh body is empty and the server reads the HttpOnly `bowrain_refresh`
  * cookie instead. That makes the request ambient-credential and
- * state-changing, and the server has required `X-Bowrain-Csrf` on exactly that
- * shape since #1239 — `TestTokenRefresh_CookiePathRequiresCSRF` is the other
- * half of this contract.
+ * state-changing, and the server requires `X-Bowrain-Csrf` on exactly that
+ * shape. `TestTokenRefresh_CookiePathRequiresCSRF` is the other half of this
+ * contract.
  *
  * `tryRefresh` hand-rolled its headers and sent none of it, so every browser
  * refresh came back 403, the adapter reported the session unrecoverable, and

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -109,8 +110,7 @@ func callRollback(t *testing.T, srv *Server, pid, bid, body string) *httptest.Re
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id", "ref", "bid")
-	c.SetParamValues(pid, "main", bid)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: pid}, {Name: "ref", Value: "main"}, {Name: "bid", Value: bid}})
 	require.NoError(t, srv.HandleRollbackBlock(c))
 	return rec
 }

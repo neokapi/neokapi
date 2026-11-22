@@ -2,7 +2,7 @@
 appId: cloud.bowrain.app
 ---
 - runFlow: sign-in.yaml
-- runFlow: open-deck.yaml
+- runFlow: subflows/open-deck.yaml
 - tapOn:
     id: action-reject
 - tapOn:

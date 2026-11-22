@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 const RequestIDHeader = "X-Request-ID"
@@ -14,7 +14,7 @@ const RequestIDHeader = "X-Request-ID"
 // slog logger with "request_id" pre-attached.
 func RequestIDMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			reqID := c.Request().Header.Get(RequestIDHeader)
 			if reqID == "" {
 				reqID = uuid.New().String()

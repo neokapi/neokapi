@@ -14,12 +14,12 @@ import (
 )
 
 // #2067. XLIFF 2 requires `id` on `<unit>` and requires it to be unique within
-// the enclosing `<file>` (§2.2). Documents in the wild break that — the writer
-// has accepted them since #1599 — and everything downstream treats (source
+// the enclosing `<file>` (§2.2). Documents in the wild break that, and the
+// writer accepts them. Everything downstream treats (source
 // document, block id) as a block's identity, so a repeated id made several units
 // one: one row survived extraction, and the translate tools' overlay cache
 // served the first unit's target to every later one.
-//
+
 // The id is therefore made an identity at the reader, exactly as XLIFF 1.2's is.
 // It cannot be repaired at the key instead: a `.kpz` handed on without its
 // source reconstructs its blocks from a skeleton carrying their ids and nothing
@@ -47,7 +47,7 @@ func readBlocks(t *testing.T, input string) []*model.Block {
 	return blocks
 }
 
-// readPartsStreaming reads a snippet through the skeleton path — a separate
+// readPartsStreaming reads a snippet through the skeleton path, a separate
 // parse, and the one a `kapi run` takes, because the runner wires a skeleton
 // store into every reader that emits one.
 func readPartsStreaming(t *testing.T, input string) []*model.Part {
@@ -89,8 +89,8 @@ func TestReader_RepeatedUnitIDsGetDistinctBlockIDs(t *testing.T) {
 		ids[b.ID] = true
 	}
 
-	// The first unit of a repeated id keeps it, so a conforming document — and
-	// the conforming part of this one — is untouched.
+	// The first unit of a repeated id keeps it, so a conforming document, and
+	// the conforming part of this one, is untouched.
 	assert.Equal(t, "1", blocks[0].ID)
 	assert.Equal(t, "2", blocks[3].ID)
 	assert.Empty(t, blocks[0].Properties[model.PropDocumentID],
@@ -104,7 +104,7 @@ func TestReader_RepeatedUnitIDsGetDistinctBlockIDs(t *testing.T) {
 		assert.Equal(t, "1", model.DocumentID(blocks[i]))
 	}
 
-	// Each unit keeps its own wording — the symptom the collision produced.
+	// Each unit keeps its own wording, which the collision lost.
 	var texts []string
 	for _, b := range blocks {
 		texts = append(texts, b.SourceText())
@@ -134,8 +134,8 @@ func TestWriter_FreshEmissionUsesTheDocumentsUnitID(t *testing.T) {
 }
 
 // The spec's uniqueness guarantee stops at the <file>, so two files may each
-// spell `id="1"` and both be conforming — while a block store keys on the
-// document, which is why the id space is document-wide.
+// spell `id="1"` and both be conforming. A block store keys on the document,
+// so the id space is document-wide.
 func TestReader_UnitIDsAreSeparatedAcrossFilesOfOneDocument(t *testing.T) {
 	blocks := readBlocks(t, `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="nb">
@@ -183,8 +183,8 @@ func TestReader_UnitIDSeparatorCollisionStillYieldsDistinctIDs(t *testing.T) {
 	assert.Equal(t, "1", model.DocumentID(blocks[2]))
 }
 
-// The streaming reader — the one a `kapi run` takes, because the runner wires a
-// skeleton store — has its own unit-building path, and separates ids there too.
+// The streaming reader, the one a `kapi run` takes because the runner wires a
+// skeleton store, has its own unit-building path, and separates ids there too.
 func TestStreamingReader_RepeatedUnitIDsGetDistinctBlockIDs(t *testing.T) {
 	blocks := testutil.FilterBlocks(readPartsStreaming(t, dupIDMenu))
 

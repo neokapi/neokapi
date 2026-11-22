@@ -100,6 +100,38 @@ In the pull request, a `## Verification` section lists each thing you ran with
 its result, and each thing you did not or could not run. A reviewer reads that
 section as a claim and checks it.
 
+## Disk use
+
+Several agents in several worktrees share one disk. When it fills, Docker
+Desktop stops and tests fail with `no space left on device`. Check before a
+long build or test run, and stop under 8 GiB free:
+
+```bash
+df -h /System/Volumes/Data
+du -sh "$(go env GOCACHE)"
+```
+
+What grows, and what is safe to trim while other builds run:
+
+- **The Go build cache** (`go env GOCACHE`). Every make target, CI job and
+  agent session builds with `-trimpath`, so worktrees at one commit share it
+  ([go-build-flags.md](../../../docs/internals/go-build-flags.md)). A raw `go`
+  without `GOFLAGS=-trimpath` fills a second copy. Never run `go clean -cache`
+  while builds run. To trim, delete only entries older than 150 minutes:
+
+  ```bash
+  find "$(go env GOCACHE)" -type f -mmin +150 ! -name README ! -name trim.txt -delete
+  ```
+
+  Go refreshes an entry's modification time only when a build uses an entry
+  older than an hour, and a build reads the entries it compiled against again
+  when it links. So an entry a running build still needs can be an hour old
+  plus that build's duration. A 45-minute trim broke a running build in
+  November 2026. 150 minutes covers builds of up to 90 minutes.
+- **Your own measurements.** Use a scratch `GOCACHE` and a scratch `TMPDIR`,
+  and delete them when you are done. Never delete under the shared temporary
+  directory or another worktree.
+
 ## A change to a check
 
 A diff that edits a guard, an allowlist, a workflow, `REVIEW.md` or the

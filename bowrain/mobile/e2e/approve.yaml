@@ -3,7 +3,7 @@
 appId: cloud.bowrain.app
 ---
 - runFlow: sign-in.yaml
-- runFlow: open-deck.yaml
+- runFlow: subflows/open-deck.yaml
 - swipe:
     from:
       id: review-card

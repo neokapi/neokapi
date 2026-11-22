@@ -2,7 +2,6 @@ package main
 
 import (
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,9 +10,8 @@ import (
 
 func corpusPath(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	return filepath.Join(filepath.Dir(file), "..", "..", "core", "check", "evaldata", "corpus.json")
+	// go test runs a package's tests in the package directory, <root>/scripts/checkeval.
+	return filepath.Join("..", "..", "core", "check", "evaldata", "corpus.json")
 }
 
 // TestCheckEval_NoRegressions is the quality gate (the checkeval analogue of the
@@ -47,16 +45,14 @@ func TestCheckEval_NoRegressions(t *testing.T) {
 
 func correctionsPath(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	return filepath.Join(filepath.Dir(file), "..", "..", "core", "check", "evaldata", "corrections.json")
+	return filepath.Join("..", "..", "core", "check", "evaldata", "corrections.json")
 }
 
 // TestCorrectionsStream_LoopCatchesItsOwnCorrections is the corrections-as-
 // ground-truth gate (#759): promoting the simulated correction stream through
 // the real loop must produce checks that flag every original a team kept
-// correcting and never flag the corrected fix — and leave a below-threshold
-// correction un-enforced. This pins the loop's core claim.
+// correcting and never flag the corrected fix. It must also leave a
+// below-threshold correction un-enforced. This pins the loop's core claim.
 func TestCorrectionsStream_LoopCatchesItsOwnCorrections(t *testing.T) {
 	corpus, err := LoadCorrectionsCorpus(correctionsPath(t))
 	require.NoError(t, err)

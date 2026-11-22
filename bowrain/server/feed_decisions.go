@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -47,7 +47,7 @@ type feedDecisionsResponse struct {
 // counts: GET /:ws/:id/feed/:entry/decisions. Each comes with the translation
 // as it stands now, whether the decision still holds, and whether the reader
 // may undo it.
-func (s *Server) HandleFeedDecisions(c echo.Context) error {
+func (s *Server) HandleFeedDecisions(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

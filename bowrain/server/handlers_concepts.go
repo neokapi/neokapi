@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
@@ -170,7 +170,7 @@ const conceptSortUpdatedAt = "updated_at"
 // holds, window unapplied — which is a real question, but it is not "what
 // governs here now", and a reader who asked the second must not be handed the
 // first. ?market= narrows the same resolution to one validity tag.
-func (s *Server) HandleListConcepts(c echo.Context) error {
+func (s *Server) HandleListConcepts(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 }
 
 // HandleGetConceptCount returns the workspace concept count.
-func (s *Server) HandleGetConceptCount(c echo.Context) error {
+func (s *Server) HandleGetConceptCount(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -296,7 +296,7 @@ type LocaleCoverageResponse struct {
 // HandleGetConceptStatusCounts returns the workspace's concept total and the
 // number of concepts carrying a term at each lifecycle status, from one grouped
 // query rather than a list call per status.
-func (s *Server) HandleGetConceptStatusCounts(c echo.Context) error {
+func (s *Server) HandleGetConceptStatusCounts(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (s *Server) HandleGetConceptStatusCounts(c echo.Context) error {
 // HandleGetConceptLocaleCoverage returns, per locale, how many of the
 // workspace's concepts define a term in it — computed over every concept, not a
 // page of them.
-func (s *Server) HandleGetConceptLocaleCoverage(c echo.Context) error {
+func (s *Server) HandleGetConceptLocaleCoverage(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -380,7 +380,7 @@ func searchConceptsByRecency(ctx context.Context, tb terms.Store, query string, 
 // HandleCreateConcept creates a concept through ordinary curation. Creating a
 // term that is already forbidden or preferred is a governed transition and is
 // refused with a change-set hint.
-func (s *Server) HandleCreateConcept(c echo.Context) error {
+func (s *Server) HandleCreateConcept(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -437,7 +437,7 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 }
 
 // HandleGetConcept returns a single concept by ID.
-func (s *Server) HandleGetConcept(c echo.Context) error {
+func (s *Server) HandleGetConcept(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -462,7 +462,7 @@ func (s *Server) HandleGetConcept(c echo.Context) error {
 // non-status term metadata, adding admitted/approved/proposed/deprecated terms).
 // A governed transition — setting a term forbidden or preferred, un-forbidding a
 // term — is refused with a change-set hint; it must travel through a change-set.
-func (s *Server) HandleUpdateConcept(c echo.Context) error {
+func (s *Server) HandleUpdateConcept(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -518,7 +518,7 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 
 // HandleDeleteConcept refuses a direct concept deletion: a deletion is governed
 // and must travel through a reviewed change-set. It returns a 409 with the hint.
-func (s *Server) HandleDeleteConcept(c echo.Context) error {
+func (s *Server) HandleDeleteConcept(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -532,7 +532,7 @@ func (s *Server) HandleDeleteConcept(c echo.Context) error {
 // HandleGetConceptStory assembles a concept's merged chronological timeline from
 // the knowledge store (revisions, observations, comments) and the change-sets
 // whose ops touch the concept. Entries are sorted oldest-first.
-func (s *Server) HandleGetConceptStory(c echo.Context) error {
+func (s *Server) HandleGetConceptStory(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -631,7 +631,7 @@ func (s *Server) HandleGetConceptStory(c echo.Context) error {
 
 // HandleListConceptRelations returns the relations touching a concept (either
 // direction), optionally scoped by as_of (RFC3339) and market.
-func (s *Server) HandleListConceptRelations(c echo.Context) error {
+func (s *Server) HandleListConceptRelations(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -654,7 +654,7 @@ func (s *Server) HandleListConceptRelations(c echo.Context) error {
 
 // HandleAddConceptRelation adds an ordinary relation from the path concept to a
 // target. A REPLACED_BY relation is governed and refused with a change-set hint.
-func (s *Server) HandleAddConceptRelation(c echo.Context) error {
+func (s *Server) HandleAddConceptRelation(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -701,7 +701,7 @@ func (s *Server) HandleAddConceptRelation(c echo.Context) error {
 }
 
 // HandleDeleteConceptRelation removes a relation by ID (an ordinary edit).
-func (s *Server) HandleDeleteConceptRelation(c echo.Context) error {
+func (s *Server) HandleDeleteConceptRelation(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -739,7 +739,7 @@ func (s *Server) HandleDeleteConceptRelation(c echo.Context) error {
 // compliant text). Passing ?locales=fr,de evaluates the translations instead, so
 // the mark-term UI can preview the RV-E re-check honestly as "re-checks N
 // translations across M locales" before a term is marked forbidden.
-func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
+func (s *Server) HandleConceptBlastRadius(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -768,7 +768,7 @@ func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleListObservations returns a concept's observations, newest first.
-func (s *Server) HandleListObservations(c echo.Context) error {
+func (s *Server) HandleListObservations(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -787,7 +787,7 @@ func (s *Server) HandleListObservations(c echo.Context) error {
 }
 
 // HandleAddObservation attaches external evidence to a concept.
-func (s *Server) HandleAddObservation(c echo.Context) error {
+func (s *Server) HandleAddObservation(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -834,7 +834,7 @@ func (s *Server) HandleAddObservation(c echo.Context) error {
 }
 
 // HandleDeleteObservation removes an observation by ID.
-func (s *Server) HandleDeleteObservation(c echo.Context) error {
+func (s *Server) HandleDeleteObservation(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -853,7 +853,7 @@ func (s *Server) HandleDeleteObservation(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleListConceptComments returns a concept's comments in thread order.
-func (s *Server) HandleListConceptComments(c echo.Context) error {
+func (s *Server) HandleListConceptComments(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -872,7 +872,7 @@ func (s *Server) HandleListConceptComments(c echo.Context) error {
 }
 
 // HandleAddConceptComment posts a comment on a concept thread.
-func (s *Server) HandleAddConceptComment(c echo.Context) error {
+func (s *Server) HandleAddConceptComment(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -911,7 +911,7 @@ func (s *Server) HandleAddConceptComment(c echo.Context) error {
 }
 
 // HandleResolveConceptComment toggles a comment's resolved flag (default true).
-func (s *Server) HandleResolveConceptComment(c echo.Context) error {
+func (s *Server) HandleResolveConceptComment(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -931,7 +931,7 @@ func (s *Server) HandleResolveConceptComment(c echo.Context) error {
 }
 
 // HandleDeleteConceptComment removes a comment by ID.
-func (s *Server) HandleDeleteConceptComment(c echo.Context) error {
+func (s *Server) HandleDeleteConceptComment(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -950,7 +950,7 @@ func (s *Server) HandleDeleteConceptComment(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleListMarkets returns the workspace's markets, ordered by name.
-func (s *Server) HandleListMarkets(c echo.Context) error {
+func (s *Server) HandleListMarkets(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -969,7 +969,7 @@ func (s *Server) HandleListMarkets(c echo.Context) error {
 }
 
 // HandleCreateMarket creates a market.
-func (s *Server) HandleCreateMarket(c echo.Context) error {
+func (s *Server) HandleCreateMarket(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -999,7 +999,7 @@ func (s *Server) HandleCreateMarket(c echo.Context) error {
 }
 
 // HandleUpdateMarket updates a market's name, description, and locales.
-func (s *Server) HandleUpdateMarket(c echo.Context) error {
+func (s *Server) HandleUpdateMarket(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -1034,7 +1034,7 @@ func (s *Server) HandleUpdateMarket(c echo.Context) error {
 }
 
 // HandleDeleteMarket removes a market by ID.
-func (s *Server) HandleDeleteMarket(c echo.Context) error {
+func (s *Server) HandleDeleteMarket(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -1053,7 +1053,7 @@ func (s *Server) HandleDeleteMarket(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleImportConceptsCSV imports concepts from CSV.
-func (s *Server) HandleImportConceptsCSV(c echo.Context) error {
+func (s *Server) HandleImportConceptsCSV(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -1082,7 +1082,7 @@ func (s *Server) HandleImportConceptsCSV(c echo.Context) error {
 }
 
 // HandleImportConceptsJSON imports concepts from JSON.
-func (s *Server) HandleImportConceptsJSON(c echo.Context) error {
+func (s *Server) HandleImportConceptsJSON(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -1106,7 +1106,7 @@ func (s *Server) HandleImportConceptsJSON(c echo.Context) error {
 }
 
 // HandleExportConceptsJSON exports the workspace concepts as JSON.
-func (s *Server) HandleExportConceptsJSON(c echo.Context) error {
+func (s *Server) HandleExportConceptsJSON(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -1130,7 +1130,7 @@ func (s *Server) HandleExportConceptsJSON(c echo.Context) error {
 
 // conceptGovernedConflict refuses a governed edit on the direct path with a 409
 // and a hint to route it through a change-set.
-func conceptGovernedConflict(c echo.Context, detail string) error {
+func conceptGovernedConflict(c *echo.Context, detail string) error {
 	return c.JSON(http.StatusConflict, map[string]any{
 		"error":  "governed change requires a change-set",
 		"detail": detail,
@@ -1214,7 +1214,7 @@ func conceptSource(cp terms.Concept) terms.TermSource {
 
 // scopeFromQuery builds a validity scope from as_of (RFC3339) and market query
 // params, or returns nil when neither is set.
-func scopeFromQuery(c echo.Context) *graph.Scope {
+func scopeFromQuery(c *echo.Context) *graph.Scope {
 	asOf := c.QueryParam("as_of")
 	market := c.QueryParam("market")
 	if asOf == "" && market == "" {

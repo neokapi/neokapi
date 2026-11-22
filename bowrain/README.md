@@ -25,7 +25,7 @@ bowrain/
 ├── core/            Shared platform types (auth, store, connector, project, event)
 ├── plugin/          Bowrain CLI plugin (`kapi-bowrain`) — commands run as `kapi init/push/pull/up/...`
 ├── auth/            OIDC + AuthStore + SQLite/PostgreSQL auth
-├── server/          REST/gRPC server (Echo v4)
+├── server/          REST/gRPC server (Echo v5)
 ├── service/         Auth, project, connector, flow services
 ├── store/           Project + content storage (SQLite + PostgreSQL)
 ├── connector/       Connector implementations (file, git, ...)

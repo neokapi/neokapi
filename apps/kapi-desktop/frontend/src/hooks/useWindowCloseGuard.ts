@@ -17,6 +17,19 @@ export interface CloseRow extends UnsavedTab {
 /** The event the backend emits when it holds a window close or a quit. */
 export const CLOSE_REQUESTED_EVENT = "app:close-requested";
 
+/** A blocker as the backend sends it (host/desktopclose.Blocker). */
+export interface CloseBlocker {
+  id: string;
+  name: string;
+  reasons: string[];
+}
+
+/** The payload of CLOSE_REQUESTED_EVENT. */
+export interface CloseRequest {
+  route: string;
+  blockers: CloseBlocker[];
+}
+
 /**
  * saveTabs saves each tab in turn and returns the tabs whose save failed. It
  * keeps going after a failure, so one tab that cannot be written does not
@@ -57,23 +70,34 @@ interface WindowCloseGuardOptions {
   hasChanges: (tabID: string) => boolean;
   /** Saves one tab; resolves false when the save failed or was refused. */
   saveTab: (tabID: string) => Promise<boolean>;
-  /** The tabs whose flow is running now; the job feed tab close reads. */
-  runningTabIDs: string[];
+  /**
+   * The tabs whose latest flow has finished, from the job feed. A running row
+   * the backend sent drops once its tab is here.
+   */
+  finishedTabIDs: string[];
   /** Cancels a tab's running flow, as tab close's Cancel Flow & Close does. */
   cancelRun: (tabID: string) => Promise<unknown>;
+}
+
+/** The rows of an open request, as the backend sent them. */
+interface OpenRequest {
+  unsaved: UnsavedTab[];
+  running: string[];
+  names: Map<string, string>;
 }
 
 /**
  * useWindowCloseGuard holds the window open while a tab has unsaved changes
  * or a running flow.
  *
- * It reports the tabs with changes to the backend, which holds a window close
- * or a quit while that list is not empty or a flow runs, and emits
- * CLOSE_REQUESTED_EVENT. The hook acknowledges each request at once, so the
- * backend keeps its native fallback dialog closed, and clears the list when
- * it unmounts or the page unloads, so a page that is gone never holds the
- * window. It then exposes one dialog's rows: each tab that holds the window,
- * with its reasons.
+ * It reports the tabs with changes to the backend. The backend holds a window
+ * close or a quit while that list is not empty or a flow runs, and emits
+ * CLOSE_REQUESTED_EVENT with the blockers. The dialog's rows are the
+ * backend's blockers, not the page's own view: a page reloaded during a run
+ * still learns that the run holds the window. The hook acknowledges each
+ * request, and shows nothing when the backend answers that its native dialog
+ * already asks. It clears the list when it unmounts or the page unloads, so a
+ * page that is gone never holds the window.
  *
  * Save all saves the unsaved tabs and lets the close finish only when each
  * save succeeded. Discard all lets it finish without saving. Both cancel the
@@ -85,15 +109,11 @@ export function useWindowCloseGuard({
   tabs,
   hasChanges,
   saveTab,
-  runningTabIDs,
+  finishedTabIDs,
   cancelRun,
 }: WindowCloseGuardOptions) {
   const unsaved = tabs.filter((tab) => hasChanges(tab.id));
   const unsavedKey = unsaved.map((tab) => tab.id).join("\n");
-  const unsavedRef = useRef(unsaved);
-  unsavedRef.current = unsaved;
-  const runningRef = useRef(runningTabIDs);
-  runningRef.current = runningTabIDs;
 
   useEffect(() => {
     const ids = unsavedKey ? unsavedKey.split("\n") : [];
@@ -111,24 +131,46 @@ export function useWindowCloseGuard({
     };
   }, []);
 
-  // The unsaved tabs the open request lists; null while no request is open.
-  const [request, setRequest] = useState<UnsavedTab[] | null>(null);
+  const [request, setRequest] = useState<OpenRequest | null>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState<UnsavedTab[]>([]);
 
-  const rows = request ? closeRows(tabs, request, runningTabIDs) : [];
+  const finished = new Set(finishedTabIDs);
+  const stillRunning = request ? request.running.filter((id) => !finished.has(id)) : [];
+  const runningRef = useRef(stillRunning);
+  runningRef.current = stillRunning;
 
-  const onCloseRequested = useCallback(() => {
-    void api.acknowledgeClose().catch(() => undefined);
-    const pending = unsavedRef.current;
-    if (pending.length === 0 && runningRef.current.length === 0) {
+  // Rows in tab order, named as the page names its tabs; a blocker for a tab
+  // the page does not show keeps the backend's name.
+  const known = new Set(tabs.map((tab) => tab.id));
+  const rowTabs = request
+    ? [
+        ...tabs,
+        ...[...request.names].filter(([id]) => !known.has(id)).map(([id, name]) => ({ id, name })),
+      ]
+    : [];
+  const rows = request ? closeRows(rowTabs, request.unsaved, stillRunning) : [];
+
+  const onCloseRequested = useCallback(async (data: unknown) => {
+    const show = await api.acknowledgeClose().catch(() => true);
+    // The backend's native dialog already asks; one question on screen.
+    if (show === false) return;
+    const blockers = (data as CloseRequest | undefined)?.blockers ?? [];
+    if (blockers.length === 0) {
       void api.confirmClose();
       return;
     }
+    const names = new Map(blockers.map((b) => [b.id, b.name]));
     setFailed([]);
-    setRequest(pending);
+    setRequest({
+      unsaved: blockers
+        .filter((b) => b.reasons.includes("unsaved"))
+        .map((b) => ({ id: b.id, name: b.name })),
+      running: blockers.filter((b) => b.reasons.includes("running")).map((b) => b.id),
+      names,
+    });
   }, []);
-  useWailsEvent(CLOSE_REQUESTED_EVENT, onCloseRequested);
+  useWailsEvent(CLOSE_REQUESTED_EVENT, (data) => void onCloseRequested(data));
 
   const finish = useCallback(async () => {
     for (const id of runningRef.current) await cancelRun(id).catch(() => undefined);
@@ -148,10 +190,10 @@ export function useWindowCloseGuard({
     if (!request || saving) return;
     setSaving(true);
     try {
-      const notSaved = await saveTabs(request, saveTab);
+      const notSaved = await saveTabs(request.unsaved, saveTab);
       if (notSaved.length > 0) {
         setFailed(notSaved);
-        setRequest(notSaved);
+        setRequest({ ...request, unsaved: notSaved });
         return;
       }
       await finish();

@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
@@ -36,7 +36,7 @@ type BulkDeleteResponse struct {
 
 // bulkDeleteIDs binds and validates the id list, rejecting an empty or
 // oversized batch.
-func bulkDeleteIDs(c echo.Context) ([]string, error) {
+func bulkDeleteIDs(c *echo.Context) ([]string, error) {
 	var req BulkDeleteRequest
 	if err := c.Bind(&req); err != nil {
 		return nil, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
@@ -56,7 +56,7 @@ func bulkDeleteIDs(c echo.Context) ([]string, error) {
 // A repeated id is reported once. An id that fails to delete is reported as
 // failed and the rest of the batch still goes through — a single missing entry
 // must not strand the selection.
-func (s *Server) HandleBulkDeleteMemoryEntries(c echo.Context) error {
+func (s *Server) HandleBulkDeleteMemoryEntries(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMemory); err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (s *Server) HandleBulkDeleteMemoryEntries(c echo.Context) error {
 // with the same 409 and change-set hint the per-concept route returns. The
 // route exists so a multi-select learns that in one round trip instead of one
 // refusal per selected row.
-func (s *Server) HandleBulkDeleteConcepts(c echo.Context) error {
+func (s *Server) HandleBulkDeleteConcepts(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}

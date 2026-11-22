@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -230,7 +230,7 @@ func (s *Server) planProposals(ctx context.Context, wsID, wsSlug string, proj *p
 // does. It starts none when the term declares forms already, or when the
 // workspace cannot pay for the call. A failure is logged and costs only the
 // forms: the keep stands.
-func (s *Server) expandFormsAfterKeep(c echo.Context, src deckSource, concept terms.Concept, locale model.LocaleID) string {
+func (s *Server) expandFormsAfterKeep(c *echo.Context, src deckSource, concept terms.Concept, locale model.LocaleID) string {
 	ctx := c.Request().Context()
 	if s.ContextScanStore == nil || s.ContextScanQueue == nil {
 		return ""

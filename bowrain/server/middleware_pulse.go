@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -28,7 +28,7 @@ func pulseProjectVisible(p *store.Project, workspaceID string) bool {
 // On success the middleware stores "pulse_workspace" on the echo context.
 func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			param := c.Param("workspace")
 			if param == "" {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -71,7 +71,7 @@ func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 // Returns 404 for private projects (prevents enumeration).
 func PulseProjectAccessMiddleware(cs store.ContentStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			pid := projectParam(c)
 			if pid == "" {
 				return next(c)
@@ -96,7 +96,7 @@ func PulseProjectAccessMiddleware(cs store.ContentStore) echo.MiddlewareFunc {
 
 // pulseAuthCheck attempts to validate JWT from Authorization header or session
 // cookie and verify workspace membership. Returns true if the user is a member.
-func pulseAuthCheck(c echo.Context, jwtSecret string, authStore auth.AuthStore, workspaceID string) bool {
+func pulseAuthCheck(c *echo.Context, jwtSecret string, authStore auth.AuthStore, workspaceID string) bool {
 	var claims *platauth.Claims
 
 	// Try Bearer token.

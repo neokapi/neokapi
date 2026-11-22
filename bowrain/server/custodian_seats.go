@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -117,7 +117,7 @@ func (s *Server) wouldBeCustodian(ctx context.Context, wsID, roleID string, coor
 // seat is a *person*: someone who already holds custody elsewhere gaining a
 // second region is still one custodian, and re-saving an existing custodian does
 // not count their own seat against them.
-func (s *Server) guardCustodianSeat(c echo.Context, projectID, roleID string, coords platauth.CoordinateFilter, targetUserID string) error {
+func (s *Server) guardCustodianSeat(c *echo.Context, projectID, roleID string, coords platauth.CoordinateFilter, targetUserID string) error {
 	ctx := c.Request().Context()
 	wsID, _ := c.Get("workspace_id").(string)
 	plan, _ := c.Get("workspace_plan").(string)
@@ -157,7 +157,7 @@ func (s *Server) guardCustodianSeat(c echo.Context, projectID, roleID string, co
 // wrong, and the surface they are on will simply not offer the governing action.
 // The line is what makes a lapsed trial legible afterwards — otherwise the only
 // evidence would be a person reporting that a button disappeared.
-func (s *Server) recordCustodyLapse(c echo.Context, reach platauth.CoordinateReach) {
+func (s *Server) recordCustodyLapse(c *echo.Context, reach platauth.CoordinateReach) {
 	s.emitAudit(c, auditEvent{
 		Type:   platev.EventAuthzDenied,
 		Effect: "suspend",

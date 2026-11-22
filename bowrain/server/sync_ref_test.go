@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -62,7 +62,7 @@ func newRefHarness(t *testing.T) *refHarness {
 }
 
 // ctx builds a request context on a sync route, authorized for content work.
-func (h *refHarness) ctx(t *testing.T, method, target, body string) (echo.Context, *httptest.ResponseRecorder) {
+func (h *refHarness) ctx(t *testing.T, method, target, body string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	var r io.Reader
 	if body != "" {
@@ -76,8 +76,7 @@ func (h *refHarness) ctx(t *testing.T, method, target, body string) (echo.Contex
 	c := h.srv.GetEcho().NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
 	c.Set("user_id", "tester")
-	c.SetParamNames("id", "ref")
-	c.SetParamValues(h.project.ID, refTestStream)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: h.project.ID}, {Name: "ref", Value: refTestStream}})
 	return c, rec
 }
 

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -47,7 +47,7 @@ func decideSQLiteServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlite
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
 	e := echo.New()
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", caller.userID)
 			c.Set("workspace_id", "ws")
 			c.Set("project_permissions", caller.perms)

@@ -12,7 +12,7 @@ import (
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
@@ -115,7 +115,7 @@ func (s *Server) rehydrateConnectors(ctx context.Context) {
 // back the raw matched segment, and connector ids can carry characters the
 // client must escape (the WordPress connector historically derived ids
 // containing ':'), so every handler must unescape before lookups.
-func connectorIDParam(c echo.Context) string {
+func connectorIDParam(c *echo.Context) string {
 	raw := c.Param("id")
 	if id, err := url.PathUnescape(raw); err == nil {
 		return id
@@ -123,7 +123,7 @@ func connectorIDParam(c echo.Context) string {
 	return raw
 }
 
-func (s *Server) HandleListActiveConnectors(c echo.Context) error {
+func (s *Server) HandleListActiveConnectors(c *echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -163,7 +163,7 @@ func (s *Server) HandleListActiveConnectors(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
-func (s *Server) HandleAddConnector(c echo.Context) error {
+func (s *Server) HandleAddConnector(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (s *Server) HandleAddConnector(c echo.Context) error {
 // the live instance with the new config and re-persists it. Secret fields follow
 // preserve-on-blank semantics — an empty secret in the request keeps the stored
 // credential (so an endpoint or name edit does not wipe the password/token).
-func (s *Server) HandleUpdateConnector(c echo.Context) error {
+func (s *Server) HandleUpdateConnector(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func (s *Server) HandleUpdateConnector(c echo.Context) error {
 	})
 }
 
-func (s *Server) HandleRemoveConnector(c echo.Context) error {
+func (s *Server) HandleRemoveConnector(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -344,14 +344,14 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 
 // connectorIDFromRequest prefers the path :id and falls back to the body's
 // connector_id for backward compatibility with the pre-path callers.
-func connectorIDFromRequest(c echo.Context, bodyID string) string {
+func connectorIDFromRequest(c *echo.Context, bodyID string) string {
 	if id := connectorIDParam(c); id != "" {
 		return id
 	}
 	return bodyID
 }
 
-func (s *Server) HandleFetch(c echo.Context) error {
+func (s *Server) HandleFetch(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (s *Server) HandleFetch(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]int{"items_fetched": len(items)})
 }
 
-func (s *Server) HandlePublish(c echo.Context) error {
+func (s *Server) HandlePublish(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
@@ -411,7 +411,7 @@ func (s *Server) HandlePublish(c echo.Context) error {
 // default ran the live probe and for git/forge that re-runs a clone, so every
 // 2s poll paid a full clone (#1362). `?probe=1` opts into the deep probe for
 // the explicit "Test"/manual paths. See connectorStatus.
-func (s *Server) HandleConnectorStatus(c echo.Context) error {
+func (s *Server) HandleConnectorStatus(c *echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -449,7 +449,7 @@ type ConnectorStatusBatchResponse struct {
 // to the whole batch, and the per-connector route stays for a single deep
 // probe. A connector that neither the service nor the config store lists lands in
 // `unknown` rather than failing the batch.
-func (s *Server) HandleConnectorStatusBatch(c echo.Context) error {
+func (s *Server) HandleConnectorStatusBatch(c *echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -587,7 +587,7 @@ type contentListResponse struct {
 // optional ?project_id= is accepted for request symmetry with fetch but does
 // not scope the listing — a connector's content set is connector-wide, not
 // per-project.
-func (s *Server) HandleConnectorContent(c echo.Context) error {
+func (s *Server) HandleConnectorContent(c *echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

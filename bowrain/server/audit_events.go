@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
@@ -26,7 +26,7 @@ type auditEvent struct {
 // authenticated caller, enriched with request metadata. It is best-effort: a
 // nil bus (e.g. in unit tests without a bus) is a no-op, and the event is
 // fire-and-forget so it never blocks or fails the request.
-func (s *Server) emitAudit(c echo.Context, ev auditEvent) {
+func (s *Server) emitAudit(c *echo.Context, ev auditEvent) {
 	if s.EventBus == nil {
 		return
 	}
@@ -76,7 +76,7 @@ func (s *Server) emitAudit(c echo.Context, ev auditEvent) {
 // user. Unlike emitAudit it does not read the actor from the request context,
 // because identity events fire before (login) or around (logout) the auth
 // middleware establishes the context actor.
-func (s *Server) emitAuthEvent(c echo.Context, evType platev.EventType, userID, userName, method string) {
+func (s *Server) emitAuthEvent(c *echo.Context, evType platev.EventType, userID, userName, method string) {
 	if s.EventBus == nil {
 		return
 	}

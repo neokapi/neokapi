@@ -7,8 +7,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -138,8 +137,8 @@ func TestWhoamiEnrichesFromUserRecord(t *testing.T) {
 func corsEcho(cfg Config) *echo.Echo {
 	s := &Server{Config: cfg}
 	e := echo.New()
-	e.Use(middleware.CORSWithConfig(s.corsConfig()))
-	e.GET("/api/v1/auth/whoami", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+	e.Use(corsMiddleware(s.corsConfig()))
+	e.GET("/api/v1/auth/whoami", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 	return e
 }
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -42,7 +42,7 @@ type CreateTokenResponse struct {
 }
 
 // HandleCreateToken creates a new API token for the workspace.
-func (s *Server) HandleCreateToken(c echo.Context) error {
+func (s *Server) HandleCreateToken(c *echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -163,7 +163,7 @@ func scopeActions(scopesJSON string) string {
 }
 
 // HandleListTokens lists all API tokens for the workspace.
-func (s *Server) HandleListTokens(c echo.Context) error {
+func (s *Server) HandleListTokens(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -180,7 +180,7 @@ func (s *Server) HandleListTokens(c echo.Context) error {
 }
 
 // HandleDeleteToken revokes an API token.
-func (s *Server) HandleDeleteToken(c echo.Context) error {
+func (s *Server) HandleDeleteToken(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}

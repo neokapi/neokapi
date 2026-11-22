@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/ref"
@@ -39,7 +39,7 @@ import (
 //
 // A root hash is served as the ETag, so a warm producer re-validates in one
 // conditional request instead of reading the whole tree back.
-func (s *Server) HandleSyncTree(c echo.Context) error {
+func (s *Server) HandleSyncTree(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (s *Server) HandleSyncTree(c echo.Context) error {
 
 // treeScope reads the scope from the query string of a GET or the JSON body of
 // a POST.
-func treeScope(c echo.Context) (venue.Scope, error) {
+func treeScope(c *echo.Context) (venue.Scope, error) {
 	if c.Request().Method != http.MethodPost {
 		return venue.Scope(c.QueryParams()["scope"]), nil
 	}

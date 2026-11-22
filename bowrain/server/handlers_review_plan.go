@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -312,7 +312,7 @@ type planLanguageDTO struct {
 
 // HandleGetReviewPlan answers GET /:ws/:id/review/plan[?stream=] with the
 // project's review plan for the caller.
-func (s *Server) HandleGetReviewPlan(c echo.Context) error {
+func (s *Server) HandleGetReviewPlan(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -841,7 +841,7 @@ type reviewPlanSettleResponse struct {
 // that a pass waits until the context is decided (409). Under the
 // involvement every nothing is left to the checks (409). A pass already
 // running for the project answers 409 too.
-func (s *Server) HandleSettleReviewPlan(c echo.Context) error {
+func (s *Server) HandleSettleReviewPlan(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
@@ -887,7 +887,7 @@ type reviewPlanScanResponse struct {
 // the scan on its own (review_plan_autoscan.go); this route is for a person
 // who wants a fresh one. It needs the permission to manage voice profiles,
 // as any context scan does.
-func (s *Server) HandleStartReviewPlanScan(c echo.Context) error {
+func (s *Server) HandleStartReviewPlanScan(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -934,7 +934,7 @@ type reviewPlanInvolvementRequest struct {
 // {"involvement": "context"|"interfaces"|"every"}. It needs the permission to
 // edit the project's settings, and records the caller as the person the
 // settle pass after each run is credited to.
-func (s *Server) HandlePutReviewInvolvement(c echo.Context) error {
+func (s *Server) HandlePutReviewInvolvement(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}
@@ -960,7 +960,7 @@ func (s *Server) HandlePutReviewInvolvement(c echo.Context) error {
 // coordinates as the plan lists them, and the main stream's map is recorded
 // as the baseline later changes are listed against. It needs the permission
 // to edit the project's settings.
-func (s *Server) HandleConfirmReviewCoordinates(c echo.Context) error {
+func (s *Server) HandleConfirmReviewCoordinates(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}
@@ -989,7 +989,7 @@ func (s *Server) HandleConfirmReviewCoordinates(c echo.Context) error {
 }
 
 // setPlanProperties writes plan properties on the project and answers 204.
-func (s *Server) setPlanProperties(c echo.Context, props map[string]string) error {
+func (s *Server) setPlanProperties(c *echo.Context, props map[string]string) error {
 	if s.ContentStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}

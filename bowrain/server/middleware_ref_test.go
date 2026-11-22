@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func TestRefResolutionMiddleware_NoRefParam(t *testing.T) {
 	initTestStores(t, srv)
 
 	called := false
-	handler := func(c echo.Context) error {
+	handler := func(c *echo.Context) error {
 		called = true
 		return c.String(http.StatusOK, "ok")
 	}
@@ -39,7 +39,7 @@ func TestRefResolutionMiddleware_MainDefault(t *testing.T) {
 	initTestStores(t, srv)
 
 	var resolved *ResolvedRef
-	handler := func(c echo.Context) error {
+	handler := func(c *echo.Context) error {
 		resolved = c.Get("ref").(*ResolvedRef)
 		return c.String(http.StatusOK, "ok")
 	}
@@ -61,7 +61,7 @@ func TestRefResolutionMiddleware_NoContentStore(t *testing.T) {
 	e := echo.New()
 
 	var resolved *ResolvedRef
-	handler := func(c echo.Context) error {
+	handler := func(c *echo.Context) error {
 		resolved = c.Get("ref").(*ResolvedRef)
 		return c.String(http.StatusOK, "ok")
 	}
@@ -82,12 +82,12 @@ func TestRefResolutionMiddleware_NoContentStore(t *testing.T) {
 func TestRequireWritableRef_AllowsStream(t *testing.T) {
 	e := echo.New()
 
-	handler := func(c echo.Context) error {
+	handler := func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	}
 
 	mw := RequireWritableRef()
-	e.PUT("/blocks/:ref/:bid", func(c echo.Context) error {
+	e.PUT("/blocks/:ref/:bid", func(c *echo.Context) error {
 		c.Set("ref", &ResolvedRef{Name: "main", Kind: RefKindStream})
 		return mw(handler)(c)
 	})
@@ -102,12 +102,12 @@ func TestRequireWritableRef_AllowsStream(t *testing.T) {
 func TestRequireWritableRef_BlocksTag(t *testing.T) {
 	e := echo.New()
 
-	handler := func(c echo.Context) error {
+	handler := func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	}
 
 	mw := RequireWritableRef()
-	e.PUT("/blocks/:ref/:bid", func(c echo.Context) error {
+	e.PUT("/blocks/:ref/:bid", func(c *echo.Context) error {
 		c.Set("ref", &ResolvedRef{Name: "v1.2.0", Kind: RefKindTag})
 		return mw(handler)(c)
 	})

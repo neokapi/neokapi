@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -103,7 +103,7 @@ func TestConceptLocaleCoverageEmptyWorkspace(t *testing.T) {
 
 func TestConceptAggregatesRequireViewContent(t *testing.T) {
 	h := newKGHarness(t)
-	for path, handler := range map[string]func(echo.Context) error{
+	for path, handler := range map[string]func(*echo.Context) error{
 		"/concepts/status-counts":   h.srv.HandleGetConceptStatusCounts,
 		"/concepts/locale-coverage": h.srv.HandleGetConceptLocaleCoverage,
 	} {

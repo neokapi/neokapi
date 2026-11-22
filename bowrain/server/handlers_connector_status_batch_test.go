@@ -12,7 +12,7 @@ import (
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,7 @@ import (
 
 // batchStatusCtx builds an echo context for GET /connectors/status with the
 // given query string.
-func batchStatusCtx(t *testing.T, wsID, query string) (echo.Context, *httptest.ResponseRecorder) {
+func batchStatusCtx(t *testing.T, wsID, query string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	r := httptest.NewRequest(http.MethodGet, "/connectors/status"+query, nil)
 	rec := httptest.NewRecorder()
@@ -105,8 +105,7 @@ func TestHandleConnectorStatusBatch(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := echo.New().NewContext(single, rec)
 		c.Set("workspace_id", wsID)
-		c.SetParamNames("id")
-		c.SetParamValues(second)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: second}})
 		require.NoError(t, s.HandleConnectorStatus(c))
 		require.Equal(t, http.StatusOK, rec.Code)
 

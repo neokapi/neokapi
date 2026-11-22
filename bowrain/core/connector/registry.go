@@ -1,7 +1,9 @@
 package connector
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"sync"
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
@@ -55,7 +57,7 @@ func (r *Registry) NewConnector(name string, config map[string]string) (Integrat
 	return factory(config)
 }
 
-// List returns information about all registered connectors.
+// List returns information about all registered connectors, sorted by name.
 func (r *Registry) List() []Info {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -63,6 +65,7 @@ func (r *Registry) List() []Info {
 	for _, info := range r.infos {
 		result = append(result, info)
 	}
+	slices.SortFunc(result, func(a, b Info) int { return cmp.Compare(a.Name, b.Name) })
 	return result
 }
 

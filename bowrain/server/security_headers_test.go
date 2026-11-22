@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +34,7 @@ func serveWithSecurityHeaders(t *testing.T, method, target string, tls bool, h e
 
 // TestSecurityHeadersBaseline pins the headers every response carries.
 func TestSecurityHeadersBaseline(t *testing.T) {
-	rec := serveWithSecurityHeaders(t, http.MethodGet, "/api/v1/health", false, func(c echo.Context) error {
+	rec := serveWithSecurityHeaders(t, http.MethodGet, "/api/v1/health", false, func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
@@ -68,12 +68,12 @@ func TestSecurityHeadersCSPShape(t *testing.T) {
 // responses, where it would be noise, and on once a terminating proxy reports
 // HTTPS via X-Forwarded-Proto.
 func TestHSTSOnlyOverTLS(t *testing.T) {
-	plain := serveWithSecurityHeaders(t, http.MethodGet, "/api/v1/health", false, func(c echo.Context) error {
+	plain := serveWithSecurityHeaders(t, http.MethodGet, "/api/v1/health", false, func(c *echo.Context) error {
 		return c.NoContent(http.StatusOK)
 	})
 	assert.Empty(t, plain.Header().Get(headerHSTS))
 
-	secure := serveWithSecurityHeaders(t, http.MethodGet, "/api/v1/health", true, func(c echo.Context) error {
+	secure := serveWithSecurityHeaders(t, http.MethodGet, "/api/v1/health", true, func(c *echo.Context) error {
 		return c.NoContent(http.StatusOK)
 	})
 	assert.Contains(t, secure.Header().Get(headerHSTS), "max-age=")
@@ -92,7 +92,7 @@ func TestPreviewResponsesAreSandboxed(t *testing.T) {
 		name    string
 		handler echo.HandlerFunc
 	}{
-		{"document preview", func(c echo.Context) error {
+		{"document preview", func(c *echo.Context) error {
 			applySandboxCSP(c)
 			return c.HTML(http.StatusOK, "<p>hello</p>")
 		}},
@@ -148,7 +148,7 @@ func TestSPAResponsesCarryNoContentPolicy(t *testing.T) {
 
 	e := echo.New()
 	e.Use(securityHeaders())
-	e.GET("/*", func(c echo.Context) error { return serveSPAFile(c, dir) })
+	e.GET("/*", func(c *echo.Context) error { return serveSPAFile(c, dir) })
 
 	for _, path := range []string{"/", "/some/spa/route", "/index.html"} {
 		t.Run(path, func(t *testing.T) {

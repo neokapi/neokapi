@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -24,7 +24,7 @@ import (
 // Query params: q (search), plan (filter by plan), status (filter by status),
 //
 //	limit, offset (pagination)
-func (s *Server) HandleAdminListWorkspaces(c echo.Context) error {
+func (s *Server) HandleAdminListWorkspaces(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -107,7 +107,7 @@ func (s *Server) HandleAdminListWorkspaces(c echo.Context) error {
 
 // HandleAdminGetWorkspace returns full workspace detail: subscription, credits, members, usage.
 // GET /api/admin/workspaces/:id
-func (s *Server) HandleAdminGetWorkspace(c echo.Context) error {
+func (s *Server) HandleAdminGetWorkspace(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -227,7 +227,7 @@ func (s *Server) HandleAdminGetWorkspace(c echo.Context) error {
 
 // HandleAdminGetLedger returns the credit ledger for a workspace.
 // GET /api/admin/workspaces/:id/ledger
-func (s *Server) HandleAdminGetLedger(c echo.Context) error {
+func (s *Server) HandleAdminGetLedger(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -252,7 +252,7 @@ func (s *Server) HandleAdminGetLedger(c echo.Context) error {
 
 // HandleAdminGetModelUsage returns AI token usage grouped by model and operation.
 // GET /api/admin/workspaces/:id/model-usage
-func (s *Server) HandleAdminGetModelUsage(c echo.Context) error {
+func (s *Server) HandleAdminGetModelUsage(c *echo.Context) error {
 	if s.QuotaStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "usage tracking not configured"})
 	}
@@ -297,7 +297,7 @@ func (s *Server) HandleAdminGetModelUsage(c echo.Context) error {
 
 // HandleAdminUpdatePlan overrides the plan for a workspace.
 // PUT /api/admin/workspaces/:id/plan
-func (s *Server) HandleAdminUpdatePlan(c echo.Context) error {
+func (s *Server) HandleAdminUpdatePlan(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -355,7 +355,7 @@ func (s *Server) HandleAdminUpdatePlan(c echo.Context) error {
 
 // HandleAdminGrantCredits grants bonus credits to a workspace.
 // POST /api/admin/workspaces/:id/credits
-func (s *Server) HandleAdminGrantCredits(c echo.Context) error {
+func (s *Server) HandleAdminGrantCredits(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -410,7 +410,7 @@ func (s *Server) HandleAdminGrantCredits(c echo.Context) error {
 
 // HandleAdminGetFeatureOverrides returns feature overrides for a workspace.
 // GET /api/admin/workspaces/:id/feature-overrides
-func (s *Server) HandleAdminGetFeatureOverrides(c echo.Context) error {
+func (s *Server) HandleAdminGetFeatureOverrides(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -428,7 +428,7 @@ func (s *Server) HandleAdminGetFeatureOverrides(c echo.Context) error {
 
 // HandleAdminSetFeatureOverrides sets a per-workspace feature override.
 // PUT /api/admin/workspaces/:id/feature-overrides
-func (s *Server) HandleAdminSetFeatureOverrides(c echo.Context) error {
+func (s *Server) HandleAdminSetFeatureOverrides(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -468,7 +468,7 @@ func (s *Server) HandleAdminSetFeatureOverrides(c echo.Context) error {
 
 // HandleAdminGetNotes returns internal notes for a workspace.
 // GET /api/admin/workspaces/:id/notes
-func (s *Server) HandleAdminGetNotes(c echo.Context) error {
+func (s *Server) HandleAdminGetNotes(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -486,7 +486,7 @@ func (s *Server) HandleAdminGetNotes(c echo.Context) error {
 
 // HandleAdminAddNote adds an internal note to a workspace.
 // POST /api/admin/workspaces/:id/notes
-func (s *Server) HandleAdminAddNote(c echo.Context) error {
+func (s *Server) HandleAdminAddNote(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -523,7 +523,7 @@ func (s *Server) HandleAdminAddNote(c echo.Context) error {
 
 // HandleAdminListUsers lists/searches users by email, or returns paginated results.
 // GET /api/admin/users?q=search&limit=50&offset=0
-func (s *Server) HandleAdminListUsers(c echo.Context) error {
+func (s *Server) HandleAdminListUsers(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth store not configured"})
 	}
@@ -564,7 +564,7 @@ func (s *Server) HandleAdminListUsers(c echo.Context) error {
 
 // HandleAdminGetUser returns detailed user info with workspace memberships.
 // GET /api/admin/users/:id
-func (s *Server) HandleAdminGetUser(c echo.Context) error {
+func (s *Server) HandleAdminGetUser(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth store not configured"})
 	}
@@ -594,7 +594,7 @@ func (s *Server) HandleAdminGetUser(c echo.Context) error {
 
 // HandleAdminGetMetrics returns platform-wide KPIs.
 // GET /api/admin/metrics
-func (s *Server) HandleAdminGetMetrics(c echo.Context) error {
+func (s *Server) HandleAdminGetMetrics(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -609,7 +609,7 @@ func (s *Server) HandleAdminGetMetrics(c echo.Context) error {
 
 // HandleAdminListEvents returns recent billing events.
 // GET /api/admin/events?type=&limit=&offset=
-func (s *Server) HandleAdminListEvents(c echo.Context) error {
+func (s *Server) HandleAdminListEvents(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -629,7 +629,7 @@ func (s *Server) HandleAdminListEvents(c echo.Context) error {
 
 // HandleAdminGetUpsells returns ranked upsell opportunities.
 // GET /api/admin/upsells
-func (s *Server) HandleAdminGetUpsells(c echo.Context) error {
+func (s *Server) HandleAdminGetUpsells(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -646,7 +646,7 @@ func (s *Server) HandleAdminGetUpsells(c echo.Context) error {
 
 // HandleAdminListOverrides returns all feature overrides across all workspaces.
 // GET /api/admin/overrides
-func (s *Server) HandleAdminListOverrides(c echo.Context) error {
+func (s *Server) HandleAdminListOverrides(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -668,7 +668,7 @@ func (s *Server) HandleAdminListOverrides(c echo.Context) error {
 // HandleAdminImpersonate creates a short-lived API token for viewing a workspace
 // as a customer. Records an audit note with the admin's identity.
 // POST /api/admin/workspaces/:id/impersonate
-func (s *Server) HandleAdminImpersonate(c echo.Context) error {
+func (s *Server) HandleAdminImpersonate(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -757,7 +757,7 @@ func deriveAppURL(origin string) string {
 
 // HandleAdminAddMember adds a user to a workspace.
 // POST /api/admin/workspaces/:id/members
-func (s *Server) HandleAdminAddMember(c echo.Context) error {
+func (s *Server) HandleAdminAddMember(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}

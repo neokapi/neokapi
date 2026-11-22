@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,7 @@ func TestTrackUserLogin_NilClient(t *testing.T) {
 
 // acquisitionContext builds a request context carrying the acquisition cookie,
 // or none when the value is empty.
-func acquisitionContext(cookie string) echo.Context {
+func acquisitionContext(cookie string) *echo.Context {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/callback", nil)
 	if cookie != "" {
 		req.Header.Set("Cookie", acquisitionCookie+"="+cookie)

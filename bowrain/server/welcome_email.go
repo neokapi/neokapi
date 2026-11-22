@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/mailer"
@@ -32,7 +32,7 @@ import (
 // Best-effort, and off the request: the workspace exists by the time this runs,
 // and a mail server that is slow or absent must not turn a completed onboarding
 // into a failed one.
-func (s *Server) greetNewAccount(c echo.Context, userID string, w *platauth.Workspace, firstWorkspace bool) {
+func (s *Server) greetNewAccount(c *echo.Context, userID string, w *platauth.Workspace, firstWorkspace bool) {
 	if !firstWorkspace || userID == "" || w == nil {
 		return
 	}

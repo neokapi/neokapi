@@ -25,6 +25,7 @@ VERSION_PKG ?= github.com/neokapi/neokapi/core/version
 LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
 GO          := go
+include $(ROOT_DIR)/scripts/lib/goflags.mk
 GOTAGS      := -tags fts5
 # macOS Homebrew ICU, resolved rather than pinned — see the root Makefile for
 # why a hardcoded icu4c@NN breaks silently on the next ICU major bump.

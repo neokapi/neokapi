@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -37,7 +37,7 @@ type AnonymousProjectResponse struct {
 // HandleCreateAnonymousProject creates an anonymous project with a claim token.
 // No authentication required. target_languages is optional (empty = dynamic locales).
 // If email is provided, the server sends a claim email to that address.
-func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
+func (s *Server) HandleCreateAnonymousProject(c *echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -118,7 +118,7 @@ type ClaimResponse struct {
 
 // HandleClaimProject claims an anonymous project into the user's personal workspace.
 // Requires JWT authentication.
-func (s *Server) HandleClaimProject(c echo.Context) error {
+func (s *Server) HandleClaimProject(c *echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}

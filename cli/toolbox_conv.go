@@ -40,8 +40,12 @@ named after the input and re-extensioned for the target format; the directory
 is created if it does not exist. With -r, directory arguments are walked and
 the sub-tree is mirrored under the output directory.
 
-A same-format conversion (e.g. .docx → .docx) round-trips faithfully via the
-document skeleton; a cross-format conversion reconstructs from the content model.`,
+A conversion to the input's own format (.docx to .docx, .json to .json) writes
+the document back through that format's writer and its skeleton, for every
+format kapi can write. A conversion to another format rebuilds the document
+from the content model; a document converted to json or yaml becomes a list of
+its blocks. A format kapi reads and cannot write (docling) is refused as a
+target, and a format it writes and cannot read (mo) is refused as an input.`,
 		Example: `  kconv report.docx --to md
   kconv report.dclg.xml -o report.html
   kconv scan.docling.JSON --to html

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -59,15 +59,14 @@ func newContextGraphHarness(t *testing.T) *cgHarness {
 
 // req builds an echo context for the context-graph route, with the workspace
 // the handler resolves both the graph scope and the terminology from.
-func (h *cgHarness) req(t *testing.T, target, conceptID string) (echo.Context, *httptest.ResponseRecorder) {
+func (h *cgHarness) req(t *testing.T, target, conceptID string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, target, nil)
 	rec := httptest.NewRecorder()
 	c := h.srv.GetEcho().NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermViewContent)
 	c.Set("workspace_id", cgWorkspace)
-	c.SetParamNames("ws", "cid")
-	c.SetParamValues(cgWorkspace, conceptID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: cgWorkspace}, {Name: "cid", Value: conceptID}})
 	return c, rec
 }
 
@@ -387,7 +386,7 @@ func TestContextGraphRouteRegistered(t *testing.T) {
 	require.NotPanics(t, func() { srv.registerContextGraphRoutes(g) })
 
 	got := map[string]bool{}
-	for _, r := range e.Routes() {
+	for _, r := range e.Router().Routes() {
 		got[r.Method+" "+r.Path] = true
 	}
 	assert.True(t, got["GET /:ws/context/concepts/:cid/projects"],

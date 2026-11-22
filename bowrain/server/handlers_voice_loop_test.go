@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -74,8 +74,7 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("project_permissions", platauth.PermAll)
-		c.SetParamNames("ws")
-		c.SetParamValues(wsSlug)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: wsSlug}})
 		c.Set("user_id", userID)
 		c.Set("workspace_id", wsID)
 		require.NoError(t, srv.HandleCreateVoiceCorrection(c))
@@ -94,8 +93,7 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("project_permissions", platauth.PermAll)
-		c.SetParamNames("id")
-		c.SetParamValues(profile.ID)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: profile.ID}})
 		c.Set("workspace_id", wsID)
 		require.NoError(t, srv.HandleListCandidates(c))
 		require.Equal(t, http.StatusOK, rec.Code)
@@ -111,8 +109,7 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("project_permissions", platauth.PermAll)
-		c.SetParamNames("ws", "id")
-		c.SetParamValues(wsSlug, profile.ID)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: wsSlug}, {Name: "id", Value: profile.ID}})
 		c.Set("user_id", userID)
 		c.Set("workspace_id", wsID)
 		require.NoError(t, handler(c))
@@ -200,8 +197,7 @@ func TestPhase4_VoiceRuleDemote(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("d", profile.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "d"}, {Name: "id", Value: profile.ID}})
 	c.Set("workspace_id", "ws-d")
 	require.NoError(t, srv.HandleDemoteSuggestedRule(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -240,8 +236,7 @@ func TestVoiceLoop_EvaluateBlastRadius(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id")
-	c.SetParamValues(profile.ID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: profile.ID}})
 	c.Set("workspace_id", wsID)
 	require.NoError(t, srv.HandleEvaluateRulePromotion(c))
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -286,8 +281,7 @@ func TestVoiceLoop_Drift(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/?recent_days=1&drop_points=10&days=30", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id", "ref")
-	c.SetParamValues(projectID, "main")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}, {Name: "ref", Value: "main"}})
 	require.NoError(t, srv.HandleGetVoiceDrift(c))
 	require.Equal(t, http.StatusOK, rec.Code)
 

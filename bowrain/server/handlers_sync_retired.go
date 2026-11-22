@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/apierror"
 )
 
@@ -41,7 +41,7 @@ const InstallMinPushClient = "kapi plugins install --channel beta bowrain@" + Mi
 // what the stable channel still resolves to, prints the whole body raw. So the
 // message is one plain sentence that reads correctly quoted inside JSON, and
 // the version and command appear in it rather than only in the detail fields.
-func (s *Server) HandleSyncPushDiffRetired(c echo.Context) error {
+func (s *Server) HandleSyncPushDiffRetired(c *echo.Context) error {
 	return apiErr(c, http.StatusUpgradeRequired, apierror.CodeClientTooOld, map[string]any{
 		"minimum_version": MinPushProtocolVersion,
 		"install":         InstallMinPushClient,

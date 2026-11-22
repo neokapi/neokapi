@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -23,8 +23,7 @@ func cancelRun(t *testing.T, srv *Server, projectID, runID string) *httptest.Res
 	e := echo.New()
 	rec := httptest.NewRecorder()
 	c := e.NewContext(httptest.NewRequest(http.MethodPost, "/", nil), rec)
-	c.SetParamNames("id", "runId")
-	c.SetParamValues(projectID, runID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}, {Name: "runId", Value: runID}})
 	require.NoError(t, srv.HandleCancelAutomationRun(c))
 	return rec
 }

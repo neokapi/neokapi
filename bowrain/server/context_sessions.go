@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -185,7 +185,7 @@ func actionable(c contextDeckCard) bool {
 // skipping the cards other people's sessions hold, and holds them for the
 // caller. A session the caller had running ends first. The answer carries
 // what changed since the team's last session.
-func (s *Server) HandleStartContextSession(c echo.Context) error {
+func (s *Server) HandleStartContextSession(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -546,7 +546,7 @@ func sessionOutcome(req contextDeckDecideRequest) string {
 // it ends the caller's session, releases the cards it still held, and
 // answers with what its decisions did. Ending a session that ended already,
 // or expired, answers its summary again.
-func (s *Server) HandleEndContextSession(c echo.Context) error {
+func (s *Server) HandleEndContextSession(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

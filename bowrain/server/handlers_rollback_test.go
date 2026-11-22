@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -50,8 +51,7 @@ func TestPhase4_RollbackBlock(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id", "ref", "bid")
-	c.SetParamValues("p-rb", "main", bid)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "p-rb"}, {Name: "ref", Value: "main"}, {Name: "bid", Value: bid}})
 	require.NoError(t, s.HandleRollbackBlock(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
@@ -101,8 +101,7 @@ func TestPhase4_RollbackRequiresPermission(t *testing.T) {
 	c := e.NewContext(req, rec)
 	// A translator-level permission set (no rollback permission).
 	c.Set("project_permissions", platauth.PermViewContent|platauth.PermTranslate)
-	c.SetParamNames("id", "ref", "bid")
-	c.SetParamValues("p-rb", "main", "b-rb")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "p-rb"}, {Name: "ref", Value: "main"}, {Name: "bid", Value: "b-rb"}})
 	require.Error(t, s.HandleRollbackBlock(c))
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }

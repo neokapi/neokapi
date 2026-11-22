@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
@@ -30,7 +30,7 @@ import (
 // the key names content inside a project the caller can already read, so this
 // grants nothing a pull did not. A key that is not a content hash is refused
 // for the same reason the upload grant refuses one — the key IS the scope.
-func (s *Server) HandleBlobDownload(c echo.Context) error {
+func (s *Server) HandleBlobDownload(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

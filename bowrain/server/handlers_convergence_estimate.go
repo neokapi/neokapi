@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -182,7 +182,7 @@ func estimateComputedProps(proj *platstore.Project, view convergenceEstimateView
 // split and credit cost for the ready source, then the workspace balance. It
 // starts no run and calls no AI provider.
 // GET /…/projects/:id/convergence/estimate
-func (s *Server) HandleConvergenceEstimate(c echo.Context) error {
+func (s *Server) HandleConvergenceEstimate(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T09:59:05Z",
+  "generatedAt": "2026-11-22T10:31:44Z",
   "commands": [
     {
       "id": "add",
@@ -6691,8 +6691,7 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "source locale",
-          "default": "en",
+          "usage": "source locale (default: the project's source_language in the project's own store, else en)",
           "type": "string"
         },
         {
@@ -8916,8 +8915,7 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "source locale",
-          "default": "en",
+          "usage": "source locale (default: the project's source_language in the project's own store, else en)",
           "type": "string"
         },
         {

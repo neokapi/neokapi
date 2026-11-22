@@ -4,6 +4,7 @@ import {
   closeRows,
   saveTabs,
   useWindowCloseGuard,
+  type CloseRequest,
   type UnsavedTab,
 } from "../hooks/useWindowCloseGuard";
 import { WindowCloseDialog } from "../components/WindowCloseDialog";
@@ -15,20 +16,36 @@ const tabs: UnsavedTab[] = [
   { id: "c", name: "kapimart" },
 ];
 
-interface Opts {
-  dirty?: string[];
-  running?: string[];
-  saveTab?: (id: string) => Promise<boolean>;
-  cancelRun?: (id: string) => Promise<void>;
+/** The payload the backend sends for these unsaved and running tabs. */
+function request(unsaved: string[], running: string[] = []): CloseRequest {
+  const ids = [...new Set([...unsaved, ...running])];
+  return {
+    route: "window",
+    blockers: ids.map((id) => ({
+      id,
+      name: `backend ${id}`,
+      reasons: [
+        ...(unsaved.includes(id) ? ["unsaved"] : []),
+        ...(running.includes(id) ? ["running"] : []),
+      ],
+    })),
+  };
 }
 
-function setup({ dirty = [], running = [], saveTab = vi.fn(), cancelRun = vi.fn() }: Opts) {
+interface Opts {
+  dirty?: string[];
+  finished?: string[];
+  saveTab?: (id: string) => Promise<boolean>;
+  cancelRun?: (id: string) => Promise<unknown>;
+}
+
+function setup({ dirty = [], finished = [], saveTab = vi.fn(), cancelRun = vi.fn() }: Opts) {
   return renderHook(() =>
     useWindowCloseGuard({
       tabs,
       hasChanges: (id) => dirty.includes(id),
       saveTab,
-      runningTabIDs: running,
+      finishedTabIDs: finished,
       cancelRun,
     }),
   );
@@ -37,20 +54,21 @@ function setup({ dirty = [], running = [], saveTab = vi.fn(), cancelRun = vi.fn(
 /** The guard and its dialog together, as App renders them. */
 function Harness({
   dirty = [],
-  running = [],
+  finished = [],
   saveTab = vi.fn(),
   cancelRun = vi.fn().mockResolvedValue(undefined),
-}: Opts) {
+  payload,
+}: Opts & { payload: CloseRequest }) {
   const guard = useWindowCloseGuard({
     tabs,
     hasChanges: (id) => dirty.includes(id),
     saveTab,
-    runningTabIDs: running,
+    finishedTabIDs: finished,
     cancelRun,
   });
   return (
     <>
-      <button type="button" onClick={() => guard.onCloseRequested()}>
+      <button type="button" onClick={() => void guard.onCloseRequested(payload)}>
         close window
       </button>
       {guard.open && (
@@ -68,13 +86,17 @@ function Harness({
 }
 
 const list = () => screen.getByRole("list", { name: "Projects that keep the window open" });
+const closeWindow = async () => {
+  fireEvent.click(screen.getByText("close window"));
+  await screen.findByTestId("window-close-dialog");
+};
 
 describe("closing the window with unsaved changes or a running flow", () => {
   beforeEach(() => {
     vi.spyOn(api, "setUnsavedTabs").mockResolvedValue(undefined);
     vi.spyOn(api, "confirmClose").mockResolvedValue(undefined);
     vi.spyOn(api, "cancelClose").mockResolvedValue(undefined);
-    vi.spyOn(api, "acknowledgeClose").mockResolvedValue(undefined);
+    vi.spyOn(api, "acknowledgeClose").mockResolvedValue(true);
   });
 
   it("reports the tabs with unsaved changes to the backend", async () => {
@@ -82,10 +104,18 @@ describe("closing the window with unsaved changes or a running flow", () => {
     await waitFor(() => expect(api.setUnsavedTabs).toHaveBeenCalledWith(["a", "c"]));
   });
 
-  it("acknowledges each close request, so the native fallback stays closed", () => {
+  it("acknowledges each close request", async () => {
     const { result } = setup({ dirty: ["a"] });
-    act(() => result.current.onCloseRequested());
+    await act(() => result.current.onCloseRequested(request(["a"])));
     expect(api.acknowledgeClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows nothing when the backend's native dialog already asks", async () => {
+    vi.mocked(api.acknowledgeClose).mockResolvedValue(false);
+    const { result } = setup({ dirty: ["a"] });
+    await act(() => result.current.onCloseRequested(request(["a"])));
+    expect(result.current.open).toBe(false);
+    expect(api.confirmClose).not.toHaveBeenCalled();
   });
 
   it("stops holding the window when it unmounts", async () => {
@@ -102,11 +132,31 @@ describe("closing the window with unsaved changes or a running flow", () => {
     expect(api.setUnsavedTabs).toHaveBeenLastCalledWith([]);
   });
 
-  it("lets a stale request close at once when nothing holds the window", async () => {
+  it("closes at once when the backend sends no blocker", async () => {
     const { result } = setup({});
-    act(() => result.current.onCloseRequested());
+    await act(() => result.current.onCloseRequested(request([])));
     expect(result.current.open).toBe(false);
-    await waitFor(() => expect(api.confirmClose).toHaveBeenCalledTimes(1));
+    expect(api.confirmClose).toHaveBeenCalledTimes(1);
+  });
+
+  // A page reloaded during a run has no unsaved tabs and may not yet know the
+  // run; the backend's blockers still decide, so the run is asked about.
+  it("decides from the backend's blockers, not the page's own view", async () => {
+    const { result } = setup({});
+    await act(() => result.current.onCloseRequested(request([], ["c"])));
+    expect(result.current.open).toBe(true);
+    expect(result.current.rows).toEqual([
+      { id: "c", name: "kapimart", unsaved: false, running: true },
+    ]);
+    expect(api.confirmClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps the backend's name for a tab the page does not show", async () => {
+    const { result } = setup({});
+    await act(() => result.current.onCloseRequested(request([], ["z"])));
+    expect(result.current.rows).toEqual([
+      { id: "z", name: "backend z", unsaved: false, running: true },
+    ]);
   });
 
   it("merges unsaved and running tabs into one row each, in tab order", () => {
@@ -119,8 +169,8 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
   describe("only unsaved changes", () => {
     it("lists each dirty tab and offers Save all, Discard all and Cancel", async () => {
-      render(<Harness dirty={["a", "b"]} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness dirty={["a", "b"]} payload={request(["a", "b"])} />);
+      await closeWindow();
       expect(screen.getByText("Unsaved changes", { selector: "h2" })).toBeInTheDocument();
       expect(list()).toHaveTextContent("compass");
       expect(list()).toHaveTextContent("northsea");
@@ -132,8 +182,8 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
     it("Save all saves each listed tab, then closes", async () => {
       const saveTab = vi.fn().mockResolvedValue(true);
-      render(<Harness dirty={["a", "b"]} saveTab={saveTab} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness dirty={["a", "b"]} saveTab={saveTab} payload={request(["a", "b"])} />);
+      await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Save all" }));
       await waitFor(() => expect(api.confirmClose).toHaveBeenCalledTimes(1));
       expect(saveTab.mock.calls).toEqual([["a"], ["b"]]);
@@ -141,11 +191,11 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
     it("a failed save keeps the window open and names the tab", async () => {
       const saveTab = vi.fn(async (id: string) => id !== "b");
-      render(<Harness dirty={["a", "b"]} saveTab={saveTab} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness dirty={["a", "b"]} saveTab={saveTab} payload={request(["a", "b"])} />);
+      await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Save all" }));
       await screen.findByRole("alert");
-      expect(screen.getByRole("alert")).toHaveTextContent("Could not save northsea");
+      expect(screen.getByRole("alert")).toHaveTextContent("Could not save");
       expect(list()).toHaveTextContent("northsea");
       expect(list()).not.toHaveTextContent("compass");
       expect(api.confirmClose).not.toHaveBeenCalled();
@@ -161,8 +211,8 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
     it("Discard all closes without saving", async () => {
       const saveTab = vi.fn();
-      render(<Harness dirty={["a", "b"]} saveTab={saveTab} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness dirty={["a", "b"]} saveTab={saveTab} payload={request(["a", "b"])} />);
+      await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Discard all" }));
       await waitFor(() => expect(api.confirmClose).toHaveBeenCalledTimes(1));
       expect(saveTab).not.toHaveBeenCalled();
@@ -170,8 +220,8 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
     it("Cancel keeps the window and every change", async () => {
       const saveTab = vi.fn();
-      render(<Harness dirty={["a"]} saveTab={saveTab} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness dirty={["a"]} saveTab={saveTab} payload={request(["a"])} />);
+      await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
       await waitFor(() => expect(api.cancelClose).toHaveBeenCalledTimes(1));
       expect(api.confirmClose).not.toHaveBeenCalled();
@@ -181,8 +231,8 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
   describe("only a running flow", () => {
     it("offers what closing a tab offers: Cancel Flow & Close or Keep running", async () => {
-      render(<Harness running={["c"]} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness payload={request([], ["c"])} />);
+      await closeWindow();
       expect(screen.getByText("A flow is running", { selector: "h2" })).toBeInTheDocument();
       expect(list()).toHaveTextContent("kapimart");
       expect(list()).toHaveTextContent("Flow running");
@@ -194,8 +244,8 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
     it("Cancel Flow & Close cancels the run, then closes", async () => {
       const cancelRun = vi.fn().mockResolvedValue(undefined);
-      render(<Harness running={["c"]} cancelRun={cancelRun} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness cancelRun={cancelRun} payload={request([], ["c"])} />);
+      await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Cancel Flow & Close" }));
       await waitFor(() => expect(api.confirmClose).toHaveBeenCalledTimes(1));
       expect(cancelRun).toHaveBeenCalledWith("c");
@@ -206,8 +256,8 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
     it("Keep running cancels the close and leaves the flow alone", async () => {
       const cancelRun = vi.fn();
-      render(<Harness running={["c"]} cancelRun={cancelRun} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(<Harness cancelRun={cancelRun} payload={request([], ["c"])} />);
+      await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Keep running" }));
       await waitFor(() => expect(api.cancelClose).toHaveBeenCalledTimes(1));
       expect(cancelRun).not.toHaveBeenCalled();
@@ -219,8 +269,15 @@ describe("closing the window with unsaved changes or a running flow", () => {
     it("lists both with their reasons, and Save all saves then stops the flow", async () => {
       const saveTab = vi.fn().mockResolvedValue(true);
       const cancelRun = vi.fn().mockResolvedValue(undefined);
-      render(<Harness dirty={["a"]} running={["c"]} saveTab={saveTab} cancelRun={cancelRun} />);
-      fireEvent.click(screen.getByText("close window"));
+      render(
+        <Harness
+          dirty={["a"]}
+          saveTab={saveTab}
+          cancelRun={cancelRun}
+          payload={request(["a"], ["c"])}
+        />,
+      );
+      await closeWindow();
       expect(
         screen.getByText("Unsaved changes and a running flow", { selector: "h2" }),
       ).toBeInTheDocument();
@@ -242,12 +299,12 @@ describe("closing the window with unsaved changes or a running flow", () => {
       render(
         <Harness
           dirty={["a"]}
-          running={["c"]}
           saveTab={vi.fn().mockResolvedValue(false)}
           cancelRun={cancelRun}
+          payload={request(["a"], ["c"])}
         />,
       );
-      fireEvent.click(screen.getByText("close window"));
+      await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Save all" }));
       await screen.findByRole("alert");
       expect(cancelRun).not.toHaveBeenCalled();
@@ -257,10 +314,11 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
   describe("a flow that finishes while the dialog is open", () => {
     it("drops its row and keeps asking about the unsaved tab", async () => {
-      const { rerender } = render(<Harness dirty={["a"]} running={["c"]} />);
-      fireEvent.click(screen.getByText("close window"));
+      const payload = request(["a"], ["c"]);
+      const { rerender } = render(<Harness dirty={["a"]} payload={payload} />);
+      await closeWindow();
       expect(list()).toHaveTextContent("kapimart");
-      rerender(<Harness dirty={["a"]} running={[]} />);
+      rerender(<Harness dirty={["a"]} finished={["c"]} payload={payload} />);
       expect(list()).not.toHaveTextContent("kapimart");
       expect(list()).toHaveTextContent("compass");
       expect(api.confirmClose).not.toHaveBeenCalled();
@@ -268,10 +326,10 @@ describe("closing the window with unsaved changes or a running flow", () => {
 
     it("lets the close go ahead when it was the only thing holding the window", async () => {
       const cancelRun = vi.fn();
-      const { rerender } = render(<Harness running={["c"]} cancelRun={cancelRun} />);
-      fireEvent.click(screen.getByText("close window"));
-      expect(screen.getByTestId("window-close-dialog")).toBeInTheDocument();
-      rerender(<Harness running={[]} cancelRun={cancelRun} />);
+      const payload = request([], ["c"]);
+      const { rerender } = render(<Harness cancelRun={cancelRun} payload={payload} />);
+      await closeWindow();
+      rerender(<Harness cancelRun={cancelRun} finished={["c"]} payload={payload} />);
       await waitFor(() => expect(api.confirmClose).toHaveBeenCalledTimes(1));
       expect(cancelRun).not.toHaveBeenCalled();
       expect(screen.queryByTestId("window-close-dialog")).toBeNull();

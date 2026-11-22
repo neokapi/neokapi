@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -19,7 +19,7 @@ func TestTracing_HealthProbeIsServedButNotTraced(t *testing.T) {
 	tr := capture(t)
 
 	rec := serve(t, healthRouteHTTP, healthRouteHTTP,
-		func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+		func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 
 	assert.Equal(t, http.StatusOK, rec.Code, "the probe is still answered")
 	assert.Empty(t, tr.transactions(), "and costs no transaction")
@@ -34,7 +34,7 @@ func TestTracing_AdjacentHealthRouteIsStillTraced(t *testing.T) {
 	tr := capture(t)
 
 	serve(t, "/api/admin/health", "/api/admin/health",
-		func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+		func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 
 	txns := tr.transactions()
 	require.Len(t, txns, 1)
