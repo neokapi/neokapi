@@ -98,11 +98,11 @@ func TestSamplePeakIgnoresWhatAPoolHeldBeforeTheRun(t *testing.T) {
 	doc := strings.Repeat(line, 1024)
 	gate := NewGate(strings.NewReader(doc))
 	peak := SamplePeak(gate, int64(len(doc)), 16, lines(gate), func(string) {})
-	assert.GreaterOrEqual(t, peak, uint64(minPeak), "the lines in flight are measured above the baseline")
+	assert.Positive(t, peak, "the lines in flight are measured above the baseline")
 	runtime.KeepAlive(&pool)
 }
 
 func TestCheckPeakRefusesAPeakThatMeasuredNothing(t *testing.T) {
 	assert.Panics(t, func() { checkPeak(0) })
-	assert.NotPanics(t, func() { checkPeak(minPeak) })
+	assert.NotPanics(t, func() { checkPeak(1) }, "a small peak is a measurement")
 }

@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"fmt"
 	"io"
 	"math"
 	"runtime"
@@ -127,15 +126,15 @@ func measureBaseline() uint64 {
 	return Measure()
 }
 
-// minPeak is the least a pipeline that has read input holds above its
-// baseline: at least the part in hand. A smaller peak means the samples did
-// not see the pipeline at all, and it would pass any bound.
-const minPeak = 1 << 10
-
-// checkPeak panics on a peak too small to have measured anything.
+// checkPeak panics on a peak of zero: every sample sat at or below the
+// baseline, so the samples saw nothing the pipeline holds and the peak would
+// pass any bound. Any positive peak is a measurement. A lean reader on a small
+// document holds under a kilobyte at a stop, so no absolute floor separates
+// the two cases. The callers have already checked that the baseline came
+// after two collections and that at least one sample was taken at a stop.
 func checkPeak(peak uint64) {
-	if peak < minPeak {
-		panic(fmt.Sprintf("testutil: the measured peak is %d bytes, below the %d a pipeline holding one part reaches: the baseline was taken over something the samples no longer hold", peak, minPeak))
+	if peak == 0 {
+		panic("testutil: the measured peak is zero: no sample rose above the baseline, so the baseline holds something the samples no longer do")
 	}
 }
 
