@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"strings"
 
@@ -365,8 +366,14 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 
 	zw := zip.NewWriter(w.Output)
 	defer zw.Close()
+	if err := writeMimetype(zw, zr); err != nil {
+		return err
+	}
 
 	for _, file := range zr.File {
+		if file.Name == mimetypeEntry {
+			continue
+		}
 		if content, ok := partContents[file.Name]; ok && len(content) > 0 {
 			// Replace with skeleton-reconstructed content
 			fh := safeio.RewriteHeader(&file.FileHeader)
@@ -386,6 +393,42 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 	}
 
 	return nil
+}
+
+// mimetypeEntry is the OCF container's first entry.
+const mimetypeEntry = "mimetype"
+
+// writeMimetype writes the mimetype entry the way OCF requires it: first,
+// stored, and with no extra field. Copying the source's header would carry
+// its modification time, for which zip.Writer.CreateHeader adds an
+// extended-timestamp field, and epubcheck reports any extra field there
+// (PKG-005). The entry's text comes from the source, or is the EPUB media
+// type when the source has none.
+func writeMimetype(zw *zip.Writer, zr *zip.Reader) error {
+	content := []byte("application/epub+zip")
+	for _, f := range zr.File {
+		if f.Name != mimetypeEntry {
+			continue
+		}
+		data, err := safeio.DefaultZipLimits.ReadEntry(f)
+		if err != nil {
+			return err
+		}
+		content = data
+		break
+	}
+	fw, err := zw.CreateRaw(&zip.FileHeader{
+		Name:               mimetypeEntry,
+		Method:             zip.Store,
+		CRC32:              crc32.ChecksumIEEE(content),
+		CompressedSize64:   uint64(len(content)),
+		UncompressedSize64: uint64(len(content)),
+	})
+	if err != nil {
+		return err
+	}
+	_, err = fw.Write(content)
+	return err
 }
 
 // renderBlockText returns the translated (or source) text for a block.
@@ -431,8 +474,14 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 
 	zw := zip.NewWriter(w.Output)
 	defer zw.Close()
+	if err := writeMimetype(zw, zr); err != nil {
+		return err
+	}
 
 	for _, file := range zr.File {
+		if file.Name == mimetypeEntry {
+			continue
+		}
 		if file.FileInfo().IsDir() {
 			_, err := zw.Create(file.Name)
 			if err != nil {
