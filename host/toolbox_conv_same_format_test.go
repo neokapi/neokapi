@@ -33,7 +33,15 @@ import (
 // format's corpus manifest and the testdata of the package that implements
 // its reader. A format whose reader refuses every document by design
 // (format.WriteOnlyReader) must make kconv fail with an error.
+//
+// No plugin is discovered, so the run is the same on every machine. A sample
+// the format's own reader cannot read without one (audio needs the asr
+// plugin to transcribe) must make kconv fail with that reader's error and
+// write nothing.
 func TestConvSameFormatWritesTheDocument(t *testing.T) {
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", "")
+	t.Setenv("KAPI_ASR_PLUGIN", "")
 	reg := newToolboxApp(t).FormatReg
 	samples := sameFormatSamples(t, reg)
 	for _, id := range reg.WriterNames() {
@@ -64,10 +72,17 @@ func TestConvSameFormatWritesTheDocument(t *testing.T) {
 					require.NoError(t, os.WriteFile(in, src, 0o644))
 					out := filepath.Join(dir, "out"+filepath.Ext(sample))
 
-					require.NoError(t, app.convertDocument(context.Background(), in, id, "", out))
+					want, readErr := formatWriterOutput(t, reg, id, in, src)
+					convErr := app.convertDocument(context.Background(), in, id, "", out)
+					if readErr != nil {
+						require.Error(t, convErr, "the %s reader cannot read this sample (%v), so kconv must fail", id, readErr)
+						require.Equal(t, readErr.Error(), convErr.Error())
+						require.NoFileExists(t, out)
+						return
+					}
+					require.NoError(t, convErr)
 					got, err := os.ReadFile(out)
 					require.NoError(t, err)
-					want := formatWriterOutput(t, reg, id, in, src)
 					if !bytes.Equal(want, got) {
 						t.Fatalf("kconv --to %s did not write the document through the %s writer\nwant: %q\ngot:  %q",
 							id, id, clipBytes(want), clipBytes(got))
@@ -103,8 +118,9 @@ func TestConvToAReadOnlyFormatSaysSo(t *testing.T) {
 }
 
 // formatWriterOutput reads the file at path with id's reader and writes it
-// back unedited with id's writer, wired for a same-format write-back.
-func formatWriterOutput(t *testing.T, reg *registry.FormatRegistry, id registry.FormatID, path string, src []byte) []byte {
+// back unedited with id's writer, wired for a same-format write-back. The
+// error is the reader's, when it cannot read the file.
+func formatWriterOutput(t *testing.T, reg *registry.FormatRegistry, id registry.FormatID, path string, src []byte) ([]byte, error) {
 	t.Helper()
 	reader, err := reg.NewReader(id)
 	require.NoError(t, err)
@@ -129,14 +145,21 @@ func formatWriterOutput(t *testing.T, reg *registry.FormatRegistry, id registry.
 	require.NoError(t, format.OpenDocument(ctx, reader, doc))
 	defer reader.Close()
 	var parts []*model.Part
+	var readErr error
 	for pr := range reader.Read(ctx) {
-		require.NoError(t, pr.Error)
+		if pr.Error != nil {
+			readErr = pr.Error
+			continue
+		}
 		parts = append(parts, pr.Part)
+	}
+	if readErr != nil {
+		return nil, readErr
 	}
 	writer.SetEncoding("UTF-8")
 	out, err := spec.WriteParts(writer, parts, src)
 	require.NoError(t, err)
-	return out
+	return out, nil
 }
 
 func convWriteOnly(reg *registry.FormatRegistry, id registry.FormatID) bool {

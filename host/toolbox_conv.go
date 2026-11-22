@@ -114,7 +114,7 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 // translation. The skeleton store and source bytes are wired to the writer ONLY
 // for a same-format conversion; for a cross-format one they would be foreign to
 // the writer, so it reconstructs from the content model + structural layer.
-func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.FormatID, targetLoc model.LocaleID, outPath string) error {
+func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.FormatID, targetLoc model.LocaleID, outPath string) (retErr error) {
 	// `-o -` is standard output named explicitly, not a file called "-".
 	stdout := outPath == StdoutName
 	if stdout {
@@ -212,6 +212,18 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		if err := writer.SetOutput(outPath); err != nil {
 			return err
 		}
+		// SetOutput has created or truncated the file. A conversion that
+		// fails after it removes the file, so no empty or partial document
+		// is left where the output was asked for. An output that names the
+		// input is never removed.
+		abs, absErr := filepath.Abs(path)
+		ownsOutput := absErr == nil && !sameFile(abs, outPath)
+		defer func() {
+			if retErr != nil && ownsOutput {
+				_ = writer.Close()
+				_ = os.Remove(outPath)
+			}
+		}()
 	} else {
 		// Binary output at a terminal is refused here (see binaryout.go); `-o -`
 		// is the explicit "yes, stdout anyway", as it is for curl.
