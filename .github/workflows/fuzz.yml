@@ -11,9 +11,6 @@ name: Fuzz
 # invocation and uses every core of the runner for it.
 
 on:
-  # TEMPORARY: lets the branch run before the workflow reaches main.
-  push:
-    branches: [nightly-fuzz]
   schedule:
     - cron: "30 1 * * *" # 01:30 UTC daily, clear of E2E (02:00) and Nightly (03:00)
   workflow_dispatch:
