@@ -29,7 +29,7 @@ import (
 //
 // <w:lang> is stripped by upstream Okapi's RunSkippableElements
 // (lines 50-62 of RunSkippableElements.java) keyed on the
-// TRANSITIONAL WPML namespace QName — see stripWMLSkippableElements
+// TRANSITIONAL WPML namespace QName; see stripWMLSkippableElements
 // for the Strict-OOXML gate that mirrors upstream's QName semantics.
 var wmlLangElementRE = regexp.MustCompile(
 	`<w:lang\b[^>]*/>` +
@@ -82,7 +82,7 @@ var wmlMoveRangeStrippableElementRE = regexp.MustCompile(
 // <w:rPr/> can leave its parent <w:pPr/> empty and itself eligible.
 //
 // The body matcher [\s]* tolerates any whitespace between the open and
-// close tags — encoding/xml may emit indented or newline-padded XML
+// close tags: encoding/xml may emit indented or newline-padded XML
 // which would otherwise survive the strip and force the empty container
 // into the output (and into the canonical comparison, where it diverges
 // against the okapi reference's omitted-entirely encoding).
@@ -106,7 +106,7 @@ var wmlNoProofRE = regexp.MustCompile(
 		`|<w:noProof\b[^>]*></w:noProof>`,
 )
 
-// (bareBrThenBareTextRunRE / fuseBareBrAndTextRuns retired in #602 —
+// (bareBrThenBareTextRunRE / fuseBareBrAndTextRuns retired in #602;
 // the break→text envelope fusion is now produced structurally by
 // emitRunEnvelopes in wml.go, which every simple run-child emission
 // path routes through. Per ECMA-376-1 §17.3.2.1 (CT_R) a single <w:r>
@@ -114,33 +114,30 @@ var wmlNoProofRE = regexp.MustCompile(
 // emitRunEnvelopes builds that envelope directly.)
 
 // runIsAltContentImageHost reports whether r is a complex-image host
-// run whose body ends with `</mc:AlternateContent>` — i.e. an
+// run whose body ends with `</mc:AlternateContent>`. Such a run is an
 // `<mc:AlternateContent>` envelope (textbox shape / VML fallback)
-// emitted as a TypeImage Ph. Used by renderWMLBlock to detect the
-// post-image boundary at which upstream Okapi's RunBuilder flush cycle
-// emits an empty placeholder run before a following standalone `<w:br/>`
-// run.
-//
-// The match is on the captured run payload (Ph.Data), which the reader
-// records verbatim from the source `<w:r>` body (optionally prefixed
-// with the source run's `<w:rPr>`). An AlternateContent host run's body
-// always closes with `</mc:AlternateContent>`, so a suffix test after
-// trimming trailing whitespace is sufficient and avoids false positives
-// on `<w:drawing>` / `<w:pict>` host runs (which upstream does NOT
-// punctuate with a post-image placeholder before a br — see the
-// graphicdata.docx header1.xml AltContent→drawing boundary, which
-// carries no placeholder).
+// emitted as a TypeImage Ph. renderWMLBlock uses it to find the
+// post-image boundary where upstream Okapi's RunBuilder flush cycle
+// emits an empty placeholder run before a standalone `<w:br/>` run.
 //
 // Per ECMA-376-1 §11.3 (CT_AlternateContent) the element is a Markup-
-// compatibility wrapper that carries no rendering effect; per §17.3.2.1
-// (CT_R) an empty `<w:r/>` run is well-formed. The placeholder mirrors
+// compatibility wrapper with no rendering effect; per §17.3.2.1 (CT_R) an
+// empty `<w:r/>` run is well-formed. The placeholder mirrors
 // RunBuilder.flushRunStart/flushRunEnd (RunBuilder.java) closing and
-// re-opening a run on the boundary between a complex image run and the
-// next `<w:br/>`-bearing run.
+// re-opening a run between a complex image run and the next
+// `<w:br/>`-bearing run.
 func runIsAltContentImageHost(r model.Run) bool {
 	if r.Ph == nil || r.Ph.Type != TypeImage {
 		return false
 	}
+	// The match is on the captured run payload (Ph.Data), which the reader
+	// records verbatim from the source `<w:r>` body (optionally prefixed
+	// with its `<w:rPr>`). An AlternateContent host run's body always
+	// closes with `</mc:AlternateContent>`, so a suffix test after trimming
+	// trailing whitespace suffices. It avoids false positives on
+	// `<w:drawing>` / `<w:pict>` host runs, which upstream does NOT follow
+	// with a placeholder before a br (see the graphicdata.docx header1.xml
+	// AltContent→drawing boundary).
 	data := strings.TrimRight(r.Ph.Data, " \t\r\n")
 	return strings.HasSuffix(data, "</mc:AlternateContent>")
 }
@@ -157,12 +154,12 @@ func runIsAltContentImageHost(r model.Run) bool {
 //   - <w:moveFrom ...></w:moveFrom>
 //
 // These are skipped by okapi's SkippableElements.RevisionProperty when
-// AutomaticallyAcceptRevisions=true (the default — line 819 of
+// AutomaticallyAcceptRevisions=true (the default, line 819 of
 // ConditionalParameters.java). Per okapi's SkippableElement.java lines
 // 231-234.
 //
 // Only the empty-body form is matched: the content-wrapping form
-// (<w:ins><w:r>...</w:r></w:ins> as inline-content marker — child
+// (<w:ins><w:r>...</w:r></w:ins> as inline-content marker, with a child
 // element present) is handled differently by okapi (the wrapper is
 // unwrapped, children kept). The fixture corpus uses self-closing/empty
 // form for paragraph-mark revisions universally; the empty-body open/
@@ -181,31 +178,32 @@ var wmlRevisionParagraphMarkRE = regexp.MustCompile(
 
 // wmlRevisionPropertyChangeNames are the WordprocessingML
 // revision-property "change tracking" elements that okapi strips when
-// AutomaticallyAcceptRevisions=true (the default — see line 819 of
+// AutomaticallyAcceptRevisions=true (the default, see line 819 of
 // okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/
-// ConditionalParameters.java) via SkippableElements.RevisionProperty
-// (lines 506-569 of SkippableElements.java). All carry nested
-// <w:rPr>/<w:pPr>/etc. snapshots of pre-revision properties; stripping
-// them preserves only the post-revision (current) state.
+// ConditionalParameters.java). The strip runs via
+// SkippableElements.RevisionProperty (lines 506-569 of
+// SkippableElements.java). All carry nested <w:rPr>/<w:pPr>/etc.
+// snapshots of pre-revision properties; stripping them preserves only the
+// post-revision (current) state.
 //
 // Per okapi's SkippableElement.RevisionProperty enum (lines 229-245 of
 // SkippableElement.java):
-//   - pPrChange    (PARAGRAPH_PROPERTIES_CHANGE)
-//   - rPrChange    (RUN_PROPERTIES_CHANGE)
+//   - pPrChange (PARAGRAPH_PROPERTIES_CHANGE)
+//   - rPrChange (RUN_PROPERTIES_CHANGE)
 //   - sectPrChange (SECTION_PROPERTIES_CHANGE)
 //   - tblGridChange (TABLE_GRID_CHANGE)
-//   - tblPrChange  (TABLE_PROPERTIES_CHANGE)
+//   - tblPrChange (TABLE_PROPERTIES_CHANGE)
 //   - tblPrExChange (TABLE_PROPERTIES_EXCEPTIONS_CHANGE)
-//   - tcPrChange   (TABLE_CELL_PROPERTIES_CHANGE)
-//   - trPrChange   (TABLE_ROW_PROPERTIES_CHANGE)
+//   - tcPrChange (TABLE_CELL_PROPERTIES_CHANGE)
+//   - trPrChange (TABLE_ROW_PROPERTIES_CHANGE).
 //
-// Note: <w:ins> and <w:del> when used as paragraph-mark revision markers
-// inside <w:rPr> (RUN_PROPERTY_INSERTED/DELETED_PARAGRAPH_MARK) are also
-// in the same enum but require context-aware stripping (only inside
-// <w:rPr>, not as content wrappers); they are intentionally NOT included
-// in the unconditional regex to avoid stripping content-wrapper <w:ins>/
-// <w:del> elements that have legitimate text payload. Most fixtures with
-// these don't reach the canonical-equal tier for other reasons anyway.
+// Note: <w:ins> and <w:del> used as paragraph-mark revision markers
+// inside <w:rPr> (RUN_PROPERTY_INSERTED/DELETED_PARAGRAPH_MARK) are in
+// the same enum but need context-aware stripping (only inside <w:rPr>,
+// not as content wrappers). They are intentionally NOT in the
+// unconditional regex, to avoid stripping content-wrapper <w:ins>/<w:del>
+// elements that carry legitimate text payload. Most fixtures with these
+// don't reach the canonical-equal tier for other reasons anyway.
 var wmlRevisionPropertyChangeNames = []string{
 	"pPrChange",
 	"rPrChange",
@@ -242,7 +240,7 @@ var wmlFldCharEndRE = regexp.MustCompile(
 // into a single `<w:r>` carrying both `<w:t>…</w:t>` and `<w:fldChar/>`.
 // Mirrors the symmetric fldChar-end merge path (wmlFldCharEndRE), modelled
 // on upstream Okapi RunMerger (RunMerger.add at RunMerger.java:83-95 +
-// canRunPropertiesBeMerged at RunMerger.java:156-229) — adjacent same-rPr
+// canRunPropertiesBeMerged at RunMerger.java:156-229): adjacent same-rPr
 // runs fuse before serialisation, so the source's plain text run
 // preceding the fldChar-begin run is emitted inside the same `<w:r>` as
 // the fldChar. Per ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>` may
@@ -369,7 +367,7 @@ type fldCharBeginMergeInfo struct {
 // whether the writer can fuse it with a same-rPr text run emitted just
 // before it. Returns ok=true only for a minimal
 // `<w:r>[<w:rPr>…</w:rPr>]<w:fldChar w:fldCharType="begin"/></w:r>`
-// shape — payloads carrying adjacent siblings (e.g. an extra
+// shape. Payloads carrying adjacent siblings (e.g. an extra
 // `<w:instrText>`) are rejected because the fldChar-begin run is the
 // syntactic start of the complex field and is always followed by its
 // own run boundary in well-formed Word output. Mirrors upstream Okapi
@@ -377,7 +375,7 @@ type fldCharBeginMergeInfo struct {
 // (RunMerger.java:156-229) for the case where a plain text run
 // immediately preceding a fldChar-begin run carries the same rPr and is
 // fused into the field's leading run (see the 1083-*-hyperlink-*
-// fixtures — upstream output places `<w:t>A Text</w:t>` and
+// fixtures: upstream output places `<w:t>A Text</w:t>` and
 // `<w:fldChar fldCharType="begin"/>` inside one `<w:r>`). Per
 // ECMA-376-1 §17.3.2.1 (CT_R) a `<w:r>` may carry both `<w:t>` and
 // `<w:fldChar>` children; §17.16.5 (Complex Fields) classifies fldChar
@@ -425,33 +423,30 @@ func detectFldCharBeginForMerge(payload string) fldCharBeginMergeInfo {
 }
 
 // isExtractableFldCharBeginRun reports whether the TypeField Ph at the
-// given index is the begin marker of an EXTRACTABLE complex field. The
-// determination scans forward through the run list until the matching
-// fldChar-end is found (tracking nesting depth so nested fields don't
-// confuse the count): when any Text run appears inside the field's
-// scope, the field's display text was promoted to translatable text by
-// the reader, which only happens for fields whose code is in
+// given index is the begin marker of an EXTRACTABLE complex field. It
+// scans forward to the matching fldChar-end, tracking nesting depth. A
+// Text run inside the field's scope means the reader extracted the
+// display text, which only happens for fields whose code is in
 // ComplexFieldDefinitionsToExtract (e.g. HYPERLINK). Mirrors upstream
-// Okapi RunParser.parseComplexField (lines 461-542 of RunParser.java)
-// where parseContent (line 537) routes display events to RunText only
-// when `extractable && atComplexFieldResult` is true — otherwise events
-// land in runBuilder.addToMarkup (line 505) and stay as opaque markup
-// on the field's RunBuilder, never becoming Text in the block.
+// Okapi RunParser.parseComplexField (RunParser.java:461-542), where
+// parseContent (line 537) routes display events to RunText only when
+// `extractable && atComplexFieldResult` is true. Otherwise events land in
+// runBuilder.addToMarkup (line 505) and stay opaque markup on the field's
+// RunBuilder, never becoming Text in the block.
 //
-// Used by the writer's fldChar-begin merge path to decide whether to
-// fuse the begin run with a preceding same-rPr text run. For
-// non-extractable fields (e.g. DATE) upstream's RunMerger refuses the
-// fusion (canMergeWith returns false on containsComplexFields, line
-// 147 of RunMerger.java), so we must not fuse either. Fixture
-// 1083-date-and-hyperlink-instructions.docx is the canonical
-// non-extractable case.
+// The writer's fldChar-begin merge path uses it to decide whether to fuse
+// the begin run with a preceding same-rPr text run. For non-extractable
+// fields (e.g. DATE) upstream's RunMerger refuses the fusion (canMergeWith
+// returns false on containsComplexFields, RunMerger.java:147), so we must
+// not fuse either. Fixture 1083-date-and-hyperlink-instructions.docx is
+// the canonical non-extractable case.
 func isExtractableFldCharBeginRun(runs []model.Run, beginIdx int) bool {
 	depth := 1
 	for j := beginIdx + 1; j < len(runs); j++ {
 		nr := runs[j]
 		if nr.Text != nil {
 			// A Text run anywhere inside this field's nesting scope
-			// signals the reader extracted display text — i.e. the
+			// signals the reader extracted display text, i.e. the
 			// (innermost) field is extractable and we're past the
 			// separator. The outer field carrying this run is also
 			// extractable per upstream's recursive parseComplexField.
@@ -483,15 +478,15 @@ func isExtractableFldCharBeginRun(runs []model.Run, beginIdx int) bool {
 // given index closes an EXTRACTABLE complex field. Symmetric to
 // isExtractableFldCharBeginRun but scans BACKWARD to find the matching
 // fldChar-begin Ph: when any Text run appears between the begin and
-// end, the field's display text was promoted to translatable text by
-// the reader (extractable). Mirrors upstream Okapi
+// end, the reader promoted the field's display text to extracted text
+// (extractable). Mirrors upstream Okapi
 // RunParser.parseComplexField (RunParser.java:461-542) where
 // parseContent (line 537) routes display events to RunText only when
 // `extractable && atComplexFieldResult` is true.
 //
 // Used by the writer's fldChar-end + text merge to gate the fusion:
 // for non-extractable fields (e.g. DATE) upstream keeps the field-end
-// run as opaque markup separate from any following translatable text,
+// run as opaque markup separate from any following extracted text,
 // matching the source's run boundary. Fixture
 // 1083-date-and-hyperlink-instructions.docx is the canonical
 // non-extractable case where merging would diverge from upstream.
@@ -537,7 +532,7 @@ var emptyElementOpenCloseRE = regexp.MustCompile(
 // strip the layout whitespace encoding/xml inserts when re-emitting
 // nested elements (e.g. `</w:rPr>\n  <w:fldChar...>` between rPr and
 // fldChar siblings). The rPr children fragment carries no significant
-// inter-tag whitespace per ECMA-376-1 §17.3.2 — toggle and property
+// inter-tag whitespace per ECMA-376-1 §17.3.2: toggle and property
 // elements have no mixed content.
 var betweenTagsWhitespaceRE = regexp.MustCompile(`>\s+<`)
 
@@ -587,8 +582,8 @@ func normaliseRPrChildrenFragment(s string) string {
 // whose inner contents must NOT be touched by the writer-side
 // RunSkippableElements-mirroring strips. Both elements carry an inner
 // `<w:rPr>` per ECMA-376-1 §17.5.2.40 (CT_SdtPr) and §17.5.2.38
-// (CT_SdtEndPr) — the placeholder and post-content run properties for
-// the SDT preview — and upstream Okapi routes them through
+// (CT_SdtEndPr), the placeholder and post-content run properties for
+// the SDT preview, and upstream Okapi routes them through
 // BlockParser.parseRunContainer:155-166 with `emptySkippableElements`,
 // so noProof/lang are preserved inside.
 var sdtPropertiesContainerNames = [...]string{"sdtPr", "sdtEndPr"}
@@ -601,13 +596,13 @@ var sdtPropertiesContainerNames = [...]string{"sdtPr", "sdtEndPr"}
 // RunSkippableElements; RunSkippableElements.java:50-62), but the SDT
 // envelope's properties blocks route through
 // BlockParser.parseRunContainer:155-166 with `emptySkippableElements`
-// — i.e. NO `<w:lang>` / `<w:noProof>` stripping. The end-state diff
+// (i.e. NO `<w:lang>` / `<w:noProof>` stripping). The end-state diff
 // shows up on `<w:sdt><w:sdtPr><w:rPr><w:noProof/><w:sz/></w:rPr></w:sdtPr>`
 // (956.docx footer1.xml) and `<w:sdtEndPr><w:rPr><w:noProof/></w:rPr>
 // </w:sdtEndPr>` (956.docx footer2.xml) where upstream preserves the
 // noProof and our writer-side post-pass must leave it alone too. Per
 // ECMA-376-1 §17.5.2.40 / §17.5.2.38 the rPr child holds placeholder
-// run properties — the non-run rPr context the schema explicitly
+// run properties: the non-run rPr context the schema explicitly
 // carves out.
 //
 // sdtPr/sdtEndPr are non-nested in practice (the schema doesn't allow
@@ -656,7 +651,7 @@ func applyREOutsideSDTPr(data []byte, re *regexp.Regexp) []byte {
 		}
 		b := data[boundaryIdx]
 		if b != '>' && b != '/' && b != ' ' && b != '\t' && b != '\n' && b != '\r' {
-			// False positive — apply the strip up to and including the
+			// False positive: apply the strip up to and including the
 			// rejected boundary byte, then continue scanning past it.
 			out = append(out, re.ReplaceAll(data[cursor:boundaryIdx+1], nil)...)
 			cursor = boundaryIdx + 1
@@ -670,16 +665,16 @@ func applyREOutsideSDTPr(data []byte, re *regexp.Regexp) []byte {
 		startTagEnd := boundaryIdx + tagEnd + 1
 		// Apply strip to the prelude before the container.
 		out = append(out, re.ReplaceAll(data[cursor:nearestStart], nil)...)
-		// Self-closing form `<w:sdtPr.../>` (no body — copy verbatim).
+		// Self-closing form `<w:sdtPr.../>` (no body; copy verbatim).
 		if startTagEnd >= 2 && data[startTagEnd-2] == '/' {
 			out = append(out, data[nearestStart:startTagEnd]...)
 			cursor = startTagEnd
 			continue
 		}
-		// Open form — find matching close.
+		// Open form: find matching close.
 		closeIdx := bytes.Index(data[startTagEnd:], closeTag)
 		if closeIdx < 0 {
-			// Unbalanced — preserve the rest as-is to be safe.
+			// Unbalanced: preserve the rest as-is to be safe.
 			out = append(out, data[nearestStart:]...)
 			break
 		}
@@ -692,7 +687,7 @@ func applyREOutsideSDTPr(data []byte, re *regexp.Regexp) []byte {
 
 // stripBalancedElement removes every occurrence of <w:NAME ...>...</w:NAME>
 // (and the self-closing form <w:NAME .../>) from data, where NAME is the
-// supplied local name. The matcher is non-nested — the *Change elements
+// supplied local name. The matcher is non-nested: the *Change elements
 // in the okapi-testdata corpus never embed themselves recursively, and
 // the schema doesn't allow it either. Returns the original slice if the
 // element name doesn't appear at all (cheap fast path).
@@ -739,7 +734,7 @@ func stripBalancedElement(data []byte, name string) []byte {
 		// Open form: find matching close tag.
 		closeIdx := bytes.Index(data[startEnd+1:], endTag)
 		if closeIdx < 0 {
-			// Unbalanced — bail out, append remainder unchanged.
+			// Unbalanced: bail out, append remainder unchanged.
 			out = append(out, data[i:]...)
 			break
 		}
@@ -755,20 +750,20 @@ func stripBalancedElement(data []byte, name string) []byte {
 // empties goes with it; one the source wrote empty stays. Data comes back
 // unchanged when nothing matches.
 //
-// The strip reaches rendered content only. A part the reader extracted nothing
-// from, and the frame around an extracted paragraph, go back as the source
-// wrote them, so an untranslated docx can round-trip byte for byte; the parity
-// canonicaliser applies the same strip to both sides of a comparison
-// (XMLCanonical.StripWMLSkippableElements) so the difference from Okapi's output
-// cancels there.
+// The strip reaches rendered content only. A part with nothing extracted, and
+// the frame around an extracted paragraph, go back as the source wrote them,
+// so an untranslated docx round-trips byte for byte. The parity canonicaliser
+// applies the same strip to both sides (XMLCanonical.StripWMLSkippableElements),
+// so the difference from Okapi's output cancels there.
 //
-// strict reports a Strict OOXML part. Upstream Okapi identifies lang and
-// noProof by QName, bound to the transitional WordprocessingML namespace
-// (Namespaces.java:26, SkippableElement.java:205-207), so in a part that binds
-// the strict URI (858.docx and 859.docx, Word's "Strict Open XML Document"
-// output) neither matches the skippable set and both survive. ECMA-376 Part 1
-// §A.1 names the two URIs.
+// strict reports a Strict OOXML part.
 func stripWMLSkippableElements(data []byte, strict bool) []byte {
+	// Upstream Okapi identifies lang and noProof by QName in the
+	// transitional WordprocessingML namespace (Namespaces.java:26,
+	// SkippableElement.java:205-207). In a part binding the strict URI
+	// (858.docx, 859.docx: Word's "Strict Open XML Document" output) neither
+	// matches the skippable set and both survive. ECMA-376 Part 1 §A.1 names
+	// the two URIs.
 	stripLang := !strict && bytes.Contains(data, []byte("<w:lang"))
 	stripNoProof := !strict && bytes.Contains(data, []byte("<w:noProof"))
 	stripBidi := bytes.Contains(data, []byte("<w:bidiVisual"))
@@ -901,14 +896,12 @@ func stripWMLCollapsingEmptied(data []byte, strip func([]byte) []byte) []byte {
 // styles part, which are the parts the writer's revision strip applies to.
 // Other parts (drawings, themes, settings.xml) are untouched.
 //
-// `word/glossary/<name>.xml` mirrors the main-document set: ECMA-376-1
-// §17.12.7 (Glossary Document Part) defines a glossary as a parallel
-// WordprocessingML package whose parts mirror the main document's
-// structure (its own document.xml, settings.xml, styles.xml, etc.).
-// Okapi's filter walks the glossary document via the same
-// XmlEventStreamingPart path as the main document
-// (OpenXMLFilter.openZip + DocumentParts.glossary). 834.docx is the
-// canonical fixture.
+// The building-blocks parts under `word/glossary/` mirror the main-document
+// set: ECMA-376-1 §17.12.7 defines that part as a parallel WordprocessingML
+// package whose parts mirror the main document's structure (its own
+// document.xml, settings.xml, styles.xml, etc.). Okapi's filter walks it via
+// the same XmlEventStreamingPart path as the main document
+// (OpenXMLFilter.openZip + DocumentParts). 834.docx is the canonical fixture.
 func wmlProcessedPart(name string) bool {
 	if !strings.HasPrefix(name, "word/") || !strings.HasSuffix(name, ".xml") {
 		return false
@@ -943,11 +936,10 @@ func wmlProcessedPart(name string) bool {
 // successor to the retired write-side rewriteWMLLangVal regex.
 //
 // When the writer targets an output locale and the stored value's primary
-// language matches the source locale's primary language, the value is
-// retargeted to the output locale verbatim (okapi uses LocaleId#toString,
-// the BCP-47 form). Otherwise — no target locale, or a value whose language
-// differs from the source (e.g. ru-RU in an en->fr document) — the stored
-// value is returned unchanged so output stays byte-exact.
+// language matches the source locale's, the value is retargeted to the
+// output locale verbatim (okapi uses LocaleId#toString, the BCP-47 form).
+// Otherwise (no target locale, or a different language, e.g. ru-RU in an
+// en->fr document) the stored value is returned unchanged, byte-exact.
 //
 // This mirrors okapi/core/src/main/java/net/sf/okapi/common/skeleton/
 // GenericSkeletonWriter.java lines 808-816:
@@ -959,21 +951,19 @@ func wmlProcessedPart(name string) bool {
 //	    }
 //	}
 //
-// in combination with okapi/filters/openxml/src/main/java/net/sf/okapi/
-// filters/openxml/ContentFilter.java lines 527-537, where the openxml filter
-// normalizes the `<w:themeFontLang>` attribute name to Property.LANGUAGE so
-// the writer's retargeting kicks in. The strict-OOXML guard is applied at the
-// reader, which only splices a SkeletonLang entry for transitional parts —
-// strict settings parts flow through as verbatim SkeletonText and never reach
-// this method, matching upstream (its rewrite is QName-keyed to the
-// transitional URI and never fires on strict parts).
+// with okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/
+// ContentFilter.java lines 527-537 normalizing the `<w:themeFontLang>`
+// attribute name to Property.LANGUAGE. The reader splices a SkeletonLang
+// entry only for transitional parts, so strict settings parts stay
+// verbatim SkeletonText and never reach this method. Upstream's rewrite is
+// likewise QName-keyed to the transitional URI.
 func (w *Writer) retargetSkeletonLang(value string) string {
 	if w.Locale.IsEmpty() {
 		return value
 	}
 	src := primaryLangOf(w.sourceLocale)
 	if src == "" {
-		// Default to "en" — matches okapi OpenXMLFilter's behaviour when
+		// Default to "en", matching okapi OpenXMLFilter's behaviour when
 		// no source locale was supplied via setOptions.
 		src = "en"
 	}
@@ -1003,12 +993,12 @@ type Writer struct {
 
 	// sourcePath is the original package on disk. When set, Write re-opens it
 	// rather than reconstructing from originalContent, so the source archive is
-	// never a second resident copy of the file (#608, S2 — the ODF/EPUB
+	// never a second resident copy of the file (#608, S2; the ODF/EPUB
 	// writers do the same).
 	sourcePath string
 
 	// sourceLocale records the input/source locale supplied to the writer
-	// (defaults to "en" — okapi's LocaleId.EMPTY default for OpenXMLFilter).
+	// (defaults to "en", okapi's LocaleId.EMPTY default for OpenXMLFilter).
 	// Used by retargetSkeletonLang to decide whether a SkeletonLang entry's
 	// value (the <w:themeFontLang> w:val spliced out by the reader) matches
 	// the source language and should be retargeted to w.Locale.
@@ -1077,7 +1067,7 @@ func (w *Writer) SetMediaReplacement(zipPath string, media *model.Media) {
 
 // openMediaReplacement resolves a media reference to a reader, streaming from
 // its on-disk path (URI, optionally file://-prefixed) when present and falling
-// back to the slice's own content — inline bytes, or a deferred accessor into
+// back to the slice's own content: inline bytes, or a deferred accessor into
 // the document it came from. The caller closes the reader.
 func openMediaReplacement(m *model.Media) (io.ReadCloser, error) {
 	if path := strings.TrimPrefix(m.URI, "file://"); path != "" {
@@ -1131,7 +1121,7 @@ func (w *Writer) SetOriginalContent(content []byte) {
 
 // SetSourcePath records the path to the original package so Write can re-open
 // it from disk instead of holding a full in-memory copy. When set it takes
-// precedence over SetOriginalContent — matching the ODF and EPUB writers.
+// precedence over SetOriginalContent, matching the ODF and EPUB writers.
 func (w *Writer) SetSourcePath(path string) {
 	w.sourcePath = path
 }
@@ -1205,7 +1195,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Stream the output ZIP straight to w.Output (#608, S3-openxml).
 	// writeFromSkeleton/writeFromReparse close zw, which flushes the
 	// central directory; buffering the whole archive first was a full
-	// extra copy of the output (164MB+ on big.docx) for no benefit — the
+	// extra copy of the output (164MB+ on big.docx) for no benefit. The
 	// zip.Writer never seeks, so a forward-only io.Writer suffices.
 	zw := zip.NewWriter(w.Output)
 
@@ -1218,7 +1208,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 
 	// No store was wired. Derive one from the original package rather than
-	// copying it (#1482) — see writeFromReparse.
+	// copying it (#1482); see writeFromReparse.
 	return w.writeFromReparse(ctx, origZR, zw, info, blocks)
 }
 
@@ -1322,7 +1312,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				continue
 			}
 
-			// Regular block ref — render and write
+			// Regular block ref: render and write
 			if block, ok := blocks[refID]; ok {
 				if !partStrictKnown {
 					// Every WordprocessingML part declares its
@@ -1344,7 +1334,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			// `w:val` of a `<w:themeFontLang>` in a settings part). On a
 			// translation round-trip, retarget it to the output locale when
 			// its primary language matches the source locale's primary
-			// language — mirroring upstream okapi's GenericSkeletonWriter
+			// language, mirroring upstream okapi's GenericSkeletonWriter
 			// Property.LANGUAGE rewrite (LocaleId.sameLanguageAs comparison;
 			// region/script ignored). When there is no target locale, or the
 			// value's language differs from the source (e.g. ru-RU in an
@@ -1394,12 +1384,12 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		return b
 	}
 	// Helper: post-process a WML XML payload (after lang strip + lang
-	// retargeting, before recompression). Native is FAITHFUL — there is
-	// no Word Style Optimisation pass; postNonWSOForName runs the
+	// retargeting, before recompression). Native is FAITHFUL: there is
+	// no Word Style Optimisation pass. postNonWSOForName runs the
 	// field-marker reversal and the cross-source run fusions that must
 	// always happen. (The name is retained for stability with the
-	// faithful-writer design note; "non-WSO" now describes the whole
-	// flush path.)
+	// faithful-writer design note; "non-WSO" describes the whole flush
+	// path.)
 	postNonWSOForName := func(data []byte) []byte {
 		if !isDOCX {
 			return data
@@ -1433,31 +1423,25 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		// happen here, after skeleton reconstruction. Mirrors
 		// upstream Okapi's StrippableAttributes.DrawingRunProperties
 		// which is unconditionally applied during DrawingML block
-		// parsing — see stripDMLRunPropertyAttrs for the citation
+		// parsing; see stripDMLRunPropertyAttrs for the citation
 		// and scope rationale (list-style/table-style defaults are
 		// preserved). Fixture: DrawingML_Test.docx <a:endParaRPr
 		// lang="en-US" dirty="0">.
 		if bytes.Contains(data, []byte("<a:p")) {
 			data = []byte(stripDMLRunPropertyAttrs(string(data)))
 		}
-		// Pull a leading `<w:fldChar w:fldCharType="end"/>` run out
-		// of its host paragraph and append it to the immediately
-		// preceding paragraph when that previous paragraph carries
-		// an open complex-field begin/separate without a matching
-		// end. Mirrors upstream Okapi RunParser.parseComplexField
-		// (RunParser.java:461-542) + BlockParser.parse (lines
-		// 221-228): when a complex field straddles paragraph
-		// boundaries, the field-end event is held in deferredEvents
-		// alongside the intervening paragraph-ends and gets
-		// re-anchored to whichever paragraph closes first inside
-		// the field's run consumption — see the
-		// `endComplexFieldParsing` branch invoked at line 476 +
-		// `goesAfterAnotherRun` deferred-events check at line 612.
-		// The visible end-state is that an isolated leading fld-end
-		// in a paragraph migrates to the previous paragraph during
-		// field consumption. Per ECMA-376-1 §17.16.5 (complex
-		// fields) the fldChar elements bookend a single semantic
-		// run regardless of paragraph layout. Fixtures: 830-1.docx,
+		// Pull a leading `<w:fldChar w:fldCharType="end"/>` run out of
+		// its host paragraph into the preceding paragraph when that one
+		// carries an open complex-field begin/separate with no end.
+		// Mirrors upstream Okapi RunParser.parseComplexField
+		// (RunParser.java:461-542) + BlockParser.parse (lines 221-228):
+		// a straddling field's end event is held in deferredEvents with
+		// the intervening paragraph-ends and re-anchored to whichever
+		// paragraph closes first in the field's run consumption (the
+		// `endComplexFieldParsing` branch at line 476, the
+		// `goesAfterAnotherRun` check at line 612). Per ECMA-376-1
+		// §17.16.5 the fldChar elements bookend one semantic run
+		// regardless of paragraph layout. Fixtures: 830-1.docx,
 		// 830-3.docx, 830-5.docx, 830-6.docx.
 		if bytes.Contains(data, []byte(`fldCharType="end"`)) {
 			data = pullLeadingFldCharEndIntoPrevParagraph(data)
@@ -1469,44 +1453,32 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		// search short-circuits on the FIRST inner textbox `</w:p>`.
 		// Per upstream Okapi the textbox body is parsed as its own
 		// IBlock event stream so its complex-field deferredEvents
-		// flush runs independently — see
+		// flush runs independently; see
 		// pullLeadingFldCharEndIntoPrevParagraphInTxbxContents for the
 		// full citation. Fixture: 1341-textbox-with-a-hyperlink.docx.
 		if bytes.Contains(data, []byte("<w:txbxContent")) &&
 			bytes.Contains(data, []byte(`fldCharType="end"`)) {
 			data = pullLeadingFldCharEndIntoPrevParagraphInTxbxContents(data)
 		}
-		// Fuse a bare `<w:r><w:br .../></w:r>` envelope with the
-		// IMMEDIATELY-following bare `<w:r><w:t ...>…</w:t></w:r>`
-		// envelope into a single `<w:r>` carrying both the br and
-		// the t children. Both source envelopes must lack `<w:rPr>`
-		// so the fuse is rPr-equivalent. Mirrors upstream Okapi
+		// A bare `<w:r><w:br .../></w:r>` and the IMMEDIATELY-following bare
+		// `<w:r><w:t ...>…</w:t></w:r>` fuse into one `<w:r>` carrying both
+		// children when neither has a `<w:rPr>`. Mirrors upstream Okapi
 		// RunMerger.add → canMergeWith (RunMerger.java:83-95 +
-		// canRunPropertiesBeMerged at 156-229): adjacent source
-		// `<w:r>` envelopes with matching (here: empty)
-		// RunProperties merge into one RunBuilder; the resulting
-		// `<w:r>` carries the br Markup body chunk and the t
-		// RunText body chunk side by side. Per ECMA-376-1
-		// §17.3.2.1 (CT_R) a single `<w:r>` may carry both
-		// `<w:br/>` and `<w:t>` children.
-		//
-		// The fuse runs in postNonWSOForName (after skeleton
-		// reconstruction) so it sees the wire shape where the rPr-less
-		// envelopes have already been emitted.
-		// The skeleton path's `runToXML` (wml.go) emits each
-		// source `<w:r>` envelope verbatim, so the source's
-		// `<w:r><w:br type="page"/></w:r><w:r><w:t> </w:t></w:r>`
-		// pattern arrives here intact when the paragraph is
-		// non-translatable (skeleton-only). apissue.docx is the
-		// canonical fixture: page-break + space text run pairs in
-		// otherwise-empty paragraphs that bridge fuses but the
-		// per-run skeleton emit splits.
-		// fuseBareBrAndTextRuns retired (#602): both the same-source
-		// <w:r><w:br/><w:t>…</w:t></w:r> split and the cross-source
-		// `<w:r><w:br/></w:r><w:r><w:t>…</w:t></w:r>` → one-envelope
-		// fusion are now produced structurally by emitRunEnvelopes,
-		// which the skeleton emit loops (hidden + general non-
-		// translatable) route every simple run-child through.
+		// canRunPropertiesBeMerged at 156-229): adjacent `<w:r>` envelopes with
+		// matching (here: empty) RunProperties merge into one RunBuilder, whose
+		// `<w:r>` carries the br Markup and t RunText body chunks side by side.
+		// Per ECMA-376-1 §17.3.2.1 (CT_R) one `<w:r>` may carry both.
+
+		// emitRunEnvelopes produces that fusion structurally (fuseBareBrAndTextRuns
+		// retired in #602), for the same-source <w:r><w:br/><w:t>…</w:t></w:r>
+		// split and the cross-source two-envelope case alike. The skeleton emit
+		// loops (hidden + general non-translatable) route every simple run-child
+		// through it, since the skeleton path's `runToXML` (wml.go) emits each
+		// source `<w:r>` verbatim. apissue.docx is the canonical fixture:
+		// page-break + space text run pairs
+		// (`<w:r><w:br type="page"/></w:r><w:r><w:t> </w:t></w:r>`) in otherwise
+		// empty, skeleton-only paragraphs, which the bridge fuses.
+
 		// Fuse a bare `<w:r><w:fldChar fldCharType="end"/></w:r>`
 		// envelope with the IMMEDIATELY-following bare
 		// `<w:r><w:t ...>…</w:t></w:r>` envelope into a single `<w:r>`
@@ -1543,7 +1515,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		// carries no rPr and is a drawing-only Markup chunk that upstream
 		// Okapi's RunMerger folds into the FOLLOWING same-context text
 		// run's RunProperties (RunMerger.java:402-441 +
-		// canRunPropertiesBeMerged at 156-229) — so the run shape and
+		// canRunPropertiesBeMerged at 156-229), so the run shape and
 		// count match upstream's fused single run carrying the text run's
 		// rPr. See fuseBarePictAndRPrTextRuns for the rFonts minified()
 		// reproduction and the Hangs.docx (document.xml s1059 shape)
@@ -1555,7 +1527,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	}
 	// postWML is the per-part post-processing applied to every WML XML
 	// payload after skeleton reconstruction + lang strip/retarget. Native
-	// is FAITHFUL by default — there is no Word Style Optimisation pass;
+	// is FAITHFUL by default: there is no Word Style Optimisation pass;
 	// the only post-processing is the field-marker reversal + cross-source
 	// run fusions in postNonWSOForName. The name argument is retained for
 	// call-site symmetry.
@@ -1568,7 +1540,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			// Replace with skeleton-reconstructed content. The
 			// <w:themeFontLang> w:val in a settings part has already been
 			// retargeted structurally during skeleton reconstruction (the
-			// reader spliced it as a SkeletonLang entry — #607), so there is
+			// reader spliced it as a SkeletonLang entry, #607), so there is
 			// no write-side lang rewrite here.
 			if isDOCX && wmlProcessedPart(f.Name) {
 				content = stripWMLRevisionElementsCached(f.Name, content)
@@ -1619,7 +1591,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				return err
 			}
 		} else {
-			// Copy unchanged — use raw copy to preserve CRC/data descriptors
+			// Copy unchanged: use raw copy to preserve CRC/data descriptors
 			if err := zw.Copy(f); err != nil {
 				return err
 			}
@@ -1633,23 +1605,23 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 // it reparses the original package to obtain one, then reconstructs through
 // writeFromSkeleton exactly as a wired round-trip does.
 //
-// It used to copy every ZIP entry through verbatim and substitute only media
-// (Bowrain AD-007), which meant every text edit and every translation in the
-// Part stream was dropped while the write reported success (#1482). The writer
-// declares RequiresSkeleton — it cannot serialize WordprocessingML from the
-// content model alone — but it does hold the original package, and a skeleton is
-// a deterministic function of those bytes and the extraction config. So there is
-// no need to guess and no need to fail: the missing scaffolding can be rebuilt
-// from what the writer already has. Callers on this path are the ones that never
-// had a reader to wire (the engine's Merge RPC, which receives a Part stream and
-// the original document over gRPC, and the spec runner's round-trip view).
-//
-// The Part stream is the authority for every block it carries. A ref the caller
-// did not send keeps the block as reparsed, so a partial stream reproduces the
-// original text for the parts it omitted instead of deleting them.
+// Copying every ZIP entry through verbatim and substituting only media
+// (Bowrain AD-007) would drop every text edit and translation in the Part
+// stream while reporting success (#1482). The writer declares
+// RequiresSkeleton, since it cannot serialize WordprocessingML from the
+// content model alone, but it holds the original package, and a skeleton is
+// a deterministic function of those bytes and the extraction config. So the
+// missing scaffolding is rebuilt from what the writer already has. Callers on
+// this path never had a reader to wire: the engine's Merge RPC, which receives
+// a Part stream and the original document over gRPC, and the spec runner's
+// round-trip view.
 func (w *Writer) writeFromReparse(ctx context.Context, origZR *zip.Reader, zw *zip.Writer,
 	info *containerInfo, blocks map[string]*model.Block) error {
 
+	// The Part stream is the authority for every block it carries. A ref the
+	// caller did not send keeps the block as reparsed, so a partial stream
+	// reproduces the original text for the parts it omitted instead of
+	// deleting them.
 	store, merged, err := w.reparseSkeleton(ctx, blocks)
 	if err != nil {
 		return err
@@ -1671,7 +1643,7 @@ func (w *Writer) writeFromReparse(ctx context.Context, origZR *zip.Reader, zw *z
 // returns that store plus the block index the writer should render: the
 // reparsed blocks, overlaid by the ones the caller streamed in.
 //
-// Sharing the config is what makes the block refs line up — the reader's ids are
+// Sharing the config makes the block refs line up: the reader's ids are
 // positional (`tu1`, `tu2`, …), so the same bytes plus the same extraction
 // decisions produce the same ids the caller's stream was numbered with.
 func (w *Writer) reparseSkeleton(ctx context.Context, blocks map[string]*model.Block) (*format.SkeletonStore, map[string]*model.Block, error) {
@@ -1754,7 +1726,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		return xmlesc.Attr(text)
 	}
 
-	// An OMML <m:nor/> prose span (equation text — "where", "otherwise", units):
+	// An OMML <m:nor/> prose span (equation text: "where", "otherwise", units).
 	// the block was emitted by writeOMathSubSkeleton and its skeleton ref sits
 	// inside the equation's <m:t>…</m:t>. Render the target-else-source as bare
 	// element-content text, matching captureRawElement's CharData escaping, so an
@@ -1764,7 +1736,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		return xmlesc.Text(model.FlattenRuns(runs))
 	}
 
-	// Chart and diagram parts inside a DOCX are DrawingML, not WML —
+	// Chart and diagram parts inside a DOCX are DrawingML, not WML:
 	// they declare the drawingml/2006/main namespace under the `a:`
 	// prefix and use <a:r>/<a:t>. Routing them through renderWMLBlock
 	// would emit <w:r>/<w:t>, but the `w:` prefix is undeclared in the
@@ -1783,11 +1755,11 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	// per-paragraph common rPr children under
 	// openxmlSourceRPrAnnotationKey when the source had at least one
 	// non-toggle rPr child; the writer prepends this XML to every
-	// emitted <w:r>'s <w:rPr>. Native is faithful — the rPr is preserved
+	// emitted <w:r>'s <w:rPr>. Native is faithful: the rPr is preserved
 	// inline rather than lifted into a synthesised paragraph style.
 	sourceRPr := blockSourceRPrXML(block)
 
-	// Per-text-run rPr sidecar (Phase 2 of the per-run rPr work — see
+	// Per-text-run rPr sidecar (Phase 2 of the per-run rPr work, see
 	// PARITY_NOTES.md "1083-*" cluster). When non-empty the writer
 	// prefers each text-run's specific rPr over the paragraph-common
 	// sourceRPr, mirroring upstream Okapi RunBuilder.java lines 73-188
@@ -1801,11 +1773,11 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	perRunInFieldDisplay := blockPerRunInFieldDisplayFlags(block)
 	perRunSourceHadRPr := blockPerRunSourceHadRPrFlags(block)
 	// Cross-paragraph field straddle marker set by wml.go's
-	// flushPendingFieldBlock — see "openxml:field-straddle" property
-	// comment there. When true the writer mirrors upstream Okapi
+	// flushPendingFieldBlock (see the "openxml:field-straddle" property
+	// comment there). When true the writer mirrors upstream Okapi
 	// BlockTextUnitWriter.flush(Run.Markup) lines 238-251: an empty
 	// `<w:r/>` placeholder is emitted before every TypeBreak Ph that
-	// began a fresh source `<w:r>`, capturing the artifact of the
+	// began a fresh source `<w:r>`. This captures the artifact of the
 	// open-then-close `<w:r>` cycle that Okapi's flush performs when
 	// the first MarkupComponent of the outer-Run's body chunk is a
 	// `<w:br>` Component.Start.
@@ -1857,10 +1829,10 @@ func blockSourceRPrXML(block *model.Block) string {
 
 // blockPerRunRPrFragments extracts the per-text-run rPr children XML
 // fragments from the block annotation populated by the WML reader
-// (Phase 1 — see source_rpr.go openxmlPerRunRPrAnnotationKey).
+// (Phase 1; see source_rpr.go openxmlPerRunRPrAnnotationKey).
 //
 // The slice has one entry per text-bearing source run BEFORE
-// mergeRuns coalescing — adjacent identical fragments correspond to
+// mergeRuns coalescing: adjacent identical fragments correspond to
 // runs that mergeRuns combined into a single model TextRun. The
 // writer dedupes adjacent identical fragments at emit time so the
 // remaining slice aligns 1:1 with the post-merge model TextRun
@@ -1885,29 +1857,29 @@ func blockPerRunRPrFragments(block *model.Block) []string {
 		return nil
 	}
 	// The per-run sidecar is returned raw here. The text-aware
-	// bCs/iCs strip — which mirrors upstream Okapi RunParser.java
-	// :219-229 (strip bCs/iCs/szCs when runFonts has no detected
-	// complex-script content categories) — is applied per text
-	// run inside renderWMLBlock where the post-pseudo run text is
-	// known. ContentCategoriesDetection (upstream
+	// bCs/iCs strip is applied per text run inside renderWMLBlock,
+	// where the post-pseudo run text is known. It mirrors upstream
+	// Okapi RunParser.java:219-229 (strip bCs/iCs/szCs when runFonts
+	// has no detected complex-script content categories).
+	// ContentCategoriesDetection (upstream
 	// ContentCategoriesDetection.java:134-138) classifies runText
 	// against the complex-script Unicode block (U+0590..U+074F
 	// plus a few extensions; see containsComplexScriptText for
 	// the full inventory derived from ECMA-376-1 §17.3.2.16
 	// (bCs) and §17.3.2.17 (iCs)).
-	//
+
 	// dedupeAdjacent is NOT applied here. The reader's mergeRuns
 	// (wml.go) already coalesces adjacent text runs whose toggle +
 	// non-toggle rPr are fully equal, so the sidecar arrives with
 	// one entry per surviving model text-run. Adjacent fragments
 	// that happen to be byte-equal (e.g. two HYPERLINK display runs
 	// separated by an intervening fldChar / PcClose) must NOT be
-	// collapsed — they belong to distinct model runs and the writer
-	// needs the slot at each text-run index. Prior code ran
-	// dedupeAdjacent and triggered the alignment guard in
-	// renderWMLBlock (sidecar suppressed → fall back to sourceRPr),
-	// which dropped rStyle from hyperlink-internal runs in
-	// 830-7.docx, external_hyperlink.docx, etc.
+	// collapsed: they belong to distinct model runs and the writer
+	// needs the slot at each text-run index. Running dedupeAdjacent
+	// here triggers the alignment guard in renderWMLBlock (sidecar
+	// suppressed → fall back to sourceRPr), which drops rStyle from
+	// hyperlink-internal runs in 830-7.docx, external_hyperlink.docx,
+	// etc.
 	return v
 }
 
@@ -2064,55 +2036,43 @@ func extractDocDefaultsToggleExplicitOff(stylesXML []byte, name string) bool {
 	return false
 }
 
-// stripToggleMirrorChildren removes <w:bCs/> and <w:iCs/> elements
-// (with or without attributes) from an rPr children-only XML
-// fragment. These are complex-script toggle mirrors that upstream
-// Okapi strips at parse time when the run text has NO detected
-// complex-script content categories
-// (okapi/filters/openxml/RunParser.java:219-229 — when
-// !runFonts.containsDetectedComplexScriptContentCategories the
-// RUN_PROPERTY_COMPLEX_SCRIPT_BOLD/ITALICS/FONT_SIZE elements are
-// added to skippableProperties and dropped from the run's rPr).
+// stripToggleMirrorChildren removes <w:bCs/> and <w:iCs/> elements (with or
+// without attributes) from an rPr children-only XML fragment. Upstream Okapi
+// strips these complex-script toggle mirrors at parse time when the run text
+// has NO detected complex-script content categories: RunParser.java:219-229
+// (okapi/filters/openxml) then adds the
+// RUN_PROPERTY_COMPLEX_SCRIPT_BOLD/ITALICS/FONT_SIZE elements to
+// skippableProperties.
 //
-// Callers in the per-run sidecar path must gate this on the
-// post-pseudo run text — see containsComplexScriptText. When the
-// text contains complex-script characters, bCs/iCs must be preserved
-// per ECMA-376-1 §17.3.2.16 (CT_OnOff bCs — complex-script bold)
-// and §17.3.2.17 (CT_OnOff iCs — complex-script italics): each is
-// the independent toggle for the complex-script side of the run's
-// font triple, and stripping them when text is complex-script-
-// bearing would drop legitimate formatting (cluster 1200-*).
+// Callers in the per-run sidecar path gate this on the post-pseudo run text
+// (containsComplexScriptText). Complex-script text keeps bCs/iCs: per
+// ECMA-376-1 §17.3.2.16 and §17.3.2.17 each is the independent bold/italics
+// toggle for the complex-script side of the run's font triple, so stripping
+// them would drop legitimate formatting (cluster 1200-*).
 //
-// Paired-toggle preservation: an explicit-off
-// `<w:bCs w:val="false"/>` is KEPT when the SAME fragment also carries
-// an explicit-off `<w:b w:val="false"/>` (and likewise iCs ↔ i). This
-// mirrors upstream Okapi RunParser.canBeSkipped (RunParser.java:240-
-// 250): bCs is skippable only when preCombined and runProperties have
-// EQUAL bCs values. When the inherited style chain has `<w:bCs/>`
-// (bare-on, the natural way pStyles like Heading2 set the toggle) and
-// the run has `<w:bCs w:val="false"/>`, the values disagree and the
-// strip cannot fire. Native lacks the preCombined view at write time
-// but DOES see the b↔bCs / i↔iCs explicit-off pairing in the rPr —
-// authoring tools emit both halves of the pair only when the
-// inherited chain has them ON, so the pairing is a faithful proxy.
-// Fixture 1311.docx (Heading2 → bCs/) is the canonical case.
-//
-// #607 KEEP (confirmed): reimplementing canBeSkipped against the real
-// resolved style chain (docDefaults ∪ pStyle basedOn-walk ∪ rStyle, which
-// styles.go already computes) showed ZERO divergence from this heuristic
-// across all 185 fixtures. A structural chain-resolver is NOT viable here:
-// (a) it would regress 1341-textbox-with-a-hyperlink.docx, whose latent
-// "Hyperlink" rStyle is absent from styles.xml (Okapi's preCombined
-// includes latent-style props; a styleMap lookup resolves absent→"" and
-// would wrongly strip); and (b) the outer text gate must stay at WRITE
-// time — it inspects post-translation run text, so AI-translation into
-// Arabic/Hebrew injects complex-script content a read-time decision would
-// miss. This is the sanctioned faithful-Okapi-reproduction exception, not
-// write-side compensation.
+// An explicit-off `<w:bCs w:val="false"/>` is KEPT when the SAME fragment
+// also carries an explicit-off `<w:b w:val="false"/>` (likewise iCs ↔ i),
+// mirroring RunParser.canBeSkipped (RunParser.java:240-250). Native lacks
+// upstream's preCombined view at write time; authoring tools emit both halves
+// only when the inherited chain has them ON, so the pairing is a faithful
+// proxy. Fixture 1311.docx (Heading2 → bCs/) is the canonical case.
 func stripToggleMirrorChildren(s string, dd docDefaultsToggles) string {
 	if s == "" {
 		return s
 	}
+	// #607 KEEP (confirmed): reimplementing canBeSkipped against the real
+	// resolved style chain (docDefaults ∪ pStyle basedOn-walk ∪ rStyle, which
+	// styles.go already computes) showed ZERO divergence from this heuristic
+	// across all 185 fixtures. A structural chain-resolver would regress
+	// 1341-textbox-with-a-hyperlink.docx, whose latent "Hyperlink" rStyle is
+	// absent from styles.xml: Okapi's preCombined includes latent-style props,
+	// while a styleMap lookup resolves absent→"" and would wrongly strip.
+
+	// The text gate stays at WRITE time because it inspects post-translation run
+	// text: AI translation into Arabic/Hebrew injects complex-script content a
+	// read-time decision would miss. This is the sanctioned
+	// faithful-Okapi-reproduction exception, not write-side compensation.
+
 	// Paired-toggle preservation: keep bCs/iCs when the strip cannot
 	// fire per upstream Okapi RunParser.canBeSkipped (RunParser.java:
 	// 240-250), which requires `preCombined.bCs.equals(run.bCs)` for
@@ -2153,8 +2113,8 @@ func stripToggleMirrorChildren(s string, dd docDefaultsToggles) string {
 // stripBCsBlockedByPairing reports whether the rPr fragment s should
 // KEEP its bCs/iCs (i.e. the strip is blocked) given:
 //
-//   - latinName: "b" / "i" — the mirror partner element
-//   - mirrorName: "bCs" / "iCs" — the toggle mirror to gate
+//   - latinName: "b" / "i", the mirror partner element
+//   - mirrorName: "bCs" / "iCs", the toggle mirror to gate
 //   - docDefaultsExplicitOff: whether docDefaults rPr authors
 //     `<w:NAME w:val="0"/>` for the mirror
 //
@@ -2185,8 +2145,8 @@ func stripBCsBlockedByPairing(s, latinName, mirrorName string, docDefaultsExplic
 	// form. preCombined's value (val=0) disagrees with run's value
 	// (val implicit true) so upstream's canBeSkipped at
 	// RunParser.java:244-245 returns false. The bare-on b mirror
-	// partner is NOT required for this branch — the disagreement is
-	// solely between preCombined.bCs and run.bCs; the bold half can
+	// partner is NOT required for this branch: the disagreement is
+	// solely between preCombined.bCs and run.bCs. The bold half can
 	// be present, absent, or asserted via a separate <w:b/> outside
 	// the rPr-children fragment (the writer's toggle path emits
 	// <w:b/> from props.bold rather than from the captured
@@ -2199,7 +2159,7 @@ func stripBCsBlockedByPairing(s, latinName, mirrorName string, docDefaultsExplic
 
 // hasToggleMirrorPartner reports whether the rPr fragment s contains
 // a `<w:NAME...>` element (the Latin half of a b↔bCs / i↔iCs pair) in
-// any form — bare-on, explicit-on, or explicit-off. Used by
+// any form: bare-on, explicit-on, or explicit-off. Used by
 // stripToggleMirrorChildren to detect the paired-toggle preservation
 // signal. The trailing space after the name in the search prefix
 // enforces a strict element-name boundary so `<w:bCs/>` does not
@@ -2242,9 +2202,7 @@ func hasExplicitOffElement(s, name string) bool {
 		head := s[start : start+end]
 		// Skip if this is a longer name (e.g. "<w:bCs " when looking for "<w:b ").
 		// The trailing space after the name in `prefix` already enforces a
-		// boundary, so this is fine — but we also want to skip `<w:bCs ` when
-		// looking for `<w:b ` is not possible because prefix has trailing
-		// space. Good.
+		// boundary, so `<w:bCs ` cannot match a search for `<w:b `.
 		if strings.Contains(head, ` w:val="0"`) ||
 			strings.Contains(head, ` w:val="false"`) ||
 			strings.Contains(head, ` w:val="off"`) {
@@ -2267,14 +2225,14 @@ func hasExplicitOffElement(s, name string) bool {
 //
 // When this returns false for the post-pseudo run text, upstream
 // Okapi strips the complex-script run-property toggle mirrors
-// (bCs/iCs/szCs) at parse time — so the writer must do the same
+// (bCs/iCs/szCs) at parse time, so the writer must do the same
 // on the per-run sidecar to round-trip byte-equally with the
 // reference.
 //
 // References:
 //   - okapi/filters/openxml/ContentCategoriesDetection.java:71-74,
-//     134-138 — COMPLEX_SCRIPT_CHARACTERS Pattern + detection rule.
-//   - okapi/filters/openxml/RunParser.java:219-229 — skip
+//     134-138: COMPLEX_SCRIPT_CHARACTERS Pattern + detection rule.
+//   - okapi/filters/openxml/RunParser.java:219-229: skip
 //     bCs/iCs/szCs when no detected CS categories.
 //   - ECMA-376-1 §17.3.2.16 (bCs), §17.3.2.17 (iCs).
 func containsComplexScriptText(s string) bool {
@@ -2366,7 +2324,7 @@ func stripWMLElement(s, name string) string {
 
 // countTextRuns returns the number of text-bearing model runs (one
 // per non-nil r.Text with non-empty Text). Used to gate the per-run
-// rPr sidecar alignment guard in renderWMLBlock — when this count
+// rPr sidecar alignment guard in renderWMLBlock: when this count
 // matches len(perRunRPr) the writer can index slot-by-slot; when
 // it doesn't, the sidecar is suppressed.
 func countTextRuns(runs []model.Run) int {
@@ -2383,21 +2341,21 @@ func countTextRuns(runs []model.Run) int {
 //
 // sourceRPr is the per-paragraph common rPr children XML stashed by
 // the reader (#592). When non-empty it is prepended on every emitted
-// <w:r>'s <w:rPr>, mirroring upstream Okapi RunBuilder.java which
-// keeps the source's full rPr per run. Native is faithful — the rPr
-// stays inline; it is not lifted into a synthesised paragraph style.
+// <w:r>'s <w:rPr>, mirroring upstream Okapi RunBuilder.java, which
+// keeps the source's full rPr per run inline rather than in a
+// synthesised paragraph style.
 //
 // perRunRPr is the per-text-run rPr fragments sidecar (Phase 2 of
-// the per-run rPr work — see PARITY_NOTES.md "1083-*" cluster).
-// When non-empty AND the slot for the current text-run index is
-// non-empty, this fragment REPLACES sourceRPr on that <w:r>; runs
-// for which the sidecar slot is empty fall back to sourceRPr. This
-// preserves heterogeneous-rPr runs (e.g. hyperlink display runs
-// carrying <w:rStyle val="Hyperlink"/> alongside surrounding
-// non-hyperlink text) per upstream Okapi RunBuilder.java lines
-// 73-188 + RunMerger.java lines 156-229 (RunProperties.equals
-// gates run fusion, so heterogeneous rPr surfaces multiple <w:r>
-// elements rather than collapsing to a single rPr-less <w:r>).
+// the per-run rPr work, see PARITY_NOTES.md "1083-*" cluster).
+// When the slot for the current text-run index is non-empty, its
+// fragment REPLACES sourceRPr on that <w:r>; runs with an empty
+// slot fall back to sourceRPr. This preserves heterogeneous-rPr
+// runs (e.g. hyperlink display runs carrying
+// <w:rStyle val="Hyperlink"/> beside non-hyperlink text) per
+// upstream Okapi RunBuilder.java lines 73-188 + RunMerger.java
+// lines 156-229: RunProperties.equals gates run fusion, so
+// heterogeneous rPr surfaces multiple <w:r> elements rather than
+// one rPr-less <w:r>.
 //
 // Per ECMA-376-1 §17.3.2.
 func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool, perRunInFieldDisplay []bool, perRunSourceHadRPr []bool, fieldStraddle bool) string {
@@ -2406,7 +2364,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// emits one <w:r> per text-bearing model.Run.Text. When the two
 	// counts disagree, the sidecar cannot be aligned 1:1 to model
 	// runs (typically because mergeRuns coalesced source runs whose
-	// non-toggle rPr differed — see runProps.equal: it ignores
+	// non-toggle rPr differed; see runProps.equal: it ignores
 	// non-toggle children, mergeRuns merges across them). In that
 	// case fall back to sourceRPr-only mode rather than risk
 	// emitting wrong-rPr-on-wrong-run. This preserves the previous
@@ -2416,13 +2374,13 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	}
 	// Mirror the same alignment guard for the srcRunStart sidecar:
 	// it must have one entry per post-merge text-bearing run. If the
-	// length disagrees, drop it — the writer falls back to the
+	// length disagrees, drop it: the writer falls back to the
 	// pre-#592 behaviour (every standalone <w:br/>/<w:tab/> closes
 	// the <w:r> envelope immediately, never reused by following text).
 	if len(perRunSrcStart) != countTextRuns(runs) {
 		perRunSrcStart = nil
 	}
-	// Same alignment guard for the inFieldDisplay sidecar — drop the
+	// Same alignment guard for the inFieldDisplay sidecar: drop the
 	// flags when they disagree with the run count, otherwise the
 	// writer would force-split runs at the wrong indices.
 	if len(perRunInFieldDisplay) != countTextRuns(runs) {
@@ -2438,7 +2396,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// It lets effectiveRPr apply upstream Okapi's parse-time
 	// bCs/iCs strip (okapi/filters/openxml/RunParser.java:219-229)
 	// against the actual run text, rather than blanket-stripping
-	// every occurrence — which would drop legitimate complex-script
+	// every occurrence, which would drop legitimate complex-script
 	// formatting on Arabic/Hebrew/… runs (cluster 1200-*; see
 	// PARITY_NOTES.md for the divergence inventory).
 	var textRunTexts []string
@@ -2452,30 +2410,21 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// idx (0-based, counting only text-bearing model.Run.Text
 	// emissions).
 	//
-	// When the per-run sidecar is present (alignment guard at line
-	// ~3206 hasn't dropped it), the slot is authoritative — including
-	// when it is the empty string, which means the source `<w:r>` had
-	// no rPr at all. Falling back to sourceRPr in that case would
-	// inject the paragraph-wide common rPr into a bare source run,
-	// fusing it with neighbouring runs that share the common subset.
-	// Per upstream Okapi RunBuilder.java:73-188 each source run keeps
-	// its rPr verbatim; bare runs surface as `<w:r><w:t>…</w:t></w:r>`
-	// with no rPr, distinct from neighbours per
-	// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229).
-	//
-	// sourceRPr is only consulted when the sidecar was dropped (the
-	// alignment guard set perRunRPr to nil) or when the index is out
-	// of range — both defensive paths preserving pre-#592 behaviour
-	// for paragraphs the sidecar cannot describe.
-	//
-	// bCs/iCs are stripped on-the-fly when the corresponding run
-	// text contains no complex-script characters (mirrors upstream
-	// Okapi RunParser.java:219-229 + ContentCategoriesDetection.java
-	// :134-138; ECMA-376-1 §17.3.2.16 / .17). When the text DOES
-	// carry complex-script content, the source's bCs/iCs survive
-	// verbatim — fixing the 1200-* RTL synthesis cluster.
+	// When the per-run sidecar survived the alignment guard above, the
+	// slot is authoritative, even when it is the empty string: that means
+	// the source `<w:r>` had no rPr at all. Falling back to sourceRPr there
+	// would inject the paragraph-wide common rPr into a bare source run,
+	// fusing it with neighbours that share the common subset. Per upstream
+	// Okapi RunBuilder.java:73-188 each source run keeps its rPr verbatim;
+	// bare runs surface as `<w:r><w:t>…</w:t></w:r>` with no rPr, distinct
+	// from neighbours per RunMerger.canRunPropertiesBeMerged
+	// (RunMerger.java:156-229).
 	effectiveRPr := func(idx int) string {
 		var base string
+		// sourceRPr is only consulted when the sidecar was dropped (the
+		// alignment guard set perRunRPr to nil) or when the index is out
+		// of range. Both defensive paths preserve pre-#592 behaviour for
+		// paragraphs the sidecar cannot describe.
 		switch {
 		case perRunRPr == nil:
 			base = sourceRPr
@@ -2487,6 +2436,12 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		if base == "" {
 			return base
 		}
+		// bCs/iCs are stripped on-the-fly when the corresponding run
+		// text contains no complex-script characters (mirrors upstream
+		// Okapi RunParser.java:219-229 + ContentCategoriesDetection.java
+		// :134-138; ECMA-376-1 §17.3.2.16 / .17). When the text DOES
+		// carry complex-script content, the source's bCs/iCs survive
+		// verbatim, which fixes the 1200-* RTL synthesis cluster.
 		var text string
 		if idx >= 0 && idx < len(textRunTexts) {
 			text = textRunTexts[idx]
@@ -2511,7 +2466,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// region. Defaults to false when the sidecar is absent (i.e. the
 	// paragraph carries no such runs). See
 	// openxmlPerRunInFieldDisplayAnnotationKey for the upstream-Okapi
-	// rationale — runs inside the field display area must keep their
+	// rationale: runs inside the field display area must keep their
 	// per-source-<w:r> envelopes distinct.
 	textInFieldDisplay := func(idx int) bool {
 		if idx < 0 || idx >= len(perRunInFieldDisplay) {
@@ -2522,7 +2477,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 
 	// Fast paths below collapse the entire run sequence into a single
 	// <w:r> via model.FlattenRuns. They are only valid when there is
-	// at most one text-bearing model run — otherwise per-run rPr
+	// at most one text-bearing model run; otherwise per-run rPr
 	// boundaries (Phase 4 split on rPrChildren divergence; sidecar
 	// slots from Phase 1/2) would be erased. When countTextRuns > 1
 	// fall through to the slow path which emits one <w:r> per text
@@ -2554,57 +2509,49 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	var buf strings.Builder
 	var inRun bool
 	// inRunNoText flags an open <w:r> that has emitted a standalone
-	// <w:br/> / <w:tab/> but no <w:t> yet. The next text Run, if it
-	// shares the same rPr, joins this <w:r> by opening <w:t> inside
-	// it rather than spawning a new <w:r>. This preserves the source
-	// shape `<w:r><w:br/><w:t>...</w:t></w:r>` (run 3 of
-	// 1421-line-break.docx) which upstream Okapi RunBuilder keeps as
-	// a single <w:r> per ECMA-376-1 §17.3.2.1 (CT_R: rPr followed by
-	// run children — <w:br/> and <w:t> may both appear inside one
-	// run). When the next Run is NOT a same-rPr text Run (different
-	// rPr, another Ph, or PcOpen/PcClose), this <w:r> closes via
-	// closeRunNoText so the open envelope doesn't leak.
+	// <w:br/> / <w:tab/> but no <w:t> yet. A next text Run with the
+	// same rPr opens <w:t> inside this <w:r> instead of a new <w:r>.
+	// That preserves the source shape `<w:r><w:br/><w:t>...</w:t></w:r>`
+	// (run 3 of 1421-line-break.docx), which upstream Okapi RunBuilder
+	// keeps as one <w:r> per ECMA-376-1 §17.3.2.1 (CT_R: rPr, then run
+	// children, so <w:br/> and <w:t> may share a run). Any other next
+	// Run (different rPr, another Ph, PcOpen/PcClose) closes this <w:r>
+	// via closeRunNoText so the open envelope doesn't leak.
 	var inRunNoText bool
 	// inRunNoTextRPr is the effective rPr the still-open `<w:r>` carries
 	// (sourceRPr+runProps OR an inherited-from-neighbour rPr when the
 	// open run was emitted by the Tab Ph inherit-from-next-text fuse).
 	// The text-side join check compares the next text's effectiveRPr
-	// against THIS, not against the paragraph-wide sourceRPr — so an
+	// against THIS, not against the paragraph-wide sourceRPr, so an
 	// inherited-rPr open run can still fuse same-rPr text. When empty,
 	// fall back to the original sourceRPr-only comparison.
 	var inRunNoTextRPr string
 	// pendingTReopen marks a speculative `<w:t xml:space="preserve">`
-	// opened by the inline-tab/br branch right after `<w:tab/>` /
-	// `<w:br/>` in anticipation of more text in the same <w:r>. If no
-	// character data follows before closeRun fires, the open <w:t>
-	// must NOT receive a closing tag — the source had
-	// `<w:r><w:t>…</w:t><w:tab/></w:r>` with nothing after the tab
-	// (e.g. 992.docx footer1.xml's "Be Shaping The Future " run).
-	// Upstream Okapi RunBuilder.java:73-188 preserves the source-run
-	// envelope and never authors a trailing empty <w:t/>. Per
-	// ECMA-376-1 §17.3.3.31 (<w:tab/>) and §17.3.3.1 (<w:br/>),
-	// tab/break are run children whose effect is independent of any
-	// following <w:t>; emitting an empty <w:t/> would be a
-	// meaningless artefact that diverges from upstream byte output.
+	// the inline-tab/br branch opens right after `<w:tab/>` / `<w:br/>`,
+	// expecting more text in the same <w:r>. If no character data
+	// follows before closeRun fires, the open <w:t> gets NO closing tag:
+	// the source had `<w:r><w:t>…</w:t><w:tab/></w:r>` (e.g. 992.docx
+	// footer1.xml's "Be Shaping The Future " run). Upstream Okapi
+	// RunBuilder.java:73-188 preserves the source-run envelope and never
+	// authors a trailing empty <w:t/>. Per ECMA-376-1 §17.3.3.31 and
+	// §17.3.3.1 a tab/break acts independently of any following <w:t>,
+	// so an empty <w:t/> would only diverge from upstream byte output.
 	var pendingTReopen bool
 	// inFieldEndRun flags an open <w:r> emitted from a fldChar-end Ph
-	// whose closing `</w:r>` has been stripped because the next Text
-	// run carries matching rPr. When the following Text arrives, it
-	// appends `<w:t xml:space="preserve">…</w:t></w:r>` inside this
-	// run rather than spawning a new <w:r>. fieldEndRPrEffective stores
-	// the FULL post-toggle rPr (sidecar base + runProps) the field run
-	// carried so the join decision at the next Text can compare it
-	// against the equivalent fragment that emitRPr would produce for
-	// that text. Mirrors upstream Okapi RunMerger.mergeRunBodyChunks
-	// (RunMerger.java:402-441), which fuses a Markup chunk (the
-	// captured fldChar end) followed by a RunText chunk (the
-	// following text) into a single Run when their containing source
-	// runs share rPr per canRunPropertiesBeMerged
-	// (RunMerger.java:156-229). Per ECMA-376-1 §17.3.2.1 (CT_R) and
-	// §17.16.5 (complex fields), a single `<w:r>` may carry
-	// `<w:fldChar>` and `<w:t>` children. Fixtures: 768.docx,
-	// 768-2.docx.
+	// whose closing `</w:r>` was stripped because the next Text run
+	// carries matching rPr. The following Text then appends
+	// `<w:t xml:space="preserve">…</w:t></w:r>` inside this run. Mirrors
+	// upstream Okapi RunMerger.mergeRunBodyChunks (RunMerger.java:402-441):
+	// a Markup chunk (the captured fldChar end) and the following RunText
+	// chunk fuse into one Run when their source runs share rPr per
+	// canRunPropertiesBeMerged (RunMerger.java:156-229). Per ECMA-376-1
+	// §17.3.2.1 and §17.16.5, one `<w:r>` may carry `<w:fldChar>` and
+	// `<w:t>` children. Fixtures: 768.docx, 768-2.docx.
 	var inFieldEndRun bool
+	// fieldEndRPrEffective stores the FULL post-toggle rPr (sidecar base +
+	// runProps) the field run carried, so the join decision at the next
+	// Text can compare it against the fragment emitRPr would produce for
+	// that text.
 	var fieldEndRPrEffective string
 	var runProps string
 	// toggleOpenForms tracks the source serialisation of each
@@ -2613,7 +2560,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// PcClose can strip the same byte sequence from runProps. Per
 	// ECMA-376-1 §17.3.2.1 (CT_OnOff <w:b>) the bare element and
 	// val="1"/"true"/"on" are equivalent ON states, but upstream
-	// Okapi preserves the source form across the round-trip — this
+	// Okapi preserves the source form across the round-trip; this
 	// map carries the per-PcOpen Data string through to the
 	// matching PcClose so the writer can do the same.
 	toggleOpenForms := map[string]string{}
@@ -2653,27 +2600,25 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	emitRPr := func(idx int) {
 		base := effectiveRPr(idx)
 		if base == "" && runProps == "" {
-			// When the text run sits inside a cross-paragraph
-			// extractable field's display region AND the source `<w:r>`
-			// declared an `<w:rPr>` child (even if all of its children
-			// got stripped by RunSkippableElements), preserve an empty
-			// `<w:rPr></w:rPr>` wrapper. Mirrors upstream Okapi
-			// BlockTextUnitWriter.flush(Run.Markup) at lines 238-251 —
-			// the source rPr open/close events flow verbatim through
-			// the field's outer Run body chunks. The keep-empty marker
-			// guards the wrapper against the writer's
-			// stripWMLSkippableElements / wmlEmptyPropertiesContainerRE
-			// post-pass; postWML strips the marker before emit. Per
-			// ECMA-376-1 §17.3.2.1 (CT_R) an empty `<w:rPr>` is
-			// rendering-neutral but byte-distinguishable from an
-			// absent `<w:rPr>`. Fixture 1102.docx P4 runs:
-			// `<w:r><w:rPr><w:lang/></w:rPr><w:t>...</w:t></w:r>`
-			// source → `<w:r><w:rPr/><w:t>...</w:t></w:r>` after the
-			// lang strip. Excluded: runs whose source had NO rPr
-			// (e.g. 1172.docx P2's bare `<w:r><w:t>...</w:t></w:r>`)
-			// must emit without an rPr wrapper.
+			// When the text run sits inside a cross-paragraph extractable
+			// field's display region AND the source `<w:r>` declared an
+			// `<w:rPr>` child (even if RunSkippableElements stripped all its
+			// children), preserve an empty `<w:rPr></w:rPr>` wrapper. Mirrors
+			// upstream Okapi BlockTextUnitWriter.flush(Run.Markup) at lines
+			// 238-251, where the source rPr open/close events flow verbatim
+			// through the field's outer Run body chunks. The keep-empty marker
+			// guards the wrapper against the stripWMLSkippableElements /
+			// wmlEmptyPropertiesContainerRE post-pass; postWML strips the marker
+			// before emit. Per ECMA-376-1 §17.3.2.1 (CT_R) an empty `<w:rPr>` is
+			// rendering-neutral but byte-distinguishable from an absent one.
 			if idx >= 0 && idx < len(perRunInFieldDisplay) && perRunInFieldDisplay[idx] &&
 				idx < len(perRunSourceHadRPr) && perRunSourceHadRPr[idx] {
+				// Fixture 1102.docx P4 runs: source
+				// `<w:r><w:rPr><w:lang/></w:rPr><w:t>...</w:t></w:r>` →
+				// `<w:r><w:rPr/><w:t>...</w:t></w:r>` after the lang strip.
+				// Runs whose source had NO rPr (e.g. 1172.docx P2's bare
+				// `<w:r><w:t>...</w:t></w:r>`) must emit without an rPr
+				// wrapper.
 				buf.WriteString(`<w:rPr>`)
 				buf.WriteString(fieldRPrKeepEmptyMarker)
 				buf.WriteString(`</w:rPr>`)
@@ -2689,7 +2634,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// emitNonTextRPr is used by Ph runs (br/tab/footnoteRef) that
 	// emit their own <w:r> wrapper. They reuse the paragraph-common
 	// sourceRPr (NOT a per-text-run slot) because they are not
-	// text-bearing and don't consume a sidecar slot — the sidecar
+	// text-bearing and don't consume a sidecar slot; the sidecar
 	// is aligned to text runs only (perRunRPrFragments skips lone
 	// "\n" line breaks and sentinel runs by construction; see
 	// source_rpr.go).
@@ -2713,21 +2658,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// chars into that open `<w:t>` (instead of spawning a fresh
 			// `<w:r>`), no later increment of textRunIdx happens, so
 			// subsequent per-run-rPr comparisons would lag by one slot.
-			// The flag drives a textRunIdx bump AFTER the rPr check —
-			// the check still wants to compare the previously-emitted
-			// run's rPr against the candidate's rPr, so we mustn't bump
-			// before it.
-			//
+			// The flag drives a textRunIdx bump AFTER the rPr check, which
+			// still compares the previously-emitted run's rPr against the
+			// candidate's rPr, so we mustn't bump before it.
+
 			// Fixture TestLTinsideBoxFails.docx footer1.xml is the
 			// canonical case: source paragraph has tabbed run "Last
 			// Updated: …" followed by a trailing space run carrying only
 			// `<w:rPr><w:lang/></w:rPr>` (whose lang gets parse-time
-			// stripped, leaving rPrChildren empty). The lagging index
-			// caused the writer to compare the space run's slot against
-			// "Last Updated"'s slot — both `<w:sz/>` — so it fused.
-			// Upstream Okapi RunMerger.canRunPropertiesBeMerged
-			// (RunMerger.java:156-229) correctly sees the space run's
-			// rPr as empty and refuses the merge.
+			// stripped, leaving rPrChildren empty). A lagging index makes
+			// the writer compare the space run's slot against "Last
+			// Updated"'s slot (both `<w:sz/>`), so it fuses. Upstream Okapi
+			// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229)
+			// correctly sees the space run's rPr as empty and refuses the
+			// merge.
 			willJoinViaPendingTReopen := inRun && pendingTReopen
 			// When the next text run's effectiveRPr differs from the
 			// currently-open <w:r>'s rPr, close the current run and open
@@ -2736,41 +2680,36 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229)
 			// per ECMA-376-1 §17.3.2.1: each distinct rPr boundary is a
 			// distinct <w:r>.
-			//
-			// Additionally: when BOTH this run and the next come from
-			// an extractable complex field's display text region, the
-			// per-source-<w:r> boundary must round-trip even when the
-			// rPr matches. Upstream Okapi parseComplexField captures
-			// each source <w:r> as its own RunText body chunk with
-			// the surrounding </w:r><w:r> events preserved in adjacent
-			// Markup chunks (RunParser.java:537 + 815) — the chunks do
-			// NOT pass through RunMerger.canMergeWith so neighbours
-			// stay as separate <w:r> envelopes. Fixtures
+
+			// When BOTH this run and the next come from an extractable
+			// complex field's display text region, the per-source-<w:r>
+			// boundary must round-trip even when the rPr matches. Upstream
+			// Okapi parseComplexField captures each source <w:r> as its own
+			// RunText body chunk with the surrounding </w:r><w:r> events
+			// preserved in adjacent Markup chunks (RunParser.java:537 + 815).
+			// Those chunks do NOT pass through RunMerger.canMergeWith, so
+			// neighbours stay as separate <w:r> envelopes. Fixtures
 			// 1083-empty-and-hyperlink-instructions.docx (and the two
-			// hyperlink-and-* siblings) carry " "+"with" pairs that
-			// must emerge as two `<w:r>` elements. Per ECMA-376-1
-			// §17.16.5 (Complex Fields) the field's display text
-			// retains the source's run grouping.
+			// hyperlink-and-* siblings) carry " "+"with" pairs that must
+			// emerge as two `<w:r>` elements. Per ECMA-376-1 §17.16.5
+			// (Complex Fields) the field's display text retains the
+			// source's run grouping.
 			if inRun {
 				nextRPr := effectiveRPr(textRunIdx + 1)
 				curRPr := effectiveRPr(textRunIdx)
 				// Force-close on a fresh source <w:r> boundary when the
-				// per-run rPr sidecar has been nilled by the alignment
-				// guard (writer.go:3206 — count mismatch from mergeRuns
-				// reducing the text-run population). In that fallback
-				// state effectiveRPr returns sourceRPr (the paragraph-
-				// wide common subset) for ALL runs, so two source <w:r>
-				// envelopes that mergeRuns REFUSED to fuse (genuinely
-				// different rPr per RunMerger.canRunPropertiesBeMerged,
-				// RunMerger.java:156-229) would silently fuse here and
-				// lose the rPr distinction on the wire. With the sidecar
-				// alive we already split on perRunRPr inequality via the
-				// nextRPr != curRPr check above; this clause covers the
-				// nilled-sidecar fallback. Fixture: delTextAmp.docx
-				// footer1 — single-char `<w:t>t</w:t>` with `<w:spacing
-				// w:val="-2"/>` would otherwise fuse with the next bare-
-				// rPr text run, losing character-kerning per ECMA-376-1
-				// §17.3.2.35.
+				// alignment guard nilled the per-run rPr sidecar (count
+				// mismatch from mergeRuns reducing the text-run population).
+				// effectiveRPr then returns sourceRPr (the paragraph-wide
+				// common subset) for ALL runs. Two source <w:r> envelopes
+				// that mergeRuns REFUSED to fuse (genuinely different rPr per
+				// RunMerger.canRunPropertiesBeMerged, RunMerger.java:156-229)
+				// would then silently fuse here and lose the rPr distinction. With
+				// the sidecar alive, the nextRPr != curRPr check above splits.
+				// Fixture: delTextAmp.docx footer1, where single-char
+				// `<w:t>t</w:t>` with `<w:spacing w:val="-2"/>` would fuse
+				// with the next bare-rPr text run and lose character kerning
+				// (ECMA-376-1 §17.3.2.35).
 				if nextRPr != curRPr ||
 					(textInFieldDisplay(textRunIdx) && textInFieldDisplay(textRunIdx+1) && textSrcStart(textRunIdx+1)) ||
 					(perRunRPr == nil && textSrcStart(textRunIdx+1)) {
@@ -2809,35 +2748,28 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// emitNonTextRPr (sourceRPr + runProps). Mirrors
 				// upstream Okapi RunMerger.canMergeWith
 				// (RunMerger.java:126-154 → canRunPropertiesBeMerged
-				// at lines 156-229) which fuses adjacent same-rPr
+				// at lines 156-229), which fuses adjacent same-rPr
 				// source runs into one <w:r> regardless of source-run
-				// boundary; the fused runBody carries both the br/tab
-				// Markup chunk and the following RunText chunk side by
-				// side (canRunBodyChunksBeMerged at lines 438-441 keeps
-				// distinct chunk types adjacent inside one <w:r>). Per
-				// ECMA-376-1 §17.3.2.1 (CT_R) a single <w:r> may carry
-				// both `<w:br/>` and `<w:t>` children with one shared
-				// rPr.
-				//
-				// Previously the join also required
-				// !textSrcStart(textRunIdx+1) — an over-conservative
-				// guard added to preserve `<w:r><w:br/></w:r>` followed
-				// by `<w:r><w:br/><w:t>...</w:t></w:r>` (1421-line-
-				// break.docx). That case still works without the
-				// textSrcStart gate: source-run-3's br is itself
-				// SubTypeBreakStandalone (srcRunStart=true), so it
-				// arrives in step 3 closing the prior inRunNoText and
-				// opening its own; only at step 4 does the text join
-				// — and step 4's text has srcRunStart=false (it's the
-				// SECOND child of source-run-3) so the gate would have
-				// allowed the join anyway. The gate was active for
-				// fixtures where a standalone-br source-run is followed
-				// by a separate text source-run with matching rPr (e.g.
+				// boundary. The fused runBody carries the br/tab Markup
+				// chunk and the following RunText chunk side by side
+				// (canRunBodyChunksBeMerged at lines 438-441). Per
+				// ECMA-376-1 §17.3.2.1 (CT_R) one <w:r> may carry both
+				// `<w:br/>` and `<w:t>` children with one shared rPr.
+
+				// The join has no !textSrcStart(textRunIdx+1) gate.
+				// 1421-line-break.docx (`<w:r><w:br/></w:r>` followed by
+				// `<w:r><w:br/><w:t>...</w:t></w:r>`) works without it:
+				// source-run-3's br is itself SubTypeBreakStandalone
+				// (srcRunStart=true), so it arrives in step 3, closing
+				// the prior inRunNoText and opening its own. The text
+				// joins at step 4, whose text has srcRunStart=false (the
+				// SECOND child of source-run-3). The gate would block
+				// fixtures where a standalone-br source-run precedes a
+				// separate text source-run with matching rPr (e.g.
 				// OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest
-				// CharacterStyle.docx, special-chars-and-linebreaks.
-				// docx) — bridge fuses these per RunMerger's rPr-only
-				// gate, so dropping the textSrcStart guard restores
-				// parity without regressing the 1421 case.
+				// CharacterStyle.docx, special-chars-and-linebreaks.docx),
+				// which bridge fuses per RunMerger's rPr-only gate.
+
 				// Compare against the actual rPr the open `<w:r>`
 				// carries. When the open run was emitted by the Tab
 				// Ph inherit-from-next-text fuse path, the rPr is
@@ -2846,8 +2778,8 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// emitNonTextRPr (then inRunNoTextRPr is "" and we
 				// fall back to sourceRPr). Without this check an
 				// inherited-rPr open run never fuses with the
-				// following text — AlternateContentTest.docx footer1
-				// tab-after-hyperlink case.
+				// following text (AlternateContentTest.docx footer1
+				// tab-after-hyperlink case).
 				openRPr := inRunNoTextRPr
 				if openRPr == "" {
 					openRPr = sourceRPr
@@ -2897,7 +2829,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					inRun = true
 				}
 				// Any character data clears the speculative-<w:t>
-				// flag — the <w:t> now has content so closeRun must
+				// flag: the <w:t> now has content, so closeRun must
 				// emit its closing tag normally.
 				pendingTReopen = false
 				xmlEscapeRune(&buf, ch)
@@ -2915,18 +2847,18 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// RunContainer (RunContainer.java lines 29-43,
 				// 97-176, 187-191) hyperlink, smartTag, and sdt are
 				// transparent run-containers preserved as a single
-				// pair of codes around their inner runs; ECMA-376-1
+				// pair of codes around their inner runs. ECMA-376-1
 				// §17.13.5.16 (CT_RunTrackChange) gives the same
 				// shape to <w:ins>/<w:moveTo> in strict OOXML where
 				// upstream's RevisionInline skippable QName does not
 				// match (transitional binding only;
 				// SkippableElement.java:209-212). ECMA-376-1 §17.5.2
-				// (Structured Document Tags) for <w:sdt>.
+				// (Structured Document Tags) covers <w:sdt>.
 				closeRun()
 				buf.WriteString(r.PcOpen.Data)
 			} else {
 				// A toggle change closes the current <w:r> so the
-				// next text emits with the updated rPr — mirrors
+				// next text emits with the updated rPr. This mirrors
 				// upstream Okapi RunMerger.canRunPropertiesBeMerged
 				// (RunMerger.java lines 156-229), which prevents
 				// merging across rPr boundaries. PcOpen.Data carries
@@ -2950,18 +2882,18 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		case r.Ph != nil:
 			// Inline <w:tab/> / <w:br/> into the open <w:r> when its rPr
 			// matches what a free-standing tab/break would use (sourceRPr +
-			// runProps). Mirrors upstream Okapi RunBuilder.java:73-188
+			// runProps). Mirrors upstream Okapi RunBuilder.java:73-188,
 			// which keeps tab/break as Markup chunks inside the surrounding
-			// run rather than spawning a new <w:r>. Per ECMA-376-1
-			// §17.3.3.31 (<w:tab/>) and §17.3.3.1 (<w:br/>), both are run
-			// children that share the enclosing <w:r>'s rPr context.
-			//
+			// run. Per ECMA-376-1 §17.3.3.31 (<w:tab/>) and §17.3.3.1
+			// (<w:br/>), both are run children sharing the enclosing <w:r>'s
+			// rPr context.
+
 			// The SubTypeBreakStandalone / SubTypeTabStandalone subtypes
 			// tag Ph chunks that began a fresh source <w:r> (the reader
 			// sets textRun.srcRunStart on the first emission of each
 			// <w:r> and buildBlock propagates it through the SubType).
 			// Those MUST close the current run before emitting so the
-			// source-run envelope round-trips intact — RunMerger does
+			// source-run envelope round-trips intact: RunMerger does
 			// not collapse break-bearing runs across <w:r> boundaries
 			// (RunMerger.java:156-229). 1421-line-break.docx is the
 			// canonical fixture.
@@ -2970,28 +2902,23 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			if canInline && inRun {
 				// Compare the open <w:r>'s emitted rPr to what a
 				// standalone tab/br <w:r> would emit. Both derive from
-				// the SAME source <w:r> (the tab/br was authored
-				// alongside the surrounding text in one <w:r>), so the
-				// source rPr is identical — but the writer applies
-				// bCs/iCs stripping to the text-run's rPr based on the
-				// text's complex-script content
-				// (adjustRPrForRunText / RunParser.java:219-229). For
-				// the tab/br to inline correctly we need the post-strip
-				// view of BOTH sides to match. A direct compare of the
-				// raw fragments fails when one side carries bCs/iCs and
-				// the other had them stripped. Per ECMA-376-1
-				// §17.3.2.16/.17 (bCs/iCs) the complex-script toggle
+				// the SAME source <w:r>, so the source rPr is identical,
+				// but the writer strips bCs/iCs from the text-run's rPr
+				// based on the text's complex-script content
+				// (adjustRPrForRunText / RunParser.java:219-229). Inlining
+				// needs the post-strip view of BOTH sides to match; a raw
+				// compare fails when only one side lost bCs/iCs. Per
+				// ECMA-376-1 §17.3.2.16/.17 the complex-script toggle
 				// mirrors are no-ops on non-complex-script text, so
-				// applying the strip to sourceRPr here is semantically
-				// equivalent to the strip the writer applies on the
-				// text run's <w:r>. Mirrors upstream Okapi RunMerger
-				// (RunMerger.java:156-229 + RunBuilder.java:73-188):
-				// the source authored the tab/br alongside the text in
-				// ONE <w:r>; RunMerger's canRunPropertiesBeMerged gate
-				// operates on already-script-resolved RunProperties so
-				// the merge is preserved. Fixture 992 footer1.xml is
-				// the canonical case: a Calibri-bold run authored as
-				// <w:r><w:rPr>{Calibri, b, bCs, …}</w:rPr>
+				// stripping sourceRPr here is semantically equivalent.
+
+				// Mirrors upstream Okapi RunMerger (RunMerger.java:156-229
+				// + RunBuilder.java:73-188): the source authored the tab/br
+				// alongside the text in ONE <w:r>, and RunMerger's
+				// canRunPropertiesBeMerged operates on already-script-resolved
+				// RunProperties, so the merge is preserved. Fixture 992
+				// footer1.xml is the canonical case: a Calibri-bold run
+				// authored as <w:r><w:rPr>{Calibri, b, bCs, …}</w:rPr>
 				//   <w:t>Be Shaping ...</w:t><w:tab/></w:r>
 				// where the text is Latin-script (bCs strips off the
 				// text-run's <w:r> rPr); the tab would otherwise emit a
@@ -3014,7 +2941,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// Ph.Data when the tab/br carried per-run rPr. Mirrors
 				// upstream Okapi RunMerger.canRunPropertiesBeMerged
 				// (RunMerger.java:156-229) which fuses adjacent same-rPr
-				// source `<w:r>` envelopes — tab-bearing or text-bearing —
+				// source `<w:r>` envelopes (tab-bearing or text-bearing)
 				// into one RunBuilder. AlternateContentTest.docx footer1
 				// is the canonical fixture (FontStyle18-only after WSO,
 				// per-run sidecar on the text vs empty paragraph-common).
@@ -3029,12 +2956,12 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					// <w:t> via pendingTReopen and no character data has
 					// landed inside it (the buffer still ends with the
 					// open `<w:t xml:space="preserve">`), strip the open
-					// `<w:t>` instead of closing it — otherwise we emit a
+					// `<w:t>` instead of closing it. Closing it would emit a
 					// stray empty `<w:t></w:t>` between adjacent tab/br
 					// pairs (tabstyles.docx: `<w:r><w:t>has</w:t>
 					// <w:tab/><w:tab/><w:t>tabs</w:t></w:r>` round-trips
 					// with `<w:t/>` between the two tabs). Mirrors
-					// upstream Okapi RunBuilder.java:73-188 — adjacent
+					// upstream Okapi RunBuilder.java:73-188: adjacent
 					// tab/br Markup chunks live next to each other
 					// inside the surrounding `<w:r>` with no synthetic
 					// `<w:t/>` separator.
@@ -3075,16 +3002,17 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// `<w:fldChar/>` children. Mirrors upstream Okapi
 			// RunMerger (RunMerger.add + canRunPropertiesBeMerged,
 			// RunMerger.java:83-95 + 156-229): the source's plain
-			// text run preceding the field-begin run is fused into
-			// the field-begin's <w:r> when their RunProperties match
-			// AND containsComplexFields is false on both sides — the
-			// latter is true for the begin run of an EXTRACTABLE field
-			// only (see isExtractableFldCharBeginRun for the
-			// determination). Per ECMA-376-1 §17.3.2.1 (CT_R) a single
-			// `<w:r>` may carry both `<w:t>` and `<w:fldChar>` children;
-			// §17.16.5 (Complex Fields) classifies fldChar as a run
-			// child. Fixtures: 1083-empty-and-hyperlink-instructions.
-			// docx, 1083-hyperlink-and-date-instructions.docx,
+			// text run preceding the field-begin run fuses into the
+			// field-begin's <w:r> when their RunProperties match AND
+			// containsComplexFields is false on both sides. The latter
+			// holds for the begin run of an EXTRACTABLE field only
+			// (see isExtractableFldCharBeginRun).
+
+			// Per ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>` may carry
+			// both `<w:t>` and `<w:fldChar>` children; §17.16.5 (Complex
+			// Fields) classifies fldChar as a run child. Fixtures:
+			// 1083-empty-and-hyperlink-instructions.docx,
+			// 1083-hyperlink-and-date-instructions.docx,
 			// 1083-hyperlink-and-empty-instructions.docx.
 			if r.Ph.Type == TypeField && inRun && !pendingTReopen {
 				if info := detectFldCharBeginForMerge(r.Ph.Data); info.ok {
@@ -3111,20 +3039,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// inside one envelope. Per ECMA-376-1 §17.3.2.1 (CT_R) a
 			// single <w:r> may carry both <w:t> and <w:drawing> /
 			// <w:pict> / <w:object> children with one shared rPr.
-			//
+
 			// The narrow case implemented here covers the
-			// no-rPr-on-either-side scenario: the drawing's Ph.Data
+			// no-rPr-on-either-side scenario. The drawing's Ph.Data
 			// does not start with `<w:rPr>` (the reader's image path
-			// only prepends rPr when the source run had its own rPr —
-			// see wml.go::buildBlock TypeImage emit), and the open
-			// <w:r> carries no per-text-run rPr (effectiveRPr is empty)
+			// only prepends rPr when the source run had its own rPr;
+			// see wml.go::buildBlock TypeImage emit). The open <w:r>
+			// carries no per-text-run rPr (effectiveRPr is empty)
 			// AND no active toggles (runProps empty). Under those
 			// conditions both sides have rPr-empty, so the merge is
 			// rPr-equivalent.
 			//
 			// Fixture gettysburg_en.docx P3 source authors
 			// `<w:r><w:rPr/><w:t>N</w:t><w:drawing>...</w:drawing></w:r>
-			// <w:r><w:rPr/><w:t>ow we are...</w:t></w:r>` — bridge fuses
+			// <w:r><w:rPr/><w:t>ow we are...</w:t></w:r>`. Bridge fuses
 			// across the source-run boundary into one <w:r> with text +
 			// drawing + text. Without this fusion native splits into
 			// three separate <w:r>s.
@@ -3157,16 +3085,17 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// `<w:r><w:br/></w:r><w:r><w:noBreakHyphen/></w:r>` source
 			// emerges as `<w:r><w:br/><w:noBreakHyphen/></w:r>` because
 			// the noBreakHyphen Markup chunk attaches to the still-open
-			// run from the br. Per ECMA-376-1 §17.3.2.1 (CT_R) a single
-			// <w:r> may carry both <w:br/> and <w:noBreakHyphen/>
-			// children with one shared rPr. Fixture
-			// special-chars-and-linebreaks.docx authors br + noBreakHyphen
-			// and br + softHyphen pairs that round-trip as one <w:r>
-			// each in the bridge reference output.
+			// run from the br.
+
+			// Per ECMA-376-1 §17.3.2.1 (CT_R) a single <w:r> may carry
+			// both <w:br/> and <w:noBreakHyphen/> children with one shared
+			// rPr. Fixture special-chars-and-linebreaks.docx authors br +
+			// noBreakHyphen and br + softHyphen pairs that round-trip as
+			// one <w:r> each in the bridge reference output.
 			//
 			// Br/tab Ph chunks are NOT fused here. Bridge's
 			// writeLineBreakAt always closes and reopens the run around
-			// each break (BlockTextUnitWriter.java:365-366) — adjacent
+			// each break (BlockTextUnitWriter.java:365-366), so adjacent
 			// brs end up in separate <w:r> envelopes even when their
 			// source runs share rPr. Fixtures 1421-line-break.docx and
 			// br.docx both show `<w:r><w:br/></w:r><w:r><w:br/></w:r>`
@@ -3186,7 +3115,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// straight through into the open run. Per ECMA-376-1
 			// §17.3.2.1 (CT_R) a single `<w:r>` may carry multiple
 			// `<w:tab/>` children sharing one rPr.
-			//
+
 			// Pre-condition: inRunNoText is set ONLY by previous
 			// tab/br emissions that left the run open expecting more
 			// content in the same source <w:r>. Since both the open
@@ -3194,9 +3123,9 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// + active toggles (Ph chunks don't consume per-run
 			// sidecar slots), the rPr context is identical. Mirrors
 			// RunMerger.canRunPropertiesBeMerged (RunMerger.java:
-			// 156-229) — same rPr → adjacent runs fuse on the way to
+			// 156-229): same rPr → adjacent runs fuse on the way to
 			// the writer.
-			//
+
 			// Fixture apissue.docx header2.xml authors three adjacent
 			// source <w:r>s: `<w:r>…<w:tab/></w:r><w:r>…<w:tab/></w:r>
 			// <w:r>…<w:t>F150 USB…</w:t></w:r>`, all carrying the
@@ -3217,20 +3146,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// 126-154 → canRunPropertiesBeMerged at 156-229): two
 			// source `<w:r>` envelopes each carrying a single
 			// `<w:br/>` Markup chunk with byte-equal RunProperties
-			// merge into one RunBuilder whose body chunks list
+			// merge into one RunBuilder. Its body chunks list
 			// retains both br Markup chunks side by side
 			// (canRunBodyChunksBeMerged at lines 438-441 keeps
-			// distinct chunk types — and like-typed Markup chunks —
+			// distinct chunk types, and like-typed Markup chunks,
 			// adjacent inside one run). Per ECMA-376-1 §17.3.2.1
 			// (CT_R) a single `<w:r>` may carry multiple `<w:br/>`
 			// children under one shared rPr; §17.3.3.1 (CT_Br)
 			// classifies `<w:br/>` as a run child.
-			//
+
 			// Pre-condition: the prior br emission set inRunNoText
 			// (SubTypeBreakStandalone branch at the same TypeBreak
 			// case below). Since Ph runs don't consume per-text-run
 			// sidecar slots, both br Markup chunks inherit the
-			// paragraph-wide source rPr + active toggles — the
+			// paragraph-wide source rPr + active toggles, so the
 			// equality of effective rPr is implicit. Native's
 			// per-run sidecar already pruned divergent-rPr neighbours
 			// into distinct br Phs at the parser level via the
@@ -3238,11 +3167,11 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// guard in buildBlock (wml.go ~line 4630), so by the
 			// time two TypeBreak Phs land adjacent here their
 			// source rPr already matched.
-			//
+
 			// Fixture br.docx: source authors
 			// `<w:r><w:rPr>{rFonts,color,szCs,lang}</w:rPr><w:br/>
-			// </w:r><w:r><w:rPr>{same}</w:rPr><w:br/></w:r>` —
-			// bridge fuses to `<w:r><w:br/><w:br/></w:r>` (rPr
+			// </w:r><w:r><w:rPr>{same}</w:rPr><w:br/></w:r>`.
+			// Bridge fuses to `<w:r><w:br/><w:br/></w:r>` (rPr
 			// stripped to empty by StyleOptimisation since none
 			// of the children survive WSO's no-content drop on a
 			// br-only run). br2.docx and EndGroup.docx exhibit the
@@ -3251,17 +3180,17 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// Refuse to fuse when the about-to-fuse br itself
 				// began a source `<w:r>` that ALSO carries trailing
 				// content in the SAME envelope (text or another br
-				// followed by text). In that case the new br's source
-				// `<w:r>` must round-trip intact — fusing into the
-				// prior `<w:r>` would split the br away from the
-				// text/markup it shared a source envelope with, and
-				// upstream Okapi RunMerger / BlockTextUnitWriter
-				// preserves the source's `<w:br/>+<w:t>` boundary.
-				//
+				// followed by text). That source `<w:r>` must round-trip
+				// intact: fusing into the prior `<w:r>` would split the
+				// br away from the text/markup it shared a source
+				// envelope with, and upstream Okapi RunMerger /
+				// BlockTextUnitWriter preserves the source's
+				// `<w:br/>+<w:t>` boundary.
+
 				// 1421-line-break.docx is the canonical fixture: source
 				// authors `<w:r><w:rPr>{lang}</w:rPr><w:br/></w:r>
 				// <w:r><w:rPr>{lang}</w:rPr><w:br/><w:t>...</w:t></w:r>`.
-				// Bridge keeps the two source envelopes — the first
+				// Bridge keeps the two source envelopes: the first
 				// br emerges as `<w:r><w:br/></w:r>`, the second as
 				// `<w:r><w:br/><w:t>...</w:t></w:r>`. The lookahead
 				// here detects "next model run is a Text whose sidecar
@@ -3270,13 +3199,13 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// of the fuse so the next-iteration TypeBreak handler
 				// closes the prior inRunNoText and opens a fresh `<w:r>`
 				// for the br + trailing text.
-				//
+
 				// Similarly, when the immediate successor is another
 				// TypeBreak Ph but THAT br's source `<w:r>` carries
 				// trailing text (lookahead: runs[runIdx+2].Text with
 				// !textSrcStart), the same source-envelope-preservation
 				// rule applies. Otherwise (next br is also "lone" or
-				// is followed by a srcRunStart text — i.e., a fresh
+				// is followed by a srcRunStart text, i.e. a fresh
 				// source `<w:r>`) the fuse is correct. Fixture
 				// special-chars-and-linebreaks.docx exercises the
 				// adjacent same-rPr `<w:r><w:br/></w:r>` pairs where
@@ -3286,7 +3215,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					runs[runIdx+1].Text != nil &&
 					!textSrcStart(textRunIdx+1) {
 					// Next model run is a Text continuing THIS br's
-					// source <w:r>. Don't fuse — let the TypeBreak
+					// source <w:r>. Don't fuse; let the TypeBreak
 					// branch below close prior inRunNoText and open
 					// a fresh <w:r> for the br + trailing text.
 				} else if runIdx+1 < len(runs) &&
@@ -3308,7 +3237,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					// reuses the prior open `<w:r>`'s rPr context,
 					// so dropping the duplicate rPr is correct. If
 					// the rPrs disagreed the lookahead guards above
-					// would have refused the fuse — but we don't
+					// would have refused the fuse, but we don't
 					// repeat the rPr comparison here because
 					// inRunNoText was set by the prior br emission
 					// which already gated on its own rPr.
@@ -3333,7 +3262,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// §17.3.2.1 (CT_R) and §17.3.3.31 (`<w:tab/>`) a single
 			// `<w:r>` may carry both `<w:t>` and `<w:tab/>` children
 			// under one shared rPr.
-			//
+
 			// Pre-conditions:
 			//   - inRun: the preceding text opened a `<w:r>` that's
 			//     still emitting `<w:t>` content (pendingTReopen
@@ -3348,22 +3277,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// open `<w:t xml:space="preserve">` as the new text body
 			// (pendingTReopen=true) so the next text continues
 			// inside the same `<w:r>`.
-			//
+
 			// The tab's own source-rPr is dropped (sidecars are
 			// aligned to text runs only, so we don't have its
-			// per-run slot). For the fuse to be semantically
-			// correct the surrounding texts must share rPr — when
-			// they do, the dropped tab rPr is equivalent to what
-			// the surrounding runs carry, so the fusion is
-			// content-preserving. Fixture AlternateContentTest.docx
-			// footer1: the source has 8+ source `<w:r>` envelopes
-			// all carrying `<w:rStyle val="FontStyle18"/><w:lang
-			// val="cs-CZ"/>` rPr, including tab-bearing runs and
-			// text-bearing runs alike. Upstream RunMerger fuses
-			// them into one `<w:r>` with multiple `<w:t>` and
-			// `<w:tab/>` body chunks under the shared rPr;
-			// pre-fix native opened a fresh empty-rPr `<w:r>` per
-			// tab.
+			// per-run slot). The surrounding texts must share rPr
+			// for the fuse to be correct, and then the dropped tab
+			// rPr equals what they carry, so the fusion preserves
+			// content. Fixture AlternateContentTest.docx footer1:
+			// 8+ source `<w:r>` envelopes, tab-bearing and
+			// text-bearing alike, all carry `<w:rStyle
+			// val="FontStyle18"/><w:lang val="cs-CZ"/>` rPr.
+			// Upstream RunMerger fuses them into one `<w:r>` with
+			// multiple `<w:t>` and `<w:tab/>` body chunks under the
+			// shared rPr; without this fuse native would open a
+			// fresh empty-rPr `<w:r>` per tab.
 			if r.Ph.Type == TypeTab && inRun &&
 				runIdx+1 < len(runs) && runs[runIdx+1].Text != nil &&
 				effectiveRPr(textRunIdx) == effectiveRPr(textRunIdx+1) {
@@ -3394,17 +3321,18 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// the native renderer we wrap it in its own <w:r>
 				// for symmetry with the existing pipeline; the
 				// surrounding text runs carry their own rPr.
-				//
+
 				// When the Ph is SubTypeBreakStandalone (began a
 				// fresh source <w:r>), leave the <w:r> OPEN
 				// (inRunNoText=true) so a following text run that
 				// originated in the same source <w:r> can join it
 				// by opening <w:t> inside this <w:r>. Otherwise
 				// close immediately. Mirrors upstream Okapi
-				// RunBuilder (RunBuilder.java:73-188) which keeps
+				// RunBuilder (RunBuilder.java:73-188), which keeps
 				// each source <w:r>'s br + text together in one
 				// envelope. 1421-line-break.docx is the canonical
 				// fixture (run 3: `<w:r><w:br/><w:t>…</w:t></w:r>`).
+
 				// Prefer Ph.Data (captured `<w:br ...>/>` with attrs)
 				// over the literal `<w:br/>` so w:type="page" /
 				// w:type="column" / w:clear survive. Per ECMA-376-1
@@ -3416,18 +3344,19 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				}
 				// When the Ph data starts with <w:rPr> the reader
 				// embedded the source <w:r>'s rPr alongside the br
-				// (wml.go ~line 4683) — emit the rPr inside this
+				// (wml.go ~line 4683). Emit that rPr inside this
 				// run's envelope instead of the paragraph-wide
 				// sourceRPr + active toggles. Mirrors the existing
-				// TypeImage / TypeFootnoteRef embedded-rPr pattern
-				// (writer.go ~line 3060). Per ECMA-376-1 §17.3.2.1
-				// (CT_R) <w:rPr> precedes the run's other children.
-				// EndGroup.docx is the canonical fixture: a
+				// TypeImage / TypeFootnoteRef embedded-rPr pattern.
+				// Per ECMA-376-1 §17.3.2.1 (CT_R) <w:rPr> precedes
+				// the run's other children. EndGroup.docx is the
+				// canonical fixture: a
 				// `<w:r><w:rPr>{szCs val=21}</w:rPr><w:br/></w:r>`
 				// must round-trip with its szCs intact even when
 				// the surrounding text runs have different rPr (so
 				// the common-rPr is empty and would otherwise drop
 				// the szCs sidecar).
+
 				// Cross-paragraph field straddle: prepend an empty
 				// `<w:r></w:r>` envelope before every standalone-br Ph.
 				// Mirrors upstream Okapi BlockTextUnitWriter.flush(
@@ -3438,12 +3367,12 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// flushRunStart re-opens a fresh `<w:r>` for the
 				// br's events. The closed-immediately envelope
 				// becomes an empty `<w:r></w:r>` in the wire output.
-				//
+
 				// Native preserves the source's per-`<w:r>` boundaries
 				// per textRun, so the equivalent artifact must be
 				// synthesised explicitly here. Only SubTypeBreakStandalone
-				// (a br that began a fresh source `<w:r>`) qualifies —
-				// the in-run br shape (`<w:br/>` followed by `<w:t>`
+				// (a br that began a fresh source `<w:r>`) qualifies.
+				// The in-run br shape (`<w:br/>` followed by `<w:t>`
 				// inside the same source `<w:r>`) already lives in a
 				// single envelope via the inRunNoText fuse path above.
 				//
@@ -3462,7 +3391,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// host run (a complex-image envelope), upstream Okapi's
 				// RunBuilder.flushRunStart/flushRunEnd cycle punctuates the
 				// image→br boundary with an empty placeholder run. Emit a
-				// SELF-CLOSING `<w:r/>` here — structurally — matching the
+				// SELF-CLOSING `<w:r/>` here, structurally, matching the
 				// self-closing form okapi emits for the placeholder
 				// (`</mc:AlternateContent></w:r><w:r/><w:r><w:br/>…`).
 				// graphicdata.docx (document.xml) is the canonical fixture.
@@ -3498,7 +3427,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// source <w:r> as this tab (textSrcStart=false), leave
 				// the new <w:r> open as inRunNoText so the text fuses
 				// inside this run via the inRunNoText branch above.
-				// Mirrors upstream Okapi RunBuilder.java:73-188 — a
+				// Mirrors upstream Okapi RunBuilder.java:73-188: a
 				// source <w:r> may carry both <w:tab/> and <w:t>
 				// children; per ECMA-376-1 §17.3.3.31 (<w:tab/>) +
 				// §17.3.2.1 (CT_R) the tab and following text share the
@@ -3506,12 +3435,13 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// Document-with-tabs-5.docx P2: source
 				// `<w:r><w:tab/><w:t>Text after tab.</w:t></w:r>` must
 				// round-trip as one <w:r>, not two.
+
 				// Lookahead extension: also keep the new <w:r> open
 				// when the next run is another TypeTab Ph that will
 				// itself fuse via the TypeTab + inRunNoText branch
 				// above. Mirrors upstream Okapi
-				// BlockTextUnitWriter.flush(Run.Markup) lines 238-251
-				// — adjacent <w:tab/> markup chunks live inside the
+				// BlockTextUnitWriter.flush(Run.Markup) lines 238-251,
+				// where adjacent <w:tab/> markup chunks live inside the
 				// same open <w:r> envelope. Fixture apissue.docx
 				// header2.xml authors `<w:r>…<w:tab/></w:r>
 				// <w:r>…<w:tab/></w:r><w:r>…<w:t>F150…</w:t></w:r>`
@@ -3527,27 +3457,27 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				}
 				// Mirrors upstream Okapi RunMerger.canMergeWith
 				// (RunMerger.java:126-154 → canRunPropertiesBeMerged at
-				// 156-229) which fuses adjacent source `<w:r>` envelopes
-				// when their RunProperties match — independent of the
+				// 156-229), which fuses adjacent source `<w:r>` envelopes
+				// when their RunProperties match, independent of the
 				// source-run boundary. The tab's Ph carries no per-text-
 				// run sidecar slot (sidecars cover text only), so its
 				// effective rPr is sourceRPr + active toggles
 				// (`runProps`); we compare that to the next text's
 				// effective rPr. When equal, keep the `<w:r>` open so
 				// the text fuses inside via the `inRunNoText` text
-				// branch above — emerging as
+				// branch above, emerging as
 				// `<w:r><w:rPr.../><w:tab/><w:t>...</w:t></w:r>`,
-				// matching upstream's RunMerger output. Per ECMA-376-1
-				// §17.3.2.1 (CT_R) and §17.3.3.31 (`<w:tab/>`) a single
-				// `<w:r>` may carry both `<w:tab/>` and `<w:t>` children
-				// under one shared `<w:rPr>`. Fixture
-				// AlternateContentTest.docx footer1: a paragraph whose
-				// text-tab-text-tab-text source runs all share the same
-				// `<w:rStyle val="FontStyle18"/><w:lang val="cs-CZ"/>`
-				// rPr — bridge fuses them into ONE `<w:r>` with multiple
-				// `<w:t>` and `<w:tab/>` body chunks; pre-fix native
-				// kept them split because the textSrcStart guard above
-				// blocked the join.
+				// matching upstream's RunMerger output.
+
+				// Per ECMA-376-1 §17.3.2.1 (CT_R) and §17.3.3.31 (`<w:tab/>`) a
+				// single `<w:r>` may carry both `<w:tab/>` and `<w:t>` children
+				// under one shared `<w:rPr>`. Fixture AlternateContentTest.docx
+				// footer1: a paragraph whose text-tab-text-tab-text source runs
+				// all share the same
+				// `<w:rStyle val="FontStyle18"/><w:lang val="cs-CZ"/>` rPr.
+				// Bridge fuses them into ONE `<w:r>` with multiple `<w:t>` and
+				// `<w:tab/>` body chunks; a textSrcStart guard here would keep
+				// them split by blocking the join.
 				// Lookahead: when the next text run's effective rPr
 				// matches what this tab WOULD carry on its own (sourceRPr
 				// + active toggles), fuse them into one <w:r>.
@@ -3564,27 +3494,28 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// sourceRPr+runProps, emit the tab inside an `<w:r>`
 				// carrying that shared rPr. The tab in the source
 				// carried the same per-run rPr override (a property of
-				// the surrounding style context — typically a shared
-				// `<w:rStyle>`); reconstructing it from the neighbours
+				// the surrounding style context, typically a shared
+				// `<w:rStyle>`). Reconstructing it from the neighbours
 				// matches upstream Okapi's RunMerger fusion behaviour
 				// (RunMerger.canMergeWith at RunMerger.java:126-154 +
 				// canRunPropertiesBeMerged at 156-229). Per ECMA-376-1
 				// §17.3.2.1 (CT_R) the tab `<w:r>`'s rPr is
 				// independent; a shared neighbour rPr is strong
-				// evidence the tab carried the same. Both-sides match
-				// guard avoids mis-fusing when the tab sits between
-				// runs with DIFFERENT rPr (e.g.
+				// evidence the tab carried the same.
+
+				// The both-sides match guard avoids mis-fusing when the
+				// tab sits between runs with DIFFERENT rPr (e.g.
 				// AlternateContentTest.docx: a tab between
 				// `<w:t>46 70 82 19</w:t>` (FontStyle18) and
-				// `<w:t>DIC</w:t>` (FontStyle25) — the surrounding
-				// runs differ so the tab keeps its sourceRPr-only
+				// `<w:t>DIC</w:t>` (FontStyle25); the surrounding
+				// runs differ, so the tab keeps its sourceRPr-only
 				// emit and the DIC text opens its own `<w:r>`).
-				//
+
 				// Fixture AlternateContentTest.docx footer1: a tab
 				// between a `<w:hyperlink>` close and a `<w:r>` with
 				// `<w:rStyle val="FontStyle18"/>` rPr. The previous
 				// (extracted) text was inside the hyperlink and ALSO
-				// carried `<w:rStyle val="FontStyle18"/>` — so
+				// carried `<w:rStyle val="FontStyle18"/>`, so
 				// textRunIdx and textRunIdx+1 share effectiveRPr.
 				// Inheriting matches upstream's fused
 				// `<w:r><w:rPr><w:rStyle val="FontStyle18"/></w:rPr>
@@ -3603,18 +3534,16 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				}
 				// When the initial keepOpen fired from !textSrcStart (tab
 				// and the following text share a source `<w:r>`) AND
-				// sourceRPr+runProps is empty, the tab would otherwise
-				// emit as a bare `<w:r><w:tab/>` whose `inRunNoTextRPr`
-				// is "" — and the following text's join check would fail
-				// (next rPr is non-empty, openRPr is empty). Inherit the
-				// next text's effective rPr so the tab carries the same
-				// `<w:rPr>` the source had and the join succeeds.
-				// Mirrors upstream Okapi RunBuilder.java:73-188 — the
-				// tab and following text live inside one source `<w:r>`
-				// whose rPr applies to both. Without this, fixture
-				// TestLTinsideBoxFails.docx footer1 splits the tab away
-				// from its accompanying `Last Updated…` text after a
-				// preceding `<w:fldSimple>` closes the prior run.
+				// sourceRPr+runProps is empty, the tab would emit as a
+				// bare `<w:r><w:tab/>` with an empty `inRunNoTextRPr`, and
+				// the following text's join check would fail (next rPr
+				// non-empty, openRPr empty). Inheriting the next text's
+				// effective rPr gives the tab the `<w:rPr>` the source had,
+				// so the join succeeds. Mirrors upstream Okapi
+				// RunBuilder.java:73-188: tab and text share one source
+				// `<w:r>` and its rPr. Otherwise TestLTinsideBoxFails.docx
+				// footer1 splits the tab from its `Last Updated…` text
+				// after a preceding `<w:fldSimple>` closes the prior run.
 				if keepOpen && inheritedNextRPr == "" &&
 					runIdx+1 < len(runs) && runs[runIdx+1].Text != nil &&
 					!textSrcStart(textRunIdx+1) {
@@ -3682,11 +3611,11 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					}
 				}
 			case TypeImage:
-				// Drawings/pict/object are opaque — never wrap with
+				// Drawings/pict/object are opaque: never wrap with
 				// our paragraph-synthesised rPr because the captured
 				// payload is the original <w:r>'s body verbatim (see
-				// the reader's textRun{text:"", data:raw}).
-				//
+				// the reader's textRun{text:"", data:raw}).
+
 				// When the source <w:r> wrapping the drawing carried
 				// its own <w:rPr>, the buildBlock image path
 				// (serializeFullRPrXML) prepends the serialised
@@ -3697,14 +3626,13 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// `<w:pict>` / `<w:object>`, so the embedded fragment
 				// is in document order; we just emit Ph.Data as-is
 				// inside the <w:r> wrapper. Mirrors upstream Okapi's
-				// RunBuilder which materialises the source
-				// RunProperties on every emitted run, drawing-bearing
-				// or not. 859.docx fixture: a strict-OOXML drawing
-				// run carrying
+				// RunBuilder, which materialises the source
+				// RunProperties on every emitted run. 859.docx fixture:
+				// a strict-OOXML drawing run carrying
 				// `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>
 				// <w:drawing>` round-trips with both rPr and drawing
 				// preserved.
-				//
+
 				// extractDrawingTranslations may have replaced
 				// translatable sites (drawing-name attributes,
 				// vml-textpath strings, txbx-content paragraph
@@ -3719,32 +3647,29 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// ECMA-376-1 §17.3.3.18, <w:softHyphen/> per §17.3.3.30,
 				// <w:cr/> per §17.3.3.4, schema-misplaced <w:bidi>
 				// per §17.3.1.6+§17.3.2.1). The Ph.Data field holds the
-				// literal element XML; wrap it in a <w:r> with the
+				// literal element XML. Wrap it in a <w:r> with the
 				// surrounding paragraph's source rPr context
 				// (sourceRPr + active toggles in runProps) so the markup
-				// inherits the right formatting envelope the same way
-				// upstream Okapi RunParser (RunParser.java:752-766)
-				// routes the element to runBuilder.addToMarkup, where
-				// it lives inside the containing RunBuilder's <w:r> on
-				// output.
-				//
-				// SubTypeCR + same-source-<w:r> lookahead: when the cr
-				// markup originates from a source `<w:r>` that ALSO
-				// carries a `<w:t>` sibling (e.g. MissingPara.docx
-				// para 1: `<w:r><w:rPr>...</w:rPr><w:cr/>
-				// <w:t>FRIENDLY</w:t></w:r>` — legal per
-				// ECMA-376-1 §17.3.2.1 CT_R), the reader emits two
-				// adjacent textRuns: [cr-rawmarkup with srcRunStart=
-				// true, text with srcRunStart=false]. The default
-				// emit-and-close path above splits the source envelope,
-				// producing `<w:r>...<w:cr/></w:r><w:r>...<w:t>...
-				// </w:t></w:r>`. Upstream Okapi RunBuilder
-				// (RunBuilder.java:73-188) keeps the cr Markup chunk
-				// and following RunText chunk inside one <w:r>; per
-				// ECMA-376-1 §17.3.3.4 (CT_Empty for <w:cr/>) the cr
-				// has no content of its own and inherits the
-				// containing <w:r>'s rPr context.
-				//
+				// inherits the right formatting envelope. Upstream Okapi
+				// RunParser (RunParser.java:752-766) likewise routes the
+				// element to runBuilder.addToMarkup, where it lives
+				// inside the containing RunBuilder's <w:r> on output.
+
+				// SubTypeCR + same-source-<w:r> lookahead: a cr whose
+				// source `<w:r>` ALSO carries a `<w:t>` sibling (e.g.
+				// MissingPara.docx para 1: `<w:r><w:rPr>...</w:rPr><w:cr/>
+				// <w:t>FRIENDLY</w:t></w:r>`, legal per ECMA-376-1
+				// §17.3.2.1 CT_R) arrives as two adjacent textRuns:
+				// [cr-rawmarkup with srcRunStart=true, text with
+				// srcRunStart=false]. The default emit-and-close path
+				// above would split the source envelope into
+				// `<w:r>...<w:cr/></w:r><w:r>...<w:t>...</w:t></w:r>`.
+				// Upstream Okapi RunBuilder (RunBuilder.java:73-188)
+				// keeps the cr Markup chunk and following RunText chunk
+				// inside one <w:r>; per ECMA-376-1 §17.3.3.4 (CT_Empty
+				// for <w:cr/>) the cr has no content of its own and
+				// inherits the containing <w:r>'s rPr context.
+
 				// SubTypeBidi is the schema-misplaced `<w:bidi>` that
 				// appears as a DIRECT child of `<w:r>` (between `<w:r>`
 				// start and `<w:rPr>`). Upstream Okapi RunParser
@@ -3765,7 +3690,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					if strings.HasPrefix(r.Ph.Data, `<w:rPr>`) {
 						// Embedded per-run rPr (reader sets this when
 						// commonRPrXML is empty so the cr's source
-						// `<w:rPr>` survives — wml.go ~line 4742).
+						// `<w:rPr>` survives; wml.go ~line 4742).
 						// Stash the embedded rPr text as inRunNoTextRPr
 						// so the join check at line ~2697 compares the
 						// next text's effectiveRPr against the SAME
@@ -3810,7 +3735,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// embedded the run-specific rPr (e.g.
 				// <w:rStyle w:val="FootnoteReference"/>) alongside the
 				// marker so the writer keeps the marker inside the same
-				// <w:r> as that rPr — mirrors upstream Okapi RunBuilder
+				// <w:r> as that rPr, mirroring upstream Okapi RunBuilder,
 				// which never splits the marker from its rPr. Per
 				// ECMA-376 Part 1 §17.3.2.1 (CT_R) <w:rPr> precedes the
 				// run's other children, so the embedded fragment is
@@ -3826,7 +3751,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				}
 			case TypeField:
 				// Complex field markup (fldChar / instrText) and
-				// fldSimple — the captured payload already carries its
+				// fldSimple: the captured payload already carries its
 				// own <w:r>...</w:r> or <w:fldSimple>...</w:fldSimple>
 				// wrapper plus rPr, so we emit verbatim with no extra
 				// wrapping or per-paragraph rPr injection. Per upstream
@@ -3835,24 +3760,22 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// filters/openxml/RunParser.java; BlockParser.parse for
 				// fldSimple, lines 242-250) the run that hosts a field
 				// marker is preserved as a single opaque markup chunk.
-				//
+
 				// Special-case for fldChar="end": when the next Text
 				// run (skipping intervening PcOpen/PcClose toggles)
-				// shares rPr with this field run, upstream Okapi
-				// fuses them into a single <w:r> carrying both the
-				// fldChar-end and the following text
-				// (mergeRunBodyChunks at RunMerger.java:402-441 +
-				// canRunPropertiesBeMerged at RunMerger.java:156-229).
-				// ECMA-376-1 §17.3.2.1 (CT_R) and §17.16.5 (complex
-				// fields) both permit a run with multiple body
-				// children. We strip the trailing `</w:r>` from the
-				// payload, advance past the intervening toggle codes
-				// (folding them into runProps directly so the writer's
-				// PcOpen/PcClose handler can't fire its closeRun),
-				// and set inFieldEndRun so the next matching Text
-				// branch appends `<w:t xml:space="preserve">…</w:t>
-				// </w:r>` inside the still-open run. Fixtures:
-				// 768.docx, 768-2.docx.
+				// shares rPr with this field run, upstream Okapi fuses
+				// them into one <w:r> carrying the fldChar-end and the
+				// following text (mergeRunBodyChunks at
+				// RunMerger.java:402-441 + canRunPropertiesBeMerged at
+				// RunMerger.java:156-229). ECMA-376-1 §17.3.2.1 and
+				// §17.16.5 permit a run with multiple body children. We
+				// strip the trailing `</w:r>` from the payload, fold the
+				// intervening toggle codes into runProps (so the
+				// PcOpen/PcClose handler can't fire its closeRun), and
+				// set inFieldEndRun so the next matching Text branch
+				// appends `<w:t xml:space="preserve">…</w:t></w:r>`
+				// inside the still-open run. Fixtures: 768.docx,
+				// 768-2.docx.
 				if info := detectFldCharEndForMerge(r.Ph.Data); info.ok && isExtractableFldCharEndRun(runs, runIdx) {
 					anticipatedRunProps := runProps
 					// Clone toggleOpenForms so the speculative
@@ -3916,7 +3839,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// is the entire `<m:oMath>` / `<m:oMathPara>`
 				// (ECMA-376 Part 1 §22.1) or paragraph-level
 				// `<mc:AlternateContent>` (ECMA-376 Part 3 §10)
-				// subtree — a direct `<w:p>` child rather than a
+				// subtree, a direct `<w:p>` child rather than a
 				// `<w:r>` child. Emit Ph.Data raw at paragraph level
 				// (closeRun above already terminated any open
 				// `<w:r>`) so the source position survives the
@@ -3937,36 +3860,25 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	return buf.String()
 }
 
-// pullLeadingFldCharEndIntoPrevParagraph is the post-skeleton WML
-// pass that re-anchors a leading `<w:fldChar w:fldCharType="end"/>`
-// run to the immediately preceding paragraph when that previous
-// paragraph carries an open complex-field begin/separate without a
-// matching end inside its own body.
+// pullLeadingFldCharEndIntoPrevParagraph is the post-skeleton WML pass
+// that re-anchors a leading `<w:fldChar w:fldCharType="end"/>` run to the
+// immediately preceding paragraph when that paragraph carries an open
+// complex-field begin/separate with no matching end in its own body.
 //
 // Mirrors upstream Okapi RunParser.parseComplexField
-// (RunParser.java:461-542) plus BlockParser.parse lines 221-228:
-// the field-end event is held in deferredEvents alongside the
-// intervening paragraph-end events, and when the field finally
-// closes the deferred chunks attach to the run/paragraph that
-// finished consuming them — visibly migrating an isolated leading
-// fld-end into the previous paragraph. Per ECMA-376-1 §17.16.5
-// (complex fields) the fldChar elements bookend a single semantic
-// run regardless of paragraph layout, so moving a stray leading
-// end into the previous paragraph is content-preserving.
+// (RunParser.java:461-542) plus BlockParser.parse lines 221-228: the
+// field-end event is held in deferredEvents with the intervening
+// paragraph-end events, and the deferred chunks attach to the
+// run/paragraph that finished consuming them. Per ECMA-376-1 §17.16.5 the
+// fldChar elements bookend one semantic run regardless of paragraph
+// layout, so the move preserves content.
 //
-// Scope: only matches the simple case where the host paragraph's
-// FIRST translatable run is `<w:r>...<w:fldChar w:fldCharType=
-// "end"/>...</w:r>` (optionally preceded by a `<w:r><w:rPr>...
-// </w:rPr></w:r>` empty-rPr placeholder run) and the previous
-// paragraph contains an unmatched `<w:fldChar w:fldCharType=
-// "begin"/>` (begin count > end count when scanning the previous
-// paragraph's body). Other fld-end runs (mid-paragraph, after text)
-// are left in place. Empty-rPr placeholder runs that precede the
-// fld-end stay with their original paragraph (the reference output
-// shows them remaining there alongside the moved end's slot).
-//
-// Fixtures: 830-1.docx, 830-3.docx, 830-5.docx, 830-6.docx (the
-// canonical fld-end paragraph movement cluster).
+// Scope: the host paragraph's FIRST translatable run is
+// `<w:r>...<w:fldChar w:fldCharType="end"/>...</w:r>` (optionally after an
+// empty-rPr placeholder run, which stays in its paragraph, as in the
+// reference output), and the previous paragraph has more begins than
+// ends. Other fld-end runs stay in place. Fixtures: 830-1.docx,
+// 830-3.docx, 830-5.docx, 830-6.docx.
 func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	// The `<w:r>` envelope around a fld-end may carry rsid* /
 	// rsidDel / rsidR / rsidRPr attributes that survive into the
@@ -3976,8 +3888,8 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	// the paired `<w:fldChar.../></w:fldChar>` or the empty
 	// self-closing `<w:fldChar.../>` body. Per ECMA-376-1
 	// §17.3.2.1 (CT_R) and §17.16.5.6 (CT_FldChar), an isolated
-	// fld-end run carries no rPr or other body chunks — match
-	// only the bare-body shape.
+	// fld-end run carries no rPr or other body chunks, so
+	// match only the bare-body shape.
 	if !bytes.Contains(data, []byte(`fldCharType="end"`)) {
 		return data
 	}
@@ -3985,7 +3897,7 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	// out accumulates the rewritten bytes. Using a []byte (not a
 	// strings.Builder) lets the fld-end migration splice with a single
 	// slices.Insert instead of out.String()+concat+out.Reset(), which
-	// recopied the whole buffer three times per migrated run — O(n²) on
+	// recopied the whole buffer three times per migrated run: O(n²) on
 	// fld-heavy docs (#608, O5).
 	out := make([]byte, 0, len(src))
 
@@ -3994,36 +3906,29 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	// paragraph's `</w:p>` was emitted, so we can splice the
 	// migrated fld-end run in just before it.
 	prevParaCloseInOut := -1
-	// Track the CUMULATIVE open/close balance across all
-	// paragraphs seen so far. A POSITIVE balance means more
-	// begins than ends across the document body so far — i.e.
-	// there is at least one unmatched begin somewhere upstream
-	// awaiting an end. Per upstream Okapi RunParser.
-	// parseComplexField (RunParser.java:461-542) the field
-	// consumption is parser-wide, so the destination paragraph
-	// for a migrated end is the IMMEDIATELY preceding paragraph
-	// regardless of whether IT carries the begin: the begin may
-	// live arbitrarily far upstream with empty paragraphs in
-	// between (830-3.docx is the canonical case: para 1 has the
-	// unmatched begin/separate, para 2 is empty, para 3 holds
-	// the stray end — the end migrates to para 2).
+	// Track the CUMULATIVE open/close balance across all paragraphs
+	// seen so far. A POSITIVE balance means at least one unmatched
+	// begin somewhere upstream awaits an end. Per upstream Okapi
+	// RunParser.parseComplexField (RunParser.java:461-542) field
+	// consumption is parser-wide, so a migrated end goes to the
+	// IMMEDIATELY preceding paragraph whether or not IT carries the
+	// begin. The begin may live arbitrarily far upstream with empty
+	// paragraphs between: in 830-3.docx para 1 has the unmatched
+	// begin/separate, para 2 is empty, and para 3's stray end
+	// migrates to para 2.
 	cumulativeFldBalance := 0
 	// Track whether the immediately-preceding paragraph's body
-	// (after pPr) is "migration-eligible" — either empty (no
-	// runs) or carrying an unmatched fld-begin/separate of its
-	// own. When the previous paragraph is non-empty and not
-	// itself carrying the open field, leaving the fld-end in
-	// its source paragraph matches upstream Okapi: the
-	// deferredEvents flush in parseComplexField anchors the
-	// end to whichever paragraph the parser's stream cursor
-	// is in at the time of the end event, and full text-bearing
-	// paragraphs with no field content of their own do NOT
-	// receive a migrated end via that mechanism. Fixture
+	// (after pPr) is "migration-eligible": empty (no runs) or
+	// carrying an unmatched fld-begin/separate of its own.
+	// Otherwise the fld-end stays in its source paragraph, as in
+	// upstream Okapi: parseComplexField's deferredEvents flush
+	// anchors the end to whichever paragraph the stream cursor is
+	// in at the end event, and text-bearing paragraphs with no
+	// field content of their own receive no migrated end. Fixture
 	// 830-5.docx para 6 is the canonical guard: a bare `<w:p>`
-	// holds a leading fld-end + space, the immediately-
-	// preceding paragraph (00000006) holds plain text
-	// "paragraphs.", and upstream LEAVES the end in the bare
-	// paragraph.
+	// holds a leading fld-end + space, the preceding paragraph
+	// (00000006) holds plain text "paragraphs.", and upstream
+	// LEAVES the end in the bare paragraph.
 	prevParaMigrationEligible := false
 
 	for pos < len(src) {
@@ -4036,14 +3941,14 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 		// Copy up to the paragraph open verbatim.
 		out = append(out, src[pos:nextOpen]...)
 		// Locate the end of this paragraph open tag (`>` after
-		// `<w:p` — covers both `<w:p>` and `<w:p attr="…">`).
+		// `<w:p`; covers both `<w:p>` and `<w:p attr="…">`).
 		tagClose := strings.IndexByte(src[nextOpen:], '>')
 		if tagClose < 0 {
 			out = append(out, src[nextOpen:]...)
 			break
 		}
 		paraOpenEnd := nextOpen + tagClose + 1
-		// Find this paragraph's `</w:p>` — search forward.
+		// Find this paragraph's `</w:p>` by searching forward.
 		paraEnd := strings.Index(src[paraOpenEnd:], "</w:p>")
 		if paraEnd < 0 {
 			out = append(out, src[nextOpen:]...)
@@ -4055,7 +3960,7 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 		paraBody := src[paraOpenEnd:paraEndAbs]
 
 		// Skip past the optional <w:pPr>...</w:pPr> at the head
-		// of the body — pPr is paragraph properties, not a
+		// of the body: pPr is paragraph properties, not a
 		// translatable run.
 		bodyStart := 0
 		if strings.HasPrefix(paraBody, "<w:pPr>") || strings.HasPrefix(paraBody, "<w:pPr ") {
@@ -4117,40 +4022,30 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	return out
 }
 
-// pullLeadingFldCharEndIntoPrevParagraphInTxbxContents applies the
-// same fld-end migration as pullLeadingFldCharEndIntoPrevParagraph
-// but scoped to each `<w:txbxContent>...</w:txbxContent>` region,
-// and matches BOTH the bare-body and the rPr-bearing leading
-// fld-end run shapes (see matchLeadingFldEndRunInTxbx).
+// pullLeadingFldCharEndIntoPrevParagraphInTxbxContents applies the same
+// fld-end migration as pullLeadingFldCharEndIntoPrevParagraph, scoped to
+// each `<w:txbxContent>...</w:txbxContent>` region, and matches BOTH the
+// bare-body and the rPr-bearing leading fld-end run shapes (see
+// matchLeadingFldEndRunInTxbx).
 //
-// Textbox bodies are XML-nested inside `<w:drawing>` / `<w:pict>`
-// envelopes which themselves sit inside an outer `<w:r>` of a
-// surrounding `<w:p>`. The document-level migration pass
-// (pullLeadingFldCharEndIntoPrevParagraph) scans top-level `<w:p>`
-// boundaries and, because of the nesting, never identifies the
-// inner textbox paragraphs as standalone units — the first
-// `</w:p>` it locates after the outer paragraph open is actually
-// the inner textbox paragraph's close, so the outer-paragraph body
-// it computes spans only as far as that inner close. This pass
-// walks the file looking for txbxContent regions and applies the
-// migration to the paragraphs they enclose, with the upstream-
-// Okapi-correct rPr-bearing-run shape allowed.
+// Textbox bodies nest inside `<w:drawing>` / `<w:pict>` envelopes within
+// an outer `<w:r>` of a surrounding `<w:p>`. The document-level pass scans
+// top-level `<w:p>` boundaries, so the first `</w:p>` it finds after the
+// outer paragraph open is the inner textbox paragraph's close; it never
+// sees the inner paragraphs as standalone units. This pass migrates within
+// each txbxContent region, allowing the upstream-Okapi-correct rPr-bearing
+// run shape.
 //
-// Mirrors upstream Okapi: the textbox body is parsed as a separate
-// IBlock event stream (TextboxContentExtraction + BlockParser.parse
-// over the inner WML), so the deferredEvents/complex-field flush
-// in RunParser.parseComplexField (RunParser.java:461-542) runs
-// independently inside the txbxContent scope. A HYPERLINK opened
-// in textbox paragraph N with its matching end in paragraph N+1
-// produces — after the deferredEvents flush — an output where the
-// end run (with its rPr) lives at the tail of paragraph N and
-// paragraph N+1's body is empty. Fixture:
+// Upstream Okapi parses the textbox body as a separate IBlock event stream
+// (TextboxContentExtraction + BlockParser.parse over the inner WML), so the
+// complex-field flush in RunParser.parseComplexField
+// (RunParser.java:461-542) runs independently inside it. A HYPERLINK
+// opened in textbox paragraph N and ended in N+1 ends up with the end run
+// (with its rPr) at the tail of N and N+1's body empty. Fixture:
 // 1341-textbox-with-a-hyperlink.docx.
-//
-// Idempotent: matchLeadingFldEndRunInTxbx only matches leading
-// fld-end runs in a paragraph body, so running this pass twice is
-// safe.
 func pullLeadingFldCharEndIntoPrevParagraphInTxbxContents(data []byte) []byte {
+	// Idempotent: matchLeadingFldEndRunInTxbx only matches leading fld-end
+	// runs in a paragraph body, so running this pass twice is safe.
 	if !bytes.Contains(data, []byte("<w:txbxContent")) {
 		return data
 	}
@@ -4227,7 +4122,7 @@ func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 			out = append(out, src[nextOpen:]...)
 			break
 		}
-		// Self-closing `<w:p .../>` paragraph — copy verbatim. The
+		// Self-closing `<w:p .../>` paragraph: copy verbatim. The
 		// self-closing form has no body to receive a migrated run.
 		if tagClose > 0 && src[nextOpen+tagClose-1] == '/' {
 			paraCloseEndAbs := nextOpen + tagClose + 1
@@ -4297,7 +4192,7 @@ func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 // w:fldCharType="end"/></w:r>` (or paired body) at the head of a
 // paragraph body. The wrapper attrs are arbitrary (rsid* survive
 // the WSO pass); the fld-end body must carry no rPr or other
-// children — only the fldChar itself, in either self-closing or
+// children, only the fldChar itself, in either self-closing or
 // paired form. Anchored to the start with ^ so it only fires when
 // the run is the FIRST token of the post-pPr body. Per ECMA-376-1
 // §17.3.2.1 (CT_R) and §17.16.5.6 (CT_FldChar).
@@ -4329,7 +4224,7 @@ func matchLeadingFldEndRun(body string) string {
 // the run migrates across the paragraph boundary inside a textbox
 // body. Per ECMA-376-1 §17.3.2.1 (CT_R), `<w:rPr>` is the first
 // optional child of `<w:r>`. Fixture:
-// 1341-textbox-with-a-hyperlink.docx — the textbox's fld-end run
+// 1341-textbox-with-a-hyperlink.docx, where the textbox's fld-end run
 // carries `<w:rPr><w:b/><w:bCs/><w:sz w:val="32"/>
 // <w:szCs w:val="28"/></w:rPr>` and that rPr survives migration.
 //
@@ -4366,45 +4261,32 @@ func matchLeadingFldEndRunInTxbx(body string) string {
 	return ""
 }
 
-// paraMigrationEligible reports whether a paragraph's emitted body
-// is a valid destination for a migrated leading fld-end run from
-// the immediately-following paragraph. The eligibility rules
-// approximate upstream Okapi's deferredEvents flush behaviour
-// (RunParser.parseComplexField + BlockParser.parse lines 221-228):
-// the field-end is anchored to whichever paragraph the parser's
-// stream cursor is in at the time of the end event, which in
-// practice means
+// paraMigrationEligible reports whether a paragraph's emitted body is a
+// valid destination for a migrated leading fld-end run from the next
+// paragraph. The rules approximate upstream Okapi's deferredEvents flush
+// (RunParser.parseComplexField + BlockParser.parse lines 221-228), which
+// anchors the field-end to whichever paragraph the stream cursor is in at
+// the end event. In practice:
 //
-//   - an EMPTY paragraph (no runs, or only empty placeholder runs
-//     such as `<w:r><w:rPr><w:rtl w:val="0"/></w:rPr></w:r>`)
-//     between the begin/separate paragraph and the source
-//     paragraph that originally held the end gets the end
-//     attached (the parser's stream cursor lands in the
-//     placeholder paragraph after consuming it during deferred
-//     flush). Fixtures 830-3.docx and 830-2.docx (para 7 with
-//     a single empty rtl-only run) are the canonical cases.
-//   - a paragraph that itself carries an unmatched fld-begin/separate
-//     gets the end appended (the field's local close happens in the
-//     same paragraph as its open). Fixture 830-1.docx is the
-//     canonical case.
-//   - a paragraph whose body carries text-bearing runs (`<w:t>`
-//     children) but NO open fld-begin/separate of its own is NOT
-//     eligible — leaving the end in the source paragraph matches
-//     upstream's behaviour where the field doesn't reach back
-//     through arbitrary text content. Fixture 830-5.docx para 6
-//     is the canonical guard: a bare `<w:p>` holds a leading
-//     fld-end + space, the immediately-preceding paragraph
-//     (00000006) holds plain text "paragraphs.", and upstream
-//     LEAVES the end in the bare paragraph.
+//   - an EMPTY paragraph (no runs, or only empty placeholder runs such as
+//     `<w:r><w:rPr><w:rtl w:val="0"/></w:rPr></w:r>`) between the
+//     begin/separate paragraph and the end's source paragraph gets the
+//     end; the cursor lands there after consuming it during the deferred
+//     flush (fixtures 830-3.docx, 830-2.docx para 7).
+//   - a paragraph carrying its own unmatched fld-begin/separate gets the
+//     end, closing the field locally (fixture 830-1.docx).
+//   - a paragraph with text-bearing runs (`<w:t>` children) but NO open
+//     fld-begin/separate is NOT eligible, since the field doesn't reach
+//     back through text (fixture 830-5.docx para 6).
 //
-// bodyStart is the offset within body of the first non-pPr byte —
-// passed in from the caller's bookkeeping.
+// bodyStart is the offset within body of the first non-pPr byte, from
+// the caller's bookkeeping.
 func paraMigrationEligible(body string, bodyStart int) bool {
 	rest := body[bodyStart:]
 	// Treat as empty when there are no `<w:t>` (text) children.
 	// Empty placeholder runs (e.g. `<w:r><w:rPr><w:rtl w:val=
 	// "0"/></w:rPr></w:r>` in 830-2.docx para 7) carry no
-	// translatable text and let the parser's deferredEvents
+	// carry no text and let the parser's deferredEvents
 	// flush attach the migrated end after them. Per
 	// ECMA-376-1 §17.3.2.1 (CT_R) a `<w:t>` child marks the
 	// run as text-bearing.
@@ -4422,9 +4304,9 @@ func paraMigrationEligible(body string, bodyStart int) bool {
 // countFldBeginEndBalance counts the difference between
 // `<w:fldChar w:fldCharType="begin"/>` and `<w:fldChar
 // w:fldCharType="end"/>` occurrences in body, where `body` is the
-// inner XML of a `<w:p>` element (after pPr stripping is optional —
+// inner XML of a `<w:p>` element (after pPr stripping is optional;
 // pPr never carries a fldChar). Positive means more begins than
-// ends — an unmatched begin awaiting an end.
+// ends, i.e. an unmatched begin awaiting an end.
 func countFldBeginEndBalance(body string) int {
 	const beginTok = `w:fldCharType="begin"`
 	const endTok = `w:fldCharType="end"`
@@ -4433,14 +4315,14 @@ func countFldBeginEndBalance(body string) int {
 	return begins - ends
 }
 
-// indexTagOpen finds the next opening tag for element `name` — either
-// `<name>` or `<name ...>` — in s at or after start, returning its absolute
+// indexTagOpen finds the next opening tag for element `name`, either
+// `<name>` or `<name ...>`, in s at or after start, returning its absolute
 // byte index or -1. It locates the "<name" prefix and checks the following
 // delimiter ('>' or ' '), staying O(n) across a forward walk.
 //
 // It replaced indexFromOf(s, start, "<name>", "<name "), whose second
 // strings.Index scanned to EOF on EVERY call when the attributed `<name `
-// form was absent — making the paragraph walk O(paragraphs × docsize). That
+// form was absent, making the paragraph walk O(paragraphs × docsize). That
 // was the dominant native cost on large bare-paragraph .docx (big.docx:
 // 1815 `<w:p>` paragraphs, 0 `<w:p `, 4.3MB → ~4GB of pointless scanning,
 // ~7s). The match set is identical: "<name" + '>' == "<name>", "<name" + ' '
@@ -4457,7 +4339,7 @@ func indexTagOpen(s string, start int, name string) int {
 		if after < len(s) && (s[after] == '>' || s[after] == ' ') {
 			return i
 		}
-		start = after // e.g. "<w:pPr"/"<w:pict" — not a <name> open; keep scanning.
+		start = after // e.g. "<w:pPr"/"<w:pict", not a <name> open; keep scanning.
 	}
 }
 
@@ -4502,12 +4384,12 @@ func (w *Writer) removeWMLProp(current, spanType string) string {
 // addWMLPropForm appends the source-preserving toggle serialisation
 // for spanType to current and stashes that form in opens so the
 // matching close can strip the same byte sequence. data is the
-// PcOpen.Data captured by appendOpeningRuns: the bare element form
-// (`<w:b/>`) when the source authored it, or the explicit-on form
-// (`<w:b w:val="1"/>`) when the source carried `val="1"` /
-// `val="true"` / `val="on"`. data="" or any non-toggle spanType
-// falls back to addWMLProp's hardcoded canonical form to preserve
-// the legacy code path for non-bold/italic toggles.
+// PcOpen.Data captured by appendOpeningRuns. It holds the bare element
+// form (`<w:b/>`) when the source authored it, or the explicit-on form
+// (`<w:b w:val="1"/>`) when the source carried a val of "1", "true" or
+// "on". An empty data or any non-toggle spanType falls back to
+// addWMLProp's hardcoded canonical form, preserving the legacy code path
+// for non-bold/italic toggles.
 //
 // Per ECMA-376-1 §17.3.2.1 (CT_OnOff <w:b>) and §17.3.2.13
 // (CT_OnOff <w:i>) the bare element and val="1"/"true"/"on" are
@@ -4544,21 +4426,21 @@ func (w *Writer) removeWMLPropForm(current, spanType string, opens map[string]st
 }
 
 // dmlRunPropertyStartTagRE matches the start tag of a DrawingML
-// run-property container — `<a:rPr>`, `<a:endParaRPr>`, or
-// `<a:defRPr>` — including any attributes. Used by
+// run-property container (`<a:rPr>`, `<a:endParaRPr>`, or
+// `<a:defRPr>`) including any attributes. Used by
 // stripDMLRunPropertyAttrs to scrub Okapi's strippable attribute
 // set without disturbing the element body or any inner children
 // (`<a:solidFill>`, `<a:latin>`, `<a:hlinkClick>`, …).
 //
-// The (?s) flag is unnecessary — start tags do not contain
+// The (?s) flag is unnecessary: start tags do not contain
 // newlines in any encoder we feed (encoding/xml, captureRawElement,
-// hand-built strings) — but the `[^>]*` body is naturally
+// hand-built strings), and the `[^>]*` body is naturally
 // dot-equivalent because `[^>]` matches newlines.
 var dmlRunPropertyStartTagRE = regexp.MustCompile(`<a:(?:rPr|endParaRPr|defRPr)\b[^>]*>`)
 
 // dmlStrippableAttrRE matches a single attribute (preceded by
 // whitespace) inside a DrawingML run-property start tag whose name
-// matches Okapi's StrippableAttributes.DrawingRunProperties set —
+// matches Okapi's StrippableAttributes.DrawingRunProperties set:
 // `err`, `noProof`, `dirty`, `smtClean`, `lang`, `altLang`. These
 // six attribute names are unconditionally dropped from any
 // `<a:rPr>` / `<a:endParaRPr>` / `<a:defRPr>` element by upstream
@@ -4570,7 +4452,7 @@ var dmlRunPropertyStartTagRE = regexp.MustCompile(`<a:(?:rPr|endParaRPr|defRPr)\
 // PropertiesType): `lang` defaults to "en-US" at runtime, `dirty`
 // defaults to false (revision-tracking hint), `smtClean` defaults
 // to false (smart-tag hint), `err` / `noProof` are spell/grammar
-// hints with implementation-defined defaults — none of these
+// hints with implementation-defined defaults. None of these
 // affect rendered text shape, so dropping them is content-
 // preserving.
 var dmlStrippableAttrRE = regexp.MustCompile(` (?:err|noProof|dirty|smtClean|lang|altLang)="[^"]*"`)
@@ -4583,7 +4465,7 @@ var dmlStrippableAttrRE = regexp.MustCompile(` (?:err|noProof|dirty|smtClean|lan
 // `<a:endParaRPr>` / `<a:defRPr>` it encounters. Outside this scope
 // (e.g. inside `<a:lstStyle>` paragraph defaults per ECMA-376-1
 // §21.1.2.4.4) the stripper is NOT invoked and the source attribute
-// set survives verbatim — see the BlockParser / RunParser citation
+// set survives verbatim; see the BlockParser / RunParser citation
 // in stripDMLRunPropertyAttrs.
 var dmlBlockOpenTagRE = regexp.MustCompile(`<a:p\b[^>]*>`)
 
@@ -4601,7 +4483,7 @@ const dmlBlockCloseTag = "</a:p>"
 // because upstream Okapi's stripper is only attached to
 // BlockParser / RunParser / ParagraphBlockProperties (see
 // BlockParser.java:163, RunParser.java:525,
-// ParagraphBlockProperties.java:664) — list-style and table-style
+// ParagraphBlockProperties.java:664); list-style and table-style
 // defaults bypass this pipeline.
 //
 // The fast-path skips payloads that obviously contain no <a:p>.
@@ -4640,7 +4522,7 @@ func stripDMLRunPropertyAttrs(payload string) string {
 		// </a:p>.
 		closeRel := strings.Index(payload[openEnd:], dmlBlockCloseTag)
 		if closeRel < 0 {
-			// Unbalanced — emit rest verbatim and bail. Defensive
+			// Unbalanced: emit rest verbatim and bail. Defensive
 			// against captured-payload truncation.
 			out.WriteString(payload[openEnd:])
 			return out.String()
@@ -4657,17 +4539,17 @@ func stripDMLRunPropertyAttrs(payload string) string {
 		// attribute or child content. Upstream Okapi's
 		// ParagraphBlockProperties.getEvents
 		// (BlockProperties.java:169-172) drops empty paragraph-property
-		// envelopes — the same rule applies to
+		// envelopes, and the same rule applies to
 		// `<a:endParaRPr>` (the paragraph-mark run-property in
 		// DrawingML, ECMA-376-1 §21.1.2.2.3). Without this drop, a
 		// source `<a:endParaRPr lang="en-CA"/>` (only-strippable-attrs
 		// shape) survives the round-trip as `<a:endParaRPr/>` while
 		// upstream drops it entirely. apissue.docx has 5 such
-		// occurrences in lockedCanvas chart fragments — keeping them
+		// occurrences in lockedCanvas chart fragments; keeping them
 		// adds ~57KB of phantom markup vs the reference output.
 		stripped = stripEmptyDMLEndParaRPr(stripped)
 		// Hoist common run properties into a paragraph-default-run
-		// (`<a:defRPr>` inside `<a:pPr>`) — see dml_style_optimization.go
+		// (`<a:defRPr>` inside `<a:pPr>`); see dml_style_optimization.go
 		// for the upstream Okapi RunParser.java:386-389 +
 		// StyleOptimisation.java:96-129 citation. Fixture:
 		// DrawingML_Test.docx single-run textbox paragraph.
@@ -4683,7 +4565,7 @@ func stripDMLRunPropertyAttrs(payload string) string {
 // `<a:endParaRPr></a:endParaRPr>` with no children/attrs) from the
 // paragraph body. Mirrors upstream Okapi's
 // ParagraphBlockProperties.getEvents (BlockProperties.java:169-172)
-// empty-envelope drop applied to the DML paragraph-mark rPr — see
+// empty-envelope drop applied to the DML paragraph-mark rPr; see
 // stripDMLRunPropertyAttrs for the apissue.docx canonical case.
 //
 // We only strip the empty form. A `<a:endParaRPr>` carrying child
@@ -4709,7 +4591,7 @@ func stripEmptyDMLEndParaRPr(block string) string {
 		// Find the end of the tag's open-tag (first '>').
 		tagEnd := strings.Index(block[start:], ">")
 		if tagEnd < 0 {
-			// Malformed — pass through.
+			// Malformed: pass through.
 			out.WriteString(block[start:])
 			return out.String()
 		}
@@ -4754,7 +4636,7 @@ func stripEmptyDMLEndParaRPr(block string) string {
 // blocks index. PROP markers (set in place of an attribute value
 // at READ time) expand to the property block's xml-attr-escaped
 // text. PARA markers (set in place of a textbox-body paragraph's
-// runs) expand to the paragraph block's renderWMLBlock output —
+// runs) expand to the paragraph block's renderWMLBlock output:
 // `<w:r><w:t>...</w:t></w:r>` plus any inline-code wrapping.
 //
 // When a marker has no matching block (defensive: e.g. the reader
@@ -4797,7 +4679,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 			// (e.g. <mc:Choice><w:t>...</w:t></mc:Choice>) where
 			// the <w:t> tag itself is preserved verbatim and only
 			// its character data needs the translation. Differs
-			// from PROP only in the escape rules — text contexts
+			// from PROP only in the escape rules: text contexts
 			// don't need the quote escape that attribute contexts
 			// require.
 			return xmlesc.Text(model.FlattenRuns(runs))
@@ -5170,21 +5052,21 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 // smlSourceContent returns the CT_Rst content the source wrote, for a block
 // whose text nothing has changed.
 //
-// A rebuilt element says what the source said and spells it differently: the
-// writer emits xml:space="preserve" only where the text needs it and Excel
-// writes it more liberally, a character reference comes back as the character,
-// a carriage return inside <t> comes back normalised (XML 1.0 §2.11), and the
-// whitespace a producer indented its <si> with is gone. None of that is
-// recoverable from the model, so the reader keeps the source bytes for a block
-// whose content the writer would spell differently, and they are replayed here.
-//
-// The test is the rendered content, not the presence of a target: a target that
-// says what the source said is untranslated as far as the bytes go. A target
-// that says something else cannot carry the source's layout, because its runs
-// are not the source's runs, so it is rendered. So is a block whose source runs
-// were edited in place, since the source they would be compared with is the
-// edited one (sourceRunsAsRead).
+// A rebuilt element says what the source said but spells it differently.
+// The writer emits xml:space="preserve" only where the text needs it, while
+// Excel writes it more liberally. A character reference comes back as the
+// character, a carriage return inside <t> comes back normalised (XML 1.0
+// §2.11), and the whitespace a producer indented its <si> with is gone. The
+// model cannot recover any of that, so the reader keeps the source bytes
+// for a block whose content the writer would spell differently, and they
+// are replayed here.
 func smlSourceContent(block *model.Block, content, phonetic string) (string, bool) {
+	// The test is the rendered content, not the presence of a target: a
+	// target that says what the source said is untranslated as far as the
+	// bytes go. A target that says something else cannot carry the source's
+	// layout, because its runs are not the source's runs, so it is rendered.
+	// So is a block whose source runs were edited in place, since the source
+	// they would be compared with is the edited one (sourceRunsAsRead).
 	src := block.Properties[cellSourceProp]
 	if src == "" || !sourceRunsAsRead(block) {
 		return "", false
