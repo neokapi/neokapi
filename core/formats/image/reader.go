@@ -1,13 +1,13 @@
 // Package image reads raster image files as documents: it emits the image as a
-// Media part and, when a vision engine is registered (the kapi-vision plugin),
-// recognizes text with OCR and emits positioned text Blocks, recovering tier-2
-// structure (headings/paragraphs/tables) from the OCR line geometry the same
-// way the PDF geometry path does. With no vision engine installed the reader
+// Media part. When a vision engine is registered (the kapi-vision plugin), it
+// also recognizes text with OCR and emits positioned text Blocks. It recovers
+// tier-2 structure (headings/paragraphs/tables) from the OCR line geometry the
+// same way the PDF geometry path does. With no vision engine installed the reader
 // still opens the file and emits its Media (no text) rather than failing, so an
 // image is always a valid, inspectable document.
 //
-// Accepted formats: PNG and JPEG decode natively for OCR; GIF, BMP, TIFF and
-// WebP decode in-core (pure Go) and are re-encoded to PNG before OCR; HEIC/HEIF
+// Accepted formats: PNG and JPEG decode natively for OCR. GIF, BMP, TIFF and
+// WebP decode in-core (pure Go) and are re-encoded to PNG before OCR. HEIC/HEIF
 // and AVIF have no Go decoder and are transcoded with ffmpeg (the kapi-av
 // bundle) when available, degrading to a Media-only asset when it is not. See
 // convert.go (normalizeForOCR) and detect.go (classify/Sniff).
@@ -15,7 +15,7 @@
 // Alt-text / caption localization: when an "<image>.alt.txt" sidecar sits beside
 // the source, its text is attached to the Media (AltText) and emitted as a
 // caption Block linked to the image (RoleCaption + RelCaptionOf). That block
-// translates through the normal block path — no special tool support — and the
+// translates through the normal block path, no special tool support, and the
 // writer folds the localized text back into a per-locale sidecar.
 //
 // Embedded metadata (PNG text chunks, XMP) is mapped onto the document layer via
@@ -32,6 +32,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -42,12 +43,13 @@ import (
 	"github.com/neokapi/neokapi/core/docmeta"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/structure"
 	"github.com/neokapi/neokapi/core/vision"
 )
 
 // The image-format configuration (Config) and its ApplyMap live in config.go,
-// alongside every other format's config — so the maturity audit's L1 `config`
+// alongside every other format's config, so the maturity audit's L1 `config`
 // signal (gateEngine: has('config')) fires on the conventional filename.
 
 // Reader implements format.DataFormatReader for raster images.
@@ -127,13 +129,13 @@ func mimeForFormat(f string) string {
 }
 
 // Read streams the document: a root Layer, a single page Layer carrying the
-// image as a Media part (by reference — never inline bytes), then (if a vision
+// image as a Media part (by reference, never inline bytes), then (if a vision
 // engine is registered) OCR text Blocks with tier-2 structure, then the
 // LayerEnds.
 //
-// The image bytes are never loaded into the kapi process: the source is resolved
+// The image bytes are never loaded into the kapi process. The source is resolved
 // to a local file path (the original file when it is one, else a bounded
-// streaming spill to a temp file), the Media part references it by URI, and the
+// streaming spill to a temp file). The Media part references it by URI, and the
 // OCR engine (the plugin) opens and decodes that path itself.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return format.StreamParts(ctx, func(ctx context.Context, ch chan<- model.PartResult) error {
@@ -187,10 +189,10 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: pageLayer}}
 
 		// An "<image>.alt.txt" sidecar (beside the original file) carries the
-		// image's alt text / caption — the localizable accessible text.
+		// image's alt text / caption, the localizable accessible text.
 		altText := readAltSidecar(r.Doc.URI)
 
-		// The image as a Media part — by URI reference, never inline bytes, so the
+		// The image as a Media part, by URI reference, never inline bytes, so the
 		// page's binary never travels through the kapi Part stream.
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartMedia, Resource: &model.Media{
 			ID:       "img1",
@@ -217,7 +219,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 		// OCR + structure, when enabled and a vision engine is installed. Failures
 		// are non-fatal: the image Media is already emitted, so the document is
-		// still valid. With OCR off, the image is a Media asset only — the
+		// still valid. With OCR off, the image is a Media asset only, the
 		// whole-image-localization mode.
 		fcfg := defaultConfig()
 		if c, ok := r.Cfg.(*Config); ok && c != nil {
@@ -255,7 +257,7 @@ func (r *Reader) materialize() (string, func(), error) {
 	if err != nil {
 		return "", noop, fmt.Errorf("image: temp: %w", err)
 	}
-	// io.Copy streams in ~32 KiB chunks — the full image is never buffered.
+	// io.Copy streams in ~32 KiB chunks, the full image is never buffered.
 	if _, err := io.Copy(tmp, r.Doc.Reader); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmp.Name())
@@ -275,14 +277,26 @@ func (r *Reader) materialize() (string, func(), error) {
 // the same-named sidecar beside the translated image.
 func altSidecarPath(imagePath string) string { return imagePath + ".alt.txt" }
 
+// maxAltSidecarBytes bounds how much of an alt-text sidecar is read. Alt text
+// is a sentence or two.
+const maxAltSidecarBytes = 64 << 10
+
 // readAltSidecar returns the trimmed contents of the image's alt-text sidecar, or
-// "" when the source has no local file path or no sidecar exists. The sidecar is
-// small accessible text, so reading it fully is fine (unlike the image bytes).
+// "" when the source has no local file path or no sidecar exists.
+//
+// The sidecar is read only when it is a regular file that resolves inside the
+// image's own directory: a symbolic link that leads out of it, a device or a
+// FIFO is ignored, as a missing sidecar is.
 func readAltSidecar(uri string) string {
 	if uri == "" {
 		return ""
 	}
-	b, err := os.ReadFile(altSidecarPath(uri))
+	f, err := rootpath.OpenRegular(filepath.Dir(uri), altSidecarPath(uri))
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, maxAltSidecarBytes))
 	if err != nil {
 		return ""
 	}
@@ -305,7 +319,7 @@ func decodeConfigFile(path string) (image.Config, string, error) {
 func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.LocaleID, useLayout bool) []*model.Part {
 	// The vision engine decodes PNG/JPEG only; normalize other rasters
 	// (GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg) to a temp PNG first. A
-	// normalization failure means OCR is skipped — the Media is already emitted.
+	// normalization failure means OCR is skipped, the Media is already emitted.
 	ocrPath, cleanup, err := normalizeForOCR(ctx, imgPath)
 	if err != nil {
 		return nil
