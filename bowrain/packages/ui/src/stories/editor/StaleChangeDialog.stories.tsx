@@ -19,7 +19,7 @@ const meta: Meta<typeof StaleChangeDialog> = {
 export default meta;
 type Story = StoryObj<typeof StaleChangeDialog>;
 
-const handlers = () => ({ onReapply: fn(), onKeep: fn() });
+const handlers = () => ({ onReapply: fn(), onKeep: fn(), onDismiss: fn() });
 
 /** A save over a translation someone else saved, with a link in both versions. */
 export const SaveOverAChangedTranslation: Story = {

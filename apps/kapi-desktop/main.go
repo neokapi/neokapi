@@ -16,6 +16,7 @@ import (
 	_ "github.com/neokapi/neokapi/host/venue/schema"
 
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/desktopclose"
 	"github.com/neokapi/neokapi/host/desktopmenu"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -70,6 +71,13 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 		SingleInstance: singleInstance,
+		// Every quit asks here first: Quit in the app menu, Cmd+Q, the Dock,
+		// a logout, a signal, the updater, and app.Quit() on Windows and
+		// Linux. A tab with unsaved changes or a running flow holds the quit
+		// until the person answers the frontend's dialog.
+		ShouldQuit: func() bool {
+			return backend.GuardClose(appService, desktopclose.RouteQuit)
+		},
 	})
 
 	appService.SetApplication(app)
@@ -114,6 +122,54 @@ func main() {
 			TitleBar:                application.MacTitleBarHiddenInsetUnified,
 			InvisibleTitleBarHeight: 50,
 		},
+	})
+
+	// The window's close button, Close Window (Cmd+W) and win.Close() all
+	// reach WindowClosing, from the macOS windowShouldClose, the Windows
+	// WM_CLOSE and the Linux delete-event. A hook runs before the window is
+	// destroyed and can cancel it. A confirmed close finishes by the route that
+	// asked.
+	win.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if !backend.GuardClose(appService, desktopclose.RouteWindow) {
+			event.Cancel()
+		}
+	})
+	backend.SetClosers(appService, win.Close, app.Quit)
+	// When the page does not acknowledge a held close in time (a render error,
+	// a crashed web content process), a native dialog names each project that
+	// holds the window with its reasons, and offers to close anyway (running
+	// flows are cancelled, unsaved changes are dropped) or to cancel. The app
+	// can always be closed, and never drops work without asking.
+	backend.SetCloseFallback(appService, func(_ desktopclose.Route, blockers []desktopclose.Blocker) bool {
+		tr := appService.T()
+		lines := make([]string, 0, len(blockers))
+		unsaved := false
+		for _, b := range blockers {
+			reasons := make([]string, 0, len(b.Reasons))
+			for _, r := range b.Reasons {
+				if r == backend.CloseReasonUnsaved {
+					unsaved = true
+					reasons = append(reasons, desktopmenu.T(tr, "reasonUnsaved"))
+				} else {
+					reasons = append(reasons, desktopmenu.T(tr, "reasonRunning"))
+				}
+			}
+			lines = append(lines, b.Name+" ("+strings.Join(reasons, ", ")+")")
+		}
+		closeLabel := desktopmenu.T(tr, "cancelFlowAndClose")
+		if unsaved {
+			closeLabel = desktopmenu.T(tr, "closeWithoutSaving")
+		}
+		answer := make(chan bool, 1)
+		dialog := app.Dialog.Question().
+			SetTitle(desktopmenu.T(tr, "holdTitle")).
+			SetMessage(desktopmenu.T(tr, "holdNoAnswer") + "\n\n" + strings.Join(lines, "\n"))
+		dialog.AddButton(closeLabel).OnClick(func() { answer <- true })
+		cancel := dialog.AddButton(desktopmenu.T(tr, "cancel")).OnClick(func() { answer <- false })
+		dialog.SetDefaultButton(cancel)
+		dialog.SetCancelButton(cancel)
+		dialog.Show()
+		return <-answer
 	})
 
 	// Forward dropped files to the frontend.
@@ -166,6 +222,10 @@ func main() {
 			}
 		}
 	})
+
+	// A SIGTERM or SIGINT asks like any quit; a second one while that quit
+	// is held ends the process. Wails v3.1.0 stops listening after the first.
+	backend.ExitOnSecondSignal(appService, app.Quit, os.Exit)
 
 	if err := app.Run(); err != nil {
 		slog.Error("application failed", "error", err)

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -37,7 +39,7 @@ func buildVersions(repoRoot, outputDir string, tags []string) error {
 		return fmt.Errorf("git status: %w", err)
 	}
 	if strings.TrimSpace(status) != "" {
-		return fmt.Errorf("working tree is dirty. Commit or stash changes first")
+		return errors.New("working tree is dirty. Commit or stash changes first")
 	}
 
 	for _, tag := range tags {
@@ -51,11 +53,11 @@ func buildVersions(repoRoot, outputDir string, tags []string) error {
 		}
 
 		// Build kapi
-		outputPath := filepath.Join(absOutput, fmt.Sprintf("kapi-%s", tag))
-		buildCmd := exec.Command("go", "build", "-o", outputPath, "./cmd/kapi/")
+		outputPath := filepath.Join(absOutput, "kapi-"+tag)
+		buildCmd := exec.CommandContext(context.Background(), "go", "build", "-o", outputPath, "./cmd/kapi/")
 		buildCmd.Dir = filepath.Join(absRepo, "kapi")
 		buildCmd.Env = append(os.Environ(),
-			fmt.Sprintf("GOWORK=%s", filepath.Join(absRepo, "go.work")),
+			"GOWORK="+filepath.Join(absRepo, "go.work"),
 		)
 		buildCmd.Stdout = os.Stderr
 		buildCmd.Stderr = os.Stderr

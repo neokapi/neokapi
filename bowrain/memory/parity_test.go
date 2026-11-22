@@ -7,10 +7,9 @@ package memory_test
 // and the bowrain Postgres content memory. Both stores delegate ranking to
 // memory.TieredLookup, so any divergence here is a real drift regression.
 //
-// This suite historically FAILED before the dialect-seam refactor: the Postgres
-// content memory lacked the tag-mismatch penalty and the exact-ambiguity demotion, and
-// sorted by match-type-then-score instead of score-then-priority-then-ID. It is
-// the acceptance gate for keeping the two backends in lockstep.
+// The suite checks three behaviours on both backends: the tag-mismatch
+// penalty, the exact-ambiguity demotion, and score-then-priority-then-ID
+// ordering. It is the acceptance gate for keeping the two backends in lockstep.
 //
 // Requires a Postgres (BOWRAIN_TEST_POSTGRES_URL, or the local default) and the
 // fts5 build tag for the SQLite side: `go test -tags "integration fts5"`.
@@ -68,7 +67,7 @@ func openParitySQLiteMemory(t *testing.T) memory.Store {
 }
 
 // maybePostgresMemory opens a Postgres content memory if one is reachable, returning (nil,
-// false) otherwise — unlike openTestPostgresMemory it does NOT skip the test, so
+// false) otherwise. Unlike openTestPostgresMemory it does NOT skip the test, so
 // the SQLite side of the parity fixtures always exercises even without PG. The
 // full cross-backend comparison runs only when Postgres is present (CI).
 func maybePostgresMemory(t *testing.T) (memory.Store, bool) {
@@ -178,8 +177,8 @@ func TestMemoryParity_SQLiteVsPostgres(t *testing.T) {
 	}{
 		{
 			// Plain query "Install": the structurally-identical entry wins at
-			// 1.0; the coded entry takes the tag-mismatch penalty. Postgres
-			// used to give both 1.0.
+			// 1.0; the coded entry takes the tag-mismatch penalty on both
+			// backends.
 			name:   "tag-mismatch-penalty",
 			target: "nb",
 			lookup: func(tm memory.Store) ([]memory.Match, error) {
@@ -188,7 +187,7 @@ func TestMemoryParity_SQLiteVsPostgres(t *testing.T) {
 		},
 		{
 			// Two exacts with differing targets both demote to ScoreNearExact
-			// and flag Ambiguous. Postgres used to keep them at 1.0.
+			// and flag Ambiguous on both backends.
 			name:   "ambiguity-demotion",
 			target: "nb",
 			lookup: func(tm memory.Store) ([]memory.Match, error) {
@@ -197,7 +196,7 @@ func TestMemoryParity_SQLiteVsPostgres(t *testing.T) {
 		},
 		{
 			// Fuzzy neighbourhood: score-then-priority-then-ID ordering must
-			// match. Postgres used to sort by match-type first.
+			// match on both backends, with no match-type-first sort.
 			name:   "fuzzy-ranking",
 			target: "nb",
 			lookup: func(tm memory.Store) ([]memory.Match, error) {
@@ -226,8 +225,8 @@ func TestMemoryParity_SQLiteVsPostgres(t *testing.T) {
 	}
 }
 
-// TestMemoryParity_ExactOnlyPolicy asserts the exact-only (MinScore 1.0) policy —
-// which drops ambiguous demoted matches — is identical across backends.
+// TestMemoryParity_ExactOnlyPolicy asserts the exact-only (MinScore 1.0) policy,
+// which drops ambiguous demoted matches, is identical across backends.
 func TestMemoryParity_ExactOnlyPolicy(t *testing.T) {
 	sq := openParitySQLiteMemory(t)
 	pg, hasPG := maybePostgresMemory(t)
@@ -442,12 +441,12 @@ func TestMemoryParity_VersionChain(t *testing.T) {
 
 	t.Run("a chain needs a block", func(t *testing.T) {
 		_, err := sq.Versions(t.Context(), memory.VersionQuery{Point: acme}, "")
-		assert.ErrorIs(t, err, memory.ErrVersionQueryNeedsUnit)
+		require.ErrorIs(t, err, memory.ErrVersionQueryNeedsUnit)
 		if pg == nil {
 			return
 		}
 		_, err = pg.Versions(t.Context(), memory.VersionQuery{Point: acme}, "")
-		assert.ErrorIs(t, err, memory.ErrVersionQueryNeedsUnit)
+		require.ErrorIs(t, err, memory.ErrVersionQueryNeedsUnit)
 	})
 }
 

@@ -30,6 +30,8 @@ on:
       - Evals Refresh
       - Bowrain Build
       - Fuzz
+      - Cache Budget
+      - Bot PR Watch
     types: [completed]
 
 permissions:

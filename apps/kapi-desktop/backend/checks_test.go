@@ -118,7 +118,7 @@ func TestRunChecksTargetFindingCarriesTargetLocale(t *testing.T) {
 	require.NoError(t, os.WriteFile(
 		filepath.Join(srcDir, "en.json"),
 		[]byte(`{"greeting":"Hello {name}"}`), 0o644))
-	// The target drops the placeholder — a placeholder-integrity finding.
+	// The target drops the placeholder, a placeholder-integrity finding.
 	require.NoError(t, os.WriteFile(
 		filepath.Join(srcDir, "de-DE.json"),
 		[]byte(`{"greeting":"Hallo"}`), 0o644))
@@ -325,7 +325,7 @@ func setupMarkupBlock(t *testing.T, app *App, page, voiceYAML string) markupFixt
 // TestResolveTargetPathMatchesRunner asserts that the checks panel resolves
 // translated-file paths through the same canonical resolver the runner uses
 // (project.ResolveTargetPath), so checks probe exactly the paths the runner
-// writes — including item bases, multi-segment `**` globs, and directory
+// writes, including item bases, multi-segment `**` globs, and directory
 // targets that the old hand-rolled expansion mishandled.
 func TestResolveTargetPathMatchesRunner(t *testing.T) {
 	root := t.TempDir()
@@ -400,12 +400,14 @@ func TestResolveTargetPathMatchesRunner(t *testing.T) {
 			got := app.resolveTargetPath(rf, op, tc.lang)
 			assert.Equal(t, filepath.Join(root, tc.want), got)
 
-			// Parity with the canonical resolver — the same
+			// Parity with the canonical resolver, the same
 			// project.ResolveTargetPath the flow runner now reaches through
 			// the shared cli orchestrator (cli.App.RunFlowAllLocales), so
 			// checks-side and runner-side resolution cannot diverge.
 			relSlash := filepath.ToSlash(tc.relative)
-			canonical := filepath.Join(root, project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang))
+			resolved, err := project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang)
+			require.NoError(t, err)
+			canonical := filepath.Join(root, resolved)
 			assert.Equal(t, canonical, got, "checks-side resolution must equal project.ResolveTargetPath")
 		})
 	}

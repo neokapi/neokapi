@@ -24,6 +24,7 @@ func mdxAddresses(t *testing.T, src string) map[string]string {
 	r := NewReader()
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 	r.SetSkeletonStore(store)
 	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
 		Reader:       io.NopCloser(bytes.NewReader([]byte(src))),

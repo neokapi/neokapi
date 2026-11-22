@@ -7,6 +7,7 @@
 package embed
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -59,17 +60,18 @@ func (e *onnxEngine) Loaded(name string) bool {
 func (e *onnxEngine) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	var errs []error
 	for _, m := range e.models {
 		if m.session != nil {
-			m.session.Destroy()
+			errs = append(errs, m.session.Destroy())
 		}
 		if m.tk != nil {
 			m.tk.Close()
 		}
 	}
 	e.models = map[string]*loadedModel{}
-	ort.DestroyEnvironment()
-	return nil
+	errs = append(errs, ort.DestroyEnvironment())
+	return errors.Join(errs...)
 }
 
 func (e *onnxEngine) get(name string) (*loadedModel, error) {
@@ -141,7 +143,7 @@ func (e *onnxEngine) Embed(text, name string) ([]float32, error) {
 	}
 	ids := make([]int64, seqLen)
 	mask := make([]int64, seqLen)
-	tokenType := make([]int64, seqLen) // zeros — single-segment input
+	tokenType := make([]int64, seqLen) // zeros: single-segment input
 	for i, id := range enc.IDs {
 		ids[i] = int64(id)
 		mask[i] = 1
@@ -165,7 +167,9 @@ func (e *onnxEngine) Embed(text, name string) ([]float32, error) {
 		if err != nil {
 			return nil, fmt.Errorf("check: %s tensor: %w", nm, err)
 		}
-		defer tn.Destroy()
+		// The result is computed before the tensors are freed, so a failed
+		// free changes nothing the caller receives.
+		defer func() { _ = tn.Destroy() }()
 		tensors[nm] = tn
 	}
 	feeds := make([]ort.Value, len(m.inputNames))
@@ -178,14 +182,14 @@ func (e *onnxEngine) Embed(text, name string) ([]float32, error) {
 	if err != nil {
 		return nil, fmt.Errorf("check: output tensor: %w", err)
 	}
-	defer out.Destroy()
+	defer func() { _ = out.Destroy() }()
 
 	if err := m.session.Run(feeds, []ort.Value{out}); err != nil {
 		return nil, fmt.Errorf("check: onnx run: %w", err)
 	}
 
 	hidden := make([][]float32, seqLen)
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		hidden[i] = outData[i*m.dim : (i+1)*m.dim]
 	}
 	return vec.L2Normalize(vec.MeanPool(hidden, mask)), nil

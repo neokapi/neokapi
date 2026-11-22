@@ -85,12 +85,29 @@ jobs:
       contents: write
       pull-requests: write
     env:
+      HAS_BOT_APP: ${{ secrets.BOT_APP_PRIVATE_KEY != '' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     steps:
+      # A push or pull request made with the bot App's token starts the
+      # pull request's workflows; one made with GITHUB_TOKEN starts none, or
+      # waits for a person to approve them. Without the App, GITHUB_TOKEN.
+      # See docs/internals/bot-pushes.md.
+      - name: Mint the bot App token
+        id: bot
+        if: env.HAS_BOT_APP == 'true'
+        uses: actions/create-github-app-token@v3.3.0
+        with:
+          client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -128,7 +145,7 @@ jobs:
 
       - name: Open the price-drift auto-PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
           AUTO_PR_NOTE: >-
             check-models drift: ${{ steps.modelcheck.outputs.drift }}. When
             true, the model catalog (providers/ai/models.json) also needs a
@@ -153,11 +170,28 @@ jobs:
       contents: write
       pull-requests: write
     env:
+      HAS_BOT_APP: ${{ secrets.BOT_APP_PRIVATE_KEY != '' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       EVALS_SKIP_BEDROCK: "1"
     steps:
+      # A push or pull request made with the bot App's token starts the
+      # pull request's workflows; one made with GITHUB_TOKEN starts none, or
+      # waits for a person to approve them. Without the App, GITHUB_TOKEN.
+      # See docs/internals/bot-pushes.md.
+      - name: Mint the bot App token
+        id: bot
+        if: env.HAS_BOT_APP == 'true'
+        uses: actions/create-github-app-token@v3.3.0
+        with:
+          client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       - name: Gate on the paid credentials
         id: gate
@@ -196,7 +230,7 @@ jobs:
       - name: Open the dashboard-refresh auto-PR
         if: steps.gate.outputs.run == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
           AUTO_PR_NOTE: >-
             Weekly sweep of the gemini and claude-code legs
             (EVALS_SKIP_BEDROCK=1 — the Bedrock leg needs AWS SSO credentials

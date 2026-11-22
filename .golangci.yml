@@ -1,11 +1,23 @@
 version: "2"
 run:
   timeout: 5m
-  # Analyze the code behind this build constraint too — without it the FTS5
+  # Several worktrees lint at once (agents, `make pre-push` in each), and by
+  # default the second run exits with "parallel golangci-lint is running"
+  # because every run takes one machine-wide lock file. The lock is not what
+  # keeps results apart: the shared cache keys each entry by the contents of
+  # the files it was computed from, so two runs over different trees read and
+  # write different entries, and a run over the same files reuses an equal one.
+  allow-parallel-runners: true
+  # Analyze the code behind this build constraint too. Without it the FTS5
   # content memory path and the cgo ICU tokenizer are silently excluded from
   # staticcheck/govet/errcheck. The cgo files additionally need pkg-config
   # icu-uc/icu-i18n on PKG_CONFIG_PATH (the lint CI job installs libicu-dev,
   # mirroring the test job).
+  #
+  # This is the tag set for a bare `golangci-lint run`, such as an editor's.
+  # `make lint` and the CI lint jobs run scripts/tagmatrix, which passes
+  # --build-tags itself, once per build configuration, so the integration,
+  # e2e, acceptance, model-tag, js/wasm and other OS files are linted too.
   build-tags:
     - fts5
 linters:
@@ -52,69 +64,68 @@ linters:
       # pure noise on this codebase or already covered by another linter. See
       # the triage notes for the reasoning per rule.
       excludes:
-        # G101 — "hardcoded credentials": fires on constant *property-key*
+        # G101, "hardcoded credentials": fires on constant *property-key*
         # names like PropWordCountTargetPrefix ("word-count-target:"), which
         # are map keys, not secrets. No real credential is ever inlined.
         - G101
-        # G115 — integer-overflow on type conversions: every hit is a
+        # G115, integer-overflow on type conversions: every hit is a
         # len()/enum-bitmask/byte-value conversion bounded far below the target
         # type's range (e.g. int32(len(blocks)), int64(Permission)). No path
         # takes an attacker-controlled magnitude near 2^31/2^63. Classic gosec
         # false-positive class.
         - G115
-        # G110 — decompression bomb: every remaining site is bounded by
+        # G110, decompression bomb: every remaining site is bounded by
         # core/safeio. Container formats (OOXML/EPUB/IDML) and .kpz packages go
-        # through ZipLimits — declared-header CheckReader up front, then a
+        # through ZipLimits: declared-header CheckReader up front, then a
         # ZipGuard enforcing per-entry size, cumulative total, and the
         # inflate-ratio bomb check on the ACTUAL stream. Plugin tarballs are
         # additionally cosign-verified before extraction, and every extractor is
         # Zip-Slip hardened (see G305).
         - G110
-        # G201 — SQL string formatting: the dynamic query builders interpolate
+        # G201, SQL string formatting: the dynamic query builders interpolate
         # only a constant WHERE skeleton and "$N" placeholder tokens; every
         # user value is bound through args (parameterized). Verified in
         # bowrain/store/{activity,notification,review_queue}.go.
         - G201
-        # G204 — subprocess with tainted args: launches are plugin binaries
+        # G204, subprocess with tainted args: launches are plugin binaries
         # resolved from the signed manifest, ffmpeg via a resolved bin, and the
-        # okapi/tikal parity harness — all trusted, non-network inputs. The
+        # okapi/tikal parity harness, all trusted, non-network inputs. The
         # plugin-host's whole job is to exec discovered plugin binaries.
         - G204
-        # G304 — file inclusion via variable: paths come from validated project
+        # G304, file inclusion via variable: paths come from validated project
         # config / CLI args, not untrusted network input. (Not currently
         # firing; excluded pre-emptively as it is the same trusted-path class.)
         - G304
-        # G305 — Zip-Slip on symlink extraction: the sole site already resolves
+        # G305, Zip-Slip on symlink extraction: the sole site already resolves
         # the target and enforces containment with a filepath.Rel-based
         # withinDir() check plus O_NOFOLLOW (host/pluginhost/install.go). The
         # guard is present; gosec cannot see it.
         - G305
-        # G306 — WriteFile permission > 0600: hits are config files, extraction
-        # outputs, local blob-store content, and test fixtures — none are
+        # G306, WriteFile permission > 0600: hits are config files, extraction
+        # outputs, local blob-store content, and test fixtures. None are
         # secrets, so 0644 is correct. Secrets live in the OS keychain, not on
         # disk.
         - G306
-        # G404 — weak random (math/rand): used for retry-backoff jitter and
+        # G404, weak random (math/rand): used for retry-backoff jitter and
         # test data, never for tokens/keys. crypto/rand is used where it
         # matters (core/id).
         - G404
-        # G602 — slice bounds out of range: false positives on indices already
+        # G602, slice bounds out of range: false positives on indices already
         # bounded by a modulo (base62[b%len]) or an enclosing loop (gray[gy*n+gx]).
         - G602
-        # G703 — path traversal via taint analysis: the newer taint-tracing
-        # successor to G304 (see above), triaged 2026-08 across all 11 sites it
-        # fires on. Every one resolves through an existing containment guard
-        # the tracer cannot see across a function boundary (blobPath/uploadDir/
-        # contain() in bowrain's localblob store; safeJoin/withinDir in
-        # host/pluginhost/install.go; validateBinaryPath in
-        # core/plugin/manifest), is inherently safe by construction (built from
+        # G703, path traversal via taint analysis: the taint-tracing successor
+        # to G304, triaged 2026-08 across its 11 sites. Some resolve
+        # through a containment guard the tracer cannot see across a function
+        # boundary (blobPath/uploadDir/contain() in bowrain's localblob store;
+        # safeJoin/withinDir in host/pluginhost/install.go; validateBinaryPath
+        # in core/plugin/manifest). Some are safe by construction: built from
         # filepath.Walk entries under a known local root, or from os.ReadDir
-        # results, which cannot contain ".." segments), or is a CLI flag /
-        # deployment env var naming a path the operator already trusts (kapi's
-        # -p, GITHUB_APP_PRIVATE_KEY_FILE) — the same trusted-path class G304
-        # covers.
+        # results, which cannot contain ".." segments. The rest are a CLI flag
+        # or deployment env var naming a path the operator already trusts
+        # (kapi's -p, GITHUB_APP_PRIVATE_KEY_FILE), the trusted-path class
+        # G304 covers.
         - G703
-        # G704 — SSRF via taint analysis: the taint-tracing successor to G107
+        # G704, SSRF via taint analysis: the taint-tracing successor to G107
         # (which stays enabled). Every site is a request to a destination
         # supplied at construction time from operator config, never a
         # request-scoped value: host/venue/client.Transport's baseURL comes
@@ -123,30 +134,30 @@ linters:
         # BOWRAIN_WORKER_HEALTH_URL (a deployment env var, not a request
         # field).
         - G704
-        # G706 — log injection via taint analysis: all 3 sites are startup/
+        # G706, log injection via taint analysis: all 3 sites are startup/
         # config lines (wbridge's listen-address log, its isolated-config-dir
         # refusal message, pprof's listen-address log) built from deployment
-        # env vars (WBRIDGE_PORT, BOWRAIN_DESKTOP_CONFIG_DIR) — operator input
+        # env vars (WBRIDGE_PORT, BOWRAIN_DESKTOP_CONFIG_DIR): operator input
         # at process start, never per-request attacker-supplied content.
         - G706
-        # G122 — filepath.Walk/WalkDir symlink TOCTOU: all 5 sites are
+        # G122, filepath.Walk/WalkDir symlink TOCTOU: all 5 sites are
         # developer-tooling directory copies/snapshots (scripts/authoringlab,
         # scripts/skilleval, host's local draft-delivery walk) over a directory
-        # the same local process owns outright — there is no concurrent
+        # the same local process owns outright. There is no concurrent
         # untrusted writer to race against os.Root-style hardening.
         - G122
-        # G124 — http.Cookie missing Secure/HttpOnly/SameSite: all 3 sites in
-        # bowrain/server/handlers_auth.go already set HttpOnly, SameSite, and a
-        # Secure value computed by cookieSecure() (true whenever the request is
-        # HTTPS or ForceSecureCookies is set) — gosec wants a literal `true` and
+        # G124, http.Cookie missing Secure/HttpOnly/SameSite: all 3 sites in
+        # bowrain/server/handlers_auth.go already set HttpOnly and SameSite.
+        # Their Secure value comes from cookieSecure(), true whenever the
+        # request is HTTPS or ForceSecureCookies is set. gosec wants a literal `true` and
         # cannot verify a boolean expression, which is exactly what lets local
         # HTTP dev work without weakening prod.
         - G124
     testifylint:
       # Only the checks below stay disabled, each for a reason:
-      #   contains/encoded-compare/negative-positive — too many false positives
+      #   contains/encoded-compare/negative-positive: too many false positives
       #     on this codebase's assertion styles.
-      #   float-compare — InDelta is not wanted; exact float asserts are
+      #   float-compare: InDelta is not wanted; exact float asserts are
       #     intentional in the parity/scoring tests.
       # len/empty/compares are enabled (mechanically auto-fixable, no downside).
       disable:
@@ -188,16 +199,16 @@ linters:
       # contextcheck only sees the chain when the cgo/FTS5 build tags actually
       # compile, which differs between a developer machine and the lint CI job.
       # A directive is therefore *required* on one and flagged as unused by
-      # nolintlint on the other — it cannot be correct in both places. An
+      # nolintlint on the other, so it cannot be correct in both places. An
       # exclusion is inert when the finding does not fire.
       - linters: [contextcheck]
         text: "RebuildMemorySearchIndexes->RebuildSearchIndex"
       # SA5011 (possible nil dereference) is a known false-positive class in
       # tests that guard with `if x == nil { t.Fatal(...) }` and then use x:
       # staticcheck does not model testing.T.Fatal as terminating in every
-      # analysis state (the finding surfaces only under the full-tree lint the
-      # CI runner performs, not the local per-package one), so the guarded
-      # deref is misread as reachable-while-nil. The guard is correct; suppress
+      # analysis state, so the guarded deref is misread as reachable-while-nil.
+      # The finding surfaces only under the full-tree lint the CI runner
+      # performs, not the local per-package one. The guard is correct; suppress
       # the linter noise in test code only, leaving SA5011 fully active in
       # production code.
       - linters: [staticcheck]
@@ -205,19 +216,17 @@ linters:
         text: "SA5011"
       # gosec: test code is not a deployment surface. Test fixtures spin up
       # throwaway HTTP servers, write scratch files, and use math/rand for
-      # sample data — hardening rules (timeouts, file perms, weak-random) are
+      # sample data. Hardening rules (timeouts, file perms, weak-random) are
       # noise there. The production rules stay fully active on non-test code.
       - linters: [gosec]
         path: _test\.go
       # noctx: fires exclusively on httptest.NewRequest in test files (verified
-      # 2026-08 — zero hits outside _test.go across the tree). It builds an
+      # 2026-08: zero hits outside _test.go across the tree). It builds an
       # in-memory *http.Request handed straight to a handler under test: no
       # dial, no timeout, nothing a context could cancel.
-      # httptest.NewRequestWithContext only became available once the
-      # module's Go version reached the level that ships it, so this fires
-      # across every httptest.NewRequest call in the tree (~100 files) the
-      # moment it's reachable, not because anything changed in the tests
-      # themselves. Same "test code is not a deployment surface" reasoning as
+      # The linter suggests httptest.NewRequestWithContext, which the
+      # module's Go version ships, so it fires on every httptest.NewRequest
+      # call in the tree (~100 files). Same "test code is not a deployment surface" reasoning as
       # the gosec rule above; production noctx findings stay fully active.
       - linters: [noctx]
         path: _test\.go

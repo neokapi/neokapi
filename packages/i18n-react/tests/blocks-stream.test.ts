@@ -9,16 +9,16 @@
  */
 
 import { describe, expect, it } from "vite-plus/test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Readable, Writable } from "node:stream";
 
 import type { File } from "@neokapi/kapi-format";
 import { runExtract } from "../src/commands/extract.ts";
+import { tempDir } from "./temp-dir";
 
 function tempProject() {
-  const dir = mkdtempSync(join(tmpdir(), "i18n-react-extract-"));
+  const dir = tempDir("i18n-react-extract");
   mkdirSync(join(dir, "src"));
   writeFileSync(
     join(dir, "src", "App.tsx"),
@@ -73,7 +73,7 @@ describe("neokapi-i18n extract", () => {
     // packages passes e.g. --src "../../packages/ui/src/**/*.tsx".
     // The .kbf.json for those files must not escape --out through the
     // leading "../" segments.
-    const root = mkdtempSync(join(tmpdir(), "i18n-react-workspace-"));
+    const root = tempDir("i18n-react-workspace");
     mkdirSync(join(root, "app"));
     mkdirSync(join(root, "packages", "ui", "src"), { recursive: true });
     writeFileSync(

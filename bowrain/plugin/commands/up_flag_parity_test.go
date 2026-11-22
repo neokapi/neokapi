@@ -30,3 +30,11 @@ func TestUpFlagSurface_EveryFlagHereExistsOnTheBuiltinUp(t *testing.T) {
 			"`kapi up --%s` is rejected as an unknown flag before this plumbing runs; register it in cli/up.go as well", f.Name)
 	})
 }
+
+// Every flag a server run reads is one this command defines, so the list
+// kapi forwards from never names a flag this command would reject.
+func TestServerRunFlags_AreFlagsOfThisCommand(t *testing.T) {
+	for _, name := range ServerRunFlags {
+		assert.NotNil(t, upCmd.Flags().Lookup(name), "server-up does not define --%s", name)
+	}
+}

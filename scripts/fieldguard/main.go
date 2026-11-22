@@ -86,6 +86,9 @@ var configs = []config{
 	{name: "js/wasm", env: []string{"GOOS=js", "GOARCH=wasm"}, tags: testTags},
 	{name: "windows", env: []string{"GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=0"}, tags: testTags},
 	{name: "linux without cgo", env: []string{"GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0"}, tags: testTags},
+	// The _darwin.go files on a Linux runner. scripts/internal/buildconfigs,
+	// which the linters, go vet and the other guards use, holds the same list.
+	{name: "darwin without cgo", env: []string{"GOOS=darwin", "GOARCH=arm64", "CGO_ENABLED=0"}, tags: testTags},
 }
 
 func main() {
@@ -347,11 +350,14 @@ func check(root string, only []string) (*inventory, error) {
 					continue
 				}
 			}
-			// A problem in the first configuration of a go.work module fails
-			// the check: a package that does not type-check can hide a use.
-			// Anywhere else it is a warning.
+			// A problem in the first configuration of any module fails the
+			// check: a package that does not type-check can hide a use, in a
+			// plugin module as much as in a go.work one. A plugin whose cgo
+			// needs a library gets its headers from the caller (`make
+			// fieldguard` provides PDFium's). In a later configuration it is
+			// a warning.
 			report := func(msg string, warnOnly bool) {
-				if ci == 0 && m.Work && !warnOnly {
+				if ci == 0 && !warnOnly {
 					fatal = append(fatal, msg)
 				} else {
 					inv.warnings = append(inv.warnings, msg)
@@ -360,7 +366,7 @@ func check(root string, only []string) (*inventory, error) {
 			pkgs, err := load(root, m, cfg, patterns)
 			if err != nil {
 				msg := fmt.Sprintf("%s (%s): %v", m.Dir, cfg.name, err)
-				if ci == 0 && m.Work {
+				if ci == 0 {
 					return nil, errors.New(msg)
 				}
 				inv.warnings = append(inv.warnings, msg)
@@ -906,12 +912,12 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 // this command, go.work or a go.mod can move what every file resolves to,
 // so it loads the whole tree.
 func changedGoFiles(root, ref string) ([]string, bool, error) {
-	out, err := exec.Command("git", "-C", root, "diff", "--name-only", "--diff-filter=d", ref+"...HEAD").Output()
+	out, err := exec.CommandContext(context.Background(), "git", "-C", root, "diff", "--name-only", "--diff-filter=d", ref+"...HEAD").Output()
 	if err != nil {
 		return nil, false, fmt.Errorf("list the files changed since %s: %w", ref, err)
 	}
 	var files []string
-	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for name := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		switch {
 		case name == "":
 			continue

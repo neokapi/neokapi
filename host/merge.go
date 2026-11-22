@@ -1,6 +1,7 @@
 package host
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -38,10 +39,10 @@ import (
 // sidecar (batch wasn't redacted) is a no-op. Merge runs it before it compiles
 // the units into a change set.
 //
-// The incoming source is always restored. A unit with no basis is compared
-// with the source as it stands, which holds the originals. The target is
-// restored only when restoreTarget is set; --no-restore leaves placeholders
-// in the merged output.
+// The incoming source is ALWAYS restored, because a unit with no basis is
+// compared with the stored source, which holds the originals. The target is
+// restored only when restoreTarget is set; false (--no-restore) leaves
+// placeholders in the merged output.
 //
 // doc is the source document the blocks translate. The vault keeps each
 // original under its document, block and token. A sidecar an earlier kapi
@@ -280,17 +281,17 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	return output.Print(cmd, output.MergeStoreOutput{Written: written, Stale: stale.Blocks, Unstamped: stale.Unstamped, FromProjectStore: true, Warnings: unread.warnings()})
 }
 
-// materializeFromProjectStore is the shared materialize path (#1078 C2/C3).
-// It writes the target files for the given locales from the project block
-// store. Each source and locale is one change set of set_content operations,
-// which carry the stored `targets/<locale>` overlays. The change service
-// writes them from the source's skeleton (materializeEdition).
-//
-// A collection that names no target is source-only and gets no file. A
-// translation the store holds nothing for is left as it is. `kapi merge`
-// with no -i calls it over every target language. `kapi up` calls it after
-// the loop for the shippable locales, when the recipe's materialize policy or
-// --materialize asks for it. It returns the number of files written.
+// materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
+// it writes the localized files for the given locales from the project block
+// store. For each source and locale it builds one change set of set_content
+// operations carrying the stored `targets/<locale>` overlays, and the change
+// service writes it from the source's skeleton (materializeEdition). A
+// collection that names no target is source-only and gets no file, and a
+// translation the store holds nothing for is left as it is. Plain `kapi
+// merge` (no -i) calls it over every target language. After the loop, `kapi
+// up` calls it for the shippable locales when the materialize policy
+// (defaults.materialize / --materialize) says so. Returns the number of files
+// written.
 func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
 	written, _, err := a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
 	return written, err
@@ -371,11 +372,10 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	absorber := a.newMemoryAbsorber(tm)
 
 	// Materializing means writing what the store produced. A locale the store
-	// holds no target for produces source fallback for every block. Writing
-	// that over the committed translations destroys them. That is the loss on a
-	// fresh clone: the catalogs are complete, so the loop runs no pass, and the
-	// block store is empty. Silence is the honest output for a store with nothing to
-	// say; the locale's standing is what coverage already reports.
+	// holds no target for produces source fallback for every block, and writing
+	// that over the committed translations destroys them. A fresh clone hits
+	// this: the catalogs are complete, so the loop runs no pass, and the block
+	// store is empty. Such a locale is skipped; coverage reports its standing.
 	keptLocales, err := a.keptLocales(ctx, layout.Root)
 	if err != nil {
 		return 0, staleDrafts{}, fmt.Errorf("merge: read the workspace home: %w", err)
@@ -659,9 +659,9 @@ func (s *mergeStats) accumulate(o mergeStats) {
 
 // MergeOneKpz ingests a bilingual interchange .kpz returned by a translator
 // (kind=kapi-interchange, AD-025 §7). It validates the profile and merges the
-// target overlays of each source through the change service, as kapi merge -i
-// merges an XLIFF or PO file. The revisions the interchange task records for
-// each unit are their if_match and basis.
+// target overlays of each source it carries through the change service, as
+// kapi merge -i merges an XLIFF or PO file. The revisions the interchange task
+// records for each unit serve as their if_match and basis.
 func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	ctx := cmd.Context()
 	pkg, err := LoadWorkspace(kpzInput)
@@ -980,7 +980,10 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 	// bare `*`, see project.ResolveTargetPath.
 	if proj != nil {
 		if item, _, ok := proj.ItemForPath(entry.Source); ok && item.Target != "" {
-			tmpl := project.ResolveTargetPathIn(item.Path, item.Base, item.Target, entry.Source, string(locale), proj.Defaults.LocaleFormat)
+			tmpl, err := project.ResolveTargetPathIn(item.Path, item.Base, item.Target, entry.Source, string(locale), proj.Defaults.LocaleFormat)
+			if err != nil {
+				return "", fmt.Errorf("%s: %w", entry.Source, err)
+			}
 			if !filepath.IsAbs(tmpl) {
 				tmpl = filepath.Join(root, tmpl)
 			}
@@ -1067,9 +1070,16 @@ func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source,
 		m.origins[key] = projector.OriginAdd{EntryID: holder.ID, Origin: origin, Properties: entry.Properties}
 		return 0, 1, nil
 	}
-	_, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
+	stored, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
 	if gerr != nil {
 		return 0, 0, fmt.Errorf("read content-memory entry %s: %w", entry.ID, gerr)
+	}
+	if existed && storedRuns(stored.Variant(source)) == storedRuns(entry.Variant(source)) &&
+		storedRuns(stored.Variant(target)) == storedRuns(entry.Variant(target)) {
+		// The store already holds this pair: there is nothing to learn, and
+		// writing it again would add an operation to the workspace log on
+		// every run over an unchanged project.
+		return 0, 0, nil
 	}
 	m.staged[entry.ID] = len(m.entries)
 	m.entries = append(m.entries, entry)
@@ -1150,7 +1160,7 @@ func (m *memoryAbsorber) flush(ctx context.Context) error {
 			adds = append(adds, add)
 		}
 		slices.SortFunc(adds, func(a, b projector.OriginAdd) int {
-			return strings.Compare(a.EntryID+"\x00"+a.Origin.Key, b.EntryID+"\x00"+b.Origin.Key)
+			return cmp.Or(strings.Compare(a.EntryID, b.EntryID), strings.Compare(a.Origin.Key, b.Origin.Key))
 		})
 		if err := m.tm.AddOrigins(ctx, adds); err != nil {
 			return fmt.Errorf("record %d merge origin(s): %w", len(adds), err)

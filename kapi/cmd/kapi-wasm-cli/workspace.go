@@ -24,14 +24,13 @@ import (
 )
 
 // The browser workspace is a cache: the browser may evict what a page keeps,
-// and a page in another browser never sees it. kapiExportWorkspace packs what
-// the engine holds into a workspace package (kpz.KindWorkspace), the files of
-// the engine's file system and the context of every project among them, and
-// kapiImportWorkspace reads one back. A project's context travels as its
-// operation log (a context package, as `kapi store export` writes one), so
-// reading it back rebuilds the project's stores by merging the log. A terms
-// store outside every project (`kapi terms import` run outside a project, or
-// one named with --file) has no log, so it travels as a terms bundle and is
+// and a page in another browser never sees it. kapiExportWorkspace packs the
+// engine's files and the context of every project among them into a workspace
+// package (kpz.KindWorkspace), and kapiImportWorkspace reads one back.
+//
+// A project's context travels as its operation log, as `kapi store export`
+// writes it, so an import rebuilds the project's stores from the log. A terms
+// store outside every project has no log. It travels as a terms bundle and is
 // written back into a store at the same path.
 
 // exportSkip lists the directories an export leaves out: the data root (the
@@ -228,10 +227,10 @@ func exportWorkspace(ctx context.Context, root string) (*workspaceExport, error)
 }
 
 // termStoresOutsideProjects lists the terms stores at or below root that
-// belong to no project: every database the driver holds there that carries
-// the terms schema, apart from the data root (the workspace), the directories
-// an export leaves out, and each project's own state directory, whose stores
-// are projections of the project's log.
+// belong to no project: every database the driver holds there with the terms
+// schema. It leaves out the data root (the workspace), the directories an
+// export leaves out, and each project's state directory, whose stores are
+// projections of the project's log.
 func termStoresOutsideProjects(ctx context.Context, root string, projects []string) ([]string, error) {
 	paths, err := storage.List(root)
 	if err != nil {
@@ -291,14 +290,24 @@ func isTermStore(ctx context.Context, path string) (bool, error) {
 	return ok, nil
 }
 
+// standaloneTermsCmd is the command `kapi terms --file path` would be: it
+// names the terms store at path, which belongs to no project, the way the CLI
+// names one. The App opens such a store by the one route for a store outside
+// a project (host.App.OpenTermsSQLite), the same route the native build uses.
+func standaloneTermsCmd(ctx context.Context, path string) host.Command {
+	cmd := host.NewEnvCommand(ctx, "terms")
+	cmd.Flags().String("file", path, "")
+	return cmd
+}
+
 // termStoreBundle packs the terms store at path as a terms bundle, and
 // reports how many concepts it holds.
 func termStoreBundle(ctx context.Context, path string) ([]byte, int, error) {
-	tb, err := terms.NewSQLiteStore(path)
+	tb, _, release, err := app.OpenTermsForRead(standaloneTermsCmd(ctx, path))
 	if err != nil {
 		return nil, 0, err
 	}
-	defer func() { _ = tb.Close() }()
+	defer release()
 	n, err := tb.Count(ctx)
 	if err != nil {
 		return nil, 0, err
@@ -314,14 +323,11 @@ func termStoreBundle(ctx context.Context, path string) ([]byte, int, error) {
 // at path, creating it when there is none. A concept already there under the
 // same id is replaced.
 func importTermStore(ctx context.Context, path string, data []byte) (int, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return 0, err
-	}
-	tb, err := terms.NewSQLiteStore(path)
+	tb, _, release, err := app.OpenTermsSQLite(standaloneTermsCmd(ctx, path))
 	if err != nil {
 		return 0, err
 	}
-	defer func() { _ = tb.Close() }()
+	defer release()
 	return host.ImportKTBFile(ctx, tb, bytes.NewReader(data))
 }
 

@@ -9,18 +9,18 @@
  *     independent of any app i18n runtime.
  */
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { transform } from "../src/plugin/transform.ts";
 import type { ReviewManifest } from "../src/review/manifest.ts";
+import { tempDir } from "./temp-dir";
 
 const tmp: string[] = [];
 
 function translationsDir(dict: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), "kapi-static-overlay-"));
+  const dir = tempDir("kapi-static-overlay");
   tmp.push(dir);
   const tdir = join(dir, "translations");
   mkdirSync(tdir, { recursive: true });

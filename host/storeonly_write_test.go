@@ -49,9 +49,9 @@ func TestImport_RunTwiceReadsNothingTheSecondTime(t *testing.T) {
 }
 
 // TestImport_EachCheckoutReadsItsOwnFiles is the write half of #2918. The skip
-// stamps used to sit in the checkout while the rows they gate are shared, so
-// one clone's import could decide another clone's file had been read. Both
-// branches reach the store, and the log names both imports.
+// stamps a checkout reads are its own, while the rows they gate are shared, so
+// one clone's import never decides that another clone's file has been read.
+// Both branches reach the store, and the log names both imports.
 func TestImport_EachCheckoutReadsItsOwnFiles(t *testing.T) {
 	c := newTwoCheckoutProject(t)
 	ctx := context.Background()
@@ -316,7 +316,12 @@ func TestVoiceEdit_RefusesADocumentThatDoesNotCheckOut(t *testing.T) {
 	t.Setenv("EDITOR", writingEditor(t, "name: Edited Voice\ntone:\n  formality: extremely\n"))
 	_, err := a.EditVoiceProfile(ctx, cmd, VoiceEditRequest{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Your edit is at ")
+	_, kept, found := strings.Cut(err.Error(), "Your edit is at ")
+	require.True(t, found, "the person is told where their edit is: %v", err)
+	kept = strings.TrimSpace(kept)
+	// The edit is kept for the person, so the test removes it.
+	t.Cleanup(func() { _ = os.Remove(kept) })
+	assert.FileExists(t, kept)
 }
 
 // TestVoiceEdit_ClearsConstraintsTheEditDropped: the store reads a profile

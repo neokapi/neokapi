@@ -1,0 +1,60 @@
+name: Set up Go with a cache main writes
+description: >
+  actions/setup-go with its own cache off, and the Go build and module caches
+  restored under a key family this action names. A push saves the family; a
+  pull request only restores it, so a pull request that changes a go.sum
+  restores main's latest entry and saves nothing. setup-go's built-in cache
+  saves from a pull request whenever its key misses, and such a cache serves
+  only that pull request while it pushes out the caches every other one
+  restores. For a job outside the go.work modules or one that needs a single
+  module; the go.work jobs use setup-go-modules.
+
+inputs:
+  go-version:
+    description: Go version to install
+    required: false
+    default: "1.27.4"
+  family:
+    description: Cache key family, for example `go-wasm`. One job writes each family.
+    required: true
+  hash-files:
+    description: Files whose hash ends the key (a hashFiles pattern).
+    required: false
+    default: "**/go.sum"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v7
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: false
+
+    - name: Resolve Go cache paths
+      id: gocache
+      shell: bash
+      run: |
+        echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+        echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the Go caches
+      if: github.event_name == 'pull_request'
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ${{ steps.gocache.outputs.build }}
+          ${{ steps.gocache.outputs.mod }}
+        key: ${{ inputs.family }}-${{ runner.os }}-go${{ inputs.go-version }}-${{ hashFiles(inputs.hash-files) }}
+        restore-keys: |
+          ${{ inputs.family }}-${{ runner.os }}-go${{ inputs.go-version }}-
+
+    - name: Restore and save the Go caches
+      if: github.event_name != 'pull_request'
+      uses: actions/cache@v6
+      with:
+        path: |
+          ${{ steps.gocache.outputs.build }}
+          ${{ steps.gocache.outputs.mod }}
+        key: ${{ inputs.family }}-${{ runner.os }}-go${{ inputs.go-version }}-${{ hashFiles(inputs.hash-files) }}
+        restore-keys: |
+          ${{ inputs.family }}-${{ runner.os }}-go${{ inputs.go-version }}-

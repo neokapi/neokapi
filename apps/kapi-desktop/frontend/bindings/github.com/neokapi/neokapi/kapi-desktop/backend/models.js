@@ -410,7 +410,7 @@ export class AIModelOption {
         if (/** @type {any} */(false)) {
             /**
              * Subscription is true when the model runs on a personal subscription via
-             * a detected keyless provider (claude-code) — no API key, no metered cost.
+             * a detected keyless provider (claude-code), no API key, no metered cost.
              * @member
              * @type {boolean | undefined}
              */
@@ -4921,7 +4921,7 @@ export class DeeperLookModelDTO {
 
 /**
  * DefaultModelInfo is the configured default AI model and the provider it
- * implies — the shared ai.provider/ai.model convention both kapi surfaces read.
+ * implies, the shared ai.provider/ai.model convention both kapi surfaces read.
  */
 export class DefaultModelInfo {
     /**
@@ -8061,7 +8061,7 @@ export class ProjectFilters {
  * The json tags carry the same memory/terms vocabulary as the Go fields and the
  * frontend's ProjectHandles type. They were left as tmHandle/termbaseHandle when
  * the fields were renamed, so the wire never matched what the frontend reads
- * (`memoryHandle`) — MemoriesPage and the Terms page saw undefined and showed
+ * (`memoryHandle`), so MemoriesPage and the Terms page saw undefined and showed
  * their "no project content memory found" empty state for every project. That
  * type is hand-written, so tsc could not catch it either.
  */
@@ -9118,7 +9118,7 @@ export class ResourceInfo {
 
 /**
  * ReviewAIActionResult is the outcome of one per-unit AI action. Fix/retranslate
- * return a PROPOSED target only — nothing is written until the reviewer accepts
+ * return a PROPOSED target only. Nothing is written until the reviewer accepts
  * the proposal, which the Review page sends as a set_content through Apply;
  * explain returns text.
  */
@@ -9487,6 +9487,53 @@ export class RulesFilesDTO {
 }
 
 /**
+ * RunAIOptions are the AI settings a desktop run is started with, the
+ * desktop's counterpart of `kapi up --provider/--credential/--model`. Empty
+ * fields leave the recipe and the stored default to decide.
+ */
+export class RunAIOptions {
+    /**
+     * Creates a new RunAIOptions instance.
+     * @param {Partial<RunAIOptions>} [$$source = {}] - The source object to create the RunAIOptions.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["model"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunAIOptions instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RunAIOptions}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RunAIOptions(/** @type {Partial<RunAIOptions>} */($$parsedSource));
+    }
+}
+
+/**
  * RunError is a run failure presented as structure rather than prose.
  */
 export class RunError {
@@ -9504,7 +9551,7 @@ export class RunError {
         }
         if (!("headline" in $$source)) {
             /**
-             * Headline is the short human sentence — the primary line in the UI.
+             * Headline is the short human sentence: the primary line in the UI.
              * @member
              * @type {string}
              */
@@ -9658,18 +9705,18 @@ export const RunErrorActionKind = {
     $zero: "",
 
     /**
-     * ActionCommand — a shell command to run; the UI offers it copyable.
+     * ActionCommand: a shell command to run; the UI offers it copyable.
      */
     ActionCommand: "command",
 
     /**
-     * ActionOpenSettings — navigate to an in-app view (Target is a View id from
+     * ActionOpenSettings: navigate to an in-app view (Target is a View id from
      * the frontend's sidebar union, e.g. "settings", which hosts AI Models).
      */
     ActionOpenSettings: "open-settings",
 
     /**
-     * ActionOpenURL — open an external page (install docs, downloads).
+     * ActionOpenURL: open an external page (install docs, downloads).
      */
     ActionOpenURL: "open-url",
 };
@@ -9686,32 +9733,32 @@ export const RunErrorKind = {
     $zero: "",
 
     /**
-     * RunErrOllamaUnreachable — no Ollama server at the configured URL.
+     * RunErrOllamaUnreachable: no Ollama server at the configured URL.
      */
     RunErrOllamaUnreachable: "ollama-unreachable",
 
     /**
-     * RunErrModelNotInstalled — the local model has not been pulled.
+     * RunErrModelNotInstalled: the local model has not been pulled.
      */
     RunErrModelNotInstalled: "model-not-installed",
 
     /**
-     * RunErrAmbiguousCredential — several AI credentials match; none is default.
+     * RunErrAmbiguousCredential: several AI credentials match; none is default.
      */
     RunErrAmbiguousCredential: "ambiguous-credential",
 
     /**
-     * RunErrMissingCredential — the provider needs an API key and none is set.
+     * RunErrMissingCredential: the provider needs an API key and none is set.
      */
     RunErrMissingCredential: "missing-credential",
 
     /**
-     * RunErrCanceled — the user stopped the run.
+     * RunErrCanceled: the user stopped the run.
      */
     RunErrCanceled: "canceled",
 
     /**
-     * RunErrBlockedTargetPath — a target path cannot be written (a directory
+     * RunErrBlockedTargetPath: a target path cannot be written (a directory
      * occupies it, the directory denies writing, the filesystem is read-only).
      * It is an obstruction to clear on disk, not a translation problem, so it
      * must never be presented as pending target-language work (#1449).
@@ -9719,7 +9766,7 @@ export const RunErrorKind = {
     RunErrBlockedTargetPath: "blocked-target-path",
 
     /**
-     * RunErrUnknown — no confident classification; headline is the raw message.
+     * RunErrUnknown: no confident classification; headline is the raw message.
      */
     RunErrUnknown: "unknown",
 };
@@ -9831,12 +9878,12 @@ export class RunEvent {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Convergence-run fields (BringUpToDate — the shared `kapi up` engine):
-             * ConvergeEvent carries one typed progress event of the run (when type ==
-             * "converge_event") — the per-pass/per-locale stream (pass_start,
-             * locale_start, unit_progress, locale_done, pass_done, materialized, done)
-             * the live run view renders locale rows from, the same protocol the CLI's
-             * live renderer and the server's SSE stream speak. ConvergeResult carries
+             * Convergence-run fields (BringUpToDate, the shared `kapi up` engine).
+             * ConvergeEvent carries one typed progress event of the run when type ==
+             * "converge_event". The events form the per-pass and per-locale stream
+             * (pass_start, locale_start, unit_progress, locale_done, pass_done,
+             * materialized, done) the live run view renders locale rows from. The CLI's
+             * live renderer and the server's SSE stream speak the same protocol. ConvergeResult carries
              * the final structured outcome (on the run's "complete").
              * @member
              * @type {convergence$0.Event | null | undefined}
@@ -10805,7 +10852,7 @@ export class ToolInfo {
         }
         if (/** @type {any} */(false)) {
             /**
-             * IsSourceTransform reports whether the tool is a transformer — it may
+             * IsSourceTransform reports whether the tool is a transformer: it may
              * rewrite source (AD-006); the placement pass validates its position.
              * @member
              * @type {boolean | undefined}

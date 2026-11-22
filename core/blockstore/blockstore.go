@@ -10,7 +10,7 @@
 //   - Blocks are content-addressed by hash. Once written, they are
 //     immutable. Flows don't rewrite them; they append overlays.
 //   - Overlays are append layers keyed by (kind, blockHash). "kind"
-//     is a namespace string ("targets", "annotations/termbase", …).
+//     is a namespace string ("targets", "annotations/terms", …).
 //     Different tools write different kinds in parallel.
 //   - Every provider supports forward-only streaming via
 //     Session.Blocks. Random access (GetBlock, GetOverlay) is
@@ -51,7 +51,7 @@ type Capabilities struct {
 	Writable bool
 	// Persistent: the store survives the process and reuses its state
 	// across runs (SQLite cache, remote ContentStore). The default
-	// in-memory store is NOT persistent — its overlay cache is discarded
+	// in-memory store is NOT persistent, its overlay cache is discarded
 	// when the process exits, so writing overlays during a one-shot run
 	// is wasted work. Executors use this to route one-shot runs through
 	// the plain streaming Tool.Process path instead of SessionTool's
@@ -62,6 +62,15 @@ type Capabilities struct {
 // Store is the top-level provider handle. A Store is opened once per
 // kapi process against a project's declared location, then each flow
 // opens Sessions on it.
+//
+// What a block's key is, and what an overlay's payload is, differ by
+// implementation. The memory store and sqlitestore keep a block under the
+// Hash its caller gives it and an overlay's Payload as the bytes given; the
+// shared conformance suite (runStoreSuite) asserts that. A server-side store
+// that files blocks in its content tables keys a block by the content hash it
+// computes from the block's runs, and decodes a target overlay into columns.
+// The Session methods below say, for each operation, what holds in both and
+// what holds in only one.
 type Store interface {
 	// Begin opens a Session. Sessions hold the transaction scope:
 	// every Put* is buffered until Commit succeeds (or discarded
@@ -130,11 +139,17 @@ type Session interface {
 	Blocks(filter BlockFilter) iter.Seq2[*Block, error]
 
 	// GetBlock returns a single block by hash. Requires RandomAccess.
-	// Returns (nil, ErrNotFound) when the hash is unknown.
+	// Returns (nil, ErrNotFound) when the hash is unknown. In the memory
+	// store and sqlitestore the hash is the Block.Hash the block was put
+	// under. A store that keys blocks by content finds a block by its
+	// computed content hash only, so a caller-chosen Hash that is not the
+	// content hash is not found there.
 	GetBlock(hash string) (*Block, error)
 
 	// PutBlock writes or replaces a block. Provider may coalesce;
-	// visible after Commit.
+	// visible after Commit. The memory store and sqlitestore reject a
+	// block with an empty Hash; a store that keys blocks by content
+	// computes the key and ignores Hash.
 	PutBlock(collection string, b *Block) error
 
 	// GetOverlay returns one overlay by (kind, blockHash). Returns
@@ -142,7 +157,16 @@ type Session interface {
 	GetOverlay(kind, blockHash string) (Overlay, error)
 
 	// PutOverlay appends or replaces an overlay. Idempotent per
-	// (kind, blockHash).
+	// (kind, blockHash) in every store: putting the payload the overlay
+	// already holds changes nothing, its UpdatedAt included.
+	//
+	// What "the payload it already holds" means differs. The memory store
+	// and sqlitestore compare Payload bytes, accept an overlay on a hash no
+	// block holds, and return the bytes given from GetOverlay. A store that
+	// decodes a target overlay into columns compares the decoded content,
+	// refuses an overlay on a hash that names no block (ErrNotFound), and
+	// returns an equivalent payload from GetOverlay rather than the same
+	// bytes.
 	PutOverlay(s Overlay) error
 
 	// ListOverlays streams every overlay of a given kind. It reads the
@@ -167,7 +191,7 @@ type Session interface {
 // scan their full overlay space (memory, sqlite cache) implement it; it is
 // what the block-store exporter uses to snapshot all in-progress work
 // without knowing the kinds up front. Streaming/remote sessions that can't
-// enumerate need not implement it — callers fall back to per-kind
+// enumerate need not implement it, callers fall back to per-kind
 // ListOverlays.
 type OverlayEnumerator interface {
 	// AllOverlays streams every overlay the session can see, ordered by
@@ -179,7 +203,7 @@ type OverlayEnumerator interface {
 // leaving overlays intact. A full re-extraction rebuilds the block set from
 // source, so it clears the previous set first rather than relying on per-key
 // upserts (whose keys can change between kapi versions). Stores that can't
-// bulk-delete need not implement it — callers treat its absence as a no-op.
+// bulk-delete need not implement it, callers treat its absence as a no-op.
 type BlockPurger interface {
 	DeleteBlocks() error
 }

@@ -52,11 +52,13 @@ the output, as with `status` above.
 $S run up -p .                                 # "materialized 2 target file(s)"
 SB=$($S path); rm -rf "$SB/before"; /bin/cp -R "$SB/project" "$SB/before"
 $S run up -p .
-diff -r -x work "$SB/before" "$SB/project" && echo unchanged
+diff -r "$SB/before" "$SB/project" && echo unchanged
 ```
 
 Both runs exit 0 and end `Not yet up to date`, because the sample's Dutch waits
-for review. Target-language drift never fails a run.
+for review. Target-language drift never fails a run. The second run's summary
+reads `produced 0` and `waiting for review 19`: it wrote nothing, and the Dutch
+drafts are held apart from what it produced.
 
 **`kapi check`**, a pass and then a failure:
 
@@ -85,8 +87,14 @@ names another. "Berth plan" is in the content memory after the first
 ```bash
 $S run <cmd> --help            # exit 0, the help you wrote
 $S run <cmd> --bogus           # "Error: unknown flag: --bogus", exit 1
-$S run <cmd> -p /nonexistent   # an error naming the path, exit 1
+$S run <cmd> -p /nonexistent   # "-p /nonexistent does not exist", exit 1
+$S run <cmd> -p "$(mktemp -d)" # "... is not a kapi project", exit 1
 ```
+
+Both errors come from the project resolution (`project.NotAProjectError`),
+before the command reads or writes anything. `kapi share` and `kapi connect`
+write a new recipe where `-p` points, so they resolve it with
+`ResolveNewProjectPath` and judge the path themselves.
 
 Add the failure your change introduces or guards, with its exit code. Where the
 command takes `--json` (or `--jq`, which implies it), check that a new field

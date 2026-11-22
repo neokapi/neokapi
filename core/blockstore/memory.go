@@ -1,6 +1,7 @@
 package blockstore
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"iter"
@@ -13,12 +14,12 @@ import (
 // NewMemoryStore returns a Store that keeps everything in Go maps.
 // RandomAccess + Writable; Concurrent (multiple sessions supported
 // simultaneously, each working against a snapshot taken at Begin;
-// commit replaces the store's state with the session's state —
+// commit replaces the store's state with the session's state,
 // last-writer-wins). Not Remote.
 //
 // Intended for: streaming flows (the executor default when no
 // persistent store is declared), tests, one-shot CLI invocations.
-// Equivalent to "no persistence" from the user's point of view —
+// Equivalent to "no persistence" from the user's point of view,
 // when the Store is Closed, the state is gone.
 func NewMemoryStore() Store {
 	return &memoryStore{
@@ -146,10 +147,14 @@ func (s *memorySession) PutOverlay(sc Overlay) error {
 		return errors.New("blockstore: overlay needs both Kind and BlockHash")
 	}
 	sc.Kind = CanonicalOverlayKind(sc.Kind)
+	key := overlayKey(sc.Kind, sc.BlockHash)
+	if held, ok := s.overlays[key]; ok && bytes.Equal(held.Payload, sc.Payload) {
+		return nil
+	}
 	if sc.UpdatedAt == 0 {
 		sc.UpdatedAt = time.Now().Unix()
 	}
-	s.overlays[overlayKey(sc.Kind, sc.BlockHash)] = sc
+	s.overlays[key] = sc
 	return nil
 }
 

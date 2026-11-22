@@ -1,6 +1,8 @@
 package tools_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
@@ -29,6 +31,32 @@ func registerPluginMT(t *testing.T, id mtprovider.ProviderID) {
 // dispatch: no provider (or any LLM provider) builds the AI translator;
 // a plugin-registered MT engine id builds the MT tool; an id known to
 // neither registry fails with the unknown-provider error.
+// A translate step whose provider has no key is built, and its provider
+// returns the failure on the first call; an MT engine, built with its key,
+// fails at once.
+func TestNewTranslateFromConfig_DeferredCredential(t *testing.T) {
+	missing := errors.New(`no saved credentials found for provider "anthropic"`)
+	tl, err := tools.NewTranslateFromConfig(map[string]any{
+		"provider": "anthropic", registry.DeferredCredentialErrorKey: missing,
+	}, "fr")
+	require.NoError(t, err)
+	_, isAI := tl.(*tools.AITranslateTool)
+	require.True(t, isAI)
+
+	p := aiprovider.Unavailable(aiprovider.Anthropic, missing)
+	_, terr := p.Translate(context.Background(), aiprovider.TranslateRequest{})
+	require.ErrorIs(t, terr, missing)
+	_, cerr := p.Chat(context.Background(), nil)
+	require.ErrorIs(t, cerr, missing)
+	assert.Equal(t, aiprovider.Anthropic, p.Name())
+
+	registerPluginMT(t, "plugin-deferred-mt")
+	_, err = tools.NewTranslateFromConfig(map[string]any{
+		"provider": "plugin-deferred-mt", registry.DeferredCredentialErrorKey: missing,
+	}, "fr")
+	require.ErrorIs(t, err, missing)
+}
+
 func TestNewTranslateFromConfig_RoutesByProvider(t *testing.T) {
 	t.Run("default is the LLM translator", func(t *testing.T) {
 		tl, err := tools.NewTranslateFromConfig(map[string]any{"api_key": "test"}, "fr")

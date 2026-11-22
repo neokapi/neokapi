@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -79,7 +80,7 @@ func runGen(args []string) error {
 		return err
 	}
 	if *title == "" || *ver == "" || *out == "" {
-		return fmt.Errorf("--title, --version and --out are required")
+		return errors.New("--title, --version and --out are required")
 	}
 	switch *osName {
 	case "macos", "windows", "linux":
@@ -118,7 +119,7 @@ func runGen(args []string) error {
 func privateKeyFromEnv() (ed25519.PrivateKey, error) {
 	raw := strings.TrimSpace(os.Getenv("UPDATE_ED25519_PRIVATE_KEY"))
 	if raw == "" {
-		return nil, fmt.Errorf("UPDATE_ED25519_PRIVATE_KEY is not set")
+		return nil, errors.New("UPDATE_ED25519_PRIVATE_KEY is not set")
 	}
 	key, err := base64.StdEncoding.DecodeString(raw)
 	if err != nil {

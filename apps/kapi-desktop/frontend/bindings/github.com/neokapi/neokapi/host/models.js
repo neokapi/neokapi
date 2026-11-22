@@ -46,24 +46,24 @@ export const AIModelOrigin = {
     $zero: "",
 
     /**
-     * AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+     * AIModelFromLocalePreset, `defaults.locales.<lang>.tools.<tool>` in the recipe.
      */
     AIModelFromLocalePreset: "locale-preset",
 
     /**
-     * AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+     * AIModelFromProjectPreset, `defaults.tools.<tool>` in the recipe.
      */
     AIModelFromProjectPreset: "project-preset",
 
     /**
-     * AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+     * AIModelFromAppConfig, the stored `ai.provider` / `ai.model` (the file at
      * config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
      * is what `kapi models setup` and `kapi models default` write.
      */
     AIModelFromAppConfig: "app-config",
 
     /**
-     * AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+     * AIModelFromBuiltIn, nothing configured; the tool's own default applies.
      */
     AIModelFromBuiltIn: "built-in",
 };
@@ -114,7 +114,7 @@ export class AIModelResolution {
         }
         if (!("configured" in $$source)) {
             /**
-             * Configured is false when neither half is configured anywhere — the
+             * Configured is false when neither half is configured anywhere, the
              * built-in fallback is carrying the run, which is worth surfacing rather
              * than presenting as a deliberate choice.
              * @member
@@ -134,6 +134,101 @@ export class AIModelResolution {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new AIModelResolution(/** @type {Partial<AIModelResolution>} */($$parsedSource));
+    }
+}
+
+/**
+ * AISetupKind says what a flow needs before its AI steps can run.
+ * @readonly
+ * @enum {string}
+ */
+export const AISetupKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AISetupNone means every AI step's credentials resolve.
+     */
+    AISetupNone: "",
+
+    /**
+     * AISetupChooseModel means an AI step names no provider and the stored
+     * default does not resolve to a usable one. Choosing a model, which sets
+     * the stored default, fixes it.
+     */
+    AISetupChooseModel: "choose_model",
+
+    /**
+     * AISetupMissingCredential means the recipe names a provider (or a saved
+     * credential) for an AI step and no credential for it resolves. A stored
+     * default never overrides a named provider, so only a credential for that
+     * provider fixes it.
+     */
+    AISetupMissingCredential: "missing_credential",
+};
+
+/**
+ * AISetupNeed is what running a flow needs before its AI steps can run.
+ */
+export class AISetupNeed {
+    /**
+     * Creates a new AISetupNeed instance.
+     * @param {Partial<AISetupNeed>} [$$source = {}] - The source object to create the AISetupNeed.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {AISetupKind}
+             */
+            this["kind"] = AISetupKind.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Flow and Tool name the step a missing credential belongs to.
+             * @member
+             * @type {string | undefined}
+             */
+            this["flow"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["tool"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Provider is the provider the recipe names, for a missing credential.
+             * @member
+             * @type {string | undefined}
+             */
+            this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Message is the error the run would fail with, for a missing credential:
+             * the same text `kapi up` prints.
+             * @member
+             * @type {string | undefined}
+             */
+            this["message"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AISetupNeed instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AISetupNeed}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AISetupNeed(/** @type {Partial<AISetupNeed>} */($$parsedSource));
     }
 }
 
@@ -3075,7 +3170,7 @@ export const ContextScope = {
     ScopeWorkspace: "workspace",
 
     /**
-     * ScopeProfile is one voice profile and nothing else — a by-name answer with
+     * ScopeProfile is one voice profile and nothing else: a by-name answer with
      * no project in scope, or one naming a profile no recipe declares. Narrower
      * than a project on purpose: there is no terms store and no governance window
      * behind it, and reporting that as an empty project scope would say the
@@ -3149,7 +3244,7 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Terms are concepts whose terms or definition match — what the project
+             * Terms are concepts whose terms or definition match: what the project
              * calls this, and whether it is discouraged.
              * @member
              * @type {ContextTermHit[] | undefined}
@@ -3159,7 +3254,7 @@ export class ContextSearchResult {
         if (/** @type {any} */(false)) {
             /**
              * Precedent is wording the project has already approved that matches the
-             * query — "how have we said this before?".
+             * query: "how have we said this before?".
              * 
              * This is NOT translation recycling. Recycling is the loop's job and is
              * invisible by design (`up` pre-fills from content memory as the structural
@@ -3174,7 +3269,7 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Profiles are the governance profiles whose validity is bounded — "which
+             * Profiles are the governance profiles whose validity is bounded: "which
              * voice is in force, and until when". Only profiles that declare a window
              * appear; a project that never bounds governance has none.
              * @member
@@ -3665,10 +3760,10 @@ export class ContextTermHit {
         if (/** @type {any} */(false)) {
             /**
              * ValidFrom/ValidTo carry the term's own time scoping when it has any.
-             * A rule that starts or stops on a date is what lets a context survive a
-             * rename without being rewritten, so a caller must be able to see that the
-             * answer it just got has an expiry — "recognise the old name until March"
-             * is a different instruction from "never use it".
+             * A rule that starts or stops on a date lets a context survive a rename
+             * without being rewritten. A caller sees that the answer has an expiry,
+             * because "recognise the old name until March" is a different instruction
+             * from "never use it".
              * @member
              * @type {string | undefined}
              */
@@ -4016,10 +4111,9 @@ export class ConvergeLocaleResult {
         if (/** @type {any} */(false)) {
             /**
              * FailingChecks counts units that are produced but fail the project's bound
-             * checks (#1078 G4). They count at their true rung in Pct — the unit is
-             * translated — and hold the locale out of Shippable until fixed. It counts
-             * UNITS, which is not what `kapi check` counts: one unit can carry several
-             * findings, and `kapi check` lists findings.
+             * checks (#1078 G4). They count at their true rung in Pct (the unit is
+             * translated) and hold the locale out of Shippable until fixed. It counts
+             * UNITS, where `kapi check` lists findings, and one unit can carry several.
              * @member
              * @type {number | undefined}
              */
@@ -4049,11 +4143,11 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Redrafted counts the stale units this run produced over — recycled against
-             * the rewritten source, or drafted for the remainder. It is what the loop
-             * owes them: a translation of the source the project has now. The decision
-             * they carried is NOT restored, so they stay in Stale until someone reviews
-             * the new draft, which is why the two are reported side by side.
+             * Redrafted counts the stale units this run produced over: recycled against
+             * the rewritten source, or drafted for the remainder. Each now holds a
+             * translation of the current source. The decision they carried is NOT
+             * restored, so they stay in Stale until someone reviews the new draft, and
+             * the two are reported side by side.
              * @member
              * @type {number | undefined}
              */
@@ -4158,8 +4252,30 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Produced counts the units this run wrote to the project's files, by its
+             * passes or by the delivery after its loop, from this run's drafts or an
+             * earlier run's. A run that changed nothing reports 0. Nil when the venue
+             * does not report it: a server run writes to the server, and its summary
+             * leaves the figure out rather than give it another meaning.
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["produced"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * WaitingForReview counts the drafts the run holds for review in locales
+             * short of their ship gate. They are not written to the project, so
+             * Produced leaves them out.
+             * @member
+             * @type {number | undefined}
+             */
+            this["waiting_for_review"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * ParkedScopes lists the gated (collection, locale) scopes that remain
-             * short of their gate — per-scope detail under the per-locale rollup, so
+             * short of their gate: per-scope detail under the per-locale rollup, so
              * a UI can link each parked scope to its review queue.
              * @member
              * @type {ParkedScope[] | undefined}
@@ -4200,7 +4316,7 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * StallReason is the machine-readable cause a run did not converge — set to
+             * StallReason is the machine-readable cause a run did not converge. It is
              * source_not_ready when every pending locale had nothing producible because
              * its source is held below the translate_after level. Empty on a
              * clean/parked-on-target run.
@@ -4252,14 +4368,13 @@ export class ConvergeOutput {
             /**
              * ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
              * the run proposed rather than applied: edits that take effect only once a
-             * reviewer accepts them. They are venue-supplied — a run at a venue that
-             * governs terminology fills them in — and all three are zero for a run that
-             * proposed nothing.
+             * reviewer accepts them. A venue that governs terminology fills them in,
+             * and all three are zero for a run that proposed nothing.
              * 
              * ChangesetURL is a deep link to the review surface, and is empty whenever
-             * the venue could not name one. An id with no link is still worth reporting:
-             * it is the handle every other surface takes, so a reader who cannot click
-             * through can still ask for the change-set by name.
+             * the venue could not name one. The id is reported either way: it is the
+             * handle every other surface takes, so a reader who cannot click through
+             * can still ask for the change-set by name.
              * @member
              * @type {number | undefined}
              */
@@ -4320,25 +4435,25 @@ export class ConvergeOutput {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType96;
-        const $$createField4_0 = $$createType98;
-        const $$createField16_0 = $$createType100;
-        const $$createField17_0 = $$createType102;
-        const $$createField18_0 = $$createType104;
+        const $$createField6_0 = $$createType98;
+        const $$createField18_0 = $$createType100;
+        const $$createField19_0 = $$createType102;
+        const $$createField20_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
         }
         if ("parked_scopes" in $$parsedSource) {
-            $$parsedSource["parked_scopes"] = $$createField4_0($$parsedSource["parked_scopes"]);
+            $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField16_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField17_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField18_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4686,7 +4801,7 @@ export class FindingsReport {
 
 /**
  * ParkedScope identifies one gated (collection, locale) scope still short of
- * its gate after the run — the address a review surface can deep-link to.
+ * its gate after the run: the address a review surface can deep-link to.
  */
 export class ParkedScope {
     /**
@@ -4998,12 +5113,32 @@ export class UpPlanOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Provider is the AI provider a converge run would use (the shared
-             * ai.provider default), when one is configured.
+             * Provider is the AI provider a converge run would use, as the run
+             * resolves it.
              * @member
              * @type {string | undefined}
              */
             this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Credential is what the run would say when it stops for want of that
+             * provider's credential (none saved or set, or the named one missing),
+             * and "" when the credential is available.
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Providers is set when target languages differ in what they use (a
+             * per-language preset): one group per distinct answer. Provider and
+             * Credential then summarize the groups.
+             * @member
+             * @type {UpPlanProviderGroup[] | undefined}
+             */
+            this["providers"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5018,7 +5153,7 @@ export class UpPlanOutput {
             /**
              * Monolingual reports a project that resolves no target locale: there is no
              * per-language work to price. An empty Scopes list otherwise means the work
-             * is already done — or, with UnreadTargets set, that the plan has not been
+             * is already done, or, with UnreadTargets set, that the plan has not been
              * able to judge it yet. The three must not read the same.
              * @member
              * @type {boolean | undefined}
@@ -5077,8 +5212,9 @@ export class UpPlanOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType114;
         const $$createField4_0 = $$createType113;
-        const $$createField9_0 = $$createType100;
-        const $$createField10_0 = $$createType115;
+        const $$createField7_0 = $$createType116;
+        const $$createField11_0 = $$createType100;
+        const $$createField12_0 = $$createType117;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5086,13 +5222,66 @@ export class UpPlanOutput {
         if ("totals" in $$parsedSource) {
             $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
         }
+        if ("providers" in $$parsedSource) {
+            $$parsedSource["providers"] = $$createField7_0($$parsedSource["providers"]);
+        }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField9_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField11_0($$parsedSource["warnings"]);
         }
         if ("drift" in $$parsedSource) {
-            $$parsedSource["drift"] = $$createField10_0($$parsedSource["drift"]);
+            $$parsedSource["drift"] = $$createField12_0($$parsedSource["drift"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
+    }
+}
+
+/**
+ * UpPlanProviderGroup is the target languages that use the same providers
+ * and get the same answer about their credential.
+ */
+export class UpPlanProviderGroup {
+    /**
+     * Creates a new UpPlanProviderGroup instance.
+     * @param {Partial<UpPlanProviderGroup>} [$$source = {}] - The source object to create the UpPlanProviderGroup.
+     */
+    constructor($$source = {}) {
+        if (!("locales" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["locales"] = [];
+        }
+        if (!("provider" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["provider"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpPlanProviderGroup instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UpPlanProviderGroup}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("locales" in $$parsedSource) {
+            $$parsedSource["locales"] = $$createField0_0($$parsedSource["locales"]);
+        }
+        return new UpPlanProviderGroup(/** @type {Partial<UpPlanProviderGroup>} */($$parsedSource));
     }
 }
 
@@ -5142,7 +5331,7 @@ export class UpPlanScope {
         if (!("memory_exact" in $$source)) {
             /**
              * MemoryExact is the count of counted units covered by an exact-hash
-             * content-memory hit (the cheap leverage estimate — fuzzy leverage is not
+             * content-memory hit (the cheap leverage estimate, fuzzy leverage is not
              * counted).
              * @member
              * @type {number}
@@ -5180,15 +5369,13 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Stale is the count of units that HAVE a committed target whose decision
-             * was recorded against source wording that has since changed. The run
-             * re-drafts them — recycle against the new wording, AI for the remainder —
-             * so they are PRICED into MemoryExact/AIRemaining/TokenEstimate exactly as a
-             * unit with no target is. They are reported on their own axis as well, and
-             * not folded into MissingTarget, because the two ask different things of the
-             * reader: missing work finishes when the loop finishes it, stale work also
-             * owes a review, and the tokens are being spent on a unit a person had
-             * already decided.
+             * Stale is the count of units with a committed target whose decision was
+             * recorded against source wording that has since changed. The run drafts
+             * them again (recycle against the new wording, AI for the remainder), so
+             * they are priced into MemoryExact, AIRemaining and TokenEstimate as a unit
+             * with no target is. They are also reported on their own, apart from
+             * MissingTarget: missing work ends when the loop finishes it, and stale
+             * work also owes a review of a unit a person had already decided.
              * @member
              * @type {number | undefined}
              */
@@ -5196,16 +5383,15 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Unanswered is the count of units that HAVE a committed target which the
-             * project content memory does not answer: no decision of theirs has moved,
-             * but the corpus holds no exact answer for their source, so `recycle` cannot
-             * fill them and the pass drafts them again over what is on disk.
+             * Unanswered is the count of units with a committed target that the
+             * project content memory does not answer. No decision of theirs has moved,
+             * but the corpus holds no exact answer for their source, so `recycle`
+             * cannot fill them and the pass drafts them again over what is on disk.
              * 
-             * It is its own axis because it is its own fact. `stale` means a decision's
-             * basis moved — it drives `blocked: stale`, the review worklist and shipping —
-             * and a produced unit the record never paired is none of that. Folding the two
-             * would put the plan and the run summary at odds, since the summary's re-draft
-             * count is the decision-based coverage tally.
+             * It is kept apart from Stale. Stale means a decision's basis moved, and it
+             * drives `blocked: stale`, the review worklist and shipping. A produced
+             * unit the record never paired is none of that, and the run summary's
+             * re-draft count is the decision-based coverage tally.
              * @member
              * @type {number | undefined}
              */
@@ -5228,14 +5414,13 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * UnreadTargets is the count of produced units the plan declines to judge:
-             * their committed translation has not been read into the project store yet,
-             * so the corpus is unfinished and its silence about them means "not asked",
-             * not "the pass will draft this". A run reads them first — the seed phase
-             * absorbs the committed record before the pass — which is why this is a
-             * disclosure and not an axis of work: pricing them would quote a provider
-             * call for every translation the run is about to recycle, and quoting zero
-             * would promise a free run.
+             * UnreadTargets is the count of produced units the plan does not judge.
+             * Their committed translation has not been read into the project store
+             * yet, so the corpus has not been asked about them. A run reads them first:
+             * the seed phase absorbs the committed record before the pass. So this is a
+             * disclosure, not work. Pricing them would quote a provider call for every
+             * translation the run will recycle, and quoting zero would promise a free
+             * run.
              * @member
              * @type {number | undefined}
              */
@@ -5244,7 +5429,7 @@ export class UpPlanScope {
         if (!("token_estimate" in $$source)) {
             /**
              * TokenEstimate approximates the input tokens for the remaining AI work:
-             * source characters / 4 (a common chars-per-token heuristic — the
+             * source characters / 4 (a common chars-per-token heuristic, the
              * providers expose no tokenizer here, so this is an estimate, not a
              * quote).
              * @member
@@ -5383,4 +5568,6 @@ const $$createType111 = RulesFile.createFrom;
 const $$createType112 = $Create.Array($$createType111);
 const $$createType113 = UpPlanScope.createFrom;
 const $$createType114 = $Create.Array($$createType113);
-const $$createType115 = project$0.StoreDrift.createFrom;
+const $$createType115 = UpPlanProviderGroup.createFrom;
+const $$createType116 = $Create.Array($$createType115);
+const $$createType117 = project$0.StoreDrift.createFrom;

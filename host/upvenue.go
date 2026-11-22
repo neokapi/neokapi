@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -17,7 +19,7 @@ import (
 // Where the convergence loop runs.
 //
 // `kapi up` is one verb with two venues: the loop on this machine, or the loop
-// on the server the recipe binds — pushed, converged on org keys against the
+// on the server the recipe binds, pushed, converged on org keys against the
 // shared content memory and terminology, streamed back, pulled. Which one a run
 // gets is decided here, once, so every surface that offers the verb decides it
 // the same way. A surface that resolved it for itself would hand its callers a
@@ -55,7 +57,7 @@ type UpVenueDecision struct {
 	Venue UpVenue
 	// HasServer reports whether the recipe binds a convergence venue at all,
 	// which is what separates "local because there is no server" from "local
-	// because the plumbing is missing" — the second warrants a warning.
+	// because the plumbing is missing", the second warrants a warning.
 	HasServer bool
 	// ServerURL is the bound venue's URL, for the line a surface prints
 	// before the run.
@@ -101,7 +103,7 @@ const serverUpCommand = "server-up"
 
 // venueBlockHint names the recipe block a user would add to connect a project,
 // as the registered venue extension spells it. A binary linking no platform has
-// no key to name and gets no hint — the caller's next case tells it to install
+// no key to name and gets no hint, the caller's next case tells it to install
 // the plugin, which is the honest first step there.
 func venueBlockHint() string {
 	if key, ok := project.VenueKey(); ok {
@@ -113,8 +115,8 @@ func venueBlockHint() string {
 // RunUpDispatch is the embedded `kapi up` with its venue resolved: a connected
 // project runs on the server through the plugin plumbing, everything else runs
 // the loop here. It is what an embedded surface (the MCP `up` tool, a UI)
-// calls instead of RunUp, so an agent gets the run a human gets — push,
-// converge at the venue, pull — rather than a local loop that leaves the server
+// calls instead of RunUp, so an agent gets the run a human gets (push,
+// converge at the venue, pull) rather than a local loop that leaves the server
 // stale and the results unpulled.
 //
 // Both venues return the same ConvergeOutput: the plumbing speaks the same
@@ -134,6 +136,9 @@ func (a *App) RunUpDispatch(ctx context.Context, projectPath, sourceLang string,
 	if opts.PreReview {
 		return nil, errors.New("a pre-review runs locally; this project converges on its server, so pass local to run it here")
 	}
+	if len(opts.RunConfig) > 0 {
+		return nil, errors.New("a run with its own provider, credential or model runs locally; this project converges on its server, so pass local to run it here")
+	}
 	return runUpAtVenue(ctx, dec.Route, projectPath, opts)
 }
 
@@ -143,11 +148,21 @@ func (o UpOptions) VenueOptions() UpVenueOptions {
 }
 
 // runUpAtVenue dispatches the run to the venue plumbing and reads the result
-// out of its NDJSON document. --json is not optional here: it is what makes the
-// subprocess's stdout a structured document rather than a terminal rendering,
-// and it is also what tells the plumbing not to prompt (an embedded run has no
-// one to answer).
+// out of its NDJSON document. It always passes --json, which makes the
+// subprocess's stdout a structured document. The flag also tells the plumbing
+// not to prompt, since an embedded run has no one to answer.
 func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPath string, opts UpOptions) (*ConvergeOutput, error) {
+	args, err := venueArgs(route, projectPath, opts)
+	if err != nil {
+		return nil, err
+	}
+	return runVenueArgs(ctx, route, args, opts)
+}
+
+// venueArgs renders opts as the plumbing's argv. A server run (opts.Local
+// unset) takes only the flags the plumbing's manifest declares
+// (ServerRunFlags); an option it does not read is refused here.
+func venueArgs(route *pluginhost.CommandRoute, projectPath string, opts UpOptions) ([]string, error) {
 	args := []string{"--project=" + projectPath, "--json"}
 	if opts.MaxPasses > 0 && !opts.UntilGate {
 		args = append(args, "--passes=1")
@@ -164,8 +179,28 @@ func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPa
 		args = append(args, "--materialize=true")
 	}
 	if opts.Local {
-		args = append(args, "--local=true")
+		return append(args, "--local=true"), nil
 	}
+	declared, err := ServerRunFlags(route)
+	if err != nil {
+		return nil, err
+	}
+	var undeclared []string
+	for _, arg := range args {
+		name, _, _ := strings.Cut(strings.TrimPrefix(arg, "--"), "=")
+		if !slices.Contains(declared, name) {
+			undeclared = append(undeclared, "--"+name)
+		}
+	}
+	if err := UndeclaredServerFlagError(undeclared); err != nil {
+		return nil, err
+	}
+	return args, nil
+}
+
+// runVenueArgs runs the plumbing with args and reads the result out of its
+// NDJSON document.
+func runVenueArgs(ctx context.Context, route *pluginhost.CommandRoute, args []string, opts UpOptions) (*ConvergeOutput, error) {
 
 	// Streamed, not captured: the plumbing writes one event per line as the run
 	// makes progress, and a caller with an OnEvent renders those lines live. A
@@ -188,8 +223,8 @@ func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPa
 // into the result a local run returns.
 //
 // The `changeset` record is the one other line this reader keeps. A venue that
-// governs terminology emits it separately from the result — the proposal is
-// made in the run's push phase, long before the result is known — and it is
+// governs terminology emits it separately from the result (the proposal is
+// made in the run's push phase, long before the result is known), and it is
 // folded onto the result here so an embedded caller receives one object
 // describing the whole run. Dropped, it would leave every consumer downstream
 // of the venue (the host's own summary, the `up` MCP tool, a CI job summary
@@ -275,4 +310,78 @@ func (f *upResultFold) result() (*ConvergeOutput, error) {
 		f.found.ChangesetURL = f.proposed.ChangesetURL
 	}
 	return f.found, nil
+}
+
+// ServerRunFlags returns the flags the venue plumbing's manifest declares a
+// server run reads: the only flags kapi forwards to a server run. A manifest
+// with no declaration comes from a plugin older than this kapi, and a server
+// run through it is refused with the command that updates it.
+func ServerRunFlags(route *pluginhost.CommandRoute) ([]string, error) {
+	if !route.Command.DeclaresFlags() {
+		return nil, outdatedVenuePluginError(route.Plugin)
+	}
+	names := make([]string, 0, len(route.Command.Flags))
+	for _, f := range route.Command.Flags {
+		names = append(names, f.Name)
+	}
+	return names, nil
+}
+
+// outdatedVenuePluginError says that p predates the flag declaration a
+// server run needs, and how to update it.
+func outdatedVenuePluginError(p *pluginhost.Plugin) error {
+	return fmt.Errorf("the %s plugin %s (%s) is older than this kapi: its manifest does not declare the flags a server run reads, so kapi up cannot hand it the run. %s",
+		p.Name(), p.Version(), p.Dir, pluginUpdateAdvice(p))
+}
+
+// pluginUpdateAdvice says how to update p, from how it was installed. A
+// plugin in a Homebrew Cellar gets the formula's upgrade, and one kapi's own
+// installer manages (kapiManagedPlugin) gets `kapi plugin update`. Any other
+// gets the directory that holds it and the advice to replace it, with no
+// command that would not apply.
+func pluginUpdateAdvice(p *pluginhost.Plugin) string {
+	if formula := brewFormulaOf(p.Dir); formula != "" {
+		return "Update the plugin: brew upgrade " + formula
+	}
+	if kapiManagedPlugin(p) {
+		return "Update the plugin: kapi plugin update " + p.Name()
+	}
+	return "Replace the plugin in " + p.Dir + " with a newer release; kapi's installer does not manage " + p.Source.Label
+}
+
+// kapiManagedPlugin reports whether kapi's plugin installer manages p: it
+// recorded the install (installed.json), or p sits in the user plugin root.
+func kapiManagedPlugin(p *pluginhost.Plugin) bool {
+	if _, err := pluginhost.ReadInstalledMetadata(p.Dir); err == nil {
+		return true
+	}
+	return p.Source.Order == pluginhost.UserSourceOrder
+}
+
+// UndeclaredServerFlagError refuses the flags set, which a server run does
+// not read, or is nil when there are none.
+func UndeclaredServerFlagError(set []string) error {
+	if len(set) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s applies to a run on this machine; the server runs its own loop with its workspace's settings. Add --local to run here with %s",
+		strings.Join(set, ", "), strings.Join(set, ", "))
+}
+
+// brewFormulaOf is the Homebrew formula that installed the plugin in dir,
+// read off the Cellar path the plugin directory links into
+// (.../Cellar/<formula>/<version>/...), or "" when dir is not in a Cellar.
+// A beta install (bowrain-cli-beta) is named as such.
+func brewFormulaOf(dir string) string {
+	real, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(filepath.ToSlash(real), "/")
+	for i, part := range parts {
+		if part == "Cellar" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	return ""
 }

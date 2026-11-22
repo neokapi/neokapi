@@ -172,6 +172,7 @@ func TestHandlePseudoTranslate(t *testing.T) {
 
 	// Use a temp dir for output.
 	tmpDir := t.TempDir()
+	ctx = withWriteRoots(ctx, []string{tmpDir}) // a client that declares the directory as a root
 	outputPath := filepath.Join(tmpDir, "output_qps.json")
 
 	_, out, err := handlePseudoTranslate(ctx, a, PseudoTranslateInput{
@@ -199,6 +200,7 @@ func TestHandleRunFlow(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
+	ctx = withWriteRoots(ctx, []string{tmpDir}) // a client that declares the directory as a root
 	outputPath := filepath.Join(tmpDir, "output.json")
 
 	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
@@ -217,7 +219,7 @@ func TestHandleRunFlow(t *testing.T) {
 }
 
 // TestHandlePseudoTranslateAutoOutput verifies that pseudo_translate works
-// when no explicit output_path is given (MCP default path — issue #636).
+// when no explicit output_path is given (the MCP default path, issue #636).
 // The handler must compute the output path as <base>_<lang><ext> sibling
 // to the input file and successfully write it.
 func TestHandlePseudoTranslateAutoOutput(t *testing.T) {
@@ -227,10 +229,11 @@ func TestHandlePseudoTranslateAutoOutput(t *testing.T) {
 	// Write a small JSON file into a temp dir so the auto-generated sibling
 	// output lands there too (avoids polluting the source tree).
 	tmpDir := t.TempDir()
+	ctx = withWriteRoots(ctx, []string{tmpDir}) // a client that declares the directory as a root
 	inputPath := filepath.Join(tmpDir, "content.json")
 	require.NoError(t, os.WriteFile(inputPath, []byte(`{"hero.title":"Plan less. Ship more.","cta.start":"Start for free"}`), 0o644))
 
-	// No output_path — handler must auto-generate it.
+	// No output_path: the handler generates one.
 	_, out, err := handlePseudoTranslate(ctx, a, PseudoTranslateInput{
 		Path:       inputPath,
 		TargetLang: "qps",
@@ -291,10 +294,10 @@ func TestHandleRunFlowWithProject(t *testing.T) {
 	kapiPath := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(kapiPath, proj))
 
-	tmpDir := t.TempDir()
+	tmpDir := dir // over MCP an output path lies inside the project
 	outputPath := filepath.Join(tmpDir, "output.json")
 
-	// Run pseudo-translate via project mode — should resolve content from project.
+	// Run pseudo-translate in project mode, which resolves content from the project.
 	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
 		FlowName:   "pseudo-translate",
 		Project:    kapiPath,
@@ -323,7 +326,7 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 		0o644,
 	))
 
-	// Project provides target language — no need to pass in input.
+	// The project provides the target language, so the input names none.
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
 		Defaults: project.Defaults{
@@ -334,7 +337,7 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 	kapiPath := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(kapiPath, proj))
 
-	tmpDir := t.TempDir()
+	tmpDir := dir // over MCP an output path lies inside the project
 	outputPath := filepath.Join(tmpDir, "out.json")
 
 	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
@@ -376,7 +379,7 @@ func TestHandleRunFlowProjectDefinedFlow(t *testing.T) {
 	kapiPath := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(kapiPath, proj))
 
-	tmpDir := t.TempDir()
+	tmpDir := dir // over MCP an output path lies inside the project
 	outputPath := filepath.Join(tmpDir, "out.json")
 
 	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
@@ -418,8 +421,8 @@ func TestHandleRunFlowPlacementRefused(t *testing.T) {
 		},
 		Collections: []project.Collection{{Path: "input/*.json"}},
 		Flows: map[string]*flow.StepsSpec{
-			// redact rewrites source; placing it after translate — which produces
-			// targets and egresses source to a remote sink — is exactly what the
+			// redact rewrites source; placing it after translate, which produces
+			// targets and sends source to a remote sink, is what the
 			// gate must reject.
 			"leaky": {Steps: []flow.FlowStep{{Tool: "translate"}, {Tool: "redact"}}},
 		},

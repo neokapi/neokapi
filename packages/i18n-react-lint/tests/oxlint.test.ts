@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 /**
  * Integration check for the **oxlint** consumption path — the way the
@@ -29,9 +29,15 @@ const oxlintBin = join(repoRoot, "node_modules", "oxlint", "bin", "oxlint");
 const fixture = resolve(pkgRoot, "examples", "common-mistakes.jsx");
 
 let pluginPath = "";
+const made: string[] = [];
+
+afterAll(() => {
+  for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
 
 beforeAll(async () => {
   const dir = mkdtempSync(join(tmpdir(), "krl-oxlint-"));
+  made.push(dir);
   pluginPath = join(dir, "plugin.mjs");
   await build({
     entryPoints: [resolve(pkgRoot, "src", "oxlint.ts")],
@@ -46,6 +52,7 @@ beforeAll(async () => {
 describe("integration: oxlint consumption path", () => {
   it("flags one issue per rule in the fixture (matching the ESLint path)", () => {
     const dir = mkdtempSync(join(tmpdir(), "krl-oxcfg-"));
+    made.push(dir);
     const configPath = join(dir, ".oxlintrc.json");
     writeFileSync(
       configPath,

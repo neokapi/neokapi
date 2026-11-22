@@ -11,10 +11,9 @@
 //   - each call to a method SetOutput(path string) error, which points a writer
 //     at a file and writes a whole document there;
 //   - each call to the replacing functions of core/atomicfile (Replace,
-//     ReplaceBytes, Stage, StageWithParents) outside the file home, the one
-//     place that stages and renames a content file;
-//   - each call to core/rootpath's CreateRegular, which opens a file for
-//     writing inside a root;
+//     ReplaceBytes, Stage, StageWithParents, StageWithin, StageWithinMode)
+//     outside the file home, the one place that stages and renames a content
+//     file;
 //
 // except in the format packages, where one writer wraps another, and at the
 // call sites listed in allowed, keyed by file and function, each with what it
@@ -43,6 +42,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/scripts/internal/buildconfigs"
 	"github.com/neokapi/neokapi/scripts/internal/guardpackages"
 )
 
@@ -64,11 +64,9 @@ var exemptPrefixes = []string{
 }
 
 // replacing names, by package, the functions that write a whole file: the
-// replacing functions of core/atomicfile, which stage and rename a file, and
-// core/rootpath's CreateRegular, which opens a file for writing inside a root.
+// replacing functions of core/atomicfile, which stage and rename a file.
 var replacing = map[string]map[string]bool{
-	"github.com/neokapi/neokapi/core/atomicfile": {"Replace": true, "ReplaceBytes": true, "Stage": true, "StageWithParents": true},
-	"github.com/neokapi/neokapi/core/rootpath":   {"CreateRegular": true},
+	"github.com/neokapi/neokapi/core/atomicfile": {"Replace": true, "ReplaceBytes": true, "Stage": true, "StageWithParents": true, "StageWithin": true, "StageWithinMode": true},
 }
 
 // allowed lists the functions that point a writer at a file, keyed by the file
@@ -84,6 +82,7 @@ var allowed = map[string]string{
 
 func main() {
 	selfTest := flag.Bool("self-test", false, "prove the check on fixtures")
+	configName := flag.String("config", "host", "build configuration to check under (scripts/internal/buildconfigs)")
 	flag.Parse()
 	var (
 		found []string
@@ -92,7 +91,10 @@ func main() {
 	if *selfTest {
 		err = runSelfTest()
 	} else {
-		found, err = check(targets)
+		var cfgs []buildconfigs.Config
+		if cfgs, err = buildconfigs.Named(*configName); err == nil {
+			found, err = check(cfgs[0], targets)
+		}
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "editguard:", err)
@@ -118,8 +120,11 @@ func exempt(path string) bool {
 }
 
 // check type-checks every target package and reports each write found.
-func check(patterns []string) ([]string, error) {
-	pkgs, err := guardpackages.List(patterns...)
+// In a configuration after the first, only the packages holding a file no
+// earlier configuration compiles are checked.
+func check(cfg buildconfigs.Config, patterns []string) ([]string, error) {
+	first := buildconfigs.Index(cfg.Name) == 0
+	pkgs, err := guardpackages.ListConfig(cfg, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -156,15 +161,17 @@ func check(patterns []string) ([]string, error) {
 		found = append(found, hits...)
 		checked++
 	}
-	if checked == 0 {
+	if checked == 0 && first {
 		return nil, errors.New("no package to check: run from the repository root")
 	}
+	// A later configuration sees part of the tree, so only the first can
+	// tell that an entry writes nothing any more.
 	for where := range allowed {
-		if !seen[where] {
+		if first && !seen[where] {
 			found = append(found, where+": listed in allowed but writes no document here any more; remove the entry")
 		}
 	}
-	fmt.Printf("editguard: checked %d packages\n", checked)
+	fmt.Printf("editguard: checked %d packages (%s)\n", checked, cfg.Name)
 	sort.Strings(found)
 	return found, nil
 }

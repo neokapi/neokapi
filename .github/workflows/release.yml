@@ -134,20 +134,20 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/icu-static
-          key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
 
       - name: Provision static ICU (macOS, from source, trimmed data)
         if: matrix.target.goos == 'darwin'
         env:
           # Match the Go build's deployment target so the ICU objects do too.
-          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
         run: |
           brew install pkg-config
           [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
           PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           {
             echo "PKG_CONFIG_PATH=${PCDIR}"
-            echo "MACOSX_DEPLOYMENT_TARGET=11.0"
+            echo "MACOSX_DEPLOYMENT_TARGET=13.0"
           } >> "$GITHUB_ENV"
 
       - name: Provision static ICU (Linux, from source, trimmed data)
@@ -178,7 +178,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi ./cmd/kapi )
+          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi ./cmd/kapi ) 2>&1 | tee build.log
+          if [ "$GOOS" = darwin ]; then
+            scripts/check-macho-minimum.sh --log build.log out/kapi "$HOME"/icu-static/lib/libicu*.a
+          fi
 
       # Guard the trimmed ICU data: run the packages that exercise ICU at
       # runtime (UAX-29 segmentation incl. dictionary scripts, FTS5 ICU
@@ -764,7 +767,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/icu-static
-          key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -784,7 +787,7 @@ jobs:
         if: runner.os == 'macOS'
         env:
           # Match the app build's deployment target so the ICU objects do too.
-          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
         run: |
           brew install pkg-config
           # Force STATIC ICU linking. A distributed/notarized .app must not
@@ -935,12 +938,15 @@ jobs:
         working-directory: apps/kapi-desktop
         env:
           CGO_ENABLED: "1"
-          CGO_CFLAGS: "-mmacosx-version-min=11.0"
-          CGO_LDFLAGS: "-mmacosx-version-min=11.0"
-          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          CGO_CFLAGS: "-mmacosx-version-min=13.0"
+          CGO_LDFLAGS: "-mmacosx-version-min=13.0"
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
+          set -o pipefail
+          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi 2>&1 | tee build.log
+          # Every object records the macOS minimum the app declares.
+          ../../scripts/check-macho-minimum.sh --log build.log bin/Kapi "$HOME"/icu-static/lib/libicu*.a
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
@@ -1252,6 +1258,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p homebrew-tap/Casks
+          # The oldest macOS the app runs on, as the Homebrew symbol for
+          # `depends_on macos:` (scripts/lib/macos-minimum).
+          MACOS_CODENAME="$(scripts/macos-minimum.sh --codename "$(scripts/macos-minimum.sh)")"
           for ch in $CHANNELS; do
           if [ "$ch" = beta ]; then
             CASK_NAME="kapi@beta"; DEP="kapi-cli-beta"
@@ -1276,7 +1285,7 @@ jobs:
             homepage "https://github.com/neokapi/neokapi"
 
           ${CONFLICTS}  depends_on formula: "neokapi/tap/${DEP}"
-            depends_on :macos
+            depends_on macos: :${MACOS_CODENAME}
 
             app "Kapi.app"
 

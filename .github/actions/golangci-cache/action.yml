@@ -1,0 +1,48 @@
+name: golangci-lint cache (once per job)
+description: >
+  Restore golangci-lint's analysis cache once for a job that lints several
+  modules, and save it when the job ends on a push to main. The golangci
+  action's own cache is per module: each lint step restored the same
+  directory again (5 to 24 s each), so .github/actions/golangci turns it off
+  and a job uses this action once, before its first lint step.
+
+inputs:
+  name:
+    description: >
+      Cache name, unique per job. Defaults to the job id; a matrix job passes
+      one per leg, since its legs share the id.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve the golangci-lint cache directory
+      id: dir
+      shell: bash
+      run: |
+        dir="${GOLANGCI_LINT_CACHE:-$HOME/.cache/golangci-lint}"
+        echo "GOLANGCI_LINT_CACHE=$dir" >> "$GITHUB_ENV"
+        echo "path=$dir" >> "$GITHUB_OUTPUT"
+
+    # A pull request reads the entry a push to main saved for this job and
+    # saves nothing: one it saved would serve only its own later pushes.
+    - name: Restore the golangci-lint cache
+      if: github.event_name == 'pull_request'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.dir.outputs.path }}
+        key: golangci-lint-${{ runner.os }}-${{ inputs.name || github.job }}-${{ hashFiles('.golangci.yml', '**/go.sum') }}-${{ github.sha }}
+        restore-keys: |
+          golangci-lint-${{ runner.os }}-${{ inputs.name || github.job }}-${{ hashFiles('.golangci.yml', '**/go.sum') }}-
+          golangci-lint-${{ runner.os }}-${{ inputs.name || github.job }}-
+
+    - name: Restore and save the golangci-lint cache
+      if: github.event_name != 'pull_request'
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.dir.outputs.path }}
+        key: golangci-lint-${{ runner.os }}-${{ inputs.name || github.job }}-${{ hashFiles('.golangci.yml', '**/go.sum') }}-${{ github.sha }}
+        restore-keys: |
+          golangci-lint-${{ runner.os }}-${{ inputs.name || github.job }}-${{ hashFiles('.golangci.yml', '**/go.sum') }}-
+          golangci-lint-${{ runner.os }}-${{ inputs.name || github.job }}-

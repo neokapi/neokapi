@@ -39,7 +39,7 @@ vi.mock("../hooks/useApi", async () => {
       listProjectTools: vi.fn().mockResolvedValue([]),
       getEffectiveModel: vi.fn().mockResolvedValue(null),
       syncProjectStore: vi.fn().mockResolvedValue(null),
-      aiNeedsModelChoice: vi.fn().mockResolvedValue(false),
+      checkAISetup: vi.fn().mockResolvedValue({ kind: "" }),
       bringUpToDate: vi.fn().mockResolvedValue(undefined),
     },
     call: vi.fn().mockResolvedValue(null),

@@ -14,7 +14,7 @@ import (
 )
 
 // DefaultModelInfo is the configured default AI model and the provider it
-// implies — the shared ai.provider/ai.model convention both kapi surfaces read.
+// implies, the shared ai.provider/ai.model convention both kapi surfaces read.
 type DefaultModelInfo struct {
 	Provider string `json:"provider"`
 	Model    string `json:"model"`
@@ -34,7 +34,7 @@ type AIModelOption struct {
 	// NeedsKey is true for a cloud model with no saved credential yet.
 	NeedsKey bool `json:"needs_key"`
 	// Subscription is true when the model runs on a personal subscription via
-	// a detected keyless provider (claude-code) — no API key, no metered cost.
+	// a detected keyless provider (claude-code), no API key, no metered cost.
 	Subscription bool `json:"subscription,omitempty"`
 	// Note is an optional one-line rationale (recommended local models).
 	Note string `json:"note,omitempty"`
@@ -43,7 +43,7 @@ type AIModelOption struct {
 }
 
 // GetDefaultModel returns the configured default AI provider+model (empty when
-// none is set — AI tools then fall back to the built-in provider default). This
+// none is set, AI tools then fall back to the built-in provider default). This
 // is the raw `ai.provider`/`ai.model` pair the picker edits; for what a run will
 // actually use (recipe presets included) call GetEffectiveModel.
 func (a *App) GetDefaultModel() DefaultModelInfo {
@@ -57,7 +57,7 @@ func (a *App) GetDefaultModel() DefaultModelInfo {
 }
 
 // GetEffectiveModel reports the provider and model an AI step of the open
-// project will actually run with, and which layer decided each — the recipe's
+// project will actually run with, and which layer decided each, the recipe's
 // per-locale preset, its project preset, the shared `ai.*` app config that
 // `kapi models setup` / `kapi models default` write, or the built-in fallback.
 //
@@ -134,7 +134,7 @@ func (a *App) ListAIModels() []AIModelOption {
 
 	var out []AIModelOption
 
-	// Detected · Claude Code — keyless, runs on the user's Claude subscription.
+	// Detected · Claude Code, keyless, runs on the user's Claude subscription.
 	// Listed first when the binary is present on this machine.
 	if aiprovider.ClaudeCodeDetected() {
 		cc := string(aiprovider.ClaudeCode)
@@ -145,7 +145,7 @@ func (a *App) ListAIModels() []AIModelOption {
 		})
 	}
 
-	// Local · Ollama — installed models (best-effort; server may be down).
+	// Local · Ollama, installed models (best-effort; server may be down).
 	installed := map[string]bool{}
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	models, err := aiprovider.NewOllamaManager("").List(ctx)
@@ -170,7 +170,7 @@ func (a *App) ListAIModels() []AIModelOption {
 		})
 	}
 
-	// Cloud providers — one default model each, flagged when no key is saved.
+	// Cloud providers, one default model each, flagged when no key is saved.
 	// Keyless providers (local Ollama above, detected claude-code) are covered
 	// by their own sections.
 	for _, p := range aiprovider.Providers() {
@@ -186,25 +186,77 @@ func (a *App) ListAIModels() []AIModelOption {
 	return out
 }
 
-// AINeedsModelChoice reports whether running a flow should prompt the user to
-// pick an AI model first: the flow uses a provider-backed AI tool, no default
-// provider is configured, and credential auto-detect wouldn't resolve on its
-// own (zero or several saved credentials). The frontend checks this before
-// launching so the user chooses up front instead of hitting a run error.
-func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
+// CheckAISetup reports what running a flow needs before its AI steps can run,
+// by host.ProjectFlowAISetup, the decision `kapi up` makes. Kind
+// "choose_model" means no step names a provider and no usable default
+// resolves. Kind "missing_credential" means a provider the run names has no
+// key, which only a key for it fixes. An empty flow name asks about a
+// convergence run, which needs nothing when it has no work for the AI step.
+// opts is the provider, credential or model RunFlowWith and BringUpToDateWith
+// start the run with, applied as `kapi up --provider` applies it. The frontend
+// asks before launching. An empty Kind means the flow can run.
+func (a *App) CheckAISetup(tabID, flowName string, opts RunAIOptions) host.AISetupNeed {
 	op := a.getOpenProject(tabID)
 	if op == nil {
-		return false
+		return host.AISetupNeed{}
 	}
-	// A configured default resolves everything.
-	if a.aiConfig != nil && a.aiConfig.GetString(appconfig.KeyAIProvider) != "" {
-		return false
+	engine := a.newProjectEngine(op)
+	var need host.AISetupNeed
+	var err error
+	if flowName == "" {
+		// A convergence run needs a model or a key only when it has work for
+		// the AI step, as `kapi up` decides.
+		need, err = engine.ConvergeAISetup(context.Background(), op.Project, op.Path, opts.toolConfig())
+	} else {
+		need, err = engine.ProjectFlowAISetup(op.Project, op.Path, flowName, opts.toolConfig())
 	}
-	// No default: a single saved credential auto-detects fine; zero or several
-	// need an explicit choice.
-	if a.credentials != nil && len(a.credentials.List()) == 1 {
-		return false
+	if err != nil {
+		// The run reports a flow it cannot resolve with its own error.
+		return host.AISetupNeed{}
 	}
-	needsSetup, err := a.newProjectEngine(op).ProjectFlowNeedsAISetup(op.Project, op.Path, flowName)
-	return err == nil && needsSetup
+	if need.Kind == host.AISetupMissingCredential {
+		need.Message = desktopAISetupMessage(need)
+	}
+	return need
+}
+
+// desktopAISetupMessage says what a run or a review action needs before it
+// can call its provider, in the desktop's terms: where in the app to add the
+// key or choose the model. It names no command and no environment variable,
+// because a desktop user is not at a terminal and an app opened from the Dock
+// does not read the shell's environment. The run dialog and the Review
+// actions both show it.
+func desktopAISetupMessage(need host.AISetupNeed) string {
+	switch {
+	case need.Kind == host.AISetupChooseModel:
+		return "No AI model is chosen. Choose one in Settings › AI Models, then try again."
+	case need.Provider != "":
+		return fmt.Sprintf("No key for %s. Add one in Settings › AI Models, then try again.", need.Provider)
+	default:
+		return "No key for this step's provider. Add one in Settings › AI Models, then try again."
+	}
+}
+
+// RunAIOptions are the AI settings a desktop run is started with, the
+// desktop's counterpart of `kapi up --provider/--credential/--model`. Empty
+// fields leave the recipe and the stored default to decide.
+type RunAIOptions struct {
+	Provider   string `json:"provider,omitempty"`
+	Credential string `json:"credential,omitempty"`
+	Model      string `json:"model,omitempty"`
+}
+
+// toolConfig is opts as run-flag tool config (host.RunFlagToolConfig's
+// shape), nil when nothing is set.
+func (o RunAIOptions) toolConfig() map[string]any {
+	cfg := map[string]any{}
+	for key, v := range map[string]string{"provider": o.Provider, "credential": o.Credential, "model": o.Model} {
+		if v != "" {
+			cfg[key] = v
+		}
+	}
+	if len(cfg) == 0 {
+		return nil
+	}
+	return cfg
 }

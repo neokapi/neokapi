@@ -20,11 +20,14 @@ const MaxRetries = 3
 // arbitrarily large value and stall the client indefinitely.
 const MaxRetryAfter = 60 * time.Second
 
-// defaultTransport returns a base http.RoundTripper with a minimum TLS version.
+// defaultTransport returns Go's default transport with a minimum TLS version.
+// It is a copy of http.DefaultTransport, so it keeps what that transport does
+// for every client: HTTP_PROXY, HTTPS_PROXY and NO_PROXY, the dial and TLS
+// handshake timeouts, idle-connection limits and HTTP/2.
 func defaultTransport() http.RoundTripper {
-	return &http.Transport{
-		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
-	}
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	return t
 }
 
 // NewClient returns an *http.Client with a sensible timeout for external APIs.
@@ -46,7 +49,7 @@ func NewResilientClient() *http.Client {
 
 // NewResilientTransport layers the same retry and rate-limit awareness
 // [NewResilientClient] applies over base, for a caller that has to own its own
-// dialing — a vetted dialer, a unix socket — and would otherwise have to
+// dialing (a vetted dialer, a unix socket) and would otherwise have to
 // choose between that and retries. A nil base means the package default
 // transport.
 func NewResilientTransport(base http.RoundTripper) http.RoundTripper {
@@ -69,7 +72,7 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	for attempt := 0; attempt <= t.maxRetries; attempt++ {
 		resp, err = t.base.RoundTrip(req)
 		if err != nil {
-			// Network-level error — only retry if the request body can be replayed.
+			// Network-level error: retry only if the request body can be replayed.
 			if req.GetBody == nil && req.Body != nil {
 				return nil, err
 			}

@@ -138,7 +138,7 @@ export function IconSidebar({ active, onChange, projectDisabled }: IconSidebarPr
           <button
             onClick={() => onChange("app-settings")}
             className={`rounded-lg p-2 transition-colors ${
-              active === "app-settings"
+              active.split(":")[0] === "app-settings"
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             }`}

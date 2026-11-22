@@ -20,11 +20,11 @@
 #   * drift anywhere else     -> print it and fail, like `make l10n-verify`.
 #     Fork PRs have no push rights; main and local runs stay strict.
 
-# The push uses GITHUB_TOKEN, so GitHub starts no workflow runs for the bot
-# commit, or starts them as `action_required`. Branch protection evaluates the
-# checks of the PR's new head, the bot commit, so the PR cannot merge until CI
-# runs on it: someone pushes another commit or closes and reopens the PR, which
-# costs a full CI cycle. The app qps dictionaries are build output for that
+# The push uses the bot App's token when the workflow has one (HAS_BOT_APP),
+# which starts CI on the bot commit. With GITHUB_TOKEN GitHub holds those runs
+# as `action_required` until a person approves them, and the ruleset evaluates
+# the checks of the PR's new head, the bot commit, so the PR waits. See
+# docs/internals/bot-pushes.md. The app qps dictionaries are build output for that
 # reason (`make app-qps`), which leaves this tier to change rarely.
 
 # The target-language tier must not be added here. `kapi up` writes it from the
@@ -103,7 +103,11 @@ if [[ "$event" == "pull_request" && "$same_repo" == "true" && -n "$head_ref" ]];
   else
     git push origin "HEAD:refs/heads/${head_ref}"
   fi
-  echo "::warning::Stale build-derived artifacts regenerated and committed to '${head_ref}'. The bot commit was pushed with GITHUB_TOKEN, so GitHub runs no checks on it, and branch protection holds the pull request until checks pass on that new head. Close and reopen the pull request, or push another commit, to run CI on it. Running 'make l10n-build' before pushing avoids this."
+  if [[ "${HAS_BOT_APP:-}" == "true" ]]; then
+    echo "::warning::Stale build-derived artifacts regenerated and committed to '${head_ref}'. CI runs on the bot commit. Running 'make l10n-build' before pushing avoids this."
+  else
+    echo "::warning::Stale build-derived artifacts regenerated and committed to '${head_ref}'. The bot commit was pushed with GITHUB_TOKEN, so GitHub holds its workflow runs for approval, and the pull request cannot merge until they pass. On the Checks tab, choose 'Approve workflows to run'. Running 'make l10n-build' before pushing avoids this."
+  fi
   exit 0
 fi
 

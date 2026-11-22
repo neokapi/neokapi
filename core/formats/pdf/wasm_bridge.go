@@ -2,14 +2,13 @@
 
 package pdf
 
-// WasmReader reads PDFs in the browser by delegating to a PDFium WebAssembly
-// module loaded as a SIBLING module in the browser's own WASM engine (e.g.
-// @embedpdf/pdfium) and exposed on the JS global as __kapiPdfium. PDFium's cgo
-// build can't run in the browser, but PDFium *compiled to wasm* runs directly
-// there — so this bridges Go-wasm → JS → pdfium.wasm via syscall/js, giving the
-// browser build the same positioned-text extraction (text + per-rect geometry)
-// as the native kapi-pdfium plugin, and letting us retire the pure-Go
-// hand-rolled reader in the browser too.
+// WasmReader reads PDFs in the browser through a PDFium WebAssembly module
+// (e.g. @embedpdf/pdfium). That module loads as a SIBLING module in the
+// browser's own WASM engine and is exposed on the JS global as __kapiPdfium.
+// PDFium's cgo build can't run in the browser, but PDFium *compiled to wasm*
+// can. This file bridges Go-wasm → JS → pdfium.wasm via syscall/js, so the
+// browser build gets the same positioned-text extraction (text + per-rect
+// geometry) as the native kapi-pdfium plugin.
 //
 // JS contract (provided by the web app; see register_pdf_js.go and the bridge
 // installer in packages/kapi-playground/src/pdfiumBridge.ts):
@@ -43,13 +42,11 @@ import (
 func NewWasmReader() *WasmReader {
 	cfg := &Config{}
 	return &WasmReader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "pdf",
-			FormatDisplayName: "PDF (PDFium/WASM)",
-			FormatMimeType:    "application/pdf",
-			FormatExtensions:  []string{".pdf"},
-			Cfg:               cfg,
-		},
+		FormatName:        "pdf",
+		FormatDisplayName: "PDF (PDFium/WASM)",
+		FormatMimeType:    "application/pdf",
+		FormatExtensions:  []string{".pdf"},
+		Cfg:               cfg,
 	}
 }
 
@@ -145,7 +142,7 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 
 		// Bound the whole-input read with the shared safeio byte budget so an
 		// unbounded/oversized stream fails with a typed error (identical limit
-		// across CLI/server/WASM — see core/safeio).
+		// across CLI/server/WASM; see core/safeio).
 		data, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("pdf: read document: %w", err)}
@@ -174,7 +171,7 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 		blockCounter := 0
 		groupCounter := 0
 		pages := result.Get("pages")
-		for i := 0; i < pages.Length(); i++ {
+		for i := range pages.Length() {
 			page := pages.Index(i)
 			pageNum := page.Get("number").Int()
 			pageHeight := page.Get("height").Float()
@@ -186,7 +183,7 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 			n := rects.Length()
 			rectsJS := make([]js.Value, n)
 			ins := make([]RectIn, n)
-			for j := 0; j < n; j++ {
+			for j := range n {
 				rc := rects.Index(j)
 				rectsJS[j] = rc
 				ins[j] = RectIn{Text: rc.Get("text").String(), L: rc.Get("l").Float(), T: rc.Get("t").Float(), R: rc.Get("r").Float(), B: rc.Get("b").Float()}
@@ -215,7 +212,7 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 			}
 			ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: pageLayer}}
 			// Infer structure (tables, heading/paragraph roles) from the positioned
-			// blocks — tier-2 geometric analysis, identical to the native plugin's
+			// blocks with tier-2 geometric analysis, identical to the native plugin's
 			// fallback path. Note the asymmetry: for a *tagged* PDF the native
 			// plugin reads the authoritative struct tree (tier-1), but the
 			// __kapiPdfium.extract() contract exposes only rects, not the tree, so
@@ -233,8 +230,8 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 }
 
 // flipBox converts a PDFium box (bottom-left coords, where "t" is the larger Y)
-// to a top-left Rect when the page height is known — the same flip the native
-// kapi-pdfium plugin applies. ok is false for a degenerate (zero-area) box.
+// to a top-left Rect when the page height is known. The native kapi-pdfium
+// plugin applies the same flip. ok is false for a degenerate (zero-area) box.
 func flipBox(l, t, r, b, pageHeight float64) (rect model.Rect, topLeft, ok bool) {
 	x := math.Min(l, r)
 	w := math.Abs(r - l)
@@ -270,7 +267,7 @@ func runGeometry(run RunOut, rectsJS []js.Value, page int, pageHeight float64) *
 		if glyphs.IsUndefined() || glyphs.IsNull() {
 			continue
 		}
-		for i := 0; i < glyphs.Length(); i++ {
+		for i := range glyphs.Length() {
 			gl := glyphs.Index(i)
 			gbox, _, gok := flipBox(gl.Get("l").Float(), gl.Get("t").Float(), gl.Get("r").Float(), gl.Get("b").Float(), pageHeight)
 			if !gok {

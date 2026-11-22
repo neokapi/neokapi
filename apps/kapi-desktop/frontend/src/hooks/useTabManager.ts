@@ -23,6 +23,11 @@ export interface TabState {
  */
 export const GLOBAL_OVERLAYS: ReadonlySet<string> = new Set(["home", "history", "app-settings"]);
 
+/** Whether a view is a global overlay; "app-settings:credentials" opens one section. */
+export function isGlobalOverlayView(view: string): boolean {
+  return GLOBAL_OVERLAYS.has(view.split(":")[0]);
+}
+
 /** Views the Overview ("map") replaced; a saved session may still name one. */
 export const OVERVIEW_ALIASES: ReadonlySet<string> = new Set([
   "project-home",
@@ -72,14 +77,14 @@ export function useTabManager() {
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
   // Global overlays don't change the tab's view — clicking a tab dismisses them.
-  const isGlobalOverlay = GLOBAL_OVERLAYS.has(globalView);
+  const isGlobalOverlay = isGlobalOverlayView(globalView);
   const effectiveView = isGlobalOverlay ? globalView : activeTab ? activeTab.view : globalView;
 
   const navigate = useCallback(
     (v: string) => {
       // Normalize retired ids so the tab's stored view stays canonical.
       const view = canonicalView(v);
-      if (GLOBAL_OVERLAYS.has(view)) {
+      if (isGlobalOverlayView(view)) {
         setGlobalView(view);
       } else if (activeTabID) {
         setGlobalView(""); // clear global overlay

@@ -63,8 +63,8 @@ func NewGenericSourceConnectorDispatcher(pluginName string) SourceConnectorDispa
 func (g *genericSourceConnectorDispatcher) Plugin() string { return g.pluginName }
 
 // Prepare reads op's arguments. The op's own flags, -p/--project, -h/--help and
-// kapi's persistent flags parse, and any other flag refuses the call: the
-// daemon carries only what the op defines, so running anyway performs a
+// kapi's persistent flags parse, and any other flag refuses the call. The
+// daemon carries only what the op defines. Running anyway would perform a
 // different operation from the one typed, such as a push of every path when an
 // unknown flag took the path after it as its value. Push and ls take paths;
 // status and pull take none.
@@ -149,9 +149,6 @@ func sourceConnectorProjectRoot(op, explicit string) (string, error) {
 				op, project.NoProjectEnvVar)
 		}
 		return "", fmt.Errorf("kapi %s did not run: no kapi project found. Pass -p <path to kapi.yaml> or run from inside a kapi project directory", op)
-	}
-	if _, err := os.Stat(recipe); err != nil {
-		return "", fmt.Errorf("kapi %s did not run: no project recipe at %s: %w", op, recipe, err)
 	}
 	if filepath.Base(recipe) == project.RecipeFileName {
 		return filepath.Dir(recipe), nil
@@ -304,7 +301,7 @@ func printPullExtras(resp *pb.PullResponse) {
 		fmt.Printf("snapshotted %d concept(s) and %d relation(s) from the workspace terminology\n", c, r)
 	}
 	// The terminology return leg. Empty when the merge produced the bytes
-	// already in git, which is the ordinary pull — a projection that changed
+	// already in git, which is the ordinary pull, a projection that changed
 	// nothing must read as silence, not as a line saying zero.
 	if p := resp.GetTermsProjection(); p != "" {
 		fmt.Println(p)

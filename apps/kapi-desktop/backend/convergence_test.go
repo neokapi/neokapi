@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"os"
 	"path/filepath"
 	"sync"
@@ -170,6 +171,9 @@ func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 	require.NotNil(t, result, "the complete event carries the structured result")
 	assert.True(t, result.Converged)
 	assert.Empty(t, result.ParkedScopes)
+	// Two units in each of two languages, each written once by this run.
+	require.NotNil(t, result.Produced, "the desktop's result reports what the run wrote")
+	assert.Equal(t, 4, *result.Produced)
 }
 
 func TestBringUpToDate_ResolvesRecipeLanguages(t *testing.T) {
@@ -220,7 +224,7 @@ func TestBringUpToDate_RefusesConcurrentRun(t *testing.T) {
 	// While the first run is live, a second launch is refused.
 	err := app.BringUpToDate(tab.ID)
 	if err == nil {
-		// The first run may already have finished on a fast machine — only a
+		// The first run may already have finished on a fast machine: only a
 		// still-running state must refuse.
 		t.Skip("first run finished before the second launch; nothing to assert")
 	}
@@ -301,7 +305,7 @@ func TestGetConvergePlan_UnknownTab(t *testing.T) {
 }
 
 // TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault: a recipe with no
-// defaults.flow launches fine — the shared up engine synthesizes the built-in
+// defaults.flow launches fine, the shared up engine synthesizes the built-in
 // default flow (#1078 G6: recycle → translate). With the offline demo provider
 // the run converges and materializes every target.
 func TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault(t *testing.T) {
@@ -335,7 +339,7 @@ func TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault(t *testing.T) {
 
 // TestGetConvergence_MissingProjectFiles: a tab whose recipe vanished from
 // disk (moved/deleted directory) gets the typed friendly error, not a raw
-// open-error — and both derivation bindings agree.
+// open-error, and both derivation bindings agree.
 func TestGetConvergence_MissingProjectFiles(t *testing.T) {
 	app := NewApp()
 	tab, root := newConvergenceProject(t, app)
@@ -403,4 +407,39 @@ func TestDecideEstablish_PromotesToReviewed(t *testing.T) {
 			assert.NotEqual(t, item.Key, it.Key, "the approved unit is gone")
 		}
 	}
+}
+
+// A convergence run started with an explicit provider runs with it: demo over
+// a preset that names a provider with no key converges, and the same run
+// without it fails on the missing key.
+func TestBringUpToDateWith_ExplicitProvider(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	for _, names := range providerenv.Vars {
+		for _, n := range names {
+			t.Setenv(n, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+	app := NewApp()
+	tab, root := newConvergenceProject(t, app)
+	op := app.getOpenProject(tab.ID)
+	op.Project.Defaults.Flow = ""
+	op.Project.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "anthropic"}}
+	require.NoError(t, project.Save(op.Path, op.Project))
+
+	finish := func() string {
+		require.Eventually(t, func() bool {
+			s := app.GetRunState()
+			return s == string(RunStateComplete) || s == string(RunStateError)
+		}, 60*time.Second, 50*time.Millisecond)
+		return app.GetRunState()
+	}
+	require.NoError(t, app.BringUpToDate(tab.ID))
+	require.Equal(t, string(RunStateError), finish(), "anthropic has no key")
+
+	require.NoError(t, app.BringUpToDateWith(tab.ID, RunAIOptions{Provider: "demo"}))
+	require.Equal(t, string(RunStateComplete), finish())
+	_, err := os.Stat(filepath.Join(root, "locales", "fr-FR.json"))
+	require.NoError(t, err, "the demo provider translated fr-FR")
 }

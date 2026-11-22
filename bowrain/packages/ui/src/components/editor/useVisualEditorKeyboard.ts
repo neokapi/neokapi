@@ -35,6 +35,9 @@ export function useVisualEditorKeyboard(options: UseVisualEditorKeyboardOptions)
       // Don't capture when focus is in an input or textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // A key pressed in a dialog is the dialog's: Escape there closes the
+      // dialog, never the editor behind it.
+      if ((e.target as HTMLElement)?.closest?.('[role="dialog"], [role="alertdialog"]')) return;
 
       const isEditing = editingIndex !== null;
       const mod = e.ctrlKey || e.metaKey;

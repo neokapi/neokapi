@@ -14,8 +14,7 @@
  * the prose for the string inside it. Both are fixed here (#2523).
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseSync } from "@swc/core";
 import { afterEach, describe, expect, it } from "vite-plus/test";
@@ -27,6 +26,7 @@ import { extractDocument } from "../src/extract/index.ts";
 import { hashKey } from "../src/plugin/hash.ts";
 import { transform } from "../src/plugin/transform.ts";
 import type { PluginOptions } from "../src/types.ts";
+import { tempDir } from "./temp-dir";
 
 const tmpDirs: string[] = [];
 
@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 function dictDir(locale: string, entries: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), "kapi-inline-attr-"));
+  const dir = tempDir("kapi-inline-attr");
   tmpDirs.push(dir);
   writeFileSync(join(dir, `${locale}.json`), JSON.stringify(entries));
   return dir;

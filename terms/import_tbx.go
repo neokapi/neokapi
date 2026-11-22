@@ -10,7 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// TBXImportOptions controls how a TBX (TermBase eXchange) document is interpreted.
+// TBXImportOptions controls how a TBX document is interpreted.
 type TBXImportOptions struct {
 	// DefaultStatus is applied to terms that carry no recognizable status note.
 	// When empty, model.TermApproved is used.
@@ -59,7 +59,7 @@ type tbxEntry struct {
 	// concept-level descriptions: <descrip type="definition">, type="subjectField"
 	Descrips    []tbxDescrip    `xml:"descrip"`
 	DescripGrps []tbxDescripGrp `xml:"descripGrp"`
-	// langSec (TBX v3) and langSet (MARTIF) — both captured.
+	// Both langSec (TBX v3) and langSet (MARTIF) are captured.
 	LangSecs []tbxLangSec `xml:"langSec"`
 	LangSets []tbxLangSec `xml:"langSet"`
 }
@@ -128,7 +128,7 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 		prefix = "tbx"
 	}
 
-	imported := 0
+	var concepts []Concept
 	for _, entry := range entries {
 		concept := Concept{
 			ID:     entry.ID,
@@ -136,7 +136,7 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 			Source: opts.Source,
 		}
 		if concept.ID == "" {
-			concept.ID = fmt.Sprintf("%s-%d", prefix, imported+1)
+			concept.ID = fmt.Sprintf("%s-%d", prefix, len(concepts)+1)
 		}
 
 		// Concept-level descriptions (definition, subjectField).
@@ -174,13 +174,16 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 			// Skip entries that yielded no usable terms.
 			continue
 		}
+		concepts = append(concepts, concept)
+	}
 
+	imported := 0
+	for _, concept := range concepts {
 		if err := tb.AddConcept(ctx, concept); err != nil {
 			return imported, fmt.Errorf("add concept %s: %w", concept.ID, err)
 		}
 		imported++
 	}
-
 	return imported, nil
 }
 

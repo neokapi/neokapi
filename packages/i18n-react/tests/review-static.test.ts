@@ -5,8 +5,7 @@
  * the hosted overlay works on statically-rendered pages with no app runtime.
  */
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
@@ -14,6 +13,7 @@ import { transform } from "../src/plugin/transform.ts";
 import { hashKey } from "../src/plugin/hash.ts";
 import { unpluginFactory } from "../src/plugin/index.ts";
 import type { ReviewManifest } from "../src/review/manifest.ts";
+import { tempDir } from "./temp-dir";
 
 const tmp: string[] = [];
 afterEach(() => {
@@ -22,7 +22,7 @@ afterEach(() => {
 
 /** A translations dir seeded with a `de.json` dict. */
 function translationsDir(dict: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), "kapi-static-review-"));
+  const dir = tempDir("kapi-static-review");
   tmp.push(dir);
   const tdir = join(dir, "translations");
   mkdirSync(tdir, { recursive: true });

@@ -121,9 +121,26 @@ jobs:
     # `vp install` or a test suite over PR content must not hold this token.
     permissions:
       contents: write
+    env:
+      HAS_BOT_APP: ${{ secrets.BOT_APP_PRIVATE_KEY != '' }}
     steps:
+      # A push or pull request made with the bot App's token starts the
+      # pull request's workflows; one made with GITHUB_TOKEN starts none, or
+      # waits for a person to approve them. Without the App, GITHUB_TOKEN.
+      # See docs/internals/bot-pushes.md.
+      - name: Mint the bot App token
+        id: bot
+        if: env.HAS_BOT_APP == 'true'
+        uses: actions/create-github-app-token@v3.3.0
+        with:
+          client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v7
         with:
+          token: ${{ steps.bot.outputs.token || github.token }}
           # Same-repo PRs check out the PR head branch (not the ephemeral merge
           # ref) so the auto-fix can commit and push to it. Fork PRs and pushes
           # keep the default checkout ('' = unset).

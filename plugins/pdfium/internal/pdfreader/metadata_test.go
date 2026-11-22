@@ -13,6 +13,7 @@ import (
 
 type fakeMeta struct{ vals map[string]string }
 
+//nolint:staticcheck // ST1003: the method name is go-pdfium's, which the fake must match
 func (f fakeMeta) FPDF_GetMetaText(r *requests.FPDF_GetMetaText) (*responses.FPDF_GetMetaText, error) {
 	return &responses.FPDF_GetMetaText{Tag: r.Tag, Value: f.vals[r.Tag]}, nil
 }

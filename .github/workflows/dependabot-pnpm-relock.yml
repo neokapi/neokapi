@@ -19,11 +19,27 @@ jobs:
   relock:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    env:
+      HAS_BOT_APP: ${{ secrets.BOT_APP_PRIVATE_KEY != '' }}
     steps:
+      # A push or pull request made with the bot App's token starts the
+      # pull request's workflows; one made with GITHUB_TOKEN starts none, or
+      # waits for a person to approve them. Without the App, GITHUB_TOKEN.
+      # See docs/internals/bot-pushes.md.
+      - name: Mint the bot App token
+        id: bot
+        if: env.HAS_BOT_APP == 'true'
+        uses: actions/create-github-app-token@v3.3.0
+        with:
+          client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       # Mirrors .github/actions/setup-node-ui without the install and the
       # i18n-react build: relocking needs the toolchain, not the workspace.
@@ -32,6 +48,8 @@ jobs:
           version: "1.7.0"
           node-version: "26"
           cache: true
+          # A pull request restores the dependency cache and saves none.
+          cache-save: ${{ github.event_name != 'pull_request' }}
           cache-dependency-path: pnpm-lock.yaml
           run-install: false
 

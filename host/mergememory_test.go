@@ -248,6 +248,30 @@ func TestMemoryAbsorber_MatchesAUnitWithInlineCodes(t *testing.T) {
 	assert.Equal(t, "record:save-now", entries[0].ID)
 }
 
+// A pair the store already holds is nothing to learn: a second run over the
+// same merged block stages nothing and writes nothing, and a changed target
+// is still an update.
+func TestMemoryAbsorber_SkipsAPairTheStoreHolds(t *testing.T) {
+	absorber := absorberFixture(t)
+	_, _, err := absorber.absorb(t.Context(),
+		mergedBlock("a", "Save", "Enregistrer"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	require.NoError(t, absorber.flush(t.Context()))
+
+	n, u, err := absorber.absorb(t.Context(),
+		mergedBlock("a", "Save", "Enregistrer"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.Zero(t, u, "an unchanged pair is not an update")
+	assert.Empty(t, absorber.entries, "an unchanged pair is not staged")
+
+	n, u, err = absorber.absorb(t.Context(),
+		mergedBlock("a", "Save", "Sauvegarder"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.Equal(t, 1, u, "a changed target updates the entry")
+}
+
 // A run that learned nothing must write nothing, including no index rebuild,
 // which is a full pass over the variant table and would otherwise be paid by
 // every merge that happened to change no wording.
@@ -280,4 +304,27 @@ func TestMemoryAbsorber_NilIsInert(t *testing.T) {
 	assert.Zero(t, n)
 	assert.Zero(t, u)
 	require.NoError(t, absorber.flush(t.Context()))
+}
+
+// A merged unit whose target changed only in an inline code is an update to
+// its entry, not a pair the store already holds.
+func TestMemoryAbsorber_ACodeChangeIsAnUpdate(t *testing.T) {
+	absorber := absorberFixture(t)
+	ph := func(id string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: id, Type: "fmt:br", Data: "<br/>", Disp: "<br/>"}}
+	}
+	block := func(code string) *model.Block {
+		b := &model.Block{ID: "a", Translatable: true}
+		b.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "Save"}}, ph("1"), {Text: &model.TextRun{Text: "now"}}})
+		b.SetTargetRuns("fr", []model.Run{{Text: &model.TextRun{Text: "Enregistrer"}}, ph(code), {Text: &model.TextRun{Text: "maintenant"}}})
+		return b
+	}
+	_, _, err := absorber.absorb(t.Context(), block("1"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	require.NoError(t, absorber.flush(t.Context()))
+
+	n, u, err := absorber.absorb(t.Context(), block("2"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.Equal(t, 1, u, "the same text with another code is another target")
 }
