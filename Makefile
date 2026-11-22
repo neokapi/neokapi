@@ -912,8 +912,8 @@ fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its t
 	@$(GO) run ./scripts/fieldguard -self-test
 	@# plugins/pdfium type-checks only with PDFium on pkg-config, and a package
 	@# that does not type-check fails the guard.
-	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
-		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
+	@# THROWAWAY: PDFium is left off pkg-config to show the guard failing.
+	@$(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
 check-go-module-boundaries: i18n-catalogs go-embed-placeholders
 	@GO="$(GO)" ./scripts/check-go-module-boundaries.sh $(AUDIT_MODULES)

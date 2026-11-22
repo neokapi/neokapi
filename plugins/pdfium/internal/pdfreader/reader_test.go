@@ -1,3 +1,4 @@
+// THROWAWAY: a change here makes fieldguard load this directory.
 package pdfreader
 
 import (
