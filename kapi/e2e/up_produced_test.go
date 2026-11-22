@@ -140,3 +140,18 @@ func TestUpReportsWhatItWroteBeforeAFailure(t *testing.T) {
 	require.Error(t, err, "the run fails:\n%s", out)
 	assert.Contains(t, string(out), "wrote 1 translation(s) to target files before it failed", "%s", out)
 }
+
+// A recipe under another name than kapi.yaml is the project's too: the run
+// records the translations it writes, and reports them as produced.
+func TestUpProducedUnderARecipeNamedOtherwise(t *testing.T) {
+	dir, dataRoot, _ := newUpProject(t, upFrRecipe)
+	require.NoError(t, os.Rename(filepath.Join(dir, "kapi.yaml"), filepath.Join(dir, "site.yaml")))
+	cmd := exec.Command(kapiBin, "up", "-p", "site.yaml")
+	cmd.Dir = dir
+	cmd.Env = append(append(os.Environ(), isoEnv...),
+		"KAPI_DATA_DIR="+dataRoot, "KAPI_AI_PROVIDER=demo", "ANTHROPIC_API_KEY=", "OPENAI_API_KEY=")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", out)
+	assert.NotContains(t, string(out), "produced 0", "the run wrote translations and says so:\n%s", out)
+	assert.Contains(t, string(out), "produced", "%s", out)
+}

@@ -139,7 +139,7 @@ func (d *targetDecoder) decode(data []byte) (model.Edition, error) {
 // read back by the block hydrator and a writer that spells any one of them
 // differently files a row nothing joins to:
 //
-//   - block_id is the block's own `blocks.id` — what LoadBlockOverlays queries
+//   - block_id is the block's own `blocks.id`, what LoadBlockOverlays queries
 //     by, and what block and item deletion clear.
 //   - kind is the bare annotation key ("note", "quality.findings"), which is
 //     what Block.SetAnno is handed on the way back.
@@ -225,8 +225,8 @@ func UpsertBlockTarget(
 }
 
 // overlayChunk bounds one IN(...) list in the loaders below. Every id is one
-// bind parameter, and a whole-project call — GetBlockStats deriving coverage,
-// the review loop hydrating every block — must not gamble on the corpus being
+// bind parameter, and a whole-project call (GetBlockStats deriving coverage,
+// the review loop hydrating every block) must not gamble on the corpus being
 // smaller than the driver's parameter budget (65,535 on Postgres, far less on
 // SQLite). Third member of this family found at 74,916 blocks; the loaders
 // chunk so no caller has to know.
@@ -329,7 +329,7 @@ func LoadBlockOverlays(
 // StoredTarget is one translations row as the store holds it: the variant it is
 // filed under, the edition it carries, and the writer's residual payload.
 type StoredTarget struct {
-	// BlockID is the row's block key — the store's own `blocks.id`.
+	// BlockID is the row's block key: the store's own `blocks.id`.
 	BlockID string
 	// Variant is the row's locale column, decoded.
 	Variant model.EditionKey
@@ -422,7 +422,7 @@ func scanStoredTarget(rows *sql.Rows, blockID string) (*StoredTarget, error) {
 // is filed under, the annotation key it is filed as, and the payload decoded
 // through model.DecodePayload.
 type StoredAnnotation struct {
-	// BlockID is the row's block key — the store's own `blocks.id`.
+	// BlockID is the row's block key: the store's own `blocks.id`.
 	BlockID string
 	// Key is the row's kind column: the bare annotation key.
 	Key string
@@ -571,7 +571,7 @@ type TargetLocaleState struct {
 
 // LoadBlockTargetStates returns, per block, the (locale, status) pairs of its
 // stored targets. The status is extracted from target_json in SQL so the run
-// payloads never leave the database — the same lightweight-projection contract
+// payloads never leave the database: the same lightweight-projection contract
 // GetBlockStats holds for source_json.
 func LoadBlockTargetStates(
 	ctx context.Context,
@@ -714,7 +714,7 @@ func sqlListTranslationsByBlocks(dialect string, nblocks int) string {
 		AND block_id IN (` + placeholderList(dialect, 3, nblocks) + `)`
 }
 
-// sqlSelectTargetRow and sqlListTargetRowsByVariant read the whole target row —
+// sqlSelectTargetRow and sqlListTargetRowsByVariant read the whole target row:
 // the same column set, so a single-block read and a whole-variant listing
 // cannot disagree about what a target is.
 func sqlSelectTargetRow(dialect string) string {
@@ -807,7 +807,7 @@ func serializeSingleAnnotation(ann model.Payload) ([]byte, error) {
 }
 
 // deserializeSingleAnnotation reverses serializeSingleAnnotation through
-// model.DecodePayload — the one decode every reader of a stand-off payload
+// model.DecodePayload: the one decode every reader of a stand-off payload
 // uses. The row's kind names the annotation key; the envelope's type names the
 // payload, and falls back to the key for a row whose writer left it empty.
 func deserializeSingleAnnotation(key string, payload []byte) (model.Payload, error) {

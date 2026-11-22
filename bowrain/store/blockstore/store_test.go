@@ -129,7 +129,7 @@ func TestSession_PutGetBlock(t *testing.T) {
 		t.Fatalf("commit: %v", err)
 	}
 
-	// Fresh session — stream blocks, grab the first, verify the
+	// Fresh session: stream blocks, grab the first, verify the
 	// content hash the server computed is now populated and usable
 	// as a GetBlock lookup key.
 	sess2, err := bs.Begin(ctx)
@@ -187,7 +187,7 @@ func TestSession_OverlayRoundTrip(t *testing.T) {
 	require.JSONEq(t, `{"runs":[{"text":"Bonjour"}],"text":"Bonjour"}`, string(got.Payload))
 	require.NotZero(t, got.UpdatedAt, "UpdatedAt not set on returned overlay")
 
-	// Overwrite — same key, new payload, should upsert.
+	// Overwrite: same key, new payload, should upsert.
 	o2 := o
 	o2.Payload = []byte(`{"runs":[{"text":"Salut"}]}`)
 	require.NoError(t, sess.PutOverlay(o2))
@@ -320,7 +320,7 @@ func TestSession_DispatchByKind(t *testing.T) {
 		require.NoErrorf(t, db.QueryRow(q, args...).Scan(&count), "probe %q", q)
 		require.Equalf(t, 1, count, "expected 1 row from %q", q)
 	}
-	// Every row is filed under the block's own id — where the block round-trip
+	// Every row is filed under the block's own id, where the block round-trip
 	// writes it, where hydration reads it back, and where deletion clears it.
 	// The annotation is filed under the bare key, which is what Block.SetAnno is
 	// handed on the way back; the plugin kind stays opaque because nothing but
@@ -401,7 +401,7 @@ func TestSession_PutBlock_CollectionScoped(t *testing.T) {
 		t.Fatalf("commit: %v", err)
 	}
 
-	// Filter by the collection name — should yield our block.
+	// Filter by the collection name: should yield our block.
 	sess2, _ := bs.Begin(ctx)
 	defer sess2.Close()
 	var got int
@@ -421,7 +421,7 @@ func TestSession_PutBlock_CollectionScoped(t *testing.T) {
 		t.Fatalf("expected 1 block in collection, got %d", got)
 	}
 
-	// Filter by a collection that doesn't exist — no blocks, no error.
+	// Filter by a collection that doesn't exist: no blocks, no error.
 	var gotNone int
 	for _, err := range sess2.Blocks(blockstore.BlockFilter{Collection: "nope"}) {
 		if err != nil {

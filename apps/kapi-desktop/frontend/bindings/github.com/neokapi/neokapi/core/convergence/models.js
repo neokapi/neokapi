@@ -352,11 +352,21 @@ export class LocaleCoverage {
         }
         if (!("pct" in $$source)) {
             /**
-             * ladder state → "at least" percent (rounded)
+             * ladder state → "at least" percent (Percent)
              * @member
              * @type {{ [_ in string]?: number }}
              */
             this["pct"] = {};
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * AtLeast is the number of units at each ladder state or higher, the
+             * count behind Pct. A count over units reads it rather than deriving one
+             * from a rounded percentage.
+             * @member
+             * @type {{ [_ in string]?: number } | undefined}
+             */
+            this["at_least"] = undefined;
         }
         if (!("gated" in $$source)) {
             /**
@@ -398,7 +408,7 @@ export class LocaleCoverage {
         if (!("ship_progress" in $$source)) {
             /**
              * ShipProgress is how far the scope has come toward its ship gate, in
-             * [0,100] — gate.Progress: the mean fractional attainment of the gate's
+             * [0,100], as gate.Progress reports it: the mean fractional attainment of the gate's
              * required thresholds. It is a distance to the bar, not a lifecycle
              * percentage (those are in Pct), so it answers exactly one question: how
              * much of the ship gate is left. 100 for an ungated scope.
@@ -409,7 +419,7 @@ export class LocaleCoverage {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Blocking names the lowest unmet rung of the ship gate — the one gate to
+             * Blocking names the lowest unmet rung of the ship gate: the one gate to
              * clear next. Empty when the scope ships.
              * @member
              * @type {string | undefined}
@@ -419,11 +429,11 @@ export class LocaleCoverage {
         if (/** @type {any} */(false)) {
             /**
              * Stale counts units whose decision was recorded against source wording that
-             * has since changed (state.UnitState.SourceStale). They tally at `draft` —
-             * a target exists, but it is not a translation of the source the project has
-             * now — and they hold the scope out of Shippable however the
-             * percentages read: a gate is a bar on quantity, and shipping a translation
-             * of a sentence that is gone is not a shortfall of quantity.
+             * has since changed (state.UnitState.SourceStale). They tally at `draft`,
+             * because a target exists that is not a translation of the current source.
+             * They hold the scope out of Shippable however the percentages read, since
+             * a gate is a bar on quantity and a stale translation is no shortfall of
+             * quantity.
              * @member
              * @type {number | undefined}
              */
@@ -467,8 +477,8 @@ export class LocaleCoverage {
             /**
              * FailingChecks counts produced units that fail the project's bound
              * target-side checks (placeholder and tag integrity, terminology). They
-             * count at their true rung in Pct — the unit is translated, and a percentage
-             * that denied it would be false — and they hold the scope out of Shippable
+             * count at their true rung in Pct (the unit is translated, and a percentage
+             * that denied it would be false) and they hold the scope out of Shippable
              * however the percentages read, whether or not a gate applies.
              * 
              * It is populated only when the caller supplies the check findings; a
@@ -506,7 +516,7 @@ export class LocaleCoverage {
             /**
              * BasisUnknown counts units holding a decision recorded before its basis
              * was tracked. Such a decision says nothing about the source it blessed, so
-             * it keeps its rung and the scope ships — the count is what makes that
+             * it keeps its rung and the scope ships: the count is what makes that
              * assumption visible rather than silent.
              * @member
              * @type {number | undefined}
@@ -524,17 +534,21 @@ export class LocaleCoverage {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType1;
-        const $$createField6_0 = $$createType3;
-        const $$createField16_0 = $$createType0;
+        const $$createField4_0 = $$createType1;
+        const $$createField7_0 = $$createType3;
+        const $$createField17_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
+        if ("at_least" in $$parsedSource) {
+            $$parsedSource["at_least"] = $$createField4_0($$parsedSource["at_least"]);
+        }
         if ("pending" in $$parsedSource) {
-            $$parsedSource["pending"] = $$createField6_0($$parsedSource["pending"]);
+            $$parsedSource["pending"] = $$createField7_0($$parsedSource["pending"]);
         }
         if ("not_governed" in $$parsedSource) {
-            $$parsedSource["not_governed"] = $$createField16_0($$parsedSource["not_governed"]);
+            $$parsedSource["not_governed"] = $$createField17_0($$parsedSource["not_governed"]);
         }
         return new LocaleCoverage(/** @type {Partial<LocaleCoverage>} */($$parsedSource));
     }
@@ -864,7 +878,7 @@ export class ReviewQueueItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * HasFindings reports whether the unit currently has check findings —
+             * HasFindings reports whether the unit currently has check findings:
              * enrichment a surface may add when it can compute findings cheaply. Nil
              * means "not computed" (the base derivation never runs checkers).
              * @member
@@ -876,7 +890,7 @@ export class ReviewQueueItem {
             /**
              * AIScore is the unit's AI pre-review score (0–100) when a fresh annotation
              * exists for the current translation; nil when none was recorded (queue
-             * listing never calls a provider — the score is read from the state store).
+             * listing never calls a provider: the score is read from the state store).
              * @member
              * @type {number | null | undefined}
              */
@@ -1003,7 +1017,7 @@ export class SourceCoverage {
              * declaring them contributed nothing to the numbers above. A format can come
              * from a plugin, so a recipe that reads on one machine may not on another;
              * the rollup continues rather than aborting, and says so here. Empty is the
-             * normal case. Never let this go unreported — coverage computed over content
+             * normal case. Never let this go unreported: coverage computed over content
              * that was never opened reads as progress.
              * @member
              * @type {string[] | undefined}

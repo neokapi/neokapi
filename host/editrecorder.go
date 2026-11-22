@@ -28,25 +28,21 @@ import (
 // (projector.RecordEdit), which the projector writes into the block history:
 // who changed which edition, from which revision to which, through which
 // surface, under which governance.
-//
-// What a record keeps depends on who made the change and where the text
-// lives. A person's or an agent's edit keeps the runs around each change and
-// the change set as sent, which review and "who wrote this" read back. A
-// tool's edit, which a flow makes by the thousand, keeps
-// the revisions and hashes only: the file holds the text. A write to the
-// workspace home is recorded by the commit that keeps it (core/workhome),
-// with the edition it leaves, because the log is that home; the recorder
-// records the rest of the change set.
-//
-// A project that declares redaction keeps no withheld value in a record,
-// because a record travels to every context backend the project syncs with
-// (C-10). The runs a record keeps of each document, and its note, are redacted
-// first under the policy that governs the document's file (RedactionFor), the
-// originals going to the project vault as ingest puts them. The change set as
-// sent, whose free text no rule reaches through its structure, is left out of
-// every record of a project that declares a policy for any file. A policy that
-// detects entities needs the entity annotations of a read, which a record's
-// runs do not carry, so under one the record keeps no runs and no note.
+
+// What a record keeps depends on who made the change. A person's or an
+// agent's edit keeps the runs around each change and the change set as sent,
+// which review and "who wrote this" read back. A tool's edit, which a flow
+// makes by the thousand, keeps the revisions and hashes only: the file holds
+// the text. A write to the workspace home is recorded by the commit that
+// keeps it (core/workhome), and the recorder records the rest of the change
+// set.
+
+// Redaction. A record travels to every context backend the project syncs
+// with (C-10), so it keeps no withheld value. Its runs and note are redacted
+// under the policy that governs the document's file (RedactionFor). The
+// change set as sent is left out under any policy, because no rule reaches its
+// free text. Under a policy that detects entities the record keeps no runs and
+// no note, since its runs carry no entity annotations.
 
 // homeWorkspace is the home whose text the log holds (change.DocResult.Home).
 const homeWorkspace = workhome.Name

@@ -20,24 +20,21 @@ import (
 //
 // Every flow run the host starts (kapi translate, pseudo-translate, run, exec,
 // up, and the same runs in Kapi Desktop and over MCP) writes its documents
-// through the file home its change service commits through (flowHome): the
-// same lock directory and the same if-unchanged rename. Inside a project the
-// run also records what it changed, one content.edit operation per document
-// it wrote, with the actor tool:<flow> and the origin flow:<flow>, through the
-// recorder a change set's commit records through (App.EditRecorder). A flow's
+// through the file home its change service commits through (flowHome). Inside
+// a project the run also records what it changed, one content.edit operation
+// per document, with the actor tool:<flow> and the origin flow:<flow>, through
+// App.EditRecorder. A flow's
 // record keeps revisions and hashes and no text: the file holds the text.
-//
-// The transitions are the run's effect on the file as the change service reads
-// it. The document is read through the service before the run (the revision
-// of each edition it holds, or, for a run that writes a target-language file,
-// of that edition joined in from its file) and again after the commit, and a
-// transition is recorded for each edition whose revision moved. Reading the
-// file rather than the blocks the run held is what makes a recorded revision
-// the one a later read finds, which is how a read, kapi status and the next
-// pass know the translation on disk is the one the run made and which source
-// revision it was made from (its basis).
-//
-// Under --print-ops the run writes nothing: its home stages no file
+
+// Transitions. A run's transitions are its effect on the file as the change
+// service reads it. The document is read through the service before the run
+// and again after the commit, and a transition is recorded for each edition
+// whose revision moved. For a run that writes a target-language file, the
+// edition is joined in from that file. Reading the file rather than the
+// run's blocks makes a recorded revision the one a later read finds, and its
+// basis the source revision the translation was made from.
+
+// Printing and moved documents. Under --print-ops the run writes nothing: its home stages no file
 // (filehome.Options.WriteNothing), nothing is recorded, and the operations the
 // run would apply are collected into one change set (printedOps), which
 // kapi apply applies to the same bytes.
@@ -45,8 +42,8 @@ import (
 // A document that moved while the run worked (a person saved it, a change set
 // committed first) is applied again through the change service, from the
 // operations the run's blocks describe, each guarded by the revision read
-// before the run. The service reads the file under its lock and refuses the
-// whole document stale when an edition the run changed has moved too.
+// before the run. An edition the run changed that moved too makes the whole
+// document stale.
 
 // flowActor is the actor a flow writes as.
 func flowActor(flowName string) change.Actor {
@@ -90,10 +87,7 @@ func (a *App) flowDocumentsIn(ctx context.Context, cmd Command, root string, sou
 	if root == "" && a.printOps == nil {
 		return home, nil
 	}
-	recipe := ""
-	if root != "" {
-		recipe = project.LayoutAt(root).RecipePath
-	}
+	recipe := runRecipe(cmd, root)
 	fc := &flowChanges{app: a, ctx: ctx, root: root, print: a.printOps, home: home, source: source}
 	fc.changes = a.newCommandChanges(flowHookCommand(ctx, cmd, recipe), recipe, ChangeServiceOptions{
 		Format:       a.FormatFlag,
@@ -315,10 +309,10 @@ func producerKey(block, edition string) string { return block + "\x00" + edition
 type revisions map[string]blockRevs
 
 // blockRevs is one block's editions as the change service read them: each
-// tracked edition's revision by edition text ("" is the document's own), and
-// the authoritative edition, by the key the service names it with, its
-// revision, which is the basis of a derived edition made from it, and the
-// content hash of its text.
+// tracked edition's revision by edition text ("" is the document's own). It
+// also holds the authoritative edition (by the key the service names it
+// with), its revision, which is the basis of a derived edition made from it,
+// and the content hash of its text.
 type blockRevs struct {
 	editions    map[string]string
 	auth        model.EditionKey
@@ -897,4 +891,20 @@ func (doc *flowDoc) producer(key, text string) (model.Origin, bool) {
 	defer doc.mu.Unlock()
 	o, ok := doc.producers[producerKey(key, text)]
 	return o, ok
+}
+
+// runRecipe is the recipe of the project rooted at root that the run cmd
+// starts reads: the one its -p (or discovery) names when that recipe sits in
+// root, so a recipe under another name than kapi.yaml is the project's, else
+// root's kapi.yaml. "" outside a project.
+func runRecipe(cmd Command, root string) string {
+	if root == "" {
+		return ""
+	}
+	if cmd != nil {
+		if path, err := ResolveProjectPath(cmd); err == nil && path != "" && filepath.Dir(path) == root {
+			return path
+		}
+	}
+	return project.LayoutAt(root).RecipePath
 }

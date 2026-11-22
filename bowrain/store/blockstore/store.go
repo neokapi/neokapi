@@ -163,7 +163,7 @@ func (s *session) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blockstore.Bl
 		// Collection filter: Bowrain collections group items; items own
 		// blocks. Resolve `collection name` → item names in that collection,
 		// then narrow the block query to those items. A nonexistent
-		// collection yields no blocks (empty iteration, no error —
+		// collection yields no blocks (empty iteration, no error:
 		// matches the interface contract's "empty filter = no results").
 		if filter.Collection != "" {
 			coll, err := s.opts.ContentStore.GetCollectionByName(s.ctx, s.opts.ProjectID, filter.Collection, s.opts.Stream)
@@ -262,7 +262,7 @@ func (s *session) PutBlock(collection string, b *blockstore.Block) error {
 	}
 	// When a collection is supplied, route the block through
 	// StoreBlocksForItem so items-within-collection bookkeeping stays
-	// consistent — the collection is created on first use. Empty
+	// consistent: the collection is created on first use. Empty
 	// collection means "project-level write" and uses plain StoreBlocks.
 	if collection == "" {
 		return s.opts.ContentStore.StoreBlocks(s.ctx, s.opts.ProjectID, s.opts.Stream, []*model.Block{mb})
@@ -302,7 +302,7 @@ func (s *session) ensureCollection(name string) (string, error) {
 }
 
 // ensureCollectionItem makes sure an item with the given name exists
-// and is linked to the supplied collection ID — so StoreBlocksForItem
+// and is linked to the supplied collection ID, so StoreBlocksForItem
 // + filter.Collection queries round-trip.
 func (s *session) ensureCollectionItem(itemName, collectionID string) error {
 	existing, err := s.opts.ContentStore.GetItem(s.ctx, s.opts.ProjectID, s.opts.Stream, itemName)
@@ -392,11 +392,12 @@ func (s *session) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error]
 // reader: one key, one spelling of the kind, one payload envelope, whichever
 // door the write came through.
 //
-// The plugin catchall is the one place a caller's own vocabulary survives
-// intact. Its kind is opaque — it names no block field and no annotation key —
-// and its payload is the tool's bytes verbatim, because nothing but this adapter
-// reads `overlays_ext`. That is a deliberate narrowing, not the divergence
-// above: the row is still filed under the block's id, so it dies with its block.
+
+// The plugin catchall keeps a caller's own vocabulary intact: its kind is
+// opaque (it names no block field and no annotation key) and its payload is
+// the tool's bytes verbatim, because nothing but this adapter reads
+// `overlays_ext`. The row is still filed under the block's id, so it dies
+// with its block.
 
 func (s *session) getTranslation(kind, blockHash string) (blockstore.Overlay, error) {
 	_, locale := splitKindOnce(kind)
@@ -731,6 +732,6 @@ func (s *session) sqlUpsertExt() string {
 	}
 }
 
-// Unused import guard — kbf is referenced via the aliased Block in
+// Unused import guard: kbf is referenced via the aliased Block in
 // convert.go; Go's unused-import rule for this file is satisfied.
 var _ = kbf.SchemaVersion
