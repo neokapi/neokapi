@@ -418,8 +418,10 @@ COMPOSE_E2E := docker compose -f compose.full.yaml -f compose.e2e.yaml
 E2E_USERNAME ?= e2e-reviewer@example.com
 E2E_PASSWORD ?= e2e-password
 
-stack-up-e2e: ## stack-up, then password sign-in and a test user on the bowrain realm (e2e runs only)
-	$(COMPOSE_E2E) up -d --build --wait
+# The e2e stack includes the web UI: the server suite reads the page at / and
+# follows the device sign-in to a page the web app serves, as CI's stack does.
+stack-up-e2e: ## stack-up-web, then password sign-in and a test user on the bowrain realm (e2e runs only)
+	$(COMPOSE_E2E) --profile web up -d --build --wait
 	E2E_USERNAME='$(E2E_USERNAME)' E2E_PASSWORD='$(E2E_PASSWORD)' $(COMPOSE_E2E) run --rm --build keycloak-e2e
 	@echo "Test user:       $(E2E_USERNAME) / $(E2E_PASSWORD)  (password sign-in on the bowrain realm)"
 	@echo "Restore passkey-only sign-in with: make -C bowrain stack-down stack-up"

@@ -1,4 +1,4 @@
-# E2E test stack — all services from pre-built Docker images.
+# E2E test stack: all services from pre-built Docker images.
 #
 # Usage:
 #   docker compose -f e2e/compose.yaml up -d --wait
@@ -55,7 +55,7 @@ services:
       BOWRAIN_SMTP_FROM: noreply@bowrain.cloud
       BOWRAIN_GRPC_PORT: "9080"
       BOWRAIN_WEB_UI_DIR: /web
-      # Jobs on SQS (ElasticMQ), events on Redis Streams — mirrors production.
+      # Jobs on SQS (ElasticMQ), events on Redis Streams, as in production.
       BOWRAIN_QUEUE_BACKEND: sqs
       SQS_ENDPOINT: http://elasticmq:9324
       AWS_REGION: us-east-1
@@ -63,10 +63,10 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       BOWRAIN_EVENT_BACKEND: redis
       BOWRAIN_REDIS_URL: redis://redis:6379
-      # Shared with the worker — push payloads land here for async ingestion.
+      # Shared with the worker: push payloads land here for async ingestion.
       BLOB_STORAGE_LOCAL_DIR: /data/blobs
-      # The suites complete the device flow programmatically — no browser, no
-      # Keycloak login form — so they need the direct-approval path, which is
+      # The suites complete the device flow programmatically (no browser, no
+      # Keycloak login form), so they need the direct-approval path, which is
       # off unless a server is explicitly marked as a development one. Never
       # set this on a real deployment: it approves a pending device for the
       # identity the request names, with no identity-provider check.

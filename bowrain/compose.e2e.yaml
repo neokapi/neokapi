@@ -3,10 +3,10 @@
 # suites and the Bowrain mobile app's Maestro flows.
 #
 #   make -C bowrain stack-up-e2e
-#
+
 # The server runs with the rate limits CI's e2e stack uses
 # (e2e/rate-limits.env), so a suite that passes in CI passes here.
-#
+
 # The "bowrain" realm signs in with passkeys only, which a UI test cannot
 # complete. The one-shot keycloak-e2e service switches that realm's browser
 # flow to username and password and seeds a test user with a password
