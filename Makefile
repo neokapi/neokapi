@@ -551,45 +551,48 @@ _fw-test-verbose: i18n-catalogs
 _fw-test-integration: i18n-catalogs
 	@bash scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
-# The Go modules the framework lint job and `make lint` analyze. host/ carries
-# the runtime and every service the CLI dispatches to, so it is vetted and
-# linted beside the modules that import it. The scripts/ modules are listed
-# one by one because `./...` at the root stops at a nested go.mod: gen-refs
-# writes the committed reference dataset, gen-contract-types renders the
-# committed TypeScript contract types, and proseprobe decides a maturity rung.
-GO_LINT_FRAMEWORK := . host cli kapi scripts/gen-refs scripts/gen-contract-types scripts/proseprobe
-GO_VET_FRAMEWORK  := $(GO_LINT_FRAMEWORK) scripts/batcheval scripts/contexteval
-# The plugin modules sit outside go.work; scripts/tagmatrix runs them with
-# GOWORK=off.
-GO_LINT_PLUGINS := plugins/asr plugins/av plugins/check plugins/pdfium plugins/sat plugins/sourcecode plugins/vision
+# The Go modules `make lint` and the CI lint jobs analyze, by the job that
+# lints them under the host configuration. host/ carries the runtime and every
+# service the CLI dispatches to, so it is linted beside the modules that import
+# it. Each scripts/ module is listed because `./...` at the root stops at a
+# nested go.mod. The plugin modules and bench/pseudobench sit outside go.work;
+# scripts/tagmatrix runs them with GOWORK=off.
+GO_LINT_FRAMEWORK := . host cli kapi
+GO_LINT_SCRIPTS   := scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/mkappcast scripts/projectionguard bench/pseudobench
+GO_LINT_PLATFORM  := bowrain/core bowrain/plugin bowrain
+GO_LINT_DESKTOP   := apps/kapi-desktop
+GO_LINT_PLUGINS   := plugins/asr plugins/av plugins/check plugins/pdfium plugins/sat plugins/sourcecode plugins/vision
+GO_LINT_ALL       := $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS) $(GO_LINT_PLATFORM) $(GO_LINT_DESKTOP) $(GO_LINT_PLUGINS)
 
-# scripts/tagmatrix runs the analyzer once per build configuration (the test
-# tags, the model tags, js/wasm, windows, and linux and darwin without cgo), so
-# every build-tagged file is analyzed, and it fails on a Go file that no
-# configuration compiles. Every plugins/pdfium package needs PDFium on
-# pkg-config, so the plugin targets fetch it the way fieldguard does.
-TAGMATRIX := $(GO) run ./scripts/tagmatrix
+# scripts/tagmatrix runs the analyzer once per build configuration in
+# scripts/internal/buildconfigs (host, model, js-wasm, windows, linux-nocgo,
+# darwin-nocgo), so every build-tagged file is analyzed, and it fails on a Go
+# file that no configuration compiles. TAGMATRIX_CONFIG narrows a run to some
+# configurations; CI runs one per job. Every plugins/pdfium package needs PDFium
+# on pkg-config, so the targets that reach it fetch it the way fieldguard does.
+TAGMATRIX        := $(GO) run ./scripts/tagmatrix $(if $(TAGMATRIX_CONFIG),-config $(TAGMATRIX_CONFIG))
 # tagmatrix runs the golangci-lint it finds on PATH.
-TAGMATRIX_LINT := PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint
+TAGMATRIX_LINT   := PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint
+WITH_PDFIUM       = pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}"
+# Only the model configuration compiles plugins/pdfium in a lint-tags leg.
+LINT_PDFIUM       = $(if $(filter model,$(LINT_CONFIG)),$(WITH_PDFIUM),true &&)
 
 _fw-vet: i18n-catalogs
-	$(TAGMATRIX) -tool vet $(GO_VET_FRAMEWORK)
+	$(TAGMATRIX) -tool vet $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS)
 
 plugins-vet: ## Run go vet over the plugin modules under every build configuration
-	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
-		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(TAGMATRIX) -tool vet $(GO_LINT_PLUGINS)
+	@$(WITH_PDFIUM) $(TAGMATRIX) -tool vet $(GO_LINT_PLUGINS)
 
 _fw-lint: i18n-catalogs
 ifdef GOLANGCI_LINT
-	$(TAGMATRIX_LINT) $(GO_LINT_FRAMEWORK)
+	$(TAGMATRIX_LINT) $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
 
 plugins-lint: ## Run golangci-lint over the plugin modules under every build configuration
 ifdef GOLANGCI_LINT
-	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
-		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(TAGMATRIX_LINT) $(GO_LINT_PLUGINS)
+	@$(WITH_PDFIUM) $(TAGMATRIX_LINT) $(GO_LINT_PLUGINS)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -744,21 +747,46 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # target fails when golangci-lint is missing; `make lint` only says so.
 REQUIRE_GOLANGCI_LINT = $(if $(GOLANGCI_LINT),,$(error golangci-lint is not on PATH. Run 'make tools' to install it))
 
-ci-lint-framework: ## Mirror the CI `lint-framework` job
+ci-lint-framework: ## Mirror the CI `lint-framework` job: the host configuration of the framework modules
 	$(REQUIRE_GOLANGCI_LINT)
-	@$(MAKE) --no-print-directory _fw-lint
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_FRAMEWORK)
 
-ci-lint-platform: ## Mirror the CI `lint-platform` job
+ci-lint-scripts: i18n-catalogs ## Mirror the CI `lint-scripts` job: the host configuration of the scripts modules
 	$(REQUIRE_GOLANGCI_LINT)
-	@$(MAKE) -C bowrain lint
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_SCRIPTS)
 
-ci-lint-plugins: ## Mirror the CI `lint-plugins` job
+ci-lint-platform: ## Mirror the CI `lint-platform` job: the host configuration of the bowrain modules
 	$(REQUIRE_GOLANGCI_LINT)
-	@$(MAKE) --no-print-directory plugins-lint
+	@$(MAKE) -C bowrain lint TAGMATRIX_CONFIG=host
 
-ci-lint-kapi-desktop: ## Mirror the lint step of the CI `kapi-desktop-backend` job
+ci-lint-plugins: ## Mirror the CI `lint-plugins` job: the host configuration of the plugin modules
 	$(REQUIRE_GOLANGCI_LINT)
-	@$(MAKE) --no-print-directory kapi-desktop-lint
+	@$(WITH_PDFIUM) $(TAGMATRIX_LINT) -config host $(GO_LINT_PLUGINS)
+
+ci-lint-kapi-desktop: kapi-desktop-lint-deps ## Mirror the lint step of the CI `kapi-desktop-backend` job
+	$(REQUIRE_GOLANGCI_LINT)
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_DESKTOP)
+
+# One leg of the CI `lint-tags` matrix: the packages that hold a file the host
+# configuration leaves out, linted under configuration LINT_CONFIG, and the
+# edit and projection guards under the same configuration.
+ci-lint-tags: i18n-catalogs go-embed-placeholders ## Mirror one CI `lint-tags` leg (LINT_CONFIG=model|js-wasm|windows|linux-nocgo|darwin-nocgo)
+	$(REQUIRE_GOLANGCI_LINT)
+	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
+	@$(LINT_PDFIUM) $(TAGMATRIX_LINT) -config $(LINT_CONFIG) $(GO_LINT_ALL)
+	$(GO) run ./scripts/editguard -config $(LINT_CONFIG)
+	$(GO) run ./scripts/projectionguard -config $(LINT_CONFIG)
+
+# Prints true when a change since LINT_BASE reaches a package a `lint-tags` leg
+# compiles, and false otherwise. A leg that prints false skips its lint.
+ci-lint-affected: ## Print whether a change since LINT_BASE affects the LINT_CONFIG leg
+	@$(GO) run ./scripts/tagmatrix -config $(LINT_CONFIG) -affected-since $(LINT_BASE) $(GO_LINT_ALL)
+
+# Fills the Go build cache with the export data one `lint-tags` leg reads, for
+# the main-only job that saves that leg's cache flavor.
+warm-lint-cache: i18n-catalogs go-embed-placeholders ## Compile the export data the LINT_CONFIG leg reads (CI, on main)
+	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
+	@$(LINT_PDFIUM) $(GO) run ./scripts/tagmatrix -config $(LINT_CONFIG) -warm $(GO_LINT_ALL)
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
 	# The vocabulary packs are also gated in reference-data-drift.yml, but that
@@ -938,9 +966,14 @@ audit-modules: check-module-boundaries ## Build each application module in isola
 # of the workspace's operation log, written only by core/projector. A write that
 # reaches one another way leaves a row a rebuild drops. The guard type-checks the
 # Apache modules and proves itself on fixtures first.
+# The edit and projection guards run under every build configuration by
+# default. The module-boundaries CI job runs the host one; each lint-tags leg
+# runs its own.
+GUARD_CONFIGS ?= host model js-wasm windows linux-nocgo darwin-nocgo
+
 check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
 	@$(GO) run ./scripts/projectionguard -self-test
-	@$(GO) run ./scripts/projectionguard
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/projectionguard -config $$c || exit 1; done
 
 # A format writer pointed at a file writes a whole document to disk. The guard
 # type-checks every module that writes documents and reports each such call
@@ -948,7 +981,7 @@ check-projection-writes: i18n-catalogs ## Guard: only the projector writes a pro
 # each writes, and proves itself on fixtures first.
 check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reaches a file only where scripts/editguard lists it
 	@$(GO) run ./scripts/editguard -self-test
-	@$(GO) run ./scripts/editguard
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/editguard -config $$c || exit 1; done
 
 # A block stores its content as peer editions in Block.Editions and lists the
 # editions its document holds in Block.Native (docs/internals/edit-model.md,
@@ -1389,7 +1422,7 @@ kapi-desktop-lint-deps: i18n-catalogs $(KAPI_DESKTOP_DIR)/frontend/dist/index.ht
 
 kapi-desktop-lint: kapi-desktop-lint-deps ## Run golangci-lint over the Kapi Desktop Go backend
 ifdef GOLANGCI_LINT
-	$(TAGMATRIX_LINT) $(KAPI_DESKTOP_DIR)
+	$(TAGMATRIX_LINT) $(GO_LINT_DESKTOP)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -3376,7 +3409,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks warm-build-cache workspace-paths test-parallel \
+        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

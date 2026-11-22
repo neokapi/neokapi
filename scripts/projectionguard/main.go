@@ -43,6 +43,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/scripts/internal/buildconfigs"
 	"github.com/neokapi/neokapi/scripts/internal/guardpackages"
 )
 
@@ -104,6 +105,9 @@ var allowed = map[string]string{
 	"host/facetest/fixture/fixture.go:SeedTerms":      "seeds the terms of a throwaway fixture store for a screenshot",
 	"apps/kapi-desktop/backend/memory.go:OpenMemory":  "opens a content-memory file a person picked",
 	"apps/kapi-desktop/backend/termbase.go:OpenTerms": "opens a terms file a person picked",
+	// The browser build's workspace export and import, seen under js-wasm.
+	"kapi/cmd/kapi-wasm-cli/workspace.go:termStoreBundle": "packs a terms store that belongs to no project into a workspace package",
+	"kapi/cmd/kapi-wasm-cli/workspace.go:importTermStore": "writes a workspace package's terms store that belongs to no project",
 }
 
 func set(names ...string) map[string]bool {
@@ -116,6 +120,7 @@ func set(names ...string) map[string]bool {
 
 func main() {
 	selfTest := flag.Bool("self-test", false, "prove the check on fixtures")
+	configName := flag.String("config", "host", "build configuration to check under (scripts/internal/buildconfigs)")
 	flag.Parse()
 	var (
 		found []string
@@ -124,7 +129,10 @@ func main() {
 	if *selfTest {
 		err = runSelfTest()
 	} else {
-		found, err = check(targets)
+		var cfgs []buildconfigs.Config
+		if cfgs, err = buildconfigs.Named(*configName); err == nil {
+			found, err = check(cfgs[0], targets)
+		}
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "projectionguard:", err)
@@ -141,13 +149,19 @@ func main() {
 }
 
 // check type-checks every target package and reports each write found.
-func check(patterns []string) ([]string, error) {
-	pkgs, err := guardpackages.List(patterns...)
+// In a configuration after the first, only the packages holding a file no
+// earlier configuration compiles are checked.
+func check(cfg buildconfigs.Config, patterns []string) ([]string, error) {
+	first := buildconfigs.Index(cfg.Name) == 0
+	pkgs, err := guardpackages.ListConfig(cfg, patterns...)
 	if err != nil {
 		return nil, err
 	}
-	if err := coverage(pkgs); err != nil {
-		return nil, err
+	// The store packages are complete in the first configuration only.
+	if first {
+		if err := coverage(pkgs); err != nil {
+			return nil, err
+		}
 	}
 	root, err := os.Getwd()
 	if err != nil {
@@ -182,10 +196,10 @@ func check(patterns []string) ([]string, error) {
 		checked++
 
 	}
-	if checked == 0 {
+	if checked == 0 && first {
 		return nil, errors.New("no package to check: run from the repository root")
 	}
-	fmt.Printf("projectionguard: checked %d packages\n", checked)
+	fmt.Printf("projectionguard: checked %d packages (%s)\n", checked, cfg.Name)
 	sort.Strings(found)
 	return found, nil
 }

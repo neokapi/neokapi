@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -123,7 +122,7 @@ const htmlTemplate = `<!DOCTYPE html>
     </div>
 
     <script>
-    var experiments = {{.DataJSON}};
+    var experiments = {{.Experiments}};
 
     var ENGINE_COLORS = {
         "kapi-native":        { bg: "rgba(33,150,243,0.7)",  border: "#2196F3" },
@@ -543,16 +542,10 @@ const htmlTemplate = `<!DOCTYPE html>
 type templateData struct {
 	Metadata    Metadata
 	Experiments []ExperimentResult
-	DataJSON    template.JS
 }
 
 func generateHTMLReport(report *Report, outputPath string) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		return err
-	}
-
-	dataBytes, err := json.Marshal(report.Experiments)
-	if err != nil {
 		return err
 	}
 
@@ -571,7 +564,6 @@ func generateHTMLReport(report *Report, outputPath string) error {
 	td := templateData{
 		Metadata:    report.Metadata,
 		Experiments: report.Experiments,
-		DataJSON:    template.JS(dataBytes),
 	}
 
 	tmpl, err := template.New("report").Funcs(funcMap).Parse(htmlTemplate)

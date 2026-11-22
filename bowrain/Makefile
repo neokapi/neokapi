@@ -585,9 +585,10 @@ fmt: ## Format Go source files
 
 # scripts/tagmatrix runs the analyzer once per build configuration, so the
 # integration, e2e and other build-tagged files are analyzed too. It runs from
-# the repository root, where go.work is.
+# the repository root, where go.work is. TAGMATRIX_CONFIG narrows it to some
+# configurations; the lint-platform CI job runs the host one.
 GO_LINT_BOWRAIN := bowrain/core bowrain/plugin bowrain
-TAGMATRIX       := $(GO) run ./scripts/tagmatrix
+TAGMATRIX       := $(GO) run ./scripts/tagmatrix $(if $(TAGMATRIX_CONFIG),-config $(TAGMATRIX_CONFIG))
 
 vet: i18n-catalogs ## Run go vet
 	cd $(ROOT_DIR) && $(TAGMATRIX) -tool vet $(GO_LINT_BOWRAIN)
