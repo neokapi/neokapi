@@ -19,14 +19,15 @@ regenerate the bindings. The comment is copied into `app.js`, so a comment
 edit alone makes the committed copy stale and fails CI.
 
 ```bash
-make kapi-desktop-bindings > "${TMPDIR:-/tmp}/bind.log" 2>&1; echo "exit=$?"   # 4 s
-grep '\[warn\]' "${TMPDIR:-/tmp}/bind.log" | grep -v 'wailsapp/wails/v3@'      # must print nothing
+make kapi-desktop-bindings          # 4 s
 make check-kapi-desktop-bindings    # "committed bindings match the Go backend"
 ```
 
-The generator runs with cgo off and prints about thirty expected warnings from
-the Wails module. A warning in any other path is an error in your code. Commit
-what `git status` shows under `frontend/bindings`. The Bowrain app has
+The generator runs with cgo off and warns about symbols inside the Wails
+module. `scripts/wails-generate.sh` counts those in one line and fails the
+target on a warning about any other package, which means a bound type of
+yours did not resolve. Commit what `git status` shows under
+`frontend/bindings`. The Bowrain app has
 `bowrain-desktop-bindings` and `check-bowrain-desktop-bindings`.
 
 ```bash
@@ -100,7 +101,7 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
   samples/northsea "$D/home/northsea"` prints nothing.
 - **Unsaved changes.** Adding the flow makes compass dirty. Closing its tab
   asks Don't Save, Cancel or Save. Save, and `diff samples/compass/kapi.yaml
-  "$D/home/compass/kapi.yaml"` shows the flow.
+  "$D/home/compass"/kapi.yaml` shows the flow.
 - **Translate and `converge`** ask for an AI model although compass names the
   offline `demo` provider. Do not pick one: it bills a real model.
 - **Cancel** cannot be exercised on the samples: their runs take milliseconds.

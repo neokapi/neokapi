@@ -121,5 +121,5 @@ command's flags, output, help or exit codes. Read its exit code.
 ## Evidence
 
 Record each command, the output lines that show the behaviour, and the exit
-code, for example `FAILS terms.vocabulary ... Forbidden term "seamless" found`,
-`exit=3`. "It works" is not evidence. Finish with `$S clean`.
+code, for example the `FAILS terms.vocabulary` line that names the forbidden
+term, and `exit=3`. "It works" is not evidence. Finish with `$S clean`.

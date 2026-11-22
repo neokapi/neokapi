@@ -1,14 +1,16 @@
 # Verify a change to the Bowrain server or its stores
 
 For Go under `bowrain/`, a `.sql` file, a migration, or the shared stores
-(`terms/`, `memory/`, `core/storage/`). Run both halves: the suites pull
-request CI skips, then the real server on PostgreSQL with Keycloak sign-in.
+(`terms/`, `memory/`, `core/storage/`). Run both halves: the PostgreSQL-backed
+suites, then the real server on PostgreSQL with Keycloak sign-in.
 
-## 1. The suites CI skips on a pull request
+## 1. The PostgreSQL-backed suites
 
-Pull request CI passes `-short`, which skips every suite built on
-`bowrain/testutil/pgtest`. Run them against a database of your own, on the
-image CI uses. Use `postgres:16-alpine`: on the Debian `postgres:16` image
+Pull request CI runs the suites built on `bowrain/testutil/pgtest`, on its
+database service. Run them first anyway: a local run answers in a minute,
+and CI still skips the integration lane, the race detector and any suite
+that starts a container of its own. Use a database of your own, on the image
+CI uses. Use `postgres:16-alpine`: on the Debian `postgres:16` image
 `TestBlockQuery_AfterIDWalksInIDOrder` (store) and
 `TestReviewDeckPages_ComponentsAndDocuments` (server) fail, because glibc
 sorts mixed-case ids differently from musl.
@@ -39,9 +41,8 @@ make test-race-changed BASE_SHA=$(git merge-base origin/main HEAD)         # rac
   in a clean checkout (`pattern all:frontend/dist: no matching files found`).
   The `go list -e` line skips it, as CI does. Keep `xargs`: zsh passes `$(...)`
   as one word.
-- `make test-integration` stops on the same embed. Create CI's placeholder
-  first (git ignores it):
-  `mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html`
+- `make test-integration` stops on the same embed. Create the placeholders
+  first (git ignores them): `make go-embed-placeholders`
 - An intended baseline schema change: add `-run TestBaselineSchemaMatchesGolden -update`
   to the migrations line and commit `bowrain/migrations/testdata/schema.golden`.
 - `test-race-changed` diffs commits, so commit first. It runs `-short`.

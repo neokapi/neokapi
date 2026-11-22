@@ -72,14 +72,15 @@ The recipes say when you must run them yourself:
 Fix the cause and run it again. After three rounds on the same check, stop and
 bring in the person: say what fails, what you tried and what you suspect.
 
-Never make a check pass by weakening it. That means no skipped or deleted test,
-no added sleep or retry, no loosened assertion, no new allowlist or exemption
-entry, and no narrowed path filter, unless the change is the point of the work
-and the person has agreed to it.
+Never weaken a check to make it pass: no skipped or deleted test, no added
+sleep or retry, no loosened assertion, no new allowlist or exemption entry, no
+narrowed path filter. When changing a check is the work itself, the person
+agrees to it first.
 
-A test that fails some of the time has a cause. Find it: the two flaky tests
-fixed in November 2026 were a real clock-skew defect and a real ordering
-defect. If you cannot find it, say so. Do not rerun until green.
+A test that fails some of the time has a cause, and the cause is often in the
+code: the refresh-token test that failed under load in November 2026 was a
+clock-skew defect in the rotation logic (#3613). Find the cause before you run
+the test again. When you cannot find it, say so.
 
 ## 6. Record what you ran
 

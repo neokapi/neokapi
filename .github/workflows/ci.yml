@@ -1308,6 +1308,10 @@ jobs:
       # nightly there.
       - name: "Guard: the test shards of a package cover every test once"
         run: ./scripts/go-test-shard.sh --self-test
+      - name: "Guard: the reliability checklist validates and each trigger selects its fixture"
+        run: python3 scripts/reliability-checklist.py --self-test
+      - name: "Guard: the commit gate hook passes its self-test"
+        run: ./.claude/hooks/commit-gate.sh --self-test
       - name: "Guard: every copy of a tool pin names the same version"
         run: |
           python3 scripts/check-tool-versions.py --self-test

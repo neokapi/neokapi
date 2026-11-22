@@ -7,10 +7,26 @@
 # file formatted here does not cost a CI round trip later. The hook never
 # fails the edit: a formatter that is missing, or that refuses the file, leaves
 # it as written for the guards to report.
+#
+# Only files of this repository are formatted: the project directory and its
+# worktrees, which share one git directory. A formatter reads configuration
+# from the tree it runs in, and `vp fmt` loads that configuration as code, so
+# a file edited in some other checkout is left alone.
 set -uo pipefail
 
 file="$(jq -r '.tool_response.filePath // .tool_input.file_path // empty' 2>/dev/null)"
 [ -n "$file" ] && [ -f "$file" ] || exit 0
+
+# git_dir prints the git directory a checkout shares with its worktrees.
+git_dir() {
+  git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null
+}
+
+project="${CLAUDE_PROJECT_DIR:-}"
+[ -n "$project" ] || exit 0
+ours="$(git_dir "$project")"
+theirs="$(git_dir "$(dirname "$file")")"
+[ -n "$ours" ] && [ "$ours" = "$theirs" ] || exit 0
 
 case "$file" in
   *.go)
