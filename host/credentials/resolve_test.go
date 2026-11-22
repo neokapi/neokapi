@@ -1,6 +1,8 @@
 package credentials
 
 import (
+	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -314,4 +316,33 @@ func TestFindByType(t *testing.T) {
 	// No match.
 	none := store.FindByType("gemini")
 	assert.Empty(t, none)
+}
+
+func TestMissingKeyMessage(t *testing.T) {
+	assert.Equal(t,
+		`no saved credentials found for provider "anthropic"; save one with 'kapi credentials add' or set ANTHROPIC_API_KEY`,
+		MissingKeyMessage("anthropic", false))
+	assert.Equal(t,
+		`no saved credentials found for provider "anthropic"; save one with 'kapi credentials add', set ANTHROPIC_API_KEY or pass --api-key`,
+		MissingKeyMessage("anthropic", true))
+	assert.Equal(t, `no saved credentials found; save one with 'kapi credentials add'`, MissingKeyMessage("", false))
+}
+
+// The runtime error names what works for every command; a command that
+// reads --api-key adds it, and the error still unwraps to the type.
+func TestMissingCredentialError_FlagHint(t *testing.T) {
+	clearProviderEnv(t)
+	_, err := ResolveCredentials(newTestStore(t), "translate", []string{"credentials"}, map[string]any{"provider": "anthropic"})
+	require.Error(t, err)
+	assert.Equal(t, MissingKeyMessage("anthropic", false), err.Error())
+	assert.NotContains(t, err.Error(), "--api-key")
+
+	wrapped := WithAPIKeyFlag(fmt.Errorf("tool translate config: %w", err))
+	assert.Equal(t, "tool translate config: "+MissingKeyMessage("anthropic", true), wrapped.Error())
+	var missing *MissingCredentialError
+	require.ErrorAs(t, wrapped, &missing)
+	assert.Equal(t, "anthropic", missing.Provider)
+
+	other := errors.New("disk full")
+	assert.Equal(t, other, WithAPIKeyFlag(other))
 }

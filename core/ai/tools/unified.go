@@ -35,8 +35,8 @@ func isMTProvider(id string) bool {
 // Translate is a two-level group: an engine discriminator (AI LLM vs machine
 // translation) selects which providers are offered, and the provider drives
 // runtime dispatch (NewTranslateFromConfig keys on provider, deriving the engine
-// from it). The engine field exists for the cascading UI — it filters the
-// provider list — and as the group discriminator that gates the MT credentials.
+// from it). The engine field exists for the cascading UI (it filters the
+// provider list) and as the group discriminator that gates the MT credentials.
 const (
 	translateEngineField = "engine"
 	translateEngineLLM   = "llm"
@@ -221,6 +221,10 @@ func CheckSchema() *schema.ComponentSchema {
 // translator (which itself defaults to anthropic when no provider is given).
 func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	if provider, _ := config["provider"].(string); isMTProvider(provider) {
+		// An MT engine is built with its key; it cannot wait for a call.
+		if err, ok := config[registry.DeferredCredentialErrorKey].(error); ok {
+			return nil, err
+		}
 		for _, p := range mttools.Providers {
 			if string(p.ID) == provider {
 				// An MT engine calls no LLM, so a host's injected provider
@@ -266,7 +270,7 @@ func NewCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, er
 }
 
 // ResolveCheckContract refines `qa`'s contract from its config: in rules mode the
-// tool runs local rule checks — no credentials, no API call, no egress. In AI
+// tool runs local rule checks, no credentials, no API call, no egress. In AI
 // mode it resolves like the other AI tools (local providers drop the egress
 // effect; cloud providers keep the full contract).
 func ResolveCheckContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {
@@ -304,7 +308,7 @@ func mtProviderOptions() []schema.OptionItem {
 	return opts
 }
 
-// allTranslateProviders lists every LLM provider followed by every MT engine —
+// allTranslateProviders lists every LLM provider followed by every MT engine:
 // the flat union used by CLI flags and docs (the UI uses the engine-cascading
 // option-sets instead).
 func allTranslateProviders() []schema.OptionItem {

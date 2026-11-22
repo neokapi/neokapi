@@ -17,6 +17,7 @@ import type {
   ProviderConfig,
   DefaultModelInfo,
   AIModelResolution,
+  AISetupNeed,
   AIModelOption,
   AIDetectionResult,
   ProjectFilter,
@@ -432,8 +433,13 @@ export const api = {
   setDefaultModel: (model: string, provider: string) =>
     call<void>("SetDefaultModel", model, provider),
   listAIModels: () => call<AIModelOption[]>("ListAIModels"),
-  aiNeedsModelChoice: (tabID: string, flowName: string) =>
-    call<boolean>("AINeedsModelChoice", tabID, flowName),
+  /** What a run needs before its AI steps can run. opts is the provider,
+   * credential or model the run is started with (none by default). */
+  checkAISetup: (
+    tabID: string,
+    flowName: string,
+    opts: { provider?: string; credential?: string; model?: string } = {},
+  ) => call<AISetupNeed>("CheckAISetup", tabID, flowName, opts),
   /** Detect the machine's AI options (Claude Code binary, Ollama server,
    * env keys, saved credentials) — instant and offline. */
   detectAIProviders: () => call<AIDetectionResult>("DetectAIProviders"),

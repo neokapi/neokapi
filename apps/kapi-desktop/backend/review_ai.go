@@ -2,7 +2,7 @@ package backend
 
 // AI in review (issue #1077, phase 3): per-unit AI actions (fix findings,
 // retranslate with instruction, explain) and the batch AI pre-review. Provider
-// calls happen ONLY inside these explicitly-invoked methods — queue listing
+// calls happen ONLY inside these explicitly-invoked methods; queue listing
 // and unit loading never touch a provider. All provider configuration resolves
 // exactly like the flow runner's: the shared ai.provider/ai.model defaults plus
 // the desktop credential store, so "the model that runs your flows" is the
@@ -36,7 +36,7 @@ const (
 )
 
 // ReviewAIActionResult is the outcome of one per-unit AI action. Fix/retranslate
-// return a PROPOSED target only — nothing is written until the reviewer accepts
+// return a PROPOSED target only. Nothing is written until the reviewer accepts
 // the proposal, which the Review page sends as a set_content through Apply;
 // explain returns text.
 type ReviewAIActionResult struct {
@@ -59,7 +59,7 @@ type ReviewAIActionResult struct {
 //
 //   - fix-findings: a one-block translate invocation whose instruction carries
 //     the unit's current check findings (and any fresh AI-review findings) as
-//     constraints — the model produces a corrected translation.
+//     constraints, and the model produces a corrected translation.
 //   - retranslate: a one-block translate invocation with the reviewer's
 //     instruction verbatim.
 //   - explain: a one-block run of the ai review tool; the structured result
@@ -133,7 +133,9 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 			action, ReviewAIFixFindings, ReviewAIRetranslate, ReviewAIExplain)
 	}
 	if err != nil {
-		return nil, err
+		// A translate step is built without its key and reports a missing one
+		// on its first call, so a run error gets the rewrite a build error does.
+		return nil, friendlyAIProviderError(err)
 	}
 	res.Exchanges = a.aiActivity.since(mark)
 	return res, nil
@@ -240,9 +242,8 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 // store when it still judges the translation of b in loc, else nil.
 func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key string, loc model.LocaleID, b *model.Block) *state.AIReview {
 	// One handle per project, memoized on the engine: this is called per unit
-	// while rendering a review, and under the four-file layout each call opened
-	// and closed a database of its own. Now there is nothing to close — the
-	// working store is a schema of the project's store, and the engine owns it.
+	// while rendering a review. There is nothing to close, because the working
+	// store is a schema of the project's store and the engine owns it.
 	root := filepath.Dir(op.Path)
 	st, err := a.hostEngine().OpenProjectState(ctx, root)
 	if err != nil {
@@ -264,9 +265,9 @@ func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key str
 // newReviewAITool builds the AI tool an action uses the way a run builds it.
 // host.ToolConfigForUnit assembles the config a flow run would hand this tool
 // for this unit (the voice profile, the term rules, the point, the tool and
-// locale presets, the content memory), the action's own keys layer on top, and
-// the tool comes from the registry path the flow runner takes (shared AI
-// defaults plus credential resolution).
+// locale presets, the content memory). The action's own keys layer on top. The
+// tool comes from the registry path the flow runner takes (shared AI defaults
+// plus credential resolution).
 //
 // A Review proposal is therefore steered by the same governance the checks card
 // above it judges the unit against.
@@ -291,6 +292,11 @@ func (a *App) newReviewAITool(ctx context.Context, op *openProject, name string,
 	build := func() (tool.Tool, error) {
 		if a.aiToolFactory != nil {
 			return a.aiToolFactory(name, cfg, unit.TargetLang)
+		}
+		// The decision a run makes, asked of this tool's own config: a
+		// provider with no key, or no model chosen, says so up front.
+		if need := a.newProjectEngine(op).ToolAISetup(name, cfg); need.Kind != host.AISetupNone {
+			return nil, errors.New(desktopAISetupMessage(need))
 		}
 		tl, terr := a.toolReg.NewToolWithConfig(registry.ToolID(name), cfg, unit.TargetLang)
 		if terr != nil {
@@ -341,8 +347,11 @@ func friendlyAIProviderError(err error) error {
 		return fmt.Errorf("multiple AI credentials are configured (%s). Set a default in Settings → AI Models",
 			strings.Join(amb.Candidates, ", "))
 	}
+	if m, ok := errors.AsType[*credentials.MissingCredentialError](err); ok {
+		return errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupMissingCredential, Provider: m.Provider}))
+	}
 	if strings.Contains(err.Error(), "no saved credentials") {
-		return errors.New("no AI provider is configured. Add one in Settings → AI Models, then try again")
+		return errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupMissingCredential}))
 	}
 	return err
 }
@@ -447,7 +456,7 @@ func (a *App) reviewerModelID() (string, error) {
 		if a.aiToolFactory != nil {
 			return "mock", nil
 		}
-		return "", errors.New("no AI provider is configured. Add one in Settings → AI Models, then try again")
+		return "", errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupChooseModel}))
 	}
 	return id, nil
 }

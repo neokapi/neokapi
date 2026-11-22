@@ -17,41 +17,38 @@ import (
 // A run failure reaches the UI as a chain of wrapping prefixes:
 //
 //	converge nb: flow execution error: notes.md: execute flow: tool translate:
-//	  translate: ollama: model "gemma4:e2b" is not installed — pull it first …
+//	  translate: ollama: model "gemma4:e2b" is not installed …
 //
-// Every layer of that is true and none of it is what a person needs. What they
-// need is: what broke ("Model gemma4:e2b isn't installed"), what fixes it
-// (`ollama pull gemma4:e2b`), where it happened (which file, which locale), and
-// — only if they ask — the raw chain.
+// A person needs what broke ("Model gemma4:e2b isn't installed"), what fixes
+// it (`ollama pull gemma4:e2b`), where it happened (which file, which locale),
+// and, only if they ask, the raw chain.
 //
 // RunError is that decomposition. It is derived by *unwrapping typed errors*
 // (errors.As against the provider's own error types), never by matching on the
-// rendered prose: the sentence is UI copy and may be reworded or translated,
-// while the type is a contract. The locale/file metadata is peeled off the
-// wrapping layers, which is the one place a string is unavoidable — those
-// prefixes are formatting, not classification, and a miss only costs a metadata
-// field, never a misclassification.
+// rendered prose, which is UI copy. The locale and file are peeled off the
+// wrapping prefixes; a miss there costs a metadata field, never a
+// misclassification.
 
 // RunErrorKind classifies a run failure. Values are stable wire strings.
 type RunErrorKind string
 
 const (
-	// RunErrOllamaUnreachable — no Ollama server at the configured URL.
+	// RunErrOllamaUnreachable: no Ollama server at the configured URL.
 	RunErrOllamaUnreachable RunErrorKind = "ollama-unreachable"
-	// RunErrModelNotInstalled — the local model has not been pulled.
+	// RunErrModelNotInstalled: the local model has not been pulled.
 	RunErrModelNotInstalled RunErrorKind = "model-not-installed"
-	// RunErrAmbiguousCredential — several AI credentials match; none is default.
+	// RunErrAmbiguousCredential: several AI credentials match; none is default.
 	RunErrAmbiguousCredential RunErrorKind = "ambiguous-credential"
-	// RunErrMissingCredential — the provider needs an API key and none is set.
+	// RunErrMissingCredential: the provider needs an API key and none is set.
 	RunErrMissingCredential RunErrorKind = "missing-credential"
-	// RunErrCanceled — the user stopped the run.
+	// RunErrCanceled: the user stopped the run.
 	RunErrCanceled RunErrorKind = "canceled"
-	// RunErrBlockedTargetPath — a target path cannot be written (a directory
+	// RunErrBlockedTargetPath: a target path cannot be written (a directory
 	// occupies it, the directory denies writing, the filesystem is read-only).
 	// It is an obstruction to clear on disk, not a translation problem, so it
 	// must never be presented as pending target-language work (#1449).
 	RunErrBlockedTargetPath RunErrorKind = "blocked-target-path"
-	// RunErrUnknown — no confident classification; headline is the raw message.
+	// RunErrUnknown: no confident classification; headline is the raw message.
 	RunErrUnknown RunErrorKind = "unknown"
 )
 
@@ -59,12 +56,12 @@ const (
 type RunErrorActionKind string
 
 const (
-	// ActionCommand — a shell command to run; the UI offers it copyable.
+	// ActionCommand: a shell command to run; the UI offers it copyable.
 	ActionCommand RunErrorActionKind = "command"
-	// ActionOpenSettings — navigate to an in-app view (Target is a View id from
+	// ActionOpenSettings: navigate to an in-app view (Target is a View id from
 	// the frontend's sidebar union, e.g. "settings", which hosts AI Models).
 	ActionOpenSettings RunErrorActionKind = "open-settings"
-	// ActionOpenURL — open an external page (install docs, downloads).
+	// ActionOpenURL: open an external page (install docs, downloads).
 	ActionOpenURL RunErrorActionKind = "open-url"
 )
 
@@ -84,7 +81,7 @@ type RunErrorAction struct {
 // RunError is a run failure presented as structure rather than prose.
 type RunError struct {
 	Kind RunErrorKind `json:"kind"`
-	// Headline is the short human sentence — the primary line in the UI.
+	// Headline is the short human sentence: the primary line in the UI.
 	Headline string `json:"headline"`
 	// Remediation is one sentence saying what to do about it ("" when the
 	// failure has no known remedy).
@@ -119,7 +116,7 @@ func classifyRunError(err error) *RunError {
 	// A destination the filesystem refuses (#1449). Classified BEFORE the
 	// provider errors because it is not a translation failure at all: the run
 	// never got as far as producing content, and the remedy is on disk. #1442
-	// made a reported failure accurate; this makes it legible — without it the
+	// made a reported failure accurate; this makes it legible. Without it the
 	// blocked path lands in RunErrUnknown and the UI has no remedy to offer.
 	if ope, ok := errors.AsType[*flow.OutputPathError](err); ok {
 		re.Kind = RunErrBlockedTargetPath
@@ -155,7 +152,7 @@ func classifyRunError(err error) *RunError {
 			}
 			return re
 		}
-		// OllamaErrOther — the server answered, but not usefully.
+		// OllamaErrOther: the server answered, but not usefully.
 		re.Headline = oe.Error()
 		return re
 	}
@@ -172,13 +169,29 @@ func classifyRunError(err error) *RunError {
 		return re
 	}
 
+	// A provider with no key. The translate step is built without its key and
+	// reports a missing one on its first call, so the typed error can arrive
+	// from inside a running flow as well as from a step that could not start.
+	if m, ok := errors.AsType[*credentials.MissingCredentialError](err); ok {
+		re.Kind = RunErrMissingCredential
+		re.Headline = "No key for this step's provider"
+		if m.Provider != "" {
+			re.Headline = "No key for " + m.Provider
+		}
+		re.Remediation = "Add one in Settings › AI Models."
+		re.Actions = []RunErrorAction{
+			{Kind: ActionOpenSettings, Label: "Open AI Models", Target: "settings"},
+		}
+		return re
+	}
+
 	if tb, ok := errors.AsType[*host.FlowToolBuildError](err); ok {
 		if re.Locale == "" {
 			re.Locale = tb.Locale
 		}
 		// A tool that could not be built for want of a key is the other common
 		// setup failure. The resolver has no typed error for it, so this is the
-		// one place a phrase is consulted — and only to *upgrade* an already
+		// one place a phrase is consulted, and only to *upgrade* an already
 		// unknown classification, never to override a typed one.
 		if isMissingCredentialMessage(tb.Err) {
 			re.Kind = RunErrMissingCredential
@@ -263,7 +276,7 @@ func runErrorScope(err error) (locale, file string) {
 	return locale, file
 }
 
-// firstLine trims a multi-line error down to its first line — a headline is one
+// firstLine trims a multi-line error down to its first line; a headline is one
 // sentence; the rest stays in Raw.
 func firstLine(s string) string {
 	s = strings.TrimSpace(s)

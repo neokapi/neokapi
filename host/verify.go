@@ -241,11 +241,11 @@ type gateSelection struct {
 	explicit bool
 }
 
-// gateFlagName is the flag that names which project gates to run. It takes
-// the gates' names, rather than a boolean per gate, because those names are
-// already flags on check commands: --voice is the style-similarity opt-in and
-// --terms is the do-not-translate boolean elsewhere. A boolean per gate would
-// collide with them in the help text.
+// gateFlagName is the flag that names which project gates to run. One flag
+// takes gate names, in place of a boolean per gate, because the gate names
+// collide with existing check flags (--voice is the style-similarity opt-in,
+// --terms is the do-not-translate boolean elsewhere). A colliding selector
+// would be unreadable from the help text.
 const gateFlagName = "gate"
 
 // selectableGates are the gate names --gate accepts, in the order they run.
@@ -1042,10 +1042,11 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 // runVoiceVocabOnBlock runs the voice vocabulary check tool over a single block and
 // returns the findings it recorded on the block's annotation/properties.
 //
-// Both failure modes are returned, not folded into "no findings". The caller
-// feeds the findings into coreprofile.CalculateScore, where an empty set from
-// a checker that errored would score as `voice: PASS`. It shares RunCheckTool's
-// driver, so the two handle errors the same way.
+// Both failure modes are RETURNED rather than folded into "no findings". The
+// caller feeds these into coreprofile.CalculateScore, where a checker that
+// errored on every block would otherwise yield an empty finding set, a
+// perfect score and `voice: PASS`. It shares RunCheckTool's driver, so the two
+// handle errors the same way.
 func runVoiceVocabOnBlock(ctx context.Context, vocab *coretools.VoiceVocabCheckTool, b *model.Block) ([]coreprofile.VoiceFinding, error) {
 	if err := RunCheckTool(ctx, vocab, b); err != nil {
 		return nil, err
@@ -1160,11 +1161,11 @@ type VerifyUnit struct {
 	// `defaults.formats[<format>].config` overlaid by the content item's own
 	// `format.config`, item wins per key.
 	//
-	// Measurement reads a file the way the run that produced it read it.
+	// Measurement must read a file the way the run that produced it read it.
 	// Reader config decides which text a reader emits: a markdown reader with
 	// `translate_front_matter` emits the title and description as units, and
-	// without it they are configuration. Coverage that ignored the config
-	// would count other units than the flow produced.
+	// without it they are configuration. A coverage path blind to the config
+	// would count a different set of units than the flow produced.
 	SourceFormat string
 	SourceConfig map[string]any
 	TargetFormat string
@@ -1213,15 +1214,16 @@ func (a *App) unitFormat(name string, cfg map[string]any) (string, map[string]an
 // unitFormatBinding resolves the source- and target-side reader bindings for one
 // resolved content file.
 //
-// The target carries the source's binding because the source's writer writes
-// it: `merge --materialize` resolves the output format from the source item,
-// so the file is in that format whatever its path suggests. The exception is
-// a target whose extension differs, such as a `.po` source delivered as a
-// compiled `.mo`. Its format is detected instead, so bilingualBlocks reaches
-// its file-presence fallback rather than handing binary to a text reader. Two
-// extensions the source's format both claims (messages.pot translated into
-// po/fr.po) name one format, which reg decides; a nil reg compares the
-// extensions alone.
+// The target carries the source's binding because the target is written by the
+// source's writer: `merge --materialize` resolves the output format from the
+// source item, so the file on disk is in that format whatever its path suggests.
+// A target whose extension differs is the exception: a source read from `.po`
+// and delivered as a compiled `.mo`, which is write-only through the pipeline.
+// There the target is detected instead, so bilingualBlocks reaches its
+// file-presence fallback rather than handing binary to a text reader. Two
+// extensions the source's format both claims (a PO template, messages.pot,
+// translated into po/fr.po) name one format, which reg says; a nil reg
+// compares the extensions alone.
 func unitFormatBinding(reg *registry.FormatRegistry, proj *project.KapiProject, rf project.ResolvedFile, targetPath string) (srcFormat string, srcCfg map[string]any, tgtFormat string, tgtCfg map[string]any) {
 	srcFormat = rf.Format
 	srcCfg = mergedFormatConfig(proj, srcFormat, rf.Item)
@@ -1728,7 +1730,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
 		if err != nil {
 			if errors.Is(err, errTargetUnreadable) {
-				continue // unmeasurable target, e.g. a compiled .mo, so nothing to check
+				continue // an unmeasurable target (e.g. a compiled .mo) cannot be checked
 			}
 			if unread.skipUnit(&skipped, err, root, u) {
 				continue
@@ -1736,10 +1738,10 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 			return gate, err
 		}
 		if missing {
-			// Tell "not written yet" from "cannot be written". A blocked path,
-			// such as a directory occupying it, is an obstruction the user must
-			// clear, so the message names the obstruction rather than asking
-			// for a translation.
+			// Distinguish "not written yet" from "cannot be written". A blocked
+			// path (a directory occupying it, say) is an obstruction the user
+			// must clear, and saying "translate the source content" would send
+			// them the wrong way.
 			message := "target file is missing, so the content is untranslated"
 			suggestion := "translate the source content for this locale"
 			if berr := blockedTargetPath(u.TargetPath); berr != nil {
@@ -1895,11 +1897,11 @@ var errTargetUnreadable = errors.New("target format is not readable")
 // cannot be parsed back, such as a compiled catalog; an obstruction is not a
 // translation (#1449).
 func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block, bool, error) {
-	// A blocked path holds no translation, whatever it holds. It reads as
-	// missing, so every measurement path (coverage, plan, checks, review)
-	// treats the locale as untranslated. The reason is reported where a person
-	// can act on it: the checks gate's finding (checksGate) and the run that
-	// refuses to write the path (core/flow.OutputPathError).
+	// A blocked path holds no translation, whatever it holds. Report it as
+	// missing so every measurement path (coverage, plan, checks, review) treats
+	// the locale as untranslated. The reason is reported where a person can act
+	// on it: the checks gate's finding (checksGate) and the run that refuses to
+	// write the path (core/flow.OutputPathError).
 	if blockedTargetPath(u.TargetPath) != nil {
 		return nil, true, nil
 	}
@@ -1952,9 +1954,10 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 // fileUnderSource files each block under the project's source language, as a
 // project read does whatever language the block's reader declared. A block
 // whose reader declared another language keeps it as the advisory property
-// model.PropReadSourceLocale. The change service's read keeps the reader's
-// language, and a flow's record and decisions take their source revision from
-// it, so a reader of this block matches that revision under the key
+// model.PropReadSourceLocale. A read that kept the reader's language took a
+// revision of the block's source under that key; the change service reads
+// this way, and a flow's record and decisions made through it use its
+// revisions. A reader of this block matches the revision there
 // (model.Block.SourceRevisions).
 func fileUnderSource(blocks []*model.Block, source model.LocaleID) {
 	for _, b := range blocks {

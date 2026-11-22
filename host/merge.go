@@ -33,10 +33,10 @@ import (
 // sidecar (batch wasn't redacted) is a no-op. Merge runs it before it compiles
 // the units into a change set.
 //
-// The incoming source is always restored: a unit with no basis is compared
-// with the current source, which holds the originals. The translated target is
-// restored only when restoreTarget is set; --no-restore leaves placeholders in
-// the merged output.
+// The incoming source is ALWAYS restored, because a unit with no basis is
+// compared with the stored source, which holds the originals. The target is
+// restored only when restoreTarget is set; false (--no-restore) leaves
+// placeholders in the merged output.
 //
 // doc is the source document the blocks translate. The vault keeps each
 // original under its document, block and token. A sidecar an earlier kapi
@@ -276,17 +276,17 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	return output.Print(cmd, output.MergeStoreOutput{Written: written, Stale: stale.Blocks, Unstamped: stale.Unstamped, FromProjectStore: true, Warnings: unread.warnings()})
 }
 
-// materializeFromProjectStore is the shared materialize path (#1078 C2/C3).
-// It writes the localized files for the given locales from the project block
+// materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
+// it writes the localized files for the given locales from the project block
 // store. For each source and locale it builds one change set of set_content
-// operations from the stored `targets/<locale>` overlays. The change service
-// writes them from the skeleton (materializeEdition). A collection that names
-// no target gets no file, and a translation the store holds nothing for is
-// left as it is. It returns the number of files written.
-//
-// Callers: `kapi merge` with no -i, over every target language, and `kapi up`
-// after the loop, for the shippable locales, when defaults.materialize or
-// --materialize asks for it.
+// operations carrying the stored `targets/<locale>` overlays, and the change
+// service writes it from the source's skeleton (materializeEdition). A
+// collection that names no target is source-only and gets no file, and a
+// translation the store holds nothing for is left as it is. Plain `kapi
+// merge` (no -i) calls it over every target language. After the loop, `kapi
+// up` calls it for the shippable locales when the materialize policy
+// (defaults.materialize / --materialize) says so. Returns the number of files
+// written.
 func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
 	written, _, err := a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
 	return written, err
@@ -366,10 +366,10 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	// One write for the whole pass, not one per materialized block.
 	absorber := a.newMemoryAbsorber(tm)
 
-	// Materializing writes what the store produced. For a locale the store
-	// holds no target for, every block would fall back to source, and writing
-	// that would destroy the committed translations. A fresh clone is that
-	// case: its catalogs are complete, so the loop runs no pass, and its block
+	// Materializing means writing what the store produced. A locale the store
+	// holds no target for produces source fallback for every block, and writing
+	// that over the committed translations destroys them. A fresh clone hits
+	// this: the catalogs are complete, so the loop runs no pass, and the block
 	// store is empty. Such a locale is skipped; coverage reports its standing.
 	keptLocales, err := a.keptLocales(ctx, layout.Root)
 	if err != nil {
@@ -655,8 +655,8 @@ func (s *mergeStats) accumulate(o mergeStats) {
 // MergeOneKpz ingests a bilingual interchange .kpz returned by a translator
 // (kind=kapi-interchange, AD-025 §7). It validates the profile and merges the
 // target overlays of each source it carries through the change service, as
-// kapi merge -i merges an XLIFF or PO file. Each unit's if_match and basis
-// are the revisions the interchange task records for it.
+// kapi merge -i merges an XLIFF or PO file. The revisions the interchange task
+// records for each unit serve as their if_match and basis.
 func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	ctx := cmd.Context()
 	pkg, err := LoadWorkspace(kpzInput)

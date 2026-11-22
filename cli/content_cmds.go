@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewAddCmd returns `kapi add` — add file patterns to the project's content.
+// NewAddCmd returns `kapi add`, add file patterns to the project's content.
 func NewAddCmd(a *App) *cobra.Command {
 	var format, name, channel, target string
 	cmd := &cobra.Command{
@@ -191,7 +191,7 @@ func probeLocale(proj *coreproj.KapiProject) string {
 
 // targetFeedsItsOwnCollection reports the first resolved target that lands back
 // inside the pattern that produced it. Such a collection reads its own output
-// as source on the next run, so it doubles on every pass — the shape a run has
+// as source on the next run, so it doubles on every pass, the shape a run has
 // to refuse at authoring time rather than discover as a growing file count.
 func targetFeedsItsOwnCollection(pattern, target, lang string, matches []string) (string, bool) {
 	if target == "" {
@@ -210,7 +210,7 @@ func targetFeedsItsOwnCollection(pattern, target, lang string, matches []string)
 	return "", false
 }
 
-// NewLsCmd returns `kapi ls` — list the files the project's content tracks.
+// NewLsCmd returns `kapi ls`, list the files the project's content tracks.
 // With --stats it adds per-file block and word counts. With --untracked it
 // inverts the listing into the files no collection tracks. Sync state
 // (changed-vs-server) is reported by the platform's `status` command, not here.
@@ -317,7 +317,7 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 			out.Total = len(out.Files)
 			// Connected project: fold in the per-file sync standing via the
 			// plugin's server-ls plumbing (a SYNC column, like status's
-			// server section) — the built-in owns the verb in every install.
+			// server section), the built-in owns the verb in every install.
 			a.MergeServerLs(cmd, recipePath, proj, &out, args)
 			return output.Print(cmd, out)
 		},
@@ -330,7 +330,7 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 	return cmd
 }
 
-// NewRmCmd returns `kapi rm` — stop tracking files matching the given patterns.
+// NewRmCmd returns `kapi rm`, stop tracking files matching the given patterns.
 func NewRmCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rm <pattern> [pattern...]",

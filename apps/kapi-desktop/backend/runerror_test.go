@@ -223,3 +223,19 @@ func TestGetLastRunErrorBeforeAnyRun(t *testing.T) {
 	app := NewApp()
 	assert.Nil(t, app.GetLastRunError())
 }
+
+// A key missing at the first provider call (the translate step is built
+// without it) is the same setup failure, named for its provider and pointed
+// at the app's settings, never at a command or a variable.
+func TestClassifyRunError_MissingKeyDuringTheRun(t *testing.T) {
+	err := fmt.Errorf("converge nb: execute flow: tool translate: translate: %w",
+		fmt.Errorf("tool translate config: %w", &credentials.MissingCredentialError{Provider: "anthropic"}))
+	re := classifyRunError(err)
+	require.NotNil(t, re)
+	assert.Equal(t, RunErrMissingCredential, re.Kind)
+	assert.Equal(t, "No key for anthropic", re.Headline)
+	assert.Equal(t, "Add one in Settings › AI Models.", re.Remediation)
+	assert.NotContains(t, re.Headline+re.Remediation, "ANTHROPIC_API_KEY")
+	require.Len(t, re.Actions, 1)
+	assert.Equal(t, ActionOpenSettings, re.Actions[0].Kind)
+}

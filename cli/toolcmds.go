@@ -18,7 +18,7 @@ import (
 
 // NewToolCommands creates the CLI surface for the registry's CLI-visible
 // tools: every tool has exactly one spelling, `kapi exec <name>`. There is
-// no curated top-level tier — the top-level verbs are porcelain (up,
+// no curated top-level tier, the top-level verbs are porcelain (up,
 // translate, pseudo-translate, check, stats, …), each a guardrailed
 // workflow rather than a raw tool. The verb pairing mirrors flows:
 // `kapi flows` lists / `kapi run <flow>` runs; `kapi tools` lists /
@@ -77,7 +77,7 @@ kapi extract --format kpz wrote in this project.
 
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,
-		// Fail loudly on a tool name that doesn't exist (or no longer exists —
+		// Fail loudly on a tool name that doesn't exist (or no longer exists:
 		// e.g. the retired count tools, whose job moved to `kapi stats`) instead
 		// of silently printing help with exit 0.
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -214,7 +214,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 
 			// When this run targets the local Ollama provider, make sure the
 			// runtime is up and the model is pulled before processing any
-			// files — one clear up-front step instead of a per-block failure.
+			// files, one clear up-front step instead of a per-block failure.
 			if err := a.EnsureOllamaForTool(cmd, ToolSchema); err != nil {
 				return err
 			}
