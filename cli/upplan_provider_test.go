@@ -135,12 +135,13 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 		args                       []string
 		want                       string
 		stops                      bool
+		advice                     string // what each command's error must name
 	}{
 		{name: "a provider key in the environment", env: map[string]string{"ANTHROPIC_API_KEY": "sk-test"}, want: "anthropic"},
 		{name: "the run flag", args: []string{"--provider", "demo"}, want: "demo"},
 		{name: "the recipe preset", preset: "openai", env: map[string]string{"OPENAI_API_KEY": "sk-test"}, want: "openai"},
 		{name: "the stored default", stored: "ollama", want: "ollama"},
-		{name: "nothing configured", want: "anthropic", stops: true},
+		{name: "nothing configured", want: "anthropic", stops: true, advice: "ANTHROPIC_API_KEY"},
 		{name: "a step naming a provider with no key", step: "anthropic", want: "anthropic", stops: true},
 		{name: "a preset with no key over a stored default", preset: "openai", stored: "ollama", want: "openai", stops: true},
 		{name: "a credential that is not saved", env: map[string]string{"ANTHROPIC_API_KEY": "sk-test"},
@@ -172,6 +173,10 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 				require.Error(t, err, "the run stops for want of a credential:\n%s", out)
 				require.NotEmpty(t, plan.Credential, "the plan says the run would stop")
 				assert.Contains(t, err.Error(), plan.Credential, "the plan says what the run says")
+				if tc.advice != "" {
+					assert.Contains(t, plan.Credential, `provider "`+tc.want+`"`, "the advice names the provider the plan names")
+					assert.Contains(t, err.Error(), tc.advice)
+				}
 				assert.Contains(t, text, plan.Credential)
 
 				// kapi run and kapi translate refuse the same project, for the
@@ -193,6 +198,7 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 					out, _, err := run()
 					require.Error(t, err, "kapi %s stops too:\n%s", name, out)
 					assert.Contains(t, err.Error(), credentialCause(plan.Credential), "kapi %s gives the same cause", name)
+					assert.Contains(t, err.Error(), tc.advice, "kapi %s names what fixes it", name)
 				}
 				_, statErr := os.Stat(filepath.Join(filepath.Dir(recipe), "src/locales/nb-NO"))
 				assert.True(t, os.IsNotExist(statErr), "nothing was written")

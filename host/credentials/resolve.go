@@ -210,8 +210,9 @@ func findCredential(store *Store, toolName string, toolRequires []string, config
 	}
 	// Auto-detect matches on the config's explicit provider, not the inferred
 	// default, so a config with no provider matches every saved credential.
+	// A miss names the provider the run falls back to.
 	storeProvider, _ := config["provider"].(string)
-	cfg, err := autoDetect(store, storeProvider)
+	cfg, err := autoDetect(store, storeProvider, providerType)
 	if err != nil {
 		return credentialSource{}, err
 	}
@@ -253,8 +254,8 @@ func stripRecipeEndpoint(config map[string]any) map[string]any {
 // for every command (MissingKeyMessage without the flag); a command that reads
 // --api-key adds the flag with WithAPIKeyFlag.
 type MissingCredentialError struct {
-	// Provider is the provider the key is for, or "" when the config names
-	// none (every saved credential was a candidate).
+	// Provider is the provider the key is for: the config's, else the tool
+	// default the run falls back to (inferProviderID).
 	Provider string
 }
 
@@ -329,14 +330,16 @@ func lookupRef(store *Store, ref string) (ProviderConfig, error) {
 
 // autoDetect finds the single matching credential in the store. Several
 // matches resolve only when exactly one of them is marked default.
-func autoDetect(store *Store, providerType string) (ProviderConfig, error) {
+// providerType filters the match ("" matches every provider); provider is the
+// one the run would call, which a miss names.
+func autoDetect(store *Store, providerType, provider string) (ProviderConfig, error) {
 	var matches []ProviderConfig
 	if store != nil {
 		matches = store.FindByType(providerType)
 	}
 	switch len(matches) {
 	case 0:
-		return ProviderConfig{}, &MissingCredentialError{Provider: providerType}
+		return ProviderConfig{}, &MissingCredentialError{Provider: provider}
 	case 1:
 		return matches[0], nil
 	default:
