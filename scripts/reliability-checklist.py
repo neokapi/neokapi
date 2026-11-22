@@ -835,6 +835,11 @@ FIXTURES = [
         "expect": ["new-gate-fails-on-purpose"],
     },
     {
+        "name": "a new guard registered in scripts/guards",
+        "files": {"scripts/guards/check-new-thing.mk": ["GUARDS += check-new-thing"]},
+        "expect": ["new-gate-fails-on-purpose"],
+    },
+    {
         "name": "digest over a whole tree",
         "files": {"scripts/format-ops/content-maturity.mjs": [
             "  const digest = hashTree('core/formats');",

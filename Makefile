@@ -253,34 +253,14 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory plugins-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks ## Run golangci-lint (all modules) + repo hygiene guards
+include scripts/lib/guards.mk
+
+lint: $(GUARDS_LINT) ## Run golangci-lint (all modules) + the repo guards of the lint lane (scripts/guards/)
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory plugins-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
 	@$(MAKE) -C bowrain lint
-
-check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
-	@./scripts/check-abs-paths.sh
-
-check-e2e-seed-dupes: ## Guard: the e2e seed documents live once, in bowrain/e2e/shared/seed-files
-	@./scripts/check-e2e-seed-dupes.sh
-
-# The lab's transcripts are COMMITTED, so they never pass through the publish
-# script that checks the skill eval's. Same shape of risk and a shorter path to a
-# public repository: an agent with bypassPermissions, a shell and $HOME recorded
-# whole. Checked here, where every commit sees it.
-check-eval-publishable: ## Guard: no credential shape in a committed eval transcript
-	@./scripts/check-eval-publishable.sh web/static/authoring-lab
-
-check-local-actions: ## Guard: a workflow's local `uses: ./…` resolves where that job checked the repo out
-	@./scripts/check-local-actions.sh
-
-check-deploy-paths: ## Guard: the deploy workflow triggers on every framework dir compiled into the deployed binaries
-	@./scripts/check-deploy-paths.sh
-
-check-run-projection: ## Guard: a Run sequence is projected through a declared RunSpec, never a hand-rolled walk
-	@./scripts/check-run-projection.sh
 
 # The checklist informs a change and never gates it: `reliability-checklist`
 # prints the items whose trigger matches a diff and exits 0. What lint gates is
@@ -289,122 +269,11 @@ check-run-projection: ## Guard: a Run sequence is projected through a declared R
 reliability-checklist: ## Print the reliability checklist items a diff triggers (BASE=<ref>, default merge base with origin/main; HEAD=<ref>, default working tree)
 	@python3 ./scripts/reliability-checklist.py $(if $(BASE),--base $(BASE)) $(if $(HEAD),--head $(HEAD))
 
-check-reliability-checklist: ## Guard: the reliability checklist parses, validates, and each trigger selects its fixture
-	@python3 ./scripts/reliability-checklist.py --self-test
-
-# `CI passed` is the one status check main requires. A job missing from its
-# `needs` would not hold a merge. See .claude/skills/verify/ci.md.
-check-ci-passed: ## Guard: the CI passed job lists every job of the CI workflow
-	@python3 ./scripts/ci-passed.py --self-test
-	@python3 ./scripts/ci-passed.py needs
-
-# A package `test` script that no pull request job runs is a suite whose
-# failures merge, and one that two jobs run costs a job and checks nothing
-# more. See the comment on ci-frontend-packages.
-check-test-scripts: ## Guard: every package `test` script is run by exactly one pull request CI job
-	@python3 ./scripts/check-test-scripts.py --self-test
-	@python3 ./scripts/check-test-scripts.py
-
-check-go-trimpath: ## Guard: every Go command in make, scripts and CI builds with -trimpath
-	@python3 ./scripts/check-go-trimpath.py --self-test
-	@python3 ./scripts/check-go-trimpath.py
-
-check-ci-caches: ## Guard: no step a pull request runs saves an Actions cache
-	@python3 ./scripts/check-ci-caches.py --self-test
-	@python3 ./scripts/check-ci-caches.py
-	@python3 ./scripts/ci-cache-budget.py --self-test
-
-check-macos-minimum: ## Guard: every declared macOS minimum is scripts/lib/macos-minimum, and Go builds for no newer
-	@./scripts/check-macos-minimum.sh --self-test
-	@./scripts/check-macos-minimum.sh
-
-# The CI test jobs run through scripts/check-temp-leaks.sh, which fails a run
-# that leaves files in its temporary directory. This target proves the script.
-check-temp-leaks: ## Guard: the temporary-file leak check passes its self-test
-	@./scripts/check-temp-leaks.sh --self-test
-
-check-code-display: ## Guard: no surface shows an inline code's native data or identifier
-	@./scripts/check-code-display.sh
-
-check-json-tags: ## Guard: machine-readable output uses snake_case json field names
-	@./scripts/check-json-tags.sh
-
-check-docs-store-only: ## Guard: the written record describes a project's context as living in its store
-	@./scripts/check-docs-store-only.sh
-
-# The recipe checks the comments of every tracked file in a family it wires, so
-# a file no collection claims and no defaults.exclude pattern covers has comments
-# nothing reads. The guard proves itself on fixtures, then checks this repository.
-check-comment-coverage: ## Guard: every tracked Go, code, YAML and markup file is claimed by a kapi.yaml collection or excluded
-	@CGO_ENABLED=0 $(GO) run ./scripts/commentcoverage -self-test
-	@CGO_ENABLED=0 $(GO) run ./scripts/commentcoverage
-
-# The recorded walkthroughs are the only reader of the apps' testids, slots and
-# rail labels from outside the apps, and nothing compiles them together. A
-# rename is silent until a re-record: one sweep found nine of twelve walks
-# broken, four of them on a single word.
-check-walk-selectors: ## Guard: every selector a recorded walk drives is still rendered by an app
-	@./scripts/check-walk-selectors.sh
-
-# Several tiers carry the same prose to a reader: Go string literals, the
-# extracted source catalogs, the UI source no catalog reaches, the reference
-# dossiers, and the Markdown docs. CLAUDE.md's ceiling applied to the docs
-# alone, so the rest drifted into the thousands. Every part fails on a finding.
-# The catalogs part reports (rather than fails on) a surface `make l10n-extract`
-# has not produced yet, so this target is useful before a full extract; the
-# l10n workflow runs it with --require-extracted, where the extract has just
-# run.
-check-em-dashes: ## Guard: no em dash in Go string literals, extracted source catalogs, unextracted UI source, the reference prose, or docs prose
-	@./scripts/check-em-dashes.sh
-
 check-ts-license-boundary: ## Guard: no Apache TypeScript imports the AGPL tree under bowrain/
 	@./scripts/check-ts-license-boundary.sh
 
-.PHONY: check-locale-display
-check-locale-display: ## Guard: a language is shown by name, not by its code alone
-	@./scripts/check-locale-display.sh
-
-check-sidebar-ids: ## Guard: every doc id a Docusaurus sidebar names resolves to a page
-	@./scripts/check-sidebar-ids.sh
-
-check-vocabulary: ## Guard: no retired framing or retired vocabulary in prose, product strings and build metadata
-	@./scripts/check-vocabulary.sh
-
-check-desktop-interchange: ## Guard: the Kapi Desktop surface names no interchange format (TMX/XLIFF/termbase)
-	@./scripts/check-desktop-interchange.sh
-
-check-comment-history: ## Guard: comments state what the code IS, not what it was changed from
-	@./scripts/check-comment-history.sh
-
-check-reference-provenance: ## Guard: the committed reference dataset comes only from this repo (no okapi-bridge)
-	@./scripts/check-reference-provenance.sh
-
 check-lockfile-idempotent: ## Guard: re-resolving pnpm-lock.yaml with the pinned pnpm is a no-op
 	@./scripts/check-lockfile-idempotent.sh
-
-check-package-licenses: ## Guard: every non-private package.json declares a license and ships its LICENSE
-	@./scripts/check-package-licenses.sh
-
-check-archive-licenses: ## Guard: every release archive ships the license text of the work inside it
-	@./scripts/check-archive-licenses.sh
-
-check-plugin-licenses: ## Guard: every plugin tarball ships the license text of the work inside it
-	@./scripts/check-plugin-licenses.sh
-
-check-plugin-release-latest: ## Guard: no plugin release claims the repo's "latest"
-	@./scripts/check-plugin-release-latest.sh
-
-check-packages-publish-gate: ## Guard: the apt/yum repository publishes only when PUBLISH_PACKAGES is "true"
-	@./scripts/check-packages-publish-gate.sh
-
-check-cask-heredocs: ## Guard: the release casks carry no pre/postflight block and no retired vocabulary in desc; formulae use post_install_steps
-	@./scripts/check-cask-heredocs.sh
-
-check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git
-	@./scripts/check-tracked-binaries.sh
-
-check-gofmt: ## Guard: every tracked .go file is gofmt-clean (gofmt -l -s); `make fmt` fixes
-	@./scripts/check-gofmt.sh
 
 # This guard requires the installed pnpm workspace and runs in frontend CI.
 # Keeping the committed tree formatted prevents vp check --fix from changing
@@ -962,43 +831,15 @@ audit-modules: check-module-boundaries ## Build each application module in isola
 	  GOWORK=off $(GO) -C "$$dir" mod tidy -diff; \
 	done
 
-# The terms, content memory, voice profiles and widened rules are projections
-# of the workspace's operation log, written only by core/projector. A write that
-# reaches one another way leaves a row a rebuild drops. The guard type-checks the
-# Apache modules and proves itself on fixtures first.
-# The edit and projection guards run under every build configuration by
-# default. The module-boundaries CI job runs the host one; each lint-tags leg
-# runs its own.
+# The edit and projection guards (scripts/guards/check-edit-writes.mk and
+# check-projection-writes.mk) run under every build configuration by default.
+# The module-boundaries CI job runs the host one; each lint-tags leg runs its
+# own.
 GUARD_CONFIGS ?= host model js-wasm windows linux-nocgo darwin-nocgo
 
-check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
-	@$(GO) run ./scripts/projectionguard -self-test
-	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/projectionguard -config $$c || exit 1; done
-
-# A format writer pointed at a file writes a whole document to disk. The guard
-# type-checks every module that writes documents and reports each such call
-# outside the format packages and the places scripts/editguard lists with what
-# each writes, and proves itself on fixtures first.
-check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reaches a file only where scripts/editguard lists it
-	@$(GO) run ./scripts/editguard -self-test
-	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/editguard -config $$c || exit 1; done
-
-# A block stores its content as peer editions in Block.Editions and lists the
-# editions its document holds in Block.Native (docs/internals/edit-model.md,
-# section 6.2). The guard type-checks every module with its tests and fails on
-# a use of either field outside core/model, a test and the plugin wire, so
-# every other package reaches the editions through the accessors and the
-# storage can change inside core/model alone. A test may write the storage to
-# plant a state no accessor produces; those uses are counted. The desktop
-# placeholder bundle lets its main package type-check. PDFium is fetched once,
-# pinned and checksummed, into PDFIUM_CACHE_DIR (shared by every worktree).
+# PDFium is fetched once, pinned and checksummed, into PDFIUM_CACHE_DIR (shared
+# by every worktree).
 PDFIUM_CACHE_DIR ?= $(or $(XDG_CACHE_HOME),$(HOME)/.cache)/neokapi/pdfium
-fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its tests reaches Block.Editions or Block.Native past the edition accessors
-	@$(GO) run ./scripts/fieldguard -self-test
-	@# plugins/pdfium type-checks only with PDFium on pkg-config, and a package
-	@# that does not type-check fails the guard.
-	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
-		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
 check-go-module-boundaries: i18n-catalogs go-embed-placeholders
 	@GO="$(GO)" ./scripts/check-go-module-boundaries.sh $(AUDIT_MODULES)
@@ -1837,9 +1678,6 @@ l10n-extract-globs: ## Print each extract surface as "<dir><TAB><extract flags>"
 	@printf '%s\t%s\n' '$(EMAILS_DIR)' '$(EMAILS_EXTRACT_FLAGS)'
 	@printf '%s\t%s\n' '$(LANDING_DIR)' '$(LANDING_EXTRACT_FLAGS)'
 
-check-extract-fixtures: ## Guard: no test/story file is extracted, and each surface's make and package invocations agree
-	@node scripts/check-extract-fixtures.mjs
-
 # The app surfaces' qps dictionaries (public/translations/qps.json) are build
 # output, not committed. Each one is a function of the app's source, so the app
 # regenerates it where it is built: the vite build and dev server through
@@ -1884,9 +1722,6 @@ bowrain-pulse-qps: ## Regenerate the pulse qps dictionary
 	$(call app-qps-recipe,bowrain/apps/pulse,$(BOWRAIN_SHELL_EXTRACT_FLAGS),public/translations)
 
 app-qps: kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps ## Regenerate every app's qps dictionary
-
-check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go embed + one TS copy) and they agree
-	@node scripts/format-ops/check-vocab-packs.mjs
 
 # The stages below read the project's context from the workspace store. The
 # recipe keeps it on the Bowrain project its bowrain: block names, and this
@@ -3066,9 +2901,6 @@ check-translatability: ## Drift gate: fail if core/translatability/data/w3c.json
 generate-docs-palette: ## Generate the Docusaurus + diagram-kit palettes from the canonical brand tokens
 	node --no-warnings --experimental-strip-types packages/docs-palette/cli/gen-docs-palette.ts
 
-check-docs-palette: ## Drift gate: fail if a committed docs palette is stale vs. its brand tokens
-	node --no-warnings --experimental-strip-types packages/docs-palette/cli/gen-docs-palette.ts -check
-
 generate-reference-pages: i18n-catalogs ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools,checks}
 	cd web && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
 
@@ -3409,7 +3241,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks warm-build-cache workspace-paths test-parallel \
+        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-lockfile-idempotent reliability-checklist warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \
@@ -3435,7 +3267,7 @@ help: ## Show this help
         l10n-context-import \
         l10n-collapse-check l10n-report l10n-content-pairs l10n-content-check \
         l10n-orphans l10n-orphans-report l10n-stale-report \
-        check-extract-fixtures app-qps kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps \
+        app-qps kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud test-e2e-dev \
@@ -3450,7 +3282,7 @@ help: ## Show this help
         import-dogfood-context bench-commit-check \
         generate-contract-types check-contract-types test-contract-types \
         generate-translatability check-translatability \
-        generate-docs-palette check-docs-palette \
+        generate-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
         learn-gen learn-gen-check learn-verify learn-samples learn-samples-check \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke change-wasm-smoke wasm-persist-smoke web-sqlite-wasm \
