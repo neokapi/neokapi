@@ -8061,7 +8061,7 @@ export class ProjectFilters {
  * The json tags carry the same memory/terms vocabulary as the Go fields and the
  * frontend's ProjectHandles type. They were left as tmHandle/termbaseHandle when
  * the fields were renamed, so the wire never matched what the frontend reads
- * (`memoryHandle`) — MemoriesPage and the Terms page saw undefined and showed
+ * (`memoryHandle`), so MemoriesPage and the Terms page saw undefined and showed
  * their "no project content memory found" empty state for every project. That
  * type is hand-written, so tsc could not catch it either.
  */
@@ -10805,7 +10805,7 @@ export class ToolInfo {
         }
         if (/** @type {any} */(false)) {
             /**
-             * IsSourceTransform reports whether the tool is a transformer — it may
+             * IsSourceTransform reports whether the tool is a transformer: it may
              * rewrite source (AD-006); the placement pass validates its position.
              * @member
              * @type {boolean | undefined}

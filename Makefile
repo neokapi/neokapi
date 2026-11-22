@@ -905,10 +905,15 @@ check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reac
 # every other package reaches the editions through the accessors and the
 # storage can change inside core/model alone. A test may write the storage to
 # plant a state no accessor produces; those uses are counted. The desktop
-# placeholder bundle lets its main package type-check.
+# placeholder bundle lets its main package type-check. PDFium is fetched once,
+# pinned and checksummed, into PDFIUM_CACHE_DIR (shared by every worktree).
+PDFIUM_CACHE_DIR ?= $(or $(XDG_CACHE_HOME),$(HOME)/.cache)/neokapi/pdfium
 fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its tests reaches Block.Editions or Block.Native past the edition accessors
 	@$(GO) run ./scripts/fieldguard -self-test
-	@$(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
+	@# plugins/pdfium type-checks only with PDFium on pkg-config, and a package
+	@# that does not type-check fails the guard.
+	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
+		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
 check-go-module-boundaries: i18n-catalogs go-embed-placeholders
 	@GO="$(GO)" ./scripts/check-go-module-boundaries.sh $(AUDIT_MODULES)
@@ -1182,12 +1187,14 @@ test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbin
 # The -tags onnx suites for vision and sat need a real onnxruntime and stay in
 # the nightly vision-onnx job. Each module is its own go.mod outside go.work,
 # hence GOWORK=off in each recipe.
+PURE_GO_PLUGINS := sat check vision asr sourcecode
+
 test-plugins: ## Run the plugin modules whose tests need no system library (sat, check, vision, asr, sourcecode)
-	@$(MAKE) --no-print-directory test-sat-plugin
-	@$(MAKE) --no-print-directory test-check-plugin
-	@$(MAKE) --no-print-directory test-vision-plugin
-	@$(MAKE) --no-print-directory test-asr-plugin
-	@$(MAKE) --no-print-directory test-sourcecode-plugin
+	@# Every module runs, so one failing module does not hide the next.
+	@failed=""; for p in $(PURE_GO_PLUGINS); do \
+		$(MAKE) --no-print-directory test-$$p-plugin || failed="$$failed $$p"; \
+	done; \
+	if [ -n "$$failed" ]; then echo "test-plugins: failed:$$failed"; exit 1; fi
 
 # ── kapi-sourcecode reader plugin ────────────────────────────────────────────
 # Reads the prose out of source files with tree-sitter grammars, so a string
@@ -3157,9 +3164,7 @@ docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
 # bowrain/web/docs carries its own pnpm-workspace.yaml (packages: []), so it is
 # already its own workspace root and needs no --ignore-workspace to stay out of
-# the repo workspace. The flag is actively harmful here: it makes pnpm skip that
-# file, including its packageManagerRegistries pin, and the package-manager
-# bootstrap then fails on any machine whose default registry is a mirror.
+# the repo workspace. The flag would make pnpm skip that file and its settings.
 	cd bowrain/web/docs && vp install
 	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
 
@@ -3171,10 +3176,14 @@ publish-website: docs-build-prod bowrain-docs-build-prod ## Build + deploy the k
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
+# The versions match what CI runs and what wrote the committed *.pb.go files;
+# scripts/check-tool-versions.py holds each copy to the others. golangci-lint
+# v2 lives under the /v2 module path: the v1 path installs a v1 binary, which
+# cannot read the version 2 .golangci.yml.
 tools: ## Install development tools
-	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 setup-remote: ## Install dependencies for cloud environments
 	CLAUDE_CODE_REMOTE=true bash scripts/setup-remote.sh

@@ -18,6 +18,8 @@ import { FilterMenu } from "./components/FilterMenu";
 import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
 import { UnsavedDialog } from "./components/UnsavedDialog";
+import { WindowCloseDialog } from "./components/WindowCloseDialog";
+import { useWindowCloseGuard } from "./hooks/useWindowCloseGuard";
 import { RunningFlowDialog } from "./components/RunningFlowDialog";
 import { TelemetryNoticeDialog } from "./components/TelemetryNoticeDialog";
 import { initAnalytics, capturePageview } from "./analytics";
@@ -79,7 +81,7 @@ function AppInner() {
     },
     [workspace, standings, tm],
   );
-  const { activeJob, hasActive: hasRunningFlow } = useJobFeed();
+  const { jobs, activeJob, hasActive: hasRunningFlow } = useJobFeed();
 
   const emptyProject: KapiProject = { version: "v1", name: "" };
   const history = useProjectHistory(tm.activeTab?.project ?? emptyProject, tm.activeTabID);
@@ -107,7 +109,9 @@ function AppInner() {
     capturePageview(route);
   }, [tm.effectiveView]);
 
-  // Warn before window close/quit if there are unsaved changes or running flows.
+  // In a browser, warn before a reload or a closed tab drops unsaved changes
+  // or a running flow. The native window does not fire beforeunload; its
+  // close and quit go through useWindowCloseGuard below.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (history.hasChanges() || hasRunningFlow) e.preventDefault();
@@ -196,6 +200,18 @@ function AppInner() {
     tm.closeTab(pendingCloseTabID);
   }, [pendingCloseTabID, history, tm]);
 
+  // --- Guard for window close and quit: unsaved changes and running flows ---
+  const closeGuard = useWindowCloseGuard({
+    tabs: tm.tabs.map(({ info }) => ({
+      id: info.id,
+      name: history.snapshot(info.id)?.name || info.name,
+    })),
+    hasChanges: history.hasChanges,
+    saveTab,
+    finishedTabIDs: finishedTabs(jobs),
+    cancelRun: api.cancelProjectRun,
+  });
+
   // --- Update project via history ---
   const updateProject = useCallback((project: KapiProject) => history.set(project), [history]);
 
@@ -241,6 +257,16 @@ function AppInner() {
       )}
       {showTelemetryNotice && (
         <TelemetryNoticeDialog onClose={() => setShowTelemetryNotice(false)} />
+      )}
+      {closeGuard.open && (
+        <WindowCloseDialog
+          rows={closeGuard.rows}
+          failed={closeGuard.failed}
+          saving={closeGuard.saving}
+          onSaveAll={() => void closeGuard.saveAll()}
+          onDiscardAll={() => void closeGuard.discardAll()}
+          onCancel={() => void closeGuard.cancel()}
+        />
       )}
     </>
   );
@@ -440,4 +466,14 @@ function AppInner() {
       </ActiveFilterProvider>
     </DesktopGuide>
   );
+}
+
+/** The tabs whose latest flow has finished: a job ended and none runs. */
+function finishedTabs(jobs: { tabID?: string; status: string }[]): string[] {
+  const running = new Set(jobs.filter((j) => j.status === "running").map((j) => j.tabID));
+  const out = new Set<string>();
+  for (const job of jobs) {
+    if (job.tabID && job.status !== "running" && !running.has(job.tabID)) out.add(job.tabID);
+  }
+  return [...out];
 }

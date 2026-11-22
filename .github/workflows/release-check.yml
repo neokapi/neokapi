@@ -50,11 +50,11 @@ jobs:
       #   * onnxruntime 1.31.1: yalue/onnxruntime_go v1.38.0 vendors the 1.31 C
       #     API headers (ORT_API_VERSION 31). An older runtime cannot serve API
       #     31, so the runtime and the binding move together.
-      #   * daulet/tokenizers v1.27.0. darwin/linux use the prebuilt
-      #     libtokenizers.a from that tag; Windows has no prebuilt lib and is
-      #     built from Rust source (see the Windows leg).
+      #   * daulet/tokenizers: the version and its checksums are pinned in
+      #     scripts/fetch-tokenizers.sh. darwin/linux use the prebuilt
+      #     libtokenizers.a; Windows has no prebuilt lib and is built from
+      #     the pinned commit's Rust source (see the Windows leg).
       ONNXRUNTIME_VERSION: "1.31.1"
-      TOKENIZERS_VERSION: "v1.27.0"
     steps:
       - uses: actions/checkout@v7
         with:
@@ -92,19 +92,7 @@ jobs:
           GOARCH: ${{ matrix.build.goarch }}
         run: |
           set -euo pipefail
-          case "${GOOS}/${GOARCH}" in
-            darwin/arm64) asset="libtokenizers.darwin-arm64.tar.gz" ;;
-            darwin/amd64) asset="libtokenizers.darwin-x86_64.tar.gz" ;;
-            linux/amd64)  asset="libtokenizers.linux-amd64.tar.gz" ;;
-            linux/arm64)  asset="libtokenizers.linux-arm64.tar.gz" ;;
-            *) echo "::error::no libtokenizers asset mapping for ${GOOS}/${GOARCH}"; exit 1 ;;
-          esac
-          url="https://github.com/daulet/tokenizers/releases/download/${TOKENIZERS_VERSION}/${asset}"
-          echo "Downloading $url"
-          mkdir -p "$RUNNER_TEMP/tok"
-          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
-          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/tok"
-          test -f "$RUNNER_TEMP/tok/libtokenizers.a" || { echo "::error::libtokenizers.a missing after extract"; ls -la "$RUNNER_TEMP/tok"; exit 1; }
+          bash scripts/fetch-tokenizers.sh lib "$GOOS" "$GOARCH" "$RUNNER_TEMP/tok"
           echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
 
       # Windows: no prebuilt lib is published by daulet/tokenizers, so build the
@@ -113,7 +101,7 @@ jobs:
       # (libtokenizers_ffi.a) to libtokenizers.a.
       - name: Install Rust (Windows, GNU target)
         if: runner.os == 'Windows'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.99.1
         with:
           targets: x86_64-pc-windows-gnu
 
@@ -122,8 +110,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --branch "${TOKENIZERS_VERSION}" --depth 1 \
-            https://github.com/daulet/tokenizers "$RUNNER_TEMP/tokenizers-src"
+          bash scripts/fetch-tokenizers.sh source "$RUNNER_TEMP/tokenizers-src"
           cd "$RUNNER_TEMP/tokenizers-src"
           cargo build --release -p tokenizers-ffi --target x86_64-pc-windows-gnu
           mkdir -p "$RUNNER_TEMP/tok"

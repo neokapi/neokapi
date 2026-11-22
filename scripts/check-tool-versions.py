@@ -50,7 +50,10 @@ PINS = [
     },
     {
         "name": "golangci-lint",
-        "where": [(".github/actions/golangci/action.yml", r"version: v(\d+\.\d+\.\d+)")],
+        "where": [
+            (".github/actions/golangci/action.yml", r"version: v(\d+\.\d+\.\d+)"),
+            ("Makefile", r"golangci-lint/v2/cmd/golangci-lint@v(\d+\.\d+\.\d+)"),
+        ],
         "latest": ("github-release", "golangci/golangci-lint"),
         "note": "A new release brings new linter versions: run make check and fix what it reports in the same change.",
     },
@@ -86,6 +89,26 @@ PINS = [
         "note": "The newest LTS major. The Docker builds pin Node separately; Dependabot tracks those.",
     },
     {
+        "name": "protoc-gen-go",
+        "where": [
+            ("Makefile", r"protoc-gen-go@v(\d+\.\d+\.\d+)"),
+            ("core/**/*.pb.go", r"^//\s+protoc-gen-go v(\d+\.\d+\.\d+)$"),
+            ("bowrain/proto/**/*.pb.go", r"^//\s+protoc-gen-go v(\d+\.\d+\.\d+)$"),
+        ],
+        "latest": ("go-module", "google.golang.org/protobuf"),
+        "note": "Regenerate every *.pb.go with the new version (make proto) in the same change, so the headers and `make tools` agree.",
+    },
+    {
+        "name": "protoc-gen-go-grpc",
+        "where": [
+            ("Makefile", r"protoc-gen-go-grpc@v(\d+\.\d+\.\d+)"),
+            ("core/**/*_grpc.pb.go", r"^// - protoc-gen-go-grpc v(\d+\.\d+\.\d+)$"),
+            ("bowrain/proto/**/*_grpc.pb.go", r"^// - protoc-gen-go-grpc v(\d+\.\d+\.\d+)$"),
+        ],
+        "latest": ("go-module", "google.golang.org/grpc/cmd/protoc-gen-go-grpc"),
+        "note": "Regenerate every *_grpc.pb.go with the new version (make proto) in the same change.",
+    },
+    {
         "name": "onnxruntime",
         "where": [
             ("scripts/fetch-onnxruntime.sh", r'readonly DEFAULT_VERSION="(\d+\.\d+\.\d+)"'),
@@ -103,11 +126,17 @@ PINS = [
     {
         "name": "tokenizers",
         "where": [
-            (".github/workflows/*.yml", r'TOKENIZERS_VERSION: "v(\d+\.\d+\.\d+)"'),
+            ("scripts/fetch-tokenizers.sh", r'readonly DEFAULT_VERSION="(\d+\.\d+\.\d+)"'),
             ("plugins/*/go.mod", r"github\.com/daulet/tokenizers v(\d+\.\d+\.\d+)"),
         ],
         "latest": ("github-release", "daulet/tokenizers"),
-        "note": "The Go module and the static library the release workflows download move together. Dry-run the sat release.",
+        "note": "The Go module and the static library the release workflows download move together. scripts/fetch-tokenizers.sh needs the tag's commit and the SHA-256 of every prebuilt archive. Dry-run the sat release.",
+    },
+    {
+        "name": "Rust toolchain (Windows tokenizers build)",
+        "where": [(".github/workflows/*.yml", r"dtolnay/rust-toolchain@(\d+\.\d+\.\d+)")],
+        "latest": ("github-release", "rust-lang/rust"),
+        "note": "Builds the tokenizers static library on the Windows legs of release-sat.yml and release-check.yml. Dry-run the sat release.",
     },
     {
         "name": "libpdfium",

@@ -4,8 +4,8 @@
 // exports them under the desktop.menu.* scope into cli/i18n/commands.json, which
 // the l10n pipeline extracts and compiles into the embedded MO catalogs.
 //
-// It lives in the cli module (not apps/kapi-desktop) so the generator — which is
-// in the cli module — can enumerate it; kapi-desktop imports it for the labels.
+// It lives in the cli module (not apps/kapi-desktop) so the generator, which is
+// in the cli module, can enumerate it; kapi-desktop imports it for the labels.
 // Standard macOS role items (About, Quit, Services, Hide…) are localized by the
 // OS and are not listed here.
 package desktopmenu
@@ -30,6 +30,16 @@ var sources = map[string]string{
 	"save":                "Save",
 	"saveAs":              "Save As...",
 	"checkForUpdates":     "Check for Updates…",
+	// The native dialog a held close falls back to when the window does not
+	// answer. Each project that holds the window follows the message on a
+	// line of its own, with its reasons.
+	"holdTitle":          "Projects Still Open",
+	"holdNoAnswer":       "These projects keep the window open, and the window did not answer:",
+	"reasonUnsaved":      "unsaved changes",
+	"reasonRunning":      "flow running",
+	"closeWithoutSaving": "Close Without Saving",
+	"cancelFlowAndClose": "Cancel Flow & Close",
+	"cancel":             "Cancel",
 }
 
 // T returns the localized label for key, falling back to the English source on a
