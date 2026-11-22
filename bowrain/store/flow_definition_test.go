@@ -38,10 +38,10 @@ func TestFlowDefStore_CRUD(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, defs)
 
-	// Upsert (create).
+	// Create.
 	def := sampleDef("flow-1", "Translate")
-	require.NoError(t, store.Upsert(ctx, proj.ID, def))
-	assert.Equal(t, "project", def.Source) // Upsert forces source.
+	require.NoError(t, store.Create(ctx, proj.ID, def))
+	assert.Equal(t, "project", def.Source) // Create forces source.
 
 	// Get.
 	got, err := store.Get(ctx, proj.ID, "flow-1")
@@ -52,6 +52,7 @@ func TestFlowDefStore_CRUD(t *testing.T) {
 	assert.Len(t, got.Edges, 2)
 	assert.NotEmpty(t, got.CreatedAt)
 	assert.NotEmpty(t, got.ModifiedAt)
+	assert.NotEmpty(t, got.Revision)
 
 	// List has one.
 	defs, err = store.List(ctx, proj.ID)
@@ -59,12 +60,14 @@ func TestFlowDefStore_CRUD(t *testing.T) {
 	require.Len(t, defs, 1)
 	assert.Equal(t, "flow-1", defs[0].ID)
 
-	// Upsert (update) — same id, new name.
+	// Update, based on the revision read, gives the flow a new revision.
 	def2 := sampleDef("flow-1", "Translate v2")
-	require.NoError(t, store.Upsert(ctx, proj.ID, def2))
+	first := got.Revision
+	require.NoError(t, store.Update(ctx, proj.ID, def2, first))
 	got, err = store.Get(ctx, proj.ID, "flow-1")
 	require.NoError(t, err)
 	assert.Equal(t, "Translate v2", got.Name)
+	assert.NotEqual(t, first, got.Revision)
 
 	// Still only one row.
 	defs, err = store.List(ctx, proj.ID)
@@ -87,8 +90,8 @@ func TestFlowDefStore_ProjectScoped(t *testing.T) {
 	projB := createTestProject(t, s)
 	ctx := t.Context()
 
-	require.NoError(t, store.Upsert(ctx, projA.ID, sampleDef("a", "Flow A")))
-	require.NoError(t, store.Upsert(ctx, projB.ID, sampleDef("b", "Flow B")))
+	require.NoError(t, store.Create(ctx, projA.ID, sampleDef("a", "Flow A")))
+	require.NoError(t, store.Create(ctx, projB.ID, sampleDef("b", "Flow B")))
 
 	defsA, err := store.List(ctx, projA.ID)
 	require.NoError(t, err)
@@ -108,13 +111,15 @@ func TestFlowDefStore_SaveBasedOnTheSameRevision(t *testing.T) {
 	proj := createTestProject(t, s)
 	ctx := t.Context()
 	require.NoError(t, store.Create(ctx, proj.ID, sampleDef("flow-1", "Translate")))
+	read, err := store.Get(ctx, proj.ID, "flow-1")
+	require.NoError(t, err)
 
 	const writers = 8
 	errs := make(chan error, writers)
 	for i := range writers {
 		go func() {
 			def := sampleDef("flow-1", fmt.Sprintf("edit %d", i))
-			errs <- store.Save(ctx, proj.ID, def, 1)
+			errs <- store.Update(ctx, proj.ID, def, read.Revision)
 		}()
 	}
 	var won, refused int
@@ -130,10 +135,36 @@ func TestFlowDefStore_SaveBasedOnTheSameRevision(t *testing.T) {
 	}
 	assert.Equal(t, 1, won)
 	assert.Equal(t, writers-1, refused)
-	got, err := store.Get(ctx, proj.ID, "flow-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), got.Revision)
 
 	require.ErrorIs(t, store.Create(ctx, proj.ID, sampleDef("flow-1", "again")), ErrFlowDefExists)
-	require.ErrorIs(t, store.Save(ctx, proj.ID, sampleDef("gone", "x"), 1), ErrFlowDefChanged)
+}
+
+// An update never creates: a flow that is not stored stays missing.
+func TestFlowDefStore_UpdateNeverCreates(t *testing.T) {
+	s := newTestStore(t)
+	store := NewFlowDefStore(s.SQLDB())
+	proj := createTestProject(t, s)
+	ctx := t.Context()
+	require.ErrorIs(t, store.Update(ctx, proj.ID, sampleDef("gone", "x"), "some-revision"), ErrFlowDefNotFound)
+	_, err := store.Get(ctx, proj.ID, "gone")
+	require.ErrorIs(t, err, ErrFlowDefNotFound)
+}
+
+// A flow deleted and created again under the same id never matches a save
+// based on the old flow: revisions are never reused.
+func TestFlowDefStore_RecreatedFlowRefusesAnOldSave(t *testing.T) {
+	s := newTestStore(t)
+	store := NewFlowDefStore(s.SQLDB())
+	proj := createTestProject(t, s)
+	ctx := t.Context()
+	require.NoError(t, store.Create(ctx, proj.ID, sampleDef("flow-1", "Old")))
+	old, err := store.Get(ctx, proj.ID, "flow-1")
+	require.NoError(t, err)
+	require.NoError(t, store.Delete(ctx, proj.ID, "flow-1"))
+	require.NoError(t, store.Create(ctx, proj.ID, sampleDef("flow-1", "New")))
+
+	require.ErrorIs(t, store.Update(ctx, proj.ID, sampleDef("flow-1", "Stale"), old.Revision), ErrFlowDefChanged)
+	got, err := store.Get(ctx, proj.ID, "flow-1")
+	require.NoError(t, err)
+	assert.Equal(t, "New", got.Name)
 }

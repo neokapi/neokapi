@@ -25,11 +25,11 @@ import (
 // (Kapi is one source among many). The flow graph never names a connector.
 
 // HandleListFlowDefinitions returns built-in flows merged with the project's
-// stored flow definitions.
+// stored flow definitions, each stored one with its revision.
 func (s *Server) HandleListFlowDefinitions(c *echo.Context) error {
 	projectID := c.Param("id")
 
-	defs, err := s.flowCatalog().List(c.Request().Context(), projectID)
+	defs, err := s.flowCatalog().Records(c.Request().Context(), projectID)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -42,7 +42,7 @@ func (s *Server) HandleGetFlowDefinition(c *echo.Context) error {
 	projectID := c.Param("id")
 	flowID := c.Param("flowId")
 
-	def, err := s.flowCatalog().Get(c.Request().Context(), projectID, flowID)
+	def, err := s.flowCatalog().Record(c.Request().Context(), projectID, flowID)
 	if errors.Is(err, service.ErrFlowNotFound) {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "flow not found"})
 	}
@@ -90,21 +90,21 @@ func (s *Server) HandleCreateFlowDefinition(c *echo.Context) error {
 }
 
 // UpdateFlowDefinitionRequest is a flow definition save. BaseRevision is the
-// revision the edit was based on: when it is set and the stored flow has moved
-// past it, the save is refused with 409 and the flow as it now stands. Zero
-// saves unconditionally.
+// revision the edit was based on, as the flow's GET or list returned it. It is
+// required: a save without it is refused with 428, and one based on a revision
+// the flow no longer has is refused with 409 and the flow as it now stands.
 type UpdateFlowDefinitionRequest struct {
 	flow.FlowDefinition
-	BaseRevision int64 `json:"base_revision,omitempty"`
+	BaseRevision string `json:"base_revision"`
 }
 
 // FlowChangedResponse answers a flow save made against an older read: why it
 // was refused, and the flow as it now stands, so the person can reload it or
 // save their version over it.
 type FlowChangedResponse struct {
-	Code    string               `json:"code"`
-	Error   string               `json:"error"`
-	Current *flow.FlowDefinition `json:"current"`
+	Code    string             `json:"code"`
+	Error   string             `json:"error"`
+	Current *bstore.StoredFlow `json:"current"`
 }
 
 // HandleUpdateFlowDefinition replaces an existing project flow definition.
@@ -125,6 +125,13 @@ func (s *Server) HandleUpdateFlowDefinition(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	if req.BaseRevision == "" {
+		// Only a client older than the revision check sends a save without
+		// one. Its message names the fix.
+		return c.JSON(http.StatusPreconditionRequired, ErrorResponse{
+			Error: "this version of the app cannot save flows; update it, then save again",
+		})
+	}
 	def := req.FlowDefinition
 	def.ID = flowID // path wins over body
 	def.Source = "project"
@@ -132,7 +139,10 @@ func (s *Server) HandleUpdateFlowDefinition(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 	ctx := c.Request().Context()
-	if err := s.FlowDefStore.Save(ctx, projectID, &def, req.BaseRevision); err != nil {
+	if err := s.FlowDefStore.Update(ctx, projectID, &def, req.BaseRevision); err != nil {
+		if errors.Is(err, bstore.ErrFlowDefNotFound) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "this flow was deleted after it was read"})
+		}
 		if !errors.Is(err, bstore.ErrFlowDefChanged) {
 			return serverErr(c, err)
 		}

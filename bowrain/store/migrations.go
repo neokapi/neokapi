@@ -1986,10 +1986,14 @@ var Migrations = []storage.Migration{
 		Version:     58,
 		Description: "a revision on each project flow definition",
 		SQL: `
-			-- Counts the saves of a flow. A save names the revision it was
-			-- based on and the store refuses it when the flow has moved on,
-			-- so a later save never silently replaces an earlier one.
-			ALTER TABLE flow_definitions ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1;
+			-- A token the store replaces on every write of a flow. A save
+			-- names the revision it was based on and the store refuses it
+			-- when the flow has moved on, so a later save never silently
+			-- replaces an earlier one. Tokens never repeat, so a flow deleted
+			-- and created again under the same id never matches an old save.
+			-- The default gives every existing row a token of its own.
+			ALTER TABLE flow_definitions
+				ADD COLUMN IF NOT EXISTS revision TEXT NOT NULL DEFAULT gen_random_uuid()::text;
 		`,
 	},
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // ErrFlowDefNotFound is returned when a flow definition does not exist.
@@ -18,8 +19,8 @@ var ErrFlowDefNotFound = errors.New("flow definition not found")
 // already has.
 var ErrFlowDefExists = errors.New("a flow definition with this id exists")
 
-// ErrFlowDefChanged is returned when a save names the revision it was based
-// on and the stored flow no longer has it: someone saved it since.
+// ErrFlowDefChanged is returned when the stored flow no longer has the
+// revision a save was based on: someone saved it since.
 var ErrFlowDefChanged = errors.New("flow definition changed since it was read")
 
 // FlowDefStore persists project-scoped flow definitions (Bowrain AD-013).
@@ -37,8 +38,18 @@ func NewFlowDefStore(db *sql.DB) *FlowDefStore {
 	return &FlowDefStore{db: db}
 }
 
+// StoredFlow is a project flow definition as the store holds it: the
+// definition and its revision, a token the store replaces on every write.
+// A save names the revision it was based on, and the store refuses one made
+// against an older read. A token is never reused, so a save based on a flow
+// that was deleted and created again under the same id is refused too.
+type StoredFlow struct {
+	flow.FlowDefinition
+	Revision string `json:"revision,omitempty"`
+}
+
 // List returns all project-stored flow definitions, ordered by name.
-func (s *FlowDefStore) List(ctx context.Context, projectID string) ([]flow.FlowDefinition, error) {
+func (s *FlowDefStore) List(ctx context.Context, projectID string) ([]StoredFlow, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, name, description, graph, created_at, updated_at, revision
 		 FROM flow_definitions WHERE project_id = $1 ORDER BY name`,
@@ -48,7 +59,7 @@ func (s *FlowDefStore) List(ctx context.Context, projectID string) ([]flow.FlowD
 	}
 	defer rows.Close()
 
-	var defs []flow.FlowDefinition
+	var defs []StoredFlow
 	for rows.Next() {
 		def, err := scanFlowDef(rows)
 		if err != nil {
@@ -60,7 +71,7 @@ func (s *FlowDefStore) List(ctx context.Context, projectID string) ([]flow.FlowD
 }
 
 // Get returns a single project-stored flow definition by id.
-func (s *FlowDefStore) Get(ctx context.Context, projectID, id string) (*flow.FlowDefinition, error) {
+func (s *FlowDefStore) Get(ctx context.Context, projectID, id string) (*StoredFlow, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, name, description, graph, created_at, updated_at, revision
 		 FROM flow_definitions WHERE project_id = $1 AND id = $2`,
@@ -72,61 +83,14 @@ func (s *FlowDefStore) Get(ctx context.Context, projectID, id string) (*flow.Flo
 	return def, err
 }
 
-// Upsert creates or replaces a project flow definition. The definition's
-// Source is forced to "project" and timestamps are managed by the store. Each
-// save raises the stored revision by one.
-func (s *FlowDefStore) Upsert(ctx context.Context, projectID string, def *flow.FlowDefinition) error {
-	return s.Save(ctx, projectID, def, 0)
-}
+// newRevision is a fresh revision token. It never repeats, so no two writes
+// of a flow, even across a delete and a create under the same id, share one.
+func newRevision() string { return id.New() }
 
-// Save creates or replaces a project flow definition, as Upsert does, unless
-// base names the revision the save was based on (base > 0) and the stored flow
-// no longer has it. Then nothing is written and the error is
-// ErrFlowDefChanged. A save based on a revision of a flow that is gone is
-// refused the same way. The check and the write are one statement, so two
-// saves based on the same revision cannot both succeed.
-func (s *FlowDefStore) Save(ctx context.Context, projectID string, def *flow.FlowDefinition, base int64) error {
-	def.Source = "project"
-	// The revision is the store's, kept in its own column.
-	def.Revision = 0
-	graph, err := json.Marshal(def)
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	if base <= 0 {
-		_, err = s.db.ExecContext(ctx,
-			`INSERT INTO flow_definitions (id, project_id, name, description, graph, created_at, updated_at, revision)
-			 VALUES ($1, $2, $3, $4, $5, $6, $6, 1)
-			 ON CONFLICT (project_id, id)
-			 DO UPDATE SET name = $3, description = $4, graph = $5, updated_at = $6,
-			   revision = flow_definitions.revision + 1`,
-			def.ID, projectID, def.Name, def.Description, string(graph), now)
-		return err
-	}
-	res, err := s.db.ExecContext(ctx,
-		`UPDATE flow_definitions
-		 SET name = $3, description = $4, graph = $5, updated_at = $6, revision = revision + 1
-		 WHERE project_id = $1 AND id = $2 AND revision = $7`,
-		projectID, def.ID, def.Name, def.Description, string(graph), now, base)
-	if err != nil {
-		return err
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrFlowDefChanged
-	}
-	return nil
-}
-
-// Create stores a new project flow definition at revision 1. It never
-// replaces one: an id a stored flow already has is ErrFlowDefExists.
+// Create stores a new project flow definition under a fresh revision. It
+// never replaces one: an id a stored flow already has is ErrFlowDefExists.
 func (s *FlowDefStore) Create(ctx context.Context, projectID string, def *flow.FlowDefinition) error {
 	def.Source = "project"
-	def.Revision = 0
 	graph, err := json.Marshal(def)
 	if err != nil {
 		return err
@@ -134,9 +98,9 @@ func (s *FlowDefStore) Create(ctx context.Context, projectID string, def *flow.F
 	now := time.Now().UTC()
 	res, err := s.db.ExecContext(ctx,
 		`INSERT INTO flow_definitions (id, project_id, name, description, graph, created_at, updated_at, revision)
-		 VALUES ($1, $2, $3, $4, $5, $6, $6, 1)
+		 VALUES ($1, $2, $3, $4, $5, $6, $6, $7)
 		 ON CONFLICT (project_id, id) DO NOTHING`,
-		def.ID, projectID, def.Name, def.Description, string(graph), now)
+		def.ID, projectID, def.Name, def.Description, string(graph), now, newRevision())
 	if err != nil {
 		return err
 	}
@@ -148,6 +112,39 @@ func (s *FlowDefStore) Create(ctx context.Context, projectID string, def *flow.F
 		return ErrFlowDefExists
 	}
 	return nil
+}
+
+// Update replaces a stored flow definition when it still has the revision the
+// save was based on, and gives it a fresh one. The check and the write are one
+// statement, so two saves based on the same revision cannot both succeed.
+// Update never creates: a flow that is not stored is ErrFlowDefNotFound, and
+// one whose revision moved on is ErrFlowDefChanged.
+func (s *FlowDefStore) Update(ctx context.Context, projectID string, def *flow.FlowDefinition, base string) error {
+	def.Source = "project"
+	graph, err := json.Marshal(def)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE flow_definitions
+		 SET name = $3, description = $4, graph = $5, updated_at = $6, revision = $8
+		 WHERE project_id = $1 AND id = $2 AND revision = $7`,
+		projectID, def.ID, def.Name, def.Description, string(graph), now, base, newRevision())
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	if _, err := s.Get(ctx, projectID, def.ID); err != nil {
+		return err
+	}
+	return ErrFlowDefChanged
 }
 
 // Delete removes a project flow definition. Returns ErrFlowDefNotFound when
@@ -165,13 +162,13 @@ func (s *FlowDefStore) Delete(ctx context.Context, projectID, id string) error {
 	return err
 }
 
-func scanFlowDef(row scanner) (*flow.FlowDefinition, error) {
+func scanFlowDef(row scanner) (*StoredFlow, error) {
 	var (
-		id, name, description, graph string
-		createdAt, updatedAt         time.Time
-		revision                     int64
+		flowID, name, description, graph string
+		createdAt, updatedAt             time.Time
+		revision                         string
 	)
-	if err := row.Scan(&id, &name, &description, &graph, &createdAt, &updatedAt, &revision); err != nil {
+	if err := row.Scan(&flowID, &name, &description, &graph, &createdAt, &updatedAt, &revision); err != nil {
 		return nil, err
 	}
 	var def flow.FlowDefinition
@@ -185,12 +182,11 @@ func scanFlowDef(row scanner) (*flow.FlowDefinition, error) {
 		}
 	}
 	// Authoritative columns win over whatever was embedded in graph JSON.
-	def.ID = id
+	def.ID = flowID
 	def.Name = name
 	def.Description = description
 	def.Source = "project"
 	def.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	def.ModifiedAt = updatedAt.UTC().Format(time.RFC3339)
-	def.Revision = revision
-	return &def, nil
+	return &StoredFlow{FlowDefinition: def, Revision: revision}, nil
 }

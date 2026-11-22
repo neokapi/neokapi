@@ -504,7 +504,7 @@ flow_definitions.graph jsonb NOT NULL DEFAULT '{}'::jsonb
 flow_definitions.id text NOT NULL
 flow_definitions.name text NOT NULL
 flow_definitions.project_id text NOT NULL
-flow_definitions.revision bigint NOT NULL DEFAULT 1
+flow_definitions.revision text NOT NULL DEFAULT (gen_random_uuid())::text
 flow_definitions.updated_at timestamp with time zone NOT NULL DEFAULT now()
 followed_languages.locales jsonb NOT NULL DEFAULT '[]'::jsonb
 followed_languages.project_id text NOT NULL
