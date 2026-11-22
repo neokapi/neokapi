@@ -7,7 +7,7 @@
 // project shows the numbers the Review tab shows.
 import type { Project } from "@neokapi/bowrain-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Redirect, router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -22,6 +22,7 @@ import { entriesOf, languageLabel, useFeed } from "../../../../../lib/feed";
 import { projectKey, summarize, useReviewHome } from "../../../../../lib/home";
 import { setRecentProject } from "../../../../../lib/recentProject";
 import { reviewPlanKey } from "../../../../../lib/plan";
+import { routeValue } from "../../../../../lib/routeParams";
 
 /** The title key of each plan level, for the project's plan card. */
 const planStepTitle = {
@@ -51,9 +52,18 @@ function ProjectHeader({ project }: { project: Project }) {
   );
 }
 
+// The screen waits for a workspace and a project: a parameter that is a route
+// group's name is neither, and leads back to the workspace list.
 export default function ProjectHome() {
+  const params = useLocalSearchParams<{ ws: string; project: string }>();
+  const ws = routeValue(params.ws);
+  const project = routeValue(params.project);
+  if (ws === undefined || project === undefined) return <Redirect href="/workspaces" />;
+  return <Languages ws={ws} project={project} />;
+}
+
+function Languages({ ws, project }: { ws: string; project: string }) {
   const { t } = useTranslation();
-  const { ws, project } = useLocalSearchParams<{ ws: string; project: string }>();
   const { client } = useAuth();
   const qc = useQueryClient();
 

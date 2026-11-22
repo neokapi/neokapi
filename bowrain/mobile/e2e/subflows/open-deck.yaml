@@ -1,0 +1,37 @@
+# Open the review deck for one language, as cards. Used by the decision flows
+# after ../sign-in.yaml.
+#
+#   -e WORKSPACE=<slug> -e PROJECT=<project id> -e LOCALE=nb
+#
+# `node e2e/seed.mjs` makes such a project and prints these arguments.
+appId: cloud.bowrain.app
+---
+- extendedWaitUntil:
+    visible:
+      id: workspace-${WORKSPACE}
+    timeout: 20000
+- tapOn:
+    id: workspace-${WORKSPACE}
+- extendedWaitUntil:
+    visible:
+      id: project-${PROJECT}
+    timeout: 20000
+- tapOn:
+    id: project-${PROJECT}
+- extendedWaitUntil:
+    visible:
+      id: language-${LOCALE}
+    timeout: 20000
+- tapOn:
+    id: language-${LOCALE}
+# The deck opens on its pages; the decision flows work on the cards.
+- extendedWaitUntil:
+    visible:
+      id: deck-view-cards
+    timeout: 20000
+- tapOn:
+    id: deck-view-cards
+- extendedWaitUntil:
+    visible:
+      id: review-card
+    timeout: 20000

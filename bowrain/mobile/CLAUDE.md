@@ -107,6 +107,16 @@ password sign-in for that realm and seeds the test user
 `E2E_PASSWORD` to change them). Use it for e2e runs only, and restore the
 passkey-only realm with `make -C bowrain stack-down stack-up`.
 
-The decision flows (`approve.yaml`, `reject.yaml`, `fix.yaml`) open a deck
-through `open-deck.yaml`, so the test user needs review permission in the
-project they name (`-e WORKSPACE=… -e PROJECT=… -e LOCALE=…`).
+Run the flows against a development build on the iOS simulator, with Metro
+up (`EXPO_PUBLIC_BOWRAIN_SERVER_URL=http://localhost:8080 vpr start`):
+
+```bash
+maestro test $(node e2e/seed.mjs) e2e/
+```
+
+`e2e/seed.mjs` makes a project with work waiting for the test user and prints
+the `-e WORKSPACE=… -e PROJECT=… -e LOCALE=…` that the deck flows take. Each
+flow starts from a clean install through `e2e/subflows/launch.yaml`, which
+opens the app on Metro. The decision flows open the deck through
+`e2e/subflows/open-deck.yaml`. No CI job runs the flows: the mobile verify
+recipe (`.claude/skills/verify/mobile.md`) runs them for every change here.

@@ -1,0 +1,8 @@
+{
+  "welcome": "Welcome back, {{name}}!",
+  "credits": "Your credits reset on {{date}}.",
+  "save": "Save changes",
+  "discard": "Discard the draft",
+  "invite": "Invite a teammate",
+  "export": "Export the report"
+}

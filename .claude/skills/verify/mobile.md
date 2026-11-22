@@ -39,10 +39,12 @@ SIM=<udid from the list>; xcrun simctl boot "$SIM"
 vpr ios --no-bundler --device "iPhone 17 Pro"   # prebuild into ios/ and pod install: 2 min
 ```
 
-With Xcode 27.2 and only iOS 26 simulator runtimes, this ends with
-`CommandError: No code signing certificates are available to use`: Expo takes
-the simulator for a device. The prebuild and pods are done by then, so finish
-with Xcode:
+With Xcode 27.2 and `--device`, this ends with `CommandError: No code signing
+certificates are available to use`. Xcode 27's `xcrun devicectl list devices`
+lists the simulators too, and Expo CLI 58 reads every entry there as a
+physical device, so a simulator named by `--device` is built for a phone. The
+cause is in Expo CLI, not in this repository. The prebuild and pods are done
+by then, so finish with Xcode:
 
 ```bash
 xcodebuild -workspace ios/Bowrain.xcworkspace -scheme Bowrain -configuration Debug \
@@ -82,49 +84,35 @@ EXPO_PUBLIC_BOWRAIN_SERVER_URL=http://localhost:8080 vpr start   # run_in_backgr
 Never set `CI=1`: Expo then stops watching files and edits never reach the
 app. The background task can report failure while Metro keeps serving, so
 check `lsof -nP -iTCP:8081 -sTCP:LISTEN`. A second `vpr start` takes 8082,
-where the app does not look. Open the app on Metro with a scratch Maestro flow:
+where the app does not look. Open the app on Metro from a clean install:
 
-```yaml
-appId: cloud.bowrain.app
----
-- openLink: bowrain://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081
-- runFlow: { when: { visible: "Open" }, commands: [ tapOn: "Open" ] }
-- runFlow: { when: { visible: "Continue" }, commands: [ tapOn: "Continue" ] }
-- runFlow:
-    when: { visible: "Go home" }
-    commands:
-      - scrollUntilVisible: { element: "Tools button" }
-      - tapOn: { point: "85%,66%" }
-      - tapOn: "Close"
-- extendedWaitUntil: { visible: { id: sign-in }, timeout: 90000 }
+```bash
+maestro --device "$SIM" test e2e/subflows/launch.yaml   # 30 s for the first bundle
 ```
 
-The first bundle takes 30 s. The flow turns off the development client's
-floating Tools button, which covers the app's server cog. A source edit then
-reloads in place; if a change does not show, run the flow again. Screenshot
-with `xcrun simctl io "$SIM" screenshot <file>.png` and Read the file.
+The flow clears the app's state, opens the development client's link to
+Metro, and turns off the development menu's onboarding sheet and floating
+Tools button, which covers the app's server cog. A source edit then reloads
+in place; if a change does not show, run the flow again. Screenshot with
+`xcrun simctl io "$SIM" screenshot <file>.png` and Read the file.
 
 ## The Maestro flows
 
-`e2e/*.yaml` do not pass against a development build: all failed in 162 s on
-2026-11-22. `launchApp: clearState` returns to the development client's
-launcher, and on the Keycloak page Maestro sees the labels, not the
-`username`, `password` and `kc-login` ids. Run patched copies, signed out and
-on the sign-in screen:
+Run the committed flows for every change under `bowrain/mobile/`. They run
+here and nowhere else: no CI job runs them. With the stack and Metro up, from
+`bowrain/mobile`:
 
 ```bash
-T=$(mktemp -d); /bin/cp e2e/*.yaml "$T"/
-sed -i '' -e '/^- launchApp:/,/clearKeychain: true/d' -e 's/id: username/text: "Email"/' \
-  -e 's/id: password/text: "Password"/' -e 's/id: kc-login/text: "Sign In"/' "$T/sign-in.yaml"
-maestro --device "$SIM" test -e SERVER_URL=http://localhost:8080 "$T/sign-in.yaml"   # 90 s
+maestro --device "$SIM" test $(node e2e/seed.mjs) e2e/   # 6 flows, 7 min
 ```
 
-The copy passes Keycloak and stops at `workspace-list`: right after sign-in
-the app requests `/api/v1/(tabs)/projects`, gets 404 and shows "Could not load
-this". A relaunch shows the workspaces. Until that is fixed, no flow after
-sign-in can pass. The deck flows also need a project with work waiting
-(`-e WORKSPACE=… -e PROJECT=… -e LOCALE=…`), which this recipe does not seed.
-`maestro test "$T"` runs the set.
+`e2e/seed.mjs` makes a project in the test user's workspace whose strings a
+second account has translated into `nb`, and prints the `-e WORKSPACE=… -e
+PROJECT=… -e LOCALE=…` the deck flows take. A reviewer may not approve their
+own translation, which is why a second account writes them. It signs both in
+through the local stack's device flow and refuses any server but a local one.
+Each flow starts from a clean install (`e2e/subflows/launch.yaml`) and signs
+in through the real Keycloak. Record each flow's result line.
 
 ## A change to a response shape
 
