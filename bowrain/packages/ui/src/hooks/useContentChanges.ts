@@ -24,7 +24,13 @@ export interface StalePrompt {
 }
 
 /** The person's answer: apply the change to the translation that stands, or keep it. */
-export type StaleChoice = "reapply" | "keep";
+/**
+ * What the person chose on a changed translation: apply their change to it,
+ * keep it as it stands (their change is dropped), or decide later: the
+ * dialog closed with nothing chosen and their change stays where it was,
+ * unsent.
+ */
+export type StaleChoice = "reapply" | "keep" | "later";
 
 /** What the findings prompt shows when a check refuses a save. */
 export interface FindingsPrompt {
@@ -45,6 +51,11 @@ export type CommitOutcome =
   | { status: "applied"; result: ChangeResult; after?: string }
   /** The translation moved and the person kept it as it stands. */
   | { status: "kept"; current: CurrentEdition }
+  /**
+   * The translation moved and the person closed the dialog without choosing:
+   * nothing was sent, and a surface leaves the person's change where it was.
+   */
+  | { status: "unsent"; current: CurrentEdition }
   /** A check refused the save and the person went back to their wording. */
   | { status: "revise"; findings: ChangeFinding[] };
 
@@ -52,6 +63,8 @@ export type CommitOutcome =
 export interface StaleDialogState extends StalePrompt {
   onReapply: () => void;
   onKeep: () => void;
+  /** Closing the dialog without choosing: the change stays, unsent. */
+  onDismiss: () => void;
 }
 
 /** The open findings prompt, as the dialog takes it. */
@@ -67,7 +80,7 @@ type Pending =
 
 /** Settle a prompt with the answer that changes nothing. */
 function dismiss(p: Pending) {
-  if (p.kind === "stale") p.resolve("keep");
+  if (p.kind === "stale") p.resolve("later");
   else p.resolve("revise");
 }
 
@@ -146,6 +159,7 @@ export function useContentChanges(projectId: string) {
           case "stale": {
             const choice = await askStale({ ...prompt, current: outcome.current });
             if (choice === "keep") return { status: "kept", current: outcome.current };
+            if (choice === "later") return { status: "unsent", current: outcome.current };
             rev = outcome.current.rev;
             continue;
           }
@@ -202,6 +216,7 @@ export function useContentChanges(projectId: string) {
       ...p.prompt,
       onReapply: () => settle(p, () => p.resolve("reapply")),
       onKeep: () => settle(p, () => p.resolve("keep")),
+      onDismiss: () => settle(p, () => p.resolve("later")),
     };
   }, [pending, settle]);
 

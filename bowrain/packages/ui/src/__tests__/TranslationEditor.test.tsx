@@ -366,6 +366,29 @@ describe("TranslationEditor — a save names the revision the editor showed", ()
   });
 });
 
+describe("TranslationEditor — dismissing the changed-translation dialog", () => {
+  it("leaves the person's wording in the editor, unsaved", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderEditor({ view: "visual" });
+    await waitForBlocks(3);
+
+    await user.click(screen.getByTestId("target-display"));
+    await screen.findByTestId("unified-target-editor");
+    adapter.editElsewhere("b1", "fr-FR", "Salut le monde");
+    await user.click(screen.getByTestId("unified-save"));
+    await screen.findByTestId("stale-change-dialog");
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("stale-change-dialog")).toBeNull());
+    // The editor is still open on the person's version, and nothing more was sent.
+    expect(screen.getByTestId("unified-target-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("unified-target-editor").textContent).toContain("Bonjour le monde");
+    expect(adapter.opsOf("set_content")).toHaveLength(1);
+    const stored = await adapter.getBlock("demo", sampleProject.id, "b1");
+    expect(stored.targets["fr-FR"]).toMatchObject({ text: "Salut le monde" });
+  });
+});
+
 describe("TranslationEditor — term insert", () => {
   it("appends to the stored target and persists when no editor is open", async () => {
     const user = userEvent.setup();
