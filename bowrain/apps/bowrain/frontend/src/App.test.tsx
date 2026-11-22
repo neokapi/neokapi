@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vite-plus/test";
+import { Events } from "@wailsio/runtime";
 
 // The gate mounts the real ServerConnect / OfflineLaunch screens and a stubbed
 // shared app, over mocked Wails bindings + composite adapter, so we can assert
@@ -243,5 +244,34 @@ describe("desktop launch gate (#1284)", () => {
     // A count, never a name: whoever is at the machine may be someone else.
     expect(notice).toHaveTextContent("1 change has not reached the server.");
     expect(notice).not.toHaveTextContent("Translate and review");
+  });
+
+  it("stays in the app while the backend reports a reconnect attempt", async () => {
+    backend.GetConnectionState.mockResolvedValue({
+      state: "connected",
+      server_url: "https://acme.test",
+      workspace: "w",
+    });
+    getConfig.mockResolvedValue({ mode: "server" });
+    await renderApp();
+    await flushUntil(() => screen.queryByTestId("bowrain-app") !== null);
+
+    // The backend reports an attempt in flight; only a disconnect leaves the app.
+    backend.GetConnectionState.mockResolvedValue({
+      state: "connecting",
+      server_url: "https://acme.test",
+    });
+    await act(async () => {
+      for (const [event, handler] of vi.mocked(Events.On).mock.calls) {
+        if (event === "connection-state-changed")
+          (handler as (e: unknown) => void)({ data: { state: "connecting" } });
+      }
+    });
+    await flushUntil(() => backend.GetConnectionState.mock.calls.length >= 2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(screen.getByTestId("bowrain-app")).toBeInTheDocument();
+    expect(screen.queryByText(/welcome to bowrain/i)).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ package visionproto
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 )
@@ -55,7 +56,7 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil || len(resp.Models) != 1 || !resp.Models[0].Default {
 		t.Fatalf("info = %+v err=%v", resp, err)
 	}
-	// ocr by path (no image payload — the plugin opens the file itself)
+	// ocr by path (no image payload; the plugin opens the file itself)
 	resp, err = c.Do(Request{Op: OpOCR, Path: "/tmp/scan.png", Lang: "en"}, nil)
 	if err != nil {
 		t.Fatalf("ocr err: %v", err)
@@ -89,7 +90,7 @@ func TestFrameRoundTrip_EmptyAndLarge(t *testing.T) {
 		t.Fatalf("second msg: req=%+v payload=%d err=%v", req, len(payload), err)
 	}
 	// clean EOF at boundary
-	if _, _, err := ReadRequest(&buf); err != io.EOF {
+	if _, _, err := ReadRequest(&buf); !errors.Is(err, io.EOF) {
 		t.Errorf("expected EOF at boundary, got %v", err)
 	}
 }

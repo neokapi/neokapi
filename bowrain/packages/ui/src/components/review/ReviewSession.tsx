@@ -455,7 +455,8 @@ export function ReviewSession({
           { action: outcome, locale: entry.locale },
         );
         // Kept: the entry comes back with the translation as it stands.
-        if (done.status === "kept") void refetch();
+        // Nothing was recorded either way.
+        if (done.status === "kept" || done.status === "unsent") void refetch();
       } catch (e) {
         setActionError(e);
         void refetch();
@@ -532,8 +533,9 @@ export function ReviewSession({
           renderedRevision(entry.block, entry.locale),
           { action: "save", locale: entry.locale, mine: content.mine },
         );
-        // The reviewer went back to their wording: the editor stays open on it.
-        if (done.status === "revise") return;
+        // The reviewer went back to their wording, or closed the dialog
+        // without choosing: the editor stays open on it.
+        if (done.status === "revise" || done.status === "unsent") return;
         setEditing(false);
         if (done.status === "kept") {
           // The reviewer kept the translation someone else saved: the entry

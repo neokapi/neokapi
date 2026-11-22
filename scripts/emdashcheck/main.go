@@ -46,6 +46,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -66,18 +67,19 @@ const emDash = "—"
 // thousand words of prose is allowed none.
 const wordsPerDash = 1000
 
-// allowedLiterals are the exact string values that may hold an em dash, in Go
-// source and in a catalog alike. In each one the character is a character
-// rather than prose:
+// allowedLiterals are the exact string values that may hold an em dash (U+2014),
+// in Go source and in a catalog alike. In each one the character is data and
+// not prose:
 //
-//   - "—" on its own is an empty cell in a rendered table (the ai column of
+//   - U+2014 on its own is an empty cell in a rendered table (the ai column of
 //     `kapi status --review`, the lift column of the context eval, an empty
 //     value cell in the desktop's collections panel).
-//   - "—-( \t" is a cutset passed to strings.TrimLeft in scripts/contract-audit,
-//     which strips the punctuation a skip reason may open with.
+//   - U+2014 followed by "-( \t" is a cutset passed to strings.TrimLeft in
+//     scripts/contract-audit. It strips the punctuation a skip reason may open
+//     with.
 //
-// Anything with text around it is prose and is rewritten instead, " — " used as
-// a separator between two rendered pieces included.
+// Anything with text around it is prose and is rewritten instead. That
+// includes a spaced U+2014 used as a separator between two rendered pieces.
 var allowedLiterals = map[string]bool{
 	emDash:   true,
 	"—-( \t": true,
@@ -187,7 +189,7 @@ func skipGoPath(p string) bool {
 	if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
 		return true
 	}
-	for _, seg := range strings.Split(filepath.ToSlash(p), "/") {
+	for seg := range strings.SplitSeq(filepath.ToSlash(p), "/") {
 		if seg == "testdata" || seg == "vendor" || seg == "node_modules" {
 			return true
 		}
@@ -319,7 +321,7 @@ func emptyTableCells(line string) int {
 		return 0
 	}
 	n := 0
-	for _, cell := range strings.Split(trimmed, "|") {
+	for cell := range strings.SplitSeq(trimmed, "|") {
 		if strings.TrimSpace(cell) == emDash {
 			n++
 		}
@@ -366,7 +368,7 @@ func scanDocSource(path, src string) []finding {
 	}
 	return []finding{{
 		Path:  path,
-		Where: fmt.Sprintf("%d", lines[0]),
+		Where: strconv.Itoa(lines[0]),
 		Value: fmt.Sprintf("%d em dash(es) in %d words of prose, allowance %d (first at line %d)",
 			dashes, words, allowance, lines[0]),
 	}}
@@ -445,7 +447,7 @@ func scanUISource(path, src string) []finding {
 			case string(c) == emDash && !uiEmptyCell(runes, i):
 				out = append(out, finding{
 					Path:  path,
-					Where: fmt.Sprintf("%d", line),
+					Where: strconv.Itoa(line),
 					Value: uiExcerptAround(runes, i),
 				})
 			}
@@ -468,7 +470,7 @@ func scanUISource(path, src string) []finding {
 			if string(c) == emDash && !uiEmptyCell(runes, i) {
 				out = append(out, finding{
 					Path:  path,
-					Where: fmt.Sprintf("%d", line),
+					Where: strconv.Itoa(line),
 					Value: uiExcerptAround(runes, i),
 				})
 			}
@@ -477,9 +479,10 @@ func scanUISource(path, src string) []finding {
 	return out
 }
 
-// uiEmptyCell reports whether the dash at i is the whole rendered value: `>—<`
-// between JSX tags, or "—" / '—' / `—` as an entire literal. Both are the empty
-// cell the Go allowlist admits.
+// uiEmptyCell reports whether the dash at i is the whole rendered value. That
+// is U+2014 alone between JSX tags (`>` and `<`), or U+2014 as an entire
+// quoted, single-quoted or backquoted literal. Both are the empty cell the Go
+// allowlist admits.
 func uiEmptyCell(runes []rune, i int) bool {
 	if i == 0 || i+1 >= len(runes) {
 		return false
@@ -553,7 +556,7 @@ func scanDossierYAML(path, src string) []finding {
 		if strings.Contains(line, emDash) {
 			out = append(out, finding{
 				Path:  path,
-				Where: fmt.Sprintf("%d", i+1),
+				Where: strconv.Itoa(i + 1),
 				Value: strings.TrimSpace(line),
 			})
 		}
@@ -584,7 +587,7 @@ func scanZeroToleranceMarkdown(path, src string) []finding {
 		if strings.Contains(line, emDash) {
 			out = append(out, finding{
 				Path:  path,
-				Where: fmt.Sprintf("%d", i+1),
+				Where: strconv.Itoa(i + 1),
 				Value: strings.TrimSpace(line),
 			})
 		}
@@ -667,7 +670,7 @@ const Prose = "a generated string @ exempt"
 		}
 	}
 	if skipGoPath("host/status.go") {
-		return fmt.Errorf("go: host/status.go should be scanned")
+		return errors.New("go: host/status.go should be scanned")
 	}
 	return nil
 }

@@ -37,6 +37,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 	sqlmemory "github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	sqlterms "github.com/neokapi/neokapi/terms"
 	"golang.org/x/sync/errgroup"
 )
@@ -121,16 +122,23 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 // same flag surface and ExecuteUp stays byte-identical.
 func (a *App) AddFlowRunFlags(cmd Command) { a.addFlowRunFlags(cmd) }
 
+// providerFlagUsage describes --provider from the AI provider registry, and
+// names the offline demo provider for a first run with no credentials.
+func providerFlagUsage() string {
+	return fmt.Sprintf("AI provider: %s. %s works offline with no credentials and writes illustrative output, for trying kapi",
+		strings.Join(aiprovider.ProviderNames(), ", "), aiprovider.Demo)
+}
+
 // addFlowRunFlags registers the common flags for flow execution commands.
 func (a *App) addFlowRunFlags(cmd Command) {
 	a.AddProcessingFlags(cmd)
 	cmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
 	cmd.Flags().StringP("output", "o", "", "output path or template (e.g. ./out/{name}_{lang}.{ext})")
-	cmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
+	addConcurrencyFlag(cmd)
 	AddRunConfigFlags(cmd)
 	addTraceFlag(cmd)
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
-	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
+	addParallelBlocksFlag(cmd)
 	addStoreFlags(cmd)
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
 	// The exec commands have carried this pair since they gained a file list;
@@ -1474,18 +1482,22 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	// does over the same recipe.
 	bindings := a.resolveRunBindings(inputPath, cmd...)
 
-	// Inject credential/provider flags from the command into the tool config.
+	// The run flags reach each node by the rule every flow run applies
+	// (seedRunConfig): a node's own config, then the flag.
+	steps := make([]flow.FlowStep, len(toolNodes))
+	for i, tn := range toolNodes {
+		steps[i] = flow.FlowStep{Tool: tn.Name, Label: tn.Label, Config: tn.Config}
+	}
 	if len(cmd) > 0 && cmd[0] != nil {
-		maps.Copy(config, runFlagToolConfig(cmd[0]))
+		var notes []string
+		steps, notes = seedRunConfig(steps, runFlagToolConfig(cmd[0]))
+		PrintRunConfigNotes(cmd[0], notes)
 	}
 
-	for _, tn := range toolNodes {
+	for i, tn := range toolNodes {
 		// A graph/built-in node may carry per-tool config (e.g. redact's detectors
-		// and entityTypes); overlay it on the shared run config for this node only.
-		toolConfig := config
-		if len(tn.Config) > 0 {
-			toolConfig = mergeFlowNodeConfig(config, tn.Config)
-		}
+		// and entityTypes); it sits over the shared run config for this node only.
+		toolConfig := mergeFlowNodeConfig(config, steps[i].Config)
 		toolConfig = a.applyBindings(bindings, tn.Name, a.ToolReg.Schema(registry.ToolID(tn.Name)), toolConfig)
 		t, toolCleanup, err := a.buildToolByName(tn.Name, toolConfig, cmd...)
 		if err != nil {
@@ -2725,7 +2737,7 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 	termRules, err := a.ResolveTermRules(c, a.TargetLang)
 	if err != nil {
 		if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: --termstore: %v\n", err)
+			fmt.Fprintf(c.ErrOrStderr(), "Warning: --termstore: %v\n", err)
 		}
 		return nil
 	}

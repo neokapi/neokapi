@@ -17,8 +17,8 @@
 // `ajv` on PATH when present (CI installs ajv-cli@5 globally), else
 // `corepack pnpm dlx ajv-cli@5`. Every external call is gated on exec.LookPath; the
 // test t.Skips (not fails) when the tool is missing, offline, or otherwise
-// unable to execute (e.g. a non-executable cached bin) — a tooling failure,
-// not a kapi failure. A tool that RUNS and rejects the output FAILs the test.
+// unable to execute (e.g. a non-executable cached bin). Those are tooling
+// failures, not kapi failures. A tool that RUNS and rejects the output FAILs the test.
 //
 // Run with: go test -tags acceptance ./core/formats/i18next/
 package i18next_test
@@ -99,8 +99,7 @@ func toolCouldNotRun(err error, combinedOutput string) bool {
 	if err == nil {
 		return false
 	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
+	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 		switch ee.ExitCode() {
 		case 126, 127:
 			return true

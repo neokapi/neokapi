@@ -1,6 +1,6 @@
 // Package whisper is the kapi-asr plugin's transcription engine. It drives a
-// bundled whisper.cpp `whisper-cli` executable (MIT) — the same separate-binary
-// pattern kapi-av uses for ffmpeg — so the plugin stays pure-Go and builds
+// bundled whisper.cpp `whisper-cli` executable (MIT), the same separate-binary
+// pattern kapi-av uses for ffmpeg. The plugin stays pure-Go and builds
 // trivially on every platform; only the bundled whisper-cli differs per target.
 package whisper
 
@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/plugins/asr/asrproto"
@@ -41,7 +42,7 @@ type whisperJSON struct {
 }
 
 // parseWhisperJSON maps whisper-cli JSON to asrproto segments. Confidence is left
-// 0 (unknown): whisper-cli's default JSON carries no per-segment confidence — a
+// 0 (unknown): whisper-cli's default JSON carries no per-segment confidence. A
 // later refinement step treats 0 as "no signal". Empty segments are dropped.
 func parseWhisperJSON(b []byte) (language string, segs []asrproto.Segment, err error) {
 	var w whisperJSON
@@ -96,8 +97,8 @@ func (e *Engine) Transcribe(ctx context.Context, audioPath, lang string) (langua
 
 func lastLine(b []byte) string {
 	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		if s := strings.TrimSpace(lines[i]); s != "" {
+	for _, line := range slices.Backward(lines) {
+		if s := strings.TrimSpace(line); s != "" {
 			return s
 		}
 	}

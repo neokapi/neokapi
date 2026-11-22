@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,10 +17,14 @@ import (
 // Files are returned sorted by (format, basename) for stable ordering.
 func DiscoverFixtures(okapiTestdataRoot string) ([]TestFile, error) {
 	if okapiTestdataRoot == "" {
-		return nil, fmt.Errorf("okapi-testdata root is required")
+		return nil, errors.New("okapi-testdata root is required")
 	}
-	if info, err := os.Stat(okapiTestdataRoot); err != nil || !info.IsDir() {
-		return nil, fmt.Errorf("okapi-testdata root %q not a directory: %v", okapiTestdataRoot, err)
+	info, err := os.Stat(okapiTestdataRoot)
+	if err != nil {
+		return nil, fmt.Errorf("okapi-testdata root %q not a directory: %w", okapiTestdataRoot, err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("okapi-testdata root %q not a directory", okapiTestdataRoot)
 	}
 
 	var out []TestFile
@@ -77,7 +82,7 @@ func discoverFormat(root string, cf CorpusFormat) ([]string, error) {
 		srcAbs := filepath.Join(root, src)
 		info, err := os.Stat(srcAbs)
 		if err != nil || !info.IsDir() {
-			// Source dir missing in this tarball — skip rather than fatal.
+			// Source dir missing in this tarball. Skip rather than fail.
 			// Some upstream layouts have shifted; the bench shouldn't fail
 			// on coverage gaps.
 			continue
@@ -105,7 +110,7 @@ func discoverFormat(root string, cf CorpusFormat) ([]string, error) {
 	return out, nil
 }
 
-// sizeCategory buckets a file by byte size — keeps the existing
+// sizeCategory buckets a file by byte size. It keeps the existing
 // tiny/small/medium/large vocabulary the report HTML already groups by.
 func sizeCategory(size int64) string {
 	switch {
@@ -154,18 +159,12 @@ func Sample(fixtures []TestFile, fraction float64) []TestFile {
 		// Sort by size so even-spaced indices cover the size range.
 		sort.Slice(group, func(i, j int) bool { return group[i].SizeBytes < group[j].SizeBytes })
 
-		want := int(float64(len(group)) * fraction)
-		if want < 1 {
-			want = 1
-		}
-		if want > len(group) {
-			want = len(group)
-		}
+		want := min(max(int(float64(len(group))*fraction), 1), len(group))
 
 		// Even-spaced indices: 0, n/want, 2n/want, …, (want-1)*n/want.
 		// This always picks the smallest and (when want>1) reaches near
 		// the largest, hitting the size spread.
-		for i := 0; i < want; i++ {
+		for i := range want {
 			idx := i * len(group) / want
 			out = append(out, group[idx])
 		}

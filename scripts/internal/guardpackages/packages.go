@@ -16,6 +16,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/neokapi/neokapi/scripts/internal/buildconfigs"
 )
 
 // Packages contains the target packages and their dependencies.
@@ -33,9 +35,91 @@ type Package struct {
 
 // List compiles the packages that match patterns and their dependencies.
 func List(patterns ...string) (Packages, error) {
-	args := append([]string{"list", "-compiled", "-tags", "fts5", "-export", "-deps",
+	return list(nil, "fts5", patterns)
+}
+
+// ListConfig compiles, under one build configuration, the packages a guard
+// checks there. The first configuration in buildconfigs.All checks every
+// package that matches patterns, as List does. A later one checks only the
+// packages holding a non-test file that no earlier configuration compiles,
+// such as a _js.go or a `//go:build notelemetry` file, and returns none when
+// there is no such package. In both cases a package to check is one with
+// DepOnly false.
+func ListConfig(cfg buildconfigs.Config, patterns ...string) (Packages, error) {
+	i := buildconfigs.Index(cfg.Name)
+	if i < 0 {
+		return nil, fmt.Errorf("unknown build configuration %q", cfg.Name)
+	}
+	if i == 0 {
+		return list(cfg.Env, cfg.Tags, patterns)
+	}
+	seen := map[string]bool{}
+	for _, earlier := range buildconfigs.All[:i] {
+		files, err := sourceFiles(earlier, patterns)
+		if err != nil {
+			return nil, err
+		}
+		for _, fs := range files {
+			for _, f := range fs {
+				seen[f] = true
+			}
+		}
+	}
+	files, err := sourceFiles(cfg, patterns)
+	if err != nil {
+		return nil, err
+	}
+	var fresh []string
+	for pkg, fs := range files {
+		for _, f := range fs {
+			if !seen[f] {
+				fresh = append(fresh, pkg)
+				break
+			}
+		}
+	}
+	if len(fresh) == 0 {
+		return nil, nil
+	}
+	return list(cfg.Env, cfg.Tags, fresh)
+}
+
+// sourceFiles lists, by import path, the non-test Go files each package that
+// matches patterns compiles under cfg. It compiles nothing.
+func sourceFiles(cfg buildconfigs.Config, patterns []string) (map[string][]string, error) {
+	args := append([]string{"list", "-e", "-tags", cfg.Tags, "-json=ImportPath,Dir,GoFiles,CgoFiles"}, patterns...)
+	cmd := exec.CommandContext(context.Background(), "go", args...)
+	cmd.Env = append(os.Environ(), cfg.Env...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list (%s): %w\n%s", cfg.Name, err, stderr.String())
+	}
+	files := map[string][]string{}
+	dec := json.NewDecoder(bytes.NewReader(out))
+	for {
+		var p struct {
+			ImportPath, Dir   string
+			GoFiles, CgoFiles []string
+		}
+		if err := dec.Decode(&p); errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("go list (%s): %w", cfg.Name, err)
+		}
+		for _, f := range append(p.GoFiles, p.CgoFiles...) {
+			files[p.ImportPath] = append(files[p.ImportPath], filepath.Join(p.Dir, f))
+		}
+	}
+	return files, nil
+}
+
+func list(env []string, tags string, patterns []string) (Packages, error) {
+	args := append([]string{"list", "-compiled", "-tags", tags, "-export", "-deps",
 		"-json=ImportPath,Dir,Export,CompiledGoFiles,DepOnly,Standard"}, patterns...)
 	cmd := exec.CommandContext(context.Background(), "go", args...)
+	cmd.Env = append(os.Environ(), env...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

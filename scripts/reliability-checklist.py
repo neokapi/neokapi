@@ -852,6 +852,16 @@ FIXTURES = [
         "expect": ["release-path-dry-run", "toolchain-pinned"],
     },
     {
+        "name": "plugin manifest field the host requires",
+        "files": {"core/plugin/manifest/manifest.go": ['Flags []FlagSpec `json:"flags"`']},
+        "expect": ["plugin-contract-both-directions"],
+    },
+    {
+        "name": "a plugin's manifest file",
+        "files": {"bowrain/plugin/cmd/kapi-bowrain/manifest.json": ['"flags": []']},
+        "expect": ["plugin-contract-both-directions"],
+    },
+    {
         "name": "Go toolchain bump",
         "files": {"go.work": ["go 1.28.0"]},
         "expect": ["toolchain-pinned"],

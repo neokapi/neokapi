@@ -1,3 +1,8 @@
+//go:build !js
+
+// The verifier under test is cosign.go. A js build replaces it with the stub in
+// cosign_js.go, since sigstore-go does not build for GOOS=js.
+
 package registry
 
 import (

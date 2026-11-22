@@ -3,6 +3,7 @@
 package ocr
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -17,7 +18,7 @@ import (
 
 // layout_onnx.go runs PP-DocLayoutV3 (RT-DETR) document layout detection. The
 // model is RT-DETR (NMS-free): it emits already-decoded detections in the
-// ORIGINAL image's pixel coordinates, given PaddleDetection's three inputs —
+// ORIGINAL image's pixel coordinates, given PaddleDetection's three inputs:
 // the 800×800 image, scale_factor = [800/H, 800/W], and im_shape = [H, W]. The
 // detection output is [N, ≥6] rows of [class, score, x1, y1, x2, y2, …]. Classes
 // map to content roles via layoutRole (layoutmap.go). Reading order is assigned
@@ -40,7 +41,7 @@ func (e *onnxEngine) ensureLayout() error {
 	}
 	a, ok := models.Get("layout")
 	if !ok {
-		return fmt.Errorf("vision: no layout model in registry")
+		return errors.New("vision: no layout model in registry")
 	}
 	p, err := models.Ensure(a, e.logf)
 	if err != nil {
@@ -93,17 +94,17 @@ func (e *onnxEngine) Layout(imagePath, _, _ string) (*visionproto.LayoutResult, 
 	if err != nil {
 		return nil, err
 	}
-	defer imgT.Destroy()
+	defer func() { _ = imgT.Destroy() }()
 	sf, err := ort.NewTensor(ort.NewShape(1, 2), []float32{float32(layoutSize) / float32(oh), float32(layoutSize) / float32(ow)})
 	if err != nil {
 		return nil, err
 	}
-	defer sf.Destroy()
+	defer func() { _ = sf.Destroy() }()
 	ish, err := ort.NewTensor(ort.NewShape(1, 2), []float32{float32(oh), float32(ow)})
 	if err != nil {
 		return nil, err
 	}
-	defer ish.Destroy()
+	defer func() { _ = ish.Destroy() }()
 
 	byName := map[string]ort.Value{"image": imgT, "scale_factor": sf, "im_shape": ish}
 	inV := make([]ort.Value, len(e.layoutInputs))
@@ -137,9 +138,9 @@ func (e *onnxEngine) Layout(imagePath, _, _ string) (*visionproto.LayoutResult, 
 		}
 	}
 	if det == nil {
-		return nil, fmt.Errorf("vision: layout produced no float detection output")
+		return nil, errors.New("vision: layout produced no float detection output")
 	}
-	defer det.Destroy()
+	defer func() { _ = det.Destroy() }()
 
 	sh := det.GetShape()
 	if len(sh) != 2 || sh[1] < 6 {
@@ -148,7 +149,7 @@ func (e *onnxEngine) Layout(imagePath, _, _ string) (*visionproto.LayoutResult, 
 	rows, cols := int(sh[0]), int(sh[1])
 	data := det.GetData()
 	res := &visionproto.LayoutResult{Width: ow, Height: oh}
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		row := data[r*cols : (r+1)*cols]
 		score := float64(row[1])
 		if score < layoutScoreThreshold {
@@ -170,13 +171,13 @@ func (e *onnxEngine) Layout(imagePath, _, _ string) (*visionproto.LayoutResult, 
 	return res, nil
 }
 
-// normalizeLayout returns CHW float data scaled to [0,1] in RGB order — the
-// PP-DocLayoutV3 preprocessing (NormalizeImage mean 0 / std 1 over /255).
+// normalizeLayout returns CHW float data scaled to [0,1] in RGB order. This is
+// the PP-DocLayoutV3 preprocessing (NormalizeImage mean 0 / std 1 over /255).
 func normalizeLayout(img *image.RGBA) []float32 {
 	w, h := img.Bounds().Dx(), img.Bounds().Dy()
 	out := make([]float32, 3*h*w)
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			c := img.RGBAAt(img.Bounds().Min.X+x, img.Bounds().Min.Y+y)
 			out[0*h*w+y*w+x] = float32(c.R) / 255
 			out[1*h*w+y*w+x] = float32(c.G) / 255

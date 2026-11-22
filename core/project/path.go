@@ -9,19 +9,14 @@ import (
 	"github.com/neokapi/neokapi/core/locale"
 )
 
-// Rendering a locale into a path is the one place a style other than BCP-47
-// belongs.
-//
-// Inside kapi a locale is canonical BCP-47. On disk it is whatever the project
-// declared: a repository whose tooling expects `messages_nb_NO.json` says
-// `locale_format: posix` and gets those filenames, while its recipe, its
-// stores, its status output and its checks all keep saying `nb-NO`. The
-// projection happens here, at the boundary, and nowhere else.
+// Inside kapi a locale is canonical BCP-47. In a path it takes the style the
+// project declared: `locale_format: posix` yields `messages_nb_NO.json`,
+// while the recipe, stores, status output and checks keep `nb-NO`. This file
+// is the only place that projection happens.
 //
 // The `In` variants take the declared format; the bare forms render the locale
-// as written. Two callers pass a sentinel rather than a locale — the catalog
-// scanner and the desktop's output lister both substitute a marker they later
-// match on — and a sentinel is not a locale to be projected.
+// as written. The catalog scanner and the desktop's output lister pass a
+// sentinel marker they later match on, which must stay unprojected.
 
 // ResolvePathPattern expands the `{lang}` placeholder in a path pattern,
 // rendering the locale exactly as given.
@@ -45,7 +40,7 @@ func ResolveFormat(format string) string {
 	return format
 }
 
-// GlobFixedPrefix returns the fixed directory prefix of a glob pattern —
+// GlobFixedPrefix returns the fixed directory prefix of a glob pattern,
 // everything before the first glob metacharacter (*, ?, [, {). For a
 // literal path (no glob characters) it returns the directory portion with
 // a trailing separator, or "" for a bare filename.
@@ -66,7 +61,7 @@ func GlobFixedPrefix(pattern string) string {
 // file and target language, returning the output path (relative to the project
 // root, in OS-native separators).
 //
-// base is the directory the source path is made relative to — it controls
+// base is the directory the source path is made relative to, it controls
 // {path}/{dir}/{relpath} and how much of the source tree a directory-mirror
 // target reproduces. When base is "", it defaults to the glob's fixed prefix
 // (GlobFixedPrefix(itemPath)), so `input/docs/*.md` mirrors just filenames while
@@ -83,8 +78,8 @@ func GlobFixedPrefix(pattern string) string {
 //	{ext}      source extension without the dot                 (md)
 //	*          legacy shorthand for {name}
 //
-// When the target (after {lang} expansion) denotes a directory — it ends with
-// "/", or its final segment has no extension and contains no wildcard or token —
+// When the target (after {lang} expansion) denotes a directory, it ends with
+// "/", or its final segment has no extension and contains no wildcard or token,
 // the source's {relpath} is appended. So `output/{lang}/` (or `output/{lang}`)
 // mirrors the source tree under that root, the intuitive zero-token form.
 func ResolveTargetPath(itemPath, base, target, source, lang string) (string, error) {

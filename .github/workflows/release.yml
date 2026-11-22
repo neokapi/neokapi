@@ -1258,6 +1258,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p homebrew-tap/Casks
+          # The oldest macOS the app runs on, as the Homebrew symbol for
+          # `depends_on macos:` (scripts/lib/macos-minimum).
+          MACOS_CODENAME="$(scripts/macos-minimum.sh --codename "$(scripts/macos-minimum.sh)")"
           for ch in $CHANNELS; do
           if [ "$ch" = beta ]; then
             CASK_NAME="kapi@beta"; DEP="kapi-cli-beta"
@@ -1282,7 +1285,7 @@ jobs:
             homepage "https://github.com/neokapi/neokapi"
 
           ${CONFLICTS}  depends_on formula: "neokapi/tap/${DEP}"
-            depends_on :macos
+            depends_on macos: :${MACOS_CODENAME}
 
             app "Kapi.app"
 

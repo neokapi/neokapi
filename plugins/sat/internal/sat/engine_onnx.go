@@ -8,6 +8,7 @@
 package sat
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -77,17 +78,18 @@ func (e *onnxEngine) Loaded(name string) bool {
 func (e *onnxEngine) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	var errs []error
 	for _, m := range e.models {
 		if m.session != nil {
-			m.session.Destroy()
+			errs = append(errs, m.session.Destroy())
 		}
 		if m.tk != nil {
 			m.tk.Close()
 		}
 	}
 	e.models = map[string]*loadedModel{}
-	ort.DestroyEnvironment()
-	return nil
+	errs = append(errs, ort.DestroyEnvironment())
+	return errors.Join(errs...)
 }
 
 // get returns the loaded model for name, loading (and caching) it on first use.
@@ -197,15 +199,17 @@ func (e *onnxEngine) runBlock(m *loadedModel, content []int64) ([]float64, error
 	if err != nil {
 		return nil, fmt.Errorf("sat: input_ids tensor: %w", err)
 	}
-	defer inIDs.Destroy()
+	// The result is computed before the tensors are freed, so a failed free
+	// changes nothing the caller receives.
+	defer func() { _ = inIDs.Destroy() }()
 
-	// attention_mask: all-ones float16 (no padding — one block at a time).
+	// attention_mask: all-ones float16 (no padding, one block at a time).
 	maskBytes := onesFloat16Mask(seqLen)
 	inMask, err := ort.NewCustomDataTensor(shape, maskBytes, ort.TensorElementDataTypeFloat16)
 	if err != nil {
 		return nil, fmt.Errorf("sat: attention_mask tensor: %w", err)
 	}
-	defer inMask.Destroy()
+	defer func() { _ = inMask.Destroy() }()
 
 	// Output logits: [batch=1, seq, num_labels=1], float16 -> 2 bytes each.
 	outShape := ort.NewShape(1, int64(seqLen), 1)
@@ -214,7 +218,7 @@ func (e *onnxEngine) runBlock(m *loadedModel, content []int64) ([]float64, error
 	if err != nil {
 		return nil, fmt.Errorf("sat: logits tensor: %w", err)
 	}
-	defer out.Destroy()
+	defer func() { _ = out.Destroy() }()
 
 	if err := m.session.Run(
 		[]ort.Value{inIDs, inMask},

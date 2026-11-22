@@ -18,7 +18,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 )
 
-// Local project content management — add/rm edit the .kapi recipe's content
+// Local project content management, add/rm edit the .kapi recipe's content
 // collections and exclude list. These are local project configuration only (no
 // server involvement), so they live in core kapi alongside `init`, available
 // with or without the bowrain plugin. The product boundary: kapi owns local
@@ -74,13 +74,11 @@ func MatchesPathPrefix(rel string, prefixes []string) bool {
 }
 
 // UntrackedContent lists the readable files under root that no content
-// collection tracks — what is on disk, minus what the recipe declares.
+// collection tracks, what is on disk, minus what the recipe declares.
 //
-// It is the question a refresh asks and no other listing can answer: every
-// other view of a project starts from the collections and so can only ever show
-// content that is already declared, while a surface added after the recipe was
-// written is governed by nothing and appears nowhere. Subtracting one from the
-// other names it.
+// Every other view of a project starts from the collections, so a surface
+// added after the recipe was written appears in none of them. A refresh uses
+// this listing to find such files.
 //
 // A file is reported when kapi has a reader for its extension and it is matched
 // by no item pattern, no target template and no exclude. Files kapi cannot read
@@ -141,7 +139,7 @@ func (a *App) UntrackedContent(proj *coreproj.KapiProject, recipePath string, pr
 // is never reported as content nobody declared.
 //
 // A pattern that cannot expand is an error rather than a skip. The set is used
-// by subtraction, so a dropped pattern would not shorten a list — it would
+// by subtraction, so a dropped pattern would not shorten a list, it would
 // report an entire declared collection as untracked and invite a second
 // collection over content the recipe already governs.
 func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, error) {
@@ -214,7 +212,7 @@ func CollectionForAdd(proj *coreproj.KapiProject, name, channel string) (*corepr
 
 // CollectionRelativePath returns the item path for a project-relative pattern
 // inside coll, which is the pattern itself unless the collection declares a
-// `base:` — every path under a base is relative to it, so a project-relative
+// `base:`, every path under a base is relative to it, so a project-relative
 // pattern written verbatim would resolve under the base twice.
 func CollectionRelativePath(coll *coreproj.Collection, pattern string) (string, error) {
 	if coll.Base == "" {
@@ -380,7 +378,7 @@ func RmPattern(proj *coreproj.KapiProject, root, pattern string) output.RmEntry 
 	// user just asked to EXCLUDE: a pattern that cannot expand excludes nothing
 	// either way, so there is no content to lose and nothing downstream reads
 	// this number. (Contrast `content add`, which writes the pattern into the
-	// recipe and so refuses a malformed one — see cli/content_cmds.go.)
+	// recipe and so refuses a malformed one, see cli/content_cmds.go.)
 	matches, _ := coreproj.ExpandGlob(root, pattern)
 	return output.RmEntry{Pattern: pattern, Action: "excluded", Files: len(matches)}
 }

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -150,6 +152,17 @@ func (o UpOptions) VenueOptions() UpVenueOptions {
 // subprocess's stdout a structured document. The flag also tells the plumbing
 // not to prompt, since an embedded run has no one to answer.
 func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPath string, opts UpOptions) (*ConvergeOutput, error) {
+	args, err := venueArgs(route, projectPath, opts)
+	if err != nil {
+		return nil, err
+	}
+	return runVenueArgs(ctx, route, args, opts)
+}
+
+// venueArgs renders opts as the plumbing's argv. A server run (opts.Local
+// unset) takes only the flags the plumbing's manifest declares
+// (ServerRunFlags); an option it does not read is refused here.
+func venueArgs(route *pluginhost.CommandRoute, projectPath string, opts UpOptions) ([]string, error) {
 	args := []string{"--project=" + projectPath, "--json"}
 	if opts.MaxPasses > 0 && !opts.UntilGate {
 		args = append(args, "--passes=1")
@@ -166,8 +179,28 @@ func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPa
 		args = append(args, "--materialize=true")
 	}
 	if opts.Local {
-		args = append(args, "--local=true")
+		return append(args, "--local=true"), nil
 	}
+	declared, err := ServerRunFlags(route)
+	if err != nil {
+		return nil, err
+	}
+	var undeclared []string
+	for _, arg := range args {
+		name, _, _ := strings.Cut(strings.TrimPrefix(arg, "--"), "=")
+		if !slices.Contains(declared, name) {
+			undeclared = append(undeclared, "--"+name)
+		}
+	}
+	if err := UndeclaredServerFlagError(undeclared); err != nil {
+		return nil, err
+	}
+	return args, nil
+}
+
+// runVenueArgs runs the plumbing with args and reads the result out of its
+// NDJSON document.
+func runVenueArgs(ctx context.Context, route *pluginhost.CommandRoute, args []string, opts UpOptions) (*ConvergeOutput, error) {
 
 	// Streamed, not captured: the plumbing writes one event per line as the run
 	// makes progress, and a caller with an OnEvent renders those lines live. A
@@ -277,4 +310,78 @@ func (f *upResultFold) result() (*ConvergeOutput, error) {
 		f.found.ChangesetURL = f.proposed.ChangesetURL
 	}
 	return f.found, nil
+}
+
+// ServerRunFlags returns the flags the venue plumbing's manifest declares a
+// server run reads: the only flags kapi forwards to a server run. A manifest
+// with no declaration comes from a plugin older than this kapi, and a server
+// run through it is refused with the command that updates it.
+func ServerRunFlags(route *pluginhost.CommandRoute) ([]string, error) {
+	if !route.Command.DeclaresFlags() {
+		return nil, outdatedVenuePluginError(route.Plugin)
+	}
+	names := make([]string, 0, len(route.Command.Flags))
+	for _, f := range route.Command.Flags {
+		names = append(names, f.Name)
+	}
+	return names, nil
+}
+
+// outdatedVenuePluginError says that p predates the flag declaration a
+// server run needs, and how to update it.
+func outdatedVenuePluginError(p *pluginhost.Plugin) error {
+	return fmt.Errorf("the %s plugin %s (%s) is older than this kapi: its manifest does not declare the flags a server run reads, so kapi up cannot hand it the run. %s",
+		p.Name(), p.Version(), p.Dir, pluginUpdateAdvice(p))
+}
+
+// pluginUpdateAdvice says how to update p, from how it was installed. A
+// plugin in a Homebrew Cellar gets the formula's upgrade, and one kapi's own
+// installer manages (kapiManagedPlugin) gets `kapi plugin update`. Any other
+// gets the directory that holds it and the advice to replace it, with no
+// command that would not apply.
+func pluginUpdateAdvice(p *pluginhost.Plugin) string {
+	if formula := brewFormulaOf(p.Dir); formula != "" {
+		return "Update the plugin: brew upgrade " + formula
+	}
+	if kapiManagedPlugin(p) {
+		return "Update the plugin: kapi plugin update " + p.Name()
+	}
+	return "Replace the plugin in " + p.Dir + " with a newer release; kapi's installer does not manage " + p.Source.Label
+}
+
+// kapiManagedPlugin reports whether kapi's plugin installer manages p: it
+// recorded the install (installed.json), or p sits in the user plugin root.
+func kapiManagedPlugin(p *pluginhost.Plugin) bool {
+	if _, err := pluginhost.ReadInstalledMetadata(p.Dir); err == nil {
+		return true
+	}
+	return p.Source.Order == pluginhost.UserSourceOrder
+}
+
+// UndeclaredServerFlagError refuses the flags set, which a server run does
+// not read, or is nil when there are none.
+func UndeclaredServerFlagError(set []string) error {
+	if len(set) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s applies to a run on this machine; the server runs its own loop with its workspace's settings. Add --local to run here with %s",
+		strings.Join(set, ", "), strings.Join(set, ", "))
+}
+
+// brewFormulaOf is the Homebrew formula that installed the plugin in dir,
+// read off the Cellar path the plugin directory links into
+// (.../Cellar/<formula>/<version>/...), or "" when dir is not in a Cellar.
+// A beta install (bowrain-cli-beta) is named as such.
+func brewFormulaOf(dir string) string {
+	real, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(filepath.ToSlash(real), "/")
+	for i, part := range parts {
+		if part == "Cellar" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	return ""
 }

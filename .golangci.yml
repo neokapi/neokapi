@@ -13,6 +13,11 @@ run:
   # staticcheck/govet/errcheck. The cgo files additionally need pkg-config
   # icu-uc/icu-i18n on PKG_CONFIG_PATH (the lint CI job installs libicu-dev,
   # mirroring the test job).
+  #
+  # This is the tag set for a bare `golangci-lint run`, such as an editor's.
+  # `make lint` and the CI lint jobs run scripts/tagmatrix, which passes
+  # --build-tags itself, once per build configuration, so the integration,
+  # e2e, acceptance, model-tag, js/wasm and other OS files are linted too.
   build-tags:
     - fts5
 linters:

@@ -95,6 +95,8 @@ func TestRunFlagsThatWouldNotActAreRefused(t *testing.T) {
 		{[]string{"up", "-p", "kapi.yaml", "-o", "out/"}, "unknown shorthand flag: 'o'"},
 		{[]string{"up", "-p", "kapi.yaml", "--target-lang", "de"}, "unknown flag: --target-lang"},
 		{[]string{"up", "-p", "kapi.yaml", "--stats"}, "unknown flag: --stats"},
+		{[]string{"up", "-p", "kapi.yaml", "--format", "properties"}, "collections[].format.name"},
+		{[]string{"up", "-p", "kapi.yaml", "--engine", "native"}, "defaults.engine"},
 		{[]string{"up", "-p", "kapi.yaml", "--timeout", "1m"}, "--timeout applies to a server run"},
 		{[]string{"translate", "src/messages_en.json", "--target-lang", "fr", "--pack"}, "--pack applies to a .kpz input"},
 	} {
@@ -108,4 +110,33 @@ func TestRunFlagsThatWouldNotActAreRefused(t *testing.T) {
 			assert.Contains(t, string(out), tc.says)
 		})
 	}
+}
+
+// `kapi up --memory` recycles from the named content memory, as in 1.4.0-rc5.
+func TestUpMemoryFlagRecyclesFromTheNamedMemory(t *testing.T) {
+	dir, env := runFlagProject(t, "")
+	tmx := filepath.Join(dir, "seed.tmx")
+	require.NoError(t, os.WriteFile(tmx, []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4"><header creationtool="t" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+<body><tu><tuv xml:lang="en"><seg>Settings</seg></tuv><tuv xml:lang="fr"><seg>Bonjour de la mémoire</seg></tuv></tu></body></tmx>
+`), 0o644))
+	kapi := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command(kapiBin, args...)
+		cmd.Dir = dir
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "kapi %v:\n%s", args, out)
+		return string(out)
+	}
+	kapi("memory", "import", tmx, "-s", "en", "-t", "fr", "--file", filepath.Join(dir, "seed.db"))
+
+	kapi("up", "-p", "kapi.yaml", "--recycle-only")
+	without, _ := os.ReadFile(filepath.Join(dir, "src", "messages_fr.json"))
+	assert.NotContains(t, string(without), "Bonjour de la mémoire", "without --memory the project's own memory answers nothing")
+
+	kapi("up", "-p", "kapi.yaml", "--recycle-only", "--memory", "./seed.db")
+	with, err := os.ReadFile(filepath.Join(dir, "src", "messages_fr.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(with), "Bonjour de la mémoire", "--memory recycles from the named memory")
 }

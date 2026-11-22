@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -26,13 +27,13 @@ func cpuCores() int {
 func cpuModel() string {
 	switch runtime.GOOS {
 	case "darwin":
-		out, err := exec.Command("sysctl", "-n", "machdep.cpu.brand_string").Output()
+		out, err := exec.CommandContext(context.Background(), "sysctl", "-n", "machdep.cpu.brand_string").Output()
 		if err != nil {
 			return "unknown"
 		}
 		return strings.TrimSpace(string(out))
 	case "linux":
-		out, err := exec.Command("grep", "-m1", "model name", "/proc/cpuinfo").Output()
+		out, err := exec.CommandContext(context.Background(), "grep", "-m1", "model name", "/proc/cpuinfo").Output()
 		if err != nil {
 			return "unknown"
 		}
@@ -48,7 +49,7 @@ func cpuModel() string {
 func memoryGB() float64 {
 	switch runtime.GOOS {
 	case "darwin":
-		out, err := exec.Command("sysctl", "-n", "hw.memsize").Output()
+		out, err := exec.CommandContext(context.Background(), "sysctl", "-n", "hw.memsize").Output()
 		if err != nil {
 			return 0
 		}
@@ -58,7 +59,7 @@ func memoryGB() float64 {
 		}
 		return float64(bytes) / (1024 * 1024 * 1024)
 	case "linux":
-		out, err := exec.Command("grep", "MemTotal", "/proc/meminfo").Output()
+		out, err := exec.CommandContext(context.Background(), "grep", "MemTotal", "/proc/meminfo").Output()
 		if err != nil {
 			return 0
 		}

@@ -89,7 +89,8 @@ func TestStreamingPair_BoundedWriterTS(t *testing.T) {
 		writer.Close()
 		return peak, sz
 	}
-	ps, smallSize := peakWriting(2_000)
-	pl, largeSize := peakWriting(40_000)
-	testutil.AssertBoundedMemory(t, "ts streaming writer", ps, uint64(smallSize), pl, uint64(largeSize))
+	const smallN, largeN = 2_000, 40_000
+	ps, smallSize := peakWriting(smallN)
+	pl, largeSize := peakWriting(largeN)
+	testutil.AssertBoundedMemoryPerBlock(t, "ts streaming writer", ps, uint64(smallSize), smallN, pl, uint64(largeSize), largeN)
 }

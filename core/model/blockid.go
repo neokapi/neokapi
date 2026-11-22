@@ -150,6 +150,9 @@ func (s *DigestSet) Add(d uint64) bool {
 	return true
 }
 
+// Footprint returns the bytes the set's table holds.
+func (s *DigestSet) Footprint() int { return len(s.slots) * 8 }
+
 // grow doubles the table and re-seats every digest, which is where the old table
 // and the new are both alive. That transient makes the load factor above a
 // memory decision as much as a probe-length one.

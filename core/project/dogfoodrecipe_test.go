@@ -11,9 +11,9 @@ import (
 
 // TestDogfoodRecipeResolves loads this repository's own recipe and pins the
 // paths its collections resolve to. The recipe is the worked example every doc
-// page and scaffold is written against, and it is the one place where `base:`,
+// page and scaffold is written against. It is the one place where `base:`,
 // qualified and bare channel references and a platform venue block all appear
-// at once — a rename that leaves it loading but resolving different files
+// at once. A rename that leaves it loading but resolving different files
 // would be invisible in every other test.
 func TestDogfoodRecipeResolves(t *testing.T) {
 	path := filepath.Join("..", "..", "kapi.yaml")

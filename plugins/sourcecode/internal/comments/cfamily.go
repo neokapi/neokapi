@@ -219,7 +219,7 @@ func cDecl(n *ts.Node, parent string, src []byte) (string, bool) {
 		}
 		return "namespace", true
 	case "template_declaration":
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			if name, ok := cDecl(n.NamedChild(i), parent, src); ok {
 				return name, true
 			}

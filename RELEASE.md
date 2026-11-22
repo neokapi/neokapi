@@ -48,6 +48,21 @@ edited in that script's plugin table, never in the tap. `kapi-sat` and
 > stream endpoint used by released plugins. Compatibility of a new plugin with
 > an older deployed server still requires a separate check.
 
+### Release order when kapi requires more of a plugin
+
+A kapi that refuses an older plugin ships after, or together with, the plugin
+release that meets the new requirement, never before it. Otherwise every
+project that depends on the plugin stops until the plugin release follows, and
+the update command kapi prints has nothing to update to.
+
+The current case: from #3724, kapi forwards a server run only the flags
+`server-up` declares in the kapi-bowrain manifest, and refuses a server run
+through a plugin whose manifest declares none (1.4.0-rc5 and earlier). Release
+a kapi that contains #3724 together with a kapi-bowrain release built from the
+same change or later (`make release-coordinated`, below), or release the plugin
+first. The reliability checklist item `plugin-contract-both-directions` asks
+for the same order on any later change to what kapi requires of a plugin.
+
 ### Coordinated (simultaneous) release
 
 Independent cadence is the default. When you want kapi **and** bowrain to appear
