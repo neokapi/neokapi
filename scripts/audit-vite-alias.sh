@@ -167,7 +167,7 @@ fi
 
 cd "$root"
 
-semver='[0-9]+\.[0-9]+\.[0-9]+'
+semver='[0-9]+[.][0-9]+[.][0-9]+'
 version='[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?'
 
 catalog=$(grep -oE "^[[:space:]]+vite-plus:[[:space:]]*$semver" pnpm-workspace.yaml | grep -oE "$semver" | head -1 || true)
