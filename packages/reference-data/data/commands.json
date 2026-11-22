@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T10:31:44Z",
+  "generatedAt": "2026-11-22T12:32:37Z",
   "commands": [
     {
       "id": "add",
@@ -7688,7 +7688,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (anthropic, openai, ollama)",
+          "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi",
           "default": "anthropic",
           "type": "string"
         },
@@ -8169,7 +8169,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (anthropic, openai, ollama)",
+          "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi",
           "default": "anthropic",
           "type": "string"
         },
@@ -9338,7 +9338,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (anthropic, openai, ollama)",
+          "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi",
           "default": "anthropic",
           "type": "string"
         },
@@ -9378,7 +9378,8 @@
       "examples": [
         "kapi translate messages.json --target-lang fr",
         "kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}",
-        "kapi translate app.xliff --target-lang ja --provider ollama"
+        "kapi translate app.xliff --target-lang ja --provider ollama",
+        "kapi translate messages.json --target-lang fr --provider demo"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -9718,7 +9719,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (anthropic, openai, ollama)",
+          "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi",
           "default": "anthropic",
           "type": "string"
         },
