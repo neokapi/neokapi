@@ -29,7 +29,6 @@
     "@remotion/rough-notation": "4.0.545",
     "@remotion/sfx": "4.0.545",
     "@remotion/transitions": "4.0.545",
-    "dotenv": "^18.0.10",
     "playwright": "^1.65.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

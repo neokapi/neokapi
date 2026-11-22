@@ -108,9 +108,6 @@ updates:
       npm-lexical:
         patterns: ["lexical", "@lexical/*"]
         update-types: [minor, patch]
-      npm-forms:
-        patterns: ["react-hook-form", "@hookform/*"]
-        update-types: [minor, patch]
       # Low risk, high count: a dozen font packages should never crowd out a
       # PR that needs reading.
       npm-fonts:
