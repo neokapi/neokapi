@@ -192,6 +192,12 @@ func lockFilters(path string) (func(), error) {
 
 func readFilterSettings(layout project.Layout, db *projectdb.DB) (filterSettings, error) {
 	var s filterSettings
+	// The personal filters are kapi's own state for one checkout: read only
+	// while git does not track them. A Wails call carries no context, so this
+	// entry point passes the root one.
+	if err := project.CheckStateTracked(context.Background(), layout); err != nil {
+		return s, err
+	}
 	data, err := os.ReadFile(layout.LocalFiltersPath())
 	switch {
 	case err == nil:

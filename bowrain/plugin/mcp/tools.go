@@ -226,7 +226,7 @@ func handleProjectStatus(ctx context.Context, a *cli.App, input MCPProjectInput)
 		},
 	}
 
-	conn, err := source.NewSourceConnector(a, proj, a.FormatReg)
+	conn, err := source.NewSourceConnector(ctx, a, proj, a.FormatReg)
 	if err != nil {
 		// No server configured — return local info only.
 		return nil, out, nil
@@ -257,7 +257,7 @@ func handleProjectPush(ctx context.Context, a *cli.App, input MCPPushInput) (*mc
 		return nil, MCPPushOutput{}, err
 	}
 
-	conn, err := source.NewSourceConnector(a, proj, a.FormatReg)
+	conn, err := source.NewSourceConnector(ctx, a, proj, a.FormatReg)
 	if err != nil {
 		return nil, MCPPushOutput{}, err
 	}
@@ -294,7 +294,7 @@ func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mc
 		return nil, MCPPullOutput{}, err
 	}
 
-	conn, err := source.NewSourceConnector(a, proj, a.FormatReg)
+	conn, err := source.NewSourceConnector(ctx, a, proj, a.FormatReg)
 	if err != nil {
 		return nil, MCPPullOutput{}, err
 	}
@@ -384,7 +384,10 @@ func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*
 }
 
 func handleProjectLsWithStats(ctx context.Context, a *cli.App, proj *project.Project, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
-	conn := source.NewLocalConnector(a, proj, a.FormatReg)
+	conn, err := source.NewLocalConnector(ctx, a, proj, a.FormatReg)
+	if err != nil {
+		return nil, MCPLsOutput{}, err
+	}
 
 	files, err := conn.ListFiles(ctx, nil)
 	if err != nil {

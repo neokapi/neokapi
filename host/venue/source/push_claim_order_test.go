@@ -53,7 +53,7 @@ func claimOrderConnector(t *testing.T, commentsFirst bool) *BowrainSourceConnect
 		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
 		require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
 	}
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	t.Cleanup(func() { conn.Close() })
 	return conn
 }

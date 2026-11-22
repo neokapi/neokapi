@@ -54,7 +54,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := source.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := source.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}

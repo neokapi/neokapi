@@ -4,7 +4,6 @@ package project
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -66,40 +65,6 @@ func TestLayoutCheckState(t *testing.T) {
 			require.NoError(t, os.Symlink(inside, link))
 			require.ErrorContains(t, l.CheckState(), "is a symbolic link", "a link inside the project is refused too: %s", rel)
 		}
-	})
-
-	t.Run("state git tracks is refused", func(t *testing.T) {
-		if _, err := exec.LookPath("git"); err != nil {
-			t.Skip("git is not installed")
-		}
-		root := newRoot(t)
-		l := LayoutAt(root)
-		require.NoError(t, os.MkdirAll(l.WorkDir(), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(l.WorkDir(), "store.db"), []byte("from elsewhere"), 0o644))
-		git := func(args ...string) {
-			cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
-			cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
-			out, err := cmd.CombinedOutput()
-			require.NoError(t, err, string(out))
-		}
-		git("init", "-q")
-		git("add", "-f", ".kapi/work/store.db")
-		require.ErrorContains(t, l.CheckState(), "git tracks .kapi/work")
-
-		require.NoError(t, os.MkdirAll(l.SyncDir(), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(l.SyncDir(), "sync-cache.json"), []byte("{}"), 0o644))
-		git("rm", "-q", "-r", "--cached", ".kapi/work")
-		require.NoError(t, l.CheckState(), "untracking clears the refusal")
-		git("add", "-f", ".kapi/sync/sync-cache.json")
-		require.ErrorContains(t, l.CheckState(), "git tracks .kapi/sync", "the sync state is kapi's own state too")
-
-		untracked := newRoot(t)
-		ul := LayoutAt(untracked)
-		require.NoError(t, os.MkdirAll(ul.WorkDir(), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(ul.WorkDir(), "store.db"), nil, 0o644))
-		cmd := exec.Command("git", "-C", untracked, "init", "-q")
-		require.NoError(t, cmd.Run())
-		require.NoError(t, ul.CheckState(), "a work directory git does not track passes")
 	})
 
 	t.Run("a fresh project and a state directory linked inside it pass", func(t *testing.T) {

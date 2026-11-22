@@ -133,7 +133,12 @@ type itemBlock struct {
 // decision staging, and taking it as a parameter rather than opening one is the
 // whole point: the App memoizes one handle per project root, and a connector
 // that opened its own would be a second connection pool on `.kapi/work/store.db`.
-func NewSourceConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
+func NewSourceConnector(ctx context.Context, app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
+	// The sync state holds the claim token a push authenticates with, so it is
+	// read only once git is known not to track it (coreproj.CheckStateTracked).
+	if err := coreproj.CheckStateTracked(ctx, project.Layout); err != nil {
+		return nil, err
+	}
 	recipe := project.Recipe
 	if !recipe.HasServer() {
 		return nil, fmt.Errorf("no server configuration in the kapi recipe (add a `%s:` block)", schema.VenueKey)
@@ -231,7 +236,10 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 // (listing files, scanning blocks) without requiring a server connection. It
 // takes the same App for the same reason: local-only is about the server, not
 // about the project's store.
-func NewLocalConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) *BowrainSourceConnector {
+func NewLocalConnector(ctx context.Context, app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
+	if err := coreproj.CheckStateTracked(ctx, project.Layout); err != nil {
+		return nil, err
+	}
 	cache := LoadSyncCache(project.Layout)
 	return &BowrainSourceConnector{
 		app:       app,
@@ -239,7 +247,7 @@ func NewLocalConnector(app *host.App, project *Project, formatReg *registry.Form
 		formatReg: formatReg,
 		cache:     cache,
 		refs:      &refcache.Cache{},
-	}
+	}, nil
 }
 
 // FileInfo describes a single tracked file with optional stats.

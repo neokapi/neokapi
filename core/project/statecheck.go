@@ -2,6 +2,7 @@ package project
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -28,9 +29,9 @@ import (
 // CheckState reports an error when the state directory, or anything beneath
 // it, is a symbolic link or another kind of file that is neither a directory
 // nor a regular file, or when the state directory resolves outside the
-// project root. It also refuses kapi's own state when git tracks it
-// (checkStateUntracked). A state directory that does not exist yet passes:
-// kapi creates it, and what it creates there is its own.
+// project root. It reads the file system only; whether git tracks kapi's
+// state is CheckStateTracked's question. A state directory that does not
+// exist yet passes: kapi creates it, and what it creates there is its own.
 func (l Layout) CheckState() error {
 	if l.Root == "" {
 		return nil
@@ -59,16 +60,12 @@ func (l Layout) CheckState() error {
 		}
 		return filepath.Join(l.StateDir, rel)
 	}
-	var present []string
 	err = filepath.WalkDir(real, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return nil // removed while the walk ran
 			}
 			return err
-		}
-		if filepath.Dir(p) == real && slices.Contains(StateEntries, d.Name()) {
-			present = append(present, d.Name())
 		}
 		switch t := d.Type(); {
 		case t&fs.ModeSymlink != 0:
@@ -79,13 +76,7 @@ func (l Layout) CheckState() error {
 			return stateError(l.Root, name(p), "is not a regular file", nil)
 		}
 	})
-	if err != nil {
-		return err
-	}
-	if !inProject {
-		return nil
-	}
-	return checkStateUntracked(l, present)
+	return err
 }
 
 // stateError names p relative to root in a refusal of the state layout.
@@ -110,23 +101,43 @@ func stateError(root, p, what string, cause error) error {
 // holds redacted originals, and the filters file the personal saved filters.
 var StateEntries = []string{WorkDirName, SyncDirName, VaultDirName, LocalFiltersFilename}
 
-// State that git tracks arrived, or will arrive, with the repository, made on
-// another machine by someone else, and kapi does not read it as its own. A
-// checkout that tracks any of StateEntries is refused, naming each and how to
-// untrack it. EnsureLayout writes the rule that keeps the work directory out
-// of version control, and EnsureLocalDir the rule for the vault and the sync
-// state.
+// State that git tracks came with the repository, made by someone else, and
+// kapi does not read it as its own. EnsureLayout and EnsureLocalDir write the
+// rules that keep it out of version control.
+//
+// It is asked where a context is held: before a command runs, for each MCP
+// call, when the desktop opens a project, when a store opens, and by the
+// readers of the sync state and the saved filters.
 
-const gitQueryTimeout = 5 * time.Second
+// gitQueryTimeout bounds the git query within the caller's context.
+var gitQueryTimeout = 5 * time.Second
 
 // stateUntracked holds, per project root, the stamp of the git index
 // (gitIndexStamp) when git last answered that it tracks none of the state.
 // git is asked again only once the index changes, so a check costs one stat,
-// and staging or untracking a file is seen at the next check. A directory in
-// no git repository passes without asking.
+// and staging or untracking a file is seen at the next check.
 var stateUntracked sync.Map
 
-func checkStateUntracked(l Layout, present []string) error {
+// CheckStateTracked reports an error when git tracks any of the state
+// entries the layout's state directory holds. A directory in no git
+// repository, a state directory kapi keeps outside the project, and a
+// machine with no git binary pass. A git query that fails or does not answer
+// in time refuses: it never reads as "not tracked". A cancelled ctx returns
+// its error.
+func CheckStateTracked(ctx context.Context, l Layout) error {
+	if l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
+		return nil
+	}
+	entries, err := rootpath.ReadDir(l.Root, l.StateDir)
+	if err != nil {
+		return nil // no state directory: nothing kapi keeps is there yet
+	}
+	var present []string
+	for _, e := range entries {
+		if slices.Contains(StateEntries, e.Name()) {
+			present = append(present, e.Name())
+		}
+	}
 	if len(present) == 0 {
 		return nil
 	}
@@ -146,7 +157,10 @@ func checkStateUntracked(l Layout, present []string) error {
 	for i, e := range present {
 		paths[i] = rel + "/" + e
 	}
-	tracked := gitTracked(l.Root, paths)
+	tracked, err := gitTracked(ctx, l.Root, paths)
+	if err != nil {
+		return err
+	}
 	if len(tracked) == 0 {
 		stateUntracked.Store(l.Root, stamp)
 		return nil
@@ -199,31 +213,49 @@ func gitIndexStamp(root string) (string, bool) {
 	}
 }
 
+// gitQueryArgs is the fixed argument list of the query, ahead of the paths.
+// The query runs inside a checkout kapi does not trust, so the repository's
+// own configuration must not change what it means or run anything: a
+// repository-supplied core.fsmonitor command runs on `git ls-files` otherwise,
+// and core.untrackedCache would have the index rewritten. Pathspecs are
+// literal, so a state path is never read as pathspec magic. ls-files pages
+// nothing and runs no hook, and a builtin command cannot be aliased.
+var gitQueryArgs = []string{
+	"-c", "core.fsmonitor=false",
+	"-c", "core.untrackedCache=false",
+	"--literal-pathspecs",
+	"ls-files", "-z", "--",
+}
+
+// errGitUnanswered is the refusal when git could not say whether it tracks
+// kapi's state.
+var errGitUnanswered = errors.New("project: kapi could not ask git whether it tracks kapi's state")
+
 // gitTracked returns which of paths (slash-separated, relative to root) git
-// lists a tracked file under.
-// Any failure (no git, not a repository, no answer within gitQueryTimeout)
-// reads as none tracked.
-//
-// The layout API it runs under (ResolveLayout, LayoutFor, EnsureLayout) takes
-// no context, so the query is bounded by its own timer.
-func gitTracked(root string, paths []string) []string {
+// lists a tracked file under. It runs git in root under ctx, bounded by
+// gitQueryTimeout. A machine with no git binary returns none; a failed or
+// unanswered query returns an error, and a cancelled ctx its own error.
+func gitTracked(ctx context.Context, root string, paths []string) ([]string, error) {
 	git, err := exec.LookPath("git")
 	if err != nil {
-		return nil
+		return nil, nil
 	}
-	args := append([]string{"-C", root, "ls-files", "-z", "--"}, paths...)
-	cmd := exec.Command(git, args...) //nolint:noctx // bounded by gitQueryTimeout below; the layout API carries no context
-	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	qctx, cancel := context.WithTimeout(ctx, gitQueryTimeout)
+	defer cancel()
+	args := append([]string{"-C", root}, gitQueryArgs...)
+	args = append(args, paths...)
+	cmd := exec.CommandContext(qctx, git, args...)
+	cmd.Env = gitQueryEnv()
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	if err := cmd.Start(); err != nil {
-		return nil
-	}
-	timer := time.AfterFunc(gitQueryTimeout, func() { _ = cmd.Process.Kill() })
-	err = cmd.Wait()
-	timer.Stop()
-	if err != nil {
-		return nil
+	if err := cmd.Run(); err != nil {
+		if cerr := ctx.Err(); cerr != nil {
+			return nil, cerr
+		}
+		if qctx.Err() != nil {
+			return nil, fmt.Errorf("%w: no answer within %s. Run again", errGitUnanswered, gitQueryTimeout)
+		}
+		return nil, fmt.Errorf("%w: %w. Run again", errGitUnanswered, err)
 	}
 	// ls-files run in root names each file relative to root.
 	var tracked []string
@@ -235,5 +267,20 @@ func gitTracked(root string, paths []string) []string {
 		}
 	}
 	slices.Sort(tracked)
-	return tracked
+	return tracked, nil
+}
+
+// gitQueryEnv is the environment the query runs in: the process's own, less
+// every GIT_ variable but GIT_EXEC_PATH, which would point the query at
+// another repository, index or work tree or add configuration, with optional
+// locks and prompts off.
+func gitQueryEnv() []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "GIT_") && !strings.HasPrefix(kv, "GIT_EXEC_PATH=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env, "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
 }

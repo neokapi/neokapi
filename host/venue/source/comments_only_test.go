@@ -48,7 +48,7 @@ func TestScanLocalBlocksLeavesCommentsOnlyItemsOut(t *testing.T) {
 			require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
 		}
 
-		conn := NewLocalConnector(&host.App{}, proj, reg)
+		conn := mustLocalConnector(t, &host.App{}, proj, reg)
 		t.Cleanup(func() { conn.Close() })
 		_, blockMap, err := conn.scanLocalBlocks(context.Background(), paths)
 		require.NoError(t, err)
