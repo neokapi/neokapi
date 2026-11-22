@@ -96,6 +96,10 @@ func TestReadMalformedSurfacesError(t *testing.T) {
 		{name: "truncated object after comma", input: `{"a": 1, `},
 		{name: "a second top-level value", input: `{"a": "b"} {"c": "d"}`},
 		{name: "fuzz crasher with no colons", input: `{"a""""a""0"0`},
+		{name: "unterminated block comment", input: `/*A`},
+		{name: "unterminated block comment after a value", input: `{"a": "b"} /* open`},
+		{name: "unterminated nested block comment", input: `/* /* */ {"a": "b"}`},
+		{name: "unterminated html comment", input: `<!-- {"a": "b"}`},
 	}
 
 	for _, tt := range tests {

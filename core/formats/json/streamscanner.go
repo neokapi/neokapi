@@ -31,6 +31,9 @@ type streamScanner struct {
 
 	errOffset   int
 	errCategory string
+
+	// commentErr mirrors scanner.commentErr.
+	commentErr error
 }
 
 func newStreamScanner(r io.Reader) *streamScanner {
@@ -93,6 +96,9 @@ func (s *streamScanner) next() (token, error) {
 // scanToken scans the token at the current position.
 func (s *streamScanner) scanToken() (token, error) {
 	prefix := s.skipWhitespaceAndComments()
+	if s.commentErr != nil {
+		return token{}, s.commentErr
+	}
 
 	ch, ok := s.peekByte()
 	if !ok {
@@ -226,18 +232,20 @@ func (s *streamScanner) skipWhitespaceAndComments() string {
 		}
 		// /* block comment */ (supports nesting).
 		if ch == '/' && len(two) == 2 && two[1] == '*' {
+			open := s.pos
 			s.take(&out)
 			s.take(&out)
 			depth := 1
 			for depth > 0 {
 				pair := s.peekN(2)
 				if len(pair) < 2 {
-					// Unterminated at EOF: consume the remainder.
+					// Unterminated at EOF: consume the remainder, and fail.
 					for {
 						if _, ok := s.take(&out); !ok {
 							break
 						}
 					}
+					s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 					break
 				}
 				switch {
@@ -271,6 +279,7 @@ func (s *streamScanner) skipWhitespaceAndComments() string {
 		if ch == '<' {
 			four := s.peekN(4)
 			if len(four) == 4 && four[1] == '!' && four[2] == '-' && four[3] == '-' {
+				open := s.pos
 				s.take(&out)
 				s.take(&out)
 				s.take(&out)
@@ -284,6 +293,7 @@ func (s *streamScanner) skipWhitespaceAndComments() string {
 						break
 					}
 					if _, ok := s.take(&out); !ok {
+						s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 						break
 					}
 				}

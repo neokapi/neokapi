@@ -47,6 +47,11 @@ type scanner struct {
 	// the structure.json-* families. The error string itself is unchanged.
 	errOffset   int
 	errCategory string
+
+	// commentErr is an unterminated block or HTML comment met while skipping
+	// the prefix of a token. The comment runs to the end of the input, which
+	// is not a document.
+	commentErr error
 }
 
 func newScanner(input []byte) *scanner {
@@ -96,6 +101,9 @@ func (s *scanner) next() (token, error) {
 // scanToken scans the token at s.pos.
 func (s *scanner) scanToken() (token, error) {
 	prefix := s.skipWhitespaceAndComments()
+	if s.commentErr != nil {
+		return token{}, s.commentErr
+	}
 
 	if s.pos >= len(s.input) {
 		return token{typ: tokenEOF, prefix: prefix}, nil
@@ -238,6 +246,7 @@ func (s *scanner) skipWhitespaceAndComments() string {
 		}
 		// /* block comment */ (supports nesting)
 		if ch == '/' && s.pos+1 < len(s.input) && s.input[s.pos+1] == '*' {
+			open := s.pos
 			s.pos += 2
 			depth := 1
 			for s.pos+1 < len(s.input) && depth > 0 {
@@ -250,6 +259,10 @@ func (s *scanner) skipWhitespaceAndComments() string {
 				} else {
 					s.pos++
 				}
+			}
+			if depth > 0 {
+				s.pos = len(s.input)
+				s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 			}
 			continue
 		}
@@ -264,13 +277,20 @@ func (s *scanner) skipWhitespaceAndComments() string {
 		// <!-- html comment -->
 		if ch == '<' && s.pos+3 < len(s.input) &&
 			s.input[s.pos+1] == '!' && s.input[s.pos+2] == '-' && s.input[s.pos+3] == '-' {
+			open := s.pos
 			s.pos += 4
+			closed := false
 			for s.pos+2 < len(s.input) {
 				if s.input[s.pos] == '-' && s.input[s.pos+1] == '-' && s.input[s.pos+2] == '>' {
 					s.pos += 3
+					closed = true
 					break
 				}
 				s.pos++
+			}
+			if !closed {
+				s.pos = len(s.input)
+				s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 			}
 			continue
 		}
