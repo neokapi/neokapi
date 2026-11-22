@@ -2,27 +2,15 @@
 
 package e2e
 
-// The MCP conformance suite: the agent surface driven the way an agent drives
-// it, and held to the answer the CLI gives for the same input.
+// The MCP conformance suite drives the built `kapi` binary over stdio as an
+// agent does, on real projects under t.TempDir(), and holds it to the CLI's
+// answers.
 //
-// Everything here runs against the built `kapi` binary over stdio, through the
-// protocol a client speaks: initialize, tools/list, tools/call, resources/read.
-// The fixtures are real projects under t.TempDir(), seeded with the CLI, and
-// the server carries the isolation environment the whole suite runs under.
+// Parity: each check-type tool gets a passing and a failing fixture, and its
+// findings over MCP must match `kapi check` or `kapi exec` (#1490).
 //
-// Two properties are under test.
-//
-// PARITY. Every check-type tool gets a fixture that must pass and a fixture
-// that must fail, and the findings it reports over MCP are compared with what
-// `kapi check` or `kapi exec` reports for the same content. A tool that reports
-// a clean result over MCP while the CLI reports a violation is the defect this
-// suite exists to catch: #1490 was exactly that, a bilingual check running on a
-// source-only block, and the CLI tests could not see it because the CLI path
-// was correct the whole time.
-//
-// PER-CALL PROJECT. One server process answers for two projects. The project
-// is an argument of the call, the server's own project is the default, and a
-// path that holds no project is refused naming the path.
+// Per-call project: one server answers for two projects. The project is an
+// argument of the call, and a path that holds no project is refused by name.
 
 import (
 	"context"
@@ -565,6 +553,15 @@ func TestMCPConformanceTwoProjectsOneServer(t *testing.T) {
 			{project: alpha.Root, file: alpha.Clean},
 			{project: filepath.Join(beta.Root, "docs"), file: beta.Clean},
 		}
+		// The calls run concurrently and only record what they got. The
+		// assertions run on the test's goroutine, where a require may stop it.
+		type outcome struct {
+			c   want
+			res *mcp.CallToolResult
+			err error
+		}
+		outcomes := make([]outcome, 0, 4*len(cases))
+		var mu sync.Mutex
 		var wg sync.WaitGroup
 		for range 4 {
 			for _, c := range cases {
@@ -575,20 +572,30 @@ func TestMCPConformanceTwoProjectsOneServer(t *testing.T) {
 					if c.project != "" {
 						args["project"] = c.project
 					}
-					res := rawCallTool(t, ctx, session, "check_file", args)
-					if !assert.False(t, res.IsError, resultText(res)) {
-						return
+					raw, err := json.Marshal(args)
+					var res *mcp.CallToolResult
+					if err == nil {
+						res, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "check_file", Arguments: json.RawMessage(raw)})
 					}
-					report := asMap(t, res.StructuredContent)
-					if c.findings {
-						assert.NotEmpty(t, findings(report), "a concurrent call lost its project")
-					} else {
-						assert.Empty(t, findings(report), "a concurrent call took another project's voice")
-					}
+					mu.Lock()
+					outcomes = append(outcomes, outcome{c: c, res: res, err: err})
+					mu.Unlock()
 				}(c)
 			}
 		}
 		wg.Wait()
+		for _, o := range outcomes {
+			require.NoError(t, o.err, "tools/call check_file")
+			if !assert.False(t, o.res.IsError, resultText(o.res)) {
+				continue
+			}
+			report := asMap(t, o.res.StructuredContent)
+			if o.c.findings {
+				assert.NotEmpty(t, findings(report), "a concurrent call lost its project")
+			} else {
+				assert.Empty(t, findings(report), "a concurrent call took another project's voice")
+			}
+		}
 	})
 }
 
@@ -817,9 +824,7 @@ func TestMCPConformanceBilingualChecksParity(t *testing.T) {
 					args := map[string]any{
 						"text": tc.source, "target": target, "target_lang": targetLang,
 					}
-					for k, v := range tc.mcpArgs {
-						args[k] = v
-					}
+					maps.Copy(args, tc.mcpArgs)
 					got := callTool(t, ctx, session, tc.tool, args)
 					reported := messages(toolFindings(got))
 					// A bilingual tool writes its result either as a quality
@@ -1465,10 +1470,10 @@ func TestMCPConformanceGrowthParity(t *testing.T) {
 // ─── The edit contract ──────────────────────────────────────────────────────
 
 // TestMCPConformanceEditLoop drives the edit contract the way an agent does,
-// against the built binary: read_blocks reports a reference and a revision,
-// apply_edits sends them back and the file changes, the same change set sent
-// again is refused as stale with the text the block holds now, and an agent's
-// decision is refused before anything is written.
+// against the built binary. read_blocks reports a reference and a revision,
+// and apply_edits sends them back and the file changes. The same change set
+// sent again is refused as stale with the text the block holds now. An
+// agent's decision is refused before anything is written.
 func TestMCPConformanceEditLoop(t *testing.T) {
 	proj := writeConformanceProject(t, "edit", "translation memory", "content memory", "nb", "innholdsminne")
 	session, ctx := mcpServer(t, "-p", proj.Recipe)

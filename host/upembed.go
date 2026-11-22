@@ -9,7 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// UpOptions are the knobs of an embedded convergence run (RunUp) — the same
+// UpOptions are the knobs of an embedded convergence run (RunUp), the same
 // levers `kapi up` exposes as flags, plus the structured hooks an embedding
 // UI listens on.
 type UpOptions struct {
@@ -36,7 +36,7 @@ type UpOptions struct {
 	// no bound venue, or an install without the venue plumbing, fails rather
 	// than quietly converging here.
 	ForceServer bool
-	// OnEvent receives the run's convergence.Event stream — the one protocol
+	// OnEvent receives the run's convergence.Event stream, the one protocol
 	// every surface renders a run from. Events arrive one at a time.
 	OnEvent func(convergence.Event)
 	// LogWriter receives the run's human-readable log lines (auto-extract
@@ -46,6 +46,12 @@ type UpOptions struct {
 	// exact content-memory matches fill their targets and no provider is
 	// called. Local only; RunUpDispatch refuses it for a server venue.
 	RecycleOnly bool
+	// RunConfig is the run's explicit AI settings in run-flag tool config
+	// shape (RunFlagToolConfig): provider, credential, model. It applies to
+	// the flow's steps as `kapi up --provider` applies them. Local only;
+	// RunUpDispatch refuses it for a server venue, as the plugin refuses run
+	// flags there.
+	RunConfig map[string]any
 	// PreReview runs the AI pre-review over the review queue once the run is
 	// over (RunAIPreReview) and reports it in ConvergeOutput.PreReview. Local
 	// only; RunUpDispatch refuses it for a server venue.
@@ -53,10 +59,11 @@ type UpOptions struct {
 }
 
 // RunUp is the embedded local-venue `kapi up`: it runs the exact convergence
-// engine behind the CLI's `up` / no-argument `run` — loop-to-gate over the
-// project's default flow, auto-extract on block-store drift before each pass,
-// bound checks in the loop, and the recipe's materialize policy — and returns
-// the structured result instead of printing it.
+// engine behind the CLI's `up` and no-argument `run`, and returns the
+// structured result instead of printing it. The engine loops to the gate over
+// the project's default flow, auto-extracts on block-store drift before each
+// pass, runs the bound checks in the loop and applies the recipe's
+// materialize policy.
 //
 // A surface that offers the verb to a user or an agent calls RunUpDispatch
 // instead, so a server-connected project runs where the recipe says it does.
@@ -95,6 +102,18 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 	}
 	cmd.SetOut(logW)
 	cmd.SetErr(logW)
+	if len(opts.RunConfig) > 0 {
+		AddRunConfigFlags(cmd)
+		for _, f := range runConfigFlags {
+			v, ok := opts.RunConfig[f.key].(string)
+			if !ok || v == "" {
+				continue
+			}
+			if err := cmd.Flags().Set(f.flag, v); err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	maxPasses := opts.MaxPasses
 	if maxPasses <= 0 {

@@ -278,6 +278,17 @@ export function BringUpToDate(tabID) {
 }
 
 /**
+ * BringUpToDateWith is BringUpToDate started with an explicit provider,
+ * credential or model, as `kapi up --provider` starts it.
+ * @param {string} tabID
+ * @param {$models.RunAIOptions} opts
+ * @returns {$CancellablePromise<void>}
+ */
+export function BringUpToDateWith(tabID, opts) {
+    return $Call.ByID(4033194804, tabID, opts);
+}
+
+/**
  * BrowsePath shows a native file/folder dialog for a schema-form path field and
  * returns the chosen path (empty string when the user cancels). It is the
  * host-side implementation of the shared schema-form PathPicker widget's
@@ -339,23 +350,22 @@ export function ChannelMap(tabID) {
 }
 
 /**
- * CheckAISetup reports what running a flow needs before its AI steps can run.
- * It is host.ProjectFlowAISetup, the decision `kapi up` makes. Kind
+ * CheckAISetup reports what running a flow needs before its AI steps can run,
+ * by host.ProjectFlowAISetup, the decision `kapi up` makes. Kind
  * "choose_model" means no step names a provider and no usable default
- * resolves, which choosing a model fixes. Kind "missing_credential" means the
- * recipe names a provider whose key is missing; only a key for that provider
- * fixes it, because the stored default never overrides a named provider. A
- * keyless provider such as the offline demo needs nothing. An empty flow name
- * asks about a convergence run, which needs nothing when it has no work for
- * the AI step. The frontend
- * checks this before launching, so the person acts up front instead of
- * hitting a run error. An empty Kind means the flow can run.
+ * resolves. Kind "missing_credential" means a provider the run names has no
+ * key, which only a key for it fixes. An empty flow name asks about a
+ * convergence run, which needs nothing when it has no work for the AI step.
+ * opts is the provider, credential or model RunFlowWith and BringUpToDateWith
+ * start the run with, applied as `kapi up --provider` applies it. The frontend
+ * asks before launching. An empty Kind means the flow can run.
  * @param {string} tabID
  * @param {string} flowName
+ * @param {$models.RunAIOptions} opts
  * @returns {$CancellablePromise<host$0.AISetupNeed>}
  */
-export function CheckAISetup(tabID, flowName) {
-    return $Call.ByID(1257060251, tabID, flowName).then(/** @type {($result: any) => any} */(($result) => {
+export function CheckAISetup(tabID, flowName, opts) {
+    return $Call.ByID(1257060251, tabID, flowName, opts).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType18($result);
     }));
 }
@@ -1132,7 +1142,7 @@ export function GetConvergence(tabID) {
 
 /**
  * GetDefaultModel returns the configured default AI provider+model (empty when
- * none is set, and AI tools then fall back to the built-in provider default). This
+ * none is set, AI tools then fall back to the built-in provider default). This
  * is the raw `ai.provider`/`ai.model` pair the picker edits; for what a run will
  * actually use (recipe presets included) call GetEffectiveModel.
  * @returns {$CancellablePromise<$models.DefaultModelInfo>}
@@ -1145,7 +1155,7 @@ export function GetDefaultModel() {
 
 /**
  * GetEffectiveModel reports the provider and model an AI step of the open
- * project will actually run with, and which layer decided each: the recipe's
+ * project will actually run with, and which layer decided each, the recipe's
  * per-locale preset, its project preset, the shared `ai.*` app config that
  * `kapi models setup` / `kapi models default` write, or the built-in fallback.
  * 
@@ -2816,6 +2826,21 @@ export function RunExtract(tabID) {
  */
 export function RunFlow(tabID, flowName, inputPaths, targetLangs) {
     return $Call.ByID(178743469, tabID, flowName, inputPaths, targetLangs);
+}
+
+/**
+ * RunFlowWith is RunFlow started with an explicit provider, credential or
+ * model, applied to the flow's steps by the rule `kapi run --provider`
+ * applies: a step that names its own keeps it.
+ * @param {string} tabID
+ * @param {string} flowName
+ * @param {string[]} inputPaths
+ * @param {string[]} targetLangs
+ * @param {$models.RunAIOptions} opts
+ * @returns {$CancellablePromise<void>}
+ */
+export function RunFlowWith(tabID, flowName, inputPaths, targetLangs, opts) {
+    return $Call.ByID(3784147313, tabID, flowName, inputPaths, targetLangs, opts);
 }
 
 /**

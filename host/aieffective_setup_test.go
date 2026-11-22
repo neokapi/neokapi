@@ -99,11 +99,11 @@ func TestProjectFlowAISetup_ByProviderCredentials(t *testing.T) {
 			if tt.store != nil {
 				a.Credentials = tt.store(t)
 			}
-			got, err := a.ProjectFlowAISetup(proj, recipe, "")
+			got, err := a.ProjectFlowAISetup(proj, recipe, "", nil)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got.Kind)
 
-			named, err := a.ProjectFlowAISetup(proj, recipe, "draft")
+			named, err := a.ProjectFlowAISetup(proj, recipe, "draft", nil)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, named.Kind, "running the flow by name answers as convergence does")
 
@@ -128,7 +128,7 @@ func TestProjectFlowAISetup_MissingCredentialNamesTheProvider(t *testing.T) {
 		Config:      cfgWith("ollama", "llama3.2:3b"),
 		Credentials: credentials.NewStore(filepath.Join(t.TempDir(), "credentials.json")),
 	}
-	need, err := a.ProjectFlowAISetup(proj, recipe, "")
+	need, err := a.ProjectFlowAISetup(proj, recipe, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, AISetupNeed{
 		Kind:     AISetupMissingCredential,
@@ -147,8 +147,46 @@ func TestProjectFlowAISetup_LeavesTheRecipeUntouched(t *testing.T) {
 	clearProviderEnv(t)
 	proj, recipe := setupProject(t, map[string]any{"skip_matched": true})
 	a := &App{Config: cfgWith("demo", "")}
-	got, err := a.ProjectFlowAISetup(proj, recipe, "draft")
+	got, err := a.ProjectFlowAISetup(proj, recipe, "draft", nil)
 	require.NoError(t, err)
 	assert.Equal(t, AISetupNone, got.Kind)
 	assert.Equal(t, map[string]any{"skip_matched": true}, proj.Flows["draft"].Steps[1].Config)
+}
+
+// The run configuration (`kapi up --provider`, a desktop run started with an
+// explicit provider) applies by the rule every run applies: a step's own
+// config, then the run's, then the presets, then the stored default.
+func TestProjectFlowAISetup_RunConfig(t *testing.T) {
+	clearProviderEnv(t)
+	empty := func(t *testing.T) *credentials.Store {
+		return credentials.NewStore(filepath.Join(t.TempDir(), "credentials.json"))
+	}
+	demo := map[string]any{"provider": "demo"}
+	tests := []struct {
+		name   string
+		step   map[string]any
+		preset map[string]any
+		run    map[string]any
+		want   AISetupKind
+	}{
+		{name: "preset names a provider with no key", preset: map[string]any{"provider": "anthropic"}, want: AISetupMissingCredential},
+		{name: "--provider demo over a preset with no key", preset: map[string]any{"provider": "anthropic"}, run: demo, want: AISetupNone},
+		{name: "--provider demo with nothing configured", run: demo, want: AISetupNone},
+		{name: "--provider with no key over a keyless preset", preset: demo, run: map[string]any{"provider": "anthropic"}, want: AISetupMissingCredential},
+		{name: "a step's own provider outranks --provider", step: map[string]any{"provider": "anthropic"}, run: demo, want: AISetupMissingCredential},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proj, recipe := setupProject(t, tt.step)
+			if tt.preset != nil {
+				proj.Defaults.Tools = map[string]map[string]any{"translate": tt.preset}
+			}
+			a := &App{Credentials: empty(t)}
+			for _, flowName := range []string{"", "draft"} {
+				got, err := a.ProjectFlowAISetup(proj, recipe, flowName, tt.run)
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got.Kind, "flow %q", flowName)
+			}
+		})
+	}
 }

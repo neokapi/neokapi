@@ -91,7 +91,7 @@ func TestConvergenceModelChoiceUsesResolvedRecipe(t *testing.T) {
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)
 	proj := app.getOpenProject(tab.ID).Project
-	kind := func() host.AISetupKind { return app.CheckAISetup(tab.ID, "").Kind }
+	kind := func() host.AISetupKind { return app.CheckAISetup(tab.ID, "", RunAIOptions{}).Kind }
 	assert.Equal(t, host.AISetupNone, kind())
 	proj.Defaults.Flow = ""
 	assert.Equal(t, host.AISetupChooseModel, kind())
@@ -127,9 +127,33 @@ func TestCheckAISetup_NamedProviderWithoutKey(t *testing.T) {
 	proj.Defaults.Flow = ""
 	proj.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "anthropic"}}
 
-	need := app.CheckAISetup(tab.ID, "")
+	need := app.CheckAISetup(tab.ID, "", RunAIOptions{})
 	assert.Equal(t, host.AISetupMissingCredential, need.Kind)
 	assert.Equal(t, "anthropic", need.Provider)
 	assert.Contains(t, need.Message, `no saved credentials found for provider "anthropic"`)
 	assert.Equal(t, DefaultModelInfo{Provider: "ollama", Model: "llama3.2:3b"}, app.GetDefaultModel())
+}
+
+// A desktop run started with an explicit provider is judged with it, as
+// `kapi up --provider` is: demo over a preset whose provider has no key needs
+// nothing, and the run starts with demo.
+func TestCheckAISetup_ExplicitProvider(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	for _, names := range providerenv.Vars {
+		for _, n := range names {
+			t.Setenv(n, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+	app := NewApp()
+	tab, _ := newConvergenceProject(t, app)
+	proj := app.getOpenProject(tab.ID).Project
+	proj.Defaults.Flow = ""
+	proj.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "anthropic"}}
+
+	assert.Equal(t, host.AISetupMissingCredential, app.CheckAISetup(tab.ID, "", RunAIOptions{}).Kind)
+	assert.Equal(t, host.AISetupNone, app.CheckAISetup(tab.ID, "", RunAIOptions{Provider: "demo"}).Kind)
+	assert.Equal(t, map[string]any{"provider": "demo"}, RunAIOptions{Provider: "demo"}.toolConfig())
+	assert.Nil(t, RunAIOptions{}.toolConfig())
 }

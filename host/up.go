@@ -14,7 +14,7 @@ import (
 )
 
 // formatPlanLine compresses the up-plan into the one-line header a run prints
-// before executing: cost visibility before any tokens burn.
+// before executing, cost visibility before any tokens burn.
 func formatPlanLine(plan UpPlanOutput) string {
 	t := plan.Totals
 	if plan.Monolingual {
@@ -46,13 +46,12 @@ func formatPlanLine(plan UpPlanOutput) string {
 		}
 		return "plan: every block has a committed target the content memory answers, so this run verifies gates"
 	}
-	// The kinds of work the run will do, then what it costs. Each is named
-	// separately because it tells the reader something different. A stale unit
-	// is one a person had decided, and this run is about to spend a provider
-	// call replacing that decision's subject. An unanswered one holds a
-	// translation the record does not stand behind, and the draft will replace
-	// it. The leverage and token figures cover all of them, because the run does
-	// not treat them differently.
+	// The kinds of work the run will do, then what it costs. Each kind is named
+	// on its own. A stale unit is one a person had decided, and the run spends
+	// a provider call replacing that decision's subject. An unanswered unit
+	// holds a translation the record does not stand behind, and the draft
+	// replaces it. The leverage and token figures cover all of them, because
+	// the run treats them alike.
 	var work []string
 	if t.MissingTarget > 0 {
 		work = append(work, fmt.Sprintf("%d block(s) missing", t.MissingTarget))
@@ -111,7 +110,7 @@ func AddUpFlags(cmd Command) {
 
 // ServerRecipeURL reports whether the recipe at projectPath binds a
 // convergence venue, and the declared URL when parsable. Best-effort: a load
-// or decode error reports none; ExecuteUp surfaces real load failures.
+// or decode error reports none, ExecuteUp surfaces real load failures.
 func (a *App) ServerRecipeURL(projectPath string) (hasServer bool, url string) {
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
@@ -149,8 +148,8 @@ func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath strin
 // ExecuteUp is the local-venue `kapi up` execution behind the command: load
 // the project, honor --plan, ensure an AI provider, then run the convergence
 // loop with the live UX (plan-first header, per-locale TTY progress, NDJSON
-// under --json). Exported so the kapi-bowrain plugin's `up` (which owns the
-// verb in a connected install and adds the server venue) can delegate the
+// under --json). Exported so the kapi-bowrain plugin's `up`, which owns the
+// verb in a connected install and adds the server venue, can delegate the
 // local venue here and stay byte-identical with the built-in behavior.
 func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	proj, perr := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
@@ -199,7 +198,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		// model or a key. The plan reads the recipe's source language.
 		a.ResolveSourceLang(proj.Defaults.SourceLanguage)
 		need, err := a.convergeAISetup(cmd.Context(), proj, projectPath,
-			planRun{cmd: cmd, noChecks: BoolFlag(cmd, "no-checks")})
+			planRun{cmd: cmd, noChecks: BoolFlag(cmd, "no-checks")}, runFlagToolConfig(cmd))
 		if err != nil {
 			return err
 		}
@@ -241,14 +240,14 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	// The run is live by default: --json streams the convergence
 	// events as NDJSON (one event per line, a final result record) for
 	// agents and CI; otherwise a renderer paints per-locale progress
-	// on stderr: in place on a TTY, line-per-event on plain streams.
+	// on stderr, in place on a TTY, line-per-event on plain streams.
 	// --quiet keeps today's summary-only behavior.
 	jsonOut := BoolFlag(cmd, "json") && !printing
 	var onEvent func(convergence.Event)
 	var stream *output.NDJSONStream
 	if jsonOut {
-		// One stream for the whole NDJSON document (every progress line and the
-		// closing result record), so a truncation anywhere in it is reported once,
+		// One stream for the whole NDJSON document, every progress line and the
+		// closing result record, so a truncation anywhere in it is reported once,
 		// at the end, instead of failing per event or vanishing.
 		stream = output.NewNDJSONStream(cmd.OutOrStdout())
 		onEvent = func(ev convergence.Event) { stream.Emit(ev) }
@@ -257,7 +256,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		// full dry-run table stays under --plan).
 		//
 		// The preamble is a courtesy line, so a plan that cannot be computed must
-		// not stop a run that is otherwise fine; the converge below opens its own
+		// not stop a run that is otherwise fine, the converge below opens its own
 		// content memory and does its own resolution. But it is REPORTED: the
 		// preamble silently vanishing looks identical to a build where it was
 		// never printed, and the usual cause (a memory store that will not open)

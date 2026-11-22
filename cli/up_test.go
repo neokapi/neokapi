@@ -562,3 +562,41 @@ func writeCommittedTargets(t *testing.T, root string) string {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.json"), []byte(`{"farewell":"Ha det."}`), 0o644))
 	return filepath.Join(dir, "a.json")
 }
+
+// TestUp_ProviderFlagOverAPresetWithoutKey: `kapi up --provider demo` in a
+// project whose preset names a provider with no key needs nothing, on a
+// terminal and off one. A step that names its own provider keeps it, so its
+// missing key still refuses.
+func TestUp_ProviderFlagOverAPresetWithoutKey(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+
+		t.Run(mode+": the flag wins over the preset", func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			nameProvider(t, recipe, "anthropic")
+			out, err := runUp(t, namedProviderApp(t, tty), recipe, "--provider", "demo")
+			require.NoError(t, err, out)
+			_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+			require.NoError(t, statErr, "the run translated with the demo provider")
+		})
+
+		t.Run(mode+": a step's own provider keeps its missing key", func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			proj, err := project.Load(recipe)
+			require.NoError(t, err)
+			proj.Defaults.Flow = "own"
+			proj.Flows["own"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+				{Tool: "translate", Config: map[string]any{"provider": "anthropic"}},
+			}}
+			require.NoError(t, project.Save(recipe, proj))
+
+			out, err := runUp(t, namedProviderApp(t, tty), recipe, "--provider", "demo")
+			require.Error(t, err, out)
+			assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+			_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+			assert.True(t, os.IsNotExist(statErr), "the run must not start")
+		})
+	}
+}

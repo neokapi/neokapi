@@ -18,28 +18,26 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// A layered merge decides which provider and model an AI step uses:
-// `buildFlowTools` → `applyBindings` → the tool registry's config
-// preprocessor → the tool's own fallback. The merge applies the precedence
-// during a run, so its answer exists only once a run is under way.
-//
-// EffectiveAIModel states the same precedence once, as a query. Both the CLI and
-// Kapi Desktop read it to display the active provider/model, so what the UI
-// promises and what the run does cannot drift apart.
+// The provider and model an AI step uses come from a layered merge
+// (`buildFlowTools` → `applyBindings` → the tool registry's config
+// preprocessor → the tool's own fallback), which runs only inside a run.
+// EffectiveAIModel states the same precedence once, as a query. The CLI and
+// Kapi Desktop read it to show the active provider and model, so what a
+// surface shows matches what the run does.
 
 // AIModelOrigin says which layer supplied the effective value.
 type AIModelOrigin string
 
 const (
-	// AIModelFromLocalePreset is `defaults.locales.<lang>.tools.<tool>` in the recipe.
+	// AIModelFromLocalePreset, `defaults.locales.<lang>.tools.<tool>` in the recipe.
 	AIModelFromLocalePreset AIModelOrigin = "locale-preset"
-	// AIModelFromProjectPreset is `defaults.tools.<tool>` in the recipe.
+	// AIModelFromProjectPreset, `defaults.tools.<tool>` in the recipe.
 	AIModelFromProjectPreset AIModelOrigin = "project-preset"
-	// AIModelFromAppConfig is the stored `ai.provider` / `ai.model` (the file at
+	// AIModelFromAppConfig, the stored `ai.provider` / `ai.model` (the file at
 	// config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
 	// is what `kapi models setup` and `kapi models default` write.
 	AIModelFromAppConfig AIModelOrigin = "app-config"
-	// AIModelFromBuiltIn means nothing is configured; the tool's own default applies.
+	// AIModelFromBuiltIn, nothing configured; the tool's own default applies.
 	AIModelFromBuiltIn AIModelOrigin = "built-in"
 )
 
@@ -56,7 +54,7 @@ type AIModelResolution struct {
 	// default").
 	ProviderOrigin AIModelOrigin `json:"provider_origin"`
 	ModelOrigin    AIModelOrigin `json:"model_origin"`
-	// Configured is false when neither half is configured anywhere: the
+	// Configured is false when neither half is configured anywhere, the
 	// built-in fallback is carrying the run, which is worth surfacing rather
 	// than presenting as a deliberate choice.
 	Configured bool `json:"configured"`
@@ -84,8 +82,8 @@ func EffectiveAIModel(
 		ModelOrigin:    AIModelFromBuiltIn,
 	}
 
-	// Lowest configured layer first, so each higher layer overwrites and
-	// records itself, and the precedence reads top-to-bottom in one direction.
+	// Lowest configured layer first, so each higher layer overwrites the one
+	// below and records itself. The precedence reads top to bottom.
 	//
 	// The app-config layer comes from appconfig.ResolveAIDefault, not from reading
 	// ai.provider / ai.model here: this query and the run must agree about what is
@@ -196,9 +194,12 @@ func (n AISetupNeed) Err() error {
 // (inline, named, in the environment or the single saved match), needs
 // nothing. A missing credential for a provider the recipe names outranks a
 // model choice, because no model choice can fix it. An empty flow name
-// selects convergence. The CLI (`kapi up`) and Kapi Desktop both ask this
+// selects convergence. runConfig is the run flags' tool config
+// (RunFlagToolConfig, nil for none), applied by the rule every run applies
+// (seedRunConfig): a step's own config, then the flag, then the presets, then
+// the stored default. The CLI (`kapi up`) and Kapi Desktop both ask this
 // function, so they prompt, or refuse, in the same cases.
-func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowName string) (AISetupNeed, error) {
+func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowName string, runConfig map[string]any) (AISetupNeed, error) {
 	if proj == nil {
 		return AISetupNeed{}, nil
 	}
@@ -209,13 +210,13 @@ func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowNam
 		if !proj.DeclaresTargetLanguages() || !proj.WritesTargets() {
 			return AISetupNeed{}, nil
 		}
-		resolved, err := convergeFlowSpec(proj, root)
+		resolved, err := convergeFlowSpec(proj, root, runConfig)
 		if err != nil {
 			return AISetupNeed{}, err
 		}
 		spec, label = resolved.spec, resolved.name
 	} else {
-		resolved, err := ResolveProjectFlow(proj, root, flowName, nil)
+		resolved, err := ResolveProjectFlow(proj, root, flowName, runConfig)
 		if err != nil || resolved == nil {
 			return AISetupNeed{}, err
 		}
@@ -301,12 +302,12 @@ func (a *App) stepMissingCredential(toolName string, requires []string, cfg map[
 // up to date, or whose remaining work the content memory answers, needs no
 // model and no key, whatever the recipe names. The CLI and Kapi Desktop both
 // ask this function.
-func (a *App) ConvergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string) (AISetupNeed, error) {
-	return a.convergeAISetup(ctx, proj, projectPath, planRun{})
+func (a *App) ConvergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string, runConfig map[string]any) (AISetupNeed, error) {
+	return a.convergeAISetup(ctx, proj, projectPath, planRun{}, runConfig)
 }
 
-func (a *App) convergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string, run planRun) (AISetupNeed, error) {
-	need, err := a.ProjectFlowAISetup(proj, projectPath, "")
+func (a *App) convergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string, run planRun, runConfig map[string]any) (AISetupNeed, error) {
+	need, err := a.ProjectFlowAISetup(proj, projectPath, "", runConfig)
 	if err != nil || need.Kind == AISetupNone {
 		return need, err
 	}

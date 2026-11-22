@@ -14,7 +14,7 @@ import (
 )
 
 // DefaultModelInfo is the configured default AI model and the provider it
-// implies: the shared ai.provider/ai.model convention both kapi surfaces read.
+// implies, the shared ai.provider/ai.model convention both kapi surfaces read.
 type DefaultModelInfo struct {
 	Provider string `json:"provider"`
 	Model    string `json:"model"`
@@ -34,7 +34,7 @@ type AIModelOption struct {
 	// NeedsKey is true for a cloud model with no saved credential yet.
 	NeedsKey bool `json:"needs_key"`
 	// Subscription is true when the model runs on a personal subscription via
-	// a detected keyless provider (claude-code), with no API key and no metered cost.
+	// a detected keyless provider (claude-code), no API key, no metered cost.
 	Subscription bool `json:"subscription,omitempty"`
 	// Note is an optional one-line rationale (recommended local models).
 	Note string `json:"note,omitempty"`
@@ -43,7 +43,7 @@ type AIModelOption struct {
 }
 
 // GetDefaultModel returns the configured default AI provider+model (empty when
-// none is set, and AI tools then fall back to the built-in provider default). This
+// none is set, AI tools then fall back to the built-in provider default). This
 // is the raw `ai.provider`/`ai.model` pair the picker edits; for what a run will
 // actually use (recipe presets included) call GetEffectiveModel.
 func (a *App) GetDefaultModel() DefaultModelInfo {
@@ -57,7 +57,7 @@ func (a *App) GetDefaultModel() DefaultModelInfo {
 }
 
 // GetEffectiveModel reports the provider and model an AI step of the open
-// project will actually run with, and which layer decided each: the recipe's
+// project will actually run with, and which layer decided each, the recipe's
 // per-locale preset, its project preset, the shared `ai.*` app config that
 // `kapi models setup` / `kapi models default` write, or the built-in fallback.
 //
@@ -134,7 +134,7 @@ func (a *App) ListAIModels() []AIModelOption {
 
 	var out []AIModelOption
 
-	// Detected · Claude Code: keyless, runs on the user's Claude subscription.
+	// Detected · Claude Code, keyless, runs on the user's Claude subscription.
 	// Listed first when the binary is present on this machine.
 	if aiprovider.ClaudeCodeDetected() {
 		cc := string(aiprovider.ClaudeCode)
@@ -145,7 +145,7 @@ func (a *App) ListAIModels() []AIModelOption {
 		})
 	}
 
-	// Local · Ollama: installed models (best-effort; server may be down).
+	// Local · Ollama, installed models (best-effort; server may be down).
 	installed := map[string]bool{}
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	models, err := aiprovider.NewOllamaManager("").List(ctx)
@@ -170,7 +170,7 @@ func (a *App) ListAIModels() []AIModelOption {
 		})
 	}
 
-	// Cloud providers: one default model each, flagged when no key is saved.
+	// Cloud providers, one default model each, flagged when no key is saved.
 	// Keyless providers (local Ollama above, detected claude-code) are covered
 	// by their own sections.
 	for _, p := range aiprovider.Providers() {
@@ -186,18 +186,16 @@ func (a *App) ListAIModels() []AIModelOption {
 	return out
 }
 
-// CheckAISetup reports what running a flow needs before its AI steps can run.
-// It is host.ProjectFlowAISetup, the decision `kapi up` makes. Kind
+// CheckAISetup reports what running a flow needs before its AI steps can run,
+// by host.ProjectFlowAISetup, the decision `kapi up` makes. Kind
 // "choose_model" means no step names a provider and no usable default
-// resolves, which choosing a model fixes. Kind "missing_credential" means the
-// recipe names a provider whose key is missing; only a key for that provider
-// fixes it, because the stored default never overrides a named provider. A
-// keyless provider such as the offline demo needs nothing. An empty flow name
-// asks about a convergence run, which needs nothing when it has no work for
-// the AI step. The frontend
-// checks this before launching, so the person acts up front instead of
-// hitting a run error. An empty Kind means the flow can run.
-func (a *App) CheckAISetup(tabID, flowName string) host.AISetupNeed {
+// resolves. Kind "missing_credential" means a provider the run names has no
+// key, which only a key for it fixes. An empty flow name asks about a
+// convergence run, which needs nothing when it has no work for the AI step.
+// opts is the provider, credential or model RunFlowWith and BringUpToDateWith
+// start the run with, applied as `kapi up --provider` applies it. The frontend
+// asks before launching. An empty Kind means the flow can run.
+func (a *App) CheckAISetup(tabID, flowName string, opts RunAIOptions) host.AISetupNeed {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return host.AISetupNeed{}
@@ -208,13 +206,37 @@ func (a *App) CheckAISetup(tabID, flowName string) host.AISetupNeed {
 	if flowName == "" {
 		// A convergence run needs a model or a key only when it has work for
 		// the AI step, as `kapi up` decides.
-		need, err = engine.ConvergeAISetup(context.Background(), op.Project, op.Path)
+		need, err = engine.ConvergeAISetup(context.Background(), op.Project, op.Path, opts.toolConfig())
 	} else {
-		need, err = engine.ProjectFlowAISetup(op.Project, op.Path, flowName)
+		need, err = engine.ProjectFlowAISetup(op.Project, op.Path, flowName, opts.toolConfig())
 	}
 	if err != nil {
 		// The run reports a flow it cannot resolve with its own error.
 		return host.AISetupNeed{}
 	}
 	return need
+}
+
+// RunAIOptions are the AI settings a desktop run is started with, the
+// desktop's counterpart of `kapi up --provider/--credential/--model`. Empty
+// fields leave the recipe and the stored default to decide.
+type RunAIOptions struct {
+	Provider   string `json:"provider,omitempty"`
+	Credential string `json:"credential,omitempty"`
+	Model      string `json:"model,omitempty"`
+}
+
+// toolConfig is opts as run-flag tool config (host.RunFlagToolConfig's
+// shape), nil when nothing is set.
+func (o RunAIOptions) toolConfig() map[string]any {
+	cfg := map[string]any{}
+	for key, v := range map[string]string{"provider": o.Provider, "credential": o.Credential, "model": o.Model} {
+		if v != "" {
+			cfg[key] = v
+		}
+	}
+	if len(cfg) == 0 {
+		return nil
+	}
+	return cfg
 }

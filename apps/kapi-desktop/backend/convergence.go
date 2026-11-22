@@ -16,7 +16,7 @@ import (
 
 // errProjectFilesMissing is the typed, user-facing error GetConvergence /
 // GetConvergePlan return when the open tab's recipe no longer exists on disk
-// (the directory was moved or deleted — e.g. mid sample reset). The frontend
+// (the directory was moved or deleted, e.g. mid sample reset). The frontend
 // renders it as a quiet state instead of raw open-errors; the underlying
 // ENOENT is logged once per disappearance, not per poll.
 var errProjectFilesMissing = errors.New("project files are missing or moved. Reopen the project")
@@ -122,6 +122,12 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 // BringUpToDate starts convergence at the venue selected by the host.
 // The run publishes progress and its result through flow:event.
 func (a *App) BringUpToDate(tabID string) error {
+	return a.BringUpToDateWith(tabID, RunAIOptions{})
+}
+
+// BringUpToDateWith is BringUpToDate started with an explicit provider,
+// credential or model, as `kapi up --provider` starts it.
+func (a *App) BringUpToDateWith(tabID string, opts RunAIOptions) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return fmt.Errorf("project tab %q not found", tabID)
@@ -146,11 +152,11 @@ func (a *App) BringUpToDate(tabID string) error {
 	}
 
 	src := string(op.Project.Defaults.SourceLanguage)
-	go a.executeConvergeRun(ctx, op, op.Path, flowName, src)
+	go a.executeConvergeRun(ctx, op, op.Path, flowName, src, opts)
 	return nil
 }
 
-func (a *App) executeConvergeRun(ctx context.Context, op *openProject, projectPath, flowName, sourceLang string) {
+func (a *App) executeConvergeRun(ctx context.Context, op *openProject, projectPath, flowName, sourceLang string, opts RunAIOptions) {
 	defer a.runState.release()
 
 	start := time.Now()
@@ -164,6 +170,7 @@ func (a *App) executeConvergeRun(ctx context.Context, op *openProject, projectPa
 	capp := a.newProjectEngine(op)
 	out, err := capp.RunUpDispatch(ctx, projectPath, sourceLang, host.UpOptions{
 		UntilGate: true,
+		RunConfig: opts.toolConfig(),
 		// OnEvent is the stream the live run view renders from: one typed event
 		// per pass/locale transition. Log events degrade to the existing
 		// progress lines (auto-extract notes) so the generic job feed and
@@ -211,7 +218,7 @@ func (w *runEventWriter) Write(p []byte) (int, error) {
 	for {
 		line, err := w.buf.ReadString('\n')
 		if err != nil {
-			// Partial line — keep it buffered for the next write.
+			// Partial line, keep it buffered for the next write.
 			w.buf.WriteString(line)
 			break
 		}

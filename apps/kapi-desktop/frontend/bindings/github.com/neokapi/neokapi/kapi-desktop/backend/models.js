@@ -410,7 +410,7 @@ export class AIModelOption {
         if (/** @type {any} */(false)) {
             /**
              * Subscription is true when the model runs on a personal subscription via
-             * a detected keyless provider (claude-code), with no API key and no metered cost.
+             * a detected keyless provider (claude-code), no API key, no metered cost.
              * @member
              * @type {boolean | undefined}
              */
@@ -4921,7 +4921,7 @@ export class DeeperLookModelDTO {
 
 /**
  * DefaultModelInfo is the configured default AI model and the provider it
- * implies: the shared ai.provider/ai.model convention both kapi surfaces read.
+ * implies, the shared ai.provider/ai.model convention both kapi surfaces read.
  */
 export class DefaultModelInfo {
     /**
@@ -9487,6 +9487,53 @@ export class RulesFilesDTO {
 }
 
 /**
+ * RunAIOptions are the AI settings a desktop run is started with, the
+ * desktop's counterpart of `kapi up --provider/--credential/--model`. Empty
+ * fields leave the recipe and the stored default to decide.
+ */
+export class RunAIOptions {
+    /**
+     * Creates a new RunAIOptions instance.
+     * @param {Partial<RunAIOptions>} [$$source = {}] - The source object to create the RunAIOptions.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["model"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunAIOptions instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RunAIOptions}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RunAIOptions(/** @type {Partial<RunAIOptions>} */($$parsedSource));
+    }
+}
+
+/**
  * RunError is a run failure presented as structure rather than prose.
  */
 export class RunError {
@@ -9831,12 +9878,12 @@ export class RunEvent {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Convergence-run fields (BringUpToDate — the shared `kapi up` engine):
-             * ConvergeEvent carries one typed progress event of the run (when type ==
-             * "converge_event") — the per-pass/per-locale stream (pass_start,
-             * locale_start, unit_progress, locale_done, pass_done, materialized, done)
-             * the live run view renders locale rows from, the same protocol the CLI's
-             * live renderer and the server's SSE stream speak. ConvergeResult carries
+             * Convergence-run fields (BringUpToDate, the shared `kapi up` engine).
+             * ConvergeEvent carries one typed progress event of the run when type ==
+             * "converge_event". The events form the per-pass and per-locale stream
+             * (pass_start, locale_start, unit_progress, locale_done, pass_done,
+             * materialized, done) the live run view renders locale rows from. The CLI's
+             * live renderer and the server's SSE stream speak the same protocol. ConvergeResult carries
              * the final structured outcome (on the run's "complete").
              * @member
              * @type {convergence$0.Event | null | undefined}
