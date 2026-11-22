@@ -46,24 +46,24 @@ export const AIModelOrigin = {
     $zero: "",
 
     /**
-     * AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+     * AIModelFromLocalePreset, `defaults.locales.<lang>.tools.<tool>` in the recipe.
      */
     AIModelFromLocalePreset: "locale-preset",
 
     /**
-     * AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+     * AIModelFromProjectPreset, `defaults.tools.<tool>` in the recipe.
      */
     AIModelFromProjectPreset: "project-preset",
 
     /**
-     * AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+     * AIModelFromAppConfig, the stored `ai.provider` / `ai.model` (the file at
      * config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
      * is what `kapi models setup` and `kapi models default` write.
      */
     AIModelFromAppConfig: "app-config",
 
     /**
-     * AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+     * AIModelFromBuiltIn, nothing configured; the tool's own default applies.
      */
     AIModelFromBuiltIn: "built-in",
 };
@@ -114,7 +114,7 @@ export class AIModelResolution {
         }
         if (!("configured" in $$source)) {
             /**
-             * Configured is false when neither half is configured anywhere — the
+             * Configured is false when neither half is configured anywhere, the
              * built-in fallback is carrying the run, which is worth surfacing rather
              * than presenting as a deliberate choice.
              * @member
@@ -4016,10 +4016,9 @@ export class ConvergeLocaleResult {
         if (/** @type {any} */(false)) {
             /**
              * FailingChecks counts units that are produced but fail the project's bound
-             * checks (#1078 G4). They count at their true rung in Pct, the unit is
-             * translated, and hold the locale out of Shippable until fixed. It counts
-             * UNITS, which is not what `kapi check` counts: one unit can carry several
-             * findings, and `kapi check` lists findings.
+             * checks (#1078 G4). They count at their true rung in Pct (the unit is
+             * translated) and hold the locale out of Shippable until fixed. It counts
+             * UNITS, where `kapi check` lists findings, and one unit can carry several.
              * @member
              * @type {number | undefined}
              */
@@ -4049,11 +4048,11 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Redrafted counts the stale units this run produced over, recycled against
-             * the rewritten source, or drafted for the remainder. It is what the loop
-             * owes them: a translation of the source the project has now. The decision
-             * they carried is NOT restored, so they stay in Stale until someone reviews
-             * the new draft, which is why the two are reported side by side.
+             * Redrafted counts the stale units this run produced over: recycled against
+             * the rewritten source, or drafted for the remainder. Each now holds a
+             * translation of the current source. The decision they carried is NOT
+             * restored, so they stay in Stale until someone reviews the new draft, and
+             * the two are reported side by side.
              * @member
              * @type {number | undefined}
              */
@@ -4158,30 +4157,8 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Produced counts the units this run wrote to the project's files, by its
-             * passes or by the delivery after its loop, from this run's drafts or an
-             * earlier run's. A run that changed nothing reports 0. Nil when the venue
-             * does not report it: a server run writes to the server, and its summary
-             * leaves the figure out rather than give it another meaning.
-             * @member
-             * @type {number | null | undefined}
-             */
-            this["produced"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * WaitingForReview counts the drafts the run holds for review in locales
-             * short of their ship gate. They are not written to the project, so
-             * Produced leaves them out.
-             * @member
-             * @type {number | undefined}
-             */
-            this["waiting_for_review"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
              * ParkedScopes lists the gated (collection, locale) scopes that remain
-             * short of their gate, per-scope detail under the per-locale rollup, so
+             * short of their gate: per-scope detail under the per-locale rollup, so
              * a UI can link each parked scope to its review queue.
              * @member
              * @type {ParkedScope[] | undefined}
@@ -4222,7 +4199,7 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * StallReason is the machine-readable cause a run did not converge, set to
+             * StallReason is the machine-readable cause a run did not converge. It is
              * source_not_ready when every pending locale had nothing producible because
              * its source is held below the translate_after level. Empty on a
              * clean/parked-on-target run.
@@ -4274,14 +4251,13 @@ export class ConvergeOutput {
             /**
              * ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
              * the run proposed rather than applied: edits that take effect only once a
-             * reviewer accepts them. They are venue-supplied, a run at a venue that
-             * governs terminology fills them in, and all three are zero for a run that
-             * proposed nothing.
+             * reviewer accepts them. A venue that governs terminology fills them in,
+             * and all three are zero for a run that proposed nothing.
              * 
              * ChangesetURL is a deep link to the review surface, and is empty whenever
-             * the venue could not name one. An id with no link is still worth reporting:
-             * it is the handle every other surface takes, so a reader who cannot click
-             * through can still ask for the change-set by name.
+             * the venue could not name one. The id is reported either way: it is the
+             * handle every other surface takes, so a reader who cannot click through
+             * can still ask for the change-set by name.
              * @member
              * @type {number | undefined}
              */
@@ -4342,25 +4318,25 @@ export class ConvergeOutput {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType96;
-        const $$createField6_0 = $$createType98;
-        const $$createField18_0 = $$createType100;
-        const $$createField19_0 = $$createType102;
-        const $$createField20_0 = $$createType104;
+        const $$createField4_0 = $$createType98;
+        const $$createField16_0 = $$createType100;
+        const $$createField17_0 = $$createType102;
+        const $$createField18_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
         }
         if ("parked_scopes" in $$parsedSource) {
-            $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
+            $$parsedSource["parked_scopes"] = $$createField4_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField16_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField17_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField18_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4708,7 +4684,7 @@ export class FindingsReport {
 
 /**
  * ParkedScope identifies one gated (collection, locale) scope still short of
- * its gate after the run, the address a review surface can deep-link to.
+ * its gate after the run: the address a review surface can deep-link to.
  */
 export class ParkedScope {
     /**
@@ -5040,7 +5016,7 @@ export class UpPlanOutput {
             /**
              * Monolingual reports a project that resolves no target locale: there is no
              * per-language work to price. An empty Scopes list otherwise means the work
-             * is already done — or, with UnreadTargets set, that the plan has not been
+             * is already done, or, with UnreadTargets set, that the plan has not been
              * able to judge it yet. The three must not read the same.
              * @member
              * @type {boolean | undefined}
@@ -5164,7 +5140,7 @@ export class UpPlanScope {
         if (!("memory_exact" in $$source)) {
             /**
              * MemoryExact is the count of counted units covered by an exact-hash
-             * content-memory hit (the cheap leverage estimate — fuzzy leverage is not
+             * content-memory hit (the cheap leverage estimate, fuzzy leverage is not
              * counted).
              * @member
              * @type {number}
@@ -5202,15 +5178,13 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Stale is the count of units that HAVE a committed target whose decision
-             * was recorded against source wording that has since changed. The run
-             * re-drafts them — recycle against the new wording, AI for the remainder —
-             * so they are PRICED into MemoryExact/AIRemaining/TokenEstimate exactly as a
-             * unit with no target is. They are reported on their own axis as well, and
-             * not folded into MissingTarget, because the two ask different things of the
-             * reader: missing work finishes when the loop finishes it, stale work also
-             * owes a review, and the tokens are being spent on a unit a person had
-             * already decided.
+             * Stale is the count of units with a committed target whose decision was
+             * recorded against source wording that has since changed. The run drafts
+             * them again (recycle against the new wording, AI for the remainder), so
+             * they are priced into MemoryExact, AIRemaining and TokenEstimate as a unit
+             * with no target is. They are also reported on their own, apart from
+             * MissingTarget: missing work ends when the loop finishes it, and stale
+             * work also owes a review of a unit a person had already decided.
              * @member
              * @type {number | undefined}
              */
@@ -5218,16 +5192,15 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Unanswered is the count of units that HAVE a committed target which the
-             * project content memory does not answer: no decision of theirs has moved,
-             * but the corpus holds no exact answer for their source, so `recycle` cannot
-             * fill them and the pass drafts them again over what is on disk.
+             * Unanswered is the count of units with a committed target that the
+             * project content memory does not answer. No decision of theirs has moved,
+             * but the corpus holds no exact answer for their source, so `recycle`
+             * cannot fill them and the pass drafts them again over what is on disk.
              * 
-             * It is its own axis because it is its own fact. `stale` means a decision's
-             * basis moved — it drives `blocked: stale`, the review worklist and shipping —
-             * and a produced unit the record never paired is none of that. Folding the two
-             * would put the plan and the run summary at odds, since the summary's re-draft
-             * count is the decision-based coverage tally.
+             * It is kept apart from Stale. Stale means a decision's basis moved, and it
+             * drives `blocked: stale`, the review worklist and shipping. A produced
+             * unit the record never paired is none of that, and the run summary's
+             * re-draft count is the decision-based coverage tally.
              * @member
              * @type {number | undefined}
              */
@@ -5250,14 +5223,13 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * UnreadTargets is the count of produced units the plan declines to judge:
-             * their committed translation has not been read into the project store yet,
-             * so the corpus is unfinished and its silence about them means "not asked",
-             * not "the pass will draft this". A run reads them first — the seed phase
-             * absorbs the committed record before the pass — which is why this is a
-             * disclosure and not an axis of work: pricing them would quote a provider
-             * call for every translation the run is about to recycle, and quoting zero
-             * would promise a free run.
+             * UnreadTargets is the count of produced units the plan does not judge.
+             * Their committed translation has not been read into the project store
+             * yet, so the corpus has not been asked about them. A run reads them first:
+             * the seed phase absorbs the committed record before the pass. So this is a
+             * disclosure, not work. Pricing them would quote a provider call for every
+             * translation the run will recycle, and quoting zero would promise a free
+             * run.
              * @member
              * @type {number | undefined}
              */
@@ -5266,7 +5238,7 @@ export class UpPlanScope {
         if (!("token_estimate" in $$source)) {
             /**
              * TokenEstimate approximates the input tokens for the remaining AI work:
-             * source characters / 4 (a common chars-per-token heuristic — the
+             * source characters / 4 (a common chars-per-token heuristic, the
              * providers expose no tokenizer here, so this is an estimate, not a
              * quote).
              * @member
