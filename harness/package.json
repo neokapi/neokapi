@@ -19,28 +19,28 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@remotion/bundler": "4.0.522",
-    "@remotion/captions": "4.0.522",
-    "@remotion/cli": "4.0.522",
-    "@remotion/google-fonts": "4.0.522",
-    "@remotion/install-whisper-cpp": "4.0.522",
-    "@remotion/media": "4.0.522",
-    "@remotion/renderer": "4.0.522",
-    "@remotion/rough-notation": "4.0.522",
-    "@remotion/sfx": "4.0.522",
-    "@remotion/transitions": "4.0.522",
-    "dotenv": "^16.4.5",
-    "playwright": "^1.48.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "remotion": "4.0.522",
-    "yaml": "^2.5.0"
+    "@remotion/bundler": "4.0.545",
+    "@remotion/captions": "4.0.545",
+    "@remotion/cli": "4.0.545",
+    "@remotion/google-fonts": "4.0.545",
+    "@remotion/install-whisper-cpp": "4.0.545",
+    "@remotion/media": "4.0.545",
+    "@remotion/renderer": "4.0.545",
+    "@remotion/rough-notation": "4.0.545",
+    "@remotion/sfx": "4.0.545",
+    "@remotion/transitions": "4.0.545",
+    "dotenv": "^18.0.10",
+    "playwright": "^1.65.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "4.0.545",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "~5.9.3"
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
   }
 }

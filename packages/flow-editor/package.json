@@ -24,7 +24,7 @@
     "@neokapi/contract-types": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
-    "@xyflow/react": "^12.11.6",
+    "@xyflow/react": "^12.12.1",
     "lucide-react": "^1.70.0",
     "react-hook-form": "^7.91.0",
     "react-markdown": "^10.1.0",
