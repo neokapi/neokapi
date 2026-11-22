@@ -236,6 +236,11 @@ func (h *Home) under(path string) (string, bool) {
 	if rel, rerr := filepath.Rel(absRoot, abs); rerr == nil && filepath.IsLocal(rel) {
 		return absRoot, true
 	}
+	if !rootpath.Supported {
+		// The browser's file system gives no file an identity of its own, so
+		// os.SameFile would match every directory. Its paths are what they say.
+		return absRoot, false
+	}
 	rootInfo, err := os.Stat(absRoot)
 	if err != nil {
 		return absRoot, false

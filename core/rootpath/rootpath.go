@@ -54,6 +54,9 @@ var ErrHardLinked = errors.New("the file has other names and is not written in p
 // a new file beneath a directory link is judged by where the link leads. A
 // link to a missing file is refused: what it would create cannot be decided.
 func Contain(root, p string) (string, error) {
+	if !Supported {
+		return containLexically(root, p)
+	}
 	realRoot, err := realDir(root)
 	if err != nil {
 		return "", err
@@ -275,4 +278,21 @@ func splitPath(rel string) []string {
 	}
 	slices.Reverse(parts)
 	return parts
+}
+
+// containLexically is Contain where the file system has no links: p, made
+// absolute, must lie beneath root as written.
+func containLexically(root, p string) (string, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	if !inside(absRoot, abs) {
+		return "", &EscapeError{Path: relativeTo(root, p)}
+	}
+	return abs, nil
 }

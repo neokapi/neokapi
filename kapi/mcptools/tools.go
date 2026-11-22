@@ -4,7 +4,7 @@
 // init(), so importing the package is what exposes the tools.
 //
 // It is a library rather than part of `package main` so the tool surface can be
-// enumerated without running the binary — the reference generator and the
+// enumerated without running the binary. The reference generator and the
 // surface snapshot both link it directly.
 package mcptools
 
@@ -416,8 +416,7 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 
 // executeFlow runs a built-in flow on a file and writes the result. The tool
 // chain is assembled by the host so the AD-006 placement gate, data-flow
-// validation and per-node config all apply — the reason this no longer hand-
-// rolls the loop.
+// validation and per-node config all apply.
 func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, pctx *project.ProjectContext) (string, error) {
 	flowTools, cleanup, err := a.BuildFlowTools(flowName, inputPath, sourceLang, targetLang)
 	if err != nil {
@@ -428,7 +427,9 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 }
 
 func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, flowTools []tool.Tool, pctx *project.ProjectContext) (string, error) {
-	// Compute output path if not specified.
+	// Compute output path if not specified. An output_path the caller passed is
+	// its explicit choice, as -o is on the command line.
+	named := outputPath != ""
 	if outputPath == "" {
 		ext := filepath.Ext(inputPath)
 		base := inputPath[:len(inputPath)-len(ext)]
@@ -447,6 +448,9 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 		root = pctx.ProjectDir
 	}
 	home, docs := a.FlowDocuments(ctx, root, model.LocaleID(sourceLang))
+	if named {
+		home.PermitOutside(outputPath)
+	}
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(sourceLang),
