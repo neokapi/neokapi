@@ -68,8 +68,8 @@ readonly ALLOWED_NAMES="${PLACEHOLDER_USERS}|${SYSTEM_HOMES}"
 readonly VENDORED_FILES=(
   # The SQLite amalgamation, verbatim from sqlite.org. Its documentation
   # comments use a Linux home directory as the database-URI example.
-  core/storage/sqlite3.h
-  core/storage/sqlite3-binding.h
+  core/internal/icu/sqlite3.h
+  core/internal/icu/sqlite3-binding.h
 )
 
 # scan_files reads NUL-separated paths on stdin and prints "file:line:match"

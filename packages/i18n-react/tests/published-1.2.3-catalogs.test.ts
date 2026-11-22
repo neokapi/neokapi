@@ -10,15 +10,7 @@
  */
 
 import { describe, expect, it, vi } from "vite-plus/test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import type { Block, BlockV1, File, Run } from "@neokapi/kapi-format";
@@ -34,11 +26,12 @@ import {
 
 import { runCompile } from "../src/commands/compile.ts";
 import { runExtract } from "../src/commands/extract.ts";
+import { tempDir } from "./temp-dir";
 
 const HEADING = "<h1>Welcome to the store</h1>;";
 
 function workspace(sources: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), "i18n-react-published-"));
+  const root = tempDir("i18n-react-published");
   for (const [file, code] of Object.entries(sources)) {
     const path = join(root, file);
     mkdirSync(join(path, ".."), { recursive: true });

@@ -392,9 +392,26 @@ keeping a recipe out of it is a separate act.
 value came from** (`env` | `config` | `none`), and `config.SetAIDefault` /
 `config.ClearAIDefault` are the matching single write path.
 
-Precedence, matching every other config key: an explicit `--provider`/`--model`
-flag or an inline recipe value first, then `KAPI_AI_PROVIDER` / `KAPI_AI_MODEL`,
-then the stored `ai.provider` / `ai.model`.
+Precedence, for every step of every flow a run executes (`kapi up`, `kapi run`,
+`kapi translate`, a recipe flow, a flow file and the built-in default alike):
+
+1. a key the step's own `config:` sets,
+2. the run flag (`--provider`, `--model`, `--credential`, `--api-key`,
+   `--instruction`, `--context`, `--batching`),
+3. the recipe's tool presets, `defaults.locales.<lang>.tools` and then
+   `defaults.tools`,
+4. `KAPI_AI_PROVIDER` / `KAPI_AI_MODEL`, then the stored `ai.provider` /
+   `ai.model`,
+5. the tool's own default.
+
+A step that names its own provider keeps it, so a flow that compares two
+providers still compares them, and the run prints a note naming each flag a
+step kept its own value over. `host.seedRunConfig` applies the rule in one
+place; `ResolveProjectFlow` and the convergence flow resolve through it, and
+the AI-setup decision (`ProjectFlowNeedsAISetup`) takes the same run
+configuration, so a run given `--provider` is never asked to set one up. The
+desktop passes none. The server venue runs with the provider its workspace is
+configured with, so `kapi up` refuses a run flag there and names `--local`.
 
 One resolver rather than six read sites, because six read sites had no shared
 answer to "what is configured, and where did it come from", so a scope bug in

@@ -45,7 +45,7 @@ type UpPlanScope struct {
 	// target for the locale.
 	MissingTarget int `json:"missing_target"`
 	// MemoryExact is the count of counted units covered by an exact-hash
-	// content-memory hit (the cheap leverage estimate — fuzzy leverage is not
+	// content-memory hit (the cheap leverage estimate, fuzzy leverage is not
 	// counted).
 	MemoryExact int `json:"memory_exact"`
 	// Drafts is the count of counted units the pass serves from the project
@@ -65,26 +65,23 @@ type UpPlanScope struct {
 	// content-memory leverage and stored drafts: the provider calls a run
 	// makes.
 	AIRemaining int `json:"ai_remaining"`
-	// Stale is the count of units that HAVE a committed target whose decision
-	// was recorded against source wording that has since changed. The run
-	// re-drafts them — recycle against the new wording, AI for the remainder —
-	// so they are PRICED into MemoryExact/AIRemaining/TokenEstimate exactly as a
-	// unit with no target is. They are reported on their own axis as well, and
-	// not folded into MissingTarget, because the two ask different things of the
-	// reader: missing work finishes when the loop finishes it, stale work also
-	// owes a review, and the tokens are being spent on a unit a person had
-	// already decided.
+	// Stale is the count of units with a committed target whose decision was
+	// recorded against source wording that has since changed. The run drafts
+	// them again (recycle against the new wording, AI for the remainder), so
+	// they are priced into MemoryExact, AIRemaining and TokenEstimate as a unit
+	// with no target is. They are also reported on their own, apart from
+	// MissingTarget: missing work ends when the loop finishes it, and stale
+	// work also owes a review of a unit a person had already decided.
 	Stale int `json:"stale,omitempty"`
-	// Unanswered is the count of units that HAVE a committed target which the
-	// project content memory does not answer: no decision of theirs has moved,
-	// but the corpus holds no exact answer for their source, so `recycle` cannot
-	// fill them and the pass drafts them again over what is on disk.
+	// Unanswered is the count of units with a committed target that the
+	// project content memory does not answer. No decision of theirs has moved,
+	// but the corpus holds no exact answer for their source, so `recycle`
+	// cannot fill them and the pass drafts them again over what is on disk.
 	//
-	// It is its own axis because it is its own fact. `stale` means a decision's
-	// basis moved — it drives `blocked: stale`, the review worklist and shipping —
-	// and a produced unit the record never paired is none of that. Folding the two
-	// would put the plan and the run summary at odds, since the summary's re-draft
-	// count is the decision-based coverage tally.
+	// It is kept apart from Stale. Stale means a decision's basis moved, and it
+	// drives `blocked: stale`, the review worklist and shipping. A produced
+	// unit the record never paired is none of that, and the run summary's
+	// re-draft count is the decision-based coverage tally.
 	Unanswered int `json:"unanswered,omitempty"`
 	// OutOfReach is the count of counted units the configured flow has no step
 	// that could produce: the corpus does not answer them and the flow drafts
@@ -95,17 +92,16 @@ type UpPlanScope struct {
 	// nothing else was quoted a provider bill for every unit the memory missed,
 	// then made zero provider calls (#1866).
 	OutOfReach int `json:"out_of_reach,omitempty"`
-	// UnreadTargets is the count of produced units the plan declines to judge:
-	// their committed translation has not been read into the project store yet,
-	// so the corpus is unfinished and its silence about them means "not asked",
-	// not "the pass will draft this". A run reads them first — the seed phase
-	// absorbs the committed record before the pass — which is why this is a
-	// disclosure and not an axis of work: pricing them would quote a provider
-	// call for every translation the run is about to recycle, and quoting zero
-	// would promise a free run.
+	// UnreadTargets is the count of produced units the plan does not judge.
+	// Their committed translation has not been read into the project store
+	// yet, so the corpus has not been asked about them. A run reads them first:
+	// the seed phase absorbs the committed record before the pass. So this is a
+	// disclosure, not work. Pricing them would quote a provider call for every
+	// translation the run will recycle, and quoting zero would promise a free
+	// run.
 	UnreadTargets int `json:"unread_targets,omitempty"`
 	// TokenEstimate approximates the input tokens for the remaining AI work:
-	// source characters / 4 (a common chars-per-token heuristic — the
+	// source characters / 4 (a common chars-per-token heuristic, the
 	// providers expose no tokenizer here, so this is an estimate, not a
 	// quote).
 	TokenEstimate int `json:"token_estimate"`
@@ -136,7 +132,7 @@ type UpPlanOutput struct {
 	Subscription bool `json:"subscription,omitempty"`
 	// Monolingual reports a project that resolves no target locale: there is no
 	// per-language work to price. An empty Scopes list otherwise means the work
-	// is already done — or, with UnreadTargets set, that the plan has not been
+	// is already done, or, with UnreadTargets set, that the plan has not been
 	// able to judge it yet. The three must not read the same.
 	Monolingual bool `json:"monolingual,omitempty"`
 	// NoTargets reports a project that declares target languages but has no
@@ -260,7 +256,7 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	// Always name the provider a run would resolve. A plan exists to answer
-	// "what will this do", and which provider does the work is part of that —
+	// "what will this do", and which provider does the work is part of that,
 	// it is also the fastest way to see that a configured default is being
 	// picked up, which is exactly what silently failed before.
 	switch {
@@ -310,7 +306,7 @@ func writeSetAside(w io.Writer, warnings []check.Warning) {
 // For every (collection, locale) scope it counts the units missing a target,
 // estimates content-memory leverage by exact-hash lookup against the project content memory, and
 // prices the remainder as AI work with a chars/4 token estimate. It makes no
-// provider calls and writes nothing — not even the block store.
+// provider calls and writes nothing, not even the block store.
 func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath string) error {
 	ctx := cmd.Context()
 	ctx = ctxOrBackground(ctx)
@@ -335,6 +331,16 @@ type planRun struct {
 	noChecks bool
 }
 
+// runConfig is the run flags' tool config the plan's flow resolves with, so
+// `kapi up --plan --provider demo` prices the flow `kapi up --provider demo`
+// runs. Nil without a command.
+func (r planRun) runConfig() map[string]any {
+	if r.cmd == nil {
+		return nil
+	}
+	return runFlagToolConfig(r.cmd)
+}
+
 // computeProjectPlan resolves the project's units, binds the content memory a
 // run would recycle from as a read-only leverage source, and derives the dry-run
 // work plan. Shared by `kapi up --plan` and the exported UpPlan the desktop
@@ -346,30 +352,14 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		return UpPlanOutput{}, fmt.Errorf("resolve content: %w", err)
 	}
 
-	// The plan IS a number, so a content memory that cannot be read is a fault,
-	// not a degradation: with mem nil every unit reports zero leverage, and the
-	// plan quotes the token and cost estimate for translating from scratch a
-	// project the memory already largely covers. The user approves a far larger —
-	// and more expensive — run than reality warrants, off a figure that looks
-	// authoritative. A wrong number here costs real money.
-	//
-	// The storage.Exists guard below draws the distinction this family needs:
-	// past it the store exists, so a failure to open it can only mean it exists
-	// and cannot be read — exactly the case that must not read as "no memory".
-	// An ABSENT store is a different fact: it says the project holds no content
-	// memory here yet, which prices the work as translating from scratch.
-	//
-	// It asks whether the store exists rather than opening it, because opening
-	// CREATES it: the handle runs every subsystem's migrations at open. A plan
-	// that left a `.kapi/work/store.db` behind would be a dry run with a side effect,
-	// and the next `up` would find a store it did not write.
-	// The decisions the project already holds are read under the same guard, and
-	// for the same reason: a unit whose basis no longer matches its source is
-	// work the plan owes the reader. An absent store yields an empty index: no
-	// decisions, so nothing is stale, and no artifact has been absorbed, so the
-	// corpus has not finished being taught and a produced unit is not judged by
-	// it.
-	basis := upPlanBasis{root: root, projectPath: projectPath}
+	// A content memory that exists and cannot be read fails the plan: read as
+	// empty, it would price every unit as new work. An absent store means the
+	// project has no content memory yet, so the work is priced from scratch.
+	// The plan checks that the store exists rather than opening it, because
+	// opening creates it and a dry run leaves no `.kapi/work/store.db` behind.
+	// The project's decisions are read under the same guard; an absent store
+	// gives an empty index, so nothing is stale.
+	basis := upPlanBasis{root: root, projectPath: projectPath, runConfig: run.runConfig()}
 	// A collection in a format no installed reader opens is left unpriced, and
 	// the plan names it.
 	basis.unread = a.newUnreadSetFor("priced")
@@ -493,9 +483,9 @@ func (a *App) applyPlanProvider(plan *UpPlanOutput) {
 	}
 }
 
-// UpPlan computes the dry-run convergence plan `kapi up --plan` reports — per
+// UpPlan computes the dry-run convergence plan `kapi up --plan` reports, per
 // (collection, locale): units missing a target, exact content-memory leverage, the
-// remaining AI work, and a chars/4 token estimate — for an embedding caller
+// remaining AI work, and a chars/4 token estimate, for an embedding caller
 // (the desktop's pre-flight dialog). It is read-only and self-contained: no
 // provider calls, nothing written, state derived from the working tree on
 // every call. sourceLang overrides the project's source language when
@@ -524,10 +514,10 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 // whether any of them costs a provider call.
 //
 // It is read out of the tool registry rather than matched on tool names, so a
-// plugin's producer is classified by what it declares — a step that produces a
-// target and reads the content memory is leverage, one that produces a target
-// and calls out is spend — and a flow assembled from tools this binary has
-// never heard of is planned as honestly as the built-in one.
+// plugin's producer is classified by what it declares. A step that produces a
+// target and reads the content memory is leverage. One that produces a target
+// and calls out is spend. A flow of tools this binary does not know is planned
+// the same way as the built-in one.
 type upPlanFlow struct {
 	// Name is the name the flow is registered as, and Spec its steps as the
 	// pass executes them, from the same resolution the run makes
@@ -538,7 +528,7 @@ type upPlanFlow struct {
 	Label string
 	// Recycles is true when a step fills a target from the content memory.
 	Recycles bool
-	// Drafts is true when a step produces a target some other way — an AI or
+	// Drafts is true when a step produces a target some other way, an AI or
 	// machine-translation provider, or a local transform.
 	Drafts bool
 	// CallsProvider is true when one of those drafting steps reaches a provider,
@@ -552,8 +542,8 @@ type upPlanFlow struct {
 // exactly as RunDefaultFlowConverge does, including its errors: a plan that
 // quotes figures for a run that cannot start is the same fault as a plan that
 // quotes figures the run would not produce.
-func (a *App) resolveUpPlanFlow(proj *project.KapiProject, projectDir string) (upPlanFlow, error) {
-	cf, err := convergeFlowSpec(proj, projectDir)
+func (a *App) resolveUpPlanFlow(proj *project.KapiProject, projectDir string, runConfig map[string]any) (upPlanFlow, error) {
+	cf, err := convergeFlowSpec(proj, projectDir, runConfig)
 	if err != nil {
 		return upPlanFlow{Label: cf.label}, err
 	}
@@ -576,7 +566,7 @@ func (a *App) resolveUpPlanFlow(proj *project.KapiProject, projectDir string) (u
 	return out, nil
 }
 
-// toolProducesTarget reports whether the tool writes target-side content — the
+// toolProducesTarget reports whether the tool writes target-side content, the
 // question that decides whether a step can close a pending unit at all.
 func toolProducesTarget(s *schema.ComponentSchema) bool {
 	if s == nil || s.ToolMeta == nil {
@@ -591,7 +581,7 @@ func toolProducesTarget(s *schema.ComponentSchema) bool {
 }
 
 // toolCallsProvider reports whether running the tool reaches an external
-// provider — the side effect a token estimate is an estimate of.
+// provider, the side effect a token estimate is an estimate of.
 func toolCallsProvider(s *schema.ComponentSchema) bool {
 	if s == nil || s.ToolMeta == nil {
 		return false
@@ -603,8 +593,11 @@ func toolCallsProvider(s *schema.ComponentSchema) bool {
 // the corpus a run would recycle from, the decisions it would read, and the
 // target artifacts the record absorber has already had its say about.
 type upPlanBasis struct {
-	memory   memory.ContentMemory
-	reviewed reviewedIndex
+	// runConfig is the run flags' tool config the flow resolves with
+	// (convergeFlowSpec).
+	runConfig map[string]any
+	memory    memory.ContentMemory
+	reviewed  reviewedIndex
 	// settled keys absolute target paths; see App.recordSettlement.
 	settled map[string]bool
 	// root is the project root a unit's source path is resolved against to name
@@ -633,7 +626,7 @@ type upPlanBasis struct {
 // the flow a run would execute: what that flow can produce is what the plan
 // counts as work, and what it cannot is reported rather than priced.
 func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
-	fl, ferr := a.resolveUpPlanFlow(proj, basis.root)
+	fl, ferr := a.resolveUpPlanFlow(proj, basis.root, basis.runConfig)
 	if ferr != nil {
 		return UpPlanOutput{}, ferr
 	}
@@ -661,7 +654,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if errors.Is(berr, errTargetUnreadable) {
-				continue // unmeasurable target — coverage counts it by presence
+				continue // an unmeasurable target: coverage counts it by presence
 			}
 			if basis.unread.skipUnit(nil, berr, basis.root, u) {
 				continue
@@ -695,19 +688,17 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			// (model.RunsHaveContent). Under TargetText() a target whose only run
 			// is an inline code flattened to "" and counted as missing, so every
 			// `kapi up` pass re-planned and re-translated a unit that was already
-			// done — billed AI work on content that needed none.
+			// done, billed AI work on content that needed none.
 			produced := !missing && model.RunsHaveContent(b.TargetRuns(target))
-			// A produced unit whose corpus answer the absorber has not settled yet
-			// cannot be judged: the seed phase runs before the pass and may pair
-			// this very target with its source. Asking now would price a provider
-			// call for every translation the run is about to recycle — so it is
-			// reported as unread rather than guessed at either way.
+			// A produced unit whose corpus answer the absorber has not settled
+			// yet is reported as unread. The seed phase runs before the pass and
+			// may pair this target with its source, so pricing it now would quote
+			// a provider call for a translation the run will recycle.
 			//
 			// That holds for a delivered file. A produced unit with no file on
-			// disk is a parked locale's draft, read out of the workspace home:
-			// there is no committed translation for the absorber to read, so the
-			// corpus's silence about it is final, and the reuse question below is
-			// what prices it.
+			// disk is a parked locale's draft from the workspace home. No
+			// committed translation exists for the absorber to read, so the
+			// reuse question below prices it.
 			if produced && delivered && !settled && basis.reviewed.basisFor(scope, b, u.Locale) != basisStale {
 				s.UnreadTargets++
 				continue
@@ -716,7 +707,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			// step fills what the content memory answers exactly and a drafting
 			// step produces the remainder (skip_matched). So this is the question
 			// that decides what a unit costs, and it is put to every unit the plan
-			// counts. It is a fact about the corpus alone — what the configured
+			// counts. It is a fact about the corpus alone, what the configured
 			// flow does with the answer is decided below.
 			answered := planMemoryExactHit(ctx, basis.memory, b, source, target)
 			switch {
@@ -734,7 +725,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 				// Nothing to do, so nothing to price.
 				continue
 			default:
-				// Produced, and the record does not pair it with its source — a
+				// Produced, and the record does not pair it with its source, a
 				// rewritten source, an identical pair no approval stands behind, a
 				// pair refused for asymmetric codes. `recycle` has nothing to fill
 				// it with, so the pass drafts it and the draft replaces what is on
@@ -820,7 +811,7 @@ func targetDelivered(targetPath string) bool {
 }
 
 // planMemoryExactHit reports whether the block's source has an unambiguous exact
-// (score 1.0) content-memory hit with a non-empty target variant — the cheap "content memory exact"
+// (score 1.0) content-memory hit with a non-empty target variant, the cheap "content memory exact"
 // leverage counted by the plan.
 func planMemoryExactHit(ctx context.Context, tm memory.ContentMemory, b *model.Block, source, target model.LocaleID) bool {
 	if tm == nil {
@@ -834,7 +825,7 @@ func planMemoryExactHit(ctx context.Context, tm memory.ContentMemory, b *model.B
 }
 
 // EstimateTokens approximates the token count of a text as chars/4 (rounded
-// up) — the widely used chars-per-token rule of thumb. The AI providers here
+// up), the widely used chars-per-token rule of thumb. The AI providers here
 // expose no tokenizer, so a real count is not available without a call.
 func EstimateTokens(text string) int {
 	chars := utf8.RuneCountInString(text)

@@ -4,9 +4,9 @@
 // sentence BreakIterator (Unicode Standard Annex #29, "Unicode Text
 // Segmentation"). It registers itself under the name "uax29" in the
 // [github.com/neokapi/neokapi/core/segment] registry when ICU is linked into
-// the binary (any cgo build — ICU is provisioned for every release target);
-// on non-cgo builds the build-tagged stub file is compiled instead and the
-// engine is simply absent.
+// the binary (any cgo build: ICU is provisioned for every release target).
+// On non-cgo builds the build-tagged stub file is compiled instead and the
+// engine is absent.
 //
 // Blank-import this package to make the engine available:
 //
@@ -16,29 +16,12 @@
 // recipe, "engine: uax29".
 package uax29
 
-// #cgo pkg-config: icu-uc icu-i18n
-//
-// #include <stdlib.h>
-// #include <unicode/utypes.h>
-// #include <unicode/ubrk.h>
-//
-// // open_sentence_breaker opens a sentence BreakIterator over the given UTF-16
-// // text for the given locale. A fresh iterator is opened per call so the
-// // engine is safe under concurrent use (no shared *UBreakIterator). Returns
-// // NULL and sets *status on failure.
-// static UBreakIterator *open_sentence_breaker(const char *locale,
-//                                              const UChar *text, int32_t len,
-//                                              UErrorCode *status) {
-//     return ubrk_open(UBRK_SENTENCE, locale, text, len, status);
-// }
-import "C"
-
 import (
 	"context"
 	"fmt"
 	"unicode/utf16"
-	"unsafe"
 
+	"github.com/neokapi/neokapi/core/internal/icu"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/segment"
 )
@@ -130,33 +113,15 @@ func (e *icuEngine) boundaries(runes []rune, locale string) ([]int, error) {
 	}
 	utf16ToRune[len(u16)] = runeIdx // == len(runes)
 
-	cLocale := C.CString(locale)
-	defer C.free(unsafe.Pointer(cLocale))
-
-	// Pin the UTF-16 buffer for the duration of the cgo call. C.CBytes copies
-	// into C memory we own and free; ICU only reads it.
-	cText := (*C.UChar)(C.CBytes(uint16SliceBytes(u16)))
-	defer C.free(unsafe.Pointer(cText))
-
-	var status C.UErrorCode
-	bi := C.open_sentence_breaker(cLocale, cText, C.int32_t(len(u16)), &status)
-	if isFailure(status) || bi == nil {
-		return nil, fmt.Errorf("uax29: ubrk_open failed (locale %q): %s", locale, errorName(status))
+	// ICU returns the boundaries after the first. The final one (== len(u16))
+	// is not a segment-interior break, so it is dropped. Everything before it
+	// is a sentence boundary.
+	positions, err := icu.SentenceBreaks(u16, locale)
+	if err != nil {
+		return nil, fmt.Errorf("uax29: %w", err)
 	}
-	defer C.ubrk_close(bi)
-
-	// ubrk_first returns 0; subsequent ubrk_next calls return increasing
-	// UTF-16 boundary positions, ending with UBRK_DONE. The first boundary (0)
-	// and the final boundary (== len(u16)) are not segment-interior breaks, so
-	// we drop them. Everything in between is a sentence boundary.
-	breaks := make([]int, 0, 8)
-	C.ubrk_first(bi)
-	for {
-		pos := C.ubrk_next(bi)
-		if pos == C.UBRK_DONE {
-			break
-		}
-		off := int(pos)
+	breaks := make([]int, 0, len(positions))
+	for _, off := range positions {
 		if off <= 0 || off >= len(u16) {
 			continue // boundary 0 or final boundary
 		}
@@ -185,21 +150,4 @@ func bcp47ToICU(s string) string {
 		}
 	}
 	return string(b)
-}
-
-// uint16SliceBytes reinterprets a []uint16 as the underlying byte slice so it
-// can be copied into C memory with the host byte order ICU expects (UChar is a
-// 16-bit unit in native endianness, matching how the Go runtime laid out the
-// slice).
-func uint16SliceBytes(u []uint16) []byte {
-	if len(u) == 0 {
-		return nil
-	}
-	return unsafe.Slice((*byte)(unsafe.Pointer(&u[0])), len(u)*2)
-}
-
-func isFailure(status C.UErrorCode) bool { return int(status) > 0 }
-
-func errorName(status C.UErrorCode) string {
-	return C.GoString(C.u_errorName(status))
 }

@@ -3,8 +3,7 @@
  * review store, and the HTTP handler round-trip.
  */
 
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseSync } from "@swc/core";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -15,6 +14,7 @@ import { extractDocument } from "../src/extract/walker.ts";
 import { transform } from "../src/plugin/transform.ts";
 import { hashKey } from "../src/plugin/hash.ts";
 import { ReviewStore, handleReviewRequest } from "../src/review/store.ts";
+import { tempDir } from "./temp-dir";
 
 const tmp: string[] = [];
 afterEach(() => {
@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 function scratch(): string {
-  const dir = mkdtempSync(join(tmpdir(), "kapi-review-"));
+  const dir = tempDir("kapi-review");
   tmp.push(dir);
   return dir;
 }

@@ -62,6 +62,9 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 		return explainBindings(cmd.OutOrStdout(), flowName, inputPaths, out)
 	}
 
+	if err := refusePackWithoutKpz(cmd, inputPaths); err != nil {
+		return err
+	}
 	if len(inputPaths) > 0 {
 		outputFlag, _ := cmd.Flags().GetString("output")
 		// Running a flow on a .kpz transforms the workspace IN PLACE
@@ -111,25 +114,16 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
 	cmd.Flags().StringP("output", "o", "", "output path or template (e.g. ./out/{name}_{lang}.{ext})")
 	cmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
-	cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
-	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
-	cmd.Flags().String("api-key", "", "API key for the AI provider")
-	cmd.Flags().String("model", "", "AI model name")
-	cmd.Flags().String("instruction", "", "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")")
-	cmd.Flags().String("context", "", "what the model is told about a block besides the block: none, key (default), neighbours")
-	cmd.Flags().String("batching", "", "how many blocks share one LLM call: auto (default), single")
-	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
+	AddRunConfigFlags(cmd)
+	addTraceFlag(cmd)
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
-	cmd.Flags().String("memory", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
-	cmd.Flags().String("termstore", "", "named terms store for term-lookup/enforce (resolves from KAPI_HOME)")
-	cmd.Flags().Bool("stats", false, "include part/block counts in output")
+	addStoreFlags(cmd)
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
 	// The exec commands have carried this pair since they gained a file list;
 	// the flow commands take a file list too and had neither, so there was no
 	// way to ask a flow run to be strict about a format it could not read.
-	cmd.Flags().Bool("fail-on-unknown", false, "exit with error if any file cannot be processed (default: skip with a warning)")
-	cmd.Flags().Bool("strict", false, "alias for --fail-on-unknown")
+	addStrictFlags(cmd)
 	cmd.Flags().Bool(printOpsFlag, false, printOpsUsage)
 }
 
@@ -333,11 +327,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	defer cleanup()
 
 	// Wrap IO-bound tools with ParallelBlockTool.
-	parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
-	if parallelBlocks == 0 {
-		parallelBlocks = a.resolveParallelBlocks(flowName)
-	}
-	if parallelBlocks > 1 {
+	if parallelBlocks := a.parallelBlocksFor(cmd, flowName); parallelBlocks > 1 {
 		for i, ft := range flowTools {
 			flowTools[i] = tool.NewParallelBlockTool(ft, parallelBlocks)
 		}
@@ -512,6 +502,12 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		}
 		if stopProgress != nil {
 			stopProgress()
+		}
+		// The trace covers the run, whether or not it writes a file.
+		if tracePath != "" && recorder != nil {
+			if err := a.writeTraceFile(tracePath, flowName, fmtName, inputPath, "", recorder, stepNames); err != nil {
+				return err
+			}
 		}
 		emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: inputPath})
 		emit(FlowRunEvent{
@@ -1037,7 +1033,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	copy(flowTools, shared)
 
 	// Auto-wrap IO-bound tools with ParallelBlockTool.
-	if n := a.resolveParallelBlocks(flowName); n > 1 {
+	if n := a.parallelBlocksFor(cmd, flowName); n > 1 {
 		for i, ft := range flowTools {
 			flowTools[i] = tool.NewParallelBlockTool(ft, n)
 		}
@@ -1792,6 +1788,16 @@ func (a *App) grantMemory(toolName string, config map[string]any, cmd ...Command
 
 // resolveParallelBlocks returns the parallel block concurrency to use.
 // Prefers project context setting, then falls back to flow/tool defaults.
+// parallelBlocksFor is the block fan-out a file of this run gets: --parallel-blocks
+// when set, else resolveParallelBlocks. A single file and a batch read it the
+// same way.
+func (a *App) parallelBlocksFor(cmd Command, flowName string) int {
+	if n, _ := cmd.Flags().GetInt("parallel-blocks"); n > 0 {
+		return n
+	}
+	return a.resolveParallelBlocks(flowName)
+}
+
 func (a *App) resolveParallelBlocks(flowName string) int {
 	if a.ProjectContext != nil && a.ProjectContext.ParallelBlocks > 0 {
 		return a.ProjectContext.ParallelBlocks

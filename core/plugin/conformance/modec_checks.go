@@ -143,6 +143,12 @@ type daemonSession struct {
 	hs   Handshake
 	conn *grpc.ClientConn
 
+	// tmp is the daemon's TMPDIR, a directory of its own that close removes.
+	// A daemon killed before it could clean up, or one that never announced
+	// its socket, leaves its socket there rather than in the shared
+	// temporary directory.
+	tmp string
+
 	// stdout and stderr are the read ends of pipes this session owns. They are
 	// deliberately not exec's StdoutPipe/StderrPipe: those are closed by
 	// cmd.Wait, which would race the reader goroutines below.
@@ -208,7 +214,7 @@ func (d *daemonSession) diagnostics() string {
 }
 
 // waitExit waits up to timeout for the process to exit, reporting whether it
-// did. It never calls Wait itself — the reaper owns that.
+// did. It never calls Wait itself; the reaper owns that.
 func (d *daemonSession) waitExit(timeout time.Duration) bool {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
@@ -243,17 +249,20 @@ func (d *daemonSession) close() {
 	if d.hs.Socket != "" {
 		_ = os.Remove(d.hs.Socket)
 	}
+	if d.tmp != "" {
+		_ = os.RemoveAll(d.tmp)
+	}
 }
 
 // startupTimeout resolves the handshake budget: an explicit Suite.StartupTimeout
 // first, then whatever the manifest asked for, then the host's default.
 //
 // It is deliberately not clamped by Suite.Timeout. Startup is a wait on the
-// plugin's own process, not work the suite does, and clamping it made the
-// per-check budget double as the startup budget: a caller who shortened Timeout
-// for an unrelated reason silently starved startup, and on a loaded machine
-// every negative Mode-C case then reported "no handshake line" instead of the
-// protocol violation it was written to catch.
+// plugin's own process, not work the suite does. Clamping it would make the
+// per-check budget double as the startup budget. A caller who shortened Timeout
+// for an unrelated reason would starve startup, and on a loaded machine every
+// negative Mode-C case would report "no handshake line" instead of the protocol
+// violation it was written to catch.
 func (r *runner) startupTimeout() time.Duration {
 	if d := r.suite.StartupTimeout; d > 0 {
 		return d
@@ -303,18 +312,27 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 	// is torn down by modeC.sigterm-exit, or by runner.cleanup on any early
 	// return.
 	cmd := exec.Command(r.binPath, "daemon") //nolint:noctx // long-lived daemon, torn down by the suite
-	cmd.Env = r.pluginEnv()
+	// The name is short because a Unix socket path is limited to about 100
+	// bytes, and the daemon puts its socket, often in a directory of its own,
+	// under this one.
+	tmp, err := os.MkdirTemp("", "kc")
+	if err != nil {
+		return Fail, fmt.Sprintf("temporary directory for the daemon: %v", err), err
+	}
+	cmd.Env = append(r.pluginEnv(), "TMPDIR="+tmp)
 
 	// Own the pipes rather than using cmd.StdoutPipe/StderrPipe: exec closes
 	// those from Wait, which would race the reader goroutines below (the
 	// daemon's stdout is read for the whole session, not just at startup).
 	outR, outW, err := os.Pipe()
 	if err != nil {
+		_ = os.RemoveAll(tmp)
 		return Fail, fmt.Sprintf("stdout pipe: %v", err), err
 	}
 	errR, errW, err := os.Pipe()
 	if err != nil {
 		_, _ = outR.Close(), outW.Close()
+		_ = os.RemoveAll(tmp)
 		return Fail, fmt.Sprintf("stderr pipe: %v", err), err
 	}
 	cmd.Stdout, cmd.Stderr = outW, errW
@@ -322,13 +340,14 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 	if err := cmd.Start(); err != nil {
 		_, _ = outR.Close(), outW.Close()
 		_, _ = errR.Close(), errW.Close()
+		_ = os.RemoveAll(tmp)
 		return Fail, fmt.Sprintf("start `daemon`: %v", err), err
 	}
 	// The child holds its own descriptors now; dropping ours makes the readers
 	// see EOF when the daemon exits.
 	_, _ = outW.Close(), errW.Close()
 
-	sess := &daemonSession{cmd: cmd, stdout: outR, stderr: errR}
+	sess := &daemonSession{cmd: cmd, stdout: outR, stderr: errR, tmp: tmp}
 	sess.reap()
 	go func() {
 		buf, _ := io.ReadAll(errR)
@@ -362,7 +381,7 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 
 	// The startup budget is the authority on how long a daemon may take to
 	// announce itself, and the per-check deadline is that budget plus
-	// Suite.Timeout — so this timer always fires first and the failure is always
+	// Suite.Timeout, so this timer always fires first and the failure is always
 	// attributed to the budget that actually governs it. A ctx deadline can still
 	// arrive first if the *caller* bounded the whole run; that is the run running
 	// out of time, not a statement about the daemon, so it is reported as itself.
@@ -537,7 +556,7 @@ func checkModeCGRPCReady(ctx context.Context, r *runner) (Status, string, error)
 	return Pass, fmt.Sprintf("READY after %s", time.Since(start).Round(time.Millisecond)), nil
 }
 
-// isUnimplemented reports whether err is a gRPC Unimplemented status — the
+// isUnimplemented reports whether err is a gRPC Unimplemented status: the
 // signature of a service (or method) the daemon never registered.
 func isUnimplemented(err error) bool {
 	return status.Code(err) == codes.Unimplemented
@@ -812,8 +831,8 @@ func checkModeCCommentsRPC(ctx context.Context, r *runner) (Status, string, erro
 
 // shutdownGrace bounds how long the daemon may take to exit after Shutdown or
 // SIGTERM. Like the startup budget it is independent of Suite.Timeout, so a
-// caller can shorten the teardown wait — the one wait a well-behaved plugin
-// never uses in full — without touching how patiently the suite waits for a
+// caller can shorten the teardown wait (the one wait a well-behaved plugin
+// never uses in full) without touching how patiently the suite waits for a
 // daemon to start.
 func (r *runner) shutdownGrace() time.Duration { return r.suite.shutdownGrace() }
 
