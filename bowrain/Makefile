@@ -4,13 +4,6 @@
 # Modules: neokapi/bowrain/core (interface), neokapi/bowrain/plugin (kapi-bowrain plugin), neokapi/bowrain (server+app).
 # Can be used standalone (cd bowrain && make test) or delegated from root.
 
-# Suppress macOS linker warnings for CGO (Wails WebView)
-ifeq ($(shell uname -s),Darwin)
-export MACOSX_DEPLOYMENT_TARGET := 10.15
-export CGO_CFLAGS := -mmacosx-version-min=10.15
-export CGO_LDFLAGS := -mmacosx-version-min=10.15
-endif
-
 # Node 22 requires --experimental-strip-types to load .ts config files
 # (vite.config.ts) via native ESM in tools like vite-plus (vp check/lint).
 export NODE_OPTIONS := --experimental-strip-types

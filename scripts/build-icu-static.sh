@@ -226,7 +226,7 @@ static int count_breaks(UBreakIteratorType type, const char *locale,
 }
 
 int main(void) {
-  /* The FTS5 tokenizer's default rule (core/storage/fts5_icu.h). */
+  /* The FTS5 tokenizer's default rule (core/internal/icu/fts5_icu.h). */
   static const char *rules =
       "NFKD; Arabic-Latin; Cyrillic-Latin; Hebrew-Latin; Greek-Latin; "
       "Latin-ASCII; Lower; NFKC; Traditional-Simplified; Katakana-Hiragana";
