@@ -16,6 +16,7 @@ import (
 	_ "github.com/neokapi/neokapi/host/venue/schema"
 
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/desktopclose"
 	"github.com/neokapi/neokapi/host/desktopmenu"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -75,7 +76,7 @@ func main() {
 		// Linux. A tab with unsaved changes or a running flow holds the quit
 		// until the person answers the frontend's dialog.
 		ShouldQuit: func() bool {
-			return backend.GuardClose(appService, backend.CloseRouteQuit)
+			return backend.GuardClose(appService, desktopclose.RouteQuit)
 		},
 	})
 
@@ -129,7 +130,7 @@ func main() {
 	// destroyed and can cancel it. A confirmed close finishes by the route that
 	// asked.
 	win.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
-		if !backend.GuardClose(appService, backend.CloseRouteWindow) {
+		if !backend.GuardClose(appService, desktopclose.RouteWindow) {
 			event.Cancel()
 		}
 	})
@@ -139,7 +140,7 @@ func main() {
 	// holds the window with its reasons, and offers to close anyway (running
 	// flows are cancelled, unsaved changes are dropped) or to cancel. The app
 	// can always be closed, and never drops work without asking.
-	backend.SetCloseFallback(appService, func(_ backend.CloseRoute, blockers []backend.CloseBlocker) bool {
+	backend.SetCloseFallback(appService, func(_ desktopclose.Route, blockers []desktopclose.Blocker) bool {
 		tr := appService.T()
 		lines := make([]string, 0, len(blockers))
 		unsaved := false

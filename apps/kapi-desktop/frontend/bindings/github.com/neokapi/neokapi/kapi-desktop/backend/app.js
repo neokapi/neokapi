@@ -3215,7 +3215,7 @@ export function SetUILanguage(lang) {
  * SetUnsavedTabs records which project tabs have unsaved changes. The frontend
  * calls it whenever that set changes, and with an empty list when the page
  * unloads. While it is not empty, or a flow is running, a window close or a
- * quit is held and CloseRequestedEvent asks the frontend what to do.
+ * quit is held and desktopclose.RequestedEvent asks the frontend what to do.
  * @param {string[]} tabIDs
  * @returns {$CancellablePromise<void>}
  */

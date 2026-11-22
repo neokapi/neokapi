@@ -160,9 +160,9 @@ type App struct {
 	eventMu   sync.RWMutex
 	eventSink func(name string, data any)
 
-	// closeGuard holds a window close or a quit while a tab has unsaved
-	// changes (closeguard.go).
-	closeGuard closeGuard
+	// closing holds a window close or a quit while a tab has unsaved changes
+	// or a running flow (closeguard.go).
+	closing closeState
 
 	logger *log.Logger
 

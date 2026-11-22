@@ -37,6 +37,7 @@ import (
 	"time"
 
 	// Parity with the desktop app: register bowrain recipe schema extensions.
+	"github.com/neokapi/neokapi/host/desktopclose"
 	_ "github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 )
@@ -155,15 +156,15 @@ func main() {
 	// unsaved-changes dialog. A confirmed close logs "closer ran: <route>"
 	// where the app would close the window or quit.
 	backend.SetClosers(app,
-		func() { log.Printf("wbridge: closer ran: %s", backend.CloseRouteWindow) },
-		func() { log.Printf("wbridge: closer ran: %s", backend.CloseRouteQuit) })
+		func() { log.Printf("wbridge: closer ran: %s", desktopclose.RouteWindow) },
+		func() { log.Printf("wbridge: closer ran: %s", desktopclose.RouteQuit) })
 	mux.HandleFunc("/close", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "POST only", http.StatusMethodNotAllowed)
 			return
 		}
-		route := backend.CloseRoute(r.URL.Query().Get("route"))
-		if route != backend.CloseRouteWindow && route != backend.CloseRouteQuit {
+		route := desktopclose.Route(r.URL.Query().Get("route"))
+		if route != desktopclose.RouteWindow && route != desktopclose.RouteQuit {
 			http.Error(w, "route must be window or quit", http.StatusBadRequest)
 			return
 		}
