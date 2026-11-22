@@ -137,6 +137,68 @@ describe("ProjectFlowsEditor after the person's own save", () => {
   });
 });
 
+describe("ProjectFlowsEditor with an edit made while the previous save is on its way", () => {
+  /** Holds every save for 300 ms, as a slow connection does. */
+  function slowSaves(
+    update: ReturnType<typeof setup>["update"],
+    realUpdate: ReturnType<typeof setup>["realUpdate"],
+  ) {
+    update.mockImplementation(async (...args) => {
+      await new Promise((r) => setTimeout(r, 300));
+      return realUpdate(...args);
+    });
+  }
+
+  it("sends the second save after the first, based on the revision the first wrote", async () => {
+    const { flows, update, realUpdate, user } = setup(20);
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    slowSaves(update, realUpdate);
+
+    await addAStep(user);
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    // The second edit lands while the first save is still on its way.
+    await addAStep(user);
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    await waitFor(() => expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved"), {
+      timeout: 3000,
+    });
+    const first = update.mock.calls[0][3];
+    const second = update.mock.calls[1][3];
+    expect(first.revision).toBe("r-review");
+    // The second is based on what the first wrote, which is not the revision
+    // the flow was opened at.
+    expect(second.revision).not.toBe("r-review");
+    expect(flows.find((f) => f.id === "flow-review")?.revision).not.toBe(second.revision);
+    expect(second.nodes.length).toBeGreaterThan(first.nodes.length);
+    expect(screen.queryByTestId("flow-changed-dialog")).toBeNull();
+  });
+
+  it("still asks when someone else saves during that sequence", async () => {
+    const { api, flows, update, realUpdate, user } = setup(20);
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    slowSaves(update, realUpdate);
+
+    await addAStep(user);
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    await addAStep(user);
+    // Once the first save has landed, a teammate saves before the second.
+    await waitFor(
+      () => expect(flows.find((f) => f.id === "flow-review")?.revision).not.toBe("r-review"),
+      { timeout: 3000 },
+    );
+    const theirs = await api.getFlowDefinition("acme", "p-1", "flow-review");
+    await realUpdate("acme", "p-1", "flow-review", { ...theirs, name: "Teammate's flow" });
+
+    expect(
+      await screen.findByTestId("flow-changed-dialog", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(flows.find((f) => f.id === "flow-review")?.name).toBe("Teammate's flow");
+  });
+});
+
 describe("ProjectFlowsEditor when the refused save is dismissed away from the flow", () => {
   it("a conflict raised by Back and dismissed on the list keeps the edit for the flow", async () => {
     const { api, flows, user } = setup(60_000);

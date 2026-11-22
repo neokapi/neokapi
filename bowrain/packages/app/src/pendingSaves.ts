@@ -229,6 +229,19 @@ export function savePendingEdit(key: string): Promise<void> {
   return run;
 }
 
+/**
+ * Replaces the data of the current user's record for key without counting it
+ * as a new edit: a save under way that started before still clears the record
+ * when it succeeds. A surface uses it to move a recorded edit onto what its
+ * last save wrote.
+ */
+export function updatePendingEditData(key: string, update: (data: unknown) => unknown): void {
+  const entry = ownEntry(key);
+  if (!entry) return;
+  entry.data = update(entry.data);
+  changed();
+}
+
 /** Drops a recorded edit the person chose not to keep, if it is theirs. */
 export function discardPendingEdit(key: string): void {
   if (principal && entries.delete(ownedKey(principal, key))) changed();

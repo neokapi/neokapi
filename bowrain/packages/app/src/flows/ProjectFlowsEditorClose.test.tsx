@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vite-plus/test"
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ApiProvider, TooltipProvider } from "@neokapi/ui";
+import { ApiProvider, TooltipProvider, type FlowDefinitionInfo } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { createFlowsApi, projectReview, sampleFlows } from "./fixtures";
 import {
@@ -20,7 +20,7 @@ import {
 beforeEach(() => setPendingSavesUser("u1"));
 afterEach(() => discardAllPendingSaves());
 
-const projectGlossary = {
+const projectTerms: FlowDefinitionInfo = {
   ...projectReview,
   id: "flow-terms",
   name: "Terms only",
@@ -29,7 +29,7 @@ const projectGlossary = {
 };
 
 function setup(saveDelayMs = 60_000) {
-  const { api, flows } = createFlowsApi({ flows: [...sampleFlows, projectGlossary] });
+  const { api, flows } = createFlowsApi({ flows: [...sampleFlows, projectTerms] });
   const update = vi.spyOn(api, "updateFlowDefinition");
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const tree = (

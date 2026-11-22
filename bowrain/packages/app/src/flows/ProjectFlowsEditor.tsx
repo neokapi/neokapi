@@ -23,6 +23,7 @@ import {
   recordPendingEdit,
   savePendingEdit,
   subscribePendingSaves,
+  updatePendingEditData,
   type PendingEdit,
 } from "../pendingSaves";
 
@@ -125,22 +126,35 @@ export function ProjectFlowsEditor({
     [keyOf, invalidate],
   );
 
-  /** Records the open flow as it now stands, to be saved. */
+  /**
+   * Records the open flow as it now stands, to be saved. The record carries
+   * the revision its save builds on, read when the save is sent: saves of one
+   * flow run one after another, and an edit made while the previous save was
+   * on its way is moved onto the revision that save wrote.
+   */
   const record = useCallback(
     (edit: OpenFlow) => {
       const { flow, spec } = edit;
+      const key = keyOf(flow.id);
       recordPendingEdit({
-        key: keyOf(flow.id),
+        key,
         label: flow.name,
         scope,
         data: edit,
         send: async () => {
+          const base = (entryOf(flow.id)?.data as OpenFlow | undefined)?.flow.revision;
           const saved = await api.updateFlowDefinition(
             workspaceSlug,
             projectId,
             flow.id,
-            specToDefinition(spec, flow),
+            specToDefinition(spec, { ...flow, revision: base ?? flow.revision }),
           );
+          // A newer edit recorded while this save was on its way builds on
+          // the revision just written, not on the one this save replaced.
+          updatePendingEditData(key, (data) => {
+            const d = data as OpenFlow;
+            return { ...d, flow: { ...d.flow, revision: saved.revision } };
+          });
           // Every view of this flow saves against the revision just written:
           // an editor reopened from the list before its refetch arrives would
           // otherwise base its next save on the older revision and be refused
@@ -164,7 +178,18 @@ export function ProjectFlowsEditor({
         },
       });
     },
-    [api, workspaceSlug, projectId, scope, keyOf, invalidate, setOpen, queryClient, flowsKey],
+    [
+      api,
+      workspaceSlug,
+      projectId,
+      scope,
+      keyOf,
+      entryOf,
+      invalidate,
+      setOpen,
+      queryClient,
+      flowsKey,
+    ],
   );
 
   /**
